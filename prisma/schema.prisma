@@ -1,0 +1,206 @@
+// ============================================================
+// Mise — Prisma Schema (Sprint 0 — Identity Layer)
+// ============================================================
+// Based on Master Spec v1.4
+// Tables: tenant, branch, app_user, tenant_membership,
+//         user_branch_access, department, user_department_assignment
+//
+// Additional Sprint 0 tables (for Auth.js + RLS support):
+//         Account, Session, VerificationToken
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// AUTH.JS TABLES (managed by @auth/prisma-adapter)
+// ============================================================
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("account")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("session")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_token")
+}
+
+// ============================================================
+// IDENTITY LAYER (Mise — Sprint 0)
+// ============================================================
+
+model Tenant {
+  id                       String   @id @default(uuid()) @db.Uuid
+  name                     String
+  legalName                String?  @map("legal_name")
+  taxId                    String?  @map("tax_id")
+  timezone                 String   @default("Asia/Bangkok")
+  currency                 String   @default("THB")
+  fiscalYearStartMonth     Int      @default(1) @map("fiscal_year_start_month")
+  plan                     String   @default("trial") // trial, basic, pro, enterprise
+
+  // v1.2 opt-in features
+  enableDepartments        Boolean  @default(false) @map("enable_departments")
+  isVatRegistered          Boolean  @default(false) @map("is_vat_registered")
+  vatRegistrationNo        String?  @map("vat_registration_no")
+  defaultVatRatePercent    Decimal  @default(7.00) @map("default_vat_rate_percent") @db.Decimal(5, 2)
+
+  settings                 Json?    @db.JsonB
+
+  createdAt                DateTime @default(now()) @map("created_at")
+  updatedAt                DateTime @updatedAt @map("updated_at")
+  deletedAt                DateTime? @map("deleted_at")
+
+  branches                 Branch[]
+  memberships              TenantMembership[]
+  departments              Department[]
+
+  @@map("tenant")
+}
+
+model Branch {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  name      String
+  code      String?
+  address   String?
+  isActive  Boolean  @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  tenant       Tenant             @relation(fields: [tenantId], references: [id])
+  userAccess   UserBranchAccess[]
+
+  @@index([tenantId])
+  @@map("branch")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  emailVerified DateTime? @map("email_verified")  // For Auth.js
+  name         String?
+  image        String?  // For Auth.js
+  phone        String?
+  authProvider String?  @map("auth_provider")
+
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  accounts     Account[]
+  sessions     Session[]
+  memberships  TenantMembership[]
+
+  @@map("app_user")
+}
+
+model TenantMembership {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  userId    String   @map("user_id")
+  role      String   // owner, manager, purchaser, kitchen_staff, accountant, viewer
+  isActive  Boolean  @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant       Tenant                     @relation(fields: [tenantId], references: [id])
+  user         User                    @relation(fields: [userId], references: [id])
+  branchAccess UserBranchAccess[]
+  deptAssignments UserDepartmentAssignment[]
+
+  @@unique([tenantId, userId])
+  @@map("tenant_membership")
+}
+
+model UserBranchAccess {
+  id                  String @id @default(uuid()) @db.Uuid
+  tenantMembershipId  String @map("tenant_membership_id") @db.Uuid
+  branchId            String @map("branch_id") @db.Uuid
+
+  membership TenantMembership @relation(fields: [tenantMembershipId], references: [id])
+  branch     Branch            @relation(fields: [branchId], references: [id])
+
+  @@unique([tenantMembershipId, branchId])
+  @@map("user_branch_access")
+}
+
+model Department {
+  id           String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  name         String
+  code         String
+  description  String?
+  parentDeptId String?  @map("parent_dept_id") @db.Uuid
+  isActive     Boolean  @default(true) @map("is_active")
+  displayOrder Int?     @map("display_order")
+
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  tenant       Tenant     @relation(fields: [tenantId], references: [id])
+  parentDept   Department? @relation("DeptHierarchy", fields: [parentDeptId], references: [id])
+  childDepts   Department[] @relation("DeptHierarchy")
+  assignments  UserDepartmentAssignment[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@map("department")
+}
+
+model UserDepartmentAssignment {
+  id                 String  @id @default(uuid()) @db.Uuid
+  tenantMembershipId String  @map("tenant_membership_id") @db.Uuid
+  departmentId       String  @map("department_id") @db.Uuid
+
+  isPrimary       Boolean @default(false) @map("is_primary")
+  canRequestFor   Boolean @default(false) @map("can_request_for")
+  canApproveFor   Boolean @default(false) @map("can_approve_for")
+  canReceiveFor   Boolean @default(false) @map("can_receive_for")
+
+  membership TenantMembership @relation(fields: [tenantMembershipId], references: [id])
+  department Department       @relation(fields: [departmentId], references: [id])
+
+  @@unique([tenantMembershipId, departmentId])
+  @@map("user_department_assignment")
+}
