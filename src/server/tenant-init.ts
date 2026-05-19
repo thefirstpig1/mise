@@ -94,6 +94,43 @@ export async function createTenant(input: CreateTenantInput) {
       },
     });
 
+    // 7. Auto-seed 16 default categories (H.1.2)
+    const DEFAULT_CATEGORIES = [
+      // COGS — Food
+      { account: "COGS", accountingSection: "Food", groupName: "Meat" },
+      { account: "COGS", accountingSection: "Food", groupName: "Seafood" },
+      { account: "COGS", accountingSection: "Food", groupName: "Vegetables" },
+      { account: "COGS", accountingSection: "Food", groupName: "Dry goods" },
+      // COGS — Beverage
+      { account: "COGS", accountingSection: "Beverage", groupName: "Coffee" },
+      { account: "COGS", accountingSection: "Beverage", groupName: "Alcohol" },
+      { account: "COGS", accountingSection: "Beverage", groupName: "Soft drinks" },
+      // COGS — Packaging
+      { account: "COGS", accountingSection: "Packaging", groupName: "Single-use" },
+      // OpEx — Utilities
+      { account: "OpEx", accountingSection: "Utilities", groupName: "Electricity" },
+      { account: "OpEx", accountingSection: "Utilities", groupName: "Water" },
+      { account: "OpEx", accountingSection: "Utilities", groupName: "Internet" },
+      // OpEx — Rent
+      { account: "OpEx", accountingSection: "Rent", groupName: "Building" },
+      // OpEx — Labor
+      { account: "OpEx", accountingSection: "Labor", groupName: "Salary" },
+      { account: "OpEx", accountingSection: "Labor", groupName: "Service charge" },
+      // OpEx — Marketing
+      { account: "OpEx", accountingSection: "Marketing", groupName: "Online ads" },
+      // OpEx — Professional
+      { account: "OpEx", accountingSection: "Professional", groupName: "Accounting" },
+    ];
+
+    await tx.category.createMany({
+      data: DEFAULT_CATEGORIES.map((c) => ({
+        tenantId: tenant.id,
+        account: c.account,
+        accountingSection: c.accountingSection,
+        groupName: c.groupName,
+      })),
+    });
+
     return { tenant, branch, mainDept, membership: ownerMembership };
   });
 }
