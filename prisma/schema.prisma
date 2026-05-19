@@ -47,7 +47,7 @@ model Session {
   sessionToken String   @unique
   userId       String
   expires      DateTime
-  user         User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("session")
 }
@@ -66,86 +66,91 @@ model VerificationToken {
 // ============================================================
 
 model Tenant {
-  id                       String   @id @default(uuid()) @db.Uuid
-  name                     String
-  legalName                String?  @map("legal_name")
-  taxId                    String?  @map("tax_id")
-  timezone                 String   @default("Asia/Bangkok")
-  currency                 String   @default("THB")
-  fiscalYearStartMonth     Int      @default(1) @map("fiscal_year_start_month")
-  plan                     String   @default("trial") // trial, basic, pro, enterprise
+  id                   String  @id @default(uuid()) @db.Uuid
+  name                 String
+  legalName            String? @map("legal_name")
+  taxId                String? @map("tax_id")
+  timezone             String  @default("Asia/Bangkok")
+  currency             String  @default("THB")
+  fiscalYearStartMonth Int     @default(1) @map("fiscal_year_start_month")
+  plan                 String  @default("trial") // trial, basic, pro, enterprise
 
   // v1.2 opt-in features
-  enableDepartments        Boolean  @default(false) @map("enable_departments")
-  isVatRegistered          Boolean  @default(false) @map("is_vat_registered")
-  vatRegistrationNo        String?  @map("vat_registration_no")
-  defaultVatRatePercent    Decimal  @default(7.00) @map("default_vat_rate_percent") @db.Decimal(5, 2)
+  enableDepartments     Boolean @default(false) @map("enable_departments")
+  isVatRegistered       Boolean @default(false) @map("is_vat_registered")
+  vatRegistrationNo     String? @map("vat_registration_no")
+  defaultVatRatePercent Decimal @default(7.00) @map("default_vat_rate_percent") @db.Decimal(5, 2)
 
-  settings                 Json?    @db.JsonB
+  settings Json? @db.JsonB
 
-  createdAt                DateTime @default(now()) @map("created_at")
-  updatedAt                DateTime @updatedAt @map("updated_at")
-  deletedAt                DateTime? @map("deleted_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
 
-  branches                 Branch[]
-  memberships              TenantMembership[]
-  departments              Department[]
+  branches                Branch[]
+  memberships             TenantMembership[]
+  departments             Department[]
+  suppliers               Supplier[]
+  categories              Category[]
+  products                Product[]
+  supplierProductMappings SupplierProductMapping[]
 
   @@map("tenant")
 }
 
 model Branch {
-  id        String   @id @default(uuid()) @db.Uuid
-  tenantId  String   @map("tenant_id") @db.Uuid
-  name      String
-  code      String?
-  address   String?
-  isActive  Boolean  @default(true) @map("is_active")
+  id       String  @id @default(uuid()) @db.Uuid
+  tenantId String  @map("tenant_id") @db.Uuid
+  name     String
+  code     String?
+  address  String?
+  isActive Boolean @default(true) @map("is_active")
 
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
 
-  tenant       Tenant             @relation(fields: [tenantId], references: [id])
-  userAccess   UserBranchAccess[]
+  tenant                  Tenant                   @relation(fields: [tenantId], references: [id])
+  userAccess              UserBranchAccess[]
+  supplierProductMappings SupplierProductMapping[]
 
   @@index([tenantId])
   @@map("branch")
 }
 
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  emailVerified DateTime? @map("email_verified")  // For Auth.js
-  name         String?
-  image        String?  // For Auth.js
-  phone        String?
-  authProvider String?  @map("auth_provider")
+  id            String    @id @default(cuid())
+  email         String    @unique
+  emailVerified DateTime? @map("email_verified") // For Auth.js
+  name          String?
+  image         String? // For Auth.js
+  phone         String?
+  authProvider  String?   @map("auth_provider")
 
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
-  deletedAt    DateTime? @map("deleted_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
 
-  accounts     Account[]
-  sessions     Session[]
-  memberships  TenantMembership[]
+  accounts    Account[]
+  sessions    Session[]
+  memberships TenantMembership[]
 
   @@map("app_user")
 }
 
 model TenantMembership {
-  id        String   @id @default(uuid()) @db.Uuid
-  tenantId  String   @map("tenant_id") @db.Uuid
-  userId    String   @map("user_id")
-  role      String   // owner, manager, purchaser, kitchen_staff, accountant, viewer
-  isActive  Boolean  @default(true) @map("is_active")
+  id       String  @id @default(uuid()) @db.Uuid
+  tenantId String  @map("tenant_id") @db.Uuid
+  userId   String  @map("user_id")
+  role     String // owner, manager, purchaser, kitchen_staff, accountant, viewer
+  isActive Boolean @default(true) @map("is_active")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  tenant       Tenant                     @relation(fields: [tenantId], references: [id])
-  user         User                    @relation(fields: [userId], references: [id])
-  branchAccess UserBranchAccess[]
+  tenant          Tenant                     @relation(fields: [tenantId], references: [id])
+  user            User                       @relation(fields: [userId], references: [id])
+  branchAccess    UserBranchAccess[]
   deptAssignments UserDepartmentAssignment[]
 
   @@unique([tenantId, userId])
@@ -153,35 +158,35 @@ model TenantMembership {
 }
 
 model UserBranchAccess {
-  id                  String @id @default(uuid()) @db.Uuid
-  tenantMembershipId  String @map("tenant_membership_id") @db.Uuid
-  branchId            String @map("branch_id") @db.Uuid
+  id                 String @id @default(uuid()) @db.Uuid
+  tenantMembershipId String @map("tenant_membership_id") @db.Uuid
+  branchId           String @map("branch_id") @db.Uuid
 
   membership TenantMembership @relation(fields: [tenantMembershipId], references: [id])
-  branch     Branch            @relation(fields: [branchId], references: [id])
+  branch     Branch           @relation(fields: [branchId], references: [id])
 
   @@unique([tenantMembershipId, branchId])
   @@map("user_branch_access")
 }
 
 model Department {
-  id           String   @id @default(uuid()) @db.Uuid
-  tenantId     String   @map("tenant_id") @db.Uuid
+  id           String  @id @default(uuid()) @db.Uuid
+  tenantId     String  @map("tenant_id") @db.Uuid
   name         String
   code         String
   description  String?
-  parentDeptId String?  @map("parent_dept_id") @db.Uuid
-  isActive     Boolean  @default(true) @map("is_active")
-  displayOrder Int?     @map("display_order")
+  parentDeptId String? @map("parent_dept_id") @db.Uuid
+  isActive     Boolean @default(true) @map("is_active")
+  displayOrder Int?    @map("display_order")
 
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
-  deletedAt    DateTime? @map("deleted_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
 
-  tenant       Tenant     @relation(fields: [tenantId], references: [id])
-  parentDept   Department? @relation("DeptHierarchy", fields: [parentDeptId], references: [id])
-  childDepts   Department[] @relation("DeptHierarchy")
-  assignments  UserDepartmentAssignment[]
+  tenant      Tenant                     @relation(fields: [tenantId], references: [id])
+  parentDept  Department?                @relation("DeptHierarchy", fields: [parentDeptId], references: [id])
+  childDepts  Department[]               @relation("DeptHierarchy")
+  assignments UserDepartmentAssignment[]
 
   @@unique([tenantId, code])
   @@index([tenantId])
@@ -189,18 +194,183 @@ model Department {
 }
 
 model UserDepartmentAssignment {
-  id                 String  @id @default(uuid()) @db.Uuid
-  tenantMembershipId String  @map("tenant_membership_id") @db.Uuid
-  departmentId       String  @map("department_id") @db.Uuid
+  id                 String @id @default(uuid()) @db.Uuid
+  tenantMembershipId String @map("tenant_membership_id") @db.Uuid
+  departmentId       String @map("department_id") @db.Uuid
 
-  isPrimary       Boolean @default(false) @map("is_primary")
-  canRequestFor   Boolean @default(false) @map("can_request_for")
-  canApproveFor   Boolean @default(false) @map("can_approve_for")
-  canReceiveFor   Boolean @default(false) @map("can_receive_for")
+  isPrimary     Boolean @default(false) @map("is_primary")
+  canRequestFor Boolean @default(false) @map("can_request_for")
+  canApproveFor Boolean @default(false) @map("can_approve_for")
+  canReceiveFor Boolean @default(false) @map("can_receive_for")
 
   membership TenantMembership @relation(fields: [tenantMembershipId], references: [id])
   department Department       @relation(fields: [departmentId], references: [id])
 
   @@unique([tenantMembershipId, departmentId])
   @@map("user_department_assignment")
+}
+
+// ============================================================
+// REFERENCE TABLES (Sprint 1 — system-wide, no RLS)
+// ============================================================
+
+model UnitTemplate {
+  id             String   @id @default(uuid()) @db.Uuid
+  unitName       String   @unique @map("unit_name")
+  unitDimension  String   @map("unit_dimension") // "WEIGHT" | "VOLUME" | "COUNT"
+  toSiRatio      Decimal? @map("to_si_ratio") @db.Decimal(15, 6) // g for WEIGHT, ml for VOLUME, null for COUNT
+  displayOrderTh Int?     @map("display_order_th")
+  displayOrderEn Int?     @map("display_order_en")
+
+  @@map("unit_template")
+}
+
+model LiquidDensityTemplate {
+  id           String  @id @default(uuid()) @db.Uuid
+  name         String
+  mlPerG       Decimal @map("ml_per_g") @db.Decimal(15, 6)
+  description  String?
+  displayOrder Int?    @map("display_order")
+
+  products Product[]
+
+  @@map("liquid_density_template")
+}
+
+// ============================================================
+// MASTER DATA (Sprint 1 — tenant-scoped, RLS required)
+// ============================================================
+
+model Supplier {
+  id                    String   @id @default(uuid()) @db.Uuid
+  tenantId              String   @map("tenant_id") @db.Uuid
+  code                  String?
+  nameFull              String   @map("name_full")
+  nameShort             String?  @map("name_short")
+  contactName           String?  @map("contact_name")
+  contactPhone          String?  @map("contact_phone")
+  contactEmail          String?  @map("contact_email")
+  lineId                String?  @map("line_id")
+  address               String?
+  taxId                 String?  @map("tax_id")
+  paymentTerms          String?  @map("payment_terms")
+  isActive              Boolean  @default(true) @map("is_active")
+  isVatRegistered       Boolean  @default(false) @map("is_vat_registered")
+  defaultVatRatePercent Decimal? @map("default_vat_rate_percent") @db.Decimal(5, 2)
+  defaultSubjectToWht   Boolean  @default(false) @map("default_subject_to_wht")
+  defaultWhtRatePercent Decimal? @map("default_wht_rate_percent") @db.Decimal(5, 2)
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  tenant                  Tenant                   @relation(fields: [tenantId], references: [id])
+  supplierProductMappings SupplierProductMapping[]
+
+  @@index([tenantId])
+  @@map("supplier")
+}
+
+model Category {
+  id                String @id @default(uuid()) @db.Uuid
+  tenantId          String @map("tenant_id") @db.Uuid
+  account           String
+  accountingSection String @map("accounting_section")
+  groupName         String @map("group")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id])
+  products Product[]
+
+  @@unique([tenantId, account, accountingSection, groupName])
+  @@index([tenantId])
+  @@map("category")
+}
+
+model Product {
+  id                      String   @id @default(uuid()) @db.Uuid
+  tenantId                String   @map("tenant_id") @db.Uuid
+  sku                     String
+  name                    String
+  nameEn                  String?  @map("name_en")
+  type                    String // "RAW" | "PREPPED"
+  primaryDimension        String   @map("primary_dimension") // "WEIGHT" | "VOLUME" | "COUNT"
+  categoryId              String?  @map("category_id") @db.Uuid
+  liquidDensityTemplateId String?  @map("liquid_density_template_id") @db.Uuid
+  densityMlPerGOverride   Decimal? @map("density_ml_per_g_override") @db.Decimal(15, 6)
+  yieldPercent            Decimal? @map("yield_percent") @db.Decimal(5, 2)
+  parentProductId         String?  @map("parent_product_id") @db.Uuid
+  expectedYieldG          Decimal? @map("expected_yield_g") @db.Decimal(15, 6)
+  targetMarketPrice       Decimal? @map("target_market_price") @db.Decimal(15, 4)
+  imageUrl                String?  @map("image_url")
+  isActive                Boolean  @default(true) @map("is_active")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  tenant                  Tenant                   @relation(fields: [tenantId], references: [id])
+  category                Category?                @relation(fields: [categoryId], references: [id])
+  liquidDensityTemplate   LiquidDensityTemplate?   @relation(fields: [liquidDensityTemplateId], references: [id])
+  parentProduct           Product?                 @relation("ProductPrepped", fields: [parentProductId], references: [id])
+  childProducts           Product[]                @relation("ProductPrepped")
+  productUnits            ProductUnit[]
+  supplierProductMappings SupplierProductMapping[]
+
+  @@unique([tenantId, sku])
+  @@index([tenantId])
+  @@map("product")
+}
+
+model ProductUnit {
+  id               String  @id @default(uuid()) @db.Uuid
+  productId        String  @map("product_id") @db.Uuid
+  unitName         String  @map("unit_name")
+  unitDimension    String  @map("unit_dimension")
+  toBaseRatio      Decimal @map("to_base_ratio") @db.Decimal(15, 6)
+  isBase           Boolean @default(false) @map("is_base")
+  isDefaultBuyUnit Boolean @default(false) @map("is_default_buy_unit")
+  source           String?
+  displayOrder     Int?    @map("display_order")
+
+  product                 Product                  @relation(fields: [productId], references: [id])
+  supplierProductMappings SupplierProductMapping[]
+
+  @@unique([productId, unitName])
+  @@index([productId])
+  @@map("product_unit")
+}
+
+model SupplierProductMapping {
+  id               String    @id @default(uuid()) @db.Uuid
+  tenantId         String    @map("tenant_id") @db.Uuid
+  supplierId       String    @map("supplier_id") @db.Uuid
+  productId        String    @map("product_id") @db.Uuid
+  branchId         String?   @map("branch_id") @db.Uuid // NULL = tenant default, NOT NULL = branch override
+  supplierItemCode String?   @map("supplier_item_code")
+  supplierItemName String?   @map("supplier_item_name")
+  orderUnitId      String?   @map("order_unit_id") @db.Uuid
+  currentUnitPrice Decimal?  @map("current_unit_price") @db.Decimal(15, 4)
+  minOrderQty      Decimal?  @map("min_order_qty") @db.Decimal(15, 6)
+  leadTimeDays     Int?      @map("lead_time_days")
+  isPreferred      Boolean   @default(false) @map("is_preferred")
+  effectiveFrom    DateTime? @map("effective_from")
+  effectiveTo      DateTime? @map("effective_to")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  tenant    Tenant       @relation(fields: [tenantId], references: [id])
+  supplier  Supplier     @relation(fields: [supplierId], references: [id])
+  product   Product      @relation(fields: [productId], references: [id])
+  branch    Branch?      @relation(fields: [branchId], references: [id])
+  orderUnit ProductUnit? @relation(fields: [orderUnitId], references: [id])
+
+  @@unique([tenantId, supplierId, productId, branchId, effectiveFrom])
+  @@index([tenantId])
+  @@map("supplier_product_mapping")
 }
