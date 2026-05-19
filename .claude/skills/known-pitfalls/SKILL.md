@@ -104,3 +104,17 @@ GRANT ALL ON SCHEMA public TO public;
 - Status: WARN only (pnpm install still succeeds, app runs)
 - Risk: Magic link email *might* misbehave if @auth/core uses v7-only nodemailer APIs
 - Action: Leave at ^6 for now; if magic link breaks in testing, upgrade nodemailer to ^7 + retest auth flow
+
+### 16. `prisma db push` ≠ test connection
+- Symptom: User/AI uses `prisma db push` thinking it's read-only
+- Reality: It applies schema changes immediately, BYPASSES migration history
+- Risk: Migration drift on next `migrate dev`, may prompt destructive reset (Sprint 0 data could be wiped)
+- Safe alternative: `prisma db execute --stdin <<< "SELECT 1;"` for connection test
+- Or just run `prisma migrate dev` directly — has built-in connection check, no side effects on fail
+
+### 17. Neon free tier auto-suspends after 5 min idle
+- Symptom: P1001 "Can't reach database server" even though DNS resolves and TCP/5432 is open
+- Cause: Neon free-tier compute pauses idle DBs to save cost; TCP accepts but PostgreSQL handshake fails during cold start
+- Fix: Run `SELECT 1` in Neon SQL Editor (or `prisma db execute --stdin <<< "SELECT 1;"`) to wake — wait ~10s for cold start, then retry the failing command
+- Diagnose: If `Test-NetConnection` returns True on :5432 but Prisma gets P1001, it's a suspended endpoint, not a network issue
+- Long-term: Add `predev` npm script with SELECT 1, or upgrade to Neon paid plan (no auto-suspend)

@@ -66,3 +66,45 @@ USING (
 -- After running, verify with:
 -- SELECT tablename, rowsecurity FROM pg_tables WHERE schemaname='public';
 -- (Should show rowsecurity=true for all tables above)
+
+-- ============================================================
+-- Sprint 1: Master Data RLS Policies
+-- ============================================================
+
+-- supplier (direct tenant_id)
+ALTER TABLE supplier ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON supplier
+USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+-- category (direct tenant_id)
+ALTER TABLE category ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON category
+USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+-- product (direct tenant_id)
+ALTER TABLE product ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON product
+USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+-- supplier_product_mapping (direct tenant_id)
+ALTER TABLE supplier_product_mapping ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON supplier_product_mapping
+USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+-- product_unit (NO direct tenant_id — inherits via product)
+ALTER TABLE product_unit ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON product_unit
+USING (
+  EXISTS (
+    SELECT 1 FROM product p
+    WHERE p.id = product_unit.product_id
+      AND p.tenant_id = current_setting('app.current_tenant_id', true)::uuid
+  )
+);
+
+-- NOTE: unit_template และ liquid_density_template ไม่ต้อง RLS
+-- เพราะเป็น system reference tables ทุก tenant ต้องอ่านได้
+
+-- ============================================================
+-- End Sprint 1 RLS
+-- ============================================================
