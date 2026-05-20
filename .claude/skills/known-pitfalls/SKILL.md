@@ -118,3 +118,15 @@ GRANT ALL ON SCHEMA public TO public;
 - Fix: Run `SELECT 1` in Neon SQL Editor (or `prisma db execute --stdin <<< "SELECT 1;"`) to wake — wait ~10s for cold start, then retry the failing command
 - Diagnose: If `Test-NetConnection` returns True on :5432 but Prisma gets P1001, it's a suspended endpoint, not a network issue
 - Long-term: Add `predev` npm script with SELECT 1, or upgrade to Neon paid plan (no auto-suspend)
+
+### 19. Git guardrails hook ต้องใช้ jq บน Windows
+- Symptom: Hook script ไม่ block git command ที่ควร block
+- Cause: block-dangerous-git.sh ใช้ bash + jq เป็น parser
+- Status on Windows: Git Bash มากับ Git for Windows แต่ jq ไม่ได้ติดมา
+- Detection: Hook fails silently — Claude Code อาจรัน command ที่ควร block
+- Fix Options:
+  A. ติดตั้ง jq: `winget install jqlang.jq` หรือ `choco install jq`
+  B. Re-write hook เป็น PowerShell (no external deps)
+  C. ใช้ Node.js script แทน (Node มีอยู่แล้ว)
+- Test: หลัง install jq ลอง prompt "git push" ใน Claude Code — ต้องเห็น BLOCKED
+- Priority: MEDIUM — ตอนนี้ user เป็น solo dev ระวังตัวเองได้, แต่ควร fix ก่อน team scale
