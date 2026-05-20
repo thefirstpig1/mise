@@ -55,6 +55,13 @@ B2B SaaS for Thailand restaurant SMEs. "MarketMan-for-Thailand-SME" — 90% chea
 - docs/pending-features-v1.5.md — Price Volatility + Menu Lab (Sprint 5-6)
 - docs/sprint-progress.md — Current sprint status (LIVE)
 - .claude/skills/ — Task-specific skills (load as needed)
+- .claude/skills/grill-with-docs/SKILL.md — pre-sprint alignment interviews
+- .claude/skills/tdd/SKILL.md — test-driven development with vertical slices
+- .claude/skills/handoff/SKILL.md — session compaction for next agent
+- .claude/skills/git-guardrails/SKILL.md — git safety hook documentation
+- .claude/skills/ai-collaboration/SKILL.md — behavioral baseline (read every session)
+- CONTEXT.md — Mise domain glossary
+- docs/adr/ — Architecture Decision Records
 
 ## User Profile
 - Beginner coder, learning by doing
