@@ -119,6 +119,25 @@ GRANT ALL ON SCHEMA public TO public;
 - Diagnose: If `Test-NetConnection` returns True on :5432 but Prisma gets P1001, it's a suspended endpoint, not a network issue
 - Long-term: Add `predev` npm script with SELECT 1, or upgrade to Neon paid plan (no auto-suspend)
 
+### 18. Neon pooled endpoint doesn't work for Prisma migrations
+- Symptom: P1001 "Can't reach database server" even when Neon is awake
+- Cause: Pooled connections (port 5432 via pgBouncer) don't support session-level
+  commands needed by migrations (transactions, advisory locks, prepared statements)
+- Detection: Check if DATABASE_URL has "-pooler" in hostname
+- Fix: Use BOTH URLs in .env
+  - DATABASE_URL = pooled (app runtime, recommended for Vercel/serverless)
+  - DIRECT_URL = direct (migrations only — no "-pooler" in hostname)
+- Schema declares both:
+```prisma
+datasource db {
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+```
+- Identify URL type: pooled has "-pooler" in hostname, direct doesn't
+- Reference: https://neon.tech/docs/guides/prisma, ADR 0003, Sprint 1 Part 3a (~1hr debug)
+- Severity: BLOCKER for migrations
+
 ### 19. Git guardrails hook ต้องใช้ jq บน Windows
 - Symptom: Hook script ไม่ block git command ที่ควร block
 - Cause: block-dangerous-git.sh ใช้ bash + jq เป็น parser
