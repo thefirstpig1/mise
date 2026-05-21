@@ -149,3 +149,5 @@ datasource db {
   C. ใช้ Node.js script แทน (Node มีอยู่แล้ว)
 - Test: หลัง install jq ลอง prompt "git push" ใน Claude Code — ต้องเห็น BLOCKED
 - Priority: MEDIUM — ตอนนี้ user เป็น solo dev ระวังตัวเองได้, แต่ควร fix ก่อน team scale
+- **CONFIRMED broken (2026-05-20, Sprint 1 Part 5):** `git push` ผ่านโดยไม่ถูก block. ยืนยันด้วย `where.exe jq` (ไม่เจอ) + อ่าน hook line 4 (`jq -r '.tool_input.command'`) → เมื่อ jq หาย $COMMAND เป็นค่าว่าง → ไม่ match pattern → `exit 0` (fails OPEN, ปล่อยผ่านทุกคำสั่ง)
+- **Deferred fix (Tier 2 task):** rewrite hook ด้วย grep/sed (no jq dep) — เลือกแนวนี้แทน Option A (install jq) เพื่อไม่ผูกกับ external dep บนเครื่อง dev. ยังไม่เร่งเพราะ solo dev (ระวังตัวเองได้)

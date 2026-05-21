@@ -77,8 +77,9 @@ on resolution during /grill-with-docs sessions.
 
 - **Thai-first** — UI strings prefer Thai; code/comments in English.
 - **THB** — Thai Baht (฿). Default currency.
-- **VAT** — Value Added Tax (Thailand: 7%). Tenant opts in via is_vat_registered.
-- **WHT** — Withholding Tax (Thailand-specific). Supplier-level setting.
+- **VAT** — Value Added Tax (Thailand: 7%). Charged *by* a supplier *to* the tenant on a purchase. Tenant can reclaim it only if VAT-registered (is_vat_registered); the supplier's VAT is recorded regardless.
+- **WHT** — Withholding Tax (Thailand-specific). Withheld *by* the tenant *from* its payment *to* a supplier (rate varies by type: service 3%, rent 5%). Opposite direction to VAT.
+- **VAT/WHT decoupling** — VAT and WHT are independent: different directions, and neither is gated on tenant.is_vat_registered. A non-VAT-registered tenant still withholds WHT from supplier payments.
 - **Tax invoice (ใบกำกับภาษี)** — required when VAT registered.
 
 ## Decisions
