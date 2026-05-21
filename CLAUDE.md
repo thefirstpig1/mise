@@ -60,6 +60,10 @@ B2B SaaS for Thailand restaurant SMEs. "MarketMan-for-Thailand-SME" — 90% chea
 - .claude/skills/handoff/SKILL.md — session compaction for next agent
 - .claude/skills/git-guardrails/SKILL.md — git safety hook documentation
 - .claude/skills/ai-collaboration/SKILL.md — behavioral baseline (read every session)
+- .claude/skills/token-awareness/SKILL.md — context budget monitoring + warn before exhaustion
+- .claude/skills/debug-mantra/SKILL.md — 4-step debug discipline (reproduce → fail path → falsify → ledger)
+- .claude/skills/scrutinize/SKILL.md — outsider review of plans/PRs (intent → trace → verify)
+- .claude/skills/management-talk/SKILL.md — translate eng content for leadership/team/investors
 - CONTEXT.md — Mise domain glossary
 - docs/adr/ — Architecture Decision Records
 
