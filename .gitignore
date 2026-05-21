@@ -13,6 +13,9 @@ out/
 build/
 dist/
 
+# TypeScript
+*.tsbuildinfo
+
 # Production
 *.production
 

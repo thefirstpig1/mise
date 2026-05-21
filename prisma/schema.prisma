@@ -245,6 +245,9 @@ model LiquidDensityTemplate {
 model Supplier {
   id                    String   @id @default(uuid()) @db.Uuid
   tenantId              String   @map("tenant_id") @db.Uuid
+  /// Uniqueness enforced by partial unique index in
+  /// prisma/manual/supplier_code_unique.sql (per-tenant, excludes soft-deleted + NULL).
+  /// Not a Prisma @@unique because Prisma can't express partial indexes.
   code                  String?
   nameFull              String   @map("name_full")
   nameShort             String?  @map("name_short")
