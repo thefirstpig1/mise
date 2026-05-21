@@ -1,32 +1,28 @@
-import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
-import { redirect } from "next/navigation";
+import { withTenantContext } from "@/lib/db";
+import { requireTenant } from "@/lib/require-tenant";
 import { revalidatePath } from "next/cache";
 
 export default async function SettingsPage() {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/login");
-
-  const membership = await prisma.tenantMembership.findFirst({
-    where: { userId: session.user.id, isActive: true },
-    include: { tenant: true },
-  });
-
-  if (!membership) redirect("/signup");
+  const { membership } = await requireTenant();
   const { tenant } = membership;
 
   async function updateTenant(formData: FormData) {
     "use server";
+    // Re-authenticate inside the action — server actions are independent
+    // requests, so we don't rely on the render-time closure for scoping.
+    const { tenantId } = await requireTenant();
     const enableDepts = formData.get("enable_departments") === "on";
     const isVat = formData.get("is_vat_registered") === "on";
 
-    await prisma.tenant.update({
-      where: { id: tenant.id },
-      data: {
-        enableDepartments: enableDepts,
-        isVatRegistered: isVat,
-      },
-    });
+    await withTenantContext(tenantId, (tx) =>
+      tx.tenant.update({
+        where: { id: tenantId },
+        data: {
+          enableDepartments: enableDepts,
+          isVatRegistered: isVat,
+        },
+      })
+    );
 
     revalidatePath("/settings");
     revalidatePath("/dashboard");

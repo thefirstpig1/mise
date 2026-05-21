@@ -1,27 +1,21 @@
-import { auth, signOut } from "@/lib/auth";
-import { prisma } from "@/lib/db";
-import { redirect } from "next/navigation";
+import { signOut } from "@/lib/auth";
+import { withTenantContext } from "@/lib/db";
+import { requireTenant } from "@/lib/require-tenant";
 
 export default async function DashboardPage() {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/login");
+  const { user, membership, tenantId } = await requireTenant();
+  const { tenant } = membership;
 
-  // Load user's tenants
-  const memberships = await prisma.tenantMembership.findMany({
-    where: { userId: session.user.id, isActive: true },
-    include: {
-      tenant: true,
-      branchAccess: { include: { branch: true } },
-      deptAssignments: { include: { department: true } },
-    },
-  });
-
-  if (memberships.length === 0) {
-    redirect("/signup");
-  }
-
-  const activeMembership = memberships[0]; // Sprint 0: pick first
-  const { tenant } = activeMembership;
+  // Layer 2: this membership's branch + dept access (tenant-scoped read).
+  const activeMembership = await withTenantContext(tenantId, (tx) =>
+    tx.tenantMembership.findUniqueOrThrow({
+      where: { id: membership.id },
+      include: {
+        branchAccess: { include: { branch: true } },
+        deptAssignments: { include: { department: true } },
+      },
+    })
+  );
 
   return (
     <div className="min-h-screen">
@@ -32,7 +26,7 @@ export default async function DashboardPage() {
             <p className="text-xs text-muted-foreground">{tenant.name}</p>
           </div>
           <div className="flex items-center gap-3 text-sm">
-            <span className="text-muted-foreground">{session.user.email}</span>
+            <span className="text-muted-foreground">{user.email}</span>
             <form action={async () => { "use server"; await signOut(); }}>
               <button type="submit" className="text-primary hover:underline">
                 ออกจากระบบ
@@ -45,7 +39,7 @@ export default async function DashboardPage() {
       <main className="container mx-auto px-4 py-8">
         <h2 className="mb-2 text-2xl font-bold">ภาพรวม</h2>
         <p className="mb-8 text-muted-foreground">
-          ยินดีต้อนรับ, {session.user.name ?? session.user.email}
+          ยินดีต้อนรับ, {user.name ?? user.email}
         </p>
 
         <div className="grid gap-4 md:grid-cols-3">
@@ -89,7 +83,10 @@ export default async function DashboardPage() {
           </p>
         </div>
 
-        <div className="mt-6">
+        <div className="mt-6 flex gap-4">
+          <a href="/suppliers" className="text-sm text-primary hover:underline">
+            → ซัพพลายเออร์
+          </a>
           <a href="/settings" className="text-sm text-primary hover:underline">
             → ตั้งค่าร้าน
           </a>
