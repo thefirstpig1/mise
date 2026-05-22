@@ -1,6 +1,6 @@
 # Mise Sprint Progress
 
-**Last updated:** 2026-05-21
+**Last updated:** 2026-05-23
 
 ## Current Sprint: Sprint 1 — Master Data
 
@@ -28,9 +28,22 @@
 
 ---
 
-## Sprint 1 Part 5 — Suppliers CRUD: Design Locked (grill complete 2026-05-21)
+## Sprint 1 Part 5 — Suppliers CRUD: ✅ COMPLETE (2026-05-23)
 
-Grill-with-docs session finished. 8 decisions locked. **No code written yet** — implementation deferred to a fresh session.
+Grill-with-docs session finished. 8 decisions locked. All 7 steps implemented + verified.
+
+### Step 7 (pages) — done 2026-05-23
+- `suppliers/layout.tsx` (shared header) · `page.tsx` + `_components/SupplierList.tsx` (list + client search + active/inactive toggle) · `new/page.tsx` · `[id]/page.tsx` (edit) · `_components/SupplierForm.tsx` (shared create+edit form via `useActionState`) · `_components/DeleteSupplierButton.tsx` (confirm → soft-delete).
+- **Deviation from plan:** Prisma `Decimal` can't cross the Server→Client boundary, so added `_components/supplier-view.ts` (`toSupplierView`) — serializes the two rate fields to strings before passing rows into client components (replaces the handoff's `?.toString()`-at-render note). `[id]/page.tsx` uses Next 15 async `params` (`await params`) to stay tsc-clean.
+- **Verified:** `tsc --noEmit` clean for all new files (only the 2 pre-existing `auth.ts:24` errors remain); vitest 16 passed | 4 skipped; E2E via headless dev-login — create round-trips and shows in list, edit page pre-fills, soft-delete drops the row back to the empty state, auth-gate redirects unauthenticated to /login.
+
+### Next: Part 6 — Categories CRUD (reuse the supplier slice as template).
+
+---
+
+## Sprint 1 Part 5 — Design Locked (grill complete 2026-05-21)
+
+Grill-with-docs session finished. 8 decisions locked.
 
 ### Decisions (Q1–Q8)
 
