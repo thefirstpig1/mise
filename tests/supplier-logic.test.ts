@@ -166,4 +166,22 @@ describe("supplier *Logic (tenant-scoped, app-layer isolation)", () => {
     expect(b.code).toBe("DUP");
     expect(b.tenantId).toBe(tenantB);
   });
+
+  // Slice 7 — editing a supplier's code to one already used in the tenant must
+  // raise the SAME typed error as create (update also hits the unique index).
+  it("updateSupplierLogic rejects changing code to one already used in the tenant", async () => {
+    await createSupplierLogic(tenantA, input({ nameFull: "คงรหัสไว้", code: "UPD-KEEP" }));
+    const victim = await createSupplierLogic(
+      tenantA,
+      input({ nameFull: "จะถูกแก้รหัส", code: "UPD-MOVE" })
+    );
+
+    await expect(
+      updateSupplierLogic(
+        tenantA,
+        victim.id,
+        input({ nameFull: "จะถูกแก้รหัส", code: "UPD-KEEP" })
+      )
+    ).rejects.toBeInstanceOf(SupplierCodeConflictError);
+  });
 });

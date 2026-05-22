@@ -35,6 +35,19 @@ export class SupplierCodeConflictError extends Error {
 }
 
 /**
+ * Map a Prisma duplicate-code error (P2002 on the partial unique index) to the
+ * typed SupplierCodeConflictError; pass any other error through unchanged.
+ * BOTH create and update can hit that index whenever `code` is set, so they
+ * share this so the action layer only ever sees the typed error (never raw P2002).
+ */
+function rethrowCodeConflict(e: unknown, code: string | null): never {
+  if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+    throw new SupplierCodeConflictError(code);
+  }
+  throw e;
+}
+
+/**
  * Create a supplier under `tenantId`. Input must already be validated by
  * supplierInputSchema (the action layer does this). `tenantId` is set
  * server-side here — never trusted from the input.
@@ -48,12 +61,7 @@ export async function createSupplierLogic(
       tx.supplier.create({ data: { tenantId, ...input } })
     );
   } catch (e) {
-    // P2002 = unique violation; here it can only be the partial unique index
-    // on (tenant_id, code). Re-throw as a typed domain error for the action layer.
-    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
-      throw new SupplierCodeConflictError(input.code);
-    }
-    throw e;
+    rethrowCodeConflict(e, input.code);
   }
 }
 
@@ -100,14 +108,18 @@ export async function updateSupplierLogic(
   id: string,
   input: SupplierInput
 ): Promise<Supplier | null> {
-  return withTenantContext(tenantId, async (tx) => {
-    const { count } = await tx.supplier.updateMany({
-      where: { id, tenantId, deletedAt: null },
-      data: { ...input },
+  try {
+    return await withTenantContext(tenantId, async (tx) => {
+      const { count } = await tx.supplier.updateMany({
+        where: { id, tenantId, deletedAt: null },
+        data: { ...input },
+      });
+      if (count === 0) return null;
+      return tx.supplier.findFirst({ where: { id, tenantId, deletedAt: null } });
     });
-    if (count === 0) return null;
-    return tx.supplier.findFirst({ where: { id, tenantId, deletedAt: null } });
-  });
+  } catch (e) {
+    rethrowCodeConflict(e, input.code);
+  }
 }
 
 /**
