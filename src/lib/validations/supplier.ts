@@ -117,3 +117,26 @@ export const supplierInputSchema = z
 
 /** Validated supplier input — output type consumed by *Logic (Step 5). */
 export type SupplierInput = z.infer<typeof supplierInputSchema>;
+
+/**
+ * Thai display labels per schema field, keyed by the field name (= zod
+ * issue.path[0]). Used by the action layer to title field errors and by the
+ * Step 7 form to render <label>s — one source of truth for both.
+ */
+export const SUPPLIER_FIELD_LABELS_TH: Record<keyof SupplierInput, string> = {
+  code: "รหัสซัพพลายเออร์",
+  nameFull: "ชื่อเต็ม",
+  nameShort: "ชื่อย่อ",
+  contactName: "ชื่อผู้ติดต่อ",
+  contactPhone: "เบอร์โทร",
+  contactEmail: "อีเมล",
+  lineId: "LINE ID",
+  address: "ที่อยู่",
+  taxId: "เลขประจำตัวผู้เสียภาษี",
+  paymentTerms: "เงื่อนไขการชำระเงิน",
+  isActive: "สถานะใช้งาน",
+  isVatRegistered: "จดทะเบียน VAT",
+  defaultVatRatePercent: "อัตรา VAT (%)",
+  defaultSubjectToWht: "หัก ณ ที่จ่าย",
+  defaultWhtRatePercent: "อัตราหัก ณ ที่จ่าย (%)",
+};
