@@ -19,12 +19,39 @@
 ### Sprint 1 Acceptance Criteria
 - [ ] Schema migrated successfully
 - [ ] RLS policies applied for all new tenant-scoped tables
-- [ ] 16 default categories seeded on tenant creation (H.1.2)
+- [x] 16 default categories seeded on tenant creation (H.1.2) — verified Part 6 E2E
 - [ ] CRUD pages for Supplier
 - [ ] CRUD pages for Product (with multi-unit support)
-- [ ] CRUD pages for Category (3-tier: account → accounting_section → group)
+- [x] CRUD pages for Category (3-tier: account → accounting_section → group)
 - [ ] Supplier-Product mapping UI
 - [ ] All Sprint 0 features still work
+
+---
+
+## Sprint 1 Part 6 — Categories CRUD: ✅ COMPLETE (2026-05-23)
+
+3-tier category (account COGS/OpEx → accountingSection → groupName), built on the supplier slice as template.
+
+### Design (locked this session)
+- `account` = fixed 2-value `<select>` (COGS/OpEx) — `ACCOUNT_VALUES` const is single source for the zod enum + the form. section/group = free text.
+- List = **tree view** (account → section → leaf), default all-expanded, client search w/ auto-expand, counts per node. Leaf links to edit page; delete lives on edit page.
+- Category `@@unique` is **full** (not partial like supplier) → soft-deleted triple still blocks re-create. MVP-accepted, see Pitfall #22; action maps P2002 → "หมวดบัญชีนี้มีอยู่แล้ว (หากเคยลบไปแล้ว จะยังสร้างซ้ำไม่ได้)".
+- No `category-view.ts` serializer — Category has no Decimal (Pitfall #20 N/A).
+
+### Files
+- `src/lib/validations/category.ts` (`categoryInputSchema`, `ACCOUNT_VALUES`, `ACCOUNT_LABELS_TH` Thai-first, `CATEGORY_FIELD_LABELS_TH`)
+- `src/server/category.ts` (5 `*Logic` + `CategoryConflictError`)
+- `src/app/categories/actions.ts` (`createCategory`/`updateCategory`/`deleteCategory`, `CategoryActionState`)
+- `src/app/categories/{layout,page,new/page,[id]/page}.tsx` + `_components/{CategoryTree,CategoryForm,DeleteCategoryButton}.tsx`
+- `src/app/dashboard/page.tsx` — added `→ หมวดบัญชี` nav link
+- Tests: `tests/category-logic.test.ts` (7 slices), `tests/category-input-schema.test.ts` (3)
+
+### Verified
+- vitest **26 passed | 4 skipped** (+10 new); tsc clean on all new files (only 2 pre-existing `auth.ts` errors).
+- E2E via **fresh headless signup** → `createTenant` seeded **16** categories → tree rendered full COGS/OpEx structure (8 sections, 16 leaves, Thai-gloss headers). create→17, duplicate(COGS/Food/Meat)→Thai conflict, edit(account COGS→OpEx)→re-rendered, delete→back to 16.
+- **Throwaway E2E tenant (for later cleanup):** `12cad010-f6f0-4746-8d9a-bb65782a453f` (name "ร้านทดสอบ Category E2E", user `cat-e2e-1779531021@test.local`). Harmless; remove with the Sprint-0 `asfsafas` cleanup later.
+
+### Next: Part 7 — Products CRUD (RAW/PREPPED, multi-unit, yield_percent — has Decimal → needs a `product-view.ts` serializer, Pitfall #20).
 
 ---
 

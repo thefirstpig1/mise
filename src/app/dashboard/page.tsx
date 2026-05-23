@@ -87,6 +87,9 @@ export default async function DashboardPage() {
           <a href="/suppliers" className="text-sm text-primary hover:underline">
             → ซัพพลายเออร์
           </a>
+          <a href="/categories" className="text-sm text-primary hover:underline">
+            → หมวดบัญชี
+          </a>
           <a href="/settings" className="text-sm text-primary hover:underline">
             → ตั้งค่าร้าน
           </a>

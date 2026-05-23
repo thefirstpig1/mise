@@ -165,3 +165,10 @@ datasource db {
 - Fix: รัน `pnpm dev` หนึ่งรอบ + curl/เปิด route ใหม่ (ให้มัน compile) ก่อน → แล้วค่อย `tsc` (manifest จะ include route ใหม่)
 - Detection: tsc error เป็น `RouteImpl<...>` เท่านั้น (ไม่ใช่ logic error) บนไฟล์ใหม่ = false alarm จาก manifest stale
 - Workaround เดิม: page เก่าใช้ `<a href>` เลี่ยง typed routes ได้ แต่ `<Link>` / `router.push` ต้อง manifest current
+
+### 22. Category @@unique เป็น full (ไม่ใช่ partial แบบ supplier)
+- Symptom: ลบ category (soft-delete) แล้วสร้าง account/section/group triple เดิมซ้ำ → P2002 / Thai "มีอยู่แล้ว" ทั้งที่ list ไม่เห็น row นั้น
+- Cause: `@@unique([tenantId, account, accountingSection, groupName])` ใน schema เป็น full unique — นับ soft-deleted row ด้วย (ต่างจาก supplier ที่ใช้ partial index `WHERE deleted_at IS NULL`)
+- Status: **ยอมรับสำหรับ MVP** — category มี 16 default + user สร้างเองไม่เยอะ → โอกาส re-create-after-delete ต่ำ
+- Follow-up (ถ้าเจอจริง): swap เป็น `prisma/manual/` partial unique index แบบ supplier Step 3 (ต้องเอา `@@unique` ออกจาก schema → comment ชี้ไปไฟล์ manual แทน)
+- Mitigation ปัจจุบัน: action layer แปลง P2002 → Thai message ที่ใบ้ว่า "หากเคยลบไปแล้ว จะยังสร้างซ้ำไม่ได้"
