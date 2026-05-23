@@ -172,3 +172,10 @@ datasource db {
 - Status: **ยอมรับสำหรับ MVP** — category มี 16 default + user สร้างเองไม่เยอะ → โอกาส re-create-after-delete ต่ำ
 - Follow-up (ถ้าเจอจริง): swap เป็น `prisma/manual/` partial unique index แบบ supplier Step 3 (ต้องเอา `@@unique` ออกจาก schema → comment ชี้ไปไฟล์ manual แทน)
 - Mitigation ปัจจุบัน: action layer แปลง P2002 → Thai message ที่ใบ้ว่า "หากเคยลบไปแล้ว จะยังสร้างซ้ำไม่ได้"
+
+### 23. Product @@unique([tenantId, sku]) เป็น full index (ไม่ partial) — ซ้ำรอย #22
+- Symptom: soft-delete product แล้วสร้างใหม่ด้วย sku เดิมถูกบล็อก (Prisma P2002) ทั้งที่ list ไม่เห็น row นั้น
+- Cause: `@@unique([tenantId, sku])` ใน schema เป็น full unique — นับ row ที่ `deletedAt != null` ด้วย (ต่างจาก supplier ที่ใช้ partial index `WHERE deleted_at IS NULL` ใน `prisma/manual/`). `ProductUnit @@unique([productId, unitName])` ก็ full เช่นกัน
+- Status: **ยอมรับสำหรับ MVP** (Sprint 1 Part 7a) — เหมือนเหตุผล #22 (Category)
+- Mitigation ปัจจุบัน: action layer แปลง P2002 → Thai message "รหัสสินค้านี้มีอยู่แล้ว (หากเคยลบไปแล้ว จะยังใช้รหัสซ้ำไม่ได้)"
+- Fix (ถ้าเจอปัญหาจริง): partial unique index `WHERE deleted_at IS NULL` ผ่าน `prisma/manual/` แบบเดียวกับ `supplier_code_unique.sql` (ต้องเอา `@@unique` ออกจาก schema → comment ชี้ไปไฟล์ manual แทน)
