@@ -151,3 +151,17 @@ datasource db {
 - Priority: MEDIUM — ตอนนี้ user เป็น solo dev ระวังตัวเองได้, แต่ควร fix ก่อน team scale
 - **CONFIRMED broken (2026-05-20, Sprint 1 Part 5):** `git push` ผ่านโดยไม่ถูก block. ยืนยันด้วย `where.exe jq` (ไม่เจอ) + อ่าน hook line 4 (`jq -r '.tool_input.command'`) → เมื่อ jq หาย $COMMAND เป็นค่าว่าง → ไม่ match pattern → `exit 0` (fails OPEN, ปล่อยผ่านทุกคำสั่ง)
 - **Deferred fix (Tier 2 task):** rewrite hook ด้วย grep/sed (no jq dep) — เลือกแนวนี้แทน Option A (install jq) เพื่อไม่ผูกกับ external dep บนเครื่อง dev. ยังไม่เร่งเพราะ solo dev (ระวังตัวเองได้)
+
+### 20. Prisma Decimal ข้าม Server→Client boundary ไม่ได้
+- Symptom: รันแล้ว throw `"Only plain objects can be passed to Client Components from Server Components"` (หรือเงียบ ๆ พังตอน render)
+- Cause: Prisma `Decimal` เป็น class instance (decimal.js) — RSC serialize ได้เฉพาะ plain object / built-ins (Date ผ่าน, class ไม่ผ่าน). ส่ง row ที่มี Decimal field เข้า `"use client"` component ตรง ๆ ไม่ได้
+- Fix: ใน Server Component map row ผ่าน serializer ที่ `.toString()` ทุก Decimal field ก่อนส่งเข้า client (ref: `src/app/suppliers/_components/supplier-view.ts` → `toSupplierView`). ฝั่ง form ใช้ string เป็น `defaultValue` ได้เลย
+- Detection: field ชนิด `Decimal?` / `@db.Decimal` ใน schema = ต้องมี serializer ถ้า row นั้นถูกส่งข้าม boundary
+- Confirmed: Sprint 1 Part 5 (Suppliers — rate fields). **Part 6 (Category) ไม่มี Decimal → ข้าม serializer ได้**
+
+### 21. Next 15 typedRoutes manifest stale จนกว่า dev รันรอบแรก
+- Symptom: `pnpm exec tsc --noEmit` ขึ้น error `RouteImpl<"/x">` / `not assignable` บน `<Link href="/new-route">` หรือ `router.push("/new-route")` ทั้งที่ route ใหม่ถูกสร้างแล้ว
+- Cause: `experimental.typedRoutes` (next.config.ts) gen route-type union จาก `.next/types/**` ซึ่ง stale — route ใหม่ยังไม่อยู่ใน manifest จนกว่าจะ compile
+- Fix: รัน `pnpm dev` หนึ่งรอบ + curl/เปิด route ใหม่ (ให้มัน compile) ก่อน → แล้วค่อย `tsc` (manifest จะ include route ใหม่)
+- Detection: tsc error เป็น `RouteImpl<...>` เท่านั้น (ไม่ใช่ logic error) บนไฟล์ใหม่ = false alarm จาก manifest stale
+- Workaround เดิม: page เก่าใช้ `<a href>` เลี่ยง typed routes ได้ แต่ `<Link>` / `router.push` ต้อง manifest current
