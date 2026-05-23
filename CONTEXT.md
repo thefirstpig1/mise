@@ -26,6 +26,8 @@ on resolution during /grill-with-docs sessions.
 - **Yield** — output/input ratio for PREPPED products (e.g., 80% yield = 1kg raw → 800g prepped). NOT loss percent.
 - **Yield math** (Decision #59): `raw_qty = recipe_qty × (100 / yield_percent)` — NEVER `qty × (1 + loss%)`.
 - **Unit** — measurement (g, kg, ml, l, ชิ้น, ฟอง, etc.). Pre-loaded as unit_template.
+- **Base unit** — the single canonical unit a Product's stock is internally tracked in. Every Product has exactly one (a ProductUnit with isBase=true, toBaseRatio=1). User-picked from unit_template, not normalized to SI — cross-dimension math uses unit_template.toSiRatio instead.
+- **Default buy unit** — the unit a Product is ordered/purchased in by default (ProductUnit.isDefaultBuyUnit). For a single-unit Product it equals the base unit.
 - **Liquid density** — ml/g ratio for liquids (water=1.000, milk=1.030). Used to convert between WEIGHT and VOLUME for the same product. Pre-loaded as liquid_density_template.
 - **Multi-unit** — a product can have multiple units (e.g., milk in ml AND l AND ขวด).
 

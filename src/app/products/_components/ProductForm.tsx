@@ -1,0 +1,260 @@
+"use client";
+
+// Sprint 1 Part 7a — shared create + edit form for a RAW product.
+// Driven by React 19 useActionState against the "use server" actions. Input
+// `name=` attributes are snake_case to match rawFromFormData in
+// src/app/products/actions.ts; fieldErrors keys are camelCase schema names.
+//
+// The dimension → base-unit cascade lives here (client state): picking a
+// primaryDimension filters the base-unit <select> to that dimension and resets
+// the selection if it no longer fits (Q1/Q5). Initial values come from a
+// ProductView (Decimal-free; Pitfall #20 handled by the serializer).
+
+import { useActionState, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import type { ProductActionState } from "@/app/products/actions";
+import {
+  PRIMARY_DIMENSION_VALUES,
+  PRIMARY_DIMENSION_LABELS_TH,
+  PRODUCT_FIELD_LABELS_TH,
+} from "@/lib/validations/product";
+import { ACCOUNT_LABELS_TH, type Account } from "@/lib/validations/category";
+import type { ProductView } from "./product-view";
+import type { UnitOption } from "@/server/product";
+
+type CategoryOption = {
+  id: string;
+  account: string;
+  accountingSection: string;
+  groupName: string;
+};
+
+const inputClass =
+  "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none";
+
+export default function ProductForm({
+  action,
+  initial,
+  units,
+  categories,
+  submitLabel,
+}: {
+  action: (
+    prev: ProductActionState,
+    fd: FormData
+  ) => Promise<ProductActionState>;
+  initial?: ProductView;
+  units: UnitOption[];
+  categories: CategoryOption[];
+  submitLabel: string;
+}) {
+  const router = useRouter();
+  const [state, formAction, isPending] = useActionState(
+    action,
+    { ok: false } as ProductActionState
+  );
+
+  // Cascade state: dimension drives which base units are valid.
+  const [dimension, setDimension] = useState(initial?.primaryDimension ?? "");
+  const [baseUnit, setBaseUnit] = useState(initial?.baseUnitName ?? "");
+
+  const unitOptions = useMemo(
+    () => units.filter((u) => u.unitDimension === dimension),
+    [units, dimension]
+  );
+
+  function onDimensionChange(next: string) {
+    setDimension(next);
+    // Keep the chosen unit only if it still belongs to the new dimension.
+    if (!units.some((u) => u.unitDimension === next && u.unitName === baseUnit)) {
+      setBaseUnit("");
+    }
+  }
+
+  useEffect(() => {
+    if (state.ok) router.push("/products");
+  }, [state, router]);
+
+  const formError = state.ok === false ? state.formError : undefined;
+  const fieldErrors = state.ok === false ? state.fieldErrors : undefined;
+  const L = PRODUCT_FIELD_LABELS_TH;
+  const err = (key: string) => fieldErrors?.[key];
+
+  return (
+    <form action={formAction} className="space-y-6">
+      {formError && (
+        <div className="rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-700">
+          {formError}
+        </div>
+      )}
+
+      {/* Identity */}
+      <section className="space-y-4 rounded-lg border border-border bg-card p-6">
+        <div>
+          <label htmlFor="name" className="mb-1 block text-sm font-medium">
+            {L.name}
+            <span className="text-red-600"> *</span>
+          </label>
+          <input
+            id="name"
+            name="name"
+            type="text"
+            defaultValue={initial?.name ?? ""}
+            placeholder="เช่น หมูสามชั้น, น้ำมันพืช"
+            className={inputClass}
+          />
+          {err("name") && (
+            <p className="mt-1 text-sm text-red-600">{err("name")}</p>
+          )}
+        </div>
+
+        <div>
+          <label htmlFor="name_en" className="mb-1 block text-sm font-medium">
+            {L.nameEn}
+          </label>
+          <input
+            id="name_en"
+            name="name_en"
+            type="text"
+            defaultValue={initial?.nameEn ?? ""}
+            placeholder="เช่น Pork belly"
+            className={inputClass}
+          />
+        </div>
+
+        <div>
+          <label htmlFor="sku" className="mb-1 block text-sm font-medium">
+            {L.sku}
+          </label>
+          <input
+            id="sku"
+            name="sku"
+            type="text"
+            defaultValue={initial?.sku ?? ""}
+            placeholder="เว้นว่างเพื่อสร้างอัตโนมัติ (เช่น P-0001)"
+            className={inputClass}
+          />
+          <p className="mt-1 text-xs text-muted-foreground">
+            เว้นว่างไว้ ระบบจะสร้างรหัสให้อัตโนมัติ
+          </p>
+        </div>
+      </section>
+
+      {/* Measurement */}
+      <section className="space-y-4 rounded-lg border border-border bg-card p-6">
+        <div>
+          <label
+            htmlFor="primary_dimension"
+            className="mb-1 block text-sm font-medium"
+          >
+            {L.primaryDimension}
+            <span className="text-red-600"> *</span>
+          </label>
+          <select
+            id="primary_dimension"
+            name="primary_dimension"
+            value={dimension}
+            onChange={(e) => onDimensionChange(e.target.value)}
+            className={inputClass}
+          >
+            <option value="" disabled>
+              — เลือกหน่วยวัดหลัก —
+            </option>
+            {PRIMARY_DIMENSION_VALUES.map((d) => (
+              <option key={d} value={d}>
+                {PRIMARY_DIMENSION_LABELS_TH[d]}
+              </option>
+            ))}
+          </select>
+          {err("primaryDimension") && (
+            <p className="mt-1 text-sm text-red-600">{err("primaryDimension")}</p>
+          )}
+        </div>
+
+        <div>
+          <label
+            htmlFor="base_unit_name"
+            className="mb-1 block text-sm font-medium"
+          >
+            {L.baseUnitName}
+            <span className="text-red-600"> *</span>
+          </label>
+          <select
+            id="base_unit_name"
+            name="base_unit_name"
+            value={baseUnit}
+            onChange={(e) => setBaseUnit(e.target.value)}
+            disabled={!dimension}
+            className={`${inputClass} disabled:opacity-50`}
+          >
+            <option value="" disabled>
+              {dimension ? "— เลือกหน่วยพื้นฐาน —" : "เลือกหน่วยวัดหลักก่อน"}
+            </option>
+            {unitOptions.map((u) => (
+              <option key={u.unitName} value={u.unitName}>
+                {u.unitName}
+              </option>
+            ))}
+          </select>
+          <p className="mt-1 text-xs text-muted-foreground">
+            หน่วยที่ใช้บันทึกสต๊อกของสินค้านี้ (เพิ่มหน่วยซื้อ-ขายอื่นได้ภายหลัง)
+          </p>
+          {err("baseUnitName") && (
+            <p className="mt-1 text-sm text-red-600">{err("baseUnitName")}</p>
+          )}
+        </div>
+      </section>
+
+      {/* Classification + status */}
+      <section className="space-y-4 rounded-lg border border-border bg-card p-6">
+        <div>
+          <label htmlFor="category_id" className="mb-1 block text-sm font-medium">
+            {L.categoryId}
+          </label>
+          <select
+            id="category_id"
+            name="category_id"
+            defaultValue={initial?.categoryId ?? ""}
+            className={inputClass}
+          >
+            <option value="">— ไม่ระบุหมวดหมู่ —</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {`${ACCOUNT_LABELS_TH[c.account as Account] ?? c.account} › ${c.accountingSection} › ${c.groupName}`}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <input
+            id="is_active"
+            name="is_active"
+            type="checkbox"
+            defaultChecked={initial?.isActive ?? true}
+            className="h-4 w-4 rounded border-border"
+          />
+          <label htmlFor="is_active" className="text-sm font-medium">
+            {L.isActive}
+          </label>
+        </div>
+      </section>
+
+      <div className="flex items-center gap-3">
+        <button
+          type="submit"
+          disabled={isPending}
+          className="rounded-lg bg-primary px-6 py-2 text-primary-foreground hover:opacity-90 disabled:opacity-50"
+        >
+          {isPending ? "กำลังบันทึก..." : submitLabel}
+        </button>
+        <a
+          href="/products"
+          className="rounded-lg border border-border px-6 py-2 text-sm hover:bg-muted/40"
+        >
+          ยกเลิก
+        </a>
+      </div>
+    </form>
+  );
+}

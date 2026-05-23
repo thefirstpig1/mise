@@ -21,10 +21,41 @@
 - [ ] RLS policies applied for all new tenant-scoped tables
 - [x] 16 default categories seeded on tenant creation (H.1.2) — verified Part 6 E2E
 - [ ] CRUD pages for Supplier
-- [ ] CRUD pages for Product (with multi-unit support)
+- [~] CRUD pages for Product — Part 7a ✅ (RAW + single base unit); multi-unit/PREPPED/density = Part 7b
 - [x] CRUD pages for Category (3-tier: account → accounting_section → group)
 - [ ] Supplier-Product mapping UI
 - [ ] All Sprint 0 features still work
+
+---
+
+## Sprint 1 Part 7a — Products CRUD (RAW + base unit): ✅ COMPLETE (2026-05-24)
+
+Grill-with-docs first (6 Qs locked) → split agreed: **7a = RAW + single base unit**, **7b = multi-unit + PREPPED + liquid density**. Built on the supplier/category template.
+
+### Design locked (grill)
+| Q | Decision |
+|---|----------|
+| Q1 | **Base unit = user-picked** from `unit_template` (filtered by `primaryDimension`) → one ProductUnit `isBase=true, isDefaultBuyUnit=true, toBaseRatio=1`. NOT auto-derived to SI. → **ADR 0005** |
+| Q2 | 7a = **RAW only** (`type="RAW"` fixed, no selector); PREPPED → 7b |
+| Q3 | `sku` **auto-gen** `P-####` when blank (scans P-#### incl. soft-deleted, max+1), override allowed; P2002 → `ProductSkuConflictError` → Thai (full unique, Pitfall #22) |
+| Q4 | Form = `name, nameEn, sku, primaryDimension, baseUnit, categoryId, isActive`. `targetMarketPrice`/image/density/parent **deferred** |
+| Q5 | Shared create+edit form; **all fields editable** (incl. dimension → re-pick base unit); update writes Product + base ProductUnit atomically. Base-unit/dimension **guard → 7b/Sprint 2** (once downstream refs exist) |
+| Q6/6b | List = **3-tier category tree** (account→section→group→product leaf) reusing CategoryTree; "ไม่มีหมวด" bucket; client search + active-only toggle |
+
+### Files
+- `src/lib/validations/product.ts` (`productInputSchema`, `PRIMARY_DIMENSION_VALUES` single-source, Thai labels)
+- `src/server/product.ts` (5 `*Logic` + `getUnitTemplates()` + sku auto-gen + atomic Product+baseUnit tx + `ProductSkuConflictError`/`InvalidBaseUnitError`)
+- `src/app/products/actions.ts` (`createProduct`/`updateProduct`/`deleteProduct`, `ProductActionState`)
+- `src/app/products/{layout,page,new/page,[id]/page}.tsx` + `_components/{ProductTree,ProductForm,DeleteProductButton,product-view}.tsx`
+- `src/app/dashboard/page.tsx` — added `→ สินค้า/วัตถุดิบ` nav link
+- `docs/adr/0005-product-base-unit-model.md`; CONTEXT.md +`Base unit`/`Default buy unit`
+- Tests: `tests/product-logic.test.ts` (9 slices), `tests/product-input-schema.test.ts` (4)
+
+### Verified
+- vitest **39 passed | 4 skipped** (+13 new); `tsc --noEmit` clean on all new files (only 2 pre-existing `auth.ts:24` errors). RouteImpl errors were Pitfall #21 (stale typedRoutes manifest) → cleared after one `pnpm dev` compile of /products.
+- E2E via headless magic-link login (reused Part-6 throwaway tenant `12cad010-…`): `/products` 200 authenticated (empty state), `/products/new` form renders with cascade initial state, **create round-trip via progressive-enhancement POST** → product persisted with auto-gen `P-0001`, base unit `l` (VOLUME), under "ไม่มีหมวด", rendered in tree. (Thai name showed as `?` only in the curl harness — Git Bash mangles UTF-8 in args; real code path stores Thai fine, see vitest.) Test product cleaned up.
+
+### Next: Part 7b — multi-unit (dynamic ProductUnit rows, one isBase/one isDefaultBuyUnit) + PREPPED (parentProductId + yieldPercent, Decision #59) + liquid density (VOLUME). Then Supplier⇄Product mapping UI.
 
 ---
 
