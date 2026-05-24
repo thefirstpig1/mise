@@ -51,6 +51,23 @@ export class InvalidBaseUnitError extends Error {
   }
 }
 
+/**
+ * Thrown when a user-supplied FK (e.g. categoryId) points at a row that is
+ * missing, soft-deleted, or owned by another tenant. RLS is inert until
+ * Sprint 7 (ADR 0004), so we must verify tenant ownership of referenced rows
+ * in the app layer. `kind` identifies WHICH reference failed so the action
+ * layer can attach the Thai error to the right field.
+ */
+export class CrossTenantReferenceError extends Error {
+  constructor(
+    public readonly kind: TenantScopedRef,
+    public readonly id: string
+  ) {
+    super(`Referenced ${kind} "${id}" does not belong to this tenant`);
+    this.name = "CrossTenantReferenceError";
+  }
+}
+
 /** Map Prisma P2002 → typed ProductSkuConflictError; pass others through. */
 function rethrowSkuConflict(e: unknown, sku: string | null): never {
   if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
@@ -69,6 +86,44 @@ async function assertValidBaseUnit(
     where: { unitName, unitDimension: dimension },
   });
   if (!unit) throw new InvalidBaseUnitError(unitName, dimension);
+}
+
+/**
+ * Tenant-scoped models a user-supplied FK can point at. Every entry must expose
+ * `{ id, tenantId, deletedAt }`. Extend as new FKs land — 7b adds nothing new
+ * (parentProductId is also `"product"`); Sprint 5 recipe refs reuse this too.
+ */
+type TenantScopedRef = "category" | "product";
+
+/**
+ * Guard: a referenced row (by `id`) must be a LIVE row owned by `tenantId`.
+ * `id == null` (FK not set) is a no-op. Throws CrossTenantReferenceError if the
+ * row is missing, soft-deleted, or belongs to another tenant — closing the
+ * cross-tenant FK hole while RLS is inert (ADR 0004). Generic over any
+ * tenant-scoped model with `{ tenantId, deletedAt }`; the single cast bridges
+ * Prisma's per-model delegate types (the `where`/`select` shapes stay typed).
+ *
+ * Reusable: 7b passes kind="product" for parentProductId. When a second module
+ * needs this, lift it (+ CrossTenantReferenceError + TenantScopedRef) to src/lib.
+ */
+async function assertRefBelongsToTenant(
+  tx: PrismaClient,
+  tenantId: string,
+  kind: TenantScopedRef,
+  id: string | null | undefined
+): Promise<void> {
+  if (id == null) return;
+  const delegate = tx[kind] as unknown as {
+    findFirst(args: {
+      where: { id: string; tenantId: string; deletedAt: null };
+      select: { id: true };
+    }): Promise<{ id: string } | null>;
+  };
+  const row = await delegate.findFirst({
+    where: { id, tenantId, deletedAt: null },
+    select: { id: true },
+  });
+  if (!row) throw new CrossTenantReferenceError(kind, id);
 }
 
 /**
@@ -119,6 +174,7 @@ export async function createProductLogic(
   try {
     return await withTenantContext(tenantId, async (tx) => {
       await assertValidBaseUnit(tx, input.baseUnitName, input.primaryDimension);
+      await assertRefBelongsToTenant(tx, tenantId, "category", input.categoryId);
       skuUsed = input.sku ?? (await generateSku(tx, tenantId));
 
       const product = await tx.product.create({
@@ -208,6 +264,7 @@ export async function updateProductLogic(
   try {
     return await withTenantContext(tenantId, async (tx) => {
       await assertValidBaseUnit(tx, input.baseUnitName, input.primaryDimension);
+      await assertRefBelongsToTenant(tx, tenantId, "category", input.categoryId);
 
       // Unchecked variant: includes the scalar FK `categoryId` (the checked
       // ProductUpdateManyMutationInput omits relation FKs). updateMany accepts both.

@@ -179,3 +179,17 @@ datasource db {
 - Status: **ยอมรับสำหรับ MVP** (Sprint 1 Part 7a) — เหมือนเหตุผล #22 (Category)
 - Mitigation ปัจจุบัน: action layer แปลง P2002 → Thai message "รหัสสินค้านี้มีอยู่แล้ว (หากเคยลบไปแล้ว จะยังใช้รหัสซ้ำไม่ได้)"
 - Fix (ถ้าเจอปัญหาจริง): partial unique index `WHERE deleted_at IS NULL` ผ่าน `prisma/manual/` แบบเดียวกับ `supplier_code_unique.sql` (ต้องเอา `@@unique` ออกจาก schema → comment ชี้ไปไฟล์ manual แทน)
+
+### 24. `rethrowSkuConflict` จับ P2002 เหมาทุกตัว — แคบลงตอน 7b (multi-unit)
+- Where: `src/server/product.ts` → `rethrowSkuConflict()` แปลง P2002 *ใด ๆ* → `ProductSkuConflictError` → Thai "รหัสสินค้านี้มีอยู่แล้ว"
+- 7a ปลอดภัย: product มี ProductUnit แค่ 1 แถว → P2002 ในทรานแซกชันมาจาก `@@unique([tenantId, sku])` เท่านั้น
+- **7b จะพัง:** multi-unit → `@@unique([productId, unitName])` ชนได้ (ผู้ใช้ใส่ชื่อหน่วยซ้ำในสินค้าเดียว) → ปัจจุบันจะถูกแปลงผิดเป็น "รหัสสินค้าซ้ำ" ทั้งที่จริงคือ "ชื่อหน่วยซ้ำ"
+- **Fix ตอน 7b:** แยกด้วย `e.meta?.target` (เช่น `['tenant_id','sku']` vs `['product_id','unit_name']`) → คืน error ที่ field ถูกต้อง (sku-conflict vs unit-name-conflict)
+- Status: **ยอมรับสำหรับ 7a** (unit เดียว ยิงไม่ได้). ต้องแก้ก่อน/ระหว่างทำ 7b
+
+### 25. `generateSku` race condition — scan max+1 ไม่ lock
+- Where: `src/server/product.ts` → `generateSku()` อ่าน `P-####` สูงสุดแล้ว +1 (ไม่มี row lock / advisory lock)
+- Symptom: create พร้อมกัน 2 request (เว้น sku ว่าง) อ่าน max เดียวกัน → ได้ `P-####` ซ้ำ → อันหลัง P2002 → ผู้ใช้เห็น "รหัสสินค้าซ้ำ" ทั้งที่เว้นว่าง (งง เพราะไม่ได้กรอก sku เอง)
+- Status: **ยอมรับสำหรับ MVP** — single-user, โอกาส concurrent create ต่ำมาก
+- Fix (ตอน scale / multi-user): `pg_advisory_xact_lock(hashtext(tenant_id::text))` ต้นทรานแซกชัน หรือเปลี่ยนเป็น DB sequence ต่อ tenant
+- เกี่ยวข้อง: Pitfall #24 (ถ้า race ยิง P2002 ก็จะถูก `rethrowSkuConflict` แปลงเป็น sku-conflict — ใน 7a ถูกต้องพอดี)

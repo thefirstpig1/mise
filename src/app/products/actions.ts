@@ -29,6 +29,7 @@ import {
   deleteProductLogic,
   ProductSkuConflictError,
   InvalidBaseUnitError,
+  CrossTenantReferenceError,
 } from "@/server/product";
 
 /**
@@ -46,6 +47,8 @@ const DUPLICATE_SKU_MESSAGE =
   "รหัสสินค้านี้มีอยู่แล้ว (หากเคยลบไปแล้ว จะยังใช้รหัสซ้ำไม่ได้)";
 /** Defensive: only reachable if the form posts a unit not in the dimension. */
 const INVALID_UNIT_MESSAGE = "หน่วยพื้นฐานไม่ตรงกับหน่วยวัดที่เลือก";
+/** A posted categoryId that isn't a live category of this tenant (cross-tenant FK guard). */
+const INVALID_CATEGORY_MESSAGE = "หมวดบัญชีที่เลือกไม่ถูกต้อง";
 
 /** Map the form's snake_case FormData onto the schema's camelCase shape. */
 function rawFromFormData(formData: FormData): Record<string, unknown> {
@@ -73,13 +76,20 @@ function toFieldErrors(error: ZodError): Record<string, string> {
   return fieldErrors;
 }
 
-/** Map known typed logic errors → Thai formError; rethrow the rest. */
+/** Map known typed logic errors → Thai field/form errors; rethrow the rest. */
 function toFormError(e: unknown): ProductActionState {
   if (e instanceof ProductSkuConflictError) {
     return { ok: false, formError: DUPLICATE_SKU_MESSAGE };
   }
   if (e instanceof InvalidBaseUnitError) {
     return { ok: false, formError: INVALID_UNIT_MESSAGE };
+  }
+  if (e instanceof CrossTenantReferenceError) {
+    // 7a only references category; 7b's parentProductId reuses this branch.
+    if (e.kind === "category") {
+      return { ok: false, fieldErrors: { categoryId: INVALID_CATEGORY_MESSAGE } };
+    }
+    return { ok: false, formError: INVALID_CATEGORY_MESSAGE };
   }
   throw e; // unexpected → let the error boundary handle it
 }

@@ -55,6 +55,13 @@ Grill-with-docs first (6 Qs locked) → split agreed: **7a = RAW + single base u
 - vitest **39 passed | 4 skipped** (+13 new); `tsc --noEmit` clean on all new files (only 2 pre-existing `auth.ts:24` errors). RouteImpl errors were Pitfall #21 (stale typedRoutes manifest) → cleared after one `pnpm dev` compile of /products.
 - E2E via headless magic-link login (reused Part-6 throwaway tenant `12cad010-…`): `/products` 200 authenticated (empty state), `/products/new` form renders with cascade initial state, **create round-trip via progressive-enhancement POST** → product persisted with auto-gen `P-0001`, base unit `l` (VOLUME), under "ไม่มีหมวด", rendered in tree. (Thai name showed as `?` only in the curl harness — Git Bash mangles UTF-8 in args; real code path stores Thai fine, see vitest.) Test product cleaned up.
 
+### 7a hardening (post-review, 2026-05-24)
+Chat review of 7a flagged a cross-tenant FK hole (categoryId accepted from input without tenant check — RLS inert until Sprint 7). Fixed before 7b:
+- `src/server/product.ts`: `CrossTenantReferenceError` + generic `assertRefBelongsToTenant(tx, tenantId, kind, id)` (null = no-op; reused by 7b for `parentProductId`). Called in create + update.
+- `actions.ts`: maps it → field error on `categoryId` ("หมวดบัญชีที่เลือกไม่ถูกต้อง").
+- Test: +slice 10 (cross-tenant categoryId throws on create+update; null/own ok). vitest **40 passed | 4 skipped**; tsc clean (2 pre-existing `auth.ts` errors only).
+- Logged Pitfall **#24** (`rethrowSkuConflict` catches P2002 broadly — narrow via `meta.target` in 7b) + **#25** (`generateSku` race — advisory lock at scale).
+
 ### Next: Part 7b — multi-unit (dynamic ProductUnit rows, one isBase/one isDefaultBuyUnit) + PREPPED (parentProductId + yieldPercent, Decision #59) + liquid density (VOLUME). Then Supplier⇄Product mapping UI.
 
 ---

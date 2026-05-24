@@ -19,6 +19,7 @@ import {
   deleteProductLogic,
   ProductSkuConflictError,
   InvalidBaseUnitError,
+  CrossTenantReferenceError,
 } from "@/server/product";
 
 /** Build a validated ProductInput from minimal overrides (blank sku → auto-gen). */
@@ -198,5 +199,32 @@ describe("product *Logic (tenant-scoped, app-layer isolation)", () => {
 
     const ghosts = (await getProductsLogic(tenantA)).filter((p) => p.name === "GHOST");
     expect(ghosts).toHaveLength(0); // guard ran before any write
+  });
+
+  // Slice 10 — categoryId must belong to the calling tenant (cross-tenant FK guard)
+  it("rejects a categoryId owned by another tenant, on both create and update", async () => {
+    // B's category — A must NOT be able to reference it.
+    const bCat = await withAdminContext((tx) =>
+      tx.category.create({
+        data: { tenantId: tenantB, account: "COGS", accountingSection: "Food", groupName: "B-Only" },
+      })
+    );
+
+    // create: A points at B's category → throws, no ghost product written
+    await expect(
+      createProductLogic(tenantA, input({ name: "CROSS-CAT", categoryId: bCat.id }))
+    ).rejects.toBeInstanceOf(CrossTenantReferenceError);
+    const ghosts = (await getProductsLogic(tenantA)).filter((p) => p.name === "CROSS-CAT");
+    expect(ghosts).toHaveLength(0);
+
+    // null categoryId is allowed (no-op guard)
+    const noCat = await createProductLogic(tenantA, input({ name: "ไม่มีหมวด", categoryId: null }));
+    expect(noCat.categoryId).toBeNull();
+
+    // update: re-pointing an own product at B's category → throws, original kept
+    await expect(
+      updateProductLogic(tenantA, noCat.id, input({ name: "ไม่มีหมวด", categoryId: bCat.id }))
+    ).rejects.toBeInstanceOf(CrossTenantReferenceError);
+    expect((await getProductByIdLogic(tenantA, noCat.id))?.categoryId).toBeNull();
   });
 });
