@@ -193,3 +193,23 @@ datasource db {
 - Status: **ยอมรับสำหรับ MVP** — single-user, โอกาส concurrent create ต่ำมาก
 - Fix (ตอน scale / multi-user): `pg_advisory_xact_lock(hashtext(tenant_id::text))` ต้นทรานแซกชัน หรือเปลี่ยนเป็น DB sequence ต่อ tenant
 - เกี่ยวข้อง: Pitfall #24 (ถ้า race ยิง P2002 ก็จะถูก `rethrowSkuConflict` แปลงเป็น sku-conflict — ใน 7a ถูกต้องพอดี)
+
+### 26. Neon free-tier compute-hours quota exhaustion (ต่างจาก #17 cold-start)
+- Symptom: P1001 "Can't reach database server" บน **ทั้ง** `-pooler` และ direct endpoint พร้อมกัน และ **ไม่หาย** แม้ปลุกผ่าน Neon Console (ต่างจาก #17 ที่ cold-start จะ clear ใน ~10s)
+- Cause: โควต้า compute-hours รายเดือนของ free-tier หมด → compute ถูก suspend ระดับ account ไม่ใช่ idle-suspend ของ endpoint
+- Detection: วิธีปลุกของ #17 (SELECT 1) ไม่ช่วย; ทั้งสอง endpoint ดับพร้อมกัน = compute suspended ที่ระดับบัญชี ไม่ใช่ปัญหา network/endpoint
+- Status: **CONFIRMED (2026-05-24/25, Sprint 1 Part 7b)** — DB ล่ม ~22:55 บล็อก integration test ทั้งหมดทั้ง session; กลับมาเองวันถัดมา (2026-05-25) แล้ว 16 logic tests ผ่าน
+- Fix: เช็ค Neon Console → Billing/Usage; **upgrade plan ก่อน sprint หนัก / ก่อน production**. คนละเรื่องกับ #17 (idle suspend, ปลุกแล้วหาย)
+
+### 27. `ml_per_g` terminology bug — ชื่อ field กับค่า seed สวนทาง (ค้างให้ 7d)
+- Where: schema `Product.densityMlPerGOverride` + `LiquidDensityTemplate.mlPerG` (column `ml_per_g`), `prisma/seed-system.ts` `LIQUID_DENSITIES`, CONTEXT.md "Liquid density"
+- Symptom: field/column ชื่อ `ml_per_g` (มล./กรัม) แต่ค่า seed เป็น **density g/ml มาตรฐาน** — น้ำ 1.000, นม 1.030, น้ำมัน 0.910, น้ำเชื่อม 1.300. ถ้าเป็น ml/g จริง นมต้อง ~0.971 ไม่ใช่ 1.030. CONTEXT.md เขียน "ml/g ratio ... milk=1.030" ผิดทิศเดียวกัน
+- Risk: การแปลง WEIGHT↔VOLUME ใช้ ratio นี้ — ทิศผิด = แปลงกลับด้านใน Sprint 2+ (cost/consumption)
+- Status: **ยังไม่แก้ — defer ไป Part 7d** (slice liquid density ตาม grill 7c Q1 ที่ซอย 7d=density)
+- Fix decision (ตัดสินตอน 7d): (a) เปลี่ยนชื่อ field/column `ml_per_g` → `g_per_ml`/`densityGPerMl` (ต้อง migration) คงค่า seed เดิม — น่าจะเลือกอันนี้เพราะค่าเป็น density มาตรฐานที่คนคุ้น; หรือ (b) คงชื่อ `ml_per_g` แล้วแก้ค่า seed เป็น ml/g จริง (นม → 0.971…) + แก้ CONTEXT
+
+### 28. depth/cycle traversal race — concurrent edit บนสาย ancestor เดียวกัน (ตระกูล #25)
+- Where: `src/server/product.ts` (7c) — parentProductId guard: ancestor-walk (`ancestorDepth`) + descendant DFS (`descendantHeight`) สำหรับ check `ancestorDepth + 1 + descendantHeight ≤ 5` + cycle (ADR 0007)
+- Symptom: สอง edit พร้อมกันบนสาย ancestor เดียวกัน — ต่างคนต่างอ่าน state, ต่างคนต่างผ่าน guard, แล้วเขียนทั้งคู่ → chain ใน DB ลึกเกิน 5 หรือเกิด cycle (read-then-write ไม่มี lock)
+- Status: **ยอมรับสำหรับ MVP (7c)** — single-user, โอกาส concurrent edit บนสายเดียวกันต่ำมาก
+- Fix (ตอน scale): `pg_advisory_xact_lock` keyed บน tenant (หรือ root ของสาย) ต้นทรานแซกชันของ create/update — ตระกูลเดียวกับ #25 (generateSku race). **ไม่ทำใน 7c**

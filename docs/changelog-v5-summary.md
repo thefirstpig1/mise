@@ -8,7 +8,7 @@
 - #55: Tenant isolation via PostgreSQL RLS
 - #56: GR excess receipt = flag for manager review
 - #57: Unknown POS menu = auto-create stub
-- #58: Recipe recursion depth limit = 5
+- #58: PREPPED-from-PREPPED depth limit = 5 — enforced at BOTH product write-time (parentProductId ancestor-walk on create/update, Sprint 1 Part 7c; also rejects self-ref + cycles) AND recipe recursion (Sprint 5). See ADR 0007.
 - #59: Yield math formula = qty × (100/yield_percent)
 - #60: All DATE_TRUNC uses tenant timezone
 
