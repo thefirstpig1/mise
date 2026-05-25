@@ -28,6 +28,7 @@ import {
   updateProductLogic,
   deleteProductLogic,
   ProductSkuConflictError,
+  ProductUnitNameConflictError,
   InvalidBaseUnitError,
   CrossTenantReferenceError,
 } from "@/server/product";
@@ -45,6 +46,8 @@ export type ProductActionState =
 /** Thai duplicate-sku message (Pitfall #22 — full unique counts soft-deleted). */
 const DUPLICATE_SKU_MESSAGE =
   "รหัสสินค้านี้มีอยู่แล้ว (หากเคยลบไปแล้ว จะยังใช้รหัสซ้ำไม่ได้)";
+/** Thai duplicate unit-name message (multi-unit, Pitfall #24). */
+const DUPLICATE_UNIT_MESSAGE = "มีชื่อหน่วยซ้ำกันในสินค้านี้";
 /** Defensive: only reachable if the form posts a unit not in the dimension. */
 const INVALID_UNIT_MESSAGE = "หน่วยพื้นฐานไม่ตรงกับหน่วยวัดที่เลือก";
 /** A posted categoryId that isn't a live category of this tenant (cross-tenant FK guard). */
@@ -52,6 +55,16 @@ const INVALID_CATEGORY_MESSAGE = "หมวดบัญชีที่เลื�
 
 /** Map the form's snake_case FormData onto the schema's camelCase shape. */
 function rawFromFormData(formData: FormData): Record<string, unknown> {
+  // Additional units (7b) arrive as two parallel, ordered arrays — one entry per
+  // dynamic row in ProductForm. Zip them by index. Rows the user added but left
+  // nameless (an "+ เพิ่มหน่วย" they changed their mind on) are dropped; a blank
+  // RATIO is kept so zod surfaces "อัตราส่วนต้องมากกว่า 0" instead of a silent drop.
+  const names = formData.getAll("additional_unit_name");
+  const ratios = formData.getAll("additional_unit_ratio");
+  const additionalUnits = names
+    .map((unitName, i) => ({ unitName, toBaseRatio: ratios[i] ?? "" }))
+    .filter((u) => typeof u.unitName === "string" && u.unitName.trim() !== "");
+
   return {
     sku: formData.get("sku"),
     name: formData.get("name"),
@@ -60,6 +73,8 @@ function rawFromFormData(formData: FormData): Record<string, unknown> {
     baseUnitName: formData.get("base_unit_name"),
     categoryId: formData.get("category_id"),
     isActive: formData.get("is_active") === "on",
+    additionalUnits,
+    defaultBuyUnitName: formData.get("default_buy_unit_name"),
   };
 }
 
@@ -80,6 +95,9 @@ function toFieldErrors(error: ZodError): Record<string, string> {
 function toFormError(e: unknown): ProductActionState {
   if (e instanceof ProductSkuConflictError) {
     return { ok: false, formError: DUPLICATE_SKU_MESSAGE };
+  }
+  if (e instanceof ProductUnitNameConflictError) {
+    return { ok: false, formError: DUPLICATE_UNIT_MESSAGE };
   }
   if (e instanceof InvalidBaseUnitError) {
     return { ok: false, formError: INVALID_UNIT_MESSAGE };

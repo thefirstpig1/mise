@@ -13,6 +13,15 @@
 
 import type { ProductWithUnits } from "@/server/product";
 
+/** One ProductUnit, RSC-safe: Decimal toBaseRatio serialized to string (Pitfall #20). */
+export type ProductUnitView = {
+  unitName: string;
+  toBaseRatio: string;
+  isBase: boolean;
+  isDefaultBuyUnit: boolean;
+  source: string | null;
+};
+
 export type ProductView = {
   id: string;
   sku: string;
@@ -30,6 +39,8 @@ export type ProductView = {
   /** Name/dimension of the single base unit (ADR 0005); null only if missing. */
   baseUnitName: string | null;
   baseUnitDimension: string | null;
+  /** All units (base first by displayOrder), for the multi-unit form + tree (7b). */
+  units: ProductUnitView[];
 };
 
 export function toProductView(p: ProductWithUnits): ProductView {
@@ -52,5 +63,14 @@ export function toProductView(p: ProductWithUnits): ProductView {
       : null,
     baseUnitName: base?.unitName ?? null,
     baseUnitDimension: base?.unitDimension ?? null,
+    units: [...p.productUnits]
+      .sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0))
+      .map((u) => ({
+        unitName: u.unitName,
+        toBaseRatio: u.toBaseRatio.toString(),
+        isBase: u.isBase,
+        isDefaultBuyUnit: u.isDefaultBuyUnit,
+        source: u.source,
+      })),
   };
 }

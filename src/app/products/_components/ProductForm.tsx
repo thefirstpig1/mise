@@ -10,7 +10,7 @@
 // the selection if it no longer fits (Q1/Q5). Initial values come from a
 // ProductView (Decimal-free; Pitfall #20 handled by the serializer).
 
-import { useActionState, useEffect, useMemo, useState } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { ProductActionState } from "@/app/products/actions";
 import {
@@ -28,6 +28,10 @@ type CategoryOption = {
   accountingSection: string;
   groupName: string;
 };
+
+/** One editable "additional unit" row. `id` is a stable client key so the
+ *  default-buy selection survives renames (we resolve id → name only at submit). */
+type UnitRow = { id: number; unitName: string; toBaseRatio: string };
 
 const inputClass =
   "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none";
@@ -70,6 +74,49 @@ export default function ProductForm({
       setBaseUnit("");
     }
   }
+
+  // --- Additional units (7b, Option A): dynamic rows below the base unit. ---
+  // Ids are assigned 0..n-1 in order on first render (idCounter starts at 0), so
+  // the default-buy index below lines up with the matching row id.
+  const idCounter = useRef(0);
+  const [rows, setRows] = useState<UnitRow[]>(() =>
+    (initial?.units ?? [])
+      .filter((u) => !u.isBase)
+      .map((u) => ({
+        id: idCounter.current++,
+        unitName: u.unitName,
+        toBaseRatio: u.toBaseRatio,
+      }))
+  );
+  // Which unit is the default buy unit: "base" or an additional row's id.
+  const [defaultBuyId, setDefaultBuyId] = useState<number | "base">(() => {
+    const idx = (initial?.units ?? [])
+      .filter((u) => !u.isBase)
+      .findIndex((u) => u.isDefaultBuyUnit);
+    return idx === -1 ? "base" : idx; // first-render row ids == their index
+  });
+
+  function addRow() {
+    setRows((prev) => [
+      ...prev,
+      { id: idCounter.current++, unitName: "", toBaseRatio: "" },
+    ]);
+  }
+  function removeRow(id: number) {
+    setRows((prev) => prev.filter((r) => r.id !== id));
+    // If we removed the default-buy unit, the default falls back to the base.
+    setDefaultBuyId((prev) => (prev === id ? "base" : prev));
+  }
+  function patchRow(id: number, patch: Partial<UnitRow>) {
+    setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+  }
+
+  // Resolve the default-buy selection to a unit NAME for submission (the logic
+  // matches by name). Tracking by id means a rename never breaks the link.
+  const defaultBuyName =
+    defaultBuyId === "base"
+      ? baseUnit
+      : rows.find((r) => r.id === defaultBuyId)?.unitName ?? baseUnit;
 
   useEffect(() => {
     if (state.ok) router.push("/products");
@@ -203,6 +250,101 @@ export default function ProductForm({
             <p className="mt-1 text-sm text-red-600">{err("baseUnitName")}</p>
           )}
         </div>
+      </section>
+
+      {/* Additional units (7b) — extra buy/sell units beyond the base */}
+      <section className="space-y-4 rounded-lg border border-border bg-card p-6">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h3 className="text-sm font-medium">{L.additionalUnits}</h3>
+            <p className="mt-1 text-xs text-muted-foreground">
+              เพิ่มหน่วยซื้อ-ขาย เช่น กระสอบ ลัง ขวด พร้อมระบุว่าเท่ากับกี่
+              {baseUnit ? ` ${baseUnit}` : "หน่วยพื้นฐาน"}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={addRow}
+            className="shrink-0 rounded-lg border border-border px-3 py-1.5 text-sm hover:bg-muted/40"
+          >
+            + เพิ่มหน่วย
+          </button>
+        </div>
+
+        {/* Default-buy selector spans the base + every additional row. */}
+        <div className="space-y-2">
+          {/* Base row (read-only mirror of the base unit chosen above) */}
+          <div className="flex items-center gap-3 rounded-lg bg-muted/30 px-3 py-2 text-sm">
+            <label className="flex items-center gap-2">
+              <input
+                type="radio"
+                name="default_buy_radio"
+                checked={defaultBuyId === "base"}
+                onChange={() => setDefaultBuyId("base")}
+                className="h-4 w-4"
+              />
+              <span className="text-muted-foreground">ซื้อหลัก</span>
+            </label>
+            <span className="font-medium">
+              {baseUnit || "(เลือกหน่วยพื้นฐานก่อน)"}
+            </span>
+            <span className="text-xs text-muted-foreground">
+              หน่วยพื้นฐาน · = 1
+            </span>
+          </div>
+
+          {rows.map((row) => (
+            <div key={row.id} className="flex items-center gap-2">
+              <input
+                type="text"
+                name="additional_unit_name"
+                value={row.unitName}
+                onChange={(e) => patchRow(row.id, { unitName: e.target.value })}
+                placeholder="ชื่อหน่วย เช่น กระสอบ"
+                className={inputClass}
+              />
+              <input
+                type="number"
+                name="additional_unit_ratio"
+                value={row.toBaseRatio}
+                onChange={(e) => patchRow(row.id, { toBaseRatio: e.target.value })}
+                step="any"
+                min="0"
+                placeholder={`= กี่ ${baseUnit || "หน่วยพื้นฐาน"}`}
+                className={`${inputClass} max-w-[10rem]`}
+              />
+              <label className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
+                <input
+                  type="radio"
+                  name="default_buy_radio"
+                  checked={defaultBuyId === row.id}
+                  onChange={() => setDefaultBuyId(row.id)}
+                  className="h-4 w-4"
+                />
+                ซื้อหลัก
+              </label>
+              <button
+                type="button"
+                onClick={() => removeRow(row.id)}
+                className="shrink-0 rounded-lg border border-border px-2 py-2 text-sm text-red-600 hover:bg-red-50"
+                aria-label="ลบหน่วย"
+              >
+                ลบ
+              </button>
+            </div>
+          ))}
+        </div>
+
+        {/* Resolved at submit: id → name (rename-safe). The base unit name is
+            included so the logic can treat "default = base" via name match. */}
+        <input type="hidden" name="default_buy_unit_name" value={defaultBuyName} />
+
+        {err("additionalUnits") && (
+          <p className="text-sm text-red-600">{err("additionalUnits")}</p>
+        )}
+        {err("defaultBuyUnitName") && (
+          <p className="text-sm text-red-600">{err("defaultBuyUnitName")}</p>
+        )}
       </section>
 
       {/* Classification + status */}

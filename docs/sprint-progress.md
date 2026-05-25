@@ -1,6 +1,6 @@
 # Mise Sprint Progress
 
-**Last updated:** 2026-05-23
+**Last updated:** 2026-05-25
 
 ## Current Sprint: Sprint 1 — Master Data
 
@@ -21,7 +21,7 @@
 - [ ] RLS policies applied for all new tenant-scoped tables
 - [x] 16 default categories seeded on tenant creation (H.1.2) — verified Part 6 E2E
 - [ ] CRUD pages for Supplier
-- [~] CRUD pages for Product — Part 7a ✅ (RAW + single base unit); multi-unit/PREPPED/density = Part 7b
+- [~] CRUD pages for Product — Part 7a ✅ (RAW + base unit), Part 7b ✅ (multi-unit); PREPPED/density = Part 7c
 - [x] CRUD pages for Category (3-tier: account → accounting_section → group)
 - [ ] Supplier-Product mapping UI
 - [ ] All Sprint 0 features still work
@@ -62,7 +62,51 @@ Chat review of 7a flagged a cross-tenant FK hole (categoryId accepted from input
 - Test: +slice 10 (cross-tenant categoryId throws on create+update; null/own ok). vitest **40 passed | 4 skipped**; tsc clean (2 pre-existing `auth.ts` errors only).
 - Logged Pitfall **#24** (`rethrowSkuConflict` catches P2002 broadly — narrow via `meta.target` in 7b) + **#25** (`generateSku` race — advisory lock at scale).
 
-### Next: Part 7b — multi-unit (dynamic ProductUnit rows, one isBase/one isDefaultBuyUnit) + PREPPED (parentProductId + yieldPercent, Decision #59) + liquid density (VOLUME). Then Supplier⇄Product mapping UI.
+### Next: Part 7b — multi-unit (design LOCKED below). PREPPED + liquid density split out to **Part 7c**.
+
+---
+
+## Sprint 1 Part 7b — Multi-unit: ✅ COMPLETE (2026-05-25)
+
+Grill-with-docs (Q1–Q5). **Scope split again (Q1): 7b = multi-unit ONLY**; PREPPED (parentProductId + yieldPercent, Decision #59) + liquid density → **7c**.
+
+### Verified (2026-05-25)
+- vitest **51 passed | 4 skipped** (`product-logic.test.ts` = 16: 7a's 10-slice regression + 7b L1/L4–L8; `product-input-schema.test.ts` = 9 S1–S4). `tsc --noEmit` clean (only the 2 pre-existing `auth.ts:24` errors). Both `/products` + `/products/new` compile in the Next runtime (no RSC/typedRoutes error).
+- **Full headless E2E** (throwaway tenant `12cad010-…`, magic-link login): created a RAW product `kg` base + 2 additional units via progressive-enhancement POST → DB rows correct — `kg`(base, ratio 1, source=system), `sack-e2e`(custom, ratio 25, **default-buy**), `g`(source=system, ratio 0.001), all WEIGHT (ADR 0006), one base + one default-buy. Tree leaf showed `P-0001 · kg (+2)`; edit page prefilled both rows + the default-buy radio. Test product hard-deleted (frees `P-0001`).
+
+### Files (delta on `4dbf09c`)
+- Logic: `src/lib/validations/product.ts` (`additionalUnits[]` coerced+`.positive()`, `defaultBuyUnitName`, `.superRefine` unique-names + default-in-set), `src/server/product.ts` (`ProductUnitNameConflictError`, `templateNamesForDimension` source-detect, create→base+N additional, update→base-in-place + additional diff-by-`unitName` hard-delete, `rethrowOnUniqueConflict` narrow via `meta.target`). Tests: `product-logic.test.ts` L1/L4–L8, `product-input-schema.test.ts` S1–S4. `docs/adr/0006-multi-unit-single-dimension.md`; CONTEXT.md +Additional unit/Unit source.
+- UI: `actions.ts` (`rawFromFormData` zips `additional_unit_name`/`_ratio` + `default_buy_unit_name`; maps `ProductUnitNameConflictError`→Thai), `product-view.ts` (`units[]`, `toBaseRatio.toString()`), `ProductForm.tsx` (Option A dynamic rows + default-buy radio, id-tracked so renames don't break the link), `ProductTree.tsx` (leaf `(+N)`).
+
+### Next: Part 7c — PREPPED (parentProductId + yieldPercent, Decision #59) + liquid density. Grill first.
+
+### Decisions (Q1–Q5)
+| Q | Decision |
+|---|----------|
+| Q1 | Split: **7b = multi-unit only**, 7c = PREPPED + density (multi-unit is the heavy/core part everything downstream uses) |
+| Q2 | **All ProductUnit rows share the Product's `primaryDimension`.** Cross-dimension (WEIGHT↔VOLUME) = density's job (7c), not units. zod/logic **rejects** any row with `unitDimension ≠ primaryDimension`. → **ADR 0006** |
+| Q3 | **Base = unit_template only** (needs toSiRatio for density/SI math). **Additional units may be custom** (free-text packaging: กระสอบ/ลัง/ขวด — seed has none). `source` = `system` if name matches a template of that dimension else `custom`; **records name origin only — toBaseRatio is product-specific** (ขวด of brand A milk ≠ B). Additional `toBaseRatio` zod `.positive()`; base = 1 always. Unit-name uniqueness validated at **zod** (before DB → clean error vs P2002). |
+| Q4 | Form **Option A**: top section = 7a's dimension + base-unit select (= the base row, ratio=1); below = "หน่วยเพิ่มเติม" dynamic rows `[name | toBaseRatio | ◯ default-buy | delete]` + "+ เพิ่มหน่วย". `isDefaultBuyUnit` = one radio across base + additional, default = base. |
+| Q5 | Edit reconcile **Option C** (delete-all-recreate ruled OUT — `SupplierProductMapping.orderUnitId → ProductUnit.id` FK, Part 8 will reference unit ids): **base updated in-place** (`updateMany {productId, isBase:true}`, id stable per ADR 0005); **additional diffed by `unitName`** (create new / update existing / **hard-delete** removed). |
+| Q5c | Additional removal = **hard delete** (not soft). Reason: `ProductUnit` has **no `deletedAt`** by design (ADR 0005) → soft-delete would need a migration + reintroduce P2002-after-delete (Pitfall #23 family). Safe in 7b (no FK refs to additional units yet). |
+
+### Validation ruleset (zod + logic)
+- base `toBaseRatio` = 1 (structural via Option A); additional `.positive()`.
+- ALL unit names (base + additional) **unique within product** — checked at zod before DB.
+- every row `unitDimension` = `primaryDimension` (reject otherwise — Q2).
+- exactly one `isBase`, exactly one `isDefaultBuyUnit`; default-buy must be base or an existing additional.
+
+### Must also do in 7b (Pitfall #24)
+Narrow `rethrowSkuConflict` via `e.meta.target` → distinguish `sku` conflict vs `product_id+unit_name` conflict. Multi-unit makes the unit-name P2002 **reachable** (7a couldn't trigger it). Map unit-name P2002 → its own Thai message / field error.
+
+### Serializer (Pitfall #20)
+`product-view.ts`: extend `ProductView` with `units: { unitName, toBaseRatio (string), isBase, isDefaultBuyUnit, source }[]` — `toBaseRatio` is Decimal → `.toString()`. ProductTree leaf: show base unit + "(+N)" when additional exist.
+
+### Deferred (carry-forward guard)
+**Part 8 / Sprint 2:** add a guard "block rename/delete of a `ProductUnit` referenced by a supplier mapping / PO" (`orderUnitId`). Same family as ADR 0005's deferred base-unit-change guard. Until refs exist, hard-delete + rename-as-delete+create are safe.
+
+### Plan (template chain, TDD)
+zod (`productInputSchema` + units array) → `*Logic` (extend create to N units + update diff, TDD) → actions (Pitfall #24 narrowing) → `product-view` (+units) → ProductForm (dynamic rows) + ProductTree leaf → verify (headless). ADR **0006** written.
 
 ---
 

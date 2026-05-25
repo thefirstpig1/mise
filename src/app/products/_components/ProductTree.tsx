@@ -61,6 +61,7 @@ function buildTree(products: ProductView[]): {
 }
 
 function ProductLeaf({ p, pad }: { p: ProductView; pad: string }) {
+  const extraUnits = p.units.filter((u) => !u.isBase).length;
   return (
     <Link
       href={`/products/${p.id}`}
@@ -70,6 +71,7 @@ function ProductLeaf({ p, pad }: { p: ProductView; pad: string }) {
       <span className="text-xs text-muted-foreground">
         {p.sku}
         {p.baseUnitName ? ` · ${p.baseUnitName}` : ""}
+        {extraUnits > 0 ? ` (+${extraUnits})` : ""}
         {!p.isActive ? " · ปิดใช้งาน" : ""}
       </span>
     </Link>
