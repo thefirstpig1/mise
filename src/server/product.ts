@@ -40,6 +40,20 @@ export class ProductSkuConflictError extends Error {
   }
 }
 
+/**
+ * Thrown when a ProductUnit name collides within the same product (Prisma P2002
+ * on @@unique([productId, unitName])). 7b makes this reachable (multi-unit);
+ * 7a could not. Distinguished from a sku conflict via P2002 meta.target.
+ */
+export class ProductUnitNameConflictError extends Error {
+  constructor(public readonly unitName: string | null) {
+    super(
+      `Product unit name already exists on this product: ${unitName ?? "(unknown)"}`
+    );
+    this.name = "ProductUnitNameConflictError";
+  }
+}
+
 /** Thrown when baseUnitName is not a unit_template entry for the given dimension. */
 export class InvalidBaseUnitError extends Error {
   constructor(
@@ -68,9 +82,21 @@ export class CrossTenantReferenceError extends Error {
   }
 }
 
-/** Map Prisma P2002 → typed ProductSkuConflictError; pass others through. */
-function rethrowSkuConflict(e: unknown, sku: string | null): never {
+/**
+ * Map a Prisma P2002 to a typed conflict error, distinguished by which unique
+ * index fired (Pitfall #24): ProductUnit's (product_id, unit_name) → unit-name
+ * conflict, otherwise the product `sku` index. 7b makes the unit-name case
+ * reachable (multi-unit). Non-P2002 errors pass through unchanged.
+ */
+function rethrowOnUniqueConflict(e: unknown, sku: string | null): never {
   if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+    const target = e.meta?.target;
+    const targetStr = Array.isArray(target)
+      ? target.join(",")
+      : String(target ?? "");
+    if (targetStr.includes("unit_name")) {
+      throw new ProductUnitNameConflictError(null);
+    }
     throw new ProductSkuConflictError(sku);
   }
   throw e;
@@ -124,6 +150,23 @@ async function assertRefBelongsToTenant(
     select: { id: true },
   });
   if (!row) throw new CrossTenantReferenceError(kind, id);
+}
+
+/**
+ * Names of all unit_template entries for a dimension. Used to tag an additional
+ * unit's `source`: a name that matches a template of the SAME dimension is
+ * "system", otherwise "custom" (a packaging name like กระสอบ). The ratio stays
+ * product-specific regardless (ADR 0006). One query per write — small N.
+ */
+async function templateNamesForDimension(
+  tx: PrismaClient,
+  dimension: string
+): Promise<Set<string>> {
+  const rows = await tx.unitTemplate.findMany({
+    where: { unitDimension: dimension },
+    select: { unitName: true },
+  });
+  return new Set(rows.map((r) => r.unitName));
 }
 
 /**
@@ -190,7 +233,14 @@ export async function createProductLogic(
         },
       });
 
-      // The single base unit (ADR 0005): isBase + isDefaultBuyUnit, ratio 1.
+      // Default buy unit defaults to the base when not specified (ADR 0005).
+      const defaultName = input.defaultBuyUnitName ?? input.baseUnitName;
+      const templateNames = await templateNamesForDimension(
+        tx,
+        input.primaryDimension
+      );
+
+      // The base unit (ADR 0005): isBase, ratio 1, always a template unit.
       await tx.productUnit.create({
         data: {
           productId: product.id,
@@ -198,11 +248,27 @@ export async function createProductLogic(
           unitDimension: input.primaryDimension,
           toBaseRatio: 1,
           isBase: true,
-          isDefaultBuyUnit: true,
+          isDefaultBuyUnit: defaultName === input.baseUnitName,
           source: "system",
           displayOrder: 0,
         },
       });
+
+      // Additional units (7b): same dimension (ADR 0006), ratio relative to base.
+      if (input.additionalUnits.length > 0) {
+        await tx.productUnit.createMany({
+          data: input.additionalUnits.map((u, i) => ({
+            productId: product.id,
+            unitName: u.unitName,
+            unitDimension: input.primaryDimension,
+            toBaseRatio: u.toBaseRatio,
+            isBase: false,
+            isDefaultBuyUnit: defaultName === u.unitName,
+            source: templateNames.has(u.unitName) ? "system" : "custom",
+            displayOrder: i + 1,
+          })),
+        });
+      }
 
       return tx.product.findFirstOrThrow({
         where: { id: product.id },
@@ -210,7 +276,7 @@ export async function createProductLogic(
       });
     });
   } catch (e) {
-    rethrowSkuConflict(e, skuUsed);
+    rethrowOnUniqueConflict(e, skuUsed);
   }
 }
 
@@ -283,14 +349,71 @@ export async function updateProductLogic(
       });
       if (count === 0) return null;
 
-      // Single base unit may have changed name/dimension (Q5); ratio stays 1.
+      // --- units reconcile (7b, Q5-C) ---
+      const defaultRequested = input.defaultBuyUnitName ?? input.baseUnitName;
+      const finalNames = new Set([
+        input.baseUnitName,
+        ...input.additionalUnits.map((u) => u.unitName),
+      ]);
+      // Defensive: if the requested default isn't among the final units (e.g. it
+      // was the removed unit and the form didn't reset it), fall back to base.
+      const effectiveDefault = finalNames.has(defaultRequested)
+        ? defaultRequested
+        : input.baseUnitName;
+      const templateNames = await templateNamesForDimension(
+        tx,
+        input.primaryDimension
+      );
+
+      // Base unit updated in place — id stays stable (ADR 0005); ratio stays 1.
       await tx.productUnit.updateMany({
         where: { productId: id, isBase: true },
         data: {
           unitName: input.baseUnitName,
           unitDimension: input.primaryDimension,
+          isDefaultBuyUnit: effectiveDefault === input.baseUnitName,
         },
       });
+
+      // Additional units diffed by unitName. Delete the removed ones FIRST so a
+      // rename (= delete old + create new) can't transiently collide on
+      // @@unique([productId, unitName]). Removal is a hard delete (Q5c —
+      // ProductUnit has no deletedAt by design, ADR 0005).
+      const existing = await tx.productUnit.findMany({
+        where: { productId: id, isBase: false },
+        select: { id: true, unitName: true },
+      });
+      const submittedNames = new Set(
+        input.additionalUnits.map((u) => u.unitName)
+      );
+      const toDelete = existing
+        .filter((u) => !submittedNames.has(u.unitName))
+        .map((u) => u.id);
+      if (toDelete.length > 0) {
+        await tx.productUnit.deleteMany({ where: { id: { in: toDelete } } });
+      }
+
+      // Upsert each submitted additional unit, matched to an existing row by name.
+      const existingIdByName = new Map(existing.map((u) => [u.unitName, u.id]));
+      for (let i = 0; i < input.additionalUnits.length; i++) {
+        const u = input.additionalUnits[i];
+        const fields = {
+          unitDimension: input.primaryDimension,
+          toBaseRatio: u.toBaseRatio,
+          isBase: false,
+          isDefaultBuyUnit: effectiveDefault === u.unitName,
+          source: templateNames.has(u.unitName) ? "system" : "custom",
+          displayOrder: i + 1,
+        };
+        const existingId = existingIdByName.get(u.unitName);
+        if (existingId) {
+          await tx.productUnit.update({ where: { id: existingId }, data: fields });
+        } else {
+          await tx.productUnit.create({
+            data: { productId: id, unitName: u.unitName, ...fields },
+          });
+        }
+      }
 
       return tx.product.findFirst({
         where: { id, tenantId, deletedAt: null },
@@ -298,7 +421,7 @@ export async function updateProductLogic(
       });
     });
   } catch (e) {
-    rethrowSkuConflict(e, input.sku);
+    rethrowOnUniqueConflict(e, input.sku);
   }
 }
 

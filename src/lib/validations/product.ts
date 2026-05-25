@@ -77,6 +77,48 @@ export const productInputSchema = z.object({
     z.string().uuid("หมวดหมู่ไม่ถูกต้อง").nullable()
   ),
   isActive: z.boolean().default(true),
+  // 7b multi-unit: extra units beyond the base. Each shares the product's
+  // dimension (set server-side) and converts to the base via toBaseRatio.
+  // Names may be custom (กระสอบ/ลัง); coerced from FormData strings.
+  additionalUnits: z
+    .array(
+      z.object({
+        unitName: z.preprocess(
+          (v) => (typeof v === "string" ? v.trim() : v),
+          z.string().min(1, "กรุณากรอกชื่อหน่วย")
+        ),
+        toBaseRatio: z.coerce
+          .number()
+          .positive("อัตราส่วนต้องมากกว่า 0"),
+      })
+    )
+    .default([]),
+  // Which unit is ordered by default. null → the logic treats it as the base.
+  defaultBuyUnitName: z.preprocess(blankToNull, z.string().trim().nullable()),
+}).superRefine((val, ctx) => {
+  // Unit names (base + additional) must be unique within the product. Checked
+  // here so the user gets a clean field error before the DB @@unique fires
+  // (the P2002 backstop is narrowed in src/server/product.ts — Pitfall #24).
+  const names = [val.baseUnitName, ...val.additionalUnits.map((u) => u.unitName)];
+  const seen = new Set<string>();
+  names.forEach((n, i) => {
+    if (seen.has(n)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "ชื่อหน่วยซ้ำกัน",
+        path: i === 0 ? ["baseUnitName"] : ["additionalUnits", i - 1, "unitName"],
+      });
+    }
+    seen.add(n);
+  });
+  // The default buy unit must be one of the product's units.
+  if (val.defaultBuyUnitName && !names.includes(val.defaultBuyUnitName)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "หน่วยซื้อหลักไม่อยู่ในรายการหน่วย",
+      path: ["defaultBuyUnitName"],
+    });
+  }
 });
 
 export type ProductInput = z.infer<typeof productInputSchema>;
@@ -90,4 +132,6 @@ export const PRODUCT_FIELD_LABELS_TH: Record<keyof ProductInput, string> = {
   baseUnitName: "หน่วยพื้นฐาน",
   categoryId: "หมวดหมู่",
   isActive: "สถานะใช้งาน",
+  additionalUnits: "หน่วยเพิ่มเติม",
+  defaultBuyUnitName: "หน่วยซื้อหลัก",
 };

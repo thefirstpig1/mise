@@ -30,6 +30,8 @@ on resolution during /grill-with-docs sessions.
 - **Default buy unit** — the unit a Product is ordered/purchased in by default (ProductUnit.isDefaultBuyUnit). For a single-unit Product it equals the base unit.
 - **Liquid density** — ml/g ratio for liquids (water=1.000, milk=1.030). Used to convert between WEIGHT and VOLUME for the same product. Pre-loaded as liquid_density_template.
 - **Multi-unit** — a product can have multiple units (e.g., milk in ml AND l AND ขวด).
+- **Additional unit** — any non-base ProductUnit on a Product. Converts to the base unit via a product-specific `toBaseRatio` and shares the Product's dimension (same dimension as the base — cross-dimension is handled by Liquid density, not units). May use a custom packaging name not in unit_template (e.g. กระสอบ, ลัง, ขวด); the base unit, by contrast, must come from unit_template.
+- **Unit source** — provenance of a ProductUnit's *name*: `system` (name matches a unit_template entry) or `custom` (free-text packaging name). Records where the name came from only; the `toBaseRatio` is always product-specific (1 ขวด of brand A milk ≠ brand B).
 
 ## Procurement
 

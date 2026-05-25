@@ -18,9 +18,11 @@ import {
   updateProductLogic,
   deleteProductLogic,
   ProductSkuConflictError,
+  ProductUnitNameConflictError,
   InvalidBaseUnitError,
   CrossTenantReferenceError,
 } from "@/server/product";
+import type { ProductInput } from "@/lib/validations/product";
 
 /** Build a validated ProductInput from minimal overrides (blank sku → auto-gen). */
 const input = (over: Record<string, unknown> = {}) =>
@@ -199,6 +201,150 @@ describe("product *Logic (tenant-scoped, app-layer isolation)", () => {
 
     const ghosts = (await getProductsLogic(tenantA)).filter((p) => p.name === "GHOST");
     expect(ghosts).toHaveLength(0); // guard ran before any write
+  });
+
+  // Slice L1 (7b) — create writes the base unit PLUS additional units, flags correct
+  it("createProductLogic writes the base unit plus additional units", async () => {
+    const p = await createProductLogic(
+      tenantA,
+      input({
+        name: "ข้าวสาร",
+        primaryDimension: "WEIGHT",
+        baseUnitName: "kg",
+        additionalUnits: [
+          { unitName: "กระสอบ", toBaseRatio: 25 }, // custom packaging
+          { unitName: "g", toBaseRatio: 0.001 }, // template name → source=system
+        ],
+        defaultBuyUnitName: "กระสอบ", // order by sack, not the base
+      })
+    );
+
+    expect(p.productUnits).toHaveLength(3);
+
+    const base = p.productUnits.find((u) => u.isBase)!;
+    expect(base.unitName).toBe("kg");
+    expect(Number(base.toBaseRatio)).toBe(1);
+    expect(base.unitDimension).toBe("WEIGHT");
+    expect(base.source).toBe("system");
+    expect(base.isDefaultBuyUnit).toBe(false); // default-buy is กระสอบ
+
+    const sack = p.productUnits.find((u) => u.unitName === "กระสอบ")!;
+    expect(sack.isBase).toBe(false);
+    expect(Number(sack.toBaseRatio)).toBe(25);
+    expect(sack.unitDimension).toBe("WEIGHT"); // inherits primaryDimension (Q2)
+    expect(sack.source).toBe("custom"); // not a unit_template entry
+    expect(sack.isDefaultBuyUnit).toBe(true);
+
+    const gram = p.productUnits.find((u) => u.unitName === "g")!;
+    expect(gram.source).toBe("system"); // "g" IS a WEIGHT template unit
+    expect(gram.isDefaultBuyUnit).toBe(false);
+
+    // invariants: exactly one base, exactly one default-buy
+    expect(p.productUnits.filter((u) => u.isBase)).toHaveLength(1);
+    expect(p.productUnits.filter((u) => u.isDefaultBuyUnit)).toHaveLength(1);
+  });
+
+  // Slice L4 (7b) — update ADDS an additional unit; base row id stays stable
+  it("updateProductLogic adds an additional unit without disturbing the base row", async () => {
+    const created = await createProductLogic(tenantA, input({ name: "แป้ง", baseUnitName: "kg" }));
+    const baseIdBefore = created.productUnits.find((u) => u.isBase)!.id;
+
+    const updated = await updateProductLogic(
+      tenantA,
+      created.id,
+      input({ name: "แป้ง", baseUnitName: "kg", additionalUnits: [{ unitName: "กระสอบ", toBaseRatio: 25 }] })
+    );
+
+    expect(updated!.productUnits).toHaveLength(2);
+    expect(updated!.productUnits.find((u) => u.isBase)!.id).toBe(baseIdBefore); // ADR 0005: base id stable
+    const sack = updated!.productUnits.find((u) => u.unitName === "กระสอบ")!;
+    expect(Number(sack.toBaseRatio)).toBe(25);
+    expect(sack.source).toBe("custom");
+  });
+
+  // Slice L5 (7b) — update CHANGES an additional unit's ratio in place (matched by unitName)
+  it("updateProductLogic updates an existing additional unit's ratio without changing its id", async () => {
+    const created = await createProductLogic(
+      tenantA,
+      input({ name: "น้ำมัน-L5", primaryDimension: "VOLUME", baseUnitName: "l", additionalUnits: [{ unitName: "ขวด", toBaseRatio: 0.75 }] })
+    );
+    const bottleIdBefore = created.productUnits.find((u) => u.unitName === "ขวด")!.id;
+
+    const updated = await updateProductLogic(
+      tenantA,
+      created.id,
+      input({ name: "น้ำมัน-L5", primaryDimension: "VOLUME", baseUnitName: "l", additionalUnits: [{ unitName: "ขวด", toBaseRatio: 0.6 }] })
+    );
+
+    expect(updated!.productUnits).toHaveLength(2);
+    const bottle = updated!.productUnits.find((u) => u.unitName === "ขวด")!;
+    expect(bottle.id).toBe(bottleIdBefore); // same row, matched by unitName (Q5-C)
+    expect(Number(bottle.toBaseRatio)).toBe(0.6);
+  });
+
+  // Slice L6 (7b) — update REMOVES an additional unit (hard delete); removing the
+  // default-buy unit drops the default back to the base (Q4b / Q5c)
+  it("updateProductLogic hard-deletes a removed additional unit and falls the default back to base", async () => {
+    const created = await createProductLogic(
+      tenantA,
+      input({ name: "ข้าว-L6", baseUnitName: "kg", additionalUnits: [{ unitName: "กระสอบ", toBaseRatio: 25 }], defaultBuyUnitName: "กระสอบ" })
+    );
+    const baseIdBefore = created.productUnits.find((u) => u.isBase)!.id;
+    const sackId = created.productUnits.find((u) => u.unitName === "กระสอบ")!.id;
+    expect(created.productUnits.find((u) => u.isBase)!.isDefaultBuyUnit).toBe(false); // กระสอบ was default
+
+    const updated = await updateProductLogic(
+      tenantA,
+      created.id,
+      input({ name: "ข้าว-L6", baseUnitName: "kg", additionalUnits: [], defaultBuyUnitName: null })
+    );
+
+    expect(updated!.productUnits).toHaveLength(1); // กระสอบ gone
+    const base = updated!.productUnits[0];
+    expect(base.id).toBe(baseIdBefore); // base row never recreated
+    expect(base.isDefaultBuyUnit).toBe(true); // default fell back to base
+    expect(updated!.productUnits.filter((u) => u.isDefaultBuyUnit)).toHaveLength(1);
+
+    // hard delete: the additional row is physically gone (no deletedAt on ProductUnit)
+    const ghost = await withAdminContext((tx) => tx.productUnit.findUnique({ where: { id: sackId } }));
+    expect(ghost).toBeNull();
+  });
+
+  // Slice L7 (7b) — update moves the default-buy flag from base to an additional unit
+  it("updateProductLogic moves the default-buy flag from the base to an additional unit", async () => {
+    const created = await createProductLogic(tenantA, input({ name: "ข้าว-L7", baseUnitName: "kg" }));
+    expect(created.productUnits[0].isBase).toBe(true);
+    expect(created.productUnits[0].isDefaultBuyUnit).toBe(true); // base is default initially
+
+    const updated = await updateProductLogic(
+      tenantA,
+      created.id,
+      input({ name: "ข้าว-L7", baseUnitName: "kg", additionalUnits: [{ unitName: "กระสอบ", toBaseRatio: 25 }], defaultBuyUnitName: "กระสอบ" })
+    );
+
+    const base = updated!.productUnits.find((u) => u.isBase)!;
+    const sack = updated!.productUnits.find((u) => u.unitName === "กระสอบ")!;
+    expect(base.isDefaultBuyUnit).toBe(false); // moved off base
+    expect(sack.isDefaultBuyUnit).toBe(true); // onto the additional
+    expect(updated!.productUnits.filter((u) => u.isDefaultBuyUnit)).toHaveLength(1);
+  });
+
+  // Slice L8 (7b, Pitfall #24) — a DB-level duplicate unit name → ProductUnitNameConflictError
+  it("maps a duplicate unit-name P2002 to ProductUnitNameConflictError, not sku conflict", async () => {
+    // Bypass zod (which dedupes names) to hit the @@unique([productId, unitName]) at the DB.
+    const raw: ProductInput = {
+      ...input({ name: "DUP-UNIT", baseUnitName: "kg" }),
+      additionalUnits: [
+        { unitName: "กระสอบ", toBaseRatio: 25 },
+        { unitName: "กระสอบ", toBaseRatio: 50 }, // same name twice
+      ],
+    };
+    await expect(createProductLogic(tenantA, raw)).rejects.toBeInstanceOf(
+      ProductUnitNameConflictError
+    );
+    // atomic: the tx rolled back, no ghost product
+    const ghosts = (await getProductsLogic(tenantA)).filter((p) => p.name === "DUP-UNIT");
+    expect(ghosts).toHaveLength(0);
   });
 
   // Slice 10 — categoryId must belong to the calling tenant (cross-tenant FK guard)
