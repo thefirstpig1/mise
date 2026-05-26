@@ -83,6 +83,45 @@ export class CrossTenantReferenceError extends Error {
 }
 
 /**
+ * Thrown by deleteProductLogic when the target product still has LIVE PREPPED
+ * children (`parentProductId=id AND deletedAt:null`). Soft-deleted children
+ * don't count (Q5 / ADR 0007). The action layer maps to a Thai message that
+ * lists the blocking child names (truncated with "…และอีก N รายการ").
+ */
+export class ProductHasChildrenError extends Error {
+  constructor(public readonly childNames: string[]) {
+    super(
+      `Cannot delete: product has ${childNames.length} live PREPPED child(ren)`
+    );
+    this.name = "ProductHasChildrenError";
+  }
+}
+
+/**
+ * Thrown when setting a product's parentProductId would create a self-reference
+ * (X.parent = X) or a cycle (the new parent's ancestor chain reaches back to X).
+ * Live-only ancestor-walk + visited-set guard (Q4 / ADR 0007).
+ */
+export class ProductParentCycleError extends Error {
+  constructor(public readonly productId: string) {
+    super(`Setting this parent would create a cycle through product ${productId}`);
+    this.name = "ProductParentCycleError";
+  }
+}
+
+/**
+ * Thrown when the new parent edge would push the longest live chain through
+ * the node past depth 5: `ancestorDepth(P)+1+descendantHeight(X) > 5`.
+ * Decision #58 / Q4 / ADR 0007. `depth` is the formula's value, for diagnostics.
+ */
+export class ProductDepthExceededError extends Error {
+  constructor(public readonly depth: number) {
+    super(`PREPPED chain depth ${depth} exceeds the limit of 5`);
+    this.name = "ProductDepthExceededError";
+  }
+}
+
+/**
  * Map a Prisma P2002 to a typed conflict error, distinguished by which unique
  * index fired (Pitfall #24): ProductUnit's (product_id, unit_name) → unit-name
  * conflict, otherwise the product `sku` index. 7b makes the unit-name case
@@ -153,6 +192,102 @@ async function assertRefBelongsToTenant(
 }
 
 /**
+ * Walk DOWN from `rootId` and return the longest live descendant chain length
+ * in EDGES (Decision #58 / ADR 0007). `where: { parentProductId, deletedAt: null }`
+ * keeps the DFS to LIVE branches only. The visited-set guards against an
+ * already-cyclic DB so the walk terminates even if Pitfall #28 has landed.
+ * For a leaf (no live children) returns 0.
+ */
+async function descendantHeightLive(
+  tx: PrismaClient,
+  rootId: string
+): Promise<number> {
+  const visited = new Set<string>();
+  async function dfs(nodeId: string): Promise<number> {
+    if (visited.has(nodeId)) return 0;
+    visited.add(nodeId);
+    const children = await tx.product.findMany({
+      where: { parentProductId: nodeId, deletedAt: null },
+      select: { id: true },
+    });
+    let max = 0;
+    for (const c of children) {
+      const h = 1 + (await dfs(c.id));
+      if (h > max) max = h;
+    }
+    return max;
+  }
+  return dfs(rootId);
+}
+
+/**
+ * Guard the new edge `X.parent = P` for a PREPPED write (ADR 0007). Rejects:
+ *   - self-reference (P === X)
+ *   - cycle (X reachable from P via the live-or-soft ancestor chain), with a
+ *     visited-set guard so an already-cyclic DB still terminates
+ *   - depth: requires `ancestorDepth(P→root) + 1 + descendantHeight(X) ≤ 4`,
+ *     equivalent to a chain of at most 5 NODES (the cap from Decision #58).
+ *     Both walks are LIVE-only (`deletedAt:null`): the upward walker FOLLOWS
+ *     through soft-deleted ancestors so the chain doesn't break, but only
+ *     INCREMENTS the count for live ones. The descendant DFS short-circuits at
+ *     soft-deleted branches via the where clause.
+ *
+ * On CREATE pass `selfId = null` → no self-ref check, descendantHeight=0
+ * (X has no children yet), the descendant DFS is skipped entirely.
+ *
+ * Caller MUST run `assertRefBelongsToTenant(tx, tenantId, "product", parentId)`
+ * BEFORE this — that closes the missing/soft-deleted/cross-tenant cases first.
+ */
+async function assertParentValid(
+  tx: PrismaClient,
+  parentId: string,
+  selfId: string | null
+): Promise<void> {
+  if (selfId !== null && parentId === selfId) {
+    throw new ProductParentCycleError(selfId);
+  }
+
+  // Ancestor walk: count P's LIVE ancestors only — NOT P itself. The "+1" in
+  // the formula stands for X (the node being parented), not P. P is in the
+  // visited-set so the cycle guard catches P.parent → … → P, but it doesn't
+  // increment ancestorDepth.
+  const pNode: { deletedAt: Date | null; parentProductId: string | null } | null =
+    await tx.product.findUnique({
+      where: { id: parentId },
+      select: { deletedAt: true, parentProductId: true },
+    });
+  let ancestorDepth = 0;
+  const visited = new Set<string>([parentId]);
+  let current: string | null = pNode?.parentProductId ?? null;
+  while (current !== null) {
+    if (selfId !== null && current === selfId) {
+      throw new ProductParentCycleError(selfId);
+    }
+    if (visited.has(current)) {
+      throw new ProductParentCycleError(current);
+    }
+    visited.add(current);
+    const node: { deletedAt: Date | null; parentProductId: string | null } | null =
+      await tx.product.findUnique({
+        where: { id: current },
+        select: { deletedAt: true, parentProductId: true },
+      });
+    if (node === null) break;
+    if (node.deletedAt === null) ancestorDepth += 1;
+    current = node.parentProductId;
+  }
+
+  const descendantHeight =
+    selfId === null ? 0 : await descendantHeightLive(tx, selfId);
+
+  const formula = ancestorDepth + 1 + descendantHeight;
+  if (formula > 4) {
+    // formula > 4 ↔ chain > 5 nodes (ADR 0007).
+    throw new ProductDepthExceededError(formula);
+  }
+}
+
+/**
  * Names of all unit_template entries for a dimension. Used to tag an additional
  * unit's `source`: a name that matches a template of the SAME dimension is
  * "system", otherwise "custom" (a packaging name like กระสอบ). The ratio stays
@@ -205,19 +340,32 @@ export async function getUnitTemplates(): Promise<UnitOption[]> {
 }
 
 /**
- * Create a RAW product + its single base unit under `tenantId`, atomically.
- * Input must already be zod-validated. `tenantId` and `type` are set
- * server-side — never trusted from input. Blank sku → auto-generated (Q3).
+ * Create a product (RAW or PREPPED, per `input.type`) + its single base unit
+ * under `tenantId`, atomically. Input must already be zod-validated.
+ * `tenantId` is set server-side — never trusted from input. For RAW the server
+ * also forces `parentProductId` and `yieldPercent` to null (defense in depth
+ * on top of zod). For PREPPED the parent ref is validated for tenant ownership
+ * and the resulting chain is checked for cycle + 5-node depth cap (ADR 0007).
+ * Blank sku → auto-generated (Q3).
  */
 export async function createProductLogic(
   tenantId: string,
   input: ProductInput
 ): Promise<ProductWithUnits> {
   let skuUsed: string | null = input.sku;
+  const isPrepped = input.type === "PREPPED";
+  const parentId = isPrepped ? input.parentProductId : null;
+  const yieldPct = isPrepped ? input.yieldPercent : null;
   try {
     return await withTenantContext(tenantId, async (tx) => {
       await assertValidBaseUnit(tx, input.baseUnitName, input.primaryDimension);
       await assertRefBelongsToTenant(tx, tenantId, "category", input.categoryId);
+      if (isPrepped) {
+        await assertRefBelongsToTenant(tx, tenantId, "product", parentId);
+        // parentId is non-null on PREPPED (zod superRefine); assertRefBelongs
+        // would have thrown above if it were null/missing/cross-tenant.
+        await assertParentValid(tx, parentId as string, null);
+      }
       skuUsed = input.sku ?? (await generateSku(tx, tenantId));
 
       const product = await tx.product.create({
@@ -226,9 +374,11 @@ export async function createProductLogic(
           sku: skuUsed,
           name: input.name,
           nameEn: input.nameEn,
-          type: "RAW",
+          type: input.type,
           primaryDimension: input.primaryDimension,
           categoryId: input.categoryId,
+          parentProductId: parentId,
+          yieldPercent: yieldPct,
           isActive: input.isActive,
         },
       });
@@ -327,18 +477,31 @@ export async function updateProductLogic(
   id: string,
   input: ProductInput
 ): Promise<ProductWithUnits | null> {
+  const isPrepped = input.type === "PREPPED";
+  const parentId = isPrepped ? input.parentProductId : null;
+  const yieldPct = isPrepped ? input.yieldPercent : null;
   try {
     return await withTenantContext(tenantId, async (tx) => {
       await assertValidBaseUnit(tx, input.baseUnitName, input.primaryDimension);
       await assertRefBelongsToTenant(tx, tenantId, "category", input.categoryId);
+      if (isPrepped) {
+        await assertRefBelongsToTenant(tx, tenantId, "product", parentId);
+        // selfId = id → catches self-ref + cycle + depth incl. descendantHeight.
+        await assertParentValid(tx, parentId as string, id);
+      }
 
       // Unchecked variant: includes the scalar FK `categoryId` (the checked
       // ProductUpdateManyMutationInput omits relation FKs). updateMany accepts both.
+      // type / parentProductId / yieldPercent are always written so a
+      // PREPPED→RAW flip clears the stale parent + yield (Q6 server-force).
       const data: Prisma.ProductUncheckedUpdateManyInput = {
         name: input.name,
         nameEn: input.nameEn,
+        type: input.type,
         primaryDimension: input.primaryDimension,
         categoryId: input.categoryId,
+        parentProductId: parentId,
+        yieldPercent: yieldPct,
         isActive: input.isActive,
       };
       if (input.sku != null) data.sku = input.sku;
@@ -430,12 +593,25 @@ export async function updateProductLogic(
  * but the row survives. Scoped to `tenantId` via `updateMany`. The base
  * ProductUnit rides along untouched (it has no deletedAt; invisible because
  * lists filter on the Product). Returns true if a row was soft-deleted.
+ *
+ * Blocks the delete (ProductHasChildrenError) when the product still has
+ * LIVE PREPPED children — soft-deleted children don't count (Q5 / ADR 0007).
+ * The pre-check is in the same `withTenantContext` so it's tenant-scoped via
+ * the explicit `tenantId` filter; cross-tenant delete attempts see no children
+ * AND no matching row to update → returns false (unchanged behavior).
  */
 export async function deleteProductLogic(
   tenantId: string,
   id: string
 ): Promise<boolean> {
   return withTenantContext(tenantId, async (tx) => {
+    const liveChildren = await tx.product.findMany({
+      where: { parentProductId: id, tenantId, deletedAt: null },
+      select: { name: true },
+    });
+    if (liveChildren.length > 0) {
+      throw new ProductHasChildrenError(liveChildren.map((c) => c.name));
+    }
     const { count } = await tx.product.updateMany({
       where: { id, tenantId, deletedAt: null },
       data: { deletedAt: new Date() },

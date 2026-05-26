@@ -21,6 +21,10 @@ import {
   ProductUnitNameConflictError,
   InvalidBaseUnitError,
   CrossTenantReferenceError,
+  ProductHasChildrenError,
+  ProductParentCycleError,
+  ProductDepthExceededError,
+  type ProductWithUnits,
 } from "@/server/product";
 import type { ProductInput } from "@/lib/validations/product";
 
@@ -52,6 +56,12 @@ describe("product *Logic (tenant-scoped, app-layer isolation)", () => {
   afterAll(async () => {
     const ids = [tenantA, tenantB, tenantC];
     await withAdminContext(async (tx) => {
+      // 7c: PREPPED chains create parent_product_id FKs. Null them out before
+      // deleteMany (no onDelete cascade declared in schema → Restrict).
+      await tx.product.updateMany({
+        where: { tenantId: { in: ids } },
+        data: { parentProductId: null },
+      });
       await tx.productUnit.deleteMany({ where: { product: { tenantId: { in: ids } } } });
       await tx.product.deleteMany({ where: { tenantId: { in: ids } } });
       await tx.category.deleteMany({ where: { tenantId: { in: ids } } });
@@ -59,6 +69,44 @@ describe("product *Logic (tenant-scoped, app-layer isolation)", () => {
     });
     await prisma.$disconnect();
   });
+
+  // ----- 7c test helpers -----
+  /** Create a PREPPED product under `parentId` with a default yield of 80%. */
+  const createPrepped = (
+    tenant: string,
+    name: string,
+    parentId: string,
+    yieldPct = 80
+  ) =>
+    createProductLogic(
+      tenant,
+      input({
+        name,
+        type: "PREPPED",
+        parentProductId: parentId,
+        yieldPercent: yieldPct,
+      })
+    );
+
+  /**
+   * Build a PREPPED chain of `n` nodes (1 RAW + n-1 PREPPED), oldest → deepest.
+   * Each step relies on assertParentValid passing; the cap is 5 nodes
+   * (ADR 0007 / Decision #58), so n ≤ 5 here.
+   */
+  const buildChain = async (
+    tenant: string,
+    n: number,
+    prefix: string
+  ): Promise<ProductWithUnits[]> => {
+    const chain: ProductWithUnits[] = [];
+    chain.push(
+      await createProductLogic(tenant, input({ name: `${prefix}-1`, type: "RAW" }))
+    );
+    for (let i = 2; i <= n; i++) {
+      chain.push(await createPrepped(tenant, `${prefix}-${i}`, chain[i - 2].id));
+    }
+    return chain;
+  };
 
   // Slice 1 — create writes a RAW product + its single base unit, atomically
   it("createProductLogic creates a RAW product with one base unit", async () => {
@@ -372,5 +420,232 @@ describe("product *Logic (tenant-scoped, app-layer isolation)", () => {
       updateProductLogic(tenantA, noCat.id, input({ name: "ไม่มีหมวด", categoryId: bCat.id }))
     ).rejects.toBeInstanceOf(CrossTenantReferenceError);
     expect((await getProductByIdLogic(tenantA, noCat.id))?.categoryId).toBeNull();
+  });
+
+  // ============================================================
+  // Sprint 1 Part 7c — PREPPED (parentProductId + yieldPercent)
+  // ADR 0007. Depth limit = 5 via `ancestorDepth(P)+1+descendantHeight(X) ≤ 5`,
+  // live-only traversal + visited-set guard.
+  // ============================================================
+
+  // L9 — happy path: create RAW (parent+yield = null) and PREPPED (both set)
+  it("createProductLogic honors type: RAW has null parent/yield, PREPPED carries both", async () => {
+    const raw = await createProductLogic(tenantA, input({ name: "L9-raw", type: "RAW" }));
+    expect(raw.type).toBe("RAW");
+    expect(raw.parentProductId).toBeNull();
+    expect(raw.yieldPercent).toBeNull();
+
+    const prepped = await createPrepped(tenantA, "L9-prepped", raw.id, 80);
+    expect(prepped.type).toBe("PREPPED");
+    expect(prepped.parentProductId).toBe(raw.id);
+    expect(Number(prepped.yieldPercent)).toBe(80);
+
+    // ADR 0005 invariant: PREPPED still owns exactly one base ProductUnit
+    expect(prepped.productUnits).toHaveLength(1);
+    expect(prepped.productUnits[0].isBase).toBe(true);
+  });
+
+  // L10 — parent guards: cross-tenant + self-ref + cycle
+  it("rejects PREPPED with cross-tenant parent, self-reference, or cycle", async () => {
+    // (a) Cross-tenant: B's RAW must not parent an A product.
+    const bRaw = await createProductLogic(tenantB, input({ name: "L10-bRaw", type: "RAW" }));
+    await expect(
+      createPrepped(tenantA, "L10-cross", bRaw.id)
+    ).rejects.toBeInstanceOf(CrossTenantReferenceError);
+
+    // (b) Self-reference on update: X.parent = X.id.
+    const x = await createProductLogic(tenantA, input({ name: "L10-self", type: "RAW" }));
+    await expect(
+      updateProductLogic(
+        tenantA,
+        x.id,
+        input({
+          name: "L10-self",
+          type: "PREPPED",
+          parentProductId: x.id,
+          yieldPercent: 80,
+        })
+      )
+    ).rejects.toBeInstanceOf(ProductParentCycleError);
+
+    // (c) Cycle: A → B (B.parent=A), then try to set A.parent=B.
+    const a = await createProductLogic(tenantA, input({ name: "L10-cycA", type: "RAW" }));
+    const b = await createPrepped(tenantA, "L10-cycB", a.id);
+    await expect(
+      updateProductLogic(
+        tenantA,
+        a.id,
+        input({
+          name: "L10-cycA",
+          type: "PREPPED",
+          parentProductId: b.id,
+          yieldPercent: 80,
+        })
+      )
+    ).rejects.toBeInstanceOf(ProductParentCycleError);
+  });
+
+  // L11 — depth boundary: 5-node chain is the maximum allowed; a 6th → reject.
+  // (Decision #58, ADR 0007: formula `ancestorDepth(P)+1+descendantHeight(X) ≤ 4`,
+  // equivalent to chain ≤ 5 nodes. The 5th node creates at formula = 3+1+0 = 4
+  // — boundary OK. Adding a 6th gives 4+1+0 = 5 > 4 → reject.)
+  it("enforces depth ≤ 5 nodes — chain of 5 succeeds, a 6th rejects", async () => {
+    const chain = await buildChain(tenantA, 5, "L11");
+    expect(chain).toHaveLength(5); // boundary case OK
+
+    await expect(
+      createPrepped(tenantA, "L11-6", chain[4].id)
+    ).rejects.toBeInstanceOf(ProductDepthExceededError);
+  });
+
+  // L12 — type-change on update: RAW↔PREPPED; PREPPED→RAW server-forces null
+  it("allows type-change RAW↔PREPPED on update; PREPPED→RAW forces parent/yield null", async () => {
+    const parent = await createProductLogic(tenantA, input({ name: "L12-parent", type: "RAW" }));
+    const x = await createProductLogic(tenantA, input({ name: "L12-x", type: "RAW" }));
+
+    // RAW → PREPPED
+    const toPrepped = await updateProductLogic(
+      tenantA,
+      x.id,
+      input({
+        name: "L12-x",
+        type: "PREPPED",
+        parentProductId: parent.id,
+        yieldPercent: 80,
+      })
+    );
+    expect(toPrepped?.type).toBe("PREPPED");
+    expect(toPrepped?.parentProductId).toBe(parent.id);
+    expect(Number(toPrepped?.yieldPercent)).toBe(80);
+
+    // PREPPED → RAW — server forces parent/yield null
+    const toRaw = await updateProductLogic(tenantA, x.id, input({ name: "L12-x", type: "RAW" }));
+    expect(toRaw?.type).toBe("RAW");
+    expect(toRaw?.parentProductId).toBeNull();
+    expect(toRaw?.yieldPercent).toBeNull();
+  });
+
+  // L13 — delete is BLOCKED when the product has live PREPPED children
+  it("blocks delete when live PREPPED children exist → ProductHasChildrenError", async () => {
+    const parent = await createProductLogic(tenantA, input({ name: "L13-parent", type: "RAW" }));
+    const child = await createPrepped(tenantA, "L13-child", parent.id);
+
+    await expect(deleteProductLogic(tenantA, parent.id)).rejects.toBeInstanceOf(
+      ProductHasChildrenError
+    );
+    // Parent survives the failed delete.
+    expect(await getProductByIdLogic(tenantA, parent.id)).not.toBeNull();
+
+    // Leaf with no children deletes normally.
+    expect(await deleteProductLogic(tenantA, child.id)).toBe(true);
+  });
+
+  // L14 — descendantHeight check on re-parent (ADR 0007 numeric trace, 5-node cap).
+  // X has subtree height 2 (X→C→B). Re-parent X under:
+  //   - P at ancestorDepth=2 → 2+1+2 = 5 > 4 → REJECT (chain would be 6 nodes)
+  //   - mid at ancestorDepth=1 → 1+1+2 = 4 ≤ 4 → OK (boundary, chain = 5 nodes)
+  //   - pRoot at ancestorDepth=0 → 0+1+2 = 3 ≤ 4 → OK (chain = 4 nodes)
+  it("rejects a re-parent that would push the chain past 5 nodes (descendantHeight trace)", async () => {
+    // P-side chain: pRoot → mid → P (P.ancestorDepth = 2)
+    const pRoot = await createProductLogic(tenantA, input({ name: "L14-pRoot", type: "RAW" }));
+    const mid = await createPrepped(tenantA, "L14-mid", pRoot.id);
+    const P = await createPrepped(tenantA, "L14-P", mid.id);
+
+    // X subtree: X (RAW for now) → C → B — descendantHeight(X)=2
+    const X = await createProductLogic(tenantA, input({ name: "L14-X", type: "RAW" }));
+    const C = await createPrepped(tenantA, "L14-C", X.id);
+    await createPrepped(tenantA, "L14-B", C.id);
+
+    // (i) Re-parent X under P: formula = 2 + 1 + 2 = 5 > 4 → REJECT (6-node chain)
+    await expect(
+      updateProductLogic(
+        tenantA,
+        X.id,
+        input({
+          name: "L14-X",
+          type: "PREPPED",
+          parentProductId: P.id,
+          yieldPercent: 80,
+        })
+      )
+    ).rejects.toBeInstanceOf(ProductDepthExceededError);
+
+    // (ii) Re-parent X under pRoot: formula = 0 + 1 + 2 = 3 → OK (4-node chain)
+    const okShallow = await updateProductLogic(
+      tenantA,
+      X.id,
+      input({
+        name: "L14-X",
+        type: "PREPPED",
+        parentProductId: pRoot.id,
+        yieldPercent: 80,
+      })
+    );
+    expect(okShallow?.parentProductId).toBe(pRoot.id);
+
+    // (iii) Re-parent X under mid: formula = 1 + 1 + 2 = 4 → OK (exact boundary, 5-node chain)
+    const okBoundary = await updateProductLogic(
+      tenantA,
+      X.id,
+      input({
+        name: "L14-X",
+        type: "PREPPED",
+        parentProductId: mid.id,
+        yieldPercent: 80,
+      })
+    );
+    expect(okBoundary?.parentProductId).toBe(mid.id);
+  });
+
+  // L15 — live-only traversal: a soft-deleted ancestor mid-chain doesn't count.
+  // Build a max-depth chain (5 nodes), then BYPASS deleteProductLogic (which
+  // would block on live children — Q5) by directly stamping the middle node as
+  // soft-deleted via withAdminContext. With one ancestor removed from the
+  // count, adding a 6th descendant via the live walker (formula = 3+1+0 = 4)
+  // succeeds where the raw walker (formula = 4+1+0 = 5) would have rejected.
+  it("live-only traversal: soft-deleted ancestors don't count toward depth", async () => {
+    const chain = await buildChain(tenantA, 5, "L15");
+
+    // Confirm raw-counted depth is at the cap: adding a 6th is rejected.
+    await expect(
+      createPrepped(tenantA, "L15-6-blocked", chain[4].id)
+    ).rejects.toBeInstanceOf(ProductDepthExceededError);
+
+    // Bypass Q5 to soft-delete the middle node (chain[2]) while it has live
+    // descendants — simulates a state the live-only walker must still handle.
+    await withAdminContext((tx) =>
+      tx.product.update({
+        where: { id: chain[2].id },
+        data: { deletedAt: new Date() },
+      })
+    );
+
+    // Live ancestors of chain[4] = {chain[0], chain[1], chain[3]} = 3.
+    // Formula = 3 + 1 + 0 = 4 ≤ 4 → adding the 6th now succeeds.
+    const n6 = await createPrepped(tenantA, "L15-6-allowed", chain[4].id);
+    expect(n6.parentProductId).toBe(chain[4].id);
+  });
+
+  // L16 — parent that is soft-deleted is rejected by the existing tenant guard
+  it("rejects a PREPPED whose parentProductId points at a soft-deleted product", async () => {
+    const parent = await createProductLogic(tenantA, input({ name: "L16-parent", type: "RAW" }));
+    // No children yet → soft-delete is allowed.
+    expect(await deleteProductLogic(tenantA, parent.id)).toBe(true);
+
+    await expect(
+      createPrepped(tenantA, "L16-orphan", parent.id)
+    ).rejects.toBeInstanceOf(CrossTenantReferenceError);
+  });
+
+  // L17 — delete counts only LIVE children: once all children are soft-deleted,
+  // the parent can be deleted normally.
+  it("allows delete of a parent whose only children have been soft-deleted", async () => {
+    const parent = await createProductLogic(tenantA, input({ name: "L17-parent", type: "RAW" }));
+    const child = await createPrepped(tenantA, "L17-child", parent.id);
+
+    // Soft-delete the (leaf) child first; parent now has zero LIVE children.
+    expect(await deleteProductLogic(tenantA, child.id)).toBe(true);
+    // Parent can be deleted because the soft-deleted child doesn't count.
+    expect(await deleteProductLogic(tenantA, parent.id)).toBe(true);
   });
 });
