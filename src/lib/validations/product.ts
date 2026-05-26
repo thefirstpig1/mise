@@ -35,6 +35,16 @@ export const PRIMARY_DIMENSION_LABELS_TH: Record<PrimaryDimension, string> = {
   COUNT: "จำนวนนับ",
 };
 
+/** Product type — RAW (bought as-is) or PREPPED (produced from a parent + yield). */
+export const PRODUCT_TYPE_VALUES = ["RAW", "PREPPED"] as const;
+export type ProductType = (typeof PRODUCT_TYPE_VALUES)[number];
+
+/** Thai gloss per type — used by the form <select> options. */
+export const PRODUCT_TYPE_LABELS_TH: Record<ProductType, string> = {
+  RAW: "วัตถุดิบ",
+  PREPPED: "ของแปรรูป",
+};
+
 /**
  * A missing/blank field means "not provided" → null.
  * Covers undefined, null, and "" / whitespace-only strings.
@@ -95,6 +105,34 @@ export const productInputSchema = z.object({
     .default([]),
   // Which unit is ordered by default. null → the logic treats it as the base.
   defaultBuyUnitName: z.preprocess(blankToNull, z.string().trim().nullable()),
+  // 7c: PREPPED parent + yield. Default RAW so existing 7a/7b call sites keep
+  // parsing unchanged. PREPPED requires both fields; RAW requires both null.
+  // Cycle/depth checks live in src/server/product.ts (ADR 0007).
+  //
+  // SAFETY: actions (L3) + ProductForm (L4) MUST send `type` explicitly on
+  // every request — DO NOT rely on this default. If `type` falls off the wire
+  // (e.g. a missing form field), zod silently fills RAW → superRefine then
+  // forces parent/yield to null, and a PREPPED edit would lose its data
+  // without an error. The default exists ONLY so internal/test callers that
+  // care only about RAW (7a/7b) keep working unchanged.
+  type: z
+    .enum(PRODUCT_TYPE_VALUES, {
+      errorMap: () => ({ message: "ประเภทสินค้าไม่ถูกต้อง (วัตถุดิบ/ของแปรรูป)" }),
+    })
+    .default("RAW"),
+  parentProductId: z.preprocess(
+    blankToNull,
+    z.string().uuid("รหัสสินค้าแม่ไม่ถูกต้อง").nullable()
+  ),
+  // 0.01–999.99 hard cap = Decimal(5,2); >100 ALLOWED (cooked rice, soaked beans).
+  yieldPercent: z.preprocess(
+    blankToNull,
+    z.coerce
+      .number()
+      .min(0.01, "yield ต้องอย่างน้อย 0.01%")
+      .max(999.99, "yield ต้องไม่เกิน 999.99%")
+      .nullable()
+  ),
 }).superRefine((val, ctx) => {
   // Unit names (base + additional) must be unique within the product. Checked
   // here so the user gets a clean field error before the DB @@unique fires
@@ -119,6 +157,39 @@ export const productInputSchema = z.object({
       path: ["defaultBuyUnitName"],
     });
   }
+  // 7c invariant: PREPPED ↔ {parentProductId, yieldPercent} both non-null;
+  // RAW ↔ both null. ADR 0007.
+  if (val.type === "PREPPED") {
+    if (!val.parentProductId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "ของแปรรูปต้องระบุสินค้าแม่",
+        path: ["parentProductId"],
+      });
+    }
+    if (val.yieldPercent === null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "ของแปรรูปต้องระบุเปอร์เซ็นต์ผลผลิต",
+        path: ["yieldPercent"],
+      });
+    }
+  } else {
+    if (val.parentProductId !== null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "วัตถุดิบต้องไม่มีสินค้าแม่",
+        path: ["parentProductId"],
+      });
+    }
+    if (val.yieldPercent !== null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "วัตถุดิบต้องไม่มีเปอร์เซ็นต์ผลผลิต",
+        path: ["yieldPercent"],
+      });
+    }
+  }
 });
 
 export type ProductInput = z.infer<typeof productInputSchema>;
@@ -134,4 +205,7 @@ export const PRODUCT_FIELD_LABELS_TH: Record<keyof ProductInput, string> = {
   isActive: "สถานะใช้งาน",
   additionalUnits: "หน่วยเพิ่มเติม",
   defaultBuyUnitName: "หน่วยซื้อหลัก",
+  type: "ประเภทสินค้า",
+  parentProductId: "สินค้าแม่",
+  yieldPercent: "เปอร์เซ็นต์ผลผลิต",
 };

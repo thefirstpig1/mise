@@ -104,4 +104,114 @@ describe("productInputSchema", () => {
     });
     expect(ok.defaultBuyUnitName).toBe("ลัง");
   });
+
+  // ----- 7c: PREPPED (parentProductId + yieldPercent + type) -----
+  const PARENT_UUID = "11111111-1111-1111-1111-111111111111";
+
+  // S5 — type defaults to RAW, accepts RAW/PREPPED, rejects others
+  it("defaults type to RAW; accepts RAW/PREPPED explicitly; rejects unknown values", () => {
+    expect(productInputSchema.parse(base).type).toBe("RAW");
+    expect(productInputSchema.parse({ ...base, type: "RAW" }).type).toBe("RAW");
+    expect(
+      productInputSchema.parse({
+        ...base,
+        type: "PREPPED",
+        parentProductId: PARENT_UUID,
+        yieldPercent: 80,
+      }).type
+    ).toBe("PREPPED");
+    expect(productInputSchema.safeParse({ ...base, type: "OTHER" }).success).toBe(false);
+  });
+
+  // S6 — RAW must have both parentProductId and yieldPercent null
+  it("rejects RAW with a non-null parentProductId or yieldPercent", () => {
+    expect(
+      productInputSchema.safeParse({ ...base, parentProductId: PARENT_UUID }).success
+    ).toBe(false);
+    expect(
+      productInputSchema.safeParse({ ...base, yieldPercent: 80 }).success
+    ).toBe(false);
+    // Default RAW: blank parent/yield are fine (treated as null)
+    const r = productInputSchema.parse({ ...base, parentProductId: "  ", yieldPercent: "" });
+    expect(r.parentProductId).toBeNull();
+    expect(r.yieldPercent).toBeNull();
+  });
+
+  // S7 — PREPPED must have BOTH parentProductId and yieldPercent
+  it("rejects PREPPED missing parentProductId or yieldPercent", () => {
+    // missing parent
+    const noParent = productInputSchema.safeParse({
+      ...base,
+      type: "PREPPED",
+      yieldPercent: 80,
+    });
+    expect(noParent.success).toBe(false);
+    if (!noParent.success) {
+      expect(noParent.error.issues.some((i) => i.path[0] === "parentProductId")).toBe(true);
+    }
+    // missing yield
+    const noYield = productInputSchema.safeParse({
+      ...base,
+      type: "PREPPED",
+      parentProductId: PARENT_UUID,
+    });
+    expect(noYield.success).toBe(false);
+    if (!noYield.success) {
+      expect(noYield.error.issues.some((i) => i.path[0] === "yieldPercent")).toBe(true);
+    }
+  });
+
+  // S8 — PREPPED with a non-uuid parentProductId rejects on shape
+  it("rejects PREPPED with a non-uuid parentProductId", () => {
+    expect(
+      productInputSchema.safeParse({
+        ...base,
+        type: "PREPPED",
+        parentProductId: "not-a-uuid",
+        yieldPercent: 80,
+      }).success
+    ).toBe(false);
+  });
+
+  // S9 — yieldPercent range: accepts 0.01–999.99 incl. >100; rejects 0, negative, >999.99
+  it("enforces yieldPercent range 0.01–999.99 and ALLOWS values >100", () => {
+    const mk = (y: unknown) =>
+      productInputSchema.safeParse({
+        ...base,
+        type: "PREPPED",
+        parentProductId: PARENT_UUID,
+        yieldPercent: y,
+      });
+    expect(mk(0.01).success).toBe(true);
+    expect(mk(100).success).toBe(true);
+    expect(mk(250).success).toBe(true); // >100 allowed (cooked rice / soaked beans)
+    expect(mk(999.99).success).toBe(true);
+    expect(mk(0).success).toBe(false);
+    expect(mk(-1).success).toBe(false);
+    expect(mk(1000).success).toBe(false);
+  });
+
+  // S10 — PREPPED happy path: all fields set, parsed values preserved
+  it("accepts a fully-specified PREPPED product", () => {
+    const r = productInputSchema.parse({
+      ...base,
+      type: "PREPPED",
+      parentProductId: PARENT_UUID,
+      yieldPercent: 80,
+    });
+    expect(r.type).toBe("PREPPED");
+    expect(r.parentProductId).toBe(PARENT_UUID);
+    expect(r.yieldPercent).toBe(80);
+  });
+
+  // S11 — yieldPercent coerced from a FormData string
+  it("coerces yieldPercent from a string (FormData) into a number", () => {
+    const r = productInputSchema.parse({
+      ...base,
+      type: "PREPPED",
+      parentProductId: PARENT_UUID,
+      yieldPercent: "80.5",
+    });
+    expect(r.yieldPercent).toBe(80.5);
+  });
 });
