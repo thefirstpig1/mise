@@ -22,9 +22,10 @@ on resolution during /grill-with-docs sessions.
 - **Category** — 3-tier classification: account (COGS/OpEx) → accounting_section (Food/Beverage/etc) → group (Meat/Seafood/etc).
 - **Product** — a purchasable or producible item. Two types:
   - **RAW** — bought as-is from supplier (e.g., whole salmon).
-  - **PREPPED** — produced from RAW via prep (e.g., portioned salmon fillets). Has parentProductId pointing to RAW.
+  - **PREPPED** — produced from a parent product via prep, with a yield (e.g., portioned salmon fillets). Has `parentProductId` pointing to a RAW **or** another PREPPED — chains are allowed up to depth 5 (Decision #58), enforced at product write-time by `assertParentValid` (live-only ancestor-walk + descendant-DFS + visited-set; rejects self-ref + cycles); see ADR 0007. Delete is blocked while live children exist.
 - **Yield** — output/input ratio for PREPPED products (e.g., 80% yield = 1kg raw → 800g prepped). NOT loss percent.
 - **Yield math** (Decision #59): `raw_qty = recipe_qty × (100 / yield_percent)` — NEVER `qty × (1 + loss%)`.
+- **Type-change guard (deferred, Sprint 2+)** — `Product.type` is freely editable in Sprint 1 because no downstream feature references it yet (Sprint 1 Part 7c, Q6). Once procurement / recipe / stock start consuming `type`, add a write-time guard on changing it — same family as ADR 0005's base-unit-change guard and ADR 0006's multi-unit-referenced-by-mapping guard.
 - **Unit** — measurement (g, kg, ml, l, ชิ้น, ฟอง, etc.). Pre-loaded as unit_template.
 - **Base unit** — the single canonical unit a Product's stock is internally tracked in. Every Product has exactly one (a ProductUnit with isBase=true, toBaseRatio=1). User-picked from unit_template, not normalized to SI — cross-dimension math uses unit_template.toSiRatio instead.
 - **Default buy unit** — the unit a Product is ordered/purchased in by default (ProductUnit.isDefaultBuyUnit). For a single-unit Product it equals the base unit.

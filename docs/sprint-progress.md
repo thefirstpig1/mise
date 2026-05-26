@@ -1,6 +1,6 @@
 # Mise Sprint Progress
 
-**Last updated:** 2026-05-25
+**Last updated:** 2026-05-26
 
 ## Current Sprint: Sprint 1 — Master Data
 
@@ -21,7 +21,7 @@
 - [ ] RLS policies applied for all new tenant-scoped tables
 - [x] 16 default categories seeded on tenant creation (H.1.2) — verified Part 6 E2E
 - [ ] CRUD pages for Supplier
-- [~] CRUD pages for Product — Part 7a ✅ (RAW + base unit), Part 7b ✅ (multi-unit); PREPPED/density = Part 7c
+- [~] CRUD pages for Product — Part 7a ✅ (RAW + base unit), Part 7b ✅ (multi-unit), Part 7c 🚧 docs in progress (PREPPED); density = Part 7d
 - [x] CRUD pages for Category (3-tier: account → accounting_section → group)
 - [ ] Supplier-Product mapping UI
 - [ ] All Sprint 0 features still work
@@ -79,6 +79,44 @@ Grill-with-docs (Q1–Q5). **Scope split again (Q1): 7b = multi-unit ONLY**; PRE
 - UI: `actions.ts` (`rawFromFormData` zips `additional_unit_name`/`_ratio` + `default_buy_unit_name`; maps `ProductUnitNameConflictError`→Thai), `product-view.ts` (`units[]`, `toBaseRatio.toString()`), `ProductForm.tsx` (Option A dynamic rows + default-buy radio, id-tracked so renames don't break the link), `ProductTree.tsx` (leaf `(+N)`).
 
 ### Next: Part 7c — PREPPED (parentProductId + yieldPercent, Decision #59) + liquid density. Grill first.
+
+---
+
+## Sprint 1 Part 7c — Products PREPPED: 🚧 DOCS IN PROGRESS (started 2026-05-26)
+
+Grill-with-docs (Q1–Q7) finished previous session — design locked, committed in `7c09472` (Decision #58 amendment + Pitfalls #26/#27/#28). **Scope split again (Q1): 7c = PREPPED only**; liquid density → **7d**. No migration needed: `parentProductId`, `yieldPercent`, `expectedYieldG`, `type` columns already exist on `Product`. Implementation = app-layer logic + UI only.
+
+### Design locked (Q1–Q7 — compact; full record in ADR 0007 + Drive changelog v5)
+| Q | Decision (one-liner) |
+|---|----------|
+| Q1 | Split: **7c = PREPPED only**, density → 7d. |
+| Q2 | `parentProductId` may point to RAW or PREPPED; required for PREPPED, null for RAW. → **ADR 0007** |
+| Q3 | `yieldPercent` required for PREPPED, null for RAW. Range `0.01–999.99`; `>100` allowed (no clamp). `expectedYieldG` deferred. Math = Decision #59. |
+| Q4 | Full live-only depth check at write-time: `ancestorDepth(P)+1+descendantHeight(X) ≤ 5`. → **ADR 0007** |
+| Q5 | Delete = **BLOCK** with live children (`ProductHasChildrenError`, Thai lists child names). → **ADR 0007** |
+| Q6 | Type selector = fixed `RAW`/`PREPPED` (new `PRODUCT_TYPE_VALUES`). Type-change allowed on edit; **deferred type-change guard** Sprint 2+ → **ADR 0007** + CONTEXT.md. `sku` stays `P-####`. |
+| Q7 | No new `@@unique`. Soft-delete + dangling-parent traps closed by Q4/Q5. Race → Pitfall #28 (deferred). |
+
+### Decisions/Pitfalls recorded (committed `7c09472`)
+- **Decision #58 amended** (`docs/changelog-v5-summary.md`): depth limit enforced at BOTH product write-time (parentProductId ancestor-walk, 7c) AND recipe recursion (Sprint 5). See ADR 0007.
+- **Pitfall #26** Neon free-tier compute-hours quota — confirmed account-level suspend (the Part 7b blocker).
+- **Pitfall #27** `ml_per_g` terminology bug — DEFERRED to 7d.
+- **Pitfall #28** depth/cycle traversal race — accepted for MVP; advisory-lock fix at scale.
+
+### Docs delivered this session (2026-05-26)
+- `docs/adr/0007-prepped-parent-graph.md` — PREPPED parent model: chains allowed, depth/cycle write-time, delete-block-with-live-children, deferred type-change guard.
+- `CONTEXT.md` — PREPPED entry sharpened (chains + depth + write-time enforcement); deferred type-change guard recorded.
+- This section.
+
+### Implementation plan (4-layer slice, TDD — per 7a/7b pattern)
+0. **Docs first** ← in progress (this session).
+1. **zod** (`src/lib/validations/product.ts`): add `type` (enum via new `PRODUCT_TYPE_VALUES`), `parentProductId` (uuid nullable); keep `yieldPercent` (coerced, 0.01–999.99). `.superRefine`: PREPPED → parent+yield required; RAW → both null. Thai labels.
+2. **logic** (`src/server/product.ts`): force `type`/parent/yield consistency server-side; add `assertParentValid` (tenant via `assertRefBelongsToTenant("product")`, self-ref, cycle+depth via live-only ancestor-walk + descendant-DFS + visited-set); `ProductHasChildrenError`; `deleteProductLogic` pre-check live children. TDD slices: create RAW/PREPPED, parent guards (cross-tenant/self/cycle/depth=5 ok / depth=6 reject), type-change both ways, delete-block, descendantHeight-on-edit.
+3. **actions** (`src/app/products/actions.ts`): read `type`/`parent_product_id`/`yield_percent` in `rawFromFormData`; map `ProductHasChildrenError` → Thai.
+4. **UI**: `ProductForm` type selector + conditional "การผลิต" section (parent picker + yield, default 100, >300 hint); `product-view.ts` add `type`/`parentProductId`/`parent {name,sku}`/`yieldPercent` (Decimal→string, Pitfall #20); `ProductTree` leaf badge for PREPPED.
+5. **verify**: vitest + tsc; headless E2E. Commit + push. Mark 7c COMPLETE. → **7d (density)**.
+
+### Next: complete docs review with user → start zod/logic.
 
 ### Decisions (Q1–Q5)
 | Q | Decision |
