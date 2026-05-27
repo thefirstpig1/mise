@@ -31,6 +31,9 @@ import {
   ProductUnitNameConflictError,
   InvalidBaseUnitError,
   CrossTenantReferenceError,
+  ProductHasChildrenError,
+  ProductParentCycleError,
+  ProductDepthExceededError,
 } from "@/server/product";
 
 /**
@@ -52,6 +55,31 @@ const DUPLICATE_UNIT_MESSAGE = "มีชื่อหน่วยซ้ำกั
 const INVALID_UNIT_MESSAGE = "หน่วยพื้นฐานไม่ตรงกับหน่วยวัดที่เลือก";
 /** A posted categoryId that isn't a live category of this tenant (cross-tenant FK guard). */
 const INVALID_CATEGORY_MESSAGE = "หมวดบัญชีที่เลือกไม่ถูกต้อง";
+/** A posted parentProductId that isn't a live product of this tenant (7c). */
+const INVALID_PARENT_MESSAGE = "สินค้าแม่ที่เลือกไม่ถูกต้อง";
+/** 7c: the new parent edge would create a self-reference or a cycle. */
+const PARENT_CYCLE_MESSAGE = "สินค้าแม่ที่เลือกจะทำให้เกิดวงจรอ้างอิง";
+/**
+ * 7c: the new edge would push the chain past 5 nodes (ADR 0007).
+ * Phrased from the user's perspective: they think in "ของแปรรูปซ้อนกี่ชั้น",
+ * not "node count including the RAW root". 5-node cap = 1 RAW + 4 PREPPED, so
+ * the user-facing limit is "ซ้อนได้ 4 ชั้น".
+ */
+const PARENT_DEPTH_MESSAGE =
+  "ซ้อนสินค้าแปรรูปได้สูงสุด 4 ชั้นจากวัตถุดิบตั้งต้น — เลือกสินค้าแม่ที่ตื้นกว่านี้";
+
+/**
+ * Build the Thai delete-blocked message for ProductHasChildrenError. Shows the
+ * first 3 child names; any remainder is summarised as "…และอีก N รายการ" so the
+ * toast stays readable when many children block the delete.
+ */
+const HAS_CHILDREN_NAME_CAP = 3;
+function buildHasChildrenMessage(childNames: string[]): string {
+  const shown = childNames.slice(0, HAS_CHILDREN_NAME_CAP).join(", ");
+  const remaining = childNames.length - HAS_CHILDREN_NAME_CAP;
+  const overflow = remaining > 0 ? ` …และอีก ${remaining} รายการ` : "";
+  return `ลบไม่ได้ — สินค้านี้ยังถูกใช้เป็นสินค้าแม่ของ: ${shown}${overflow}`;
+}
 
 /** Map the form's snake_case FormData onto the schema's camelCase shape. */
 function rawFromFormData(formData: FormData): Record<string, unknown> {
@@ -65,6 +93,16 @@ function rawFromFormData(formData: FormData): Record<string, unknown> {
     .map((unitName, i) => ({ unitName, toBaseRatio: ratios[i] ?? "" }))
     .filter((u) => typeof u.unitName === "string" && u.unitName.trim() !== "");
 
+  // 7c: cleanse stale parent/yield when the user toggles PREPPED→RAW. Without
+  // this the FormData still carries the old PREPPED values and zod's
+  // superRefine would fire "วัตถุดิบต้องไม่มีสินค้าแม่/เปอร์เซ็นต์ผลผลิต" even though
+  // the user's *intent* is RAW. The form is required to always submit `type`
+  // (no zod default reliance — see comment on the `type` field in
+  // src/lib/validations/product.ts): if it's missing/invalid, zod fails with
+  // a Thai field error and the user retries.
+  const rawType = formData.get("type");
+  const isRaw = rawType === "RAW";
+
   return {
     sku: formData.get("sku"),
     name: formData.get("name"),
@@ -75,6 +113,9 @@ function rawFromFormData(formData: FormData): Record<string, unknown> {
     isActive: formData.get("is_active") === "on",
     additionalUnits,
     defaultBuyUnitName: formData.get("default_buy_unit_name"),
+    type: rawType,
+    parentProductId: isRaw ? null : formData.get("parent_product_id"),
+    yieldPercent: isRaw ? null : formData.get("yield_percent"),
   };
 }
 
@@ -102,12 +143,18 @@ function toFormError(e: unknown): ProductActionState {
   if (e instanceof InvalidBaseUnitError) {
     return { ok: false, formError: INVALID_UNIT_MESSAGE };
   }
+  if (e instanceof ProductParentCycleError) {
+    return { ok: false, fieldErrors: { parentProductId: PARENT_CYCLE_MESSAGE } };
+  }
+  if (e instanceof ProductDepthExceededError) {
+    return { ok: false, fieldErrors: { parentProductId: PARENT_DEPTH_MESSAGE } };
+  }
   if (e instanceof CrossTenantReferenceError) {
-    // 7a only references category; 7b's parentProductId reuses this branch.
+    // TenantScopedRef = "category" | "product"; both surface as field errors.
     if (e.kind === "category") {
       return { ok: false, fieldErrors: { categoryId: INVALID_CATEGORY_MESSAGE } };
     }
-    return { ok: false, formError: INVALID_CATEGORY_MESSAGE };
+    return { ok: false, fieldErrors: { parentProductId: INVALID_PARENT_MESSAGE } };
   }
   throw e; // unexpected → let the error boundary handle it
 }
@@ -164,18 +211,26 @@ export async function updateProduct(
 
 /**
  * Soft-delete a product. No field validation — just ok/error so a tree row's
- * delete control can react. Cross-tenant/missing id → ok:false.
+ * delete control can react. Cross-tenant/missing id → ok:false. 7c: if the
+ * target still has LIVE PREPPED children, the logic layer throws
+ * ProductHasChildrenError; we render the first N names in Thai.
  */
 export async function deleteProduct(
   id: string
 ): Promise<{ ok: boolean; error?: string }> {
   const { tenantId } = await requireTenant();
 
-  const deleted = await deleteProductLogic(tenantId, id);
-  if (!deleted) {
-    return { ok: false, error: "ไม่พบสินค้าที่ต้องการลบ" };
+  try {
+    const deleted = await deleteProductLogic(tenantId, id);
+    if (!deleted) {
+      return { ok: false, error: "ไม่พบสินค้าที่ต้องการลบ" };
+    }
+    revalidatePath("/products");
+    return { ok: true };
+  } catch (e) {
+    if (e instanceof ProductHasChildrenError) {
+      return { ok: false, error: buildHasChildrenMessage(e.childNames) };
+    }
+    throw e;
   }
-
-  revalidatePath("/products");
-  return { ok: true };
 }
