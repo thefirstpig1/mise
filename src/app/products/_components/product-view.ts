@@ -4,12 +4,9 @@
 // boundary (Pitfall #20). Rather than serialize-and-pass the raw Product, the
 // page (Server Component) maps each ProductWithUnits through toProductView() and
 // hands the resulting PLAIN object to the client components (ProductTree /
-// ProductForm). 7a needs only identity + category + the base unit's name, so
-// NO Decimal field is included → the pitfall is avoided by construction.
-//
-// 7b note: when yieldPercent / density / targetMarketPrice surface in the UI,
-// add them HERE as `.toString()`-ed strings (cf. supplier-view.ts) — never pass
-// the raw Decimal across the boundary.
+// ProductForm). 7a-7b need only identity + category + units; 7c adds PREPPED
+// fields (type / parentProductId / parent label / yieldPercent). yieldPercent is
+// the only Decimal-typed field here — serialized via `.toString()` per Pitfall #20.
 
 import type { ProductWithUnits } from "@/server/product";
 
@@ -41,6 +38,14 @@ export type ProductView = {
   baseUnitDimension: string | null;
   /** All units (base first by displayOrder), for the multi-unit form + tree (7b). */
   units: ProductUnitView[];
+  /** 7c PREPPED parent edge. parentProductId is the FK; `parent` is the
+   *  pre-joined label (name+sku) — populated even if the parent is
+   *  soft-deleted, so the edit form can show the current value when the live-
+   *  only picker has no matching option. Both null for RAW. */
+  parentProductId: string | null;
+  parent: { name: string; sku: string } | null;
+  /** 7c yield percent: Decimal → string per Pitfall #20. Null for RAW. */
+  yieldPercent: string | null;
 };
 
 export function toProductView(p: ProductWithUnits): ProductView {
@@ -72,5 +77,10 @@ export function toProductView(p: ProductWithUnits): ProductView {
         isDefaultBuyUnit: u.isDefaultBuyUnit,
         source: u.source,
       })),
+    parentProductId: p.parentProductId,
+    parent: p.parentProduct
+      ? { name: p.parentProduct.name, sku: p.parentProduct.sku }
+      : null,
+    yieldPercent: p.yieldPercent === null ? null : p.yieldPercent.toString(),
   };
 }

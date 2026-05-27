@@ -62,12 +62,20 @@ function buildTree(products: ProductView[]): {
 
 function ProductLeaf({ p, pad }: { p: ProductView; pad: string }) {
   const extraUnits = p.units.filter((u) => !u.isBase).length;
+  const isPrepped = p.type === "PREPPED";
   return (
     <Link
       href={`/products/${p.id}`}
       className={`flex items-center justify-between gap-3 px-4 py-1.5 ${pad} hover:bg-muted/20`}
     >
-      <span className="text-sm text-primary hover:underline">{p.name}</span>
+      <span className="flex items-center gap-2 text-sm">
+        <span className="text-primary hover:underline">{p.name}</span>
+        {isPrepped && (
+          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-800">
+            แปรรูป
+          </span>
+        )}
+      </span>
       <span className="text-xs text-muted-foreground">
         {p.sku}
         {p.baseUnitName ? ` · ${p.baseUnitName}` : ""}

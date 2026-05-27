@@ -9,6 +9,14 @@
 // primaryDimension filters the base-unit <select> to that dimension and resets
 // the selection if it no longer fits (Q1/Q5). Initial values come from a
 // ProductView (Decimal-free; Pitfall #20 handled by the serializer).
+//
+// 7c additions:
+//  - type radio (RAW/PREPPED) drives a conditional "การผลิต" section.
+//  - PREPPED requires a parent (live products of the tenant minus self; the
+//    page filters self before passing). NO client-side cycle/depth filtering —
+//    the server guard runs on submit and returns a Thai field error.
+//  - yield_percent: number 0.01-999.99; defaults to 100 on first RAW→PREPPED
+//    toggle. >300 fires a non-blocking soft hint (cooked rice etc.).
 
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -17,10 +25,13 @@ import {
   PRIMARY_DIMENSION_VALUES,
   PRIMARY_DIMENSION_LABELS_TH,
   PRODUCT_FIELD_LABELS_TH,
+  PRODUCT_TYPE_VALUES,
+  PRODUCT_TYPE_LABELS_TH,
+  type ProductType,
 } from "@/lib/validations/product";
 import { ACCOUNT_LABELS_TH, type Account } from "@/lib/validations/category";
 import type { ProductView } from "./product-view";
-import type { UnitOption } from "@/server/product";
+import type { UnitOption, ProductParentOption } from "@/server/product";
 
 type CategoryOption = {
   id: string;
@@ -41,6 +52,7 @@ export default function ProductForm({
   initial,
   units,
   categories,
+  parentOptions,
   submitLabel,
 }: {
   action: (
@@ -50,6 +62,8 @@ export default function ProductForm({
   initial?: ProductView;
   units: UnitOption[];
   categories: CategoryOption[];
+  /** Live products of the tenant (self already filtered on edit). */
+  parentOptions: ProductParentOption[];
   submitLabel: string;
 }) {
   const router = useRouter();
@@ -74,6 +88,43 @@ export default function ProductForm({
       setBaseUnit("");
     }
   }
+
+  // --- 7c: type + PREPPED parent/yield ---
+  // type is a controlled radio: switches show/hide of the production section
+  // and is always submitted (snake_case `name="type"` per rawFromFormData).
+  const [productType, setProductType] = useState<ProductType>(
+    (initial?.type as ProductType) ?? "RAW"
+  );
+  // Parent picker is controlled so a soft-deleted parent (not in parentOptions)
+  // can still pre-fill from initial.parentProductId — we inject a "(ลบไปแล้ว)"
+  // option for it below.
+  const [parentId, setParentId] = useState(initial?.parentProductId ?? "");
+  // Yield is controlled so a fresh RAW→PREPPED toggle can pre-fill 100 if blank.
+  const [yieldPercent, setYieldPercent] = useState(initial?.yieldPercent ?? "");
+
+  function onTypeChange(next: ProductType) {
+    setProductType(next);
+    if (next === "PREPPED" && yieldPercent.trim() === "") {
+      setYieldPercent("100");
+    }
+    // RAW→hide does NOT clear parent/yield from state — the server cleanses on
+    // submit (actions.ts: isRaw → null). Keeping client state lets a user
+    // toggle back to PREPPED without re-entering the values.
+  }
+
+  // Show a "(ลบไปแล้ว)" fallback option ONLY when the saved parent is missing
+  // from the live options (soft-deleted). Without this the <select> would
+  // render the placeholder and the user couldn't tell what the current parent
+  // is. parentOptions is live-only by construction (getProductParentOptionsLogic).
+  const parentMissingFromOptions =
+    !!initial?.parentProductId &&
+    !parentOptions.some((p) => p.id === initial.parentProductId);
+
+  const yieldNum = Number(yieldPercent);
+  const showHighYieldHint =
+    productType === "PREPPED" &&
+    Number.isFinite(yieldNum) &&
+    yieldNum > 300;
 
   // --- Additional units (7b, Option A): dynamic rows below the base unit. ---
   // Ids are assigned 0..n-1 in order on first render (idCounter starts at 0), so
@@ -185,6 +236,123 @@ export default function ProductForm({
             เว้นว่างไว้ ระบบจะสร้างรหัสให้อัตโนมัติ
           </p>
         </div>
+      </section>
+
+      {/* 7c: Type + (conditional) PREPPED production fields */}
+      <section className="space-y-4 rounded-lg border border-border bg-card p-6">
+        <div>
+          <span className="mb-2 block text-sm font-medium">
+            {L.type}
+            <span className="text-red-600"> *</span>
+          </span>
+          <div className="flex flex-wrap gap-4">
+            {PRODUCT_TYPE_VALUES.map((t) => (
+              <label key={t} className="flex items-center gap-2 text-sm">
+                <input
+                  type="radio"
+                  name="type"
+                  value={t}
+                  checked={productType === t}
+                  onChange={() => onTypeChange(t)}
+                  className="h-4 w-4"
+                />
+                {PRODUCT_TYPE_LABELS_TH[t]}
+              </label>
+            ))}
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {productType === "RAW"
+              ? "ซื้อมาใช้ตามนั้น (ไม่ได้ผลิตจากสินค้าตัวอื่น)"
+              : "ผลิตจากสินค้าแม่ — ระบุสินค้าแม่และเปอร์เซ็นต์ผลผลิตด้านล่าง"}
+          </p>
+          {err("type") && (
+            <p className="mt-1 text-sm text-red-600">{err("type")}</p>
+          )}
+        </div>
+
+        {productType === "PREPPED" && (
+          <div className="space-y-4 border-t border-border pt-4">
+            <div>
+              <label
+                htmlFor="parent_product_id"
+                className="mb-1 block text-sm font-medium"
+              >
+                {L.parentProductId}
+                <span className="text-red-600"> *</span>
+              </label>
+              <select
+                id="parent_product_id"
+                name="parent_product_id"
+                value={parentId}
+                onChange={(e) => setParentId(e.target.value)}
+                className={inputClass}
+              >
+                <option value="" disabled>
+                  — เลือกสินค้าแม่ —
+                </option>
+                {/* Soft-deleted parent: prepend a labelled fallback so the
+                    user can see the current value (selectable but flagged). */}
+                {parentMissingFromOptions && initial?.parent && (
+                  <option value={initial.parentProductId ?? ""}>
+                    {initial.parent.name} · {initial.parent.sku} · (ลบไปแล้ว)
+                  </option>
+                )}
+                {parentOptions.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} · {p.sku} · [
+                    {PRODUCT_TYPE_LABELS_TH[p.type as ProductType] ?? p.type}]
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-muted-foreground">
+                สินค้าที่นำมาแปรรูปเป็นสินค้านี้
+              </p>
+              {err("parentProductId") && (
+                <p className="mt-1 text-sm text-red-600">
+                  {err("parentProductId")}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label
+                htmlFor="yield_percent"
+                className="mb-1 block text-sm font-medium"
+              >
+                {L.yieldPercent}
+                <span className="text-red-600"> *</span>
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  id="yield_percent"
+                  name="yield_percent"
+                  type="number"
+                  value={yieldPercent}
+                  onChange={(e) => setYieldPercent(e.target.value)}
+                  step="0.01"
+                  min="0.01"
+                  max="999.99"
+                  placeholder="เช่น 80.00"
+                  className={`${inputClass} max-w-[10rem]`}
+                />
+                <span className="text-sm text-muted-foreground">%</span>
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                สินค้าแม่ 100 หน่วย ได้สินค้านี้กี่หน่วย (เช่น เนื้อหั่นแล้ว
+                yield 80 = เนื้อ 100 kg → ได้ 80 kg)
+              </p>
+              {showHighYieldHint && (
+                <p className="mt-1 text-xs text-amber-600">
+                  yield &gt; 300% มักเป็นการดูดน้ำของวัตถุดิบ (เช่น ข้าวสุก,
+                  ถั่วแช่น้ำ) — ตรวจสอบอีกครั้งว่าใช่หรือไม่
+                </p>
+              )}
+              {err("yieldPercent") && (
+                <p className="mt-1 text-sm text-red-600">{err("yieldPercent")}</p>
+              )}
+            </div>
+          </div>
+        )}
       </section>
 
       {/* Measurement */}

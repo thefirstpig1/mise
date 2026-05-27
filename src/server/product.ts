@@ -19,13 +19,32 @@ import { Prisma, PrismaClient, type Product } from "@prisma/client";
 import { prisma, withTenantContext } from "@/lib/db";
 import type { ProductInput } from "@/lib/validations/product";
 
-/** Product plus its units + category — the shape reads return for the UI. */
+/** Product plus its units + category + (PREPPED only) a minimal parent
+ *  projection — the shape reads return for the UI. `parent` joins on the FK
+ *  WITHOUT filtering deletedAt so a PREPPED whose parent has since been
+ *  soft-deleted still carries the parent's label (the form falls back to it
+ *  when the picker — which is live-only — has no matching option, 7c). */
 export type ProductWithUnits = Prisma.ProductGetPayload<{
-  include: { productUnits: true; category: true };
+  include: {
+    productUnits: true;
+    category: true;
+    parentProduct: { select: { name: true; sku: true } };
+  };
 }>;
 
 /** Minimal unit option for the form dropdown (NO Decimal → safe across RSC, Pitfall #20). */
 export type UnitOption = { unitName: string; unitDimension: string };
+
+/** Lightweight option for the PREPPED parent picker (7c). The form needs id +
+ *  display fields (name · sku · [RAW/PREPPED]) only, NOT the heavy units/
+ *  category payload — projected with `select` to keep the query small even
+ *  when the tenant has many products. */
+export type ProductParentOption = {
+  id: string;
+  name: string;
+  sku: string;
+  type: string;
+};
 
 /**
  * Thrown when a product `sku` collides with an existing one in the same tenant
@@ -422,7 +441,11 @@ export async function createProductLogic(
 
       return tx.product.findFirstOrThrow({
         where: { id: product.id },
-        include: { productUnits: true, category: true },
+        include: {
+          productUnits: true,
+          category: true,
+          parentProduct: { select: { name: true, sku: true } },
+        },
       });
     });
   } catch (e) {
@@ -442,7 +465,11 @@ export async function getProductsLogic(
   return withTenantContext(tenantId, (tx) =>
     tx.product.findMany({
       where: { tenantId, deletedAt: null },
-      include: { productUnits: true, category: true },
+      include: {
+        productUnits: true,
+        category: true,
+        parentProduct: { select: { name: true, sku: true } },
+      },
       orderBy: [
         { category: { account: "asc" } },
         { category: { accountingSection: "asc" } },
@@ -453,7 +480,7 @@ export async function getProductsLogic(
   );
 }
 
-/** Fetch one live product (with units + category) by id, scoped to `tenantId`. */
+/** Fetch one live product (with units + category + parent label) by id, scoped to `tenantId`. */
 export async function getProductByIdLogic(
   tenantId: string,
   id: string
@@ -461,7 +488,32 @@ export async function getProductByIdLogic(
   return withTenantContext(tenantId, (tx) =>
     tx.product.findFirst({
       where: { id, tenantId, deletedAt: null },
-      include: { productUnits: true, category: true },
+      include: {
+        productUnits: true,
+        category: true,
+        parentProduct: { select: { name: true, sku: true } },
+      },
+    })
+  );
+}
+
+/**
+ * 7c parent picker: every LIVE product of the tenant projected down to id +
+ * name + sku + type. The caller (edit page) is responsible for filtering self
+ * out — keeping that filter at the page layer avoids passing `selfId` through
+ * the logic boundary just for one UI concern. Soft-deleted products are
+ * excluded (live-only), so a stale parent on a PREPPED product won't appear
+ * here — the form's <select> will show no selected option in that case and
+ * the user must re-pick (acceptable for MVP; cycle/depth guard runs server-side).
+ */
+export async function getProductParentOptionsLogic(
+  tenantId: string
+): Promise<ProductParentOption[]> {
+  return withTenantContext(tenantId, (tx) =>
+    tx.product.findMany({
+      where: { tenantId, deletedAt: null },
+      select: { id: true, name: true, sku: true, type: true },
+      orderBy: { name: "asc" },
     })
   );
 }
@@ -580,7 +632,11 @@ export async function updateProductLogic(
 
       return tx.product.findFirst({
         where: { id, tenantId, deletedAt: null },
-        include: { productUnits: true, category: true },
+        include: {
+          productUnits: true,
+          category: true,
+          parentProduct: { select: { name: true, sku: true } },
+        },
       });
     });
   } catch (e) {

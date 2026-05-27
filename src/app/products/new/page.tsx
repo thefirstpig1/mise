@@ -1,17 +1,22 @@
 // Sprint 1 Part 7a — create a product.
-// Loads unit templates (base-unit dropdown) + the tenant's categories
-// (classification dropdown); the action resolves tenantId itself.
+// Loads unit templates (base-unit dropdown), the tenant's categories
+// (classification dropdown), and (7c) all live products of the tenant for the
+// PREPPED parent picker. The action resolves tenantId itself.
 import { requireTenant } from "@/lib/require-tenant";
-import { getUnitTemplates } from "@/server/product";
+import {
+  getUnitTemplates,
+  getProductParentOptionsLogic,
+} from "@/server/product";
 import { getCategoriesLogic } from "@/server/category";
 import { createProduct } from "../actions";
 import ProductForm from "../_components/ProductForm";
 
 export default async function NewProductPage() {
   const { tenantId } = await requireTenant();
-  const [units, categories] = await Promise.all([
+  const [units, categories, parentOptions] = await Promise.all([
     getUnitTemplates(),
     getCategoriesLogic(tenantId),
+    getProductParentOptionsLogic(tenantId),
   ]);
 
   const categoryOptions = categories.map((c) => ({
@@ -28,6 +33,7 @@ export default async function NewProductPage() {
         action={createProduct}
         units={units}
         categories={categoryOptions}
+        parentOptions={parentOptions}
         submitLabel="บันทึก"
       />
     </div>
