@@ -190,36 +190,6 @@ ALTER TABLE product ADD CONSTRAINT product_density_xor
 
 ---
 
-### Decisions (Q1–Q5)
-| Q | Decision |
-|---|----------|
-| Q1 | Split: **7b = multi-unit only**, 7c = PREPPED + density (multi-unit is the heavy/core part everything downstream uses) |
-| Q2 | **All ProductUnit rows share the Product's `primaryDimension`.** Cross-dimension (WEIGHT↔VOLUME) = density's job (7c), not units. zod/logic **rejects** any row with `unitDimension ≠ primaryDimension`. → **ADR 0006** |
-| Q3 | **Base = unit_template only** (needs toSiRatio for density/SI math). **Additional units may be custom** (free-text packaging: กระสอบ/ลัง/ขวด — seed has none). `source` = `system` if name matches a template of that dimension else `custom`; **records name origin only — toBaseRatio is product-specific** (ขวด of brand A milk ≠ B). Additional `toBaseRatio` zod `.positive()`; base = 1 always. Unit-name uniqueness validated at **zod** (before DB → clean error vs P2002). |
-| Q4 | Form **Option A**: top section = 7a's dimension + base-unit select (= the base row, ratio=1); below = "หน่วยเพิ่มเติม" dynamic rows `[name | toBaseRatio | ◯ default-buy | delete]` + "+ เพิ่มหน่วย". `isDefaultBuyUnit` = one radio across base + additional, default = base. |
-| Q5 | Edit reconcile **Option C** (delete-all-recreate ruled OUT — `SupplierProductMapping.orderUnitId → ProductUnit.id` FK, Part 8 will reference unit ids): **base updated in-place** (`updateMany {productId, isBase:true}`, id stable per ADR 0005); **additional diffed by `unitName`** (create new / update existing / **hard-delete** removed). |
-| Q5c | Additional removal = **hard delete** (not soft). Reason: `ProductUnit` has **no `deletedAt`** by design (ADR 0005) → soft-delete would need a migration + reintroduce P2002-after-delete (Pitfall #23 family). Safe in 7b (no FK refs to additional units yet). |
-
-### Validation ruleset (zod + logic)
-- base `toBaseRatio` = 1 (structural via Option A); additional `.positive()`.
-- ALL unit names (base + additional) **unique within product** — checked at zod before DB.
-- every row `unitDimension` = `primaryDimension` (reject otherwise — Q2).
-- exactly one `isBase`, exactly one `isDefaultBuyUnit`; default-buy must be base or an existing additional.
-
-### Must also do in 7b (Pitfall #24)
-Narrow `rethrowSkuConflict` via `e.meta.target` → distinguish `sku` conflict vs `product_id+unit_name` conflict. Multi-unit makes the unit-name P2002 **reachable** (7a couldn't trigger it). Map unit-name P2002 → its own Thai message / field error.
-
-### Serializer (Pitfall #20)
-`product-view.ts`: extend `ProductView` with `units: { unitName, toBaseRatio (string), isBase, isDefaultBuyUnit, source }[]` — `toBaseRatio` is Decimal → `.toString()`. ProductTree leaf: show base unit + "(+N)" when additional exist.
-
-### Deferred (carry-forward guard)
-**Part 8 / Sprint 2:** add a guard "block rename/delete of a `ProductUnit` referenced by a supplier mapping / PO" (`orderUnitId`). Same family as ADR 0005's deferred base-unit-change guard. Until refs exist, hard-delete + rename-as-delete+create are safe.
-
-### Plan (template chain, TDD)
-zod (`productInputSchema` + units array) → `*Logic` (extend create to N units + update diff, TDD) → actions (Pitfall #24 narrowing) → `product-view` (+units) → ProductForm (dynamic rows) + ProductTree leaf → verify (headless). ADR **0006** written.
-
----
-
 ## Sprint 1 Part 6 — Categories CRUD: ✅ COMPLETE (2026-05-23)
 
 3-tier category (account COGS/OpEx → accountingSection → groupName), built on the supplier slice as template.
