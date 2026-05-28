@@ -201,12 +201,11 @@ datasource db {
 - Status: **CONFIRMED (2026-05-24/25, Sprint 1 Part 7b)** — DB ล่ม ~22:55 บล็อก integration test ทั้งหมดทั้ง session; กลับมาเองวันถัดมา (2026-05-25) แล้ว 16 logic tests ผ่าน
 - Fix: เช็ค Neon Console → Billing/Usage; **upgrade plan ก่อน sprint หนัก / ก่อน production**. คนละเรื่องกับ #17 (idle suspend, ปลุกแล้วหาย)
 
-### 27. `ml_per_g` terminology bug — ชื่อ field กับค่า seed สวนทาง (ค้างให้ 7d)
+### 27. `ml_per_g` terminology bug — ชื่อ field กับค่า seed สวนทาง (RESOLVED in Part 7d, 2026-05-28)
 - Where: schema `Product.densityMlPerGOverride` + `LiquidDensityTemplate.mlPerG` (column `ml_per_g`), `prisma/seed-system.ts` `LIQUID_DENSITIES`, CONTEXT.md "Liquid density"
 - Symptom: field/column ชื่อ `ml_per_g` (มล./กรัม) แต่ค่า seed เป็น **density g/ml มาตรฐาน** — น้ำ 1.000, นม 1.030, น้ำมัน 0.910, น้ำเชื่อม 1.300. ถ้าเป็น ml/g จริง นมต้อง ~0.971 ไม่ใช่ 1.030. CONTEXT.md เขียน "ml/g ratio ... milk=1.030" ผิดทิศเดียวกัน
 - Risk: การแปลง WEIGHT↔VOLUME ใช้ ratio นี้ — ทิศผิด = แปลงกลับด้านใน Sprint 2+ (cost/consumption)
-- Status: **ยังไม่แก้ — defer ไป Part 7d** (slice liquid density ตาม grill 7c Q1 ที่ซอย 7d=density)
-- Fix decision (ตัดสินตอน 7d): (a) เปลี่ยนชื่อ field/column `ml_per_g` → `g_per_ml`/`densityGPerMl` (ต้อง migration) คงค่า seed เดิม — น่าจะเลือกอันนี้เพราะค่าเป็น density มาตรฐานที่คนคุ้น; หรือ (b) คงชื่อ `ml_per_g` แล้วแก้ค่า seed เป็น ml/g จริง (นม → 0.971…) + แก้ CONTEXT
+- **Status: RESOLVED in Part 7d (ADR 0008).** Chose option (a) — renamed `ml_per_g → g_per_ml` (column + Prisma field), `densityMlPerGOverride → densityGPerMlOverride`; seed values were already correct standard density (g/ml) so no value flip needed. Single migration `part_7d_density_data_capture` covers the rename + Q8 `name @unique` + Q2 XOR CHECK. CONTEXT.md "Liquid density" entry rewritten to g/ml direction. See ADR 0008 for the full decision record and the rejected alternatives (b) flip-values and (c) override-wins precedence.
 
 ### 28. depth/cycle traversal race — concurrent edit บนสาย ancestor เดียวกัน (ตระกูล #25)
 - Where: `src/server/product.ts` (7c) — parentProductId guard: ancestor-walk (`ancestorDepth`) + descendant DFS (`descendantHeight`) สำหรับ check `ancestorDepth + 1 + descendantHeight ≤ 5` + cycle (ADR 0007)

@@ -118,6 +118,78 @@ Grill-with-docs (Q1–Q7) finished previous session — design locked, committed
 
 ### Next: Part 7d — liquid density + Pitfall #27 (`ml_per_g` terminology bug).
 
+---
+
+## Sprint 1 Part 7d — Products liquid density: 🚧 IN PROGRESS (started 2026-05-28)
+
+Grill-with-docs (Q1–Q8) finished this session — design locked, full record in Drive doc (Q1–Q8 + rationale + rejected alternatives) and codified in **ADR 0008**. **Scope = data-capture only** (per 7c Q1 split + 7d Q6 lock): schema + zod + UI + view serializer; **no WEIGHT↔VOLUME conversion math, no cost-engine consumer, no density inheritance** — all deferred to Sprint 2+. Resolves Pitfall #27 (`ml_per_g` terminology bug) by rename, not value-flip.
+
+### Design locked (Q1–Q8 — compact; full record in ADR 0008 + Drive Q1–Q8 doc)
+
+| Q | Decision (one-liner) |
+|---|----------|
+| Q1 | **Pitfall #27 fix = rename column** `ml_per_g → g_per_ml`, `densityMlPerGOverride → densityGPerMlOverride`; values stay (already correct standard density). → **ADR 0008** |
+| Q2 | **XOR** — template OR override, never both. Enforced at zod `.superRefine` + server cleanse + Postgres CHECK. Resolver `template?.gPerMl ?? override` is single-path. |
+| Q3 | Density gated to `primaryDimension !== "COUNT"` (WEIGHT or VOLUME). Server cleanse COUNT→both-null **before** zod (mirrors 7c PREPPED→RAW cleanse ordering). |
+| Q4 | zod hard `(0, 2.5]` + UI soft hint outside `[0.5, 2.0]` (custom mode only — template values are trusted). Pattern matches 7c yield-soft-hint. |
+| Q5 | Own section "ความหนาแน่น (ของเหลว)" after "หน่วยวัด"; vertical 3-state radio (ไม่ระบุ / ใช้ค่ามาตรฐาน / ใส่ค่าเอง) + conditional sub-field; dropdown label `{name} — {gPerMl} g/ml` orderBy `displayOrder`; initial mode resolved from DB state. |
+| Q6 | **Scope = data-capture only.** Gray areas locked: G1 ProductTree density badge SKIP; G2 detail/edit page density display INCLUDE (symmetry with 7c parent/yield); G3 "1ml ≈ Xg" preview SKIP (would open Sprint 2 conversion math). |
+| Q7 | `LiquidDensityTemplate` stays **global non-deletable** (no `deletedAt`, no tenant). Seed pattern changes from `findFirst+create` to **upsert-by-name** (couples to Q8). Admin value updates propagate via FK on next read. |
+| Q8 | `LiquidDensityTemplate.name @unique` — **FULL unique safe** because no soft-delete on this table (Pitfall #22/#23 family does NOT apply). Schema comment names the partial-index swap required IF `deletedAt` is ever added later. |
+
+### Decisions/Pitfalls to record (Layer 0)
+
+- **ADR 0008** `0008-liquid-density-g-per-ml.md` — full decision record: g/ml direction + XOR + global non-deletable; 4 considered options (rename chosen / flip-values rejected / override-wins rejected / soft-delete rejected) + 7 consequences.
+- **Pitfall #27** marked **RESOLVED in Part 7d** with pointer to ADR 0008; original bug history left intact for context.
+- **CONTEXT.md** "Liquid density" entry rewritten: g/ml direction + XOR rule + COUNT gate + global non-deletable nature.
+- **No new ADR for Q7** (global non-deletable reference table) — natural default with `UnitTemplate` precedent.
+- **No new Decision in changelog-v5** — Pitfall #27 fix is a terminology correction, not a new product decision.
+
+### Migration plan (single file — `part_7d_density_data_capture`)
+
+```sql
+-- Q1: rename columns (values unchanged)
+ALTER TABLE liquid_density_template RENAME COLUMN ml_per_g TO g_per_ml;
+ALTER TABLE product RENAME COLUMN density_ml_per_g_override TO density_g_per_ml_override;
+-- Q8: unique on name (full unique safe — no soft-delete on this table)
+CREATE UNIQUE INDEX liquid_density_template_name_key ON liquid_density_template(name);
+-- Q2: XOR — template OR override, never both
+ALTER TABLE product ADD CONSTRAINT product_density_xor
+  CHECK (liquid_density_template_id IS NULL OR density_g_per_ml_override IS NULL);
+```
+
+**Pre-migration safety checks** (run before `prisma migrate dev`): (a) duplicate names — `SELECT name, COUNT(*) FROM liquid_density_template GROUP BY name HAVING COUNT(*) > 1` expect 0 rows; (b) existing FK+override combos — `SELECT id FROM product WHERE liquid_density_template_id IS NOT NULL AND density_g_per_ml_override IS NOT NULL` expect 0 rows. If either returns rows → halt, fix the data, **never skip the constraint**.
+
+### Implementation (7-layer slice, TDD — per 7a/7b/7c pattern)
+
+| L | Layer | Status | Files |
+|---|---|---|---|
+| **L0** | **Docs (this slice)** | 🚧 in progress | `docs/adr/0008-liquid-density-g-per-ml.md` (NEW), `CONTEXT.md` Liquid density entry, `.claude/skills/known-pitfalls/SKILL.md` Pitfall #27 → resolved, this section |
+| L1 | Schema + migration + seed | ⏳ pending | `prisma/schema.prisma` (rename fields + `@unique` on `name` + comment), `prisma/seed-system.ts` (key rename + `upsert by name` + 2 admin-update comments), new migration SQL above |
+| L2 | zod validation | ⏳ pending | `src/lib/validations/product.ts` — add `liquidDensityTemplateId`, `densityGPerMlOverride`, `.superRefine` for XOR + COUNT gate + range |
+| L3 | Server logic | ⏳ pending | `src/server/product.ts` — `rawFromFormData` cleanse (COUNT → null, mode=none → null) **before zod**; Prisma include `liquidDensityTemplate { select }` in read path; `findFirst by id` for template FK (global, no tenant assert needed) |
+| L4 | Actions | ⏳ pending | `src/app/products/actions.ts` — read snake_case `liquid_density_template_id`, `density_g_per_ml_override`, mode field; map any new validation error to Thai |
+| L5 | UI | ⏳ pending | `ProductForm.tsx` (density section per Q5), `product-view.ts` (Decimal → string + display-side mode resolver, Pitfall #20), `/products/new` + `/products/[id]/edit` pages fetch `availableTemplates` from `LiquidDensityTemplate.findMany orderBy displayOrder`. ProductTree leaf NOT touched (G1 SKIP). |
+| L6 | Verify | ⏳ pending | reuse throwaway tenant `12cad010-…`; E2E flow: create VOLUME w/ template → edit to custom → edit to none → toggle to COUNT (cleanse to null). vitest + tsc + headless. |
+
+### Standing items (carry-forward)
+
+- **Pitfall #19** git hook inert — push works, safety net off.
+- **Pitfall #26** Neon free-tier compute-hours quota — heads-up before heavy work.
+- **Pitfall #28** depth/cycle traversal race — accepted for MVP.
+- **Deferred guards (Sprint 2+)**:
+  - ProductUnit-referenced-by-mapping (Part 8, ADR 0005 family)
+  - base-unit / dimension change once downstream refs land (ADR 0005)
+  - type-change guard (ADR 0007 family, CONTEXT.md)
+  - **density inheritance PREPPED → parent** (new — from 7d Q3 lock; user explicitly picks density on PREPPED, no pre-fill from parent in MVP)
+  - **ADR 0005 base-unit-change ↔ density interaction** (new — from 7d Q6 OUT; decide in Sprint 2+ when context is present)
+- **Pre-existing tsc errors** `auth.ts:24` (Sprint-0 leftover) — out of scope.
+- **`expectedYieldG`** column on Product — remains deferred (batch-size concept, Sprint 2-3); NOT gated on end-of-7d.
+
+### Next: L1 — schema + migration + seed (after L0 docs review + commit).
+
+---
+
 ### Decisions (Q1–Q5)
 | Q | Decision |
 |---|----------|
