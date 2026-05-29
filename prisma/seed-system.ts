@@ -19,12 +19,23 @@ const UNIT_TEMPLATES = [
   { unitName: "ถุง", unitDimension: "COUNT", toSiRatio: null, displayOrderTh: 6, displayOrderEn: null },
 ];
 
+// Templates are global + non-deletable for MVP (ADR 0008, Q7).
+// To update a value (e.g., calibrated against new supplier batch):
+//   1. Edit the LIQUID_DENSITIES array below
+//   2. Run `pnpm prisma db seed` — upsert propagates to all
+//      products linked via FK.
+// FK linkage means Products read the template's current value at
+// query time — no snapshot, no re-link needed after admin update.
+// Renaming a template entry is a breaking change (existing FKs
+// would orphan); add a new entry and migrate FKs manually instead.
+// Removing a template entry from this array does NOT delete the
+// DB row — orphan rows persist until manual DELETE; FKs stay safe.
 const LIQUID_DENSITIES = [
-  { name: "น้ำเปล่า", mlPerG: 1.000, description: "Water", displayOrder: 1 },
-  { name: "นมสด", mlPerG: 1.030, description: "Milk", displayOrder: 2 },
-  { name: "เบียร์", mlPerG: 1.010, description: "Beer (light)", displayOrder: 3 },
-  { name: "น้ำมัน", mlPerG: 0.910, description: "Cooking oil (general)", displayOrder: 4 },
-  { name: "น้ำเชื่อม", mlPerG: 1.300, description: "Simple syrup", displayOrder: 5 },
+  { name: "น้ำเปล่า", gPerMl: 1.000, description: "Water", displayOrder: 1 },
+  { name: "นมสด", gPerMl: 1.030, description: "Milk", displayOrder: 2 },
+  { name: "เบียร์", gPerMl: 1.010, description: "Beer (light)", displayOrder: 3 },
+  { name: "น้ำมัน", gPerMl: 0.910, description: "Cooking oil (general)", displayOrder: 4 },
+  { name: "น้ำเชื่อม", gPerMl: 1.300, description: "Simple syrup", displayOrder: 5 },
 ];
 
 async function seedSystem() {
@@ -40,14 +51,13 @@ async function seedSystem() {
   }
   console.log(`✓ ${UNIT_TEMPLATES.length} unit templates seeded`);
 
-  // Liquid densities — check existing + insert (no unique constraint on name yet)
+  // Liquid densities — upsert by name (name is @unique as of Part 7d L1)
   for (const density of LIQUID_DENSITIES) {
-    const existing = await prisma.liquidDensityTemplate.findFirst({
+    await prisma.liquidDensityTemplate.upsert({
       where: { name: density.name },
+      create: density,
+      update: density,
     });
-    if (!existing) {
-      await prisma.liquidDensityTemplate.create({ data: density });
-    }
   }
   console.log(`✓ ${LIQUID_DENSITIES.length} liquid density templates seeded`);
 }
