@@ -133,6 +133,23 @@ export const productInputSchema = z.object({
       .max(999.99, "yield ต้องไม่เกิน 999.99%")
       .nullable()
   ),
+  // 7d liquid density (g/ml). XOR with the override (Q2), gated to non-COUNT
+  // (Q3) — both enforced in superRefine. FK to a global reference template;
+  // ownership is NOT tenant-checked (reference data) — see src/server/product.ts.
+  liquidDensityTemplateId: z.preprocess(
+    blankToNull,
+    z.string().uuid("เทมเพลตความหนาแน่นไม่ถูกต้อง").nullable()
+  ),
+  // Hard cap (0, 2.5] (Q4): positive() rejects 0/negative; max 2.5 catches the
+  // "1030 forgot the decimal" typo. The soft [0.5, 2.0] hint is UI-only (L5).
+  densityGPerMlOverride: z.preprocess(
+    blankToNull,
+    z.coerce
+      .number()
+      .positive("ความหนาแน่นต้องมากกว่า 0")
+      .max(2.5, "ความหนาแน่นเกินช่วงที่เป็นไปได้ของอาหาร")
+      .nullable()
+  ),
 }).superRefine((val, ctx) => {
   // Unit names (base + additional) must be unique within the product. Checked
   // here so the user gets a clean field error before the DB @@unique fires
@@ -190,6 +207,36 @@ export const productInputSchema = z.object({
       });
     }
   }
+  // 7d density rules.
+  const hasTemplate = val.liquidDensityTemplateId !== null;
+  const hasOverride = val.densityGPerMlOverride !== null;
+  // Q3 COUNT gate: a count-based product cannot carry density. Issue lands on
+  // whichever density field was set (server cleanses COUNT → both null BEFORE
+  // zod in L3, so a user who never touched density never sees this).
+  if (val.primaryDimension === "COUNT") {
+    if (hasTemplate) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "สินค้าประเภทนับชิ้นไม่ใช้ความหนาแน่น",
+        path: ["liquidDensityTemplateId"],
+      });
+    }
+    if (hasOverride) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "สินค้าประเภทนับชิ้นไม่ใช้ความหนาแน่น",
+        path: ["densityGPerMlOverride"],
+      });
+    }
+  } else if (hasTemplate && hasOverride) {
+    // Q2 XOR: template OR override, never both. Issue lands on the override —
+    // the field the user layered on top of the chosen template.
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "เลือกค่ามาตรฐานหรือใส่ค่าเองอย่างเดียว",
+      path: ["densityGPerMlOverride"],
+    });
+  }
 });
 
 export type ProductInput = z.infer<typeof productInputSchema>;
@@ -208,4 +255,6 @@ export const PRODUCT_FIELD_LABELS_TH: Record<keyof ProductInput, string> = {
   type: "ประเภทสินค้า",
   parentProductId: "สินค้าแม่",
   yieldPercent: "เปอร์เซ็นต์ผลผลิต",
+  liquidDensityTemplateId: "ความหนาแน่น (ค่ามาตรฐาน)",
+  densityGPerMlOverride: "ความหนาแน่น (g/ml)",
 };

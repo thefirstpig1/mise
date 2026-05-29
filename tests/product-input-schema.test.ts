@@ -214,4 +214,91 @@ describe("productInputSchema", () => {
     });
     expect(r.yieldPercent).toBe(80.5);
   });
+
+  // ----- 7d: liquid density (liquidDensityTemplateId + densityGPerMlOverride) -----
+  const TEMPLATE_UUID = "22222222-2222-2222-2222-222222222222";
+  // Density is allowed on WEIGHT or VOLUME, never COUNT (Q3). Use a VOLUME base.
+  const densityBase = { name: "นมสด", primaryDimension: "VOLUME", baseUnitName: "ml" };
+
+  // S12 — XOR (Q2): template OR override OR neither, never both.
+  it("enforces density XOR: template-only / override-only / neither pass; both fails on override", () => {
+    // template only
+    const t = productInputSchema.parse({ ...densityBase, liquidDensityTemplateId: TEMPLATE_UUID });
+    expect(t.liquidDensityTemplateId).toBe(TEMPLATE_UUID);
+    expect(t.densityGPerMlOverride).toBeNull();
+    // override only
+    const o = productInputSchema.parse({ ...densityBase, densityGPerMlOverride: 1.03 });
+    expect(o.densityGPerMlOverride).toBe(1.03);
+    expect(o.liquidDensityTemplateId).toBeNull();
+    // neither
+    const n = productInputSchema.parse(densityBase);
+    expect(n.liquidDensityTemplateId).toBeNull();
+    expect(n.densityGPerMlOverride).toBeNull();
+    // both → fail, issue lands on the override (the field layered on top)
+    const both = productInputSchema.safeParse({
+      ...densityBase,
+      liquidDensityTemplateId: TEMPLATE_UUID,
+      densityGPerMlOverride: 1.03,
+    });
+    expect(both.success).toBe(false);
+    if (!both.success) {
+      expect(both.error.issues.some((i) => i.path[0] === "densityGPerMlOverride")).toBe(true);
+    }
+  });
+
+  // S13 — COUNT gate (Q3): COUNT rejects any density; WEIGHT/VOLUME allow it.
+  it("gates density to non-COUNT: COUNT+density fails on the offending field; WEIGHT/VOLUME pass", () => {
+    // COUNT + template → fail on liquidDensityTemplateId
+    const ct = productInputSchema.safeParse({
+      ...base,
+      primaryDimension: "COUNT",
+      baseUnitName: "ชิ้น",
+      liquidDensityTemplateId: TEMPLATE_UUID,
+    });
+    expect(ct.success).toBe(false);
+    if (!ct.success) {
+      expect(ct.error.issues.some((i) => i.path[0] === "liquidDensityTemplateId")).toBe(true);
+    }
+    // COUNT + override → fail on densityGPerMlOverride
+    const co = productInputSchema.safeParse({
+      ...base,
+      primaryDimension: "COUNT",
+      baseUnitName: "ชิ้น",
+      densityGPerMlOverride: 1.03,
+    });
+    expect(co.success).toBe(false);
+    if (!co.success) {
+      expect(co.error.issues.some((i) => i.path[0] === "densityGPerMlOverride")).toBe(true);
+    }
+    // COUNT + neither → pass
+    expect(
+      productInputSchema.safeParse({ ...base, primaryDimension: "COUNT", baseUnitName: "ชิ้น" }).success
+    ).toBe(true);
+    // WEIGHT (base) + override → pass (granular solids may carry density)
+    const w = productInputSchema.parse({ ...base, densityGPerMlOverride: 0.91 });
+    expect(w.densityGPerMlOverride).toBe(0.91);
+    // VOLUME + template → pass
+    const v = productInputSchema.parse({ ...densityBase, liquidDensityTemplateId: TEMPLATE_UUID });
+    expect(v.liquidDensityTemplateId).toBe(TEMPLATE_UUID);
+  });
+
+  // S14 — range (Q4): hard cap (0, 2.5]; the 1030-forgot-decimal typo is caught.
+  it("enforces densityGPerMlOverride hard cap (0, 2.5]", () => {
+    const mk = (d: unknown) =>
+      productInputSchema.safeParse({ ...densityBase, densityGPerMlOverride: d });
+    expect(mk(0).success).toBe(false); // positive() rejects 0
+    expect(mk(-1).success).toBe(false);
+    expect(mk(0.5).success).toBe(true); // lower edge (no hint at zod level)
+    expect(mk(2.5).success).toBe(true); // upper edge, equals max
+    expect(mk(2.51).success).toBe(false);
+    expect(mk(1000).success).toBe(false); // "1030" typed for 1.030 — forgot the decimal
+    // double violation: out-of-range override AND a template set — must not pass silently
+    expect(
+      productInputSchema.safeParse({
+        ...densityBase,
+        liquidDensityTemplateId: TEMPLATE_UUID,
+        densityGPerMlOverride: 1500,
+      }).success
+    ).toBe(false);
+  });
 });
