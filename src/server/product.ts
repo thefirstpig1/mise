@@ -29,6 +29,15 @@ export type ProductWithUnits = Prisma.ProductGetPayload<{
     productUnits: true;
     category: true;
     parentProduct: { select: { name: true; sku: true } };
+    liquidDensityTemplate: {
+      select: {
+        id: true;
+        name: true;
+        gPerMl: true;
+        description: true;
+        displayOrder: true;
+      };
+    };
   };
 }>;
 
@@ -141,6 +150,19 @@ export class ProductDepthExceededError extends Error {
 }
 
 /**
+ * Thrown when `liquidDensityTemplateId` references a template that does not exist
+ * (ADR 0008, Q6). Distinct from CrossTenantReferenceError: the template is GLOBAL
+ * reference data — there is no tenant to mismatch, the id is simply unknown. The
+ * action layer maps this to a Thai message on the density field.
+ */
+export class LiquidDensityTemplateNotFoundError extends Error {
+  constructor(public readonly id: string) {
+    super(`LiquidDensityTemplate not found: ${id}`);
+    this.name = "LiquidDensityTemplateNotFoundError";
+  }
+}
+
+/**
  * Map a Prisma P2002 to a typed conflict error, distinguished by which unique
  * index fired (Pitfall #24): ProductUnit's (product_id, unit_name) → unit-name
  * conflict, otherwise the product `sku` index. 7b makes the unit-name case
@@ -208,6 +230,25 @@ async function assertRefBelongsToTenant(
     select: { id: true },
   });
   if (!row) throw new CrossTenantReferenceError(kind, id);
+}
+
+/**
+ * Guard: a referenced `liquidDensityTemplateId` must point at an existing template
+ * (ADR 0008, Q6). Templates are GLOBAL reference data — NOT tenant-scoped and not
+ * soft-deletable (Q7) — so this is a plain findFirst by id, deliberately NOT
+ * assertRefBelongsToTenant (no tenantId / deletedAt to check). `id == null` (no
+ * template chosen, or COUNT-cleansed to null) is a no-op.
+ */
+async function assertLiquidDensityTemplateExists(
+  tx: PrismaClient,
+  id: string | null
+): Promise<void> {
+  if (id == null) return;
+  const row = await tx.liquidDensityTemplate.findFirst({
+    where: { id },
+    select: { id: true },
+  });
+  if (!row) throw new LiquidDensityTemplateNotFoundError(id);
 }
 
 /**
@@ -375,10 +416,19 @@ export async function createProductLogic(
   const isPrepped = input.type === "PREPPED";
   const parentId = isPrepped ? input.parentProductId : null;
   const yieldPct = isPrepped ? input.yieldPercent : null;
+  // 7d (ADR 0008, Q3): a COUNT product carries no density. Cleanse BEFORE the
+  // write — same shape as the PREPPED→RAW parent/yield force-null above. zod's
+  // COUNT gate already rejects user input, this is defense in depth.
+  const isCount = input.primaryDimension === "COUNT";
+  const densityTemplateId = isCount ? null : input.liquidDensityTemplateId;
+  const densityOverride = isCount ? null : input.densityGPerMlOverride;
   try {
     return await withTenantContext(tenantId, async (tx) => {
       await assertValidBaseUnit(tx, input.baseUnitName, input.primaryDimension);
       await assertRefBelongsToTenant(tx, tenantId, "category", input.categoryId);
+      // Validate the template FK on the CLEANSED value (null after a COUNT
+      // cleanse is a no-op). Global ref data — not assertRefBelongsToTenant.
+      await assertLiquidDensityTemplateExists(tx, densityTemplateId);
       if (isPrepped) {
         await assertRefBelongsToTenant(tx, tenantId, "product", parentId);
         // parentId is non-null on PREPPED (zod superRefine); assertRefBelongs
@@ -396,6 +446,8 @@ export async function createProductLogic(
           type: input.type,
           primaryDimension: input.primaryDimension,
           categoryId: input.categoryId,
+          liquidDensityTemplateId: densityTemplateId,
+          densityGPerMlOverride: densityOverride,
           parentProductId: parentId,
           yieldPercent: yieldPct,
           isActive: input.isActive,
@@ -445,6 +497,15 @@ export async function createProductLogic(
           productUnits: true,
           category: true,
           parentProduct: { select: { name: true, sku: true } },
+          liquidDensityTemplate: {
+            select: {
+              id: true,
+              name: true,
+              gPerMl: true,
+              description: true,
+              displayOrder: true,
+            },
+          },
         },
       });
     });
@@ -469,6 +530,15 @@ export async function getProductsLogic(
         productUnits: true,
         category: true,
         parentProduct: { select: { name: true, sku: true } },
+        liquidDensityTemplate: {
+          select: {
+            id: true,
+            name: true,
+            gPerMl: true,
+            description: true,
+            displayOrder: true,
+          },
+        },
       },
       orderBy: [
         { category: { account: "asc" } },
@@ -492,6 +562,15 @@ export async function getProductByIdLogic(
         productUnits: true,
         category: true,
         parentProduct: { select: { name: true, sku: true } },
+        liquidDensityTemplate: {
+          select: {
+            id: true,
+            name: true,
+            gPerMl: true,
+            description: true,
+            displayOrder: true,
+          },
+        },
       },
     })
   );
@@ -532,10 +611,17 @@ export async function updateProductLogic(
   const isPrepped = input.type === "PREPPED";
   const parentId = isPrepped ? input.parentProductId : null;
   const yieldPct = isPrepped ? input.yieldPercent : null;
+  // 7d (ADR 0008, Q3): COUNT carries no density. Always written (cleansed) so a
+  // VOLUME/WEIGHT→COUNT toggle clears the now-stale density — same shape as the
+  // PREPPED→RAW parent/yield force-null.
+  const isCount = input.primaryDimension === "COUNT";
+  const densityTemplateId = isCount ? null : input.liquidDensityTemplateId;
+  const densityOverride = isCount ? null : input.densityGPerMlOverride;
   try {
     return await withTenantContext(tenantId, async (tx) => {
       await assertValidBaseUnit(tx, input.baseUnitName, input.primaryDimension);
       await assertRefBelongsToTenant(tx, tenantId, "category", input.categoryId);
+      await assertLiquidDensityTemplateExists(tx, densityTemplateId);
       if (isPrepped) {
         await assertRefBelongsToTenant(tx, tenantId, "product", parentId);
         // selfId = id → catches self-ref + cycle + depth incl. descendantHeight.
@@ -552,6 +638,8 @@ export async function updateProductLogic(
         type: input.type,
         primaryDimension: input.primaryDimension,
         categoryId: input.categoryId,
+        liquidDensityTemplateId: densityTemplateId,
+        densityGPerMlOverride: densityOverride,
         parentProductId: parentId,
         yieldPercent: yieldPct,
         isActive: input.isActive,
@@ -636,6 +724,15 @@ export async function updateProductLogic(
           productUnits: true,
           category: true,
           parentProduct: { select: { name: true, sku: true } },
+          liquidDensityTemplate: {
+            select: {
+              id: true,
+              name: true,
+              gPerMl: true,
+              description: true,
+              displayOrder: true,
+            },
+          },
         },
       });
     });

@@ -212,3 +212,25 @@ datasource db {
 - Symptom: สอง edit พร้อมกันบนสาย ancestor เดียวกัน — ต่างคนต่างอ่าน state, ต่างคนต่างผ่าน guard, แล้วเขียนทั้งคู่ → chain ใน DB ลึกเกิน 5 หรือเกิด cycle (read-then-write ไม่มี lock)
 - Status: **ยอมรับสำหรับ MVP (7c)** — single-user, โอกาส concurrent edit บนสายเดียวกันต่ำมาก
 - Fix (ตอน scale): `pg_advisory_xact_lock` keyed บน tenant (หรือ root ของสาย) ต้นทรานแซกชันของ create/update — ตระกูลเดียวกับ #25 (generateSku race). **ไม่ทำใน 7c**
+
+### 29. Neon IPv6 (AAAA) record + Windows IPv6-first resolver → Prisma connect timeout (ต่างจาก #17/#26)
+- Where: local dev บน Windows, ทุก Prisma query (`pnpm db:seed:system`, `pnpm vitest` integration, migrate) — host `ep-…-pooler.c-2.ap-southeast-1.aws.neon.tech`
+- Symptom: Prisma `PrismaClientInitializationError` / `P1001 Can't reach database server` / "Timed out fetching a new connection from the connection pool" — fail ที่ ~5s (default connect_timeout), ดัน connect_timeout เป็น 30s ก็ fail ที่ 30s. เกิดทั้ง pooled + direct. **ทั้งที่ DB ปกติ 100%** (`SELECT 1;` ใน Neon SQL Editor ผ่าน, Usage/Billing/Status เขียวหมด — ตัด #26 ออก)
+- Root cause: Neon เริ่มประกาศ **AAAA (IPv6) records**. Windows prefix policy + Node default DNS order `verbatim` คืน IPv6 ขึ้นก่อน A (IPv4). network local route IPv6 ไป AWS ไม่ได้ → Prisma **Rust query engine (library, tokio getaddrinfo)** ลอง IPv6 ก่อนแล้วค้างจน timeout (ไม่มี happy-eyeballs fallback)
+- Detection (ขั้นตอนพิสูจน์):
+  1. `Test-NetConnection <host> -Port 5432` → `TcpTestSucceeded=True` (หลอก! PowerShell เลือก IPv4)
+  2. `node` `dns.lookup(host, {all:true})` → family 6 (IPv6) มา**ก่อน** family 4 — นี่คือตัวชี้
+  3. raw `tls.connect` ไป **IPv4 address ตรง ๆ** + `servername=host` (SNI) → Postgres SSLRequest ตอบ `'S'`, TLS `authorized=true` → ยืนยัน IPv4 path ดีทุกอย่าง
+- สิ่งที่ **ไม่ช่วย**: `--dns-result-order=ipv4first` (env หรือ `dns.setDefaultResultOrder()` programmatic) — Prisma library engine เป็น Rust ทำ DNS เองผ่าน OS resolver ไม่สน Node DNS setting; เคลียร์ `node_modules/.prisma` + `prisma generate` ก็ไม่ช่วย
+- Fix (workaround, ใช้อยู่ Sprint 1 Part 7d, 2026-05-30): pin hosts file → IPv4 (PowerShell **Run as Administrator**):
+```powershell
+$h = "$env:windir\System32\drivers\etc\hosts"
+$pins = @(
+  "13.251.17.193 ep-sparkling-violet-aosni4te-pooler.c-2.ap-southeast-1.aws.neon.tech",
+  "18.138.49.39 ep-sparkling-violet-aosni4te.c-2.ap-southeast-1.aws.neon.tech"
+)
+$cur = Get-Content $h -ErrorAction SilentlyContinue
+foreach ($p in $pins) { if ($cur -notcontains $p) { Add-Content -Path $h -Value $p } }
+```
+  ผลทันที ไม่ต้อง reboot (hosts มีแค่บรรทัด IPv4 → getaddrinfo คืน IPv4 อย่างเดียว). revert = ลบ 2 บรรทัด. หลัง pin: Prisma connect ~327ms
+- ข้อจำกัด/permanent: IP อาจเปลี่ยนถ้า Neon หมุน proxy → ต้อง re-resolve (`dns.lookup` เอา IPv4 ใหม่). ทางถาวร: upgrade plan + dedicated IP, แก้ IPv6 routing ฝั่ง network, หรือ Windows prefer-IPv4 ทั้งเครื่อง (`netsh interface ipv6 set prefixpolicy ::ffff:0:0/96 60 4`, elevated — กระทบทุก connection)

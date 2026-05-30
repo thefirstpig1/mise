@@ -648,4 +648,160 @@ describe("product *Logic (tenant-scoped, app-layer isolation)", () => {
     // Parent can be deleted because the soft-deleted child doesn't count.
     expect(await deleteProductLogic(tenantA, parent.id)).toBe(true);
   });
+
+  // ============================================================
+  // Sprint 1 Part 7d — liquid density (data-capture only). ADR 0008.
+  // L3 server logic: density persistence, COUNT / stale-toggle cleanse, read-path
+  // include, and template-FK validation (template is GLOBAL reference data — a
+  // plain findFirst, NOT assertRefBelongsToTenant). L2 zod (XOR + COUNT gate) is
+  // already committed (ff28a63); L23 re-checks that wiring from the logic side.
+  // RED until L3 implements density write + include + LiquidDensityTemplateNotFoundError.
+  // The typed error is asserted by `.name` (not `toBeInstanceOf`) so the not-yet-
+  // existing export does not break module load during the RED phase.
+  // ============================================================
+
+  /** A seeded global density template (นมสด = milk, 1.030 g/ml). */
+  const milkTemplate = () =>
+    prisma.liquidDensityTemplate.findFirstOrThrow({ where: { name: "นมสด" } });
+
+  /** Read a raw product row (all scalars) bypassing tenant scope. */
+  const rawProductRow = (id: string) =>
+    withAdminContext((tx) => tx.product.findUnique({ where: { id } }));
+
+  // A well-formed uuid that is NOT a seeded template id.
+  const MISSING_TEMPLATE_ID = "00000000-0000-4000-8000-000000000000";
+
+  // L18 — create a COUNT product carrying BOTH density fields (zod bypassed via
+  // spread, the L8 pattern): the server cleanses COUNT → both density columns null
+  // BEFORE the write (mirror of the 7c PREPPED→RAW cleanse ordering).
+  it("createProductLogic nulls density on a COUNT product (server cleanse)", async () => {
+    const milk = await milkTemplate();
+    const raw: ProductInput = {
+      ...input({ name: "L18-count", primaryDimension: "COUNT", baseUnitName: "ชิ้น" }),
+      liquidDensityTemplateId: milk.id,
+      densityGPerMlOverride: 1.5,
+    };
+    const p = await createProductLogic(tenantA, raw);
+    expect(p.liquidDensityTemplateId).toBeNull();
+    expect(p.densityGPerMlOverride).toBeNull();
+
+    const row = await rawProductRow(p.id);
+    expect(row?.liquidDensityTemplateId).toBeNull();
+    expect(row?.densityGPerMlOverride).toBeNull();
+  });
+
+  // L19 — a VOLUME product persists its override; toggling to COUNT cleanses the
+  // now-stale density back to null (mirror of the 7c PREPPED→RAW stale-null cleanse).
+  it("updateProductLogic clears stale density when VOLUME→COUNT", async () => {
+    const created = await createProductLogic(
+      tenantA,
+      input({
+        name: "L19-vol",
+        primaryDimension: "VOLUME",
+        baseUnitName: "l",
+        densityGPerMlOverride: 0.91,
+      })
+    );
+    expect(Number(created.densityGPerMlOverride)).toBe(0.91); // persisted on create
+
+    const toggled = await updateProductLogic(
+      tenantA,
+      created.id,
+      input({ name: "L19-vol", primaryDimension: "COUNT", baseUnitName: "ชิ้น" })
+    );
+    expect(toggled?.primaryDimension).toBe("COUNT");
+    expect(toggled?.densityGPerMlOverride).toBeNull(); // stale density cleansed
+    expect(toggled?.liquidDensityTemplateId).toBeNull();
+  });
+
+  // L20 — read path: getProductByIdLogic populates liquidDensityTemplate when the
+  // FK is set, projected to {id, name, gPerMl, description, displayOrder} (Q5).
+  it("getProductByIdLogic includes the liquidDensityTemplate when FK is set", async () => {
+    const milk = await milkTemplate();
+    const created = await createProductLogic(
+      tenantA,
+      input({
+        name: "L20-tpl",
+        primaryDimension: "VOLUME",
+        baseUnitName: "l",
+        liquidDensityTemplateId: milk.id,
+      })
+    );
+    expect(created.liquidDensityTemplateId).toBe(milk.id); // persisted on create
+
+    const read = await getProductByIdLogic(tenantA, created.id);
+    const tpl = (
+      read as unknown as {
+        liquidDensityTemplate: Record<string, unknown> | null;
+      } | null
+    )?.liquidDensityTemplate;
+    expect(tpl).toBeTruthy();
+    expect(tpl?.id).toBe(milk.id);
+    expect(tpl?.name).toBe("นมสด");
+    expect(Number(tpl?.gPerMl)).toBe(1.03);
+    // select shape: exactly these keys, nothing heavier crosses the boundary.
+    expect(Object.keys(tpl ?? {}).sort()).toEqual(
+      ["description", "displayOrder", "gPerMl", "id", "name"]
+    );
+  });
+
+  // L21 — an invalid template FK (well-formed uuid, no such row) is rejected with a
+  // typed LiquidDensityTemplateNotFoundError — NOT a cross-tenant error and NOT a
+  // raw Prisma FK error (template is global reference data: plain findFirst by id).
+  it("createProductLogic rejects an unknown liquidDensityTemplateId (typed)", async () => {
+    const raw = input({
+      name: "L21-badtpl",
+      primaryDimension: "VOLUME",
+      baseUnitName: "l",
+      liquidDensityTemplateId: MISSING_TEMPLATE_ID,
+    });
+    let thrown: unknown;
+    try {
+      await createProductLogic(tenantA, raw);
+    } catch (e) {
+      thrown = e;
+    }
+    expect((thrown as Error | undefined)?.name).toBe(
+      "LiquidDensityTemplateNotFoundError"
+    );
+
+    // guard ran before any write — no ghost product row
+    const ghosts = (await getProductsLogic(tenantA)).filter(
+      (p) => p.name === "L21-badtpl"
+    );
+    expect(ghosts).toHaveLength(0);
+  });
+
+  // L22 — Q3: a granular WEIGHT product MAY carry a custom override; it persists
+  // (Mise does not paternalize — density of granular solids is the user's call).
+  it("createProductLogic persists a density override on a WEIGHT product", async () => {
+    const p = await createProductLogic(
+      tenantA,
+      input({
+        name: "L22-sugar",
+        primaryDimension: "WEIGHT",
+        baseUnitName: "kg",
+        densityGPerMlOverride: 0.85,
+      })
+    );
+    expect(Number(p.densityGPerMlOverride)).toBe(0.85);
+    expect(p.liquidDensityTemplateId).toBeNull();
+
+    const row = await rawProductRow(p.id);
+    expect(Number(row?.densityGPerMlOverride)).toBe(0.85);
+  });
+
+  // L23 — Q2 XOR re-checked from the logic side: template + override together on a
+  // non-COUNT product is rejected by zod superRefine (L2 wiring, ff28a63).
+  it("productInputSchema rejects template + override together (XOR, L2 wiring)", () => {
+    expect(() =>
+      productInputSchema.parse({
+        name: "L23-both",
+        primaryDimension: "VOLUME",
+        baseUnitName: "l",
+        liquidDensityTemplateId: MISSING_TEMPLATE_ID,
+        densityGPerMlOverride: 0.91,
+      })
+    ).toThrow();
+  });
 });
