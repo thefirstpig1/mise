@@ -31,7 +31,11 @@ import {
 } from "@/lib/validations/product";
 import { ACCOUNT_LABELS_TH, type Account } from "@/lib/validations/category";
 import type { ProductView } from "./product-view";
-import type { UnitOption, ProductParentOption } from "@/server/product";
+import type {
+  UnitOption,
+  ProductParentOption,
+  LiquidDensityTemplateOption,
+} from "@/server/product";
 
 type CategoryOption = {
   id: string;
@@ -44,6 +48,9 @@ type CategoryOption = {
  *  default-buy selection survives renames (we resolve id → name only at submit). */
 type UnitRow = { id: number; unitName: string; toBaseRatio: string };
 
+/** 7d density section mode (Q5): ไม่ระบุ / ใช้ค่ามาตรฐาน / ใส่ค่าเอง. */
+type DensityMode = "none" | "template" | "custom";
+
 const inputClass =
   "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none";
 
@@ -53,6 +60,7 @@ export default function ProductForm({
   units,
   categories,
   parentOptions,
+  availableTemplates,
   submitLabel,
 }: {
   action: (
@@ -64,6 +72,8 @@ export default function ProductForm({
   categories: CategoryOption[];
   /** Live products of the tenant (self already filtered on edit). */
   parentOptions: ProductParentOption[];
+  /** 7d: all liquid density templates for the dropdown (ordered by displayOrder). */
+  availableTemplates: LiquidDensityTemplateOption[];
   submitLabel: string;
 }) {
   const router = useRouter();
@@ -125,6 +135,42 @@ export default function ProductForm({
     productType === "PREPPED" &&
     Number.isFinite(yieldNum) &&
     yieldNum > 300;
+
+  // --- 7d: liquid density (Q5). Mode is client-only UI state; only the ACTIVE
+  // field is rendered (and thus submitted), so the template-vs-override XOR holds
+  // by construction. Initial mode derives from DB state (the DB CHECK makes the
+  // both-set state impossible, so no fallback needed). Hidden entirely on COUNT.
+  const [densityMode, setDensityMode] = useState<DensityMode>(
+    initial?.liquidDensityTemplateId
+      ? "template"
+      : initial?.densityGPerMlOverride
+        ? "custom"
+        : "none"
+  );
+  const [densityTemplateId, setDensityTemplateId] = useState(
+    initial?.liquidDensityTemplateId ?? ""
+  );
+  const [densityOverride, setDensityOverride] = useState(
+    initial?.densityGPerMlOverride ?? ""
+  );
+
+  function onDensityModeChange(next: DensityMode) {
+    setDensityMode(next);
+    // Clear the opposite field so a mode switch leaves no stale value behind.
+    if (next !== "template") setDensityTemplateId("");
+    if (next !== "custom") setDensityOverride("");
+  }
+
+  // Density applies only to WEIGHT/VOLUME (Q3); the whole section hides otherwise.
+  const densityApplies = dimension === "WEIGHT" || dimension === "VOLUME";
+  // Soft hint (custom mode only, non-blocking): value outside the usual food
+  // liquid band [0.5, 2.0] g/ml (Q4). The hard cap (0, 2.5] lives in zod.
+  const overrideNum = Number(densityOverride);
+  const showDensityHint =
+    densityMode === "custom" &&
+    densityOverride.trim() !== "" &&
+    Number.isFinite(overrideNum) &&
+    (overrideNum < 0.5 || overrideNum > 2.0);
 
   // --- Additional units (7b, Option A): dynamic rows below the base unit. ---
   // Ids are assigned 0..n-1 in order on first render (idCounter starts at 0), so
@@ -419,6 +465,114 @@ export default function ProductForm({
           )}
         </div>
       </section>
+
+      {/* 7d: Liquid density (Q5) — placed after หน่วยวัด, hidden entirely when
+          COUNT (Q3). 3-state mode: ไม่ระบุ / ใช้ค่ามาตรฐาน / ใส่ค่าเอง. Only the
+          active field is rendered, so template-vs-override XOR holds by
+          construction; the server still cleanses + zod still guards. */}
+      {densityApplies && (
+        <section className="space-y-4 rounded-lg border border-border bg-card p-6">
+          <div>
+            <h3 className="text-sm font-medium">ความหนาแน่น (ของเหลว)</h3>
+            <p className="mt-1 text-xs text-muted-foreground">
+              ใช้แปลงหน่วยข้ามน้ำหนัก↔ปริมาตร (เช่น น้ำมัน 1 ลิตร = กี่กรัม) —
+              ระบุหรือเว้นว่างก็ได้
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            {/* ( ) ไม่ระบุ */}
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="radio"
+                name="density_mode"
+                checked={densityMode === "none"}
+                onChange={() => onDensityModeChange("none")}
+                className="h-4 w-4"
+              />
+              ไม่ระบุ
+            </label>
+
+            {/* ( ) ใช้ค่ามาตรฐาน → dropdown */}
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="radio"
+                name="density_mode"
+                checked={densityMode === "template"}
+                onChange={() => onDensityModeChange("template")}
+                className="h-4 w-4"
+              />
+              ใช้ค่ามาตรฐาน
+            </label>
+            {densityMode === "template" && (
+              <div className="pl-6">
+                <select
+                  id="liquid_density_template_id"
+                  name="liquid_density_template_id"
+                  value={densityTemplateId}
+                  onChange={(e) => setDensityTemplateId(e.target.value)}
+                  className={inputClass}
+                >
+                  <option value="" disabled>
+                    — เลือกค่ามาตรฐาน —
+                  </option>
+                  {availableTemplates.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name} — {t.gPerMl} g/ml
+                    </option>
+                  ))}
+                </select>
+                {err("liquidDensityTemplateId") && (
+                  <p className="mt-1 text-sm text-red-600">
+                    {err("liquidDensityTemplateId")}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* ( ) ใส่ค่าเอง → number input + soft hint */}
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="radio"
+                name="density_mode"
+                checked={densityMode === "custom"}
+                onChange={() => onDensityModeChange("custom")}
+                className="h-4 w-4"
+              />
+              ใส่ค่าเอง
+            </label>
+            {densityMode === "custom" && (
+              <div className="pl-6">
+                <div className="flex items-center gap-2">
+                  <input
+                    id="density_g_per_ml_override"
+                    name="density_g_per_ml_override"
+                    type="number"
+                    value={densityOverride}
+                    onChange={(e) => setDensityOverride(e.target.value)}
+                    step="0.001"
+                    min="0"
+                    inputMode="decimal"
+                    placeholder="1.030"
+                    className={`${inputClass} max-w-[10rem]`}
+                  />
+                  <span className="text-sm text-muted-foreground">g/ml</span>
+                </div>
+                {showDensityHint && (
+                  <p className="mt-1 text-xs text-amber-600">
+                    ค่านอกช่วงปกติของเหลวอาหาร (0.5-2.0 g/ml) — กรุณาตรวจสอบ
+                  </p>
+                )}
+                {err("densityGPerMlOverride") && (
+                  <p className="mt-1 text-sm text-red-600">
+                    {err("densityGPerMlOverride")}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* Additional units (7b) — extra buy/sell units beyond the base */}
       <section className="space-y-4 rounded-lg border border-border bg-card p-6">

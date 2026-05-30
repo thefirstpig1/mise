@@ -5,6 +5,7 @@ import {
   getProductByIdLogic,
   getUnitTemplates,
   getProductParentOptionsLogic,
+  getLiquidDensityTemplates,
 } from "@/server/product";
 import { getCategoriesLogic } from "@/server/category";
 import { updateProduct } from "../actions";
@@ -21,12 +22,14 @@ export default async function EditProductPage({
   const { id } = await params;
   const { tenantId } = await requireTenant();
 
-  const [product, units, categories, allParents] = await Promise.all([
-    getProductByIdLogic(tenantId, id),
-    getUnitTemplates(),
-    getCategoriesLogic(tenantId),
-    getProductParentOptionsLogic(tenantId),
-  ]);
+  const [product, units, categories, allParents, densityTemplates] =
+    await Promise.all([
+      getProductByIdLogic(tenantId, id),
+      getUnitTemplates(),
+      getCategoriesLogic(tenantId),
+      getProductParentOptionsLogic(tenantId),
+      getLiquidDensityTemplates(),
+    ]);
   if (!product) notFound();
 
   const categoryOptions = categories.map((c) => ({
@@ -53,6 +56,7 @@ export default async function EditProductPage({
         units={units}
         categories={categoryOptions}
         parentOptions={parentOptions}
+        availableTemplates={densityTemplates}
         submitLabel="บันทึกการแก้ไข"
       />
     </div>

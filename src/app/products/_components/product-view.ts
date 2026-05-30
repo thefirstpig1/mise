@@ -8,7 +8,10 @@
 // fields (type / parentProductId / parent label / yieldPercent). yieldPercent is
 // the only Decimal-typed field here — serialized via `.toString()` per Pitfall #20.
 
-import type { ProductWithUnits } from "@/server/product";
+import type {
+  ProductWithUnits,
+  LiquidDensityTemplateOption,
+} from "@/server/product";
 
 /** One ProductUnit, RSC-safe: Decimal toBaseRatio serialized to string (Pitfall #20). */
 export type ProductUnitView = {
@@ -46,6 +49,13 @@ export type ProductView = {
   parent: { name: string; sku: string } | null;
   /** 7c yield percent: Decimal → string per Pitfall #20. Null for RAW. */
   yieldPercent: string | null;
+  /** 7d liquid density (ADR 0008). XOR: at most one of FK / override is set
+   *  (DB CHECK + zod). Both Decimal-typed sources → string per Pitfall #20.
+   *  `liquidDensityTemplate` is the joined template (g/ml value for display).
+   *  All null/absent for COUNT and for products with no density. */
+  liquidDensityTemplateId: string | null;
+  densityGPerMlOverride: string | null;
+  liquidDensityTemplate: LiquidDensityTemplateOption | null;
 };
 
 export function toProductView(p: ProductWithUnits): ProductView {
@@ -82,5 +92,19 @@ export function toProductView(p: ProductWithUnits): ProductView {
       ? { name: p.parentProduct.name, sku: p.parentProduct.sku }
       : null,
     yieldPercent: p.yieldPercent === null ? null : p.yieldPercent.toString(),
+    liquidDensityTemplateId: p.liquidDensityTemplateId,
+    densityGPerMlOverride:
+      p.densityGPerMlOverride === null
+        ? null
+        : p.densityGPerMlOverride.toString(),
+    liquidDensityTemplate: p.liquidDensityTemplate
+      ? {
+          id: p.liquidDensityTemplate.id,
+          name: p.liquidDensityTemplate.name,
+          gPerMl: p.liquidDensityTemplate.gPerMl.toString(),
+          description: p.liquidDensityTemplate.description,
+          displayOrder: p.liquidDensityTemplate.displayOrder,
+        }
+      : null,
   };
 }

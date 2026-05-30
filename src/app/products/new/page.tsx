@@ -6,6 +6,7 @@ import { requireTenant } from "@/lib/require-tenant";
 import {
   getUnitTemplates,
   getProductParentOptionsLogic,
+  getLiquidDensityTemplates,
 } from "@/server/product";
 import { getCategoriesLogic } from "@/server/category";
 import { createProduct } from "../actions";
@@ -13,11 +14,13 @@ import ProductForm from "../_components/ProductForm";
 
 export default async function NewProductPage() {
   const { tenantId } = await requireTenant();
-  const [units, categories, parentOptions] = await Promise.all([
-    getUnitTemplates(),
-    getCategoriesLogic(tenantId),
-    getProductParentOptionsLogic(tenantId),
-  ]);
+  const [units, categories, parentOptions, densityTemplates] =
+    await Promise.all([
+      getUnitTemplates(),
+      getCategoriesLogic(tenantId),
+      getProductParentOptionsLogic(tenantId),
+      getLiquidDensityTemplates(),
+    ]);
 
   const categoryOptions = categories.map((c) => ({
     id: c.id,
@@ -34,6 +37,7 @@ export default async function NewProductPage() {
         units={units}
         categories={categoryOptions}
         parentOptions={parentOptions}
+        availableTemplates={densityTemplates}
         submitLabel="บันทึก"
       />
     </div>

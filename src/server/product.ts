@@ -399,6 +399,45 @@ export async function getUnitTemplates(): Promise<UnitOption[]> {
   return rows;
 }
 
+/** Liquid density template option for the form dropdown (7d, Q5). `gPerMl` is
+ *  serialized to string — NO Decimal across RSC (Pitfall #20). Reused as the
+ *  embedded-template shape in product-view.ts. */
+export type LiquidDensityTemplateOption = {
+  id: string;
+  name: string;
+  gPerMl: string;
+  description: string | null;
+  displayOrder: number | null;
+};
+
+/**
+ * All liquid density templates for the form's density dropdown (7d, Q5).
+ * liquid_density_template is GLOBAL (no tenantId) → plain prisma, NOT
+ * withTenantContext. Ordered by displayOrder (Q5); Decimal `gPerMl` → string so
+ * it can cross to the Client Component (Pitfall #20).
+ */
+export async function getLiquidDensityTemplates(): Promise<
+  LiquidDensityTemplateOption[]
+> {
+  const rows = await prisma.liquidDensityTemplate.findMany({
+    select: {
+      id: true,
+      name: true,
+      gPerMl: true,
+      description: true,
+      displayOrder: true,
+    },
+    orderBy: { displayOrder: "asc" },
+  });
+  return rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    gPerMl: r.gPerMl.toString(),
+    description: r.description,
+    displayOrder: r.displayOrder,
+  }));
+}
+
 /**
  * Create a product (RAW or PREPPED, per `input.type`) + its single base unit
  * under `tenantId`, atomically. Input must already be zod-validated.
