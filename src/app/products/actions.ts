@@ -34,6 +34,7 @@ import {
   ProductHasChildrenError,
   ProductParentCycleError,
   ProductDepthExceededError,
+  LiquidDensityTemplateNotFoundError,
 } from "@/server/product";
 
 /**
@@ -57,6 +58,8 @@ const INVALID_UNIT_MESSAGE = "หน่วยพื้นฐานไม่ต�
 const INVALID_CATEGORY_MESSAGE = "หมวดบัญชีที่เลือกไม่ถูกต้อง";
 /** A posted parentProductId that isn't a live product of this tenant (7c). */
 const INVALID_PARENT_MESSAGE = "สินค้าแม่ที่เลือกไม่ถูกต้อง";
+/** A posted liquidDensityTemplateId that isn't an existing density template (7d). */
+const INVALID_DENSITY_TEMPLATE_MESSAGE = "ค่าความหนาแน่นมาตรฐานที่เลือกไม่ถูกต้อง";
 /** 7c: the new parent edge would create a self-reference or a cycle. */
 const PARENT_CYCLE_MESSAGE = "สินค้าแม่ที่เลือกจะทำให้เกิดวงจรอ้างอิง";
 /**
@@ -103,11 +106,18 @@ function rawFromFormData(formData: FormData): Record<string, unknown> {
   const rawType = formData.get("type");
   const isRaw = rawType === "RAW";
 
+  // 7d (grill Q3): cleanse density to null when COUNT — same shape as the isRaw
+  // parent/yield cleanse above. FIRST of three defense-in-depth layers (also: zod
+  // COUNT gate, *Logic write), each catching a different bypass. Runs BEFORE zod
+  // so a COUNT toggle never trips the COUNT gate even if the UI didn't cleanse.
+  const primaryDimension = formData.get("primary_dimension");
+  const isCount = primaryDimension === "COUNT";
+
   return {
     sku: formData.get("sku"),
     name: formData.get("name"),
     nameEn: formData.get("name_en"),
-    primaryDimension: formData.get("primary_dimension"),
+    primaryDimension,
     baseUnitName: formData.get("base_unit_name"),
     categoryId: formData.get("category_id"),
     isActive: formData.get("is_active") === "on",
@@ -116,6 +126,15 @@ function rawFromFormData(formData: FormData): Record<string, unknown> {
     type: rawType,
     parentProductId: isRaw ? null : formData.get("parent_product_id"),
     yieldPercent: isRaw ? null : formData.get("yield_percent"),
+    // 7d: COUNT → null (cleanse, above); otherwise forward as-is (snake_case →
+    // camelCase). zod's blankToNull maps empty to null; the XOR (template vs
+    // override) is enforced by zod superRefine (L2) and the DB CHECK (ADR 0008).
+    liquidDensityTemplateId: isCount
+      ? null
+      : formData.get("liquid_density_template_id"),
+    densityGPerMlOverride: isCount
+      ? null
+      : formData.get("density_g_per_ml_override"),
   };
 }
 
@@ -155,6 +174,13 @@ function toFormError(e: unknown): ProductActionState {
       return { ok: false, fieldErrors: { categoryId: INVALID_CATEGORY_MESSAGE } };
     }
     return { ok: false, fieldErrors: { parentProductId: INVALID_PARENT_MESSAGE } };
+  }
+  if (e instanceof LiquidDensityTemplateNotFoundError) {
+    // 7d: the chosen standard-density template id doesn't exist (global ref data).
+    return {
+      ok: false,
+      fieldErrors: { liquidDensityTemplateId: INVALID_DENSITY_TEMPLATE_MESSAGE },
+    };
   }
   throw e; // unexpected → let the error boundary handle it
 }
