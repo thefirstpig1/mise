@@ -21,7 +21,7 @@
 - [ ] RLS policies applied for all new tenant-scoped tables
 - [x] 16 default categories seeded on tenant creation (H.1.2) — verified Part 6 E2E
 - [ ] CRUD pages for Supplier
-- [~] CRUD pages for Product — Part 7a ✅ (RAW + base unit), Part 7b ✅ (multi-unit), Part 7c ✅ (PREPPED); density = Part 7d
+- [x] CRUD pages for Product — Part 7a ✅ (RAW + base unit), Part 7b ✅ (multi-unit), Part 7c ✅ (PREPPED), Part 7d ✅ (liquid density)
 - [x] CRUD pages for Category (3-tier: account → accounting_section → group)
 - [ ] Supplier-Product mapping UI
 - [ ] All Sprint 0 features still work
@@ -120,7 +120,9 @@ Grill-with-docs (Q1–Q7) finished previous session — design locked, committed
 
 ---
 
-## Sprint 1 Part 7d — Products liquid density: 🚧 IN PROGRESS (started 2026-05-28)
+## Sprint 1 Part 7d — Products liquid density: ✅ DONE (2026-05-31)
+
+**Done:** Data-capture liquid density (g/ml) on Product — standard-template FK **XOR** a custom override, gated off COUNT, with **3-layer defense** (rawFromFormData cleanse → zod superRefine → \*Logic write cleanse) backed by a Postgres CHECK. Resolves **Pitfall #27** (`ml_per_g` terminology) by column rename, values unchanged. No conversion math / cost-engine / inheritance (all Sprint 2+). Verified: tsc clean (only pre-existing `auth.ts:24`), vitest 76✓/4 skip, and 6-case action-stack E2E (a–f) green on throwaway tenant.
 
 Grill-with-docs (Q1–Q8) finished this session — design locked, full record in Drive doc (Q1–Q8 + rationale + rejected alternatives) and codified in **ADR 0008**. **Scope = data-capture only** (per 7c Q1 split + 7d Q6 lock): schema + zod + UI + view serializer; **no WEIGHT↔VOLUME conversion math, no cost-engine consumer, no density inheritance** — all deferred to Sprint 2+. Resolves Pitfall #27 (`ml_per_g` terminology bug) by rename, not value-flip.
 
@@ -162,21 +164,22 @@ ALTER TABLE product ADD CONSTRAINT product_density_xor
 
 ### Implementation (7-layer slice, TDD — per 7a/7b/7c pattern)
 
-| L | Layer | Status | Files |
-|---|---|---|---|
-| **L0** | **Docs (this slice)** | 🚧 in progress | `docs/adr/0008-liquid-density-g-per-ml.md` (NEW), `CONTEXT.md` Liquid density entry, `.claude/skills/known-pitfalls/SKILL.md` Pitfall #27 → resolved, this section |
-| L1 | Schema + migration + seed | ⏳ pending | `prisma/schema.prisma` (rename fields + `@unique` on `name` + comment), `prisma/seed-system.ts` (key rename + `upsert by name` + 2 admin-update comments), new migration SQL above |
-| L2 | zod validation | ⏳ pending | `src/lib/validations/product.ts` — add `liquidDensityTemplateId`, `densityGPerMlOverride`, `.superRefine` for XOR + COUNT gate + range |
-| L3 | Server logic | ⏳ pending | `src/server/product.ts` — `rawFromFormData` cleanse (COUNT → null, mode=none → null) **before zod**; Prisma include `liquidDensityTemplate { select }` in read path; `findFirst by id` for template FK (global, no tenant assert needed) |
-| L4 | Actions | ⏳ pending | `src/app/products/actions.ts` — read snake_case `liquid_density_template_id`, `density_g_per_ml_override`, mode field; map any new validation error to Thai |
-| L5 | UI | ⏳ pending | `ProductForm.tsx` (density section per Q5), `product-view.ts` (Decimal → string + display-side mode resolver, Pitfall #20), `/products/new` + `/products/[id]/edit` pages fetch `availableTemplates` from `LiquidDensityTemplate.findMany orderBy displayOrder`. ProductTree leaf NOT touched (G1 SKIP). |
-| L6 | Verify | ⏳ pending | reuse throwaway tenant `12cad010-…`; E2E flow: create VOLUME w/ template → edit to custom → edit to none → toggle to COUNT (cleanse to null). vitest + tsc + headless. |
+| L | Layer | Status | Commit | Files |
+|---|---|---|---|---|
+| **L0** | **Docs** | ✅ done | `54550bd` (+ cleanup `563ba38`) | `docs/adr/0008-liquid-density-g-per-ml.md` (NEW), `CONTEXT.md` Liquid density entry, `.claude/skills/known-pitfalls/SKILL.md` Pitfall #27 → resolved, this section |
+| L1 | Schema + migration + seed | ✅ done | `279df1e` | `prisma/schema.prisma` (rename fields + `@unique` on `name` + comment), `prisma/seed-system.ts` (key rename + `upsert by name` + 2 admin-update comments), migration SQL above (**applied to Neon**) |
+| L2 | zod validation | ✅ done | `ff28a63` | `src/lib/validations/product.ts` — `liquidDensityTemplateId`, `densityGPerMlOverride`, `.superRefine` XOR + COUNT gate + range `(0, 2.5]` |
+| L3 | Server logic | ✅ done | `c1aa596` | `src/server/product.ts` — COUNT write cleanse; `liquidDensityTemplate { select }` include on all 4 read sites; `assertLiquidDensityTemplateExists` (global `findFirst` by id) + `LiquidDensityTemplateNotFoundError` |
+| L4 | Actions | ✅ done | `6c41785` | `src/app/products/actions.ts` — `rawFromFormData` COUNT cleanse (layer 1); map `LiquidDensityTemplateNotFoundError` → Thai field error |
+| L5 | UI | ✅ done | `e31a919` | `ProductForm.tsx` (density section per Q5), `product-view.ts` (Decimal → string, Pitfall #20), `getLiquidDensityTemplates()` + `/products/new` + `/products/[id]` fetch `availableTemplates`. ProductTree leaf NOT touched (G1 SKIP). |
+| L6 | Verify | ✅ done | _(this commit)_ | Baseline tsc + vitest 76✓/4 skip; 6-case action-stack E2E (a–f) on throwaway tenant `12cad010-…` — CREATE template/override, EDIT template→custom, EDIT VOLUME→COUNT cleanse, unknown-FK reject, XOR reject — all green, no ghost rows, test data + throwaway spec cleaned. |
 
 ### Standing items (carry-forward)
 
 - **Pitfall #19** git hook inert — push works, safety net off.
 - **Pitfall #26** Neon free-tier compute-hours quota — heads-up before heavy work.
 - **Pitfall #28** depth/cycle traversal race — accepted for MVP.
+- **Pitfall #29** Neon IPv6 — hosts-file IPv4 pin still required on Windows + Neon + no-IPv6-route environments (Prisma Rust engine ignores `--dns-result-order`). Re-resolve proxy IPs if Neon rotates them. Full detail in `known-pitfalls` #29.
 - **Deferred guards (Sprint 2+)**:
   - ProductUnit-referenced-by-mapping (Part 8, ADR 0005 family)
   - base-unit / dimension change once downstream refs land (ADR 0005)
@@ -186,7 +189,7 @@ ALTER TABLE product ADD CONSTRAINT product_density_xor
 - **Pre-existing tsc errors** `auth.ts:24` (Sprint-0 leftover) — out of scope.
 - **`expectedYieldG`** column on Product — remains deferred (batch-size concept, Sprint 2-3); NOT gated on end-of-7d.
 
-### Next: L1 — schema + migration + seed (after L0 docs review + commit).
+### Next: Part 8 — ProductUnit ↔ supplier mapping (ADR 0005 family); decide at session start whether to start now or pause.
 
 ---
 
