@@ -33,6 +33,9 @@ on resolution during /grill-with-docs sessions.
 - **Multi-unit** — a product can have multiple units (e.g., milk in ml AND l AND ขวด).
 - **Additional unit** — any non-base ProductUnit on a Product. Converts to the base unit via a product-specific `toBaseRatio` and shares the Product's dimension (same dimension as the base — cross-dimension is handled by Liquid density, not units). May use a custom packaging name not in unit_template (e.g. กระสอบ, ลัง, ขวด); the base unit, by contrast, must come from unit_template.
 - **Unit source** — provenance of a ProductUnit's *name*: `system` (name matches a unit_template entry) or `custom` (free-text packaging name). Records where the name came from only; the `toBaseRatio` is always product-specific (1 ขวด of brand A milk ≠ brand B).
+- **Supplier-Product Mapping** — a price-list entry linking a Supplier to a Product: the supplier's own item code/name, the unit it is ordered in (`orderUnit`, a ProductUnit of that product), current price, and procurement terms (min-order qty, lead-time, preferred flag), effective from a **calendar date** (`effectiveFrom`; the "when entered" timestamp lives separately in `createdAt`). Append-only **time-series**: entering a new price *supersedes* the previous one (the old row's `effectiveTo` closes; a new open row opens with `effectiveTo = null` = current). Overlapping date ranges are rejected; future-dated prices are allowed. Scoped either **tenant-default** (`branchId` null) or **branch override** (`branchId` set). **Preferred** = the default source for a product — at most one per product per branch-scope (app-enforced like Default buy unit). The PO / cost-engine consumer is Sprint 2; Part 8 is data-capture only. See ADR 0009.
+- **Orphan mapping** — a Supplier-Product Mapping whose parent Supplier or Product has been soft-deleted. Tolerated by design (the data layer does not enforce referential *liveness*); surfaced via an "All" list filter, never crashes a read.
+- **Hide-not-delete** — in Part 8, "ลบ" a mapping (or soft-deleting its parent Supplier/Product, which cascades to the mappings after a blast-radius confirm) is a **soft-delete: hidden from active lists + the Sprint-2 PO consumer, but retained for audit/history** — financial records are never destroyed. There is no restore UI in MVP (deferred to Part 8.5). See ADR 0009.
 
 ## Procurement
 
@@ -74,7 +77,7 @@ on resolution during /grill-with-docs sessions.
 - **RLS (Row-Level Security)** — Postgres feature enforcing tenant_id filter at DB layer. Defense-in-depth (H.10, Decision #55).
 - **withTenantContext** — Prisma helper that sets `app.current_tenant_id` for RLS to use.
 - **Tenant isolation** — guarantee that Tenant A cannot read/write Tenant B's data, even with bugged app code.
-- **Branch override** — pattern where tenant-default settings can be overridden per-branch (Section A).
+- **Branch override** — pattern where tenant-default settings can be overridden per-branch (Section A). First concrete use: **Supplier-Product Mapping** — `branchId` null = tenant default, `branchId` set = branch override; the branch-specific row **wholly replaces** the default for that branch (lookup tries branch-specific first, then falls back to the tenant default), not a field-level merge. See ADR 0009.
 - **Permission triple-filter** — role × user_branch_access × user_department_assignment (H.4).
 - **Materialized view freshness** — H.7: combine pre-computed mat view with live UNION for fresh + fast.
 

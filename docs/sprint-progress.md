@@ -1,6 +1,6 @@
 # Mise Sprint Progress
 
-**Last updated:** 2026-05-28
+**Last updated:** 2026-05-31
 
 ## Current Sprint: Sprint 1 — Master Data
 
@@ -190,6 +190,52 @@ ALTER TABLE product ADD CONSTRAINT product_density_xor
 - **`expectedYieldG`** column on Product — remains deferred (batch-size concept, Sprint 2-3); NOT gated on end-of-7d.
 
 ### Next: Part 8 — ProductUnit ↔ supplier mapping (ADR 0005 family); decide at session start whether to start now or pause.
+
+---
+
+## Sprint 1 Part 8 — Supplier-Product Mapping: 🚧 IN PROGRESS (started 2026-05-31)
+
+Branch-aware supplier price list (`supplier_product_mapping`). Grill-with-docs (Q1–Q10) locked this session — full record in Drive doc **"Part 8 Grill Decisions"** (fileId: `15kzp0miM8QAR-BJRzQ23TVfIZ1gm0ji42NcYyp6CT8Y`) and codified in **ADR 0009**. **Scope = data-capture only** (Q9): mapping CRUD + append/supersede price history + branch override + guards; the PO / cost-engine **consumer is Sprint 2**.
+
+### Design locked (Q1–Q10 — compact; full record in ADR 0009 + Drive doc)
+
+| Q | Decision (one-liner) |
+|---|----------|
+| Q1 | `effectiveFrom` **NOT NULL** (migration + zod required), default = today if blank. Fixes spec drift (was nullable → unique-key hole). |
+| Q2 | `effectiveFrom`/`effectiveTo` → **`@db.Date`** (Postgres `date`, not timestamp). Audit "when entered" = `createdAt`. Avoids tz off-by-one (Decision #60). |
+| Q3 | Multi-supplier/product = **unbounded**; **`isPreferred` ≤ 1** per (product, branch-scope), app-enforced (mirror 7b `isDefaultBuyUnit`); branch-override + tenant-default **coexist**. |
+| Q4 | **Time-series append + supersede**: new price closes old row's `effectiveTo` + inserts open row. Overlap **block**, future-dated **allow**, `effectiveTo=null`=current. Lookup `today BETWEEN from AND COALESCE(to,'infinity')`. |
+| Q5 | (i) write-val `orderUnit ∈ product(live)` + (ii) **deletion guard** (block removing a ProductUnit referenced by a live mapping — ADR 0005/0006 guard, now active); (iii) dimension-change ↔ orderUnit → **defer Sprint 2**. |
+| Q6 | **Cascade-with-user-control**: soft-delete supplier/product cascades to mappings, but UI shows **blast-radius count** + confirm first. Hide-not-destroy (ADR 0009). |
+| Q7 | Branch override `branchId` set **wholly replaces** tenant default (`branchId` null) for that branch; resolve branch-first → fallback default. UI = **minimal branch selector**. |
+| Q8 | price **optional ≥ 0**; minOrderQty `> 0`; leadTimeDays `0–365`; supplierItemCode max 64 / Name max 200; isPreferred default false. |
+| Q9 | Scope **data-capture only**, **product-centric** UI, **price-history viewer IN**. OUT (Sprint 2): PO consumer, price auto-pick, cost engine, rich branch-diff UI, dim-change guard. |
+| Q10 | Replace `@@unique` with manual **PARTIAL unique** (`prisma/manual/supplier_product_mapping_unique.sql`): `WHERE deleted_at IS NULL` + **`NULLS NOT DISTINCT`**; drop old full unique. Closes Pitfall #22/#23 trap + NULL-`branchId` duplicate-default hole. |
+
+### Implementation (7-layer slice, TDD — per 7a–7d pattern)
+
+| L | Layer | Status | Files |
+|---|---|---|---|
+| **L0** | **Docs (this slice)** | 🚧 in progress | `docs/adr/0009-supplier-product-mapping-time-series.md` (NEW), `CONTEXT.md` (Supplier-Product Mapping + Orphan mapping + Hide-not-delete + Branch override), this section |
+| L1 | Schema + migration + manual SQL | ⏳ pending | `prisma/schema.prisma` (`effectiveFrom` NOT NULL, dates → `@db.Date`, remove `@@unique` + comment → manual SQL), migration `part_8_supplier_product_mapping`, `prisma/manual/supplier_product_mapping_unique.sql` (partial + NULLS NOT DISTINCT) |
+| L2 | zod validation | ⏳ pending | `src/lib/validations/supplier-product-mapping.ts` — fields + ranges (Q8), orderUnit, branch, date rules |
+| L3 | Server logic | ⏳ pending | `src/server/supplier-product-mapping.ts` — CRUD + supersede/overlap (Q4), orderUnit write-val + ProductUnit deletion guard (Q5), isPreferred singleton (Q3), cascade + blast-radius count (Q6), history read, P2002 → typed Thai; cascade hooks in `deleteSupplierLogic` / `deleteProductLogic` |
+| L4 | Actions | ⏳ pending | `src/app/products/_mapping/actions.ts` (or co-located) — rawFromFormData, Thai error mapping, delete-with-count |
+| L5 | UI | ⏳ pending | product-centric mapping section + branch selector + history viewer; `*-view.ts` serializer (Decimal → string, Pitfall #20) |
+| L6 | Verify | ⏳ pending | E2E (create/supersede/branch-override/guards/cascade-confirm) + tsc + vitest |
+
+### Deferred slices (Sprint 2+ / Part 8.5)
+
+- **Part 8.5 — Restore-on-recreate**: un-soft-deleting a Product/Supplier bringing back its cascaded mappings. Product-layer lifecycle, not mapping-layer; MVP has no restore UI. (ADR 0009.)
+- **Sprint 2 — PO consumer**: must **snapshot** mapping price/orderUnit at order time, NOT live FK lookup (preserve historical stock value). Price auto-pick, cost-engine read. (ADR 0009.)
+- **Sprint 2 — dimension-change ↔ orderUnit guard** (Q5 iii); **rich branch-override diff UI** (Q7).
+
+### Standing items (carry-forward)
+- **Pitfall #29** Neon IPv6 — hosts-file IPv4 pin still required on Windows (see `known-pitfalls` #29).
+- **Pitfall #20** Decimal across RSC — mapping `currentUnitPrice` / `minOrderQty` need the view serializer.
+- **Pitfall #22/#23** FULL `@@unique` soft-delete trap — avoided via Q10 partial index.
+
+### Next: L1 — schema + migration + manual SQL (after L0 docs review + commit).
 
 ---
 
