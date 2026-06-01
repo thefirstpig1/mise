@@ -365,8 +365,8 @@ model SupplierProductMapping {
   minOrderQty      Decimal?  @map("min_order_qty") @db.Decimal(15, 6)
   leadTimeDays     Int?      @map("lead_time_days")
   isPreferred      Boolean   @default(false) @map("is_preferred")
-  effectiveFrom    DateTime? @map("effective_from")
-  effectiveTo      DateTime? @map("effective_to")
+  effectiveFrom    DateTime  @map("effective_from") @db.Date
+  effectiveTo      DateTime? @map("effective_to") @db.Date
 
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
@@ -378,7 +378,13 @@ model SupplierProductMapping {
   branch    Branch?      @relation(fields: [branchId], references: [id])
   orderUnit ProductUnit? @relation(fields: [orderUnitId], references: [id])
 
-  @@unique([tenantId, supplierId, productId, branchId, effectiveFrom])
+  /// Composite uniqueness enforced by partial unique index in
+  /// prisma/manual/supplier_product_mapping_unique.sql
+  /// (tenant_id, supplier_id, product_id, branch_id, effective_from)
+  /// WHERE deleted_at IS NULL + NULLS NOT DISTINCT.
+  /// Not a Prisma @@unique because Prisma can't express partial indexes
+  /// (WHERE / NULLS NOT DISTINCT). Closes Pitfall #22/#23 family (soft-deleted
+  /// rows never block re-create) + the branch_id-NULL duplicate-default hole.
   @@index([tenantId])
   @@map("supplier_product_mapping")
 }
