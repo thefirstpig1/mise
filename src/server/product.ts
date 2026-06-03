@@ -18,6 +18,10 @@
 import { Prisma, PrismaClient, type Product } from "@prisma/client";
 import { prisma, withTenantContext } from "@/lib/db";
 import type { ProductInput } from "@/lib/validations/product";
+// Lazy circular dep: supplier-product-mapping.ts imports assertRefBelongsToTenant
+// from this module; we throw its MappingNotFoundError in the Q6 cascade path (L3b).
+// Safe because both refs are used inside function bodies, not module-init.
+import { MappingNotFoundError } from "@/server/supplier-product-mapping";
 
 /** Product plus its units + category + (PREPPED only) a minimal parent
  *  projection — the shape reads return for the UI. `parent` joins on the FK
@@ -126,6 +130,26 @@ export class ProductHasChildrenError extends Error {
 }
 
 /**
+ * Thrown by updateProductLogic when a multi-unit edit tries to REMOVE a
+ * ProductUnit that is still referenced as `orderUnitId` by one or more LIVE
+ * SupplierProductMappings (Q5ii / ADR 0009). Soft-deleted mappings do NOT block
+ * — the order_unit_id FK is ON DELETE SET NULL, so a hard-deleted unit simply
+ * nulls the ref on those historical rows. Mirror of ProductHasChildrenError; the
+ * action layer (L4) maps this to a Thai message citing the blocked unit + count.
+ */
+export class ProductUnitReferencedByMappingError extends Error {
+  constructor(
+    public readonly unitName: string,
+    public readonly mappingIds: string[]
+  ) {
+    super(
+      `Cannot remove unit "${unitName}": referenced by ${mappingIds.length} live mapping(s)`
+    );
+    this.name = "ProductUnitReferencedByMappingError";
+  }
+}
+
+/**
  * Thrown when setting a product's parentProductId would create a self-reference
  * (X.parent = X) or a cycle (the new parent's ancestor chain reaches back to X).
  * Live-only ancestor-walk + visited-set guard (Q4 / ADR 0007).
@@ -197,9 +221,10 @@ async function assertValidBaseUnit(
 /**
  * Tenant-scoped models a user-supplied FK can point at. Every entry must expose
  * `{ id, tenantId, deletedAt }`. Extend as new FKs land — 7b adds nothing new
- * (parentProductId is also `"product"`); Sprint 5 recipe refs reuse this too.
+ * (parentProductId is also `"product"`); Part 8 adds `"supplier" | "branch"` for
+ * the mapping slice; Sprint 5 recipe refs reuse this too.
  */
-type TenantScopedRef = "category" | "product";
+export type TenantScopedRef = "category" | "product" | "supplier" | "branch";
 
 /**
  * Guard: a referenced row (by `id`) must be a LIVE row owned by `tenantId`.
@@ -209,10 +234,12 @@ type TenantScopedRef = "category" | "product";
  * tenant-scoped model with `{ tenantId, deletedAt }`; the single cast bridges
  * Prisma's per-model delegate types (the `where`/`select` shapes stay typed).
  *
- * Reusable: 7b passes kind="product" for parentProductId. When a second module
- * needs this, lift it (+ CrossTenantReferenceError + TenantScopedRef) to src/lib.
+ * Reusable: 7b passes kind="product" for parentProductId; Part 8's mapping slice
+ * (src/server/supplier-product-mapping.ts) imports this for supplier/product/branch
+ * refs. Exported here (with TenantScopedRef + CrossTenantReferenceError) rather than
+ * moved to src/lib to keep churn minimal — product.ts stays the single owner.
  */
-async function assertRefBelongsToTenant(
+export async function assertRefBelongsToTenant(
   tx: PrismaClient,
   tenantId: string,
   kind: TenantScopedRef,
@@ -732,6 +759,23 @@ export async function updateProductLogic(
         .filter((u) => !submittedNames.has(u.unitName))
         .map((u) => u.id);
       if (toDelete.length > 0) {
+        // L3b (Q5ii): block the removal if any unit being deleted is still the
+        // orderUnit of a LIVE mapping (deletedAt null). Soft-deleted mappings do
+        // NOT block — the order_unit_id FK is ON DELETE SET NULL, so they'd just
+        // lose the stale ref. In the same tx as the removal → atomic.
+        const blocking = await tx.supplierProductMapping.findMany({
+          where: { tenantId, deletedAt: null, orderUnitId: { in: toDelete } },
+          select: { id: true, orderUnitId: true },
+        });
+        if (blocking.length > 0) {
+          const blockedUnitName =
+            existing.find((u) => u.id === blocking[0].orderUnitId)?.unitName ??
+            "(unknown)";
+          throw new ProductUnitReferencedByMappingError(
+            blockedUnitName,
+            blocking.map((m) => m.id)
+          );
+        }
         await tx.productUnit.deleteMany({ where: { id: { in: toDelete } } });
       }
 
@@ -794,7 +838,10 @@ export async function updateProductLogic(
  */
 export async function deleteProductLogic(
   tenantId: string,
-  id: string
+  id: string,
+  // L3b (Q6) cascade: ids of THIS product's live mappings the user chose to
+  // soft-delete alongside the parent (empty = keep them as live orphans).
+  mappingIdsToSoftDelete: string[] = []
 ): Promise<boolean> {
   return withTenantContext(tenantId, async (tx) => {
     const liveChildren = await tx.product.findMany({
@@ -804,6 +851,33 @@ export async function deleteProductLogic(
     if (liveChildren.length > 0) {
       throw new ProductHasChildrenError(liveChildren.map((c) => c.name));
     }
+
+    // Q6 cascade: validate THEN soft-delete the selected mappings in the SAME tx,
+    // so any failure rolls the whole delete back. Each id must be a LIVE mapping
+    // (deletedAt null) of THIS product in THIS tenant; any miss (foreign tenant,
+    // wrong product, already-deleted) → MappingNotFoundError. Empty list skips
+    // straight to the parent soft-delete (the orphan-keeping path).
+    if (mappingIdsToSoftDelete.length > 0) {
+      const cascadeWhere = {
+        id: { in: mappingIdsToSoftDelete },
+        tenantId,
+        productId: id,
+        deletedAt: null,
+      };
+      const live = await tx.supplierProductMapping.findMany({
+        where: cascadeWhere,
+        select: { id: true },
+      });
+      const found = new Set(live.map((m) => m.id));
+      for (const mid of mappingIdsToSoftDelete) {
+        if (!found.has(mid)) throw new MappingNotFoundError(mid);
+      }
+      await tx.supplierProductMapping.updateMany({
+        where: cascadeWhere,
+        data: { deletedAt: new Date() },
+      });
+    }
+
     const { count } = await tx.product.updateMany({
       where: { id, tenantId, deletedAt: null },
       data: { deletedAt: new Date() },

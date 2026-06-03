@@ -11,6 +11,8 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { withAdminContext, prisma } from "@/lib/db";
 import { productInputSchema } from "@/lib/validations/product";
+import { supplierInputSchema } from "@/lib/validations/supplier";
+import { supplierProductMappingInputSchema } from "@/lib/validations/supplier-product-mapping";
 import {
   createProductLogic,
   getProductsLogic,
@@ -22,10 +24,18 @@ import {
   InvalidBaseUnitError,
   CrossTenantReferenceError,
   ProductHasChildrenError,
+  ProductUnitReferencedByMappingError,
   ProductParentCycleError,
   ProductDepthExceededError,
   type ProductWithUnits,
 } from "@/server/product";
+import { createSupplierLogic } from "@/server/supplier";
+import {
+  createSupplierProductMappingLogic,
+  deleteSupplierProductMappingLogic,
+  getSupplierProductMappingByIdLogic,
+  MappingNotFoundError,
+} from "@/server/supplier-product-mapping";
 import type { ProductInput } from "@/lib/validations/product";
 
 /** Build a validated ProductInput from minimal overrides (blank sku → auto-gen). */
@@ -56,6 +66,8 @@ describe("product *Logic (tenant-scoped, app-layer isolation)", () => {
   afterAll(async () => {
     const ids = [tenantA, tenantB, tenantC];
     await withAdminContext(async (tx) => {
+      // Part 8 L3b: mappings RESTRICT product/supplier hard-deletes → clear first.
+      await tx.supplierProductMapping.deleteMany({ where: { tenantId: { in: ids } } });
       // 7c: PREPPED chains create parent_product_id FKs. Null them out before
       // deleteMany (no onDelete cascade declared in schema → Restrict).
       await tx.product.updateMany({
@@ -64,6 +76,7 @@ describe("product *Logic (tenant-scoped, app-layer isolation)", () => {
       });
       await tx.productUnit.deleteMany({ where: { product: { tenantId: { in: ids } } } });
       await tx.product.deleteMany({ where: { tenantId: { in: ids } } });
+      await tx.supplier.deleteMany({ where: { tenantId: { in: ids } } });
       await tx.category.deleteMany({ where: { tenantId: { in: ids } } });
       await tx.tenant.deleteMany({ where: { id: { in: ids } } });
     });
@@ -803,5 +816,155 @@ describe("product *Logic (tenant-scoped, app-layer isolation)", () => {
         densityGPerMlOverride: 0.91,
       })
     ).toThrow();
+  });
+
+  // ============================================================
+  // Sprint 1 Part 8 L3b — cross-slice guards (ADR 0009, grill Q5ii + Q6).
+  // These exercise product.ts against the SupplierProductMapping slice:
+  //   - Q5ii: removing a ProductUnit referenced as orderUnitId by a LIVE mapping
+  //     is blocked (soft-deleted mappings don't block — FK is ON DELETE SET NULL).
+  //   - Q6: deleteProductLogic takes a user-selected mappingIdsToSoftDelete list,
+  //     validated + cascaded in the SAME tx (empty = keep as orphans).
+  // RED until STEP B wires the guard + cascade. Each slice mints fresh fixtures.
+  // ============================================================
+
+  /** Fresh tenant-scoped supplier (nameFull only — no code collision). */
+  const freshSupplier = (tenant: string, tag: string) =>
+    createSupplierLogic(tenant, supplierInputSchema.parse({ nameFull: `S-${tag}` }));
+
+  /** Validated mapping input (minimal required + overrides). */
+  const mInput = (
+    supplierId: string,
+    productId: string,
+    over: Record<string, unknown> = {}
+  ) =>
+    supplierProductMappingInputSchema.parse({
+      supplierId,
+      productId,
+      effectiveFrom: "2026-06-01",
+      ...over,
+    });
+
+  // L18 (Q5ii) — removing a ProductUnit still referenced as orderUnitId by a LIVE
+  // mapping is blocked → ProductUnitReferencedByMappingError. (RED: skeleton has no
+  // guard, so the FK SET NULL lets the removal succeed instead of throwing.)
+  it("blocks ProductUnit removal when a live mapping references it as orderUnit", async () => {
+    const product = await createProductLogic(
+      tenantA,
+      input({
+        name: "L18-prod",
+        baseUnitName: "kg",
+        additionalUnits: [{ unitName: "กระสอบ", toBaseRatio: 25 }],
+      })
+    );
+    const sackUnitId = product.productUnits.find((u) => u.unitName === "กระสอบ")!.id;
+    const supplier = await freshSupplier(tenantA, "L18");
+    await createSupplierProductMappingLogic(
+      tenantA,
+      mInput(supplier.id, product.id, { orderUnitId: sackUnitId })
+    );
+
+    await expect(
+      updateProductLogic(
+        tenantA,
+        product.id,
+        input({ name: "L18-prod", baseUnitName: "kg", additionalUnits: [] })
+      )
+    ).rejects.toBeInstanceOf(ProductUnitReferencedByMappingError);
+
+    // the unit survived the blocked edit
+    const after = await getProductByIdLogic(tenantA, product.id);
+    expect(after?.productUnits.some((u) => u.unitName === "กระสอบ")).toBe(true);
+  });
+
+  // L19 (Q5ii) — only LIVE mappings block; a SOFT-DELETED mapping does not, so the
+  // removal is allowed (the FK SET NULL drops the stale ref on the historical row).
+  it("allows ProductUnit removal when only soft-deleted mappings reference it", async () => {
+    const product = await createProductLogic(
+      tenantA,
+      input({
+        name: "L19-prod",
+        baseUnitName: "kg",
+        additionalUnits: [{ unitName: "กระสอบ", toBaseRatio: 25 }],
+      })
+    );
+    const sackUnitId = product.productUnits.find((u) => u.unitName === "กระสอบ")!.id;
+    const supplier = await freshSupplier(tenantA, "L19");
+    const mapping = await createSupplierProductMappingLogic(
+      tenantA,
+      mInput(supplier.id, product.id, { orderUnitId: sackUnitId })
+    );
+    // soft-delete the mapping → no longer a LIVE reference
+    expect(await deleteSupplierProductMappingLogic(tenantA, mapping.id)).toBe(true);
+
+    const updated = await updateProductLogic(
+      tenantA,
+      product.id,
+      input({ name: "L19-prod", baseUnitName: "kg", additionalUnits: [] })
+    );
+    expect(updated?.productUnits).toHaveLength(1); // กระสอบ removed, only base remains
+    expect(updated?.productUnits.some((u) => u.unitName === "กระสอบ")).toBe(false);
+  });
+
+  // L20 (Q6) — deleteProductLogic with an EMPTY cascade selection: the parent is
+  // soft-deleted, its mappings stay LIVE as orphans (the normal "keep" path).
+  it("deleteProductLogic with empty mappingIds soft-deletes the parent, leaves mappings live", async () => {
+    const product = await createProductLogic(tenantA, input({ name: "L20-prod" }));
+    const supplier = await freshSupplier(tenantA, "L20");
+    const mapping = await createSupplierProductMappingLogic(
+      tenantA,
+      mInput(supplier.id, product.id)
+    );
+
+    expect(await deleteProductLogic(tenantA, product.id, [])).toBe(true);
+
+    expect(await getProductByIdLogic(tenantA, product.id)).toBeNull();
+    const orphan = await getSupplierProductMappingByIdLogic(tenantA, mapping.id);
+    expect(orphan?.id).toBe(mapping.id); // mapping survives
+    expect(orphan?.deletedAt).toBeNull(); // and stays live
+  });
+
+  // L21 (Q6) — deleteProductLogic with a FULL cascade selection: the parent and every
+  // selected mapping are soft-deleted in the same tx. (RED: skeleton ignores the list.)
+  it("deleteProductLogic with full mappingIds soft-deletes the parent and all selected mappings", async () => {
+    const product = await createProductLogic(tenantA, input({ name: "L21-prod" }));
+    const supX = await freshSupplier(tenantA, "L21-X");
+    const supY = await freshSupplier(tenantA, "L21-Y");
+    const m1 = await createSupplierProductMappingLogic(tenantA, mInput(supX.id, product.id));
+    const m2 = await createSupplierProductMappingLogic(tenantA, mInput(supY.id, product.id));
+
+    expect(await deleteProductLogic(tenantA, product.id, [m1.id, m2.id])).toBe(true);
+
+    expect(await getProductByIdLogic(tenantA, product.id)).toBeNull();
+    expect(await getSupplierProductMappingByIdLogic(tenantA, m1.id)).toBeNull();
+    expect(await getSupplierProductMappingByIdLogic(tenantA, m2.id)).toBeNull();
+    // rows physically survive with deletedAt stamped (soft-delete, not hard delete)
+    const rows = await withAdminContext((tx) =>
+      tx.supplierProductMapping.findMany({ where: { id: { in: [m1.id, m2.id] } } })
+    );
+    expect(rows.every((r) => r.deletedAt !== null)).toBe(true);
+  });
+
+  // L22 (Q6) — deleteProductLogic with an INVALID mappingId (a mapping of a DIFFERENT
+  // product) throws before any write; the tx rolls back, parent stays live. (RED:
+  // skeleton ignores the list → no throw, and the parent gets soft-deleted.)
+  it("deleteProductLogic rejects a mappingId that is not a live mapping of this product, parent survives", async () => {
+    const product = await createProductLogic(tenantA, input({ name: "L22-prod" }));
+    const other = await createProductLogic(tenantA, input({ name: "L22-other" }));
+    const supplier = await freshSupplier(tenantA, "L22");
+    // mapping belongs to `other`, NOT to `product`
+    const foreign = await createSupplierProductMappingLogic(
+      tenantA,
+      mInput(supplier.id, other.id)
+    );
+
+    await expect(
+      deleteProductLogic(tenantA, product.id, [foreign.id])
+    ).rejects.toBeInstanceOf(MappingNotFoundError);
+
+    // rolled back: parent still live, foreign mapping untouched
+    expect(await getProductByIdLogic(tenantA, product.id)).not.toBeNull();
+    const fm = await getSupplierProductMappingByIdLogic(tenantA, foreign.id);
+    expect(fm?.deletedAt).toBeNull();
   });
 });

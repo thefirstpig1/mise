@@ -31,10 +31,10 @@
 import { Prisma, type PrismaClient } from "@prisma/client";
 import { withTenantContext } from "@/lib/db";
 import type { SupplierProductMappingInput } from "@/lib/validations/supplier-product-mapping";
-// CrossTenantReferenceError is reused from the product slice (ADR 0009 note;
-// product.ts flags lifting the helper to src/lib once a 2nd module needs it —
-// deferred so this slice does not edit product.ts, which is L3b territory).
-import { CrossTenantReferenceError } from "@/server/product";
+// Shared tenant-ref guard, lifted in L3b: product.ts now owns the exported
+// assertRefBelongsToTenant (+ widened TenantScopedRef covering supplier/branch)
+// and this slice imports it instead of keeping a local copy with a cast.
+import { assertRefBelongsToTenant } from "@/server/product";
 
 /**
  * A mapping row plus the relations the UI/read paths need: supplier, product,
@@ -117,43 +117,6 @@ const overlaps = (
   bFrom: Date,
   bTo: Date | null
 ): boolean => aFrom <= (bTo ?? OPEN_END) && bFrom <= (aTo ?? OPEN_END);
-
-/**
- * Tenant-scoped models a mapping FK can point at — each exposes
- * `{ id, tenantId, deletedAt }`. (ProductUnit is NOT here: it has no tenantId
- * and is validated against its product by assertOrderUnitOfProduct instead.)
- */
-type MappingRefKind = "supplier" | "product" | "branch";
-
-/**
- * Guard: a referenced row (by `id`) must be a LIVE row owned by `tenantId`.
- * `id == null` (FK not set) is a no-op. Throws CrossTenantReferenceError if the
- * row is missing, soft-deleted, or belongs to another tenant — closing the
- * cross-tenant FK hole while RLS is inert (ADR 0004). Local copy of the
- * product.ts helper (kept here to avoid editing product.ts, an L3b file).
- */
-async function assertRefBelongsToTenant(
-  tx: PrismaClient,
-  tenantId: string,
-  kind: MappingRefKind,
-  id: string | null | undefined
-): Promise<void> {
-  if (id == null) return;
-  const delegate = tx[kind] as unknown as {
-    findFirst(args: {
-      where: { id: string; tenantId: string; deletedAt: null };
-      select: { id: true };
-    }): Promise<{ id: string } | null>;
-  };
-  const row = await delegate.findFirst({
-    where: { id, tenantId, deletedAt: null },
-    select: { id: true },
-  });
-  // CrossTenantReferenceError.kind is narrowly typed ("category" | "product")
-  // in product.ts; the runtime message uses the real `kind` string, the cast
-  // only satisfies tsc (the union overlaps "product").
-  if (!row) throw new CrossTenantReferenceError(kind as "product", id);
-}
 
 /**
  * Q5i guard: `orderUnitId`, if set, must be a ProductUnit of THIS product

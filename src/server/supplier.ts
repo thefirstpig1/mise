@@ -20,6 +20,9 @@
 import { Prisma, type Supplier } from "@prisma/client";
 import { withTenantContext } from "@/lib/db";
 import type { SupplierInput } from "@/lib/validations/supplier";
+// MappingNotFoundError reused for the Q6 cascade (L3b). One-way import: the
+// mapping module does NOT import supplier.ts, so this is acyclic.
+import { MappingNotFoundError } from "@/server/supplier-product-mapping";
 
 /**
  * Thrown when a supplier `code` collides with an existing one in the same
@@ -132,9 +135,37 @@ export async function updateSupplierLogic(
  */
 export async function deleteSupplierLogic(
   tenantId: string,
-  id: string
+  id: string,
+  // L3b (Q6) cascade: ids of THIS supplier's live mappings the user chose to
+  // soft-delete alongside the parent (empty = keep them as live orphans).
+  mappingIdsToSoftDelete: string[] = []
 ): Promise<boolean> {
   return withTenantContext(tenantId, async (tx) => {
+    // Q6 cascade: mirror of deleteProductLogic, scoped by supplierId. Validate
+    // THEN soft-delete the selected mappings in the SAME tx; any miss (foreign
+    // tenant, wrong supplier, already-deleted) → MappingNotFoundError (rollback).
+    // Empty list skips to the parent soft-delete (the orphan-keeping path).
+    if (mappingIdsToSoftDelete.length > 0) {
+      const cascadeWhere = {
+        id: { in: mappingIdsToSoftDelete },
+        tenantId,
+        supplierId: id,
+        deletedAt: null,
+      };
+      const live = await tx.supplierProductMapping.findMany({
+        where: cascadeWhere,
+        select: { id: true },
+      });
+      const found = new Set(live.map((m) => m.id));
+      for (const mid of mappingIdsToSoftDelete) {
+        if (!found.has(mid)) throw new MappingNotFoundError(mid);
+      }
+      await tx.supplierProductMapping.updateMany({
+        where: cascadeWhere,
+        data: { deletedAt: new Date() },
+      });
+    }
+
     const { count } = await tx.supplier.updateMany({
       where: { id, tenantId, deletedAt: null },
       data: { deletedAt: new Date() },

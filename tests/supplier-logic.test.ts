@@ -15,6 +15,8 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { withAdminContext, prisma } from "@/lib/db";
 import { supplierInputSchema } from "@/lib/validations/supplier";
+import { productInputSchema } from "@/lib/validations/product";
+import { supplierProductMappingInputSchema } from "@/lib/validations/supplier-product-mapping";
 import {
   createSupplierLogic,
   getSuppliersLogic,
@@ -23,6 +25,12 @@ import {
   deleteSupplierLogic,
   SupplierCodeConflictError,
 } from "@/server/supplier";
+import { createProductLogic } from "@/server/product";
+import {
+  createSupplierProductMappingLogic,
+  getSupplierProductMappingByIdLogic,
+  MappingNotFoundError,
+} from "@/server/supplier-product-mapping";
 
 /** Build a validated SupplierInput from minimal overrides. */
 const input = (over: Record<string, unknown> = {}) =>
@@ -42,9 +50,14 @@ describe("supplier *Logic (tenant-scoped, app-layer isolation)", () => {
   });
 
   afterAll(async () => {
+    const ids = [tenantA, tenantB];
     await withAdminContext(async (tx) => {
-      await tx.supplier.deleteMany({ where: { tenantId: { in: [tenantA, tenantB] } } });
-      await tx.tenant.deleteMany({ where: { id: { in: [tenantA, tenantB] } } });
+      // Part 8 L3b: mappings RESTRICT supplier/product hard-deletes → clear first.
+      await tx.supplierProductMapping.deleteMany({ where: { tenantId: { in: ids } } });
+      await tx.productUnit.deleteMany({ where: { product: { tenantId: { in: ids } } } });
+      await tx.product.deleteMany({ where: { tenantId: { in: ids } } });
+      await tx.supplier.deleteMany({ where: { tenantId: { in: ids } } });
+      await tx.tenant.deleteMany({ where: { id: { in: ids } } });
     });
     await prisma.$disconnect();
   });
@@ -183,5 +196,81 @@ describe("supplier *Logic (tenant-scoped, app-layer isolation)", () => {
         input({ nameFull: "จะถูกแก้รหัส", code: "UPD-KEEP" })
       )
     ).rejects.toBeInstanceOf(SupplierCodeConflictError);
+  });
+
+  // ============================================================
+  // Sprint 1 Part 8 L3b — deleteSupplierLogic cascade (ADR 0009, grill Q6).
+  // Mirror of the product-side L20/L21/L22: deleteSupplierLogic takes a
+  // user-selected mappingIdsToSoftDelete list, validated + cascaded in the SAME
+  // tx (empty = keep mappings as orphans; invalid id → throw + rollback).
+  // RED until STEP B wires the cascade. Each slice mints fresh fixtures.
+  // ============================================================
+
+  /** Fresh WEIGHT/kg product (a mapping needs a product, product_id is RESTRICT). */
+  const freshProduct = (tenant: string, tag: string) =>
+    createProductLogic(
+      tenant,
+      productInputSchema.parse({ name: `P-${tag}`, primaryDimension: "WEIGHT", baseUnitName: "kg" })
+    );
+
+  /** Validated mapping input (minimal required + overrides). */
+  const mInput = (
+    supplierId: string,
+    productId: string,
+    over: Record<string, unknown> = {}
+  ) =>
+    supplierProductMappingInputSchema.parse({
+      supplierId,
+      productId,
+      effectiveFrom: "2026-06-01",
+      ...over,
+    });
+
+  // C1 (Q6) — empty cascade selection: supplier soft-deleted, mappings stay live.
+  it("deleteSupplierLogic with empty mappingIds soft-deletes the supplier, leaves mappings live", async () => {
+    const supplier = await createSupplierLogic(tenantA, input({ nameFull: "C1-sup" }));
+    const product = await freshProduct(tenantA, "C1");
+    const mapping = await createSupplierProductMappingLogic(tenantA, mInput(supplier.id, product.id));
+
+    expect(await deleteSupplierLogic(tenantA, supplier.id, [])).toBe(true);
+
+    expect(await getSupplierByIdLogic(tenantA, supplier.id)).toBeNull();
+    const orphan = await getSupplierProductMappingByIdLogic(tenantA, mapping.id);
+    expect(orphan?.id).toBe(mapping.id);
+    expect(orphan?.deletedAt).toBeNull();
+  });
+
+  // C2 (Q6) — full cascade selection: supplier + all selected mappings soft-deleted
+  // in one tx. (RED: skeleton ignores the list, so the mappings stay live.)
+  it("deleteSupplierLogic with full mappingIds soft-deletes the supplier and all selected mappings", async () => {
+    const supplier = await createSupplierLogic(tenantA, input({ nameFull: "C2-sup" }));
+    const pX = await freshProduct(tenantA, "C2-X");
+    const pY = await freshProduct(tenantA, "C2-Y");
+    const m1 = await createSupplierProductMappingLogic(tenantA, mInput(supplier.id, pX.id));
+    const m2 = await createSupplierProductMappingLogic(tenantA, mInput(supplier.id, pY.id));
+
+    expect(await deleteSupplierLogic(tenantA, supplier.id, [m1.id, m2.id])).toBe(true);
+
+    expect(await getSupplierByIdLogic(tenantA, supplier.id)).toBeNull();
+    expect(await getSupplierProductMappingByIdLogic(tenantA, m1.id)).toBeNull();
+    expect(await getSupplierProductMappingByIdLogic(tenantA, m2.id)).toBeNull();
+  });
+
+  // C3 (Q6) — invalid mappingId (a mapping of a DIFFERENT supplier) throws before any
+  // write; the tx rolls back, supplier stays live. (RED: skeleton ignores the list.)
+  it("deleteSupplierLogic rejects a mappingId that is not a live mapping of this supplier, supplier survives", async () => {
+    const supplier = await createSupplierLogic(tenantA, input({ nameFull: "C3-sup" }));
+    const otherSup = await createSupplierLogic(tenantA, input({ nameFull: "C3-other" }));
+    const product = await freshProduct(tenantA, "C3");
+    // mapping belongs to `otherSup`, NOT to `supplier`
+    const foreign = await createSupplierProductMappingLogic(tenantA, mInput(otherSup.id, product.id));
+
+    await expect(
+      deleteSupplierLogic(tenantA, supplier.id, [foreign.id])
+    ).rejects.toBeInstanceOf(MappingNotFoundError);
+
+    expect(await getSupplierByIdLogic(tenantA, supplier.id)).not.toBeNull();
+    const fm = await getSupplierProductMappingByIdLogic(tenantA, foreign.id);
+    expect(fm?.deletedAt).toBeNull();
   });
 });
