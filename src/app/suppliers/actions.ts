@@ -30,6 +30,10 @@ import {
   deleteSupplierLogic,
   SupplierCodeConflictError,
 } from "@/server/supplier";
+// L4 (Q6 cascade): the supplier delete forwards user-selected mapping ids to
+// deleteSupplierLogic, which throws this when a selected id isn't a live mapping
+// of this supplier (stale dialog selection). One-way import (Part 8 cross-slice).
+import { MappingNotFoundError } from "@/server/supplier-product-mapping";
 
 /**
  * Outcome of a create/update action, designed for React 19 useActionState:
@@ -43,6 +47,14 @@ export type SupplierActionState =
 
 /** Generic Thai duplicate-code message (Q5a) — shown at the form level. */
 const DUPLICATE_CODE_MESSAGE = "รหัสซัพพลายเออร์นี้มีอยู่แล้ว";
+
+/**
+ * L4 (Q6 cascade): a mapping id the user selected in the L5 blast-radius dialog
+ * wasn't a live mapping of this supplier (stale dialog / refreshed elsewhere).
+ * deleteSupplierLogic throws MappingNotFoundError and rolls the whole delete back.
+ */
+const CASCADE_MAPPING_INVALID_MESSAGE =
+  "เลือกรายการราคาไม่ถูกต้อง — รบกวนรีเฟรชแล้วลองใหม่";
 
 /**
  * Map the form's snake_case FormData onto the schema's camelCase shape.
@@ -148,15 +160,32 @@ export async function updateSupplier(
  * row's delete control can react. Cross-tenant/missing id → ok:false.
  */
 export async function deleteSupplier(
-  id: string
+  id: string,
+  // L4 (Q6 cascade): mirror of deleteProduct — mapping ids the user chose to
+  // soft-delete alongside the supplier (L5 dialog). Optional + defaulted so the
+  // existing DeleteSupplierButton caller keeps working. Forwarded to the logic,
+  // which validates each id (live + this supplier + this tenant) in the same tx.
+  // Only MappingNotFoundError applies here — the ProductUnit-deletion guard is on
+  // the product UPDATE path, not supplier delete.
+  mappingIdsToSoftDelete: string[] = []
 ): Promise<{ ok: boolean; error?: string }> {
   const { tenantId } = await requireTenant();
 
-  const deleted = await deleteSupplierLogic(tenantId, id);
-  if (!deleted) {
-    return { ok: false, error: "ไม่พบซัพพลายเออร์ที่ต้องการลบ" };
+  try {
+    const deleted = await deleteSupplierLogic(
+      tenantId,
+      id,
+      mappingIdsToSoftDelete
+    );
+    if (!deleted) {
+      return { ok: false, error: "ไม่พบซัพพลายเออร์ที่ต้องการลบ" };
+    }
+    revalidatePath("/suppliers");
+    return { ok: true };
+  } catch (e) {
+    if (e instanceof MappingNotFoundError) {
+      return { ok: false, error: CASCADE_MAPPING_INVALID_MESSAGE };
+    }
+    throw e;
   }
-
-  revalidatePath("/suppliers");
-  return { ok: true };
 }

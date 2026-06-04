@@ -35,7 +35,12 @@ import {
   ProductParentCycleError,
   ProductDepthExceededError,
   LiquidDensityTemplateNotFoundError,
+  ProductUnitReferencedByMappingError,
 } from "@/server/product";
+// L4 (Q6 cascade): the product delete forwards user-selected mapping ids to
+// deleteProductLogic, which throws this when a selected id isn't a live mapping
+// of this product (stale dialog selection). One-way import (Part 8 cross-slice).
+import { MappingNotFoundError } from "@/server/supplier-product-mapping";
 
 /**
  * Outcome of a create/update action, for React 19 useActionState:
@@ -83,6 +88,23 @@ function buildHasChildrenMessage(childNames: string[]): string {
   const overflow = remaining > 0 ? ` …และอีก ${remaining} รายการ` : "";
   return `ลบไม่ได้ — สินค้านี้ยังถูกใช้เป็นสินค้าแม่ของ: ${shown}${overflow}`;
 }
+
+/**
+ * L4 (Q5ii): a multi-unit edit tried to REMOVE a unit still referenced as the
+ * orderUnit of N live supplier mappings — updateProductLogic blocks it. Thrown
+ * from the UPDATE path (unit removal), not delete; surfaced as a form error.
+ */
+function buildUnitReferencedMessage(mappingIds: string[]): string {
+  return `ลบหน่วยไม่ได้ — มี ${mappingIds.length} รายการราคาซัพพลายเออร์ใช้หน่วยนี้อยู่`;
+}
+
+/**
+ * L4 (Q6 cascade): a mapping id the user selected in the L5 blast-radius dialog
+ * wasn't a live mapping of this product (stale dialog / refreshed elsewhere).
+ * deleteProductLogic throws MappingNotFoundError and rolls the whole delete back.
+ */
+const CASCADE_MAPPING_INVALID_MESSAGE =
+  "เลือกรายการราคาไม่ถูกต้อง — รบกวนรีเฟรชแล้วลองใหม่";
 
 /** Map the form's snake_case FormData onto the schema's camelCase shape. */
 function rawFromFormData(formData: FormData): Record<string, unknown> {
@@ -182,6 +204,10 @@ function toFormError(e: unknown): ProductActionState {
       fieldErrors: { liquidDensityTemplateId: INVALID_DENSITY_TEMPLATE_MESSAGE },
     };
   }
+  if (e instanceof ProductUnitReferencedByMappingError) {
+    // L4 (Q5ii): removing a unit still used as a live mapping's orderUnit — form-level.
+    return { ok: false, formError: buildUnitReferencedMessage(e.mappingIds) };
+  }
   throw e; // unexpected → let the error boundary handle it
 }
 
@@ -242,12 +268,22 @@ export async function updateProduct(
  * ProductHasChildrenError; we render the first N names in Thai.
  */
 export async function deleteProduct(
-  id: string
+  id: string,
+  // L4 (Q6 cascade): mapping ids the user chose in the L5 blast-radius dialog to
+  // soft-delete alongside the product. Optional + defaulted so the existing
+  // direct-invoke caller (DeleteProductButton, 7c) keeps working unchanged; the
+  // L5 cascade dialog passes the selected ids. Forwarded to deleteProductLogic,
+  // which validates each id (live + this product + this tenant) in the same tx.
+  mappingIdsToSoftDelete: string[] = []
 ): Promise<{ ok: boolean; error?: string }> {
   const { tenantId } = await requireTenant();
 
   try {
-    const deleted = await deleteProductLogic(tenantId, id);
+    const deleted = await deleteProductLogic(
+      tenantId,
+      id,
+      mappingIdsToSoftDelete
+    );
     if (!deleted) {
       return { ok: false, error: "ไม่พบสินค้าที่ต้องการลบ" };
     }
@@ -256,6 +292,9 @@ export async function deleteProduct(
   } catch (e) {
     if (e instanceof ProductHasChildrenError) {
       return { ok: false, error: buildHasChildrenMessage(e.childNames) };
+    }
+    if (e instanceof MappingNotFoundError) {
+      return { ok: false, error: CASCADE_MAPPING_INVALID_MESSAGE };
     }
     throw e;
   }
