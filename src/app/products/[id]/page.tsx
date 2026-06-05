@@ -76,6 +76,19 @@ export default async function EditProductPage({
     });
   const mappingViews = mappings.map(toMappingView);
 
+  // L5b: blast-radius items for the delete dialog — built from the mappings we
+  // already fetched (no extra query). primaryLabel = supplier (the "other side"
+  // on a product page); priceLabel mirrors MappingListSection's formatting.
+  const cascadeItems = mappingViews.map((m) => ({
+    id: m.id,
+    primaryLabel: m.supplier?.name ?? "(ไม่ทราบ)",
+    secondaryLabel: m.branch ? m.branch.name : "ทุกสาขา",
+    priceLabel:
+      m.currentUnitPrice === null
+        ? "—"
+        : `฿${m.currentUnitPrice}${m.orderUnit ? ` / ${m.orderUnit.name}` : ""}`,
+  }));
+
   const categoryOptions = categories.map((c) => ({
     id: c.id,
     account: c.account,
@@ -92,7 +105,7 @@ export default async function EditProductPage({
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4">
         <h2 className="text-xl font-bold">แก้ไขสินค้า</h2>
-        <DeleteProductButton id={product.id} />
+        <DeleteProductButton id={product.id} cascadeItems={cascadeItems} />
       </div>
       <ProductForm
         action={updateProduct.bind(null, product.id)}
