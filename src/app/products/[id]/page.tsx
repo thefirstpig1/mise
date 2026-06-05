@@ -106,7 +106,7 @@ export default async function EditProductPage({
 
       {/* Part 8 L5a — supplier price list + history (product-centric, Q9). Read
           only this layer; the create/edit form + row controls land in L5a-2. */}
-      <MappingListSection mappings={mappingViews} />
+      <MappingListSection mappings={mappingViews} productId={product.id} />
       <MappingHistoryViewer series={series} />
     </div>
   );

@@ -5,8 +5,9 @@
 // The page fetches the product's mappings in "all" mode (live rows, incl. those
 // whose supplier is soft-deleted = orphans, sorted last) and serializes them to
 // MappingView[]. This component renders them with a client-side Active/All
-// toggle: "active" hides orphan rows, "all" shows them flagged. Pure read —
-// the row edit/delete controls + "เพิ่มรายการราคา" CTA arrive in L5a-2 (write).
+// toggle: "active" hides orphan rows, "all" shows them flagged. L5a-2 adds the
+// "เพิ่มรายการราคา" CTA + a per-row "แก้ไข" link to the write routes; the delete
+// control lives on the edit page (mirrors DeleteProductButton).
 
 import { useState } from "react";
 import type { MappingView } from "./mapping-view";
@@ -30,8 +31,10 @@ function priceLabel(m: MappingView): string {
 
 export default function MappingListSection({
   mappings,
+  productId,
 }: {
   mappings: MappingView[];
+  productId: string;
 }) {
   const [mode, setMode] = useState<FilterMode>("active");
 
@@ -45,22 +48,31 @@ export default function MappingListSection({
     <section className="space-y-4 rounded-lg border border-border bg-card p-6">
       <div className="flex items-center justify-between gap-4">
         <h3 className="text-sm font-medium">รายการราคาซัพพลายเออร์</h3>
-        {/* Active / All toggle (Q6) */}
-        <div className="flex gap-3 text-sm">
-          {(["active", "all"] as const).map((m) => (
-            <label key={m} className="flex items-center gap-1.5">
-              <input
-                type="radio"
-                name="mapping_filter_mode"
-                checked={mode === m}
-                onChange={() => setMode(m)}
-                className="h-4 w-4"
-              />
-              {m === "active"
-                ? "เฉพาะที่ใช้งาน"
-                : `ทั้งหมด${orphanCount > 0 ? ` (${orphanCount} กำพร้า)` : ""}`}
-            </label>
-          ))}
+        <div className="flex items-center gap-4">
+          {/* Active / All toggle (Q6) */}
+          <div className="flex gap-3 text-sm">
+            {(["active", "all"] as const).map((m) => (
+              <label key={m} className="flex items-center gap-1.5">
+                <input
+                  type="radio"
+                  name="mapping_filter_mode"
+                  checked={mode === m}
+                  onChange={() => setMode(m)}
+                  className="h-4 w-4"
+                />
+                {m === "active"
+                  ? "เฉพาะที่ใช้งาน"
+                  : `ทั้งหมด${orphanCount > 0 ? ` (${orphanCount} กำพร้า)` : ""}`}
+              </label>
+            ))}
+          </div>
+          {/* L5a-2 write CTA → separate create page (Q9 product-centric). */}
+          <a
+            href={`/products/${productId}/mappings/new`}
+            className="shrink-0 rounded-lg border border-border px-3 py-1.5 text-sm hover:bg-muted/40"
+          >
+            + เพิ่มรายการราคา
+          </a>
         </div>
       </div>
 
@@ -79,7 +91,8 @@ export default function MappingListSection({
                 <th className="py-2 pr-4 font-medium">ขั้นต่ำ</th>
                 <th className="py-2 pr-4 font-medium">Lead (วัน)</th>
                 <th className="py-2 pr-4 font-medium">ช่วงเวลา</th>
-                <th className="py-2 font-medium">สถานะ</th>
+                <th className="py-2 pr-4 font-medium">สถานะ</th>
+                <th className="py-2 font-medium text-right">จัดการ</th>
               </tr>
             </thead>
             <tbody>
@@ -109,7 +122,7 @@ export default function MappingListSection({
                   <td className="py-2 pr-4 whitespace-nowrap">
                     {m.effectiveFrom} – {m.effectiveTo ?? "ปัจจุบัน"}
                   </td>
-                  <td className="py-2">
+                  <td className="py-2 pr-4">
                     <div className="flex flex-wrap gap-1">
                       {m.isPreferred && (
                         <span
@@ -133,6 +146,14 @@ export default function MappingListSection({
                         </span>
                       )}
                     </div>
+                  </td>
+                  <td className="py-2 text-right whitespace-nowrap">
+                    <a
+                      href={`/products/${productId}/mappings/${m.id}/edit`}
+                      className="text-sm text-primary hover:underline"
+                    >
+                      แก้ไข
+                    </a>
                   </td>
                 </tr>
               ))}
