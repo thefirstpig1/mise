@@ -193,7 +193,7 @@ ALTER TABLE product ADD CONSTRAINT product_density_xor
 
 ---
 
-## Sprint 1 Part 8 — Supplier-Product Mapping: 🚧 IN PROGRESS (started 2026-05-31)
+## Sprint 1 Part 8 — Supplier-Product Mapping: ✅ COMPLETE (L0–L6, 2026-05-31 → 2026-06-06)
 
 Branch-aware supplier price list (`supplier_product_mapping`). Grill-with-docs (Q1–Q10) locked this session — full record in Drive doc **"Part 8 Grill Decisions"** (fileId: `15kzp0miM8QAR-BJRzQ23TVfIZ1gm0ji42NcYyp6CT8Y`) and codified in **ADR 0009**. **Scope = data-capture only** (Q9): mapping CRUD + append/supersede price history + branch override + guards; the PO / cost-engine **consumer is Sprint 2**.
 
@@ -214,18 +214,23 @@ Branch-aware supplier price list (`supplier_product_mapping`). Grill-with-docs (
 
 ### Implementation (7-layer slice, TDD — per 7a–7d pattern)
 
-| L | Layer | Status | Files |
-|---|---|---|---|
-| **L0** | **Docs (this slice)** | 🚧 in progress | `docs/adr/0009-supplier-product-mapping-time-series.md` (NEW), `CONTEXT.md` (Supplier-Product Mapping + Orphan mapping + Hide-not-delete + Branch override), this section |
-| L1 | Schema + migration + manual SQL | ⏳ pending | `prisma/schema.prisma` (`effectiveFrom` NOT NULL, dates → `@db.Date`, remove `@@unique` + comment → manual SQL), migration `part_8_supplier_product_mapping`, `prisma/manual/supplier_product_mapping_unique.sql` (partial + NULLS NOT DISTINCT) |
-| L2 | zod validation | ⏳ pending | `src/lib/validations/supplier-product-mapping.ts` — fields + ranges (Q8), orderUnit, branch, date rules |
-| L3 | Server logic | ⏳ pending | `src/server/supplier-product-mapping.ts` — CRUD + supersede/overlap (Q4), orderUnit write-val + ProductUnit deletion guard (Q5), isPreferred singleton (Q3), cascade + blast-radius count (Q6), history read, P2002 → typed Thai; cascade hooks in `deleteSupplierLogic` / `deleteProductLogic` |
-| L4 | Actions | ⏳ pending | `src/app/products/_mapping/actions.ts` (or co-located) — rawFromFormData, Thai error mapping, delete-with-count |
-| L5 | UI | ⏳ pending | product-centric mapping section + branch selector + history viewer; `*-view.ts` serializer (Decimal → string, Pitfall #20) |
-| L6 | Verify | ⏳ pending | E2E (create/supersede/branch-override/guards/cascade-confirm) + tsc + vitest |
+| L | Layer | Status | Commit | Files |
+|---|---|---|---|---|
+| **L0** | Docs | ✅ done | `a2840c3` | `docs/adr/0009-supplier-product-mapping-time-series.md` (NEW), `CONTEXT.md` (Supplier-Product Mapping + Orphan mapping + Hide-not-delete + Branch override), this section |
+| L1 | Schema + migration + manual SQL | ✅ done | `26894df` | `prisma/schema.prisma` (`effectiveFrom` NOT NULL + `@db.Date` + drop full `@@unique`), `prisma/manual/supplier_product_mapping_unique.sql` (partial + NULLS NOT DISTINCT, **applied**) |
+| L2 | zod validation | ✅ done | `36a9870` | `src/lib/validations/supplier-product-mapping.ts` — fields + ranges (Q8), `effectiveTo > effectiveFrom` (Q4) |
+| L3a | Server logic (greenfield) | ✅ done | `0decb1c` | `src/server/supplier-product-mapping.ts` — 7 `*Logic` + 3 typed errors (Overlap/OrderUnitMismatch/MappingNotFound); CRUD + supersede/overlap (Q4), orderUnit write-val (Q5i), isPreferred singleton (Q3b), history read. **15 slices M1–M15** |
+| L3b | Server logic (cross-slice) | ✅ done | `b40642f` | ProductUnit deletion guard (Q5ii) + `delete*Logic` cascade with user-selected mapping ids (Q6) + widen `TenantScopedRef` (supplier/product/branch) |
+| L4 | Actions | ✅ done | `e4b4306` | `src/app/supplier-product-mappings/actions.ts` (top-level, Q9 dual-nav) — 3 mapping actions + 5 Thai error paths; cascade array param wired into `products/actions.ts` `deleteProduct` + `suppliers/actions.ts` `deleteSupplier` (+2 Thai paths) |
+| L5a-1 | Read UI | ✅ done | `fdd6cd8` | `_components/{MappingListSection,MappingHistoryViewer}.tsx` + `mapping-view.ts` serializer (Decimal→string, Pitfall #20) + product page integration |
+| L5a-2 | Write UI | ✅ done | `66e623d` | `MappingForm.tsx` (shared create/edit, branch selector, edit-mode identity lock) + `mappings/new` & `mappings/[mappingId]/edit` routes + `DeleteMappingButton.tsx` + `src/server/branch.ts` (NEW `getBranchesLogic`) |
+| L5b | Cascade delete dialog | ✅ done | `c1eb30d` | `src/components/ui/CascadeDeleteDialog.tsx` (NEW, generic, default-all + tri-state) + `DeleteProductButton`/`DeleteSupplierButton` wiring + product/supplier page cascadeItems build |
+| **L5c** | Supplier-centric mapping views | ⏭️ **deferred → Part 9** | — | NOT a free mirror (product-name labels + re-opens cross-view revalidation). See "Deferred slices" below. |
+| L6 | Verify | ✅ done | _(this commit)_ | Baseline **tsc clean** (only `auth.ts:24`) + **vitest 108✓/4 skip**; **12-case action-stack E2E** (E1–E12) on a throwaway tenant via throwaway spec+config — `createMappingAction` ×5 (happy+branch / neg-price→`currentUnitPrice` / orderUnit-mismatch→`orderUnitId` / cross-tenant→`supplierId` / overlap→`formError`), `updateMappingAction` ×2 (happy / bad-id→`formError`), `deleteMappingAction` ×2 (happy / bad-id), `deleteProduct` cascade ×2 (both soft-del / bad-mappingId→rollback), `deleteSupplier` cascade ×1 — all green, FK-order hard-delete cleanup, throwaway spec+config deleted (never committed). |
 
-### Deferred slices (Sprint 2+ / Part 8.5)
+### Deferred slices (Part 9 / Sprint 2+ / Part 8.5)
 
+- **L5c — Supplier-centric mapping views → Part 9**: read/write price list on the supplier detail page. NOT a free mirror of L5a — `MappingListSection`/`MappingHistoryViewer` are product-centric (label rows by supplier name); the supplier view needs product-name labels → component generalization is real design work. Also re-opens the `e4b4306` cross-view revalidation deferral (resolve when both views are designed together). Core Part 8 value (data capture + product-centric read/write + cross-slice cascade) is complete; push gate was L6, not L5c.
 - **Part 8.5 — Restore-on-recreate**: un-soft-deleting a Product/Supplier bringing back its cascaded mappings. Product-layer lifecycle, not mapping-layer; MVP has no restore UI. (ADR 0009.)
 - **Sprint 2 — PO consumer**: must **snapshot** mapping price/orderUnit at order time, NOT live FK lookup (preserve historical stock value). Price auto-pick, cost-engine read. (ADR 0009.)
 - **Sprint 2 — dimension-change ↔ orderUnit guard** (Q5 iii); **rich branch-override diff UI** (Q7).
@@ -235,7 +240,11 @@ Branch-aware supplier price list (`supplier_product_mapping`). Grill-with-docs (
 - **Pitfall #20** Decimal across RSC — mapping `currentUnitPrice` / `minOrderQty` need the view serializer.
 - **Pitfall #22/#23** FULL `@@unique` soft-delete trap — avoided via Q10 partial index.
 
-### Next: L1 — schema + migration + manual SQL (after L0 docs review + commit).
+### Known limitations (carried forward — NOT bugs)
+- **`b40642f` stale double-submit**: valid live mappings of an already-deleted parent get soft-deleted while the parent `updateMany` matches 0 rows → returns false. Benign; not reachable from the normal L4/L5 flow.
+- **`e4b4306` cross-view revalidation**: `deleteProduct`/`deleteSupplier` revalidate only their own list page; cascaded mappings on the OPPOSITE detail page stay stale until navigation. Bypassed while UI is product-centric only; **L5c (Part 9) resolves it** when the supplier-centric read view is wired.
+
+### Next: Part 9 — Sprint 1 wrap-up (owns L5c supplier-centric views holistically). Part 8 L0–L6 ready for batch push (10 commits).
 
 ---
 
