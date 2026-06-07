@@ -22,7 +22,7 @@ const UNIT_TEMPLATES = [
 // Templates are global + non-deletable for MVP (ADR 0008, Q7).
 // To update a value (e.g., calibrated against new supplier batch):
 //   1. Edit the LIQUID_DENSITIES array below
-//   2. Run `pnpm prisma db seed` — upsert propagates to all
+//   2. Run `pnpm db:seed:system` — upsert propagates to all
 //      products linked via FK.
 // FK linkage means Products read the template's current value at
 // query time — no snapshot, no re-link needed after admin update.
