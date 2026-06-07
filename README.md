@@ -1,276 +1,135 @@
 # Mise — Restaurant Back-Office Platform
 
-ระบบหลังบ้านสำหรับร้านอาหารใน Thailand SME
+ระบบหลังบ้านสำหรับร้านอาหาร SME ในประเทศไทย — "MarketMan สำหรับ SME ไทย" ราคาถูกกว่า ~90% ตั้งค่าเสร็จใน 30 นาที ใช้ได้โดยไม่ต้องมีสูตรอาหาร
 
-**Sprint 0 — Foundation + Auth + Tenant + Department**
-
----
-
-## 🎯 สิ่งที่ Sprint 0 ทำได้
-
-- ✅ สมัครสมาชิก + เข้าสู่ระบบ (Email magic link)
-- ✅ สร้างร้าน (Tenant) + สาขาแรก
-- ✅ Auto-create "Main" department
-- ✅ ตั้งค่าเปิด/ปิดฟีเจอร์ Department + VAT
-- ✅ Dashboard เปล่า แสดงข้อมูลสมาชิก
-- ✅ Tenant isolation ด้วย PostgreSQL RLS
-- ✅ PermissionService skeleton (สำหรับ Sprint 2+)
+> **สถานะ:** Sprint 1 (Master Data) ✅ เสร็จสมบูรณ์ — รายละเอียดความคืบหน้าทุก Sprint ดูที่ [`docs/sprint-progress.md`](docs/sprint-progress.md) (source of truth)
 
 ---
 
-## 📦 ติดตั้งครั้งแรก
+## 🧱 Tech Stack
 
-### ขั้นตอน 1: เปิด Docker Desktop
+Next.js 15 (App Router) · React 19 · TypeScript · Prisma 5 · PostgreSQL (Neon, Singapore) · Auth.js v5 (email magic link) · Tailwind CSS · Vitest — package manager: **pnpm 11**
 
-เปิดโปรแกรม **Docker Desktop** บนเครื่อง — รอจน icon เป็นสีเขียวที่ system tray
+---
 
-### ขั้นตอน 2: Clone repo
+## ✨ สิ่งที่ระบบทำได้ตอนนี้
 
+- **Multi-tenant + Auth** — สมัคร/เข้าสู่ระบบด้วย Email magic link (Auth.js v5); dev mode พิมพ์ลิงก์ที่ terminal
+- **Tenant / Branch / Department** — สร้างร้าน + สาขา + แผนก, ตั้งค่าเปิด/ปิดฟีเจอร์ Department และ VAT
+- **Master Data**
+  - **ซัพพลายเออร์** — ฟอร์มเต็ม (ภาษีซื้อ VAT / หัก ณ ที่จ่าย WHT), รหัสไม่ซ้ำ (partial-unique), soft-delete
+  - **หมวดบัญชี (Categories)** — 3 ชั้น (account → accounting section → group) แบบ tree; 16 หมวดเริ่มต้นถูกสร้างอัตโนมัติตอนเปิดร้าน
+  - **สินค้า/วัตถุดิบ (Products)** — RAW + PREPPED (สายการผลิตแม่-ลูก, ลึกได้ ≤ 5 ชั้น), หลายหน่วย (base + หน่วยเสริม), ความหนาแน่นของเหลว (g/ml: ใช้ค่ามาตรฐานหรือใส่เอง)
+- **ราคาซัพพลายเออร์ (Supplier-Product Mapping)**
+  - ราคาแบบ time-series (เพิ่มราคาใหม่ปิดราคาเก่าอัตโนมัติ), เผื่อราคาเฉพาะสาขา (branch override), ตั้งราคาแนะนำ (isPreferred)
+  - ลบแบบ cascade ที่ผู้ใช้คุมเองได้ + กล่องยืนยันแสดง "ผลกระทบ" (blast-radius), ตัวดูประวัติราคา
+  - ดูได้ **2 มุมมอง** — รายสินค้า (product-centric, อ่าน+เขียน) และรายซัพพลายเออร์ (supplier-centric, อ่านอย่างเดียว)
+
+---
+
+## 🚀 ติดตั้งและรัน
+
+### สิ่งที่ต้องมีก่อน
+- **Node.js 20+**
+- **pnpm 11** (`npm i -g pnpm`)
+- บัญชี **Neon** (PostgreSQL cloud ฟรี) — โปรเจกต์นี้ใช้ Neon ไม่ใช่ Docker/Postgres local แล้ว
+
+### ขั้นตอน
+
+**1. Clone**
 ```bash
 git clone https://github.com/thefirstpig1/mise.git
 cd mise
 ```
 
-### ขั้นตอน 3: ติดตั้ง dependencies
-
+**2. ติดตั้ง dependencies**
 ```bash
-npm install
+pnpm install
 ```
+> หมายเหตุ: pnpm จะ block build scripts โดย default — โปรเจกต์อนุญาตไว้แล้วใน `pnpm-workspace.yaml` (`allowBuilds:` — Prisma, esbuild, sharp). ถ้าเจอ `ERR_PNPM_IGNORED_BUILDS` ให้เพิ่มชื่อ package แล้ว `pnpm install` ใหม่ คำเตือน peer-dep ของ react/nodemailer เป็นเรื่องปกติ ข้ามได้
 
-(ใช้เวลา 2-3 นาที — ติดตั้ง ~500MB ของ packages)
-
-### ขั้นตอน 4: ตั้งค่า environment
-
+**3. ตั้งค่า environment**
 ```bash
-copy .env.example .env
+copy .env.example .env      # Windows  (Mac/Linux ใช้ cp)
 ```
-
-(Windows ใช้ `copy`, Mac/Linux ใช้ `cp`)
-
-แก้ไฟล์ `.env` — Sprint 0 ใช้ค่า default ได้เลย ยกเว้น `AUTH_SECRET`:
-
+แก้ไฟล์ `.env` ให้มีค่าเหล่านี้ (ดู [ADR 0003](docs/adr/0003-neon-pooled-and-direct-urls.md) — Neon ต้องมี **ทั้งสอง** URL):
 ```bash
-# สร้าง secret ด้วย Node.js
+# Neon pooled URL (มี "-pooler" ใน hostname) — ใช้ตอน runtime
+DATABASE_URL="postgresql://USER:PASSWORD@ep-xxx-pooler.ap-southeast-1.aws.neon.tech/DB?sslmode=require"
+# Neon direct URL (ไม่มี "-pooler") — ใช้ตอน migrate
+DIRECT_URL="postgresql://USER:PASSWORD@ep-xxx.ap-southeast-1.aws.neon.tech/DB?sslmode=require"
+# Auth.js secret
+AUTH_SECRET="<สุ่มด้วยคำสั่งข้างล่าง>"
+```
+> ⚠️ `.env.example` ปัจจุบันยังเป็นค่า Docker เก่าและ **ไม่มี `DIRECT_URL`** — เพิ่มเองตามด้านบน
+```bash
+# สร้าง AUTH_SECRET
 node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 ```
 
-Copy ผลลัพธ์ไปใส่ใน `AUTH_SECRET` ใน `.env`
-
-### ขั้นตอน 5: เริ่ม Postgres
-
+**4. สร้าง schema (migrate ไป Neon)**
 ```bash
-npm run db:up
+pnpm db:migrate          # = prisma migrate dev (ใช้ DIRECT_URL)
 ```
 
-รอ 10-20 วินาที ให้ container start (Postgres ทำงานที่ port 5432)
-
-### ขั้นตอน 6: สร้าง schema
-
+**5. ลง manual SQL (RLS + partial-unique indexes — อยู่นอก migrations โดยตั้งใจ)**
 ```bash
-npm run db:migrate
+pnpm exec prisma db execute --schema ./prisma/schema.prisma --file ./prisma/manual/enable_rls.sql
+pnpm exec prisma db execute --schema ./prisma/schema.prisma --file ./prisma/manual/supplier_code_unique.sql
+pnpm exec prisma db execute --schema ./prisma/schema.prisma --file ./prisma/manual/supplier_product_mapping_unique.sql
 ```
+> RLS policies ถูกติดตั้งไว้แต่ยัง **inert** จนถึง Sprint 7 — การแยกข้อมูลระหว่างร้านตอนนี้บังคับที่ชั้นแอป (`withTenantContext`, [ADR 0004](docs/adr/0004-withtenantcontext-data-access-pattern.md))
 
-ตอบ "y" + ตั้งชื่อ migration (เช่น `init`)
-
-### ขั้นตอน 7: เปิด RLS
-
-Sprint 0 ต้องเปิด RLS policies ด้วยตนเอง:
-
+**6. Seed ข้อมูลระบบ (หน่วยวัด + ความหนาแน่นของเหลว)**
 ```bash
-docker exec -i mise-postgres psql -U mise -d mise_db < prisma/migrations/manual/enable_rls.sql
+pnpm db:seed:system      # 11 unit templates + 5 liquid-density templates
 ```
+> 16 หมวดบัญชีเริ่มต้น **ไม่** อยู่ในขั้นนี้ — ถูกสร้างอัตโนมัติตอนเปิดร้านใหม่ (signup)
 
-### ขั้นตอน 8: Seed ข้อมูล demo (optional)
-
+**7. รัน dev server**
 ```bash
-npm run db:seed
+pnpm dev
 ```
-
-ระบบจะสร้าง:
-- User: kongnithipat5@gmail.com
-- Tenant: Demo Restaurant
-- Branch: สาขาหลัก
-- Department: Main
-
-### ขั้นตอน 9: รัน dev server
-
-```bash
-npm run dev
-```
-
-เปิดเบราว์เซอร์ที่ **http://localhost:3000**
-
----
-
-## 🚀 ลองใช้งาน
-
-### ทดสอบ signup
-
-1. เปิด http://localhost:3000
-2. กด "สมัครใช้งาน"
-3. กรอกข้อมูล (ชื่อ, อีเมล, ชื่อร้าน, สาขา)
-4. กด "สร้างบัญชี"
-5. ดู terminal ของ dev server — จะเห็น magic link
-
-```
-============================================================
-📧 Magic link login (dev mode)
-============================================================
-To: you@example.com
-Click here: http://localhost:3000/api/auth/callback/email?...
-============================================================
-```
-
-6. Copy link → paste ในเบราว์เซอร์ → เข้า dashboard
-
-### ทดสอบ tenant isolation
-
-```bash
-npm run test
-```
-
-จะรัน RLS test — verify ว่า Tenant A อ่าน Tenant B ไม่ได้
-
----
-
-## 📁 โครงสร้างโปรเจกต์
-
-```
-mise/
-├── README.md                    ← คู่มือนี้
-├── docker-compose.yml           ← Postgres local
-├── package.json                 ← dependencies
-├── .env.example                 ← template
-│
-├── prisma/
-│   ├── schema.prisma            ← Sprint 0 tables (7 ตาราง)
-│   ├── seed.ts                  ← Tenant init logic (H.1)
-│   └── migrations/manual/
-│       └── enable_rls.sql       ← RLS policies (H.10)
-│
-├── src/
-│   ├── app/                     ← Next.js App Router
-│   │   ├── page.tsx             ← Landing
-│   │   ├── login/page.tsx       ← Login
-│   │   ├── signup/page.tsx      ← Signup + create tenant
-│   │   ├── dashboard/page.tsx   ← Dashboard
-│   │   ├── settings/page.tsx    ← Tenant settings
-│   │   └── api/auth/
-│   │       └── [...nextauth]/   ← Auth.js handler
-│   │
-│   ├── lib/
-│   │   ├── db.ts                ← Prisma + RLS context
-│   │   ├── auth.ts              ← Auth.js config
-│   │   └── permissions/
-│   │       └── service.ts       ← PermissionService (H.4)
-│   │
-│   └── server/
-│       └── tenant-init.ts       ← createTenant function
-│
-└── tests/
-    ├── setup.ts
-    └── tenant-isolation.test.ts ← RLS leak tests
-```
+เปิด **http://localhost:3000** → กด "สมัครใช้งาน" → กรอกข้อมูลร้าน → ดู **terminal** เพื่อ copy magic link → เข้า dashboard
 
 ---
 
 ## 🛠️ คำสั่งที่ใช้บ่อย
 
-| Command | Purpose |
-|---------|---------|
-| `npm run dev` | เริ่ม dev server (http://localhost:3000) |
-| `npm run db:up` | เปิด Postgres container |
-| `npm run db:down` | ปิด Postgres container |
-| `npm run db:migrate` | สร้าง/อัปเดต schema |
-| `npm run db:seed` | สร้างข้อมูล demo |
-| `npm run db:studio` | เปิด Prisma Studio (GUI ดู data) |
-| `npm run db:reset` | ลบ database + สร้างใหม่ |
-| `npm run test` | รัน tests |
-| `npm run build` | Build for production |
+| Command | ใช้ทำอะไร |
+|---|---|
+| `pnpm dev` | เริ่ม dev server |
+| `pnpm build` | build สำหรับ production |
+| `pnpm test` | รัน Vitest |
+| `pnpm db:migrate` | สร้าง/อัปเดต schema (`prisma migrate dev`) |
+| `pnpm db:seed:system` | seed หน่วยวัด + ความหนาแน่นของเหลว |
+| `pnpm db:studio` | เปิด Prisma Studio ดูข้อมูล |
+| `pnpm db:reset` | ⚠️ ลบ DB แล้ว migrate ใหม่ (ข้อมูลหายหมด) |
+
+> `db:up` / `db:down` ใน package.json เป็นของ Docker เดิม (Sprint 0) — ไม่ใช้แล้วเมื่อย้ายมา Neon
 
 ---
 
 ## 🐛 แก้ปัญหา
 
-### "Cannot connect to database"
+**Prisma ค้าง ~5 วิ แล้ว P1001 บน Windows** — Neon ประกาศ IPv6 (AAAA) และ Windows มักเลือก IPv6 ก่อน ทำให้ Prisma (Rust engine) ค้าง แก้ด้วยการ pin IPv4 ใน hosts file (รัน PowerShell แบบ Administrator) — ดูขั้นตอนเต็มที่ [`.claude/skills/known-pitfalls/SKILL.md`](.claude/skills/known-pitfalls/SKILL.md) #29
 
-```bash
-# เช็คว่า Postgres ทำงานอยู่ไหม
-docker ps
+**P1001 ทั้งที่ DB ปกติ** — Neon free-tier หลับเองหลัง idle 5 นาที; รัน `SELECT 1` ใน Neon SQL Editor เพื่อปลุก (~10 วิ) แล้วลองใหม่ (Pitfall #17)
 
-# ถ้าไม่มี mise-postgres → start ใหม่
-npm run db:up
-```
+**Migrate ฟ้อง connection** — ตรวจว่า `DIRECT_URL` ถูกตั้ง (pooled ใช้ migrate ไม่ได้ — [ADR 0003](docs/adr/0003-neon-pooled-and-direct-urls.md) / Pitfall #18)
 
-### "Migration failed"
-
-```bash
-# Reset database (ระวัง: ลบข้อมูลทั้งหมด)
-npm run db:reset
-npm run db:migrate
-```
-
-### "RLS policy already exists"
-
-```bash
-# ลบ database แล้วทำใหม่
-npm run db:reset
-npm run db:migrate
-docker exec -i mise-postgres psql -U mise -d mise_db < prisma/migrations/manual/enable_rls.sql
-```
-
-### Magic link ไม่ขึ้น
-
-ดู terminal ของ `npm run dev` — link จะอยู่ที่นั่น (dev mode)
+**Magic link ไม่ขึ้น** — dev mode พิมพ์ลิงก์ที่ terminal ของ `pnpm dev` ไม่ได้ส่งอีเมลจริง
 
 ---
 
-## 📊 สถานะ Sprint 0
+## 📚 เอกสารอ้างอิง
 
-### ✅ เสร็จแล้ว
-
-- [x] Next.js 15 + TypeScript + Tailwind
-- [x] Prisma + PostgreSQL
-- [x] Docker Compose
-- [x] Auth.js v5 (email magic link)
-- [x] 7 Sprint 0 tables
-- [x] Tenant init logic (H.1)
-- [x] RLS policies (H.10)
-- [x] PermissionService skeleton (H.4)
-- [x] Tenant isolation tests
-
-### 📅 Sprint 1 ถัดไป
-
-- [ ] Master Data: Suppliers, Products, Categories
-- [ ] Multi-unit system (Section E)
-- [ ] Liquid density templates
-- [ ] Default category seed (16 หมวด)
-
----
-
-## 🔗 Documentation อ้างอิง
-
+- **ความคืบหน้า Sprint (LIVE)** — [`docs/sprint-progress.md`](docs/sprint-progress.md)
+- **Architecture Decision Records** — [`docs/adr/`](docs/adr/) (0001–0009)
 - **Master Spec v1.4** — [Google Doc](https://docs.google.com/document/d/110FrOwFwzPbXsxDHUC_f-oqK8ld8a6utAKnrs5KLbfc/edit)
 - **Changelog v5** — [Google Doc](https://docs.google.com/document/d/1uWxAg2dU7RnyQfHhK5KjLW3L0B3uCuXtsPigeuHCOqg/edit)
-- **System Diagrams** — `mise_diagrams.html` (เปิดในเบราว์เซอร์)
-- **Schema** — `mise_schema.dbml` (paste ใน dbdiagram.io)
+- **Domain glossary** — [`CONTEXT.md`](CONTEXT.md)
 
 ---
 
-## 🌱 ต่อไป
-
-หลัง Sprint 0 ทำงานได้ → push ไป GitHub:
-
-```bash
-git add .
-git commit -m "Sprint 0: Foundation + Auth + Tenant"
-git remote add origin https://github.com/thefirstpig1/mise.git
-git branch -M main
-git push -u origin main
-```
-
-แล้วเริ่ม Sprint 1 (Master Data) ต่อ
-
----
-
-**Last updated:** May 16, 2026
+**Last updated:** June 7, 2026 — Sprint 1 (Master Data) COMPLETE
