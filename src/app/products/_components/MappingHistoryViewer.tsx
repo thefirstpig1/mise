@@ -1,10 +1,12 @@
 "use client";
 
 // Sprint 1 Part 8 L5a — price history viewer for one product (read-only).
-//
-// The page builds one PriceHistorySeries per (supplier, branch) tuple by calling
-// getPriceHistoryLogic — each series carries ALL rows incl. soft-deleted, newest
-// first. This component shows them as chronological timelines, highlighting the
+// Sprint 1 Part 9 L5c — generalized: the same viewer also serves a SUPPLIER's
+// price history. The page builds one PriceHistorySeries per tuple — (supplier,
+// branch) on a product page, (product, branch) on a supplier page — via
+// getPriceHistoryLogic; each series carries ALL rows incl. soft-deleted, newest
+// first. The `perspective` prop only flips the series LABEL (supplier ↔ product).
+// This component shows series as chronological timelines, highlighting the
 // open/current row (effectiveTo === null) and flagging removed rows. When there
 // is more than one series a select narrows to one tuple. No edit/delete — this
 // is a historical reference (Q9).
@@ -12,20 +14,30 @@
 import { useState } from "react";
 import type { PriceHistorySeries } from "./mapping-view";
 
+type Perspective = "product" | "supplier";
+
 const badgeBase =
   "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium";
 
-/** "ซัพพลายเออร์ · สาขา" (or "ทุกสาขา" for the tenant-default scope). */
-function seriesLabel(s: PriceHistorySeries): string {
-  const supplier = s.supplier?.name ?? "(ไม่ทราบซัพพลายเออร์)";
+/** "<other side> · สาขา" — supplier name on a product page, product name on a
+ *  supplier page; branch is "ทุกสาขา" for the tenant-default scope. */
+function seriesLabel(s: PriceHistorySeries, perspective: Perspective): string {
+  const primary =
+    perspective === "product"
+      ? (s.supplier?.name ?? "(ไม่ทราบซัพพลายเออร์)")
+      : (s.product?.name ?? "(ไม่ทราบสินค้า)");
   const branch = s.branch ? s.branch.name : "ทุกสาขา";
-  return `${supplier} · ${branch}`;
+  return `${primary} · ${branch}`;
 }
 
 export default function MappingHistoryViewer({
   series,
+  perspective = "product",
 }: {
   series: PriceHistorySeries[];
+  /** "product" (default) = history per supplier; "supplier" = history per
+   *  product. Only changes the series label source. */
+  perspective?: Perspective;
 }) {
   // "all" = show every series stacked; otherwise narrow to one tuple's key.
   const [selected, setSelected] = useState<string>("all");
@@ -55,7 +67,7 @@ export default function MappingHistoryViewer({
             <option value="all">ทุกซัพพลายเออร์/สาขา</option>
             {series.map((s) => (
               <option key={s.key} value={s.key}>
-                {seriesLabel(s)}
+                {seriesLabel(s, perspective)}
               </option>
             ))}
           </select>
@@ -66,7 +78,7 @@ export default function MappingHistoryViewer({
         {shown.map((s) => (
           <div key={s.key} className="space-y-2">
             <p className="text-xs font-medium text-muted-foreground">
-              {seriesLabel(s)}
+              {seriesLabel(s, perspective)}
             </p>
             <ol className="space-y-1.5">
               {s.rows.map((r) => (

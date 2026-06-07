@@ -1,3 +1,7 @@
+---
+status: accepted
+---
+
 # Multi-tenant via PostgreSQL RLS
 
 Mise uses a single shared database with PostgreSQL Row-Level Security (RLS) policies for tenant isolation, rather than separate databases or schemas per tenant. Every tenant-scoped table has a tenant_isolation policy that filters by app.current_tenant_id session variable. Decision rationale: single DB is cheaper for SME scale, RLS provides defense-in-depth even if application code has bugs, and Postgres RLS is mature and well-supported.

@@ -1,10 +1,10 @@
 # Mise Sprint Progress
 
-**Last updated:** 2026-05-31
+**Last updated:** 2026-06-07
 
 ## Current Sprint: Sprint 1 — Master Data
 
-**Status:** 🚧 Starting
+**Status:** ✅ COMPLETE (2026-06-07)
 **Scope:** Suppliers, Products, Categories, Multi-unit system, Liquid density templates
 
 ### Sprint 1 Tables to Add
@@ -17,14 +17,14 @@
 - liquid_density_template (system seed — น้ำเปล่า, นมสด, etc.)
 
 ### Sprint 1 Acceptance Criteria
-- [ ] Schema migrated successfully
-- [ ] RLS policies applied for all new tenant-scoped tables
+- [x] Schema migrated successfully — all Sprint 1 tables live on Neon (through Part 8)
+- [ ] RLS policies applied for all new tenant-scoped tables — **deferred to Sprint 7** (app-layer isolation via `withTenantContext` is the active guard; RLS inert per ADR 0004)
 - [x] 16 default categories seeded on tenant creation (H.1.2) — verified Part 6 E2E
-- [ ] CRUD pages for Supplier
+- [x] CRUD pages for Supplier — Part 5 ✅
 - [x] CRUD pages for Product — Part 7a ✅ (RAW + base unit), Part 7b ✅ (multi-unit), Part 7c ✅ (PREPPED), Part 7d ✅ (liquid density)
 - [x] CRUD pages for Category (3-tier: account → accounting_section → group)
-- [ ] Supplier-Product mapping UI
-- [ ] All Sprint 0 features still work
+- [x] Supplier-Product mapping UI — Part 8 ✅ (product-centric CRUD + history) + Part 9 ✅ (supplier-centric read views)
+- [x] All Sprint 0 features still work — auth/tenant/dashboard retrofit in Part 5; exercised by every part's headless E2E
 
 ---
 
@@ -245,6 +245,41 @@ Branch-aware supplier price list (`supplier_product_mapping`). Grill-with-docs (
 - **`e4b4306` cross-view revalidation**: `deleteProduct`/`deleteSupplier` revalidate only their own list page; cascaded mappings on the OPPOSITE detail page stay stale until navigation. Bypassed while UI is product-centric only; **L5c (Part 9) resolves it** when the supplier-centric read view is wired.
 
 ### Next: Part 9 — Sprint 1 wrap-up (owns L5c supplier-centric views holistically). Part 8 L0–L6 ready for batch push (10 commits).
+
+---
+
+## Sprint 1 Part 9 — Wrap-up (L5c + final sweep + sign-off): ✅ COMPLETE (2026-06-07)
+
+Sprint closing pass — owns the L5c slice deferred from Part 8, the final test sweep, and Sprint 1 sign-off. Not a grill slice; the 3 open L5c design decisions were resolved at session start (below).
+
+### L5c design decisions (locked this session)
+| # | Decision | Choice |
+|---|----------|--------|
+| (i) | Component strategy | **Generalize** — `MappingListSection` + `MappingHistoryViewer` gain a `perspective: "product" \| "supplier"` prop; the view layer (`mapping-view.ts`) now also carries the product side (`product`, `productDeleted`). DRY — only the labelled "other side", orphan flag, and edit-link base flip. |
+| (ii) | Cross-view revalidation | **Aggressive** — the cascade `deleteProduct`/`deleteSupplier` actions now also revalidate the OPPOSITE detail page for each affected counterpart. (Mapping CRUD already dual-revalidated via `revalidateMappingViews`.) Closes the `e4b4306` known-limitation. |
+| (iii) | Supplier-centric write surface | **View-only + edit link** — the supplier section is read-only; each row links to the existing product-centric edit route. No new routes/forms (write stays product-centric, Q9). |
+
+### Changes
+- `src/app/products/_components/mapping-view.ts` — `MappingView` + `PriceHistorySeries` carry `product` / `productDeleted`; `toMappingView` projects them; `seriesKeyOf` param generalized (primary id = supplier on a product page, product on a supplier page).
+- `MappingListSection.tsx` / `MappingHistoryViewer.tsx` — `perspective` prop (default `"product"`, so the product page is unchanged); per-perspective copy / orphan flag / labels; create CTA shown on the product perspective only.
+- `src/app/suppliers/[id]/page.tsx` — wires the read-only list + price-history (supplier perspective) with a per-(product, branch) history loop mirroring the product page; cascade-dialog items now derive from the serialized views (no raw Decimal).
+- `src/app/products/actions.ts` + `src/app/suppliers/actions.ts` — cascade delete actions read the affected counterpart ids before the delete and revalidate those detail pages (decision ii).
+- `src/lib/auth.ts` — cleared the 2 long-standing `auth.ts:24` tsc errors with a trivial inline param type annotation (no behavior change).
+- `docs/adr/0001..0003` — added `status: accepted` frontmatter (were missing it; 0004-0009 already had it).
+
+### Verified
+- `pnpm tsc --noEmit` — **fully clean** (the `auth.ts:24` baseline is now gone).
+- `pnpm vitest run` — **108 passed / 4 skipped** (unchanged; L5c is UI/serializer + revalidation glue — no new unit tests, per the actions-are-thin-glue convention).
+- ADRs 0001-0009 all `status: accepted`; Pitfalls #19-#29 all captured in `known-pitfalls/SKILL.md`.
+
+### Known limitations
+- **`e4b4306` cross-view revalidation** — **RESOLVED** by decision (ii); the opposite detail page no longer stays stale after a cascade delete.
+- **`b40642f` stale double-submit** — still carried forward (benign; not reachable from the normal flow).
+
+### Sprint 1 — ✅ COMPLETE
+9 parts shipped (5, 6, 7a–7d, 8, 9). All acceptance criteria met **except** RLS-policies-applied, intentionally deferred to Sprint 7 per ADR 0004 (app-layer isolation via `withTenantContext` is the active guard). Deferred to later: **Part 8.5** (restore-on-recreate), **Sprint 2** PO/cost-engine consumer + deferred guards (dimension-change↔orderUnit, base-unit↔density, density inheritance PREPPED→parent, type-change), **Prisma 5.22→7.x** upgrade.
+
+### Next: Sprint 2 — Procurement (PO/GR allocation + mirror triggers). Part 8.5 (restore-on-recreate) is a candidate to fold in or run standalone first — user decides.
 
 ---
 

@@ -15,6 +15,10 @@ export type MappingView = {
    *  `name` = Supplier.nameFull (the list/order field). */
   supplier: { id: string; name: string } | null;
   productId: string;
+  /** product is a required FK so this is always set; null is defensive only.
+   *  Carried so the SUPPLIER perspective (L5c) can label rows by product name —
+   *  the product perspective labels by supplier name and ignores this. */
+  product: { id: string; name: string } | null;
   /** null branchId = tenant default ("ทุกสาขา"); set = a branch override (Q7). */
   branchId: string | null;
   branch: { id: string; name: string } | null;
@@ -36,8 +40,12 @@ export type MappingView = {
   /** This mapping row is itself soft-deleted (only reachable via price history,
    *  which includes deleted rows — the live list never carries these). */
   deleted: boolean;
-  /** The parent supplier is soft-deleted = orphan row (Q6, "all" list mode). */
+  /** The parent supplier is soft-deleted = orphan row (Q6, "all" list mode).
+   *  This is the orphan flag for the PRODUCT perspective (rows of one product). */
   supplierDeleted: boolean;
+  /** The parent product is soft-deleted = orphan row for the SUPPLIER
+   *  perspective (rows of one supplier, L5c "all" list mode). */
+  productDeleted: boolean;
 };
 
 /**
@@ -48,6 +56,9 @@ export type MappingView = {
 export type PriceHistorySeries = {
   key: string;
   supplier: { id: string; name: string } | null;
+  /** The series' product — populated so the SUPPLIER perspective (L5c) can label
+   *  a series by product name. Product perspective labels by supplier + branch. */
+  product: { id: string; name: string } | null;
   branch: { id: string; name: string } | null;
   rows: MappingView[];
 };
@@ -55,11 +66,15 @@ export type PriceHistorySeries = {
 /** @db.Date Date (UTC midnight) → "yyyy-mm-dd". */
 const toDateString = (d: Date): string => d.toISOString().slice(0, 10);
 
-/** Stable client key for a (supplier, branch) tuple; null branch = "default". */
+/**
+ * Stable client key for a (primary, branch) tuple; null branch = "default".
+ * `primaryId` is the supplier id on a product page (series per supplier) and the
+ * product id on a supplier page (series per product) — the perspective decides.
+ */
 export const seriesKeyOf = (
-  supplierId: string,
+  primaryId: string,
   branchId: string | null
-): string => `${supplierId}:${branchId ?? "default"}`;
+): string => `${primaryId}:${branchId ?? "default"}`;
 
 export function toMappingView(m: MappingWithRefs): MappingView {
   return {
@@ -69,6 +84,7 @@ export function toMappingView(m: MappingWithRefs): MappingView {
       ? { id: m.supplier.id, name: m.supplier.nameFull }
       : null,
     productId: m.productId,
+    product: m.product ? { id: m.product.id, name: m.product.name } : null,
     branchId: m.branchId,
     branch: m.branch ? { id: m.branch.id, name: m.branch.name } : null,
     supplierItemCode: m.supplierItemCode,
@@ -87,5 +103,6 @@ export function toMappingView(m: MappingWithRefs): MappingView {
     isOpen: m.effectiveTo === null,
     deleted: m.deletedAt != null,
     supplierDeleted: m.supplier?.deletedAt != null,
+    productDeleted: m.product?.deletedAt != null,
   };
 }

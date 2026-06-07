@@ -5,8 +5,9 @@ B2B SaaS for Thailand restaurant SMEs. "MarketMan-for-Thailand-SME" — 90% chea
 
 ## Project Status
 - Sprint 0: ✅ COMPLETE (May 17, 2026) — Auth, Tenant, Branch, Department, RLS
-- Sprint 1: 🚧 IN PROGRESS — Master Data (Suppliers, Products, Categories, Multi-unit)
-- Sprint 2-7: Planned per docs/master-spec-v1.4.md section 32
+- Sprint 1: ✅ COMPLETE (June 7, 2026) — Master Data (Suppliers, Products, Categories, Multi-unit, Supplier-Product Mapping)
+- Sprint 2: 🚧 NEXT — Procurement (PO/GR allocation + mirror triggers) per docs/master-spec-v1.4.md section 32
+- Sprint 3-7: Planned per docs/master-spec-v1.4.md section 32
 
 ## Tech Stack
 - Next.js 15.0.3 + React 19 + TypeScript

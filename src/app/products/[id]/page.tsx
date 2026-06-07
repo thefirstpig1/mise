@@ -70,6 +70,7 @@ export default async function EditProductPage({
       return {
         key: seriesKeyOf(head.supplierId, head.branchId),
         supplier: head.supplier,
+        product: head.product,
         branch: head.branch,
         rows: views,
       };

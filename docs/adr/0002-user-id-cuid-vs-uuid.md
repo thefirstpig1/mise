@@ -1,3 +1,7 @@
+---
+status: accepted
+---
+
 # User.id uses cuid, all other IDs use uuid
 
 The User model uses `id String @id @default(cuid())` while all other models use `id String @id @default(uuid()) @db.Uuid`. Foreign keys referencing User must use String type without @db.Uuid. This is because Auth.js v5 Prisma Adapter hardcodes its tables (Account, Session) to use cuid String for userId — using uuid would cause foreign key type mismatch.

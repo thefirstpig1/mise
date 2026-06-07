@@ -40,7 +40,10 @@ import {
 // L4 (Q6 cascade): the product delete forwards user-selected mapping ids to
 // deleteProductLogic, which throws this when a selected id isn't a live mapping
 // of this product (stale dialog selection). One-way import (Part 8 cross-slice).
-import { MappingNotFoundError } from "@/server/supplier-product-mapping";
+import {
+  MappingNotFoundError,
+  getProductMappingsLogic,
+} from "@/server/supplier-product-mapping";
 
 /**
  * Outcome of a create/update action, for React 19 useActionState:
@@ -278,6 +281,23 @@ export async function deleteProduct(
 ): Promise<{ ok: boolean; error?: string }> {
   const { tenantId } = await requireTenant();
 
+  // (Part 9 decision ii — aggressive) cross-view revalidation: a cascade
+  // soft-deletes mappings that ALSO render on their suppliers' detail pages
+  // (L5c). Read the affected suppliers BEFORE the delete (the list filters live
+  // rows only), so we can revalidate those pages once the delete succeeds. This
+  // closes the e4b4306 known-limitation now that the supplier page shows mappings.
+  const cascadeIds = new Set(mappingIdsToSoftDelete);
+  const affectedSupplierIds =
+    cascadeIds.size > 0
+      ? [
+          ...new Set(
+            (await getProductMappingsLogic(tenantId, id, "all"))
+              .filter((m) => cascadeIds.has(m.id))
+              .map((m) => m.supplierId)
+          ),
+        ]
+      : [];
+
   try {
     const deleted = await deleteProductLogic(
       tenantId,
@@ -288,6 +308,10 @@ export async function deleteProduct(
       return { ok: false, error: "ไม่พบสินค้าที่ต้องการลบ" };
     }
     revalidatePath("/products");
+    revalidatePath(`/products/${id}`);
+    for (const supplierId of affectedSupplierIds) {
+      revalidatePath(`/suppliers/${supplierId}`);
+    }
     return { ok: true };
   } catch (e) {
     if (e instanceof ProductHasChildrenError) {

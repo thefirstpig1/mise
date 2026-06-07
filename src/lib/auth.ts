@@ -21,7 +21,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       name: "Email Magic Link",
       type: "email",
       maxAge: 24 * 60 * 60, // 24 hours
-      async sendVerificationRequest({ identifier: email, url }) {
+      async sendVerificationRequest({
+        identifier: email,
+        url,
+      }: {
+        identifier: string;
+        url: string;
+      }) {
         if (process.env.NODE_ENV === "development") {
           // Dev mode: log to console
           console.log("\n" + "=".repeat(60));
