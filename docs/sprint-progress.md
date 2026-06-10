@@ -279,7 +279,46 @@ Sprint closing pass — owns the L5c slice deferred from Part 8, the final test 
 ### Sprint 1 — ✅ COMPLETE
 9 parts shipped (5, 6, 7a–7d, 8, 9). All acceptance criteria met **except** RLS-policies-applied, intentionally deferred to Sprint 7 per ADR 0004 (app-layer isolation via `withTenantContext` is the active guard). Deferred to later: **Part 8.5** (restore-on-recreate), **Sprint 2** PO/cost-engine consumer + deferred guards (dimension-change↔orderUnit, base-unit↔density, density inheritance PREPPED→parent, type-change), **Prisma 5.22→7.x** upgrade.
 
-### Next: Sprint 2 — Procurement (PO/GR allocation + mirror triggers). Part 8.5 (restore-on-recreate) is a candidate to fold in or run standalone first — user decides.
+### Next: Sprint 2 — Procurement (PO/GR allocation + mirror triggers). Part 8.5 (restore-on-recreate) is a candidate to fold in or run standalone first — user decides. **→ Run standalone first as a Sprint-2 pre-flight warm-up (see Part 8.5 below).**
+
+---
+
+## Sprint 1 Part 8.5 — Restore-on-recreate: 🚧 IN PROGRESS (grill locked 2026-06-10, started 2026-06-11)
+
+Warm-up slice run **standalone before Sprint 2 core** (Stock Movement + PO/GR + Cost Engine). Closes the Sprint 1 carry-forward (restore-on-recreate, deferred in ADR 0009) and lands the `Product.sku` partial-unique fix the transactional foundation would have hit anyway. Grill-with-docs (Q1–Q8) finished previous session — design locked in Drive doc `1DlVifFHjfP6D--6h_0ZgKEIffSjfN_CILtp6uoQzFk4`, captured in **ADR 0010**.
+
+### Design locked (Q1–Q8 — compact; full record in ADR 0010 + Drive grill doc)
+| Q | Decision (one-liner) |
+|---|----------|
+| Q1 | Fuzzy match `pg_trgm` **threshold 0.4**, top 10 (5 shown + "ดูเพิ่มอีก 5"), coarse badge (>0.7 ตรงกันมาก / 0.5–0.7 ใกล้เคียง / 0.4–0.5 อาจเกี่ยวข้อง — raw score hidden); scope = soft-deleted only (`deletedAt IS NOT NULL`). |
+| Q2 | Search **name + sku** via `GREATEST(similarity(name), similarity(sku))`; `matched_on` tag ('name'\|'sku') per row. Two partial GIN indexes `WHERE deleted_at IS NOT NULL`. |
+| Q3 | Typeahead triggers on **name only** (sku is auto-gen, not searched-via); min 3 chars, 400 ms debounce, no dropdown on empty. |
+| Q4 | Restore = idempotent `UPDATE … SET deletedAt=null, updatedAt=NOW() WHERE id=$1 AND deletedAt IS NOT NULL`; **re-use existing ID**; all fields revert; kept-live orphan mappings auto-recover via unchanged FK. |
+| Q5 | Live-product **sku collision** detected at search time (warning badge) → restore dialog shows `newSku` input (default `{sku}-restored`, user-editable), validated against the partial unique. |
+| Q6 | **Orphan = kept-live mappings** (`productId=restored, deletedAt IS NULL`), **not** cascade-deleted ones. Restore doesn't touch mappings by default; recoverable-mappings preview (top 3 by isPreferred DESC, effectiveFrom DESC) in the suggestion row. |
+| Q7 | **Force price review** (Option C, no threshold) when orphan mappings exist; radio per row (default ใช้ราคาเดิม / อัปเดต reveals price/min-qty/lead inputs, Sprint 1 zod). Same-day (`effectiveFrom=today`) **overwrite in-place** (Option ε); else ADR 0009 supersede. |
+| Q8 | **No dedicated audit log** (Option A) — reuse `product.updatedAt`/`deletedAt`, mapping `updatedAt`, Part 8 history viewer. |
+
+### Schema-consistency fix (bundled, L1)
+- Remove `Product.sku` FULL `@@unique([tenantId, sku])` from `schema.prisma` → manual **PARTIAL** unique `WHERE deleted_at IS NULL` in `prisma/manual/product_sku_unique.sql` (mirrors `supplier_code_unique.sql` / `supplier_product_mapping_unique.sql`). **Closes Pitfall #23** (Product.sku FULL-unique soft-delete trap, the #22/#23 ghost-row family) as a bonus. **NOT** Pitfall #25 (generateSku concurrent-scan race) — that still needs an advisory lock / DB sequence (deferred).
+
+### Implementation structure (L0–L6)
+- **L0** — ADR 0010 + this sprint-progress section + CONTEXT.md glossary. **← current (awaiting chat review before L1).**
+- **L1** — schema: enable `pg_trgm` (✅ verified runnable on Neon, no permission block), 2 partial GIN indexes, `product_sku_unique.sql` (drop full → partial), schema.prisma `@@unique` removal + `///`-comment. Verify 108 tests stay green.
+- **L2** — zod: `newSku` (string, max 64, unique checked in action layer) + mapping update inputs.
+- **L3a** — read logic: `fuzzySearchSoftDeletedProductsLogic`, `getOrphanMappingsForProductLogic`, sku-conflict detection.
+- **L3b** — write logic: `restoreProductLogic` (+ supersede-or-overwrite branch).
+- **L4** — actions: `restoreProductAction`, `searchSoftDeletedProductsAction` (debounced endpoint) + Thai error mapping.
+- **L5a/b/c** — UI: typeahead dropdown · restore dialog (conditional sku-conflict + price-review sections) · integration into Product create flow (`ProductForm`).
+- **L6** — E2E throwaway tests + flip this section to COMPLETE.
+
+Estimated 10–12 commits, ~Part 8 scale.
+
+### Risk surfaces (from grill)
+1. `pg_trgm` permission on Neon — **verified OK before L1** (fallback `ILIKE` not needed). 2. SKU FULL→partial swap — 108 tests must stay green (verify in L1). 3. Restore-dialog 0–2 conditional sections — component must handle all combos. 4. Same-day overwrite — Bangkok UTC+7 date handling (Decision #60).
+
+### Standing items (carried in)
+Pitfall #19 (git hook inert — push manual), #26 (Neon free-tier quota — `pg_trgm` heads-up), #28 (depth/cycle race — accepted MVP), #29 (Neon IPv6 hosts pin). #23 (Product.sku FULL-unique trap) → **being fixed** via L1 partial unique; #25 (generateSku race) NOT addressed — advisory-lock fix still deferred. `b40642f` (stale double-submit) — benign; `e4b4306` (cross-view revalidation) — CLOSED in Part 9.
 
 ---
 
