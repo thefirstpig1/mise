@@ -301,6 +301,9 @@ model Category {
 model Product {
   id                      String   @id @default(uuid()) @db.Uuid
   tenantId                String   @map("tenant_id") @db.Uuid
+  /// Uniqueness enforced by partial unique index in
+  /// prisma/manual/product_sku_unique.sql (per-tenant, excludes soft-deleted).
+  /// Not a Prisma @@unique because Prisma can't express partial indexes.
   sku                     String
   name                    String
   nameEn                  String?  @map("name_en")
@@ -328,7 +331,9 @@ model Product {
   productUnits            ProductUnit[]
   supplierProductMappings SupplierProductMapping[]
 
-  @@unique([tenantId, sku])
+  /// NOTE: per-tenant sku uniqueness is a PARTIAL unique index (WHERE deleted_at
+  /// IS NULL) in prisma/manual/product_sku_unique.sql — NOT a Prisma @@unique,
+  /// which Prisma 5.22 can only express as a FULL index (Pitfall #23). See sku field.
   @@index([tenantId])
   @@map("product")
 }
