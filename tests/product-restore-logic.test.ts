@@ -25,11 +25,19 @@ import {
   deleteProductLogic,
   type ProductWithUnits,
 } from "@/server/product";
-import { createSupplierProductMappingLogic } from "@/server/supplier-product-mapping";
+import {
+  createSupplierProductMappingLogic,
+  MappingNotFoundError,
+} from "@/server/supplier-product-mapping";
+import { ProductSkuConflictError } from "@/server/product";
+import type { MappingUpdate } from "@/lib/validations/product-restore";
 import {
   fuzzySearchSoftDeletedProductsLogic,
   getOrphanMappingsForProductLogic,
   detectSkuConflictLogic,
+  restoreProductLogic,
+  computeBangkokToday,
+  ProductNotFoundError,
 } from "@/server/product-restore";
 
 describe("product-restore *Logic (read; tenant-scoped, app-layer isolation)", () => {
@@ -255,5 +263,214 @@ describe("product-restore *Logic (read; tenant-scoped, app-layer isolation)", ()
     const res = await detectSkuConflictLogic(tenantA, live.id, "ROMEOSKU");
     expect(res.hasConflict).toBe(false);
     expect(res.conflictingProductName).toBeNull();
+  });
+
+  // ============================================================
+  // L3b — restoreProductLogic (write; supersede / overwrite / conflicts)
+  // ============================================================
+
+  const PRICE = { currentUnitPrice: 150, minOrderQty: 5, leadTimeDays: 2 };
+  /** An "update" price-review decision for one orphan mapping. */
+  const upd = (
+    mappingId: string,
+    updates: { currentUnitPrice: number; minOrderQty: number; leadTimeDays: number } = PRICE
+  ): MappingUpdate => ({ mappingId, action: "update", updates });
+  /** A "keep" decision (leave the orphan price as-is). */
+  const keep = (mappingId: string): MappingUpdate => ({ mappingId, action: "keep" });
+  /** YYYY-MM-DD of a UTC-midnight date (the @db.Date wire format). */
+  const ymd = (d: Date): string => d.toISOString().slice(0, 10);
+  /** Every mapping row of a product (incl. closed history), oldest effectiveFrom first. */
+  const rowsOf = (productId: string) =>
+    withAdminContext((tx) =>
+      tx.supplierProductMapping.findMany({
+        where: { productId },
+        orderBy: { effectiveFrom: "asc" },
+      })
+    );
+
+  it("restores a soft-deleted product (no newSku, no mapping updates)", async () => {
+    const p = await makeProduct("restorebasicword");
+    await deleteProductLogic(tenantA, p.id);
+
+    const res = await restoreProductLogic(tenantA, p.id);
+    expect(res.id).toBe(p.id);
+    expect(res.deletedAt).toBeNull();
+  });
+
+  it("throws ProductNotFoundError when the product is already live (double-submit)", async () => {
+    const p = await makeProduct("restorealiveword");
+    await expect(restoreProductLogic(tenantA, p.id)).rejects.toBeInstanceOf(
+      ProductNotFoundError
+    );
+  });
+
+  it("throws ProductNotFoundError for an unknown / cross-tenant id", async () => {
+    await expect(restoreProductLogic(tenantA, randomUUID())).rejects.toBeInstanceOf(
+      ProductNotFoundError
+    );
+  });
+
+  it("restores with a conflict-free newSku (sku replaced)", async () => {
+    const p = await makeProduct("restorenewskuword", "OLDSKUONE");
+    await deleteProductLogic(tenantA, p.id);
+
+    const res = await restoreProductLogic(tenantA, p.id, { newSku: "FRESHSKUONE" });
+    expect(res.sku).toBe("FRESHSKUONE");
+    expect(res.deletedAt).toBeNull();
+  });
+
+  it("throws ProductSkuConflictError when newSku collides with a live product", async () => {
+    const dead = await makeProduct("restoreconflword", "DEADSKUTWO");
+    await deleteProductLogic(tenantA, dead.id);
+    const live = await makeProduct("restoreliveword", "TAKENSKUTWO");
+
+    await expect(
+      restoreProductLogic(tenantA, dead.id, { newSku: "TAKENSKUTWO" })
+    ).rejects.toBeInstanceOf(ProductSkuConflictError);
+    expect(live.sku).toBe("TAKENSKUTWO");
+  });
+
+  it("accepts newSku equal to the candidate's own original sku (self not a conflict)", async () => {
+    const p = await makeProduct("restoreownskuword", "SELFSKUTHREE");
+    await deleteProductLogic(tenantA, p.id);
+
+    const res = await restoreProductLogic(tenantA, p.id, { newSku: "SELFSKUTHREE" });
+    expect(res.sku).toBe("SELFSKUTHREE");
+  });
+
+  it("throws ProductSkuConflictError on original-sku collision when no newSku given (#5 backstop)", async () => {
+    const dead = await makeProduct("restoreorigword", "REUSEDSKUFOUR");
+    await deleteProductLogic(tenantA, dead.id); // frees the sku for a live re-use
+    const live = await makeProduct("restoreshadowword", "REUSEDSKUFOUR");
+
+    await expect(restoreProductLogic(tenantA, dead.id)).rejects.toBeInstanceOf(
+      ProductSkuConflictError
+    );
+    // rolled back: the dead product stays soft-deleted, the live owner keeps the sku.
+    const [still] = await withAdminContext((tx) =>
+      tx.product.findMany({ where: { id: dead.id } })
+    );
+    expect(still.deletedAt).not.toBeNull();
+    expect(live.sku).toBe("REUSEDSKUFOUR");
+  });
+
+  it("applies a keep + update mix (only the 'update' row supersedes)", async () => {
+    const p = await makeProduct("restoremixword");
+    const supKeep = await makeSupplier("mix-keep");
+    const supUpd = await makeSupplier("mix-upd");
+    const mKeep = await makeMapping(supKeep.id, p.id, { currentUnitPrice: 100 });
+    const mUpd = await makeMapping(supUpd.id, p.id, { currentUnitPrice: 100 });
+    await deleteProductLogic(tenantA, p.id);
+
+    await restoreProductLogic(tenantA, p.id, {
+      mappingUpdates: [keep(mKeep.id), upd(mUpd.id)],
+    });
+
+    const rows = await rowsOf(p.id);
+    const keepRows = rows.filter((r) => r.supplierId === supKeep.id);
+    const updRows = rows.filter((r) => r.supplierId === supUpd.id);
+    expect(keepRows).toHaveLength(1); // untouched
+    expect(Number(keepRows[0].currentUnitPrice)).toBe(100);
+    expect(keepRows[0].effectiveTo).toBeNull();
+    expect(updRows).toHaveLength(2); // superseded → old + new
+  });
+
+  it("supersedes an older-date orphan: closes old at today−1, inserts a new open row", async () => {
+    const today = computeBangkokToday();
+    const p = await makeProduct("restoresupersedeword");
+    const sup = await makeSupplier("supersede");
+    const m = await makeMapping(sup.id, p.id, {
+      effectiveFrom: "2026-06-01",
+      currentUnitPrice: 100,
+    });
+    await deleteProductLogic(tenantA, p.id);
+
+    await restoreProductLogic(tenantA, p.id, { mappingUpdates: [upd(m.id)] });
+
+    const rows = await rowsOf(p.id);
+    expect(rows).toHaveLength(2);
+    const [oldRow, newRow] = rows; // oldest effectiveFrom first
+    expect(oldRow.id).toBe(m.id);
+    expect(oldRow.effectiveTo!.getTime()).toBe(today.getTime() - 86_400_000);
+    expect(newRow.effectiveFrom.getTime()).toBe(today.getTime());
+    expect(newRow.effectiveTo).toBeNull();
+    expect(Number(newRow.currentUnitPrice)).toBe(150);
+  });
+
+  it("overwrites a same-day (Bangkok) orphan in place (no new row)", async () => {
+    const today = computeBangkokToday();
+    const p = await makeProduct("restoreoverwriteword");
+    const sup = await makeSupplier("overwrite");
+    const m = await makeMapping(sup.id, p.id, {
+      effectiveFrom: ymd(today),
+      currentUnitPrice: 100,
+    });
+    await deleteProductLogic(tenantA, p.id);
+
+    await restoreProductLogic(tenantA, p.id, { mappingUpdates: [upd(m.id)] });
+
+    const rows = await rowsOf(p.id);
+    expect(rows).toHaveLength(1); // overwrite — no supersede row
+    expect(rows[0].id).toBe(m.id);
+    expect(rows[0].effectiveFrom.getTime()).toBe(today.getTime());
+    expect(rows[0].effectiveTo).toBeNull();
+    expect(Number(rows[0].currentUnitPrice)).toBe(150);
+  });
+
+  it("throws MappingNotFoundError for an unknown mappingId and rolls the restore back", async () => {
+    const p = await makeProduct("restorebadmapword");
+    await deleteProductLogic(tenantA, p.id);
+
+    await expect(
+      restoreProductLogic(tenantA, p.id, { mappingUpdates: [upd(randomUUID())] })
+    ).rejects.toBeInstanceOf(MappingNotFoundError);
+
+    // atomic (Q4): the Step-3 undelete rolled back with the failed mapping write.
+    const [still] = await withAdminContext((tx) =>
+      tx.product.findMany({ where: { id: p.id } })
+    );
+    expect(still.deletedAt).not.toBeNull();
+  });
+
+  it("rejects updating a closed historical orphan row → MappingNotFoundError (#4 guard)", async () => {
+    const p = await makeProduct("restoreclosedword");
+    const sup = await makeSupplier("closed");
+    const older = await makeMapping(sup.id, p.id, {
+      effectiveFrom: "2026-06-01",
+      currentUnitPrice: 100,
+    });
+    // a later price for the SAME series supersedes `older` → older.effectiveTo set (closed).
+    await makeMapping(sup.id, p.id, { effectiveFrom: "2026-06-05", currentUnitPrice: 110 });
+    await deleteProductLogic(tenantA, p.id);
+
+    // sanity: `older` is now a CLOSED (effectiveTo != null) but still-LIVE orphan row.
+    const before = await rowsOf(p.id);
+    const closed = before.find((r) => r.id === older.id)!;
+    expect(closed.effectiveTo).not.toBeNull();
+    expect(closed.deletedAt).toBeNull();
+
+    await expect(
+      restoreProductLogic(tenantA, p.id, { mappingUpdates: [upd(older.id)] })
+    ).rejects.toBeInstanceOf(MappingNotFoundError);
+  });
+
+  it("treats an effectiveFrom of yesterday-Bangkok as supersede (TZ boundary)", async () => {
+    const today = computeBangkokToday();
+    const yesterday = new Date(today.getTime() - 86_400_000);
+    const p = await makeProduct("restoreboundaryword");
+    const sup = await makeSupplier("boundary");
+    const m = await makeMapping(sup.id, p.id, {
+      effectiveFrom: ymd(yesterday),
+      currentUnitPrice: 100,
+    });
+    await deleteProductLogic(tenantA, p.id);
+
+    await restoreProductLogic(tenantA, p.id, { mappingUpdates: [upd(m.id)] });
+
+    const rows = await rowsOf(p.id);
+    expect(rows).toHaveLength(2); // yesterday != today → supersede, not overwrite
+    const [oldRow, newRow] = rows;
+    expect(oldRow.effectiveTo!.getTime()).toBe(yesterday.getTime()); // closed at today−1
+    expect(newRow.effectiveFrom.getTime()).toBe(today.getTime());
   });
 });
