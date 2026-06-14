@@ -293,8 +293,9 @@ describe("product-restore *Logic (read; tenant-scoped, app-layer isolation)", ()
     await deleteProductLogic(tenantA, p.id);
 
     const res = await restoreProductLogic(tenantA, p.id);
-    expect(res.id).toBe(p.id);
-    expect(res.deletedAt).toBeNull();
+    expect(res.product.id).toBe(p.id);
+    expect(res.product.deletedAt).toBeNull();
+    expect(res.affectedSupplierIds).toEqual([]); // no orphan mappings → nothing to revalidate
   });
 
   it("throws ProductNotFoundError when the product is already live (double-submit)", async () => {
@@ -315,8 +316,8 @@ describe("product-restore *Logic (read; tenant-scoped, app-layer isolation)", ()
     await deleteProductLogic(tenantA, p.id);
 
     const res = await restoreProductLogic(tenantA, p.id, { newSku: "FRESHSKUONE" });
-    expect(res.sku).toBe("FRESHSKUONE");
-    expect(res.deletedAt).toBeNull();
+    expect(res.product.sku).toBe("FRESHSKUONE");
+    expect(res.product.deletedAt).toBeNull();
   });
 
   it("throws ProductSkuConflictError when newSku collides with a live product", async () => {
@@ -335,7 +336,7 @@ describe("product-restore *Logic (read; tenant-scoped, app-layer isolation)", ()
     await deleteProductLogic(tenantA, p.id);
 
     const res = await restoreProductLogic(tenantA, p.id, { newSku: "SELFSKUTHREE" });
-    expect(res.sku).toBe("SELFSKUTHREE");
+    expect(res.product.sku).toBe("SELFSKUTHREE");
   });
 
   it("throws ProductSkuConflictError on original-sku collision when no newSku given (#5 backstop)", async () => {
@@ -362,9 +363,14 @@ describe("product-restore *Logic (read; tenant-scoped, app-layer isolation)", ()
     const mUpd = await makeMapping(supUpd.id, p.id, { currentUnitPrice: 100 });
     await deleteProductLogic(tenantA, p.id);
 
-    await restoreProductLogic(tenantA, p.id, {
+    const res = await restoreProductLogic(tenantA, p.id, {
       mappingUpdates: [keep(mKeep.id), upd(mUpd.id)],
     });
+
+    // affectedSupplierIds = ALL live orphan suppliers (keep + update), distinct.
+    expect([...res.affectedSupplierIds].sort()).toEqual(
+      [supKeep.id, supUpd.id].sort()
+    );
 
     const rows = await rowsOf(p.id);
     const keepRows = rows.filter((r) => r.supplierId === supKeep.id);

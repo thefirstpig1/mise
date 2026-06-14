@@ -330,9 +330,16 @@ type RestoreOptions = {
  *      Sprint 1 supersede (ADR 0009): close the open predecessor at today − 1 day +
  *      insert a new open row carrying the SAME identity with today's price. "keep"
  *      decisions are no-ops (the orphan is already live).
- *   5. return the restored product with the standard full include (replicated INLINE
+ *   5. collect `affectedSupplierIds` (Option B, L4 cross-view revalidation): the
+ *      DISTINCT suppliers of ALL live orphan mappings of the now-restored product
+ *      — not just the updated ones. Flipping the product live re-surfaces EVERY
+ *      orphan mapping on its supplier's detail page, so each such supplier page
+ *      must be revalidated. (A supersede closes the old row + inserts a new open
+ *      one under the SAME supplier, and a same-day overwrite keeps the supplier,
+ *      so this set is stable across Step 4 — one DISTINCT read after the writes.)
+ *   6. return the restored product with the standard full include (replicated INLINE
  *      on `tx` — NOT getProductByIdLogic, which would open a nested $transaction and
- *      break atomicity).
+ *      break atomicity) alongside `affectedSupplierIds`.
  *
  * NOTE: every read+write runs on the passed `tx`. No nested withTenantContext call.
  */
@@ -340,7 +347,7 @@ export async function restoreProductLogic(
   tenantId: string,
   productId: string,
   options: RestoreOptions = {}
-): Promise<ProductWithUnits> {
+): Promise<{ product: ProductWithUnits; affectedSupplierIds: string[] }> {
   const { newSku, mappingUpdates = [] } = options;
 
   return withTenantContext(tenantId, async (tx) => {
@@ -419,8 +426,18 @@ export async function restoreProductLogic(
     }
     // "keep" decisions are no-ops (the orphan mapping is already live).
 
-    // Step 5 — return the restored product, full relations, inline on tx (no nesting).
-    return tx.product.findFirstOrThrow({
+    // Step 5 — DISTINCT suppliers of ALL live orphan mappings (Option B): every
+    // orphan re-surfaces on its supplier's detail page now the product is live, so
+    // L4 revalidates each. Read on `tx` after the writes (supplier set is stable).
+    const liveOrphans = await tx.supplierProductMapping.findMany({
+      where: { tenantId, productId, deletedAt: null },
+      select: { supplierId: true },
+      distinct: ["supplierId"],
+    });
+    const affectedSupplierIds = liveOrphans.map((m) => m.supplierId);
+
+    // Step 6 — return the restored product (full relations, inline on tx; no nesting).
+    const product = await tx.product.findFirstOrThrow({
       where: { id: productId, tenantId },
       include: {
         productUnits: true,
@@ -437,5 +454,6 @@ export async function restoreProductLogic(
         },
       },
     });
+    return { product, affectedSupplierIds };
   });
 }
