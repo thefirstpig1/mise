@@ -32,12 +32,16 @@ import type { ZodError } from "zod";
 import { requireTenant } from "@/lib/require-tenant";
 import {
   fuzzySearchSoftDeletedProductsLogic,
+  getOrphanMappingsForProductLogic,
   restoreProductLogic,
   ProductNotFoundError,
   type FuzzyMatchCandidate,
 } from "@/server/product-restore";
 import { ProductSkuConflictError } from "@/server/product";
-import { MappingNotFoundError } from "@/server/supplier-product-mapping";
+import {
+  MappingNotFoundError,
+  type MappingWithRefs,
+} from "@/server/supplier-product-mapping";
 import {
   fuzzySearchInputSchema,
   restoreProductInputSchema,
@@ -203,4 +207,56 @@ export async function restoreProductAction(
   } catch (e) {
     return toRestoreFormError(e, hasNewSku);
   }
+}
+
+/**
+ * One LIVE orphan mapping of a soft-deleted product, serialized for the restore
+ * dialog's price-review (L5b). The dialog needs MORE than the typeahead's top-3
+ * MappingPreview (Q6): the FULL list, plus the editable terms (minOrderQty,
+ * leadTimeDays) a row pre-fills when set to "update". Decimal currentUnitPrice/
+ * minOrderQty are serialized to string HERE — no Decimal crosses to the Client
+ * dialog (Pitfall #20); effectiveFrom is the ISO YYYY-MM-DD the UI shows verbatim
+ * (the MappingHistoryViewer/MappingListSection precedent — no Intl/Buddhist era).
+ */
+export type OrphanMappingRow = {
+  id: string;
+  supplierName: string;
+  effectiveFrom: string; // ISO date (YYYY-MM-DD), displayed as-is
+  currentUnitPrice: string | null;
+  minOrderQty: string | null;
+  leadTimeDays: number | null;
+  isPreferred: boolean;
+};
+
+/** Serialize one full orphan mapping → its dialog row (Decimal → string, Pitfall #20). */
+function toOrphanMappingRow(m: MappingWithRefs): OrphanMappingRow {
+  return {
+    id: m.id,
+    supplierName: m.supplier.nameFull,
+    effectiveFrom: m.effectiveFrom.toISOString().slice(0, 10),
+    currentUnitPrice:
+      m.currentUnitPrice === null ? null : m.currentUnitPrice.toString(),
+    minOrderQty: m.minOrderQty === null ? null : m.minOrderQty.toString(),
+    leadTimeDays: m.leadTimeDays,
+    isPreferred: m.isPreferred,
+  };
+}
+
+/**
+ * Read action (finding D — returns the data DIRECTLY, not the useActionState shape):
+ * the FULL live-orphan-mapping list of a product for the restore dialog's price-
+ * review (L5b), fetched on dialog open ONLY when the candidate has orphans
+ * (orphanMappingCount > 0 — the dialog skips this call otherwise). Wraps the L3a
+ * read (getOrphanMappingsForProductLogic), which already orders isPreferred DESC
+ * then effectiveFrom DESC — the SAME order as the L5a typeahead preview — so the
+ * dialog rows line up with the dropdown the user just clicked; we only serialize
+ * Decimal (no re-sort needed). `productId` is a candidate id (a real uuid), so no
+ * zod guard here (thin glue; a malformed id surfaces as the logic's Prisma error).
+ */
+export async function getOrphanMappingsForProductAction(
+  productId: string
+): Promise<OrphanMappingRow[]> {
+  const { tenantId } = await requireTenant();
+  const rows = await getOrphanMappingsForProductLogic(tenantId, productId);
+  return rows.map(toOrphanMappingRow);
 }
