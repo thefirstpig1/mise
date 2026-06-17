@@ -39,6 +39,7 @@ export default async function NewProductPage() {
         parentOptions={parentOptions}
         availableTemplates={densityTemplates}
         submitLabel="บันทึก"
+        showRestoreSuggestion
       />
     </div>
   );

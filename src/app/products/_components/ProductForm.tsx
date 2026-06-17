@@ -36,6 +36,9 @@ import type {
   ProductParentOption,
   LiquidDensityTemplateOption,
 } from "@/server/product";
+import type { FuzzyMatchCandidate } from "@/server/product-restore";
+import RestoreSuggestionTypeahead from "./RestoreSuggestionTypeahead";
+import RestoreDialog from "./RestoreDialog";
 
 type CategoryOption = {
   id: string;
@@ -62,6 +65,7 @@ export default function ProductForm({
   parentOptions,
   availableTemplates,
   submitLabel,
+  showRestoreSuggestion = false,
 }: {
   action: (
     prev: ProductActionState,
@@ -75,12 +79,23 @@ export default function ProductForm({
   /** 7d: all liquid density templates for the dropdown (ordered by displayOrder). */
   availableTemplates: LiquidDensityTemplateOption[];
   submitLabel: string;
+  /** Part 8.5 L5c — CREATE flow only: swap the plain name input for the
+   *  restore-on-recreate typeahead + dialog. Default false keeps edit untouched. */
+  showRestoreSuggestion?: boolean;
 }) {
   const router = useRouter();
   const [state, formAction, isPending] = useActionState(
     action,
     { ok: false } as ProductActionState
   );
+
+  // Part 8.5 L5c — restore-on-recreate (CREATE flow only; hooks declared
+  // unconditionally per Rules of Hooks, but only WIRED when showRestoreSuggestion).
+  // `name` becomes controlled so the typeahead owns the <input name="name">;
+  // `restoreCandidate` (non-null) opens the dialog. In edit these stay inert.
+  const [name, setName] = useState(initial?.name ?? "");
+  const [restoreCandidate, setRestoreCandidate] =
+    useState<FuzzyMatchCandidate | null>(null);
 
   // Cascade state: dimension drives which base units are valid.
   const [dimension, setDimension] = useState(initial?.primaryDimension ?? "");
@@ -225,7 +240,8 @@ export default function ProductForm({
   const err = (key: string) => fieldErrors?.[key];
 
   return (
-    <form action={formAction} className="space-y-6">
+    <>
+      <form action={formAction} className="space-y-6">
       {formError && (
         <div className="rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-700">
           {formError}
@@ -239,14 +255,25 @@ export default function ProductForm({
             {L.name}
             <span className="text-red-600"> *</span>
           </label>
-          <input
-            id="name"
-            name="name"
-            type="text"
-            defaultValue={initial?.name ?? ""}
-            placeholder="เช่น หมูสามชั้น, น้ำมันพืช"
-            className={inputClass}
-          />
+          {showRestoreSuggestion ? (
+            // CREATE flow: controlled typeahead owns the name input; selecting a
+            // soft-deleted candidate opens the restore dialog (does NOT alter name).
+            <RestoreSuggestionTypeahead
+              value={name}
+              onChange={setName}
+              onCandidateSelected={setRestoreCandidate}
+            />
+          ) : (
+            // Edit flow (and any non-restore host): unchanged uncontrolled input.
+            <input
+              id="name"
+              name="name"
+              type="text"
+              defaultValue={initial?.name ?? ""}
+              placeholder="เช่น หมูสามชั้น, น้ำมันพืช"
+              className={inputClass}
+            />
+          )}
           {err("name") && (
             <p className="mt-1 text-sm text-red-600">{err("name")}</p>
           )}
@@ -719,6 +746,18 @@ export default function ProductForm({
           ยกเลิก
         </a>
       </div>
-    </form>
+      </form>
+
+      {/* Part 8.5 L5c — restore dialog mounted OUTSIDE the form (it renders its
+          own <form>; nested forms are invalid HTML). Gated by showRestoreSuggestion
+          so edit never mounts it. onRestored navigates to the restored product. */}
+      {showRestoreSuggestion && (
+        <RestoreDialog
+          candidate={restoreCandidate}
+          onClose={() => setRestoreCandidate(null)}
+          onRestored={(id) => router.push(`/products/${id}`)}
+        />
+      )}
+    </>
   );
 }
