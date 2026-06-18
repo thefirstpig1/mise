@@ -283,7 +283,7 @@ Sprint closing pass — owns the L5c slice deferred from Part 8, the final test 
 
 ---
 
-## Sprint 1 Part 8.5 — Restore-on-recreate: 🚧 IN PROGRESS (grill locked 2026-06-10, started 2026-06-11)
+## Sprint 1 Part 8.5 — Restore-on-recreate: ✅ COMPLETE (L0–L6, 2026-06-11 → 2026-06-18)
 
 Warm-up slice run **standalone before Sprint 2 core** (Stock Movement + PO/GR + Cost Engine). Closes the Sprint 1 carry-forward (restore-on-recreate, deferred in ADR 0009) and lands the `Product.sku` partial-unique fix the transactional foundation would have hit anyway. Grill-with-docs (Q1–Q8) finished previous session — design locked in Drive doc `1DlVifFHjfP6D--6h_0ZgKEIffSjfN_CILtp6uoQzFk4`, captured in **ADR 0010**.
 
@@ -302,23 +302,36 @@ Warm-up slice run **standalone before Sprint 2 core** (Stock Movement + PO/GR + 
 ### Schema-consistency fix (bundled, L1)
 - Remove `Product.sku` FULL `@@unique([tenantId, sku])` from `schema.prisma` → manual **PARTIAL** unique `WHERE deleted_at IS NULL` in `prisma/manual/product_sku_unique.sql` (mirrors `supplier_code_unique.sql` / `supplier_product_mapping_unique.sql`). **Closes Pitfall #23** (Product.sku FULL-unique soft-delete trap, the #22/#23 ghost-row family) as a bonus. **NOT** Pitfall #25 (generateSku concurrent-scan race) — that still needs an advisory lock / DB sequence (deferred).
 
-### Implementation structure (L0–L6)
-- **L0** — ADR 0010 + this sprint-progress section + CONTEXT.md glossary. **← current (awaiting chat review before L1).**
-- **L1** — schema: enable `pg_trgm` (✅ verified runnable on Neon, no permission block), 2 partial GIN indexes, `product_sku_unique.sql` (drop full → partial), schema.prisma `@@unique` removal + `///`-comment. Verify 108 tests stay green.
-- **L2** — zod: `newSku` (string, max 64, unique checked in action layer) + mapping update inputs.
-- **L3a** — read logic: `fuzzySearchSoftDeletedProductsLogic`, `getOrphanMappingsForProductLogic`, sku-conflict detection.
-- **L3b** — write logic: `restoreProductLogic` (+ supersede-or-overwrite branch).
-- **L4** — actions: `restoreProductAction`, `searchSoftDeletedProductsAction` (debounced endpoint) + Thai error mapping.
-- **L5a/b/c** — UI: typeahead dropdown · restore dialog (conditional sku-conflict + price-review sections) · integration into Product create flow (`ProductForm`).
-- **L6** — E2E throwaway tests + flip this section to COMPLETE.
+### Implementation (L0–L6 — TDD vertical slices; 12 commits, batch-pushed at L6)
 
-Estimated 10–12 commits, ~Part 8 scale.
+| L | Layer | Commit | Note |
+|---|---|---|---|
+| **L0** | Docs — ADR 0010 + this section + CONTEXT.md glossary | `47b2aac` | |
+| L1 | Schema — `Product.sku` FULL→PARTIAL unique (`prisma/manual/product_sku_unique.sql`) + 2 `pg_trgm` partial GIN indexes | `4e30c80` | **closes Pitfall #23**; 108 tests stayed green |
+| L2 | zod — `newSku` + mapping-update + fuzzy-search schemas (`src/lib/validations/product-restore.ts`) | `057df2a` | |
+| L3a | Read logic — `fuzzySearchSoftDeletedProductsLogic` · `getOrphanMappingsForProductLogic` · `detectSkuConflictLogic` | `4a1a702` | |
+| L3b | Write logic — `restoreProductLogic` + Bangkok-TZ same-day overwrite vs supersede + `ProductNotFoundError` | `acf75c0` | |
+| L3b | refactor — return `affectedSupplierIds` (ALL live orphan suppliers, DISTINCT) for cross-view revalidation | `f33a657` | grill Amendment #2 |
+| L4 | Actions — `restoreProductAction` + `searchSoftDeletedProductsAction` + inline Thai error mapping + cross-view revalidation | `3933e42` | |
+| L5a | UI — `RestoreSuggestionTypeahead` (3-char/400 ms debounce, stale-guard) | `8ea0f17` | |
+| L5b | `OrphanMappingRow` serializer + `getOrphanMappingsForProductAction` (Decimal→string, Pitfall #20) | `24b75ac` | |
+| L5b | `RestoreDialog` — conditional sku-conflict + per-orphan price-review, FormData fanout (5 parallel arrays zipped by index) | `c4e0711` | |
+| L5c | Integrate typeahead + dialog into `ProductForm` create flow | `ec88785` | dialog mounted OUTSIDE `<form>` (saved nested-form HTML bug) |
+| **L6** | E2E throwaway action-stack + this COMPLETE flip | _(this commit)_ | 7-case throwaway (E1–E7), spec+config deleted (never committed) |
+
+### Verified
+- `pnpm tsc --noEmit` — **clean** (EXIT 0).
+- `pnpm vitest run` — **154 passed / 4 skipped** (108 Sprint 1 + 18 L2 + 15 L3a + 13 L3b; the throwaway adds 0 to the committed suite).
+- **7-case throwaway action-stack E2E** (E1–E7) green on the throwaway tenant — direct-return reads · Decimal→string serialization · FormData fanout zip → supersede · zod dotted-path field-errors · the 2-branch Thai sku-conflict fork (`newSku` field vs original-sku form) · `ProductNotFoundError` re-restore fork — then the throwaway spec + config were **deleted** (never committed; 7c/7d/8 L6 precedent).
+- **Standing item — vitest real-Neon parallel flakiness**: on a red run, re-run ONCE before treating it as a regression; duplicate-key `prisma:error` lines are EXPECTED (tests assert the throw). Fix deferred post-Sprint 2.
 
 ### Risk surfaces (from grill)
-1. `pg_trgm` permission on Neon — **verified OK before L1** (fallback `ILIKE` not needed). 2. SKU FULL→partial swap — 108 tests must stay green (verify in L1). 3. Restore-dialog 0–2 conditional sections — component must handle all combos. 4. Same-day overwrite — Bangkok UTC+7 date handling (Decision #60).
+1. `pg_trgm` permission on Neon — **verified OK before L1** (fallback `ILIKE` not needed). 2. SKU FULL→partial swap — 108 tests stayed green (verified L1). 3. Restore-dialog 0–2 conditional sections — component must handle all combos. 4. Same-day overwrite — Bangkok UTC+7 date handling (Decision #60).
 
 ### Standing items (carried in)
-Pitfall #19 (git hook inert — push manual), #26 (Neon free-tier quota — `pg_trgm` heads-up), #28 (depth/cycle race — accepted MVP), #29 (Neon IPv6 hosts pin). #23 (Product.sku FULL-unique trap) → **being fixed** via L1 partial unique; #25 (generateSku race) NOT addressed — advisory-lock fix still deferred. `b40642f` (stale double-submit) — benign; `e4b4306` (cross-view revalidation) — CLOSED in Part 9.
+Pitfall #19 (git hook inert — push manual), #26 (Neon free-tier quota — `pg_trgm` heads-up), #28 (depth/cycle race — accepted MVP), #29 (Neon IPv6 hosts pin). #23 (Product.sku FULL-unique trap) → **CLOSED** by L1 partial unique; #25 (generateSku race) NOT addressed — advisory-lock fix still deferred. `b40642f` (stale double-submit) — benign; `e4b4306` (cross-view revalidation) — CLOSED in Part 9.
+
+### Next: Sprint 2 — Stock Movement foundation (append-only ledger; then PO/GR allocation + mirror triggers, master-spec-v1.4.md §32). Part 8.5 warm-up closes the Sprint 1 restore carry-forward; HEAD on origin/main = the L6 commit.
 
 ---
 
