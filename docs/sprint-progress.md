@@ -1,8 +1,15 @@
 # Mise Sprint Progress
 
-**Last updated:** 2026-06-07
+**Last updated:** 2026-07-05
 
-## Current Sprint: Sprint 1 — Master Data
+## Current Sprint: Sprint 2 — Transactional Systems 🚧 IN PROGRESS
+
+**Status:** 🚧 Part 10 (Stock Movement) — L0 (ledger foundation docs). See the Part 10 section below.
+**Scope:** Stock Movement (append-only ledger) → PO → GR → Cost Engine per master-spec-v1.4.md §32. Part 10 is the **first proper Sprint 2 slice** (Part 8.5 was a Sprint 1 restore-on-recreate warm-up, run standalone before the Sprint 2 core). Sprint 1 completion history is retained under its own header below.
+
+---
+
+## Sprint 1 — Master Data: ✅ COMPLETE (2026-06-07)
 
 **Status:** ✅ COMPLETE (2026-06-07)
 **Scope:** Suppliers, Products, Categories, Multi-unit system, Liquid density templates
@@ -332,6 +339,59 @@ Warm-up slice run **standalone before Sprint 2 core** (Stock Movement + PO/GR + 
 Pitfall #19 (git hook inert — push manual), #26 (Neon free-tier quota — `pg_trgm` heads-up), #28 (depth/cycle race — accepted MVP), #29 (Neon IPv6 hosts pin). #23 (Product.sku FULL-unique trap) → **CLOSED** by L1 partial unique; #25 (generateSku race) NOT addressed — advisory-lock fix still deferred. `b40642f` (stale double-submit) — benign; `e4b4306` (cross-view revalidation) — CLOSED in Part 9.
 
 ### Next: Sprint 2 — Stock Movement foundation (append-only ledger; then PO/GR allocation + mirror triggers, master-spec-v1.4.md §32). Part 8.5 warm-up closes the Sprint 1 restore carry-forward; HEAD on origin/main = the L6 commit.
+
+---
+
+## Sprint 2 Part 10 — Stock Movement: 🚧 IN PROGRESS (grill locked 2026-06-20, L0 started 2026-07-05)
+
+First transactional Part of Sprint 2 — the **append-only stock ledger** every later Part (PO/GR/Cost Engine) sits on. Grill-with-docs (Q1–Q10) locked 2026-06-20 — full record in Drive doc **"Sprint 2 Part 10 GRILL DECISIONS"** (fileId `10aiHL24jMSmqHQ8gfl8bPOh5k0liPRtrmUCVJdX-eIs`), codified in **ADR 0011**. **Scope = ledger foundation + manual adjustment source**: `stock_movement` + `stock_adjustment` tables, base-unit-normalised signed ledger, balance/history reads, and the adjust / stock-levels / history UI. Part 13 (GR) + Part 14 (Cost Engine) are pure **consumers** of these primitives. Design philosophy: **financial integrity > convenience** — immutable ledger, compensating entries for corrections.
+
+### Design locked (Q1–Q10 — compact; full record in ADR 0011 + Drive grill doc)
+| Q | Decision (one-liner) |
+|---|----------|
+| Q1 | **Qty in base unit** (`product.primaryDimension`), normalised at the action layer via `ProductUnit.toBaseRatio` before INSERT; balance = `SUM(qty)` with no JOIN/ratio math; past rows immune to ratio edits. As-entered unit preserved on the source. |
+| Q2 | **Signed qty** `Decimal(15,3)` (+ in / − out) + DB `CHECK` (`prisma/manual/stock_movement_sign_check.sql`) binding sign↔type. Balance = direct `SUM`. Standing item: new type ⇒ update CHECK + re-apply. |
+| Q3 | **Polymorphic source** — `source_type` enum + `source_id` uuid, **no FK** (ledger outlives sources); app asserts source exists before INSERT. New source type = append-only enum `ALTER`. |
+| Q4 | **`UNIQUE(source_type, source_id)` + 1:1** (one source row → one movement). Source+movement in the same TX; `P2002` retry = idempotent success. Movement layer **insert-only**; corrections = compensating source rows. |
+| Q5 | **Two timestamps** — `occurred_at` (business time, backdatable, zod `[today−90d, today]`) + `created_at` (audit, immutable). Order by `(occurred_at, created_at)` for cost calc. Bangkok TZ via `computeBangkokToday()` (Part 8.5). |
+| Q6 | **`branch_id` NOT NULL**, FK RESTRICT; Sprint 1 tenant/branch/deletedAt assertions reused. **L0 pre-task PASSED** — onboarding guarantees ≥1 branch (see below). No prep task. |
+| Q7 | **Strict append-only** — no `deletedAt`, no update/delete logic. Audit = `tenant_id` + `created_by` FK + `notes`. Corrections compensate (Q4). AP discrepancy captured on GR line (Part 13), never by mutating a movement. |
+| Q8 | **Realtime `SUM` + composite index** (`stock_movement_chronological_idx`, leftmost-prefix covers the balance SUM — `balance_idx` collapsed at L0 review); `asOf` time-travel; `Decimal`→string at view (Pitfall #20); no trigger (revalidatePath). Snapshot+delta migration deferred to Sprint 5+. |
+| Q9 | **Negative balance allowed** — action never blocks, returns `{ movement, postBalance }`; L5 preview + red warning banner + explicit confirm; dashboard red "ต้องตรวจสอบ" badge. Per-tenant toggle Sprint 5+. |
+| Q10 | **MVP scope** — 3 movement types (`PO_RECEIVE` / `ADJUST_GAIN` / `ADJUST_LOSS`) + 3 sources (`GR_LINE` / `ADJUSTMENT` / `SYSTEM_INITIAL` reserved) + 1 ledger table; **waste = `ADJUST_LOSS` + `reason` enum** (recount/spoilage/damage/other). Dedicated WASTE/TRANSFER/RECIPE_CONSUME → Sprint 3+/5+. |
+
+### L0 pre-task (Q6) — Sprint 1 default-branch verify: **PASSED (guaranteed at onboarding)**
+Both real tenant-creation paths create the first branch inside the **same atomic `$transaction`** as the tenant row, so no persisted tenant can exist without ≥1 branch:
+- `createTenant` (`src/server/tenant-init.ts`) — called from `src/app/signup/page.tsx` — step 3 `tx.branch.create` (default name "สาขาหลัก", code "MAIN").
+- `seed.ts` demo path — `prisma.branch.create` after the tenant + membership.
+
+Greenfield production has no legacy rows. Test files (`product-logic`, `category-logic`, …) create bare tenants without branches, but those roll back inside their test transactions and never persist; the Part 10 E2E harness will create a branch explicitly (as `supplier-product-mapping-logic.test.ts` already does). **→ No prep task needed before L1.**
+
+### Implementation plan (L0–L6 — TDD vertical slices; ~12–15 commits, batch-pushed at L6)
+| L | Layer | Status | Note |
+|---|---|---|---|
+| **L0** | Docs — ADR 0011 + this section + CONTEXT.md glossary + Q6 verify | 🚧 **current** | awaiting chat review before L1 |
+| L1 | Schema migration — `stock_movement` + `stock_adjustment` + `MovementType`/`SourceType`/`AdjustmentReason` enums + indexes + manual `stock_movement_sign_check.sql` + enable_rls | ⬜ | 154 tests must stay green; index set finalized (4: source_unique / chronological / branch_audit / tenant — `balance_idx` dropped, L0-review); decide `input_qty` precision (15,6 vs 15,3) |
+| L2 | zod — `createStockAdjustmentInputSchema` (product/branch/qty/unit/type/reason/notes/occurred_at?) + balance/history query schemas + backdate range (Q5) | ⬜ | |
+| L3a | Read logic — `getStockBalanceLogic` (+ByBranch/ByProduct) + `getStockMovementHistoryLogic` | ⬜ | |
+| L3b | Write logic — `createStockMovementLogic` (internal primitive: atomic TX, P2002 idempotent, base-unit convert, Bangkok occurred_at) + `createStockAdjustmentLogic` (adjustment + movement one TX; returns `{ movement, adjustment, postBalance }`) | ⬜ | |
+| L4 | Actions — `createStockAdjustmentAction` + `getStockBalanceAction` + `getStockMovementHistoryAction`, Thai error mapping, `revalidatePath` (/stock, /products/[id]/stock, /reports) | ⬜ | |
+| L5a | Adjust form UI — product/branch picker, qty+unit, type radio, reason dropdown, notes, occurred_at picker (default today, 90-day backdate), balance preview + Q9 negative warning | ⬜ | |
+| L5b | Stock-levels dashboard — product \| branch \| balance \| last-movement; filters + low-stock; negative red badge | ⬜ | |
+| L5c | Movement history viewer — chronological per (product, branch); date/type/source filters; type badges, colored qty, source ref, notes, created_by | ⬜ | |
+| L6 | E2E throwaway + sprint-progress flip + batch push | ⬜ | 6–8 cases (mirror Part 8.5 L6): adjust action + balance + negative warning + backdate validation |
+
+### Risk surfaces (from grill)
+1. **Action-layer unit conversion** (Q1) — a base-unit conversion bug is silent stock corruption → dedicated unit-conversion helper + zod bounds + tests. 2. **Sign CHECK maintenance** (Q2) — every future movement type must extend + re-apply the manual SQL. 3. **No-FK source integrity** (Q3) — app-layer "source exists" assertion before INSERT is the only guard. 4. **Backdate tz correctness** (Q5) — Bangkok UTC+7 via `computeBangkokToday` (Decision #60). 5. **Index-collapse — RESOLVED at L0 review**: `balance_idx` dropped (leftmost-prefix of `chronological_idx`, which covers the balance SUM via index-only scan); ledger ships 4 indexes (source_unique / chronological / branch_audit / tenant). See ADR 0011 Consequences.
+
+### Standing items (carried in)
+Pitfall **#19** (git hook inert — push manual, batch at L6), **#20** (Decimal across RSC — `qty`/`postBalance` string at view layer), **#26** (Neon free-tier quota — heads-up), **#28** (depth/cycle race — accepted MVP, N/A here), **#29** (Neon IPv6 hosts pin — ACTIVE). **vitest real-Neon parallel flakiness** — re-run once on red before treating as a regression (fix deferred post-Sprint 2). #23 (Product.sku FULL-unique) CLOSED in Part 8.5; the ledger's `UNIQUE(source_type, source_id)` is a **plain full unique on purpose** — no soft-delete on the ledger, so the #22/#23 trap does not apply (ADR 0011).
+
+### Carry-forward to later Parts
+- **Part 13 (GR)** — builds `goods_received_line` (`ordered/received/invoiced/discrepancy_qty`, `discrepancy_reason`, `resolution_status`) and *calls* `createStockMovementLogic` (`received_qty` → `qty`, source `GR_LINE`); source-level idempotency (submit key) + "edit GR → compensating entries" UX are Part 13's.
+- **Part 14 (Cost Engine)** — orders by `(occurred_at, created_at)`; weighted-avg vs FIFO ADR; AP discrepancy cost policy (A `invoice/received` recommended / B write-off / C provisional); retroactive recompute on backdated entries.
+
+### Next: chat review of L0 → commit L0 (ADR 0011 + this section + CONTEXT.md) → L1 schema migration planning. **Do NOT push** (batch push at L6, Part 8.5 pattern).
 
 ---
 
