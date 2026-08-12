@@ -95,6 +95,8 @@ model Tenant {
   categories              Category[]
   products                Product[]
   supplierProductMappings SupplierProductMapping[]
+  stockMovements          StockMovement[]
+  stockAdjustments        StockAdjustment[]
 
   @@map("tenant")
 }
@@ -114,6 +116,8 @@ model Branch {
   tenant                  Tenant                   @relation(fields: [tenantId], references: [id])
   userAccess              UserBranchAccess[]
   supplierProductMappings SupplierProductMapping[]
+  stockMovements          StockMovement[]
+  stockAdjustments        StockAdjustment[]
 
   @@index([tenantId])
   @@map("branch")
@@ -132,9 +136,11 @@ model User {
   updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
 
-  accounts    Account[]
-  sessions    Session[]
-  memberships TenantMembership[]
+  accounts         Account[]
+  sessions         Session[]
+  memberships      TenantMembership[]
+  stockMovements   StockMovement[]
+  stockAdjustments StockAdjustment[]
 
   @@map("app_user")
 }
@@ -330,6 +336,8 @@ model Product {
   childProducts           Product[]                @relation("ProductPrepped")
   productUnits            ProductUnit[]
   supplierProductMappings SupplierProductMapping[]
+  stockMovements          StockMovement[]
+  stockAdjustments        StockAdjustment[]
 
   /// NOTE: per-tenant sku uniqueness is a PARTIAL unique index (WHERE deleted_at
   /// IS NULL) in prisma/manual/product_sku_unique.sql — NOT a Prisma @@unique,
@@ -351,6 +359,7 @@ model ProductUnit {
 
   product                 Product                  @relation(fields: [productId], references: [id])
   supplierProductMappings SupplierProductMapping[]
+  stockAdjustments        StockAdjustment[]
 
   @@unique([productId, unitName])
   @@index([productId])
@@ -392,4 +401,109 @@ model SupplierProductMapping {
   /// rows never block re-create) + the branch_id-NULL duplicate-default hole.
   @@index([tenantId])
   @@map("supplier_product_mapping")
+}
+
+// ============================================================
+// TRANSACTIONAL (Sprint 2 — tenant-scoped, RLS required)
+// ============================================================
+// NOTE: 3 enums ข้างล่างเป็น Prisma enum ตัวแรกของโปรเจกต์ — Sprint 1 ใช้
+// String + comment + z.enum ที่ validation layer (Product.type, primaryDimension).
+// Part 10 เลือก Prisma enum เพราะ ledger ต้องการ DB-level guarantee
+// (sign CHECK อ้าง enum value ตรง ๆ) ไม่ใช่แค่ app-level pattern — ADR 0011 Q2/Q3/Q10.
+
+enum MovementType {
+  PO_RECEIVE // +  IN  — from GR (Part 13)
+  ADJUST_GAIN // +  IN  — manual count correction up
+  ADJUST_LOSS // -  OUT — manual count down / spoilage / waste
+
+  @@map("movement_type")
+}
+
+enum SourceType {
+  GR_LINE // -> goods_received_line (Part 13)
+  ADJUSTMENT // -> stock_adjustment (Part 10)
+  SYSTEM_INITIAL // reserved: onboarding initial stock (no writer in Part 10)
+
+  @@map("source_type")
+}
+
+enum AdjustmentReason {
+  RECOUNT
+  SPOILAGE
+  DAMAGE
+  OTHER
+
+  @@map("adjustment_reason")
+}
+
+/// Append-only stock ledger. INSERT-only: ไม่มี updatedAt / deletedAt และไม่มี
+/// update*Logic / delete*Logic (ADR 0011 Q7). การแก้ = compensating row ใหม่ (Q4).
+/// Balance = SUM(qty) แบบ realtime (Q8) — qty เป็น base unit ของ product เสมอ (Q1).
+model StockMovement {
+  id         String       @id @default(uuid()) @db.Uuid
+  tenantId   String       @map("tenant_id") @db.Uuid
+  productId  String       @map("product_id") @db.Uuid
+  /// NOT NULL (Q6) — stock อยู่ที่ใดที่หนึ่งเสมอ, SUM/GROUP BY ไม่ต้องจัดการ NULL
+  branchId   String       @map("branch_id") @db.Uuid
+  /// signed, base unit (Q1/Q2): + = เข้า, - = ออก
+  qty        Decimal      @db.Decimal(15, 3)
+  type       MovementType
+  sourceType SourceType   @map("source_type")
+  /// Polymorphic source — ไม่มี FK โดยเจตนา (Q3): ledger อยู่ยืนกว่า source ของมัน
+  sourceId   String       @map("source_id") @db.Uuid
+  /// business time — backdate ได้ (Q5)
+  occurredAt DateTime     @default(now()) @map("occurred_at")
+  /// audit time — immutable (Q5)
+  createdAt  DateTime     @default(now()) @map("created_at")
+  createdBy  String       @map("created_by")
+  notes      String?
+
+  tenant        Tenant  @relation(fields: [tenantId], references: [id])
+  product       Product @relation(fields: [productId], references: [id])
+  branch        Branch  @relation(fields: [branchId], references: [id])
+  createdByUser User    @relation(fields: [createdBy], references: [id])
+
+  /// Sign CHECK (stock_movement_sign_check) เขียน INLINE ที่ท้าย migration.sql ของ Part 10
+  /// เพราะ Prisma แสดง CHECK ไม่ได้ — precedent: product_density_xor ใน
+  /// 20260529151309_part_7d_density_data_capture. ไม่ใช่ manual file: prisma/manual/
+  /// สงวนไว้สำหรับสิ่งที่ migration.sql เขียนมือไม่ได้ (partial index / NULLS NOT
+  /// DISTINCT / CREATE EXTENSION) — ดู ADR 0011 Q2 correction.
+  /// FULL @@unique ปลอดภัยที่นี่ เพราะ ledger ไม่มี soft-delete → Pitfall #22/#23 ไม่ applied.
+  @@unique([sourceType, sourceId], map: "stock_movement_source_unique")
+  @@index([branchId, occurredAt], map: "stock_movement_branch_audit_idx")
+  @@index([productId, branchId, occurredAt, createdAt], map: "stock_movement_chronological_idx")
+  @@index([tenantId])
+  @@map("stock_movement")
+}
+
+/// Manual adjustment source (Q10). 1 adjustment -> 1 StockMovement ใน transaction เดียวกัน
+/// (Q4). เก็บ "หน่วย + จำนวนตามที่ผู้ใช้กรอก" ไว้เพื่อ audit (Q1) ส่วน signed base-unit qty
+/// อยู่บน movement. reason ป้อน waste analytics ของ Sprint 2.
+model StockAdjustment {
+  id          String           @id @default(uuid()) @db.Uuid
+  tenantId    String           @map("tenant_id") @db.Uuid
+  productId   String           @map("product_id") @db.Uuid
+  branchId    String           @map("branch_id") @db.Uuid
+  /// ADJUST_GAIN | ADJUST_LOSS เท่านั้น — บังคับด้วย stock_adjustment_type_check
+  /// (inline ท้าย migration.sql เดียวกัน, ADR 0011 Q10)
+  type        MovementType
+  reason      AdjustmentReason
+  /// as-entered magnitude (Q1) — precision (15,3) ให้ตรงกับ movement.qty
+  /// เพื่อไม่ให้ input_qty × toBaseRatio -> qty มี precision กระโดด
+  inputQty    Decimal          @map("input_qty") @db.Decimal(15, 3)
+  inputUnitId String           @map("input_unit_id") @db.Uuid
+  /// business time — mirror ค่าเดียวกับ movement.occurredAt (Q5)
+  occurredAt  DateTime         @map("occurred_at")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  createdBy   String           @map("created_by")
+
+  tenant        Tenant      @relation(fields: [tenantId], references: [id])
+  product       Product     @relation(fields: [productId], references: [id])
+  branch        Branch      @relation(fields: [branchId], references: [id])
+  inputUnit     ProductUnit @relation(fields: [inputUnitId], references: [id])
+  createdByUser User        @relation(fields: [createdBy], references: [id])
+
+  @@index([tenantId])
+  @@index([productId, branchId, occurredAt], map: "stock_adjustment_product_branch_idx")
+  @@map("stock_adjustment")
 }

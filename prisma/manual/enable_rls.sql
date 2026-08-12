@@ -108,3 +108,31 @@ USING (
 -- ============================================================
 -- End Sprint 1 RLS
 -- ============================================================
+
+-- ============================================================
+-- Sprint 2 Part 10: Stock ledger RLS Policies (ADR 0011)
+-- ============================================================
+-- APPEND-ONLY FILE: ไฟล์นี้ไม่ idempotent (CREATE POLICY ไม่มี IF NOT EXISTS)
+-- → apply "เฉพาะ section นี้" เท่านั้น อย่ารันทั้งไฟล์ซ้ำ (Sprint 1 pattern):
+--   คัดลอก section นี้ไปไฟล์ชั่วคราว แล้ว
+--   pnpm exec prisma db execute --file <tmp>.sql --schema prisma/schema.prisma
+--
+-- Policy ยัง inert จนถึง Sprint 7 (ADR 0004 — explicit tenantId filter ใน
+-- withTenantContext คือ guard ที่ทำงานจริงตอนนี้); นี่คือ RLS-prep.
+--
+-- ทั้ง 2 ตารางมี tenant_id ตรง ๆ → ไม่ต้องใช้ EXISTS แบบ product_unit.
+-- ============================================================
+
+-- stock_movement (direct tenant_id)
+ALTER TABLE stock_movement ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON stock_movement
+USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+-- stock_adjustment (direct tenant_id)
+ALTER TABLE stock_adjustment ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON stock_adjustment
+USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+-- ============================================================
+-- End Sprint 2 Part 10 RLS
+-- ============================================================

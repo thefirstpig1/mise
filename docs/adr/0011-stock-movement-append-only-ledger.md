@@ -24,14 +24,18 @@ Ten sub-decisions were locked in the grill. Each is `Chosen option — rationale
 `stock_movement.qty` is stored in the product's `primaryDimension` base unit (g / ml / count). Conversion from the user's / source's unit happens at the **action layer** using the Sprint 1 `ProductUnit.toBaseRatio` *before* the `INSERT`; the original as-entered unit + qty are preserved on the source row (`stock_adjustment.input_unit_id` / `input_qty`; a GR line will carry its own `orderUnit`). Balance becomes `SUM(qty)` with **no JOIN and no ratio math**, cost calc stays consistent in one unit, and past movements are **immune to later ratio edits** (historical accuracy). *(Rejected: store native unit + ratio per row → every balance/cost read pays a JOIN + multiplication and a ratio edit silently rewrites history.)* **Risk:** an action-layer conversion bug is silent corruption — mitigated by zod validation + a dedicated unit-conversion helper with tests.
 
 ### Q2 — Sign convention: **signed qty + DB `CHECK` constraint**
-`qty` is a signed `Decimal(15,3)`; `+` = stock in, `−` = stock out. A Postgres `CHECK` (manual SQL, `prisma/manual/stock_movement_sign_check.sql`) binds the sign to the type so an app bug cannot write an inconsistent row:
+`qty` is a signed `Decimal(15,3)`; `+` = stock in, `−` = stock out. A Postgres `CHECK` (**inline at the tail of the Part 10 migration**, `20260812152856_part_10_stock_movement_ledger/migration.sql`) binds the sign to the type so an app bug cannot write an inconsistent row:
 ```sql
 CHECK (
   (type IN ('PO_RECEIVE', 'ADJUST_GAIN') AND qty > 0)
   OR (type = 'ADJUST_LOSS' AND qty < 0)
 )
 ```
-Balance stays a direct `SUM(qty)`; the invariant is guaranteed at the DB, mirroring the Sprint 1 manual-SQL `CHECK` precedent (mapping `effective_to > effective_from`). *(Rejected: unsigned qty + a separate direction column → balance needs a `CASE`, and nothing stops a direction/qty mismatch.)* **Standing item:** every new movement type must update this `CHECK` and re-apply the manual SQL.
+Balance stays a direct `SUM(qty)`; the invariant is guaranteed at the DB, mirroring the Sprint 1 inline-migration `CHECK` precedent — `product_density_xor` in `20260529151309_part_7d_density_data_capture`. *(Rejected: unsigned qty + a separate direction column → balance needs a `CASE`, and nothing stops a direction/qty mismatch.)*
+
+**Correction (L1, 2026-08-12) — where the `CHECK` lives.** The grill wrote this sub-decision as manual SQL (`prisma/manual/stock_movement_sign_check.sql`) on the strength of a Sprint 1 precedent, "the mapping `effective_to > effective_from` CHECK". **That precedent does not exist** — no such constraint is present in any migration or in `prisma/manual/`; the citation was wrong. The real Sprint 1 `CHECK` precedent is `product_density_xor`, written *inline* in the Part 7d migration. `prisma/manual/` is reserved for what a hand-edited `migration.sql` **cannot** express — partial indexes (`WHERE`), `NULLS NOT DISTINCT`, `CREATE EXTENSION` — and a `CHECK` is not in that set. Inline also means `prisma migrate reset` and a fresh clone pick the constraint up automatically, instead of depending on someone remembering a second manual command. Both Part 10 `CHECK`s (this one and Q10's `stock_adjustment_type_check`) therefore ship inline in the same migration, and **Part 10 adds no new file to `prisma/manual/`** — only the `enable_rls.sql` append.
+
+**Standing item:** every new movement type must `DROP` + re-declare this `CHECK` via `ALTER` inside its own migration, or rows of the new type are rejected.
 
 ### Q3 — Source reference: **polymorphic (`source_type` enum + `source_id`, no FK)**
 Both columns `NOT NULL` — every movement has an origin. A composite index on `(source_type, source_id)` supports lookups; there is **no foreign key**, because an append-only ledger *outlives* its sources and a FK would force either a dangerous `CASCADE` or friction-heavy `RESTRICT`. The enum constraint keeps values valid; the write logic asserts the source row exists before `INSERT`. This scales to Sprint 7+ source types without column bloat and is the mainstream ledger pattern. *(Rejected: one nullable FK per source type → column explosion as source types grow; a single hard FK → coupling the ledger to source lifecycle.)* **Standing item:** a new source type is an append-only Postgres enum `ALTER` (values cannot be removed).
@@ -154,7 +158,7 @@ model StockAdjustment {
   branchId    String           @map("branch_id") @db.Uuid
   type        MovementType                                    // ADJUST_GAIN | ADJUST_LOSS (CHECK-subset)
   reason      AdjustmentReason                                // Q10
-  inputQty    Decimal          @map("input_qty") @db.Decimal(15, 6)  // as-entered magnitude (Q1); precision (15,6) vs (15,3) — L1 decides
+  inputQty    Decimal          @map("input_qty") @db.Decimal(15, 3)  // as-entered magnitude (Q1); precision settled at L1 — (15,3), matching movement.qty
   inputUnitId String           @map("input_unit_id") @db.Uuid        // as-entered unit (Q1)
   occurredAt  DateTime         @map("occurred_at") @db.Timestamp(3)  // business time (mirrors movement)
   createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamp(3)
@@ -172,7 +176,7 @@ model StockAdjustment {
 }
 ```
 
-Manual SQL (`prisma/manual/stock_movement_sign_check.sql`, applied via `DIRECT_URL` after `prisma migrate`, mirroring the Sprint 1 manual-index precedent):
+Hand-added at the tail of the Part 10 `migration.sql`, below the Prisma-generated block (see the Q2 correction — inline, not manual SQL):
 ```sql
 -- Q2: sign bound to type on the ledger (app bug cannot bypass).
 ALTER TABLE stock_movement ADD CONSTRAINT stock_movement_sign_check CHECK (
@@ -187,11 +191,12 @@ ALTER TABLE stock_adjustment ADD CONSTRAINT stock_adjustment_type_check CHECK (
 
 ## Consequences
 
-- **One L1 migration** lands both tables, the three enums, all four movement indexes + the two adjustment indexes, and the two `CHECK` constraints (manual SQL). Both tables join `prisma/manual/enable_rls.sql`. Greenfield (no production rows) so every edit is non-destructive.
+- **One L1 migration** (`20260812152856_part_10_stock_movement_ledger`) lands both tables, the three enums, all four movement indexes + the two adjustment indexes, and the two `CHECK` constraints (hand-added inline at the tail of that same migration — Q2 correction). It was generated `--create-only`, hand-edited, then applied with `migrate deploy`, so the tables and the constraints land in one atomic apply with no drift window. Both tables join `prisma/manual/enable_rls.sql` (appended section, applied on its own — the file is not idempotent). Greenfield (no production rows) so every edit is non-destructive.
+- **`input_qty` is `Decimal(15,3)`, matching `stock_movement.qty`** (settled at L1; the grill left `(15,6)` vs `(15,3)` open). The conversion `input_qty × ProductUnit.toBaseRatio → qty` therefore has no precision step-down at the point where a rounding bug would be silent stock corruption. `toBaseRatio` keeps its own `(15,6)`.
 - **`UNIQUE(source_type, source_id)` is a plain full unique, and that is correct here** — precisely *because* the ledger has no soft-delete (Q7), the Pitfall #22/#23 FULL-unique-soft-delete trap that forced `Product.sku` / `Supplier.code` / `SupplierProductMapping` onto manual partial indexes **does not apply**. This is the mirror-image of the ADR 0010 fix, and worth stating so a future reader doesn't "correct" it into a partial index.
 - **The ledger is insert-only by construction.** No `update*Logic` / `delete*Logic` / `deletedAt` exist to call, so a mistaken write can only be corrected by a compensating source row (Q4/Q7). This is the single most load-bearing invariant — every Sprint 2+ consumer (GR edit, cost recompute, transfers) must express corrections as new entries.
 - **Base-unit normalisation (Q1) concentrates all conversion risk at the action layer.** The `input_qty × ProductUnit.toBaseRatio → signed base qty` step is the one place a bug becomes silent stock corruption; it gets a dedicated, unit-tested conversion helper + zod bounds, and the as-entered unit is preserved on `stock_adjustment` for audit/back-out.
-- **Sign integrity is DB-enforced (Q2), at a maintenance cost:** the `stock_movement_sign_check` must be extended and re-applied for *every* future movement type (WASTE, TRANSFER_*, RECIPE_CONSUME). Recorded as a standing item so the manual-SQL step is never skipped in a Sprint 3+ migration.
+- **Sign integrity is DB-enforced (Q2), at a maintenance cost:** the `stock_movement_sign_check` must be `DROP`ped and re-declared via `ALTER` inside the Sprint 3+ migration that adds *every* future movement type (WASTE, TRANSFER_*, RECIPE_CONSUME) — otherwise the new type's rows are rejected outright. Recorded as a standing item; because the constraint is inline, that `ALTER` belongs in the same migration as the enum change, not in a separate step someone can forget.
 - **Balance is a realtime SUM (Q8)** returning `Decimal` → string at the view boundary (Pitfall #20, same as mapping `currentUnitPrice`). Index review is a Sprint 5+ checkpoint; the snapshot+delta migration path is pre-documented.
 - **Index collapsed (decided at L0 review):** the grill listed both `stock_movement_balance_idx (product_id, branch_id, occurred_at)` and `stock_movement_chronological_idx (product_id, branch_id, occurred_at, created_at)`, but the former is a strict leftmost-prefix of the latter — so `chronological_idx` covers the balance-`SUM` queries via an index-only scan (leftmost-prefix match on `product_id, branch_id, occurred_at`) with no separate index. `balance_idx` is therefore **dropped**; the ledger ships four indexes — `stock_movement_source_unique`, `stock_movement_chronological_idx`, `stock_movement_branch_audit_idx` (`branch_id, occurred_at` — the branch-wide audit view, not a prefix of the others), and `@@index(tenant_id)`. Fewer redundant indexes = cheaper INSERTs on the hot append path.
 - **Backdating is tz-correct (Q5)** via `computeBangkokToday()` reuse (Part 8.5) and a zod `[today−90d, today]` window; the Part 14 Cost Engine will need to decide how a backdated entry triggers a **retroactive cost recompute** (carry-forward, not decided here).
