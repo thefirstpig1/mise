@@ -5,7 +5,7 @@
 ## Current Sprint: Sprint 2 — Transactional Systems 🚧 IN PROGRESS
 
 **Status:** 🚧 Part 10 (Stock Movement) — L0 (ledger foundation docs). See the Part 10 section below.
-**Scope:** Stock Movement (append-only ledger) → PO → GR → Cost Engine per master-spec-v1.4.md §32. Part 10 is the **first proper Sprint 2 slice** (Part 8.5 was a Sprint 1 restore-on-recreate warm-up, run standalone before the Sprint 2 core). Sprint 1 completion history is retained under its own header below.
+**Scope:** Stock Movement (append-only ledger) → PO → GR → Cost Engine per master-spec.md (Part IV — Sprint Plan). Part 10 is the **first proper Sprint 2 slice** (Part 8.5 was a Sprint 1 restore-on-recreate warm-up, run standalone before the Sprint 2 core). Sprint 1 completion history is retained under its own header below.
 
 ---
 
@@ -338,7 +338,7 @@ Warm-up slice run **standalone before Sprint 2 core** (Stock Movement + PO/GR + 
 ### Standing items (carried in)
 Pitfall #19 (git hook inert — push manual), #26 (Neon free-tier quota — `pg_trgm` heads-up), #28 (depth/cycle race — accepted MVP), #29 (Neon IPv6 hosts pin). #23 (Product.sku FULL-unique trap) → **CLOSED** by L1 partial unique; #25 (generateSku race) NOT addressed — advisory-lock fix still deferred. `b40642f` (stale double-submit) — benign; `e4b4306` (cross-view revalidation) — CLOSED in Part 9.
 
-### Next: Sprint 2 — Stock Movement foundation (append-only ledger; then PO/GR allocation + mirror triggers, master-spec-v1.4.md §32). Part 8.5 warm-up closes the Sprint 1 restore carry-forward; HEAD on origin/main = the L6 commit.
+### Next: Sprint 2 — Stock Movement foundation (append-only ledger; then PO/GR allocation + mirror triggers, master-spec.md Part IV — Sprint Plan). Part 8.5 warm-up closes the Sprint 1 restore carry-forward; HEAD on origin/main = the L6 commit.
 
 ---
 

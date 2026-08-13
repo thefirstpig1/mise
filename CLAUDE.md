@@ -6,8 +6,8 @@ B2B SaaS for Thailand restaurant SMEs. "MarketMan-for-Thailand-SME" — 90% chea
 ## Project Status
 - Sprint 0: ✅ COMPLETE (May 17, 2026) — Auth, Tenant, Branch, Department, RLS
 - Sprint 1: ✅ COMPLETE (June 7, 2026) — Master Data (Suppliers, Products, Categories, Multi-unit, Supplier-Product Mapping)
-- Sprint 2: 🚧 NEXT — Procurement (PO/GR allocation + mirror triggers) per docs/master-spec-v1.4.md section 32
-- Sprint 3-7: Planned per docs/master-spec-v1.4.md section 32
+- Sprint 2: 🚧 NEXT — Procurement (PO/GR allocation + mirror triggers) per docs/master-spec.md (Part IV — Sprint Plan)
+- Sprint 3-7: Planned per docs/master-spec.md (Part IV — Sprint Plan)
 
 ## Tech Stack
 - Next.js 15.0.3 + React 19 + TypeScript
@@ -50,8 +50,28 @@ B2B SaaS for Thailand restaurant SMEs. "MarketMan-for-Thailand-SME" — 90% chea
 - ❌ Don't add new tenant-scoped tables without RLS policy
 - ❌ Don't use `prisma.appUser` — it's `prisma.user`
 
+## Source-of-truth precedence
+**When the master spec conflicts with an ADR, the ADR wins.** ADRs come from grill decisions — more solid and more recent; treat the spec as the stale side and reconcile the spec toward the ADR. Known example: `stock_movement` in the master spec is the old Sprint 1 shape — **ADR 0011 (append-only ledger) is authoritative** for Sprint 2+.
+
+## Working autonomy & when to stop
+Once a plan is approved, run to the end of the slice WITHOUT asking step by step:
+- Write/edit code per the plan; refactor within a single layer.
+- Run `pnpm tsc` / `pnpm vitest`; fix failing tests; fix bugs you introduced.
+- Commit at layer boundaries (L0→L6; never push until the L6 batch push).
+
+🛑 STOP and ask Kong first — even when context is clear — when you hit:
+- A schema change / new migration.
+- A new dependency.
+- More than one viable approach that affects multiple files, with no ADR covering it.
+- A need to deviate from the approved plan.
+- A spec-vs-ADR conflict not yet decided (beyond the ADR-wins rule above).
+- Ambiguous product intent / unclear requirement.
+
+Stop format: `🛑 Needs review: <topic> — options A / B, I recommend ... because ...`
+For complex / multi-file work, enter Plan mode first: propose the plan, wait for approval, then implement.
+
 ## Reference Documents (read when needed)
-- docs/master-spec-v1.4.md — Full architecture spec (60 decisions locked)
+- docs/master-spec.md — Full consolidated architecture & schema spec (60 decisions; supersedes the old v1.x chain)
 - docs/changelog-v5.md — Decision history
 - docs/pending-features-v1.5.md — Price Volatility + Menu Lab (Sprint 5-6)
 - docs/sprint-progress.md — Current sprint status (LIVE)
