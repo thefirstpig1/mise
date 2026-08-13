@@ -23,6 +23,7 @@
 
 import { Prisma, type PrismaClient } from "@prisma/client";
 import { withTenantContext } from "@/lib/db";
+import { computeBangkokToday } from "@/lib/bangkok-date";
 import {
   MappingNotFoundError,
   type MappingWithRefs,
@@ -274,15 +275,13 @@ const DAY_MS = 86_400_000;
 const minusOneDay = (d: Date): Date => new Date(d.getTime() - DAY_MS);
 
 /**
- * "Today" in Bangkok (UTC+7, no DST — Decision #60 per-tenant tz is future) as a
- * UTC-midnight Date, so it compares/writes identically to a `@db.Date` value.
- * Computed in JS (not SQL) so the SAME instant backs both the same-day compare and
- * every write in a restore — no drift mid-transaction. Exported for L4/L5 + tests.
+ * "Today" in Bangkok as a UTC-midnight Date — see src/lib/bangkok-date.ts.
+ * Moved there in Part 10 L2 so the zod layer can share it (a validation file is
+ * imported by Client Components and cannot import this module's Prisma deps).
+ * Re-exported here so every existing import path — L4/L5 and
+ * tests/product-restore-logic.test.ts — keeps working unchanged.
  */
-export function computeBangkokToday(): Date {
-  const bkk = new Date(Date.now() + 7 * 3600 * 1000);
-  return new Date(Date.UTC(bkk.getUTCFullYear(), bkk.getUTCMonth(), bkk.getUTCDate()));
-}
+export { computeBangkokToday };
 
 /** A stored `@db.Date` (UTC midnight) falls on Bangkok-today iff its ms equal it. */
 const isSameDayBangkok = (stored: Date, todayBangkok: Date): boolean =>
