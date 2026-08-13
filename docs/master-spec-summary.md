@@ -7,16 +7,22 @@ and an ADR in `docs/adr/` is authoritative over both (see CLAUDE.md →
 
 ## Schema Inventory
 
-Per master-spec.md §4: **42 tables + 2 reference tables + 3 materialized views.**
+Per master-spec.md §4 — designed: **41 tables + 2 reference tables + 3 materialized views.**
+
+Built so far (`prisma/schema.prisma`, 19 models): the 2 reference tables, all 7
+Identity, all 5 Master Data, `stock_movement` + `stock_adjustment`, plus 3 Auth.js
+infrastructure tables (`account`, `session`, `verification_token`) that the spec
+inventory does not count. No materialized view exists yet.
 
 ### Reference (2, read-only seed)
 - unit_template, liquid_density_template
 
 ### Identity (7) — Sprint 0 COMPLETE
-- tenant, branch, user, tenant_membership
+- tenant, branch, app_user, tenant_membership
 - user_branch_access, department, user_department_assignment
 
-(Model name is `User` / `prisma.user` — never `AppUser`. Auth.js requirement.)
+(`app_user` is the DB table; the Prisma model is `User` / `prisma.user` via
+`@@map("app_user")` — never `prisma.appUser`. Auth.js requires the model name.)
 
 ### Master Data (5) — Sprint 1 COMPLETE
 - supplier, category, product, product_unit, supplier_product_mapping
@@ -33,8 +39,8 @@ Per master-spec.md §4: **42 tables + 2 reference tables + 3 materialized views.
 ### Expense (2) — Sprint 3
 - expense, expense_item
 
-### Inventory (4) — Sprint 2-3
-- stock_count, stock_count_item, stock_count_entry, stock_movement
+### Inventory (5) — Sprint 2-3
+- stock_count, stock_count_item, stock_count_entry, stock_movement, stock_adjustment
 
 ⚠️ **stock_movement: follow ADR 0011, not spec §5.5.** The spec's
 `movement_type` / `qty_delta` shape is the Sprint 1 legacy design.
@@ -42,8 +48,8 @@ ADR 0011 (Append-Only Ledger) is authoritative for Sprint 2+: signed `qty`
 with DB CHECK by type, polymorphic source ref, unique(source_type, source_id)
 idempotency, insert-only with compensating entries, realtime SUM balance.
 MVP types: `PO_RECEIVE` / `ADJUST_GAIN` / `ADJUST_LOSS`.
-Part 10 also added **`stock_adjustment`** (schema.prisma), which has no spec
-section yet and is not counted in the inventory above.
+**`stock_adjustment`** came from Part 10 L1 and has no Section 5 definition yet.
+Reconciling §5.5, H.5, H.8 and Section F to the ledger model is Sprint 2+ work.
 
 ### Sales Sync (3) — Sprint 4
 - pos_integration, sales_import_batch, sales_transaction

@@ -26,7 +26,7 @@ see CLAUDE.md → "Source-of-truth precedence".
 - Section H.10 (RLS): EVERY new tenant-scoped table
 
 ## Key sprint scope
-- Sprint 1: Section 5.2 (Master Data) + 5.13 (Units/Density) + H.1.2 (Categories seed)
+- Sprint 1: Section 5.2 (Master Data, incl. unit_template + liquid_density_template) + Section E (unit & conversion system) + H.1 (Main dept + 16 categories seed)
 - Sprint 2: Section 5.3 (Procurement)
 - Sprint 3: Section 5.4 (Expense) + 5.5 (Inventory)
 - Sprint 4: Section 5.6 (Sales sync)

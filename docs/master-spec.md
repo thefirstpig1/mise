@@ -79,11 +79,15 @@ Module MVP index: Identity, Master Data, Sales Sync, Menu, Recipe (optional), Pr
 
 ## 4. Schema Inventory
 
-**Total: 42 tables + 2 reference tables + 3 materialized views.**
+**Designed total: 41 tables + 2 reference tables + 3 materialized views** (counted from the groups below; the earlier "42" headline never matched its own listing).
+
+**Built so far** (`prisma/schema.prisma`, 19 models): the 2 reference tables, 7 Identity, 5 Master data, `stock_movement` + `stock_adjustment`, plus 3 Auth.js infrastructure tables (`account`, `session`, `verification_token`) that this inventory does not count. No materialized view exists yet.
 
 **System reference (read-only seed):** `unit_template`, `liquid_density_template`.
 
-**Identity:** `tenant`, `branch`, `user`, `tenant_membership`, `user_branch_access`, `department`, `user_department_assignment`.
+**Identity:** `tenant`, `branch`, `app_user`, `tenant_membership`, `user_branch_access`, `department`, `user_department_assignment`.
+
+> `app_user` is the DB table name; the Prisma model is `User` (`prisma.user`) via `@@map("app_user")` — Auth.js requires the model be named `User`. Section 5.1 describes this table.
 
 **Master data:** `supplier`, `category`, `product`, `product_unit`, `supplier_product_mapping`.
 
@@ -93,7 +97,9 @@ Module MVP index: Identity, Master Data, Sales Sync, Menu, Recipe (optional), Pr
 
 **Expense:** `expense`, `expense_item`.
 
-**Inventory:** `stock_count`, `stock_count_item`, `stock_count_entry`, `stock_movement`.
+**Inventory:** `stock_count`, `stock_count_item`, `stock_count_entry`, `stock_movement`, `stock_adjustment`.
+
+> `stock_adjustment` came from Part 10 L1 (`prisma/schema.prisma`) under ADR 0011 and has no Section 5 definition yet. Reconciling §5.5, H.5, H.8 and Section F to the ADR 0011 ledger model — and writing the `stock_adjustment` definition — is Sprint 2+ work, deliberately not done here. Until then ADR 0011 governs and this inventory only records that the table exists.
 
 **Sales sync:** `pos_integration`, `sales_import_batch`, `sales_transaction`.
 
@@ -129,7 +135,7 @@ Module MVP index: Identity, Master Data, Sales Sync, Menu, Recipe (optional), Pr
 
 **branch** — `id` · `tenant_id` FK · `name` · `code` · `address` · `is_active`.
 
-**user** — `id` · `email` unique · `name` · `phone` · `auth_provider` enum(email/google/line).
+**app_user** (Prisma model `User`) — `id` cuid String, not uuid (Auth.js) · `email` unique · `name` · `phone` · `auth_provider` enum(email/google/line).
 
 **tenant_membership** — `id` · `tenant_id` · `user_id` · `role` enum(owner/manager/purchaser/kitchen_staff/accountant/viewer) · `is_active`.
 
