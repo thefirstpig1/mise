@@ -3,9 +3,8 @@
 **Status:** Single source of truth. Consolidates the full version chain into one self-contained document.
 **Reflects:** v1.0 (base) + v1.1 (departments) + v1.2 (VAT/WHT + dept opt-in) + v1.4 (functional correctness + RLS).
 **Product:** Restaurant Back-Office Platform for Thailand SMEs — Architecture & Schema.
-**Precedence:** Where this spec conflicts with an ADR in `docs/adr/`, **the ADR wins.** ADRs are the grilled, solid decision record; this spec is the big-picture map and may lag behind. On any mismatch, follow the ADR and reconcile this doc toward it.
 
-> **Source-of-truth precedence (read first):** When this spec conflicts with an ADR in `docs/adr/`, **the ADR wins** — ADRs come from grill decisions and are the more solid, more recent authority. Treat any divergence as the spec being stale, and reconcile the spec toward the ADR. This file is the broad architectural reference; ADRs are binding on the specifics they cover.
+> **Source-of-truth precedence (read first):** When this spec conflicts with an ADR in `docs/adr/`, **the ADR wins** — ADRs come from grill decisions and are the more solid, more recent authority. Treat any divergence as the spec being stale, and reconcile the spec toward the ADR. This file is the broad architectural reference and may lag behind; ADRs are binding on the specifics they cover.
 
 > Consolidation note: earlier Google Docs versions each stored only their *delta* (v1.4 was a 7 KB patch that referenced content living in v1.2/v1.1/v1.0). This file merges all four into current truth so nothing has to be cross-read. Section-by-section version lineage is summarized under "Version history" at the end.
 

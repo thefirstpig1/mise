@@ -61,18 +61,23 @@ Once a plan is approved, run to the end of the slice WITHOUT asking step by step
 
 🛑 STOP and ask Kong first — even when context is clear — when you hit:
 - A schema change / new migration.
-- A new dependency.
+- A new dependency (especially native modules).
 - More than one viable approach that affects multiple files, with no ADR covering it.
 - A need to deviate from the approved plan.
 - A spec-vs-ADR conflict not yet decided (beyond the ADR-wins rule above).
 - Ambiguous product intent / unclear requirement.
+- A destructive command: DROP, TRUNCATE, RESET, DELETE affecting > 1 row, `rm -rf`.
+- Editing `.env` (holds DATABASE_URL / DIRECT_URL / AUTH_SECRET).
+- Editing `.claude/skills/` or the spec docs — they are project memory and change how future sessions behave.
+- The same error twice with root cause still unclear — stop and re-think rather than chaining hypotheses.
+- A plan that exceeds 5 sub-steps.
 
 Stop format: `🛑 Needs review: <topic> — options A / B, I recommend ... because ...`
 For complex / multi-file work, enter Plan mode first: propose the plan, wait for approval, then implement.
 
 ## Reference Documents (read when needed)
 - docs/master-spec.md — Full consolidated architecture & schema spec (60 decisions; supersedes the old v1.x chain)
-- docs/changelog-v5.md — Decision history
+- docs/changelog-v5-summary.md — Decision history
 - docs/pending-features-v1.5.md — Price Volatility + Menu Lab (Sprint 5-6)
 - docs/sprint-progress.md — Current sprint status (LIVE)
 - .claude/skills/ — Task-specific skills (load as needed)

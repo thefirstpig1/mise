@@ -87,13 +87,13 @@ the common LLM failure modes we encountered in Sprint 0-1.
 
 ## 5. Stop Conditions (Mise-specific)
 
-### STOP and ask user when:
-- About to run destructive command (DROP, TRUNCATE, RESET, DELETE > 1 row, rm -rf)
-- About to install new dependency (especially native modules)
-- About to modify .env file
-- About to modify .claude/skills/ or docs/master-spec-summary.md
-- Encountered same error 2x — root cause unclear
-- Plan exceeds 5 sub-steps
+### The canonical list lives in CLAUDE.md → "Working autonomy & when to stop"
+
+CLAUDE.md is loaded every session; this skill is only read when invoked, so the
+stop list is maintained there to guarantee it is seen. Read it there, and use the
+stop format it defines: `🛑 Needs review: <topic> — options A / B, I recommend ... because ...`
+
+This section keeps only the rationale — WHY those particular triggers earn a stop.
 
 ### Why these specifically:
 - Sprint 0-1 has REAL ARTIFACTS in Neon — destructive = data loss

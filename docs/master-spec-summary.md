@@ -1,17 +1,24 @@
-# Mise Master Spec v1.4 — Summary
+# Mise Master Spec — Summary
 
-**Full spec:** Google Drive ID 110FrOwFwzPbXsxDHUC_f-oqK8ld8a6utAKnrs5KLbfc
+**Full spec:** `docs/master-spec.md` (in-repo, consolidated — Parts I–V).
+This file is a navigation aid only; the full spec is authoritative over it,
+and an ADR in `docs/adr/` is authoritative over both (see CLAUDE.md →
+"Source-of-truth precedence").
 
-## Schema Inventory (44 tables total)
+## Schema Inventory
 
-### Reference (3)
-- unit_template, liquid_density_template, materialized_view_meta
+Per master-spec.md §4: **42 tables + 2 reference tables + 3 materialized views.**
+
+### Reference (2, read-only seed)
+- unit_template, liquid_density_template
 
 ### Identity (7) — Sprint 0 COMPLETE
-- tenant, branch, app_user, tenant_membership
+- tenant, branch, user, tenant_membership
 - user_branch_access, department, user_department_assignment
 
-### Master Data (5) — Sprint 1
+(Model name is `User` / `prisma.user` — never `AppUser`. Auth.js requirement.)
+
+### Master Data (5) — Sprint 1 COMPLETE
 - supplier, category, product, product_unit, supplier_product_mapping
 
 ### Menu & Recipe (6) — Sprint 4-5
@@ -26,8 +33,17 @@
 ### Expense (2) — Sprint 3
 - expense, expense_item
 
-### Inventory (4) — Sprint 3
+### Inventory (4) — Sprint 2-3
 - stock_count, stock_count_item, stock_count_entry, stock_movement
+
+⚠️ **stock_movement: follow ADR 0011, not spec §5.5.** The spec's
+`movement_type` / `qty_delta` shape is the Sprint 1 legacy design.
+ADR 0011 (Append-Only Ledger) is authoritative for Sprint 2+: signed `qty`
+with DB CHECK by type, polymorphic source ref, unique(source_type, source_id)
+idempotency, insert-only with compensating entries, realtime SUM balance.
+MVP types: `PO_RECEIVE` / `ADJUST_GAIN` / `ADJUST_LOSS`.
+Part 10 also added **`stock_adjustment`** (schema.prisma), which has no spec
+section yet and is not counted in the inventory above.
 
 ### Sales Sync (3) — Sprint 4
 - pos_integration, sales_import_batch, sales_transaction
@@ -35,8 +51,11 @@
 ### Cost Engine (3) — Sprint 5
 - recipe_cost_snapshot, product_cost_history, category_cost_snapshot
 
-### Audit (1)
-- audit_log
+### Audit / meta (2)
+- audit_log, materialized_view_meta
+
+### Materialized views (3)
+- recipe_coverage_view, department_branch_cost_view, department_procurement_view
 
 ## Key architectural sections
 
@@ -58,9 +77,13 @@
 - **Section H.9:** Cost cascade (mark stale + recompute on read)
 - **Section H.10:** Tenant isolation via RLS (defense-in-depth)
 
+⚠️ **H.5, H.8 and Section F assume the legacy consumption model.** They rely on
+movement types (`RECIPE_CONSUME`, `WASTE`, `TRANSFER_*`) that ADR 0011 defers to
+Sprint 3+/5+. They get reconciled to the ledger when their sprints land.
+
 ## 60 Decisions Locked
 
-See docs/changelog-v5.md for full list.
+See docs/changelog-v5-summary.md for the full list.
 
 Critical recent ones:
 - #59: Yield math = qty × (100 / yield_percent), NOT qty × (1 + loss%)

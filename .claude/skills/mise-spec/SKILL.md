@@ -4,8 +4,12 @@ Read this skill when working on schema changes, business logic, or
 implementation patterns. The spec is authoritative — when in doubt, check it.
 
 ## Spec locations
-- Main spec: docs/master-spec-v1.4.md
-- Decision history: docs/changelog-v5.md (60 locked decisions #1-60)
+- Main spec: docs/master-spec.md (consolidated; Parts I-V)
+- Quick ref: docs/master-spec-summary.md (schema inventory + section index)
+- Decision history: docs/changelog-v5-summary.md (60 locked decisions #1-60)
+
+**Precedence:** where the spec conflicts with an ADR in docs/adr/, the ADR wins —
+see CLAUDE.md → "Source-of-truth precedence".
 - Pending features: docs/pending-features-v1.5.md (Price Volatility + Menu Lab)
 
 ## When to read each section

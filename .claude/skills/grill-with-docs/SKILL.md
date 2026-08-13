@@ -20,7 +20,8 @@ If a question can be answered by exploring the codebase, explore the codebase in
 For Mise project, key references:
 - CONTEXT.md (root) — domain glossary, sharpens language
 - docs/adr/ — Architecture Decision Records
-- docs/master-spec-summary.md — Master Spec v1.4 quick ref
+- docs/master-spec.md — full consolidated spec (authoritative over the summary)
+- docs/master-spec-summary.md — master spec quick ref
 - docs/changelog-v5-summary.md — 60 locked decisions
 - docs/sprint-progress.md — current sprint state
 

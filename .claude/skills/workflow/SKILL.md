@@ -5,7 +5,7 @@ How to do common tasks in this project.
 ## Starting a new sprint
 
 1. Read docs/sprint-progress.md to confirm current state
-2. Read relevant section of docs/master-spec-v1.4.md
+2. Read relevant section of docs/master-spec.md
 3. Read .claude/skills/mise-conventions/SKILL.md
 4. Read .claude/skills/known-pitfalls/SKILL.md
 5. Plan schema changes (if any) — list new tables
