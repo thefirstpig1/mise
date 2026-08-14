@@ -26,6 +26,22 @@ import type {
 const str = (d: Prisma.Decimal): string => d.toString();
 const iso = (d: Date | null): string | null => (d ? d.toISOString() : null);
 
+/**
+ * Display date, rendered HERE (server) rather than in the components.
+ *
+ * The history list is appended to client-side as the user pages through it, so
+ * if the component formatted dates itself, page 1 would be formatted in Node
+ * during SSR and page 2 in the browser — different default locale/timezone, and
+ * a hydration mismatch on the rows that exist in both passes. Sending a finished
+ * string makes every row identical no matter which side produced it.
+ */
+const BANGKOK_DATE = new Intl.DateTimeFormat("th-TH", {
+  timeZone: "Asia/Bangkok",
+  day: "2-digit",
+  month: "short",
+  year: "numeric",
+});
+
 export type StockBalanceView = {
   productId: string;
   branchId: string;
@@ -53,6 +69,8 @@ export type StockMovementView = {
   sourceType: string;
   sourceId: string;
   occurredAt: string;
+  /** Bangkok-rendered `occurredAt` — see BANGKOK_DATE above. */
+  occurredAtLabel: string;
   createdAt: string;
   notes: string | null;
   product: StockMovementHistoryRow["product"];
@@ -96,6 +114,7 @@ export function toStockMovementView(
     sourceType: m.sourceType,
     sourceId: m.sourceId,
     occurredAt: m.occurredAt.toISOString(),
+    occurredAtLabel: BANGKOK_DATE.format(m.occurredAt),
     createdAt: m.createdAt.toISOString(),
     notes: m.notes,
     product: m.product,

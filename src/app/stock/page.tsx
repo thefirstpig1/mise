@@ -79,12 +79,20 @@ export default async function StockLevelsPage({
             ยอดคำนวณสดจากรายการเคลื่อนไหวทั้งหมด ไม่ใช่ตัวเลขที่เก็บไว้
           </p>
         </div>
-        <a
-          href="/stock/adjust"
-          className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
-        >
-          ปรับสต๊อก
-        </a>
+        <div className="flex gap-2">
+          <a
+            href="/stock/history"
+            className="rounded-lg border border-border px-4 py-2 text-sm hover:bg-muted/40"
+          >
+            ประวัติการเคลื่อนไหว
+          </a>
+          <a
+            href="/stock/adjust"
+            className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+          >
+            ปรับสต๊อก
+          </a>
+        </div>
       </div>
 
       {branches.length > 1 && (

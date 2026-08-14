@@ -91,6 +91,29 @@ export const ADJUSTMENT_TYPE_LABELS_TH: Record<AdjustmentType, string> = {
   ADJUST_LOSS: "ปรับลด",
 };
 
+/**
+ * Thai gloss per ledger movement type — the L5c history badges. Covers all
+ * three types, unlike ADJUSTMENT_TYPE_LABELS_TH which is the write-form subset.
+ */
+export const MOVEMENT_TYPE_LABELS_TH: Record<
+  (typeof MOVEMENT_TYPE_VALUES)[number],
+  string
+> = {
+  PO_RECEIVE: "รับของเข้า",
+  ADJUST_GAIN: "ปรับเพิ่ม",
+  ADJUST_LOSS: "ปรับลด",
+};
+
+/** Thai gloss per source — answers "รายการนี้มาจากไหน" in the history view. */
+export const SOURCE_TYPE_LABELS_TH: Record<
+  (typeof SOURCE_TYPE_VALUES)[number],
+  string
+> = {
+  GR_LINE: "ใบรับของ",
+  ADJUSTMENT: "ปรับสต๊อก",
+  SYSTEM_INITIAL: "ยอดยกมา",
+};
+
 /** Thai gloss per reason — used by the form <select> options. */
 export const ADJUSTMENT_REASON_LABELS_TH: Record<
   (typeof ADJUSTMENT_REASON_VALUES)[number],
