@@ -1,0 +1,447 @@
+"use client";
+
+// Sprint 2 Part 10 L5a — the manual stock-adjustment form (the only Part 10
+// producer of ledger rows). Driven by React 19 useActionState against
+// createStockAdjustmentAction. Input `name=` attributes are snake_case to match
+// rawFromFormData in src/app/stock/actions.ts; fieldErrors keys are the
+// schema's camelCase names.
+//
+// Three things this form owns that the layers below deliberately do not:
+//
+//  1. The Q9 negative-balance gate. The server NEVER blocks a negative balance —
+//     stock going below zero is real information (a missed receive, a bad count)
+//     and hiding it would be worse than showing it. So the refusal to write is
+//     purely a UI speed bump: a red banner + an explicit confirm checkbox. The
+//     user can always proceed.
+//  2. The live post-balance preview, so the consequence is visible BEFORE the
+//     write, not after. Preview math runs in JS `Number` — display only; the
+//     authoritative post-balance always comes back from the server as a string
+//     (see stock-view.ts on why Decimals never round-trip through Number).
+//  3. Successive entry. Counting stock is a batch job — a user adjusts ten
+//     items in a row — so a successful write keeps the product/branch/date and
+//     clears only qty + notes, instead of navigating away.
+//
+// `todayBangkok` / `minBackdate` are passed in from the server page rather than
+// computed here: the zod backdate window is checked against BANGKOK today, and a
+// device in another timezone would otherwise offer a date the server rejects.
+
+import { useActionState, useEffect, useMemo, useRef, useState } from "react";
+import type { StockAdjustmentActionState } from "@/app/stock/actions";
+import {
+  ADJUSTMENT_REASON_LABELS_TH,
+  ADJUSTMENT_REASON_VALUES,
+  ADJUSTMENT_TYPE_LABELS_TH,
+  ADJUSTMENT_TYPE_VALUES,
+  MAX_BACKDATE_DAYS,
+  type AdjustmentType,
+} from "@/lib/validations/stock-movement";
+import type { StockBalanceView } from "./stock-view";
+
+/** One selectable unit of a product. `toBaseRatio` is a STRING (Pitfall #20). */
+export type ProductUnitOption = {
+  id: string;
+  unitName: string;
+  toBaseRatio: string;
+  isBase: boolean;
+};
+
+export type StockProductOption = {
+  id: string;
+  name: string;
+  sku: string;
+  baseUnitName: string | null;
+  units: ProductUnitOption[];
+};
+
+export type StockBranchOption = { id: string; name: string };
+
+const inputClass =
+  "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none";
+const labelClass = "block text-sm font-medium";
+const errorClass = "mt-1 text-xs text-red-600";
+
+/** Trim a preview number to the ledger's 3 decimal places, without trailing zeros. */
+const fmt = (n: number): string =>
+  Number.isFinite(n) ? String(Math.round(n * 1000) / 1000) : "—";
+
+export default function StockAdjustForm({
+  action,
+  products,
+  branches,
+  todayBangkok,
+  fetchBalance,
+}: {
+  action: (
+    prev: StockAdjustmentActionState,
+    fd: FormData
+  ) => Promise<StockAdjustmentActionState>;
+  products: StockProductOption[];
+  branches: StockBranchOption[];
+  todayBangkok: string;
+  /** getStockBalanceAction, bound by the page (a "use server" fn crossing over). */
+  fetchBalance: (query: {
+    productId: string;
+    branchId: string;
+  }) => Promise<{ ok: true; data: StockBalanceView } | { ok: false; formError: string }>;
+}) {
+  const [state, formAction, isPending] = useActionState(
+    action,
+    { ok: false } as StockAdjustmentActionState
+  );
+
+  const [productId, setProductId] = useState("");
+  const [branchId, setBranchId] = useState(branches[0]?.id ?? "");
+  const [type, setType] = useState<AdjustmentType>("ADJUST_GAIN");
+  const [qty, setQty] = useState("");
+  const [unitId, setUnitId] = useState("");
+  const [confirmedNegative, setConfirmedNegative] = useState(false);
+
+  const qtyRef = useRef<HTMLInputElement>(null);
+  const notesRef = useRef<HTMLTextAreaElement>(null);
+
+  const product = useMemo(
+    () => products.find((p) => p.id === productId),
+    [products, productId]
+  );
+
+  // --- current balance for the chosen (product, branch) ---
+  const [balance, setBalance] = useState<StockBalanceView | null>(null);
+  const [balanceLoading, setBalanceLoading] = useState(false);
+
+  useEffect(() => {
+    if (!productId || !branchId) {
+      setBalance(null);
+      return;
+    }
+    let stale = false;
+    setBalanceLoading(true);
+    fetchBalance({ productId, branchId })
+      .then((res) => {
+        // Guard against an out-of-order response for a previous selection.
+        if (stale) return;
+        setBalance(res.ok ? res.data : null);
+      })
+      .finally(() => {
+        if (!stale) setBalanceLoading(false);
+      });
+    return () => {
+      stale = true;
+    };
+    // `state` is a dependency so the balance refreshes after a successful write.
+  }, [productId, branchId, fetchBalance, state]);
+
+  // Picking a product resets the unit to its base — the natural unit to count in.
+  useEffect(() => {
+    const base = product?.units.find((u) => u.isBase) ?? product?.units[0];
+    setUnitId(base?.id ?? "");
+  }, [product]);
+
+  // --- preview (display only; the server returns the authoritative value) ---
+  const unit = product?.units.find((u) => u.id === unitId);
+  const qtyNum = Number(qty);
+  const hasQty = qty.trim() !== "" && Number.isFinite(qtyNum) && qtyNum > 0;
+  const deltaBase =
+    hasQty && unit
+      ? (type === "ADJUST_LOSS" ? -1 : 1) * qtyNum * Number(unit.toBaseRatio)
+      : 0;
+  const currentBase = balance ? Number(balance.balance) : 0;
+  const previewBase = currentBase + deltaBase;
+  const willGoNegative = hasQty && balance !== null && previewBase < 0;
+
+  // A new selection invalidates a confirmation given for the previous preview.
+  useEffect(() => {
+    setConfirmedNegative(false);
+  }, [productId, branchId, type, qty, unitId]);
+
+  // Successive entry: keep product/branch/date, clear qty + notes, refocus qty.
+  useEffect(() => {
+    if (!state.ok) return;
+    setQty("");
+    if (notesRef.current) notesRef.current.value = "";
+    qtyRef.current?.focus();
+  }, [state]);
+
+  const formError = state.ok === false ? state.formError : undefined;
+  const fieldErrors = state.ok === false ? state.fieldErrors : undefined;
+  const err = (key: string) => fieldErrors?.[key];
+
+  const minBackdate = (() => {
+    const d = new Date(`${todayBangkok}T00:00:00Z`);
+    d.setUTCDate(d.getUTCDate() - MAX_BACKDATE_DAYS);
+    return d.toISOString().slice(0, 10);
+  })();
+
+  const baseUnitLabel = product?.baseUnitName ?? "";
+  const blockedByNegative = willGoNegative && !confirmedNegative;
+
+  return (
+    <form action={formAction} className="space-y-6">
+      {state.ok && (
+        <div className="rounded-lg border border-green-300 bg-green-50 p-4 text-sm text-green-800">
+          บันทึกแล้ว — ยอดคงเหลือใหม่{" "}
+          <strong>
+            {state.postBalance} {baseUnitLabel}
+          </strong>
+          {state.negative && (
+            <span className="ml-2 font-medium text-red-700">
+              (ติดลบ — ต้องตรวจสอบ)
+            </span>
+          )}
+        </div>
+      )}
+
+      {formError && (
+        <div className="rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-700">
+          {formError}
+        </div>
+      )}
+
+      {/* --- what + where --- */}
+      <div>
+        <label htmlFor="product_id" className={labelClass}>
+          วัตถุดิบ <span className="text-red-600">*</span>
+        </label>
+        <select
+          id="product_id"
+          name="product_id"
+          value={productId}
+          onChange={(e) => setProductId(e.target.value)}
+          className={`${inputClass} mt-1`}
+          required
+        >
+          <option value="">— เลือกวัตถุดิบ —</option>
+          {products.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name} ({p.sku})
+            </option>
+          ))}
+        </select>
+        {err("productId") && <p className={errorClass}>{err("productId")}</p>}
+      </div>
+
+      <div>
+        <label htmlFor="branch_id" className={labelClass}>
+          สาขา <span className="text-red-600">*</span>
+        </label>
+        <select
+          id="branch_id"
+          name="branch_id"
+          value={branchId}
+          onChange={(e) => setBranchId(e.target.value)}
+          className={`${inputClass} mt-1`}
+          required
+        >
+          {branches.map((b) => (
+            <option key={b.id} value={b.id}>
+              {b.name}
+            </option>
+          ))}
+        </select>
+        {err("branchId") && <p className={errorClass}>{err("branchId")}</p>}
+      </div>
+
+      {/* --- current balance, so the user adjusts against a known number --- */}
+      {productId && branchId && (
+        <div className="rounded-lg border border-border bg-muted/30 p-3 text-sm">
+          {balanceLoading ? (
+            <span className="text-muted-foreground">กำลังโหลดยอดคงเหลือ…</span>
+          ) : balance ? (
+            <>
+              <span className="text-muted-foreground">ยอดคงเหลือปัจจุบัน: </span>
+              <strong className={balance.negative ? "text-red-700" : ""}>
+                {balance.balance} {baseUnitLabel}
+              </strong>
+              {balance.movementCount === 0 && (
+                <span className="ml-2 text-xs text-muted-foreground">
+                  (ยังไม่เคยมีการเคลื่อนไหว)
+                </span>
+              )}
+            </>
+          ) : (
+            <span className="text-muted-foreground">ไม่พบยอดคงเหลือ</span>
+          )}
+        </div>
+      )}
+
+      {/* --- direction --- */}
+      <fieldset>
+        <legend className={labelClass}>
+          ประเภทการปรับ <span className="text-red-600">*</span>
+        </legend>
+        <div className="mt-2 flex gap-4">
+          {ADJUSTMENT_TYPE_VALUES.map((t) => (
+            <label key={t} className="flex items-center gap-2 text-sm">
+              <input
+                type="radio"
+                name="type"
+                value={t}
+                checked={type === t}
+                onChange={() => setType(t)}
+              />
+              {ADJUSTMENT_TYPE_LABELS_TH[t]}
+            </label>
+          ))}
+        </div>
+        {err("type") && <p className={errorClass}>{err("type")}</p>}
+      </fieldset>
+
+      {/* --- how much, in which unit --- */}
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label htmlFor="input_qty" className={labelClass}>
+            จำนวน <span className="text-red-600">*</span>
+          </label>
+          <input
+            ref={qtyRef}
+            id="input_qty"
+            name="input_qty"
+            type="number"
+            step="0.001"
+            min="0"
+            value={qty}
+            onChange={(e) => setQty(e.target.value)}
+            className={`${inputClass} mt-1`}
+            required
+          />
+          {err("inputQty") && <p className={errorClass}>{err("inputQty")}</p>}
+        </div>
+
+        <div>
+          <label htmlFor="input_unit_id" className={labelClass}>
+            หน่วย <span className="text-red-600">*</span>
+          </label>
+          <select
+            id="input_unit_id"
+            name="input_unit_id"
+            value={unitId}
+            onChange={(e) => setUnitId(e.target.value)}
+            className={`${inputClass} mt-1`}
+            required
+            disabled={!product}
+          >
+            {!product && <option value="">— เลือกวัตถุดิบก่อน —</option>}
+            {product?.units.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.unitName}
+                {u.isBase ? " (หน่วยหลัก)" : ""}
+              </option>
+            ))}
+          </select>
+          {err("inputUnitId") && <p className={errorClass}>{err("inputUnitId")}</p>}
+        </div>
+      </div>
+
+      {/* --- preview: the consequence, before the write --- */}
+      {hasQty && balance && unit && (
+        <div
+          className={`rounded-lg border p-3 text-sm ${
+            willGoNegative
+              ? "border-red-300 bg-red-50 text-red-700"
+              : "border-border bg-muted/30"
+          }`}
+        >
+          <div>
+            ยอดหลังปรับ:{" "}
+            <strong>
+              {fmt(previewBase)} {baseUnitLabel}
+            </strong>
+            <span className="ml-2 text-xs text-muted-foreground">
+              ({fmt(currentBase)} {deltaBase < 0 ? "−" : "+"}{" "}
+              {fmt(Math.abs(deltaBase))})
+            </span>
+          </div>
+          {!unit.isBase && (
+            <div className="mt-1 text-xs text-muted-foreground">
+              {qty} {unit.unitName} = {fmt(Math.abs(deltaBase))} {baseUnitLabel}
+            </div>
+          )}
+          {willGoNegative && (
+            <label className="mt-3 flex items-start gap-2 font-medium">
+              <input
+                type="checkbox"
+                checked={confirmedNegative}
+                onChange={(e) => setConfirmedNegative(e.target.checked)}
+                className="mt-0.5"
+              />
+              <span>
+                ยอดจะติดลบ — โปรดตรวจสอบว่าลืมบันทึกรับของหรือนับผิดหรือไม่
+                ยืนยันว่าต้องการบันทึกตามนี้
+              </span>
+            </label>
+          )}
+        </div>
+      )}
+
+      {/* --- why --- */}
+      <div>
+        <label htmlFor="reason" className={labelClass}>
+          เหตุผล <span className="text-red-600">*</span>
+        </label>
+        <select
+          id="reason"
+          name="reason"
+          defaultValue="RECOUNT"
+          className={`${inputClass} mt-1`}
+          required
+        >
+          {ADJUSTMENT_REASON_VALUES.map((r) => (
+            <option key={r} value={r}>
+              {ADJUSTMENT_REASON_LABELS_TH[r]}
+            </option>
+          ))}
+        </select>
+        {err("reason") && <p className={errorClass}>{err("reason")}</p>}
+      </div>
+
+      {/* --- when (business time; backdatable within the Q5 window) --- */}
+      <div>
+        <label htmlFor="occurred_at" className={labelClass}>
+          วันที่ <span className="text-red-600">*</span>
+        </label>
+        <input
+          id="occurred_at"
+          name="occurred_at"
+          type="date"
+          defaultValue={todayBangkok}
+          min={minBackdate}
+          max={todayBangkok}
+          className={`${inputClass} mt-1`}
+          required
+        />
+        <p className="mt-1 text-xs text-muted-foreground">
+          ย้อนหลังได้ไม่เกิน {MAX_BACKDATE_DAYS} วัน
+        </p>
+        {err("occurredAt") && <p className={errorClass}>{err("occurredAt")}</p>}
+      </div>
+
+      <div>
+        <label htmlFor="notes" className={labelClass}>
+          หมายเหตุ
+        </label>
+        <textarea
+          ref={notesRef}
+          id="notes"
+          name="notes"
+          rows={2}
+          className={`${inputClass} mt-1`}
+        />
+        {err("notes") && <p className={errorClass}>{err("notes")}</p>}
+      </div>
+
+      <div className="flex items-center gap-3">
+        <button
+          type="submit"
+          disabled={isPending || blockedByNegative}
+          className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
+        >
+          {isPending ? "กำลังบันทึก…" : "บันทึกการปรับสต๊อก"}
+        </button>
+        {blockedByNegative && (
+          <span className="text-xs text-red-600">
+            ติ๊กยืนยันด้านบนก่อนจึงจะบันทึกได้
+          </span>
+        )}
+      </div>
+    </form>
+  );
+}
