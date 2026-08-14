@@ -50,6 +50,10 @@ try {
   throw e;
 }
 ```
+
+> **L3b correction (2026-08-14) — the catch-P2002 mechanism above does not work; the *intent* is unchanged.** Postgres aborts the **entire transaction** on a constraint violation (`25P02 current transaction is aborted, commands ignored until end of transaction block`), so the movement `INSERT` and the source `INSERT` being in one transaction — which Q4 also requires — means nothing can be read or written on that transaction afterwards. The `catch` can classify the error but can neither return the existing row nor commit the source. Prisma 5.22 exposes no `SAVEPOINT` to scope the failure. Caught by test W7 in `tests/stock-adjustment-logic.test.ts`.
+> **Implemented instead** (`createStockMovementLogic`, `src/server/stock-movement.ts`): a **lookup before the insert** — if a movement already exists for `(source_type, source_id)` it is returned as-is and no insert is attempted. That covers the real case Q4 targets (a sequential retry / double submit) without ever tripping the index. The unique index stays as the DB-level 1:1 guarantee; if a **concurrent** writer wins the race in between, the insert still raises `P2002` and the primitive throws the typed `MovementSourceConflictError` **without issuing another query on the doomed transaction**. The caller retries the whole operation in a fresh transaction (where the pre-insert lookup finds the winner's row) or reads it with `findStockMovementBySourceLogic`. Net effect is what Q4 asked for: **one source → exactly one movement, and a replay is a no-op, never double stock.**
+
 The movement layer is **insert-only** — no update/delete methods are exposed. Corrections are compensating *source* rows (reverse + replace), leaving all three rows visible with a correct net balance. *(Rejected: allow N movements per source + app-side dedupe → the 1:1 DB guarantee is stronger and simpler.)* **Carry-forward:** source-level idempotency (a client-generated submit key) is a Part 13 (GR) concern.
 
 ### Q5 — Timestamp granularity: **`occurred_at` + `created_at` (two timestamps)**

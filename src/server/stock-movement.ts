@@ -6,9 +6,9 @@
 // EXPLICITLY (app-layer isolation is the live guard; RLS is inert until Sprint 7
 // — ADR 0004).
 //
-// This file is READ-ONLY by design. The ledger is strictly append-only (Q7), so
-// there is no update*/delete* here — and no create* either: the write primitive
-// (`createStockMovementLogic`) + its adjustment wrapper are L3b.
+// The ledger is strictly append-only (Q7): this file has reads (L3a) and INSERTs
+// (L3b), and deliberately NO update*/delete* — a correction is a compensating
+// row through the same write path, never a mutation (Q4).
 //
 // Balance = realtime `SUM(qty)` with NO join and NO ratio math (Q1/Q8): every
 // row is already stored signed and in the product's base unit, so a later edit
@@ -24,9 +24,17 @@
 // to the WRITE path (L3b), where accepting a foreign id would corrupt data.
 // ============================================================
 
-import { Prisma } from "@prisma/client";
-import { withTenantContext } from "@/lib/db";
+import { Prisma, type PrismaClient } from "@prisma/client";
 import type {
+  MovementType,
+  SourceType,
+  StockAdjustment,
+  StockMovement,
+} from "@prisma/client";
+import { withTenantContext } from "@/lib/db";
+import { assertRefBelongsToTenant } from "@/server/product";
+import type {
+  CreateStockAdjustmentInput,
   GetStockBalanceQuery,
   GetStockMovementHistoryQuery,
 } from "@/lib/validations/stock-movement";
@@ -419,5 +427,339 @@ export async function getStockMovementHistoryLogic(
       // The cursor is the LAST row of this page (Prisma re-anchors with skip: 1).
       nextCursor: hasMore ? page[page.length - 1].id : null,
     };
+  });
+}
+
+// ============================================================
+// WRITE PATH (L3b) — insert only
+// ============================================================
+// Two layers:
+//   createStockMovementLogic  — the ledger primitive. INTERNAL: it takes a `tx`
+//     instead of a tenantId because every caller must already own a transaction
+//     that also writes the SOURCE row (Q4: source + movement are one atomic
+//     unit). Part 13's GR is the next caller.
+//   createStockAdjustmentLogic — the only Part 10 producer: opens the tx, writes
+//     the stock_adjustment source, then the movement.
+// ============================================================
+
+/** `qty` scale on both stock_movement.qty and stock_adjustment.input_qty. */
+const QTY_SCALE = 3;
+
+/**
+ * Thrown when `inputUnitId` is not a ProductUnit of THIS product. Mirror of
+ * OrderUnitMismatchError in supplier-product-mapping.ts (Q5i) — kept separate
+ * because the field, the message, and the layer that maps it all differ.
+ */
+export class StockUnitMismatchError extends Error {
+  constructor(
+    public readonly unitId: string,
+    public readonly productId: string
+  ) {
+    super(`Unit "${unitId}" is not a unit of product "${productId}"`);
+    this.name = "StockUnitMismatchError";
+  }
+}
+
+/**
+ * Thrown when a valid positive input converts to 0.000 in the base unit — e.g.
+ * 0.001 mg against a kg base. The DB CHECK forbids a zero-qty row (a movement
+ * that moves nothing is meaningless), so this is caught in the app with a field
+ * error instead of surfacing as a raw constraint violation.
+ */
+export class QtyRoundsToZeroError extends Error {
+  constructor(
+    public readonly inputQty: Prisma.Decimal,
+    public readonly inputUnitName: string,
+    public readonly baseUnitName: string | null
+  ) {
+    super(
+      `${inputQty.toString()} ${inputUnitName} rounds to 0 in the base unit${baseUnitName ? ` (${baseUnitName})` : ""}`
+    );
+    this.name = "QtyRoundsToZeroError";
+  }
+}
+
+/**
+ * Thrown when a caller hands the primitive a qty whose sign contradicts its
+ * type. Same rule as the `stock_movement_sign_check` CHECK, asserted first so a
+ * caller bug reads as a named error rather than a Postgres constraint message.
+ * Zero fails too — it satisfies neither branch.
+ */
+export class MovementSignMismatchError extends Error {
+  constructor(
+    public readonly type: MovementType,
+    public readonly qty: Prisma.Decimal
+  ) {
+    super(`qty ${qty.toString()} contradicts movement type ${type}`);
+    this.name = "MovementSignMismatchError";
+  }
+}
+
+/**
+ * Thrown when the polymorphic source row does not exist for this tenant. With no
+ * FK to enforce it (Q3), this app-layer assertion is the ONLY thing keeping the
+ * ledger from pointing at nothing.
+ */
+export class MovementSourceNotFoundError extends Error {
+  constructor(
+    public readonly sourceType: SourceType,
+    public readonly sourceId: string
+  ) {
+    super(`Source ${sourceType} "${sourceId}" does not exist for this tenant`);
+    this.name = "MovementSourceNotFoundError";
+  }
+}
+
+/**
+ * Thrown when the (sourceType, sourceId) unique index fires DESPITE the
+ * pre-insert lookup — i.e. a concurrent writer won the race in between.
+ *
+ * ADR 0011 Q4 planned to swallow that P2002 and return the existing row, but
+ * Postgres aborts the ENTIRE transaction on a constraint violation ("current
+ * transaction is aborted, commands ignored until end of transaction block"), so
+ * the re-read cannot run on the doomed tx — and Prisma exposes no SAVEPOINT to
+ * scope the failure. The intent (a replayed source is a no-op, never double
+ * stock) is preserved by the pre-insert lookup below; this error is the narrow
+ * race window that survives.
+ *
+ * The caller retries the whole operation in a FRESH transaction — the pre-insert
+ * lookup then finds the winner's row and returns it — or reads it directly with
+ * `findStockMovementBySourceLogic`. Either way the ledger keeps exactly one row
+ * per source. See L4 for the Thai mapping.
+ */
+export class MovementSourceConflictError extends Error {
+  constructor(
+    public readonly sourceType: SourceType,
+    public readonly sourceId: string
+  ) {
+    super(
+      `Concurrent writer already recorded a movement for ${sourceType} "${sourceId}"`
+    );
+    this.name = "MovementSourceConflictError";
+  }
+}
+
+/**
+ * Thrown for a source type that has no writer yet — GR_LINE lands in Part 13,
+ * SYSTEM_INITIAL is reserved (Q10). Better a named refusal than a ledger row
+ * whose source can never be resolved.
+ */
+export class UnsupportedSourceTypeError extends Error {
+  constructor(public readonly sourceType: SourceType) {
+    super(`Source type ${sourceType} has no writer in Part 10`);
+    this.name = "UnsupportedSourceTypeError";
+  }
+}
+
+/** `+` for the two IN types, `-` for the one OUT type (Q2). */
+const isInboundType = (type: MovementType): boolean =>
+  type === "PO_RECEIVE" || type === "ADJUST_GAIN";
+
+/** Q3 guard: the source row must exist before the ledger points at it. */
+async function assertSourceExists(
+  tx: PrismaClient,
+  tenantId: string,
+  sourceType: SourceType,
+  sourceId: string
+): Promise<void> {
+  if (sourceType !== "ADJUSTMENT") {
+    // GR_LINE: Part 13 adds the goods_received_line branch here.
+    // SYSTEM_INITIAL: reserved, no table and no writer (Q10).
+    throw new UnsupportedSourceTypeError(sourceType);
+  }
+  const row = await tx.stockAdjustment.findFirst({
+    where: { id: sourceId, tenantId },
+    select: { id: true },
+  });
+  if (!row) throw new MovementSourceNotFoundError(sourceType, sourceId);
+}
+
+export type CreateStockMovementParams = {
+  tenantId: string;
+  productId: string;
+  branchId: string;
+  /** SIGNED and already in the product's base unit (Q1) — the caller converts. */
+  qty: Prisma.Decimal;
+  type: MovementType;
+  sourceType: SourceType;
+  sourceId: string;
+  /** Business time (Q5). The caller owns the backdate-window validation. */
+  occurredAt: Date;
+  createdBy: string;
+  notes?: string | null;
+};
+
+/**
+ * Append one row to the ledger. INTERNAL primitive — takes the caller's `tx`
+ * (which is why it breaks the "tenantId first" convention of every other *Logic):
+ * the source row and its movement must commit or fail together (Q4).
+ *
+ * IDEMPOTENT by (sourceType, sourceId): a replayed source returns the row
+ * already written instead of inserting a second one (Q4) — a double-submitted GR
+ * is a no-op, not double stock. That is done with a lookup BEFORE the insert,
+ * not by catching P2002 after it: a constraint violation aborts the whole
+ * Postgres transaction, so nothing can be read on it afterwards (see
+ * MovementSourceConflictError, which covers the surviving race window).
+ */
+export async function createStockMovementLogic(
+  tx: PrismaClient,
+  params: CreateStockMovementParams
+): Promise<StockMovement> {
+  const { tenantId, productId, branchId, qty, type, sourceType, sourceId } =
+    params;
+
+  // Sign first: it is a pure check on the arguments, so it fails before any IO.
+  if (isInboundType(type) ? !qty.greaterThan(0) : !qty.lessThan(0)) {
+    throw new MovementSignMismatchError(type, qty);
+  }
+
+  await assertRefBelongsToTenant(tx, tenantId, "product", productId);
+  await assertRefBelongsToTenant(tx, tenantId, "branch", branchId);
+  await assertSourceExists(tx, tenantId, sourceType, sourceId);
+
+  // Idempotency, checked BEFORE the insert (see the doc comment): this row
+  // already exists iff the source was replayed.
+  const existing = await tx.stockMovement.findUnique({
+    where: { sourceType_sourceId: { sourceType, sourceId } },
+  });
+  if (existing) return existing;
+
+  try {
+    return await tx.stockMovement.create({
+      data: {
+        tenantId,
+        productId,
+        branchId,
+        qty,
+        type,
+        sourceType,
+        sourceId,
+        occurredAt: params.occurredAt,
+        createdBy: params.createdBy,
+        notes: params.notes ?? null,
+      },
+    });
+  } catch (e) {
+    // Only the source-unique index can collide, and only against a concurrent
+    // writer. The tx is already doomed, so translate and get out — do NOT issue
+    // another query on it.
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+      throw new MovementSourceConflictError(sourceType, sourceId);
+    }
+    throw e;
+  }
+}
+
+/**
+ * Read the movement a source produced, if any. The companion to the conflict
+ * error above: after a doomed transaction rolls back, this resolves "did the
+ * other writer's row land?" on a fresh connection, so the caller can report
+ * idempotent success instead of a failure.
+ */
+export async function findStockMovementBySourceLogic(
+  tenantId: string,
+  sourceType: SourceType,
+  sourceId: string
+): Promise<StockMovement | null> {
+  return withTenantContext(tenantId, (tx) =>
+    tx.stockMovement.findFirst({ where: { tenantId, sourceType, sourceId } })
+  );
+}
+
+export type CreateStockAdjustmentResult = {
+  adjustment: StockAdjustment;
+  movement: StockMovement;
+  /** Balance for this (product, branch) AFTER the write — may be negative (Q9). */
+  postBalance: Prisma.Decimal;
+};
+
+/**
+ * Record a manual stock adjustment: the `stock_adjustment` source row and its
+ * ledger movement, in ONE transaction (Q4).
+ *
+ * The as-entered unit and magnitude stay on the adjustment for audit; the
+ * movement carries the signed base-unit qty (Q1). Direction comes from `type`
+ * alone — a user never types a minus sign.
+ *
+ * A negative `postBalance` NEVER blocks (Q9): the result carries it and the L5
+ * form owns the warn-and-confirm. Input must already be parsed by
+ * `createStockAdjustmentInputSchema`.
+ */
+export async function createStockAdjustmentLogic(
+  tenantId: string,
+  input: CreateStockAdjustmentInput,
+  createdBy: string
+): Promise<CreateStockAdjustmentResult> {
+  const { productId, branchId, type, reason, inputQty, inputUnitId, occurredAt } =
+    input;
+
+  // withTenantContext IS the transaction (SET LOCAL + $transaction), so
+  // everything below commits or rolls back together.
+  return withTenantContext(tenantId, async (tx) => {
+    await assertRefBelongsToTenant(tx, tenantId, "product", productId);
+    await assertRefBelongsToTenant(tx, tenantId, "branch", branchId);
+
+    // The unit must belong to THIS product. Matching on productId is also what
+    // makes a cross-tenant unit unreachable — the product is already asserted.
+    const unit = await tx.productUnit.findFirst({
+      where: { id: inputUnitId, productId },
+      select: { id: true, unitName: true, toBaseRatio: true },
+    });
+    if (!unit) throw new StockUnitMismatchError(inputUnitId, productId);
+
+    // Q1 conversion. Rounded to the column scale HERE rather than left to
+    // Postgres, so the number the app returns is the number that was stored.
+    const magnitude = new Prisma.Decimal(inputQty)
+      .mul(unit.toBaseRatio)
+      .toDecimalPlaces(QTY_SCALE, Prisma.Decimal.ROUND_HALF_UP);
+
+    if (magnitude.isZero()) {
+      const base = await tx.productUnit.findFirst({
+        where: { productId, isBase: true },
+        select: { unitName: true },
+      });
+      throw new QtyRoundsToZeroError(
+        new Prisma.Decimal(inputQty),
+        unit.unitName,
+        base?.unitName ?? null
+      );
+    }
+
+    const qty = type === "ADJUST_LOSS" ? magnitude.negated() : magnitude;
+
+    const adjustment = await tx.stockAdjustment.create({
+      data: {
+        tenantId,
+        productId,
+        branchId,
+        type,
+        reason,
+        inputQty: new Prisma.Decimal(inputQty),
+        inputUnitId,
+        occurredAt,
+        createdBy,
+      },
+    });
+
+    const movement = await createStockMovementLogic(tx, {
+      tenantId,
+      productId,
+      branchId,
+      qty,
+      type,
+      sourceType: "ADJUSTMENT",
+      sourceId: adjustment.id,
+      occurredAt,
+      createdBy,
+      notes: input.notes,
+    });
+
+    // Read the balance inside the same tx so it includes the row just written.
+    const agg = await tx.stockMovement.aggregate({
+      where: { tenantId, productId, branchId },
+      _sum: { qty: true },
+    });
+
+    return { adjustment, movement, postBalance: agg._sum.qty ?? ZERO };
   });
 }
