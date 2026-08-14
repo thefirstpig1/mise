@@ -4,7 +4,7 @@
 
 ## Current Sprint: Sprint 2 — Transactional Systems 🚧 IN PROGRESS
 
-**Status:** 🚧 Part 10 (Stock Movement) — L0 (ledger foundation docs). See the Part 10 section below.
+**Status:** 🚧 Part 10 (Stock Movement) — L3a done (read logic); L3b (write logic) next. See the Part 10 section below.
 **Scope:** Stock Movement (append-only ledger) → PO → GR → Cost Engine per master-spec.md (Part IV — Sprint Plan). Part 10 is the **first proper Sprint 2 slice** (Part 8.5 was a Sprint 1 restore-on-recreate warm-up, run standalone before the Sprint 2 core). Sprint 1 completion history is retained under its own header below.
 
 ---
@@ -370,16 +370,23 @@ Greenfield production has no legacy rows. Test files (`product-logic`, `category
 ### Implementation plan (L0–L6 — TDD vertical slices; ~12–15 commits, batch-pushed at L6)
 | L | Layer | Status | Note |
 |---|---|---|---|
-| **L0** | Docs — ADR 0011 + this section + CONTEXT.md glossary + Q6 verify | 🚧 **current** | awaiting chat review before L1 |
-| L1 | Schema migration — `stock_movement` + `stock_adjustment` + `MovementType`/`SourceType`/`AdjustmentReason` enums + indexes + manual `stock_movement_sign_check.sql` + enable_rls | ⬜ | 154 tests must stay green; index set finalized (4: source_unique / chronological / branch_audit / tenant — `balance_idx` dropped, L0-review); decide `input_qty` precision (15,6 vs 15,3) |
-| L2 | zod — `createStockAdjustmentInputSchema` (product/branch/qty/unit/type/reason/notes/occurred_at?) + balance/history query schemas + backdate range (Q5) | ⬜ | |
-| L3a | Read logic — `getStockBalanceLogic` (+ByBranch/ByProduct) + `getStockMovementHistoryLogic` | ⬜ | |
+| **L0** | Docs — ADR 0011 + this section + CONTEXT.md glossary + Q6 verify | ✅ done (`434a389`) | sign CHECK moved inline into migration.sql (not `prisma/manual/`) — ADR 0011 Q2 correction |
+| L1 | Schema migration — `stock_movement` + `stock_adjustment` + `MovementType`/`SourceType`/`AdjustmentReason` enums + indexes + inline sign/type CHECKs + RLS policies | ✅ done (`5202ffb`) | 4 indexes shipped (source_unique / chronological / branch_audit / tenant); `input_qty` locked at **Decimal(15,3)** to match `movement.qty` (no precision jump through `× toBaseRatio`) |
+| L2 | zod — `createStockAdjustmentInputSchema` (product/branch/qty/unit/type/reason/notes/occurred_at) + balance/history query schemas + backdate range (Q5) | ✅ done (`844d9f4`) | `computeBangkokToday` lifted to `src/lib/bangkok-date.ts` (zod layer must not import `src/server/*` → Prisma in the browser bundle); 183✓/4 skip |
+| L3a | Read logic — `getStockBalanceLogic` (+ByBranch/ByProduct) + `getStockMovementHistoryLogic` | ✅ done | `src/server/stock-movement.ts` (read-only file); 13 slices S1–S13, **196✓/4 skip**, tsc clean. Shapes locked below. |
 | L3b | Write logic — `createStockMovementLogic` (internal primitive: atomic TX, P2002 idempotent, base-unit convert, Bangkok occurred_at) + `createStockAdjustmentLogic` (adjustment + movement one TX; returns `{ movement, adjustment, postBalance }`) | ⬜ | |
 | L4 | Actions — `createStockAdjustmentAction` + `getStockBalanceAction` + `getStockMovementHistoryAction`, Thai error mapping, `revalidatePath` (/stock, /products/[id]/stock, /reports) | ⬜ | |
 | L5a | Adjust form UI — product/branch picker, qty+unit, type radio, reason dropdown, notes, occurred_at picker (default today, 90-day backdate), balance preview + Q9 negative warning | ⬜ | |
 | L5b | Stock-levels dashboard — product \| branch \| balance \| last-movement; filters + low-stock; negative red badge | ⬜ | |
 | L5c | Movement history viewer — chronological per (product, branch); date/type/source filters; type badges, colored qty, source ref, notes, created_by | ⬜ | |
 | L6 | E2E throwaway + sprint-progress flip + batch push | ⬜ | 6–8 cases (mirror Part 8.5 L6): adjust action + balance + negative warning + backdate validation |
+
+### L3a read shapes (locked in code — `src/server/stock-movement.ts`)
+Four choices the grill did not pre-decide; all local to the read layer + its L5 consumers:
+1. **Inclusive upper bounds expand by day.** `asOf` / `dateTo` arrive as UTC-midnight day values (what `<input type="date">` + `computeBangkokToday` produce), so the query uses an EXCLUSIVE bound of `+24h` for a midnight value and `+1ms` for a value with a time component. Without this, "balance as of today" would silently drop today's rows — and Part 13 GR movements may carry real timestamps.
+2. **Grid reads return a full grid, not just rows that moved.** `getStockBalancesByBranchLogic` / `...ByProductLogic` return the UNION of every live product/branch (balance 0 when never moved) and any **soft-deleted** product/branch that still holds stock, flagged `deleted: true`. Deleting a product must never make its remaining stock vanish from the stock-levels page.
+3. **History ordering is TOTAL** — `(occurredAt, createdAt, id)` DESC (the cost engine walks the same tuple ASC in Part 14). `id` is what makes cursor pagination safe when two rows share an instant. Has-more is probed with `take: limit + 1` (no COUNT over the ledger); `nextCursor` = last row of the page.
+4. **Polymorphic source resolved in one batched query** (Q3 — there is no FK to `include`): ADJUSTMENT rows get `{ reason, inputQty, inputUnitName }` attached; GR_LINE resolution is Part 13's. Reads do **not** assert ref ownership — the `tenantId` filter turns a foreign id into an empty ledger; ownership assertions belong to the write path (L3b), where accepting a foreign id would corrupt data.
 
 ### Risk surfaces (from grill)
 1. **Action-layer unit conversion** (Q1) — a base-unit conversion bug is silent stock corruption → dedicated unit-conversion helper + zod bounds + tests. 2. **Sign CHECK maintenance** (Q2) — every future movement type must extend + re-apply the manual SQL. 3. **No-FK source integrity** (Q3) — app-layer "source exists" assertion before INSERT is the only guard. 4. **Backdate tz correctness** (Q5) — Bangkok UTC+7 via `computeBangkokToday` (Decision #60). 5. **Index-collapse — RESOLVED at L0 review**: `balance_idx` dropped (leftmost-prefix of `chronological_idx`, which covers the balance SUM via index-only scan); ledger ships 4 indexes (source_unique / chronological / branch_audit / tenant). See ADR 0011 Consequences.
