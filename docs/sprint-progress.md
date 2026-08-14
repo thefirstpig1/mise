@@ -4,7 +4,7 @@
 
 ## Current Sprint: Sprint 2 — Transactional Systems 🚧 IN PROGRESS
 
-**Status:** 🚧 Part 10 (Stock Movement) — L3a done (read logic); L3b (write logic) next. See the Part 10 section below.
+**Status:** 🚧 Part 10 (Stock Movement) ✅ COMPLETE (L0–L6, 2026-08-15) — next up: PO/GR. See the Part 10 section below.
 **Scope:** Stock Movement (append-only ledger) → PO → GR → Cost Engine per master-spec.md (Part IV — Sprint Plan). Part 10 is the **first proper Sprint 2 slice** (Part 8.5 was a Sprint 1 restore-on-recreate warm-up, run standalone before the Sprint 2 core). Sprint 1 completion history is retained under its own header below.
 
 ---
@@ -342,7 +342,7 @@ Pitfall #19 (git hook inert — push manual), #26 (Neon free-tier quota — `pg_
 
 ---
 
-## Sprint 2 Part 10 — Stock Movement: 🚧 IN PROGRESS (grill locked 2026-06-20, L0 started 2026-07-05)
+## Sprint 2 Part 10 — Stock Movement: ✅ COMPLETE (L0–L6, 2026-07-05 → 2026-08-15)
 
 First transactional Part of Sprint 2 — the **append-only stock ledger** every later Part (PO/GR/Cost Engine) sits on. Grill-with-docs (Q1–Q10) locked 2026-06-20 — full record in Drive doc **"Sprint 2 Part 10 GRILL DECISIONS"** (fileId `10aiHL24jMSmqHQ8gfl8bPOh5k0liPRtrmUCVJdX-eIs`), codified in **ADR 0011**. **Scope = ledger foundation + manual adjustment source**: `stock_movement` + `stock_adjustment` tables, base-unit-normalised signed ledger, balance/history reads, and the adjust / stock-levels / history UI. Part 13 (GR) + Part 14 (Cost Engine) are pure **consumers** of these primitives. Design philosophy: **financial integrity > convenience** — immutable ledger, compensating entries for corrections.
 
@@ -379,7 +379,7 @@ Greenfield production has no legacy rows. Test files (`product-logic`, `category
 | L5a | Adjust form UI — product/branch picker, qty+unit, type radio, reason dropdown, notes, occurred_at picker (default today, 90-day backdate), balance preview + Q9 negative warning | ✅ done | `/stock/adjust` + `_components/StockAdjustForm.tsx` + `/stock` layout + dashboard nav. `next build` → **✓ Compiled successfully**; tsc clean. Q9 gate = banner + confirm checkbox, never a server refusal |
 | L5b | Stock-levels dashboard — product \| branch \| balance \| last-movement; filters; negative red badge | ✅ done | `/stock` + `_components/StockLevelsTable.tsx`. Branch in the URL (`?branch=`) so `revalidatePath("/stock")` refreshes what the user is looking at. **"low-stock" filter dropped** — see below. `pnpm build` green (20 routes) |
 | L5c | Movement history viewer — chronological per (product, branch); date/type/source filters; type badges, colored qty, source ref, notes, created_by | ✅ done | `/stock/history` + `_components/StockMovementHistory.tsx`. Filters = GET form (URL state); page 1 server-rendered, "โหลดเพิ่ม" pages via the L4 action replaying the same filters. `pnpm build` green (21 routes), 206✓/4 skip |
-| L6 | E2E throwaway + sprint-progress flip + batch push | ⬜ | 6–8 cases (mirror Part 8.5 L6): adjust action + balance + negative warning + backdate validation |
+| L6 | E2E throwaway + sprint-progress flip + batch push | ✅ done | 8 cases E1–E8 green; throwaway spec + config **deleted** (never committed). Final sweep: tsc clean · `pnpm build` 21 routes · **206✓/4 skip** (unchanged — throwaway stayed out of discovery) |
 
 ### L3a read shapes (locked in code — `src/server/stock-movement.ts`)
 Four choices the grill did not pre-decide; all local to the read layer + its L5 consumers:
@@ -436,7 +436,21 @@ Pitfall **#19** (git hook inert — push manual, batch at L6), **#20** (Decimal 
 - **Part 13 (GR)** — builds `goods_received_line` (`ordered/received/invoiced/discrepancy_qty`, `discrepancy_reason`, `resolution_status`) and *calls* `createStockMovementLogic` (`received_qty` → `qty`, source `GR_LINE`); source-level idempotency (submit key) + "edit GR → compensating entries" UX are Part 13's.
 - **Part 14 (Cost Engine)** — orders by `(occurred_at, created_at)`; weighted-avg vs FIFO ADR; AP discrepancy cost policy (A `invoice/received` recommended / B write-off / C provisional); retroactive recompute on backdated entries.
 
-### Next: chat review of L0 → commit L0 (ADR 0011 + this section + CONTEXT.md) → L1 schema migration planning. **Do NOT push** (batch push at L6, Part 8.5 pattern).
+### Verified (L6, 2026-08-15)
+- `pnpm tsc --noEmit` clean · `pnpm build` green (**21 routes**, `/stock`, `/stock/adjust`, `/stock/history` among them) · `pnpm vitest run` **206 passed / 4 skipped** (154 Sprint 1 baseline + 29 L2 schema + 13 L3a read + 10 L3b write).
+- **8-case throwaway action-stack E2E (E1–E8)** on a throwaway tenant, mocking only `requireTenant` + `next/cache` — everything below the action real (zod → *Logic → Prisma → Neon → DB CHECKs): base-unit gain persisted with source+movement linked · `กระสอบ ×25` conversion · **negative balance SUCCEEDS and reports `negative: true`** (Q9) · 3 zod forks (neg qty / future date / >90d backdate) as Thai field errors · cross-product unit → Thai on `inputUnitId` with nothing written · rounds-to-zero naming both units with **no orphan source row** · balance serialized Decimal→string · history cursor paging with no repeats + source resolution + pre-formatted date. Spec + dedicated config then **deleted** (7c/7d/8/8.5 precedent).
+- Ledger tables verified empty after the run (`stock_movement` 0, `stock_adjustment` 0) — no test residue on Neon.
+
+### Part 10 — ✅ COMPLETE
+The append-only ledger and its first producer are live: `stock_movement` + `stock_adjustment`, base-unit-normalised signed rows, realtime SUM balances with `asOf` time travel, and the three UI surfaces (`/stock`, `/stock/adjust`, `/stock/history`). Part 13 (GR) and Part 14 (Cost Engine) can now be built as pure consumers.
+
+**Carried forward from this Part:**
+- **Par level / reorder point** — the L5b "low-stock" filter was dropped for want of a schema field; needs its own grill (per-product? per-branch? seasonal?) → Sprint 3+.
+- **ADR 0011 Q4 mechanism correction** (lookup-before-insert, not catch-P2002) — Part 13's GR must use `createStockMovementLogic` as-is and add its own `GR_LINE` branch to `assertSourceExists`, plus a client submit key for source-level idempotency.
+- **Sign CHECK maintenance** — any new `MovementType` in Sprint 3+ (WASTE / TRANSFER_* / RECIPE_CONSUME) must DROP + re-declare `stock_movement_sign_check` in its own migration.
+- **Pre-existing test residue on Neon** (NOT Part 10): 4 leftover tenants from Sprint 1 suites (`Product Test Tenant A/B/C`, the Part 6 throwaway `12cad010…`) — those suites drop their rows but not the tenant. Harmless; clean up in a maintenance pass.
+
+### Next: Sprint 2 continues — PO/GR allocation + mirror triggers per master-spec.md (Part IV). Part 10 L0–L6 pushed as one batch (Part 8.5 pattern).
 
 ---
 
