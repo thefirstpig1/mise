@@ -57,6 +57,7 @@ B2B SaaS for Thailand restaurant SMEs. "MarketMan-for-Thailand-SME" — 90% chea
 Once a plan is approved, run to the end of the slice WITHOUT asking step by step:
 - Write/edit code per the plan; refactor within a single layer.
 - Run `pnpm tsc` / `pnpm vitest`; fix failing tests; fix bugs you introduced.
+- **Touching a page/route/UI? Run `pnpm build` too — `pnpm tsc` is NOT enough.** Next's generated `.next/types/**` route types sit outside the tsconfig scope, so tsc can be fully green while `next build` fails. (A Sprint-0 `searchParams` signature blocked production builds for 9 parts before the Part 10 L5a build check caught it.) Note that `next build` prints `✓ Compiled successfully` BEFORE the type-check pass — that line alone does not mean the build passed.
 - Commit at layer boundaries (L0→L6; never push until the L6 batch push).
 
 🛑 STOP and ask Kong first — even when context is clear — when you hit:
