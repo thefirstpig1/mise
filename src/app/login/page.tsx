@@ -1,11 +1,17 @@
 import { signIn } from "@/lib/auth";
 
-export default function LoginPage({
+// Next 15 made `searchParams` a Promise (it was a plain object in 14). This page
+// dates from Sprint 0 and kept the old signature — which `next build` rejects in
+// its type-check pass, blocking production builds repo-wide. `pnpm tsc --noEmit`
+// never caught it because the generated .next/types route types are outside the
+// tsconfig scope; dev and vitest are unaffected, so it went unnoticed for
+// 9 parts. Found by the Part 10 L5a build check.
+export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: { "check-email"?: string };
+  searchParams: Promise<{ "check-email"?: string }>;
 }) {
-  const checkEmail = searchParams["check-email"] !== undefined;
+  const checkEmail = (await searchParams)["check-email"] !== undefined;
 
   return (
     <main className="flex min-h-screen items-center justify-center px-4">
