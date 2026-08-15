@@ -450,6 +450,25 @@ The append-only ledger and its first producer are live: `stock_movement` + `stoc
 - **Sign CHECK maintenance** — any new `MovementType` in Sprint 3+ (WASTE / TRANSFER_* / RECIPE_CONSUME) must DROP + re-declare `stock_movement_sign_check` in its own migration.
 - **Pre-existing test residue on Neon** (NOT Part 10): 4 leftover tenants from Sprint 1 suites (`Product Test Tenant A/B/C`, the Part 6 throwaway `12cad010…`) — those suites drop their rows but not the tenant. Harmless; clean up in a maintenance pass.
 
+### Post-completion review (/scrutinize, 2026-08-15)
+
+Outsider pass over the whole slice before Part 13/14 build on it. One live bug fixed, four items carried forward.
+
+**FIXED — `85b38a3`: zod rejected valid 3-decimal quantities.** `hasAtMostThreeDecimals` was `Number.isInteger(n * 1000)`, false for 1.005 and ~1.2% of all 3-decimal values (11,791 of the first 1,000,000) while the form's `step="0.001"` accepted them — a dead end the user could not act on. Now the `Number(n.toFixed(3)) === n` round-trip, the guard `supplier.ts:60` already used correctly in Sprint 1. +3 regression tests (**209✓/4 skip**), tsc clean, `pnpm build` green. The L2 test suite missed it because its happy-path value (`1.234`) happens to be one that works.
+
+**MUST DECIDE BEFORE PART 13 (GR):**
+1. **Day bucketing is UTC, not Bangkok.** `exclusiveUpperBound` (`stock-movement.ts:55`) and `computeBangkokToday` both work in UTC midnights, which is self-consistent *only* while every `occurred_at` is a date-only value. The moment GR writes real timestamps, anything occurring 00:00–06:59 Bangkok falls into the previous day, and "balance ณ วันนี้" reaches to Bangkok 07:00 tomorrow — Decision #60, and unfixable in place once real data exists. Options: (A) shift the query bounds by the Bangkok offset and let GR store true instants (**recommended** — Part 14 needs intra-day ordering, and option B parks every adjustment at 07:00); (B) force every source to store a business-date UTC midnight.
+2. **Source-level idempotency does not cover a re-submitted form.** ADR 0011 Q4's guarantee is keyed on `(source_type, source_id)`, but `createStockAdjustmentLogic` mints a fresh `stock_adjustment` id per call — so a double POST (no-JS progressive enhancement, back-then-resubmit, network retry) writes a second adjustment + movement and doubles the stock, correctable only by a compensating entry. The `isPending` disable covers the ordinary double-click and nothing else. Fix = hidden per-form `submit_key` uuid used AS the adjustment id, which makes the existing pre-insert lookup do what the ADR claims. Part 13's GR needs the same key.
+3. **The primitive returns an existing movement without checking it matches.** `stock-movement.ts:622` returns on `sourceId` alone, and `assertSourceExists` (`:559`) only proves the source row exists — not that its product/branch/qty agree with the movement being written. A Part 13 replay of a GR line with a corrected qty would report success while the ledger keeps the old number, silently. Fix (one site): compare `(productId, branchId, qty, type, occurredAt)` against `existing` and throw a typed `MovementSourceMismatchError`; have `assertSourceExists` select and check the source's own product/branch.
+
+**Smaller items (not blocking):**
+- `stock-movement.ts:622` is the only query on the write path not filtered by `tenantId` (every other one is, including `findStockMovementBySourceLogic`). Unreachable today (uuid source ids + assert runs first); still worth an explicit tenant check.
+- `stock_adjustment.input_qty` has no `> 0` CHECK while the ledger has a full sign CHECK — asymmetric defense-in-depth.
+- `getStockBalancesByBranchLogic` loads the entire live catalog per `/stock` render, unbounded.
+- `withTenantContext` runs on `$transaction`'s default **5s timeout** — a multi-line GR write in one tx may need an explicit `{ timeout }` in Part 13.
+
+**Traced and confirmed sound:** cursor pagination is a genuine total order (`occurredAt, createdAt, id` + `take: limit+1` + `skip: 1`) with no skip/duplicate at ties · the sign CHECK leaves no gap at `qty = 0` · no Decimal→Number leak anywhere in the serializer, and the form's preview math is display-only as documented · the grid union rule really does keep soft-deleted products holding stock visible · the Q9 negative gate is UI-only, the server never refuses.
+
 ### Next: Sprint 2 continues — PO/GR allocation + mirror triggers per master-spec.md (Part IV). Part 10 L0–L6 pushed as one batch (Part 8.5 pattern).
 
 ---
