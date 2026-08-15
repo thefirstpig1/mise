@@ -97,6 +97,9 @@ model Tenant {
   supplierProductMappings SupplierProductMapping[]
   stockMovements          StockMovement[]
   stockAdjustments        StockAdjustment[]
+  purchaseOrders          PurchaseOrder[]
+  purchaseOrderItems      PurchaseOrderItem[]
+  poItemAllocations       PurchaseOrderItemAllocation[]
 
   @@map("tenant")
 }
@@ -105,7 +108,13 @@ model Branch {
   id       String  @id @default(uuid()) @db.Uuid
   tenantId String  @map("tenant_id") @db.Uuid
   name     String
-  code     String?
+  /// NOT NULL since Part 11 (ADR 0012 Q8b) — it prefixes every po_number of this
+  /// branch ({CODE}-PO-####), so a branch without one cannot issue a PO.
+  /// Uniqueness = PARTIAL unique (tenant_id, code) WHERE deleted_at IS NULL in
+  /// prisma/manual/branch_code_unique.sql — a FULL unique would let a soft-deleted
+  /// branch reserve its code forever (Pitfall #22/#23). NOTE: Department.code
+  /// above still uses a FULL @@unique and carries that trap; not fixed here.
+  code     String
   address  String?
   isActive Boolean @default(true) @map("is_active")
 
@@ -118,6 +127,7 @@ model Branch {
   supplierProductMappings SupplierProductMapping[]
   stockMovements          StockMovement[]
   stockAdjustments        StockAdjustment[]
+  purchaseOrders          PurchaseOrder[]
 
   @@index([tenantId])
   @@map("branch")
@@ -136,11 +146,14 @@ model User {
   updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
 
-  accounts         Account[]
-  sessions         Session[]
-  memberships      TenantMembership[]
-  stockMovements   StockMovement[]
-  stockAdjustments StockAdjustment[]
+  accounts             Account[]
+  sessions             Session[]
+  memberships          TenantMembership[]
+  stockMovements       StockMovement[]
+  stockAdjustments     StockAdjustment[]
+  purchaseOrdersMade   PurchaseOrder[]    @relation("PoCreatedBy")
+  purchaseOrdersSent   PurchaseOrder[]    @relation("PoSentBy")
+  purchaseOrdersVoided PurchaseOrder[]    @relation("PoCancelledBy")
 
   @@map("app_user")
 }
@@ -190,10 +203,11 @@ model Department {
   updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
 
-  tenant      Tenant                     @relation(fields: [tenantId], references: [id])
-  parentDept  Department?                @relation("DeptHierarchy", fields: [parentDeptId], references: [id])
-  childDepts  Department[]               @relation("DeptHierarchy")
-  assignments UserDepartmentAssignment[]
+  tenant            Tenant                        @relation(fields: [tenantId], references: [id])
+  parentDept        Department?                   @relation("DeptHierarchy", fields: [parentDeptId], references: [id])
+  childDepts        Department[]                  @relation("DeptHierarchy")
+  assignments       UserDepartmentAssignment[]
+  poItemAllocations PurchaseOrderItemAllocation[]
 
   @@unique([tenantId, code])
   @@index([tenantId])
@@ -280,6 +294,7 @@ model Supplier {
 
   tenant                  Tenant                   @relation(fields: [tenantId], references: [id])
   supplierProductMappings SupplierProductMapping[]
+  purchaseOrders          PurchaseOrder[]
 
   @@index([tenantId])
   @@map("supplier")
@@ -338,6 +353,7 @@ model Product {
   supplierProductMappings SupplierProductMapping[]
   stockMovements          StockMovement[]
   stockAdjustments        StockAdjustment[]
+  purchaseOrderItems      PurchaseOrderItem[]
 
   /// NOTE: per-tenant sku uniqueness is a PARTIAL unique index (WHERE deleted_at
   /// IS NULL) in prisma/manual/product_sku_unique.sql — NOT a Prisma @@unique,
@@ -360,6 +376,7 @@ model ProductUnit {
   product                 Product                  @relation(fields: [productId], references: [id])
   supplierProductMappings SupplierProductMapping[]
   stockAdjustments        StockAdjustment[]
+  purchaseOrderItems      PurchaseOrderItem[]
 
   @@unique([productId, unitName])
   @@index([productId])
@@ -386,11 +403,14 @@ model SupplierProductMapping {
   updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
 
-  tenant    Tenant       @relation(fields: [tenantId], references: [id])
-  supplier  Supplier     @relation(fields: [supplierId], references: [id])
-  product   Product      @relation(fields: [productId], references: [id])
-  branch    Branch?      @relation(fields: [branchId], references: [id])
-  orderUnit ProductUnit? @relation(fields: [orderUnitId], references: [id])
+  tenant             Tenant              @relation(fields: [tenantId], references: [id])
+  supplier           Supplier            @relation(fields: [supplierId], references: [id])
+  product            Product             @relation(fields: [productId], references: [id])
+  branch             Branch?             @relation(fields: [branchId], references: [id])
+  orderUnit          ProductUnit?        @relation(fields: [orderUnitId], references: [id])
+  /// Provenance only (ADR 0012 Q3) — a PO line snapshots the numbers it needs and
+  /// never reads back through this link.
+  purchaseOrderItems PurchaseOrderItem[]
 
   /// Composite uniqueness enforced by partial unique index in
   /// prisma/manual/supplier_product_mapping_unique.sql
@@ -506,4 +526,159 @@ model StockAdjustment {
   @@index([tenantId])
   @@index([productId, branchId, occurredAt], map: "stock_adjustment_product_branch_idx")
   @@map("stock_adjustment")
+}
+
+// ============================================================
+// PROCUREMENT (Sprint 2 Part 11 — ADR 0012)
+// ============================================================
+// A PO is a DOCUMENT THAT LEFT THE BUILDING: editable while DRAFT, frozen from
+// SENT (Q4). Every number a line needs in order to still mean the same thing
+// years later — unit price, unit name, to_base_ratio — is COPIED onto the line
+// (Q3), never followed through a live FK.
+//
+// Deliberate divergences from master-spec §5.3, all recorded in ADR 0012:
+//   - no purchase_request / from_pr_ids / source_pr_id (Q1 — PR is Sprint 3+)
+//   - no wht_expected_amount / net_payment_expected (Q6 — WHT is Sprint 3)
+//   - no H.2 deferrable trigger pair (Q2 — the allocation sum is app-enforced)
+//   - tenant_id lives on ALL THREE tables, unlike the spec's child-table shape:
+//     app-layer isolation (ADR 0004) works by filtering tenantId EXPLICITLY, and
+//     a column that isn't there cannot be filtered. RLS is still inert.
+
+enum PurchaseOrderStatus {
+  DRAFT // editable
+  SENT // frozen (Q4); sent_at set
+  PARTIALLY_RECEIVED // written by Part 13 (GR) only
+  RECEIVED // written by Part 13 (GR) only
+  CANCELLED // terminal; a sent PO is never deleted (Q9)
+
+  @@map("purchase_order_status")
+}
+
+/// Order header. VAT is snapshotted here at send time (Q6); WHT is not captured.
+model PurchaseOrder {
+  id         String              @id @default(uuid()) @db.Uuid
+  tenantId   String              @map("tenant_id") @db.Uuid
+  /// NOT NULL (spec §125) — an order is always placed by a branch, and its code
+  /// is baked into po_number.
+  branchId   String              @map("branch_id") @db.Uuid
+  supplierId String              @map("supplier_id") @db.Uuid
+  /// {BRANCH_CODE}-PO-#### (Q8), counter per branch, never resets. Uniqueness =
+  /// PARTIAL unique in prisma/manual/purchase_order_number_unique.sql (a DRAFT can
+  /// be soft-deleted — Q9 — so a FULL unique would be Pitfall #22/#23).
+  poNumber   String              @map("po_number")
+  status     PurchaseOrderStatus @default(DRAFT)
+
+  expectedDeliveryDate DateTime? @map("expected_delivery_date") @db.Date
+
+  /// --- VAT snapshot (Q6), frozen when the PO is sent ---
+  /// Sum of line totals. 15,2 = THB satang; unit prices carry more precision.
+  subtotalExclVat Decimal  @default(0) @map("subtotal_excl_vat") @db.Decimal(15, 2)
+  /// null = this order carries no VAT (supplier not registered).
+  vatRatePercent  Decimal? @map("vat_rate_percent") @db.Decimal(5, 2)
+  vatAmount       Decimal  @default(0) @map("vat_amount") @db.Decimal(15, 2)
+  totalAmount     Decimal  @default(0) @map("total_amount") @db.Decimal(15, 2)
+
+  notes String?
+
+  /// --- lifecycle audit (Q4/Q9) ---
+  createdBy    String    @map("created_by")
+  sentAt       DateTime? @map("sent_at")
+  sentBy       String?   @map("sent_by")
+  cancelledAt  DateTime? @map("cancelled_at")
+  cancelledBy  String?   @map("cancelled_by")
+  cancelReason String?   @map("cancel_reason")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  /// DRAFT only (Q9) — a sent PO goes to CANCELLED and stays visible forever.
+  deletedAt DateTime? @map("deleted_at")
+
+  tenant          Tenant              @relation(fields: [tenantId], references: [id])
+  branch          Branch              @relation(fields: [branchId], references: [id])
+  supplier        Supplier            @relation(fields: [supplierId], references: [id])
+  createdByUser   User                @relation("PoCreatedBy", fields: [createdBy], references: [id])
+  sentByUser      User?               @relation("PoSentBy", fields: [sentBy], references: [id])
+  cancelledByUser User?               @relation("PoCancelledBy", fields: [cancelledBy], references: [id])
+  items           PurchaseOrderItem[]
+
+  @@index([tenantId])
+  @@index([tenantId, status], map: "purchase_order_tenant_status_idx")
+  @@index([branchId, status], map: "purchase_order_branch_status_idx")
+  @@index([supplierId], map: "purchase_order_supplier_idx")
+  @@map("purchase_order")
+}
+
+/// One ordered product. Everything under "snapshot" is frozen at send time (Q3)
+/// and must never be re-derived from the live ProductUnit / mapping afterwards.
+model PurchaseOrderItem {
+  id              String @id @default(uuid()) @db.Uuid
+  tenantId        String @map("tenant_id") @db.Uuid
+  purchaseOrderId String @map("purchase_order_id") @db.Uuid
+  productId       String @map("product_id") @db.Uuid
+  /// Stable display order + the identity the edit form diffs rows by.
+  lineNo          Int    @map("line_no")
+
+  /// Quantity IN THE ORDERED UNIT (Q3) — what the supplier's invoice will say.
+  qtyOrdered  Decimal @map("qty_ordered") @db.Decimal(15, 3)
+  orderUnitId String  @map("order_unit_id") @db.Uuid
+
+  /// --- snapshot (Q3) ---
+  /// Copied from ProductUnit at send time so a later rename/ratio edit cannot
+  /// change what this order meant. to_base_ratio mirrors ProductUnit's (15,6).
+  orderUnitName String  @map("order_unit_name")
+  toBaseRatio   Decimal @map("to_base_ratio") @db.Decimal(15, 6)
+  /// excl VAT. 15,4 matches supplier_product_mapping.current_unit_price.
+  unitPrice     Decimal @map("unit_price") @db.Decimal(15, 4)
+  /// round(qtyOrdered × unitPrice, 2) — computed in the app, stored, never re-derived.
+  lineTotal     Decimal @map("line_total") @db.Decimal(15, 2)
+
+  /// Provenance ONLY (Q3). null = the price was typed by hand (Q5).
+  supplierProductMappingId String? @map("supplier_product_mapping_id") @db.Uuid
+
+  /// Maintained by Part 13 (GR) exclusively; created here so Part 13 needs no
+  /// migration on a table it does not own.
+  qtyReceived Decimal @default(0) @map("qty_received") @db.Decimal(15, 3)
+
+  notes String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant                 Tenant                        @relation(fields: [tenantId], references: [id])
+  purchaseOrder          PurchaseOrder                 @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  product                Product                       @relation(fields: [productId], references: [id])
+  orderUnit              ProductUnit                   @relation(fields: [orderUnitId], references: [id])
+  supplierProductMapping SupplierProductMapping?       @relation(fields: [supplierProductMappingId], references: [id])
+  allocations            PurchaseOrderItemAllocation[]
+
+  @@unique([purchaseOrderId, lineNo], map: "purchase_order_item_line_unique")
+  @@index([tenantId])
+  @@index([purchaseOrderId], map: "purchase_order_item_parent_idx")
+  @@index([productId], map: "purchase_order_item_product_idx")
+  @@map("purchase_order_item")
+}
+
+/// Department attribution of a line's quantity (Q2). SUM(qtyAllocated) per line
+/// MUST equal the line's qtyOrdered — enforced in the write transaction, NOT by
+/// the H.2 trigger pair (see ADR 0012 Q2). While departments are off there is
+/// exactly one row per line, pointing at "Main".
+/// No deletedAt: allocations are replaced wholesale with their (DRAFT) parent line.
+model PurchaseOrderItemAllocation {
+  id                  String  @id @default(uuid()) @db.Uuid
+  tenantId            String  @map("tenant_id") @db.Uuid
+  purchaseOrderItemId String  @map("purchase_order_item_id") @db.Uuid
+  departmentId        String  @map("department_id") @db.Uuid
+  qtyAllocated        Decimal @map("qty_allocated") @db.Decimal(15, 3)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant            Tenant            @relation(fields: [tenantId], references: [id])
+  purchaseOrderItem PurchaseOrderItem @relation(fields: [purchaseOrderItemId], references: [id], onDelete: Cascade)
+  department        Department        @relation(fields: [departmentId], references: [id])
+
+  @@unique([purchaseOrderItemId, departmentId], map: "po_item_allocation_dept_unique")
+  @@index([tenantId])
+  @@index([departmentId], map: "po_item_allocation_dept_idx")
+  @@map("purchase_order_item_allocation")
 }

@@ -105,12 +105,20 @@ describe("stock-movement read *Logic (tenant-scoped, app-layer isolation)", () =
       tenantB = b.id;
 
       const [a1, a2, gone, bb] = await Promise.all([
-        tx.branch.create({ data: { tenantId: a.id, name: "A1 ครัวกลาง" } }),
-        tx.branch.create({ data: { tenantId: a.id, name: "A2 หน้าร้าน" } }),
+        // `code` is NOT NULL + partial-unique per tenant since Part 11 (ADR 0012
+        // Q8b) — distinct codes within tenant A, and the soft-deleted one is free
+        // to reuse a code precisely because the index is partial.
+        tx.branch.create({ data: { tenantId: a.id, name: "A1 ครัวกลาง", code: "A1" } }),
+        tx.branch.create({ data: { tenantId: a.id, name: "A2 หน้าร้าน", code: "A2" } }),
         tx.branch.create({
-          data: { tenantId: a.id, name: "A3 สาขาปิด", deletedAt: new Date() },
+          data: {
+            tenantId: a.id,
+            name: "A3 สาขาปิด",
+            code: "A3",
+            deletedAt: new Date(),
+          },
         }),
-        tx.branch.create({ data: { tenantId: b.id, name: "B1" } }),
+        tx.branch.create({ data: { tenantId: b.id, name: "B1", code: "MAIN" } }),
       ]);
       branchA1 = a1.id;
       branchA2 = a2.id;

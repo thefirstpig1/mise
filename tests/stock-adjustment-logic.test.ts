@@ -82,8 +82,8 @@ describe("stock adjustment write *Logic (append-only ledger, ADR 0011)", () => {
       tenantA = a.id;
       tenantB = b.id;
       const [ba, bb] = await Promise.all([
-        tx.branch.create({ data: { tenantId: a.id, name: "ครัวกลาง" } }),
-        tx.branch.create({ data: { tenantId: b.id, name: "B1" } }),
+        tx.branch.create({ data: { tenantId: a.id, name: "ครัวกลาง", code: "MAIN" } }),
+        tx.branch.create({ data: { tenantId: b.id, name: "B1", code: "MAIN" } }),
       ]);
       branchA = ba.id;
       branchB = bb.id;

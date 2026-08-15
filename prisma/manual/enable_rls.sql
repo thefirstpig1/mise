@@ -136,3 +136,36 @@ USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 -- ============================================================
 -- End Sprint 2 Part 10 RLS
 -- ============================================================
+
+-- ============================================================
+-- Sprint 2 Part 11: Purchase Order RLS Policies (ADR 0012)
+-- ============================================================
+-- APPEND-ONLY FILE — apply THIS SECTION ONLY, never re-run the whole file
+-- (CREATE POLICY has no IF NOT EXISTS). Same procedure as the Part 10 section.
+--
+-- All three tables carry tenant_id directly — including the two the spec models
+-- as child tables (ADR 0012): app-layer isolation works by filtering tenantId
+-- explicitly, and a column that isn't there cannot be filtered. So no EXISTS
+-- indirection is needed here.
+--
+-- Still inert until Sprint 7 (ADR 0004) — this is RLS-prep.
+-- ============================================================
+
+-- purchase_order (direct tenant_id)
+ALTER TABLE purchase_order ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON purchase_order
+USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+-- purchase_order_item (direct tenant_id)
+ALTER TABLE purchase_order_item ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON purchase_order_item
+USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+-- purchase_order_item_allocation (direct tenant_id)
+ALTER TABLE purchase_order_item_allocation ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON purchase_order_item_allocation
+USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+-- ============================================================
+-- End Sprint 2 Part 11 RLS
+-- ============================================================

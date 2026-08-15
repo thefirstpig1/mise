@@ -30,8 +30,8 @@ describe.skip("Tenant Isolation (RLS — H.10) — re-enable at Sprint 7 FORCE R
       tenantB = b.id;
 
       // Create one branch each
-      await tx.branch.create({ data: { tenantId: a.id, name: "Branch A1" } });
-      await tx.branch.create({ data: { tenantId: b.id, name: "Branch B1" } });
+      await tx.branch.create({ data: { tenantId: a.id, name: "Branch A1", code: "MAIN" } });
+      await tx.branch.create({ data: { tenantId: b.id, name: "Branch B1", code: "MAIN" } });
     });
   });
 

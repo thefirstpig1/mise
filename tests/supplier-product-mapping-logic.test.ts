@@ -91,7 +91,9 @@ describe("supplier-product-mapping *Logic (tenant-scoped, app-layer isolation)",
       const b = await tx.tenant.create({ data: { name: "Mapping Test Tenant B" } });
       tenantA = a.id;
       tenantB = b.id;
-      const br = await tx.branch.create({ data: { tenantId: tenantA, name: "สาขาทดสอบ A" } });
+      const br = await tx.branch.create({
+        data: { tenantId: tenantA, name: "สาขาทดสอบ A", code: "MAIN" },
+      });
       branchA = br.id;
     });
     supB = await freshSupplier(tenantB, "B-cross");
