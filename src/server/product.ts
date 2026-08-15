@@ -224,7 +224,13 @@ async function assertValidBaseUnit(
  * (parentProductId is also `"product"`); Part 8 adds `"supplier" | "branch"` for
  * the mapping slice; Sprint 5 recipe refs reuse this too.
  */
-export type TenantScopedRef = "category" | "product" | "supplier" | "branch";
+export type TenantScopedRef =
+  | "category"
+  | "product"
+  | "supplier"
+  | "branch"
+  /// Part 11 adds "department" for PO line allocations (ADR 0012 Q2).
+  | "department";
 
 /**
  * Guard: a referenced row (by `id`) must be a LIVE row owned by `tenantId`.
