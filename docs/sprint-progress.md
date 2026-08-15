@@ -4,7 +4,7 @@
 
 ## Current Sprint: Sprint 2 — Transactional Systems 🚧 IN PROGRESS
 
-**Status:** 🚧 Part 10 (Stock Movement) ✅ COMPLETE (L0–L6, 2026-08-15) — next up: PO/GR. See the Part 10 section below.
+**Status:** 🚧 Part 10 (Stock Movement) ✅ COMPLETE (L0–L6, 2026-08-15) + post-completion review closed (1 fix, 3 items carried to Part 13) → **Part 11 (Purchase Order) IN PROGRESS — grill locked 2026-08-16, L0 done.**
 **Scope:** Stock Movement (append-only ledger) → PO → GR → Cost Engine per master-spec.md (Part IV — Sprint Plan). Part 10 is the **first proper Sprint 2 slice** (Part 8.5 was a Sprint 1 restore-on-recreate warm-up, run standalone before the Sprint 2 core). Sprint 1 completion history is retained under its own header below.
 
 ---
@@ -469,7 +469,47 @@ Outsider pass over the whole slice before Part 13/14 build on it. One live bug f
 
 **Traced and confirmed sound:** cursor pagination is a genuine total order (`occurredAt, createdAt, id` + `take: limit+1` + `skip: 1`) with no skip/duplicate at ties · the sign CHECK leaves no gap at `qty = 0` · no Decimal→Number leak anywhere in the serializer, and the form's preview math is display-only as documented · the grid union rule really does keep soft-deleted products holding stock visible · the Q9 negative gate is UI-only, the server never refuses.
 
-### Next: Sprint 2 continues — PO/GR allocation + mirror triggers per master-spec.md (Part IV). Part 10 L0–L6 pushed as one batch (Part 8.5 pattern).
+### Next: Part 11 — Purchase Order (design locked, see below). Part 10 L0–L6 pushed as one batch (Part 8.5 pattern).
+
+---
+
+## Sprint 2 Part 11 — Purchase Order: 🚧 IN PROGRESS (grill locked 2026-08-16)
+
+The document a GR will later receive against. Grill-with-docs (Q1–Q9 + Q8b) locked this session, codified in **ADR 0012**. **Scope = the PO as a sent document**: create/edit while `DRAFT`, freeze-and-lock at `SENT`, cancel, plus the supplier-price resolver ADR 0009 deferred to "the Sprint 2 PO consumer".
+
+**Part numbering reconciled:** ADR 0011 sketched "Part 11 auto-pick preferred supplier → Part 12 PO". Those merge into **one Part 11** — the price resolver is the PO form's read layer, not a feature of its own. **Part 12 is left unallocated**; Part 13 (GR) and Part 14 (Cost Engine) keep their numbers, which are already referenced across the docs.
+
+### Design locked (Q1–Q9 — compact; full record in ADR 0012)
+| Q | Decision (one-liner) |
+|---|---|
+| Q1 | **No PR layer** — `purchase_request` deferred to Sprint 3+. It exists to let a *department* request and a manager approve; `enableDepartments` is off by default and **there is no `/departments` route**, so nothing can create a second department to request on behalf of. |
+| Q2 | `purchase_order_item_allocation` **ships now** (always 1 row = "Main"), but the H.2 **deferrable trigger pair does not** — `SUM(allocated) = qty_ordered` is enforced in-app inside the write transaction, matching every other guard in the repo. Triggers become a pure additive migration when multi-dept lands. |
+| Q3 | A line **freezes** `unit_price` + unit name + `to_base_ratio`; `qty_ordered` is stored **in the ordered unit**. `supplier_product_mapping_id` survives as **provenance only** (nullable). Mirrors Part 10's `stock_adjustment` (as-entered) vs `stock_movement` (base). |
+| Q4 | **`DRAFT` editable, `SENT` immutable.** Reachable here: `DRAFT → SENT`, `→ CANCELLED`. `PARTIALLY_RECEIVED`/`RECEIVED` are Part 13's to write. Amend = cancel + reissue. |
+| Q5 | No mapping / no current price → **hand-typed price allowed**, snapshotted the same way, `mapping_id = null`. The first order from a new supplier is exactly this case. |
+| Q6 | **VAT snapshotted** (`subtotal_excl_vat` / `vat_rate_percent` / `vat_amount` / `total_amount`). **WHT not captured** — it attaches to services and is deducted at payment; lands in Sprint 3 with expense/payment. |
+| Q7 | **Send = status flip + `sent_at` + print-friendly page.** No PDF, no storage, no outbound mail (`pdf_url` stays null) — Thai SMEs send orders over LINE, and there is no real email transport yet. |
+| Q8 | `po_number` = **`{BRANCH_CODE}-PO-####`**, counter per branch, never resets. Generator mirrors `generateSku` — **inherits Pitfall #25's race**, and the eventual advisory-lock fix covers both. |
+| **Q8b** | 🛑 Schema change (approved): **`Branch.code` → NOT NULL + PARTIAL unique** `(tenant_id, code) WHERE deleted_at IS NULL` in `prisma/manual/`, per `supplier_code_unique.sql`. A FULL unique would be Pitfall #22/#23 again. Backfill trivial — every tenant has one branch, already `MAIN`. |
+| Q9 | `DRAFT` **soft-delete**; `SENT` → `CANCELLED` only; **nothing hard-deleted**. `po_number` therefore also takes a **partial** unique. |
+
+### Decided by existing convention (not grilled)
+`branch_id` NOT NULL on `purchase_order` (spec §125) · Decimal→string at the view layer (Pitfall #20) · RLS policy appended for each new table (pre-publish checklist; inert until Sprint 7 per ADR 0004) · `purchase_order_item.qty_received` created here defaulted 0, **written only by Part 13** · `isPreferred` suggests a supplier, it does **not** resolve price (the header already pins the supplier).
+
+### Implementation plan (L0–L6 — TDD vertical slices; ~12–15 commits, batch-pushed at L6)
+| L | Layer | Status | Note |
+|---|---|---|---|
+| **L0** | Docs — ADR 0012 + this section + CONTEXT.md glossary | ✅ done | CONTEXT.md "Allocation" was **wrong** and got corrected: it defined allocation as GR↔PO line matching; it is **department attribution**. Also added Order unit + Line snapshot; PR/PO/Mirror-trigger entries sharpened. |
+| L1 | Schema — `purchase_order` + `_item` + `_item_allocation` + `po_status` enum + `Branch.code` NOT NULL + 2 partial uniques + RLS | ⬜ | |
+| L2 | zod — header + lines + allocations, status-transition rules | ⬜ | |
+| L3a | Read logic — **`resolveSupplierPriceLogic`** (the ADR 0009 consumer Part 8 owed) + list/detail reads | ⬜ | branch-specific first → tenant-default fallback → `today BETWEEN effective_from AND COALESCE(effective_to,'infinity')`, live rows only |
+| L3b | Write logic — create/update (DRAFT only) · send (freeze + lock) · cancel · soft-delete + allocation-sum guard + `po_number` generator | ⬜ | |
+| L4 | Actions + Thai error mapping | ⬜ | |
+| L5 | a) list · b) create/edit form with price autofill · c) detail + print view | ⬜ | `pnpm build` at every UI layer (not just tsc) |
+| L6 | E2E throwaway action-stack + verify + batch push | ⬜ | |
+
+### Carried in from the Part 10 review (must be honoured here or by Part 13)
+The three open items in "Post-completion review" above are **Part 13's**, not Part 11's — but Q3's frozen `to_base_ratio` is what makes item 1 (Bangkok/UTC bucketing) and the GR conversion path tractable: **Part 13 must convert received qty with the PO line's frozen ratio, never a fresh `ProductUnit` lookup.**
 
 ---
 

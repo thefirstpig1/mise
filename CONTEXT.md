@@ -43,13 +43,15 @@ on resolution during /grill-with-docs sessions.
 
 ## Procurement
 
-- **PR (Purchase Request)** — internal request to buy something. Pre-purchase document.
-- **PO (Purchase Order)** — formal order sent to supplier. PR can become PO after approval.
+- **PR (Purchase Request)** — internal request to buy something, raised by a **department** and approved by a manager. Pre-purchase document. Only meaningful once a tenant runs more than one department, so it is **deferred to Sprint 3+** (ADR 0012).
+- **PO (Purchase Order)** — formal order sent to supplier. **A sent document, not a draft intention**: while `DRAFT` it is freely editable, and from `SENT` onward it is immutable — the supplier holds a copy, so amending means cancelling and issuing a new one. See ADR 0012.
+- **Order unit** — the unit a PO line is *ordered* in (กระสอบ, ลัง), as it will appear on the supplier's invoice. Distinct from the product's **Base unit**, which is what stock is counted in.
+- **Line snapshot** — the price, unit name and unit ratio **copied onto a PO line when it is sent**, rather than followed through a live reference. A PO must still mean in five years what it meant on the day it was sent, even if the product's units or price list have moved since. ADR 0012.
 - **GR (Goods Receipt)** — record of actual goods received. Compared against PO for shortage/excess.
 - **GR shortage** — received less than PO. Resolution: pro-rate cost across received qty (Decision #46).
 - **GR excess** — received more than PO. Resolution: flag for manager review (Decision #56).
-- **Allocation** — which PR/PO line each GR line satisfies (many-to-many via allocation tables).
-- **Mirror trigger** — DB trigger that updates dependent rows when PR/PO/GR confirmed (H.2).
+- **Allocation** — the split of one PO or GR line's quantity **across departments** (cost-centre attribution) — *not* the matching of GR lines to PO lines, which is a direct parent reference. Every line's allocations must sum to the line's quantity. While departments are off, a line has exactly one allocation row, "Main".
+- **Mirror trigger** — DB trigger that updates dependent rows when PR/PO/GR confirmed (H.2). **Not built** — the allocation sum is enforced in the application instead, until multi-department allocation is reachable (ADR 0012).
 
 ## Inventory
 
