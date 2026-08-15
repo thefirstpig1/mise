@@ -4,7 +4,7 @@
 
 ## Current Sprint: Sprint 2 — Transactional Systems 🚧 IN PROGRESS
 
-**Status:** 🚧 Part 10 (Stock Movement) ✅ COMPLETE (L0–L6, 2026-08-15) + post-completion review closed (1 fix, 3 items carried to Part 13) → **Part 11 (Purchase Order) IN PROGRESS — grill locked 2026-08-16, L0 done.**
+**Status:** 🚧 Part 10 (Stock Movement) ✅ COMPLETE (2026-08-15) + post-completion review closed (1 fix, 3 items carried to Part 13) · Part 11 (Purchase Order) ✅ COMPLETE (L0–L6, 2026-08-16) → **next: Part 13 — Goods Receipt** (Part 12 left unallocated, see the Part 11 section).
 **Scope:** Stock Movement (append-only ledger) → PO → GR → Cost Engine per master-spec.md (Part IV — Sprint Plan). Part 10 is the **first proper Sprint 2 slice** (Part 8.5 was a Sprint 1 restore-on-recreate warm-up, run standalone before the Sprint 2 core). Sprint 1 completion history is retained under its own header below.
 
 ---
@@ -473,7 +473,7 @@ Outsider pass over the whole slice before Part 13/14 build on it. One live bug f
 
 ---
 
-## Sprint 2 Part 11 — Purchase Order: 🚧 IN PROGRESS (grill locked 2026-08-16)
+## Sprint 2 Part 11 — Purchase Order: ✅ COMPLETE (L0–L6, 2026-08-16)
 
 The document a GR will later receive against. Grill-with-docs (Q1–Q9 + Q8b) locked this session, codified in **ADR 0012**. **Scope = the PO as a sent document**: create/edit while `DRAFT`, freeze-and-lock at `SENT`, cancel, plus the supplier-price resolver ADR 0009 deferred to "the Sprint 2 PO consumer".
 
@@ -499,14 +499,30 @@ The document a GR will later receive against. Grill-with-docs (Q1–Q9 + Q8b) lo
 ### Implementation plan (L0–L6 — TDD vertical slices; ~12–15 commits, batch-pushed at L6)
 | L | Layer | Status | Note |
 |---|---|---|---|
-| **L0** | Docs — ADR 0012 + this section + CONTEXT.md glossary | ✅ done | CONTEXT.md "Allocation" was **wrong** and got corrected: it defined allocation as GR↔PO line matching; it is **department attribution**. Also added Order unit + Line snapshot; PR/PO/Mirror-trigger entries sharpened. |
-| L1 | Schema — `purchase_order` + `_item` + `_item_allocation` + `po_status` enum + `Branch.code` NOT NULL + 2 partial uniques + RLS | ⬜ | |
-| L2 | zod — header + lines + allocations, status-transition rules | ⬜ | |
-| L3a | Read logic — **`resolveSupplierPriceLogic`** (the ADR 0009 consumer Part 8 owed) + list/detail reads | ⬜ | branch-specific first → tenant-default fallback → `today BETWEEN effective_from AND COALESCE(effective_to,'infinity')`, live rows only |
-| L3b | Write logic — create/update (DRAFT only) · send (freeze + lock) · cancel · soft-delete + allocation-sum guard + `po_number` generator | ⬜ | |
-| L4 | Actions + Thai error mapping | ⬜ | |
-| L5 | a) list · b) create/edit form with price autofill · c) detail + print view | ⬜ | `pnpm build` at every UI layer (not just tsc) |
-| L6 | E2E throwaway action-stack + verify + batch push | ⬜ | |
+| **L0** | Docs — ADR 0012 + this section + CONTEXT.md glossary | ✅ `ad5716e` | CONTEXT.md "Allocation" was **wrong** and got corrected: it defined allocation as GR↔PO line matching; it is **department attribution**. Also added Order unit + Line snapshot; PR/PO/Mirror-trigger entries sharpened. |
+| L1 | Schema — 3 tables + `purchase_order_status` enum + `Branch.code` NOT NULL + 2 partial uniques + RLS | ✅ `355da92` | Pre-flight on Neon PASSED (2 branch rows, no NULL/dupe codes) before the NOT NULL. **5 CHECK constraints inline**, incl. two that put the status machine in the DB: a sent order must record `sent_at`, and only a DRAFT may be soft-deleted. Also closes the asymmetry the Part 10 review flagged — every qty/money column with a legal range declares it. |
+| L2 | zod — header + lines + optional allocations | ✅ `7cb6689` | 25 tests. Allocation sum compared in **integer thousandths** (float addition would reject a valid 0.1+0.2=0.3 split). Decimal guards use the `toFixed` round-trip per **Pitfall #30**. |
+| L3a | Read logic — **`resolveSupplierPriceLogic`** (the ADR 0009 consumer Part 8 owed) + list/detail/open-qty | ✅ `3dbf2e4` | 15 tests, fixtures built with the **real Part 8 write logic** so the resolver meets append+supersede series. Branch override → tenant default → live rows in today's window; `null` = the hand-typed path, not an error. |
+| L3b | Write logic — create/update (DRAFT only) · send · cancel · soft-delete + allocation guard + `po_number` | ✅ `f075e99` | 16 tests. **W14 is the Part's keystone**: after send, "correcting" the sack 25→30 kg leaves the line reading 25. |
+| L4 | Actions + Thai error mapping + view serializer | ✅ `61e498d` | Lines cross FormData as parallel arrays zipped by index (Part 8.5 fanout). Allocations deliberately not read from the form — no UI can produce a split yet. |
+| L5a | List + layout + StatusBadge | ✅ `5fa0f23` | Filters in the URL; money formatted from the Decimal **string**, never a JS number. |
+| L5b | Create/edit form with price autofill | ✅ `0d1e0c1` | VAT follows the supplier only on a user-made change (prefilling on mount would rewrite a saved draft's rate). Supplier/branch locked in edit mode. |
+| L5c | Detail + print view + lifecycle buttons | ✅ `08ce691` | The page **is** the document (Q7). An "internal" section states the frozen ratio and the department split, where the snapshot could otherwise surprise someone. |
+| L6 | E2E throwaway action-stack + verify | ✅ _(this commit)_ | 8 cases E1–E8 green; spec + dedicated config **deleted** (never committed). |
+
+### Verified (L6, 2026-08-16)
+- `pnpm tsc --noEmit` clean · `pnpm build` green (**24 routes**, the four `/purchase-orders` among them) · `pnpm vitest run` **265 passed / 4 skipped** (209 baseline + 25 L2 + 15 L3a + 16 L3b).
+- **8-case throwaway action-stack E2E (E1–E8)** on a throwaway tenant, mocking only `requireTenant` + `next/cache` — everything below the action real (FormData → zod → *Logic → Prisma → Neon → DB CHECKs): fanout → `E2E-PO-0001` with snapshot + VAT totals · autofill resolving the **branch override** (275, not the 300 default) and recording provenance · zod fork with nothing written · update replacing lines and cascading their allocations · **send locking the order** (Thai refusal, DB unchanged) · **ProductUnit edited after send leaves the sent line at 25** · cancel recording who/why + refusing a second · discard hiding a draft while refusing a sent order.
+- Ledger and PO tables verified **empty** after the run — no residue. (The 5 pre-existing Sprint-0/1 leftover tenants are unchanged and still awaiting the maintenance pass.)
+
+### Part 11 — ✅ COMPLETE
+The document Part 13 will receive against is live: `/purchase-orders` (list, create, edit, detail + print), a per-branch `{CODE}-PO-####`, a DRAFT→SENT→CANCELLED machine whose invariants are enforced in the app **and** the database, and the price resolver ADR 0009 had left as an IOU since Part 8.
+
+**Carried forward from this Part:**
+- **`po_number` inherits Pitfall #25's scan-then-insert race** — the partial unique catches the loser and the action returns a Thai "กดบันทึกอีกครั้ง". The advisory-lock fix now covers `sku` and `po_number` together.
+- **H.2 trigger pair still unwritten** (Q2) — a pure additive migration whenever multi-department allocation becomes reachable. Needs `/departments` CRUD first, which does not exist.
+- **Snapshot timing wording**: ADR 0012 says "frozen at send time"; the implementation writes it on every DRAFT save and freezes by immutability at SENT. Same guarantee, recorded in `src/server/purchase-order.ts` — reconcile the ADR's phrasing if it ever confuses anyone.
+- **Part 13 (GR) must convert received qty with the LINE'S frozen `to_base_ratio`**, never a fresh `ProductUnit` lookup — plus the three ledger items in Part 10's post-completion review.
 
 ### Carried in from the Part 10 review (must be honoured here or by Part 13)
 The three open items in "Post-completion review" above are **Part 13's**, not Part 11's — but Q3's frozen `to_base_ratio` is what makes item 1 (Bangkok/UTC bucketing) and the GR conversion path tractable: **Part 13 must convert received qty with the PO line's frozen ratio, never a fresh `ProductUnit` lookup.**
