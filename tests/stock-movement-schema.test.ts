@@ -151,6 +151,40 @@ describe("createStockAdjustmentInputSchema — inputQty (unsigned magnitude, Q1/
     ).toBe(false);
   });
 
+  // REGRESSION: the original guard was `Number.isInteger(n * 1000)`, which is
+  // false for 1.005 (binary float gives 1004.9999999999999) and for ~1.2% of all
+  // 3-decimal values. The form's step="0.001" accepts them, so every one of these
+  // was a dead end for the user. Sampled across magnitudes on purpose — the bug
+  // is not confined to small numbers.
+  it("accepts 3-decimal values the float-multiply guard used to reject", () => {
+    for (const inputQty of [1.005, 1.001, 1.003, 1.015, 2.005, 16.001, 1234.005]) {
+      expect(
+        createStockAdjustmentInputSchema.safeParse({ ...validAdjustment, inputQty })
+          .success,
+        String(inputQty)
+      ).toBe(true);
+    }
+  });
+
+  it("still rejects a 4th decimal place at those same magnitudes", () => {
+    for (const inputQty of [1.0051, 1.0005, 16.0001, 1234.0055]) {
+      expect(
+        createStockAdjustmentInputSchema.safeParse({ ...validAdjustment, inputQty })
+          .success,
+        String(inputQty)
+      ).toBe(false);
+    }
+  });
+
+  it("accepts the boundary magnitude at full 3-decimal precision", () => {
+    expect(
+      createStockAdjustmentInputSchema.safeParse({
+        ...validAdjustment,
+        inputQty: QTY_MAX,
+      }).success
+    ).toBe(true);
+  });
+
   it("rejects a magnitude past the Decimal(15,3) precision cap", () => {
     expect(
       createStockAdjustmentInputSchema.safeParse({

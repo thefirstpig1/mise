@@ -153,8 +153,22 @@ export const MAX_BACKDATE_DAYS = 90;
 export const QTY_MAX = 999_999_999_999.999;
 const QTY_DECIMAL_PLACES = 3;
 
+/**
+ * Round-trip through `toFixed`, NOT `Number.isInteger(n * 1000)`.
+ *
+ * The multiply trick rejects legitimate 3-decimal values: `1.005 * 1000` is
+ * `1004.9999999999999` in binary floating point, so 1.005 — and ~1.2% of every
+ * other 3-decimal value — failed with a message the user cannot act on
+ * ("มีทศนิยมไม่เกิน 3 ตำแหน่ง" on a number that has exactly 3). The form's
+ * `step="0.001"` accepts them, so the browser and the server disagreed.
+ *
+ * `toFixed(3)` formats the DECIMAL expansion and rounds it, so a value that is
+ * exactly representable at 3 places round-trips to itself while a 4th place
+ * changes the number. Same guard as `supplier.ts` rate fields (2 dp) — that one
+ * was written correctly in Sprint 1; this file regressed to the multiply.
+ */
 const hasAtMostThreeDecimals = (n: number) =>
-  Number.isInteger(n * 10 ** QTY_DECIMAL_PLACES);
+  Number(n.toFixed(QTY_DECIMAL_PLACES)) === n;
 
 // ------------------------------------------------------------
 // 1. createStockAdjustmentInputSchema — the write path
