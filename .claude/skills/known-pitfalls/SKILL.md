@@ -234,3 +234,15 @@ foreach ($p in $pins) { if ($cur -notcontains $p) { Add-Content -Path $h -Value 
 ```
   ผลทันที ไม่ต้อง reboot (hosts มีแค่บรรทัด IPv4 → getaddrinfo คืน IPv4 อย่างเดียว). revert = ลบ 2 บรรทัด. หลัง pin: Prisma connect ~327ms
 - ข้อจำกัด/permanent: IP อาจเปลี่ยนถ้า Neon หมุน proxy → ต้อง re-resolve (`dns.lookup` เอา IPv4 ใหม่). ทางถาวร: upgrade plan + dedicated IP, แก้ IPv6 routing ฝั่ง network, หรือ Windows prefer-IPv4 ทั้งเครื่อง (`netsh interface ipv6 set prefixpolicy ::ffff:0:0/96 60 4`, elevated — กระทบทุก connection)
+
+---
+
+## Sprint 2 Pitfalls (DO NOT REPEAT)
+
+### 30. เช็คจำนวนทศนิยมด้วยการคูณ float — ปฏิเสธค่าที่ถูกต้อง (Part 10, FIXED `85b38a3`)
+- Where: `src/lib/validations/stock-movement.ts` `hasAtMostThreeDecimals` (Part 10 L2). **ทุก zod schema ที่ต้องจำกัดทศนิยมให้ตรงกับ `Decimal(p,s)` ของ Postgres เสี่ยงซ้ำรอย** — Part 13 (GR `received_qty`) และ Part 14 เป็นรายต่อไป
+- Symptom: กรอก `1.005` แล้วโดนเด้ง **"จำนวนต้องมีทศนิยมไม่เกิน 3 ตำแหน่ง"** ทั้งที่มี 3 ตำแหน่งพอดี. ฟอร์มตั้ง `step="0.001"` เบราว์เซอร์เลยยอมให้ส่ง → browser กับ server เห็นไม่ตรงกัน ผู้ใช้ตัน แก้ตามข้อความไม่ได้
+- Root cause: `Number.isInteger(n * 10 ** 3)` — binary float ทำให้ `1.005 * 1000 = 1004.9999999999999` **พลาด 11,791 ค่า จาก 1,000,000 ค่าแรก (~1.2%)** ไม่ได้จำกัดแค่เลขน้อย ๆ (1234.005 ก็โดน)
+- Fix: round-trip ผ่าน `toFixed` — `Number(n.toFixed(3)) === n` (ปฏิเสธผิดพลาด **0 จาก 1,000,000**, ทศนิยมตำแหน่งที่ 4 ยังโดนปฏิเสธถูกต้อง). `toFixed` ปัดจาก decimal expansion ไม่ใช่ผลคูณ binary
+- **ของเดิมที่ทำถูกอยู่แล้ว: `src/lib/validations/supplier.ts:60`** (`Number(n.toFixed(2)) === n` สำหรับ rate 2 ตำแหน่ง, Sprint 1) — Part 10 เขียนใหม่แล้วถอยหลัง ก่อนเขียน validator ตัวใหม่ให้ลอกอันนี้
+- บทเรียนเรื่องเทสต์: L2 มีเทสต์ "accepts exactly 3 decimal places" อยู่แล้วแต่ **บังเอิญเลือก `1.234` ซึ่งเป็นค่าที่ผ่าน** — เทสต์ float ต้องหยิบค่าที่ binary แทนไม่ลงตัว (`1.005`, `1.001`, `2.675`) ไม่ใช่ค่าแรกที่นึกออก
