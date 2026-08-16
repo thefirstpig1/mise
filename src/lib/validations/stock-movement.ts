@@ -23,6 +23,7 @@
 import { z } from "zod";
 import type { AdjustmentReason, MovementType, SourceType } from "@prisma/client";
 import { addDays, computeBangkokToday } from "@/lib/bangkok-date";
+import { costDeclarationBodySchema } from "@/lib/validations/stock-cost";
 
 // ------------------------------------------------------------
 // Enums — local const arrays (the Sprint 1 pattern), NOT z.nativeEnum
@@ -237,6 +238,25 @@ export const createStockAdjustmentInputSchema = z.object({
     blankToNull,
     z.string().trim().max(500, "หมายเหตุต้องไม่เกิน 500 ตัวอักษร").nullable()
   ),
+  /**
+   * OPTIONAL cost for the stock this adjustment brings IN (Part 14, ADR 0014 Q6)
+   * — entry point one of two for a cost declaration. `null` is the normal case:
+   * the person counting stock usually does not know what it cost, and the server
+   * falls back to the last purchase price (Q5).
+   *
+   * Only meaningful on a GAIN. A LOSS removes stock that already has a cost from
+   * the layer it is drawn from, so a cost typed against one would be silently
+   * ignored — and a field that is silently ignored is a field that lies.
+   */
+  costDeclaration: costDeclarationBodySchema.nullish().transform((v) => v ?? null),
+}).superRefine((input, ctx) => {
+  if (input.costDeclaration && input.type !== "ADJUST_GAIN") {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["costDeclaration"],
+      message: "ระบุต้นทุนได้เฉพาะรายการที่เพิ่มสต๊อกเท่านั้น",
+    });
+  }
 });
 
 export type CreateStockAdjustmentInput = z.infer<
@@ -249,6 +269,7 @@ export const STOCK_ADJUSTMENT_FIELD_LABELS_TH: Record<
   string
 > = {
   submitKey: "คีย์การบันทึก",
+  costDeclaration: "ต้นทุน",
   productId: "วัตถุดิบ",
   branchId: "สาขา",
   type: "ประเภทการปรับ",
