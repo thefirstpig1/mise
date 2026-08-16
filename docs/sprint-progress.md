@@ -647,11 +647,45 @@ Deleting these is a DELETE affecting many rows → waiting on Kong's explicit go
 |---|---|---|
 | **0** | Neon test-tenant cleanup | ✅ done (2026-08-17) |
 | **15** | **Stock Count** | ✅ COMPLETE (L0–L6, 2026-08-17) |
-| **16** | Expense (+ VAT/WHT, GR→expense) | ⏳ **next — grill first** |
+| **16** | Expense (+ VAT/WHT, GR→expense) | 🚧 grill CLOSED (Q1–Q7) → ADR 0016 · building |
 | **17** | WASTE as its own movement type + par level | ⏳ |
 | **18** | Inter-branch transfer (closes ADR 0014 Q9c) | ⏳ |
 
 **Explicitly NOT in Sprint 3:** H.5 yield-correct CONSUMPTION · unknown-menu stub / recursion guard · `purchase_request` (still waiting on a reachable second department, ADR 0012 Q1) · payment tracking beyond `payment_status`. The master spec's Sprint 3 line gets a superseded note at Part 15 L0.
+
+## Sprint 3 Part 16 — Expense: 🚧 IN PROGRESS (2026-08-17)
+
+Every baht that leaves the business, in one place. Grill Q1–Q7 locked, codified in **ADR 0016**. The Part also pays two IOUs (ADR 0012 Q6's WHT, ADR 0013's missing expense link) and fixes two things that were quietly wrong.
+
+### Two corrections this Part makes
+1. **Stock cost has been understating itself by the VAT amount for every tenant that is not VAT-registered** — which is most Thai SMEs, since `is_vat_registered` defaults to false and the ฿1.8M threshold is above them. A goods receipt records no VAT at all today (`line_total_actual` is net; the PO puts VAT at the header and the GR never carries it forward), so every FIFO layer is valued net. For a shop that cannot reclaim it, that VAT is money gone and belongs in the cost of the goods.
+2. **master-spec §5.4's WHT formula computes on the wrong base.** `wht_amount = total × rate/100` with a VAT-inclusive total over-withholds on every bill carrying both — 10,000 + 7% at 3% is **300**, not 321 — and the 50 ทวิ figure would not match what the recipient claims. Same family as Pitfall #27.
+
+### Design locked (Q1–Q7 — compact; full record in ADR 0016)
+| Q | Decision |
+|---|---|
+| **Q1** | **Scope.** IN: `expense` + `expense_item` · VAT (inclusive/exclusive) + WHT · the GR→expense link · recurring templates · the `/cost` rework. OUT with reasons: bill/slip images (no object storage — ADR 0012 Q6's rule) · `SHARED_BY_REVENUE_RATIO`/`SHARED_EQUALLY` (need departments *and* revenue, neither reachable) · a payments module · ภพ.30/ภงด.53 generation (Decisions #37/#38 already Phase 2). |
+| **Q2** | 🛑 **Schema change: `goods_receipt` gains `vat_rate_percent`, `vat_amount` and `vat_reclaimable`** — the last one **snapshotted from `tenant.is_vat_registered` at receipt time**, not read live. A shop that registers in October must not have the whole year's stock silently re-valued: it did pay that VAT and nobody refunds it. Same rule ADR 0012 Q3 applied to `to_base_ratio`. Part 14's layer value becomes `line_total_actual + (vat_reclaimable ? 0 : the line's share of vat_amount)` — computed at replay, and **old receipts carry no VAT so they contribute 0, which is exactly today's behaviour: no backfill.** *Rejected:* making `unit_price_actual` gross for unregistered tenants — "unit price" would mean different things in two shops, and ADR 0012 Q3 froze it meaning the price on the invoice line. |
+| **Q3** | **Confirming a receipt writes its own expense** (`source = FROM_GOODS_RECEIPT`), and `/cost` spend then reads **expenses only** — one source of money-out, no double count. Four conditions keep it honest: written in the **same transaction** as the confirm (no path where stock arrives and the money vanishes) · `source_gr_id` **unique** (a replayed confirm yields one expense) · **voiding the receipt voids the expense** · fields that came from the receipt are **not editable**. *Recorded limitation:* suppliers often bill **one invoice across several deliveries**; this ships 1 receipt = 1 expense, right for cash/per-delivery payment and wrong for monthly billing — consolidation is Sprint 3+. |
+| **Q4** | **`/cost` restructures rather than grows.** Split "ซื้อของ" into **COGS** and **OpEx** (the category tree has carried `account` since Sprint 1, so it is free; *"materials 60,000, everything else 40,000"* is a sentence an owner acts on, and it becomes **food cost %** when revenue lands). **Move "ทุนจมในสต๊อก" to the branch drill-down** — a balance-sheet figure sitting among cash-flow figures, inviting a reader to add it to columns it does not belong with, and the least actionable number on the page. Still eight columns; ADR 0014 Consequence 4 predicted this moment. |
+| **Q5** | 🛑 **Schema change: `recurring_expense` + `expense.recurring_expense_id`/`period`.** A template generates **nothing** — what is *due* is computed by asking which months have no expense carrying that id, and a human confirms each. *Rejected:* pre-generating a "pending" expense — it needs a status the spec lacks and leaves half-real rows every later report must filter out (ADR 0014's "don't store what you can derive", ADR 0015 Q7's "no line means not counted"). The default amount is a starting point, which is the whole reason Kong chose confirm-don't-auto: an electricity bill differs monthly. *Recorded limitation:* no scheduler exists, so "reminder" means visible when someone opens the page. |
+| **Q6** | **WHT is computed on `subtotal_excl_vat`** (correction above), and **`payment_status` is `UNPAID | PAID`** — `PARTIAL` describes an amount and there is no payments module to hold one. Third time this rule has applied: PR (ADR 0012 Q1), `REVIEW` (ADR 0015 Q6), now `PARTIAL` and `allocation_method`. **A state nobody can reach meaningfully is a debt, not a feature.** |
+| **Q7** | **Six surfaces:** `/expenses` (list + filters + the "ถึงกำหนด" panel) · `/expenses/new` · `/expenses/[id]` · `/expenses/recurring` · the `/cost` rework · a link from a receipt to the expense it created (without which a system-created document cannot be found). `expense_item.department_id` **is** built, nullable; `allocation_method` is **not** — Q1 left it with one possible value. |
+
+### Implementation plan (L0–L6)
+| L | Layer | Status |
+|---|---|---|
+| **L0** | Docs — ADR 0016 · CONTEXT.md (Expense · Recurring expense · VAT/WHT sharpened) · master-spec §5.4 amendment + WHT correction · this section | ✅ _(this commit)_ |
+| L1 | Schema — `expense` + `expense_item` + `recurring_expense` + the 3 GR VAT columns + enums + partial uniques + CHECKs + RLS | ⏳ |
+| L2 | zod — expense input (VAT inclusive/exclusive maths, WHT base), recurring template, queries | ⏳ |
+| L3a/L3b | Read + write logic · the GR-confirm/void hook · due-recurring computation | ⏳ |
+| L4 | Actions + Thai errors + view serializer | ⏳ |
+| L5a–c | `/expenses` list + due panel · new/detail · `/expenses/recurring` · `/cost` rework · GR link | ⏳ |
+| L6 | Throwaway E2E + verify + push | ⏳ |
+
+**Part 14 is touched by this Part** — `replayFifoLayers` gains the VAT uplift and `getBranchCostSummaryLogic` swaps its spend source. Both need their existing suites re-run, not just the new ones.
+
+---
 
 ## Sprint 3 Part 15 — Stock Count: ✅ COMPLETE (L0–L6, 2026-08-17)
 
