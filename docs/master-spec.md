@@ -193,6 +193,8 @@ Module MVP index: Identity, Master Data, Sales Sync, Menu, Recipe (optional), Pr
 
 **stock_count_entry** (multi-unit input) — `id` · `stock_count_item_id` · `product_unit_id` · `qty_in_unit` (what user typed) · `display_order`.
 
+> ⚠️ **ADR 0015 amends the three tables above.** Built as specced except: (a) `stock_count_item.unit_cost_at_count` and `total_value` are **NOT built** — cost is computed by the Part 14 replay and a stored valuation would be falsified by the next cost declaration, exactly as `product_cost_history` would have been; (b) the status enum is **`DRAFT / CLOSED / VOIDED`** — `COUNTING` differs from `DRAFT` only in whether lines exist, `REVIEW` needs an approval actor that does not exist (the reason ADR 0012 Q1 dropped the PR layer), and `VOIDED` is added because a closed count cannot be edited (ADR 0011 Q7) and without it the only recourse is a hand-typed adjustment that breaks the audit trail; (c) `stock_count_item` **gains** `qty_expected` (snapshotted when the line is saved), `counted_at`, `counted_by_name` (free text — in a Thai SME the owner holds the only login and the staff do the walking) and `reversal_of_item_id`; (d) closing writes movements with the **new `SourceType.STOCK_COUNT`**, keeping `MovementType` as `ADJUST_GAIN`/`ADJUST_LOSS`.
+
 **stock_movement** — `id` · `tenant_id` · `branch_id` NOT NULL · `department_id` NULLABLE (logic below) · `product_id` · `movement_type` enum(RECEIPT/CONSUMPTION/ADJUSTMENT/TRANSFER/INTERDEPARTMENT_TRANSFER/WASTE) · `qty_delta` Decimal(15,6) (+in/−out) · `unit_cost` · `source_type` · `source_id` · `occurred_at` · `created_by_user_id` · `notes`.
 - department_id logic: RECEIPT null (enters shared inventory); CONSUMPTION/WASTE required; INTERDEPARTMENT_TRANSFER → 2 rows (−qty dept A, +qty dept B); ADJUSTMENT null; TRANSFER (between branches) null on dept.
 - Indexes (v1.4): `idx_stock_movement_pos_idempotent` UNIQUE ON (source_type, source_id, product_id) WHERE source_type='sales_transaction' — partial so manual ADJUSTMENT/WASTE may repeat.
@@ -413,7 +415,7 @@ Four aggregation slices: (1) dept X in branch Y (cell); (2) dept X across all br
 | 0 | 1–2 | Foundation + Auth + Tenant + Branch + Dept opt-in + RLS (H.10) + PermissionService skeleton |
 | 1 | 3–4 | Master Data + Units + Density + Categories |
 | 2 | 5–7 | Procurement + PO/GR allocation + mirror triggers (H.2) + excess-receipt flag UI |
-| 3 | 8–9 | Stock + Expense + yield-correct CONSUMPTION (H.5) + recursion guard + unknown-menu stub |
+| 3 | 8–9 | Stock Count + Expense + WASTE/par level + inter-branch transfer. ⚠️ **yield-correct CONSUMPTION (H.5), the recursion guard and the unknown-menu stub moved to Sprints 4–5** — H.5 computes consumption from `sales_transaction × recipe` and neither table exists until POS sync (Sprint 4) and Recipe (Sprint 5). |
 | 4 | 10–11 | POS Sync + mirror + diff queue + stub handling |
 | 5 | 12–13 | Recipe + Cost Engine + cost cascade (H.9) + is_stale trigger |
 | 6 | 14 | Dashboards + Matrix (tz-correct) + Variance (dept-sliced) + atomic mat-view refresh |

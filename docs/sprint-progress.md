@@ -646,12 +646,44 @@ Deleting these is a DELETE affecting many rows → waiting on Kong's explicit go
 | # | Slice | Status |
 |---|---|---|
 | **0** | Neon test-tenant cleanup | ✅ done (2026-08-17) |
-| **15** | **Stock Count** | 🚧 next — grill first |
+| **15** | **Stock Count** | 🚧 grill CLOSED (Q1–Q8) → ADR 0015 · building |
 | **16** | Expense (+ VAT/WHT, GR→expense) | ⏳ |
 | **17** | WASTE as its own movement type + par level | ⏳ |
 | **18** | Inter-branch transfer (closes ADR 0014 Q9c) | ⏳ |
 
 **Explicitly NOT in Sprint 3:** H.5 yield-correct CONSUMPTION · unknown-menu stub / recursion guard · `purchase_request` (still waiting on a reachable second department, ADR 0012 Q1) · payment tracking beyond `payment_status`. The master spec's Sprint 3 line gets a superseded note at Part 15 L0.
+
+## Sprint 3 Part 15 — Stock Count: 🚧 IN PROGRESS (2026-08-17)
+
+The document that makes the ledger **true** rather than merely consistent. Grill Q1–Q8 locked, codified in **ADR 0015**.
+
+### Design locked (Q1–Q8 — compact; full record in ADR 0015)
+| Q | Decision |
+|---|---|
+| **Q1** | **A count item IS the ledger source** — new `SourceType.STOCK_COUNT` → `stock_count_item.id`, with `MovementType` staying `ADJUST_GAIN`/`ADJUST_LOSS` (a variance *is* stock going up or down), so **`stock_movement_sign_check` is untouched and Part 13's two-migration dance does not apply**. `UNIQUE(source_type, source_id)` then makes closing idempotent for free — Part 13 had to invent `submit_key` for this; a count line already has an identity. Zero variance writes nothing. *Rejected:* reusing `stock_adjustment` + `reason = RECOUNT` — it needs a `stock_count_item_id` column anyway (a schema change either way) and leaves that table with two identities. |
+| **Q2** | **Who counted is per LINE, and the draft is a working sheet.** `started_by`/`closed_by` on the header, `counted_by` + `counted_at` per item, overwritten freely while `DRAFT` — forcing a sheet to preserve every erasure makes people reluctant to correct it. Permanence begins at close. Plus **`counted_by_name` free text**: in a Thai SME the owner holds the only login and the staff do the walking, so an FK alone records "the owner counted everything", which is tidy and false. |
+| **Q3** | **`qty_expected` IS stored, snapshotted when the LINE is saved.** Not a contradiction of ADR 0014: expected answers *"what did the system say when you stood at the shelf"* (a past observation, must not move), cost answers *"what is this worth"* (a valuation, should improve). Per-line rather than at close, or counting the freezer at 10:00 and closing at 18:00 reports a shortage exactly the size of the 14:00 delivery. Also captures expected whether or not it is shown → Q7's blind toggle costs nothing. |
+| **Q4** | **The count stores no money.** §5.5's `unit_cost_at_count` / `total_value` are **not built** — a declaration made later applies at every date (ADR 0014 Q6), so a stored valuation becomes a wrong number in the database. Nothing is lost: `outflows[]` already knows what a variance cost, and `getProductCostsLogic` values what was counted. |
+| **Q5** | **Count variance gets its own column in `/cost`.** It would otherwise fold into "ของเสีย/ของหาย" — but spoilage is a purchasing/storage conversation with the kitchen and an unexplained variance is theft, mis-keying or bad receiving, a conversation with the branch manager. A figure that cannot tell a manager who to talk to is worth less than one that can. Free — `outflows[]` already carries `sourceType`. |
+| **Q6** | **`DRAFT → CLOSED → VOIDED`.** `COUNTING` dropped (differs from DRAFT only in whether lines exist); `REVIEW` dropped for ADR 0012 Q1's reason (no approval actor exists); **`VOIDED` added** though the spec has none — a closed count cannot be edited (ADR 0011 Q7) and without it the only recourse is a hand-typed adjustment that breaks the audit trail exactly where it matters. Void appends reversal lines; reversing an `ADJUST_LOSS` is an `ADJUST_GAIN`, so **still no new movement type**. |
+| **Q7** | **A line means "counted"; no line means untouched; a counted `0` is a real observation.** Conflating the last two would let a count of one shelf wipe the store. The close screen reports how many stocked products were not counted, as information not an obstacle. Blind counting is a **per-count toggle set when the sheet is opened, defaulting to showing** — textbook control hides it, but the MVP's counter is usually the owner, for whom hiding it is friction that controls nothing. |
+| **Q8** | **Variance occurs at the LINE's `counted_at`** (a true instant), not at close and not `count_date` — dating it at close makes the ledger claim stock sat on the shelf for eight hours after it was counted short, and makes FIFO draw from the wrong layers. `count_date` stays the document's human name. **At most one `DRAFT` count per branch** (partial unique, `product_sku_unique`'s pattern): without it two people counting one shelf both see the same expected, both find the same shortage, and both post it. Not a restriction — two counters share **one** sheet, which is what per-line `counted_by` is for. |
+
+### Decided by existing convention (not grilled)
+`sc_number` = `{BRANCH_CODE}-SC-####` via `acquireCounterLock` · `tenant_id` on all 3 tables + RLS (inert until Sprint 7) · Decimal→string at the view layer (Pitfall #20) · decimal guards via the `toFixed` round-trip (Pitfall #30) · soft-delete for `DRAFT` only.
+
+### Implementation plan (L0–L6)
+| L | Layer | Status |
+|---|---|---|
+| **L0** | Docs — ADR 0015 · CONTEXT.md (Stock count + Count variance) · master-spec §5.5 + Sprint-plan supersede notes · this section | ✅ _(this commit)_ |
+| L1 | Schema — 3 tables + `StockCountStatus` enum + `SourceType.STOCK_COUNT` + partial uniques + CHECKs + RLS | ⏳ |
+| L2 | zod | ⏳ |
+| L3a/L3b | Read + write logic (close posts the ledger; void appends reversals) | ⏳ |
+| L4 | Actions + Thai errors + view serializer | ⏳ |
+| L5a–c | List · count sheet · detail + close/void · `/cost` variance column | ⏳ |
+| L6 | Throwaway E2E + verify + push | ⏳ |
+
+---
 
 ### Step 0 — Neon test-tenant cleanup ✅ (2026-08-17)
 Nine leftover tenants deleted with Kong's explicit approval, after a read-only listing confirmed **every one of them held zero transactional rows** (no movements, no PO, no GR) and the ledger tables were globally empty. Deleted: `asfsafas` (Sprint 0 signup test) · `ร้านทดสอบ Category E2E` (Part 6) · `Product Test Tenant A/B/C` from 2026-06-04 · `Product Test Tenant A/B/C/D` from 2026-08-16. The delete script re-asserted emptiness per tenant immediately before touching it — a listing is a snapshot, and acting on a snapshot without a guard is how the wrong row gets deleted. Users were removed only where no membership remained anywhere, so a real account could not become collateral damage. **Neon now holds 0 tenants**; 366 tests still green afterwards.
