@@ -169,3 +169,35 @@ USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 -- ============================================================
 -- End Sprint 2 Part 11 RLS
 -- ============================================================
+
+-- ============================================================
+-- Sprint 2 Part 13: Goods Receipt RLS Policies (ADR 0013)
+-- ============================================================
+-- APPEND-ONLY FILE — apply THIS SECTION ONLY, never re-run the whole file
+-- (CREATE POLICY has no IF NOT EXISTS). Same procedure as Part 10 / 11.
+--
+-- All three tables carry tenant_id directly (ADR 0013, following ADR 0012):
+-- app-layer isolation works by filtering tenantId explicitly, and a column that
+-- isn't there cannot be filtered. No EXISTS indirection needed.
+--
+-- Still inert until Sprint 7 (ADR 0004) — this is RLS-prep.
+-- ============================================================
+
+-- goods_receipt (direct tenant_id)
+ALTER TABLE goods_receipt ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON goods_receipt
+USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+-- goods_receipt_item (direct tenant_id)
+ALTER TABLE goods_receipt_item ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON goods_receipt_item
+USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+-- goods_receipt_item_allocation (direct tenant_id)
+ALTER TABLE goods_receipt_item_allocation ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON goods_receipt_item_allocation
+USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+-- ============================================================
+-- End Sprint 2 Part 13 RLS
+-- ============================================================

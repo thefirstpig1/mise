@@ -100,6 +100,9 @@ model Tenant {
   purchaseOrders          PurchaseOrder[]
   purchaseOrderItems      PurchaseOrderItem[]
   poItemAllocations       PurchaseOrderItemAllocation[]
+  goodsReceipts           GoodsReceipt[]
+  goodsReceiptItems       GoodsReceiptItem[]
+  grItemAllocations       GoodsReceiptItemAllocation[]
 
   @@map("tenant")
 }
@@ -128,6 +131,7 @@ model Branch {
   stockMovements          StockMovement[]
   stockAdjustments        StockAdjustment[]
   purchaseOrders          PurchaseOrder[]
+  goodsReceipts           GoodsReceipt[]
 
   @@index([tenantId])
   @@map("branch")
@@ -146,14 +150,18 @@ model User {
   updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
 
-  accounts             Account[]
-  sessions             Session[]
-  memberships          TenantMembership[]
-  stockMovements       StockMovement[]
-  stockAdjustments     StockAdjustment[]
-  purchaseOrdersMade   PurchaseOrder[]    @relation("PoCreatedBy")
-  purchaseOrdersSent   PurchaseOrder[]    @relation("PoSentBy")
-  purchaseOrdersVoided PurchaseOrder[]    @relation("PoCancelledBy")
+  accounts                  Account[]
+  sessions                  Session[]
+  memberships               TenantMembership[]
+  stockMovements            StockMovement[]
+  stockAdjustments          StockAdjustment[]
+  purchaseOrdersMade        PurchaseOrder[]    @relation("PoCreatedBy")
+  purchaseOrdersSent        PurchaseOrder[]    @relation("PoSentBy")
+  purchaseOrdersVoided      PurchaseOrder[]    @relation("PoCancelledBy")
+  purchaseOrdersClosedShort PurchaseOrder[]    @relation("PoClosedShortBy")
+  goodsReceiptsReceived     GoodsReceipt[]     @relation("GrReceivedBy")
+  goodsReceiptsConfirmed    GoodsReceipt[]     @relation("GrConfirmedBy")
+  goodsReceiptsVoided       GoodsReceipt[]     @relation("GrVoidedBy")
 
   @@map("app_user")
 }
@@ -208,6 +216,7 @@ model Department {
   childDepts        Department[]                  @relation("DeptHierarchy")
   assignments       UserDepartmentAssignment[]
   poItemAllocations PurchaseOrderItemAllocation[]
+  grItemAllocations GoodsReceiptItemAllocation[]
 
   @@unique([tenantId, code])
   @@index([tenantId])
@@ -295,6 +304,7 @@ model Supplier {
   tenant                  Tenant                   @relation(fields: [tenantId], references: [id])
   supplierProductMappings SupplierProductMapping[]
   purchaseOrders          PurchaseOrder[]
+  goodsReceipts           GoodsReceipt[]
 
   @@index([tenantId])
   @@map("supplier")
@@ -354,6 +364,7 @@ model Product {
   stockMovements          StockMovement[]
   stockAdjustments        StockAdjustment[]
   purchaseOrderItems      PurchaseOrderItem[]
+  goodsReceiptItems       GoodsReceiptItem[]
 
   /// NOTE: per-tenant sku uniqueness is a PARTIAL unique index (WHERE deleted_at
   /// IS NULL) in prisma/manual/product_sku_unique.sql — NOT a Prisma @@unique,
@@ -377,6 +388,7 @@ model ProductUnit {
   supplierProductMappings SupplierProductMapping[]
   stockAdjustments        StockAdjustment[]
   purchaseOrderItems      PurchaseOrderItem[]
+  goodsReceiptItems       GoodsReceiptItem[]
 
   @@unique([productId, unitName])
   @@index([productId])
@@ -432,7 +444,12 @@ model SupplierProductMapping {
 // (sign CHECK อ้าง enum value ตรง ๆ) ไม่ใช่แค่ app-level pattern — ADR 0011 Q2/Q3/Q10.
 
 enum MovementType {
-  PO_RECEIVE // +  IN  — from GR (Part 13)
+  PO_RECEIVE // +  IN  — written by a GR confirm (Part 13)
+  /// -  OUT — written by a GR void (Part 13, ADR 0013 Q6). A confirmed receipt is
+  /// never edited; its reversal line posts this compensating movement instead.
+  /// Adding it required DROP + re-declare of stock_movement_sign_check — the
+  /// standing item ADR 0011 Q2 recorded for every new movement type.
+  PO_RECEIVE_REVERSAL
   ADJUST_GAIN // +  IN  — manual count correction up
   ADJUST_LOSS // -  OUT — manual count down / spoilage / waste
 
@@ -440,7 +457,10 @@ enum MovementType {
 }
 
 enum SourceType {
-  GR_LINE // -> goods_received_line (Part 13)
+  /// -> goods_receipt_item (Part 13). ADR 0011 sketched a flat `goods_received_line`;
+  /// ADR 0013 Q5 ships the 3-table spec shape instead. The enum VALUE is unchanged,
+  /// so nothing in the ledger migrated — only this comment was stale.
+  GR_LINE
   ADJUSTMENT // -> stock_adjustment (Part 10)
   SYSTEM_INITIAL // reserved: onboarding initial stock (no writer in Part 10)
 
@@ -588,18 +608,29 @@ model PurchaseOrder {
   cancelledBy  String?   @map("cancelled_by")
   cancelReason String?   @map("cancel_reason")
 
+  /// --- manual short-close (Part 13, ADR 0013 Q8) ---
+  /// Set when someone declares a partially-received order finished. `status` goes
+  /// to RECEIVED; these three record that it got there by decision rather than by
+  /// delivery. Deliberately NOT a 5th status value — every existing filter, badge
+  /// and label keeps working, and the reason is still on the record.
+  closedShortAt     DateTime? @map("closed_short_at")
+  closedShortBy     String?   @map("closed_short_by")
+  closedShortReason String?   @map("closed_short_reason")
+
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
   /// DRAFT only (Q9) — a sent PO goes to CANCELLED and stays visible forever.
   deletedAt DateTime? @map("deleted_at")
 
-  tenant          Tenant              @relation(fields: [tenantId], references: [id])
-  branch          Branch              @relation(fields: [branchId], references: [id])
-  supplier        Supplier            @relation(fields: [supplierId], references: [id])
-  createdByUser   User                @relation("PoCreatedBy", fields: [createdBy], references: [id])
-  sentByUser      User?               @relation("PoSentBy", fields: [sentBy], references: [id])
-  cancelledByUser User?               @relation("PoCancelledBy", fields: [cancelledBy], references: [id])
-  items           PurchaseOrderItem[]
+  tenant            Tenant              @relation(fields: [tenantId], references: [id])
+  branch            Branch              @relation(fields: [branchId], references: [id])
+  supplier          Supplier            @relation(fields: [supplierId], references: [id])
+  createdByUser     User                @relation("PoCreatedBy", fields: [createdBy], references: [id])
+  sentByUser        User?               @relation("PoSentBy", fields: [sentBy], references: [id])
+  cancelledByUser   User?               @relation("PoCancelledBy", fields: [cancelledBy], references: [id])
+  closedShortByUser User?               @relation("PoClosedShortBy", fields: [closedShortBy], references: [id])
+  items             PurchaseOrderItem[]
+  goodsReceipts     GoodsReceipt[]
 
   @@index([tenantId])
   @@index([tenantId, status], map: "purchase_order_tenant_status_idx")
@@ -650,6 +681,7 @@ model PurchaseOrderItem {
   orderUnit              ProductUnit                   @relation(fields: [orderUnitId], references: [id])
   supplierProductMapping SupplierProductMapping?       @relation(fields: [supplierProductMappingId], references: [id])
   allocations            PurchaseOrderItemAllocation[]
+  goodsReceiptItems      GoodsReceiptItem[]
 
   @@unique([purchaseOrderId, lineNo], map: "purchase_order_item_line_unique")
   @@index([tenantId])
@@ -673,12 +705,186 @@ model PurchaseOrderItemAllocation {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  tenant            Tenant            @relation(fields: [tenantId], references: [id])
-  purchaseOrderItem PurchaseOrderItem @relation(fields: [purchaseOrderItemId], references: [id], onDelete: Cascade)
-  department        Department        @relation(fields: [departmentId], references: [id])
+  tenant            Tenant                       @relation(fields: [tenantId], references: [id])
+  purchaseOrderItem PurchaseOrderItem            @relation(fields: [purchaseOrderItemId], references: [id], onDelete: Cascade)
+  department        Department                   @relation(fields: [departmentId], references: [id])
+  grItemAllocations GoodsReceiptItemAllocation[]
 
   @@unique([purchaseOrderItemId, departmentId], map: "po_item_allocation_dept_unique")
   @@index([tenantId])
   @@index([departmentId], map: "po_item_allocation_dept_idx")
   @@map("purchase_order_item_allocation")
+}
+
+// ============================================================
+// GOODS RECEIPT (Sprint 2 Part 13 — ADR 0013)
+// ============================================================
+// A GR is THE MOMENT STOCK BECOMES REAL. DRAFT posts nothing; CONFIRMED writes
+// one PO_RECEIVE movement per line into the append-only ledger, increments each
+// PO line's qty_received, and recomputes the PO status (Q2). A confirmed receipt
+// is never edited — VOID appends reversal lines with PO_RECEIVE_REVERSAL
+// movements into the same document (Q6), because ADR 0011 forbids mutating a
+// movement.
+//
+// Deliberate divergences from master-spec §5.3, all recorded in ADR 0013:
+//   - purchase_order_id is NULLABLE — standalone receipts (Q1)
+//   - no invoice_image_url (no object storage) and no auto_created_expense_id
+//     (no expense module until Sprint 3) — the ADR 0012 Q6 rule against columns
+//     that would be null forever
+//   - no product_unit_id as a LIVE FK: the line snapshots unit name + ratio, the
+//     same correction ADR 0012 Q3 made for the PO line
+//   - variance_qty / variance_price are COMPUTED AT READ, never stored (Q7)
+//   - tenant_id on all three tables (ADR 0004 filters it explicitly)
+
+enum GoodsReceiptStatus {
+  DRAFT // still counting; posts nothing
+  CONFIRMED // ledger written; document locked
+  VOIDED // reversed by compensating lines (Q6); never deleted
+
+  @@map("goods_receipt_status")
+}
+
+/// One physical delivery. `receivedAt` is a TRUE INSTANT (Q4) — this is the first
+/// writer of occurred_at values with a time component, which is why the ledger's
+/// day bounds moved to Bangkok.
+model GoodsReceipt {
+  id              String  @id @default(uuid()) @db.Uuid
+  tenantId        String  @map("tenant_id") @db.Uuid
+  /// NOT NULL (spec §5.0) — denormalized from the PO when there is one.
+  branchId        String  @map("branch_id") @db.Uuid
+  /// NOT NULL even for a standalone receipt: you always know who delivered.
+  supplierId      String  @map("supplier_id") @db.Uuid
+  /// NULL = standalone receipt, bought without an order (Q1).
+  purchaseOrderId String? @map("purchase_order_id") @db.Uuid
+
+  /// {BRANCH_CODE}-GR-#### (mirrors po_number). Uniqueness = PARTIAL unique in
+  /// prisma/manual/goods_receipt_number_unique.sql — a DRAFT can be soft-deleted,
+  /// so a FULL unique would be Pitfall #22/#23.
+  grNumber String             @map("gr_number")
+  status   GoodsReceiptStatus @default(DRAFT)
+
+  /// Supplier's invoice / delivery-note number, as text. No image, no OCR.
+  invoiceNo      String?  @map("invoice_no")
+  /// Business time of the delivery — becomes every movement's occurred_at (Q4).
+  receivedAt     DateTime @map("received_at")
+  receivedBy     String   @map("received_by")
+  notes          String?
+  /// Set at confirm when any line over/under-delivers or its price differs from
+  /// the PO (Q3/Q7). Drives review-by-exception, not a block.
+  hasDiscrepancy Boolean  @default(false) @map("has_discrepancy")
+
+  /// --- lifecycle audit (Q2/Q6) ---
+  confirmedAt DateTime? @map("confirmed_at")
+  confirmedBy String?   @map("confirmed_by")
+  voidedAt    DateTime? @map("voided_at")
+  voidedBy    String?   @map("voided_by")
+  voidReason  String?   @map("void_reason")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  /// DRAFT only — a confirmed receipt is voided, never deleted.
+  deletedAt DateTime? @map("deleted_at")
+
+  tenant          Tenant             @relation(fields: [tenantId], references: [id])
+  branch          Branch             @relation(fields: [branchId], references: [id])
+  supplier        Supplier           @relation(fields: [supplierId], references: [id])
+  purchaseOrder   PurchaseOrder?     @relation(fields: [purchaseOrderId], references: [id])
+  receivedByUser  User               @relation("GrReceivedBy", fields: [receivedBy], references: [id])
+  confirmedByUser User?              @relation("GrConfirmedBy", fields: [confirmedBy], references: [id])
+  voidedByUser    User?              @relation("GrVoidedBy", fields: [voidedBy], references: [id])
+  items           GoodsReceiptItem[]
+
+  @@index([tenantId])
+  @@index([tenantId, status], map: "goods_receipt_tenant_status_idx")
+  @@index([branchId, receivedAt], map: "goods_receipt_branch_received_idx")
+  @@index([purchaseOrderId], map: "goods_receipt_po_idx")
+  @@index([supplierId], map: "goods_receipt_supplier_idx")
+  @@map("goods_receipt")
+}
+
+/// One received product. THE LEDGER'S SOURCE ROW: source_type = GR_LINE,
+/// source_id = this id, one movement each (ADR 0011 Q4).
+model GoodsReceiptItem {
+  id                  String  @id @default(uuid()) @db.Uuid
+  tenantId            String  @map("tenant_id") @db.Uuid
+  goodsReceiptId      String  @map("goods_receipt_id") @db.Uuid
+  /// NULL for a standalone receipt line (Q1), or for a line received against no
+  /// particular order line.
+  purchaseOrderItemId String? @map("purchase_order_item_id") @db.Uuid
+  productId           String  @map("product_id") @db.Uuid
+  lineNo              Int     @map("line_no")
+
+  /// Quantity IN THE RECEIVED UNIT. Positive on a normal line, NEGATIVE on a
+  /// reversal line — bound by goods_receipt_item_sign_check.
+  qtyReceivedActual Decimal @map("qty_received_actual") @db.Decimal(15, 3)
+  receivedUnitId    String  @map("received_unit_id") @db.Uuid
+
+  /// --- snapshot ---
+  /// For a PO-based line these are COPIED FROM THE PO LINE'S FROZEN VALUES
+  /// (ADR 0012 Consequence 1) — never a fresh ProductUnit lookup, or the
+  /// "sack was 25 kg, someone made it 30" bug comes straight back. A standalone
+  /// line snapshots the live ProductUnit, because the receipt IS the originating
+  /// record and there is no earlier document to disagree with.
+  receivedUnitName String  @map("received_unit_name")
+  toBaseRatio      Decimal @map("to_base_ratio") @db.Decimal(15, 6)
+  /// Price actually invoiced, excl VAT (Q7). Defaults from the PO line, editable.
+  unitPriceActual  Decimal @map("unit_price_actual") @db.Decimal(15, 4)
+  /// round(qtyReceivedActual × unitPriceActual, 2). variance_qty / variance_price
+  /// are NOT stored — they are pure functions of values already on this row.
+  lineTotalActual  Decimal @map("line_total_actual") @db.Decimal(15, 2)
+
+  /// Set on a reversal line (Q6): points at the line this one undoes, inside the
+  /// SAME document, so the mistake and its correction read side by side.
+  reversalOfItemId String? @map("reversal_of_item_id") @db.Uuid
+
+  notes String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant            Tenant                       @relation(fields: [tenantId], references: [id])
+  goodsReceipt      GoodsReceipt                 @relation(fields: [goodsReceiptId], references: [id], onDelete: Cascade)
+  purchaseOrderItem PurchaseOrderItem?           @relation(fields: [purchaseOrderItemId], references: [id])
+  product           Product                      @relation(fields: [productId], references: [id])
+  receivedUnit      ProductUnit                  @relation(fields: [receivedUnitId], references: [id])
+  reversalOfItem    GoodsReceiptItem?            @relation("GrLineReversal", fields: [reversalOfItemId], references: [id])
+  reversedBy        GoodsReceiptItem[]           @relation("GrLineReversal")
+  allocations       GoodsReceiptItemAllocation[]
+
+  @@unique([goodsReceiptId, lineNo], map: "goods_receipt_item_line_unique")
+  @@index([tenantId])
+  @@index([goodsReceiptId], map: "goods_receipt_item_parent_idx")
+  @@index([purchaseOrderItemId], map: "goods_receipt_item_po_item_idx")
+  @@index([productId], map: "goods_receipt_item_product_idx")
+  @@map("goods_receipt_item")
+}
+
+/// Department attribution of a received line (spec §5.3, Decision #45's naming).
+/// SUM(qtyAllocatedActual) per line MUST equal the line's qtyReceivedActual —
+/// enforced in the write transaction, NOT by H.2's trigger pair (ADR 0012 Q2).
+/// Shortage pro-rates by ratio with a largest-remainder tiebreak (H.3); while
+/// departments are off there is exactly one row per line, pointing at "Main".
+model GoodsReceiptItemAllocation {
+  id                   String  @id @default(uuid()) @db.Uuid
+  tenantId             String  @map("tenant_id") @db.Uuid
+  goodsReceiptItemId   String  @map("goods_receipt_item_id") @db.Uuid
+  departmentId         String  @map("department_id") @db.Uuid
+  /// Renamed from qty_received_actual to avoid the parent-table collision
+  /// (Decision #45). Signed like its parent line — negative on a reversal.
+  qtyAllocatedActual   Decimal @map("qty_allocated_actual") @db.Decimal(15, 3)
+  /// Which PO allocation this satisfies, when there is one. Provenance only.
+  sourcePoAllocationId String? @map("source_po_allocation_id") @db.Uuid
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant             Tenant                       @relation(fields: [tenantId], references: [id])
+  goodsReceiptItem   GoodsReceiptItem             @relation(fields: [goodsReceiptItemId], references: [id], onDelete: Cascade)
+  department         Department                   @relation(fields: [departmentId], references: [id])
+  sourcePoAllocation PurchaseOrderItemAllocation? @relation(fields: [sourcePoAllocationId], references: [id])
+
+  @@unique([goodsReceiptItemId, departmentId], map: "gr_item_allocation_dept_unique")
+  @@index([tenantId])
+  @@index([departmentId], map: "gr_item_allocation_dept_idx")
+  @@map("goods_receipt_item_allocation")
 }
