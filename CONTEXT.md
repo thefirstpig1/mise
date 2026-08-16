@@ -6,8 +6,8 @@ on resolution during /grill-with-docs sessions.
 
 ## Domain (Restaurant Operations)
 
-- **Tenant** — a restaurant business that uses Mise (one customer = one tenant). Has at least 1 Branch.
-- **Branch** — a physical restaurant location of a Tenant. A Tenant has 1+ branches.
+- **Tenant** — a restaurant **business** that uses Mise (one customer = one tenant). Has at least 1 Branch. The tenant — not the branch — is the unit the business is **managed** at: purchasing, costing and accounting are ultimately run centrally, so every operational number must roll up to a business-wide view, with the branch as the drill-down rather than the starting point.
+- **Branch** — a physical restaurant location of a Tenant. A Tenant has 1+ branches. It is where stock physically exists, and therefore the unit at which quantity and **cost** are *measured* — two branches hold two different piles bought on different days at different prices. Measuring per branch and managing per tenant are separate things; a business-wide figure is an explicit roll-up of branch figures, never a silent average.
 - **Department** — internal grouping within a Tenant (e.g., Bar, Kitchen, Bakery). Optional feature — opt-in via tenant.enable_departments.
 - **Main department** — default department auto-created on tenant signup (H.1.2). Used when departments are disabled.
 - **Owner** — top-level role on a Tenant. Has all permissions including billing.
