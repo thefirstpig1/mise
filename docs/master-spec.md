@@ -215,6 +215,8 @@ Module MVP index: Identity, Master Data, Sales Sync, Menu, Recipe (optional), Pr
 
 **product_cost_history** — `id` · `product_id` · `effective_date` · `cost_per_base_unit` · `source` ("from_purchase"/"computed_from_recipe") · `source_id`.
 
+> ⚠️ **ADR 0014 supersedes this table — it is NOT built.** Part 14 values product cost **FIFO, computed by replaying `stock_movement` on every read**, and stores no cost anywhere. A stored history row is falsified by the next backdated receipt (a receipt keyed today may belong to last month, ahead of stock already consumed), which is the retroactive-recompute problem the replay design exists to remove; storing the answer would reintroduce it one layer up. Replaced by `getProductCostLogic(tenantId, { productId, branchId, asOf? })` — `asOf` gives "cost as of any date" by stopping the walk early. Consequence for **H.9** below: its cascade marks `recipe_cost_snapshot` stale via a trigger on `product_cost_history` INSERT, and that trigger has nothing to fire on. "Stale" largely loses its meaning once cost is computed fresh, so Sprint 5 should re-confirm H.9's design rather than implement it as written. The other two tables in this section (`recipe_cost_snapshot`, `category_cost_snapshot`) are untouched and remain Sprint 5/6 work.
+
 **category_cost_snapshot** — `id` · `tenant_id` · `branch_id` nullable (null = tenant aggregate) · `category_id` · `price_tier` enum(LOW/MID/HIGH/ALL) · `window_start/end` · `sample_size` · `total_purchase` · `total_sales` · `avg_cost_ratio` · `std_dev_cost_ratio` · `confidence_level` enum(HIGH/MEDIUM/LOW/INSUFFICIENT_DATA) · `confidence_reason` · `computed_at` · (unique: tenant_id, branch_id, category_id, price_tier, window_end).
 
 ### 5.8 Audit / meta

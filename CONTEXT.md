@@ -78,8 +78,12 @@ on resolution during /grill-with-docs sessions.
 
 ## Cost Engine
 
+- **Product cost** — what one **base unit** of a product costs at a **branch**, valued **FIFO**: the cost of the *next* unit that will be consumed, i.e. the front layer's. Measured per branch because two branches hold two physically different piles; rolled up to the business only as an explicit, labelled aggregate (see Tenant / Branch). Not stored anywhere — it is computed by replaying the stock ledger in `(occurred_at, created_at, id)` order on every read, which is what makes a backdated receipt or a voided one simply *correct* rather than something to repair. Note `cost × qty on hand ≠ inventory value`: a value figure sums the layers. See ADR 0014.
+- **Cost layer** — one arrival of stock, carrying its base-unit quantity and **the money actually paid for it**. Consumption draws from the oldest layer first; a return cuts the layer it reverses rather than the oldest one. Stock consumed with none left forms a **negative layer** at the last known cost, which unwinds when goods next arrive. Layers exist only in memory during a read; the money — never a per-unit rate — is what the layer carries, so total value always equals money in minus money consumed, to the satang.
+- **Cost declaration** — a signed, dated statement of what stock that arrived *without a document* cost (found during a recount, where the ledger records the quantity but no price). Append + supersede, like a supplier price: a correction never overwrites, it closes the previous one. Applies to found stock only — a received item's price belongs to its receipt. Corrects our knowledge of the past, so it takes effect at every date, including ones already reported.
+- **Cost source** — where a cost figure came from, and therefore how far to trust it: the front layer · a human declaration · the last known purchase (stock is zero or negative) · unpriced (never purchased). The input Cost confidence is computed from.
 - **Recipe** — formula for a menu (list of products + quantities).
-- **Recipe cost** — sum of ingredient costs (uses latest product_cost_history).
+- **Recipe cost** — sum of ingredient costs, each valued at the ingredient's current Product cost.
 - **Cost confidence** — HIGH/MEDIUM/LOW marker on recipe cost (Section C):
   - HIGH = all ingredients have recent GR price
   - MEDIUM = some ingredients have old GR price
