@@ -99,6 +99,27 @@ export type ReplayState = {
   totalIn: Prisma.Decimal;
   /** Total money that left it. `totalIn − totalOut` must equal `inventoryValue`. */
   totalOut: Prisma.Decimal;
+  /**
+   * What each outflow actually cost, in order.
+   *
+   * The walk is the only place that knows this: "4 kg of spoilage" is a quantity
+   * until you know which layers it came out of. Recorded as it happens so the
+   * branch summary can value a month's waste in **baht** — which is the number
+   * that makes an owner act, where kilograms are just a fact (ADR 0014 Q9b) —
+   * without walking the ledger a second time.
+   */
+  outflows: OutflowEntry[];
+};
+
+/** One movement's realised cost of goods out. */
+export type OutflowEntry = {
+  movementId: string;
+  type: MovementType;
+  occurredAt: Date;
+  /** Positive magnitude in base units. */
+  qty: Prisma.Decimal;
+  /** Money that left the pile for it. */
+  value: Prisma.Decimal;
 };
 
 const unitCostOf = (layer: CostLayer): Prisma.Decimal =>
@@ -122,6 +143,7 @@ export function replayFifoLayers(
   let lastKnownUnitCost: Prisma.Decimal | null = null;
   let totalIn = ZERO;
   let totalOut = ZERO;
+  const outflows: OutflowEntry[] = [];
 
   // A voided receipt must cut ITS layer (Q8), and that layer may already be
   // partly or wholly consumed by the time the void lands — so the unit cost of
@@ -186,9 +208,16 @@ export function replayFifoLayers(
   const consume = (
     qty: Prisma.Decimal,
     unitCost: Prisma.Decimal,
-    origin: { movementId: string; sourceType: SourceType; sourceId: string; occurredAt: Date }
+    origin: {
+      movementId: string;
+      type: MovementType;
+      sourceType: SourceType;
+      sourceId: string;
+      occurredAt: Date;
+    }
   ) => {
     let remaining = qty;
+    let costOut = ZERO;
 
     while (remaining.greaterThan(0) && stack.length > 0 && stack[0].qty.greaterThan(0)) {
       const front = stack[0];
@@ -202,12 +231,25 @@ export function replayFifoLayers(
       front.qty = front.qty.minus(taken);
       front.value = front.value.minus(takenValue);
       totalOut = totalOut.plus(takenValue);
+      costOut = costOut.plus(takenValue);
       remaining = remaining.minus(taken);
 
       if (front.qty.isZero()) stack.shift();
     }
 
-    if (remaining.lessThanOrEqualTo(0)) return;
+    const record = () =>
+      outflows.push({
+        movementId: origin.movementId,
+        type: origin.type,
+        occurredAt: origin.occurredAt,
+        qty,
+        value: costOut,
+      });
+
+    if (remaining.lessThanOrEqualTo(0)) {
+      record();
+      return;
+    }
 
     const debt = debtLayer();
     const debtValue = money(remaining.mul(unitCost));
@@ -226,6 +268,8 @@ export function replayFifoLayers(
       });
     }
     totalOut = totalOut.plus(debtValue);
+    costOut = costOut.plus(debtValue);
+    record();
   };
 
   for (const m of movements) {
@@ -306,6 +350,7 @@ export function replayFifoLayers(
         if (remaining.greaterThan(0)) {
           consume(remaining, unit, {
             movementId: m.id,
+            type: m.type,
             sourceType: m.sourceType,
             sourceId: m.sourceId,
             occurredAt: m.occurredAt,
@@ -323,6 +368,7 @@ export function replayFifoLayers(
         if (m.qty.isNegative()) {
           consume(m.qty.negated(), lastKnownUnitCost ?? ZERO, {
             movementId: m.id,
+            type: m.type,
             sourceType: m.sourceType,
             sourceId: m.sourceId,
             occurredAt: m.occurredAt,
@@ -374,5 +420,6 @@ export function replayFifoLayers(
     negativeStock: qtyOnHand.isNegative(),
     totalIn,
     totalOut,
+    outflows,
   };
 }

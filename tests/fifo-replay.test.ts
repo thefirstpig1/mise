@@ -318,4 +318,27 @@ describe("FIFO replay (ADR 0014)", () => {
     expect(num(s.qtyOnHand)).toBe(6);
     expect(num(s.inventoryValue)).toBe(1080);
   });
+
+  // ----------------------------------------------------------
+  // F21–F22 — outflow valuation (what the branch summary prices waste from)
+  // ----------------------------------------------------------
+
+  it("F21: each outflow records what it actually cost, layer by layer", () => {
+    // 4 kg out of the cheap layer, then 8 kg that straddles both layers.
+    const s = run([receive(1, 10, 1800), receive(5, 10, 2200), loss(6, 4), loss(7, 8)]);
+
+    expect(s.outflows).toHaveLength(2);
+    expect(num(s.outflows[0].value)).toBe(720); // 4 × 180
+    // 6 kg left at 180 (1,080) + 2 kg at 220 (440) — NOT 8 × any single rate.
+    expect(num(s.outflows[1].value)).toBe(1520);
+    expect(num(s.outflows[1].qty)).toBe(8);
+    expect(s.outflows[1].type).toBe("ADJUST_LOSS");
+  });
+
+  it("F22: an outflow beyond the layers is still valued, at the last known cost", () => {
+    const s = run([receive(1, 10, 1800), loss(2, 15)]);
+    expect(s.outflows).toHaveLength(1);
+    expect(num(s.outflows[0].value)).toBe(2700); // 1,800 held + 900 owed
+    expect(num(s.outflows[0].qty)).toBe(15);
+  });
 });

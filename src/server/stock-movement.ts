@@ -71,8 +71,14 @@ const exclusiveUpperBound = (inclusive: Date): Date =>
 const inclusiveLowerBound = (inclusive: Date): Date =>
   isDayValue(inclusive) ? bangkokDayStartUtc(inclusive) : inclusive;
 
-/** `occurredAt` filter fragment for an optional inclusive range. */
-const occurredAtFilter = (
+/**
+ * `occurredAt` filter fragment for an optional inclusive range.
+ *
+ * Exported for Part 14's cost reads: they slice the same ledger on the same
+ * business days, and a second implementation of Bangkok day bounds is exactly
+ * how Decision #60 gets re-broken.
+ */
+export const occurredAtFilter = (
   from?: Date,
   to?: Date
 ): Prisma.DateTimeFilter | undefined => {
