@@ -100,6 +100,16 @@ But measuring per branch and *managing* per branch are different things. Mise ma
 
 **Recorded, not solved: central purchasing.** `purchase_order.branch_id` is NOT NULL — every order belongs to a branch — while the vision has HQ buying centrally and distributing. Closing that needs `TRANSFER_*` movements (ADR 0011 Q10 → Sprint 3+), and it returns here as a cost question the day it exists: **stock transferred from branch A to branch B must arrive carrying A's FIFO cost**, or the receiving branch's cost is fiction. The replay accommodates it — a transfer-in is another `push` whose price comes from the sending branch's walk — but it must be designed, not discovered.
 
+### Q9b — Costing reads a date-only `occurred_at` as the END of its Bangkok day
+
+*(Implementation clarification, 2026-08-17 — the grill did not foresee this.)*
+
+ADR 0011 Q5 gives a manual adjustment a business **date**; ADR 0013 Q4 gives a receipt a true **instant**. Ordering the ledger by the raw `occurred_at` therefore places *every* adjustment before *every* receipt of the same day, so waste thrown out after the morning delivery was valued at yesterday's cost — and at zero on a product's first day, briefly driving the pile negative until the receipt settled it. Quantities were never wrong; only the valuation of same-day outflows.
+
+`costSortKey` (`src/server/stock-cost.ts`) resolves a date-only value to that day's end, less 1 ms, **for ordering only**. No stored timestamp changes, no migration, nothing to backfill, and the Part 10 history viewer still lists by the raw value — a display order is not a costing order.
+
+*(Rejected: storing a real instant when the user picks "today" — the more fundamental fix, but it rewrites Part 10's write path, flips its own tests, and leaves rows written before the change inconsistent with rows written after. Rejected: documenting and living with it — the figure it corrupts is waste in baht, which is one of the two numbers the Q9 executive view exists to surface.)*
+
 ### Q10 — One fallback rule, and the read always says where its number came from
 
 "No front layer" arises three ways — a gain with no price (Q5), negative stock (Q7), and stock at exactly zero — and all three take the same answer: **front layer → last known purchase cost → 0**.

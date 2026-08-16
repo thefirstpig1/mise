@@ -467,38 +467,35 @@ describe("cost read *Logic (FIFO by ledger replay, ADR 0014)", () => {
   // K11 — a real consequence of two ADRs meeting, pinned deliberately
   // ----------------------------------------------------------
 
-  it("K11: a same-day adjustment sorts BEFORE a same-day receipt, and is costed accordingly", async () => {
-    // ADR 0011 Q5 gave an adjustment a business DATE (the form submits Bangkok
-    // midnight); ADR 0013 Q4 gave a receipt a true INSTANT. The replay orders by
-    // occurred_at, so on any given day every adjustment precedes every receipt,
-    // whatever really happened in the kitchen.
+  it("K11: a date-only adjustment is costed at the END of its Bangkok day", async () => {
+    // ADR 0011 Q5 gives an adjustment a business DATE (the form submits Bangkok
+    // midnight); ADR 0013 Q4 gives a receipt a true INSTANT. Ordering by the raw
+    // occurred_at would therefore put every adjustment before every receipt of
+    // the same day, and waste thrown out after the morning delivery would be
+    // valued at yesterday's cost — or at zero on a product's first day.
     //
-    // The effect on cost is bounded but real: waste thrown out after today's
-    // delivery is valued at YESTERDAY's cost, not today's. On the first day of a
-    // product's life — with no previous cost to fall back on — it is valued at
-    // zero, which is what this case pins.
-    const p = await freshProduct(tenantA, "K11");
-    const midnight = today; // exactly what /stock/adjust posts
+    // `costSortKey` reads a date-only value as that day's end, for costing only.
+    const period = getBranchCostSummaryQuerySchema.parse({
+      from: new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000),
+      to: today,
+    });
+    const before = await getBranchCostSummaryLogic(tenantA, period);
+    const priorWaste = before.find((r) => r.branchId === branchA)!.wasteValue;
 
-    await adjust(branchA, p, "ADJUST_LOSS", 10, midnight);
-    await receiveInto(branchA, p, 4, 500); // later the same day: 100 kg @ 20
+    const p = await freshProduct(tenantA, "K11");
+    await adjust(branchA, p, "ADJUST_LOSS", 10, today); // exactly what the form posts
+    await receiveInto(branchA, p, 4, 500); // the same day: 100 kg @ 20
 
     const cost = await costOf(p);
-    // The debt was booked at 0 (nothing had ever been purchased), then settled by
-    // the arrival — so the pile is right even though the waste was not valued.
     expect(num(cost.qtyOnHand)).toBe(90);
     expect(num(cost.costPerBaseUnit)).toBe(20);
+    // The pile never went negative: the delivery is costed first, then the waste.
+    expect(cost.negativeStock).toBe(false);
 
-    const rows = await getBranchCostSummaryLogic(
-      tenantA,
-      getBranchCostSummaryQuerySchema.parse({
-        from: new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000),
-        to: today,
-      })
-    );
+    const rows = await getBranchCostSummaryLogic(tenantA, period);
     const thonglor = rows.find((r) => r.branchId === branchA)!;
-    // Documented, not endorsed: this waste contributes nothing to the branch's
-    // waste figure. Recorded in sprint-progress as a Part 14 finding.
-    expect(num(thonglor.wasteValue)).toBeGreaterThanOrEqual(0);
+    // 10 kg valued at what the goods actually cost that day — not 0, and not
+    // yesterday's price.
+    expect(num(thonglor.wasteValue.minus(priorWaste))).toBe(200);
   });
 });

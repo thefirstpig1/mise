@@ -22,6 +22,7 @@
 import { Prisma } from "@prisma/client";
 import type { PrismaClient } from "@prisma/client";
 import { withTenantContext } from "@/lib/db";
+import { bangkokDayEndUtc, isDayValue } from "@/lib/bangkok-date";
 import { occurredAtFilter } from "@/server/stock-movement";
 import {
   replayFifoLayers,
@@ -45,6 +46,32 @@ export type ProductCost = ReplayState & {
 
 /** `${productId}|${branchId}` — layers are per PAIR, never per product (Q9). */
 const keyOf = (productId: string, branchId: string) => `${productId}|${branchId}`;
+
+/**
+ * The instant a movement is treated as having happened, FOR COSTING ONLY.
+ *
+ * Two locked decisions collide here: ADR 0011 Q5 gives a manual adjustment a
+ * business **date** (the `/stock/adjust` form submits Bangkok midnight), while
+ * ADR 0013 Q4 gives a receipt a true **instant**. Ordering the ledger by the raw
+ * `occurred_at` therefore puts *every* adjustment before *every* receipt of the
+ * same day, and waste thrown out after the morning delivery gets valued at
+ * yesterday's cost — or at zero on a product's first day.
+ *
+ * A date-only value names a whole Bangkok business day, so for ordering it is
+ * read as that day's END (less 1 ms, to stay strictly inside it). "The day's
+ * counting happened after the day's deliveries" is both the truer default and
+ * the one that values same-day waste at what the goods actually cost.
+ *
+ * **Read-layer only, and deliberately so** — no stored `occurred_at` changes, no
+ * migration, nothing to backfill, and the ledger keeps saying exactly what it
+ * always said. The history viewer (Part 10 L5c) still lists rows by the raw
+ * value; that is a display order, and changing it is Part 10's call, not this
+ * Part's.
+ */
+const costSortKey = (occurredAt: Date): number =>
+  isDayValue(occurredAt)
+    ? bangkokDayEndUtc(occurredAt).getTime() - 1
+    : occurredAt.getTime();
 
 /** The empty state, for a pair with no ledger rows at all. */
 const emptyState = (productId: string, branchId: string): ProductCost => ({
@@ -105,6 +132,17 @@ async function replayPairs(
   });
 
   if (movements.length === 0) return result;
+
+  // Re-ordered by the COSTING instant, not the stored one (see costSortKey). The
+  // index already returned a total order; this only moves same-day date-only
+  // rows to the end of their Bangkok day, and the `createdAt`/`id` tail keeps
+  // the result a total order when two rows land on the same instant.
+  movements.sort(
+    (a, b) =>
+      costSortKey(a.occurredAt) - costSortKey(b.occurredAt) ||
+      a.createdAt.getTime() - b.createdAt.getTime() ||
+      (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
+  );
 
   // The money behind a receipt lives on the GR line, which the ledger points at
   // polymorphically with no FK (ADR 0011 Q3) — so it is a second query, batched,
@@ -269,6 +307,14 @@ export async function getBranchCostSummaryLogic(
     const branchIds = branches.map((b) => b.id);
     const replayed = await replayPairs(tx, tenantId, productIds, branchIds, to);
 
+    // One set of period bounds for every query and every in-memory filter below,
+    // taken from the ledger's own helper so a Bangkok business day means the same
+    // thing here as it does in a balance read (Decision #60).
+    const periodBounds = occurredAtFilter(from, to) as {
+      gte: Date;
+      lt: Date;
+    };
+
     // Purchase spend comes from the receipts themselves, not from the layers: it
     // is the money that left the business in the period, which is a different
     // question from what the stock still on the shelf is worth. A voided receipt
@@ -281,7 +327,7 @@ export async function getBranchCostSummaryLogic(
           tenantId,
           deletedAt: null,
           status: { in: ["CONFIRMED", "VOIDED"] },
-          receivedAt: { gte: from, lt: new Date(to.getTime() + 24 * 60 * 60 * 1000) },
+          receivedAt: periodBounds,
         },
       },
       _sum: { lineTotalActual: true },
@@ -318,7 +364,7 @@ export async function getBranchCostSummaryLogic(
         tenantId,
         branchId: { in: branchIds },
         type: { in: ["PO_RECEIVE", "PO_RECEIVE_REVERSAL"] },
-        occurredAt: { gte: from, lt: new Date(to.getTime() + 24 * 60 * 60 * 1000) },
+        occurredAt: periodBounds,
       },
       select: { productId: true, branchId: true, qty: true, sourceId: true },
     });
@@ -365,8 +411,8 @@ export async function getBranchCostSummaryLogic(
     }
 
     // --- inventory value, waste and data quality, from the replayed states ---
-    const lowerBound = from.getTime();
-    const upperBound = to.getTime() + 24 * 60 * 60 * 1000;
+    const lowerBound = periodBounds.gte.getTime();
+    const upperBound = periodBounds.lt.getTime();
 
     return branches.map((branch) => {
       let inventoryValue = ZERO;
@@ -384,7 +430,9 @@ export async function getBranchCostSummaryLogic(
 
         for (const out of state.outflows) {
           if (out.type !== "ADJUST_LOSS") continue;
-          const t = out.occurredAt.getTime();
+          // Same costing instant the walk used, so a midnight adjustment falls in
+          // the period its business day belongs to.
+          const t = costSortKey(out.occurredAt);
           if (t < lowerBound || t >= upperBound) continue;
           wasteValue = wasteValue.plus(out.value);
         }
