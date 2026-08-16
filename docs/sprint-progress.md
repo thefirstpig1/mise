@@ -4,7 +4,7 @@
 
 ## Current Sprint: Sprint 2 — Transactional Systems 🚧 IN PROGRESS
 
-**Status:** 🚧 Part 10 (Stock Movement) ✅ COMPLETE (2026-08-15) + post-completion review closed (1 fix, 3 items carried to Part 13) · Part 11 (Purchase Order) ✅ COMPLETE (L0–L6, 2026-08-16) → **next: Part 13 — Goods Receipt** (Part 12 left unallocated, see the Part 11 section).
+**Status:** 🚧 Part 10 (Stock Movement) ✅ COMPLETE (2026-08-15) + post-completion review closed (1 fix, 3 items carried to Part 13) · Part 11 (Purchase Order) ✅ COMPLETE (L0–L6, 2026-08-16) · **Part 13 (Goods Receipt) 🚧 IN PROGRESS** — design locked Q1–Q8, ADR 0013 written (Part 12 left unallocated, see the Part 11 section).
 **Scope:** Stock Movement (append-only ledger) → PO → GR → Cost Engine per master-spec.md (Part IV — Sprint Plan). Part 10 is the **first proper Sprint 2 slice** (Part 8.5 was a Sprint 1 restore-on-recreate warm-up, run standalone before the Sprint 2 core). Sprint 1 completion history is retained under its own header below.
 
 ---
@@ -526,6 +526,51 @@ The document Part 13 will receive against is live: `/purchase-orders` (list, cre
 
 ### Carried in from the Part 10 review (must be honoured here or by Part 13)
 The three open items in "Post-completion review" above are **Part 13's**, not Part 11's — but Q3's frozen `to_base_ratio` is what makes item 1 (Bangkok/UTC bucketing) and the GR conversion path tractable: **Part 13 must convert received qty with the PO line's frozen ratio, never a fresh `ProductUnit` lookup.**
+
+---
+
+## Sprint 2 Part 13 — Goods Receipt: 🚧 IN PROGRESS (started 2026-08-16)
+
+The slice that closes the loop **PO → รับของ → ledger**, and the first writer of `PO_RECEIVE`. Design locked this session (Q1–Q8), codified in **ADR 0013**. Also the last free moment to pay the three ledger defects Part 10's post-completion review deferred here.
+
+### Design locked (Q1–Q8 — compact; full record in ADR 0013)
+| Q | Decision (one-liner) |
+|---|---|
+| Q1 | **PO-based + standalone.** `purchase_order_id` nullable — the fresh-market run never had an order. A standalone line snapshots the **live ProductUnit** (no earlier document exists to drift from); a PO-based line inherits the PO line's **frozen** `to_base_ratio` (ADR 0012 Consequence 1). |
+| Q2 | **`DRAFT` → `CONFIRMED`.** The ledger is written on confirm and only on confirm. Partiality lives on the **PO**, not the GR: `PARTIALLY_RECEIVED`/`RECEIVED` are **derived** from every line's `qty_received`, recomputed after each confirm/void/close. |
+| Q3 | **Over-receipt allowed + flagged**, no tolerance band. Sets `has_discrepancy`, requires a line note. The goods are already in the kitchen — same reasoning as ADR 0011 Q9 at the other end. Spec H.3's 3-option excess UI **not built** (one department ⇒ all three produce the same row). |
+| Q4 | **`received_at` is a true instant** → forces the Bangkok day-bucketing fix (Part 10 review item 1). A date-only query bound now expands to the **Bangkok** day (`day − 7h` … `+24h`); a bound with a time component stays a precise instant. `computeBangkokToday()` unchanged. |
+| Q5 | **3 tables per master-spec §5.3** (`goods_receipt` + `_item` + `_item_allocation`), mirroring Part 11. ADR 0011's flat `goods_received_line` sketch predates "a GR is a document" — the `SourceType.GR_LINE` **comment** is corrected, the enum value is not (no ledger migration). `invoiced_qty` / `resolution_status` not built. |
+| Q6 | **VOID, never edit.** `CONFIRMED → VOIDED` appends a **reversal line** per original line into the *same* document (negative qty, `reversal_of_item_id`), each producing a **`PO_RECEIVE_REVERSAL`** movement. Triggers the ADR 0011 Q2 standing item: `stock_movement_sign_check` is DROPped + re-declared. |
+| Q7 | **`unit_price_actual` / `line_total_actual` on the line**, defaulted from the PO price and editable. `variance_qty` / `variance_price` **computed at read**, never stored. This is the number Part 14 costs stock at. |
+| Q8 | **"ปิดรับ" is manual.** `RECEIVED` auto-sets only on full receipt; otherwise a button sets it and stamps `closed_short_at/by/reason` on `purchase_order` (3 nullable columns — not a 5th reachable status value). |
+
+### Decided by existing convention (not grilled)
+`gr_number` = `{BRANCH_CODE}-GR-####` per branch, generator mirrors `generatePoNumber` (inherits Pitfall #25) + **partial** unique `WHERE deleted_at IS NULL` · **no** `invoice_image_url` / `auto_created_expense_id` (no object storage, no expense module until Sprint 3 — ADR 0012 Q6's rule against permanently-null columns) · `tenant_id` on all 3 tables (ADR 0004) · RLS appended to `enable_rls.sql`, inert until Sprint 7 · Decimal→string at the view layer (Pitfall #20) · decimal guards via the `toFixed` round-trip (Pitfall #30) · allocation ships with one "Main" row, sum app-enforced, **no H.2 trigger pair** (ADR 0012 Q2) — but pro-rating is implemented properly (largest-remainder, tiebreak lowest id) so only the UI is missing when a 2nd department lands.
+
+### Schema changes (approved with the plan)
+1. 3 new tables + enum `GoodsReceiptStatus` (`DRAFT | CONFIRMED | VOIDED`)
+2. `MovementType += PO_RECEIVE_REVERSAL` → **DROP + re-declare `stock_movement_sign_check`**
+3. `purchase_order += closed_short_at / closed_short_by / closed_short_reason` (nullable)
+4. `withTenantContext(tenantId, cb, options?)` — a 20-line confirm exceeds Prisma's default 5s `$transaction` timeout
+
+### Implementation plan (L0–L6 — TDD vertical slices; batch-pushed at L6)
+| L | Layer | Status | Note |
+|---|---|---|---|
+| **L0** | Docs — ADR 0013 + CONTEXT.md + this section | ✅ done | CONTEXT.md gains Standalone GR / GR void / ปิดรับ; the GR-shortage entry's **"Decision #46" citation was wrong** (#46–53 is the v1.3 doc pass) — the rule lives in H.3, unnumbered, and the bogus number is now gone |
+| L1a | Schema + migration + manual SQL + RLS | ⬜ | Pre-flight on Neon first (`stock_movement` / `purchase_order` row counts, every branch has a `code`) |
+| L1b | Ledger prerequisites — Bangkok day bounds · `GR_LINE` branch in `assertSourceExists` · replay-mismatch guard + `tenantId` on the idempotency lookup · extract `toBaseQty` · `withTenantContext` options | ⬜ | Pays Part 10 review items 1–3 + the 5s-timeout note |
+| L2 | zod — `src/lib/validations/goods-receipt.ts` | ⬜ | |
+| L3a | Read logic — list / detail / `getReceivableLinesForPoLogic` + GR_LINE resolution in the history feed | ⬜ | |
+| L3b | Write logic — create (submit-key id) / update draft / confirm / void / discard + `recalcPurchaseOrderReceiptStatus` + `closePurchaseOrderShortLogic` | ⬜ | |
+| L4 | Actions + Thai errors + view serializer | ⬜ | |
+| L5a | List + layout + StatusBadge | ⬜ | |
+| L5b | Receive form (PO-based + standalone modes) | ⬜ | |
+| L5c | Detail + print + lifecycle; PO page gains "รับของ" / "ปิดรับ" + per-line receipt progress | ⬜ | `pnpm build` at every L5 |
+| L6 | E2E throwaway action-stack + verify + push | ⬜ | 10 cases planned |
+
+### Baseline at start (2026-08-16)
+`pnpm vitest run` — **265 passed / 4 skipped**, `tsc` clean, `pnpm build` 24 routes (Part 11 L6 state).
 
 ---
 
