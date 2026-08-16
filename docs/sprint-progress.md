@@ -4,7 +4,7 @@
 
 ## Current Sprint: Sprint 2 — Transactional Systems 🚧 IN PROGRESS
 
-**Status:** 🚧 Part 10 (Stock Movement) ✅ COMPLETE (2026-08-15) + post-completion review closed (1 fix, 3 items carried to Part 13 — **all three paid in Part 13 L1b**) · Part 11 (Purchase Order) ✅ COMPLETE (L0–L6, 2026-08-16) · Part 13 (Goods Receipt) ✅ COMPLETE (L0–L6, 2026-08-16) · Part 13.5 (carry-forward debt payoff) 🚧 IN PROGRESS → **next: Part 14 — Cost Engine** (Part 12 left unallocated, see the Part 11 section).
+**Status:** 🚧 Part 10 (Stock Movement) ✅ COMPLETE (2026-08-15) + post-completion review closed (1 fix, 3 items carried to Part 13 — **all three paid in Part 13 L1b**) · Part 11 (Purchase Order) ✅ COMPLETE (L0–L6, 2026-08-16) · Part 13 (Goods Receipt) ✅ COMPLETE (L0–L6, 2026-08-16) · Part 13.5 (carry-forward debt payoff) ✅ COMPLETE (L0–L3, 2026-08-16) → **next: Part 14 — Cost Engine** (Part 12 left unallocated, see the Part 11 section).
 **Scope:** Stock Movement (append-only ledger) → PO → GR → Cost Engine per master-spec.md (Part IV — Sprint Plan). Part 10 is the **first proper Sprint 2 slice** (Part 8.5 was a Sprint 1 restore-on-recreate warm-up, run standalone before the Sprint 2 core). Sprint 1 completion history is retained under its own header below.
 
 ---
@@ -594,7 +594,7 @@ The loop is closed: **PO → รับของ → ledger**. `/goods-receipts` 
 
 ---
 
-## Sprint 2 Part 13.5 — Carry-forward debt payoff: 🚧 IN PROGRESS (2026-08-16)
+## Sprint 2 Part 13.5 — Carry-forward debt payoff: ✅ COMPLETE (L0–L3, 2026-08-16)
 
 Maintenance slice run **standalone before the Part 14 grill**, on the Part 8.5 precedent. Not a grill slice — nothing here is a new product decision; it pays three debts the last three Parts each recorded and deferred, two of which sit directly under the code Part 14 will read.
 
@@ -611,12 +611,27 @@ Maintenance slice run **standalone before the Part 14 grill**, on the Part 8.5 p
 | L | Layer | Status | Note |
 |---|---|---|---|
 | **L0** | Docs — Pitfall #25 → RESOLVED · ADR 0011 Q4 clarification · ADR 0012 wording nit · this section | ✅ _(this commit)_ | ADR 0011's Q4 note now says the part that was missing: the guarantee holds **only if the caller supplies the source id** |
-| L1 | Adjustment `submit_key` — zod + logic replay + action + form (with **key rotation on success**) | ⏳ | The rotation is the non-obvious half: `/stock/adjust` stays open for successive entry, so a non-rotating key would swallow item #2 of a batch as a replay of item #1 |
-| L2 | `acquireCounterLock` + the three generators | ⏳ | `pg_advisory_xact_lock(hashtextextended(key,0))`, keyed per counter scope; the partial uniques stay as backstop |
-| L3 | Verify (tsc + vitest + build) + throwaway E2E + push | ⏳ | |
+| L1 | Adjustment `submit_key` — zod + logic replay + action + form (with **key rotation on success**) | ✅ `45e9c60` | The rotation is the non-obvious half: `/stock/adjust` stays open for successive entry, so a non-rotating key would swallow item #2 of a batch as a replay of item #1 |
+| L2 | `acquireCounterLock` + the three generators | ✅ `299a9a7` | `pg_advisory_xact_lock(hashtextextended(key,0))`, keyed per counter scope; the partial uniques stay as backstop. **`$executeRaw`, not `$queryRaw`** — the function returns `void` and Prisma cannot deserialize a void column |
+| L3 | Verify (tsc + vitest + build) + throwaway E2E + push | ✅ _(this commit)_ | |
 
-### Gated separately — Neon test-tenant cleanup
-🛑 Destructive (DELETE > 1 row) → read-only list first, then delete only the ids Kong names. Touches no app code; skipping it blocks nothing.
+### Verified (L3, 2026-08-16)
+- `pnpm tsc --noEmit` clean · `pnpm build` green (same route set as Part 13) · `pnpm vitest run` **312 passed / 4 skipped** (307 Part-13 baseline + W14/W15 submit-key + L23/W17/C12 concurrency).
+- **The concurrency test was falsified before it was trusted**: with the lock commented out of `generateSku`, L23 fails with `ProductSkuConflictError` — the exact symptom Pitfall #25 describes. A green-either-way test would have proved nothing.
+- **3-case throwaway action-stack E2E (E1–E3)** on a throwaway tenant, mocking only `requireTenant` + `next/cache`: the same `submit_key` posted twice returns the same `movementId` and moves the balance **once** (one `stock_adjustment` row) · rotated keys move it **twice**, so batch entry still works · three parallel `createProduct` with a blank sku land `P-0001..P-0003` with no Thai conflict message. Spec + dedicated config **deleted** (never committed).
+- Ledger, adjustment, PO and GR tables verified **empty** afterwards — no residue from this slice.
+
+### Gated separately — Neon test-tenant cleanup 🛑 NOT DONE
+Read-only listing taken (9 leftover tenants, all test residue, no real data, ledger tables empty):
+
+| Created | Name | Contents |
+|---|---|---|
+| 2026-05-17 | `asfsafas` (`cc1a4fe7…`) | 1 branch, 1 member — the Sprint-0 signup test |
+| 2026-05-23 | `ร้านทดสอบ Category E2E` (`12cad010…`) | 1 branch, 1 member, 17 categories — the Part 6 throwaway |
+| 2026-06-04 | `Product Test Tenant A / B / C` | 1 category on A and B, nothing else |
+| 2026-08-16 | `Product Test Tenant A / B / C / D` | 1 product (`DUP-1`) on A and B, 1 category, nothing referencing them |
+
+Deleting these is a DELETE affecting many rows → waiting on Kong's explicit go, per id. Note the suites' `afterAll` does not always complete when the run itself is red (today's leftovers are from the L2 red run, before `$executeRaw`), which is why residue keeps accumulating — worth a fixture-teardown pass, not this slice's business.
 
 ### Next: Part 14 — Cost Engine. Opens with a grill-with-docs session; questions already banked by ADR 0011/0012/0013 — weighted-average vs FIFO · AP discrepancy cost policy (invoice/received vs write-off vs provisional) · retroactive recompute on a backdated movement · `PO_RECEIVE_REVERSAL` must not read as consumption · whether `product_cost_history` (master-spec §5.7) ships as-specced or per-branch.
 
