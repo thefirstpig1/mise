@@ -679,9 +679,25 @@ The document that makes the ledger **true** rather than merely consistent. Grill
 | L1 | Schema — 3 tables + `StockCountStatus` + `SourceType.STOCK_COUNT` + 3 partial uniques + 6 CHECKs + RLS | ✅ `20260816200513_part_15_stock_count` **applied to Neon**. **One migration, not two** — adding a `SourceType` value needs no second migration because nothing *uses* it in the same transaction, unlike Part 13 where the tail re-declared the sign CHECK with a new `MovementType`. The `stock_count_open_unique` partial index is the constraint that stops two people silently halving the stock (Q8). Adding the enum value made `pnpm tsc` **fail** on `SOURCE_TYPE_VALUES` — the drift guard Part 13 built after being burned by exactly this, working as intended |
 | L2 | zod — `src/lib/validations/stock-count.ts` | ✅ 15 tests. **`qty_expected` is never accepted from the client** — it is the ledger's answer, snapshotted server-side (Q3); trusting the browser to report it would be the same mistake ADR 0013 avoided by keeping the over-receipt rule out of zod. A line with **zero** total is valid (a real observation); a line with **no entries** is not (an abandoned row, and saving it would turn an unfinished sheet into a write-off). Voiding **requires** a reason where cancelling a PO does not. `countDate` is a document name, so unlike an adjustment's `occurredAt` it is not bound to the 90-day window |
 | L3a/L3b | Read + write logic — `src/server/stock-count.ts` | ✅ 12 integration cases (N1–N12). `assertSourceExists` gained its `STOCK_COUNT` branch, mirroring `GR_LINE`. **Closing is idempotent with no submit key** — the count line IS the source, so the ledger's own `UNIQUE(source_type, source_id)` does what Part 13 had to invent a key for. A line that matches expectation writes **nothing**. Void appends reversal lines carrying the original's numbers **swapped**, so the variance negates itself without a negative `qty_counted` and without a new movement type. Close/void run with a 30 s transaction budget — a sheet can carry hundreds of lines |
-| L4 | Actions + Thai errors + view serializer | ⏳ |
+| L4 | Actions + Thai errors + view serializer | ⏳ **NEXT** |
 | L5a–c | List · count sheet · detail + close/void · `/cost` variance column | ⏳ |
 | L6 | Throwaway E2E + verify + push | ⏳ |
+
+### Checkpoint — 2026-08-17, end of L3
+**Green:** `pnpm tsc --noEmit` clean · `pnpm vitest run` **393 passed / 4 skipped** (366 Sprint-2 baseline + 15 L2 + 12 L3). `pnpm build` not run — no page has been touched yet; it becomes mandatory at L5.
+
+**5 commits unpushed by design** (`d342a2a` L0 → `bbc4ea8` L3). The house rule is one batch push at L6, and nothing is at risk: the commits are on disk.
+
+**Everything below the UI is finished and tested.** What remains for Part 15:
+- **L4** — actions + Thai error mapping + view serializer (every Decimal → string). Errors to map: `StockCountAlreadyOpenError` (name the existing sheet — "someone is already counting" is only useful with a link), `StockCountNotEditableError`, `StockCountTransitionError`, `CountUnitMismatchError`.
+- **L5a** — `/stock-counts` list + layout + status badge + dashboard nav.
+- **L5b** — the count sheet: product picker, per-unit entry boxes, `showExpected` honoured (blind counting hides the expected column but the value is stored regardless), re-count overwrites, remove-line.
+- **L5c** — detail + close/void + the **`/cost` variance column** (Q5: `getBranchCostSummaryLogic` gains `countVarianceValue`, split out of `wasteValue` by `outflows[].sourceType`, and `BranchCostTable` gains the column).
+- **L6** — throwaway action-stack E2E + `pnpm build` + batch push.
+
+**Two things the next session must not re-derive:**
+1. `qty_expected` is snapshotted **server-side at line save** — the action must never accept it from the form.
+2. The `/cost` split in Q5 filters `outflows[]` by `sourceType === "STOCK_COUNT"` vs `"ADJUSTMENT"`; both are `ADJUST_LOSS` movements, so filtering by movement type alone would merge them again.
 
 ---
 
