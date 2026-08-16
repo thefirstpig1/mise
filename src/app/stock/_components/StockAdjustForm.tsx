@@ -94,6 +94,7 @@ export default function StockAdjustForm({
   branches,
   todayBangkok,
   fetchBalance,
+  fetchCost,
 }: {
   action: (
     prev: StockAdjustmentActionState,
@@ -107,6 +108,17 @@ export default function StockAdjustForm({
     productId: string;
     branchId: string;
   }) => Promise<{ ok: true; data: StockBalanceView } | { ok: false; formError: string }>;
+  /**
+   * Part 14 — resolves the cost the server WOULD apply to a gain, so the user can
+   * judge it without opening the cost field at all (ADR 0014 UX guardrail 1).
+   */
+  fetchCost: (query: {
+    productId: string;
+    branchId: string;
+  }) => Promise<
+    | { ok: true; data: { costPerBaseUnit: string; costSourceLabel: string } }
+    | { ok: false; formError: string }
+  >;
 }) {
   const [state, formAction, isPending] = useActionState(
     action,
@@ -126,6 +138,18 @@ export default function StockAdjustForm({
 
   const qtyRef = useRef<HTMLInputElement>(null);
   const notesRef = useRef<HTMLTextAreaElement>(null);
+
+  // Part 14: the optional cost, COLLAPSED by default. This form exists for batch
+  // entry — ten items in a row, qty and Enter — so an extra always-visible field
+  // would cost every user something to spare the rare one who knows the price.
+  const [costOpen, setCostOpen] = useState(false);
+  const [costUnitId, setCostUnitId] = useState("");
+  const costRef = useRef<HTMLInputElement>(null);
+  const costNoteRef = useRef<HTMLInputElement>(null);
+  const [defaultCost, setDefaultCost] = useState<{
+    costPerBaseUnit: string;
+    costSourceLabel: string;
+  } | null>(null);
 
   const product = useMemo(
     () => products.find((p) => p.id === productId),
@@ -162,7 +186,25 @@ export default function StockAdjustForm({
   useEffect(() => {
     const base = product?.units.find((u) => u.isBase) ?? product?.units[0];
     setUnitId(base?.id ?? "");
+    setCostUnitId(base?.id ?? "");
   }, [product]);
+
+  // What the server would use if the user says nothing (Q5's fallback chain),
+  // shown as plain text so the decision "is that right?" needs no clicks.
+  useEffect(() => {
+    if (!productId || !branchId) {
+      setDefaultCost(null);
+      return;
+    }
+    let stale = false;
+    fetchCost({ productId, branchId }).then((res) => {
+      if (stale) return;
+      setDefaultCost(res.ok ? res.data : null);
+    });
+    return () => {
+      stale = true;
+    };
+  }, [productId, branchId, fetchCost, state]);
 
   // --- preview (display only; the server returns the authoritative value) ---
   const unit = product?.units.find((u) => u.id === unitId);
@@ -189,6 +231,9 @@ export default function StockAdjustForm({
     if (!state.ok) return;
     setQty("");
     if (notesRef.current) notesRef.current.value = "";
+    if (costRef.current) costRef.current.value = "";
+    if (costNoteRef.current) costNoteRef.current.value = "";
+    setCostOpen(false);
     setSubmitKey(newSubmitKey());
     qtyRef.current?.focus();
   }, [state]);
@@ -461,6 +506,92 @@ export default function StockAdjustForm({
         />
         {err("notes") && <p className={errorClass}>{err("notes")}</p>}
       </div>
+
+      {/* Part 14 (ADR 0014 Q6) — only on a GAIN: a LOSS removes stock that already
+          has a cost from the layer it is drawn from, and zod refuses a cost there
+          rather than ignoring it. */}
+      {type === "ADJUST_GAIN" && (
+        <div className="rounded-lg border border-border bg-muted/20 p-3">
+          {defaultCost && (
+            <p className="text-xs text-muted-foreground">
+              ระบบจะใช้ต้นทุน{" "}
+              <strong className="tabular-nums">
+                {defaultCost.costPerBaseUnit} ฿ / {baseUnitLabel}
+              </strong>{" "}
+              ({defaultCost.costSourceLabel})
+            </p>
+          )}
+
+          {!costOpen ? (
+            <button
+              type="button"
+              onClick={() => setCostOpen(true)}
+              className="mt-1 text-xs text-primary hover:underline"
+            >
+              ระบุต้นทุนเอง
+            </button>
+          ) : (
+            <div className="mt-2 space-y-2">
+              <div className="flex flex-wrap items-end gap-2">
+                <div className="min-w-[8rem] flex-1">
+                  <label htmlFor="cost_unit_cost" className={labelClass}>
+                    ต้นทุน (บาท)
+                  </label>
+                  <input
+                    ref={costRef}
+                    id="cost_unit_cost"
+                    name="cost_unit_cost"
+                    type="number"
+                    step="0.0001"
+                    min="0"
+                    className={`${inputClass} mt-1`}
+                    placeholder="เช่น 4500"
+                  />
+                </div>
+                <div className="min-w-[7rem]">
+                  <label htmlFor="cost_unit_id" className={labelClass}>
+                    ต่อหน่วย
+                  </label>
+                  <select
+                    id="cost_unit_id"
+                    name="cost_unit_id"
+                    value={costUnitId}
+                    onChange={(e) => setCostUnitId(e.target.value)}
+                    className={`${inputClass} mt-1`}
+                  >
+                    {(product?.units ?? []).map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.unitName}
+                        {u.isBase ? " (หน่วยหลัก)" : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label htmlFor="cost_note" className={labelClass}>
+                  ที่มา / หมายเหตุ
+                </label>
+                <input
+                  ref={costNoteRef}
+                  id="cost_note"
+                  name="cost_note"
+                  type="text"
+                  maxLength={500}
+                  className={`${inputClass} mt-1`}
+                  placeholder="เช่น ของจากใบส่งของที่ลืมคีย์"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                เว้นว่างไว้ก็ได้ — ระบบจะใช้ราคาซื้อครั้งล่าสุด และแก้ทีหลังได้ที่หน้าต้นทุน
+              </p>
+            </div>
+          )}
+          {err("costDeclaration") && (
+            <p className={errorClass}>{err("costDeclaration")}</p>
+          )}
+        </div>
+      )}
 
       <div className="flex items-center gap-3">
         <button

@@ -14,6 +14,8 @@
 import { requireTenant } from "@/lib/require-tenant";
 import { getBranchesLogic } from "@/server/branch";
 import { getStockBalancesByBranchLogic } from "@/server/stock-movement";
+import { getProductCostsLogic } from "@/server/stock-cost";
+import { getProductCostsQuerySchema } from "@/lib/validations/stock-cost";
 import { toProductStockBalanceView } from "./_components/stock-view";
 import StockLevelsTable, {
   type StockLevelRow,
@@ -54,6 +56,18 @@ export default async function StockLevelsPage({
 
   const balances = await getStockBalancesByBranchLogic(tenantId, activeBranch.id);
 
+  // Part 14: one BATCHED cost read for the whole grid. Never one per product —
+  // 200 products x a round trip to Neon Singapore is 6-16 seconds, which is risk
+  // R1 in ADR 0014's register and the reason the read layer exposes no
+  // per-product query to loop over.
+  const costs = await getProductCostsLogic(
+    tenantId,
+    getProductCostsQuerySchema.parse({
+      productIds: balances.map((b) => b.productId),
+      branchId: activeBranch.id,
+    })
+  );
+
   const rows: StockLevelRow[] = balances
     .map(toProductStockBalanceView)
     .map((b) => ({
@@ -68,6 +82,9 @@ export default async function StockLevelsPage({
         ? BANGKOK_DATE.format(new Date(b.lastMovementAt))
         : null,
       deleted: b.product.deleted,
+      // Summed layer by layer by the replay — NOT cost x balance (ADR 0014 Q3b).
+      inventoryValue: costs.get(b.product.id)?.inventoryValue.toString() ?? "0",
+      costUncertain: costs.get(b.product.id)?.hasUnpricedLayers ?? false,
     }));
 
   return (

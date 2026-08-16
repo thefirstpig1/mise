@@ -33,6 +33,14 @@ export type StockLevelRow = {
   lastMovementLabel: string | null;
   /** Soft-deleted product still holding stock — surfaced, never hidden. */
   deleted: boolean;
+  /**
+   * Part 14: value of the stock on hand, summed LAYER BY LAYER (ADR 0014 Q3b).
+   * Never `cost x balance` — with two layers at different prices that product is
+   * a different, wrong number.
+   */
+  inventoryValue: string;
+  /** true = some of this stock was priced by guesswork, or not at all. */
+  costUncertain: boolean;
 };
 
 type Filter = "all" | "negative" | "zero" | "untouched";
@@ -108,6 +116,7 @@ export default function StockLevelsTable({ rows }: { rows: StockLevelRow[] }) {
             <tr>
               <th className="px-3 py-2 font-medium">วัตถุดิบ</th>
               <th className="px-3 py-2 text-right font-medium">ยอดคงเหลือ</th>
+              <th className="px-3 py-2 text-right font-medium">มูลค่า</th>
               <th className="px-3 py-2 font-medium">เคลื่อนไหวล่าสุด</th>
             </tr>
           </thead>
@@ -115,7 +124,7 @@ export default function StockLevelsTable({ rows }: { rows: StockLevelRow[] }) {
             {visible.length === 0 ? (
               <tr>
                 <td
-                  colSpan={3}
+                  colSpan={4}
                   className="px-3 py-8 text-center text-muted-foreground"
                 >
                   ไม่พบรายการตามเงื่อนไขนี้
@@ -150,6 +159,25 @@ export default function StockLevelsTable({ rows }: { rows: StockLevelRow[] }) {
                     {r.negative && (
                       <span className="ml-2 rounded bg-red-100 px-1.5 py-0.5 text-xs font-medium text-red-700">
                         ต้องตรวจสอบ
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-3 py-2 text-right tabular-nums">
+                    <a
+                      href={`/cost/${r.productId}`}
+                      className="text-primary hover:underline"
+                    >
+                      {Number(r.inventoryValue).toLocaleString("th-TH", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                    </a>
+                    {r.costUncertain && (
+                      <span
+                        className="ml-1 text-amber-600"
+                        title="ต้นทุนบางส่วนยังไม่ทราบ"
+                      >
+                        *
                       </span>
                     )}
                   </td>

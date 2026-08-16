@@ -46,6 +46,10 @@ import {
 // L3b. Reused here rather than redeclared.
 import { CrossTenantReferenceError } from "@/server/product";
 import {
+  CostDeclarationTargetError,
+  CostUnitMismatchError,
+} from "@/server/cost-declaration";
+import {
   toStockBalanceView,
   toStockMovementView,
   type StockBalanceView,
@@ -73,6 +77,10 @@ const UNIT_MISMATCH_MESSAGE = "หน่วยที่เลือกต้อ�
 const CONFLICT_MESSAGE = "ระบบกำลังบันทึกรายการนี้อยู่ กรุณาลองอีกครั้ง";
 /** A read action whose query didn't validate (never user-typed — a caller bug). */
 const BAD_QUERY_MESSAGE = "เงื่อนไขการค้นหาไม่ถูกต้อง";
+/** Part 14: the cost was typed against a unit of some other product. */
+const COST_UNIT_MESSAGE = "หน่วยของต้นทุนต้องเป็นหน่วยของวัตถุดิบนี้";
+/** Part 14: a cost may only be attached to stock coming IN (ADR 0014 Q6). */
+const COST_TARGET_MESSAGE = "ระบุต้นทุนได้เฉพาะรายการที่เพิ่มสต๊อกเท่านั้น";
 
 /**
  * Map the adjust form's snake_case FormData onto the schema's camelCase shape.
@@ -82,7 +90,21 @@ const BAD_QUERY_MESSAGE = "เงื่อนไขการค้นหาไ�
  * every retry, which is precisely the double-POST bug this closes.
  */
 function rawFromFormData(formData: FormData): Record<string, unknown> {
+  // Part 14 (ADR 0014 Q6): the optional cost field. Absent unless the user opened
+  // it and typed something — a blank stays `null` so the replay falls back to the
+  // last purchase price (Q5) rather than recording a zero nobody meant.
+  const rawUnitCost = formData.get("cost_unit_cost");
+  const costDeclaration =
+    typeof rawUnitCost === "string" && rawUnitCost.trim() !== ""
+      ? {
+          unitCost: rawUnitCost,
+          unitId: formData.get("cost_unit_id"),
+          note: formData.get("cost_note"),
+        }
+      : null;
+
   return {
+    costDeclaration,
     submitKey: formData.get("submit_key"),
     productId: formData.get("product_id"),
     branchId: formData.get("branch_id"),
@@ -137,6 +159,16 @@ function toFormError(e: unknown): StockAdjustmentActionState {
   }
   if (e instanceof MovementSourceConflictError) {
     return { ok: false, formError: CONFLICT_MESSAGE };
+  }
+  // Part 14: the optional cost field. Reachable only when the user opened it, so
+  // it maps to that field rather than the form.
+  if (e instanceof CostUnitMismatchError) {
+    return { ok: false, fieldErrors: { costDeclaration: COST_UNIT_MESSAGE } };
+  }
+  if (e instanceof CostDeclarationTargetError) {
+    // zod already refuses a cost on a LOSS, so reaching here means a caller bug
+    // rather than something the user typed.
+    return { ok: false, formError: COST_TARGET_MESSAGE };
   }
   throw e; // unexpected → let the error boundary handle it
 }

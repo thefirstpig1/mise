@@ -14,6 +14,7 @@ import { computeBangkokToday } from "@/lib/bangkok-date";
 import { getProductsLogic } from "@/server/product";
 import { getBranchesLogic } from "@/server/branch";
 import { createStockAdjustmentAction, getStockBalanceAction } from "../actions";
+import { getProductCostAction } from "@/app/cost/actions";
 import StockAdjustForm, {
   type StockBranchOption,
   type StockProductOption,
@@ -78,6 +79,7 @@ export default async function StockAdjustPage() {
           branches={branchOptions}
           todayBangkok={todayBangkok}
           fetchBalance={getStockBalanceAction}
+          fetchCost={getProductCostAction}
         />
       )}
     </div>
