@@ -4,7 +4,7 @@
 
 ## Current Sprint: Sprint 2 — Transactional Systems 🚧 IN PROGRESS
 
-**Status:** 🚧 Part 10 (Stock Movement) ✅ COMPLETE (2026-08-15) + post-completion review closed (1 fix, 3 items carried to Part 13 — **all three paid in Part 13 L1b**) · Part 11 (Purchase Order) ✅ COMPLETE (L0–L6, 2026-08-16) · Part 13 (Goods Receipt) ✅ COMPLETE (L0–L6, 2026-08-16) → **next: Part 14 — Cost Engine** (Part 12 left unallocated, see the Part 11 section).
+**Status:** 🚧 Part 10 (Stock Movement) ✅ COMPLETE (2026-08-15) + post-completion review closed (1 fix, 3 items carried to Part 13 — **all three paid in Part 13 L1b**) · Part 11 (Purchase Order) ✅ COMPLETE (L0–L6, 2026-08-16) · Part 13 (Goods Receipt) ✅ COMPLETE (L0–L6, 2026-08-16) · Part 13.5 (carry-forward debt payoff) 🚧 IN PROGRESS → **next: Part 14 — Cost Engine** (Part 12 left unallocated, see the Part 11 section).
 **Scope:** Stock Movement (append-only ledger) → PO → GR → Cost Engine per master-spec.md (Part IV — Sprint Plan). Part 10 is the **first proper Sprint 2 slice** (Part 8.5 was a Sprint 1 restore-on-recreate warm-up, run standalone before the Sprint 2 core). Sprint 1 completion history is retained under its own header below.
 
 ---
@@ -591,6 +591,34 @@ The loop is closed: **PO → รับของ → ledger**. `/goods-receipts` 
 
 ### Baseline at start (2026-08-16)
 `pnpm vitest run` — **265 passed / 4 skipped**, `tsc` clean, `pnpm build` 24 routes (Part 11 L6 state).
+
+---
+
+## Sprint 2 Part 13.5 — Carry-forward debt payoff: 🚧 IN PROGRESS (2026-08-16)
+
+Maintenance slice run **standalone before the Part 14 grill**, on the Part 8.5 precedent. Not a grill slice — nothing here is a new product decision; it pays three debts the last three Parts each recorded and deferred, two of which sit directly under the code Part 14 will read.
+
+### What it closes
+| # | Debt | Recorded in |
+|---|---|---|
+| 1 | **`/stock/adjust` double-POST doubles the stock.** Part 13 fixed the pattern (a client `submit_key` used AS the source row id) but only for receipts; `createStockAdjustmentLogic` still minted its own `stock_adjustment` id per call, so ADR 0011 Q4's `(source_type, source_id)` idempotency never fired. | Part 13 carry-forward ("worth doing before the pilot"); Part 10 post-completion review item 2 |
+| 2 | **Pitfall #25 scan-then-insert race**, now shared by `generateSku` / `generatePoNumber` / `generateGrNumber`. The partial unique index caught the loser and the user got a Thai "กดบันทึกอีกครั้ง". | Pitfall #25; Part 11 + Part 13 carry-forwards |
+| 3 | **Neon test residue** — leftover tenants from the Sprint-0/1 suites. | Part 10 / 11 / 13 carry-forwards |
+
+**No schema change, no migration, no new dependency.** `stock_adjustment.id` is already a uuid PK (supplying it is a value change, not a shape change) and `pg_advisory_xact_lock` is a built-in, not an extension.
+
+### Implementation (L0–L3 — TDD; batch-pushed at L3)
+| L | Layer | Status | Note |
+|---|---|---|---|
+| **L0** | Docs — Pitfall #25 → RESOLVED · ADR 0011 Q4 clarification · ADR 0012 wording nit · this section | ✅ _(this commit)_ | ADR 0011's Q4 note now says the part that was missing: the guarantee holds **only if the caller supplies the source id** |
+| L1 | Adjustment `submit_key` — zod + logic replay + action + form (with **key rotation on success**) | ⏳ | The rotation is the non-obvious half: `/stock/adjust` stays open for successive entry, so a non-rotating key would swallow item #2 of a batch as a replay of item #1 |
+| L2 | `acquireCounterLock` + the three generators | ⏳ | `pg_advisory_xact_lock(hashtextextended(key,0))`, keyed per counter scope; the partial uniques stay as backstop |
+| L3 | Verify (tsc + vitest + build) + throwaway E2E + push | ⏳ | |
+
+### Gated separately — Neon test-tenant cleanup
+🛑 Destructive (DELETE > 1 row) → read-only list first, then delete only the ids Kong names. Touches no app code; skipping it blocks nothing.
+
+### Next: Part 14 — Cost Engine. Opens with a grill-with-docs session; questions already banked by ADR 0011/0012/0013 — weighted-average vs FIFO · AP discrepancy cost policy (invoice/received vs write-off vs provisional) · retroactive recompute on a backdated movement · `PO_RECEIVE_REVERSAL` must not read as consumption · whether `product_cost_history` (master-spec §5.7) ships as-specced or per-branch.
 
 ---
 

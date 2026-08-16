@@ -187,12 +187,13 @@ datasource db {
 - **Fix ตอน 7b:** แยกด้วย `e.meta?.target` (เช่น `['tenant_id','sku']` vs `['product_id','unit_name']`) → คืน error ที่ field ถูกต้อง (sku-conflict vs unit-name-conflict)
 - Status: **ยอมรับสำหรับ 7a** (unit เดียว ยิงไม่ได้). ต้องแก้ก่อน/ระหว่างทำ 7b
 
-### 25. `generateSku` race condition — scan max+1 ไม่ lock
-- Where: `src/server/product.ts` → `generateSku()` อ่าน `P-####` สูงสุดแล้ว +1 (ไม่มี row lock / advisory lock)
-- Symptom: create พร้อมกัน 2 request (เว้น sku ว่าง) อ่าน max เดียวกัน → ได้ `P-####` ซ้ำ → อันหลัง P2002 → ผู้ใช้เห็น "รหัสสินค้าซ้ำ" ทั้งที่เว้นว่าง (งง เพราะไม่ได้กรอก sku เอง)
-- Status: **ยอมรับสำหรับ MVP** — single-user, โอกาส concurrent create ต่ำมาก
-- Fix (ตอน scale / multi-user): `pg_advisory_xact_lock(hashtext(tenant_id::text))` ต้นทรานแซกชัน หรือเปลี่ยนเป็น DB sequence ต่อ tenant
-- เกี่ยวข้อง: Pitfall #24 (ถ้า race ยิง P2002 ก็จะถูก `rethrowSkuConflict` แปลงเป็น sku-conflict — ใน 7a ถูกต้องพอดี)
+### 25. scan-max+1 counter race — `generateSku` / `generatePoNumber` / `generateGrNumber` — ✅ RESOLVED (Part 13.5, 2026-08-16)
+- Where: `src/server/product.ts` → `generateSku()`, `src/server/purchase-order.ts` → `generatePoNumber()`, `src/server/goods-receipt.ts` → `generateGrNumber()` — ทั้งสามตัวอ่านเลขสูงสุดของ pattern ตัวเองแล้ว +1
+- Symptom: create พร้อมกัน 2 request (เว้น sku ว่าง) อ่าน max เดียวกัน → ได้ `P-####` ซ้ำ → อันหลัง P2002 → ผู้ใช้เห็น "รหัสสินค้าซ้ำ" ทั้งที่เว้นว่าง (งง เพราะไม่ได้กรอก sku เอง). ฝั่ง PO/GR เห็นเป็น Thai "กดบันทึกอีกครั้ง"
+- Status เดิม: ยอมรับสำหรับ MVP (Part 7a–13) — single-user, โอกาส concurrent create ต่ำมาก
+- **Fix (Part 13.5):** `acquireCounterLock(tx, key)` (`src/server/counter-lock.ts`) = `pg_advisory_xact_lock(hashtextextended(key, 0))` เป็นคำสั่งแรกของ generator ทั้งสามตัว, key แยกตาม scope (`product_sku:{tenantId}` / `po_number:{tenantId}:{branchCode}` / `gr_number:{tenantId}:{branchCode}`). เป็น **xact** lock → ปล่อยเองตอน commit **และ** ตอน rollback ไม่มี unlock path ให้ลืม; ใช้ได้เพราะ `withTenantContext` เป็น `$transaction` อยู่แล้ว (`pg_advisory_lock` ธรรมดาจะค้างติดไปกับ pooled connection)
+- Partial unique index (`product_sku_unique` / `purchase_order_number_unique` / `goods_receipt_number_unique`) ยังอยู่ในฐานะ **backstop** — เลิกเป็นด่านเดียว แต่ไม่ถอด; `PurchaseOrderNumberConflictError` + Thai retry path ยังอยู่ด้วยเหตุผลเดียวกัน
+- เกี่ยวข้อง: Pitfall #24 (ถ้า race ยิง P2002 ก็จะถูก `rethrowSkuConflict` แปลงเป็น sku-conflict — ใน 7a ถูกต้องพอดี) · Pitfall #28 (ตระกูลเดียวกัน — depth/cycle traversal race, **ยังไม่แก้**, ใช้ helper ตัวเดียวกันได้ตอนทำ)
 
 ### 26. Neon free-tier compute-hours quota exhaustion (ต่างจาก #17 cold-start)
 - Symptom: P1001 "Can't reach database server" บน **ทั้ง** `-pooler` และ direct endpoint พร้อมกัน และ **ไม่หาย** แม้ปลุกผ่าน Neon Console (ต่างจาก #17 ที่ cold-start จะ clear ใน ~10s)
