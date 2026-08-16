@@ -2,9 +2,9 @@
 
 **Last updated:** 2026-07-05
 
-## Current Sprint: Sprint 2 — Transactional Systems 🚧 IN PROGRESS
+## Current Sprint: Sprint 2 — Transactional Systems ✅ COMPLETE (2026-08-17)
 
-**Status:** 🚧 Part 10 (Stock Movement) ✅ COMPLETE (2026-08-15) + post-completion review closed (1 fix, 3 items carried to Part 13 — **all three paid in Part 13 L1b**) · Part 11 (Purchase Order) ✅ COMPLETE (L0–L6, 2026-08-16) · Part 13 (Goods Receipt) ✅ COMPLETE (L0–L6, 2026-08-16) · Part 13.5 (carry-forward debt payoff) ✅ COMPLETE (L0–L3, 2026-08-16) → **next: Part 14 — Cost Engine** (Part 12 left unallocated, see the Part 11 section).
+**Status:** 🚧 Part 10 (Stock Movement) ✅ COMPLETE (2026-08-15) + post-completion review closed (1 fix, 3 items carried to Part 13 — **all three paid in Part 13 L1b**) · Part 11 (Purchase Order) ✅ COMPLETE (L0–L6, 2026-08-16) · Part 13 (Goods Receipt) ✅ COMPLETE (L0–L6, 2026-08-16) · Part 13.5 (carry-forward debt payoff) ✅ COMPLETE (L0–L3, 2026-08-16) · Part 14 (Cost Engine) ✅ COMPLETE (L0–L6, 2026-08-17) → **Sprint 2 COMPLETE; next: Sprint 3 — Stock Count + Expense + yield-correct CONSUMPTION** (Part 12 left unallocated, see the Part 11 section).
 **Scope:** Stock Movement (append-only ledger) → PO → GR → Cost Engine per master-spec.md (Part IV — Sprint Plan). Part 10 is the **first proper Sprint 2 slice** (Part 8.5 was a Sprint 1 restore-on-recreate warm-up, run standalone before the Sprint 2 core). Sprint 1 completion history is retained under its own header below.
 
 ---
@@ -637,7 +637,7 @@ Deleting these is a DELETE affecting many rows → waiting on Kong's explicit go
 
 ---
 
-## Sprint 2 Part 14 — Cost Engine: 🚧 GRILL IN PROGRESS (2026-08-16)
+## Sprint 2 Part 14 — Cost Engine: ✅ COMPLETE (L0–L6, 2026-08-16 → 2026-08-17)
 
 Last Part of Sprint 2. Grill running; decisions locked so far below. ADR 0014 to be written at L0 once the grill closes.
 
@@ -685,7 +685,7 @@ Prepared responses for problems that may never happen. Each row: the risk · the
 | **R5** | **Replay is read-only but could get wrapped in a write transaction**, holding a Neon connection while it walks. | Transaction timeouts under load. | The cost read never runs inside `withTenantContext`'s write path; if a writer needs cost, it computes it before opening the transaction. |
 | **R6** | **Sprint 5 inherits a cascade design that no longer applies** (H.9's trigger on a table that will not exist). | — | Recorded here and in ADR 0014 rather than discovered in Sprint 5. |
 
-### Grill CLOSED (Q1–Q12, 2026-08-16) — ADR 0014 to be written at L0
+### Grill CLOSED (Q1–Q12, 2026-08-16) — codified in ADR 0014
 
 ### Implementation plan (L0–L6 — TDD vertical slices; batch-pushed at L6)
 | L | Layer | Note |
@@ -752,7 +752,22 @@ Pinned by **K11** in `tests/stock-cost-logic.test.ts` so the behaviour is docume
 | L5b | `/cost/[productId]` — layers · `costSource` · declare + history | ✅ The layer table answers "why is the cost that number?" **and** is the only place a user can FIND the rows priced by guesswork — without it, "correct it when you find the invoice" is a promise the UI cannot keep. A layer sourced from an ADJUSTMENT gets a "ระบุต้นทุน" button; one from a receipt does not, because that price belongs to its document (ADR 0013 Q6). Superseded statements render struck through rather than disappearing. Cost is typed in the unit the user thinks in, with a unit picker |
 | L5b | Adjust-form cost field (collapsed, default shown as text, never blocks submit) | |
 | L5c | Adjust-form cost field + `/stock` value column | ✅ The cost field is **collapsed** and only appears on a GAIN; the resolved default is shown as plain text above it (*"ระบบจะใช้ต้นทุน X ฿/kg (จากราคาซื้อล่าสุด)"*) so the user can judge it without opening anything, and it never blocks submit. It clears and re-collapses on success along with the rotating `submit_key`, so a batch of ten stays a batch of ten. `/stock` gained a value column linking to the cost page, fed by **one batched read** for the whole grid (R1) and summed **layer by layer**, never `cost × balance` |
-| L6 | Throwaway E2E + verify + push | Must cover: backdated receipt reorders the layers · void cuts its own layer · partial void → negative layer · declaration supersedes and changes an `asOf` answer · money invariant ties to the satang |
+| L6 | Throwaway E2E + verify + push | ✅ 8 cases E1–E8 green; spec + dedicated config **deleted** (never committed) |
+
+### Verified (L6, 2026-08-17)
+- `pnpm tsc --noEmit` clean · `pnpm build` green (**31 routes**, `/cost` and `/cost/[productId]` among them) · `pnpm vitest run` **366 passed / 4 skipped** (312 Part-13.5 baseline + 17 L2 + 22 replay engine + 15 cost read/write).
+- **8-case throwaway action-stack E2E (E1–E8)** on a throwaway tenant, mocking only `requireTenant` + `next/cache`: declaring *"กระสอบละ 4,500"* converting to 180 ฿/kg · a receipt's price refused in Thai with nothing written · a cost typed on the adjust form landing in the **same transaction** · a cost typed against a LOSS refused by zod, taking the whole submission with it · a correction superseding without deleting · **a void cutting ITS layer, leaving the 10s rather than the 20s** · the business-wide summary with `revenue: null` and every figure a string · the money invariant holding across a mixed sequence.
+- The **replay engine is tested without a database at all** (22 cases) — every ADR 0014 rule stated as "these movements produce these layers", with `money in − money out = value on hand` asserted on every single one.
+
+### Part 14 — ✅ COMPLETE · **Sprint 2 — ✅ COMPLETE**
+The ledger now speaks in money. `/cost` compares every branch in the business; `/cost/[productId]` shows the FIFO layers behind a number and lets a human price the stock that arrived without a document; `/stock` carries a value column; and the adjust form can capture a cost at the moment of counting without slowing the count down.
+
+**Carried forward from this Part:**
+- **Sprint 5 must re-confirm H.9 before implementing it.** Its cascade marks `recipe_cost_snapshot` stale via a trigger on `product_cost_history` INSERT — a table that will not exist. "Stale" largely loses its meaning once cost is computed fresh on every read.
+- **The snapshot escape hatch is designed but not built** (risk R2). `replayFifoLayers` already takes its opening stack as a parameter, so adding it changes one caller, not the algorithm. Trigger: the `/cost` page exceeding ~1 s, or ~5,000 movements on a single (product, branch).
+- **Central purchasing** (Q9c) — `purchase_order.branch_id` is NOT NULL while HQ buys centrally. When `TRANSFER_*` lands in Sprint 3+, transferred stock must arrive carrying the sending branch's FIFO cost.
+- **`Product.targetMarketPrice` is still write-only-in-schema** — no zod, no UI, always null. It was the glossary's fallback for a product with no purchase history; today that case reports `UNPRICED` honestly instead.
+- **The Neon test-tenant cleanup is still open** (Part 13.5), and this Part added `Cost Test Tenant A/B` to the pile.
 
 ---
 
