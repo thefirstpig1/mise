@@ -107,6 +107,9 @@ model Tenant {
   goodsReceipts           GoodsReceipt[]
   goodsReceiptItems       GoodsReceiptItem[]
   grItemAllocations       GoodsReceiptItemAllocation[]
+  expenses                Expense[]
+  expenseItems            ExpenseItem[]
+  recurringExpenses       RecurringExpense[]
 
   @@map("tenant")
 }
@@ -137,6 +140,8 @@ model Branch {
   stockCounts             StockCount[]
   purchaseOrders          PurchaseOrder[]
   goodsReceipts           GoodsReceipt[]
+  expenses                Expense[]
+  recurringExpenses       RecurringExpense[]
 
   @@index([tenantId])
   @@map("branch")
@@ -172,6 +177,7 @@ model User {
   goodsReceiptsReceived     GoodsReceipt[]     @relation("GrReceivedBy")
   goodsReceiptsConfirmed    GoodsReceipt[]     @relation("GrConfirmedBy")
   goodsReceiptsVoided       GoodsReceipt[]     @relation("GrVoidedBy")
+  expensesCreated           Expense[]
 
   @@map("app_user")
 }
@@ -227,6 +233,7 @@ model Department {
   assignments       UserDepartmentAssignment[]
   poItemAllocations PurchaseOrderItemAllocation[]
   grItemAllocations GoodsReceiptItemAllocation[]
+  expenseItems      ExpenseItem[]
 
   @@unique([tenantId, code])
   @@index([tenantId])
@@ -315,6 +322,8 @@ model Supplier {
   supplierProductMappings SupplierProductMapping[]
   purchaseOrders          PurchaseOrder[]
   goodsReceipts           GoodsReceipt[]
+  expenses                Expense[]
+  recurringExpenses       RecurringExpense[]
 
   @@index([tenantId])
   @@map("supplier")
@@ -332,7 +341,9 @@ model Category {
   deletedAt DateTime? @map("deleted_at")
 
   tenant   Tenant    @relation(fields: [tenantId], references: [id])
-  products Product[]
+  products          Product[]
+  expenseItems      ExpenseItem[]
+  recurringExpenses RecurringExpense[]
 
   @@unique([tenantId, account, accountingSection, groupName])
   @@index([tenantId])
@@ -376,6 +387,7 @@ model Product {
   stockCountItems         StockCountItem[]
   purchaseOrderItems      PurchaseOrderItem[]
   goodsReceiptItems       GoodsReceiptItem[]
+  expenseItems            ExpenseItem[]
 
   /// NOTE: per-tenant sku uniqueness is a PARTIAL unique index (WHERE deleted_at
   /// IS NULL) in prisma/manual/product_sku_unique.sql — NOT a Prisma @@unique,
@@ -402,6 +414,7 @@ model ProductUnit {
   stockCountEntries       StockCountEntry[]
   purchaseOrderItems      PurchaseOrderItem[]
   goodsReceiptItems       GoodsReceiptItem[]
+  expenseItems            ExpenseItem[]
 
   @@unique([productId, unitName])
   @@index([productId])
@@ -990,6 +1003,17 @@ model GoodsReceipt {
 
   /// Supplier's invoice / delivery-note number, as text. No image, no OCR.
   invoiceNo      String?  @map("invoice_no")
+
+  /// Part 16 (ADR 0016 Q2). VAT sits at the HEADER, following Decision #35's rule
+  /// for expenses. Null rate = no VAT on this delivery.
+  vatRatePercent Decimal? @map("vat_rate_percent") @db.Decimal(5, 2)
+  vatAmount      Decimal  @default(0) @map("vat_amount") @db.Decimal(15, 2)
+  /// SNAPSHOT of tenant.is_vat_registered AT RECEIPT TIME — never read live.
+  /// A shop that crosses the 1.8M threshold in October must not have the whole
+  /// year's stock silently re-valued: it did pay that VAT and nobody refunds it.
+  /// Same rule ADR 0012 Q3 applied to to_base_ratio. When false, the VAT is part
+  /// of what the stock cost and Part 14's replay adds it to the layer value.
+  vatReclaimable Boolean  @default(false) @map("vat_reclaimable")
   /// Business time of the delivery — becomes every movement's occurred_at (Q4).
   receivedAt     DateTime @map("received_at")
   receivedBy     String   @map("received_by")
@@ -1014,6 +1038,8 @@ model GoodsReceipt {
   branch          Branch             @relation(fields: [branchId], references: [id])
   supplier        Supplier           @relation(fields: [supplierId], references: [id])
   purchaseOrder   PurchaseOrder?     @relation(fields: [purchaseOrderId], references: [id])
+  /// At most one, enforced by the partial unique in prisma/manual/ (ADR 0016 Q3).
+  expenses        Expense[]
   receivedByUser  User               @relation("GrReceivedBy", fields: [receivedBy], references: [id])
   confirmedByUser User?              @relation("GrConfirmedBy", fields: [confirmedBy], references: [id])
   voidedByUser    User?              @relation("GrVoidedBy", fields: [voidedBy], references: [id])
@@ -1112,4 +1138,181 @@ model GoodsReceiptItemAllocation {
   @@index([tenantId])
   @@index([departmentId], map: "gr_item_allocation_dept_idx")
   @@map("goods_receipt_item_allocation")
+}
+
+// ============================================================
+// EXPENSE (Sprint 3 Part 16 — ADR 0016)
+// ============================================================
+// Every baht that leaves the business, in ONE table: rent, utilities, wages,
+// services — and materials, because confirming a Goods Receipt writes its own
+// expense (Q3). That is what lets /cost read spend from a single place without
+// double-counting a purchase against its receipt.
+//
+// NOT built, each for a stated reason (Q1/Q6/Q7): bill_image_url / slip_image_url
+// (no object storage) · allocation_method (Q1 removed both shared strategies,
+// leaving one possible value) · payment_status = PARTIAL (it describes an amount
+// and there is no payments module to hold one).
+//
+// Voiding: a GR void SOFT-DELETES the expense it created. There is no separate
+// void reason here — the receipt that caused it records who voided it and why,
+// and duplicating that would let the two disagree.
+// ============================================================
+
+enum ExpenseSource {
+  MANUAL
+  /// Written by confirmGoodsReceiptLogic, in the same transaction (Q3).
+  FROM_GOODS_RECEIPT
+
+  @@map("expense_source")
+}
+
+enum ExpensePaymentStatus {
+  UNPAID
+  PAID
+
+  @@map("expense_payment_status")
+}
+
+/// One bill. VAT sits at the HEADER (Decision #35), and WHT is computed on the
+/// amount BEFORE VAT (ADR 0016 Q6 — master-spec §5.4's formula is wrong).
+model Expense {
+  id         String  @id @default(uuid()) @db.Uuid
+  tenantId   String  @map("tenant_id") @db.Uuid
+  branchId   String  @map("branch_id") @db.Uuid
+  supplierId String? @map("supplier_id") @db.Uuid
+
+  source ExpenseSource @default(MANUAL)
+  /// The receipt this expense was created from. PARTIAL unique, so a replayed
+  /// confirm yields one expense — the mechanism used throughout Sprint 2.
+  sourceGrId String? @map("source_gr_id") @db.Uuid
+
+  /// Set when this bill was confirmed from a recurring template (Q5). `period`
+  /// is "YYYY-MM"; the pair is PARTIAL unique so confirming twice yields one.
+  recurringExpenseId String? @map("recurring_expense_id") @db.Uuid
+  period             String?
+
+  billDate     DateTime @map("bill_date") @db.Date
+  billNo       String?  @map("bill_no")
+  vatInvoiceNo String?  @map("vat_invoice_no")
+
+  subtotalExclVat Decimal  @map("subtotal_excl_vat") @db.Decimal(15, 2)
+  vatRatePercent  Decimal? @map("vat_rate_percent") @db.Decimal(5, 2)
+  vatAmount       Decimal  @default(0) @map("vat_amount") @db.Decimal(15, 2)
+  /// How the user TYPED it (Decision #36). A Thai shop's bill usually shows the
+  /// total; a tax invoice shows both. Kept because it decides which way the
+  /// maths ran, which a reader cannot recover from the results alone.
+  isPriceVatInclusive Boolean @default(true) @map("is_price_vat_inclusive")
+  totalAmount         Decimal @map("total_amount") @db.Decimal(15, 2)
+
+  subjectToWht      Boolean  @default(false) @map("subject_to_wht")
+  whtRatePercent    Decimal? @map("wht_rate_percent") @db.Decimal(5, 2)
+  /// = subtotal_excl_vat × rate/100 — the PRE-VAT base (Q6). Withholding on the
+  /// VAT-inclusive total over-withholds and breaks the 50 ทวิ reconciliation.
+  whtAmount         Decimal? @map("wht_amount") @db.Decimal(15, 2)
+  whtCertificateNo  String?  @map("wht_certificate_no")
+  /// = total_amount − wht_amount. What actually leaves the bank.
+  netPaymentAmount  Decimal  @map("net_payment_amount") @db.Decimal(15, 2)
+
+  paymentMethod String?              @map("payment_method")
+  paymentStatus ExpensePaymentStatus @default(UNPAID) @map("payment_status")
+  paidAt        DateTime?            @map("paid_at")
+
+  notes String?
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  createdBy String    @map("created_by")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  tenant        Tenant            @relation(fields: [tenantId], references: [id])
+  branch        Branch            @relation(fields: [branchId], references: [id])
+  supplier      Supplier?         @relation(fields: [supplierId], references: [id])
+  sourceGr      GoodsReceipt?     @relation(fields: [sourceGrId], references: [id])
+  recurring     RecurringExpense? @relation(fields: [recurringExpenseId], references: [id])
+  createdByUser User              @relation(fields: [createdBy], references: [id])
+  items         ExpenseItem[]
+
+  @@index([tenantId])
+  @@index([branchId, billDate], map: "expense_branch_date_idx")
+  @@map("expense")
+}
+
+/// One line of a bill. `category_id` is what puts it on the COGS or the OpEx side
+/// of /cost (Q4) — the 3-tier tree has carried `account` since Sprint 1.
+model ExpenseItem {
+  id        String @id @default(uuid()) @db.Uuid
+  tenantId  String @map("tenant_id") @db.Uuid
+  expenseId String @map("expense_id") @db.Uuid
+  lineNo    Int    @map("line_no")
+
+  categoryId String @map("category_id") @db.Uuid
+  /// null = shared / overhead (Decision #31). Always null while departments are
+  /// off, and meaningful the day they are switched on — which is why it is built
+  /// where `allocation_method` was not.
+  departmentId String? @map("department_id") @db.Uuid
+
+  /// Set when the line refers to a stocked product — always so on a line written
+  /// from a Goods Receipt, usually null on rent or wages.
+  productId     String?  @map("product_id") @db.Uuid
+  productUnitId String?  @map("product_unit_id") @db.Uuid
+  description   String
+  qty           Decimal? @db.Decimal(15, 3)
+  unitPrice     Decimal? @map("unit_price") @db.Decimal(15, 4)
+  /// EXCLUDING VAT — the header carries the tax (Decision #35).
+  totalPrice    Decimal  @map("total_price") @db.Decimal(15, 2)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id])
+  expense     Expense      @relation(fields: [expenseId], references: [id])
+  category    Category     @relation(fields: [categoryId], references: [id])
+  department  Department?  @relation(fields: [departmentId], references: [id])
+  product     Product?     @relation(fields: [productId], references: [id])
+  productUnit ProductUnit? @relation(fields: [productUnitId], references: [id])
+
+  @@index([tenantId])
+  @@index([expenseId], map: "expense_item_expense_idx")
+  @@map("expense_item")
+}
+
+/// A template for something that repeats. It GENERATES NOTHING (Q5): what is due
+/// is computed by asking which months have no expense carrying this id, and a
+/// human confirms each one. `defaultAmount` is a starting point — an electricity
+/// bill differs every month, which is the whole reason confirmation exists.
+model RecurringExpense {
+  id         String  @id @default(uuid()) @db.Uuid
+  tenantId   String  @map("tenant_id") @db.Uuid
+  branchId   String  @map("branch_id") @db.Uuid
+  supplierId String? @map("supplier_id") @db.Uuid
+  categoryId String  @map("category_id") @db.Uuid
+
+  description   String
+  defaultAmount Decimal @map("default_amount") @db.Decimal(15, 2)
+
+  isPriceVatInclusive Boolean  @default(true) @map("is_price_vat_inclusive")
+  vatRatePercent      Decimal? @map("vat_rate_percent") @db.Decimal(5, 2)
+  subjectToWht        Boolean  @default(false) @map("subject_to_wht")
+  whtRatePercent      Decimal? @map("wht_rate_percent") @db.Decimal(5, 2)
+
+  /// Capped at 28 by CHECK: a "due on the 30th" template would skip February,
+  /// and a template that silently skips a month is worse than one that lands early.
+  dayOfMonth Int @map("day_of_month")
+  /// "YYYY-MM" inclusive bounds. A period label, not a timestamp — no timezone
+  /// question to get wrong (Decision #60).
+  startPeriod String  @map("start_period")
+  endPeriod   String? @map("end_period")
+  isActive    Boolean @default(true) @map("is_active")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id])
+  branch   Branch    @relation(fields: [branchId], references: [id])
+  supplier Supplier? @relation(fields: [supplierId], references: [id])
+  category Category  @relation(fields: [categoryId], references: [id])
+  expenses Expense[]
+
+  @@index([tenantId])
+  @@map("recurring_expense")
 }

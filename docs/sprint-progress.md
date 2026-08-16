@@ -676,7 +676,7 @@ Every baht that leaves the business, in one place. Grill Q1–Q7 locked, codifie
 | L | Layer | Status |
 |---|---|---|
 | **L0** | Docs — ADR 0016 · CONTEXT.md (Expense · Recurring expense · VAT/WHT sharpened) · master-spec §5.4 amendment + WHT correction · this section | ✅ _(this commit)_ |
-| L1 | Schema — `expense` + `expense_item` + `recurring_expense` + the 3 GR VAT columns + enums + partial uniques + CHECKs + RLS | ⏳ |
+| L1 | Schema — 3 tables + 3 GR VAT columns + 2 enums + 2 partial uniques + 11 CHECKs + RLS | ✅ `20260816214923_part_16_expense` **applied to Neon**. One migration — the new enums are only *declared* here, not used in the same transaction (Part 13's two-step is only needed when a migration's tail references a value it just added). The CHECKs put the parts that would otherwise lie in the database: `source` and `source_gr_id` must agree **in both directions** (a row claiming a receipt while pointing at nothing would be a lie in the executive view, since `/cost` reads spend from this table) · a PAID bill must record *when* · a recurring confirmation carries both halves of its identity or neither · `day_of_month` is capped at **28**, because a template due on the 30th would skip February and a template that silently skips a month is worse than one that lands early. The two partial uniques are what make confirming a receipt, or a month, idempotent |
 | L2 | zod — expense input (VAT inclusive/exclusive maths, WHT base), recurring template, queries | ⏳ |
 | L3a/L3b | Read + write logic · the GR-confirm/void hook · due-recurring computation | ⏳ |
 | L4 | Actions + Thai errors + view serializer | ⏳ |

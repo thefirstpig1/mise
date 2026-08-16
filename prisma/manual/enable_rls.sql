@@ -246,3 +246,26 @@ USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 -- ============================================================
 -- End Sprint 3 Part 15 RLS
 -- ============================================================
+
+-- ============================================================
+-- Sprint 3 Part 16 — Expense (ADR 0016)
+-- ============================================================
+-- Three tables, each carrying tenant_id directly (ADR 0004 pattern).
+-- Still inert until Sprint 7 — this is RLS-prep.
+-- ============================================================
+
+ALTER TABLE expense ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON expense
+USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+ALTER TABLE expense_item ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON expense_item
+USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+ALTER TABLE recurring_expense ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON recurring_expense
+USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+-- ============================================================
+-- End Sprint 3 Part 16 RLS
+-- ============================================================
