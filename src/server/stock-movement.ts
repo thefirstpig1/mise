@@ -724,10 +724,25 @@ async function assertSourceExists(
             .then((r) =>
               r ? { productId: r.productId, branchId: r.goodsReceipt.branchId } : null
             )
-        : // SYSTEM_INITIAL: reserved, no table and no writer (Q10).
-          (() => {
-            throw new UnsupportedSourceTypeError(sourceType);
-          })();
+        : sourceType === "STOCK_COUNT"
+          ? // Part 15 (ADR 0015 Q1): the count LINE is the source. Like a GR line
+            // it carries the product and gets its branch from the header — a
+            // count is always of one place (branch_id NOT NULL on stock_count).
+            await tx.stockCountItem
+              .findFirst({
+                where: { id: sourceId, tenantId },
+                select: {
+                  productId: true,
+                  stockCount: { select: { branchId: true } },
+                },
+              })
+              .then((r) =>
+                r ? { productId: r.productId, branchId: r.stockCount.branchId } : null
+              )
+          : // SYSTEM_INITIAL: reserved, no table and no writer (Q10).
+            (() => {
+              throw new UnsupportedSourceTypeError(sourceType);
+            })();
 
   if (!row) throw new MovementSourceNotFoundError(sourceType, sourceId);
   if (row.productId !== productId) {
