@@ -646,14 +646,14 @@ Deleting these is a DELETE affecting many rows → waiting on Kong's explicit go
 | # | Slice | Status |
 |---|---|---|
 | **0** | Neon test-tenant cleanup | ✅ done (2026-08-17) |
-| **15** | **Stock Count** | 🚧 grill CLOSED (Q1–Q8) → ADR 0015 · building |
-| **16** | Expense (+ VAT/WHT, GR→expense) | ⏳ |
+| **15** | **Stock Count** | ✅ COMPLETE (L0–L6, 2026-08-17) |
+| **16** | Expense (+ VAT/WHT, GR→expense) | ⏳ **next — grill first** |
 | **17** | WASTE as its own movement type + par level | ⏳ |
 | **18** | Inter-branch transfer (closes ADR 0014 Q9c) | ⏳ |
 
 **Explicitly NOT in Sprint 3:** H.5 yield-correct CONSUMPTION · unknown-menu stub / recursion guard · `purchase_request` (still waiting on a reachable second department, ADR 0012 Q1) · payment tracking beyond `payment_status`. The master spec's Sprint 3 line gets a superseded note at Part 15 L0.
 
-## Sprint 3 Part 15 — Stock Count: 🚧 IN PROGRESS (2026-08-17)
+## Sprint 3 Part 15 — Stock Count: ✅ COMPLETE (L0–L6, 2026-08-17)
 
 The document that makes the ledger **true** rather than merely consistent. Grill Q1–Q8 locked, codified in **ADR 0015**.
 
@@ -683,7 +683,20 @@ The document that makes the ledger **true** rather than merely consistent. Grill
 | L5a | `/stock-counts` list + `/new` + layout + status badge + dashboard nav | ✅ The list surfaces an open sheet as a banner **linking to it**, and the new-sheet form shows which branches are already counting **before** the user picks one — the one-open-per-branch rule (Q8) is met as information, not as a rejection on submit |
 | L5b | `/stock-counts/[id]` — the sheet and the closed document, one page | ✅ Blind counting **does not render** the expected and variance columns rather than hiding them with CSS (Q7). Successive entry clears the boxes and returns focus to the product picker — a stock take is dozens of lines. A product already on the sheet says so in the picker, and re-saving is an edit, not a second line. `pnpm build` **regenerated the typedRoutes manifest** and cleared a `router.push` type error — Pitfall #21, exactly as documented |
 | L5c | `/cost` variance column (Q5) | ✅ `OutflowEntry` gained `sourceType`, so the split is free: `wasteValue` keeps `ADJUSTMENT` losses, the new `countVarianceValue` takes `STOCK_COUNT` ones. Both are `ADJUST_LOSS` movements, so filtering by type alone would have merged them again. The table says in one line which conversation each column belongs to — the kitchen or the branch manager |
-| L6 | Throwaway E2E + verify + push | ⏳ |
+| L6 | Throwaway E2E + verify + push | ✅ 8 cases E1–E8 green; spec + dedicated config **deleted** (never committed) |
+
+### Verified (L6, 2026-08-17)
+- `pnpm tsc --noEmit` clean · `pnpm build` green (**34 routes**, the three `/stock-counts` among them) · `pnpm vitest run` **393 passed / 4 skipped** (366 Sprint-2 baseline + 15 L2 + 12 L3).
+- **8-case throwaway action-stack E2E (E1–E8)**: a count finding less posts a shortage · one finding more posts a gain **in the unit the user typed** (5 กระสอบ → 125 kg) · a partial count leaves uncounted products at exactly their old balance · **a second sheet on one branch is refused in Thai and names the first** · the blind switch is stored while the expected figure is captured anyway · **`/cost` books the shortage under ส่วนต่างจากการนับ and adds nothing to ของเสีย** · voiding through the action nets the ledger back and keeps the original line · the money invariant still ties after a count posts.
+
+### Part 15 — ✅ COMPLETE
+The ledger can now be told it is wrong. `/stock-counts` opens a sheet per branch, counts in whatever units the shelf is stacked in, and closes by posting each line's variance as an ordinary gain or loss — after which `/cost` reports, separately from spoilage, what counting found missing at each branch.
+
+**Carried forward from this Part:**
+- **The count's variance value on the sheet is an ESTIMATE** (`variance × current cost`), labelled as such; the exact figure comes from the replay's `outflows[]` and is what `/cost` shows. Making the sheet exact would mean resolving each line's movement and matching it against `outflows[]` — worth doing if anyone reconciles from the sheet itself.
+- **`/cost` is now eight columns wide.** ADR 0014 Consequence 4 predicted this; the next figure added should replace one rather than join it.
+- **`getUncountedStockedCountLogic` groups the whole branch ledger** to count products with stock. Fine at SME volume, and the first thing to fold into the snapshot work (risk R2) if it ever is not.
+- **Nothing writes `SYSTEM_INITIAL`** still — the reserved source type from Part 10 remains without a writer.
 
 ### Checkpoint — 2026-08-17, end of L3
 **Green:** `pnpm tsc --noEmit` clean · `pnpm vitest run` **393 passed / 4 skipped** (366 Sprint-2 baseline + 15 L2 + 12 L3). `pnpm build` not run — no page has been touched yet; it becomes mandatory at L5.

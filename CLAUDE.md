@@ -7,7 +7,8 @@ B2B SaaS for Thailand restaurant SMEs. "MarketMan-for-Thailand-SME" — 90% chea
 - Sprint 0: ✅ COMPLETE (May 17, 2026) — Auth, Tenant, Branch, Department, RLS
 - Sprint 1: ✅ COMPLETE (June 7, 2026) — Master Data (Suppliers, Products, Categories, Multi-unit, Supplier-Product Mapping)
 - Sprint 2: ✅ COMPLETE (2026-08-17) — Part 10 Stock Movement (append-only ledger, ADR 0011) · Part 11 Purchase Order (ADR 0012) · Part 13 Goods Receipt (ADR 0013) · Part 13.5 carry-forward debt payoff (adjust `submit_key` + advisory-lock counters, closes Pitfall #25) · Part 14 Cost Engine (**FIFO by ledger replay, stored nowhere** — ADR 0014). Part 12 unallocated (Part 11 absorbed it). Next: **Sprint 3 — Stock Count + Expense + yield-correct CONSUMPTION**; see docs/sprint-progress.md
-- Sprint 3-7: Planned per docs/master-spec.md (Part IV — Sprint Plan)
+- Sprint 3: 🚧 IN PROGRESS — Step 0 Neon cleanup ✅ · Part 15 Stock Count (ADR 0015) ✅ COMPLETE 2026-08-17; next: **Part 16 Expense** (+VAT/WHT, GR→expense), then Part 17 WASTE/par level, Part 18 inter-branch transfer. ⚠️ H.5 yield-correct CONSUMPTION is NOT in Sprint 3 — it needs `sales_transaction` (Sprint 4) and `recipe` (Sprint 5)
+- Sprint 4-7: Planned per docs/master-spec.md (Part IV — Sprint Plan)
 
 ## Tech Stack
 - Next.js 15.0.3 + React 19 + TypeScript
