@@ -676,7 +676,7 @@ The document that makes the ledger **true** rather than merely consistent. Grill
 | L | Layer | Status |
 |---|---|---|
 | **L0** | Docs — ADR 0015 · CONTEXT.md (Stock count + Count variance) · master-spec §5.5 + Sprint-plan supersede notes · this section | ✅ _(this commit)_ |
-| L1 | Schema — 3 tables + `StockCountStatus` enum + `SourceType.STOCK_COUNT` + partial uniques + CHECKs + RLS | ⏳ |
+| L1 | Schema — 3 tables + `StockCountStatus` + `SourceType.STOCK_COUNT` + 3 partial uniques + 6 CHECKs + RLS | ✅ `20260816200513_part_15_stock_count` **applied to Neon**. **One migration, not two** — adding a `SourceType` value needs no second migration because nothing *uses* it in the same transaction, unlike Part 13 where the tail re-declared the sign CHECK with a new `MovementType`. The `stock_count_open_unique` partial index is the constraint that stops two people silently halving the stock (Q8). Adding the enum value made `pnpm tsc` **fail** on `SOURCE_TYPE_VALUES` — the drift guard Part 13 built after being burned by exactly this, working as intended |
 | L2 | zod | ⏳ |
 | L3a/L3b | Read + write logic (close posts the ledger; void appends reversals) | ⏳ |
 | L4 | Actions + Thai errors + view serializer | ⏳ |

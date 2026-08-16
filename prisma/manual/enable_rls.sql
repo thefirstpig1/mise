@@ -220,3 +220,29 @@ USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 -- ============================================================
 -- End Sprint 2 Part 14 RLS
 -- ============================================================
+
+-- ============================================================
+-- Sprint 3 Part 15 — Stock Count (ADR 0015)
+-- ============================================================
+-- Three tables, each carrying tenant_id directly (ADR 0004/0013 pattern):
+-- app-layer isolation filters tenantId explicitly, and a column that is not
+-- there cannot be filtered.
+--
+-- Still inert until Sprint 7 (ADR 0004) — this is RLS-prep.
+-- ============================================================
+
+ALTER TABLE stock_count ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON stock_count
+USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+ALTER TABLE stock_count_item ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON stock_count_item
+USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+ALTER TABLE stock_count_entry ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON stock_count_entry
+USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+-- ============================================================
+-- End Sprint 3 Part 15 RLS
+-- ============================================================

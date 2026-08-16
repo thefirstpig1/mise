@@ -55,6 +55,7 @@ export const MOVEMENT_TYPE_VALUES = [
 export const SOURCE_TYPE_VALUES = [
   "GR_LINE",
   "ADJUSTMENT",
+  "STOCK_COUNT",
   "SYSTEM_INITIAL",
 ] as const;
 
@@ -124,6 +125,7 @@ export const SOURCE_TYPE_LABELS_TH: Record<
 > = {
   GR_LINE: "ใบรับของ",
   ADJUSTMENT: "ปรับสต๊อก",
+  STOCK_COUNT: "นับสต๊อก",
   SYSTEM_INITIAL: "ยอดยกมา",
 };
 

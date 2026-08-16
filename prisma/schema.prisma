@@ -98,6 +98,9 @@ model Tenant {
   stockMovements          StockMovement[]
   stockAdjustments        StockAdjustment[]
   stockCostDeclarations   StockCostDeclaration[]
+  stockCounts             StockCount[]
+  stockCountItems         StockCountItem[]
+  stockCountEntries       StockCountEntry[]
   purchaseOrders          PurchaseOrder[]
   purchaseOrderItems      PurchaseOrderItem[]
   poItemAllocations       PurchaseOrderItemAllocation[]
@@ -131,6 +134,7 @@ model Branch {
   supplierProductMappings SupplierProductMapping[]
   stockMovements          StockMovement[]
   stockAdjustments        StockAdjustment[]
+  stockCounts             StockCount[]
   purchaseOrders          PurchaseOrder[]
   goodsReceipts           GoodsReceipt[]
 
@@ -157,6 +161,10 @@ model User {
   stockMovements            StockMovement[]
   stockAdjustments          StockAdjustment[]
   stockCostDeclarations     StockCostDeclaration[]
+  stockCountsStarted        StockCount[]       @relation("ScStartedBy")
+  stockCountsClosed         StockCount[]       @relation("ScClosedBy")
+  stockCountsVoided         StockCount[]       @relation("ScVoidedBy")
+  stockCountItemsCounted    StockCountItem[]
   purchaseOrdersMade        PurchaseOrder[]    @relation("PoCreatedBy")
   purchaseOrdersSent        PurchaseOrder[]    @relation("PoSentBy")
   purchaseOrdersVoided      PurchaseOrder[]    @relation("PoCancelledBy")
@@ -365,6 +373,7 @@ model Product {
   supplierProductMappings SupplierProductMapping[]
   stockMovements          StockMovement[]
   stockAdjustments        StockAdjustment[]
+  stockCountItems         StockCountItem[]
   purchaseOrderItems      PurchaseOrderItem[]
   goodsReceiptItems       GoodsReceiptItem[]
 
@@ -390,6 +399,7 @@ model ProductUnit {
   supplierProductMappings SupplierProductMapping[]
   stockAdjustments        StockAdjustment[]
   stockCostDeclarations   StockCostDeclaration[]
+  stockCountEntries       StockCountEntry[]
   purchaseOrderItems      PurchaseOrderItem[]
   goodsReceiptItems       GoodsReceiptItem[]
 
@@ -465,6 +475,11 @@ enum SourceType {
   /// so nothing in the ledger migrated — only this comment was stale.
   GR_LINE
   ADJUSTMENT // -> stock_adjustment (Part 10)
+  /// -> stock_count_item (Part 15, ADR 0015 Q1). The movement TYPE stays
+  /// ADJUST_GAIN/ADJUST_LOSS — a count variance is stock going up or down, not a
+  /// new kind of event — so stock_movement_sign_check is untouched and Part 13's
+  /// two-migration dance does not apply to this Part.
+  STOCK_COUNT
   SYSTEM_INITIAL // reserved: onboarding initial stock (no writer in Part 10)
 
   @@map("source_type")
@@ -621,6 +636,142 @@ model StockCostDeclaration {
   @@index([movementId], map: "stock_cost_declaration_movement_idx")
   @@map("stock_cost_declaration")
 }
+
+// ============================================================
+// STOCK COUNT (Sprint 3 Part 15 — ADR 0015)
+// ============================================================
+// The document that reconciles the Ledger with the shelf. DRAFT is a working
+// sheet; CLOSED posts each line's variance as an ordinary ADJUST_GAIN/ADJUST_LOSS
+// with source_type = STOCK_COUNT; VOIDED appends reversal lines (Q6).
+//
+// It stores NO money (Q4): a stored valuation would be falsified by the next cost
+// declaration, exactly as product_cost_history would have been (ADR 0014). It DOES
+// store qty_expected (Q3) — "what did the system say when you stood at the shelf"
+// is a past observation, not a valuation.
+// ============================================================
+
+enum StockCountStatus {
+  DRAFT
+  CLOSED
+  VOIDED
+
+  @@map("stock_count_status")
+}
+
+/// One counting event at one branch. At most one DRAFT per branch — enforced by
+/// the partial unique in prisma/manual/stock_count_open_unique.sql, because two
+/// people counting the same shelf would otherwise both see the same expected
+/// figure, both find the same shortage, and both post it (Q8).
+model StockCount {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  branchId String @map("branch_id") @db.Uuid
+  /// {BRANCH_CODE}-SC-#### per branch. PARTIAL unique (Pitfall #22/#23).
+  scNumber String @map("sc_number")
+  /// The document's HUMAN NAME ("the count of 20 Aug") — NOT an accounting date.
+  /// A variance occurs at its own line's counted_at (Q8).
+  countDate    DateTime         @map("count_date") @db.Date
+  status       StockCountStatus @default(DRAFT)
+  /// Q7: blind counting. UI-only — qty_expected is captured either way.
+  showExpected Boolean          @default(true) @map("show_expected")
+  notes        String?
+
+  startedBy  String    @map("started_by")
+  closedAt   DateTime? @map("closed_at")
+  closedBy   String?   @map("closed_by")
+  voidedAt   DateTime? @map("voided_at")
+  voidedBy   String?   @map("voided_by")
+  voidReason String?   @map("void_reason")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  tenant        Tenant           @relation(fields: [tenantId], references: [id])
+  branch        Branch           @relation(fields: [branchId], references: [id])
+  startedByUser User             @relation("ScStartedBy", fields: [startedBy], references: [id])
+  closedByUser  User?            @relation("ScClosedBy", fields: [closedBy], references: [id])
+  voidedByUser  User?            @relation("ScVoidedBy", fields: [voidedBy], references: [id])
+  items         StockCountItem[]
+
+  @@index([tenantId])
+  @@index([branchId, countDate], map: "stock_count_branch_date_idx")
+  @@map("stock_count")
+}
+
+/// One product, counted once. Its presence means the product WAS counted; a
+/// counted 0 is a real observation and posts a loss down to zero (Q7).
+///
+/// This row is the ledger's SOURCE (Q1): source_type = STOCK_COUNT, source_id =
+/// this id, which is what makes closing idempotent via the ledger's existing
+/// UNIQUE(source_type, source_id).
+model StockCountItem {
+  id           String @id @default(uuid()) @db.Uuid
+  tenantId     String @map("tenant_id") @db.Uuid
+  stockCountId String @map("stock_count_id") @db.Uuid
+  productId    String @map("product_id") @db.Uuid
+  lineNo       Int    @map("line_no")
+
+  /// Base-unit total of this line's entries. Q7: 0 is a real count, not an absence.
+  qtyCounted  Decimal @map("qty_counted") @db.Decimal(15, 3)
+  /// SNAPSHOT of the ledger balance taken when this line was saved (Q3), NOT at
+  /// close and never recomputed. May be negative — ADR 0011 Q9 allows it.
+  /// variance = qtyCounted - qtyExpected is computed at READ: it is arithmetic on
+  /// two stored columns, not a third fact to keep in step.
+  qtyExpected Decimal @map("qty_expected") @db.Decimal(15, 3)
+
+  /// Business time of the variance movement (Q8) — a TRUE INSTANT, the moment
+  /// someone stood at the shelf, not the close.
+  countedAt DateTime @map("counted_at")
+  countedBy String   @map("counted_by")
+  /// Who actually walked and counted, when that is not the account holder — in a
+  /// Thai SME the owner holds the only login and the staff do the counting (Q2).
+  countedByName String? @map("counted_by_name")
+  notes         String?
+
+  /// Set on a reversal line appended by a void (Q6). Such a line carries the
+  /// ORIGINAL's numbers swapped, so its variance is the exact negation — which is
+  /// also why qty_counted's non-negative CHECK exempts reversal rows.
+  reversalOfItemId String? @map("reversal_of_item_id") @db.Uuid
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant        Tenant            @relation(fields: [tenantId], references: [id])
+  stockCount    StockCount        @relation(fields: [stockCountId], references: [id])
+  product       Product           @relation(fields: [productId], references: [id])
+  countedByUser User              @relation(fields: [countedBy], references: [id])
+  reversalOf    StockCountItem?   @relation("ScItemReversal", fields: [reversalOfItemId], references: [id])
+  reversals     StockCountItem[]  @relation("ScItemReversal")
+  entries       StockCountEntry[]
+
+  @@index([tenantId])
+  @@index([stockCountId], map: "stock_count_item_count_idx")
+  @@map("stock_count_item")
+}
+
+/// What the user actually typed, per unit — "2 กระสอบ + 3 kg" is two rows.
+/// The base-unit total lives on the item; these preserve the as-entered form for
+/// audit, mirroring stock_adjustment's input_qty/input_unit_id (ADR 0011 Q1).
+model StockCountEntry {
+  id               String  @id @default(uuid()) @db.Uuid
+  tenantId         String  @map("tenant_id") @db.Uuid
+  stockCountItemId String  @map("stock_count_item_id") @db.Uuid
+  productUnitId    String  @map("product_unit_id") @db.Uuid
+  qtyInUnit        Decimal @map("qty_in_unit") @db.Decimal(15, 3)
+  displayOrder     Int     @map("display_order")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant      Tenant         @relation(fields: [tenantId], references: [id])
+  item        StockCountItem @relation(fields: [stockCountItemId], references: [id])
+  productUnit ProductUnit    @relation(fields: [productUnitId], references: [id])
+
+  @@index([tenantId])
+  @@index([stockCountItemId], map: "stock_count_entry_item_idx")
+  @@map("stock_count_entry")
+}
+
 
 // ============================================================
 // PROCUREMENT (Sprint 2 Part 11 — ADR 0012)
