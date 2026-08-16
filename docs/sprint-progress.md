@@ -637,6 +637,37 @@ Deleting these is a DELETE affecting many rows → waiting on Kong's explicit go
 
 ---
 
+## Sprint 2 Part 14 — Cost Engine: 🚧 GRILL IN PROGRESS (2026-08-16)
+
+Last Part of Sprint 2. Grill running; decisions locked so far below. ADR 0014 to be written at L0 once the grill closes.
+
+### Locked so far
+
+| Q | Decision |
+|---|---|
+| **Q1** | **Scope = product cost layer only.** IN: cost per base unit per product (from GR), read of current + historical cost, a cost view. OUT → Sprint 5: `recipe_cost_snapshot`, `category_cost_snapshot`, recipe cost, cost confidence, cost cascade (H.9), yield-adjusted PREPPED cost. Everything in the OUT column needs `recipe` / `sales_transaction`, which have no table yet — shipping them now would mean permanently-null columns, the rule ADR 0012 Q6 set. |
+| **Q2/Q3** | **FIFO, computed by ledger replay — no layer table** ("C2"). Walk `stock_movement` for a (product, branch) in `(occurred_at, created_at, id)` ASC: `PO_RECEIVE` pushes a layer at `unit_price_actual / to_base_ratio`, a negative qty pops from the front. Rejected: **WMA** (smoother, but the user wants true FIFO) and **a `cost_layer` table with mutable `qty_remaining`** — backdating (ADR 0011 Q5, 90 days) and GR void (ADR 0013 Q6) would each force a retroactive re-allocation of every layer after the touched point, and a mutable `qty_remaining` is a second source of truth that can drift from an append-only ledger (Q7). Replay makes all three problems vanish: nothing is stored, so nothing can be stale. Matches ADR 0011 Q8's precedent (balance is not stored, it is `SUM`) and Part 10 L3a note 3, which already said *"the cost engine walks the same tuple ASC in Part 14"*. |
+| **Q3b** | **`costPerBaseUnit` = the FRONT LAYER's cost** — the cost of the next unit to be consumed, which is the number Sprint 5's recipe costing wants. Consequences: (a) `cost × qtyOnHand ≠ inventory value` — a stock-value screen must sum the layers, never multiply; (b) cost changes on **consumption** too, not only on purchase (exhausting a cheap layer raises the cost with nothing bought). |
+| **Q4** | **`product_cost_history` is NOT built.** Under Q2/Q3 a stored cost row is falsified the moment someone backdates a receipt before it — reintroducing exactly the recompute problem replay was chosen to dissolve. Replaced by `getProductCostLogic(tenantId, { productId, branchId, asOf? })`; `asOf` gives "cost as of any date" for free by stopping the walk. master-spec §5.7 needs a superseded note, the way §5.5 got one for ADR 0011. Sprint 5's H.9 ("mark stale on write" via a trigger on `product_cost_history` INSERT) must be redesigned — but "stale" has no meaning once cost is computed fresh, so H.9 largely dissolves rather than needing a replacement. |
+
+### Risk register — the replay design (recorded at Kong's request, 2026-08-16)
+
+Prepared responses for problems that may never happen. Each row: the risk · the signal that it is starting · what we do about it.
+
+| # | Risk | Early signal | Prepared response |
+|---|---|---|---|
+| **R1** | **N+1 replay.** A caller loops per product — 200 products × one round trip to Neon Singapore (~30–60 ms) = 6–16 s. This is the one that will actually happen, and it is a coding mistake, not a design flaw. | A page that got slow after adding cost, while row counts stayed small. | **Prevent at the API shape:** the read layer's primitive takes `productIds[]` and returns a map; the single-product function is a thin wrapper over the batch one. There is deliberately **no** per-product query exported for a caller to loop. Assert it in a test that counts queries for a 3-product grid. |
+| **R2** | **Growth makes the walk slow.** ~450 rows for a 3-year top-mover is nothing; ~50,000 (a central kitchen, hundreds of movements a day for years) is not. | Track `max(movements per product/branch)`; act at ~5,000 rows/product or when the cost read alone exceeds ~1 s. | **Snapshot + tail replay**, the same escape hatch ADR 0011 Q8 wrote for balance. **Design constraint adopted NOW so it stays a pure addition:** the replay function takes its opening layer stack as a *parameter* (`openingStack = []`), never assumes it starts empty. Adding a snapshot table later then changes one caller, not the algorithm. |
+| **R3** | **Unbounded read on the grid.** `/stock` already loads the whole live catalog per render (flagged in Part 10's post-completion review); cost pulls the movement rows themselves rather than an aggregate. | Payload size / row count per grid render. | Same snapshot as R2, plus paginating the grid. Not urgent: one batched query of ~15,000 rows is ~150–300 ms, and the index (`stock_movement_chronological_idx`) returns them already ordered — no sort step. |
+| **R4** | **A closed period's cost can still change** — someone backdates a receipt into last month and the cost "as of" a date that was already reported moves. | Only matters once Sprint 3 books expenses against those numbers. | Accept for MVP and state it plainly: cost is always *as recomputed*, never *as reported*. A period lock belongs with the expense/accounting module, not here. |
+| **R5** | **Replay is read-only but could get wrapped in a write transaction**, holding a Neon connection while it walks. | Transaction timeouts under load. | The cost read never runs inside `withTenantContext`'s write path; if a writer needs cost, it computes it before opening the transaction. |
+| **R6** | **Sprint 5 inherits a cascade design that no longer applies** (H.9's trigger on a table that will not exist). | — | Recorded here and in ADR 0014 rather than discovered in Sprint 5. |
+
+### Still open (grill continuing)
+Negative stock vs FIFO layers (ADR 0011 Q9 allows a negative balance — what does the front layer mean when there are no layers?) · `ADJUST_GAIN` carries no price at all — at what cost does a recount gain enter? · cost when stock is zero · whether cost is per-branch or per-tenant · what UI ships.
+
+---
+
 ## Sprint 1 Part 6 — Categories CRUD: ✅ COMPLETE (2026-05-23)
 
 3-tier category (account COGS/OpEx → accountingSection → groupName), built on the supplier slice as template.
