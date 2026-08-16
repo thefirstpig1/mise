@@ -10,9 +10,11 @@
 -- product.sku is NOT NULL, so (unlike supplier_code_unique.sql) there is no
 -- "code IS NOT NULL" clause — every product always has a sku.
 --
--- NOTE: this does NOT fix Pitfall #25 (generateSku concurrent-scan race) —
--- two LIVE inserts of the same P-#### still collide; the advisory-lock /
--- DB-sequence fix for #25 stays deferred.
+-- NOTE: this index does not by itself fix Pitfall #25 (generateSku
+-- concurrent-scan race) — it only catches the loser. The race itself was closed
+-- in Part 13.5 by an advisory lock inside the generator
+-- (src/server/counter-lock.ts, key `product_sku:{tenantId}`); this index remains
+-- as the backstop and must not be dropped.
 --
 -- Why manual SQL: Prisma 5.22 cannot express a PARTIAL unique index (WHERE
 -- clause) in schema.prisma, so it lives here in prisma/manual/.

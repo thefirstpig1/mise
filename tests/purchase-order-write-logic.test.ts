@@ -544,4 +544,28 @@ describe("purchase-order write *Logic (lifecycle + snapshot invariants)", () => 
       )
     ).rejects.toBeInstanceOf(PurchaseOrderTransitionError);
   });
+
+  // W17 (Part 13.5, Pitfall #25) — Q8's per-branch counter under concurrency.
+  // Before the advisory lock in generatePoNumber, three simultaneous orders on
+  // one branch all scanned the same max and two of them died on
+  // purchase_order_number_unique, surfacing as "กดบันทึกอีกครั้ง".
+  it("W17: concurrent orders on one branch get distinct consecutive po_numbers", async () => {
+    const N = 3;
+    const orders = await Promise.all(
+      Array.from({ length: N }, () =>
+        createPurchaseOrderLogic(tenantA, draft(), userA)
+      )
+    );
+
+    const seq = orders
+      .map((o) => {
+        const m = /^KRUA-PO-(\d{4})$/.exec(o.poNumber);
+        expect(m, o.poNumber).not.toBeNull();
+        return parseInt(m![1], 10);
+      })
+      .sort((a, b) => a - b);
+
+    expect(new Set(seq).size).toBe(N); // no duplicates
+    expect(seq[N - 1] - seq[0]).toBe(N - 1); // and no gaps — one run, not a scramble
+  });
 });

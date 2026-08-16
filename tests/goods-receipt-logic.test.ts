@@ -964,4 +964,45 @@ describe("goods-receipt *Logic (PO → รับของ → ledger)", () => {
     expect(src.isReversal).toBe(false);
     expect(feed.rows[0].adjustment).toBeNull();
   });
+
+  // Part 13.5 (Pitfall #25) — the third generator on the same lock. C2 covers
+  // the SAME key twice (one document); this covers DIFFERENT keys at the same
+  // instant, which is what raced the {CODE}-GR-#### counter.
+  it("C12: concurrent receipts on one branch get distinct consecutive gr_numbers", async () => {
+    const p = await freshProduct(tenantA, "C12");
+    const N = 3;
+
+    const receipts = await Promise.all(
+      Array.from({ length: N }, () =>
+        createGoodsReceiptLogic(
+          tenantA,
+          receipt({
+            purchaseOrderId: null,
+            lines: [
+              {
+                purchaseOrderItemId: null,
+                productId: p.id,
+                receivedUnitId: unitOf(p, "kg"),
+                qtyReceivedActual: 1,
+                unitPriceActual: 10,
+                notes: null,
+              },
+            ],
+          }),
+          userA
+        )
+      )
+    );
+
+    const seq = receipts
+      .map((gr) => {
+        const m = /-GR-(\d{4})$/.exec(gr.grNumber);
+        expect(m, gr.grNumber).not.toBeNull();
+        return parseInt(m![1], 10);
+      })
+      .sort((a, b) => a - b);
+
+    expect(new Set(seq).size).toBe(N);
+    expect(seq[N - 1] - seq[0]).toBe(N - 1);
+  });
 });

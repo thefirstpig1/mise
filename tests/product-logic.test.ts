@@ -51,20 +51,23 @@ describe("product *Logic (tenant-scoped, app-layer isolation)", () => {
   let tenantA: string;
   let tenantB: string;
   let tenantC: string; // dedicated to the sku auto-gen sequence test
+  let tenantD: string; // dedicated to the concurrent sku generation test
 
   beforeAll(async () => {
     await withAdminContext(async (tx) => {
       const a = await tx.tenant.create({ data: { name: "Product Test Tenant A" } });
       const b = await tx.tenant.create({ data: { name: "Product Test Tenant B" } });
       const c = await tx.tenant.create({ data: { name: "Product Test Tenant C" } });
+      const d = await tx.tenant.create({ data: { name: "Product Test Tenant D" } });
       tenantA = a.id;
       tenantB = b.id;
       tenantC = c.id;
+      tenantD = d.id;
     });
   });
 
   afterAll(async () => {
-    const ids = [tenantA, tenantB, tenantC];
+    const ids = [tenantA, tenantB, tenantC, tenantD];
     await withAdminContext(async (tx) => {
       // Part 8 L3b: mappings RESTRICT product/supplier hard-deletes → clear first.
       await tx.supplierProductMapping.deleteMany({ where: { tenantId: { in: ids } } });
@@ -966,5 +969,24 @@ describe("product *Logic (tenant-scoped, app-layer isolation)", () => {
     expect(await getProductByIdLogic(tenantA, product.id)).not.toBeNull();
     const fm = await getSupplierProductMappingByIdLogic(tenantA, foreign.id);
     expect(fm?.deletedAt).toBeNull();
+  });
+
+  // L23 (Part 13.5, Pitfall #25) — concurrent auto-gen creates produce a
+  // CONSECUTIVE sku run, not a collision. Before the advisory lock in
+  // generateSku, all five transactions scanned the same max and four of them hit
+  // product_sku_unique → the user saw "รหัสสินค้าซ้ำ" for a sku they never typed.
+  it("generates distinct consecutive skus under concurrent creates", async () => {
+    const N = 5;
+    const created = await Promise.all(
+      Array.from({ length: N }, (_, i) =>
+        createProductLogic(tenantD, input({ name: `L23-concurrent-${i}` }))
+      )
+    );
+
+    const skus = created.map((p) => p.sku).sort();
+    expect(new Set(skus).size).toBe(N); // no duplicates
+    expect(skus).toEqual(
+      Array.from({ length: N }, (_, i) => `P-${String(i + 1).padStart(4, "0")}`)
+    );
   });
 });

@@ -24,6 +24,7 @@ import {
 import { withTenantContext } from "@/lib/db";
 import { computeBangkokToday } from "@/lib/bangkok-date";
 import { assertRefBelongsToTenant } from "@/server/product";
+import { acquireCounterLock } from "@/server/counter-lock";
 import type {
   CancelPurchaseOrderInput,
   GetPurchaseOrdersQuery,
@@ -472,15 +473,18 @@ export class PurchaseOrderNumberConflictError extends Error {
  * discarded draft someone screenshotted, should not come back on a different
  * order. Numbers are cheap; confusion is not.
  *
- * Shares Pitfall #25's scan-then-insert race with `generateSku`; the eventual
- * advisory-lock fix covers both, and `purchase_order_number_unique` catches the
- * loser in the meantime.
+ * Serialised by the counter lock (Part 13.5) so the scan cannot be raced —
+ * keyed per BRANCH, because that is the scope the counter runs in and locking
+ * the whole tenant would queue up orders that were never going to collide.
+ * `purchase_order_number_unique` stays as the backstop (Pitfall #25).
  */
 async function generatePoNumber(
   tx: PrismaClient,
   tenantId: string,
   branchCode: string
 ): Promise<string> {
+  await acquireCounterLock(tx, `po_number:${tenantId}:${branchCode}`);
+
   const prefix = `${branchCode}-PO-`;
   const rows = await tx.purchaseOrder.findMany({
     where: { tenantId, poNumber: { startsWith: prefix } },

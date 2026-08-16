@@ -8,9 +8,11 @@
 -- Scope: per tenant, live rows only. The number already embeds the branch code
 -- ({BRANCH_CODE}-GR-####), so scoping by tenant is enough.
 --
--- This index is also what the gr_number generator races against (scan max + 1,
--- inherited from generateSku via generatePoNumber — Pitfall #25). It is the
--- backstop: a losing writer gets P2002 rather than a duplicate document number.
+-- This index is the BACKSTOP for the gr_number generator (scan max + 1,
+-- inherited from generateSku via generatePoNumber — Pitfall #25): a losing
+-- writer gets P2002 rather than a duplicate document number. Since Part 13.5 the
+-- generator also takes an advisory lock (src/server/counter-lock.ts, key
+-- `gr_number:{tenantId}:{branchCode}`), so the race should no longer reach it.
 --
 -- Apply with DIRECT_URL (not the pooled endpoint — Pitfall #18):
 --   pnpm prisma db execute --file prisma/manual/goods_receipt_number_unique.sql --schema prisma/schema.prisma

@@ -17,6 +17,7 @@
 
 import { Prisma, PrismaClient, type Product } from "@prisma/client";
 import { prisma, withTenantContext } from "@/lib/db";
+import { acquireCounterLock } from "@/server/counter-lock";
 import type { ProductInput } from "@/lib/validations/product";
 // Lazy circular dep: supplier-product-mapping.ts imports assertRefBelongsToTenant
 // from this module; we throw its MappingNotFoundError in the Q6 cascade path (L3b).
@@ -401,8 +402,15 @@ async function templateNamesForDimension(
  * Auto-generate the next `P-####` sku for a tenant (Q3). Scans existing skus of
  * the P-#### shape — INCLUDING soft-deleted (the @@unique is full, so their
  * numbers must not be reused) — and returns max+1, zero-padded to 4 digits.
+ *
+ * The advisory lock (Part 13.5) is what makes the scan trustworthy: without it,
+ * two concurrent creates read the same max and the loser hit `product_sku_unique`
+ * and was told "รหัสสินค้าซ้ำ" — for a sku they never typed (Pitfall #25). The
+ * index stays as the backstop; this is now the guard.
  */
 async function generateSku(tx: PrismaClient, tenantId: string): Promise<string> {
+  await acquireCounterLock(tx, `product_sku:${tenantId}`);
+
   const rows = await tx.product.findMany({
     where: { tenantId, sku: { startsWith: "P-" } },
     select: { sku: true },

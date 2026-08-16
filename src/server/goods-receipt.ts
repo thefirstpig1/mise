@@ -24,6 +24,7 @@ import {
 } from "@prisma/client";
 import { withTenantContext } from "@/lib/db";
 import { assertRefBelongsToTenant } from "@/server/product";
+import { acquireCounterLock } from "@/server/counter-lock";
 import {
   NoDepartmentError,
   recalcPurchaseOrderReceiptStatus,
@@ -504,15 +505,17 @@ export class GoodsReceiptNumberConflictError extends Error {
  * mirrors `generateSku`: scan the numbers of that shape, take max + 1, pad to 4.
  *
  * Soft-deleted drafts ARE scanned — a number that was on screen should not come
- * back on a different document. Shares Pitfall #25's scan-then-insert race; the
- * partial unique index catches the loser, and the eventual advisory-lock fix
- * covers `sku`, `po_number` and `gr_number` together.
+ * back on a different document. Serialised per branch by the counter lock
+ * (Part 13.5, the fix that closed Pitfall #25 for all three generators);
+ * `goods_receipt_number_unique` stays as the backstop.
  */
 async function generateGrNumber(
   tx: PrismaClient,
   tenantId: string,
   branchCode: string
 ): Promise<string> {
+  await acquireCounterLock(tx, `gr_number:${tenantId}:${branchCode}`);
+
   const prefix = `${branchCode}-GR-`;
   const rows = await tx.goodsReceipt.findMany({
     where: { tenantId, grNumber: { startsWith: prefix } },

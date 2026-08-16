@@ -9,9 +9,11 @@
 -- ({BRANCH_CODE}-PO-####, Q8), so scoping the index by tenant is enough — two
 -- branches of the same tenant cannot collide, and two tenants never share a row.
 --
--- NOTE this index is also what the po_number generator races against
--- (scan max + 1, inherited from generateSku — Pitfall #25). It is the backstop:
--- a losing writer gets P2002 rather than a duplicate document number.
+-- NOTE this index is the BACKSTOP for the po_number generator (scan max + 1,
+-- inherited from generateSku — Pitfall #25): a losing writer gets P2002 rather
+-- than a duplicate document number. Since Part 13.5 the generator also takes an
+-- advisory lock (src/server/counter-lock.ts, key `po_number:{tenantId}:{branchCode}`),
+-- so the race should no longer reach this index — which is not a reason to drop it.
 --
 -- Apply with DIRECT_URL (not the pooled endpoint — Pitfall #18):
 --   pnpm prisma db execute --file prisma/manual/purchase_order_number_unique.sql --schema prisma/schema.prisma
