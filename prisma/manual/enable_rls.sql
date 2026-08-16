@@ -201,3 +201,22 @@ USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 -- ============================================================
 -- End Sprint 2 Part 13 RLS
 -- ============================================================
+
+-- ============================================================
+-- Sprint 2 Part 14 — Cost (ADR 0014)
+-- ============================================================
+-- Only one new table: stock_cost_declaration. Product cost itself is computed by
+-- replaying stock_movement and is stored nowhere (ADR 0014 Q2/Q4), so there is
+-- no cost table to isolate — the ledger's own policy already covers the inputs.
+--
+-- Still inert until Sprint 7 (ADR 0004) — this is RLS-prep.
+-- ============================================================
+
+-- stock_cost_declaration (direct tenant_id)
+ALTER TABLE stock_cost_declaration ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON stock_cost_declaration
+USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+-- ============================================================
+-- End Sprint 2 Part 14 RLS
+-- ============================================================

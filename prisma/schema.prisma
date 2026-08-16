@@ -97,6 +97,7 @@ model Tenant {
   supplierProductMappings SupplierProductMapping[]
   stockMovements          StockMovement[]
   stockAdjustments        StockAdjustment[]
+  stockCostDeclarations   StockCostDeclaration[]
   purchaseOrders          PurchaseOrder[]
   purchaseOrderItems      PurchaseOrderItem[]
   poItemAllocations       PurchaseOrderItemAllocation[]
@@ -155,6 +156,7 @@ model User {
   memberships               TenantMembership[]
   stockMovements            StockMovement[]
   stockAdjustments          StockAdjustment[]
+  stockCostDeclarations     StockCostDeclaration[]
   purchaseOrdersMade        PurchaseOrder[]    @relation("PoCreatedBy")
   purchaseOrdersSent        PurchaseOrder[]    @relation("PoSentBy")
   purchaseOrdersVoided      PurchaseOrder[]    @relation("PoCancelledBy")
@@ -387,6 +389,7 @@ model ProductUnit {
   product                 Product                  @relation(fields: [productId], references: [id])
   supplierProductMappings SupplierProductMapping[]
   stockAdjustments        StockAdjustment[]
+  stockCostDeclarations   StockCostDeclaration[]
   purchaseOrderItems      PurchaseOrderItem[]
   goodsReceiptItems       GoodsReceiptItem[]
 
@@ -502,6 +505,9 @@ model StockMovement {
   product       Product @relation(fields: [productId], references: [id])
   branch        Branch  @relation(fields: [branchId], references: [id])
   createdByUser User    @relation(fields: [createdBy], references: [id])
+  /// Part 14: ราคาที่มนุษย์ประกาศให้ movement นี้ (ADJUST_GAIN เท่านั้น, ADR 0014 Q6).
+  /// ทิศนี้มี FK ได้ ต่างจาก source polymorphic ข้างบน — ledger ไม่เคยถูกลบ (Q7)
+  costDeclarations StockCostDeclaration[]
 
   /// Sign CHECK (stock_movement_sign_check) เขียน INLINE ที่ท้าย migration.sql ของ Part 10
   /// เพราะ Prisma แสดง CHECK ไม่ได้ — precedent: product_density_xor ใน
@@ -546,6 +552,74 @@ model StockAdjustment {
   @@index([tenantId])
   @@index([productId, branchId, occurredAt], map: "stock_adjustment_product_branch_idx")
   @@map("stock_adjustment")
+}
+
+// ============================================================
+// COST (Sprint 2 Part 14 — ADR 0014)
+// ============================================================
+// Product cost is FIFO and is NOT STORED — it is computed by replaying
+// stock_movement on every read (ADR 0014 Q2/Q4). There is no cost_layer table
+// and no product_cost_history; the one table this Part adds exists solely to
+// answer the question the documents cannot: what did stock cost that arrived
+// WITHOUT a document (a recount gain — ADR 0011 Q10 gave stock_adjustment no
+// price column, deliberately).
+// ============================================================
+
+/// A signed, dated statement of the cost of stock that arrived with no document
+/// (ADR 0014 Q6). APPEND + SUPERSEDE, exactly like a supplier price series
+/// (ADR 0009): a correction never overwrites — it opens a new row and closes the
+/// previous one by stamping superseded_at. Overwriting in place would lose who
+/// said what, and the feature exists precisely so a person can put their name to
+/// a number.
+///
+/// ADJUST_GAIN movements ONLY. A received item's price belongs to its receipt,
+/// and ADR 0013 Q6 already decided a receipt is voided rather than edited.
+/// Enforced IN-APP inside the write transaction, not by a CHECK: the rule reads
+/// a column on another table (stock_movement.type) and Postgres CHECKs cannot.
+/// Same call as ADR 0012 Q2 made for the allocation-sum invariant, and the same
+/// reason — a trigger would be the only DB-level option and it is not worth one.
+///
+/// A declaration applies at EVERY date, including ones already reported: it
+/// corrects our knowledge of the past, not the events of the past (contrast a
+/// Part 13 void, where the reversal is itself an event and occurs now).
+model StockCostDeclaration {
+  id         String @id @default(uuid()) @db.Uuid
+  tenantId   String @map("tenant_id") @db.Uuid
+  movementId String @map("movement_id") @db.Uuid
+
+  /// AS ENTERED (mirrors stock_adjustment's input_qty/input_unit_id, ADR 0011 Q1):
+  /// an owner declares "กระสอบละ 4,500", never "180.0000 ฿/kg". Keeping what was
+  /// typed is what lets the UI show the number back in the words it was given.
+  inputUnitCost Decimal @map("input_unit_cost") @db.Decimal(15, 4)
+  inputUnitId   String  @map("input_unit_id") @db.Uuid
+
+  /// DERIVED: inputUnitCost / inputUnit.toBaseRatio — cost per BASE unit, the
+  /// denomination the ledger and the replay both work in. Scale 4 matches
+  /// goods_receipt_item.unit_price_actual: this is a rate, not money. The layer's
+  /// MONEY is computed at replay as round(unitCost x qty, 2) — ADR 0014 Q12 keeps
+  /// money, never a rate, as the stored quantity of a layer.
+  unitCost Decimal @map("unit_cost") @db.Decimal(15, 4)
+
+  /// Why this number — "ของจากใบส่งของ 15 ส.ค. ที่ลืมคีย์". Free text on purpose:
+  /// the reasons are the messy ones a fixed enum would flatten.
+  note String?
+
+  declaredAt DateTime  @default(now()) @map("declared_at")
+  declaredBy String    @map("declared_by")
+  /// null = the live declaration. Only one per movement may be null — enforced by
+  /// the PARTIAL unique in prisma/manual/stock_cost_declaration_live_unique.sql
+  /// (a FULL unique would be Pitfall #22/#23 again: superseded rows would block
+  /// the correction that superseded them).
+  supersededAt DateTime? @map("superseded_at")
+
+  tenant         Tenant        @relation(fields: [tenantId], references: [id])
+  movement       StockMovement @relation(fields: [movementId], references: [id])
+  inputUnit      ProductUnit   @relation(fields: [inputUnitId], references: [id])
+  declaredByUser User          @relation(fields: [declaredBy], references: [id])
+
+  @@index([tenantId])
+  @@index([movementId], map: "stock_cost_declaration_movement_idx")
+  @@map("stock_cost_declaration")
 }
 
 // ============================================================
