@@ -2,7 +2,9 @@
 
 **Last updated:** 2026-07-05
 
-## Current Sprint: Sprint 2 — Transactional Systems ✅ COMPLETE (2026-08-17)
+## Current Sprint: Sprint 3 — Stock Count · Expense · Waste/Par · Transfer 🚧 IN PROGRESS
+
+_(Sprint 2 — Transactional Systems: ✅ COMPLETE 2026-08-17)_
 
 **Status:** 🚧 Part 10 (Stock Movement) ✅ COMPLETE (2026-08-15) + post-completion review closed (1 fix, 3 items carried to Part 13 — **all three paid in Part 13 L1b**) · Part 11 (Purchase Order) ✅ COMPLETE (L0–L6, 2026-08-16) · Part 13 (Goods Receipt) ✅ COMPLETE (L0–L6, 2026-08-16) · Part 13.5 (carry-forward debt payoff) ✅ COMPLETE (L0–L3, 2026-08-16) · Part 14 (Cost Engine) ✅ COMPLETE (L0–L6, 2026-08-17) → **Sprint 2 COMPLETE; next: Sprint 3 — Stock Count + Expense + yield-correct CONSUMPTION** (Part 12 left unallocated, see the Part 11 section).
 **Scope:** Stock Movement (append-only ledger) → PO → GR → Cost Engine per master-spec.md (Part IV — Sprint Plan). Part 10 is the **first proper Sprint 2 slice** (Part 8.5 was a Sprint 1 restore-on-recreate warm-up, run standalone before the Sprint 2 core). Sprint 1 completion history is retained under its own header below.
@@ -634,6 +636,27 @@ Read-only listing taken (9 leftover tenants, all test residue, no real data, led
 Deleting these is a DELETE affecting many rows → waiting on Kong's explicit go, per id. Note the suites' `afterAll` does not always complete when the run itself is red (today's leftovers are from the L2 red run, before `$executeRaw`), which is why residue keeps accumulating — worth a fixture-teardown pass, not this slice's business.
 
 ### Next: Part 14 — Cost Engine. Opens with a grill-with-docs session; questions already banked by ADR 0011/0012/0013 — weighted-average vs FIFO · AP discrepancy cost policy (invoice/received vs write-off vs provisional) · retroactive recompute on a backdated movement · `PO_RECEIVE_REVERSAL` must not read as consumption · whether `product_cost_history` (master-spec §5.7) ships as-specced or per-branch.
+
+---
+
+## Sprint 3 — Stock Count · Expense · Waste/Par · Transfer: 🚧 IN PROGRESS (2026-08-17)
+
+**Scope.** The master-spec Sprint 3 line — *"Stock + Expense + yield-correct CONSUMPTION (H.5) + recursion guard + unknown-menu stub"* — is **stale in the same way §5.5 and §5.7 were**: H.5 computes consumption from `sales_transaction × recipe` and **neither table exists** (POS sync is Sprint 4, Recipe is Sprint 5), and the unknown-menu stub is POS-sync work for the same reason. Sprint 3 ships the two halves that *are* buildable plus three debts earlier Parts deferred here by name. Nothing below is blocked on a dependency — only on a decision.
+
+| # | Slice | Status |
+|---|---|---|
+| **0** | Neon test-tenant cleanup | ✅ done (2026-08-17) |
+| **15** | **Stock Count** | 🚧 next — grill first |
+| **16** | Expense (+ VAT/WHT, GR→expense) | ⏳ |
+| **17** | WASTE as its own movement type + par level | ⏳ |
+| **18** | Inter-branch transfer (closes ADR 0014 Q9c) | ⏳ |
+
+**Explicitly NOT in Sprint 3:** H.5 yield-correct CONSUMPTION · unknown-menu stub / recursion guard · `purchase_request` (still waiting on a reachable second department, ADR 0012 Q1) · payment tracking beyond `payment_status`. The master spec's Sprint 3 line gets a superseded note at Part 15 L0.
+
+### Step 0 — Neon test-tenant cleanup ✅ (2026-08-17)
+Nine leftover tenants deleted with Kong's explicit approval, after a read-only listing confirmed **every one of them held zero transactional rows** (no movements, no PO, no GR) and the ledger tables were globally empty. Deleted: `asfsafas` (Sprint 0 signup test) · `ร้านทดสอบ Category E2E` (Part 6) · `Product Test Tenant A/B/C` from 2026-06-04 · `Product Test Tenant A/B/C/D` from 2026-08-16. The delete script re-asserted emptiness per tenant immediately before touching it — a listing is a snapshot, and acting on a snapshot without a guard is how the wrong row gets deleted. Users were removed only where no membership remained anywhere, so a real account could not become collateral damage. **Neon now holds 0 tenants**; 366 tests still green afterwards.
+
+**Root cause of the accumulation, recorded rather than fixed:** a suite's `afterAll` does not run to completion when the run itself goes red, so every failed test run can strand a tenant. A fixture-teardown fix is a candidate for Part 17, not a reason to keep sweeping by hand.
 
 ---
 
