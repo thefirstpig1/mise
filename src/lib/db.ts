@@ -24,6 +24,22 @@ if (process.env.NODE_ENV !== "production") {
 }
 
 /**
+ * Timing overrides for the underlying `$transaction`.
+ *
+ * Added in Part 13 (ADR 0013 Consequence 5). Prisma's defaults are `maxWait`
+ * 2s / `timeout` 5s, which is ample for a single-row write but not for
+ * confirming a twenty-line goods receipt — twenty ledger inserts, twenty PO-line
+ * updates and a status recompute, each a round trip to Neon in Singapore.
+ * Optional, so every existing caller is unchanged.
+ */
+export type TenantContextOptions = {
+  /** ms to wait for a connection from the pool (Prisma default 2000). */
+  maxWait?: number;
+  /** ms the transaction may run before Prisma rolls it back (default 5000). */
+  timeout?: number;
+};
+
+/**
  * Execute callback with tenant context set.
  * MUST be used for all authenticated requests.
  *
@@ -35,7 +51,8 @@ if (process.env.NODE_ENV !== "production") {
  */
 export async function withTenantContext<T>(
   tenantId: string,
-  callback: (tx: PrismaClient) => Promise<T>
+  callback: (tx: PrismaClient) => Promise<T>,
+  options?: TenantContextOptions
 ): Promise<T> {
   return await prisma.$transaction(async (tx) => {
     // SET LOCAL = only valid within this transaction
@@ -44,7 +61,7 @@ export async function withTenantContext<T>(
     );
 
     return await callback(tx as unknown as PrismaClient);
-  });
+  }, options);
 }
 
 /**

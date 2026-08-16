@@ -32,6 +32,11 @@ import type {
   StockMovement,
 } from "@prisma/client";
 import { withTenantContext } from "@/lib/db";
+import {
+  bangkokDayEndUtc,
+  bangkokDayStartUtc,
+  isDayValue,
+} from "@/lib/bangkok-date";
 import { assertRefBelongsToTenant } from "@/server/product";
 import type {
   CreateStockAdjustmentInput,
@@ -39,23 +44,32 @@ import type {
   GetStockMovementHistoryQuery,
 } from "@/lib/validations/stock-movement";
 
-const DAY_MS = 86_400_000;
 const ZERO = new Prisma.Decimal(0);
 
 /**
  * Turn an inclusive `asOf` / `dateTo` bound into the EXCLUSIVE upper bound the
  * query uses (`occurredAt < bound`).
  *
- * A date-only value (UTC midnight — what `z.coerce.date()` produces from a
+ * A date-only value (UTC midnight — what `z.coerce.date()` produces from an
  * `<input type="date">`, and what Bangkok day values look like per
- * `computeBangkokToday`) means the WHOLE day, so it expands by 24h. Anything
- * with a time component is treated as a precise instant and is made inclusive
- * by 1ms — this matters once Part 13 writes GR movements at real timestamps.
+ * `computeBangkokToday`) names a whole **Bangkok** business day, so it expands to
+ * that day's end in UTC (`day − 7h + 24h`). Anything with a time component is a
+ * precise instant and is made inclusive by 1ms.
+ *
+ * **Part 13 correction (ADR 0013 Q4).** This used to expand by a flat 24h from
+ * the UTC midnight, which was self-consistent only while every `occurred_at` was
+ * itself a date-only value. A GR writes real timestamps, so "balance ณ วันนี้"
+ * would otherwise have reached to 07:00 Bangkok tomorrow, and a 06:00 delivery
+ * would have landed on the previous business day. Decision #60.
  */
 const exclusiveUpperBound = (inclusive: Date): Date =>
-  inclusive.getTime() % DAY_MS === 0
-    ? new Date(inclusive.getTime() + DAY_MS)
+  isDayValue(inclusive)
+    ? bangkokDayEndUtc(inclusive)
     : new Date(inclusive.getTime() + 1);
+
+/** Mirror of the above for the lower bound: a day value starts at Bangkok 00:00. */
+const inclusiveLowerBound = (inclusive: Date): Date =>
+  isDayValue(inclusive) ? bangkokDayStartUtc(inclusive) : inclusive;
 
 /** `occurredAt` filter fragment for an optional inclusive range. */
 const occurredAtFilter = (
@@ -64,7 +78,7 @@ const occurredAtFilter = (
 ): Prisma.DateTimeFilter | undefined => {
   if (!from && !to) return undefined;
   return {
-    ...(from ? { gte: from } : {}),
+    ...(from ? { gte: inclusiveLowerBound(from) } : {}),
     ...(to ? { lt: exclusiveUpperBound(to) } : {}),
   };
 };
@@ -446,6 +460,28 @@ export async function getStockMovementHistoryLogic(
 const QTY_SCALE = 3;
 
 /**
+ * Q1 conversion, in one place: as-entered magnitude × ratio → base-unit magnitude.
+ *
+ * ADR 0011 Q1 promised "a dedicated unit-conversion helper with tests"; Part 10
+ * inlined it in `createStockAdjustmentLogic` instead. Part 13 needs exactly the
+ * same three lines against a GR line's frozen `to_base_ratio`, and a stock
+ * conversion duplicated across two files is precisely the silent-corruption risk
+ * that Q1 called out — so it lives here now and both callers use it.
+ *
+ * Rounded to the column scale HERE rather than left to Postgres, so the number
+ * the app returns is exactly the number that was stored. The result is always
+ * POSITIVE (a magnitude); the caller applies the sign from the movement type.
+ */
+export function toBaseQty(
+  inputQty: Prisma.Decimal | number | string,
+  toBaseRatio: Prisma.Decimal
+): Prisma.Decimal {
+  return new Prisma.Decimal(inputQty)
+    .mul(toBaseRatio)
+    .toDecimalPlaces(QTY_SCALE, Prisma.Decimal.ROUND_HALF_UP);
+}
+
+/**
  * Thrown when `inputUnitId` is not a ProductUnit of THIS product. Mirror of
  * OrderUnitMismatchError in supplier-product-mapping.ts (Q5i) — kept separate
  * because the field, the message, and the layer that maps it all differ.
@@ -540,38 +576,99 @@ export class MovementSourceConflictError extends Error {
 }
 
 /**
- * Thrown for a source type that has no writer yet — GR_LINE lands in Part 13,
- * SYSTEM_INITIAL is reserved (Q10). Better a named refusal than a ledger row
- * whose source can never be resolved.
+ * Thrown for a source type that has no writer — SYSTEM_INITIAL is reserved
+ * (Q10). GR_LINE gained its writer in Part 13. Better a named refusal than a
+ * ledger row whose source can never be resolved.
  */
 export class UnsupportedSourceTypeError extends Error {
   constructor(public readonly sourceType: SourceType) {
-    super(`Source type ${sourceType} has no writer in Part 10`);
+    super(`Source type ${sourceType} has no writer`);
     this.name = "UnsupportedSourceTypeError";
   }
 }
 
-/** `+` for the two IN types, `-` for the one OUT type (Q2). */
+/**
+ * Thrown when a replayed source resolves to a movement that does NOT match what
+ * the caller is now trying to write.
+ *
+ * Part 13 hardening (ADR 0013 Consequence 4). The idempotency lookup below used
+ * to return on `sourceId` alone, which is right for a genuine replay and wrong
+ * for everything else: a GR line re-confirmed with a corrected quantity would
+ * report success while the ledger silently kept the old number. Idempotency
+ * means "the same write twice is one write" — not "any write against a used
+ * source id is a no-op".
+ *
+ * Reaching this is a caller bug (the ledger is append-only; a correction is a
+ * compensating entry), so L4 does NOT map it to a form message — it rethrows to
+ * the error boundary.
+ */
+export class MovementSourceMismatchError extends Error {
+  constructor(
+    public readonly sourceType: SourceType,
+    public readonly sourceId: string,
+    public readonly field: string
+  ) {
+    super(
+      `Source ${sourceType} "${sourceId}" already has a movement whose ${field} differs from the one being written`
+    );
+    this.name = "MovementSourceMismatchError";
+  }
+}
+
+/** `+` for the two IN types, `-` for the two OUT types (Q2). */
 const isInboundType = (type: MovementType): boolean =>
   type === "PO_RECEIVE" || type === "ADJUST_GAIN";
 
-/** Q3 guard: the source row must exist before the ledger points at it. */
+/**
+ * Q3 guard: the source row must exist before the ledger points at it — and it
+ * must be a source for the SAME product and branch the movement claims.
+ *
+ * Part 13 hardening (ADR 0013 Consequence 4): this used to select only `id`,
+ * which proved the row existed but not that it had anything to do with the
+ * movement being written. With no FK (Q3) this assertion is the only integrity
+ * the ledger has, so it now reads the source's own product/branch and compares.
+ */
 async function assertSourceExists(
   tx: PrismaClient,
   tenantId: string,
   sourceType: SourceType,
-  sourceId: string
+  sourceId: string,
+  productId: string,
+  branchId: string
 ): Promise<void> {
-  if (sourceType !== "ADJUSTMENT") {
-    // GR_LINE: Part 13 adds the goods_received_line branch here.
-    // SYSTEM_INITIAL: reserved, no table and no writer (Q10).
-    throw new UnsupportedSourceTypeError(sourceType);
-  }
-  const row = await tx.stockAdjustment.findFirst({
-    where: { id: sourceId, tenantId },
-    select: { id: true },
-  });
+  const select = { productId: true, branchId: true } as const;
+
+  const row =
+    sourceType === "ADJUSTMENT"
+      ? await tx.stockAdjustment.findFirst({
+          where: { id: sourceId, tenantId },
+          select,
+        })
+      : sourceType === "GR_LINE"
+        ? // The GR line carries the product; the branch lives on its header.
+          await tx.goodsReceiptItem
+            .findFirst({
+              where: { id: sourceId, tenantId },
+              select: {
+                productId: true,
+                goodsReceipt: { select: { branchId: true } },
+              },
+            })
+            .then((r) =>
+              r ? { productId: r.productId, branchId: r.goodsReceipt.branchId } : null
+            )
+        : // SYSTEM_INITIAL: reserved, no table and no writer (Q10).
+          (() => {
+            throw new UnsupportedSourceTypeError(sourceType);
+          })();
+
   if (!row) throw new MovementSourceNotFoundError(sourceType, sourceId);
+  if (row.productId !== productId) {
+    throw new MovementSourceMismatchError(sourceType, sourceId, "productId");
+  }
+  if (row.branchId !== branchId) {
+    throw new MovementSourceMismatchError(sourceType, sourceId, "branchId");
+  }
 }
 
 export type CreateStockMovementParams = {
@@ -615,14 +712,37 @@ export async function createStockMovementLogic(
 
   await assertRefBelongsToTenant(tx, tenantId, "product", productId);
   await assertRefBelongsToTenant(tx, tenantId, "branch", branchId);
-  await assertSourceExists(tx, tenantId, sourceType, sourceId);
+  await assertSourceExists(tx, tenantId, sourceType, sourceId, productId, branchId);
 
   // Idempotency, checked BEFORE the insert (see the doc comment): this row
   // already exists iff the source was replayed.
-  const existing = await tx.stockMovement.findUnique({
-    where: { sourceType_sourceId: { sourceType, sourceId } },
+  //
+  // Part 13 hardening (ADR 0013 Consequence 4): the lookup now filters by
+  // `tenantId` — it was the one query on this write path that did not — and the
+  // row is only returned if it MATCHES. Returning on sourceId alone made a
+  // replay with different numbers report success while the ledger kept the old
+  // ones, silently. Idempotency is "the same write twice is one write".
+  const existing = await tx.stockMovement.findFirst({
+    where: { tenantId, sourceType, sourceId },
   });
-  if (existing) return existing;
+  if (existing) {
+    if (existing.productId !== productId) {
+      throw new MovementSourceMismatchError(sourceType, sourceId, "productId");
+    }
+    if (existing.branchId !== branchId) {
+      throw new MovementSourceMismatchError(sourceType, sourceId, "branchId");
+    }
+    if (existing.type !== type) {
+      throw new MovementSourceMismatchError(sourceType, sourceId, "type");
+    }
+    if (!existing.qty.equals(qty)) {
+      throw new MovementSourceMismatchError(sourceType, sourceId, "qty");
+    }
+    if (existing.occurredAt.getTime() !== params.occurredAt.getTime()) {
+      throw new MovementSourceMismatchError(sourceType, sourceId, "occurredAt");
+    }
+    return existing;
+  }
 
   try {
     return await tx.stockMovement.create({
@@ -707,11 +827,7 @@ export async function createStockAdjustmentLogic(
     });
     if (!unit) throw new StockUnitMismatchError(inputUnitId, productId);
 
-    // Q1 conversion. Rounded to the column scale HERE rather than left to
-    // Postgres, so the number the app returns is the number that was stored.
-    const magnitude = new Prisma.Decimal(inputQty)
-      .mul(unit.toBaseRatio)
-      .toDecimalPlaces(QTY_SCALE, Prisma.Decimal.ROUND_HALF_UP);
+    const magnitude = toBaseQty(inputQty, unit.toBaseRatio);
 
     if (magnitude.isZero()) {
       const base = await tx.productUnit.findFirst({

@@ -561,4 +561,81 @@ describe("stock-movement read *Logic (tenant-scoped, app-layer isolation)", () =
     expect(fromB.rows.length).toBe(1);
     expect(dec(fromB.rows[0].qty)).toBe(99);
   });
+
+  it("S14: day bounds are BANGKOK days, not UTC days (ADR 0013 Q4)", async () => {
+    // Part 13 makes occurred_at a true instant for the first time. A delivery at
+    // 06:00 Bangkok on day D is 23:00 UTC on D−1; a delivery at 23:30 Bangkok on
+    // D is 16:30 UTC on D. Bucketing in UTC put the first on the wrong day and
+    // let the second's day reach into the next one. Decision #60.
+    //
+    // `day(n)` is a UTC-midnight value naming a BANGKOK business day, so the
+    // window it means is [day − 7h, day + 17h) in UTC.
+    const target = day(-30); // far from the other slices' fixtures
+    const bkkMorning = new Date(target.getTime() - 7 * 3600_000 + 6 * 3600_000); // 06:00 BKK
+    const bkkLateNight = new Date(target.getTime() - 7 * 3600_000 + 23.5 * 3600_000); // 23:30 BKK
+
+    const prodTz = await freshProduct(tenantA, `TZ-${randomUUID().slice(0, 6)}`);
+    await mv({
+      tenantId: tenantA,
+      productId: prodTz.id,
+      branchId: branchA1,
+      qty: 3,
+      type: "PO_RECEIVE",
+      sourceType: "GR_LINE",
+      occurredAt: bkkMorning,
+    });
+    await mv({
+      tenantId: tenantA,
+      productId: prodTz.id,
+      branchId: branchA1,
+      qty: 4,
+      type: "PO_RECEIVE",
+      sourceType: "GR_LINE",
+      occurredAt: bkkLateNight,
+    });
+
+    // Both belong to the SAME Bangkok day → both inside a single-day window.
+    const sameDay = await getStockMovementHistoryLogic(
+      tenantA,
+      getStockMovementHistoryQuerySchema.parse({
+        productId: prodTz.id,
+        dateFrom: target,
+        dateTo: target,
+      })
+    );
+    expect(sameDay.rows.length).toBe(2);
+
+    // The previous Bangkok day contains neither — under the old UTC bucketing
+    // the 06:00 row would have fallen here.
+    const dayBefore = await getStockMovementHistoryLogic(
+      tenantA,
+      getStockMovementHistoryQuerySchema.parse({
+        productId: prodTz.id,
+        dateFrom: day(-31),
+        dateTo: day(-31),
+      })
+    );
+    expect(dayBefore.rows.length).toBe(0);
+
+    // "Balance as of that day" sees both, and stops there.
+    const asOfTarget = await getStockBalanceLogic(
+      tenantA,
+      getStockBalanceQuerySchema.parse({
+        productId: prodTz.id,
+        branchId: branchA1,
+        asOf: target,
+      })
+    );
+    expect(dec(asOfTarget.balance)).toBe(7);
+
+    const asOfDayBefore = await getStockBalanceLogic(
+      tenantA,
+      getStockBalanceQuerySchema.parse({
+        productId: prodTz.id,
+        branchId: branchA1,
+        asOf: day(-31),
+      })
+    );
+    expect(dec(asOfDayBefore.balance)).toBe(0);
+  });
 });

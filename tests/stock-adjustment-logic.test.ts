@@ -32,6 +32,7 @@ import {
   findStockMovementBySourceLogic,
   getStockBalanceLogic,
   MovementSignMismatchError,
+  MovementSourceMismatchError,
   MovementSourceNotFoundError,
   QtyRoundsToZeroError,
   StockUnitMismatchError,
@@ -423,7 +424,30 @@ describe("stock adjustment write *Logic (append-only ledger, ADR 0011)", () => {
     ).rejects.toThrow(MovementSourceNotFoundError);
   });
 
-  it("W10: the primitive refuses a source type with no writer yet (GR_LINE → Part 13)", async () => {
+  it("W10: the primitive refuses a source type with no writer (SYSTEM_INITIAL, reserved)", async () => {
+    // GR_LINE gained its writer in Part 13 and moved to W11; SYSTEM_INITIAL is
+    // the one source type still reserved with no table behind it (ADR 0011 Q10).
+    await expect(
+      withTenantContext(tenantA, (tx) =>
+        createStockMovementLogic(tx, {
+          tenantId: tenantA,
+          productId: prodSack.id,
+          branchId: branchA,
+          qty: new Prisma.Decimal(1),
+          type: "PO_RECEIVE",
+          sourceType: "SYSTEM_INITIAL",
+          sourceId: randomUUID(),
+          occurredAt: today,
+          createdBy: userA,
+        })
+      )
+    ).rejects.toThrow(UnsupportedSourceTypeError);
+  });
+
+  it("W11: GR_LINE is a known source type now, but the row still has to exist", async () => {
+    // Part 13 added the branch to assertSourceExists. A GR_LINE id that resolves
+    // to nothing must read as "source not found", NOT as "type unsupported" —
+    // otherwise a genuine data-integrity bug would be reported as a missing feature.
     await expect(
       withTenantContext(tenantA, (tx) =>
         createStockMovementLogic(tx, {
@@ -438,6 +462,85 @@ describe("stock adjustment write *Logic (append-only ledger, ADR 0011)", () => {
           createdBy: userA,
         })
       )
-    ).rejects.toThrow(UnsupportedSourceTypeError);
+    ).rejects.toThrow(MovementSourceNotFoundError);
+  });
+
+  it("W12: a replay whose numbers CHANGED is rejected, not silently reported as success", async () => {
+    // The Part 10 review's third open item (ADR 0013 Consequence 4): the
+    // idempotency lookup used to return on sourceId alone, so re-posting a
+    // corrected quantity said "ok" while the ledger kept the old one.
+    const first = await createStockAdjustmentLogic(
+      tenantA,
+      adjInput({
+        productId: prodSack.id,
+        inputQty: 2,
+        inputUnitId: baseUnitId(prodSack),
+      }),
+      userA
+    );
+
+    // Same source, different qty → rejected.
+    await expect(
+      withTenantContext(tenantA, (tx) =>
+        createStockMovementLogic(tx, {
+          tenantId: tenantA,
+          productId: prodSack.id,
+          branchId: branchA,
+          qty: new Prisma.Decimal(99),
+          type: "ADJUST_GAIN",
+          sourceType: "ADJUSTMENT",
+          sourceId: first.adjustment.id,
+          occurredAt: today,
+          createdBy: userA,
+        })
+      )
+    ).rejects.toThrow(MovementSourceMismatchError);
+
+    // Same source, identical numbers → still an idempotent no-op (W7's guarantee).
+    const replay = await withTenantContext(tenantA, (tx) =>
+      createStockMovementLogic(tx, {
+        tenantId: tenantA,
+        productId: prodSack.id,
+        branchId: branchA,
+        qty: first.movement.qty,
+        type: "ADJUST_GAIN",
+        sourceType: "ADJUSTMENT",
+        sourceId: first.adjustment.id,
+        occurredAt: first.movement.occurredAt,
+        createdBy: userA,
+      })
+    );
+    expect(replay.id).toBe(first.movement.id);
+  });
+
+  it("W13: the source must belong to the same product as the movement", async () => {
+    // assertSourceExists now reads the source's own product/branch. Without it,
+    // a mis-wired caller could point a movement for product X at product Y's
+    // adjustment row — and with no FK (Q3) nothing else would notice.
+    const first = await createStockAdjustmentLogic(
+      tenantA,
+      adjInput({
+        productId: prodSack.id,
+        inputQty: 1,
+        inputUnitId: baseUnitId(prodSack),
+      }),
+      userA
+    );
+
+    await expect(
+      withTenantContext(tenantA, (tx) =>
+        createStockMovementLogic(tx, {
+          tenantId: tenantA,
+          productId: prodOther.id, // ← not the adjustment's product
+          branchId: branchA,
+          qty: new Prisma.Decimal(1),
+          type: "ADJUST_GAIN",
+          sourceType: "ADJUSTMENT",
+          sourceId: first.adjustment.id,
+          occurredAt: today,
+          createdBy: userA,
+        })
+      )
+    ).rejects.toThrow(MovementSourceMismatchError);
   });
 });

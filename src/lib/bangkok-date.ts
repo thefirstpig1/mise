@@ -35,3 +35,31 @@ export function computeBangkokToday(): Date {
 export function addDays(d: Date, days: number): Date {
   return new Date(d.getTime() + days * DAY_MS);
 }
+
+/**
+ * True `false` when `d` carries a time component — i.e. it is a precise instant
+ * rather than a whole-day value. `<input type="date">` and `computeBangkokToday`
+ * both produce UTC midnights; a GR's `receivedAt` does not (ADR 0013 Q4).
+ */
+export function isDayValue(d: Date): boolean {
+  return d.getTime() % DAY_MS === 0;
+}
+
+/**
+ * The UTC instant at which a Bangkok business day BEGINS.
+ *
+ * A day value is encoded as UTC midnight (see `computeBangkokToday`), but the day
+ * it *names* runs 00:00–24:00 in Bangkok, which is 17:00 the previous UTC day to
+ * 17:00 UTC. Until Part 13 every `occurred_at` was itself a UTC midnight, so
+ * bucketing days in UTC was self-consistent and nobody noticed. A GR writes real
+ * timestamps, and without this a delivery at 06:00 Bangkok would count against
+ * the previous business day (Decision #60, ADR 0013 Q4).
+ */
+export function bangkokDayStartUtc(day: Date): Date {
+  return new Date(day.getTime() - BANGKOK_UTC_OFFSET_MS);
+}
+
+/** The exclusive UTC end of a Bangkok business day — the next day's start. */
+export function bangkokDayEndUtc(day: Date): Date {
+  return new Date(day.getTime() - BANGKOK_UTC_OFFSET_MS + DAY_MS);
+}
