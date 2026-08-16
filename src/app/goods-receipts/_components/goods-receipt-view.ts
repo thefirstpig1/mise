@@ -59,6 +59,32 @@ export function toBangkokDateTimeLocal(d: Date): string {
   return new Date(d.getTime() + 7 * 3600_000).toISOString().slice(0, 16);
 }
 
+const THB = new Intl.NumberFormat("th-TH", {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
+/**
+ * Format a Decimal STRING for display without ever making it a JS number.
+ *
+ * The integer part is grouped through Intl (safe — it is the part a float can
+ * still represent), and the fraction is sliced off the string untouched. The
+ * same helper exists inline in the purchase-order list page; it lives in the
+ * serializer here because the receipt list, the detail page and the print view
+ * all need it.
+ */
+export function formatMoney(value: string): string {
+  const negative = value.startsWith("-");
+  const [whole, frac = ""] = (negative ? value.slice(1) : value).split(".");
+  const grouped = THB.format(Number(whole || "0")).split(".")[0];
+  return `${negative ? "-" : ""}${grouped}.${(frac + "00").slice(0, 2)}`;
+}
+
+/** Trim a Decimal string's trailing zeros so "4.000" reads as "4". */
+export function formatQty(value: string): string {
+  return value.includes(".") ? value.replace(/\.?0+$/, "") : value;
+}
+
 export type GoodsReceiptListView = {
   id: string;
   grNumber: string;

@@ -99,6 +99,9 @@ export default async function DashboardPage() {
           <a href="/purchase-orders" className="text-sm text-primary hover:underline">
             → ใบสั่งซื้อ
           </a>
+          <a href="/goods-receipts" className="text-sm text-primary hover:underline">
+            → รับสินค้า
+          </a>
           <a href="/settings" className="text-sm text-primary hover:underline">
             → ตั้งค่าร้าน
           </a>
