@@ -293,9 +293,9 @@ export async function getStockBalancesByProductLogic(
 /**
  * One ledger row plus the identities the L5c viewer renders.
  *
- * `adjustment` is the resolved polymorphic source (Q3): there is no FK to follow,
- * so ADJUSTMENT rows are resolved in ONE batched second query and attached here.
- * It stays null for other source types (GR_LINE resolution is Part 13's).
+ * `adjustment` / `goodsReceipt` are the resolved polymorphic source (Q3): there
+ * is no FK to follow, so each source type is resolved in ONE batched second query
+ * and attached here. Exactly one of them is non-null on any given row.
  */
 export type StockMovementHistoryRow = {
   id: string;
@@ -314,6 +314,23 @@ export type StockMovementHistoryRow = {
     reason: string;
     inputQty: Prisma.Decimal;
     inputUnitName: string;
+  } | null;
+  /**
+   * The GR line behind a PO_RECEIVE / PO_RECEIVE_REVERSAL row (Part 13). Carries
+   * the document number rather than just the line, because "GR-0007" is what the
+   * user has on paper — a line id means nothing to them.
+   */
+  goodsReceipt: {
+    lineId: string;
+    goodsReceiptId: string;
+    grNumber: string;
+    supplierName: string;
+    invoiceNo: string | null;
+    poNumber: string | null;
+    /** As-received magnitude + unit, the mirror of `adjustment.inputQty`. */
+    qtyReceivedActual: Prisma.Decimal;
+    receivedUnitName: string;
+    isReversal: boolean;
   } | null;
 };
 
@@ -401,12 +418,42 @@ export async function getStockMovementHistoryLogic(
 
     const byAdjustmentId = new Map(adjustments.map((a) => [a.id, a]));
 
+    // Same treatment for GR_LINE (Part 13) — one more round trip, not one per row.
+    const grLineIds = page
+      .filter((m) => m.sourceType === "GR_LINE")
+      .map((m) => m.sourceId);
+
+    const grLines = grLineIds.length
+      ? await tx.goodsReceiptItem.findMany({
+          where: { tenantId, id: { in: grLineIds } },
+          select: {
+            id: true,
+            qtyReceivedActual: true,
+            receivedUnitName: true,
+            reversalOfItemId: true,
+            goodsReceipt: {
+              select: {
+                id: true,
+                grNumber: true,
+                invoiceNo: true,
+                supplier: { select: { nameFull: true } },
+                purchaseOrder: { select: { poNumber: true } },
+              },
+            },
+          },
+        })
+      : [];
+
+    const byGrLineId = new Map(grLines.map((l) => [l.id, l]));
+
     return {
       rows: page.map((m) => {
         const adj =
           m.sourceType === "ADJUSTMENT"
             ? byAdjustmentId.get(m.sourceId)
             : undefined;
+        const gr =
+          m.sourceType === "GR_LINE" ? byGrLineId.get(m.sourceId) : undefined;
         return {
           id: m.id,
           qty: m.qty,
@@ -434,6 +481,19 @@ export async function getStockMovementHistoryLogic(
                 reason: adj.reason,
                 inputQty: adj.inputQty,
                 inputUnitName: adj.inputUnit.unitName,
+              }
+            : null,
+          goodsReceipt: gr
+            ? {
+                lineId: gr.id,
+                goodsReceiptId: gr.goodsReceipt.id,
+                grNumber: gr.goodsReceipt.grNumber,
+                supplierName: gr.goodsReceipt.supplier.nameFull,
+                invoiceNo: gr.goodsReceipt.invoiceNo,
+                poNumber: gr.goodsReceipt.purchaseOrder?.poNumber ?? null,
+                qtyReceivedActual: gr.qtyReceivedActual,
+                receivedUnitName: gr.receivedUnitName,
+                isReversal: gr.reversalOfItemId !== null,
               }
             : null,
         };

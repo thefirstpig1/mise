@@ -488,7 +488,10 @@ describe("stock-movement read *Logic (tenant-scoped, app-layer isolation)", () =
     expect(new Set(seen).size).toBe(seen.length);
   });
 
-  it("S12: an ADJUSTMENT row resolves its polymorphic source; a GR_LINE row does not", async () => {
+  // Part 13 note: GR_LINE rows DO resolve now (see goods-receipt-logic H1). The
+  // fixture below inserts a GR_LINE movement whose sourceId points at nothing, so
+  // both resolvers correctly come back null — that is the case under test here.
+  it("S12: each source type resolves its own shape, and an unresolvable id stays null", async () => {
     const adjustmentId = randomUUID();
     await withAdminContext((tx) =>
       tx.stockAdjustment.create({
@@ -545,6 +548,7 @@ describe("stock-movement read *Logic (tenant-scoped, app-layer isolation)", () =
       })
     );
     expect(gr.rows[0].adjustment).toBeNull();
+    expect(gr.rows[0].goodsReceipt).toBeNull();
   });
 
   it("S13: history never crosses tenants", async () => {

@@ -15,7 +15,12 @@
 // is the L4/L5 view serializer's job (Pitfall #20).
 // ============================================================
 
-import { Prisma, type PrismaClient, type PurchaseOrder } from "@prisma/client";
+import {
+  Prisma,
+  type PrismaClient,
+  type PurchaseOrder,
+  type PurchaseOrderStatus,
+} from "@prisma/client";
 import { withTenantContext } from "@/lib/db";
 import { computeBangkokToday } from "@/lib/bangkok-date";
 import { assertRefBelongsToTenant } from "@/server/product";
@@ -25,6 +30,7 @@ import type {
   PurchaseOrderInput,
   PurchaseOrderLineInput,
 } from "@/lib/validations/purchase-order";
+import type { ClosePurchaseOrderShortInput } from "@/lib/validations/goods-receipt";
 
 const ZERO = new Prisma.Decimal(0);
 const HUNDRED = new Prisma.Decimal(100);
@@ -891,6 +897,98 @@ export async function deletePurchaseOrderDraftLogic(
     return tx.purchaseOrder.update({
       where: { id },
       data: { deletedAt: new Date() },
+    });
+  });
+}
+
+// ------------------------------------------------------------
+// Receipt-driven status (Part 13, ADR 0013 Q2/Q8)
+// ------------------------------------------------------------
+// ADR 0012 Q4 reserved PARTIALLY_RECEIVED / RECEIVED for Part 13. They live here
+// rather than in goods-receipt.ts because a purchase order owns its own status
+// machine — a GR is just the event that moves it.
+
+/**
+ * Recompute an order's status from its lines' `qty_received`.
+ *
+ * DERIVED, never set by hand: called after every confirm, void and close, so the
+ * status can only ever disagree with the quantities if this function is wrong.
+ *
+ * - every line fully received → `RECEIVED`
+ * - some quantity received    → `PARTIALLY_RECEIVED`
+ * - nothing received          → `SENT` (a void of the only receipt undoes it fully)
+ *
+ * `DRAFT` and `CANCELLED` are left alone — neither can have receipts, and a
+ * cancelled order that somehow did must not be quietly resurrected. A manual
+ * short-close (Q8) also wins: someone decided this order was finished, and a
+ * later recompute is not entitled to reopen it.
+ *
+ * Takes a `tx` (like the ledger primitive) because it always runs inside the same
+ * transaction as the receipt write that triggered it.
+ */
+export async function recalcPurchaseOrderReceiptStatus(
+  tx: PrismaClient,
+  tenantId: string,
+  purchaseOrderId: string
+): Promise<PurchaseOrderStatus | null> {
+  const po = await tx.purchaseOrder.findFirst({
+    where: { tenantId, id: purchaseOrderId },
+    select: {
+      id: true,
+      status: true,
+      closedShortAt: true,
+      items: { select: { qtyOrdered: true, qtyReceived: true } },
+    },
+  });
+  if (!po) return null;
+  if (po.status === "DRAFT" || po.status === "CANCELLED") return po.status;
+
+  const next: PurchaseOrderStatus = po.closedShortAt
+    ? "RECEIVED"
+    : po.items.length > 0 &&
+        po.items.every((i) => i.qtyReceived.greaterThanOrEqualTo(i.qtyOrdered))
+      ? "RECEIVED"
+      : po.items.some((i) => i.qtyReceived.greaterThan(ZERO))
+        ? "PARTIALLY_RECEIVED"
+        : "SENT";
+
+  if (next === po.status) return next;
+  await tx.purchaseOrder.update({ where: { id: po.id }, data: { status: next } });
+  return next;
+}
+
+/**
+ * Declare a short-delivered order finished (Q8).
+ *
+ * Legal only from `PARTIALLY_RECEIVED`: a `SENT` order with nothing received is
+ * cancelled, not closed, and a `RECEIVED` one needs no help. The three stamps are
+ * what stop the status from being a lie — `RECEIVED` with quantities that say
+ * otherwise, and a sentence explaining why.
+ */
+export async function closePurchaseOrderShortLogic(
+  tenantId: string,
+  input: ClosePurchaseOrderShortInput,
+  closedBy: string
+): Promise<PurchaseOrderDetail> {
+  return withTenantContext(tenantId, async (tx) => {
+    const existing = await tx.purchaseOrder.findFirst({
+      where: { tenantId, id: input.id, deletedAt: null },
+      select: { id: true, status: true },
+    });
+    if (!existing) throw new PurchaseOrderNotFoundError(input.id);
+    if (existing.status !== "PARTIALLY_RECEIVED") {
+      throw new PurchaseOrderTransitionError(input.id, existing.status, "RECEIVED");
+    }
+
+    return tx.purchaseOrder.update({
+      where: { id: input.id },
+      data: {
+        status: "RECEIVED",
+        closedShortAt: new Date(),
+        closedShortBy: closedBy,
+        closedShortReason: input.closedShortReason,
+      },
+      include: PO_DETAIL_INCLUDE,
     });
   });
 }
