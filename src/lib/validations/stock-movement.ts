@@ -194,8 +194,17 @@ const hasAtMostThreeDecimals = (n: number) =>
  * `occurredAt` is business time and may be backdated within [today−90d, today]
  * in BANGKOK (Q5). Both bounds are computed per-parse from computeBangkokToday(),
  * so a long-lived process does not pin a stale "today".
+ *
+ * **`submitKey` is the adjustment's id** (Part 13.5, mirroring `goodsReceiptInputSchema`).
+ * The client mints one uuid per submission and the server uses it AS
+ * `stock_adjustment.id`, which is what finally makes ADR 0011 Q4's
+ * `(source_type, source_id)` idempotency reachable from this producer: a double
+ * POST — progressive enhancement without JS, back-then-resubmit, a network retry
+ * — resolves to the same adjustment instead of doubling the stock. The form
+ * ROTATES the key after each success, because it stays open for the next item.
  */
 export const createStockAdjustmentInputSchema = z.object({
+  submitKey: z.string().uuid("คีย์การบันทึกไม่ถูกต้อง"),
   productId: z.string().uuid("วัตถุดิบไม่ถูกต้อง"),
   branchId: z.string().uuid("สาขาไม่ถูกต้อง"),
   type: z.enum(ADJUSTMENT_TYPE_VALUES, {
@@ -239,6 +248,7 @@ export const STOCK_ADJUSTMENT_FIELD_LABELS_TH: Record<
   keyof CreateStockAdjustmentInput,
   string
 > = {
+  submitKey: "คีย์การบันทึก",
   productId: "วัตถุดิบ",
   branchId: "สาขา",
   type: "ประเภทการปรับ",

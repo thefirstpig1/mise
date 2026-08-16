@@ -22,9 +22,11 @@ import { addDays, computeBangkokToday } from "@/lib/bangkok-date";
 const UUID = "123e4567-e89b-12d3-a456-426614174000";
 const UUID2 = "223e4567-e89b-12d3-a456-426614174000";
 const UUID3 = "323e4567-e89b-12d3-a456-426614174000";
+const UUID4 = "423e4567-e89b-12d3-a456-426614174000";
 
 /** A valid adjustment; individual tests override one field at a time. */
 const validAdjustment = {
+  submitKey: UUID4,
   productId: UUID,
   branchId: UUID2,
   type: "ADJUST_LOSS",
@@ -41,8 +43,15 @@ describe("createStockAdjustmentInputSchema — fields", () => {
     expect(r.success).toBe(true);
   });
 
-  it("rejects a non-uuid productId / branchId / inputUnitId", () => {
-    for (const field of ["productId", "branchId", "inputUnitId"] as const) {
+  it("rejects a non-uuid submitKey / productId / branchId / inputUnitId", () => {
+    // submitKey becomes stock_adjustment.id (Part 13.5), so a malformed one must
+    // never reach the insert — a non-uuid PK would fail as a raw Postgres error.
+    for (const field of [
+      "submitKey",
+      "productId",
+      "branchId",
+      "inputUnitId",
+    ] as const) {
       const r = createStockAdjustmentInputSchema.safeParse({
         ...validAdjustment,
         [field]: "nope",

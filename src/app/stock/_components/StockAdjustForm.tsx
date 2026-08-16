@@ -20,6 +20,11 @@
 //  3. Successive entry. Counting stock is a batch job — a user adjusts ten
 //     items in a row — so a successful write keeps the product/branch/date and
 //     clears only qty + notes, instead of navigating away.
+//  4. (Part 13.5) The `submit_key` lifecycle. The key is minted HERE and becomes
+//     stock_adjustment.id, which is what makes a double POST resolve to one
+//     movement instead of doubling the stock. Because of (3) this form is the one
+//     place the key must ROTATE — a key held across a batch would make item #2
+//     read as a replay of item #1 and silently write nothing.
 //
 // `todayBangkok` / `minBackdate` are passed in from the server page rather than
 // computed here: the zod backdate window is checked against BANGKOK today, and a
@@ -64,6 +69,25 @@ const errorClass = "mt-1 text-xs text-red-600";
 const fmt = (n: number): string =>
   Number.isFinite(n) ? String(Math.round(n * 1000) / 1000) : "—";
 
+/**
+ * A fresh `submit_key` — the id the server will give the `stock_adjustment` row.
+ *
+ * The fallback is a real v4 uuid rather than something like `useId()` because the
+ * schema validates the shape: a non-uuid key would fail with "คีย์การบันทึกไม่ถูกต้อง",
+ * which the user cannot act on. `crypto.randomUUID` needs a secure context, so the
+ * branch is unreachable on https and localhost — it exists for the case where it
+ * isn't, not to be clever.
+ */
+function newSubmitKey(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
+  });
+}
+
 export default function StockAdjustForm({
   action,
   products,
@@ -88,6 +112,10 @@ export default function StockAdjustForm({
     action,
     { ok: false } as StockAdjustmentActionState
   );
+
+  // One key per submission — NOT per render, or the row id would change between
+  // the POST and its retry and the dedupe would have nothing to match on.
+  const [submitKey, setSubmitKey] = useState(newSubmitKey);
 
   const [productId, setProductId] = useState("");
   const [branchId, setBranchId] = useState(branches[0]?.id ?? "");
@@ -154,10 +182,14 @@ export default function StockAdjustForm({
   }, [productId, branchId, type, qty, unitId]);
 
   // Successive entry: keep product/branch/date, clear qty + notes, refocus qty.
+  // The key rotates HERE, in the same effect: the previous key is now spent (it
+  // identifies the row that was just written), so the next item in the batch needs
+  // its own — otherwise the server would recognise it as a replay and write nothing.
   useEffect(() => {
     if (!state.ok) return;
     setQty("");
     if (notesRef.current) notesRef.current.value = "";
+    setSubmitKey(newSubmitKey());
     qtyRef.current?.focus();
   }, [state]);
 
@@ -176,6 +208,8 @@ export default function StockAdjustForm({
 
   return (
     <form action={formAction} className="space-y-6">
+      <input type="hidden" name="submit_key" value={submitKey} />
+
       {state.ok && (
         <div className="rounded-lg border border-green-300 bg-green-50 p-4 text-sm text-green-800">
           บันทึกแล้ว — ยอดคงเหลือใหม่{" "}

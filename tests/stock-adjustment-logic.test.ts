@@ -65,9 +65,16 @@ describe("stock adjustment write *Logic (append-only ledger, ADR 0011)", () => {
   const baseUnitId = (p: ProductWithUnits): string =>
     p.productUnits.find((u) => u.isBase)!.id;
 
-  /** Validated adjustment input — required fields with per-slice overrides. */
+  /**
+   * Validated adjustment input — required fields with per-slice overrides.
+   *
+   * `submitKey` defaults to a FRESH uuid per call, so every slice that does not
+   * care about idempotency behaves as it did before Part 13.5; W14 pins one
+   * deliberately to replay it.
+   */
   const adjInput = (over: Record<string, unknown>) =>
     createStockAdjustmentInputSchema.parse({
+      submitKey: randomUUID(),
       branchId: branchA,
       type: "ADJUST_GAIN",
       reason: "RECOUNT",
@@ -542,5 +549,86 @@ describe("stock adjustment write *Logic (append-only ledger, ADR 0011)", () => {
         })
       )
     ).rejects.toThrow(MovementSourceMismatchError);
+  });
+
+  // ----------------------------------------------------------
+  // W14–W15 — submit-key idempotency at the PRODUCER (Part 13.5)
+  // ----------------------------------------------------------
+  // W7 proves the primitive is idempotent per (sourceType, sourceId). That
+  // guarantee was unreachable from this producer while it minted the source id
+  // itself: a double POST presented a new key and doubled the stock.
+
+  it("W14: replaying one submitKey writes one adjustment and one movement", async () => {
+    const before = await getStockBalanceLogic(
+      tenantA,
+      getStockBalanceQuerySchema.parse({
+        productId: prodTiny.id,
+        branchId: branchA,
+      })
+    );
+
+    const input = adjInput({
+      productId: prodTiny.id,
+      inputQty: 7,
+      inputUnitId: baseUnitId(prodTiny),
+    });
+
+    const first = await createStockAdjustmentLogic(tenantA, input, userA);
+    const replay = await createStockAdjustmentLogic(tenantA, input, userA);
+
+    expect(replay.adjustment.id).toBe(first.adjustment.id);
+    expect(replay.movement.id).toBe(first.movement.id);
+    expect(first.adjustment.id).toBe(input.submitKey); // the key IS the row id
+    expect(dec(replay.postBalance)).toBe(dec(first.postBalance));
+
+    // Counted at the DB, not inferred from the return value.
+    const rows = await withTenantContext(tenantA, (tx) =>
+      tx.stockMovement.count({
+        where: { tenantId: tenantA, sourceId: input.submitKey },
+      })
+    );
+    expect(rows).toBe(1);
+
+    // The balance moved exactly once.
+    const after = await getStockBalanceLogic(
+      tenantA,
+      getStockBalanceQuerySchema.parse({
+        productId: prodTiny.id,
+        branchId: branchA,
+      })
+    );
+    expect(dec(after.balance.minus(before.balance))).toBe(7);
+  });
+
+  it("W15: two different keys with identical numbers are two adjustments", async () => {
+    // The other half of the guarantee — deduping on the VALUES would break the
+    // real workflow of counting the same item twice in one session.
+    const before = await getStockBalanceLogic(
+      tenantA,
+      getStockBalanceQuerySchema.parse({
+        productId: prodTiny.id,
+        branchId: branchA,
+      })
+    );
+
+    const shape = {
+      productId: prodTiny.id,
+      inputQty: 3,
+      inputUnitId: baseUnitId(prodTiny),
+    };
+    const a = await createStockAdjustmentLogic(tenantA, adjInput(shape), userA);
+    const b = await createStockAdjustmentLogic(tenantA, adjInput(shape), userA);
+
+    expect(b.adjustment.id).not.toBe(a.adjustment.id);
+    expect(b.movement.id).not.toBe(a.movement.id);
+
+    const after = await getStockBalanceLogic(
+      tenantA,
+      getStockBalanceQuerySchema.parse({
+        productId: prodTiny.id,
+        branchId: branchA,
+      })
+    );
+    expect(dec(after.balance.minus(before.balance))).toBe(6);
   });
 });

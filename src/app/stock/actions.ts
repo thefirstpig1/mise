@@ -74,9 +74,16 @@ const CONFLICT_MESSAGE = "ระบบกำลังบันทึกราย
 /** A read action whose query didn't validate (never user-typed — a caller bug). */
 const BAD_QUERY_MESSAGE = "เงื่อนไขการค้นหาไม่ถูกต้อง";
 
-/** Map the adjust form's snake_case FormData onto the schema's camelCase shape. */
+/**
+ * Map the adjust form's snake_case FormData onto the schema's camelCase shape.
+ *
+ * `submit_key` is READ from the form and never minted here (the same rule
+ * `goods-receipts/actions.ts` follows): a server-minted key is a fresh key on
+ * every retry, which is precisely the double-POST bug this closes.
+ */
 function rawFromFormData(formData: FormData): Record<string, unknown> {
   return {
+    submitKey: formData.get("submit_key"),
     productId: formData.get("product_id"),
     branchId: formData.get("branch_id"),
     type: formData.get("type"),

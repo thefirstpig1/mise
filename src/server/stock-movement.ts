@@ -864,6 +864,13 @@ export type CreateStockAdjustmentResult = {
  * A negative `postBalance` NEVER blocks (Q9): the result carries it and the L5
  * form owns the warn-and-confirm. Input must already be parsed by
  * `createStockAdjustmentInputSchema`.
+ *
+ * **`input.submitKey` becomes the adjustment's id** (Part 13.5). Q4's idempotency
+ * is keyed on `(source_type, source_id)`, so while this function minted a fresh
+ * adjustment id per call it never presented the same key twice and the primitive's
+ * pre-insert lookup could never fire — a double POST wrote a second adjustment and
+ * a second movement, and the stock doubled. With the client's key as the row id,
+ * a replay finds the adjustment already there and returns it unchanged.
  */
 export async function createStockAdjustmentLogic(
   tenantId: string,
@@ -876,6 +883,32 @@ export async function createStockAdjustmentLogic(
   // withTenantContext IS the transaction (SET LOCAL + $transaction), so
   // everything below commits or rolls back together.
   return withTenantContext(tenantId, async (tx) => {
+    // Idempotency, checked before anything is written or asserted. A replay
+    // returns the adjustment that already exists — including its movement and a
+    // freshly read balance, so the caller cannot tell a replay from the original.
+    const replay = await tx.stockAdjustment.findFirst({
+      where: { tenantId, id: input.submitKey },
+    });
+    if (replay) {
+      const movement = await tx.stockMovement.findFirst({
+        where: { tenantId, sourceType: "ADJUSTMENT", sourceId: replay.id },
+      });
+      // Unreachable by construction: the source and its movement are written in
+      // ONE transaction (Q4) and the ledger has no delete (Q7). If it ever fires,
+      // the ledger was edited outside the app — that belongs in the error
+      // boundary, not in a Thai field error on a form.
+      if (!movement) {
+        throw new Error(
+          `stock_adjustment "${replay.id}" has no ledger movement — the ledger was modified outside the app`
+        );
+      }
+      const agg = await tx.stockMovement.aggregate({
+        where: { tenantId, productId: replay.productId, branchId: replay.branchId },
+        _sum: { qty: true },
+      });
+      return { adjustment: replay, movement, postBalance: agg._sum.qty ?? ZERO };
+    }
+
     await assertRefBelongsToTenant(tx, tenantId, "product", productId);
     await assertRefBelongsToTenant(tx, tenantId, "branch", branchId);
 
@@ -905,6 +938,7 @@ export async function createStockAdjustmentLogic(
 
     const adjustment = await tx.stockAdjustment.create({
       data: {
+        id: input.submitKey,
         tenantId,
         productId,
         branchId,

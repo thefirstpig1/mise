@@ -206,8 +206,8 @@ export type GoodsReceiptLineInput = z.infer<typeof goodsReceiptLineInputSchema>;
  * the server uses it AS `goods_receipt.id`, so a double POST — progressive
  * enhancement without JS, back-then-resubmit, a network retry — resolves to the
  * same row instead of a second receipt. This is the fix for the second open item
- * in Part 10's post-completion review (ADR 0013 Consequence 4); Part 10's
- * adjustment form still mints its source id server-side and remains exposed.
+ * in Part 10's post-completion review (ADR 0013 Consequence 4); Part 13.5 applied
+ * the same pattern to `createStockAdjustmentInputSchema`, the other producer.
  *
  * `receivedAt` is a TRUE INSTANT (Q4), not a date: it becomes every movement's
  * `occurred_at`, and Part 14 orders by it. The window is the same one the ledger
