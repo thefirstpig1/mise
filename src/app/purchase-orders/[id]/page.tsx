@@ -15,11 +15,16 @@
 import { notFound } from "next/navigation";
 import { requireTenant } from "@/lib/require-tenant";
 import { getPurchaseOrderByIdLogic } from "@/server/purchase-order";
+import { getGoodsReceiptsForPurchaseOrderLogic } from "@/server/goods-receipt";
 import {
   cancelPurchaseOrderAction,
   deletePurchaseOrderDraftAction,
   sendPurchaseOrderAction,
 } from "../actions";
+import { closePurchaseOrderShortAction } from "@/app/goods-receipts/actions";
+import { toGoodsReceiptListView } from "@/app/goods-receipts/_components/goods-receipt-view";
+import CloseShortForm from "@/app/goods-receipts/_components/CloseShortForm";
+import GrStatusBadge from "@/app/goods-receipts/_components/StatusBadge";
 import { toPurchaseOrderDetailView } from "../_components/purchase-order-view";
 import PurchaseOrderActions from "../_components/PurchaseOrderActions";
 import StatusBadge from "../_components/StatusBadge";
@@ -54,6 +59,20 @@ export default async function PurchaseOrderDetailPage({
 
   const po = toPurchaseOrderDetailView(order);
   const tenant = membership.tenant;
+
+  // Part 13: the receiving side of the order. VOIDED receipts are shown too —
+  // "this arrived and was then reversed" is part of the order's story, and
+  // hiding it would make qty_received look unexplained.
+  const receipts = (await getGoodsReceiptsForPurchaseOrderLogic(tenantId, po.id)).map(
+    toGoodsReceiptListView
+  );
+  const canReceive =
+    po.status === "SENT" ||
+    po.status === "PARTIALLY_RECEIVED" ||
+    po.status === "RECEIVED";
+  const anyOutstanding = po.lines.some(
+    (l) => Number(l.qtyReceived) < Number(l.qtyOrdered)
+  );
 
   return (
     <div className="space-y-6">
@@ -211,6 +230,98 @@ export default async function PurchaseOrderDetailPage({
           </div>
         )}
       </article>
+
+      {/* ---------- receiving (Part 13) ---------- */}
+      {canReceive && (
+        <section className="space-y-3 rounded-lg border border-border p-4 print:hidden">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="text-sm font-medium">การรับของ</h3>
+            <a
+              href={`/goods-receipts/new?po=${po.id}`}
+              className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+            >
+              รับของ
+            </a>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="border-y border-border text-left text-xs text-muted-foreground">
+                <tr>
+                  <th className="py-2 pr-2 font-medium">#</th>
+                  <th className="py-2 pr-2 font-medium">รายการ</th>
+                  <th className="py-2 pr-2 text-right font-medium">สั่ง</th>
+                  <th className="py-2 pr-2 text-right font-medium">รับแล้ว</th>
+                  <th className="py-2 pr-2 text-right font-medium">ค้างรับ</th>
+                  <th className="py-2 pr-2 font-medium">หน่วย</th>
+                </tr>
+              </thead>
+              <tbody>
+                {po.lines.map((l) => {
+                  const outstanding =
+                    Number(l.qtyOrdered) - Number(l.qtyReceived);
+                  return (
+                    <tr key={l.id} className="border-b border-border">
+                      <td className="py-2 pr-2 tabular-nums text-muted-foreground">
+                        {l.lineNo}
+                      </td>
+                      <td className="py-2 pr-2">{l.productName}</td>
+                      <td className="py-2 pr-2 text-right tabular-nums">
+                        {qty(l.qtyOrdered)}
+                      </td>
+                      <td className="py-2 pr-2 text-right tabular-nums">
+                        {qty(l.qtyReceived)}
+                      </td>
+                      <td
+                        className={`py-2 pr-2 text-right tabular-nums ${
+                          outstanding > 0
+                            ? "text-amber-700"
+                            : outstanding < 0
+                              ? "text-amber-700"
+                              : "text-muted-foreground"
+                        }`}
+                      >
+                        {outstanding === 0 ? "—" : outstanding.toLocaleString("th-TH")}
+                      </td>
+                      <td className="py-2 pr-2">{l.orderUnitName}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {receipts.length > 0 && (
+            <ul className="space-y-1 text-sm">
+              {receipts.map((r) => (
+                <li key={r.id} className="flex flex-wrap items-center gap-2">
+                  <a
+                    href={`/goods-receipts/${r.id}`}
+                    className="font-medium text-primary hover:underline"
+                  >
+                    {r.grNumber}
+                  </a>
+                  <span className="text-muted-foreground">{r.receivedAtLabel}</span>
+                  <GrStatusBadge status={r.status} />
+                  {r.hasDiscrepancy && (
+                    <span className="rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-xs text-amber-800">
+                      ต้องตรวจสอบ
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {/* Q8: only a partially-received order can be declared finished. */}
+          {po.status === "PARTIALLY_RECEIVED" && anyOutstanding && (
+            <CloseShortForm
+              purchaseOrderId={po.id}
+              onClose={closePurchaseOrderShortAction}
+            />
+          )}
+        </section>
+      )}
 
       {/* ---------- what only we need to know ---------- */}
       <section className="rounded-lg border border-border p-4 text-xs text-muted-foreground print:hidden">

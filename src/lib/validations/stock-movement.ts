@@ -40,9 +40,12 @@ import { addDays, computeBangkokToday } from "@/lib/bangkok-date";
 export const ADJUSTMENT_TYPE_VALUES = ["ADJUST_GAIN", "ADJUST_LOSS"] as const;
 export type AdjustmentType = (typeof ADJUSTMENT_TYPE_VALUES)[number];
 
-/** All three ledger movement types — a read filter may reference any of them. */
+/** Every ledger movement type — a read filter may reference any of them. */
 export const MOVEMENT_TYPE_VALUES = [
   "PO_RECEIVE",
+  // Part 13 (ADR 0013 Q6): the compensating movement a GR void posts. Read-only
+  // here, like PO_RECEIVE — nothing but the receipt lifecycle writes either.
+  "PO_RECEIVE_REVERSAL",
   "ADJUST_GAIN",
   "ADJUST_LOSS",
 ] as const;
@@ -85,6 +88,14 @@ export type _StockEnumDriftGuards = [
   _AssertReason,
 ];
 
+// ...and ACTUALLY asserted. A type alias that resolves to `never` is not an
+// error on its own, so the guards above were silent: Part 13 added
+// PO_RECEIVE_REVERSAL to the Prisma enum and `pnpm tsc` stayed green with the
+// array out of date. Assigning `true` into a `never` slot is what makes the
+// drift fail the build, which is what the comment above always claimed.
+const _driftGuards: _StockEnumDriftGuards = [true, true, true];
+void _driftGuards;
+
 /** Thai gloss per adjustment type — used by the form <select> options. */
 export const ADJUSTMENT_TYPE_LABELS_TH: Record<AdjustmentType, string> = {
   ADJUST_GAIN: "ปรับเพิ่ม",
@@ -100,6 +111,7 @@ export const MOVEMENT_TYPE_LABELS_TH: Record<
   string
 > = {
   PO_RECEIVE: "รับของเข้า",
+  PO_RECEIVE_REVERSAL: "กลับรายการรับของ",
   ADJUST_GAIN: "ปรับเพิ่ม",
   ADJUST_LOSS: "ปรับลด",
 };

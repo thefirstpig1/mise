@@ -117,6 +117,17 @@ export default function StockMovementHistory({
                   {label(ADJUSTMENT_REASON_LABELS_TH, m.adjustment.reason)}
                 </span>
               )}
+              {/* Part 13: a receipt row names its document — "GR-0007" is what
+                  the user has on paper; a line id means nothing to them. */}
+              {m.goodsReceipt && (
+                <a
+                  href={`/goods-receipts/${m.goodsReceipt.goodsReceiptId}`}
+                  className="rounded bg-muted px-1.5 py-0.5 hover:underline"
+                >
+                  {m.goodsReceipt.grNumber}
+                  {m.goodsReceipt.isReversal ? " (กลับรายการ)" : ""}
+                </a>
+              )}
               <span>{m.occurredAtLabel}</span>
               <span>· {m.createdBy.name ?? m.createdBy.email}</span>
             </div>
@@ -128,6 +139,17 @@ export default function StockMovementHistory({
                   กรอกเป็น {m.adjustment.inputQty} {m.adjustment.inputUnitName}
                 </div>
               )}
+
+            {m.goodsReceipt && (
+              <div className="mt-1 text-xs text-muted-foreground">
+                รับ {m.goodsReceipt.qtyReceivedActual}{" "}
+                {m.goodsReceipt.receivedUnitName} จาก {m.goodsReceipt.supplierName}
+                {m.goodsReceipt.poNumber ? ` · ${m.goodsReceipt.poNumber}` : ""}
+                {m.goodsReceipt.invoiceNo
+                  ? ` · ใบส่งของ ${m.goodsReceipt.invoiceNo}`
+                  : ""}
+              </div>
+            )}
 
             {m.notes && <p className="mt-1 text-xs">{m.notes}</p>}
           </li>

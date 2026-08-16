@@ -83,6 +83,19 @@ export type StockMovementView = {
     inputQty: string;
     inputUnitName: string;
   } | null;
+  /** The GR line behind a PO_RECEIVE / PO_RECEIVE_REVERSAL row (Part 13). */
+  goodsReceipt: {
+    lineId: string;
+    goodsReceiptId: string;
+    grNumber: string;
+    supplierName: string;
+    invoiceNo: string | null;
+    poNumber: string | null;
+    /** As received, in `receivedUnitName` — not the base unit (Q1). */
+    qtyReceivedActual: string;
+    receivedUnitName: string;
+    isReversal: boolean;
+  } | null;
 };
 
 export function toStockBalanceView(b: StockBalance): StockBalanceView {
@@ -126,6 +139,12 @@ export function toStockMovementView(
           reason: m.adjustment.reason,
           inputQty: str(m.adjustment.inputQty),
           inputUnitName: m.adjustment.inputUnitName,
+        }
+      : null,
+    goodsReceipt: m.goodsReceipt
+      ? {
+          ...m.goodsReceipt,
+          qtyReceivedActual: str(m.goodsReceipt.qtyReceivedActual),
         }
       : null,
   };

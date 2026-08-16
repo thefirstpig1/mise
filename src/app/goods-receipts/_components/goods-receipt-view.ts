@@ -125,9 +125,9 @@ export type GoodsReceiptLineView = {
     qtyOrdered: string;
     orderUnitName: string;
     unitPrice: string;
-    /** Outstanding BEFORE this receipt posted — null once it has. */
-    varianceQty: string | null;
-    variancePrice: string | null;
+    /** received − ordered: positive = over-delivery (Q3). Computed, never stored. */
+    varianceQty: string;
+    variancePrice: string;
   } | null;
   /** Set on a reversal line — the id of the line it undoes (Q6). */
   reversalOfItemId: string | null;
