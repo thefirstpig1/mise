@@ -38,6 +38,13 @@ import {
   getProductCostsLogic,
 } from "@/server/stock-cost";
 import {
+  CostDeclarationTargetError,
+  CostUnitMismatchError,
+  declareStockCostLogic,
+  getCostDeclarationsLogic,
+} from "@/server/cost-declaration";
+import {
+  declareStockCostInputSchema,
   getBranchCostSummaryQuerySchema,
   getProductCostQuerySchema,
   getProductCostsQuerySchema,
@@ -497,5 +504,145 @@ describe("cost read *Logic (FIFO by ledger replay, ADR 0014)", () => {
     // 10 kg valued at what the goods actually cost that day — not 0, and not
     // yesterday's price.
     expect(num(thonglor.wasteValue.minus(priorWaste))).toBe(200);
+  });
+
+  // ----------------------------------------------------------
+  // K12–K15 — declaring a cost (ADR 0014 Q6, L3b)
+  // ----------------------------------------------------------
+
+  it("K12: a cost typed on the adjust form is written in the SAME transaction", async () => {
+    const p = await freshProduct(tenantA, "K12");
+    // "กระสอบละ 4,500" — the unit an owner actually thinks in.
+    await createStockAdjustmentLogic(
+      tenantA,
+      createStockAdjustmentInputSchema.parse({
+        submitKey: randomUUID(),
+        productId: p.id,
+        branchId: branchA,
+        type: "ADJUST_GAIN",
+        reason: "RECOUNT",
+        inputQty: 50,
+        inputUnitId: unitOf(p, "kg"),
+        occurredAt: today,
+        notes: null,
+        costDeclaration: {
+          unitCost: 4500,
+          unitId: unitOf(p, "กระสอบ"),
+          note: "ใบส่งของ 15 ส.ค. ที่ลืมคีย์",
+        },
+      }),
+      userA
+    );
+
+    const cost = await costOf(p);
+    // 4,500 ฿ a sack ÷ 25 kg = 180 ฿/kg — converted, never stored as typed.
+    expect(num(cost.costPerBaseUnit)).toBe(180);
+    expect(cost.costSource).toBe("DECLARED");
+    expect(num(cost.inventoryValue)).toBe(9000);
+    expect(cost.hasUnpricedLayers).toBe(false);
+  });
+
+  it("K13: declaring later corrects the cost and keeps the previous statement", async () => {
+    const p = await freshProduct(tenantA, "K13");
+    const { movement } = await adjust(branchA, p, "ADJUST_GAIN", 10);
+
+    await declareStockCostLogic(
+      tenantA,
+      declareStockCostInputSchema.parse({
+        movementId: movement.id,
+        unitCost: 150,
+        unitId: unitOf(p, "kg"),
+        note: "เจอใบส่งของ",
+      }),
+      userA
+    );
+    expect(num((await costOf(p)).costPerBaseUnit)).toBe(150);
+
+    await declareStockCostLogic(
+      tenantA,
+      declareStockCostInputSchema.parse({
+        movementId: movement.id,
+        unitCost: 180,
+        unitId: unitOf(p, "kg"),
+        note: "อ่านตัวเลขผิด",
+      }),
+      userA
+    );
+
+    const cost = await costOf(p);
+    expect(num(cost.costPerBaseUnit)).toBe(180);
+
+    // Both statements survive — that is what makes a correction defensible.
+    const history = await getCostDeclarationsLogic(tenantA, movement.id);
+    expect(history).toHaveLength(2);
+    expect(num(history[0].unitCost)).toBe(180);
+    expect(history[0].supersededAt).toBeNull();
+    expect(history[1].supersededAt).not.toBeNull();
+    expect(history[1].note).toBe("เจอใบส่งของ");
+    expect(history[0].declaredByUser.id).toBe(userA);
+  });
+
+  it("K14: a receipt's price cannot be declared over — it belongs to its document", async () => {
+    const p = await freshProduct(tenantA, "K14");
+    await receiveInto(branchA, p, 2, 250);
+
+    const movement = await withTenantContext(tenantA, (tx) =>
+      tx.stockMovement.findFirst({
+        where: { tenantId: tenantA, productId: p.id, type: "PO_RECEIVE" },
+        select: { id: true },
+      })
+    );
+    expect(movement).not.toBeNull();
+
+    await expect(
+      declareStockCostLogic(
+        tenantA,
+        declareStockCostInputSchema.parse({
+          movementId: movement!.id,
+          unitCost: 999,
+          unitId: unitOf(p, "kg"),
+          note: null,
+        }),
+        userA
+      )
+    ).rejects.toBeInstanceOf(CostDeclarationTargetError);
+
+    // Untouched: still the receipt's own price.
+    expect(num((await costOf(p)).costPerBaseUnit)).toBe(10);
+  });
+
+  it("K15: rejects a unit of another product, and another tenant's movement", async () => {
+    const p = await freshProduct(tenantA, "K15a");
+    const other = await freshProduct(tenantA, "K15b");
+    const { movement } = await adjust(branchA, p, "ADJUST_GAIN", 5);
+
+    await expect(
+      declareStockCostLogic(
+        tenantA,
+        declareStockCostInputSchema.parse({
+          movementId: movement.id,
+          unitCost: 100,
+          unitId: unitOf(other, "kg"), // a unit of a DIFFERENT product
+          note: null,
+        }),
+        userA
+      )
+    ).rejects.toBeInstanceOf(CostUnitMismatchError);
+
+    await expect(
+      declareStockCostLogic(
+        tenantB,
+        declareStockCostInputSchema.parse({
+          movementId: movement.id, // tenant A's movement
+          unitCost: 100,
+          unitId: unitOf(p, "kg"),
+          note: null,
+        }),
+        userA
+      )
+    ).rejects.toBeInstanceOf(CostDeclarationTargetError);
+
+    // Nothing was written by either attempt.
+    expect(await getCostDeclarationsLogic(tenantA, movement.id)).toHaveLength(0);
   });
 });

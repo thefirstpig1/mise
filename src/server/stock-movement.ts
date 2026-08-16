@@ -38,6 +38,7 @@ import {
   isDayValue,
 } from "@/lib/bangkok-date";
 import { assertRefBelongsToTenant } from "@/server/product";
+import { writeCostDeclaration } from "@/server/cost-declaration";
 import type {
   CreateStockAdjustmentInput,
   GetStockBalanceQuery,
@@ -969,6 +970,23 @@ export async function createStockAdjustmentLogic(
       createdBy,
       notes: input.notes,
     });
+
+    // Part 14 (ADR 0014 Q6), entry point one of two: a cost typed on the adjust
+    // form is written HERE, inside the same transaction as the movement it
+    // prices. Splitting them would let a form submission record stock at a price
+    // nobody typed if the second write failed. `null` is the normal case — the
+    // person counting usually does not know what it cost, and the replay falls
+    // back to the last purchase price (Q5).
+    if (input.costDeclaration) {
+      await writeCostDeclaration(tx, {
+        tenantId,
+        movementId: movement.id,
+        productId,
+        movementType: type,
+        body: input.costDeclaration,
+        declaredBy: createdBy,
+      });
+    }
 
     // Read the balance inside the same tx so it includes the row just written.
     const agg = await tx.stockMovement.aggregate({
