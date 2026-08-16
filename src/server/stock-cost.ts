@@ -265,8 +265,19 @@ export type BranchCostSummary = {
   purchaseSpend: Prisma.Decimal;
   /** Value of stock held at the END of the period, summed layer by layer (Q3b). */
   inventoryValue: Prisma.Decimal;
-  /** What was thrown away / went missing, in BAHT — the number that makes an owner act. */
+  /**
+   * What was thrown away, in BAHT — spoilage, damage, a manual write-off. A
+   * purchasing and storage problem, and a conversation with the kitchen.
+   */
   wasteValue: Prisma.Decimal;
+  /**
+   * What a stock count found MISSING, in baht (ADR 0015 Q5). Deliberately NOT
+   * folded into `wasteValue`, though both post as `ADJUST_LOSS`: an unexplained
+   * shortage is theft, mis-keying or bad receiving — a conversation with the
+   * branch manager. A figure that cannot tell a manager who to talk to is worth
+   * less than one that can.
+   */
+  countVarianceValue: Prisma.Decimal;
   /** Baht this branch paid above the cheapest branch for the same goods. */
   excessSpend: Prisma.Decimal;
   /** Products whose stock is negative here — the ledger says the keying is behind. */
@@ -417,6 +428,7 @@ export async function getBranchCostSummaryLogic(
     return branches.map((branch) => {
       let inventoryValue = ZERO;
       let wasteValue = ZERO;
+      let countVarianceValue = ZERO;
       let negativeStockProducts = 0;
       let unpricedProducts = 0;
 
@@ -434,7 +446,13 @@ export async function getBranchCostSummaryLogic(
           // the period its business day belongs to.
           const t = costSortKey(out.occurredAt);
           if (t < lowerBound || t >= upperBound) continue;
-          wasteValue = wasteValue.plus(out.value);
+          // Split by SOURCE, not by type: a count shortage and a spoilage loss
+          // are both ADJUST_LOSS (ADR 0015 Q1/Q5).
+          if (out.sourceType === "STOCK_COUNT") {
+            countVarianceValue = countVarianceValue.plus(out.value);
+          } else {
+            wasteValue = wasteValue.plus(out.value);
+          }
         }
       }
 
@@ -445,6 +463,7 @@ export async function getBranchCostSummaryLogic(
         purchaseSpend: spendByBranch.get(branch.id) ?? ZERO,
         inventoryValue,
         wasteValue,
+        countVarianceValue,
         excessSpend: excessByBranch.get(branch.id) ?? ZERO,
         negativeStockProducts,
         unpricedProducts,

@@ -115,6 +115,14 @@ export type ReplayState = {
 export type OutflowEntry = {
   movementId: string;
   type: MovementType;
+  /**
+   * Where the outflow came from. Carried because a count shortage and a spoilage
+   * loss are BOTH `ADJUST_LOSS` movements (ADR 0015 Q1), so filtering by type
+   * alone would merge two numbers that demand different actions — spoilage is a
+   * conversation with the kitchen, an unexplained variance one with the branch
+   * manager (ADR 0015 Q5).
+   */
+  sourceType: SourceType;
   occurredAt: Date;
   /** Positive magnitude in base units. */
   qty: Prisma.Decimal;
@@ -241,6 +249,7 @@ export function replayFifoLayers(
       outflows.push({
         movementId: origin.movementId,
         type: origin.type,
+        sourceType: origin.sourceType,
         occurredAt: origin.occurredAt,
         qty,
         value: costOut,

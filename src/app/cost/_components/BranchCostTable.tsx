@@ -39,9 +39,16 @@ export default function BranchCostTable({
       purchaseSpend: acc.purchaseSpend + Number(r.purchaseSpend),
       inventoryValue: acc.inventoryValue + Number(r.inventoryValue),
       wasteValue: acc.wasteValue + Number(r.wasteValue),
+      countVarianceValue: acc.countVarianceValue + Number(r.countVarianceValue),
       excessSpend: acc.excessSpend + Number(r.excessSpend),
     }),
-    { purchaseSpend: 0, inventoryValue: 0, wasteValue: 0, excessSpend: 0 }
+    {
+      purchaseSpend: 0,
+      inventoryValue: 0,
+      wasteValue: 0,
+      countVarianceValue: 0,
+      excessSpend: 0,
+    }
   );
 
   // Display-only arithmetic on already-rounded 2dp figures — the authoritative
@@ -59,13 +66,14 @@ export default function BranchCostTable({
   return (
     <div className="space-y-4">
       <div className="overflow-x-auto rounded-lg border border-border">
-        <table className="w-full min-w-[46rem]">
+        <table className="w-full min-w-[54rem]">
           <thead className="border-b border-border bg-muted/40">
             <tr>
               <th className={th}>สาขา</th>
               <th className={`${th} text-right`}>ซื้อของ</th>
               <th className={`${th} text-right`}>ทุนจมในสต๊อก</th>
-              <th className={`${th} text-right`}>ของเสีย/ของหาย</th>
+              <th className={`${th} text-right`}>ของเสีย (ทิ้ง)</th>
+              <th className={`${th} text-right`}>ส่วนต่างจากการนับ</th>
               <th className={`${th} text-right`}>จ่ายแพงกว่าที่ถูกสุด</th>
               <th className={`${th} text-right`}>รายได้</th>
               <th className={`${th} text-right`}>กำไรขั้นต้น</th>
@@ -74,6 +82,7 @@ export default function BranchCostTable({
           <tbody className="divide-y divide-border">
             {rows.map((r) => {
               const waste = Number(r.wasteValue);
+              const countVariance = Number(r.countVarianceValue);
               const excess = Number(r.excessSpend);
               return (
                 <tr key={r.branchId} className="hover:bg-muted/20">
@@ -104,6 +113,11 @@ export default function BranchCostTable({
                     {formatMoney(r.wasteValue)}
                   </td>
                   <td
+                    className={`${tdNum} ${countVariance > 0 ? "font-medium text-red-700" : "text-muted-foreground"}`}
+                  >
+                    {formatMoney(r.countVarianceValue)}
+                  </td>
+                  <td
                     className={`${tdNum} ${excess > 0 ? "font-medium text-red-700" : "text-muted-foreground"}`}
                   >
                     {formatMoney(r.excessSpend)}
@@ -120,6 +134,7 @@ export default function BranchCostTable({
               <td className={`${tdNum} font-medium`}>{fmt(total.purchaseSpend)}</td>
               <td className={`${tdNum} font-medium`}>{fmt(total.inventoryValue)}</td>
               <td className={`${tdNum} font-medium`}>{fmt(total.wasteValue)}</td>
+              <td className={`${tdNum} font-medium`}>{fmt(total.countVarianceValue)}</td>
               <td className={`${tdNum} font-medium`}>{fmt(total.excessSpend)}</td>
               <td className={`${tdNum} text-muted-foreground`}>—</td>
               <td className={`${tdNum} text-muted-foreground`}>—</td>
@@ -127,6 +142,12 @@ export default function BranchCostTable({
           </tfoot>
         </table>
       </div>
+
+      <p className="text-xs text-muted-foreground">
+        <strong>ของเสีย (ทิ้ง)</strong> คือของที่รู้ตัวว่าทิ้ง — คุยกับครัวเรื่องการสั่งและการเก็บรักษา ·{" "}
+        <strong>ส่วนต่างจากการนับ</strong> คือของที่หายไปโดยไม่รู้สาเหตุ จนกระทั่งไปนับเจอ —
+        คุยกับผู้จัดการสาขาเรื่องการรับของ การคีย์ข้อมูล หรือของหาย
+      </p>
 
       <p className="text-xs text-muted-foreground">
         <strong>รายได้</strong> และ <strong>กำไรขั้นต้น</strong> ยังว่างอยู่ —
