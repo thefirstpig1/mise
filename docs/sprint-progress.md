@@ -4,7 +4,7 @@
 
 ## Current Sprint: Sprint 2 — Transactional Systems 🚧 IN PROGRESS
 
-**Status:** 🚧 Part 10 (Stock Movement) ✅ COMPLETE (2026-08-15) + post-completion review closed (1 fix, 3 items carried to Part 13) · Part 11 (Purchase Order) ✅ COMPLETE (L0–L6, 2026-08-16) · **Part 13 (Goods Receipt) 🚧 IN PROGRESS** — design locked Q1–Q8, ADR 0013 written (Part 12 left unallocated, see the Part 11 section).
+**Status:** 🚧 Part 10 (Stock Movement) ✅ COMPLETE (2026-08-15) + post-completion review closed (1 fix, 3 items carried to Part 13 — **all three paid in Part 13 L1b**) · Part 11 (Purchase Order) ✅ COMPLETE (L0–L6, 2026-08-16) · Part 13 (Goods Receipt) ✅ COMPLETE (L0–L6, 2026-08-16) → **next: Part 14 — Cost Engine** (Part 12 left unallocated, see the Part 11 section).
 **Scope:** Stock Movement (append-only ledger) → PO → GR → Cost Engine per master-spec.md (Part IV — Sprint Plan). Part 10 is the **first proper Sprint 2 slice** (Part 8.5 was a Sprint 1 restore-on-recreate warm-up, run standalone before the Sprint 2 core). Sprint 1 completion history is retained under its own header below.
 
 ---
@@ -529,7 +529,7 @@ The three open items in "Post-completion review" above are **Part 13's**, not Pa
 
 ---
 
-## Sprint 2 Part 13 — Goods Receipt: 🚧 IN PROGRESS (started 2026-08-16)
+## Sprint 2 Part 13 — Goods Receipt: ✅ COMPLETE (L0–L6, 2026-08-16)
 
 The slice that closes the loop **PO → รับของ → ledger**, and the first writer of `PO_RECEIVE`. Design locked this session (Q1–Q8), codified in **ADR 0013**. Also the last free moment to pay the three ledger defects Part 10's post-completion review deferred here.
 
@@ -557,17 +557,37 @@ The slice that closes the loop **PO → รับของ → ledger**, and the
 ### Implementation plan (L0–L6 — TDD vertical slices; batch-pushed at L6)
 | L | Layer | Status | Note |
 |---|---|---|---|
-| **L0** | Docs — ADR 0013 + CONTEXT.md + this section | ✅ done | CONTEXT.md gains Standalone GR / GR void / ปิดรับ; the GR-shortage entry's **"Decision #46" citation was wrong** (#46–53 is the v1.3 doc pass) — the rule lives in H.3, unnumbered, and the bogus number is now gone |
-| L1a | Schema + migration + manual SQL + RLS | ⬜ | Pre-flight on Neon first (`stock_movement` / `purchase_order` row counts, every branch has a `code`) |
-| L1b | Ledger prerequisites — Bangkok day bounds · `GR_LINE` branch in `assertSourceExists` · replay-mismatch guard + `tenantId` on the idempotency lookup · extract `toBaseQty` · `withTenantContext` options | ⬜ | Pays Part 10 review items 1–3 + the 5s-timeout note |
-| L2 | zod — `src/lib/validations/goods-receipt.ts` | ⬜ | |
-| L3a | Read logic — list / detail / `getReceivableLinesForPoLogic` + GR_LINE resolution in the history feed | ⬜ | |
-| L3b | Write logic — create (submit-key id) / update draft / confirm / void / discard + `recalcPurchaseOrderReceiptStatus` + `closePurchaseOrderShortLogic` | ⬜ | |
-| L4 | Actions + Thai errors + view serializer | ⬜ | |
-| L5a | List + layout + StatusBadge | ⬜ | |
-| L5b | Receive form (PO-based + standalone modes) | ⬜ | |
-| L5c | Detail + print + lifecycle; PO page gains "รับของ" / "ปิดรับ" + per-line receipt progress | ⬜ | `pnpm build` at every L5 |
-| L6 | E2E throwaway action-stack + verify + push | ⬜ | 10 cases planned |
+| **L0** | Docs — ADR 0013 + CONTEXT.md + this section | ✅ `cb5900a` | CONTEXT.md gains Standalone GR / GR void / ปิดรับ; the GR-shortage entry's **"Decision #46" citation was wrong** (#46–53 is the v1.3 doc pass) — the rule lives in H.3, unnumbered, and the bogus number is now gone |
+| L1a | Schema + migration + manual SQL + RLS | ✅ `5c48cc1` | Pre-flight on Neon **PASSED** (ledger 0, PO 0, 2 branches, no missing/dupe codes). **Two migrations, deliberately**: Postgres refuses to *use* a new enum value in the transaction that added it (55P04), and the main file's tail re-declares the sign CHECK with it. 6 CHECKs inline, incl. the reversal sign rule |
+| L1b | Ledger prerequisites — Bangkok day bounds · `GR_LINE` branch in `assertSourceExists` · replay-mismatch guard + `tenantId` on the idempotency lookup · extract `toBaseQty` · `withTenantContext` options | ✅ `7e94cd2` | Pays Part 10 review items 1–3 + the 5s-timeout note. +4 regression tests (S14, W11–W13); W10 retargeted to `SYSTEM_INITIAL` |
+| L2 | zod — `src/lib/validations/goods-receipt.ts` | ✅ `ebfc4dc` | 19 tests. The over-receipt note rule is **NOT** here — it needs the PO line's outstanding qty, and enforcing it in zod would mean trusting a client-sent number |
+| L3a/L3b | Read + write logic | ✅ `dd1f9a9` | 19 integration cases. `recalcPurchaseOrderReceiptStatus` + `closePurchaseOrderShortLogic` live in `purchase-order.ts` — a PO owns its own status machine |
+| L4 | Actions + Thai errors + view serializer | ✅ `57fbc9f` | `submit_key` is read from the form, never minted here; confirm/void return post-write balances + a `negative` flag |
+| L5a | List + layout + StatusBadge + dashboard nav | ✅ `ef30e7c` | |
+| L5b/L5c | Receive form (2 modes) · detail + print · PO page integration | ✅ `59ed0d3` | Found and fixed a **silent drift guard**: `MOVEMENT_TYPE_VALUES` was missing `PO_RECEIVE_REVERSAL` and `tsc` stayed green, because a type alias resolving to `never` is not an error until something is assigned into it. It is now |
+| L6 | E2E throwaway action-stack + verify + push | ✅ _(this commit)_ | 10 cases E1–E10 green; spec + dedicated config **deleted** (never committed) |
+
+### L3b shapes (locked in code — `src/server/goods-receipt.ts`)
+1. **The reversals of a void occur NOW, not at the original `received_at`.** The grill did not settle which instant a compensating movement carries. Backdating would silently change the balance "as of" last week and force Part 14 to re-cost a closed period; a general ledger reverses on the day the error is found. Recorded as an implementation clarification in ADR 0013 Q6.
+2. **The receipt must be denominated in the unit the order was placed in.** A PO-based line whose `receivedUnitId` is not the order's `orderUnitId` is refused (`GoodsReceiptPoMismatchError`) rather than converted — converting through any other ratio is precisely the bug ADR 0012 Q3 closes.
+3. **Two rows for the same PO line are rejected at the zod layer**, because each would be diffed against the same outstanding quantity and the second would read as an over-receipt that is not one. A split delivery is two receipts — that is what `PARTIALLY_RECEIVED` is for.
+4. **`create` returns the existing document on a replayed `submitKey`, in whatever state it has since reached** — including CONFIRMED. That is the correct reading of "the same write twice is one write"; a second POST is not entitled to a second draft.
+5. **Pro-rating is written properly even though it cannot matter yet** (largest-remainder, tiebreak lowest id, per H.3) and is unit-tested (R3) against a 3-way 1/3 split, so the day a second department exists only the UI is missing.
+
+### Verified (L6, 2026-08-16)
+- `pnpm tsc --noEmit` clean · `pnpm build` green (**27 routes**, the four `/goods-receipts` among them) · `pnpm vitest run` **307 passed / 4 skipped** (265 Part-11 baseline + 19 L2 + 19 L3 + 4 ledger regressions).
+- **10-case throwaway action-stack E2E (E1–E10)** on a throwaway tenant, mocking only `requireTenant` + `next/cache` — everything below the action real (FormData → zod → *Logic → Prisma → Neon → DB CHECKs): fanout → `E2E13-GR-0001` and a DRAFT that posts nothing, then a confirm that posts 4 กระสอบ ×25 = **100 kg** and closes the order · two partial receipts walking `SENT → PARTIALLY_RECEIVED → RECEIVED` · **over-receipt refused without a note (nothing written), then accepted in full and flagged** · **void netting the balance to 0 with the original ledger row untouched and the order back at `SENT`** · double POST on one `submit_key` = one receipt, double confirm = one movement · **a ProductUnit edited 25→30 after send still converting at 25** · a standalone receipt touching no order · **a 23:30 Bangkok delivery counting on today** (the case the old UTC bucketing got wrong) · close-short stamping a reason and dropping out of `getOpenOrderQtyForProductLogic` · the receivable read + discard path.
+- Ledger, GR and PO tables verified **empty** after the run — no residue. (The 5 pre-existing Sprint-0/1 leftover tenants are unchanged and still awaiting the maintenance pass.)
+
+### Part 13 — ✅ COMPLETE
+The loop is closed: **PO → รับของ → ledger**. `/goods-receipts` (list, receive form with PO-based and standalone modes, detail + print), a per-branch `{CODE}-GR-####`, a DRAFT→CONFIRMED→VOIDED machine enforced in the app **and** the database, `purchase_order.status` now derived from line quantities, and the three ledger defects Part 10's review deferred here all paid.
+
+**Carried forward from this Part:**
+- **Part 10's adjustment form is still exposed to the double-POST it warned about.** Part 13 fixed the pattern (a client `submit_key` used AS the source row id) but only for receipts; `createStockAdjustmentLogic` still mints its own id per call. A ~10-line fix, worth doing before the pilot.
+- **`gr_number` inherits Pitfall #25's scan-then-insert race** — the partial unique catches the loser and the action returns a Thai "กดบันทึกอีกครั้ง". The advisory-lock fix now covers `sku`, `po_number` and `gr_number` together.
+- **Sign-CHECK maintenance is now a two-migration dance** — any Sprint 3+ movement type (WASTE / TRANSFER_* / RECIPE_CONSUME) needs `ALTER TYPE … ADD VALUE` in its own migration before the CHECK can reference it.
+- **No `resolution_status` per line** (ADR 0011 sketched one) — MVP flags the header and puts the reason in the line note. Revisit if a reviewer needs a workflow rather than a list.
+- **Part 14 (Cost Engine)** now has real data to read: `unit_price_actual` per GR line, real instants on `occurred_at`, and `PO_RECEIVE_REVERSAL` rows it must not mistake for consumption.
 
 ### Baseline at start (2026-08-16)
 `pnpm vitest run` — **265 passed / 4 skipped**, `tsc` clean, `pnpm build` 24 routes (Part 11 L6 state).

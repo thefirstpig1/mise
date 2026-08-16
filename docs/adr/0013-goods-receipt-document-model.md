@@ -57,6 +57,8 @@ Adding a movement type triggers the standing item ADR 0011 Q2 recorded — `stoc
 
 Keeping the reversals inside the original document (rather than issuing a separate "credit GR") means the detail page shows the mistake and its correction side by side, which is what someone auditing a month later needs to see. *(Rejected: no void in MVP, correct with a manual `/stock/adjust` — the quantity would be right and the story would be lost: `qty_received` on the PO line would stay permanently wrong, and Part 14 would cost a purchase that never happened. Also rejected: a separate reversal GR document — two numbers, two headers, one event.)*
 
+**Implementation clarification (L3b): the reversals occur NOW, not at the original `received_at`.** The grill did not settle which instant a compensating movement carries. Backdating it to the delivery would silently change the balance "as of" a week ago and force Part 14 to re-cost a period it may already have closed; a general ledger reverses on the day the error is found, and both entries stay visible with their own true instants. Recorded here rather than left to the reader of `voidGoodsReceiptLogic`.
+
 ### Q7 — The GR line records the price actually invoiced
 
 `unit_price_actual` and `line_total_actual` live on the line, defaulted from the PO line's frozen `unit_price` and freely editable — the receipt is the moment the invoice is in someone's hand, and it is the last moment the real number is cheap to capture. `variance_qty` and `variance_price` are **computed at read**, not stored: they are pure functions of values already on the row, and a stored copy is one more thing that can disagree with itself. A standalone line has no PO price, so the typed price is simply the price.
