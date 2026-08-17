@@ -105,6 +105,9 @@ export default async function DashboardPage() {
           <a href="/stock-counts" className="text-sm text-primary hover:underline">
             → นับสต๊อก
           </a>
+          <a href="/expenses" className="text-sm text-primary hover:underline">
+            → ค่าใช้จ่าย
+          </a>
           <a href="/cost" className="text-sm text-primary hover:underline">
             → ต้นทุน
           </a>

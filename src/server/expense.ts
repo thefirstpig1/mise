@@ -8,9 +8,12 @@
 //
 //   * **All of the money is computed HERE, in `Prisma.Decimal`** — never
 //     accepted from the client and never done in JS floats. `computeExpenseAmounts`
-//     is the single implementation; L4's live form preview and L3b's goods-receipt
-//     hook both call it, so a bill typed by hand and a bill created by a receipt
-//     cannot disagree about what 7% of something is.
+//     is the single AUTHORITATIVE implementation, called both by the hand-typed
+//     path and by L3b's goods-receipt hook, so a bill someone types and a bill a
+//     receipt creates cannot disagree about what 7% of something is. (The form's
+//     running total is a display estimate in the browser — this file imports
+//     Prisma, so it cannot be the thing the browser calls. Every stored figure
+//     comes from here, and the form's preview is only ever a preview.)
 //   * **WHT is withheld on `subtotal_excl_vat`** (Q6). master-spec §5.4 computes
 //     it on the VAT-inclusive total, which over-withholds on every bill carrying
 //     both: 10,000 + 7% VAT at 3% is 300, not 321, and the figure on the 50 ทวิ
