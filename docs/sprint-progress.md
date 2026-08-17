@@ -647,13 +647,13 @@ Deleting these is a DELETE affecting many rows → waiting on Kong's explicit go
 |---|---|---|
 | **0** | Neon test-tenant cleanup | ✅ done (2026-08-17) |
 | **15** | **Stock Count** | ✅ COMPLETE (L0–L6, 2026-08-17) |
-| **16** | Expense (+ VAT/WHT, GR→expense) | 🚧 grill CLOSED (Q1–Q7) → ADR 0016 · building |
+| **16** | Expense (+ VAT/WHT, GR→expense) | ✅ COMPLETE (L0–L6, 2026-08-17) — ADR 0016 |
 | **17** | WASTE as its own movement type + par level | ⏳ |
 | **18** | Inter-branch transfer (closes ADR 0014 Q9c) | ⏳ |
 
 **Explicitly NOT in Sprint 3:** H.5 yield-correct CONSUMPTION · unknown-menu stub / recursion guard · `purchase_request` (still waiting on a reachable second department, ADR 0012 Q1) · payment tracking beyond `payment_status`. The master spec's Sprint 3 line gets a superseded note at Part 15 L0.
 
-## Sprint 3 Part 16 — Expense: 🚧 IN PROGRESS (2026-08-17)
+## Sprint 3 Part 16 — Expense: ✅ COMPLETE (L0–L6, 2026-08-17)
 
 Every baht that leaves the business, in one place. Grill Q1–Q7 locked, codified in **ADR 0016**. The Part also pays two IOUs (ADR 0012 Q6's WHT, ADR 0013's missing expense link) and fixes two things that were quietly wrong.
 
@@ -684,7 +684,21 @@ Every baht that leaves the business, in one place. Grill Q1–Q7 locked, codifie
 | L5a | `/expenses` list + filters + the **ถึงกำหนด** panel + layout + dashboard nav | ✅ The due panel says out loud that **nothing is recorded automatically** — "ระบบไม่บันทึกให้เอง เพราะยอดจริงแต่ละเดือนไม่เท่ากัน" — because a panel that looks like a reminder service, in a stack with no scheduler, promises something it cannot deliver (Q5's recorded limitation). Each due month is a link that carries `?recurring=&period=`, so confirming starts from the template rather than from a blank form. The unfiltered list also totals **what is still unpaid**, net of withholding — the figure someone checks against the bank |
 | L5b | `/expenses/new` · `/expenses/[id]` · `/expenses/[id]/edit` | ✅ The form's running total is labelled a **preview**: `src/server/expense.ts` imports Prisma so the browser cannot call the authoritative maths, and claiming otherwise would be a lie the first rounding disagreement exposes. **Editing a VAT-inclusive bill grosses its lines back up** before showing them — stored lines are net, so displaying them as typed would make the server back the tax out a second time and the bill would shrink 7% per edit. A receipt-created bill renders the receipt's fields read-only *and* posts them back as hidden inputs, since a disabled control posts nothing at all |
 | L5c | `/expenses/recurring` · `/cost` rework · the receipt's VAT field + its link to the bill | ✅ `/cost` **restructured rather than grew**, as ADR 0014 Consequence 4 said the next change would have to: ซื้อของ split into ต้นทุนวัตถุดิบ / ค่าใช้จ่ายอื่น, and **ทุนจมในสต๊อก left the table** for its own panel — a balance-sheet figure in a row of cash-flow columns invites a reader to add it to numbers it does not belong with. Back to **eight columns**, exactly as Q4 predicted. The receive form gained the **editable VAT rate**, prefilled from the order → the supplier's default, with a `vatTouched` flag so a later prefill cannot overwrite a rate the receiver already corrected against the invoice in their hand. The receipt page now links to the bill it wrote and says whether that VAT sits in the cost of the stock. **The settings VAT toggle already existed** (Sprint 0) — what was missing was any statement of what it now does, so the copy explains the snapshot: changing it affects the NEXT receipt and never re-values the old ones |
-| L6 | Throwaway E2E + verify + push | ⏳ |
+| L6 | Throwaway E2E + verify + push | ✅ **8 cases E1–E8** through the real action stack (FormData → zod → *Logic → DB CHECK), spec + dedicated config **deleted** — never committed. A bill computes its own money from what was typed · a VAT-inclusive bill backs the tax **out** instead of adding it on · withholding is **300, not 321** · an unpaid bill is refused a payment date while paying stamps one · confirming a recurring month clears it from due and a second confirm is refused **by the index, in Thai** · confirming a receipt writes a bill and voiding takes it away · a receipt-created bill accepts the tax-invoice number and withholding while refusing `bill_no` and refusing to be deleted · `/cost` splits COGS from OpEx and counts the receipt's bill **once**, with the unreclaimable VAT still in the stock value |
+
+### Verified (L6, 2026-08-17)
+- `pnpm tsc --noEmit` clean · `pnpm build` green (**41 routes** — seven of them `/expenses*`) · `pnpm vitest run` **453 passed / 4 skipped** (393 Part-15 baseline + 31 L2 + 21 L3a + 8 L3b).
+- Part 14's own suites re-run, not just the new ones: the GR and cost suites are green against the changed `goods_receipt` and the swapped spend source.
+
+### Part 16 — ✅ COMPLETE
+Every baht that leaves the business is now in one table. `/expenses` records bills by hand with Thai VAT in either direction and withholding on the correct base; confirming a goods receipt writes its own bill in the same transaction, so `/cost` can read spend from one place and split it into **ต้นทุนวัตถุดิบ** and **ค่าใช้จ่ายอื่น**; and a shop that cannot reclaim its input VAT finally carries that VAT in the cost of its stock — which for most Thai SMEs was about 7% missing from every layer.
+
+**Carried forward from this Part:**
+- **One receipt = one bill.** Suppliers commonly issue one invoice across several deliveries; consolidation is Sprint 3+ (ADR 0016 Q3's recorded limitation).
+- **"Due" means visible when someone opens the page** — there is no scheduler in this stack (Q5).
+- **`/cost` spend is net of VAT** on both columns; VAT on a non-stock bill is not in the split (see the L3b note above).
+- **`expense.source_gr_id` is `ON DELETE SET NULL` against a CHECK that forbids the result** — unreachable from the app, but a hard delete needs the bill removed first. `RESTRICT` is the honest fix and needs a migration.
+- **`ทุนจมในสต๊อก` now sits in its own panel, not a per-branch drill-down page** — there is no such page yet; when one exists, that is where Q4 wanted it.
 
 **Part 14 is touched by this Part** — `replayFifoLayers` gains the VAT uplift and `getBranchCostSummaryLogic` swaps its spend source. Both need their existing suites re-run, not just the new ones.
 
