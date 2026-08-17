@@ -648,10 +648,46 @@ Deleting these is a DELETE affecting many rows → waiting on Kong's explicit go
 | **0** | Neon test-tenant cleanup | ✅ done (2026-08-17) |
 | **15** | **Stock Count** | ✅ COMPLETE (L0–L6, 2026-08-17) |
 | **16** | Expense (+ VAT/WHT, GR→expense) | ✅ COMPLETE (L0–L6, 2026-08-17) — ADR 0016 |
-| **17** | WASTE as its own movement type + par level | ⏳ |
+| **17** | Waste log + par level (**not** a new movement type — ADR 0017 Q1) | 🚧 grill CLOSED (Q1–Q7) → ADR 0017 · L0 done |
 | **18** | Inter-branch transfer (closes ADR 0014 Q9c) | ⏳ |
 
 **Explicitly NOT in Sprint 3:** H.5 yield-correct CONSUMPTION · unknown-menu stub / recursion guard · `purchase_request` (still waiting on a reachable second department, ADR 0012 Q1) · payment tracking beyond `payment_status`. The master spec's Sprint 3 line gets a superseded note at Part 15 L0.
+
+## Sprint 3 Part 17 — Waste + par level: 🚧 IN PROGRESS (2026-08-17)
+
+The two everyday kitchen facts neither Part 15 nor Part 16 reached: **something was thrown away**, and **something is about to run out**. Grill Q1–Q7 locked, codified in **ADR 0017**.
+
+### What the grill found before it decided anything
+`/cost`'s **ของเสีย (ทิ้ง)** column has been mislabelled since Part 14: it counts *every* non-count `ADJUST_LOSS`, including `RECOUNT` and `OTHER`, so it means "stock that left without a document" rather than "food that was thrown away". Part 17 is what makes the label true. Separately, **par level appears exactly once in the whole spec** — in the Sprint 3 plan line — with no table, no column and no statement of what it compares against; it is designed from scratch here.
+
+### Design locked (Q1–Q7 — compact; full record in ADR 0017)
+| Q | Decision |
+|---|---|
+| **Q1** | **Waste is a new SOURCE, not a new movement type.** `waste_log` + `SourceType.WASTE_LOG`, posting an ordinary `ADJUST_LOSS` — ADR 0015 Q1's pattern exactly, so `stock_movement_sign_check` is untouched, `UNIQUE(source_type, source_id)` gives idempotency free, and `/cost` splits by `sourceType` as it already does for counts. *Rejected:* `MovementType.WASTE` per the master spec — the sign check, the replay, the drift guards and a second migration are a large bill for information the source type already carries. Spec gets a superseded note |
+| **Q2** | **One row = one thing thrown away, posted immediately.** No `DRAFT`, no shift sheet: recording waste has to fit in the thirty seconds between the bin and the next order, and an unposted draft leaves the ledger claiming stock that is already in the bin. Correcting = **void** (compensating `ADJUST_GAIN`, original left standing), because the ledger is append-only and "this was keyed wrong" is itself worth seeing |
+| **Q3** | 🔑 **Yield covers the knife; the waste log covers the fridge.** `yield_percent` = conversion loss only (trim, shrink) — a property of the product and the method. Everything else is waste, with a date and a reason. A shop that lowers yield to "cover" spoilage buries a recurring fixable loss inside a constant, and Sprint 5's variance then looks healthy *because* the loss was baked into the theory. `WasteReason` = `SPOILED` · `DAMAGED` · `COOKING_ERROR` · `CUSTOMER_RETURN` · `OTHER` — each names a different person to talk to. **No `PREP_LOSS`** (yield owns it; the production movement is Sprint 5) and **no `STAFF_MEAL`** (a sale that collected no money — its cost belongs to labour/welfare, and costing it needs sales + recipe) |
+| **Q4** | **One door per kind of loss.** `SPOILAGE`/`DAMAGE` leave the adjustment form (enum values stay so history reads correctly); an adjustment is now `RECOUNT` or `OTHER`. `/cost` stays **eight columns** (ADR 0016 Q4's replace-don't-append rule) and both loss columns finally mean what they say: **ของเสีย** = `WASTE_LOG` only · **ส่วนต่าง/ปรับปรุง** = `STOCK_COUNT` **+** `ADJUSTMENT`, because a shortage found by counting and one typed by hand are the same conversation with the same person |
+| **Q5** | **`par_level` per (product, branch)**, entered in any unit, stored in base units. It **suggests nothing and orders nothing** — auto-drafting a PO needs a preferred supplier, a lead time and an approver, and ADR 0012 Q1 already dropped the PR layer for the last of those |
+| **Q6** | **The alert compares par with what is IN THE BUILDING**, and stock on order does **not** suppress the row — Kong's reason, and the right one: an order placed and never chased is the failure nobody notices until service. The row explains itself instead, in three states: **ต้องสั่ง** (nothing on order, shows the gap) · **สั่งแล้ว รอของ** (supplier, qty, expected date) · **ตามของ** (past its expected date — the case with no home today) |
+| **Q7** | **`/waste` is its own route** — waste is entered from the kitchen, often on a phone, and should be two taps from the dashboard. Attribution follows ADR 0015 Q2: `wasted_by` (the login) **plus** `wasted_by_name` (free text), or the FK alone records "the owner threw everything away" — tidy and false |
+
+### Decided by existing convention (not grilled)
+`tenant_id` on both new tables + RLS (inert until Sprint 7) · Decimal→string at the view layer (Pitfall #20) · decimal guards via the `toFixed` round-trip (Pitfall #30) · quantities `Decimal(15,3)`, entered in any unit and converted with `toBaseQty` · void appends, never edits (ADR 0011 Q7).
+
+### Implementation plan (L0–L6)
+| L | Layer | Status |
+|---|---|---|
+| **L0** | Docs — ADR 0017 · CONTEXT.md (Waste · Staff meal · Par level, and **Yield sharpened**) · master-spec supersede note · this section | ✅ _(this commit)_ |
+| L1 | Schema — `waste_log` + `par_level` + `WasteReason` + `SourceType.WASTE_LOG` + partial uniques + CHECKs + RLS | ⏳ **one migration** — the new enum value is only *declared*, not used in the same transaction (Part 13's two-step is needed only when a migration's tail references a value it just added, as Parts 15 and 16 both confirmed). Expect `pnpm tsc` to **fail** on `SOURCE_TYPE_VALUES` until the drift guard is updated — that is the guard working |
+| L2 | zod — waste input (+ void), par level input, queries | ⏳ |
+| L3 | Logic — `src/server/waste.ts` (post + void through `createStockMovementLogic`) · `src/server/par-level.ts` (the three-state list) · `assertSourceExists` gains its `WASTE_LOG` branch | ⏳ |
+| L4 | Actions + Thai errors + view serializers | ⏳ |
+| L5 | `/waste` (entry + list) · par level on the product page · the below-par list on `/stock` · `/cost` column rename + source split · remove `SPOILAGE`/`DAMAGE` from `/stock/adjust` | ⏳ |
+| L6 | Throwaway E2E + verify + push | ⏳ |
+
+**Part 14 is touched again** — `getBranchCostSummaryLogic` re-splits its outflows three ways (`WASTE_LOG` / `STOCK_COUNT` + `ADJUSTMENT`), so its suite must be re-run, not just the new ones.
+
+---
 
 ## Sprint 3 Part 16 — Expense: ✅ COMPLETE (L0–L6, 2026-08-17)
 

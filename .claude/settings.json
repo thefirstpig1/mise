@@ -11,5 +11,19 @@
         ]
       }
     ]
+  },
+  "permissions": {
+    "allow": [
+      "Read", "Edit", "Write", "Grep", "Glob",
+      "Bash(pnpm *)",
+      "Bash(git status)", "Bash(git diff *)", "Bash(git add *)",
+      "Bash(git commit *)", "Bash(git log *)"
+    ],
+    "ask": ["Bash(git push *)"],
+    "deny": [
+      "Bash(rm *)",
+      "Bash(git push --force *)",
+      "Bash(pnpm prisma migrate reset *)"
+    ]
   }
 }
