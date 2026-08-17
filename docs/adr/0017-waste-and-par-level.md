@@ -4,15 +4,16 @@ status: accepted
 
 # Waste, and knowing before you run out
 
-Part 15 taught the ledger to be corrected by counting. Part 16 taught the system what leaves the bank. Part 17 covers the two everyday things a kitchen does that neither reached: **throwing something away**, and **noticing that something is about to run out.** Both already half-exist — spoilage is recorded today as a generic stock adjustment, and "par level" appears in the sprint plan and nowhere else in the spec — and the grill's main work was deciding what each of them *is* before building either. Decisions locked in the grill of 2026-08-17 (Q1–Q7).
+Part 15 taught the ledger to be corrected by counting. Part 16 taught the system what leaves the bank. Part 17 covers the two everyday things a kitchen does that neither reached: **throwing something away**, and **noticing that something is about to run out.** Both already half-exist — spoilage is recorded today as a generic stock adjustment, and "par level" appears in the sprint plan and nowhere else in the spec — and the grill's main work was deciding what each of them *is* before building either. Decisions locked in the grill of 2026-08-17 (Q1–Q7), plus **Q6b**, added when the grill re-opened on a question the first pass had taken for granted: what the word *stock* actually refers to in a system that cannot yet see a sale.
 
 ## Context
 
-Three facts about the existing system shaped every answer:
+Four facts about the existing system shaped every answer:
 
 1. **Waste is already recorded, badly.** `/stock/adjust` writes an `ADJUST_LOSS` movement with `AdjustmentReason.SPOILAGE | DAMAGE`. The reason is stored but nothing reads it: `/cost`'s "ของเสีย (ทิ้ง)" column counts **every** non-count `ADJUST_LOSS`, including `RECOUNT` and `OTHER`. The column has therefore been mislabelled since Part 14 — it means "stock that left without a document", not "food that was thrown away".
 2. **Adding a `MovementType` is expensive.** Part 13 had to DROP and re-declare `stock_movement_sign_check` in a second migration to add `PO_RECEIVE_REVERSAL`, and every drift guard, the FIFO replay and `/cost` switch on the type.
 3. **Par level has no spec at all.** It is named once, in the Sprint 3 plan line. There is no table, no column, and no statement of what it compares against.
+4. **Nothing deducts what was sold.** `MovementType` is `PO_RECEIVE` / `PO_RECEIVE_REVERSAL` / `ADJUST_GAIN` / `ADJUST_LOSS` — there is no `CONSUMPTION`, because H.5's auto-tagging needs `sales_transaction` (Sprint 4) and `recipe` (Sprint 5). Until then the ledger balance **only rises**: it falls only when a human counts, adjusts, or logs waste. There is no stock prediction in this system, and the word should not be used for what the balance is.
 
 ## Decision
 

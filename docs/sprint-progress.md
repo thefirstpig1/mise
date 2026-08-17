@@ -655,12 +655,12 @@ Deleting these is a DELETE affecting many rows → waiting on Kong's explicit go
 
 ## Sprint 3 Part 17 — Waste + par level: 🚧 IN PROGRESS (2026-08-17)
 
-The two everyday kitchen facts neither Part 15 nor Part 16 reached: **something was thrown away**, and **something is about to run out**. Grill Q1–Q7 locked, codified in **ADR 0017**.
+The two everyday kitchen facts neither Part 15 nor Part 16 reached: **something was thrown away**, and **something is about to run out**. Grill Q1–Q7 locked, plus **Q6b** from a re-opened question about what the stock figure actually is; all codified in **ADR 0017**.
 
 ### What the grill found before it decided anything
 `/cost`'s **ของเสีย (ทิ้ง)** column has been mislabelled since Part 14: it counts *every* non-count `ADJUST_LOSS`, including `RECOUNT` and `OTHER`, so it means "stock that left without a document" rather than "food that was thrown away". Part 17 is what makes the label true. Separately, **par level appears exactly once in the whole spec** — in the Sprint 3 plan line — with no table, no column and no statement of what it compares against; it is designed from scratch here.
 
-### Design locked (Q1–Q7 — compact; full record in ADR 0017)
+### Design locked (Q1–Q7 + Q6b — compact; full record in ADR 0017)
 | Q | Decision |
 |---|---|
 | **Q1** | **Waste is a new SOURCE, not a new movement type.** `waste_log` + `SourceType.WASTE_LOG`, posting an ordinary `ADJUST_LOSS` — ADR 0015 Q1's pattern exactly, so `stock_movement_sign_check` is untouched, `UNIQUE(source_type, source_id)` gives idempotency free, and `/cost` splits by `sourceType` as it already does for counts. *Rejected:* `MovementType.WASTE` per the master spec — the sign check, the replay, the drift guards and a second migration are a large bill for information the source type already carries. Spec gets a superseded note |
