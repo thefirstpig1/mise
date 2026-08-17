@@ -15,7 +15,7 @@ import { requireTenant } from "@/lib/require-tenant";
 import { computeBangkokToday } from "@/lib/bangkok-date";
 import { getProductsLogic } from "@/server/product";
 import { getBranchesLogic } from "@/server/branch";
-import { getWasteLogsLogic } from "@/server/waste";
+import { MAX_WASTE_ROWS, getWasteLogsLogic } from "@/server/waste";
 import { getWasteQuerySchema, WASTE_REASON_LABELS_TH, WASTE_REASON_VALUES } from "@/lib/validations/waste";
 import { createWasteAction, voidWasteAction } from "./actions";
 import { toWasteLogView } from "./_components/waste-view";
@@ -35,10 +35,45 @@ const inputClass =
  */
 const label = (map: Record<string, string>, key: string): string => map[key] ?? key;
 
+/**
+ * The list defaults to THIS MONTH, not to all of history (UX pass).
+ *
+ * "Everything ever" is the wrong question for a waste log — nobody reads it, and
+ * it grows without bound. The month is the period a shop actually reviews, and it
+ * matches the counting cycle the par design already rests on (ADR 0017 Q6b).
+ * Both ends are shown in the filter form, so the narrowing is visible rather than
+ * a silent truncation.
+ */
+function currentMonthBangkok(): { from: string; to: string } {
+  const today = computeBangkokToday();
+  const first = new Date(
+    Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1)
+  );
+  return {
+    from: first.toISOString().slice(0, 10),
+    to: today.toISOString().slice(0, 10),
+  };
+}
+
+/**
+ * `occurredAt` is filtered with `lte`, and the form posts a DATE — which coerces
+ * to that day's midnight. Without this, "to = today" would exclude everything
+ * logged today with a real instant behind it.
+ */
+const endOfDay = (isoDate: string): Date =>
+  new Date(`${isoDate}T23:59:59.999Z`);
+
 export default async function WastePage({
   searchParams,
 }: {
-  searchParams: Promise<{ branch?: string; reason?: string; voided?: string }>;
+  searchParams: Promise<{
+    branch?: string;
+    product?: string;
+    reason?: string;
+    voided?: string;
+    from?: string;
+    to?: string;
+  }>;
 }) {
   const { tenantId } = await requireTenant();
   const sp = await searchParams;
@@ -48,15 +83,24 @@ export default async function WastePage({
     getBranchesLogic(tenantId),
   ]);
 
+  const month = currentMonthBangkok();
+  const fromParam = sp.from || month.from;
+  const toParam = sp.to || month.to;
+
   const query = getWasteQuerySchema.safeParse({
     branchId: sp.branch,
+    productId: sp.product,
     reason: sp.reason,
     includeVoided: sp.voided,
+    from: fromParam,
+    to: endOfDay(toParam),
   });
 
-  const rows = query.success
+  const fetched = query.success
     ? (await getWasteLogsLogic(tenantId, query.data)).map(toWasteLogView)
     : [];
+  const truncated = fetched.length > MAX_WASTE_ROWS;
+  const rows = truncated ? fetched.slice(0, MAX_WASTE_ROWS) : fetched;
 
   // getProductsLogic orders by the category tree (built for the product page);
   // a picker reads better by name.
@@ -111,16 +155,50 @@ export default async function WastePage({
       )}
 
       <section className="space-y-3">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <h3 className="text-lg font-semibold">รายการที่บันทึกไว้</h3>
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h3 className="text-lg font-semibold">รายการที่บันทึกไว้</h3>
+            {/* Scale, in rows. The BAHT lives on /cost — quantities here are in
+                each product's own unit, so summing them would invent a number
+                that means nothing ("3 กระสอบ + 5 kg" is not 8 of anything). */}
+            <p className="text-sm text-muted-foreground">
+              {rows.length} รายการ ·{" "}
+              <a href="/cost" className="text-primary hover:underline">
+                ดูมูลค่าเป็นบาทที่หน้าต้นทุน
+              </a>
+            </p>
+          </div>
 
           {/* GET form: the filters belong in the URL, not in component state. */}
           <form method="get" className="flex flex-wrap items-center gap-2">
+            <input
+              type="date"
+              name="from"
+              defaultValue={fromParam}
+              className={inputClass}
+              aria-label="ตั้งแต่วันที่"
+            />
+            <span className="text-sm text-muted-foreground">ถึง</span>
+            <input
+              type="date"
+              name="to"
+              defaultValue={toParam}
+              className={inputClass}
+              aria-label="ถึงวันที่"
+            />
             <select name="branch" defaultValue={sp.branch ?? ""} className={inputClass}>
               <option value="">ทุกสาขา</option>
               {branchOptions.map((b) => (
                 <option key={b.id} value={b.id}>
                   {b.name}
+                </option>
+              ))}
+            </select>
+            <select name="product" defaultValue={sp.product ?? ""} className={inputClass}>
+              <option value="">ทุกวัตถุดิบ</option>
+              {productOptions.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
                 </option>
               ))}
             </select>
@@ -150,9 +228,16 @@ export default async function WastePage({
           </form>
         </div>
 
+        {truncated && (
+          <p className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
+            แสดง {MAX_WASTE_ROWS} รายการแรกของช่วงนี้เท่านั้น — ลองแคบช่วงวันที่
+            หรือเลือกวัตถุดิบ เพื่อให้เห็นครบ
+          </p>
+        )}
+
         {rows.length === 0 ? (
           <p className="rounded-lg border border-border bg-muted/30 p-6 text-sm text-muted-foreground">
-            ยังไม่มีรายการของเสียตามเงื่อนไขนี้
+            ไม่มีรายการของเสียในช่วงวันที่นี้ — ลองขยายช่วงวันที่ดู
           </p>
         ) : (
           <ul className="space-y-2">

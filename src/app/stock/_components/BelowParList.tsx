@@ -125,11 +125,32 @@ function Card({ row, branchId }: { row: ParLevelRowView; branchId: string }) {
 export default function BelowParList({
   rows,
   branchId,
+  parCount,
 }: {
   rows: ParLevelRowView[];
   branchId: string;
+  /** How many pars exist at this branch AT ALL — see the empty states below. */
+  parCount: number;
 }) {
-  if (rows.length === 0) return null;
+  // Three states, not two. Rendering nothing when the list is empty would hide
+  // the feature from the shop that has never used it (Consequence 4) AND deny
+  // the shop that is doing fine the one useful thing an empty list can say.
+  if (parCount === 0) {
+    return (
+      <section className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
+        ยังไม่ได้ตั้ง <strong>ขั้นต่ำที่ควรมี</strong> ให้วัตถุดิบไหนเลย —
+        ตั้งได้ที่หน้าวัตถุดิบแต่ละตัว แล้วหน้านี้จะเตือนให้เองเมื่อของเหลือน้อยกว่าที่ตั้งไว้
+      </section>
+    );
+  }
+
+  if (rows.length === 0) {
+    return (
+      <section className="rounded-lg border border-green-300 bg-green-50 p-4 text-sm text-green-800">
+        ของทุกตัวที่ตั้งขั้นต่ำไว้ ({parCount} รายการ) ยังอยู่เหนือขั้นต่ำ
+      </section>
+    );
+  }
 
   return (
     <section className="space-y-2">

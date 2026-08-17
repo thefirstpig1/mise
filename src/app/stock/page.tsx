@@ -72,18 +72,22 @@ export default async function StockLevelsPage({
     })
   );
 
-  // Part 17 (ADR 0017 Q6): what is under its par at THIS branch. Asked for
-  // belowOnly — the full par list belongs on the product page, this one exists to
-  // be short enough that someone reads all of it.
-  const belowPar = (
+  // Part 17 (ADR 0017 Q6): what is under its par at THIS branch.
+  //
+  // Read WITHOUT belowOnly and narrowed here, so the page can tell three states
+  // apart — nobody has set a par, everything is above par, or these are short.
+  // Collapsing the first two into "render nothing" is exactly the failure
+  // Consequence 4 warns about: the list is only as good as the pars being filled
+  // in, and a screen that never mentions the feature is how it goes unused.
+  // The read is per-branch and bounded by how many pars exist, so the extra rows
+  // cost nothing.
+  const allPar = (
     await getParLevelsLogic(
       tenantId,
-      getParLevelsQuerySchema.parse({
-        branchId: activeBranch.id,
-        belowOnly: "true",
-      })
+      getParLevelsQuerySchema.parse({ branchId: activeBranch.id })
     )
   ).map((r) => toParLevelRowView(r));
+  const belowPar = allPar.filter((r) => r.isBelow);
 
   const rows: StockLevelRow[] = balances
     .map(toProductStockBalanceView)
@@ -120,6 +124,15 @@ export default async function StockLevelsPage({
           >
             ประวัติการเคลื่อนไหว
           </a>
+          {/* Beside ปรับสต๊อก on purpose (Part 17 Q4, "one door per kind of
+              loss"): this is where someone stands when they notice stock is
+              wrong, and the adjust form no longer offers ของเสีย as a reason. */}
+          <a
+            href="/waste"
+            className="rounded-lg border border-border px-4 py-2 text-sm hover:bg-muted/40"
+          >
+            บันทึกของเสีย
+          </a>
           <a
             href="/stock/adjust"
             className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
@@ -147,7 +160,11 @@ export default async function StockLevelsPage({
         </div>
       )}
 
-      <BelowParList rows={belowPar} branchId={activeBranch.id} />
+      <BelowParList
+        rows={belowPar}
+        branchId={activeBranch.id}
+        parCount={allPar.length}
+      />
 
       <StockLevelsTable rows={rows} />
     </div>

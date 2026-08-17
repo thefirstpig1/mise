@@ -106,6 +106,17 @@ export type CreateWasteResult = {
 // Reads
 // ------------------------------------------------------------
 
+/**
+ * Hard cap on one page of the list (Part 17 UX pass).
+ *
+ * A kitchen that logs ten things a day writes ~3,650 rows a year, and the list
+ * had no bound at all: every entry ever, on one page, growing forever. The cap is
+ * a backstop rather than the mechanism — `/waste` defaults its filter to the
+ * current month, which is the period anyone actually reads. When the cap does
+ * bite, the page says so instead of quietly ending mid-history.
+ */
+export const MAX_WASTE_ROWS = 200;
+
 export async function getWasteLogsLogic(
   tenantId: string,
   query: GetWasteQuery
@@ -134,6 +145,8 @@ export async function getWasteLogsLogic(
       },
       include: DETAIL_INCLUDE,
       orderBy: [{ occurredAt: "desc" }, { createdAt: "desc" }],
+      // +1 so the caller can tell "exactly 200" from "at least 200" and say so.
+      take: MAX_WASTE_ROWS + 1,
     })
   );
 }

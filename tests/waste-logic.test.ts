@@ -363,6 +363,41 @@ describe("waste *Logic (the fourth writer to the ledger)", () => {
     expect(num(byReason[0].inputQty)).toBe(1);
   });
 
+  it("L14: the date window is inclusive of the day at both ends", async () => {
+    // /waste defaults its filter to the CURRENT MONTH (the UX pass), so this
+    // window is the page's real behaviour rather than a rarely used filter. An
+    // off-by-one at either end would silently hide today's entries — the ones
+    // someone is most likely looking for.
+    const p = await freshProduct("L14");
+    await seed(p, 100);
+
+    const today = new Date();
+    const longAgo = new Date(today.getTime() - 40 * 86_400_000);
+    await throwAway(p, 1, { occurredAt: today });
+    await throwAway(p, 2, { occurredAt: longAgo });
+
+    const thisMonth = await getWasteLogsLogic(
+      tenantA,
+      getWasteQuerySchema.parse({
+        productId: p.id,
+        from: new Date(today.getFullYear(), today.getMonth(), 1),
+        // The page passes end-of-day for exactly this reason: the form posts a
+        // DATE, and a midnight upper bound would exclude everything logged today.
+        to: new Date(
+          `${today.toISOString().slice(0, 10)}T23:59:59.999Z`
+        ),
+      })
+    );
+    expect(thisMonth).toHaveLength(1);
+    expect(num(thisMonth[0].inputQty)).toBe(1);
+
+    const everything = await getWasteLogsLogic(
+      tenantA,
+      getWasteQuerySchema.parse({ productId: p.id })
+    );
+    expect(everything).toHaveLength(2);
+  });
+
   it("L13: a void credits back what was POSTED, even if the unit's ratio changed since", async () => {
     const p = await freshProduct("L13");
     await seed(p, 100);
