@@ -49,7 +49,7 @@ export default function BranchCostTable({
       opexSpend: acc.opexSpend + Number(r.opexSpend),
       inventoryValue: acc.inventoryValue + Number(r.inventoryValue),
       wasteValue: acc.wasteValue + Number(r.wasteValue),
-      countVarianceValue: acc.countVarianceValue + Number(r.countVarianceValue),
+      varianceValue: acc.varianceValue + Number(r.varianceValue),
       excessSpend: acc.excessSpend + Number(r.excessSpend),
     }),
     {
@@ -57,7 +57,7 @@ export default function BranchCostTable({
       opexSpend: 0,
       inventoryValue: 0,
       wasteValue: 0,
-      countVarianceValue: 0,
+      varianceValue: 0,
       excessSpend: 0,
     }
   );
@@ -83,8 +83,11 @@ export default function BranchCostTable({
               <th className={th}>สาขา</th>
               <th className={`${th} text-right`}>ต้นทุนวัตถุดิบ</th>
               <th className={`${th} text-right`}>ค่าใช้จ่ายอื่น</th>
+              {/* Part 17 Q4: still eight columns (replace, don't append). The
+                  two loss columns finally mean what they say — ของเสีย is a
+                  waste document, ส่วนต่าง is everything that left without one. */}
               <th className={`${th} text-right`}>ของเสีย (ทิ้ง)</th>
-              <th className={`${th} text-right`}>ส่วนต่างจากการนับ</th>
+              <th className={`${th} text-right`}>ส่วนต่าง/ปรับปรุง</th>
               <th className={`${th} text-right`}>จ่ายแพงกว่าที่ถูกสุด</th>
               <th className={`${th} text-right`}>รายได้</th>
               <th className={`${th} text-right`}>กำไรขั้นต้น</th>
@@ -93,7 +96,7 @@ export default function BranchCostTable({
           <tbody className="divide-y divide-border">
             {rows.map((r) => {
               const waste = Number(r.wasteValue);
-              const countVariance = Number(r.countVarianceValue);
+              const variance = Number(r.varianceValue);
               const excess = Number(r.excessSpend);
               return (
                 <tr key={r.branchId} className="hover:bg-muted/20">
@@ -124,9 +127,9 @@ export default function BranchCostTable({
                     {formatMoney(r.wasteValue)}
                   </td>
                   <td
-                    className={`${tdNum} ${countVariance > 0 ? "font-medium text-red-700" : "text-muted-foreground"}`}
+                    className={`${tdNum} ${variance > 0 ? "font-medium text-red-700" : "text-muted-foreground"}`}
                   >
-                    {formatMoney(r.countVarianceValue)}
+                    {formatMoney(r.varianceValue)}
                   </td>
                   <td
                     className={`${tdNum} ${excess > 0 ? "font-medium text-red-700" : "text-muted-foreground"}`}
@@ -145,7 +148,7 @@ export default function BranchCostTable({
               <td className={`${tdNum} font-medium`}>{fmt(total.cogsSpend)}</td>
               <td className={`${tdNum} font-medium`}>{fmt(total.opexSpend)}</td>
               <td className={`${tdNum} font-medium`}>{fmt(total.wasteValue)}</td>
-              <td className={`${tdNum} font-medium`}>{fmt(total.countVarianceValue)}</td>
+              <td className={`${tdNum} font-medium`}>{fmt(total.varianceValue)}</td>
               <td className={`${tdNum} font-medium`}>{fmt(total.excessSpend)}</td>
               <td className={`${tdNum} text-muted-foreground`}>—</td>
               <td className={`${tdNum} text-muted-foreground`}>—</td>
@@ -181,9 +184,20 @@ export default function BranchCostTable({
       </div>
 
       <p className="text-xs text-muted-foreground">
-        <strong>ของเสีย (ทิ้ง)</strong> คือของที่รู้ตัวว่าทิ้ง — คุยกับครัวเรื่องการสั่งและการเก็บรักษา ·{" "}
-        <strong>ส่วนต่างจากการนับ</strong> คือของที่หายไปโดยไม่รู้สาเหตุ จนกระทั่งไปนับเจอ —
-        คุยกับผู้จัดการสาขาเรื่องการรับของ การคีย์ข้อมูล หรือของหาย
+        <strong>ของเสีย (ทิ้ง)</strong> คือของที่มีคนบันทึกไว้ว่าทิ้ง พร้อมวันที่และสาเหตุ —
+        คุยกับครัวเรื่องการสั่งและการเก็บรักษา ·{" "}
+        <strong>ส่วนต่าง/ปรับปรุง</strong> คือของที่หายไปโดยไม่มีใครบันทึก
+        ไม่ว่าจะเจอตอนนับสต๊อกหรือปรับด้วยมือ — คุยกับผู้จัดการสาขาเรื่องการรับของ การคีย์ข้อมูล
+        หรือของหาย
+      </p>
+      <p className="text-xs text-muted-foreground">
+        รายการปรับสต๊อกที่เคยเลือกเหตุผล &ldquo;ของเสีย&rdquo; ก่อนหน้านี้
+        จะอยู่ในช่องส่วนต่าง/ปรับปรุง เพราะไม่มีเอกสารของเสียกำกับ — ตั้งแต่นี้ไป
+        ให้บันทึกที่หน้า{" "}
+        <a href="/waste" className="text-primary hover:underline">
+          ของเสีย
+        </a>{" "}
+        เพื่อให้ตัวเลขช่องซ้ายเป็นของเสียจริง ๆ
       </p>
 
       <p className="text-xs text-muted-foreground">

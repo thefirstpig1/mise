@@ -33,8 +33,8 @@
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import type { StockAdjustmentActionState } from "@/app/stock/actions";
 import {
+  ADJUSTMENT_REASON_FORM_VALUES,
   ADJUSTMENT_REASON_LABELS_TH,
-  ADJUSTMENT_REASON_VALUES,
   ADJUSTMENT_TYPE_LABELS_TH,
   ADJUSTMENT_TYPE_VALUES,
   MAX_BACKDATE_DAYS,
@@ -463,13 +463,23 @@ export default function StockAdjustForm({
           className={`${inputClass} mt-1`}
           required
         >
-          {ADJUSTMENT_REASON_VALUES.map((r) => (
+          {/* Part 17 Q4: SPOILAGE and DAMAGE are gone from this list. An
+              adjustment is a CORRECTION; throwing food away is an event, and it
+              has its own document now. */}
+          {ADJUSTMENT_REASON_FORM_VALUES.map((r) => (
             <option key={r} value={r}>
               {ADJUSTMENT_REASON_LABELS_TH[r]}
             </option>
           ))}
         </select>
         {err("reason") && <p className={errorClass}>{err("reason")}</p>}
+        <p className="mt-1 text-xs text-muted-foreground">
+          ทิ้งของเสียให้บันทึกที่หน้า{" "}
+          <a href="/waste" className="text-primary hover:underline">
+            ของเสีย
+          </a>{" "}
+          — จะได้แยกออกจากของที่หายโดยไม่รู้สาเหตุในรายงานต้นทุน
+        </p>
       </div>
 
       {/* --- when (business time; backdatable within the Q5 window) --- */}

@@ -62,13 +62,34 @@ export const SOURCE_TYPE_VALUES = [
   "SYSTEM_INITIAL",
 ] as const;
 
-/** Waste is folded into ADJUST_LOSS + reason (Q10); Sprint 2 reports GROUP BY reason. */
+/**
+ * Every reason the DB can hold. SPOILAGE and DAMAGE are still here, and still
+ * valid: Part 17 did not migrate the past, so history must keep reading (ADR
+ * 0017 Q4). What changed is that nothing OFFERS them any more — see
+ * `ADJUSTMENT_REASON_FORM_VALUES`.
+ */
 export const ADJUSTMENT_REASON_VALUES = [
   "RECOUNT",
   "SPOILAGE",
   "DAMAGE",
   "OTHER",
 ] as const;
+
+/**
+ * What the adjustment form offers — **one door per kind of loss** (ADR 0017 Q4).
+ *
+ * Throwing food away now has its own document at `/waste`, so an adjustment is
+ * what it always should have been: a CORRECTION, not an event. Leaving spoilage
+ * on this form would give the same fact two doors, and `/cost`'s ของเสีย column
+ * could then never mean anything precise — which is exactly how it came to be
+ * mislabelled between Part 14 and Part 17.
+ *
+ * The zod schema deliberately still ACCEPTS the retired values: a tab opened
+ * before this deploy should not fail on submit, and what it writes is an
+ * adjustment, which is true and lands in the variance column by the same rule as
+ * every other undocumented outflow.
+ */
+export const ADJUSTMENT_REASON_FORM_VALUES = ["RECOUNT", "OTHER"] as const;
 
 // Compile-time drift guards: each local union must cover the Prisma enum exactly.
 type _AssertMovementType = MovementType extends (typeof MOVEMENT_TYPE_VALUES)[number]

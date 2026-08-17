@@ -32,6 +32,8 @@ import {
 } from "@/server/goods-receipt";
 import { createStockAdjustmentLogic } from "@/server/stock-movement";
 import { createStockAdjustmentInputSchema } from "@/lib/validations/stock-movement";
+import { createWasteLogic } from "@/server/waste";
+import { createWasteInputSchema } from "@/lib/validations/waste";
 import {
   getBranchCostSummaryLogic,
   getProductCostLogic,
@@ -168,6 +170,29 @@ describe("cost read *Logic (FIFO by ledger replay, ADR 0014)", () => {
       userA
     );
 
+  /** Part 17: the same loss, but WITH a waste document behind it (ADR 0017 Q1). */
+  const throwAway = (
+    branchId: string,
+    product: ProductWithUnits,
+    qty: number,
+    occurredAt: Date = new Date()
+  ) =>
+    createWasteLogic(
+      tenantA,
+      createWasteInputSchema.parse({
+        submitKey: randomUUID(),
+        productId: product.id,
+        branchId,
+        reason: "SPOILED",
+        inputQty: qty,
+        inputUnitId: unitOf(product, "kg"),
+        occurredAt,
+        wastedByName: null,
+        notes: null,
+      }),
+      userA
+    );
+
   const costOf = (product: ProductWithUnits, branchId = branchA, asOf?: Date) =>
     getProductCostLogic(
       tenantA,
@@ -223,6 +248,7 @@ describe("cost read *Logic (FIFO by ledger replay, ADR 0014)", () => {
     const ids = [tenantA, tenantB];
     await withAdminContext(async (tx) => {
       await tx.stockCostDeclaration.deleteMany({ where: { tenantId: { in: ids } } });
+      await tx.wasteLog.deleteMany({ where: { tenantId: { in: ids } } });
       await tx.stockMovement.deleteMany({ where: { tenantId: { in: ids } } });
       await tx.stockAdjustment.deleteMany({ where: { tenantId: { in: ids } } });
       await tx.goodsReceiptItemAllocation.deleteMany({ where: { tenantId: { in: ids } } });
@@ -423,7 +449,7 @@ describe("cost read *Logic (FIFO by ledger replay, ADR 0014)", () => {
   // K9 — the business-wide roll-up (Q9b)
   // ----------------------------------------------------------
 
-  it("K9: the branch summary prices waste in baht and names who overpaid", async () => {
+  it("K9: the branch summary prices the loss in baht and names who overpaid", async () => {
     // The summary is TENANT-WIDE across every product, so earlier cases in this
     // file already contribute to it. Measured as a delta, which is also the only
     // honest way to assert on a figure that aggregates the whole business.
@@ -444,9 +470,13 @@ describe("cost read *Logic (FIFO by ledger replay, ADR 0014)", () => {
     const thonglor = rows.find((r) => r.branchId === branchA)!;
     const aree = rows.find((r) => r.branchId === branchA2)!;
 
-    // Waste is reported in MONEY, which is the number that makes an owner act.
-    expect(num(aree.wasteValue.minus(priorOf(branchA2).wasteValue))).toBe(200); // 10 × 20
-    expect(num(thonglor.wasteValue.minus(priorOf(branchA).wasteValue))).toBe(0);
+    // Reported in MONEY, which is the number that makes an owner act — and
+    // since Part 17 (ADR 0017 Q4) a hand-typed ADJUST_LOSS carries no waste
+    // document, so it lands in ส่วนต่าง/ปรับปรุง, not in ของเสีย. Nothing was
+    // rewritten to make that true; the rule reads the source type.
+    expect(num(aree.varianceValue.minus(priorOf(branchA2).varianceValue))).toBe(200); // 10 × 20
+    expect(num(aree.wasteValue.minus(priorOf(branchA2).wasteValue))).toBe(0);
+    expect(num(thonglor.varianceValue.minus(priorOf(branchA).varianceValue))).toBe(0);
 
     // อารีย์ paid 20 ฿/kg for what ทองหล่อ bought at 10 — 1,000 ฿ of pure spread,
     // invisible on either branch's own screen.
@@ -485,6 +515,30 @@ describe("cost read *Logic (FIFO by ledger replay, ADR 0014)", () => {
   // K11 — a real consequence of two ADRs meeting, pinned deliberately
   // ----------------------------------------------------------
 
+  it("K9b: a WASTE document lands in ของเสีย; the same loss typed by hand does not (ADR 0017 Q4)", async () => {
+    // The whole point of Part 17's split. Both of these post an ADJUST_LOSS of
+    // 10 kg at the same cost — what separates them is whether anyone wrote down
+    // that the food was thrown away, which is exactly the difference between a
+    // conversation with the kitchen and one with the branch manager.
+    const period = getBranchCostSummaryQuerySchema.parse({
+      from: new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000),
+      to: today,
+    });
+    const before = await getBranchCostSummaryLogic(tenantA, period);
+    const prior = before.find((r) => r.branchId === branchA)!;
+
+    const p = await freshProduct(tenantA, "K9b");
+    await receiveInto(branchA, p, 4, 500); // 100 kg @ 20/kg
+    await throwAway(branchA, p, 10); // 200 ฿ with a document
+    await adjust(branchA, p, "ADJUST_LOSS", 5); // 100 ฿ without one
+
+    const row = (await getBranchCostSummaryLogic(tenantA, period)).find(
+      (r) => r.branchId === branchA
+    )!;
+    expect(num(row.wasteValue.minus(prior.wasteValue))).toBe(200);
+    expect(num(row.varianceValue.minus(prior.varianceValue))).toBe(100);
+  });
+
   it("K11: a date-only adjustment is costed at the END of its Bangkok day", async () => {
     // ADR 0011 Q5 gives an adjustment a business DATE (the form submits Bangkok
     // midnight); ADR 0013 Q4 gives a receipt a true INSTANT. Ordering by the raw
@@ -498,7 +552,7 @@ describe("cost read *Logic (FIFO by ledger replay, ADR 0014)", () => {
       to: today,
     });
     const before = await getBranchCostSummaryLogic(tenantA, period);
-    const priorWaste = before.find((r) => r.branchId === branchA)!.wasteValue;
+    const priorVariance = before.find((r) => r.branchId === branchA)!.varianceValue;
 
     const p = await freshProduct(tenantA, "K11");
     await adjust(branchA, p, "ADJUST_LOSS", 10, today); // exactly what the form posts
@@ -513,8 +567,10 @@ describe("cost read *Logic (FIFO by ledger replay, ADR 0014)", () => {
     const rows = await getBranchCostSummaryLogic(tenantA, period);
     const thonglor = rows.find((r) => r.branchId === branchA)!;
     // 10 kg valued at what the goods actually cost that day — not 0, and not
-    // yesterday's price.
-    expect(num(thonglor.wasteValue.minus(priorWaste))).toBe(200);
+    // yesterday's price. The COLUMN is ส่วนต่าง/ปรับปรุง since Part 17 (this is
+    // a hand-typed adjustment, not a waste document); the costing instant this
+    // case exists to pin down is unchanged.
+    expect(num(thonglor.varianceValue.minus(priorVariance))).toBe(200);
   });
 
   // ----------------------------------------------------------

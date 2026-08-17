@@ -335,18 +335,34 @@ export type BranchCostSummary = {
   /** Value of stock held at the END of the period, summed layer by layer (Q3b). */
   inventoryValue: Prisma.Decimal;
   /**
-   * What was thrown away, in BAHT — spoilage, damage, a manual write-off. A
-   * purchasing and storage problem, and a conversation with the kitchen.
+   * What was thrown away, in BAHT — and from Part 17 that means **`WASTE_LOG`
+   * outflows alone** (ADR 0017 Q4).
+   *
+   * The column was mislabelled from Part 14 until then: it counted *every*
+   * non-count `ADJUST_LOSS`, including `RECOUNT` and `OTHER`, so it really meant
+   * "stock that left without a document". Now it means food someone watched go
+   * in the bin, with a date and a reason — a purchasing and storage problem, and
+   * a conversation with the kitchen.
+   *
+   * Existing `SPOILAGE`/`DAMAGE` adjustments are not rewritten; they stay
+   * adjustments and land in `varianceValue` from now on (Consequence 1). The
+   * past is relabelled by a rule, not by a migration — and the figure was wrong
+   * before rather than after.
    */
   wasteValue: Prisma.Decimal;
   /**
-   * What a stock count found MISSING, in baht (ADR 0015 Q5). Deliberately NOT
-   * folded into `wasteValue`, though both post as `ADJUST_LOSS`: an unexplained
-   * shortage is theft, mis-keying or bad receiving — a conversation with the
-   * branch manager. A figure that cannot tell a manager who to talk to is worth
-   * less than one that can.
+   * Stock that went missing without anyone recording it going: `STOCK_COUNT`
+   * shortages **and** hand-typed `ADJUSTMENT` losses (ADR 0017 Q4, widening ADR
+   * 0015 Q5).
+   *
+   * Deliberately NOT folded into `wasteValue`, though all of them post as
+   * `ADJUST_LOSS`: an unexplained shortage is theft, mis-keying or bad receiving
+   * — a conversation with the branch manager, not the kitchen. A shortage found
+   * by counting and one typed in by hand are the same conversation with the same
+   * person, which is why they now share a column. A figure that cannot tell a
+   * manager who to talk to is worth less than one that can.
    */
-  countVarianceValue: Prisma.Decimal;
+  varianceValue: Prisma.Decimal;
   /** Baht this branch paid above the cheapest branch for the same goods. */
   excessSpend: Prisma.Decimal;
   /** Products whose stock is negative here — the ledger says the keying is behind. */
@@ -506,7 +522,7 @@ export async function getBranchCostSummaryLogic(
     return branches.map((branch) => {
       let inventoryValue = ZERO;
       let wasteValue = ZERO;
-      let countVarianceValue = ZERO;
+      let varianceValue = ZERO;
       let negativeStockProducts = 0;
       let unpricedProducts = 0;
 
@@ -524,12 +540,18 @@ export async function getBranchCostSummaryLogic(
           // the period its business day belongs to.
           const t = costSortKey(out.occurredAt);
           if (t < lowerBound || t >= upperBound) continue;
-          // Split by SOURCE, not by type: a count shortage and a spoilage loss
-          // are both ADJUST_LOSS (ADR 0015 Q1/Q5).
-          if (out.sourceType === "STOCK_COUNT") {
-            countVarianceValue = countVarianceValue.plus(out.value);
-          } else {
+          // Split by SOURCE, not by type: waste, a count shortage and a manual
+          // write-off are all ADJUST_LOSS (ADR 0015 Q1, ADR 0017 Q1).
+          //
+          // Part 17 Q4 INVERTED this test. ของเสีย is now the narrow case — a
+          // waste document — and everything else that left without one is
+          // variance. Written as an explicit WASTE_LOG check rather than an
+          // `else`, so a fifth source type lands in variance (where an
+          // undocumented outflow belongs) instead of silently inflating waste.
+          if (out.sourceType === "WASTE_LOG") {
             wasteValue = wasteValue.plus(out.value);
+          } else {
+            varianceValue = varianceValue.plus(out.value);
           }
         }
       }
@@ -542,7 +564,7 @@ export async function getBranchCostSummaryLogic(
         opexSpend: opexByBranch.get(branch.id) ?? ZERO,
         inventoryValue,
         wasteValue,
-        countVarianceValue,
+        varianceValue,
         excessSpend: excessByBranch.get(branch.id) ?? ZERO,
         negativeStockProducts,
         unpricedProducts,

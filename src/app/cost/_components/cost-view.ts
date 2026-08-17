@@ -115,7 +115,7 @@ export type BranchCostSummaryView = {
   inventoryValue: string;
   wasteValue: string;
   /** Stock a count found missing (ADR 0015 Q5) — a different problem from spoilage. */
-  countVarianceValue: string;
+  varianceValue: string;
   excessSpend: string;
   negativeStockProducts: number;
   unpricedProducts: number;
@@ -134,7 +134,7 @@ export const toBranchCostSummaryView = (
   opexSpend: row.opexSpend.toString(),
   inventoryValue: row.inventoryValue.toString(),
   wasteValue: row.wasteValue.toString(),
-  countVarianceValue: row.countVarianceValue.toString(),
+  varianceValue: row.varianceValue.toString(),
   excessSpend: row.excessSpend.toString(),
   negativeStockProducts: row.negativeStockProducts,
   unpricedProducts: row.unpricedProducts,
