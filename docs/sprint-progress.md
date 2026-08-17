@@ -683,7 +683,8 @@ The two everyday kitchen facts neither Part 15 nor Part 16 reached: **something 
 | L2 | zod — waste input (+ void), par level input, queries | ⏳ |
 | L3 | Logic — `src/server/waste.ts` (post + void through `createStockMovementLogic`) · `src/server/par-level.ts` (the three-state list **+ last-counted-at per product×branch**, read from the ledger's own `STOCK_COUNT` rows) · `assertSourceExists` gains its `WASTE_LOG` branch | ⏳ |
 | L4 | Actions + Thai errors + view serializers | ⏳ |
-| L5 | `/waste` (entry + list) · par level on the product page · the below-par list on `/stock` · `/cost` column rename + source split · remove `SPOILAGE`/`DAMAGE` from `/stock/adjust` | ⏳ |
+| L5 | `/waste` (entry + list) · par level on the product page · the below-par list on `/stock` · `/cost` column rename + source split · remove `SPOILAGE`/`DAMAGE` from `/stock/adjust` | ⏳ Each below-par row is an **interactive card**, not a table row: collapsed it gives the product, the gap and its state; expanded it shows the order behind it (supplier, quantity, expected date) and when the figure was last counted. Kong's call — four facts per row only help if reaching them costs nothing |
+| — | **UX pass, after the function is complete** | ⏳ Kong's sequencing, written down so it is not mistaken for polish that never arrives: build every surface first, then go back and make it comfortable. The par list is the first candidate |
 | L6 | Throwaway E2E + verify + push | ⏳ |
 
 **Part 14 is touched again** — `getBranchCostSummaryLogic` re-splits its outflows three ways (`WASTE_LOG` / `STOCK_COUNT` + `ADJUSTMENT`), so its suite must be re-run, not just the new ones.
