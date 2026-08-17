@@ -13,6 +13,15 @@
 // Revenue and gross profit are rendered as an explicit "รอเชื่อม POS" rather than
 // 0 or a blank — a zero would be a lie, and a blank invites someone to assume the
 // number is broken instead of absent.
+//
+// Part 16 (ADR 0016 Q4) restructured rather than appended, as ADR 0014
+// Consequence 4 said the next change would have to: **ซื้อของ split into
+// ต้นทุนวัตถุดิบ (COGS) and ค่าใช้จ่ายอื่น (OpEx)** — "materials 60,000,
+// everything else 40,000" is a sentence an owner acts on, and it becomes food
+// cost % the day revenue lands — and **ทุนจมในสต๊อก moved out of the table
+// entirely**. It is a balance-sheet figure: sitting in a row of cash-flow
+// columns, it invited a reader to add it to numbers it does not belong with. It
+// now has its own panel, labelled as what it is.
 
 import { formatMoney } from "./cost-view";
 import type { BranchCostSummaryView } from "./cost-view";
@@ -74,7 +83,6 @@ export default function BranchCostTable({
               <th className={th}>สาขา</th>
               <th className={`${th} text-right`}>ต้นทุนวัตถุดิบ</th>
               <th className={`${th} text-right`}>ค่าใช้จ่ายอื่น</th>
-              <th className={`${th} text-right`}>ทุนจมในสต๊อก</th>
               <th className={`${th} text-right`}>ของเสีย (ทิ้ง)</th>
               <th className={`${th} text-right`}>ส่วนต่างจากการนับ</th>
               <th className={`${th} text-right`}>จ่ายแพงกว่าที่ถูกสุด</th>
@@ -110,7 +118,6 @@ export default function BranchCostTable({
                   </td>
                   <td className={tdNum}>{formatMoney(r.cogsSpend)}</td>
                   <td className={tdNum}>{formatMoney(r.opexSpend)}</td>
-                  <td className={tdNum}>{formatMoney(r.inventoryValue)}</td>
                   <td
                     className={`${tdNum} ${waste > 0 ? "font-medium text-red-700" : "text-muted-foreground"}`}
                   >
@@ -137,7 +144,6 @@ export default function BranchCostTable({
               <td className={`${td} font-medium`}>รวมทั้งธุรกิจ</td>
               <td className={`${tdNum} font-medium`}>{fmt(total.cogsSpend)}</td>
               <td className={`${tdNum} font-medium`}>{fmt(total.opexSpend)}</td>
-              <td className={`${tdNum} font-medium`}>{fmt(total.inventoryValue)}</td>
               <td className={`${tdNum} font-medium`}>{fmt(total.wasteValue)}</td>
               <td className={`${tdNum} font-medium`}>{fmt(total.countVarianceValue)}</td>
               <td className={`${tdNum} font-medium`}>{fmt(total.excessSpend)}</td>
@@ -146,6 +152,32 @@ export default function BranchCostTable({
             </tr>
           </tfoot>
         </table>
+      </div>
+
+      {/*
+        ทุนจมในสต๊อก, out of the cash-flow table (Q4). Every column above answers
+        "what happened to the money this period"; this answers "what is sitting on
+        the shelf right now", and the two do not add up to anything.
+      */}
+      <div className="rounded-lg border border-border bg-muted/20 p-4">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h3 className="text-sm font-bold">ทุนจมในสต๊อก</h3>
+          <span className="text-sm font-medium tabular-nums">
+            {fmt(total.inventoryValue)} ฿
+          </span>
+        </div>
+        <p className="mt-1 text-xs text-muted-foreground">
+          มูลค่าของที่ยังอยู่ในสต๊อก ณ วันสิ้นงวด — ไม่ใช่เงินที่จ่ายออกไปในงวดนี้
+          จึงไม่นำไปรวมกับคอลัมน์ด้านบน
+        </p>
+        <ul className="mt-2 grid gap-1 sm:grid-cols-2">
+          {rows.map((r) => (
+            <li key={r.branchId} className="flex justify-between text-sm">
+              <span className="text-muted-foreground">{r.branchName}</span>
+              <span className="tabular-nums">{formatMoney(r.inventoryValue)}</span>
+            </li>
+          ))}
+        </ul>
       </div>
 
       <p className="text-xs text-muted-foreground">

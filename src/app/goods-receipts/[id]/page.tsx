@@ -17,6 +17,7 @@
 import { notFound } from "next/navigation";
 import { requireTenant } from "@/lib/require-tenant";
 import { getGoodsReceiptByIdLogic } from "@/server/goods-receipt";
+import { getExpenseByGoodsReceiptLogic } from "@/server/expense";
 import {
   confirmGoodsReceiptAction,
   deleteGoodsReceiptDraftAction,
@@ -43,6 +44,11 @@ export default async function GoodsReceiptDetailPage({
 
   const gr = toGoodsReceiptDetailView(row);
   const tenant = membership.tenant;
+
+  // The bill this receipt wrote when it was confirmed (ADR 0016 Q3/Q7). Without
+  // a link, a system-created document cannot be found from the document that
+  // created it — which is the fastest way to make people distrust automation.
+  const expense = await getExpenseByGoodsReceiptLogic(tenantId, gr.id);
 
   return (
     <div className="space-y-6">
@@ -79,6 +85,24 @@ export default async function GoodsReceiptDetailPage({
           </div>
         </div>
       )}
+      {expense && (
+        <div className="rounded-lg border border-sky-300 bg-sky-50 p-3 text-sm text-sky-900 print:hidden">
+          ใบนี้บันทึกเป็นค่าใช้จ่ายให้อัตโนมัติแล้ว —{" "}
+          <a href={`/expenses/${expense.id}`} className="font-medium underline">
+            ดูบิลค่าใช้จ่าย
+          </a>
+          {gr.vatRatePercent && (
+            <span className="ml-1 text-xs">
+              (VAT {gr.vatRatePercent}%{" "}
+              {gr.vatReclaimable
+                ? "ขอคืนได้ ไม่รวมในต้นทุนของ"
+                : "ขอคืนไม่ได้ จึงรวมเป็นต้นทุนของ"}
+              )
+            </span>
+          )}
+        </div>
+      )}
+
       {gr.hasDiscrepancy && gr.status === "CONFIRMED" && (
         <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 print:hidden">
           ใบนี้ถูกติดธง &quot;ต้องตรวจสอบ&quot; — จำนวนหรือราคาไม่ตรงกับใบสั่งซื้อ

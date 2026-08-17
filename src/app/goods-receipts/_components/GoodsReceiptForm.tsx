@@ -47,7 +47,12 @@ export type GrProductOption = {
   units: GrUnitOption[];
 };
 
-export type GrSupplierOption = { id: string; nameFull: string };
+export type GrSupplierOption = {
+  id: string;
+  nameFull: string;
+  /** The supplier's usual VAT rate — where a standalone receipt starts (Part 16). */
+  defaultVatRatePercent: string | null;
+};
 export type GrBranchOption = { id: string; name: string };
 
 export type GrPurchaseOrderOption = {
@@ -84,6 +89,8 @@ export type GoodsReceiptFormInitial = {
   supplierId: string;
   purchaseOrderId: string | null;
   invoiceNo: string;
+  /** Blank = this delivery carried no VAT (Part 16). */
+  vatRatePercent: string;
   /** `datetime-local` value, already shifted to Bangkok by the serializer. */
   receivedAtLocal: string;
   notes: string;
@@ -200,6 +207,26 @@ export default function GoodsReceiptForm({
     initial?.supplierId ?? initialPurchaseOrder?.supplierId ?? ""
   );
 
+  /**
+   * VAT on this delivery (Part 16, ADR 0016 Q2).
+   *
+   * Inherited but EDITABLE: the order's rate, or the supplier's usual one, is a
+   * starting point — the tax invoice that came with the delivery is the
+   * authority, exactly as `unit_price_actual` is for price. Blank means this
+   * delivery carried no VAT, one meaning, as on a PO.
+   *
+   * `vatTouched` is what stops a later prefill from overwriting a rate the user
+   * has already corrected by hand.
+   */
+  const [vatRate, setVatRate] = useState(
+    initial?.vatRatePercent ??
+      initialPurchaseOrder?.vatRatePercent ??
+      suppliers.find((s) => s.id === (initial?.supplierId ?? initialPurchaseOrder?.supplierId))
+        ?.defaultVatRatePercent ??
+      ""
+  );
+  const [vatTouched, setVatTouched] = useState(false);
+
   const linesFromPo = (v: ReceivablePurchaseOrderView): LineRow[] =>
     v.lines.map((l) => ({
       key: `p${l.purchaseOrderItemId}`,
@@ -263,6 +290,8 @@ export default function GoodsReceiptForm({
         );
         setBranchId(r.data.branchId);
         setSupplierId(r.data.supplierId);
+        // The order's rate, unless the receiver has already typed one.
+        if (!vatTouched) setVatRate(r.data.vatRatePercent ?? "");
         if (r.data.receivable) setRows(linesFromPo(r.data));
       })
       .finally(() => {
@@ -403,7 +432,15 @@ export default function GoodsReceiptForm({
               className={`${inputClass} mt-1 disabled:bg-muted/50`}
               value={supplierId}
               disabled={poMode || isEdit}
-              onChange={(e) => setSupplierId(e.target.value)}
+              onChange={(e) => {
+                setSupplierId(e.target.value);
+                if (!vatTouched && !poId) {
+                  setVatRate(
+                    suppliers.find((s) => s.id === e.target.value)
+                      ?.defaultVatRatePercent ?? ""
+                  );
+                }
+              }}
             >
               <option value="">— เลือกผู้ขาย —</option>
               {suppliers.map((s) => (
@@ -461,6 +498,31 @@ export default function GoodsReceiptForm({
           />
           {fieldErrors?.invoiceNo && (
             <p className={errorClass}>{fieldErrors.invoiceNo}</p>
+          )}
+        </div>
+
+        <div>
+          <label className={labelClass} htmlFor="vat_rate_percent">
+            อัตรา VAT (%)
+          </label>
+          <input
+            id="vat_rate_percent"
+            name="vat_rate_percent"
+            inputMode="decimal"
+            value={vatRate}
+            onChange={(e) => {
+              setVatRate(e.target.value);
+              setVatTouched(true);
+            }}
+            className={`${inputClass} mt-1`}
+            placeholder="เว้นว่าง = ใบนี้ไม่มี VAT"
+          />
+          <p className="mt-1 text-xs text-muted-foreground">
+            ดึงมาจากใบสั่งซื้อหรือค่าตั้งต้นของผู้ขาย — แก้ให้ตรงกับใบกำกับภาษีที่มากับของได้
+            {" · "}ถ้าร้านไม่ได้จด VAT ระบบจะรวม VAT เป็นต้นทุนของ
+          </p>
+          {fieldErrors?.vatRatePercent && (
+            <p className={errorClass}>{fieldErrors.vatRatePercent}</p>
           )}
         </div>
 

@@ -106,6 +106,7 @@ export default async function EditGoodsReceiptPage({
           supplierId: gr.supplier.id,
           purchaseOrderId: gr.purchaseOrder?.id ?? null,
           invoiceNo: gr.invoiceNo ?? "",
+          vatRatePercent: gr.vatRatePercent ?? "",
           receivedAtLocal: gr.receivedAtLocal,
           notes: gr.notes ?? "",
           lines: gr.lines.map((l) => ({

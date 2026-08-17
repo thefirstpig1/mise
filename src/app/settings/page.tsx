@@ -77,6 +77,19 @@ export default async function SettingsPage() {
                   <p className="font-medium">จดทะเบียน VAT</p>
                   <p className="text-sm text-muted-foreground">
                     เปิดเมื่อร้านจดทะเบียน VAT (รายได้เกิน ฿1.8M/ปี)
+                    <br />
+                    <span className="text-xs">
+                      ร้านที่<strong>จด</strong> VAT ขอคืนภาษีซื้อได้ ต้นทุนสต๊อกจึงไม่รวม VAT ·
+                      ร้านที่<strong>ไม่จด</strong> จ่าย VAT แล้วจบ ระบบจะรวม VAT
+                      เป็นต้นทุนของ
+                    </span>
+                    <br />
+                    <span className="text-xs">
+                      ค่านี้ถูกบันทึกติดไปกับใบรับของแต่ละใบตอนกดยืนยัน —
+                      เปลี่ยนตรงนี้จะมีผลกับใบรับของใบถัดไป
+                      ไม่ย้อนไปตีมูลค่าของเก่าใหม่ (เพราะตอนนั้นร้านจ่าย VAT
+                      ไปจริงและไม่มีใครคืนให้)
+                    </span>
                   </p>
                 </div>
               </label>

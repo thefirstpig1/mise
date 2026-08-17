@@ -55,7 +55,11 @@ export async function loadGoodsReceiptFormOptions(
       }))
       .sort((a, b) => a.name.localeCompare(b.name, "th")),
 
-    suppliers: suppliers.map((s) => ({ id: s.id, nameFull: s.nameFull })),
+    suppliers: suppliers.map((s) => ({
+      id: s.id,
+      nameFull: s.nameFull,
+      defaultVatRatePercent: s.defaultVatRatePercent?.toString() ?? null,
+    })),
 
     branches: branches.map((b) => ({ id: b.id, name: b.name })),
 

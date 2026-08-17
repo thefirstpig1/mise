@@ -155,6 +155,15 @@ export type GoodsReceiptDetailView = {
   };
   purchaseOrder: { id: string; poNumber: string; status: string } | null;
   invoiceNo: string | null;
+  /** VAT on THIS delivery (Part 16, ADR 0016 Q2). null = none was charged. */
+  vatRatePercent: string | null;
+  vatAmount: string;
+  /**
+   * Whether the shop could reclaim that VAT, SNAPSHOTTED when the receipt was
+   * confirmed — not the tenant's setting read today. It is what decides whether
+   * the VAT sits in the cost of this stock.
+   */
+  vatReclaimable: boolean;
   receivedAt: string;
   receivedAtLabel: string;
   receivedAtLocal: string;
@@ -196,6 +205,8 @@ export type ReceivablePurchaseOrderView = {
   supplierId: string;
   supplierName: string;
   expectedDeliveryLabel: string;
+  /** The order's VAT rate — the receive form's starting point (Part 16). */
+  vatRatePercent: string | null;
   /** False for DRAFT / CANCELLED — the page explains rather than 404s. */
   receivable: boolean;
   lines: ReceivableLineView[];
@@ -254,6 +265,9 @@ export function toGoodsReceiptDetailView(
         }
       : null,
     invoiceNo: gr.invoiceNo,
+    vatRatePercent: gr.vatRatePercent?.toString() ?? null,
+    vatAmount: str(gr.vatAmount),
+    vatReclaimable: gr.vatReclaimable,
     receivedAt: iso(gr.receivedAt)!,
     receivedAtLabel: formatBangkokDateTime(gr.receivedAt),
     receivedAtLocal: toBangkokDateTimeLocal(gr.receivedAt),
@@ -323,6 +337,7 @@ export function toReceivablePurchaseOrderView(
     supplierId: po.supplierId,
     supplierName: po.supplierName,
     expectedDeliveryLabel: formatBangkokDate(po.expectedDeliveryDate),
+    vatRatePercent: po.vatRatePercent?.toString() ?? null,
     receivable,
     lines: po.lines.map((l) => ({
       purchaseOrderItemId: l.purchaseOrderItemId,

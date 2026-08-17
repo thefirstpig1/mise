@@ -193,6 +193,12 @@ export type ReceivablePurchaseOrder = {
   supplierId: string;
   supplierName: string;
   expectedDeliveryDate: Date | null;
+  /**
+   * The rate the ORDER was raised with (Part 16). The receive form starts from
+   * it, and the receiver may correct it against the tax invoice that actually
+   * came with the delivery — the GR is where actuals are recorded.
+   */
+  vatRatePercent: Prisma.Decimal | null;
   lines: ReceivableLine[];
 };
 
@@ -239,6 +245,7 @@ export async function getReceivablePurchaseOrderLogic(
       supplierId: po.supplierId,
       supplierName: po.supplier.nameFull,
       expectedDeliveryDate: po.expectedDeliveryDate,
+      vatRatePercent: po.vatRatePercent,
       lines: po.items.map((i) => {
         const outstanding = i.qtyOrdered.minus(i.qtyReceived);
         return {

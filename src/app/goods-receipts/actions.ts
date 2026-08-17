@@ -266,6 +266,10 @@ function rawFromFormData(formData: FormData): Record<string, unknown> {
     supplierId: formData.get("supplier_id"),
     purchaseOrderId: formData.get("purchase_order_id"),
     invoiceNo: formData.get("invoice_no"),
+    // Part 16: the RATE is posted, never the amount — the server derives that
+    // from these lines, which keeps the per-line VAT uplift the cost engine
+    // applies identical to the header figure (ADR 0016 Q2).
+    vatRatePercent: formData.get("vat_rate_percent"),
     receivedAt: formData.get("received_at"),
     notes: formData.get("notes"),
     lines: linesFromFormData(formData),
