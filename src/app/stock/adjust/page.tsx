@@ -59,9 +59,12 @@ export default async function StockAdjustPage() {
     <div className="space-y-6">
       <div>
         <h2 className="text-xl font-bold">ปรับสต๊อก</h2>
+        {/* Part 17 Q4 retired ของเสีย/ของชำรุด from this form; this line still
+            advertised them, which is worse than a stale comment — it promises
+            the user an option that is not in the dropdown below it. */}
         <p className="mt-1 text-sm text-muted-foreground">
-          บันทึกการนับสต๊อกใหม่ ของเสีย หรือของชำรุด — ทุกการปรับจะถูกบันทึกถาวร
-          และแก้ไม่ได้ หากบันทึกผิดให้บันทึกรายการปรับกลับ
+          แก้ตัวเลขให้ตรงกับของจริง เมื่อนับใหม่แล้วไม่ตรง หรือคีย์ผิด —
+          ทุกการปรับจะถูกบันทึกถาวรและแก้ไม่ได้ หากบันทึกผิดให้บันทึกรายการปรับกลับ
         </p>
       </div>
 
