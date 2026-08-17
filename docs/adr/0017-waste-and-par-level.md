@@ -80,6 +80,18 @@ Instead the row carries its context, in three states:
 
 "On order" means an open purchase order (`SENT` / `PARTIALLY_RECEIVED`) with quantity still outstanding.
 
+### Q6b — Every row carries how FRESH its number is
+
+Raised after Q6 was locked, and it changes what the list must show.
+
+**The system has no stock prediction, and until Sprint 4–5 the ledger balance only ever rises.** Stock decreases only when a human says so — a count, an adjustment, or (from this Part) a waste entry — because nothing deducts what was sold: `MovementType` has no `CONSUMPTION`, and H.5's auto-tagging needs `sales_transaction` (Sprint 4) and `recipe` (Sprint 5). A shop that receives 50 kg of pork and sells it all still reads 50 kg until someone counts.
+
+A par alert reading that number alone would therefore stay silent in exactly the shops that need it most. So each row states **when its figure was last confirmed by a physical count** — "นับล่าสุด 9 วันก่อน", or "ยังไม่เคยนับ" — and a product that is both below par and stale sorts to the top, with a link to open a count sheet for that branch. The below-par list doubles as the prompt to go and look.
+
+**This survives H.5 unchanged.** When consumption lands, the same list gets a better input — the balance starts falling by itself — and freshness becomes *more* useful, not less: a number that moves constantly drifts from the shelf silently (unlogged waste, over-portioning, theft), which is why counting exists at all. The three layers answer different questions and do not overlap: **par** = what to buy today · **H.5** = the quality of the number par reads · **H.8** = how far theory and reality diverged over a month (Sprint 6).
+
+*(The forward-looking version Kong described — "trending to fall below par in N days" — needs consumption history and is therefore Sprint 4+. The related **Sales Plan** idea (a booking, will stock cover it, what to buy, what to leave for tomorrow) is recorded in `docs/pending-features-v1.5.md` Feature 3, undesigned, with its dependencies.)*
+
 ### Q7 — `/waste` is its own surface, and it records who by name
 
 A route of its own rather than a corner of `/stock/adjust`: waste is entered from the kitchen, often on a phone, and it should be two taps from the dashboard.
@@ -92,4 +104,5 @@ Attribution follows ADR 0015 Q2: **`wasted_by` (the login) plus `wasted_by_name`
 2. **Waste and yield now have a boundary someone can be taught.** It is written in CONTEXT.md, and Sprint 5's variance report depends on it holding.
 3. **A fourth thing now writes to the ledger** (receipts, adjustments, counts, waste) and every one of them goes through `createStockMovementLogic`. That primitive is now the single narrow gate ADR 0011 intended, and the next writer — Part 18's transfer — should not be the first exception.
 4. **The par list is only as good as `par_level` being filled in**, and nothing fills it in automatically. A products page that never mentions par will leave the feature unused; the list must be reachable from where people already are.
-5. **`ตามของ` is a promise about expected delivery dates.** They are optional on a PO today, so a shop that never fills them in gets the two-state version of the list. Worth saying on screen rather than leaving the third state mysteriously empty.
+5. **The par list is honest about a weak input, rather than pretending.** Until Sprint 4–5 its stock figure is only as good as the last count, and the list says so on every row. Removing that line once H.5 lands would be a mistake: a moving number drifts quietly, and freshness is what tells a reader whether to trust the row.
+6. **`ตามของ` is a promise about expected delivery dates.** They are optional on a PO today, so a shop that never fills them in gets the two-state version of the list. Worth saying on screen rather than leaving the third state mysteriously empty.
