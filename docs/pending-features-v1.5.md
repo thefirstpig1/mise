@@ -94,6 +94,27 @@ Different questions, and neither replaces the other: **par** asks *"am I below m
 
 ---
 
+## Feature 4: Staff meal / welfare costing — captured 2026-08-17, NOT designed
+
+### Concept
+Food eaten by staff is **not waste**, and Part 17 deliberately refuses to let it be logged as such. Kong's framing, recorded verbatim in intent: *it is a sale that collected no money, so its cost belongs on the labour / welfare side of the accounts.*
+
+That makes it a real feature owed to a later sprint, not merely an exclusion — which is why it is written here and not left as a glossary line saying what it *isn't*.
+
+### Why it matters that it is not waste
+If staff meals land in the food-waste figure, the one number Part 17 exists to produce — *what did this branch throw away* — becomes a mixture of a problem (spoilage) and a policy (feeding the team). A manager cannot act on a number like that, and the waste trend would rise every time the shop hired someone.
+
+### Hard dependencies
+- `sales_transaction` — **Sprint 4**. A staff meal is recorded like a sale, at zero revenue.
+- `recipe` — **Sprint 5**. Its cost is the recipe's cost, so it cannot be valued before recipes exist.
+
+### Open questions (for the grill, when it happens)
+- O28: How is a staff meal captured — a POS ticket at ฿0 / a discount type / a button in Mise?
+- O29: Which side does the cost land on: an OpEx expense line under Labour (welfare), or a separate report line that never touches the expense table?
+- O30: Does it count inside food cost %, outside it, or shown both ways? (It changes the headline number every restaurant runs on.)
+
+---
+
 ## Open Questions for v1.5
 
 - O22: Target price scope (per product vs per product×supplier×branch)?
