@@ -244,6 +244,32 @@ export const goodsReceiptInputSchema = z.object({
         ).getTime(),
       { message: `ย้อนหลังได้ไม่เกิน ${MAX_BACKDATE_DAYS} วัน` }
     ),
+  /**
+   * VAT on THIS delivery (Part 16, ADR 0016 Q2).
+   *
+   * Blank = **this delivery carries no VAT** — the PO's rule, one meaning, no
+   * undefined-vs-null ambiguity across the FormData boundary. The form prefills
+   * it from the order, then the supplier's default, then the tenant's, so a blank
+   * is always a deliberate choice by the person receiving.
+   *
+   * It is EDITABLE rather than inherited-only because the goods receipt is where
+   * *actuals* are recorded: the tax invoice that came with the delivery is the
+   * authority, not the order raised a week earlier — the same reason
+   * `unit_price_actual` exists alongside the order's price (ADR 0012 Q3).
+   *
+   * `vat_amount` is never posted: the server derives it from these lines, which
+   * keeps "this line's share of the VAT" identical to `line_total × rate/100`
+   * and lets the cost engine uplift a layer without reading the other lines.
+   */
+  vatRatePercent: z.preprocess(
+    blankToNull,
+    z.coerce
+      .number({ invalid_type_error: "อัตรา VAT ไม่ถูกต้อง" })
+      .min(0, "อัตรา VAT ต้องไม่ติดลบ")
+      .max(100, "อัตรา VAT ต้องไม่เกิน 100")
+      .refine((n) => Number(n.toFixed(2)) === n, "อัตรา VAT มีทศนิยมได้ไม่เกิน 2 ตำแหน่ง")
+      .nullable()
+  ),
   notes: z.preprocess(
     blankToNull,
     z.string().trim().max(1000, "หมายเหตุต้องไม่เกิน 1000 ตัวอักษร").nullable()
@@ -300,6 +326,7 @@ export const GOODS_RECEIPT_FIELD_LABELS_TH: Record<
   supplierId: "ผู้ขาย",
   purchaseOrderId: "ใบสั่งซื้อ",
   invoiceNo: "เลขที่ใบส่งของ",
+  vatRatePercent: "อัตรา VAT",
   receivedAt: "วันเวลาที่รับของ",
   notes: "หมายเหตุ",
   lines: "รายการที่รับ",

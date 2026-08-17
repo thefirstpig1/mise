@@ -36,14 +36,16 @@ export default function BranchCostTable({
 
   const total = rows.reduce(
     (acc, r) => ({
-      purchaseSpend: acc.purchaseSpend + Number(r.purchaseSpend),
+      cogsSpend: acc.cogsSpend + Number(r.cogsSpend),
+      opexSpend: acc.opexSpend + Number(r.opexSpend),
       inventoryValue: acc.inventoryValue + Number(r.inventoryValue),
       wasteValue: acc.wasteValue + Number(r.wasteValue),
       countVarianceValue: acc.countVarianceValue + Number(r.countVarianceValue),
       excessSpend: acc.excessSpend + Number(r.excessSpend),
     }),
     {
-      purchaseSpend: 0,
+      cogsSpend: 0,
+      opexSpend: 0,
       inventoryValue: 0,
       wasteValue: 0,
       countVarianceValue: 0,
@@ -70,7 +72,8 @@ export default function BranchCostTable({
           <thead className="border-b border-border bg-muted/40">
             <tr>
               <th className={th}>สาขา</th>
-              <th className={`${th} text-right`}>ซื้อของ</th>
+              <th className={`${th} text-right`}>ต้นทุนวัตถุดิบ</th>
+              <th className={`${th} text-right`}>ค่าใช้จ่ายอื่น</th>
               <th className={`${th} text-right`}>ทุนจมในสต๊อก</th>
               <th className={`${th} text-right`}>ของเสีย (ทิ้ง)</th>
               <th className={`${th} text-right`}>ส่วนต่างจากการนับ</th>
@@ -105,7 +108,8 @@ export default function BranchCostTable({
                       </div>
                     )}
                   </td>
-                  <td className={tdNum}>{formatMoney(r.purchaseSpend)}</td>
+                  <td className={tdNum}>{formatMoney(r.cogsSpend)}</td>
+                  <td className={tdNum}>{formatMoney(r.opexSpend)}</td>
                   <td className={tdNum}>{formatMoney(r.inventoryValue)}</td>
                   <td
                     className={`${tdNum} ${waste > 0 ? "font-medium text-red-700" : "text-muted-foreground"}`}
@@ -131,7 +135,8 @@ export default function BranchCostTable({
           <tfoot className="border-t-2 border-border bg-muted/30">
             <tr>
               <td className={`${td} font-medium`}>รวมทั้งธุรกิจ</td>
-              <td className={`${tdNum} font-medium`}>{fmt(total.purchaseSpend)}</td>
+              <td className={`${tdNum} font-medium`}>{fmt(total.cogsSpend)}</td>
+              <td className={`${tdNum} font-medium`}>{fmt(total.opexSpend)}</td>
               <td className={`${tdNum} font-medium`}>{fmt(total.inventoryValue)}</td>
               <td className={`${tdNum} font-medium`}>{fmt(total.wasteValue)}</td>
               <td className={`${tdNum} font-medium`}>{fmt(total.countVarianceValue)}</td>

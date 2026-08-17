@@ -108,7 +108,10 @@ export type BranchCostSummaryView = {
   branchId: string;
   branchName: string;
   branchCode: string | null;
-  purchaseSpend: string;
+  /** Materials — expense lines under `account = COGS` (ADR 0016 Q4). */
+  cogsSpend: string;
+  /** Everything else: rent, utilities, wages, the accountant. */
+  opexSpend: string;
   inventoryValue: string;
   wasteValue: string;
   /** Stock a count found missing (ADR 0015 Q5) — a different problem from spoilage. */
@@ -127,7 +130,8 @@ export const toBranchCostSummaryView = (
   branchId: row.branchId,
   branchName: row.branchName,
   branchCode: row.branchCode,
-  purchaseSpend: row.purchaseSpend.toString(),
+  cogsSpend: row.cogsSpend.toString(),
+  opexSpend: row.opexSpend.toString(),
   inventoryValue: row.inventoryValue.toString(),
   wasteValue: row.wasteValue.toString(),
   countVarianceValue: row.countVarianceValue.toString(),

@@ -35,6 +35,10 @@ import {
   toBaseQty,
 } from "@/server/stock-movement";
 import {
+  createExpenseFromGoodsReceiptTx,
+  voidExpenseForGoodsReceiptTx,
+} from "@/server/expense";
+import {
   RECEIVABLE_PO_STATUSES,
   type GetGoodsReceiptsQuery,
   type GoodsReceiptInput,
@@ -772,6 +776,28 @@ const lineCreateData = (tenantId: string, l: PreparedGrLine) => ({
   },
 });
 
+/**
+ * The delivery's VAT, in baht (Part 16, ADR 0016 Q2).
+ *
+ * DERIVED from the lines and the rate, never posted by the client — which is
+ * what keeps "this line's share of `vat_amount`" exactly equal to
+ * `line_total_actual × rate/100`, so the cost engine can uplift one layer
+ * without reading the receipt's other lines.
+ *
+ * Reversal lines carry negated totals, so a voided receipt's VAT nets to zero
+ * for free — the same property Part 13 relied on for `line_total_actual`.
+ */
+const grVatAmount = (
+  vatRatePercent: Prisma.Decimal | number | null,
+  lineTotals: Prisma.Decimal[]
+): Prisma.Decimal => {
+  if (vatRatePercent === null) return ZERO;
+  const rate = new Prisma.Decimal(vatRatePercent);
+  if (rate.isZero()) return ZERO;
+  const subtotal = lineTotals.reduce((s, t) => s.plus(t), ZERO);
+  return money(subtotal.mul(rate).div(100));
+};
+
 // ------------------------------------------------------------
 // Writes
 // ------------------------------------------------------------
@@ -845,6 +871,11 @@ export async function createGoodsReceiptLogic(
             grNumber,
             status: "DRAFT",
             invoiceNo: input.invoiceNo,
+            vatRatePercent: input.vatRatePercent,
+            vatAmount: grVatAmount(
+              input.vatRatePercent,
+              prepared.map((l) => l.lineTotalActual)
+            ),
             receivedAt: input.receivedAt,
             receivedBy,
             notes: input.notes,
@@ -928,6 +959,11 @@ export async function updateGoodsReceiptLogic(
         where: { id },
         data: {
           invoiceNo: input.invoiceNo,
+          vatRatePercent: input.vatRatePercent,
+          vatAmount: grVatAmount(
+            input.vatRatePercent,
+            prepared.map((l) => l.lineTotalActual)
+          ),
           receivedAt: input.receivedAt,
           notes: input.notes,
           items: { create: prepared.map((l) => lineCreateData(tenantId, l)) },
@@ -973,7 +1009,9 @@ export async function confirmGoodsReceiptLogic(
           items: {
             orderBy: { lineNo: "asc" },
             include: {
-              product: { select: { id: true, name: true } },
+              // `categoryId` is what puts each line on the COGS or the OpEx side
+              // of /cost when this confirm writes its expense (ADR 0016 Q3).
+              product: { select: { id: true, name: true, categoryId: true } },
               purchaseOrderItem: {
                 select: { id: true, qtyOrdered: true, qtyReceived: true, unitPrice: true },
               },
@@ -1035,6 +1073,17 @@ export async function confirmGoodsReceiptLogic(
         }
       }
 
+      // Part 16 Q2: whether this shop can reclaim the input VAT is SNAPSHOTTED
+      // here, not read at query time. A shop that crosses the ฿1.8M threshold in
+      // October and registers must not have the whole year's stock silently
+      // re-valued — it did pay that VAT and nobody refunds it. Same rule ADR 0012
+      // Q3 applied to `to_base_ratio`: what was true when the transaction
+      // happened must not move when the present changes.
+      const tenant = await tx.tenant.findFirst({
+        where: { id: tenantId },
+        select: { isVatRegistered: true },
+      });
+
       const receipt = await tx.goodsReceipt.update({
         where: { id },
         data: {
@@ -1042,9 +1091,21 @@ export async function confirmGoodsReceiptLogic(
           confirmedAt: new Date(),
           confirmedBy,
           hasDiscrepancy,
+          vatReclaimable: tenant?.isVatRegistered ?? false,
+          // Re-derived from the lines as they finally stand, so a draft edited
+          // after its rate was set cannot confirm with a stale amount.
+          vatAmount: grVatAmount(
+            gr.vatRatePercent,
+            gr.items.map((i) => i.lineTotalActual)
+          ),
         },
         include: GR_DETAIL_INCLUDE,
       });
+
+      // Q3.1: the bill is written in THIS transaction. `/cost` reads spend from
+      // `expense` alone, so a path where stock arrives and the money does not
+      // would understate a branch's spend with nothing on screen to explain it.
+      await createExpenseFromGoodsReceiptTx(tx, tenantId, gr, confirmedBy);
 
       if (gr.purchaseOrderId) {
         await recalcPurchaseOrderReceiptStatus(tx, tenantId, gr.purchaseOrderId);
@@ -1166,6 +1227,12 @@ export async function voidGoodsReceiptLogic(
         },
         include: GR_DETAIL_INCLUDE,
       });
+
+      // Q3.3: the bill goes with the receipt. Soft-deleted rather than reversed —
+      // the ledger needs compensating rows because it is append-only, but an
+      // expense is a document, and this receipt already records who voided it
+      // and why. Recording that reason twice would let the two disagree.
+      await voidExpenseForGoodsReceiptTx(tx, tenantId, gr.id);
 
       if (gr.purchaseOrderId) {
         // A manual short-close was a decision about deliveries that have now

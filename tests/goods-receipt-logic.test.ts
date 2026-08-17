@@ -187,6 +187,11 @@ describe("goods-receipt *Logic (PO → รับของ → ledger)", () => {
       await tx.stockMovement.deleteMany({ where: { tenantId: { in: ids } } });
       await tx.goodsReceiptItemAllocation.deleteMany({ where: { tenantId: { in: ids } } });
       await tx.goodsReceiptItem.deleteMany({ where: { tenantId: { in: ids } } });
+      // Before the receipts themselves: confirming one writes an expense whose
+      // FK is ON DELETE SET NULL, and `expense_source_gr_check` forbids a row
+      // claiming FROM_GOODS_RECEIPT while pointing at nothing (ADR 0016 L1).
+      await tx.expenseItem.deleteMany({ where: { tenantId: { in: ids } } });
+      await tx.expense.deleteMany({ where: { tenantId: { in: ids } } });
       await tx.goodsReceipt.deleteMany({ where: { tenantId: { in: ids } } });
       await tx.purchaseOrderItemAllocation.deleteMany({ where: { tenantId: { in: ids } } });
       await tx.purchaseOrderItem.deleteMany({ where: { tenantId: { in: ids } } });
@@ -195,6 +200,9 @@ describe("goods-receipt *Logic (PO → รับของ → ledger)", () => {
       await tx.supplier.deleteMany({ where: { tenantId: { in: ids } } });
       await tx.productUnit.deleteMany({ where: { product: { tenantId: { in: ids } } } });
       await tx.product.deleteMany({ where: { tenantId: { in: ids } } });
+      // The GR→expense hook creates COGS/Food/ไม่ระบุหมวด on demand for products
+      // nobody categorised, so a suite that never made a category still has one.
+      await tx.category.deleteMany({ where: { tenantId: { in: ids } } });
       await tx.department.deleteMany({ where: { tenantId: { in: ids } } });
       await tx.branch.deleteMany({ where: { tenantId: { in: ids } } });
       await tx.tenant.deleteMany({ where: { id: { in: ids } } });

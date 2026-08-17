@@ -227,6 +227,11 @@ describe("cost read *Logic (FIFO by ledger replay, ADR 0014)", () => {
       await tx.stockAdjustment.deleteMany({ where: { tenantId: { in: ids } } });
       await tx.goodsReceiptItemAllocation.deleteMany({ where: { tenantId: { in: ids } } });
       await tx.goodsReceiptItem.deleteMany({ where: { tenantId: { in: ids } } });
+      // Before the receipts themselves: confirming one writes an expense whose
+      // FK is ON DELETE SET NULL, and `expense_source_gr_check` forbids a row
+      // claiming FROM_GOODS_RECEIPT while pointing at nothing (ADR 0016 L1).
+      await tx.expenseItem.deleteMany({ where: { tenantId: { in: ids } } });
+      await tx.expense.deleteMany({ where: { tenantId: { in: ids } } });
       await tx.goodsReceipt.deleteMany({ where: { tenantId: { in: ids } } });
       await tx.purchaseOrderItemAllocation.deleteMany({ where: { tenantId: { in: ids } } });
       await tx.purchaseOrderItem.deleteMany({ where: { tenantId: { in: ids } } });
@@ -234,6 +239,9 @@ describe("cost read *Logic (FIFO by ledger replay, ADR 0014)", () => {
       await tx.supplier.deleteMany({ where: { tenantId: { in: ids } } });
       await tx.productUnit.deleteMany({ where: { product: { tenantId: { in: ids } } } });
       await tx.product.deleteMany({ where: { tenantId: { in: ids } } });
+      // The GR→expense hook creates COGS/Food/ไม่ระบุหมวด on demand for products
+      // nobody categorised, so a suite that never made a category still has one.
+      await tx.category.deleteMany({ where: { tenantId: { in: ids } } });
       await tx.department.deleteMany({ where: { tenantId: { in: ids } } });
       await tx.branch.deleteMany({ where: { tenantId: { in: ids } } });
       await tx.tenant.deleteMany({ where: { id: { in: ids } } });
@@ -451,8 +459,11 @@ describe("cost read *Logic (FIFO by ledger replay, ADR 0014)", () => {
     expect(aree.revenue).toBeNull();
     expect(aree.grossProfit).toBeNull();
 
+    // Spend now comes from the EXPENSE a confirmed receipt writes (ADR 0016 Q3),
+    // and lands under COGS because that is where a stocked product's category
+    // sits — or, for a product nobody categorised, where the fallback puts it.
     expect(
-      num(thonglor.purchaseSpend.minus(priorOf(branchA).purchaseSpend))
+      num(thonglor.cogsSpend.minus(priorOf(branchA).cogsSpend))
     ).toBeGreaterThanOrEqual(1000);
   });
 

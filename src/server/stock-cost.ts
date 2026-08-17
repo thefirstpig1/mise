@@ -37,6 +37,46 @@ import type {
 } from "@/lib/validations/stock-cost";
 
 const ZERO = new Prisma.Decimal(0);
+const HUNDRED = new Prisma.Decimal(100);
+const money = (d: Prisma.Decimal) =>
+  d.toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
+
+/**
+ * What a receipt line's stock is WORTH — `line_total_actual`, plus the VAT the
+ * shop cannot get back (Part 16, ADR 0016 Q2).
+ *
+ * For a VAT-registered buyer input VAT is a receivable, and the layer stays net.
+ * For an unregistered one — which is most Thai SMEs, since the ฿1.8M threshold
+ * is above them and `is_vat_registered` defaults to false — that VAT is money
+ * gone, and it belongs in the cost of the goods. The system valued every layer
+ * net until this Part, understating the common case by about 7%.
+ *
+ * `vat_reclaimable` is the RECEIPT's snapshot, not the tenant's setting read
+ * today: a shop that registers in October must not have the whole year's stock
+ * silently re-valued, because it did pay that VAT and nobody refunds it.
+ *
+ * The uplift is per line rather than a share of the header's `vat_amount`, and
+ * the two are identical by construction — `vat_amount` is derived from the same
+ * rate over the same lines (`grVatAmount` in goods-receipt.ts). Receipts written
+ * before Part 16 carry no rate and are returned unchanged, which is exactly the
+ * old behaviour: **no backfill, no migration of history.**
+ */
+const layerValueOf = (item: {
+  lineTotalActual: Prisma.Decimal;
+  goodsReceipt: { vatRatePercent: Prisma.Decimal | null; vatReclaimable: boolean };
+}): Prisma.Decimal => {
+  const { vatRatePercent, vatReclaimable } = item.goodsReceipt;
+  if (vatReclaimable || vatRatePercent === null || vatRatePercent.isZero()) {
+    return item.lineTotalActual;
+  }
+  // A reversal line's total is negative, so its uplift is too and a voided
+  // receipt still nets to exactly zero.
+  return money(
+    item.lineTotalActual.plus(
+      item.lineTotalActual.mul(vatRatePercent).div(HUNDRED)
+    )
+  );
+};
 
 /** A replayed state, labelled with the pair it belongs to. */
 export type ProductCost = ReplayState & {
@@ -146,7 +186,8 @@ async function replayPairs(
 
   // The money behind a receipt lives on the GR line, which the ledger points at
   // polymorphically with no FK (ADR 0011 Q3) — so it is a second query, batched,
-  // never a per-row lookup.
+  // never a per-row lookup. Since Part 16 it also carries the receipt's VAT
+  // snapshot, because what a layer is WORTH depends on it (see `layerValueOf`).
   const grItemIds = movements
     .filter((m) => m.sourceType === "GR_LINE")
     .map((m) => m.sourceId);
@@ -154,7 +195,16 @@ async function replayPairs(
   const grItems = grItemIds.length
     ? await tx.goodsReceiptItem.findMany({
         where: { tenantId, id: { in: grItemIds } },
-        select: { id: true, lineTotalActual: true, reversalOfItemId: true },
+        select: {
+          id: true,
+          lineTotalActual: true,
+          reversalOfItemId: true,
+          // Part 16 Q2 — the receipt's OWN snapshot of whether this shop could
+          // reclaim the VAT it paid, never the tenant's setting read today.
+          goodsReceipt: {
+            select: { vatRatePercent: true, vatReclaimable: true },
+          },
+        },
       })
     : [];
   const grById = new Map(grItems.map((i) => [i.id, i]));
@@ -183,7 +233,7 @@ async function replayPairs(
       sourceType: m.sourceType,
       sourceId: m.sourceId,
       occurredAt: m.occurredAt,
-      lineTotal: gr?.lineTotalActual ?? null,
+      lineTotal: gr ? layerValueOf(gr) : null,
       reversalOfItemId: gr?.reversalOfItemId ?? null,
       declaredUnitCost: declaredByMovement.get(m.id) ?? null,
     };
@@ -261,8 +311,27 @@ export type BranchCostSummary = {
   branchId: string;
   branchName: string;
   branchCode: string | null;
-  /** Money spent receiving goods in the period. Voids net themselves out. */
-  purchaseSpend: Prisma.Decimal;
+  /**
+   * Money spent on MATERIALS in the period — every expense line whose category
+   * sits under `account = COGS` (ADR 0016 Q4).
+   *
+   * Read from `expense`, not from receipts: confirming a receipt writes its own
+   * expense (Q3), so this table is the one place all money-out lands and there is
+   * nothing to double count. A voided receipt takes its bill with it.
+   *
+   * Both spend figures are **net of VAT** — the line stores `total_price` excluding
+   * tax. A registered shop reclaims that VAT; an unregistered one meets it in the
+   * cost of its stock instead (Q2's uplift). Mixing gross spend with net stock
+   * value would make two columns of the same table incomparable.
+   */
+  cogsSpend: Prisma.Decimal;
+  /**
+   * Everything else — rent, utilities, wages, the accountant. *"Materials 60,000,
+   * everything else 40,000"* is a sentence an owner acts on, where a single spend
+   * total is not; and when revenue lands in Sprint 4 the first half becomes food
+   * cost %, the number restaurants actually run on.
+   */
+  opexSpend: Prisma.Decimal;
   /** Value of stock held at the END of the period, summed layer by layer (Q3b). */
   inventoryValue: Prisma.Decimal;
   /**
@@ -326,39 +395,39 @@ export async function getBranchCostSummaryLogic(
       lt: Date;
     };
 
-    // Purchase spend comes from the receipts themselves, not from the layers: it
-    // is the money that left the business in the period, which is a different
-    // question from what the stock still on the shelf is worth. A voided receipt
-    // nets to zero because Part 13 writes its reversal line with a negated total.
-    const spendRows = await tx.goodsReceiptItem.groupBy({
-      by: ["goodsReceiptId"],
+    // Spend comes from EXPENSES since Part 16 — one source of money-out, split
+    // by the account its category sits under (ADR 0016 Q3/Q4). Receipts are in
+    // here too: confirming one writes its own expense, so reading both would
+    // count every delivery twice.
+    //
+    // Filtered on `bill_date`, a DATE column, so the plain period bounds apply —
+    // the Bangkok day-start shift belongs to `occurred_at`, which is an instant.
+    const expenseLines = await tx.expenseItem.findMany({
       where: {
         tenantId,
-        goodsReceipt: {
+        expense: {
           tenantId,
           deletedAt: null,
-          status: { in: ["CONFIRMED", "VOIDED"] },
-          receivedAt: periodBounds,
+          branchId: { in: branchIds },
+          billDate: { gte: from, lte: to },
         },
       },
-      _sum: { lineTotalActual: true },
+      select: {
+        totalPrice: true,
+        category: { select: { account: true } },
+        expense: { select: { branchId: true } },
+      },
     });
-    const receipts = spendRows.length
-      ? await tx.goodsReceipt.findMany({
-          where: { tenantId, id: { in: spendRows.map((r) => r.goodsReceiptId) } },
-          select: { id: true, branchId: true },
-        })
-      : [];
-    const branchOfReceipt = new Map(receipts.map((r) => [r.id, r.branchId]));
 
-    const spendByBranch = new Map<string, Prisma.Decimal>();
-    for (const row of spendRows) {
-      const branchId = branchOfReceipt.get(row.goodsReceiptId);
-      if (!branchId) continue;
-      spendByBranch.set(
-        branchId,
-        (spendByBranch.get(branchId) ?? ZERO).plus(row._sum.lineTotalActual ?? ZERO)
-      );
+    const cogsByBranch = new Map<string, Prisma.Decimal>();
+    const opexByBranch = new Map<string, Prisma.Decimal>();
+    for (const line of expenseLines) {
+      // The 3-tier tree has carried `account` since Sprint 1, so the split is
+      // free. Anything not marked COGS is treated as operating cost: a category
+      // whose account nobody set is an overhead until someone says otherwise.
+      const target = line.category.account === "COGS" ? cogsByBranch : opexByBranch;
+      const branchId = line.expense.branchId;
+      target.set(branchId, (target.get(branchId) ?? ZERO).plus(line.totalPrice));
     }
 
     // --- what each branch paid per base unit, per product, in the period ---
@@ -382,10 +451,19 @@ export async function getBranchCostSummaryLogic(
     const rmItems = receiptMovements.length
       ? await tx.goodsReceiptItem.findMany({
           where: { tenantId, id: { in: receiptMovements.map((m) => m.sourceId) } },
-          select: { id: true, lineTotalActual: true },
+          select: {
+            id: true,
+            lineTotalActual: true,
+            goodsReceipt: {
+              select: { vatRatePercent: true, vatReclaimable: true },
+            },
+          },
         })
       : [];
-    const totalById = new Map(rmItems.map((i) => [i.id, i.lineTotalActual]));
+    // Valued the same way a layer is (Part 16 Q2): "what this branch paid" has to
+    // mean the same thing here as it does on the shelf, or the excess-spend
+    // comparison drifts from the cost it is meant to explain.
+    const totalById = new Map(rmItems.map((i) => [i.id, layerValueOf(i)]));
 
     for (const m of receiptMovements) {
       const key = keyOf(m.productId, m.branchId);
@@ -460,7 +538,8 @@ export async function getBranchCostSummaryLogic(
         branchId: branch.id,
         branchName: branch.name,
         branchCode: branch.code,
-        purchaseSpend: spendByBranch.get(branch.id) ?? ZERO,
+        cogsSpend: cogsByBranch.get(branch.id) ?? ZERO,
+        opexSpend: opexByBranch.get(branch.id) ?? ZERO,
         inventoryValue,
         wasteValue,
         countVarianceValue,

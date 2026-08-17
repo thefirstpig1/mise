@@ -947,6 +947,187 @@ export async function deleteExpenseLogic(
 }
 
 // ------------------------------------------------------------
+// The goods-receipt hook (Q3)
+// ------------------------------------------------------------
+
+/**
+ * The category a receipt line falls back to when its product has none.
+ *
+ * `product.category_id` is nullable — Part 7a ships a "ไม่มีหมวด" bucket — while
+ * `expense_item.category_id` is not, so without a fallback a receipt containing
+ * one uncategorised product could not be confirmed at all. Refusing the confirm
+ * would hold up the shelf on a data-entry chore; guessing a specific group
+ * (Meat, Dry goods) would put money in a bucket nobody chose and no one would
+ * ever notice.
+ *
+ * So: **COGS / Food / ไม่ระบุหมวด**, created once per tenant on demand. The
+ * `account` is the half `/cost` reads, and it is certainly right — what a
+ * receipt carries is stock. The group name says out loud that nobody has said
+ * which kind, so an owner can see it and fix it.
+ */
+export const UNCATEGORISED_CATEGORY = {
+  account: "COGS",
+  accountingSection: "Food",
+  groupName: "ไม่ระบุหมวด",
+} as const;
+
+export async function resolveUncategorisedCategoryId(
+  tx: PrismaClient,
+  tenantId: string
+): Promise<string> {
+  const row = await tx.category.upsert({
+    where: {
+      tenantId_account_accountingSection_groupName: {
+        tenantId,
+        account: UNCATEGORISED_CATEGORY.account,
+        accountingSection: UNCATEGORISED_CATEGORY.accountingSection,
+        groupName: UNCATEGORISED_CATEGORY.groupName,
+      },
+    },
+    create: { tenantId, ...UNCATEGORISED_CATEGORY },
+    // A no-op update rather than a find-then-create: two confirms racing on a
+    // tenant's first uncategorised product would otherwise both try to insert.
+    update: {},
+    select: { id: true, deletedAt: true },
+  });
+
+  // Someone may have soft-deleted it between receipts; a fallback that is not
+  // there is not a fallback.
+  if (row.deletedAt !== null) {
+    await tx.category.update({ where: { id: row.id }, data: { deletedAt: null } });
+  }
+  return row.id;
+}
+
+/** The shape the hook needs from a confirmed receipt. */
+export type GoodsReceiptForExpense = {
+  id: string;
+  branchId: string;
+  supplierId: string;
+  invoiceNo: string | null;
+  receivedAt: Date;
+  vatRatePercent: Prisma.Decimal | null;
+  items: {
+    productId: string;
+    lineNo: number;
+    qtyReceivedActual: Prisma.Decimal;
+    receivedUnitId: string;
+    receivedUnitName: string;
+    unitPriceActual: Prisma.Decimal;
+    lineTotalActual: Prisma.Decimal;
+    reversalOfItemId: string | null;
+    product: { name: string; categoryId: string | null };
+  }[];
+};
+
+/**
+ * Confirming a receipt writes its expense — **in the caller's transaction** (Q3.1).
+ *
+ * Not a convenience: `/cost` reads spend from `expense` alone, so a path where
+ * stock arrives and the money does not would understate what a branch spent with
+ * nothing on screen to explain it. Sharing the confirm's transaction means the
+ * receipt and the bill are written together or not at all.
+ *
+ * Idempotent through `expense_source_gr_unique`: a replayed confirm finds the
+ * bill already there and returns it rather than booking the purchase twice.
+ *
+ * The receipt's prices are net of VAT (`line_total_actual` is `qty × unit_price`),
+ * so the bill is built in the EXCLUSIVE direction whatever the tenant's habit is
+ * when typing one by hand.
+ */
+export async function createExpenseFromGoodsReceiptTx(
+  tx: PrismaClient,
+  tenantId: string,
+  gr: GoodsReceiptForExpense,
+  userId: string
+): Promise<Expense> {
+  const existing = await tx.expense.findFirst({
+    where: { tenantId, sourceGrId: gr.id, deletedAt: null },
+  });
+  if (existing) return existing;
+
+  // Reversal lines belong to a void, and a void removes the bill outright.
+  const lines = gr.items.filter((i) => i.reversalOfItemId === null);
+  if (lines.length === 0) {
+    throw new Error(`Goods receipt "${gr.id}" has no lines to bill`);
+  }
+
+  const needsFallback = lines.some((l) => l.product.categoryId === null);
+  const fallbackCategoryId = needsFallback
+    ? await resolveUncategorisedCategoryId(tx, tenantId)
+    : null;
+
+  const amounts = computeExpenseAmounts({
+    items: lines.map((l) => ({ lineTotal: l.lineTotalActual })),
+    vatRatePercent: gr.vatRatePercent,
+    isPriceVatInclusive: false,
+    subjectToWht: false,
+    whtRatePercent: null,
+  });
+
+  return tx.expense.create({
+    data: {
+      tenantId,
+      branchId: gr.branchId,
+      supplierId: gr.supplierId,
+      source: "FROM_GOODS_RECEIPT",
+      sourceGrId: gr.id,
+      // `bill_date` is a DATE column and `received_at` a real instant; Prisma
+      // truncates on write, which is what "the day the delivery arrived" means.
+      billDate: gr.receivedAt,
+      billNo: gr.invoiceNo,
+      vatInvoiceNo: null,
+      subtotalExclVat: amounts.subtotalExclVat,
+      vatRatePercent: gr.vatRatePercent,
+      vatAmount: amounts.vatAmount,
+      isPriceVatInclusive: false,
+      totalAmount: amounts.totalAmount,
+      // Withholding is a decision made at payment, not at delivery — the bill
+      // starts without it and the user adds it on the expense (Q3.4).
+      subjectToWht: false,
+      whtRatePercent: null,
+      whtAmount: null,
+      netPaymentAmount: amounts.netPaymentAmount,
+      paymentStatus: "UNPAID",
+      createdBy: userId,
+      items: {
+        create: lines.map((line, index) => ({
+          tenantId,
+          lineNo: index + 1,
+          categoryId: line.product.categoryId ?? fallbackCategoryId!,
+          productId: line.productId,
+          productUnitId: line.receivedUnitId,
+          description: `${line.product.name} ${line.qtyReceivedActual.toString()} ${line.receivedUnitName}`,
+          qty: line.qtyReceivedActual,
+          unitPrice: line.unitPriceActual,
+          totalPrice: amounts.items[index].totalPrice,
+        })),
+      },
+    },
+  });
+}
+
+/**
+ * Voiding a receipt voids its bill, in the same transaction (Q3.3).
+ *
+ * Soft-deleted rather than reversed: the ledger needs compensating rows because
+ * it is append-only, but an expense is a document, and the receipt that caused
+ * it already records who voided it and why. Duplicating that reason here would
+ * let the two disagree.
+ */
+export async function voidExpenseForGoodsReceiptTx(
+  tx: PrismaClient,
+  tenantId: string,
+  goodsReceiptId: string
+): Promise<number> {
+  const { count } = await tx.expense.updateMany({
+    where: { tenantId, sourceGrId: goodsReceiptId, deletedAt: null },
+    data: { deletedAt: new Date() },
+  });
+  return count;
+}
+
+// ------------------------------------------------------------
 // Writes — the recurring template
 // ------------------------------------------------------------
 
