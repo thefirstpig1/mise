@@ -439,7 +439,7 @@ const compareParRows = (a: ParLevelRow, b: ParLevelRow): number => {
   return a.product.name.localeCompare(b.product.name, "th");
 };
 
-/** One product's par at one branch, for the product page. */
+/** One product's par at one branch. */
 export async function getParLevelForProductLogic(
   tenantId: string,
   productId: string,
@@ -448,6 +448,24 @@ export async function getParLevelForProductLogic(
   return withTenantContext(tenantId, (tx: PrismaClient) =>
     tx.parLevel.findFirst({
       where: { tenantId, productId, branchId, deletedAt: null },
+    })
+  );
+}
+
+/**
+ * One product's pars across every branch — the product page's section.
+ *
+ * Raw rows rather than `ParLevelRow`s: that page sets the par, it does not judge
+ * it, so it needs `inputQty`/`inputUnitId` to re-open the form in the unit the
+ * user chose and nothing about on-hand or open orders.
+ */
+export async function getParLevelsForProductLogic(
+  tenantId: string,
+  productId: string
+): Promise<ParLevel[]> {
+  return withTenantContext(tenantId, (tx: PrismaClient) =>
+    tx.parLevel.findMany({
+      where: { tenantId, productId, deletedAt: null },
     })
   );
 }

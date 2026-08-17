@@ -11,9 +11,20 @@ import { computeBangkokToday } from "@/lib/bangkok-date";
 import OpenCountForm from "../_components/OpenCountForm";
 import { openStockCountAction } from "../actions";
 
-export default async function NewStockCountPage() {
+// `?branch=<id>` is honoured (Part 17 L5b): the below-par list links here for a
+// specific branch, and a link that silently ignored which branch it named would
+// send the counter to the wrong shelf. `searchParams` is a PROMISE in Next 15 —
+// the plain-object signature type-checks under tsc and fails `next build`.
+export default async function NewStockCountPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ branch?: string }>;
+}) {
   const { tenantId } = await requireTenant();
-  const branches = await getBranchesLogic(tenantId);
+  const [branches, { branch: branchParam }] = await Promise.all([
+    getBranchesLogic(tenantId),
+    searchParams,
+  ]);
 
   if (branches.length === 0) {
     return (
@@ -52,6 +63,11 @@ export default async function NewStockCountPage() {
         branches={branches.map((b) => ({ id: b.id, name: b.name }))}
         openByBranch={openByBranch}
         todayBangkok={todayBangkok}
+        // An unknown or foreign id falls through to the form's own default
+        // rather than erroring — the id never reaches a query unvalidated.
+        preselectBranchId={
+          branches.some((b) => b.id === branchParam) ? branchParam : undefined
+        }
       />
     </div>
   );

@@ -16,7 +16,11 @@ import { getBranchesLogic } from "@/server/branch";
 import { getStockBalancesByBranchLogic } from "@/server/stock-movement";
 import { getProductCostsLogic } from "@/server/stock-cost";
 import { getProductCostsQuerySchema } from "@/lib/validations/stock-cost";
+import { getParLevelsLogic } from "@/server/par-level";
+import { getParLevelsQuerySchema } from "@/lib/validations/par-level";
 import { toProductStockBalanceView } from "./_components/stock-view";
+import { toParLevelRowView } from "./_components/par-level-view";
+import BelowParList from "./_components/BelowParList";
 import StockLevelsTable, {
   type StockLevelRow,
 } from "./_components/StockLevelsTable";
@@ -67,6 +71,19 @@ export default async function StockLevelsPage({
       branchId: activeBranch.id,
     })
   );
+
+  // Part 17 (ADR 0017 Q6): what is under its par at THIS branch. Asked for
+  // belowOnly — the full par list belongs on the product page, this one exists to
+  // be short enough that someone reads all of it.
+  const belowPar = (
+    await getParLevelsLogic(
+      tenantId,
+      getParLevelsQuerySchema.parse({
+        branchId: activeBranch.id,
+        belowOnly: "true",
+      })
+    )
+  ).map((r) => toParLevelRowView(r));
 
   const rows: StockLevelRow[] = balances
     .map(toProductStockBalanceView)
@@ -129,6 +146,8 @@ export default async function StockLevelsPage({
           ))}
         </div>
       )}
+
+      <BelowParList rows={belowPar} branchId={activeBranch.id} />
 
       <StockLevelsTable rows={rows} />
     </div>

@@ -12,6 +12,15 @@ import {
   getProductMappingsLogic,
   getPriceHistoryLogic,
 } from "@/server/supplier-product-mapping";
+import { getBranchesLogic } from "@/server/branch";
+import { getParLevelsForProductLogic } from "@/server/par-level";
+import {
+  setParLevelAction,
+  deleteParLevelAction,
+} from "@/app/stock/par-level-actions";
+import ParLevelSection, {
+  type ParBranchRow,
+} from "../_components/ParLevelSection";
 import { updateProduct } from "../actions";
 import { toProductView } from "../_components/product-view";
 import {
@@ -33,17 +42,29 @@ export default async function EditProductPage({
   const { id } = await params;
   const { tenantId } = await requireTenant();
 
-  const [product, units, categories, allParents, densityTemplates, mappings] =
-    await Promise.all([
-      getProductByIdLogic(tenantId, id),
-      getUnitTemplates(),
-      getCategoriesLogic(tenantId),
-      getProductParentOptionsLogic(tenantId),
-      getLiquidDensityTemplates(),
-      // "all" = live rows incl. those whose supplier is soft-deleted (orphans,
-      // sorted last); the list toggles Active/All client-side (L5a).
-      getProductMappingsLogic(tenantId, id, "all"),
-    ]);
+  const [
+    product,
+    units,
+    categories,
+    allParents,
+    densityTemplates,
+    mappings,
+    branches,
+    parLevels,
+  ] = await Promise.all([
+    getProductByIdLogic(tenantId, id),
+    getUnitTemplates(),
+    getCategoriesLogic(tenantId),
+    getProductParentOptionsLogic(tenantId),
+    getLiquidDensityTemplates(),
+    // "all" = live rows incl. those whose supplier is soft-deleted (orphans,
+    // sorted last); the list toggles Active/All client-side (L5a).
+    getProductMappingsLogic(tenantId, id, "all"),
+    // Part 17 (ADR 0017 Q5 + Consequence 4): the par is set from here, because
+    // nothing fills it in automatically and a list nobody can reach goes unused.
+    getBranchesLogic(tenantId),
+    getParLevelsForProductLogic(tenantId, id),
+  ]);
   if (!product) notFound();
 
   // Price history (L5a): one series per distinct (supplier, branch) tuple drawn
@@ -102,6 +123,24 @@ export default async function EditProductPage({
   // descendant surfaces a Thai field error rather than being pre-filtered.
   const parentOptions = allParents.filter((p) => p.id !== product.id);
 
+  // One row per branch — a par is per (product, branch), so a branch with no par
+  // is shown as an empty box rather than hidden: setting one must not require
+  // first knowing that it is missing.
+  const parByBranch = new Map(parLevels.map((p) => [p.branchId, p]));
+  const parRows: ParBranchRow[] = branches.map((b) => {
+    const par = parByBranch.get(b.id);
+    return {
+      branchId: b.id,
+      branchName: b.name,
+      parLevelId: par?.id ?? null,
+      inputQty: par?.inputQty.toString() ?? null,
+      inputUnitId: par?.inputUnitId ?? null,
+    };
+  });
+  const parUnitOptions = product.productUnits
+    .map((u) => ({ id: u.id, unitName: u.unitName, isBase: u.isBase }))
+    .sort((a, b) => Number(b.isBase) - Number(a.isBase));
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4">
@@ -120,6 +159,14 @@ export default async function EditProductPage({
 
       {/* Part 8 L5a — supplier price list + history (product-centric, Q9). Read
           only this layer; the create/edit form + row controls land in L5a-2. */}
+      <ParLevelSection
+        productId={product.id}
+        rows={parRows}
+        units={parUnitOptions}
+        setAction={setParLevelAction}
+        deleteAction={deleteParLevelAction}
+      />
+
       <MappingListSection mappings={mappingViews} productId={product.id} />
       <MappingHistoryViewer series={series} />
     </div>

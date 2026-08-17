@@ -22,6 +22,7 @@ export default function OpenCountForm({
   branches,
   openByBranch,
   todayBangkok,
+  preselectBranchId,
 }: {
   action: (
     prev: StockCountActionState,
@@ -31,6 +32,14 @@ export default function OpenCountForm({
   /** branchId → the id of the sheet already open there (Q8). */
   openByBranch: Record<string, string>;
   todayBangkok: string;
+  /**
+   * Part 17 L5b: which branch the caller meant, when arriving from the below-par
+   * list. Already validated against `branches` by the page. It wins over the
+   * first-free default even if that branch is already counting — the user asked
+   * for this branch, and the "already open" notice tells them what happened
+   * better than silently landing them somewhere else would.
+   */
+  preselectBranchId?: string;
 }) {
   const router = useRouter();
   const [state, formAction, isPending] = useActionState(
@@ -39,7 +48,9 @@ export default function OpenCountForm({
   );
 
   const firstFree = branches.find((b) => !openByBranch[b.id]) ?? branches[0];
-  const [branchId, setBranchId] = useState(firstFree?.id ?? "");
+  const [branchId, setBranchId] = useState(
+    preselectBranchId ?? firstFree?.id ?? ""
+  );
 
   useEffect(() => {
     if (state.ok) router.push(`/stock-counts/${state.countId}`);
