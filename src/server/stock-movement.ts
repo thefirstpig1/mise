@@ -739,10 +739,18 @@ async function assertSourceExists(
               .then((r) =>
                 r ? { productId: r.productId, branchId: r.stockCount.branchId } : null
               )
-          : // SYSTEM_INITIAL: reserved, no table and no writer (Q10).
-            (() => {
-              throw new UnsupportedSourceTypeError(sourceType);
-            })();
+          : sourceType === "WASTE_LOG"
+            ? // Part 17 (ADR 0017 Q1): the waste row IS the source. Unlike the two
+              // above it carries BOTH product and branch itself — a waste entry is
+              // a document of one row, with no header to inherit a place from.
+              await tx.wasteLog.findFirst({
+                where: { id: sourceId, tenantId },
+                select,
+              })
+            : // SYSTEM_INITIAL: reserved, no table and no writer (Q10).
+              (() => {
+                throw new UnsupportedSourceTypeError(sourceType);
+              })();
 
   if (!row) throw new MovementSourceNotFoundError(sourceType, sourceId);
   if (row.productId !== productId) {
