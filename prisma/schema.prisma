@@ -110,6 +110,8 @@ model Tenant {
   expenses                Expense[]
   expenseItems            ExpenseItem[]
   recurringExpenses       RecurringExpense[]
+  wasteLogs               WasteLog[]
+  parLevels               ParLevel[]
 
   @@map("tenant")
 }
@@ -142,6 +144,8 @@ model Branch {
   goodsReceipts           GoodsReceipt[]
   expenses                Expense[]
   recurringExpenses       RecurringExpense[]
+  wasteLogs               WasteLog[]
+  parLevels               ParLevel[]
 
   @@index([tenantId])
   @@map("branch")
@@ -166,18 +170,20 @@ model User {
   stockMovements            StockMovement[]
   stockAdjustments          StockAdjustment[]
   stockCostDeclarations     StockCostDeclaration[]
-  stockCountsStarted        StockCount[]       @relation("ScStartedBy")
-  stockCountsClosed         StockCount[]       @relation("ScClosedBy")
-  stockCountsVoided         StockCount[]       @relation("ScVoidedBy")
+  stockCountsStarted        StockCount[]           @relation("ScStartedBy")
+  stockCountsClosed         StockCount[]           @relation("ScClosedBy")
+  stockCountsVoided         StockCount[]           @relation("ScVoidedBy")
   stockCountItemsCounted    StockCountItem[]
-  purchaseOrdersMade        PurchaseOrder[]    @relation("PoCreatedBy")
-  purchaseOrdersSent        PurchaseOrder[]    @relation("PoSentBy")
-  purchaseOrdersVoided      PurchaseOrder[]    @relation("PoCancelledBy")
-  purchaseOrdersClosedShort PurchaseOrder[]    @relation("PoClosedShortBy")
-  goodsReceiptsReceived     GoodsReceipt[]     @relation("GrReceivedBy")
-  goodsReceiptsConfirmed    GoodsReceipt[]     @relation("GrConfirmedBy")
-  goodsReceiptsVoided       GoodsReceipt[]     @relation("GrVoidedBy")
+  purchaseOrdersMade        PurchaseOrder[]        @relation("PoCreatedBy")
+  purchaseOrdersSent        PurchaseOrder[]        @relation("PoSentBy")
+  purchaseOrdersVoided      PurchaseOrder[]        @relation("PoCancelledBy")
+  purchaseOrdersClosedShort PurchaseOrder[]        @relation("PoClosedShortBy")
+  goodsReceiptsReceived     GoodsReceipt[]         @relation("GrReceivedBy")
+  goodsReceiptsConfirmed    GoodsReceipt[]         @relation("GrConfirmedBy")
+  goodsReceiptsVoided       GoodsReceipt[]         @relation("GrVoidedBy")
   expensesCreated           Expense[]
+  wasteLogged               WasteLog[]             @relation("WasteWastedBy")
+  wasteVoided               WasteLog[]             @relation("WasteVoidedBy")
 
   @@map("app_user")
 }
@@ -340,7 +346,7 @@ model Category {
   updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
 
-  tenant   Tenant    @relation(fields: [tenantId], references: [id])
+  tenant            Tenant             @relation(fields: [tenantId], references: [id])
   products          Product[]
   expenseItems      ExpenseItem[]
   recurringExpenses RecurringExpense[]
@@ -388,6 +394,8 @@ model Product {
   purchaseOrderItems      PurchaseOrderItem[]
   goodsReceiptItems       GoodsReceiptItem[]
   expenseItems            ExpenseItem[]
+  wasteLogs               WasteLog[]
+  parLevels               ParLevel[]
 
   /// NOTE: per-tenant sku uniqueness is a PARTIAL unique index (WHERE deleted_at
   /// IS NULL) in prisma/manual/product_sku_unique.sql — NOT a Prisma @@unique,
@@ -415,6 +423,8 @@ model ProductUnit {
   purchaseOrderItems      PurchaseOrderItem[]
   goodsReceiptItems       GoodsReceiptItem[]
   expenseItems            ExpenseItem[]
+  wasteLogs               WasteLog[]
+  parLevels               ParLevel[]
 
   @@unique([productId, unitName])
   @@index([productId])
@@ -493,9 +503,39 @@ enum SourceType {
   /// new kind of event — so stock_movement_sign_check is untouched and Part 13's
   /// two-migration dance does not apply to this Part.
   STOCK_COUNT
+  /// -> waste_log (Part 17, ADR 0017 Q1). Same pattern as STOCK_COUNT above: the
+  /// movement TYPE stays ADJUST_LOSS (a void appends ADJUST_GAIN) — throwing food
+  /// away is stock going out, not a new kind of event — so stock_movement_sign_check
+  /// is untouched and Part 13's two-migration dance does not apply. What this value
+  /// buys is /cost's split: ของเสีย means WASTE_LOG alone, and ส่วนต่าง/ปรับปรุง
+  /// means STOCK_COUNT + ADJUSTMENT (Q4).
+  WASTE_LOG
   SYSTEM_INITIAL // reserved: onboarding initial stock (no writer in Part 10)
 
   @@map("source_type")
+}
+
+/// Why something was thrown away (ADR 0017 Q3). Each value names a DIFFERENT
+/// person to talk to — the buyer, the storeman, the kitchen, the front of house —
+/// which is the whole reason the reason is stored.
+///
+/// Two values are deliberately ABSENT:
+///   PREP_LOSS  — yield_percent owns conversion loss (Decision #59). Yield covers
+///                the knife; this log covers the fridge. A shop that lowers yield
+///                to "cover" spoilage buries a fixable recurring loss inside a
+///                constant, and Sprint 5's variance then looks healthy for the
+///                wrong reason.
+///   STAFF_MEAL — a staff meal is not waste. It is a sale that collected no money
+///                and its cost belongs to labour/welfare; costing one needs
+///                sales_transaction (Sprint 4) + recipe (Sprint 5).
+enum WasteReason {
+  SPOILED // went off, expired      -> the buyer
+  DAMAGED // dropped, crushed       -> the storeman
+  COOKING_ERROR // burnt, made wrong      -> the kitchen
+  CUSTOMER_RETURN // sent back              -> front of house
+  OTHER
+
+  @@map("waste_reason")
 }
 
 enum AdjustmentReason {
@@ -529,10 +569,10 @@ model StockMovement {
   createdBy  String       @map("created_by")
   notes      String?
 
-  tenant        Tenant  @relation(fields: [tenantId], references: [id])
-  product       Product @relation(fields: [productId], references: [id])
-  branch        Branch  @relation(fields: [branchId], references: [id])
-  createdByUser User    @relation(fields: [createdBy], references: [id])
+  tenant           Tenant                 @relation(fields: [tenantId], references: [id])
+  product          Product                @relation(fields: [productId], references: [id])
+  branch           Branch                 @relation(fields: [branchId], references: [id])
+  createdByUser    User                   @relation(fields: [createdBy], references: [id])
   /// Part 14: ราคาที่มนุษย์ประกาศให้ movement นี้ (ADJUST_GAIN เท่านั้น, ADR 0014 Q6).
   /// ทิศนี้มี FK ได้ ต่างจาก source polymorphic ข้างบน — ledger ไม่เคยถูกลบ (Q7)
   costDeclarations StockCostDeclaration[]
@@ -632,8 +672,8 @@ model StockCostDeclaration {
   /// the reasons are the messy ones a fixed enum would flatten.
   note String?
 
-  declaredAt DateTime  @default(now()) @map("declared_at")
-  declaredBy String    @map("declared_by")
+  declaredAt   DateTime  @default(now()) @map("declared_at")
+  declaredBy   String    @map("declared_by")
   /// null = the live declaration. Only one per movement may be null — enforced by
   /// the PARTIAL unique in prisma/manual/stock_cost_declaration_live_unique.sql
   /// (a FULL unique would be Pitfall #22/#23 again: superseded rows would block
@@ -676,11 +716,11 @@ enum StockCountStatus {
 /// people counting the same shelf would otherwise both see the same expected
 /// figure, both find the same shortage, and both post it (Q8).
 model StockCount {
-  id       String @id @default(uuid()) @db.Uuid
-  tenantId String @map("tenant_id") @db.Uuid
-  branchId String @map("branch_id") @db.Uuid
+  id           String           @id @default(uuid()) @db.Uuid
+  tenantId     String           @map("tenant_id") @db.Uuid
+  branchId     String           @map("branch_id") @db.Uuid
   /// {BRANCH_CODE}-SC-#### per branch. PARTIAL unique (Pitfall #22/#23).
-  scNumber String @map("sc_number")
+  scNumber     String           @map("sc_number")
   /// The document's HUMAN NAME ("the count of 20 Aug") — NOT an accounting date.
   /// A variance occurs at its own line's counted_at (Q8).
   countDate    DateTime         @map("count_date") @db.Date
@@ -735,11 +775,11 @@ model StockCountItem {
 
   /// Business time of the variance movement (Q8) — a TRUE INSTANT, the moment
   /// someone stood at the shelf, not the close.
-  countedAt DateTime @map("counted_at")
-  countedBy String   @map("counted_by")
+  countedAt     DateTime @map("counted_at")
+  countedBy     String   @map("counted_by")
   /// Who actually walked and counted, when that is not the account holder — in a
   /// Thai SME the owner holds the only login and the staff do the counting (Q2).
-  countedByName String? @map("counted_by_name")
+  countedByName String?  @map("counted_by_name")
   notes         String?
 
   /// Set on a reversal line appended by a void (Q6). Such a line carries the
@@ -784,7 +824,6 @@ model StockCountEntry {
   @@index([stockCountItemId], map: "stock_count_entry_item_idx")
   @@map("stock_count_entry")
 }
-
 
 // ============================================================
 // PROCUREMENT (Sprint 2 Part 11 — ADR 0012)
@@ -1002,7 +1041,7 @@ model GoodsReceipt {
   status   GoodsReceiptStatus @default(DRAFT)
 
   /// Supplier's invoice / delivery-note number, as text. No image, no OCR.
-  invoiceNo      String?  @map("invoice_no")
+  invoiceNo String? @map("invoice_no")
 
   /// Part 16 (ADR 0016 Q2). VAT sits at the HEADER, following Decision #35's rule
   /// for expenses. Null rate = no VAT on this delivery.
@@ -1181,10 +1220,10 @@ model Expense {
   branchId   String  @map("branch_id") @db.Uuid
   supplierId String? @map("supplier_id") @db.Uuid
 
-  source ExpenseSource @default(MANUAL)
+  source     ExpenseSource @default(MANUAL)
   /// The receipt this expense was created from. PARTIAL unique, so a replayed
   /// confirm yields one expense — the mechanism used throughout Sprint 2.
-  sourceGrId String? @map("source_gr_id") @db.Uuid
+  sourceGrId String?       @map("source_gr_id") @db.Uuid
 
   /// Set when this bill was confirmed from a recurring template (Q5). `period`
   /// is "YYYY-MM"; the pair is PARTIAL unique so confirming twice yields one.
@@ -1195,23 +1234,23 @@ model Expense {
   billNo       String?  @map("bill_no")
   vatInvoiceNo String?  @map("vat_invoice_no")
 
-  subtotalExclVat Decimal  @map("subtotal_excl_vat") @db.Decimal(15, 2)
-  vatRatePercent  Decimal? @map("vat_rate_percent") @db.Decimal(5, 2)
-  vatAmount       Decimal  @default(0) @map("vat_amount") @db.Decimal(15, 2)
+  subtotalExclVat     Decimal  @map("subtotal_excl_vat") @db.Decimal(15, 2)
+  vatRatePercent      Decimal? @map("vat_rate_percent") @db.Decimal(5, 2)
+  vatAmount           Decimal  @default(0) @map("vat_amount") @db.Decimal(15, 2)
   /// How the user TYPED it (Decision #36). A Thai shop's bill usually shows the
   /// total; a tax invoice shows both. Kept because it decides which way the
   /// maths ran, which a reader cannot recover from the results alone.
-  isPriceVatInclusive Boolean @default(true) @map("is_price_vat_inclusive")
-  totalAmount         Decimal @map("total_amount") @db.Decimal(15, 2)
+  isPriceVatInclusive Boolean  @default(true) @map("is_price_vat_inclusive")
+  totalAmount         Decimal  @map("total_amount") @db.Decimal(15, 2)
 
-  subjectToWht      Boolean  @default(false) @map("subject_to_wht")
-  whtRatePercent    Decimal? @map("wht_rate_percent") @db.Decimal(5, 2)
+  subjectToWht     Boolean  @default(false) @map("subject_to_wht")
+  whtRatePercent   Decimal? @map("wht_rate_percent") @db.Decimal(5, 2)
   /// = subtotal_excl_vat × rate/100 — the PRE-VAT base (Q6). Withholding on the
   /// VAT-inclusive total over-withholds and breaks the 50 ทวิ reconciliation.
-  whtAmount         Decimal? @map("wht_amount") @db.Decimal(15, 2)
-  whtCertificateNo  String?  @map("wht_certificate_no")
+  whtAmount        Decimal? @map("wht_amount") @db.Decimal(15, 2)
+  whtCertificateNo String?  @map("wht_certificate_no")
   /// = total_amount − wht_amount. What actually leaves the bank.
-  netPaymentAmount  Decimal  @map("net_payment_amount") @db.Decimal(15, 2)
+  netPaymentAmount Decimal  @map("net_payment_amount") @db.Decimal(15, 2)
 
   paymentMethod String?              @map("payment_method")
   paymentStatus ExpensePaymentStatus @default(UNPAID) @map("payment_status")
@@ -1245,7 +1284,7 @@ model ExpenseItem {
   expenseId String @map("expense_id") @db.Uuid
   lineNo    Int    @map("line_no")
 
-  categoryId String @map("category_id") @db.Uuid
+  categoryId   String  @map("category_id") @db.Uuid
   /// null = shared / overhead (Decision #31). Always null while departments are
   /// off, and meaningful the day they are switched on — which is why it is built
   /// where `allocation_method` was not.
@@ -1296,7 +1335,7 @@ model RecurringExpense {
 
   /// Capped at 28 by CHECK: a "due on the 30th" template would skip February,
   /// and a template that silently skips a month is worse than one that lands early.
-  dayOfMonth Int @map("day_of_month")
+  dayOfMonth  Int     @map("day_of_month")
   /// "YYYY-MM" inclusive bounds. A period label, not a timestamp — no timezone
   /// question to get wrong (Decision #60).
   startPeriod String  @map("start_period")
@@ -1315,4 +1354,121 @@ model RecurringExpense {
 
   @@index([tenantId])
   @@map("recurring_expense")
+}
+
+// ============================================================
+// WASTE + PAR LEVEL (Sprint 3 Part 17 — ADR 0017)
+// ============================================================
+
+/// One row = ONE thing thrown away, posted to the ledger immediately (Q2).
+/// No DRAFT, no shift sheet: recording waste has to fit in the thirty seconds
+/// between the bin and the next order, and an unposted draft would leave the
+/// ledger claiming stock that is already in the bin.
+///
+/// This row IS the ledger's source (Q1): source_type = WASTE_LOG, source_id =
+/// this id, which is what makes posting idempotent through the ledger's existing
+/// UNIQUE(source_type, source_id) — the same trick stock_count_item gets for free.
+/// The id is therefore the client's SUBMIT KEY, exactly as stock_adjustment uses
+/// it (src/server/stock-movement.ts createStockAdjustmentLogic).
+///
+/// NO base-unit qty column, on purpose: a waste movement's qty IS this quantity
+/// negated, so storing it here would be a second copy of a number the ledger
+/// already holds exactly — and no CHECK can keep two copies honest. Mirrors
+/// stock_adjustment (input_qty + input_unit_id here, signed base qty on the
+/// movement). This is unlike stock_count_item, which stores qty_counted because
+/// the ledger there holds only the VARIANCE.
+model WasteLog {
+  id          String      @id @default(uuid()) @db.Uuid
+  tenantId    String      @map("tenant_id") @db.Uuid
+  productId   String      @map("product_id") @db.Uuid
+  branchId    String      @map("branch_id") @db.Uuid
+  reason      WasteReason
+  /// as-entered magnitude, always POSITIVE (waste_log_input_qty_check) — direction
+  /// comes from reversal_of_id, not from a sign. Precision (15,3) matches
+  /// movement.qty so input_qty × toBaseRatio -> qty has no precision jump.
+  inputQty    Decimal     @map("input_qty") @db.Decimal(15, 3)
+  inputUnitId String      @map("input_unit_id") @db.Uuid
+  /// business time — backdate ได้ (ADR 0011 Q5); mirrors movement.occurredAt
+  occurredAt  DateTime    @map("occurred_at")
+
+  /// The login that recorded it, plus who actually threw it away (Q7, ADR 0015 Q2):
+  /// in a Thai SME the owner holds the only account and the staff do the work, so
+  /// the FK alone would record "the owner threw everything away" — tidy and false.
+  wastedBy     String  @map("wasted_by")
+  wastedByName String? @map("wasted_by_name")
+  notes        String?
+
+  /// A void APPENDS this row against the original (Q2) and posts the compensating
+  /// ADJUST_GAIN. It cannot be an in-place edit: the ledger is append-only (ADR 0011
+  /// Q7) and the compensating movement needs a source_id of its own to satisfy
+  /// UNIQUE(source_type, source_id). Mirrors StockCountItem.reversalOfItemId.
+  /// At most ONE reversal per row — partial unique in
+  /// prisma/manual/waste_and_par_unique.sql, or a double-submitted void would
+  /// credit the stock back twice.
+  reversalOfId String? @map("reversal_of_id") @db.Uuid
+
+  /// Stamped on the ORIGINAL when it is voided. No deleted_at anywhere on this
+  /// table: correcting waste is a void, never a delete — "this was keyed wrong"
+  /// is itself worth being able to see.
+  voidedAt   DateTime? @map("voided_at")
+  voidedBy   String?   @map("voided_by")
+  voidReason String?   @map("void_reason")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant       Tenant      @relation(fields: [tenantId], references: [id])
+  product      Product     @relation(fields: [productId], references: [id])
+  branch       Branch      @relation(fields: [branchId], references: [id])
+  inputUnit    ProductUnit @relation(fields: [inputUnitId], references: [id])
+  wastedByUser User        @relation("WasteWastedBy", fields: [wastedBy], references: [id])
+  voidedByUser User?       @relation("WasteVoidedBy", fields: [voidedBy], references: [id])
+  reversalOf   WasteLog?   @relation("WasteReversal", fields: [reversalOfId], references: [id])
+  reversals    WasteLog[]  @relation("WasteReversal")
+
+  @@index([tenantId])
+  @@index([branchId, occurredAt], map: "waste_log_branch_occurred_idx")
+  @@index([productId, branchId, occurredAt], map: "waste_log_product_branch_idx")
+  @@map("waste_log")
+}
+
+/// "How much of this should be on the shelf at this branch" (Q5). Scoped to
+/// product × branch: a branch that is out of pork is out of pork whatever the
+/// business holds elsewhere (ADR 0014 Q9b).
+///
+/// It SUGGESTS NOTHING and ORDERS NOTHING. Auto-drafting a purchase order needs a
+/// preferred supplier, a lead time and someone with authority to approve it; ADR
+/// 0012 Q1 already dropped the purchase-request layer for the last of those.
+///
+/// One live par per (product, branch) — PARTIAL unique in
+/// prisma/manual/waste_and_par_unique.sql (Pitfall #22/#23), so a removed par does
+/// not block a new one.
+model ParLevel {
+  id        String @id @default(uuid()) @db.Uuid
+  tenantId  String @map("tenant_id") @db.Uuid
+  productId String @map("product_id") @db.Uuid
+  branchId  String @map("branch_id") @db.Uuid
+
+  /// BASE unit — the stored truth, compared against the ledger balance.
+  parQty      Decimal @map("par_qty") @db.Decimal(15, 3)
+  /// As entered ("2 กระสอบ"), kept so the form re-opens in the unit the user chose.
+  /// Both halves live here because — unlike waste — there is no ledger row holding
+  /// the base figure.
+  inputQty    Decimal @map("input_qty") @db.Decimal(15, 3)
+  inputUnitId String  @map("input_unit_id") @db.Uuid
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  /// Soft delete: removing a par deletes the row. A par of 0 is refused by
+  /// par_level_qty_check — "no par" is the absence of a row, not a zero.
+  deletedAt DateTime? @map("deleted_at")
+
+  tenant    Tenant      @relation(fields: [tenantId], references: [id])
+  product   Product     @relation(fields: [productId], references: [id])
+  branch    Branch      @relation(fields: [branchId], references: [id])
+  inputUnit ProductUnit @relation(fields: [inputUnitId], references: [id])
+
+  @@index([tenantId])
+  @@index([branchId], map: "par_level_branch_idx")
+  @@map("par_level")
 }

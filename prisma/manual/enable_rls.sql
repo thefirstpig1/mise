@@ -269,3 +269,22 @@ USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 -- ============================================================
 -- End Sprint 3 Part 16 RLS
 -- ============================================================
+
+-- ============================================================
+-- Sprint 3 Part 17 — Waste + par level (ADR 0017)
+-- ============================================================
+-- Two tables, each carrying tenant_id directly (ADR 0004 pattern).
+-- Still inert until Sprint 7 — this is RLS-prep.
+-- ============================================================
+
+ALTER TABLE waste_log ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON waste_log
+USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+ALTER TABLE par_level ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON par_level
+USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+-- ============================================================
+-- End Sprint 3 Part 17 RLS
+-- ============================================================

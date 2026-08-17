@@ -56,6 +56,9 @@ export const SOURCE_TYPE_VALUES = [
   "GR_LINE",
   "ADJUSTMENT",
   "STOCK_COUNT",
+  // Part 17 (ADR 0017 Q1): waste_log. The movement type is still ADJUST_LOSS —
+  // this value is what lets /cost mean ของเสีย when it says ของเสีย.
+  "WASTE_LOG",
   "SYSTEM_INITIAL",
 ] as const;
 
@@ -126,6 +129,7 @@ export const SOURCE_TYPE_LABELS_TH: Record<
   GR_LINE: "ใบรับของ",
   ADJUSTMENT: "ปรับสต๊อก",
   STOCK_COUNT: "นับสต๊อก",
+  WASTE_LOG: "ของเสีย",
   SYSTEM_INITIAL: "ยอดยกมา",
 };
 
