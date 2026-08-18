@@ -51,15 +51,22 @@ Keeping the pair symmetric is deliberate. The alternative — posting `+8` at B 
 
 *(Rejected: **receive is a rubber stamp with no number.** Cheaper — one column instead of two — and it turns every transport loss into a mystery shortage at B, found weeks later by a stock count, blamed on whoever happened to be standing at the destination.)*
 
-### Q3 — The driver is a name on the document today, and a login tomorrow
+### Q3 — There are two kinds of driver, and only one of them will ever have a login
 
 The person who carries the goods must be recorded, because otherwise a shortfall is an argument between two branches that no record can settle: A says it sent ten, B says eight arrived, and nobody can say which half of the journey lost them. The document therefore records **three people**: who dispatched at A, **who drove and how much they accepted at the roadside**, and who received at B.
 
-The columns are built for a login the driver does not have yet: `driver_user_id` (nullable FK, unfilled for now) beside `driver_name` (free text) and `driver_confirmed_at`. Today the person at A types the driver's name in front of them; the day user management exists, the driver signs in and the FK fills in — **no migration**.
+The two kinds are not a UI detail — they take different evidence, permanently:
 
-This is ADR 0015 Q2's attribution pattern (`counted_by_name`) and ADR 0017 Q7's (`wasted_by_name`) applied a third time: the FK alone would record that the owner personally drove every delivery — tidy, and false.
+- **A company driver** is an employee, so they are a member of the tenant and the end state is that they sign in and confirm the count themselves. `driver_user_id` (nullable FK) is the column that waits for them.
+- **A hired outside driver** — a messenger, a hired truck — will *never* have a login, and giving one to a stranger would be worse than having no record at all. Their evidence is a **photograph of the handover** attached to the transfer, plus the name.
 
-*(Rejected: **give the driver an account now.** The role string costs nothing — it is a free-text column — but the app has no way to add a second person to a tenant, and `canPerform` is never called, so a driver account today is a person with write access to every branch's stock and every purchase order. Correct end-state, wrong Part: it needs user management and the permission layer switched on, which is Sprint 7's business.)*
+Today neither confirmation mechanism exists: user management is unbuilt, and the system has **no file storage of any kind**. So Part 18 ships what does work — `driver_name` (free text), `driver_confirmed_at`, and the quantity the driver accepted, typed by the person at A **in front of them**. The count agreed at the roadside is the fairness mechanism; the login and the photograph each make it harder to dispute later, and neither is what makes it fair.
+
+`driver_user_id` is written now because it becomes fillable the moment user management ships, with no new infrastructure and no vendor decision — **no migration**. A `photo_url` is deliberately **not** written now, for the opposite reason: the storage vendor determines whether that column holds a URL, a bucket key or a signed path, so writing it early is a guess a later migration pays for. Attachments are captured as their own future Part (`docs/pending-features-v1.5.md` Feature 5), which is where they belong — a goods receipt has wanted an invoice photo since Part 13 and an expense a payment slip since Part 16, both refused for this same missing dependency, and a payment slip will want one next.
+
+Recording the name at all is ADR 0015 Q2's attribution pattern (`counted_by_name`) and ADR 0017 Q7's (`wasted_by_name`) applied a third time: the FK alone would record that the owner personally drove every delivery — tidy, and false.
+
+*(Rejected: **give the driver an account now.** The role string costs nothing — `tenant_membership.role` is a free-text column, not an enum — but the app has no way to add a second person to a tenant, and `canPerform` is never called, so a driver account today is a person with write access to every branch's stock and every purchase order. Correct end-state, wrong Part: it needs user management and the permission layer switched on, which is Sprint 7's business.)*
 
 ### Q4 — The ledger gets four new words of its own
 
@@ -125,5 +132,5 @@ But the receiving half of this document is **somebody else's work in another bra
 2. **`/cost` gains a fourth kind of outflow and must not treat it as a third.** A transfer leg belongs in **neither** purchase spend **nor** ส่วนต่าง/ปรับปรุง — the value never left the business. `TRANSFER_SHORTAGE`, by contrast, **is** a real loss and needs a home on that screen. Part 17 wrote the split so an unrecognised source type falls into variance; that default is now actively wrong for two of the three new values, so the split must be revisited rather than extended.
 3. **`purchase_order.branch_id` NOT NULL stops being a limitation.** Central purchasing becomes expressible with no schema change: HQ orders to its own branch and transfers out, and the receiving branch's cost is A's real cost rather than a guess. ADR 0014 Q9c is closed.
 4. **One stored cost figure now exists in a system that stores none.** Anything that changes how a transfer's money is computed changes historical costs at the receiving branch, exactly as ADR 0014 Consequence 5 says of `line_total_actual`. It is one number, on one row, written once — and that narrowness is the whole defence.
-5. **The driver columns are a promise to a Part that does not exist.** `driver_user_id` is null for every row until user management ships, so every read must treat the name as the authority and the FK as a bonus. If user management never ships, nothing breaks: the name was always the record.
+5. **The driver's identity is a promise to two Parts that do not exist**, and it is honoured differently for each. `driver_user_id` is null for every row until user management ships, so every read must treat the **name** as the authority and the FK as a bonus — if user management never ships, nothing breaks. The handover photograph is not carried at all until attachments exist, because its column cannot be shaped before the storage vendor is chosen. **Both gaps are visible on screen rather than hidden**: the transfer says what evidence it holds, so nobody discovers at the argument that the record was thinner than they assumed.
 6. **Two branches can now disagree about cost, correctly.** A backdated receipt at the sending branch revalues its own queue and not the transfers already gone. Anyone reconciling the two will find the gap; it is written here so they find the reason with it.

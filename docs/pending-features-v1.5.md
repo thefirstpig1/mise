@@ -115,6 +115,36 @@ If staff meals land in the food-waste figure, the one number Part 17 exists to p
 
 ---
 
+## Feature 5: Attachments — evidence photos and slips (object storage) — captured 2026-08-18, NOT designed
+
+### Concept
+A single place to attach a **photograph** to a document: the supplier's invoice on a goods receipt, the bill or payment slip on an expense, the handover evidence on an inter-branch transfer. One mechanism, one upload path, one access rule — used by every document that needs to prove something happened.
+
+### Why it is a Part of its own, rather than a column on whichever document asks next
+By 2026-08-18 **three separate Parts had wanted a photo and none could have one**, each recording the same reason in the schema:
+
+| document | what the photo proves | where the refusal is recorded |
+|---|---|---|
+| Goods receipt (Part 13) | the supplier's invoice / delivery note | `schema.prisma:1008` — *"no `invoice_image_url` (no object storage)"* |
+| Expense (Part 16) | the bill, the payment slip | `schema.prisma:1190` — *"NOT built: `bill_image_url` / `slip_image_url` (no object storage)"* |
+| Transfer (Part 18) | the handover, when the driver is **not** a company employee and will therefore never have a login | ADR 0018 Q3 |
+| Payment (future) | the bank transfer slip — Kong, 2026-08-18: *"เดี๋ยวมันต้องมีสลิปหลักฐานการโอนเงินอะไรต่างๆอีก คิดเผื่อไว้เลย"* | this entry |
+
+The decisive argument for building it once: **the vendor choice determines what the column even holds.** A bucket key, a full URL and a signed path are three different columns, so a `photo_url` added before the decision is a guess that a migration pays for later — in four tables instead of one.
+
+### Hard dependencies (why it cannot be built yet)
+- **An object-storage vendor and its credentials in `.env`** — a new dependency *and* an `.env` edit, both of which CLAUDE.md makes stop-and-ask items.
+- **An access rule that RLS cannot provide.** Tenant isolation is enforced in Postgres; a file in a bucket is outside it, so tenant scoping for attachments has to be designed rather than inherited.
+
+### Open questions (for the grill, when it happens)
+- O31: Which vendor, and does the answer change if the deployment target is not Vercel?
+- O32: Does an attachment belong to the **document** or to a **line**? (A delivery note covers a receipt; a photo of one damaged crate does not.)
+- O33: **Is an attachment evidence or a working file?** If it is evidence, it is append-only like the ledger — replacing it is a new attachment plus a superseded marker, never an overwrite. This is the question that decides the table's shape.
+- O34: What happens to attachments when their document is voided or soft-deleted — kept (the evidence is still true), or removed?
+- O35: Size and count limits, and whether the phone-camera path needs client-side compression before upload (SME phones on Thai mobile data).
+
+---
+
 ## Open Questions for v1.5
 
 - O22: Target price scope (per product vs per product×supplier×branch)?
