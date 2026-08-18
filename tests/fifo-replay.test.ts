@@ -38,6 +38,8 @@ const receive = (day: number, qty: number, total: number, itemId?: string): Cost
     lineTotal: d(total),
     reversalOfItemId: null,
     declaredUnitCost: null,
+    transferValue: null,
+    transferPricing: null,
   };
 };
 
@@ -52,6 +54,8 @@ const reverse = (day: number, qty: number, itemId: string): CostMovement => ({
   lineTotal: null,
   reversalOfItemId: itemId,
   declaredUnitCost: null,
+  transferValue: null,
+  transferPricing: null,
 });
 
 const loss = (day: number, qty: number): CostMovement => ({
@@ -64,6 +68,8 @@ const loss = (day: number, qty: number): CostMovement => ({
   lineTotal: null,
   reversalOfItemId: null,
   declaredUnitCost: null,
+  transferValue: null,
+  transferPricing: null,
 });
 
 const gain = (day: number, qty: number, declaredUnitCost?: number): CostMovement => ({
@@ -76,6 +82,8 @@ const gain = (day: number, qty: number, declaredUnitCost?: number): CostMovement
   lineTotal: null,
   reversalOfItemId: null,
   declaredUnitCost: declaredUnitCost === undefined ? null : d(declaredUnitCost),
+  transferValue: null,
+  transferPricing: null,
 });
 
 /** ADR 0014 Q12 — the invariant the executive view gets reconciled against. */
@@ -340,5 +348,163 @@ describe("FIFO replay (ADR 0014)", () => {
     expect(s.outflows).toHaveLength(1);
     expect(num(s.outflows[0].value)).toBe(2700); // 1,800 held + 900 owed
     expect(num(s.outflows[0].qty)).toBe(15);
+  });
+});
+
+// ============================================================
+// Part 18 — arrivals and departures by transfer (ADR 0018 Q5/Q6)
+// ============================================================
+// The transfer types are the first movements whose value comes from ANOTHER
+// branch's ledger. Everything below is about that money surviving the journey
+// intact, and about a void giving back exactly what a transfer brought in.
+
+/** Goods arriving from another branch, carrying `total` baht frozen at dispatch. */
+const transferIn = (
+  day: number,
+  qty: number,
+  total: number,
+  itemId?: string,
+  pricing: "DOCUMENT" | "DECLARED" | "LAST_KNOWN" | "UNPRICED" = "DOCUMENT"
+): CostMovement => ({
+  id: `mv-${++seq}`,
+  qty: d(qty),
+  type: "TRANSFER_IN",
+  sourceType: "TRANSFER_IN",
+  sourceId: itemId ?? `tfi-${seq}`,
+  occurredAt: at(day),
+  lineTotal: null,
+  reversalOfItemId: null,
+  declaredUnitCost: null,
+  transferValue: d(total),
+  transferPricing: pricing,
+});
+
+/** Goods leaving for another branch — an ordinary outflow at this end. */
+const transferOut = (day: number, qty: number): CostMovement => ({
+  id: `mv-${++seq}`,
+  qty: d(-qty),
+  type: "TRANSFER_OUT",
+  sourceType: "TRANSFER_OUT",
+  sourceId: `tfo-${seq}`,
+  occurredAt: at(day),
+  lineTotal: null,
+  reversalOfItemId: null,
+  declaredUnitCost: null,
+  transferValue: null,
+  transferPricing: null,
+});
+
+/** A void, at the RECEIVING end: take back the layer `itemId` brought in. */
+const transferInReversal = (
+  day: number,
+  qty: number,
+  itemId: string
+): CostMovement => ({
+  id: `mv-${++seq}`,
+  qty: d(-qty),
+  type: "TRANSFER_IN_REVERSAL",
+  sourceType: "TRANSFER_IN",
+  sourceId: `tfi-rev-${seq}`,
+  occurredAt: at(day),
+  lineTotal: null,
+  reversalOfItemId: itemId,
+  declaredUnitCost: null,
+  transferValue: null,
+  transferPricing: null,
+});
+
+/** A void, at the SENDING end: the goods come back, carrying the same money. */
+const transferOutReversal = (
+  day: number,
+  qty: number,
+  total: number
+): CostMovement => ({
+  id: `mv-${++seq}`,
+  qty: d(qty),
+  type: "TRANSFER_OUT_REVERSAL",
+  sourceType: "TRANSFER_OUT",
+  sourceId: `tfo-rev-${seq}`,
+  occurredAt: at(day),
+  lineTotal: null,
+  reversalOfItemId: null,
+  declaredUnitCost: null,
+  transferValue: d(total),
+  transferPricing: "DOCUMENT",
+});
+
+describe("replayFifoLayers — transfers (ADR 0018)", () => {
+  it("F23: a transfer-in is valued at the money frozen at dispatch, not at this branch's history", () => {
+    // The receiving branch bought at 220; the goods that arrive were bought at
+    // 180 by the sender. Pricing them at 220 would invent 400 baht of stock.
+    const s = run([receive(1, 10, 2200), transferIn(2, 10, 1800)]);
+    expect(num(s.inventoryValue)).toBe(4000);
+    expect(s.layers).toHaveLength(2);
+    expect(num(s.layers[1].value)).toBe(1800);
+  });
+
+  it("F24: a transfer-in to a branch that never bought this product is NOT free", () => {
+    // The whole reason the money travels: with no purchase history here, the
+    // fallback chain would have priced these goods at 0.
+    const s = run([transferIn(1, 10, 1800)]);
+    expect(num(s.inventoryValue)).toBe(1800);
+    expect(num(s.costPerBaseUnit)).toBe(180);
+    expect(s.costSource).toBe("FRONT_LAYER");
+    expect(s.hasUnpricedLayers).toBe(false);
+  });
+
+  it("F25: the SENDER's uncertainty survives the journey — 0 baht reads as UNPRICED, not as free goods", () => {
+    const s = run([transferIn(1, 10, 0, undefined, "UNPRICED")]);
+    expect(num(s.inventoryValue)).toBe(0);
+    expect(s.hasUnpricedLayers).toBe(true);
+    expect(s.costSource).toBe("UNPRICED");
+    // And it must not teach this branch a "last known cost" of zero.
+    expect(s.lastKnownUnitCost).toBeNull();
+  });
+
+  it("F26: a transfer-out is an ordinary FIFO outflow, oldest layer first", () => {
+    const s = run([receive(1, 10, 1800), receive(5, 10, 2200), transferOut(6, 10)]);
+    expect(num(s.inventoryValue)).toBe(2200);
+    expect(s.outflows).toHaveLength(1);
+    // 1,800 is exactly the money the dispatch freezes onto the line.
+    expect(num(s.outflows[0].value)).toBe(1800);
+    expect(s.outflows[0].type).toBe("TRANSFER_OUT");
+  });
+
+  it("F27: voiding at the receiving end cuts the TRANSFER's layer, not the head of the queue", () => {
+    // The branch already held cheap stock when the transfer arrived. Popping the
+    // front would give back the 180s and leave the 250s standing.
+    const s = run([
+      receive(1, 10, 1800),
+      transferIn(2, 10, 2500, "tf-item-1"),
+      transferInReversal(3, 10, "tf-item-1"),
+    ]);
+    expect(num(s.qtyOnHand)).toBe(10);
+    expect(num(s.inventoryValue)).toBe(1800);
+    expect(s.layers).toHaveLength(1);
+    expect(s.layers[0].sourceType).toBe("GR_LINE");
+  });
+
+  it("F28: voiding at the sending end gives back the same money that left", () => {
+    const s = run([receive(1, 10, 1800), transferOut(2, 4), transferOutReversal(3, 4, 720)]);
+    expect(num(s.qtyOnHand)).toBe(10);
+    expect(num(s.inventoryValue)).toBe(1800);
+  });
+
+  it("F29: a void after the goods were used drives the receiver negative rather than smoothing it away", () => {
+    const s = run([
+      transferIn(1, 10, 1800, "tf-item-2"),
+      loss(2, 6),
+      transferInReversal(3, 10, "tf-item-2"),
+    ]);
+    expect(num(s.qtyOnHand)).toBe(-6);
+    expect(s.negativeStock).toBe(true);
+  });
+
+  it("F30: a chain of transfers keeps the money exact through both ends", () => {
+    // Arrive at 180, send half on, and the value left must be exactly half.
+    const s = run([transferIn(1, 10, 1800), transferOut(2, 5)]);
+    expect(num(s.qtyOnHand)).toBe(5);
+    expect(num(s.inventoryValue)).toBe(900);
+    expect(num(s.outflows[0].value)).toBe(900);
   });
 });

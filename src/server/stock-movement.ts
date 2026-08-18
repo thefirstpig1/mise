@@ -682,9 +682,21 @@ export class MovementSourceMismatchError extends Error {
   }
 }
 
-/** `+` for the two IN types, `-` for the two OUT types (Q2). */
+/**
+ * `+` for the inbound types, `-` for the outbound ones (Q2) — the app-side twin
+ * of `stock_movement_sign_check`.
+ *
+ * Read the transfer pair as directions rather than as bookkeeping: stock ARRIVES
+ * on a `TRANSFER_IN` and on the reversal of a dispatch; it LEAVES on a
+ * `TRANSFER_OUT` and on the reversal of an arrival. Missing one of these here
+ * would not be a wrong number — the write would simply be refused by
+ * `MovementSignMismatchError` before the DB ever saw it.
+ */
 const isInboundType = (type: MovementType): boolean =>
-  type === "PO_RECEIVE" || type === "ADJUST_GAIN";
+  type === "PO_RECEIVE" ||
+  type === "ADJUST_GAIN" ||
+  type === "TRANSFER_IN" ||
+  type === "TRANSFER_OUT_REVERSAL";
 
 /**
  * Q3 guard: the source row must exist before the ledger points at it — and it
@@ -747,10 +759,48 @@ async function assertSourceExists(
                 where: { id: sourceId, tenantId },
                 select,
               })
-            : // SYSTEM_INITIAL: reserved, no table and no writer (Q10).
-              (() => {
-                throw new UnsupportedSourceTypeError(sourceType);
-              })();
+            : sourceType === "TRANSFER_OUT" ||
+                sourceType === "TRANSFER_IN" ||
+                sourceType === "TRANSFER_SHORTAGE"
+              ? // Part 18 (ADR 0018 Q4): the transfer LINE is the source, and it
+                // is the first source whose branch depends on WHICH source type
+                // is asking. Every earlier document happened at one place; a
+                // transfer happens at two, and the same row legitimately backs an
+                // outflow at the sender and an inflow at the receiver.
+                //
+                // Getting this wrong in the lenient direction would be invisible
+                // and expensive: a TRANSFER_IN accepted against the sending
+                // branch would credit the goods to the branch that just gave them
+                // away, and the ledger would hold twice the stock that exists.
+                await tx.stockTransferItem
+                  .findFirst({
+                    where: { id: sourceId, tenantId },
+                    select: {
+                      productId: true,
+                      stockTransfer: {
+                        select: { fromBranchId: true, toBranchId: true },
+                      },
+                    },
+                  })
+                  .then((r) =>
+                    r
+                      ? {
+                          productId: r.productId,
+                          branchId:
+                            sourceType === "TRANSFER_OUT"
+                              ? r.stockTransfer.fromBranchId
+                              : // TRANSFER_IN and the shortfall both belong to the
+                                // receiving branch: the goods became its property
+                                // at dispatch (Q1), so what never arrived was its
+                                // loss (Q2).
+                                r.stockTransfer.toBranchId,
+                        }
+                      : null
+                  )
+              : // SYSTEM_INITIAL: reserved, no table and no writer (Q10).
+                (() => {
+                  throw new UnsupportedSourceTypeError(sourceType);
+                })();
 
   if (!row) throw new MovementSourceNotFoundError(sourceType, sourceId);
   if (row.productId !== productId) {

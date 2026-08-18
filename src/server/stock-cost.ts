@@ -20,7 +20,7 @@
 // ============================================================
 
 import { Prisma } from "@prisma/client";
-import type { PrismaClient } from "@prisma/client";
+import type { CostSource, PrismaClient, SourceType } from "@prisma/client";
 import { withTenantContext } from "@/lib/db";
 import { bangkokDayEndUtc, isDayValue } from "@/lib/bangkok-date";
 import { occurredAtFilter } from "@/server/stock-movement";
@@ -28,6 +28,7 @@ import {
   replayFifoLayers,
   type CostLayer,
   type CostMovement,
+  type LayerPricing,
   type ReplayState,
 } from "@/server/fifo-replay";
 import type {
@@ -113,6 +114,32 @@ const costSortKey = (occurredAt: Date): number =>
     ? bangkokDayEndUtc(occurredAt).getTime() - 1
     : occurredAt.getTime();
 
+/**
+ * The three source types that point at a `stock_transfer_item` (ADR 0018 Q4).
+ * A Set rather than a string prefix test: `sourceType` is an enum, and matching
+ * it by shape would quietly capture any future value someone names TRANSFER_*.
+ */
+const TRANSFER_SOURCE_TYPES: ReadonlySet<SourceType> = new Set([
+  "TRANSFER_OUT",
+  "TRANSFER_IN",
+  "TRANSFER_SHORTAGE",
+]);
+
+/**
+ * The sending branch's confidence, translated into the walk's vocabulary.
+ *
+ * `FRONT_LAYER` becomes `DOCUMENT` because that is what it means one level down:
+ * the money came from a real purchase document, and the transfer is simply
+ * carrying it. The other three pass through unchanged — a guess does not become
+ * a fact by travelling.
+ */
+const LAYER_PRICING_BY_COST_SOURCE: Record<CostSource, LayerPricing> = {
+  FRONT_LAYER: "DOCUMENT",
+  DECLARED: "DECLARED",
+  LAST_KNOWN: "LAST_KNOWN",
+  UNPRICED: "UNPRICED",
+};
+
 /** The empty state, for a pair with no ledger rows at all. */
 const emptyState = (productId: string, branchId: string): ProductCost => ({
   productId,
@@ -133,10 +160,11 @@ const emptyState = (productId: string, branchId: string): ProductCost => ({
 /**
  * Fetch and replay many (product, branch) pairs in a fixed number of queries.
  *
- * Three round trips regardless of how many products are asked for: the ledger
- * rows, the receipt money behind them, and the live declarations. Grouping and
- * ordering happen in memory — the index already returns the rows in
- * `(occurredAt, createdAt)` order, so `id` is the only tiebreak left to apply.
+ * FOUR round trips regardless of how many products are asked for: the ledger
+ * rows, the receipt money behind them, the money a transfer froze at dispatch
+ * (Part 18), and the live declarations. Grouping and ordering happen in memory —
+ * the index already returns the rows in `(occurredAt, createdAt)` order, so `id`
+ * is the only tiebreak left to apply.
  */
 async function replayPairs(
   tx: PrismaClient,
@@ -209,6 +237,30 @@ async function replayPairs(
     : [];
   const grById = new Map(grItems.map((i) => [i.id, i]));
 
+  // Part 18: the money a transfer froze at dispatch (ADR 0018 Q5). Same shape as
+  // the GR query above and for the same reason — the ledger points at the line
+  // polymorphically, so it is one batched second query, never a per-row lookup.
+  //
+  // All three transfer source types are fetched, not just the inbound one: a
+  // TRANSFER_IN_REVERSAL needs its line's `reversal_of_item_id` to know WHICH
+  // layer to cut, and that arrives on the same row.
+  const transferItemIds = movements
+    .filter((m) => TRANSFER_SOURCE_TYPES.has(m.sourceType))
+    .map((m) => m.sourceId);
+
+  const transferItems = transferItemIds.length
+    ? await tx.stockTransferItem.findMany({
+        where: { tenantId, id: { in: transferItemIds } },
+        select: {
+          id: true,
+          costTotal: true,
+          costSource: true,
+          reversalOfItemId: true,
+        },
+      })
+    : [];
+  const transferById = new Map(transferItems.map((i) => [i.id, i]));
+
   // Live declarations only: a superseded one is a statement someone has since
   // corrected, and replaying it would resurrect the number they retracted (Q6).
   const declarations = await tx.stockCostDeclaration.findMany({
@@ -226,6 +278,9 @@ async function replayPairs(
   const grouped = new Map<string, CostMovement[]>();
   for (const m of movements) {
     const gr = m.sourceType === "GR_LINE" ? grById.get(m.sourceId) : undefined;
+    const tf = TRANSFER_SOURCE_TYPES.has(m.sourceType)
+      ? transferById.get(m.sourceId)
+      : undefined;
     const row: CostMovement = {
       id: m.id,
       qty: m.qty,
@@ -234,8 +289,16 @@ async function replayPairs(
       sourceId: m.sourceId,
       occurredAt: m.occurredAt,
       lineTotal: gr ? layerValueOf(gr) : null,
-      reversalOfItemId: gr?.reversalOfItemId ?? null,
+      // Two documents feed this one field. A GR line's reversal and a transfer
+      // line's are the same fact — "the row this one undoes" — and the walk cuts
+      // its own layer from either (ADR 0014 Q8).
+      reversalOfItemId: gr?.reversalOfItemId ?? tf?.reversalOfItemId ?? null,
       declaredUnitCost: declaredByMovement.get(m.id) ?? null,
+      // Stored SIGNED on the line (negative on a reversal line, to keep the
+      // document's own sums honest); the walk wants a magnitude, because it is
+      // told the direction by the movement type.
+      transferValue: tf ? tf.costTotal.abs() : null,
+      transferPricing: tf ? LAYER_PRICING_BY_COST_SOURCE[tf.costSource] : null,
     };
     const key = keyOf(m.productId, m.branchId);
     const list = grouped.get(key);
@@ -351,9 +414,15 @@ export type BranchCostSummary = {
    */
   wasteValue: Prisma.Decimal;
   /**
-   * Stock that went missing without anyone recording it going: `STOCK_COUNT`
-   * shortages **and** hand-typed `ADJUSTMENT` losses (ADR 0017 Q4, widening ADR
-   * 0015 Q5).
+   * Stock that is gone with no one able to say where: `STOCK_COUNT` shortages,
+   * hand-typed `ADJUSTMENT` losses (ADR 0017 Q4, widening ADR 0015 Q5), and from
+   * Part 18 `TRANSFER_SHORTAGE` — goods dispatched from one branch that never
+   * reached the other.
+   *
+   * The transit case is the only one here that HAS a document, and it still
+   * belongs: the document says the goods left and did not arrive, not where they
+   * went. It also names a driver, which makes it the most actionable row in this
+   * column rather than the odd one out.
    *
    * Deliberately NOT folded into `wasteValue`, though all of them post as
    * `ADJUST_LOSS`: an unexplained shortage is theft, mis-keying or bad receiving
@@ -535,6 +604,14 @@ export async function getBranchCostSummaryLogic(
         if (state.hasUnpricedLayers) unpricedProducts += 1;
 
         for (const out of state.outflows) {
+          // Part 18: this line is also what keeps a TRANSFER off both columns.
+          // `TRANSFER_OUT` and `TRANSFER_IN_REVERSAL` are outflows in the walk —
+          // they take money out of this branch's pile — but the value did not
+          // leave the BUSINESS, it arrived somewhere else. Counting them here
+          // would report a truck of pork as a loss at the sending branch and
+          // still hold it as inventory at the receiving one (ADR 0018
+          // Consequence 2). Having them be their own movement types is what makes
+          // this a one-line exclusion instead of a source-by-source exception.
           if (out.type !== "ADJUST_LOSS") continue;
           // Same costing instant the walk used, so a midnight adjustment falls in
           // the period its business day belongs to.
@@ -548,6 +625,12 @@ export async function getBranchCostSummaryLogic(
           // variance. Written as an explicit WASTE_LOG check rather than an
           // `else`, so a fifth source type lands in variance (where an
           // undocumented outflow belongs) instead of silently inflating waste.
+          //
+          // Part 18's TRANSFER_SHORTAGE reaches that `else` and belongs there,
+          // deliberately rather than by accident: goods that left one branch and
+          // never reached the other are not food anyone watched go in the bin.
+          // The conversation is with the driver and the branch manager, which is
+          // the same conversation variance already exists to start.
           if (out.sourceType === "WASTE_LOG") {
             wasteValue = wasteValue.plus(out.value);
           } else {

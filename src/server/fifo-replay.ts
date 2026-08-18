@@ -76,10 +76,31 @@ export type CostMovement = {
   occurredAt: Date;
   /** `PO_RECEIVE` / `PO_RECEIVE_REVERSAL`: `goods_receipt_item.line_total_actual`. */
   lineTotal: Prisma.Decimal | null;
-  /** `PO_RECEIVE_REVERSAL` only: the `goods_receipt_item.id` being reversed. */
+  /**
+   * The `..._item.id` being reversed. `PO_RECEIVE_REVERSAL` (a
+   * `goods_receipt_item`) and `TRANSFER_IN_REVERSAL` (a `stock_transfer_item`)
+   * both use it, for the same reason: a reversal must cut ITS OWN layer (Q8).
+   */
   reversalOfItemId: string | null;
   /** `ADJUST_GAIN` only: the live declaration's cost PER BASE UNIT, if any. */
   declaredUnitCost: Prisma.Decimal | null;
+  /**
+   * `TRANSFER_*` only: the money frozen onto `stock_transfer_item` at dispatch,
+   * as a positive magnitude (ADR 0018 Q5).
+   *
+   * This is why a transfer-in is not just "an arrival at the last known price".
+   * The receiving branch's own history has nothing to say about what these goods
+   * cost — they were bought by a different branch on a different day — so the
+   * sending branch's FIFO money travels with them, frozen, and lands here.
+   */
+  transferValue: Prisma.Decimal | null;
+  /**
+   * How well the SENDING branch knew that money. Carried across the branch
+   * boundary so a `0.00` arriving at the far end is readable as "the sender never
+   * knew" rather than "these goods were free" — ADR 0014 Q10's provenance, made
+   * to survive a journey.
+   */
+  transferPricing: LayerPricing | null;
 };
 
 export type ReplayState = {
@@ -158,6 +179,10 @@ export function replayFifoLayers(
   // every receipt is remembered for the length of the walk, not just while its
   // layer survives.
   const receiptUnitCost = new Map<string, Prisma.Decimal>();
+
+  // The same memory for arrivals by transfer (Part 18). Keyed by the
+  // `stock_transfer_item.id` a void points back at.
+  const transferUnitCost = new Map<string, Prisma.Decimal>();
 
   /** The debt layer, if the pile is currently negative (invariant: at most one). */
   const debtLayer = (): CostLayer | null =>
@@ -281,6 +306,51 @@ export function replayFifoLayers(
     record();
   };
 
+  /**
+   * Undo an arrival by cutting the layer IT created, not the head of the queue
+   * (Q8). Receive 10 @ 180 then 10 @ 220 and void the second: popping the head
+   * would leave the 220s standing when the goods that went back were the 220s.
+   *
+   * Shared by `PO_RECEIVE_REVERSAL` and `TRANSFER_IN_REVERSAL` because "give back
+   * exactly what this document brought in" is one rule, not two — only the
+   * remembered unit cost differs, and that is the caller's argument.
+   *
+   * Whatever the layer cannot cover was already used, so the pile goes negative
+   * rather than the shortfall being smoothed away: "you returned goods you had
+   * already consumed" is exactly the thing someone needs to go and look at.
+   */
+  const reverseOwnLayer = (
+    m: CostMovement,
+    targetId: string | null,
+    fallbackUnitCost: Prisma.Decimal
+  ) => {
+    const idx = targetId ? stack.findIndex((l) => l.sourceId === targetId) : -1;
+    let remaining = m.qty.negated();
+
+    if (idx >= 0) {
+      const target = stack[idx];
+      const taken = Prisma.Decimal.min(target.qty, remaining);
+      const takenValue = taken.equals(target.qty)
+        ? target.value
+        : money(target.value.mul(taken).div(target.qty));
+      target.qty = target.qty.minus(taken);
+      target.value = target.value.minus(takenValue);
+      totalOut = totalOut.plus(takenValue);
+      remaining = remaining.minus(taken);
+      if (target.qty.isZero()) stack.splice(idx, 1);
+    }
+
+    if (remaining.greaterThan(0)) {
+      consume(remaining, fallbackUnitCost, {
+        movementId: m.id,
+        type: m.type,
+        sourceType: m.sourceType,
+        sourceId: m.sourceId,
+        occurredAt: m.occurredAt,
+      });
+    }
+  };
+
   for (const m of movements) {
     switch (m.type) {
       case "PO_RECEIVE": {
@@ -326,54 +396,95 @@ export function replayFifoLayers(
       }
 
       case "PO_RECEIVE_REVERSAL": {
-        // Q8: cut the layer this void reverses, NOT the head of the queue. The
-        // goods that went back to the supplier were that receipt's goods; popping
-        // the front would return someone else's cheaper stock on paper.
-        const magnitude = m.qty.negated();
         const targetId = m.reversalOfItemId;
-        const unit =
+        reverseOwnLayer(
+          m,
+          targetId,
           (targetId ? receiptUnitCost.get(targetId) : undefined) ??
-          lastKnownUnitCost ??
-          ZERO;
+            lastKnownUnitCost ??
+            ZERO
+        );
+        break;
+      }
 
-        const idx = targetId ? stack.findIndex((l) => l.sourceId === targetId) : -1;
-        let remaining = magnitude;
+      case "TRANSFER_IN": {
+        // Part 18 (ADR 0018 Q5). The ONLY arrival whose value comes from another
+        // branch's ledger — frozen onto the line at dispatch and carried here.
+        //
+        // Falling through to `default` would have priced these goods at the
+        // RECEIVING branch's last known cost, which is a number about a different
+        // pile bought on a different day. For a branch that has never bought this
+        // product at all it would be 0, and the goods would arrive free.
+        const value = money(m.transferValue ?? ZERO);
+        const unit = m.qty.isZero() ? ZERO : value.div(m.qty);
+        transferUnitCost.set(m.sourceId, unit);
+        // A transfer is a document, so it establishes a known cost here — but
+        // only when it actually carried money. A transfer of goods the sender
+        // could not price teaches the receiver nothing.
+        if (!m.qty.isZero() && !value.isZero()) lastKnownUnitCost = unit;
+        totalIn = totalIn.plus(value);
+        push({
+          movementId: m.id,
+          sourceType: m.sourceType,
+          sourceId: m.sourceId,
+          occurredAt: m.occurredAt,
+          qty: m.qty,
+          value,
+          // The sender's own confidence, not a fresh guess made here.
+          pricing: m.transferPricing ?? (value.isZero() ? "UNPRICED" : "LAST_KNOWN"),
+        });
+        break;
+      }
 
-        if (idx >= 0) {
-          const target = stack[idx];
-          const taken = Prisma.Decimal.min(target.qty, remaining);
-          const takenValue = taken.equals(target.qty)
-            ? target.value
-            : money(target.value.mul(taken).div(target.qty));
-          target.qty = target.qty.minus(taken);
-          target.value = target.value.minus(takenValue);
-          totalOut = totalOut.plus(takenValue);
-          remaining = remaining.minus(taken);
-          if (target.qty.isZero()) stack.splice(idx, 1);
-        }
+      case "TRANSFER_OUT_REVERSAL": {
+        // A void gives the goods back to the sender, carrying the same frozen
+        // money they left with (Q6) — so value is restored exactly.
+        //
+        // Accepted, and stated in the ADR: the layer re-enters at the BACK of the
+        // queue rather than its original position. Value is exact; FIFO ordering
+        // is approximate. The alternative — reconstructing which layers the
+        // dispatch drew down and reinstating each — is a second replay inside the
+        // replay, for an ordering nuance on an event that means "this document
+        // should never have existed".
+        const value = money(m.transferValue ?? ZERO);
+        totalIn = totalIn.plus(value);
+        push({
+          movementId: m.id,
+          sourceType: m.sourceType,
+          sourceId: m.sourceId,
+          occurredAt: m.occurredAt,
+          qty: m.qty,
+          value,
+          pricing: m.transferPricing ?? (value.isZero() ? "UNPRICED" : "LAST_KNOWN"),
+        });
+        break;
+      }
 
-        // Whatever the layer could not cover was already used: the pile goes
-        // negative rather than the shortfall being smoothed away, because
-        // "you returned goods you had already consumed" is exactly the thing
-        // someone needs to go and look at.
-        if (remaining.greaterThan(0)) {
-          consume(remaining, unit, {
-            movementId: m.id,
-            type: m.type,
-            sourceType: m.sourceType,
-            sourceId: m.sourceId,
-            occurredAt: m.occurredAt,
-          });
-        }
+      case "TRANSFER_IN_REVERSAL": {
+        // Q8's rule again, at the receiving end: take back the layer THIS
+        // transfer brought in, not the head of the queue. If the branch bought
+        // cheaper stock in the meantime, popping the front would consume goods
+        // that never came off this truck.
+        const targetId = m.reversalOfItemId;
+        reverseOwnLayer(
+          m,
+          targetId,
+          (targetId ? transferUnitCost.get(targetId) : undefined) ??
+            lastKnownUnitCost ??
+            ZERO
+        );
         break;
       }
 
       case "ADJUST_LOSS":
       default: {
-        // Every other movement that removes stock draws FIFO from the head.
-        // `default` catches Sprint 3+ types (WASTE / TRANSFER_OUT / RECIPE_CONSUME)
-        // so a new outflow costs correctly the day it lands rather than being
-        // silently ignored — a wrong number is worse than a missing feature.
+        // Every other movement that removes stock draws FIFO from the head —
+        // including `TRANSFER_OUT`, which is an ordinary outflow at the sending
+        // branch: the money it takes with it is whatever its own layers held, and
+        // that figure is exactly what gets frozen onto the line.
+        // `default` still catches Sprint 5's `RECIPE_CONSUME` so a new outflow
+        // costs correctly the day it lands rather than being silently ignored —
+        // a wrong number is worse than a missing feature.
         if (m.qty.isNegative()) {
           consume(m.qty.negated(), lastKnownUnitCost ?? ZERO, {
             movementId: m.id,
