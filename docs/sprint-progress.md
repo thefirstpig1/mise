@@ -639,7 +639,7 @@ Deleting these is a DELETE affecting many rows → waiting on Kong's explicit go
 
 ---
 
-## Sprint 3 — Stock Count · Expense · Waste/Par · Transfer: 🚧 IN PROGRESS (2026-08-17)
+## Sprint 3 — Stock Count · Expense · Waste/Par · Transfer: ✅ COMPLETE (2026-08-18)
 
 **Scope.** The master-spec Sprint 3 line — *"Stock + Expense + yield-correct CONSUMPTION (H.5) + recursion guard + unknown-menu stub"* — is **stale in the same way §5.5 and §5.7 were**: H.5 computes consumption from `sales_transaction × recipe` and **neither table exists** (POS sync is Sprint 4, Recipe is Sprint 5), and the unknown-menu stub is POS-sync work for the same reason. Sprint 3 ships the two halves that *are* buildable plus three debts earlier Parts deferred here by name. Nothing below is blocked on a dependency — only on a decision.
 
@@ -649,11 +649,11 @@ Deleting these is a DELETE affecting many rows → waiting on Kong's explicit go
 | **15** | **Stock Count** | ✅ COMPLETE (L0–L6, 2026-08-17) |
 | **16** | Expense (+ VAT/WHT, GR→expense) | ✅ COMPLETE (L0–L6, 2026-08-17) — ADR 0016 |
 | **17** | Waste log + par level (**not** a new movement type — ADR 0017 Q1) | 🚧 grill CLOSED (Q1–Q7) → ADR 0017 · L0 done |
-| **18** | Inter-branch transfer (closes ADR 0014 Q9c) | 🚧 grill CLOSED (Q1–Q8) → ADR 0018 · L0 done |
+| **18** | Inter-branch transfer (closes ADR 0014 Q9c) | ✅ COMPLETE (L0–L6, 2026-08-18) — ADR 0018 |
 
 **Explicitly NOT in Sprint 3:** H.5 yield-correct CONSUMPTION · unknown-menu stub / recursion guard · `purchase_request` (still waiting on a reachable second department, ADR 0012 Q1) · payment tracking beyond `payment_status`. The master spec's Sprint 3 line gets a superseded note at Part 15 L0.
 
-## Sprint 3 Part 18 — Inter-branch transfer: 🚧 IN PROGRESS (2026-08-18)
+## Sprint 3 Part 18 — Inter-branch transfer: ✅ COMPLETE (2026-08-18)
 
 The last slice of Sprint 3, and the first movement in the ledger that is **neither a purchase nor an adjustment**: nothing is bought and nothing is corrected — the goods change shelf. Grill Q1–Q8 locked 2026-08-18, codified in **ADR 0018**. It also pays three IOUs left by name: ADR 0014 Q9 (transferred stock must carry the sending branch's cost), ADR 0016 Consequence 2 (say out loud that a transfer is not spend), ADR 0017 Consequence 3 (do not become the first writer to bypass `createStockMovementLogic`).
 
@@ -690,11 +690,28 @@ Three constraints were read out of the code rather than assumed, and each one be
 | L4 | Actions + Thai errors + view serializers | ✅ `src/app/transfers/{actions.ts,_components/transfer-view.ts}`. Thin glue, no rule decided here — but **two things no earlier Part's glue had to do**. (1) **Revalidation crosses branches.** A receipt, a count and a waste entry all change pages belonging to whoever wrote them; a transfer changes the stock, the par alerts and the incoming list of a branch whose staff did nothing, so `/stock` · `/dashboard` · `/stock-counts` are revalidated too — the รอรับ box (Q8) is worth nothing if it only appears after a manual reload. (2) **`/cost` is revalidated on RECEIVE and VOID but NOT on dispatch**, which is ADR 0016 Consequence 2 made executable: a move is not spend and touches no column, while a shortfall is a real loss that moves ส่วนต่าง/ปรับปรุง. The serializer computes **`statusHint` beside `statusLabel`** and ships both with every row, because `SENT` invites exactly the wrong guess — any screen showing the bare word teaches the reader that the stock has not moved. `dispatchedAtLabel` carries the **time**, not just the date: two transfers on one morning and evening would otherwise be indistinguishable, and which came first is what someone chasing a missing crate needs. Row scale is a **count**, never a summed quantity (Part 17's lesson — "3 กระสอบ + 5 kg" is not 8 of anything), while `totalCost` IS summed, because baht are all the same unit. `TransferQtyExceedsSentError` renders **both** numbers, since "too many" without the comparison cannot be acted on |
 | L5a | `/transfers` — list · `/new` dispatch · `/[id]` detail + receive + void | ✅ **3 new routes (45 total)**. The **destination picker excludes the origin** and re-picks itself if the origin changes onto it: zod and the DB both refuse a same-branch transfer, and not offering it beats explaining it. `submit_key` **rotates on success** like `/waste`'s, because the same person sends a second truck the same afternoon and a held key would make that load read as a replay — writing nothing while the goods drive away. **The receive form's quantity boxes start EMPTY, never prefilled with what was sent**: a prefilled form is one people submit without counting, and the count is the only thing this screen exists to collect — L2's blank guard then catches an untouched box instead of writing the line off as lost. The gap is shown **live per line as they type** (*"ส่ง 10 รับ 8 → หาย 2"*), because a figure while standing at the crate is worth more than a correct one found next month. The void control carries the most copy on the page and earns it: **ยกเลิก ≠ โอนกลับ**, with a pre-aimed link to the reverse dispatch form, because someone whose crates genuinely came back will reach for the button that is on the screen |
 | L5b | "รอรับ" on `/stock` + dashboard · transit notice on `/stock-counts` · entry points | ✅ One shared `IncomingTransfers` Server Component with a **`variant`** — `always` on `/stock` (where *"nothing on the way"* is itself worth knowing at the shelf) and `quiet` elsewhere. That switch is Part 17's UX lesson made structural: a box that always says "nothing" is noise, and a box that renders nothing is how par level stayed invisible to shops that never set one. `/stock-counts` shows it **only when a branch is selected** — "which branch is the truck heading for" has no answer on the unfiltered list, and a warning that cannot name a place is one people learn to ignore — and adds Q7's consequence in full: counting now finds a shortage exactly the size of the truck, and Part 15 posts it as a real loss with the counter's name on it. **It warns; it never blocks** (Q7). The dashboard banner is **tenant-wide** rather than per-branch, since that page has no branch selector and an owner wants to know that *any* truck is unconfirmed. `/stock` gained a **โอนไปสาขาอื่น** button carrying `?from=<branch>` — that is where someone stands when they realise another branch needs what is in front of them |
-| L6 | Throwaway E2E + verify + push | ⏳ |
+| L6 | Throwaway E2E + verify + push | ✅ **15 cases E1–E15** through the real action stack (FormData → zod → `toFormError` → `*Logic` → the ledger → the DB CHECKs), spec + dedicated config **deleted, never committed**. A double POST with one `submit_key` writes **one** transfer · `2 กระสอบ` leaves as 50 kg · the same branch at both ends returns a Thai field error rather than a constraint violation · ticking คนขับยืนยัน with no name is refused on the driver field · **a blank receive box is refused and writes nothing off** (E9 — the L2 bug, proven closed end to end) · receiving more than was sent names both numbers · receiving twice tells the user to void instead · a void hands the goods back at one branch and takes them off the other in one post · and E15 walks the whole point of the Part: the frozen cost lands as **720 ฿ `DECLARED`** and `/cost` keeps the transfer out of **both** loss columns at **both** branches, with only the transit shortfall showing up — at the receiving branch, in ส่วนต่าง/ปรับปรุง |
 
-### Carried into L1 as open implementation questions (not ADR-level)
-- **Where the shortfall's reversal sits when a received transfer is voided** — the `ADJUST_LOSS` under `TRANSFER_SHORTAGE` needs reversing too, and Part 17's rule (a void is valued from the ORIGINAL movement, not recomputed) is the precedent to follow.
-- **Whether `qty_received` is nullable until receipt** or defaults to `qty_sent` — nullable states the truth (nobody has counted yet) but every read must handle it; ADR 0017's `par_qty > 0` reasoning applies (the absence of a number is not a zero).
+### Both L1 questions, answered where they were asked
+- **The shortfall's reversal** — a void posts a compensating `ADJUST_GAIN` under `TRANSFER_SHORTAGE` against the reversal line, valued from the ORIGINAL movement (Part 17's rule). X17 pins it: voiding a received transfer returns the receiving branch to zero, not to the short figure.
+- **`qty_received` is NULLABLE.** The absence of a count is not agreement, and a default of `qty_sent` would let an unconfirmed transfer claim it arrived in full.
+
+### Verified (L6, 2026-08-18)
+- `pnpm tsc --noEmit` clean · `pnpm build` green (**45 routes** — `/transfers`, `/transfers/new`, `/transfers/[id]` are the new ones) · `pnpm vitest run` **560 passed / 4 skipped** (527 Part-17 baseline + 8 FIFO + 25 logic).
+- **Neon swept: 0 tenants** — but only on the second attempt, and the first one is the lesson: a cleanup script that ended with `RAISE EXCEPTION 'NEON SWEPT: 0 tenants'` to make its result visible **rolled back every DELETE above it** and reported success while changing nothing. `db execute` swallows `RAISE NOTICE`, so raising is the only way to see an assertion — which makes it safe in a read-only checker and actively dangerous in the same file as writes. Split them.
+
+### Part 18 — ✅ COMPLETE (L0–L6, 2026-08-18)
+
+Stock can now move between branches without anybody lying about it. The goods belong to the branch they are going to from the moment the truck leaves, the money that paid for them travels frozen so the receiving branch's cost is not fiction, and what never arrives is a loss with a driver's name against it rather than a mystery found by counting next month.
+
+**Carried forward from this Part:**
+- **The two-migration sign-CHECK dance is now paid for the whole of Sprint 3.** The only movement type still owed is Sprint 5's `RECIPE_CONSUME`.
+- **One stored cost figure exists in a system that stores none.** `stock_transfer_item.cost_total` is the single exception to ADR 0014, it is one number on one row written once, and anything that changes how it is computed changes historical costs at the receiving branch.
+- **`driver_user_id` is null on every row** until user management ships. Every read must treat `driver_name` as the authority and the FK as a bonus.
+- **A photograph of the handover is not carried at all** — the third Part to want one (`docs/pending-features-v1.5.md` Feature 5). The screen says what evidence it holds rather than implying more.
+- **`/cost` keeps transfers out of both loss columns with a single `type !== "ADJUST_LOSS"` test.** That cheapness is Q4 paying for itself; a source-only design would have needed an exception per column.
+
+**Part 14 was touched again** — the FIFO walk gained four movement types and `CostMovement` two fields, `PO_RECEIVE_REVERSAL`'s body became the shared `reverseOwnLayer`, and `replayPairs` grew a fourth batched query. Its suite was re-run, not just the new ones.
 
 ---
 
