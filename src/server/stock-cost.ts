@@ -317,6 +317,35 @@ async function replayPairs(
 }
 
 /**
+ * The same replay, but INSIDE a caller's transaction (Part 18).
+ *
+ * Every other consumer of this module is a read: it opens its own tenant context,
+ * answers a question, and nothing depends on the answer still being true a moment
+ * later. A transfer is the first WRITER that has to know a cost — it freezes the
+ * sending branch's money onto the line (ADR 0018 Q5) — and that figure has to be
+ * computed against the same snapshot the movements are written into, or a
+ * concurrent receipt could land between the two and the frozen number would
+ * describe a ledger that never existed.
+ *
+ * Deliberately not a second engine: `transfer.ts` posts its outflow first and
+ * then reads what the walk says that outflow cost. The document and `/cost` can
+ * therefore never disagree about a transfer, because they are the same number
+ * from the same function rather than two implementations of one rule.
+ */
+export async function replayPairsInTx(
+  tx: PrismaClient,
+  tenantId: string,
+  productIds: string[],
+  branchIds: string[],
+  asOf?: Date
+): Promise<Map<string, ProductCost>> {
+  return replayPairs(tx, tenantId, productIds, branchIds, asOf);
+}
+
+/** `${productId}|${branchId}`, for reading `replayPairsInTx`'s result. */
+export const costKeyOf = keyOf;
+
+/**
  * Cost for many products at ONE branch — the shape every grid and roll-up must
  * call. Products with no ledger rows come back as an explicit empty state rather
  * than being absent, so a caller cannot accidentally render a blank cell as if
