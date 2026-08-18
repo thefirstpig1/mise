@@ -21,6 +21,9 @@ import { getParLevelsQuerySchema } from "@/lib/validations/par-level";
 import { toProductStockBalanceView } from "./_components/stock-view";
 import { toParLevelRowView } from "./_components/par-level-view";
 import BelowParList from "./_components/BelowParList";
+import { getIncomingTransfersLogic } from "@/server/transfer";
+import { toTransferView } from "@/app/transfers/_components/transfer-view";
+import IncomingTransfers from "@/app/transfers/_components/IncomingTransfers";
 import StockLevelsTable, {
   type StockLevelRow,
 } from "./_components/StockLevelsTable";
@@ -57,6 +60,10 @@ export default async function StockLevelsPage({
   // rather than erroring — the id never reaches the query unvalidated.
   const activeBranch =
     branches.find((b) => b.id === branchParam) ?? branches[0];
+
+  const incoming = (
+    await getIncomingTransfersLogic(tenantId, activeBranch.id)
+  ).map(toTransferView);
 
   const balances = await getStockBalancesByBranchLogic(tenantId, activeBranch.id);
 
@@ -133,6 +140,16 @@ export default async function StockLevelsPage({
           >
             บันทึกของเสีย
           </a>
+          {/* Part 18: this is where someone stands when they realise another
+              branch needs some of what is in front of them. `?from=` carries the
+              shelf they are looking at, the same courtesy /stock-counts/new got
+              in Part 17. */}
+          <a
+            href={`/transfers/new?from=${activeBranch.id}`}
+            className="rounded-lg border border-border px-4 py-2 text-sm hover:bg-muted/40"
+          >
+            โอนไปสาขาอื่น
+          </a>
           <a
             href="/stock/adjust"
             className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
@@ -159,6 +176,16 @@ export default async function StockLevelsPage({
           ))}
         </div>
       )}
+
+      {/* Part 18 Q8: the receiving half of a transfer is somebody else's work in
+          another branch, so it has to appear on the page this branch already
+          opens every day. `always` because "nothing on the way" is itself worth
+          knowing when you are standing at the shelf deciding whether to order. */}
+      <IncomingTransfers
+        transfers={incoming}
+        branchName={activeBranch.name}
+        variant="always"
+      />
 
       <BelowParList
         rows={belowPar}

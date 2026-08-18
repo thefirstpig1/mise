@@ -17,6 +17,9 @@ import {
 } from "@/lib/validations/stock-count";
 import { toStockCountListView } from "./_components/stock-count-view";
 import StatusBadge from "./_components/StatusBadge";
+import { getIncomingTransfersLogic } from "@/server/transfer";
+import { toTransferView } from "@/app/transfers/_components/transfer-view";
+import IncomingTransfers from "@/app/transfers/_components/IncomingTransfers";
 
 export default async function StockCountListPage({
   searchParams,
@@ -36,6 +39,22 @@ export default async function StockCountListPage({
   const rows = (await getStockCountsLogic(tenantId, query)).map(toStockCountListView);
   const openSheet = rows.find((r) => r.status === "DRAFT");
 
+  // Part 18 Q7: counting a branch while a truck is still moving finds a shortage
+  // exactly the size of the truck, and Part 15 posts it as a real ADJUST_LOSS
+  // with the counter's name on it. The notice warns; it deliberately does NOT
+  // block — a stock take has to end the evening it starts, and a branch across
+  // town forgetting to press รับของ must not be able to prevent that.
+  //
+  // Only when a branch is actually selected: "which branch is the truck heading
+  // for" has no answer on the unfiltered list, and a warning that cannot name a
+  // place is one people learn to ignore.
+  const noticeBranch = query.branchId
+    ? (branches.find((b) => b.id === query.branchId) ?? null)
+    : null;
+  const incoming = noticeBranch
+    ? (await getIncomingTransfersLogic(tenantId, noticeBranch.id)).map(toTransferView)
+    : [];
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -52,6 +71,14 @@ export default async function StockCountListPage({
           เปิดใบนับใหม่
         </a>
       </div>
+
+      {noticeBranch && (
+        <IncomingTransfers
+          transfers={incoming}
+          branchName={noticeBranch.name}
+          countWarning
+        />
+      )}
 
       {openSheet && (
         <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">

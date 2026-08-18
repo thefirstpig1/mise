@@ -1,6 +1,9 @@
 import { signOut } from "@/lib/auth";
 import { withTenantContext } from "@/lib/db";
 import { requireTenant } from "@/lib/require-tenant";
+import { getTransfersLogic } from "@/server/transfer";
+import { getTransfersQuerySchema } from "@/lib/validations/transfer";
+import { toTransferView } from "@/app/transfers/_components/transfer-view";
 
 export default async function DashboardPage() {
   const { user, membership, tenantId } = await requireTenant();
@@ -16,6 +19,16 @@ export default async function DashboardPage() {
       },
     })
   );
+
+  // Part 18 Q8. Tenant-wide rather than per-branch: the dashboard has no branch
+  // selector, and an owner opening it wants to know that ANY truck is unconfirmed
+  // — the per-branch version of this lives on /stock, where a branch is chosen.
+  const waiting = (
+    await getTransfersLogic(
+      tenantId,
+      getTransfersQuerySchema.parse({ status: "SENT", includeReversalLines: "false" })
+    )
+  ).map(toTransferView);
 
   return (
     <div className="min-h-screen">
@@ -41,6 +54,29 @@ export default async function DashboardPage() {
         <p className="mb-8 text-muted-foreground">
           ยินดีต้อนรับ, {user.name ?? user.email}
         </p>
+
+        {waiting.length > 0 && (
+          <div className="mb-8 rounded-lg border border-amber-300 bg-amber-50 p-4">
+            <p className="text-sm font-medium text-amber-900">
+              มีใบโอน {waiting.length} ใบที่ปลายทางยังไม่กดรับ
+            </p>
+            <p className="mt-1 text-xs text-amber-800">
+              ของเข้ายอดของสาขาปลายทางแล้วตั้งแต่ต้นทางกดส่ง — ที่ค้างคือการนับยืนยัน
+            </p>
+            <ul className="mt-2 space-y-1 text-sm">
+              {waiting.map((t) => (
+                <li key={t.id}>
+                  <a href={`/transfers/${t.id}`} className="text-amber-900 hover:underline">
+                    {t.tfNumber}
+                  </a>{" "}
+                  <span className="text-amber-800">
+                    {t.fromBranch.name} → {t.toBranch.name} · {t.dispatchedAtLabel}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         <div className="grid gap-4 md:grid-cols-3">
           <div className="rounded-lg border border-border bg-card p-6">
@@ -107,6 +143,9 @@ export default async function DashboardPage() {
           </a>
           <a href="/waste" className="text-sm text-primary hover:underline">
             → ของเสีย
+          </a>
+          <a href="/transfers" className="text-sm text-primary hover:underline">
+            → โอนของระหว่างสาขา
           </a>
           <a href="/expenses" className="text-sm text-primary hover:underline">
             → ค่าใช้จ่าย
