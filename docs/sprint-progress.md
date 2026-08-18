@@ -649,9 +649,52 @@ Deleting these is a DELETE affecting many rows → waiting on Kong's explicit go
 | **15** | **Stock Count** | ✅ COMPLETE (L0–L6, 2026-08-17) |
 | **16** | Expense (+ VAT/WHT, GR→expense) | ✅ COMPLETE (L0–L6, 2026-08-17) — ADR 0016 |
 | **17** | Waste log + par level (**not** a new movement type — ADR 0017 Q1) | 🚧 grill CLOSED (Q1–Q7) → ADR 0017 · L0 done |
-| **18** | Inter-branch transfer (closes ADR 0014 Q9c) | ⏳ |
+| **18** | Inter-branch transfer (closes ADR 0014 Q9c) | 🚧 grill CLOSED (Q1–Q8) → ADR 0018 · L0 done |
 
 **Explicitly NOT in Sprint 3:** H.5 yield-correct CONSUMPTION · unknown-menu stub / recursion guard · `purchase_request` (still waiting on a reachable second department, ADR 0012 Q1) · payment tracking beyond `payment_status`. The master spec's Sprint 3 line gets a superseded note at Part 15 L0.
+
+## Sprint 3 Part 18 — Inter-branch transfer: 🚧 IN PROGRESS (2026-08-18)
+
+The last slice of Sprint 3, and the first movement in the ledger that is **neither a purchase nor an adjustment**: nothing is bought and nothing is corrected — the goods change shelf. Grill Q1–Q8 locked 2026-08-18, codified in **ADR 0018**. It also pays three IOUs left by name: ADR 0014 Q9 (transferred stock must carry the sending branch's cost), ADR 0016 Consequence 2 (say out loud that a transfer is not spend), ADR 0017 Consequence 3 (do not become the first writer to bypass `createStockMovementLogic`).
+
+### What the grill found before it decided anything
+Three constraints were read out of the code rather than assumed, and each one bent an answer:
+1. **`UNIQUE(source_type, source_id)` allows one movement per source row** — while a transfer needs two, one per end. Resolved by two source **types** over the same `stock_transfer_item.id`, which is two distinct keys; the index is untouched.
+2. **`PermissionService` has zero call sites** and `tenant_membership` is only ever created at the owner's own signup — so "give the driver a login" is not a role string, it is a missing Part. The columns ship; the login does not.
+3. **`role` is a free-text `String`**, not an enum — so the eventual `driver` role costs no migration, which is what made "build the columns now, fill the FK later" cheap enough to be the answer.
+
+### Design locked (Q1–Q8 — compact; full record in ADR 0018)
+| Q | Decision |
+|---|---|
+| **Q1** | **Both legs post at dispatch** — stock in transit belongs to the **receiving** branch, because that is where it is going (Kong, 2026-08-18). The document's status (`SENT` → `RECEIVED` / `VOIDED`) is about **paperwork, not stock**: `SENT` means nobody at B has confirmed the goods, **not** that B's balance is short. Written into the ADR as its single most load-bearing sentence, because the opposite is the natural guess and acting on it would gate the balance on a status. *Rejected:* two-step posting (goods belong to nobody mid-journey, and tenant inventory value dips with no event to explain it) · a `DRAFT` stage (real stock in a state the ledger cannot see — ADR 0017 Q2's refusal) |
+| **Q2** | **Receiving takes a number.** `qty_sent` **and** `qty_received`. 10 sent, 8 counted → three movements: `TRANSFER_OUT` −10 at A, `TRANSFER_IN` +10 at B, `ADJUST_LOSS` −2 at B under **`SourceType.TRANSFER_SHORTAGE`**. The pair stays symmetric on purpose — posting `+8` would make one document's two halves disagree and let the missing value evaporate out of every loss figure instead of landing in one. **Transport loss is its own kind of loss**: there IS a document and it names the person who accepted the crates at the roadside |
+| **Q3** | 🔑 **The driver is a name today and a login tomorrow.** Kong's reasoning: the driver is inside the workflow, so counting at pickup and confirming is what makes a shortfall fair to argue about — otherwise A says ten and B says eight and no record can settle it. Three people on the document: dispatcher, **driver + the qty they accepted**, receiver. `driver_user_id` (nullable FK, unfilled) + `driver_name` + `driver_confirmed_at` — the third use of ADR 0015 Q2's FK-plus-free-text pattern, and the FK fills in with **no migration** the day user management ships. *Rejected:* an account now — `canPerform` is dead code, so a driver login today writes stock and POs in every branch |
+| **Q4** | **Four new `MovementType` values** — `TRANSFER_OUT` / `TRANSFER_IN` / `TRANSFER_OUT_REVERSAL` / `TRANSFER_IN_REVERSAL` — the first Part since 13 to pay the two-migration sign-CHECK dance, paid deliberately. Reason 1: a transfer is not an adjustment, and one missed exception puts a truck of pork into **ส่วนต่าง/ปรับปรุง**. Reason 2 (load-bearing): **FIFO needs it** — ADR 0014 Q8 says a reversal cuts its OWN layer, so `TRANSFER_IN_REVERSAL` at B must withdraw the layer this transfer pushed rather than pop whatever is at the front. **Four values, still two migrations** — the dance is per-migration, not per-value. *Rejected:* Parts 15/17's cheap source-only precedent |
+| **Q5** | **Cost travels frozen on the line** — A's FIFO money at dispatch, stored as **money at 2 dp** (ADR 0014 Q12), pushed as B's layer. A **narrow, deliberate exception** to ADR 0014's "cost is stored nowhere": computing live would make reading อารีย์'s cost a replay of ทองหล่อ's ledger, and of a third branch behind it — multiplying the one caller ADR 0014 Consequence 4 already flagged as the slowest. Narrow because the figure is **an event, not a derivation**, exactly like a GR's `line_total_actual`. Accepted and stated: a backdated receipt at A revalues A but not transfers already gone |
+| **Q6** | **Void is always allowed — and a void is not a transfer back.** Reversal lines appended into the same document (Part 13 / ADR 0015's pattern), carrying the same frozen money, occurring **now**. Permitted even after B confirms, because that is exactly when a wrong-product/wrong-branch entry surfaces. The UI must say the difference in words: **void** = this document should never have existed · **โอนกลับ** = the goods really travelled back, which is a NEW document in the opposite direction. Collapse them and a crate that made two journeys reads as one that never left |
+| **Q7** | **A count during transit is warned about, not blocked.** B owns the stock from dispatch, so counting mid-journey finds a shortage exactly the size of the truck and Part 15 posts it as a real `ADJUST_LOSS` with the counter's name on it. `/stock-counts` shows the destination branch *"มีของกำลังส่งมา ยังไม่กดรับ"* + qty + link, and lets the count proceed. *Rejected:* blocking the close (a stock take has to end the evening it starts, and a branch across town forgetting to press รับของ would prevent that) · silence (it manufactures exactly one blameless person to blame) |
+| **Q8** | **`/transfers` is the route — but the "รอรับ" box travels to `/stock` and the dashboard of the destination branch.** The receiving half of this document is **somebody else's work in another branch**, which no earlier Part has been true of. Part 17's UX lesson applied before the fact: a transfer nobody at the far end can see is worse than an invisible feature — it is stock the system says is there that nobody was told to look for |
+
+### Decided by existing convention (not grilled)
+`tenant_id` + RLS on both new tables · `{BRANCH_CODE}-TF-####` from the **sending** branch via `withCounterLock` (Part 13.5) · `Decimal(15,3)` quantities entered in any unit via `toBaseQty` · Decimal→string at the view layer (Pitfall #20) · `toFixed` round-trip guards (Pitfall #30) · `submit_key` read from the form, never minted server-side · **both legs through `createStockMovementLogic`** · **no `expense` row — a transfer is a move, not spend** · **inter-department transfer is OUT** (Sprint 6+, still waiting on a reachable second department per ADR 0012 Q1).
+
+### Implementation plan (L0–L6)
+| L | Layer | Status |
+|---|---|---|
+| **L0** | Docs — ADR 0018 · CONTEXT.md (Transfer · In transit · Transport loss, + **Movement** and the legacy stock-movement entry corrected) · this section · master-spec supersede note | ✅ _(this commit)_ |
+| L1 | Schema — `stock_transfer` + `stock_transfer_item` + 4 `MovementType` values + 3 `SourceType` values + CHECKs + partial uniques + RLS. **Two migrations** (enum values, then DROP + re-declare `stock_movement_sign_check`) | ⏳ 🛑 plan needs approval before it starts |
+| L2 | zod — dispatch, receive, void, queries | ⏳ |
+| L3a | Logic — `src/server/transfer.ts` (dispatch posts both legs + freezes cost · receive posts the shortfall · void appends reversal lines) · `assertSourceExists` gains its three branches | ⏳ |
+| L3b | Logic — the FIFO walk learns four movement types (ADR 0014 Q8's table gains its transfer rows) · `/cost` outflow split revisited, not extended | ⏳ |
+| L4 | Actions + Thai errors + view serializers | ⏳ |
+| L5 | `/transfers` (list · create · receive · void) · "รอรับ" on `/stock` + dashboard · transit notice on `/stock-counts` | ⏳ |
+| L6 | Throwaway E2E + verify + push | ⏳ |
+
+### Carried into L1 as open implementation questions (not ADR-level)
+- **Where the shortfall's reversal sits when a received transfer is voided** — the `ADJUST_LOSS` under `TRANSFER_SHORTAGE` needs reversing too, and Part 17's rule (a void is valued from the ORIGINAL movement, not recomputed) is the precedent to follow.
+- **Whether `qty_received` is nullable until receipt** or defaults to `qty_sent` — nullable states the truth (nobody has counted yet) but every read must handle it; ADR 0017's `par_qty > 0` reasoning applies (the absence of a number is not a zero).
+
+---
 
 ## Sprint 3 Part 17 — Waste + par level: 🚧 IN PROGRESS (2026-08-17)
 
