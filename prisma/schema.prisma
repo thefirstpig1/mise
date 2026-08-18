@@ -112,6 +112,8 @@ model Tenant {
   recurringExpenses       RecurringExpense[]
   wasteLogs               WasteLog[]
   parLevels               ParLevel[]
+  stockTransfers          StockTransfer[]
+  stockTransferItems      StockTransferItem[]
 
   @@map("tenant")
 }
@@ -146,6 +148,10 @@ model Branch {
   recurringExpenses       RecurringExpense[]
   wasteLogs               WasteLog[]
   parLevels               ParLevel[]
+  /// Part 18: a branch sits on BOTH ends of a transfer, so the two sides need
+  /// names — without them Prisma cannot tell which FK each list belongs to.
+  transfersOut            StockTransfer[]          @relation("TransferFrom")
+  transfersIn             StockTransfer[]          @relation("TransferTo")
 
   @@index([tenantId])
   @@map("branch")
@@ -184,6 +190,13 @@ model User {
   expensesCreated           Expense[]
   wasteLogged               WasteLog[]             @relation("WasteWastedBy")
   wasteVoided               WasteLog[]             @relation("WasteVoidedBy")
+  transfersDispatched       StockTransfer[]        @relation("TfDispatchedBy")
+  /// Null on every row until user management ships (ADR 0018 Q3) — a company
+  /// driver is a member and will confirm as themselves; a hired outside driver
+  /// never will, and `driver_name` is the record for both until then.
+  transfersDriven           StockTransfer[]        @relation("TfDriver")
+  transfersReceived         StockTransfer[]        @relation("TfReceivedBy")
+  transfersVoided           StockTransfer[]        @relation("TfVoidedBy")
 
   @@map("app_user")
 }
@@ -396,6 +409,7 @@ model Product {
   expenseItems            ExpenseItem[]
   wasteLogs               WasteLog[]
   parLevels               ParLevel[]
+  stockTransferItems      StockTransferItem[]
 
   /// NOTE: per-tenant sku uniqueness is a PARTIAL unique index (WHERE deleted_at
   /// IS NULL) in prisma/manual/product_sku_unique.sql — NOT a Prisma @@unique,
@@ -425,6 +439,7 @@ model ProductUnit {
   expenseItems            ExpenseItem[]
   wasteLogs               WasteLog[]
   parLevels               ParLevel[]
+  stockTransferItems      StockTransferItem[]
 
   @@unique([productId, unitName])
   @@index([productId])
@@ -489,6 +504,25 @@ enum MovementType {
   ADJUST_GAIN // +  IN  — manual count correction up
   ADJUST_LOSS // -  OUT — manual count down / spoilage / waste
 
+  /// Part 18 (ADR 0018 Q4). The FIRST movements that are neither a purchase nor
+  /// an adjustment — nothing was bought, nothing was corrected, the goods changed
+  /// shelf. Written ONLY by a stock_transfer.
+  ///
+  /// Why these are TYPES while waste settled for a source type (ADR 0017 Q1):
+  ///   1. a transfer is not an adjustment, and one missed exception puts a truck
+  ///      of pork into /cost's ส่วนต่าง/ปรับปรุง column;
+  ///   2. FIFO NEEDS the distinction — ADR 0014 Q8 says a reversal cuts its OWN
+  ///      layer, so TRANSFER_IN_REVERSAL must withdraw the layer this transfer
+  ///      pushed rather than pop whatever sits at the front of B's queue.
+  ///
+  /// All four were added in ONE migration (20260818xxxxxx_part_18a_transfer_movement_types)
+  /// and the sign CHECK re-declared in the next: the two-step dance is per
+  /// MIGRATION, not per value.
+  TRANSFER_OUT // -  OUT — leaves the sending branch
+  TRANSFER_IN // +  IN  — arrives at the receiving branch, AT DISPATCH (Q1)
+  TRANSFER_OUT_REVERSAL // +  IN  — a void gives the goods back to the sender
+  TRANSFER_IN_REVERSAL // -  OUT — a void takes them off the receiver
+
   @@map("movement_type")
 }
 
@@ -510,6 +544,17 @@ enum SourceType {
   /// buys is /cost's split: ของเสีย means WASTE_LOG alone, and ส่วนต่าง/ปรับปรุง
   /// means STOCK_COUNT + ADJUSTMENT (Q4).
   WASTE_LOG
+  /// -> stock_transfer_item (Part 18, ADR 0018 Q4). THREE values over ONE row id,
+  /// which is what lets a single transfer line post more than one movement without
+  /// touching stock_movement_source_unique: that index is a key on the PAIR
+  /// (source_type, source_id), so (TRANSFER_OUT, item) and (TRANSFER_IN, item) are
+  /// two different keys and each stays independently idempotent.
+  TRANSFER_OUT // the sending branch's leg
+  TRANSFER_IN // the receiving branch's leg — posted at dispatch, not at receipt
+  /// What was dispatched but never arrived (Q2). NOT folded into the generic
+  /// ADJUST_LOSS: that one means "stock left without a document", and here there IS
+  /// a document — it names the driver who accepted the goods at the roadside.
+  TRANSFER_SHORTAGE
   SYSTEM_INITIAL // reserved: onboarding initial stock (no writer in Part 10)
 
   @@map("source_type")
@@ -1471,4 +1516,195 @@ model ParLevel {
   @@index([tenantId])
   @@index([branchId], map: "par_level_branch_idx")
   @@map("par_level")
+}
+
+// ============================================================
+// Sprint 3 Part 18 — Inter-branch transfer (ADR 0018)
+// ============================================================
+// The first document whose two halves belong to two different branches and two
+// different people, and the first ledger entry that is neither a purchase nor an
+// adjustment: nothing was bought, nothing was corrected, the goods changed shelf.
+//
+// NOT built, each for a stated reason:
+//   - no photo_url for the handover evidence (Q3) — there is no object storage,
+//     and the vendor decides whether the column holds a URL, a bucket key or a
+//     signed path. Captured as Feature 5 in docs/pending-features-v1.5.md, which
+//     is the THIRD Part to want a photo (see :1008 and :1190 above).
+//   - no deleted_at anywhere — a transfer is VOIDED, never deleted, exactly like
+//     waste_log. "This was keyed wrong" is itself worth being able to see.
+//   - no in-transit branch / balance. In transit is a state of the DOCUMENT; the
+//     goods are already counted at the destination (Q1).
+// ============================================================
+
+/// Where a frozen cost figure came from, and therefore how far to trust it
+/// (ADR 0014 Q10). Stored here — and nowhere else in the database — because a
+/// transfer freezes the money itself (ADR 0018 Q5), and money with no provenance
+/// makes "0.00" unreadable: a shop that never keyed a purchase would look like a
+/// shop that got the goods free.
+///
+/// COST_SOURCE_VALUES in src/lib/validations/stock-cost.ts is what every cost
+/// READ returns and what the UI labels; this enum is the same vocabulary made
+/// storable. An L2 test asserts the two lists agree, so neither can drift.
+enum CostSource {
+  FRONT_LAYER // the layer the goods actually came out of
+  DECLARED // a human declared this layer's price (stock_cost_declaration)
+  LAST_KNOWN // nothing on hand — valued at the most recent purchase
+  UNPRICED // this product has never been bought into the system: the money is 0
+
+  @@map("cost_source")
+}
+
+enum StockTransferStatus {
+  /// Dispatched. **BOTH ledger legs are already posted** (ADR 0018 Q1). This value
+  /// does NOT mean the stock is missing from the receiving branch — it means nobody
+  /// there has confirmed it yet. Anything that gates a BALANCE on this status has
+  /// misread it.
+  SENT
+  /// Someone at the receiving branch counted the goods. Posts at most the shortfall.
+  RECEIVED
+  /// The document should never have existed (Q6). NOT the same as "the goods came
+  /// back" — that is a new transfer in the opposite direction.
+  VOIDED
+
+  @@map("stock_transfer_status")
+}
+
+/// One dispatch from one branch to another. `id` IS the form's `submit_key`
+/// (Part 13.5's pattern): a replayed submit collides on the primary key, so a
+/// double-tap cannot move the same goods twice.
+model StockTransfer {
+  id           String              @id @default(uuid()) @db.Uuid
+  tenantId     String              @map("tenant_id") @db.Uuid
+  fromBranchId String              @map("from_branch_id") @db.Uuid
+  toBranchId   String              @map("to_branch_id") @db.Uuid
+  /// {FROM_BRANCH_CODE}-TF-#### — the SENDING branch numbers the document, because
+  /// that is who issues it. Generated under withCounterLock (Part 13.5); the FULL
+  /// unique below is the backstop. Full, not partial: there is no soft delete here,
+  /// so Pitfall #22/#23 cannot apply.
+  tfNumber     String              @map("tf_number")
+  status       StockTransferStatus @default(SENT)
+
+  /// business time of BOTH legs — backdatable within 90d (ADR 0011 Q5)
+  dispatchedAt     DateTime @map("dispatched_at")
+  dispatchedBy     String   @map("dispatched_by")
+  /// Who actually handed the goods over, when that is not the account holder —
+  /// ADR 0015 Q2's pattern, applied to the first of this document's three people.
+  dispatchedByName String?  @map("dispatched_by_name")
+
+  /// --- the driver (Q3) ---
+  /// TWO KINDS OF DRIVER, and only one will ever have a login. A company driver is
+  /// an employee and a tenant member, so `driver_user_id` waits for the day user
+  /// management ships — it fills in with NO migration. A hired outside driver never
+  /// gets one, and their evidence is a photo, which needs a Part that does not
+  /// exist. Until then `driver_name` is the authority and the FK is a bonus, so
+  /// every read must treat it that way.
+  driverUserId      String?   @map("driver_user_id")
+  driverName        String?   @map("driver_name")
+  /// Set when the driver agreed the count at the roadside. A confirmation attached
+  /// to nobody is not a confirmation — stock_transfer_driver_confirmed_check.
+  driverConfirmedAt DateTime? @map("driver_confirmed_at")
+
+  /// --- receipt (Q2) --- posts nothing by itself; it posts the SHORTFALL, if any.
+  receivedAt     DateTime? @map("received_at")
+  receivedBy     String?   @map("received_by")
+  receivedByName String?   @map("received_by_name")
+
+  /// --- void (Q6) --- allowed even after receipt, because that is usually when a
+  /// wrong-product / wrong-branch entry surfaces.
+  voidedAt   DateTime? @map("voided_at")
+  voidedBy   String?   @map("voided_by")
+  voidReason String?   @map("void_reason")
+
+  notes String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant           Tenant              @relation(fields: [tenantId], references: [id])
+  fromBranch       Branch              @relation("TransferFrom", fields: [fromBranchId], references: [id])
+  toBranch         Branch              @relation("TransferTo", fields: [toBranchId], references: [id])
+  dispatchedByUser User                @relation("TfDispatchedBy", fields: [dispatchedBy], references: [id])
+  driverUser       User?               @relation("TfDriver", fields: [driverUserId], references: [id])
+  receivedByUser   User?               @relation("TfReceivedBy", fields: [receivedBy], references: [id])
+  voidedByUser     User?               @relation("TfVoidedBy", fields: [voidedBy], references: [id])
+  items            StockTransferItem[]
+
+  @@unique([tenantId, tfNumber], map: "stock_transfer_number_unique")
+  @@index([tenantId])
+  @@index([fromBranchId, dispatchedAt], map: "stock_transfer_from_dispatched_idx")
+  /// The "รอรับ" box on /stock and the dashboard of the DESTINATION branch (Q8) —
+  /// the one query in this Part that no earlier Part's indexes could serve, because
+  /// no earlier document was somebody else's work in another branch.
+  @@index([toBranchId, status], map: "stock_transfer_to_status_idx")
+  @@map("stock_transfer")
+}
+
+/// One product on one transfer. Posts up to THREE movements from this single row —
+/// (TRANSFER_OUT, id), (TRANSFER_IN, id) and, when goods go missing on the way,
+/// (TRANSFER_SHORTAGE, id). All three are distinct keys under
+/// stock_movement_source_unique, which is a unique on the PAIR.
+model StockTransferItem {
+  id              String @id @default(uuid()) @db.Uuid
+  tenantId        String @map("tenant_id") @db.Uuid
+  stockTransferId String @map("stock_transfer_id") @db.Uuid
+  productId       String @map("product_id") @db.Uuid
+  lineNo          Int    @map("line_no")
+
+  /// Quantity IN THE ENTERED UNIT. Positive on a normal line, NEGATIVE on a
+  /// reversal line — stock_transfer_item_sign_check. Mirrors goods_receipt_item.
+  qtySent     Decimal  @map("qty_sent") @db.Decimal(15, 3)
+  /// NULL until a human at the far end counts (Q2). Deliberately nullable rather
+  /// than defaulting to qty_sent: the absence of a number is not a zero and it is
+  /// not agreement either — the same reasoning that made par_qty refuse 0. A
+  /// default would let an unconfirmed transfer claim it arrived in full.
+  /// Receiving MORE than was dispatched is refused
+  /// (stock_transfer_item_received_le_sent_check): a surplus has no posting, no
+  /// cost and no meaning as a transfer — one of the two counts is simply wrong,
+  /// and that is a conversation, not a ledger entry.
+  qtyReceived Decimal? @map("qty_received") @db.Decimal(15, 3)
+
+  /// --- snapshot (ADR 0012 Q3's frozen-ratio rule) ---
+  /// The unit is captured as it was AT DISPATCH. A live ProductUnit lookup brings
+  /// back the "sack was 25 kg, someone made it 30" bug — here it would resize goods
+  /// that are already on a truck.
+  inputUnitId   String  @map("input_unit_id") @db.Uuid
+  inputUnitName String  @map("input_unit_name")
+  toBaseRatio   Decimal @map("to_base_ratio") @db.Decimal(15, 6)
+
+  /// --- the frozen cost (Q5) ---
+  /// The MONEY that left the sending branch with these units, at 2 dp — never a
+  /// per-unit rate (ADR 0014 Q12: 1,000 ÷ 90 × 90 loses a fraction of a satang,
+  /// per layer, forever). This is the one number in the system that ADR 0014's
+  /// "cost is stored nowhere" does not cover, and the exception is deliberate:
+  /// computing it live would turn one branch's cost read into a traversal of the
+  /// whole transfer graph.
+  costTotal  Decimal    @map("cost_total") @db.Decimal(15, 2)
+  /// How well the sending branch knew that number. Without it, 0.00 cannot be told
+  /// apart from free goods.
+  costSource CostSource @map("cost_source")
+
+  /// Set on a reversal line appended by a void (Q6), inside the SAME document, so
+  /// the mistake and its correction read side by side. The line carries the
+  /// original's numbers negated. At most ONE reversal per line — partial unique in
+  /// prisma/manual/stock_transfer_unique.sql, or a double-submitted void moves the
+  /// goods back twice.
+  reversalOfItemId String? @map("reversal_of_item_id") @db.Uuid
+
+  notes String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant         Tenant              @relation(fields: [tenantId], references: [id])
+  stockTransfer  StockTransfer       @relation(fields: [stockTransferId], references: [id], onDelete: Cascade)
+  product        Product             @relation(fields: [productId], references: [id])
+  inputUnit      ProductUnit         @relation(fields: [inputUnitId], references: [id])
+  reversalOfItem StockTransferItem?  @relation("TfLineReversal", fields: [reversalOfItemId], references: [id])
+  reversedBy     StockTransferItem[] @relation("TfLineReversal")
+
+  @@unique([stockTransferId, lineNo], map: "stock_transfer_item_line_unique")
+  @@index([tenantId])
+  @@index([stockTransferId], map: "stock_transfer_item_parent_idx")
+  @@index([productId], map: "stock_transfer_item_product_idx")
+  @@map("stock_transfer_item")
 }

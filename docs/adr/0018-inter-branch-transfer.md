@@ -93,6 +93,8 @@ The exception is narrow because the frozen figure is **an event, not a derivatio
 
 Accepted, and stated rather than hidden: a backdated receipt at A revalues A's queue but does **not** revalue transfers already dispatched — the same way it does not revalue an invoice already paid. A and B can therefore disagree by that amount, and neither is wrong.
 
+**Added at the L1 boundary (Kong's call): the line freezes `cost_source` beside the money.** ADR 0014 Q10 makes every cost read return where its number came from — front layer, declared, last known, or `UNPRICED`, which means the product was never bought into the system and the figure is 0. Freezing the money without the provenance would send `0.00` to the receiving branch with nothing to distinguish *"the sender never knew"* from *"these goods were free"*, and the receiving branch has no way back to the answer: re-asking the sender months later returns today's confidence, not the confidence at dispatch. `cost_source` therefore becomes the first **stored** instance of a vocabulary that until now lived only in TypeScript, and an L2 test pins the DB enum against `COST_SOURCE_VALUES` so the two cannot drift.
+
 ### Q6 — A void is always allowed, and a void is not a transfer back
 
 Voiding appends **reversal lines into the same document** (Part 13's and ADR 0015's pattern — never an edit), each carrying the same frozen money as the line it reverses, and each occurring **now**, because a reversal is itself an event (ADR 0013 L3b). The goods revert to A and B never received them.

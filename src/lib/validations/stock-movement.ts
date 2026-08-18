@@ -49,6 +49,14 @@ export const MOVEMENT_TYPE_VALUES = [
   "PO_RECEIVE_REVERSAL",
   "ADJUST_GAIN",
   "ADJUST_LOSS",
+  // Part 18 (ADR 0018 Q4): the first movements that are neither a purchase nor an
+  // adjustment. Read-only here — only a stock_transfer writes them. Unlike waste,
+  // which settled for a source type, these had to be real types: ADR 0014 Q8 makes
+  // a reversal cut its OWN FIFO layer, and only the type can say which.
+  "TRANSFER_OUT",
+  "TRANSFER_IN",
+  "TRANSFER_OUT_REVERSAL",
+  "TRANSFER_IN_REVERSAL",
 ] as const;
 
 /** Polymorphic source discriminator (Q3). */
@@ -59,6 +67,16 @@ export const SOURCE_TYPE_VALUES = [
   // Part 17 (ADR 0017 Q1): waste_log. The movement type is still ADJUST_LOSS —
   // this value is what lets /cost mean ของเสีย when it says ของเสีย.
   "WASTE_LOG",
+  // Part 18 (ADR 0018): all three point at ONE stock_transfer_item row. That is
+  // legal — and the whole reason a transfer needs no new table to post two legs —
+  // because stock_movement_source_unique is a unique on the PAIR
+  // (source_type, source_id), so each of these is its own key.
+  "TRANSFER_OUT",
+  "TRANSFER_IN",
+  // Dispatched but never arrived (Q2). Kept apart from ADJUST_LOSS on purpose:
+  // that one means "stock left without a document", and this one has a document
+  // with the driver's name on it.
+  "TRANSFER_SHORTAGE",
   "SYSTEM_INITIAL",
 ] as const;
 
@@ -140,6 +158,13 @@ export const MOVEMENT_TYPE_LABELS_TH: Record<
   PO_RECEIVE_REVERSAL: "กลับรายการรับของ",
   ADJUST_GAIN: "ปรับเพิ่ม",
   ADJUST_LOSS: "ปรับลด",
+  // Part 18: deliberately NOT worded as a loss or a gain of any kind. The goods
+  // did not leave the business, and the history line must not read as though they
+  // did — that is the whole reason these are their own types (ADR 0018 Q4).
+  TRANSFER_OUT: "โอนออกไปสาขาอื่น",
+  TRANSFER_IN: "รับโอนจากสาขาอื่น",
+  TRANSFER_OUT_REVERSAL: "ยกเลิกการโอนออก",
+  TRANSFER_IN_REVERSAL: "ยกเลิกการรับโอน",
 };
 
 /** Thai gloss per source — answers "รายการนี้มาจากไหน" in the history view. */
@@ -151,6 +176,11 @@ export const SOURCE_TYPE_LABELS_TH: Record<
   ADJUSTMENT: "ปรับสต๊อก",
   STOCK_COUNT: "นับสต๊อก",
   WASTE_LOG: "ของเสีย",
+  TRANSFER_OUT: "ใบโอน (ขาส่ง)",
+  TRANSFER_IN: "ใบโอน (ขารับ)",
+  // Reads as a loss on purpose — it IS one — but names the journey, so the reader
+  // knows to ask the driver rather than the kitchen.
+  TRANSFER_SHORTAGE: "ของหายระหว่างขนส่ง",
   SYSTEM_INITIAL: "ยอดยกมา",
 };
 

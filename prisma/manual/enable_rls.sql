@@ -288,3 +288,27 @@ USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 -- ============================================================
 -- End Sprint 3 Part 17 RLS
 -- ============================================================
+
+-- ============================================================
+-- Sprint 3 Part 18 — Inter-branch transfer (ADR 0018)
+-- ============================================================
+-- Two tables, each carrying tenant_id directly (ADR 0004 pattern).
+-- Still inert until Sprint 7 — this is RLS-prep.
+--
+-- Worth noting for Sprint 7: this is the first document whose two halves belong
+-- to two different BRANCHES, so tenant isolation alone will not be the whole
+-- story here. A per-branch rule has to let the receiving branch see a document
+-- the sending branch created — the "รอรับ" box (Q8) depends on exactly that.
+-- ============================================================
+
+ALTER TABLE stock_transfer ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON stock_transfer
+USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+ALTER TABLE stock_transfer_item ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON stock_transfer_item
+USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+-- ============================================================
+-- End Sprint 3 Part 18 RLS
+-- ============================================================
