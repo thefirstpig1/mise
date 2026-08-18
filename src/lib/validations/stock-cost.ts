@@ -19,6 +19,9 @@
 // ============================================================
 
 import { z } from "zod";
+// TYPE-only, like waste.ts and goods-receipt.ts do — erased at build, so it does
+// not pull the Prisma runtime into the browser bundle.
+import type { CostSource as PrismaCostSource } from "@prisma/client";
 
 /** Blank → null. Same helper as every other validations file. */
 const blankToNull = (v: unknown) =>
@@ -177,6 +180,21 @@ export const COST_SOURCE_VALUES = [
 ] as const;
 
 export type CostSource = (typeof COST_SOURCE_VALUES)[number];
+
+// Part 18 made this vocabulary STORABLE: `stock_transfer_item.cost_source` freezes
+// it alongside the money, so a receiving branch can tell "the sender never knew"
+// from "these goods were free" (ADR 0018 Q5). That means there are now two copies
+// of the list — this one and the Prisma enum — and this guard is what stops them
+// drifting. It must be ASSIGNED, not merely declared: a type alias resolving to
+// `never` is not an error on its own, which is the hole that let Part 13's enum
+// drift stay green.
+type _AssertCostSource = PrismaCostSource extends CostSource
+  ? CostSource extends PrismaCostSource
+    ? true
+    : never
+  : never;
+const _costSourceDriftGuard: _AssertCostSource = true;
+void _costSourceDriftGuard;
 
 export const COST_SOURCE_LABELS_TH: Record<CostSource, string> = {
   FRONT_LAYER: "จากของที่มีอยู่จริง",
