@@ -467,8 +467,27 @@ export type BranchCostSummary = {
   negativeStockProducts: number;
   /** Products holding stock nobody has ever priced. */
   unpricedProducts: number;
-  revenue: null;
-  grossProfit: null;
+  /**
+   * Sales for the period, from `sales_line` (Part 19): after discount, excluding
+   * VAT and excluding service charge (ADR 0019 Q10, rule P8). Null until this
+   * branch has had a file imported — a null means "not measurable yet", never
+   * "zero", and a branch with no POS file must not read as one that sold nothing.
+   */
+  revenue: Prisma.Decimal | null;
+  /**
+   * STILL NULL, and deliberately.
+   *
+   * Gross profit is revenue minus the cost of what was SOLD, and `cogsSpend`
+   * above is the cost of what was BOUGHT. In a month with a big stock-up those
+   * are wildly different numbers, so filling this with `revenue - cogsSpend`
+   * would put a confident, wrong figure on the page — the exact failure mode
+   * Part 19 is organised against.
+   *
+   * The honest formula is available in principle (opening inventory + purchases
+   * − closing inventory, all of which this module can value), and choosing it is
+   * a calculation decision that belongs in the register, not in a patch.
+   */
+  grossProfit: Prisma.Decimal | null;
 };
 
 /**
@@ -508,6 +527,25 @@ export async function getBranchCostSummaryLogic(
       gte: Date;
       lt: Date;
     };
+
+    // --- revenue (Part 19) ---
+    // Filtered on `business_date`, which is a plain DATE, so no timezone enters
+    // the arithmetic and none is needed: the sales day was settled at import
+    // (ADR 0019 Q15 / rule P15). That is a different filter from the ledger's
+    // Bangkok bounds above ON PURPOSE — a sale belongs to the day the POS said
+    // it did, not to a window computed here.
+    const revenueRows = await tx.salesLine.groupBy({
+      by: ["branchId"],
+      where: {
+        tenantId,
+        supersededAt: null,
+        businessDate: { gte: from, lte: to },
+      },
+      _sum: { netAmount: true },
+    });
+    const revenueByBranch = new Map(
+      revenueRows.map((r) => [r.branchId, r._sum.netAmount ?? ZERO])
+    );
 
     // Spend comes from EXPENSES since Part 16 — one source of money-out, split
     // by the account its category sits under (ADR 0016 Q3/Q4). Receipts are in
@@ -680,7 +718,7 @@ export async function getBranchCostSummaryLogic(
         excessSpend: excessByBranch.get(branch.id) ?? ZERO,
         negativeStockProducts,
         unpricedProducts,
-        revenue: null,
+        revenue: revenueByBranch.get(branch.id) ?? null,
         grossProfit: null,
       };
     });

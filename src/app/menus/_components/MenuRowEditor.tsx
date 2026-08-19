@@ -1,0 +1,202 @@
+"use client";
+
+// Sprint 4 Part 19 L5 — one editable menu row (ADR 0019 Q7, Q8, Q16).
+//
+// The row exists to answer a stub: give the dish a name the shop recognises, a
+// category, and (when departments are on) the department that earns its revenue.
+// Saving clears the รอตรวจ flag, because somebody has now looked at it — which
+// is the entire meaning of the flag.
+//
+// What this component deliberately cannot do is merge. A stub already holds
+// revenue; pointing it at another dish would have to move that money, and moving
+// it needs a decision about both histories and, from Sprint 5, both recipes. So
+// the "จับคู่ชื่อ" control creates an ALIAS, which applies from the next import
+// onwards, and the row says so in as many words rather than implying a merge
+// that will not happen.
+
+import { useActionState, useState, useTransition } from "react";
+import {
+  confirmMenuAliasAction,
+  getMenuSuggestionsAction,
+  updateMenuAction,
+  type MenuActionState,
+  type MenuAliasActionState,
+} from "@/app/menus/actions";
+import type { MenuRowView, MenuSuggestionRowView } from "./menu-view";
+
+const inputClass =
+  "w-full rounded-lg border border-border bg-background px-2 py-1.5 text-sm focus:border-primary focus:outline-none";
+const buttonClass =
+  "rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50";
+const linkClass = "text-xs text-primary hover:underline";
+
+export type CategoryOption = { id: string; name: string };
+export type DepartmentOption = { id: string; name: string };
+
+export default function MenuRowEditor({
+  menu,
+  categories,
+  departments,
+  departmentsEnabled,
+  posIntegrationId,
+}: {
+  menu: MenuRowView;
+  categories: CategoryOption[];
+  departments: DepartmentOption[];
+  departmentsEnabled: boolean;
+  posIntegrationId: string | null;
+}) {
+  const [open, setOpen] = useState(false);
+  const [state, action, saving] = useActionState<MenuActionState | null, FormData>(
+    updateMenuAction,
+    null
+  );
+  const [aliasState, aliasAction, aliasSaving] = useActionState<MenuAliasActionState | null, FormData>(
+    confirmMenuAliasAction,
+    null
+  );
+  const [suggestions, setSuggestions] = useState<MenuSuggestionRowView[] | null>(null);
+  const [looking, startLooking] = useTransition();
+
+  const findSimilar = () => {
+    startLooking(async () => {
+      const result = await getMenuSuggestionsAction(menu.posMenuName ?? menu.name);
+      setSuggestions(result.ok ? result.suggestions : []);
+    });
+  };
+
+  return (
+    <li className="px-3 py-2">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <div>
+          <span className="text-sm font-medium">{menu.name}</span>
+          {menu.isPosStub && (
+            <span className="ml-2 rounded bg-amber-500/20 px-1.5 py-0.5 text-xs">รอตรวจ</span>
+          )}
+          {menu.posName && (
+            <span className="ml-2 text-xs text-muted-foreground">{menu.posName}</span>
+          )}
+        </div>
+        <button type="button" onClick={() => setOpen((v) => !v)} className={linkClass}>
+          {open ? "ปิด" : "แก้ไข"}
+        </button>
+      </div>
+
+      {menu.todoLabel && (
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          {menu.todoLabel}
+          {menu.consequenceLabel && <span> — {menu.consequenceLabel}</span>}
+        </p>
+      )}
+
+      {open && (
+        <div className="mt-3 space-y-4 rounded-lg border border-border bg-background p-3">
+          <form action={action} className="space-y-3">
+            <input type="hidden" name="menuId" value={menu.id} />
+            <label className="block text-xs">
+              ชื่อเมนู
+              <input name="name" defaultValue={menu.name} className={`${inputClass} mt-1`} />
+            </label>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="block text-xs">
+                หมวดเมนู
+                <select
+                  name="menuCategoryId"
+                  defaultValue={menu.menuCategoryId ?? ""}
+                  className={`${inputClass} mt-1`}
+                >
+                  <option value="">— ไม่ระบุ —</option>
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {departmentsEnabled && (
+                <label className="block text-xs">
+                  แผนกที่รับรายได้
+                  <select
+                    name="primaryDepartmentId"
+                    defaultValue={menu.primaryDepartmentId ?? ""}
+                    className={`${inputClass} mt-1`}
+                  >
+                    <option value="">— ไม่ระบุ —</option>
+                    {departments.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              {!departmentsEnabled && (
+                <input type="hidden" name="primaryDepartmentId" value={menu.primaryDepartmentId ?? ""} />
+              )}
+            </div>
+
+            {state?.ok === false && (
+              <div className="space-y-1 text-xs text-destructive">
+                {state.formError && <p>{state.formError}</p>}
+                {state.fieldErrors &&
+                  Object.entries(state.fieldErrors).map(([k, v]) => <p key={k}>{v}</p>)}
+              </div>
+            )}
+            {state?.ok && <p className="text-xs text-primary">บันทึกแล้ว</p>}
+
+            <button type="submit" disabled={saving} className={buttonClass}>
+              {saving ? "กำลังบันทึก…" : "บันทึก"}
+            </button>
+          </form>
+
+          {/* ---------- alias ---------- */}
+          {posIntegrationId && menu.posMenuName && (
+            <div className="border-t border-border pt-3">
+              <p className="text-xs font-medium">ชื่อนี้เป็นเมนูเดิมที่มีอยู่แล้วหรือเปล่า</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                ระบบจะจำว่า “{menu.posMenuName}” หมายถึงเมนูที่เลือก —{" "}
+                <strong>มีผลกับไฟล์ที่นำเข้าครั้งถัดไป</strong> ยอดขายที่บันทึกไปแล้วยังอยู่ที่เมนูนี้
+              </p>
+
+              {suggestions === null ? (
+                <button type="button" onClick={findSimilar} disabled={looking} className={`${linkClass} mt-2`}>
+                  {looking ? "กำลังค้นหา…" : "หาเมนูใกล้เคียง"}
+                </button>
+              ) : suggestions.length === 0 ? (
+                <p className="mt-2 text-xs text-muted-foreground">ไม่พบเมนูใกล้เคียง</p>
+              ) : (
+                <form action={aliasAction} className="mt-2 space-y-2">
+                  <input type="hidden" name="posIntegrationId" value={posIntegrationId} />
+                  <input type="hidden" name="rawName" value={menu.posMenuName} />
+                  <select name="menuId" className={inputClass} defaultValue="">
+                    <option value="" disabled>
+                      — เลือกเมนูที่ใช่ —
+                    </option>
+                    {suggestions
+                      .filter((s) => s.id !== menu.id)
+                      .map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.label} · {s.badge}
+                        </option>
+                      ))}
+                  </select>
+                  {aliasState?.ok === false && (
+                    <p className="text-xs text-destructive">
+                      {aliasState.formError ??
+                        Object.values(aliasState.fieldErrors ?? {})[0] ??
+                        "จับคู่ไม่สำเร็จ"}
+                    </p>
+                  )}
+                  {aliasState?.ok && <p className="text-xs text-primary">จำไว้แล้ว</p>}
+                  <button type="submit" disabled={aliasSaving} className={buttonClass}>
+                    {aliasSaving ? "กำลังบันทึก…" : "จำชื่อนี้ไว้"}
+                  </button>
+                </form>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </li>
+  );
+}

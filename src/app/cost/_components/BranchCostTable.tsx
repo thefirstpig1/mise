@@ -136,7 +136,11 @@ export default function BranchCostTable({
                   >
                     {formatMoney(r.excessSpend)}
                   </td>
-                  <td className={`${tdNum} text-muted-foreground`}>—</td>
+                  <td
+                    className={`${tdNum} ${r.revenue ? "font-medium" : "text-muted-foreground"}`}
+                  >
+                    {r.revenue ? formatMoney(r.revenue) : "—"}
+                  </td>
                   <td className={`${tdNum} text-muted-foreground`}>—</td>
                 </tr>
               );
@@ -150,7 +154,11 @@ export default function BranchCostTable({
               <td className={`${tdNum} font-medium`}>{fmt(total.wasteValue)}</td>
               <td className={`${tdNum} font-medium`}>{fmt(total.varianceValue)}</td>
               <td className={`${tdNum} font-medium`}>{fmt(total.excessSpend)}</td>
-              <td className={`${tdNum} text-muted-foreground`}>—</td>
+              <td className={`${tdNum} font-medium`}>
+                {rows.some((r) => r.revenue)
+                  ? fmt(rows.reduce((sum, r) => sum + Number(r.revenue ?? 0), 0))
+                  : "—"}
+              </td>
               <td className={`${tdNum} text-muted-foreground`}>—</td>
             </tr>
           </tfoot>
@@ -201,8 +209,18 @@ export default function BranchCostTable({
       </p>
 
       <p className="text-xs text-muted-foreground">
-        <strong>รายได้</strong> และ <strong>กำไรขั้นต้น</strong> ยังว่างอยู่ —
-        ระบบยังไม่ได้เชื่อมข้อมูลการขายจาก POS (Sprint 4) ตัวเลขที่แสดงตอนนี้คือฝั่งเงินออกทั้งหมด
+        <strong>รายได้</strong> มาจากไฟล์ยอดขายที่นำเข้า —{" "}
+        <a href="/sales/import" className="text-primary hover:underline">
+          นำเข้ายอดขาย
+        </a>{" "}
+        สาขาที่ยังไม่มีไฟล์จะขึ้น “—” ซึ่งแปลว่า <em>ยังวัดไม่ได้</em> ไม่ใช่ขายไม่ได้ ·
+        เป็นยอดหลังหักส่วนลด ไม่รวม VAT และไม่รวม Service charge
+      </p>
+
+      <p className="text-xs text-muted-foreground">
+        <strong>กำไรขั้นต้น</strong> ยังว่างอยู่ และตั้งใจให้ว่าง — กำไรขั้นต้นคือรายได้
+        ลบ<em>ต้นทุนของที่ขายไป</em> แต่ช่อง “ต้นทุนวัตถุดิบ” ทางซ้ายคือ<em>ต้นทุนของที่ซื้อเข้ามา</em>
+        ซึ่งเดือนที่ตุนของจะต่างกันมาก ระบบจึงไม่เดาให้
       </p>
 
       {hasDataQualityIssue && (

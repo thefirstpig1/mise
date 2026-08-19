@@ -119,9 +119,12 @@ export type BranchCostSummaryView = {
   excessSpend: string;
   negativeStockProducts: number;
   unpricedProducts: number;
-  /** null until POS sync lands in Sprint 4 — "not measurable", never zero. */
-  revenue: null;
-  grossProfit: null;
+  /** From Part 19's imported sales: after discount, excl VAT and service charge.
+   *  Null when this branch has had no file imported — "not measurable", never zero. */
+  revenue: string | null;
+  /** Still null: gross profit needs the cost of what was SOLD, and the column to
+   *  its left is the cost of what was BOUGHT. See BranchCostSummary. */
+  grossProfit: string | null;
 };
 
 export const toBranchCostSummaryView = (
@@ -138,8 +141,8 @@ export const toBranchCostSummaryView = (
   excessSpend: row.excessSpend.toString(),
   negativeStockProducts: row.negativeStockProducts,
   unpricedProducts: row.unpricedProducts,
-  revenue: null,
-  grossProfit: null,
+  revenue: row.revenue ? row.revenue.toString() : null,
+  grossProfit: row.grossProfit ? row.grossProfit.toString() : null,
 });
 
 export type CostDeclarationView = {

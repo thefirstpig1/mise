@@ -147,6 +147,12 @@ export default async function DashboardPage() {
           <a href="/transfers" className="text-sm text-primary hover:underline">
             → โอนของระหว่างสาขา
           </a>
+          <a href="/sales" className="text-sm text-primary hover:underline">
+            → ยอดขาย
+          </a>
+          <a href="/menus" className="text-sm text-primary hover:underline">
+            → เมนู
+          </a>
           <a href="/expenses" className="text-sm text-primary hover:underline">
             → ค่าใช้จ่าย
           </a>
