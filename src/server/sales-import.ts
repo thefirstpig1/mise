@@ -1,9 +1,9 @@
 // ============================================================
-// Mise — sales import: parse and stage (Sprint 4 Part 19 L3a, ADR 0019)
+// Mise — sales import: parse, preview, commit (Sprint 4 Part 19 L3a/L3c, ADR 0019)
 // ============================================================
 // Turns an uploaded file into staged rows, or into a list of reasons why it
-// cannot be. Nothing here touches the database and nothing here decides what a
-// menu is — that is L3b — or which days get replaced — that is L3c.
+// cannot be (L3a), then describes what committing it would do and does it (L3c).
+// Deciding what a menu IS lives next door in src/server/menu.ts (L3b).
 //
 // Two rules shape every line of this file:
 //
@@ -21,6 +21,19 @@
 // why `parseFileNumber` returns BLANK as its own answer — see src/lib/sales-file.ts.
 // ============================================================
 
+import { Prisma } from "@prisma/client";
+import type { PrismaClient, SalesImportBatch } from "@prisma/client";
+import { withTenantContext } from "@/lib/db";
+import {
+  createStubMenusLogic,
+  ensureMenuCategoriesLogic,
+  menuLookupId,
+  planMenuResolutionLogic,
+  suggestForUnmatchedLogic,
+  type MenuLookupKey,
+  type MenuSuggestion,
+  type UnmatchedMenu,
+} from "@/server/menu";
 import {
   computeHeaderSignature,
   decodeSalesFile,
@@ -479,4 +492,561 @@ export function distinctSalesDays(rows: readonly StagedSalesRow[]): Date[] {
   const seen = new Map<number, Date>();
   for (const r of rows) seen.set(r.businessDate.getTime(), r.businessDate);
   return [...seen.values()].sort((a, b) => a.getTime() - b.getTime());
+}
+
+// ============================================================
+// L3c — preview and commit (ADR 0019 Q5)
+// ============================================================
+// The unit of import is **branch × sales day**, and re-importing REPLACES a day
+// rather than adding to it. `sales_day`'s UNIQUE(branch_id, business_date) is
+// what makes that a database fact instead of a promise in application code.
+//
+// Replaced rows are marked superseded, never deleted: in Sprint 5 these rows
+// drive CONSUMPTION into an append-only ledger, and a deleted sale would leave
+// stock consumed with no document to point at.
+//
+// ⚠️ THE FILE IS SENT TWICE, ON PURPOSE. There is no object storage yet
+// (pending Feature 5), so a preview cannot hold the bytes it parsed between two
+// requests. Commit therefore re-reads the same file and re-derives everything,
+// and the acknowledged counts from the preview are checked against what the
+// second parse finds. Parsing is deterministic, so the counts only differ when
+// the world moved underneath — somebody imported the same days in another tab —
+// and that is exactly when a commit must be refused rather than allowed to
+// destroy figures nobody was shown.
+// ============================================================
+
+type Tx = Omit<
+  PrismaClient,
+  "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends"
+>;
+
+export class SalesImportBatchNotFoundError extends Error {
+  constructor(public readonly id: string) {
+    super(`Sales import batch "${id}" does not exist for this tenant`);
+    this.name = "SalesImportBatchNotFoundError";
+  }
+}
+
+export class SalesImportProfileNotFoundError extends Error {
+  constructor(public readonly id: string) {
+    super(`Sales import profile "${id}" does not exist for this tenant`);
+    this.name = "SalesImportProfileNotFoundError";
+  }
+}
+
+export class SalesImportAlreadyCommittedError extends Error {
+  constructor(public readonly id: string) {
+    super(`Sales import batch "${id}" has already been committed`);
+    this.name = "SalesImportAlreadyCommittedError";
+  }
+}
+
+/**
+ * The preview the user approved no longer describes what would happen.
+ *
+ * Not a technical nicety: rule P3 makes a commit destroy a day's current
+ * figures, and Section D.4 forbids creating menus nobody was shown. Both
+ * promises are only kept if what is committed is what was previewed.
+ */
+export class SalesImportPreviewStaleError extends Error {
+  constructor(
+    public readonly expected: { days: number; menus: number; categories: number },
+    public readonly actual: { days: number; menus: number; categories: number }
+  ) {
+    super("Sales import preview is stale");
+    this.name = "SalesImportPreviewStaleError";
+  }
+}
+
+export class SalesImportFileRejectedError extends Error {
+  constructor(public readonly errors: SalesRowError[]) {
+    super(`Sales file rejected with ${errors.length} error(s)`);
+    this.name = "SalesImportFileRejectedError";
+  }
+}
+
+// ------------------------------------------------------------
+// Preview
+// ------------------------------------------------------------
+
+export interface ReplacedDay {
+  businessDate: Date;
+  /** Rows that will be superseded. The size of what is being thrown away. */
+  existingRows: number;
+  existingNet: Prisma.Decimal;
+  /** Which file currently owns the day, so the warning names it. */
+  currentFileName: string | null;
+  currentImportedAt: Date | null;
+}
+
+export interface ImportPreview {
+  batchId: string;
+  fileName: string;
+  branchId: string;
+  posIntegrationId: string;
+  coveredFrom: Date;
+  coveredTo: Date;
+  rowCount: number;
+  blankRowsSkipped: number;
+  inconsistentRows: number;
+  largestConsistencyDelta: number;
+  totalNet: Prisma.Decimal;
+  totalQty: Prisma.Decimal;
+  /** Days already holding figures, which this import will replace (rule P3). */
+  replacedDays: ReplacedDay[];
+  /** Days with nothing in them yet. */
+  newDays: Date[];
+  /** Dishes Mise has never seen — each becomes a stub unless pointed elsewhere. */
+  newMenus: UnmatchedMenu[];
+  /** lookupId → candidates, for the "did you mean…?" beside each new dish. */
+  suggestions: Map<string, MenuSuggestion[]>;
+  newCategories: string[];
+}
+
+/** What the acknowledgement counts on the commit payload have to match. */
+export function previewCounts(preview: ImportPreview) {
+  return {
+    days: preview.replacedDays.length,
+    menus: preview.newMenus.length,
+    categories: preview.newCategories.length,
+  };
+}
+
+interface LoadedProfile {
+  profileId: string;
+  branchId: string;
+  posIntegrationId: string;
+  parse: ParseProfile;
+  salesDayCutoffMinutes: number;
+}
+
+async function loadProfileLogic(tx: Tx, tenantId: string, profileId: string): Promise<LoadedProfile> {
+  const profile = await tx.salesImportProfile.findFirst({
+    where: { id: profileId, tenantId, deletedAt: null },
+    include: { posIntegration: { include: { branch: true } } },
+  });
+  if (!profile) throw new SalesImportProfileNotFoundError(profileId);
+
+  return {
+    profileId: profile.id,
+    branchId: profile.posIntegration.branchId,
+    posIntegrationId: profile.posIntegrationId,
+    salesDayCutoffMinutes: profile.posIntegration.branch.salesDayCutoffMinutes,
+    parse: {
+      fileKind: profile.fileKind as ParseProfile["fileKind"],
+      encoding: profile.encoding as ParseProfile["encoding"],
+      dateFormat: profile.dateFormat as ParseProfile["dateFormat"],
+      isBuddhistYear: profile.isBuddhistYear,
+      headerSignature: profile.headerSignature,
+      columnMap: profile.columnMap as ColumnMap,
+      amountsIncludeVat: profile.amountsIncludeVat,
+      amountsIncludeServiceCharge: profile.amountsIncludeServiceCharge,
+      defaultChannel: profile.defaultChannel as SalesChannelValue | null,
+    },
+  };
+}
+
+function lookupKeysFor(rows: readonly StagedSalesRow[]): MenuLookupKey[] {
+  return rows.map((r) => ({
+    code: r.posMenuCode,
+    rawName: r.posMenuName,
+    matchKey: r.menuMatchKey,
+  }));
+}
+
+/**
+ * Read a file and describe, in full, what committing it would do.
+ *
+ * Nothing is written except the batch's own status and error log — the record of
+ * an attempt, which is the one thing the previous system never kept.
+ */
+export async function previewSalesImportLogic(
+  tenantId: string,
+  userId: string,
+  input: { batchId: string; profileId: string; fileName: string },
+  bytes: Uint8Array
+): Promise<ImportPreview> {
+  // --- 1. read the profile, then parse. Parsing touches nothing. ---
+  const profile = await withTenantContext(tenantId, (tx) =>
+    loadProfileLogic(tx, tenantId, input.profileId)
+  );
+  const parsed = parseSalesFileLogic(bytes, profile.parse, {
+    salesDayCutoffMinutes: profile.salesDayCutoffMinutes,
+  });
+
+  // --- 2. record the attempt, in a transaction of its OWN ---
+  //
+  // ⚠️ This cannot live in the same transaction as the throw below. A rejection
+  // written inside a transaction that then throws is rolled back with it, so the
+  // record of the failure would vanish at exactly the moment it is worth having —
+  // and "why is Tuesday missing?" would be unanswerable again. (The same shape as
+  // the Part 18 sweep script whose RAISE EXCEPTION undid its own DELETEs.)
+  //
+  // `id` is the submit key, so a double-tap collides on the primary key rather
+  // than importing the file twice.
+  await withTenantContext(tenantId, (tx) =>
+    tx.salesImportBatch.upsert({
+      where: { id: input.batchId },
+      create: {
+        id: input.batchId,
+        tenantId,
+        branchId: profile.branchId,
+        posIntegrationId: profile.posIntegrationId,
+        profileId: profile.profileId,
+        fileName: input.fileName,
+        status: parsed.ok ? "PREVIEW" : "FAILED",
+        uploadedBy: userId,
+        coveredFrom: parsed.ok ? parsed.coveredFrom : null,
+        coveredTo: parsed.ok ? parsed.coveredTo : null,
+        errorLog: parsed.ok ? Prisma.DbNull : (parsed.errors as unknown as Prisma.InputJsonValue),
+      },
+      update: {
+        status: parsed.ok ? "PREVIEW" : "FAILED",
+        fileName: input.fileName,
+        coveredFrom: parsed.ok ? parsed.coveredFrom : null,
+        coveredTo: parsed.ok ? parsed.coveredTo : null,
+        errorLog: parsed.ok ? Prisma.DbNull : (parsed.errors as unknown as Prisma.InputJsonValue),
+      },
+    })
+  );
+
+  if (!parsed.ok) throw new SalesImportFileRejectedError(parsed.errors);
+
+  // --- 3. describe what committing would do. Reads only. ---
+  return withTenantContext(
+    tenantId,
+    async (tx) => {
+      const plan = await planMenuResolutionLogic(
+        tenantId,
+        profile.posIntegrationId,
+        lookupKeysFor(parsed.rows),
+        tx
+      );
+      const suggestions = await suggestForUnmatchedLogic(tenantId, plan.unmatched, tx);
+
+      const days = distinctSalesDays(parsed.rows);
+      const existingDays = await tx.salesDay.findMany({
+        where: { tenantId, branchId: profile.branchId, businessDate: { in: days } },
+        include: { currentBatch: { select: { fileName: true, uploadedAt: true } } },
+      });
+
+      const replacedDays: ReplacedDay[] = [];
+      for (const d of existingDays) {
+        const live = await tx.salesLine.aggregate({
+          where: { salesDayId: d.id, supersededAt: null },
+          _count: { _all: true },
+          _sum: { netAmount: true },
+        });
+        if (live._count._all === 0) continue;
+        replacedDays.push({
+          businessDate: d.businessDate,
+          existingRows: live._count._all,
+          existingNet: live._sum.netAmount ?? new Prisma.Decimal(0),
+          currentFileName: d.currentBatch?.fileName ?? null,
+          currentImportedAt: d.currentBatch?.uploadedAt ?? null,
+        });
+      }
+
+      const replacedSet = new Set(replacedDays.map((d) => d.businessDate.getTime()));
+      const newDays = days.filter((d) => !replacedSet.has(d.getTime()));
+
+      const newCategories = await unseenCategoryNames(tx, tenantId, parsed.rows);
+
+      let totalNet = new Prisma.Decimal(0);
+      let totalQty = new Prisma.Decimal(0);
+      for (const r of parsed.rows) {
+        totalNet = totalNet.plus(r.netAmount);
+        totalQty = totalQty.plus(r.qty);
+      }
+
+      return {
+        batchId: input.batchId,
+        fileName: input.fileName,
+        branchId: profile.branchId,
+        posIntegrationId: profile.posIntegrationId,
+        coveredFrom: parsed.coveredFrom,
+        coveredTo: parsed.coveredTo,
+        rowCount: parsed.rows.length,
+        blankRowsSkipped: parsed.blankRowsSkipped,
+        inconsistentRows: parsed.inconsistentRows,
+        largestConsistencyDelta: parsed.largestConsistencyDelta,
+        totalNet,
+        totalQty,
+        replacedDays,
+        newDays,
+        newMenus: plan.unmatched,
+        suggestions,
+        newCategories,
+      };
+    },
+    { maxWait: 10_000, timeout: 30_000 }
+  );
+}
+
+/** Category names in the file that Mise does not have yet (by its name or the POS's). */
+async function unseenCategoryNames(
+  tx: Tx,
+  tenantId: string,
+  rows: readonly StagedSalesRow[]
+): Promise<string[]> {
+  const wanted = [
+    ...new Set(
+      rows
+        .map((r) => (r.categoryName ? normalizeMenuName(r.categoryName) : ""))
+        .filter((n) => n !== "")
+    ),
+  ];
+  if (wanted.length === 0) return [];
+
+  const existing = await tx.menuCategory.findMany({
+    where: { tenantId, deletedAt: null },
+    select: { name: true, posCategoryName: true },
+  });
+  const known = new Set<string>();
+  for (const c of existing) {
+    known.add(normalizeMenuName(c.name));
+    if (c.posCategoryName) known.add(normalizeMenuName(c.posCategoryName));
+  }
+  return wanted.filter((n) => !known.has(n));
+}
+
+// ------------------------------------------------------------
+// Commit
+// ------------------------------------------------------------
+
+export interface CommitSalesImportResult {
+  batchId: string;
+  rowsWritten: number;
+  daysReplaced: number;
+  daysAdded: number;
+  stubMenusCreated: number;
+  categoriesCreated: number;
+  rowsSuperseded: number;
+}
+
+/**
+ * Write the file.
+ *
+ * One transaction, so a shop never ends up with half a month imported. The
+ * timeout is raised well past Prisma's default: a thirty-day file from a busy
+ * branch is thousands of rows, each an insert into Neon in Singapore.
+ */
+export async function commitSalesImportLogic(
+  tenantId: string,
+  userId: string,
+  input: {
+    batchId: string;
+    acknowledgedReplacedDays: number;
+    acknowledgedNewMenus: number;
+    acknowledgedNewCategories: number;
+  },
+  bytes: Uint8Array
+): Promise<CommitSalesImportResult> {
+  return withTenantContext(
+    tenantId,
+    async (tx) => {
+      const batch = await tx.salesImportBatch.findFirst({
+        where: { id: input.batchId, tenantId },
+      });
+      if (!batch) throw new SalesImportBatchNotFoundError(input.batchId);
+      if (batch.status === "COMMITTED") {
+        throw new SalesImportAlreadyCommittedError(input.batchId);
+      }
+
+      const profile = await loadProfileLogic(tx, tenantId, batch.profileId);
+      const parsed = parseSalesFileLogic(bytes, profile.parse, {
+        salesDayCutoffMinutes: profile.salesDayCutoffMinutes,
+      });
+      if (!parsed.ok) throw new SalesImportFileRejectedError(parsed.errors);
+
+      const plan = await planMenuResolutionLogic(
+        tenantId,
+        profile.posIntegrationId,
+        lookupKeysFor(parsed.rows),
+        tx
+      );
+
+      const days = distinctSalesDays(parsed.rows);
+      const existingDays = await tx.salesDay.findMany({
+        where: { tenantId, branchId: profile.branchId, businessDate: { in: days } },
+        select: { id: true, businessDate: true },
+      });
+      const dayIdByTime = new Map(existingDays.map((d) => [d.businessDate.getTime(), d.id]));
+
+      let willReplace = 0;
+      for (const d of existingDays) {
+        const live = await tx.salesLine.count({
+          where: { salesDayId: d.id, supersededAt: null },
+        });
+        if (live > 0) willReplace++;
+      }
+
+      const newCategories = await unseenCategoryNames(tx, tenantId, parsed.rows);
+
+      // --- the preview must still describe reality (Section D.4, rule P3) ---
+      const actual = {
+        days: willReplace,
+        menus: plan.unmatched.length,
+        categories: newCategories.length,
+      };
+      const expected = {
+        days: input.acknowledgedReplacedDays,
+        menus: input.acknowledgedNewMenus,
+        categories: input.acknowledgedNewCategories,
+      };
+      if (
+        actual.days !== expected.days ||
+        actual.menus !== expected.menus ||
+        actual.categories !== expected.categories
+      ) {
+        throw new SalesImportPreviewStaleError(expected, actual);
+      }
+
+      // --- categories, then stubs ---
+      const categoryIds = await ensureMenuCategoriesLogic(
+        tx,
+        tenantId,
+        parsed.rows.map((r) => r.categoryName ?? "").filter((n) => n !== "")
+      );
+
+      const categoryForLookup = new Map<string, string | null>();
+      for (const r of parsed.rows) {
+        const id = menuLookupId({ code: r.posMenuCode, matchKey: r.menuMatchKey });
+        if (categoryForLookup.has(id)) continue;
+        const catName = r.categoryName ? normalizeMenuName(r.categoryName) : "";
+        categoryForLookup.set(id, catName ? (categoryIds.get(catName) ?? null) : null);
+      }
+
+      const stubIds = await createStubMenusLogic(
+        tx,
+        tenantId,
+        profile.posIntegrationId,
+        plan.unmatched.map((u) => ({
+          code: u.code,
+          rawName: u.rawName,
+          matchKey: u.matchKey,
+          menuCategoryId: categoryForLookup.get(menuLookupId(u)) ?? null,
+        }))
+      );
+
+      const menuIdFor = (r: StagedSalesRow): string => {
+        const id = menuLookupId({ code: r.posMenuCode, matchKey: r.menuMatchKey });
+        const resolved = plan.matched.get(id) ?? stubIds.get(id);
+        if (!resolved) {
+          // Unreachable: every row is either matched or was just given a stub.
+          throw new Error(`Sales row ${r.rowNumber} resolved to no menu`);
+        }
+        return resolved;
+      };
+
+      // --- day by day: supersede, then write (rule P3) ---
+      const now = new Date();
+      let rowsSuperseded = 0;
+      let daysAdded = 0;
+      const rowsByDay = new Map<number, StagedSalesRow[]>();
+      for (const r of parsed.rows) {
+        const t = r.businessDate.getTime();
+        const arr = rowsByDay.get(t) ?? [];
+        arr.push(r);
+        rowsByDay.set(t, arr);
+      }
+
+      for (const day of days) {
+        let salesDayId = dayIdByTime.get(day.getTime());
+        if (!salesDayId) {
+          const created = await tx.salesDay.create({
+            data: {
+              tenantId,
+              branchId: profile.branchId,
+              businessDate: day,
+              currentBatchId: input.batchId,
+            },
+            select: { id: true },
+          });
+          salesDayId = created.id;
+          daysAdded++;
+        } else {
+          const superseded = await tx.salesLine.updateMany({
+            where: { salesDayId, supersededAt: null },
+            data: { supersededAt: now, supersededByBatchId: input.batchId },
+          });
+          rowsSuperseded += superseded.count;
+          await tx.salesDay.update({
+            where: { id: salesDayId },
+            data: { currentBatchId: input.batchId },
+          });
+        }
+
+        const dayRows = rowsByDay.get(day.getTime()) ?? [];
+        await tx.salesLine.createMany({
+          data: dayRows.map((r) => ({
+            tenantId,
+            branchId: profile.branchId,
+            businessDate: r.businessDate,
+            salesDayId: salesDayId!,
+            importBatchId: input.batchId,
+            menuId: menuIdFor(r),
+            posMenuName: r.posMenuName,
+            posMenuCode: r.posMenuCode,
+            qty: new Prisma.Decimal(r.qty),
+            grossAmount: new Prisma.Decimal(r.grossAmount),
+            discountAmount: new Prisma.Decimal(r.discountAmount),
+            netAmount: new Prisma.Decimal(r.netAmount),
+            serviceChargeAmount: new Prisma.Decimal(r.serviceChargeAmount),
+            vatAmount: new Prisma.Decimal(r.vatAmount),
+            channel: r.channel,
+            posBillId: r.posBillId,
+            soldAt: r.soldAt,
+          })),
+        });
+      }
+
+      await tx.salesImportBatch.update({
+        where: { id: input.batchId },
+        data: {
+          status: "COMMITTED",
+          committedAt: now,
+          rowCount: parsed.rows.length,
+          coveredFrom: parsed.coveredFrom,
+          coveredTo: parsed.coveredTo,
+          errorLog: Prisma.DbNull,
+          uploadedBy: userId,
+        },
+      });
+
+      // Last COMMITTED import, not last upload — a failed file is not a sync.
+      await tx.posIntegration.update({
+        where: { id: profile.posIntegrationId },
+        data: { lastImportAt: now },
+      });
+
+      return {
+        batchId: input.batchId,
+        rowsWritten: parsed.rows.length,
+        daysReplaced: willReplace,
+        daysAdded,
+        stubMenusCreated: stubIds.size,
+        categoriesCreated: newCategories.length,
+        rowsSuperseded,
+      };
+    },
+    { maxWait: 15_000, timeout: 120_000 }
+  );
+}
+
+// ------------------------------------------------------------
+// Reads
+// ------------------------------------------------------------
+
+export async function getSalesImportBatchesLogic(
+  tenantId: string,
+  branchId?: string
+): Promise<SalesImportBatch[]> {
+  return withTenantContext(tenantId, async (tx) =>
+    tx.salesImportBatch.findMany({
+      where: { tenantId, ...(branchId ? { branchId } : {}) },
+      orderBy: { uploadedAt: "desc" },
+      take: 100,
+    })
+  );
 }
