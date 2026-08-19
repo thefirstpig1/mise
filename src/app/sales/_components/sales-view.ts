@@ -15,6 +15,13 @@
 
 import type { Prisma } from "@prisma/client";
 import type { ImportPreview, ReplacedDay, SalesRowError } from "@/server/sales-import";
+import { isPulseMismatch } from "@/lib/validations/sales-pulse";
+import type {
+  BranchPulseRow,
+  PulseDashboard,
+  PulseDayFigure,
+  PulseReconciliation,
+} from "@/server/sales-pulse";
 import type {
   SalesAvailability,
   SalesByCategory,
@@ -229,6 +236,11 @@ export type SalesDayRowView = {
   rows: number;
   /** "จาก sales-2025-12.csv นำเข้า 3 ม.ค. 2569 14:02" — rule P3's provenance. */
   sourceLabel: string;
+  /** The till figure recorded at close, and how far the file is from it. */
+  pulseAmount: string | null;
+  pulseDifference: string | null;
+  pulseIsMismatch: boolean;
+  pulseNote: string | null;
 };
 
 export function toSalesDayRowView(d: SalesDayRow): SalesDayRowView {
@@ -242,6 +254,17 @@ export function toSalesDayRowView(d: SalesDayRow): SalesDayRowView {
       d.fileName && d.importedAt
         ? `จาก ${d.fileName} · นำเข้า ${BANGKOK_DATETIME.format(d.importedAt)}`
         : "ยังไม่มีไฟล์ที่นำเข้า",
+    pulseAmount: d.pulseAmount ? str(d.pulseAmount) : null,
+    // Detail minus pulse: negative means the file is short of what the till said.
+    // Only meaningful once there IS detail — a day with a pulse and no file yet
+    // is not a discrepancy, it is a day waiting for its file.
+    pulseDifference:
+      d.pulseAmount && d.rows > 0 ? str(d.customerPaid.minus(d.pulseAmount)) : null,
+    pulseIsMismatch:
+      d.pulseAmount !== null &&
+      d.rows > 0 &&
+      isPulseMismatch(d.pulseAmount.toNumber(), d.customerPaid.toNumber()),
+    pulseNote: d.pulseNote,
   };
 }
 
@@ -279,6 +302,8 @@ export type ImportPreviewView = {
   /** Non-null when the VAT / service-charge flags look wrong (rule P10). */
   consistencyWarning: string | null;
   blankRowNotice: string | null;
+  /** Days whose recorded till figure disagrees with this file (ADR 0020 Q3). */
+  pulseWarnings: PulseReconciliationView[];
 };
 
 export type MenuSuggestionView = {
@@ -341,6 +366,7 @@ export function toImportPreviewView(p: ImportPreview): ImportPreviewView {
       p.blankRowsSkipped > 0
         ? `ข้ามแถวว่าง ${p.blankRowsSkipped.toLocaleString("th-TH")} แถว`
         : null,
+    pulseWarnings: p.pulseMismatches.map(toPulseReconciliationView),
   };
 }
 
@@ -380,3 +406,130 @@ export function toSalesRowErrorView(e: SalesRowError): SalesRowErrorView {
 }
 
 export { BANGKOK_DATE, BANGKOK_DATETIME, DAY_LABEL };
+
+
+// ------------------------------------------------------------
+// The daily pulse (Part 20a)
+// ------------------------------------------------------------
+
+/**
+ * Where a figure came from, in words.
+ *
+ * Never omitted, because a number that hides its provenance gets trusted past
+ * the point it has earned — the rule C10 set for cost and W4 set for par levels,
+ * applied to the one figure an owner looks at most often.
+ */
+export const PULSE_SOURCE_LABELS_TH = {
+  DETAIL: "จากไฟล์ยอดขาย",
+  PULSE: "คีย์เอง (ยังไม่ได้นำเข้าไฟล์)",
+} as const;
+
+export type PulseDayFigureView = {
+  businessDate: string;
+  dayLabel: string;
+  amount: string | null;
+  source: "DETAIL" | "PULSE" | null;
+  sourceLabel: string | null;
+  note: string | null;
+};
+
+export function toPulseDayFigureView(f: PulseDayFigure): PulseDayFigureView {
+  return {
+    businessDate: f.businessDate.toISOString(),
+    dayLabel: DAY_LABEL.format(f.businessDate),
+    amount: f.amount ? str(f.amount) : null,
+    source: f.source,
+    sourceLabel: f.source ? PULSE_SOURCE_LABELS_TH[f.source] : null,
+    note: f.note,
+  };
+}
+
+export type BranchPulseRowView = {
+  branchId: string;
+  branchName: string;
+  today: PulseDayFigureView;
+  yesterday: PulseDayFigureView;
+  last7Total: string;
+  last7DaysWithFigure: number;
+  todayNeedsPulse: boolean;
+  /** "7 วันล่าสุด (มีข้อมูล 5 วัน)" — a total over an unstated number of days is
+   *  a number nobody can use. */
+  last7Label: string;
+};
+
+export function toBranchPulseRowView(r: BranchPulseRow): BranchPulseRowView {
+  return {
+    branchId: r.branchId,
+    branchName: r.branchName,
+    today: toPulseDayFigureView(r.today),
+    yesterday: toPulseDayFigureView(r.yesterday),
+    last7Total: str(r.last7Total),
+    last7DaysWithFigure: r.last7DaysWithFigure,
+    todayNeedsPulse: r.todayNeedsPulse,
+    last7Label:
+      r.last7DaysWithFigure === 0
+        ? "7 วันล่าสุด (ยังไม่มีข้อมูล)"
+        : `7 วันล่าสุด (มีข้อมูล ${r.last7DaysWithFigure} วัน)`,
+  };
+}
+
+export type PulseDashboardView = {
+  branches: BranchPulseRowView[];
+  todayTotal: string;
+  yesterdayTotal: string;
+  last7Total: string;
+  branchesMissingToday: number;
+  /** Names the roll-up as a roll-up, and says what it is missing. */
+  rollUpNote: string | null;
+};
+
+export function toPulseDashboardView(d: PulseDashboard): PulseDashboardView {
+  return {
+    branches: d.branches.map(toBranchPulseRowView),
+    todayTotal: str(d.todayTotal),
+    yesterdayTotal: str(d.yesterdayTotal),
+    last7Total: str(d.last7Total),
+    branchesMissingToday: d.branchesMissingToday,
+    rollUpNote:
+      d.branchesMissingToday > 0
+        ? `รวมทุกสาขา — ยังไม่มีตัวเลขของวันนี้ ${d.branchesMissingToday} สาขา ยอดรวมจึงยังไม่ครบ`
+        : d.branches.length > 1
+          ? "รวมทุกสาขา"
+          : null,
+  };
+}
+
+export type PulseReconciliationView = {
+  businessDate: string;
+  dayLabel: string;
+  pulseAmount: string;
+  detailAmount: string;
+  difference: string;
+  isMismatch: boolean;
+  note: string | null;
+  /** The whole warning, built here so no part of it can be dropped. */
+  warning: string;
+};
+
+export function toPulseReconciliationView(r: PulseReconciliation): PulseReconciliationView {
+  const diff = r.difference.toNumber();
+  const short = diff < 0;
+  const money = (d: { toFixed(n: number): string }) => d.toFixed(2);
+
+  return {
+    businessDate: r.businessDate.toISOString(),
+    dayLabel: DAY_LABEL.format(r.businessDate),
+    pulseAmount: str(r.pulseAmount),
+    detailAmount: str(r.detailAmount),
+    difference: str(r.difference),
+    isMismatch: r.isMismatch,
+    note: r.pulseNote,
+    warning:
+      `${DAY_LABEL.format(r.businessDate)} — ยอดที่คีย์ไว้ตอนปิดร้าน ฿${money(r.pulseAmount)} ` +
+      `แต่ไฟล์นี้รวมได้ ฿${money(r.detailAmount)} ` +
+      (short
+        ? `(ไฟล์ขาดไป ฿${Math.abs(diff).toFixed(2)}) — ไฟล์อาจ export มาไม่ครบทั้งวัน`
+        : `(ไฟล์เกินมา ฿${diff.toFixed(2)}) — อาจคีย์ยอดตอนปิดร้านผิด หรือไฟล์ครอบวันอื่นมาด้วย`) +
+      (r.pulseNote ? ` · หมายเหตุตอนคีย์: “${r.pulseNote}”` : ""),
+  };
+}

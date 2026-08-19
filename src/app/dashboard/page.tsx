@@ -4,6 +4,10 @@ import { requireTenant } from "@/lib/require-tenant";
 import { getTransfersLogic } from "@/server/transfer";
 import { getTransfersQuerySchema } from "@/lib/validations/transfer";
 import { toTransferView } from "@/app/transfers/_components/transfer-view";
+import { computeBangkokToday } from "@/lib/bangkok-date";
+import { getPulseDashboardLogic } from "@/server/sales-pulse";
+import { toPulseDashboardView } from "@/app/sales/_components/sales-view";
+import PulsePanel from "./_components/PulsePanel";
 
 export default async function DashboardPage() {
   const { user, membership, tenantId } = await requireTenant();
@@ -30,6 +34,12 @@ export default async function DashboardPage() {
     )
   ).map(toTransferView);
 
+  // Part 20a Q4 — the answer to "the shop runs blind between imports". Detail
+  // where a file has landed, the typed pulse where it has not, and every figure
+  // saying which.
+  const pulse = toPulseDashboardView(await getPulseDashboardLogic(tenantId));
+  const todayIso = computeBangkokToday().toISOString().slice(0, 10);
+
   return (
     <div className="min-h-screen">
       <header className="border-b border-border bg-card">
@@ -54,6 +64,10 @@ export default async function DashboardPage() {
         <p className="mb-8 text-muted-foreground">
           ยินดีต้อนรับ, {user.name ?? user.email}
         </p>
+
+        <div className="mb-8">
+          <PulsePanel dashboard={pulse} todayIso={todayIso} />
+        </div>
 
         {waiting.length > 0 && (
           <div className="mb-8 rounded-lg border border-amber-300 bg-amber-50 p-4">

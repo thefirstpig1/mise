@@ -241,6 +241,24 @@ export default function SalesImportWizard({
             </div>
           )}
 
+          {preview.pulseWarnings.length > 0 && (
+            <div className="mt-4 rounded-lg border border-red-500/60 bg-red-500/5 p-3">
+              <p className="text-sm font-medium">
+                ไฟล์นี้ไม่ตรงกับยอดที่คีย์ไว้ตอนปิดร้าน {preview.pulseWarnings.length} วัน
+              </p>
+              <ul className="mt-2 space-y-1 text-xs">
+                {preview.pulseWarnings.map((w) => (
+                  <li key={w.businessDate}>{w.warning}</li>
+                ))}
+              </ul>
+              <p className="mt-2 text-xs text-muted-foreground">
+                นำเข้าต่อได้ ระบบไม่บล็อก — แต่นี่เป็นจุดเดียวที่จับได้ว่าไฟล์
+                export มาไม่ครบทั้งวัน เพราะไฟล์แบบนั้นทุกแถวถูกต้องหมด
+                ไม่มีอะไรในไฟล์บอกว่ามันขาด
+              </p>
+            </div>
+          )}
+
           {preview.replacedDays.length > 0 && (
             <div className="mt-4 rounded-lg border border-amber-500/50 bg-amber-500/5 p-3">
               <p className="text-sm font-medium">

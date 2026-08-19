@@ -260,6 +260,15 @@ export interface SalesDayRow {
   rows: number;
   fileName: string | null;
   importedAt: Date | null;
+  /** What the till said at close (Part 20). Null when nobody recorded it. */
+  pulseAmount: Prisma.Decimal | null;
+  pulseNote: string | null;
+  /**
+   * What the customer paid according to the imported detail: `net + vat +
+   * service charge`. The pulse's comparable — comparing against `net` alone
+   * would be wrong by up to ~17% (rule P27).
+   */
+  customerPaid: Prisma.Decimal;
 }
 
 /**
@@ -296,7 +305,7 @@ export async function getSalesDaysLogic(
     const sums = await tx.salesLine.groupBy({
       by: ["salesDayId"],
       where: { salesDayId: { in: days.map((d) => d.id) }, supersededAt: null },
-      _sum: { netAmount: true },
+      _sum: { netAmount: true, vatAmount: true, serviceChargeAmount: true },
       _count: { _all: true },
     });
     const byDayId = new Map(sums.map((s) => [s.salesDayId, s]));
@@ -309,6 +318,11 @@ export async function getSalesDaysLogic(
         rows: s?._count._all ?? 0,
         fileName: d.currentBatch?.fileName ?? null,
         importedAt: d.currentBatch?.uploadedAt ?? null,
+        pulseAmount: d.pulseAmount,
+        pulseNote: d.pulseNote,
+        customerPaid: (s?._sum.netAmount ?? ZERO())
+          .plus(s?._sum.vatAmount ?? ZERO())
+          .plus(s?._sum.serviceChargeAmount ?? ZERO()),
       };
     });
   });

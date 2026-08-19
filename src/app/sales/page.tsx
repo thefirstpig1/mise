@@ -265,7 +265,9 @@ export default async function SalesPage({
           <section>
             <h3 className="text-sm font-medium">รายวัน</h3>
             <p className="mt-1 text-xs text-muted-foreground">
-              แต่ละวันมาจากไฟล์ไหน — อัปไฟล์ทับวันเดิมได้ ระบบจะแทนที่ทั้งวัน
+              แต่ละวันมาจากไฟล์ไหน — อัปไฟล์ทับวันเดิมได้ ระบบจะแทนที่ทั้งวัน ·
+              ตัวเลขในวงเล็บคือ <strong>ยอดจากไฟล์ − ยอดที่คีย์ตอนปิดร้าน</strong> (เทียบยอดที่ลูกค้าจ่ายทั้งคู่)
+              ติดลบแปลว่าไฟล์ได้น้อยกว่าที่เครื่องเก็บเงินบอก มักแปลว่า export มาไม่ครบทั้งวัน
             </p>
             <div className="mt-2 overflow-x-auto">
               <table className="min-w-full text-sm">
@@ -274,6 +276,7 @@ export default async function SalesPage({
                     <th className="px-2 py-1 text-left">วันที่</th>
                     <th className="px-2 py-1 text-right">ยอดขาย</th>
                     <th className="px-2 py-1 text-right">รายการ</th>
+                    <th className="px-2 py-1 text-right">ยอดที่คีย์ตอนปิดร้าน</th>
                     <th className="px-2 py-1 text-left">ที่มา</th>
                   </tr>
                 </thead>
@@ -285,6 +288,28 @@ export default async function SalesPage({
                       </td>
                       <td className="px-2 py-1 text-right font-medium">฿{bahtShort(d.net)}</td>
                       <td className="px-2 py-1 text-right text-muted-foreground">{d.rows}</td>
+                      <td className="px-2 py-1 text-right">
+                        {d.pulseAmount === null ? (
+                          <span className="text-muted-foreground">—</span>
+                        ) : (
+                          <>
+                            <span>฿{bahtShort(d.pulseAmount)}</span>
+                            {d.pulseDifference !== null && (
+                              <span
+                                className={`ml-1 text-xs ${d.pulseIsMismatch ? "font-medium text-red-700" : "text-muted-foreground"}`}
+                              >
+                                ({Number(d.pulseDifference) >= 0 ? "+" : ""}
+                                {bahtShort(d.pulseDifference)})
+                              </span>
+                            )}
+                          </>
+                        )}
+                        {d.pulseNote && (
+                          <span className="block text-[10px] text-muted-foreground">
+                            “{d.pulseNote}”
+                          </span>
+                        )}
+                      </td>
                       <td className="px-2 py-1 text-xs text-muted-foreground">{d.sourceLabel}</td>
                     </tr>
                   ))}
