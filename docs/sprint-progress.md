@@ -6,13 +6,13 @@
 
 _(Sprint 3 — Stock Count · Expense · Waste/Par · Transfer: ✅ COMPLETE 2026-08-18)_
 
-**Status:** 🚧 **Part 19 (POS sales import)** — L0 ✅ (grill Q1–Q16 → ADR 0019 · CONTEXT.md 3 terms · `docs/calculation-rules.md` created with P1–P24 · master-spec §5.6 superseded · pending Feature 6) → L1 next.
+**Status:** ✅ **Part 19 (POS sales import) COMPLETE** (L0–L6, 2026-08-20) — grill Q1–Q17 → ADR 0019 · CONTEXT.md 3 terms · `docs/calculation-rules.md` created with **P1–P26** · master-spec §5.6 superseded · pending Feature 6. → **Next: Part 20 — the daily pulse** (one number per branch per day, arriving by email), which closes the blind window between periodic imports.
 **Scope:** Sales arrive as a file and the ledger does not move. Part 19 = the import pipeline + the minimum `menu` a sale needs + `sales_line`; **Part 20** = the daily pulse (one number per branch per day, arriving by email) — both inside Sprint 4.
 **Not in Sprint 4:** the Section B three-layer POS mirror, `recipe_change_diff`, and `MovementType.CONSUMPTION` — all need `recipe` (Sprint 5).
 
 ---
 
-## Sprint 4 Part 19 — POS sales import: 🚧 IN PROGRESS (2026-08-20)
+## Sprint 4 Part 19 — POS sales import: ✅ COMPLETE (L0–L6, 2026-08-20)
 
 **ADR:** `docs/adr/0019-pos-sales-import.md` (Q1–Q16, grill 2026-08-19/20)
 **Rules registered:** `docs/calculation-rules.md` P1–P24 (★ P24 = the branch sales-day cut-off, a user-set value that belongs in the manual)
@@ -21,14 +21,17 @@ _(Sprint 3 — Stock Count · Expense · Waste/Par · Transfer: ✅ COMPLETE 202
 | L | What | Status |
 |---|---|---|
 | L0 | ADR 0019 · CONTEXT.md (Sales day · Delivery apps commission · Gross profit) · calculation-rules register · master-spec §5.6 supersede · pending Feature 6 | ✅ |
-| L1 | 8 tables + 5 enums + RLS + `branch` sales-day cut-off + seed `OpEx/Commission/Delivery apps` | ⬜ |
-| L2 | validations — column map, พ.ศ. dates, TIS-620, header signature, **a number parser that refuses blanks** (no `.positive()` to lean on) | ⬜ |
-| L3a | parse → normalise VAT/SC → derive sales day → staged rows | ⬜ |
-| L3b | menu resolution: code → exact name → alias → `pg_trgm` suggestion; stub + category creation | ⬜ |
-| L3c | commit: replace-the-whole-day via `sales_day`, preview warnings, batch status | ⬜ |
-| L4 | actions + Thai errors + view serializers | ⬜ |
-| L5 | `/sales/import` (preview before commit) · `/sales` · `/menus` (stub queue) · `/cost` revenue + gross profit | ⬜ |
-| L6 | E2E through the real action stack + `tsc` + `build` + `vitest` + Neon sweep | ⬜ |
+| L1 | 8 tables + 5 enums + RLS + `branch` sales-day cut-off + seed `OpEx/Commission/Delivery apps` · **verified against Neon: 8 tables, 11 CHECKs, 7 indexes, 8 RLS** | ✅ |
+| L2 | validations — column map, พ.ศ. dates, TIS-620, header signature, **a number parser that refuses blanks** (no `.positive()` to lean on) · 75 tests | ✅ |
+| L3a | parse → normalise VAT/SC → derive sales day → staged rows · 28 tests | ✅ |
+| L3b | menu resolution: code → alias → exact name → `pg_trgm` suggestion; stub + category creation · 21 tests | ✅ |
+| L3c | commit: replace-the-whole-day via `sales_day`, preview warnings, batch status · 15 tests | ✅ |
+| L4 | actions + Thai errors + view serializers + `src/server/sales.ts` reads | ✅ |
+| L5 | `/sales/import` (+ profile builder) · `/sales` · `/menus` · `/cost` revenue | ✅ |
+| L5b | **gross profit, two methods, switchable per shop** (Q17) — `tenant.gross_profit_method`, second migration | ✅ |
+| L6 | **15-case E2E** through the real action stack; spec + config **deleted, never committed** · Neon swept: 0 tenants | ✅ |
+
+**Verified at the end:** `pnpm tsc` clean · `pnpm build` green (**49 routes**, 4 new) · `pnpm vitest run` **699 passed / 4 skipped** · **Neon swept: 0 tenants, 0 sales rows, 0 menus**.
 
 ### The five refusals this Part is built on
 Read from a real Thai POS pipeline during the grill — each is a way the previous system stayed green while the numbers went wrong:
@@ -37,6 +40,12 @@ Read from a real Thai POS pipeline during the grill — each is a way the previo
 3. **`parseFloat(x) || 0` on every column** → a blank silently became zero → blanks stop the whole file (P21).
 4. **Short rows were skipped in silence** → a POS format change would empty a file quietly → header signature detects it (P11).
 5. **Hard-coded column indexes** → an inserted column shifts every number while they all still look plausible → the column map is data, not code.
+
+### Standing items this Part leaves behind
+- **The file is uploaded twice** (preview, then commit). There is no object storage (pending Feature 5), so a preview cannot hold the bytes it parsed; the acknowledged counts are what makes the second pass safe. Storing the file would need a column and a migration.
+- **`/cost` now does TWO full FIFO replays per period** (opening + closing inventory, for gross profit). It was already the heaviest query in the system; ADR 0014's standing note about building a snapshot now applies with more force.
+- **Gross profit by นับสต๊อก is systematically optimistic until Sprint 5** — with no `CONSUMPTION` the ledger believes stock only ever rises between counts. Shown on every row with the branch's last count date; revisit when both methods can be compared on real data.
+- **`MovementType.CONSUMPTION` was deliberately NOT added.** Sprint 5 adds it in the migration that first writes it.
 
 ### Known limitation carried forward
 Where a file has names but no codes, a renamed dish becomes a second stub and its sales split. `menu_alias` keeps the door open; **merging menus arrives in Sprint 5**, when a menu can also carry a recipe.
