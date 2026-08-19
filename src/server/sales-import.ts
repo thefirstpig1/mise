@@ -24,6 +24,8 @@
 import { Prisma } from "@prisma/client";
 import type { PrismaClient, SalesImportBatch } from "@prisma/client";
 import { withTenantContext } from "@/lib/db";
+import { reconcilePulsesLogic, type PulseReconciliation } from "@/server/sales-pulse";
+import { isPulseMismatch, pulseMismatchThreshold } from "@/lib/validations/sales-pulse";
 import {
   createStubMenusLogic,
   ensureMenuCategoriesLogic,
@@ -601,6 +603,21 @@ export interface ImportPreview {
   /** lookupId → candidates, for the "did you mean…?" beside each new dish. */
   suggestions: Map<string, MenuSuggestion[]>;
   newCategories: string[];
+  /**
+   * Days whose recorded pulse disagrees with what this file totals (ADR 0020 Q3).
+   *
+   * Shown HERE and not after the commit, because this is the only moment somebody
+   * is holding the file and can still do something about it — re-export it, widen
+   * the date range, ask the cashier. It never blocks: if a mismatch blocked, the
+   * fastest way past would be to delete the pulse, and then both the warning and
+   * the evidence are gone.
+   *
+   * This is the one check that can see a file which covered only PART of a day.
+   * Such a file is valid in every way Part 19 knows how to test — every row real,
+   * header signature matching, no blank cells, every menu resolved — and nothing
+   * inside it says it is incomplete.
+   */
+  pulseMismatches: PulseReconciliation[];
 }
 
 /** What the acknowledgement counts on the commit payload have to match. */
@@ -752,6 +769,31 @@ export async function previewSalesImportLogic(
 
       const newCategories = await unseenCategoryNames(tx, tenantId, parsed.rows);
 
+      // Compare against the pulses ALREADY recorded for these days, using what
+      // this file would total per day — not what is currently stored, which is
+      // exactly what is about to be replaced.
+      const recorded = await reconcilePulsesLogic(tenantId, profile.branchId, days, tx);
+      const fileCustomerPaidByDay = new Map<number, Prisma.Decimal>();
+      for (const r of parsed.rows) {
+        const k = r.businessDate.getTime();
+        const paid = new Prisma.Decimal(r.netAmount)
+          .plus(r.vatAmount)
+          .plus(r.serviceChargeAmount);
+        fileCustomerPaidByDay.set(k, (fileCustomerPaidByDay.get(k) ?? new Prisma.Decimal(0)).plus(paid));
+      }
+      const pulseMismatches = recorded
+        .map((r) => {
+          const detailAmount = fileCustomerPaidByDay.get(r.businessDate.getTime()) ?? new Prisma.Decimal(0);
+          return {
+            ...r,
+            detailAmount,
+            difference: detailAmount.minus(r.pulseAmount),
+            threshold: new Prisma.Decimal(pulseMismatchThreshold(detailAmount.toNumber())),
+            isMismatch: isPulseMismatch(r.pulseAmount.toNumber(), detailAmount.toNumber()),
+          };
+        })
+        .filter((r) => r.isMismatch);
+
       let totalNet = new Prisma.Decimal(0);
       let totalQty = new Prisma.Decimal(0);
       for (const r of parsed.rows) {
@@ -777,6 +819,7 @@ export async function previewSalesImportLogic(
         newMenus: plan.unmatched,
         suggestions,
         newCategories,
+        pulseMismatches,
       };
     },
     { maxWait: 10_000, timeout: 30_000 }
