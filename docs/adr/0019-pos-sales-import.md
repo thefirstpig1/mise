@@ -134,6 +134,42 @@ With `enable_departments` off — the default, and most shops — there is one d
 
 One menu earns for one department. A set meal whose drink comes from the Bar cannot be split until its components are known, which is `recipe` — the spec's own phrasing, *"which dept earns revenue"*, already accepts this.
 
+### Q17 — Gross profit has two honest methods, and the shop picks one
+
+Added after the grill, when filling `/cost` made the omission concrete: gross
+profit is revenue minus the cost of what was **sold**, and the column beside it
+is the cost of what was **bought**. In a month with a big stock-up those are
+wildly different, so `revenue − cogsSpend` would have been a confident wrong
+number — the failure this Part is organised against.
+
+Two methods are legitimate, and which one a shop can stand behind follows the
+discipline it already keeps, so `tenant.gross_profit_method` chooses:
+
+- **`PERIODIC_INVENTORY` (นับสต๊อก)** — cost of goods sold = opening inventory +
+  purchases − closing inventory, all three valued by the FIFO replay. Works
+  today with **no recipes at all**, which is the promise Mise makes on day one.
+- **`RECIPE_CONSUMPTION` (สูตรอาหาร)** — cost of goods sold = what the recipes
+  say the sold dishes consumed. Needs Sprint 5.
+
+A shop may select the second one now; until it works, `/cost` shows "—" **with
+the reason**, rather than quietly answering with the other method's arithmetic
+under this one's name.
+
+⚠️ **The first method is exactly as accurate as the counts that bound the
+period, and until Sprint 5 it is systematically optimistic.** With no
+`CONSUMPTION` the ledger believes stock only ever rises between counts, so
+closing inventory is overstated, cost of goods sold is understated and gross
+profit flatters. Every row therefore carries when its branch last closed a
+count, and a branch that has never counted is told so in as many words. This is
+rule W4 one level up: a figure whose freshness is invisible will be believed
+past the point it deserves.
+
+Cost: a second FIFO replay per period, stopping the day before it starts. It
+reads strictly fewer movements than the closing walk, so the page costs well
+under twice what it did — but this is already the heaviest query in the system,
+and ADR 0014's standing note about building a snapshot now applies with more
+force.
+
 ## Schema
 
 | Table | Grain | Notes |
@@ -149,7 +185,7 @@ One menu earns for one department. A set meal whose drink comes from the Bar can
 
 Revenue is `net_amount` — already normalised at import — so there is no second `revenue` column to disagree with it.
 
-Also touched: `branch` gains the sales-day cut-off (Q15); tenant seeding gains `OpEx/Commission/Delivery apps` (Q12).
+Also touched: `branch` gains the sales-day cut-off (Q15); `tenant` gains `gross_profit_method` (Q17); tenant seeding gains `OpEx/Commission/Delivery apps` (Q12).
 
 ## Consequences
 

@@ -20,6 +20,7 @@
 // ============================================================
 
 import { Prisma } from "@prisma/client";
+import type { GrossProfitMethod } from "@prisma/client";
 import type { CostSource, PrismaClient, SourceType } from "@prisma/client";
 import { withTenantContext } from "@/lib/db";
 import { bangkokDayEndUtc, isDayValue } from "@/lib/bangkok-date";
@@ -475,19 +476,34 @@ export type BranchCostSummary = {
    */
   revenue: Prisma.Decimal | null;
   /**
-   * STILL NULL, and deliberately.
+   * Revenue minus the cost of what was SOLD — never minus `cogsSpend`, which is
+   * the cost of what was BOUGHT (ADR 0019 Q17).
    *
-   * Gross profit is revenue minus the cost of what was SOLD, and `cogsSpend`
-   * above is the cost of what was BOUGHT. In a month with a big stock-up those
-   * are wildly different numbers, so filling this with `revenue - cogsSpend`
-   * would put a confident, wrong figure on the page — the exact failure mode
-   * Part 19 is organised against.
-   *
-   * The honest formula is available in principle (opening inventory + purchases
-   * − closing inventory, all of which this module can value), and choosing it is
-   * a calculation decision that belongs in the register, not in a patch.
+   * Null when it cannot be worked out honestly: no revenue imported, or the shop
+   * has chosen RECIPE_CONSUMPTION and recipes do not exist yet. A null means
+   * "not measurable", never "zero".
    */
   grossProfit: Prisma.Decimal | null;
+  /** Which method produced (or refused to produce) the figure above. */
+  grossProfitMethod: GrossProfitMethod;
+  /**
+   * Cost of goods SOLD for the period, under PERIODIC_INVENTORY:
+   * opening inventory + purchases − closing inventory. Null under the other
+   * method, and null when there is no revenue to set it against.
+   */
+  cogsSold: Prisma.Decimal | null;
+  /** Inventory value at the END of the day before the period began. */
+  openingInventoryValue: Prisma.Decimal;
+  /**
+   * When this branch last CLOSED a stock count.
+   *
+   * Shown beside gross profit and never omitted: under PERIODIC_INVENTORY the
+   * figure is exactly as good as the counts bounding the period, and until
+   * Sprint 5 the ledger has no CONSUMPTION — so between counts it believes stock
+   * only ever rises, which flatters closing inventory and therefore flatters
+   * gross profit (rule W4, one level up).
+   */
+  lastCountedAt: Date | null;
 };
 
 /**
@@ -651,6 +667,36 @@ export async function getBranchCostSummaryLogic(
       );
     }
 
+    // --- gross profit inputs (ADR 0019 Q17) ---
+    //
+    // A SECOND replay, stopping the day before the period starts, gives opening
+    // inventory. It reads strictly fewer movements than the closing walk above,
+    // so the page costs well under twice what it did — but it is still the
+    // heaviest query in the system, and the snapshot threshold already written
+    // down in the risk register now applies with more force.
+    const tenantRow = await tx.tenant.findUniqueOrThrow({
+      where: { id: tenantId },
+      select: { grossProfitMethod: true },
+    });
+    const grossProfitMethod = tenantRow.grossProfitMethod;
+
+    const dayBeforeFrom = new Date(from.getTime() - 86_400_000);
+    const openingReplayed =
+      grossProfitMethod === "PERIODIC_INVENTORY"
+        ? await replayPairs(tx, tenantId, productIds, branchIds, dayBeforeFrom)
+        : null;
+
+    // The freshness line beside the figure. A closed count is the only event that
+    // makes closing inventory a measurement rather than a belief.
+    const lastCounts = await tx.stockCount.groupBy({
+      by: ["branchId"],
+      where: { tenantId, status: "CLOSED" },
+      _max: { closedAt: true },
+    });
+    const lastCountByBranch = new Map(
+      lastCounts.map((c) => [c.branchId, c._max.closedAt ?? null])
+    );
+
     // --- inventory value, waste and data quality, from the replayed states ---
     const lowerBound = periodBounds.gte.getTime();
     const upperBound = periodBounds.lt.getTime();
@@ -706,11 +752,29 @@ export async function getBranchCostSummaryLogic(
         }
       }
 
+      let openingInventoryValue = ZERO;
+      if (openingReplayed) {
+        for (const productId of productIds) {
+          const opening = openingReplayed.get(keyOf(productId, branch.id));
+          if (opening) openingInventoryValue = openingInventoryValue.plus(opening.inventoryValue);
+        }
+      }
+
+      const cogsSpend = cogsByBranch.get(branch.id) ?? ZERO;
+      const revenue = revenueByBranch.get(branch.id) ?? null;
+
+      // COGS SOLD = opening + purchases − closing. The accounting identity, and
+      // the only gross profit available to a shop with no recipes.
+      const cogsSold =
+        grossProfitMethod === "PERIODIC_INVENTORY" && revenue !== null
+          ? openingInventoryValue.plus(cogsSpend).minus(inventoryValue)
+          : null;
+
       return {
         branchId: branch.id,
         branchName: branch.name,
         branchCode: branch.code,
-        cogsSpend: cogsByBranch.get(branch.id) ?? ZERO,
+        cogsSpend,
         opexSpend: opexByBranch.get(branch.id) ?? ZERO,
         inventoryValue,
         wasteValue,
@@ -718,8 +782,12 @@ export async function getBranchCostSummaryLogic(
         excessSpend: excessByBranch.get(branch.id) ?? ZERO,
         negativeStockProducts,
         unpricedProducts,
-        revenue: revenueByBranch.get(branch.id) ?? null,
-        grossProfit: null,
+        revenue,
+        grossProfit: revenue !== null && cogsSold !== null ? revenue.minus(cogsSold) : null,
+        grossProfitMethod,
+        cogsSold,
+        openingInventoryValue,
+        lastCountedAt: lastCountByBranch.get(branch.id) ?? null,
       };
     });
   });

@@ -10,9 +10,13 @@
 // THREW AWAY in baht, and what each branch PAID ABOVE the cheapest branch for the
 // same goods. Both are money leaking in plain sight.
 //
-// Revenue and gross profit are rendered as an explicit "รอเชื่อม POS" rather than
-// 0 or a blank — a zero would be a lie, and a blank invites someone to assume the
-// number is broken instead of absent.
+// Part 19 filled both of the last two columns, and the rule that governed them
+// while they were empty still governs them now: a figure that cannot be worked
+// out honestly renders as "—", never as 0. A zero would be a lie, and a blank
+// invites someone to assume the number is broken instead of absent. Gross profit
+// additionally carries a line saying HOW it was worked out and how far to trust
+// it — under นับสต๊อก it is exactly as good as the counts bounding the period
+// (ADR 0019 Q17).
 //
 // Part 16 (ADR 0016 Q4) restructured rather than appended, as ADR 0014
 // Consequence 4 said the next change would have to: **ซื้อของ split into
@@ -141,7 +145,14 @@ export default function BranchCostTable({
                   >
                     {r.revenue ? formatMoney(r.revenue) : "—"}
                   </td>
-                  <td className={`${tdNum} text-muted-foreground`}>—</td>
+                  <td
+                    className={`${tdNum} ${r.grossProfit ? "font-medium" : "text-muted-foreground"}`}
+                  >
+                    {r.grossProfit ? formatMoney(r.grossProfit) : "—"}
+                    <span className="mt-0.5 block text-[10px] font-normal leading-tight text-muted-foreground">
+                      {r.grossProfitNote}
+                    </span>
+                  </td>
                 </tr>
               );
             })}
@@ -159,7 +170,11 @@ export default function BranchCostTable({
                   ? fmt(rows.reduce((sum, r) => sum + Number(r.revenue ?? 0), 0))
                   : "—"}
               </td>
-              <td className={`${tdNum} text-muted-foreground`}>—</td>
+              <td className={`${tdNum} font-medium`}>
+                {rows.some((r) => r.grossProfit)
+                  ? fmt(rows.reduce((sum, r) => sum + Number(r.grossProfit ?? 0), 0))
+                  : "—"}
+              </td>
             </tr>
           </tfoot>
         </table>
@@ -218,9 +233,14 @@ export default function BranchCostTable({
       </p>
 
       <p className="text-xs text-muted-foreground">
-        <strong>กำไรขั้นต้น</strong> ยังว่างอยู่ และตั้งใจให้ว่าง — กำไรขั้นต้นคือรายได้
-        ลบ<em>ต้นทุนของที่ขายไป</em> แต่ช่อง “ต้นทุนวัตถุดิบ” ทางซ้ายคือ<em>ต้นทุนของที่ซื้อเข้ามา</em>
-        ซึ่งเดือนที่ตุนของจะต่างกันมาก ระบบจึงไม่เดาให้
+        <strong>กำไรขั้นต้น</strong> = รายได้ − <em>ต้นทุนของที่ขายไป</em> ซึ่งไม่ใช่ช่อง
+        “ต้นทุนวัตถุดิบ” ทางซ้าย (นั่นคือของที่<em>ซื้อเข้ามา</em> เดือนที่ตุนของจะต่างกันมาก) ·
+        วิธีคิดเลือกได้ต่อร้านที่{" "}
+        <a href="/settings" className="text-primary hover:underline">
+          ตั้งค่าร้าน
+        </a>{" "}
+        — <strong>นับสต๊อก</strong> (สต๊อกต้นงวด + ซื้อ − สต๊อกปลายงวด ใช้ได้เลยแม้ไม่มีสูตรอาหาร)
+        หรือ <strong>สูตรอาหาร</strong> (รอระบบสูตรอาหาร) · ทุกสาขามีบรรทัดกำกับว่าตัวเลขนั้นเชื่อได้แค่ไหน
       </p>
 
       {hasDataQualityIssue && (

@@ -76,6 +76,11 @@ model Tenant {
   fiscalYearStartMonth Int     @default(1) @map("fiscal_year_start_month")
   plan                 String  @default("trial") // trial, basic, pro, enterprise
 
+  /// Which way this shop wants gross profit worked out (ADR 0019 Q17). Two shops
+  /// can honestly disagree: one counts stock, the other keeps recipes, and the
+  /// right answer follows whichever discipline they actually keep.
+  grossProfitMethod GrossProfitMethod @default(PERIODIC_INVENTORY) @map("gross_profit_method")
+
   // v1.2 opt-in features
   enableDepartments     Boolean @default(false) @map("enable_departments")
   isVatRegistered       Boolean @default(false) @map("is_vat_registered")
@@ -2223,4 +2228,30 @@ model SalesLine {
   @@index([menuId, businessDate], map: "sales_line_menu_date_idx")
   @@index([importBatchId], map: "sales_line_batch_idx")
   @@map("sales_line")
+}
+
+/// How `/cost` computes gross profit for a period (ADR 0019 Q17).
+///
+/// Both are legitimate; neither is a fallback for the other. What differs is
+/// which discipline the shop already keeps, and therefore which number it can
+/// stand behind when someone asks where it came from.
+enum GrossProfitMethod {
+  /// **นับสต๊อก** — cost of goods sold = opening inventory + purchases − closing
+  /// inventory, all three valued by the FIFO replay (ADR 0014).
+  ///
+  /// Works today, with no recipes at all — which is the promise Mise makes to a
+  /// shop on day one. Its accuracy is exactly the accuracy of the stock counts
+  /// that bound the period: with no count at the end, "closing inventory" is
+  /// only what the ledger believes, and until Sprint 5 the ledger has no
+  /// CONSUMPTION so it believes stock only ever rises. The figure is therefore
+  /// shown with when the branch was last counted, never on its own.
+  PERIODIC_INVENTORY
+
+  /// **สูตรอาหาร** — cost of goods sold = what the recipes say the sold dishes
+  /// consumed. Needs `recipe` and `CONSUMPTION`, which arrive in Sprint 5; until
+  /// then a shop that picks this is told the figure is not available yet rather
+  /// than shown a different method's answer under this one's name.
+  RECIPE_CONSUMPTION
+
+  @@map("gross_profit_method")
 }

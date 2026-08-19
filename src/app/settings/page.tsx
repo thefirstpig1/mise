@@ -13,6 +13,13 @@ export default async function SettingsPage() {
     const { tenantId } = await requireTenant();
     const enableDepts = formData.get("enable_departments") === "on";
     const isVat = formData.get("is_vat_registered") === "on";
+    // A radio, not a checkbox: both methods are legitimate and neither is the
+    // absence of the other (ADR 0019 Q17). An unticked box would have to mean
+    // one of them, and it should not.
+    const gpMethod =
+      formData.get("gross_profit_method") === "RECIPE_CONSUMPTION"
+        ? "RECIPE_CONSUMPTION"
+        : "PERIODIC_INVENTORY";
 
     await withTenantContext(tenantId, (tx) =>
       tx.tenant.update({
@@ -20,12 +27,14 @@ export default async function SettingsPage() {
         data: {
           enableDepartments: enableDepts,
           isVatRegistered: isVat,
+          grossProfitMethod: gpMethod,
         },
       })
     );
 
     revalidatePath("/settings");
     revalidatePath("/dashboard");
+    revalidatePath("/cost");
   }
 
   return (
@@ -89,6 +98,60 @@ export default async function SettingsPage() {
                       เปลี่ยนตรงนี้จะมีผลกับใบรับของใบถัดไป
                       ไม่ย้อนไปตีมูลค่าของเก่าใหม่ (เพราะตอนนั้นร้านจ่าย VAT
                       ไปจริงและไม่มีใครคืนให้)
+                    </span>
+                  </p>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          {/* ---------- how gross profit is worked out (ADR 0019 Q17) ---------- */}
+          <div className="rounded-lg border border-border bg-card p-6">
+            <h3 className="mb-1 font-medium">วิธีคิดกำไรขั้นต้น</h3>
+            <p className="mb-4 text-sm text-muted-foreground">
+              กำไรขั้นต้น = รายได้ − <strong>ต้นทุนของที่ขายไป</strong> ซึ่งไม่เท่ากับของที่ซื้อเข้ามา
+              · สองวิธีนี้ถูกต้องทั้งคู่ ต่างกันตรงว่าร้านคุณทำอะไรอยู่แล้วเป็นประจำ
+            </p>
+
+            <div className="space-y-4">
+              <label className="flex items-start gap-3">
+                <input
+                  type="radio"
+                  name="gross_profit_method"
+                  value="PERIODIC_INVENTORY"
+                  defaultChecked={tenant.grossProfitMethod === "PERIODIC_INVENTORY"}
+                  className="mt-1"
+                />
+                <div>
+                  <p className="font-medium">จากการนับสต๊อก</p>
+                  <p className="text-sm text-muted-foreground">
+                    สต๊อกต้นงวด + ซื้อระหว่างงวด − สต๊อกปลายงวด
+                    <br />
+                    <span className="text-xs">
+                      ใช้ได้ทันที <strong>ไม่ต้องมีสูตรอาหาร</strong> เหมาะกับร้านที่นับสต๊อกเป็นรอบอยู่แล้ว ·
+                      ตัวเลขจะแม่นเท่าที่นับจริง ถ้าไม่เคยนับ ระบบจะบอกกำกับไว้ว่าตัวเลขนั้นมักดูดีเกินจริง
+                    </span>
+                  </p>
+                </div>
+              </label>
+
+              <label className="flex items-start gap-3">
+                <input
+                  type="radio"
+                  name="gross_profit_method"
+                  value="RECIPE_CONSUMPTION"
+                  defaultChecked={tenant.grossProfitMethod === "RECIPE_CONSUMPTION"}
+                  className="mt-1"
+                />
+                <div>
+                  <p className="font-medium">จากสูตรอาหาร</p>
+                  <p className="text-sm text-muted-foreground">
+                    คิดจากวัตถุดิบที่สูตรบอกว่าเมนูที่ขายไปใช้จริง
+                    <br />
+                    <span className="text-xs">
+                      แม่นที่สุดและไม่ต้องรอรอบนับ แต่ <strong>ยังคำนวณไม่ได้</strong> จนกว่าระบบสูตรอาหารจะเสร็จ ·
+                      เลือกไว้ได้ ระหว่างนี้ช่องกำไรขั้นต้นจะขึ้น “—” พร้อมบอกเหตุผล
+                      แทนที่จะแอบใช้วิธีอื่นคำนวณให้
                     </span>
                   </p>
                 </div>

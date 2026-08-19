@@ -122,9 +122,14 @@ export type BranchCostSummaryView = {
   /** From Part 19's imported sales: after discount, excl VAT and service charge.
    *  Null when this branch has had no file imported — "not measurable", never zero. */
   revenue: string | null;
-  /** Still null: gross profit needs the cost of what was SOLD, and the column to
-   *  its left is the cost of what was BOUGHT. See BranchCostSummary. */
+  /** Revenue minus the cost of what was SOLD. Null when it cannot be worked out
+   *  honestly — "not measurable", never zero. */
   grossProfit: string | null;
+  grossProfitMethod: string;
+  cogsSold: string | null;
+  openingInventoryValue: string;
+  /** The sentence that goes under the figure: how good is it, and why. */
+  grossProfitNote: string;
 };
 
 export const toBranchCostSummaryView = (
@@ -143,7 +148,38 @@ export const toBranchCostSummaryView = (
   unpricedProducts: row.unpricedProducts,
   revenue: row.revenue ? row.revenue.toString() : null,
   grossProfit: row.grossProfit ? row.grossProfit.toString() : null,
+  grossProfitMethod: row.grossProfitMethod,
+  cogsSold: row.cogsSold ? row.cogsSold.toString() : null,
+  openingInventoryValue: row.openingInventoryValue.toString(),
+  grossProfitNote: grossProfitNote(row),
 });
+
+const COUNT_DATE = new Intl.DateTimeFormat("th-TH", {
+  timeZone: "Asia/Bangkok",
+  day: "2-digit",
+  month: "short",
+  year: "numeric",
+});
+
+/**
+ * Why the gross profit figure is what it is — or why there is not one.
+ *
+ * Never omitted. Under นับสต๊อก the number is exactly as good as the counts that
+ * bound the period, and a shop that has not counted since March is entitled to
+ * know that before it believes a margin.
+ */
+function grossProfitNote(row: BranchCostSummary): string {
+  if (row.grossProfitMethod === "RECIPE_CONSUMPTION") {
+    return "ร้านนี้เลือกคิดกำไรขั้นต้นจากสูตรอาหาร — ยังคำนวณไม่ได้จนกว่าระบบสูตรอาหารจะเสร็จ";
+  }
+  if (row.revenue === null) {
+    return "ยังไม่มียอดขายนำเข้าในช่วงนี้";
+  }
+  if (row.lastCountedAt === null) {
+    return "สาขานี้ยังไม่เคยปิดการนับสต๊อก — ตัวเลขนี้จึงมาจากยอดคงเหลือที่ระบบเชื่อ ไม่ใช่ของที่นับจริง และมักดูดีเกินจริง";
+  }
+  return `คิดจาก สต๊อกต้นงวด + ซื้อ − สต๊อกปลายงวด · แม่นเท่าที่นับสต๊อก (นับล่าสุด ${COUNT_DATE.format(row.lastCountedAt)})`;
+}
 
 export type CostDeclarationView = {
   id: string;
