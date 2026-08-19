@@ -91,7 +91,7 @@ export default function SignupPage() {
                   name="tenant_name"
                   type="text"
                   required
-                  placeholder="เช่น ร้านลาบ Lauren"
+                  placeholder="เช่น ครัวคุณแม่"
                   className="w-full rounded-lg border border-border bg-background px-4 py-2"
                 />
               </div>
