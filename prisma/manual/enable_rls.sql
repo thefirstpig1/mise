@@ -312,3 +312,53 @@ USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 -- ============================================================
 -- End Sprint 3 Part 18 RLS
 -- ============================================================
+
+-- ============================================================
+-- Sprint 4 Part 19 — POS sales import (ADR 0019)
+-- ============================================================
+-- Eight tables, each carrying tenant_id directly (ADR 0004 pattern).
+-- Still inert until Sprint 7 — this is RLS-prep.
+--
+-- Worth noting for Sprint 7: sales_line is the first table whose rows are
+-- written by an IMPORT rather than by a person filling a form, so the Sprint 7
+-- rule has to answer a question no earlier Part raised — who may replace a day
+-- of somebody else's branch's sales. The import batch names its uploader, and
+-- sales_day names the batch that currently owns each day, so the audit trail
+-- for that decision already exists; only the policy is missing.
+-- ============================================================
+
+ALTER TABLE pos_integration ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON pos_integration
+USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+ALTER TABLE sales_import_profile ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON sales_import_profile
+USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+ALTER TABLE sales_import_batch ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON sales_import_batch
+USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+ALTER TABLE sales_day ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON sales_day
+USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+ALTER TABLE menu_category ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON menu_category
+USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+ALTER TABLE menu ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON menu
+USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+ALTER TABLE menu_alias ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON menu_alias
+USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+ALTER TABLE sales_line ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON sales_line
+USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+-- ============================================================
+-- End Sprint 4 Part 19 RLS
+-- ============================================================

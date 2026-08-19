@@ -114,6 +114,14 @@ model Tenant {
   parLevels               ParLevel[]
   stockTransfers          StockTransfer[]
   stockTransferItems      StockTransferItem[]
+  posIntegrations         PosIntegration[]
+  salesImportProfiles     SalesImportProfile[]
+  salesImportBatches      SalesImportBatch[]
+  salesDays               SalesDay[]
+  menuCategories          MenuCategory[]
+  menus                   Menu[]
+  menuAliases             MenuAlias[]
+  salesLines              SalesLine[]
 
   @@map("tenant")
 }
@@ -131,6 +139,20 @@ model Branch {
   code     String
   address  String?
   isActive Boolean @default(true) @map("is_active")
+
+  /// ★ ADR 0019 Q15 — where this branch cuts one SALES DAY from the next, as
+  /// minutes past midnight (300 = 05:00). A bill closed at 01:30 belongs to the
+  /// night before, and a restaurant decides for itself where that line falls.
+  ///
+  /// Used ONLY when a file carries times but no date. When the file states a day,
+  /// that statement wins and Mise never recomputes it — the POS settled it at
+  /// shift close and every report the shop already argues over uses it (rule P14).
+  ///
+  /// Changing this affects FUTURE imports only. `sales_line.business_date` is
+  /// already a stored DATE, so past rows do not re-bucket; correcting them means
+  /// re-importing those days, which rule P3 supports. This is a value the user
+  /// sets and can get wrong, so it belongs in the user manual, not only on screen.
+  salesDayCutoffMinutes Int @default(300) @map("sales_day_cutoff_minutes")
 
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
@@ -152,6 +174,10 @@ model Branch {
   /// names — without them Prisma cannot tell which FK each list belongs to.
   transfersOut            StockTransfer[]          @relation("TransferFrom")
   transfersIn             StockTransfer[]          @relation("TransferTo")
+  posIntegrations         PosIntegration[]
+  salesImportBatches      SalesImportBatch[]
+  salesDays               SalesDay[]
+  salesLines              SalesLine[]
 
   @@index([tenantId])
   @@map("branch")
@@ -197,6 +223,8 @@ model User {
   transfersDriven           StockTransfer[]        @relation("TfDriver")
   transfersReceived         StockTransfer[]        @relation("TfReceivedBy")
   transfersVoided           StockTransfer[]        @relation("TfVoidedBy")
+  salesImportsUploaded      SalesImportBatch[]     @relation("SalesImportUploadedBy")
+  menuAliasesConfirmed      MenuAlias[]            @relation("MenuAliasConfirmedBy")
 
   @@map("app_user")
 }
@@ -253,6 +281,8 @@ model Department {
   poItemAllocations PurchaseOrderItemAllocation[]
   grItemAllocations GoodsReceiptItemAllocation[]
   expenseItems      ExpenseItem[]
+  /// Part 19 Q16 — which department a menu earns revenue for.
+  menus             Menu[]
 
   @@unique([tenantId, code])
   @@index([tenantId])
@@ -1707,4 +1737,490 @@ model StockTransferItem {
   @@index([stockTransferId], map: "stock_transfer_item_parent_idx")
   @@index([productId], map: "stock_transfer_item_product_idx")
   @@map("stock_transfer_item")
+}
+
+// ============================================================
+// Sprint 4 Part 19 — POS sales import (ADR 0019)
+// ============================================================
+// Sales are a MIRROR OF THE POS, not an event in the warehouse. Nothing in this
+// section writes stock_movement: turning "12 plates" into "1.2 kg of pork" needs
+// `recipe`, which is Sprint 5 (ADR 0019 Q13). `MovementType.CONSUMPTION` is
+// therefore NOT added here — ADR 0018 established the two-migration sign-CHECK
+// cost is per MIGRATION, not per value, so reserving it early saves nothing, and
+// `SourceType.SYSTEM_INITIAL` (reserved in Part 10, still unwritten eight Parts
+// later) is the standing warning against enum values with no writer.
+// ============================================================
+
+/// Which POS the branch runs. Only ever used to seed a sensible import profile
+/// and to label the screen — no behaviour branches on it, because behaviour
+/// belongs to the PROFILE (ADR 0019 Q11). A POS nobody has written a profile for
+/// still works: pick CUSTOM and map the columns by hand.
+enum PosType {
+  FOODSTORY
+  WONGNAI
+  OCHA
+  STOREHUB
+  LOYVERSE
+  CUSTOM
+
+  @@map("pos_type")
+}
+
+/// What one row of the file means. The single most important thing a profile
+/// declares, because it decides which columns may legitimately be absent (Q4).
+enum SalesFileKind {
+  /// One row per menu per BILL. Carries a bill id and usually a time, so bill
+  /// counts, average spend per bill and peak-hour views become available.
+  BILL_DETAIL
+  /// One row per menu per DAY, already summed by the POS. No bill, no time.
+  /// Legal and common — most Thai POS back offices export this shape, and it is
+  /// enough for revenue, for the category views, and for Sprint 5's consumption.
+  DAILY_SUMMARY
+
+  @@map("sales_file_kind")
+}
+
+/// How the file reached Mise. `EMAIL` is deliberately ABSENT until Part 20
+/// writes it — see the section header on enum values with no writer.
+enum SalesImportSource {
+  MANUAL_UPLOAD
+
+  @@map("sales_import_source")
+}
+
+enum SalesImportBatchStatus {
+  /// Uploaded, not yet parsed.
+  PENDING
+  /// Parsed and staged. The user is looking at what WOULD happen — new menus,
+  /// new categories, which days get replaced (Section D.4: never auto-create
+  /// without showing it first).
+  PREVIEW
+  /// Written. Its days now point at this batch in `sales_day`.
+  COMMITTED
+  /// Refused, with a Thai reason per row in `error_log`. A file that cannot be
+  /// read is NEVER partially imported (Q14) — half a day of sales is worse than
+  /// none, because nothing on screen looks wrong.
+  FAILED
+  /// The user backed out at preview.
+  CANCELLED
+
+  @@map("sales_import_batch_status")
+}
+
+/// Where the sale happened. Optional everywhere: read from the file when a
+/// column exists, otherwise inherited from the profile (a file exported from a
+/// delivery platform's own back office is entirely one channel).
+///
+/// Why the delivery values are named individually rather than one DELIVERY: the
+/// platforms charge different commission (25-32%) and a shop needs to know which
+/// one ate the margin, not merely that something did (Q12).
+enum SalesChannel {
+  DINE_IN
+  TAKEAWAY
+  DELIVERY_GRAB
+  DELIVERY_LINEMAN
+  DELIVERY_FOODPANDA
+  DELIVERY_ROBINHOOD
+  DELIVERY_SHOPEEFOOD
+  ONLINE_ORDER
+  OTHER
+
+  @@map("sales_channel")
+}
+
+enum MenuSource {
+  /// Came from a POS file. Identity is `pos_menu_id`, NOT the name (Q7).
+  POS
+  /// Typed into Mise. Needed by shops with no POS integration at all.
+  MISE
+
+  @@map("menu_source")
+}
+
+/// How to decode the bytes. TIS-620 is not an edge case — the real Thai POS
+/// export read during the grill was TIS-620, and reading it as UTF-8 produces
+/// mojibake menu names that then create a full set of duplicate stub menus.
+enum FileEncoding {
+  UTF8
+  TIS620
+
+  @@map("file_encoding")
+}
+
+/// One POS at one branch. Deliberately holds NO credentials (Q2): no Thai SME
+/// can enable a POS API for itself, so an encrypted-credentials column would be
+/// a security surface with no writer — the same reasoning that kept `photo_url`
+/// out of Part 18.
+model PosIntegration {
+  id       String  @id @default(uuid()) @db.Uuid
+  tenantId String  @map("tenant_id") @db.Uuid
+  branchId String  @map("branch_id") @db.Uuid
+  posType  PosType @map("pos_type")
+  name     String
+  isActive Boolean @default(true) @map("is_active")
+
+  /// Last COMMITTED import, not last upload — a failed file is not a sync.
+  lastImportAt DateTime? @map("last_import_at")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  tenant   Tenant               @relation(fields: [tenantId], references: [id])
+  branch   Branch               @relation(fields: [branchId], references: [id])
+  profiles SalesImportProfile[]
+  batches  SalesImportBatch[]
+  menus    Menu[]
+  aliases  MenuAlias[]
+
+  @@index([tenantId])
+  @@index([branchId], map: "pos_integration_branch_idx")
+  @@map("pos_integration")
+}
+
+/// How to read one SHAPE of file. This is the answer to "every POS formats its
+/// columns differently" (Q11), and the reason vendor support is data rather than
+/// code: a seeded profile IS the FoodStory adapter.
+///
+/// One branch can hold several — the POS's own export and a delivery platform's
+/// export are two different shapes of the same branch's sales.
+model SalesImportProfile {
+  id               String @id @default(uuid()) @db.Uuid
+  tenantId         String @map("tenant_id") @db.Uuid
+  posIntegrationId String @map("pos_integration_id") @db.Uuid
+  name             String
+
+  fileKind SalesFileKind @map("file_kind")
+  encoding FileEncoding  @default(UTF8)
+
+  /// e.g. "dd/MM/yyyy". Paired with the flag below rather than encoded in the
+  /// pattern, because a Buddhist-era year is not a format difference — it is 543
+  /// added to the number, and the previous system handled it with `year > 2100`.
+  dateFormat     String  @map("date_format")
+  isBuddhistYear Boolean @default(false) @map("is_buddhist_year")
+
+  /// Which column is what: `{ "businessDate": 1, "menuName": 6, "qty": 11 }`.
+  /// Data, not code — the previous system hard-coded these indexes, so a POS
+  /// update that inserted a column would have shifted every figure while they
+  /// all still looked plausible.
+  columnMap Json @map("column_map") @db.JsonB
+
+  /// Hash of the header row this profile was built against. A file that still
+  /// matches imports without asking anything; one that does not is STOPPED and
+  /// the user is asked — never read anyway (Q11).
+  headerSignature String @map("header_signature")
+
+  /// Properties of the REPORT, not of the data. Guessing either wrong is a silent
+  /// 7% (or 10%) error on every row, so both are required, with no default that
+  /// could quietly be wrong (Q10, rule P10).
+  amountsIncludeVat           Boolean @map("amounts_include_vat")
+  amountsIncludeServiceCharge Boolean @map("amounts_include_service_charge")
+
+  /// Used when the file carries no channel column at all.
+  defaultChannel SalesChannel? @map("default_channel")
+
+  isActive Boolean @default(true) @map("is_active")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  tenant         Tenant             @relation(fields: [tenantId], references: [id])
+  posIntegration PosIntegration     @relation(fields: [posIntegrationId], references: [id])
+  batches        SalesImportBatch[]
+
+  @@index([tenantId])
+  @@index([posIntegrationId], map: "sales_import_profile_integration_idx")
+  @@map("sales_import_profile")
+}
+
+/// One upload. Kept whatever the outcome, because "why is Tuesday missing" is
+/// answered here — the previous system's only record of a failure was a status
+/// cell that a human overwrote.
+///
+/// `id` IS the form's submit key (Part 13.5's pattern): a replayed submit
+/// collides on the primary key rather than importing the same file twice.
+model SalesImportBatch {
+  id               String @id @default(uuid()) @db.Uuid
+  tenantId         String @map("tenant_id") @db.Uuid
+  /// Denormalised from the integration: a batch belongs to exactly one branch and
+  /// every read filters by branch first. NOT taken from the file — the previous
+  /// system let a human type the branch beside the filename, and a typo moved a
+  /// whole day of sales to the wrong shop in silence (rule P12).
+  branchId         String @map("branch_id") @db.Uuid
+  posIntegrationId String @map("pos_integration_id") @db.Uuid
+  profileId        String @map("profile_id") @db.Uuid
+
+  source   SalesImportSource      @default(MANUAL_UPLOAD)
+  status   SalesImportBatchStatus @default(PENDING)
+  fileName String                 @map("file_name")
+  /// Rows accepted into `sales_line`, set at commit — 0 while staged.
+  rowCount Int                    @default(0) @map("row_count")
+
+  /// The span of sales days this file turned out to contain, read from the ROWS
+  /// (rule P2 — every row carries its own date), never asserted by the uploader.
+  coveredFrom DateTime? @map("covered_from") @db.Date
+  coveredTo   DateTime? @map("covered_to") @db.Date
+
+  /// Per-row Thai messages. The one idea worth keeping from the previous system:
+  /// a failure the shop can read without asking anyone.
+  errorLog Json? @map("error_log") @db.JsonB
+
+  uploadedBy  String    @map("uploaded_by")
+  uploadedAt  DateTime  @default(now()) @map("uploaded_at")
+  committedAt DateTime? @map("committed_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant         Tenant             @relation(fields: [tenantId], references: [id])
+  branch         Branch             @relation(fields: [branchId], references: [id])
+  posIntegration PosIntegration     @relation(fields: [posIntegrationId], references: [id])
+  profile        SalesImportProfile @relation(fields: [profileId], references: [id])
+  uploadedByUser User               @relation("SalesImportUploadedBy", fields: [uploadedBy], references: [id])
+
+  salesLines      SalesLine[] @relation("SalesLineBatch")
+  currentForDays  SalesDay[]  @relation("SalesDayCurrentBatch")
+  linesSuperseded SalesLine[] @relation("SalesLineSupersededBy")
+
+  @@index([tenantId])
+  @@index([branchId, uploadedAt], map: "sales_import_batch_branch_uploaded_idx")
+  @@map("sales_import_batch")
+}
+
+/// One branch, one SALES DAY. This table exists to make rule P3 a database fact
+/// rather than a promise in application code: `UNIQUE(branch_id, business_date)`
+/// means a day has exactly one current source, so re-importing REPLACES rather
+/// than doubles (Q5).
+///
+/// The previous system had no equivalent, gave every row a fresh UUID, and
+/// guarded re-imports with a status cell reading "success" — so nothing in the
+/// data could ever tell that a day had been imported twice.
+///
+/// Part 20's daily pulse lands here too: the pulse is one number for exactly
+/// this grain, and when detail arrives it wins — but a disagreement between them
+/// is WARNED about, never silently overwritten (Q6).
+model SalesDay {
+  id           String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  branchId     String   @map("branch_id") @db.Uuid
+  businessDate DateTime @map("business_date") @db.Date
+
+  /// Which batch owns this day right now. Nullable because Part 20 can create the
+  /// day from a pulse before any detail file exists for it.
+  currentBatchId String? @map("current_batch_id") @db.Uuid
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant       Tenant            @relation(fields: [tenantId], references: [id])
+  branch       Branch            @relation(fields: [branchId], references: [id])
+  currentBatch SalesImportBatch? @relation("SalesDayCurrentBatch", fields: [currentBatchId], references: [id])
+  salesLines   SalesLine[]
+
+  @@unique([branchId, businessDate], map: "sales_day_branch_date_unique")
+  @@index([tenantId])
+  @@map("sales_day")
+}
+
+/// A grouping of menus that belongs to MISE, mirroring the POS's name rather than
+/// being it (Q9) — the same principle as Q7 one level up. The category drill-down
+/// and the month-over-month category share are unreadable if a category changes
+/// identity every time someone edits the POS.
+///
+/// NOT the `category` table: that is the COGS/OpEx accounting tree for products
+/// and expenses. A menu group and an accounting group are different kinds of thing.
+model MenuCategory {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  name     String
+
+  /// What the POS called it when this row was created, kept so a re-import can
+  /// recognise the same group without asking again. Advisory only — the shop is
+  /// free to rename, split or merge, and the POS's opinion never overwrites.
+  posCategoryName String? @map("pos_category_name")
+
+  displayOrder Int?    @map("display_order")
+  isActive     Boolean @default(true) @map("is_active")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  menus  Menu[]
+
+  /// Uniqueness is a PARTIAL unique (tenant_id, name) WHERE deleted_at IS NULL in
+  /// prisma/manual/sales_unique.sql — a full unique would let a soft-deleted
+  /// category hold its name forever (Pitfall #22/#23).
+  @@index([tenantId])
+  @@map("menu_category")
+}
+
+/// A dish that can be sold. The MINIMUM a sale needs (Q1): `pos_raw_snapshot`,
+/// `recipe_status` and `recipe_id` belong to Sprint 5, when there is a recipe to
+/// protect.
+///
+/// IDENTITY IS `pos_menu_id`, NOT THE NAME (Q7). A POS rename, a stray space or
+/// a dropped character changes nothing.
+model Menu {
+  id       String     @id @default(uuid()) @db.Uuid
+  tenantId String     @map("tenant_id") @db.Uuid
+  source   MenuSource
+
+  /// Both NULL on a MISE menu — menu_source_check. `posMenuId` may be null even
+  /// on a POS menu: a daily-summary file often carries names only, which is
+  /// exactly the case `menu_alias` exists to serve.
+  posIntegrationId String? @map("pos_integration_id") @db.Uuid
+  posMenuId        String? @map("pos_menu_id")
+
+  /// The name Mise shows. Editable by the shop and NEVER overwritten by a sync —
+  /// Section B's layer 2, the one part of the mirror that matters before recipes.
+  name        String
+  /// The name the POS last sent. Layer 1: kept so a human can see what the file
+  /// actually said when a match looks wrong.
+  posMenuName String? @map("pos_menu_name")
+
+  menuCategoryId      String? @map("menu_category_id") @db.Uuid
+  /// Which department earns this menu's revenue (Q16). NULL is legal and visible:
+  /// with departments ON, unassigned revenue shows as its own row rather than
+  /// being folded into Main, or the Bar looks profitable on the Kitchen's takings.
+  primaryDepartmentId String? @map("primary_department_id") @db.Uuid
+
+  /// Auto-created because a file named a dish Mise had never heard of (Decision
+  /// #57). Money lands in full immediately; the dish gets identified later. The
+  /// stub is shown in the import preview BEFORE commit, which is what keeps this
+  /// inside Section D.4's ban on unannounced auto-creation.
+  isPosStub Boolean @default(false) @map("is_pos_stub")
+  isActive  Boolean @default(true) @map("is_active")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  tenant            Tenant          @relation(fields: [tenantId], references: [id])
+  posIntegration    PosIntegration? @relation(fields: [posIntegrationId], references: [id])
+  menuCategory      MenuCategory?   @relation(fields: [menuCategoryId], references: [id])
+  primaryDepartment Department?     @relation(fields: [primaryDepartmentId], references: [id])
+  aliases           MenuAlias[]
+  salesLines        SalesLine[]
+
+  /// UNIQUE(pos_integration_id, pos_menu_id) WHERE source='POS' AND pos_menu_id
+  /// IS NOT NULL lives in prisma/manual/sales_unique.sql (Prisma 5.22 cannot
+  /// express a partial unique).
+  @@index([tenantId])
+  @@index([posIntegrationId], map: "menu_integration_idx")
+  @@index([menuCategoryId], map: "menu_category_idx")
+  @@map("menu")
+}
+
+/// A spelling that a human has confirmed points at a given menu (Q7).
+///
+/// This is the durable half of "the system suggests, a person decides, the system
+/// remembers". Automatic merging on a similarity score is FORBIDDEN: Thai menu
+/// names differ by one word for genuinely different dishes, so any threshold that
+/// catches a typo also merges two real dishes — corrupting revenue now and
+/// consuming the wrong ingredient in Sprint 5.
+model MenuAlias {
+  id               String @id @default(uuid()) @db.Uuid
+  tenantId         String @map("tenant_id") @db.Uuid
+  posIntegrationId String @map("pos_integration_id") @db.Uuid
+  /// Trimmed, inner whitespace collapsed, Unicode NFC. Normalising BEFORE the
+  /// exact-match attempt absorbs the stray-space and dropped-character cases with
+  /// no guessing at all; the fuzzy suggestion is only for what survives that.
+  normalizedName   String @map("normalized_name")
+  /// The name exactly as the file spelled it, for the screen that explains why
+  /// this alias exists.
+  rawName          String @map("raw_name")
+  menuId           String @map("menu_id") @db.Uuid
+
+  confirmedBy String   @map("confirmed_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  tenant          Tenant         @relation(fields: [tenantId], references: [id])
+  posIntegration  PosIntegration @relation(fields: [posIntegrationId], references: [id])
+  menu            Menu           @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  confirmedByUser User           @relation("MenuAliasConfirmedBy", fields: [confirmedBy], references: [id])
+
+  @@unique([posIntegrationId, normalizedName], map: "menu_alias_name_unique")
+  @@index([tenantId])
+  @@index([menuId], map: "menu_alias_menu_idx")
+  @@map("menu_alias")
+}
+
+/// ONE MENU x ONE SALES DAY x ONE BRANCH (Q4).
+///
+/// A per-bill export and a daily-summary export both land here; a summary row is
+/// simply a sale whose bill and time are unknown. Revenue arithmetic and (later)
+/// consumption arithmetic are IDENTICAL for both, so there is never a second code
+/// path — only bill-count and peak-hour views are unavailable, and the screen
+/// must SAY SO rather than show zero.
+///
+/// THERE ARE NO SIGN CHECKS ON THIS TABLE, DELIBERATELY. Voided bills and refunds
+/// are negative; giveaways and tastings are zero. Both are legal (Q14), which
+/// makes this the first table in the system with no `.positive()` to lean on — so
+/// a BLANK in the file must be caught before it can be coerced to 0 (rule P21,
+/// the lesson Part 18 paid for at L2/T14).
+model SalesLine {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  branchId String @map("branch_id") @db.Uuid
+
+  /// A plain DATE, never a timestamp to be truncated later — day and week
+  /// grouping read it directly, which keeps Decision #60's timezone problem out
+  /// of a place where it was already solved (rule P15).
+  businessDate  DateTime @map("business_date") @db.Date
+  salesDayId    String   @map("sales_day_id") @db.Uuid
+  importBatchId String   @map("import_batch_id") @db.Uuid
+
+  menuId      String  @map("menu_id") @db.Uuid
+  /// What the file actually said, kept beside the resolved FK so a wrong match is
+  /// visible rather than merely wrong.
+  posMenuName String? @map("pos_menu_name")
+  posMenuCode String? @map("pos_menu_code")
+
+  qty Decimal @db.Decimal(15, 3)
+
+  /// --- money, all normalised AT IMPORT (rule P10) ---
+  /// `netAmount` IS revenue: after discount, excluding VAT, excluding service
+  /// charge (Q10). There is deliberately no second `revenue` column that could
+  /// disagree with it. The other four are kept because the VAT return needs
+  /// output VAT and O17 needs to reconcile service charge collected against
+  /// service charge paid out.
+  grossAmount         Decimal @map("gross_amount") @db.Decimal(15, 2)
+  discountAmount      Decimal @map("discount_amount") @db.Decimal(15, 2)
+  netAmount           Decimal @map("net_amount") @db.Decimal(15, 2)
+  serviceChargeAmount Decimal @map("service_charge_amount") @db.Decimal(15, 2)
+  vatAmount           Decimal @map("vat_amount") @db.Decimal(15, 2)
+
+  /// --- present only when the file had them (Q4) ---
+  channel   SalesChannel?
+  posBillId String?       @map("pos_bill_id")
+  soldAt    DateTime?     @map("sold_at")
+
+  /// --- supersede (Q5) ---
+  /// Replaced rows are KEPT, never deleted: in Sprint 5 these rows drive
+  /// CONSUMPTION into an append-only ledger, and deleting a sale would leave
+  /// stock consumed with no document to point at.
+  /// The only write this row ever receives after INSERT is this pair, which is
+  /// why the model carries no `updatedAt`.
+  supersededAt        DateTime? @map("superseded_at")
+  supersededByBatchId String?   @map("superseded_by_batch_id") @db.Uuid
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant            Tenant            @relation(fields: [tenantId], references: [id])
+  branch            Branch            @relation(fields: [branchId], references: [id])
+  salesDay          SalesDay          @relation(fields: [salesDayId], references: [id])
+  importBatch       SalesImportBatch  @relation("SalesLineBatch", fields: [importBatchId], references: [id])
+  supersededByBatch SalesImportBatch? @relation("SalesLineSupersededBy", fields: [supersededByBatchId], references: [id])
+  menu              Menu              @relation(fields: [menuId], references: [id])
+
+  @@index([tenantId])
+  /// The one read every screen in this Part performs.
+  @@index([branchId, businessDate], map: "sales_line_branch_date_idx")
+  @@index([salesDayId], map: "sales_line_day_idx")
+  @@index([menuId, businessDate], map: "sales_line_menu_date_idx")
+  @@index([importBatchId], map: "sales_line_batch_idx")
+  @@map("sales_line")
 }

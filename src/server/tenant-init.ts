@@ -94,7 +94,7 @@ export async function createTenant(input: CreateTenantInput) {
       },
     });
 
-    // 7. Auto-seed 16 default categories (H.1.2)
+    // 7. Auto-seed 17 default categories (H.1.2)
     const DEFAULT_CATEGORIES = [
       // COGS — Food
       { account: "COGS", accountingSection: "Food", groupName: "Meat" },
@@ -118,6 +118,14 @@ export async function createTenant(input: CreateTenantInput) {
       { account: "OpEx", accountingSection: "Labor", groupName: "Service charge" },
       // OpEx — Marketing
       { account: "OpEx", accountingSection: "Marketing", groupName: "Online ads" },
+      // OpEx — Commission (Part 19, ADR 0019 Q12). A delivery platform keeps
+      // 25-32% of an order; the Thai trade calls that "GP", which is NOT this
+      // project's gross profit. It is seeded rather than left to each shop to
+      // name, because it is one of the largest costs a restaurant carries and
+      // letting every tenant invent a label makes it impossible to compare.
+      // Revenue stays the price on the bill — the commission is an expense,
+      // never a deduction from revenue (rule P16).
+      { account: "OpEx", accountingSection: "Commission", groupName: "Delivery apps" },
       // OpEx — Professional
       { account: "OpEx", accountingSection: "Professional", groupName: "Accounting" },
     ];
