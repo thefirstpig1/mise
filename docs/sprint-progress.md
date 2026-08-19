@@ -1,13 +1,45 @@
 # Mise Sprint Progress
 
-**Last updated:** 2026-07-05
+**Last updated:** 2026-08-20
 
-## Current Sprint: Sprint 3 — Stock Count · Expense · Waste/Par · Transfer 🚧 IN PROGRESS
+## Current Sprint: Sprint 4 — POS sales import 🚧 IN PROGRESS
 
-_(Sprint 2 — Transactional Systems: ✅ COMPLETE 2026-08-17)_
+_(Sprint 3 — Stock Count · Expense · Waste/Par · Transfer: ✅ COMPLETE 2026-08-18)_
 
-**Status:** 🚧 Part 10 (Stock Movement) ✅ COMPLETE (2026-08-15) + post-completion review closed (1 fix, 3 items carried to Part 13 — **all three paid in Part 13 L1b**) · Part 11 (Purchase Order) ✅ COMPLETE (L0–L6, 2026-08-16) · Part 13 (Goods Receipt) ✅ COMPLETE (L0–L6, 2026-08-16) · Part 13.5 (carry-forward debt payoff) ✅ COMPLETE (L0–L3, 2026-08-16) · Part 14 (Cost Engine) ✅ COMPLETE (L0–L6, 2026-08-17) → **Sprint 2 COMPLETE; next: Sprint 3 — Stock Count + Expense + yield-correct CONSUMPTION** (Part 12 left unallocated, see the Part 11 section).
-**Scope:** Stock Movement (append-only ledger) → PO → GR → Cost Engine per master-spec.md (Part IV — Sprint Plan). Part 10 is the **first proper Sprint 2 slice** (Part 8.5 was a Sprint 1 restore-on-recreate warm-up, run standalone before the Sprint 2 core). Sprint 1 completion history is retained under its own header below.
+**Status:** 🚧 **Part 19 (POS sales import)** — L0 ✅ (grill Q1–Q16 → ADR 0019 · CONTEXT.md 3 terms · `docs/calculation-rules.md` created with P1–P24 · master-spec §5.6 superseded · pending Feature 6) → L1 next.
+**Scope:** Sales arrive as a file and the ledger does not move. Part 19 = the import pipeline + the minimum `menu` a sale needs + `sales_line`; **Part 20** = the daily pulse (one number per branch per day, arriving by email) — both inside Sprint 4.
+**Not in Sprint 4:** the Section B three-layer POS mirror, `recipe_change_diff`, and `MovementType.CONSUMPTION` — all need `recipe` (Sprint 5).
+
+---
+
+## Sprint 4 Part 19 — POS sales import: 🚧 IN PROGRESS (2026-08-20)
+
+**ADR:** `docs/adr/0019-pos-sales-import.md` (Q1–Q16, grill 2026-08-19/20)
+**Rules registered:** `docs/calculation-rules.md` P1–P24 (★ P24 = the branch sales-day cut-off, a user-set value that belongs in the manual)
+
+### Layers
+| L | What | Status |
+|---|---|---|
+| L0 | ADR 0019 · CONTEXT.md (Sales day · Delivery apps commission · Gross profit) · calculation-rules register · master-spec §5.6 supersede · pending Feature 6 | ✅ |
+| L1 | 8 tables + 5 enums + RLS + `branch` sales-day cut-off + seed `OpEx/Commission/Delivery apps` | ⬜ |
+| L2 | validations — column map, พ.ศ. dates, TIS-620, header signature, **a number parser that refuses blanks** (no `.positive()` to lean on) | ⬜ |
+| L3a | parse → normalise VAT/SC → derive sales day → staged rows | ⬜ |
+| L3b | menu resolution: code → exact name → alias → `pg_trgm` suggestion; stub + category creation | ⬜ |
+| L3c | commit: replace-the-whole-day via `sales_day`, preview warnings, batch status | ⬜ |
+| L4 | actions + Thai errors + view serializers | ⬜ |
+| L5 | `/sales/import` (preview before commit) · `/sales` · `/menus` (stub queue) · `/cost` revenue + gross profit | ⬜ |
+| L6 | E2E through the real action stack + `tsc` + `build` + `vitest` + Neon sweep | ⬜ |
+
+### The five refusals this Part is built on
+Read from a real Thai POS pipeline during the grill — each is a way the previous system stayed green while the numbers went wrong:
+1. **The date and branch were typed by a human**, not read from the file → both now come from the file or the import profile (P12, P14).
+2. **Dedupe was a status cell** and every row got a fresh UUID → nothing could tell a day had been imported twice → `sales_day` enforces one current source per branch-day (P3).
+3. **`parseFloat(x) || 0` on every column** → a blank silently became zero → blanks stop the whole file (P21).
+4. **Short rows were skipped in silence** → a POS format change would empty a file quietly → header signature detects it (P11).
+5. **Hard-coded column indexes** → an inserted column shifts every number while they all still look plausible → the column map is data, not code.
+
+### Known limitation carried forward
+Where a file has names but no codes, a renamed dish becomes a second stub and its sales split. `menu_alias` keeps the door open; **merging menus arrives in Sprint 5**, when a menu can also carry a recipe.
 
 ---
 
@@ -1135,7 +1167,7 @@ Grill-with-docs session finished. 8 decisions locked.
 
 - Sprint 2 (W5-7): Procurement + PO/GR allocation + Mirror triggers
 - Sprint 3 (W8-9): Stock + Expense + Yield-correct CONSUMPTION
-- Sprint 4 (W10-11): POS Sync + Mirror + Diff queue
+- Sprint 4 (W10-11): POS sales import (Part 19) + daily pulse (Part 20) — mirror/diff moved to Sprint 5 per ADR 0019
 - Sprint 5 (W12-13): Recipe + Cost Engine + Cost cascade + **Menu Lab** (Pending Feature)
 - Sprint 6 (W14): Dashboards + Matrix + Variance + **Price Volatility** (Pending Feature)
 - Sprint 7 (W15-16): Polish + Beta + Test suite + Production deployment

@@ -143,6 +143,30 @@ The decisive argument for building it once: **the vendor choice determines what 
 - O34: What happens to attachments when their document is voided or soft-deleted — kept (the evidence is still true), or removed?
 - O35: Size and count limits, and whether the phone-camera path needs client-side compression before upload (SME phones on Thai mobile data).
 
+## Feature 6: Delivery apps commission — estimate vs statement — captured 2026-08-19, NOT designed
+
+**Decided in the Sprint 4 grill; only the *build* is deferred, not the shape.**
+
+A delivery platform keeps 25–32% of an order (Grab ~30–32%; LINE MAN 0% normally, 30% on the free-delivery programme). The trade calls this "GP" — see the ⚠️ in CONTEXT.md, it is not this project's GP.
+
+**What is already settled and needs no further decision**
+- The *real* number arrives as a **monthly statement** and is recorded as an ordinary expense. Part 16 handles this today with no new code, into the seeded category `OpEx/Commission/Delivery apps` (added in Part 19's L1).
+- The user is **never asked what percentage a platform charges**. The answer is on the paper they are already holding, and it is more reliable than their memory — shops get pulled into promotional programmes and the rate changes without them noticing.
+- Revenue stays the **price recorded on the bill**; the commission is an expense, never a deduction from revenue (rule P16).
+
+**What is deferred to Sprint 6 (dashboards)**
+- An **optional** commission rate per branch × platform, used only to show an in-month *estimate* of what will be deducted.
+- The estimate is **computed at read and never written as an expense row** (rule V4 / P17) — writing it would double-count against the statement — and every screen showing it says it is an estimate (rule C10).
+- The **estimate-versus-statement comparison**, which is the actual product value: a large gap is a real signal (prices set wrong on the app, or the shop was enrolled in a programme it did not choose).
+
+**Depends on:** `channel` on the sales row (Part 19, rule P18). Without it there is no way to tell which revenue a platform's cut applies to — the shop learns that profit shrank, not where.
+
+### Open questions (for the grill, when it happens)
+- O36: Is the rate per **branch × platform**, or per **branch × platform × menu**? (Some platforms charge differently by item type.)
+- O37: Does the rate need effective-dating like a supplier price (ADR 0009), given that programme changes are exactly what makes the estimate wrong?
+- O38: Where does the statement's *other* deductions go — delivery subsidies, promotional co-payments, adjustment credits — all of which sit on the same monthly document as the commission?
+
+
 ---
 
 ## Open Questions for v1.5

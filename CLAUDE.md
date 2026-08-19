@@ -82,6 +82,7 @@ For complex / multi-file work, enter Plan mode first: propose the plan, wait for
 - docs/changelog-v5-summary.md — Decision history
 - docs/pending-features-v1.5.md — Price Volatility + Menu Lab (Sprint 5-6)
 - docs/sprint-progress.md — Current sprint status (LIVE)
+- docs/calculation-rules.md — Calculation Rules Register: every calculation/valuation rule in one table, flagged for whether users must be told. Index only — ADRs win on conflict. **Append a row whenever a calculation rule is decided, not at sprint end.**
 - .claude/skills/ — Task-specific skills (load as needed)
 - .claude/skills/grill-with-docs/SKILL.md — pre-sprint alignment interviews
 - .claude/skills/tdd/SKILL.md — test-driven development with vertical slices
