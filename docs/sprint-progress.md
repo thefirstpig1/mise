@@ -6,9 +6,34 @@
 
 _(Sprint 3 — Stock Count · Expense · Waste/Par · Transfer: ✅ COMPLETE 2026-08-18)_
 
-**Status:** ✅ **Part 19 (POS sales import) COMPLETE** (L0–L6, 2026-08-20) — grill Q1–Q17 → ADR 0019 · CONTEXT.md 3 terms · `docs/calculation-rules.md` created with **P1–P26** · master-spec §5.6 superseded · pending Feature 6. → **Next: Part 20 — the daily pulse** (one number per branch per day, arriving by email), which closes the blind window between periodic imports.
+**Status:** 🚧 **Part 20a (daily pulse) IN PROGRESS** · ✅ **Part 19 (POS sales import) COMPLETE** (L0–L6, 2026-08-20) — grill Q1–Q17 → ADR 0019 · CONTEXT.md 3 terms · `docs/calculation-rules.md` created with **P1–P26** · master-spec §5.6 superseded · pending Feature 6. → **Next: Part 20 — the daily pulse** (one number per branch per day, arriving by email), which closes the blind window between periodic imports.
 **Scope:** Sales arrive as a file and the ledger does not move. Part 19 = the import pipeline + the minimum `menu` a sale needs + `sales_line`; **Part 20** = the daily pulse (one number per branch per day, arriving by email) — both inside Sprint 4.
 **Not in Sprint 4:** the Section B three-layer POS mirror, `recipe_change_diff`, and `MovementType.CONSUMPTION` — all need `recipe` (Sprint 5).
+
+---
+
+## Sprint 4 Part 20a — the daily pulse: 🚧 IN PROGRESS (2026-08-20)
+
+**ADR:** `docs/adr/0020-daily-sales-pulse.md` (Q1–Q4)
+**Rules registered:** P27–P29 (★ P29 = the mismatch threshold, a guess that needs real shops)
+
+One number per branch per day — what the customer paid — closing the window between periodic imports. Small on purpose: **no new tables**, five columns on `sales_day`, one enum with one value.
+
+| L | What | Status |
+|---|---|---|
+| L0 | ADR 0020 · CONTEXT.md (Daily pulse) · rules P27–P29 | ✅ |
+| L1 | `sales_day` + 5 pulse columns + `SalesPulseSource` + 2 CHECKs | ⬜ |
+| L2 | zod for pulse entry + the threshold constant | ⬜ |
+| L3 | record (locked once detail lands) · reconcile at read · dashboard read | ⬜ |
+| L4 | action + Thai errors + a serializer that states every figure's provenance | ⬜ |
+| L5 | dashboard row + entry box · `/sales` pulse column · preview warning | ⬜ |
+| L6 | E2E + `tsc` + `build` + `vitest` + Neon sweep | ⬜ |
+
+### What this Part buys that Part 19 could not
+A POS export covering only PART of a day passes every defence Part 19 built — every row real, header signature matching, no blank cells, every menu resolved. It is merely incomplete, and nothing inside the file says so. The pulse is the only witness.
+
+### NOT in this Part
+**Part 20b — email intake.** It needs an inbound-mail vendor and an `.env` edit, both stop-and-ask items. `SalesPulseSource` therefore ships with `MANUAL` only: an enum value with no writer is debt, not preparation (ADR 0019's own reasoning about `SYSTEM_INITIAL`).
 
 ---
 
