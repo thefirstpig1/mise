@@ -230,6 +230,7 @@ model User {
   transfersVoided           StockTransfer[]        @relation("TfVoidedBy")
   salesImportsUploaded      SalesImportBatch[]     @relation("SalesImportUploadedBy")
   menuAliasesConfirmed      MenuAlias[]            @relation("MenuAliasConfirmedBy")
+  salesPulsesRecorded       SalesDay[]             @relation("SalesPulseRecordedBy")
 
   @@map("app_user")
 }
@@ -2015,13 +2016,40 @@ model SalesDay {
   /// day from a pulse before any detail file exists for it.
   currentBatchId String? @map("current_batch_id") @db.Uuid
 
+  /// --- the daily pulse (Part 20, ADR 0020) ---
+  /// **What the customer paid**: after discount, INCLUDING VAT and service charge.
+  /// Deliberately not this project's revenue, which excludes both (ADR 0019 Q10) —
+  /// the pulse exists to be the same number the owner sees in the POS app, and to
+  /// be compared against `net + vat + service_charge` from this day's lines. The
+  /// two differ by up to ~17%, so anything that adds or compares them directly is
+  /// wrong (rule P27).
+  ///
+  /// Editable until a detail file lands for this day, then FROZEN (Q2/rule P28):
+  /// its job changes from a figure being read to the evidence a file is checked
+  /// against, and a pulse anyone could edit to silence a warning is no evidence.
+  ///
+  /// `>= 0` — the opposite of `sales_line`, and deliberately. That table mirrors
+  /// the POS, where a refund really is negative and Mise is not the authority
+  /// (ADR 0019 Q14). This is TYPED BY A PERSON, where a leading minus is a slip
+  /// and Mise is the only check there is. `sales_day_pulse_amount_check`.
+  pulseAmount     Decimal?          @map("pulse_amount") @db.Decimal(15, 2)
+  pulseSource     SalesPulseSource? @map("pulse_source")
+  /// A figure used as evidence needs a name on it.
+  pulseRecordedBy String?           @map("pulse_recorded_by")
+  pulseRecordedAt DateTime?         @map("pulse_recorded_at")
+  /// "ตู้เย็นเสีย ปิดเร็ว" — why a day looks odd, from the person who was there.
+  /// Worth more than any threshold, because it is the explanation rather than the
+  /// detection.
+  pulseNote       String?           @map("pulse_note")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  tenant       Tenant            @relation(fields: [tenantId], references: [id])
-  branch       Branch            @relation(fields: [branchId], references: [id])
-  currentBatch SalesImportBatch? @relation("SalesDayCurrentBatch", fields: [currentBatchId], references: [id])
-  salesLines   SalesLine[]
+  tenant              Tenant            @relation(fields: [tenantId], references: [id])
+  branch              Branch            @relation(fields: [branchId], references: [id])
+  currentBatch        SalesImportBatch? @relation("SalesDayCurrentBatch", fields: [currentBatchId], references: [id])
+  pulseRecordedByUser User?             @relation("SalesPulseRecordedBy", fields: [pulseRecordedBy], references: [id])
+  salesLines          SalesLine[]
 
   @@unique([branchId, businessDate], map: "sales_day_branch_date_unique")
   @@index([tenantId])
@@ -2254,4 +2282,17 @@ enum GrossProfitMethod {
   RECIPE_CONSUMPTION
 
   @@map("gross_profit_method")
+}
+
+/// Where a daily pulse came from (ADR 0020).
+///
+/// `EMAIL` is deliberately ABSENT until Part 20b writes it — an inbound-mail
+/// vendor is a stop-and-ask, and an enum value with no writer is debt rather
+/// than preparation (the lesson `SourceType.SYSTEM_INITIAL` has been teaching
+/// since Part 10).
+enum SalesPulseSource {
+  /// Typed at close by whoever is shutting the shop.
+  MANUAL
+
+  @@map("sales_pulse_source")
 }
