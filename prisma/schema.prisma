@@ -127,6 +127,9 @@ model Tenant {
   menus                   Menu[]
   menuAliases             MenuAlias[]
   salesLines              SalesLine[]
+  recipes                 Recipe[]
+  recipeIngredients       RecipeIngredient[]
+  recipeBranches          RecipeBranch[]
 
   @@map("tenant")
 }
@@ -183,6 +186,7 @@ model Branch {
   salesImportBatches      SalesImportBatch[]
   salesDays               SalesDay[]
   salesLines              SalesLine[]
+  recipeBranches          RecipeBranch[]
 
   @@index([tenantId])
   @@map("branch")
@@ -231,6 +235,7 @@ model User {
   salesImportsUploaded      SalesImportBatch[]     @relation("SalesImportUploadedBy")
   menuAliasesConfirmed      MenuAlias[]            @relation("MenuAliasConfirmedBy")
   salesPulsesRecorded       SalesDay[]             @relation("SalesPulseRecordedBy")
+  recipesCreated            Recipe[]               @relation("RecipeCreatedBy")
 
   @@map("app_user")
 }
@@ -446,6 +451,8 @@ model Product {
   wasteLogs               WasteLog[]
   parLevels               ParLevel[]
   stockTransferItems      StockTransferItem[]
+  producedByRecipes       Recipe[]                 @relation("RecipeOutputProduct")
+  usedInRecipes           RecipeIngredient[]
 
   /// NOTE: per-tenant sku uniqueness is a PARTIAL unique index (WHERE deleted_at
   /// IS NULL) in prisma/manual/product_sku_unique.sql — NOT a Prisma @@unique,
@@ -476,6 +483,7 @@ model ProductUnit {
   wasteLogs               WasteLog[]
   parLevels               ParLevel[]
   stockTransferItems      StockTransferItem[]
+  recipeIngredients       RecipeIngredient[]
 
   @@unique([productId, unitName])
   @@index([productId])
@@ -2137,6 +2145,8 @@ model Menu {
   primaryDepartment Department?     @relation(fields: [primaryDepartmentId], references: [id])
   aliases           MenuAlias[]
   salesLines        SalesLine[]
+  recipes           Recipe[]
+  usedInRecipes     RecipeIngredient[] @relation("RecipeComponentMenu")
 
   /// UNIQUE(pos_integration_id, pos_menu_id) WHERE source='POS' AND pos_menu_id
   /// IS NOT NULL lives in prisma/manual/sales_unique.sql (Prisma 5.22 cannot
@@ -2295,4 +2305,195 @@ enum SalesPulseSource {
   MANUAL
 
   @@map("sales_pulse_source")
+}
+
+// ============================================================
+// Sprint 5 Part 21 — Recipe (ADR 0021)
+// ============================================================
+
+/// WHAT ONE THING IS MADE OF — a menu that is sold, or a PREPPED product that is
+/// produced. Never both (Q1, Q2): `recipe_target_check` is the XOR.
+///
+/// THIS ROW IS ONE VERSION. Versions of the same recipe share a `lineId`; which
+/// one applies on a given day is decided by `effectiveFrom`, because Part 19
+/// imports periodically and Part 22 must post each past day against the recipe
+/// that was true THEN (Q4). Getting this wrong overstates or understates every
+/// ingredient for a fortnight with nothing on screen looking wrong.
+///
+/// WARNING: `supersededAt` does NOT mean "a later version replaced this". A
+/// normal change leaves the old version alive and correct for the days it
+/// covered. Superseded means **this version was wrong** — someone corrected a
+/// typo with the same `effectiveFrom` — and it is therefore excluded from
+/// resolution entirely. Exactly the distinction ADR 0014 Q6 draws for cost
+/// declarations: correcting our knowledge of the past is not an event.
+///
+/// Resolution for a date D, at a branch:
+///   live rows (deletedAt IS NULL, supersededAt IS NULL) of the line that serves
+///   that branch, with effectiveFrom <= D, ordered by (effectiveFrom DESC,
+///   createdAt DESC), LIMIT 1.
+model Recipe {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+
+  /// Stable across every version of the same recipe. A brand-new recipe gets a
+  /// fresh one; creating a version copies its parent's. Deliberately NOT a FK to
+  /// the first version — that would be a chicken-and-egg on insert, and the line
+  /// must outlive any particular row.
+  ///
+  /// This is also what `recipe_branch` attaches to, so adding a version never
+  /// re-links branches. Attaching branches to the VERSION would mean every new
+  /// version has to copy N links, and one missed copy sends that branch silently
+  /// back to the central recipe — a wrong number with nothing to notice it.
+  lineId String @default(uuid()) @map("line_id") @db.Uuid
+
+  /// Exactly one of these two is set (`recipe_target_check`).
+  menuId String? @map("menu_id") @db.Uuid
+
+  /// A PRODUCTION RECIPE (Q1): the one notation that holds MANY inputs, which is
+  /// why chilli jam needs it and portioned salmon does not. A PREPPED product is
+  /// made by `parentProductId` + `yieldPercent` OR by one of these, never both —
+  /// enforced in app logic, because the condition spans two tables and no CHECK
+  /// can see across them (the same reason ADR 0007's depth guard lives in code).
+  outputProductId String? @map("output_product_id") @db.Uuid
+
+  /// How many portions one writing of this recipe makes (Q16). Defaults to 1, so
+  /// a dish cooked to order needs no thought; a curry cooked by the pot says 20.
+  /// NOT a yield — this splits a pot into plates, yield accounts for what the
+  /// knife takes, and BOTH divisions apply (rule R2).
+  servings Decimal @default(1) @map("servings") @db.Decimal(15, 3)
+
+  /// The business date this version starts applying. Editing normally stamps
+  /// today and the UI never asks; a correction sets it back (Q4).
+  effectiveFrom DateTime @map("effective_from") @db.Date
+
+  supersededAt   DateTime? @map("superseded_at")
+  supersededById String?   @map("superseded_by_id") @db.Uuid
+
+  notes String?
+
+  createdBy String    @map("created_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  tenant        Tenant             @relation(fields: [tenantId], references: [id])
+  menu          Menu?              @relation(fields: [menuId], references: [id])
+  outputProduct Product?           @relation("RecipeOutputProduct", fields: [outputProductId], references: [id])
+  supersededBy  Recipe?            @relation("RecipeSupersede", fields: [supersededById], references: [id])
+  supersedes    Recipe[]           @relation("RecipeSupersede")
+  createdByUser User               @relation("RecipeCreatedBy", fields: [createdBy], references: [id])
+  ingredients   RecipeIngredient[]
+  branches      RecipeBranch[]
+
+  @@index([tenantId])
+  @@index([lineId, effectiveFrom], map: "recipe_line_effective_idx")
+  @@index([menuId], map: "recipe_menu_idx")
+  @@index([outputProductId], map: "recipe_output_product_idx")
+  @@map("recipe")
+}
+
+/// ONE LINE OF A RECIPE — and it points at a THING, never at a recipe version
+/// (Q3).
+///
+/// `ref_recipe_id` from master-spec 5.9 is deliberately absent. Pointing at a
+/// version means a set menu still references the steak recipe it was written
+/// against; pointing at the steak resolves to whatever the steak currently is,
+/// which is also how a kitchen says it — "the set contains one steak", never
+/// "the set contains steak recipe v3".
+///
+///   productId       RAW     -> a leaf, priced by the FIFO replay
+///                   PREPPED -> descend (production recipe, or parent + yield)
+///   componentMenuId         -> descend into that menu's recipe   <- SET MENUS
+///
+/// A product ingredient carries a unit ("120 g of minced pork"); a menu
+/// ingredient does not ("1 steak"). `recipe_ingredient_unit_check` binds the two.
+model RecipeIngredient {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  recipeId String @map("recipe_id") @db.Uuid
+
+  /// Exactly one of these two is set (`recipe_ingredient_target_check`).
+  productId       String? @map("product_id") @db.Uuid
+  componentMenuId String? @map("component_menu_id") @db.Uuid
+
+  /// As written by the person entering the recipe, in `productUnitId`. The
+  /// base-unit value is COMPUTED at read and never stored (Q17): a recipe is a
+  /// standing instruction ("use one bag"), not a record of a past transaction,
+  /// so correcting what a bag weighs should move every recipe that says "bag".
+  /// This is the deliberate opposite of ADR 0012 Q3, which freezes the ratio
+  /// onto a purchase order line precisely because that IS a record of the past.
+  ///
+  /// qty > 0 is enforced. Unlike `sales_line`, 0 is not a legal answer here — a
+  /// recipe that uses none of something simply has no line — so `.positive()` is
+  /// safe to lean on at L2, which is NOT true of the sales tables (rule P21).
+  qty Decimal @map("qty") @db.Decimal(15, 3)
+
+  /// NULL exactly when this line points at a menu.
+  productUnitId String? @map("product_unit_id") @db.Uuid
+
+  sortOrder Int     @default(0) @map("sort_order")
+  notes     String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant        Tenant       @relation(fields: [tenantId], references: [id])
+  recipe        Recipe       @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  product       Product?     @relation(fields: [productId], references: [id])
+  componentMenu Menu?        @relation("RecipeComponentMenu", fields: [componentMenuId], references: [id])
+  productUnit   ProductUnit? @relation(fields: [productUnitId], references: [id])
+
+  @@index([tenantId])
+  @@index([recipeId], map: "recipe_ingredient_recipe_idx")
+  /// The reverse lookup, and it is load-bearing twice over: Q13's delete guard
+  /// has to NAME the recipes blocking a product, and Q14's substitution screen
+  /// lists them so a human can tick which ones to change.
+  @@index([productId], map: "recipe_ingredient_product_idx")
+  @@index([componentMenuId], map: "recipe_ingredient_component_menu_idx")
+  @@map("recipe_ingredient")
+}
+
+/// WHICH BRANCHES A RECIPE LINE SERVES (Q8).
+///
+/// NO ROW FOR A BRANCH MEANS THE CENTRAL RECIPE APPLIES — and follows it as it
+/// changes, because a branch that has never copied has not decided anything.
+/// The moment a recipe is copied to a branch, that branch has declared it
+/// decides for itself and nothing central reaches it again: a recipe change is a
+/// change to how a kitchen works, and one branch's cooks may be retrained while
+/// another's are not.
+///
+/// A JOIN TABLE, not a `branch_id` column on `recipe` (the rejected shape): five
+/// mall branches cooking alike would otherwise be five identical rows kept in
+/// step by hand, and the day someone edits four of them nothing says so. That
+/// breaks at five branches, not a hundred. It also leaves named recipe sets
+/// as a label added later rather than a migration.
+///
+/// WARNING: nothing here stops a branch being linked to two lines for the SAME
+/// menu, which would make "which recipe applies" ambiguous — the condition spans
+/// this table and `recipe`, so no constraint can see it. Guarded in app logic,
+/// and the resolution query orders and LIMITs so an ambiguity cannot crash a
+/// page.
+model RecipeBranch {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+
+  /// Attaches to the LINE, not to a version — see `Recipe.lineId`.
+  lineId   String @map("line_id") @db.Uuid
+  branchId String @map("branch_id") @db.Uuid
+
+  /// Any one version of the line, kept so Prisma can navigate and so a stray row
+  /// can be traced back to what created it. Resolution keys on `lineId`.
+  recipeId String @map("recipe_id") @db.Uuid
+
+  createdBy String   @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  branch Branch @relation(fields: [branchId], references: [id])
+  recipe Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  @@unique([lineId, branchId], map: "recipe_branch_unique")
+  @@index([tenantId])
+  @@index([branchId], map: "recipe_branch_branch_idx")
+  @@map("recipe_branch")
 }

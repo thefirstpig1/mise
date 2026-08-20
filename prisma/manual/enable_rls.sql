@@ -362,3 +362,23 @@ USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 -- ============================================================
 -- End Sprint 4 Part 19 RLS
 -- ============================================================
+
+-- ============================================================
+-- Sprint 5 Part 21 RLS (ADR 0021)
+-- ============================================================
+
+ALTER TABLE recipe ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON recipe
+USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+ALTER TABLE recipe_ingredient ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON recipe_ingredient
+USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+ALTER TABLE recipe_branch ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON recipe_branch
+USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+-- ============================================================
+-- End Sprint 5 Part 21 RLS
+-- ============================================================
