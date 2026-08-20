@@ -151,7 +151,10 @@ Module MVP index: Identity, Master Data, Sales Sync, Menu, Recipe (optional), Pr
 
 **category** (3-tier) — `id` · `tenant_id` · `account` ("COGS") · `accounting_section` ("ครัวร้อน" — accounting categorization, distinct from the department entity; renamed from `dept_category`) · `group` ("เนื้อสัตว์") · (unique: tenant_id, account, accounting_section, group).
 
-**product** — `id` · `tenant_id` · `sku` · `name` · `name_en` · `type` enum(RAW/PREPPED) · `primary_dimension` enum(WEIGHT/VOLUME/COUNT) · `category_id`. Liquids: `liquid_density_template_id` FK nullable, `density_ml_per_g_override` nullable. RAW only: `yield_percent` Decimal(5,2) (% usable after trim). PREPPED only (joint allocation): `parent_product_id` FK, `expected_yield_g`, `target_market_price`. Plus `image_url`, `is_active`, (unique: tenant_id, sku). Units live in `product_unit`, not here.
+**product** — `id` · `tenant_id` · `sku` · `name` · `name_en` · `type` enum(RAW/PREPPED) · `primary_dimension` enum(WEIGHT/VOLUME/COUNT) · `category_id`. Liquids: `liquid_density_template_id` FK nullable, `density_ml_per_g_override` nullable. RAW only: `yield_percent` Decimal(5,2) (% usable after trim). PREPPED only (joint allocation): `parent_product_id` FK, `expected_yield_g`, `target_market_price`.
+
+> ⚠️ **"RAW only: `yield_percent`" is backwards — ADR 0007 / Part 7c built the opposite.** `yield_percent` lives on **PREPPED**, where it is required, and RAW is forced null in both zod and the server logic. H.5's formula reads it off the ingredient, so it resolves only when that ingredient is PREPPED. **`expected_yield_g` and `target_market_price` have had zero readers and zero writers since Sprint 1** and no screen offers either; they were reserved for Decision #6 (joint allocation by market value), which remains one line of table with no design behind it — see pending Feature 7 for the case worked through. ADR 0021 Q1 relaxes the Part 7c invariant: a PREPPED product needs `parent_product_id` + `yield_percent` **or** a production recipe, never both.
+ Plus `image_url`, `is_active`, (unique: tenant_id, sku). Units live in `product_unit`, not here.
 
 **product_unit** — `id` · `product_id` · `unit_name` · `unit_dimension` · `to_base_ratio` Decimal(15,6) · `is_base` bool · `is_default_buy_unit` bool · `source` enum(SYSTEM_TEMPLATE/USER_DEFINED) · `display_order` · (unique: product_id, unit_name). Constraints: exactly 1 base row and 1 default-buy row per product; base row ratio = 1.0; all rows of a product share one dimension.
 
@@ -241,6 +244,8 @@ Module MVP index: Identity, Master Data, Sales Sync, Menu, Recipe (optional), Pr
 
 ### 5.9 Menu & recipe
 
+> ⚠️ **ADR 0021 supersedes this section — the `recipe` shape below is NOT built as written.** §5.9 was drawn around a POS that pushes recipes into Mise. No POS in scope does, and half the columns died with that assumption: `source` enum(POS_SYNCED/…), `pos_ingredient_name`, `pos_ingredient_code`, `match_status`, `pos_original_qty`, `last_user_edit_at` — **none built** (ADR 0021 Q3). Also dropped: `ref_recipe_id`, replaced by ingredients that point at a **product or a menu** (which is what makes a set menu work at all — §5.9 has no design for one); `version` + `is_active`, replaced by **append + supersede with an effective date**, because Part 19 imports periodically and Part 22 must post consumption against the recipe true on each past day (Q4); and `yield_override_percent`. `yield_qty` survives as **`servings`, default 1** (Q16). Added: **`recipe_branch`**, a join table, so five branches cooking alike share one row (Q8). `menu` gains **no columns at all** — `recipe_status` and `recipe_id` are derivable and a stored copy only drifts, and `sale_price` is read from actual sales instead (Q10). The ADR also **amends ADR 0007**: a PREPPED product is made by a single parent + yield **or** by a production recipe with many inputs, never both (Q1).
+
 **menu** — `id` · `tenant_id` · `source` enum(POS/MISE) · `pos_integration_id` nullable · `pos_menu_id` nullable · `name` · `name_en` · `sku` · `category_id` nullable (fallback for no-recipe cost) · `pos_category_name` · `sale_price` · `recipe_status` enum(NO_RECIPE/HAS_RECIPE/RECIPE_STALE) · `recipe_id` nullable (active version) · `primary_department_id` FK nullable (which dept earns revenue) · `is_pos_stub` bool default false (v1.4, auto-created for unknown POS menu) · Layer-1 POS mirror: `pos_raw_snapshot` jsonb, `pos_sync_source`, `last_pos_synced_at` · `is_active` · `pos_image_url` · (unique: pos_integration_id, pos_menu_id WHERE source=POS).
 - primary_department_id: auto-suggested from category → most common dept; user can override. When `enable_departments=false` all menus default to "Main", field hidden.
 - pos_raw_snapshot holds the full raw POS payload at last sync — the "before" state for sync-conflict diff (Section B).
@@ -251,6 +256,8 @@ Module MVP index: Identity, Master Data, Sales Sync, Menu, Recipe (optional), Pr
 
 ### 5.10 Branch overrides
 
+> ⚠️ **ADR 0021 Q8 supersedes the recipe half of this section.** `recipe_branch_override.ingredient_overrides jsonb` is **not built** — it was the last untyped blob in a system that has used typed append-and-supersede rows since ADR 0009, and an override inside a blob cannot be searched, validated or attributed. A branch that cooks differently gets a **real recipe row** attached through `recipe_branch`. The inheritance rule is the load-bearing part: a branch with nothing attached follows the central recipe as it changes; the moment a recipe is copied to a branch, **nothing central reaches it again**, because a recipe change is a change to how a kitchen works and one branch's cooks may be retrained while another's are not. `menu_branch_override` is untouched and unbuilt (no writer).
+
 **menu_branch_override** — `id` · `menu_id` · `branch_id` · `sale_price_override` nullable · `is_available_override` nullable · `recipe_id_override` nullable · `created_by_user_id` · (unique: menu_id, branch_id).
 
 **recipe_branch_override** — `id` · `recipe_id` · `branch_id` · `ingredient_overrides` jsonb · `created_by_user_id`.
@@ -259,9 +266,13 @@ Module MVP index: Identity, Master Data, Sales Sync, Menu, Recipe (optional), Pr
 See 5.7 (grouped with cost engine).
 
 ### 5.12 recipe_change_diff (sync conflict)
+
+> ⚠️ **ADR 0021 Q3 removes this table, and Q9 finds its mechanism a different customer.** It exists to stop a POS sync from overwriting a human's recipe enrichment; with no POS pushing recipes there is nothing to protect, and Section B's three-layer mirror goes with it. But the *pattern* — detect that a source changed, offer accept/decline — turned out to have a real use the spec never considered: **branch to branch**, when head office edits a recipe a branch has copied. Deferred as pending **Feature 8**, not resurrected here. Worth remembering that the table was aimed at the wrong party rather than wrong in itself.
 `id` · `menu_id` · `triggered_by` enum(POS_SYNC/USER_EDIT) · `triggered_at` · `diff_type` enum(INGREDIENT_ADDED/INGREDIENT_REMOVED/QTY_CHANGED/UNIT_CHANGED) · `ingredient_pos_name` · `before_state` jsonb · `after_state` jsonb · `status` enum(PENDING/APPLIED/IGNORED/MERGED) · `resolved_by_user_id` · `resolved_at` · `resolution_notes`.
 
 ### 5.13 recipe_coverage_view (materialized)
+
+> ⚠️ **Not built in Part 21 — deferred to Part 23** (ADR 0021 Schema). Nothing about it is contradicted; it simply needs recipes to exist first, and it is a reporting surface rather than part of the engine.
 Revenue-weighted (primary) + count-based (secondary) coverage per tenant/branch, over active menus with a rolling-30-day sales join. Display: "Recipe covers 78% of revenue (12/50 menus)". Refresh hourly.
 
 ### 5.14 Department tables
@@ -313,6 +324,8 @@ Setup wizard: (1) account + company info incl. VAT-registration question; (2) co
 Master data at tenant level (menu, recipe, product, supplier); operational data at branch level (stock, sales, expense, PR/PO/GR); overrides per-branch + per-field; defaults work with zero overrides. Query with COALESCE(override, base). Supplier price override via nullable `branch_id` (branch-specific wins, NULLS LAST). Trade-off: extra override tables + LEFT JOINs, in exchange for single-store→chain flexibility.
 
 ## Section B: Sync Conflict Resolution — Diff & user resolves (Decision #18)
+
+> ⚠️ **Not built. ADR 0019 Q1 moved this wholesale to Sprint 5; ADR 0021 Q3 then removed it.** All three layers presuppose a POS that pushes recipe contents into Mise — L1 `menu.pos_raw_snapshot`, L2 protected enrichment, L3 the `recipe_change_diff` queue. No POS in scope exports recipes; a real Thai POS export read during the Part 19 grill carries no bill id, no time, no table, no staff and no channel, and an export carrying ingredient lists is a stronger assumption still. What Mise mirrors from a POS is a menu's **identity and name** (ADR 0019 Q7), nothing internal.
 Three layers: L1 POS raw mirror (`menu.pos_raw_snapshot` JSONB, overwritten by sync); L2 Mise enrichment (protected, never auto-overwritten); L3 diff resolution (`recipe_change_diff` PENDING queue). Smart defaults: ingredient added → "add as RAW" + fuzzy-match; removed → remove; qty changed with no user override → auto-apply; qty changed with user override → prompt; unit changed → always prompt. Bulk resolution UI for migrations. Every resolution audit-logged.
 
 ## Section C: Cost Estimation Confidence Model — Range + confidence label (Decision #17)
@@ -461,6 +474,8 @@ type Action = 'view' | 'create' | 'update' | 'delete' | 'approve' | 'receive';
 Filters must be parameterized (no string interpolation) — use `and(eq(...), inArray(...), isNull(deleted_at))`. Authorization algorithm (8 steps): fetch user context → fetch resource → tenant match → role×resource×action (role_permission matrix) → branch access → department access with action-specific flag (create+PR → can_request_for; approve → can_approve_for; receive+GR → can_receive_for) → apply scope_filter → ALLOW. `role_permission` = (role, resource_type, action, is_allowed, scope_filter ∈ {NULL, own_dept, own_branch, own_record}). Test matrix: 50+ cases mandatory before Sprint 0 ends.
 
 ## H.5 Auto-tagging CONSUMPTION + Yield Math
+
+> ⚠️ **The yield formula is correct and binding; the algorithm around it is superseded.** Four things in it no longer hold. (1) *"per new sales_transaction"* — there is no such table and no per-bill trigger point: Part 19 imports a **batch that replaces a whole day** (rule P3), so posting consumption is a day/batch operation and a re-import must append compensating movements (ADR 0019 consequence 1). (2) The idempotency key `ON CONFLICT (source_type, source_id, product_id)` **is illegal** — ADR 0011 keys on the pair `(source_type, source_id)`, and one sales line exploding into N ingredients needs the answer ADR 0018 used for transfers, not a third column. (3) The algorithm **has no branch**, though stock and cost have been per-branch since ADR 0011 and ADR 0014 Q9. (4) `MovementType.CONSUMPTION` does not exist yet and is created in Part 22, the migration that first writes it (ADR 0021 Q12). Also note the yield formula reads `product.yield_percent` off the *ingredient*, which under what was actually built (ADR 0007) is non-null only when that ingredient is PREPPED — §5.2's claim that yield belongs to RAW is the stale side. ADR 0021 Q16 adds the second divisor the spec omits: **servings per recipe**, applied before yield.
 **Yield math (critical fix):** yield is output/input. Raw needed = `recipe_qty_in_base × (100 / product.yield_percent)`. E.g. recipe needs 80 g cooked beef at 80% yield → 80 / 0.80 = 100 g raw (NOT 96 g). Algorithm per new sales_transaction: find menu → active recipe (no recipe → skip; unknown menu → stub per H, is_pos_stub); for each recipe_ingredient (with recursion guard): `raw_qty_per_serving = ri.qty_in_base / (product.yield_percent/100)`, `consumed_qty = raw_qty_per_serving × (st.qty / recipe.yield_qty)`; create stock_movement (CONSUMPTION, dept from menu.primary_department_id). Recursion depth limit = 5 with cycle detection. Idempotency: `INSERT ... ON CONFLICT (source_type, source_id, product_id) DO NOTHING` (uses partial unique index from 5.5).
 
 ## H.6 Department Lifecycle (Soft Delete)
@@ -470,9 +485,13 @@ Pre-delete validations: cannot delete "Main" (system-protected); active user ass
 Use `GREATEST(created_at, updated_at)` to catch UPDATEs. Live view unions materialized data + live expense (last hour incl. updates) + live revenue. All DATE_TRUNC uses tenant timezone via `AT TIME ZONE (SELECT timezone FROM tenant WHERE id = ...)`. Atomic refresh via `refresh_mat_view_atomic(view_name)`: mark in_progress → REFRESH MATERIALIZED VIEW CONCURRENTLY → update materialized_view_meta → exception handling.
 
 ## H.8 Theoretical vs Actual Variance View
+
+> ⚠️ **Deferred to Sprint 6, and half-superseded.** The "actual" side must read `source_type`, not `movement_type` (ADR 0017), and its `st.qty` source table does not exist — the grain is `sales_line` (menu × day × branch). The internal contradiction is resolved in favour of the spec's own O16: **Sprint 6**, not Sprint 5 (decided 2026-08-21). It needs real data from both gross-profit methods to be worth reading anyway.
 Theoretical (sales × recipes, combining yield + recipe.yield_qty): `SUM(st.qty × (ri.qty_in_base / r.yield_qty) × (100.0 / COALESCE(p.yield_percent, 100)))`. Actual from stock_movement CONSUMPTION+WASTE. Both CTEs carry department_id (theoretical via menu.primary_department_id, actual via stock_movement.department_id); FULL OUTER JOIN uses IS NOT DISTINCT FROM for NULL-safe dept matching. Dashboard sliceable by branch/department/period.
 
 ## H.9 Cost Cascade Strategy (mark stale on write, recompute on read)
+
+> ⚠️ **Dissolved, not reimplemented — ADR 0021 Q7, as ADR 0014 consequence 3 instructed.** The trigger fires on `product_cost_history` INSERT and that table will never exist; "stale" has no meaning once cost is computed fresh on every read; and the cascade's **two levels contradict Decision #58's five** in the same document. `recipe_cost_snapshot` is **not built**. Recipe cost is computed by walking the recipe and replaying the ledger, memoised **within one request only** — where nothing can change underneath it and nothing survives to go stale. Measured cost of the alternative: a 50-menu list is one recipe query plus one batched `getProductCostsLogic` (four round trips regardless of product count). ADR 0014's ~1 s snapshot threshold carries over unchanged.
 Problem: a new product_cost_history row makes which recipe_cost_snapshots stale? Schema: recipe_cost_snapshot gains is_stale/stale_reason/stale_at + partial index WHERE is_stale=true. Trigger on product_cost_history INSERT marks snapshots stale for recipes using that product (direct or via ref_recipe, 2 levels); app marks deeper recursion on recipe save. getRecipeCost() checks is_stale → if stale, recompute + upsert (is_stale=false) → cache warm for next reads. Phase 2: async queue prioritized by usage frequency.
 
 ## H.10 Tenant Isolation via RLS (security-critical)

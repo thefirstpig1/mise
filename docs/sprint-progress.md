@@ -1,14 +1,50 @@
 # Mise Sprint Progress
 
-**Last updated:** 2026-08-20
+**Last updated:** 2026-08-21
 
-## Current Sprint: Sprint 4 — POS sales import 🚧 IN PROGRESS
+## Current Sprint: Sprint 5 — Recipe + CONSUMPTION 🚧 IN PROGRESS
 
-_(Sprint 3 — Stock Count · Expense · Waste/Par · Transfer: ✅ COMPLETE 2026-08-18)_
+_(Sprint 4 — POS sales import · daily pulse: ✅ COMPLETE 2026-08-20, except Part 20b which is blocked on choosing an inbound-mail vendor)_
 
-**Status:** ✅ **Part 19 (POS sales import) COMPLETE** · ✅ **Part 20a (daily pulse) COMPLETE** (L0–L6, 2026-08-20) → **Sprint 4 is functionally complete except Part 20b (email intake), which is blocked on choosing an inbound-mail vendor.** Next: **Sprint 5 — Recipe + `CONSUMPTION`**, which needs a grill first (no ADR 0021) (L0–L6, 2026-08-20) — grill Q1–Q17 → ADR 0019 · CONTEXT.md 3 terms · `docs/calculation-rules.md` created with **P1–P26** · master-spec §5.6 superseded · pending Feature 6. → **Next: Part 20 — the daily pulse** (one number per branch per day, arriving by email), which closes the blind window between periodic imports.
-**Scope:** Sales arrive as a file and the ledger does not move. Part 19 = the import pipeline + the minimum `menu` a sale needs + `sales_line`; **Part 20** = the daily pulse (one number per branch per day, arriving by email) — both inside Sprint 4.
-**Not in Sprint 4:** the Section B three-layer POS mirror, `recipe_change_diff`, and `MovementType.CONSUMPTION` — all need `recipe` (Sprint 5).
+**Status:** grill complete (Q1–Q18) → **ADR 0021 written**. L0 docs done. **Part 21 not yet built.**
+**Split:** Sprint 5 is **three Parts** — **21** สูตรอาหาร + ต้นทุนสูตร (no ledger writes) · **22** `CONSUMPTION` + GP by recipe · **23** Menu Lab, menu merging, staff meal, recipe coverage.
+**Not in Sprint 5:** H.8 theoretical-vs-actual variance (→ Sprint 6, per the spec's own O16, decided 2026-08-21) · Price Volatility (Sprint 6) · Section B three-layer mirror and `recipe_change_diff` (**removed**, ADR 0021 Q3).
+
+---
+
+## Sprint 5 Part 21 — สูตรอาหาร + ต้นทุนสูตร: 🚧 L0 DONE
+
+**ADR:** `docs/adr/0021-recipe-and-recipe-cost.md` (Q1–Q18, grill 2026-08-20/21)
+**Rules registered:** `docs/calculation-rules.md` §9, **R1–R13**
+
+| L | What | Status |
+|---|---|---|
+| L0 | ADR 0021 · CONTEXT.md (Menu, Set menu, Production recipe, Central/branch recipe, Joint products, Servings per recipe + 6 rewritten) · rules R1–R13 · master-spec **9 supersede stamps** · pending Features 7 & 8 | ✅ |
+| L1 | `recipe` + `recipe_ingredient` + `recipe_branch` · relax the Part 7c PREPPED invariant · RLS · verify against Neon | ⬜ |
+| L2 | zod: recipe, ingredient, unit conversion · **no `.positive()` to lean on where 0 is legal** | ⬜ |
+| L3a | recipe CRUD + guards: self-ref, cycle, depth 5 **across products and menus**, cross-tenant | ⬜ |
+| L3b | **recursive recipe cost** — pure file, `getProductCostsLogic` batched once, per-request memo | ⬜ |
+| L3c | cost confidence from `costSource` (weakest ingredient wins) · substitution + reverse lookup | ⬜ |
+| L4 | actions + Thai errors + serializers (Decimal → string) | ⬜ |
+| L5 | `/recipes` list + form + cost view + branch comparison + substitution screen | ⬜ |
+| L5b | fix the latent `/cost` bug: `r.grossProfit ? … : "—"` renders a real **0.00 as "—"** (`BranchCostTable.tsx:146,151,171,174`, `cost-view.ts:149-152`) — the file's own header says *"a zero would be a lie"* | ⬜ |
+| L6 | E2E through the real action stack · spec + config deleted, never committed · Neon swept | ⬜ |
+
+### What the grill changed that the plan did not anticipate
+Part 21 grew, and each addition was accepted on the same argument — **the walker and the "which recipe applies" query are the expensive parts, and their shape is fixed by what they must handle on day one**:
+- **Production recipes** (Q1) — many inputs, one output. The one-parent model cannot hold น้ำพริกเผา; four of its five ingredients would vanish. Amends ADR 0007.
+- **Set menus** (Q3) — an ingredient may point at a **menu**. ADR 0019 Q16 deferred this here by name and the spec has no design for it anywhere.
+- **`recipe_branch` join table** (Q8) — because five mall branches cooking alike would otherwise be five rows kept in step by hand, and that breaks at five branches, not a hundred.
+- **Cross-branch comparison** (Q9) and **ingredient substitution across recipes** (Q14) — both need the same reverse lookup that Q13's delete guard needs anyway.
+
+### Standing items this Part leaves behind
+- 🛑 **`canPerform` has zero call sites in the entire project.** Any authenticated member of a tenant can do anything, including a `viewer` whose permission list is empty. The matrix also cannot express "a cook reads the recipe but not the cost" — it has one axis. **Permissions must be a Part of its own, before Beta** (ADR 0021 Q18).
+- **Production movements are owed** — nothing can raise a PREPPED balance, so counting น้ำพริกเผา reports a gain every time. Part 21 says so on screen and does not fix it. Closes ADR 0017's `PREP_LOSS` note when it lands (Q11).
+- **Joint products are not supported** and Decision #6 is still a slogan — pending **Feature 7** now carries the beef case in full.
+- **A set menu's revenue still lands on one department.** How 299 ฿ divides between kitchen and bar is a calculation rule for **Part 22**, where `/cost` is touched anyway.
+- **`Product.type` is load-bearing from now on** (Q13). Anything later that reads it must check the guard still covers it.
+
+---
 
 ---
 
