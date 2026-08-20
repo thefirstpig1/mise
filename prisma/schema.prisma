@@ -2356,10 +2356,18 @@ model Recipe {
   /// can see across them (the same reason ADR 0007's depth guard lives in code).
   outputProductId String? @map("output_product_id") @db.Uuid
 
-  /// How many portions one writing of this recipe makes (Q16). Defaults to 1, so
-  /// a dish cooked to order needs no thought; a curry cooked by the pot says 20.
-  /// NOT a yield — this splits a pot into plates, yield accounts for what the
-  /// knife takes, and BOTH divisions apply (rule R2).
+  /// HOW MUCH ONE WRITING OF THIS RECIPE MAKES (Q16), counted in whatever unit
+  /// the thing that consumes it counts in:
+  ///   - a MENU recipe          -> portions. 1 for a dish cooked to order; 20
+  ///                               for a curry cooked by the pot, so the system
+  ///                               divides 350 g of paste by 20 instead of the
+  ///                               user rounding 17.5 by hand into a form.
+  ///   - a PRODUCTION recipe    -> the output product's BASE UNITS. One batch of
+  ///                               chilli jam makes 250 g, so `servings` is 250.
+  ///
+  /// One column, one meaning: "how much comes out". NOT a yield — this splits a
+  /// batch into what is taken from it, while yield accounts for what the knife
+  /// takes, and BOTH divisions apply, in that order (rule R2).
   servings Decimal @default(1) @map("servings") @db.Decimal(15, 3)
 
   /// The business date this version starts applying. Editing normally stamps
