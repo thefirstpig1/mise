@@ -6,7 +6,7 @@
 
 _(Sprint 4 — POS sales import · daily pulse: ✅ COMPLETE 2026-08-20, except Part 20b which is blocked on choosing an inbound-mail vendor)_
 
-**Status:** grill complete (Q1–Q18) → **ADR 0021 written**. L0 docs done. **Part 21 not yet built.**
+**Status:** grill complete (Q1–Q18) → **ADR 0021 written** · **L0–L2 done, L3 in progress** (walker + resolver built and committed; CRUD next).
 **Split:** Sprint 5 is **three Parts** — **21** สูตรอาหาร + ต้นทุนสูตร (no ledger writes) · **22** `CONSUMPTION` + GP by recipe · **23** Menu Lab, menu merging, staff meal, recipe coverage.
 **Not in Sprint 5:** H.8 theoretical-vs-actual variance (→ Sprint 6, per the spec's own O16, decided 2026-08-21) · Price Volatility (Sprint 6) · Section B three-layer mirror and `recipe_change_diff` (**removed**, ADR 0021 Q3).
 
@@ -21,9 +21,12 @@ _(Sprint 4 — POS sales import · daily pulse: ✅ COMPLETE 2026-08-20, except 
 |---|---|---|
 | L0 | ADR 0021 · CONTEXT.md (Menu, Set menu, Production recipe, Central/branch recipe, Joint products, Servings per recipe + 6 rewritten) · rules R1–R13 · master-spec **9 supersede stamps** · pending Features 7 & 8 | ✅ |
 | L1 | `recipe` + `recipe_ingredient` + `recipe_branch` · relax the Part 7c PREPPED invariant · RLS · verify against Neon | ⬜ |
-| L2 | zod: recipe, ingredient, unit conversion · **no `.positive()` to lean on where 0 is legal** | ⬜ |
-| L3a | recipe CRUD + guards: self-ref, cycle, depth 5 **across products and menus**, cross-tenant | ⬜ |
-| L3b | **recursive recipe cost** — pure file, `getProductCostsLogic` batched once, per-request memo | ⬜ |
+| L1b | verified against Neon: **3 tables · 6 CHECKs (expressions read back) · 14 indexes · RLS ×3** | ✅ |
+| L2 | zod — 4 write shapes + 3 reads · **47 tests** · qty IS allowed `.positive()` here, unlike sales | ✅ |
+| L3-walker | `recipe-graph.ts` — pure, no Prisma · depth/cycle over **products AND menus, one budget** · the two divisions of rule R2 · **33 tests** | ✅ |
+| L3-resolve | `recipe-resolve.ts` — which recipe applies at this **branch** on this **day** · graph loaded 4 queries/level, ≤6 levels | ✅ |
+| L3a | recipe CRUD + write guards (self-ref, cycle, depth, cross-tenant, ambiguous branch, Q1 method-exclusivity) + DB tests | ⬜ |
+| L3b | **recursive recipe cost** — `getProductCostsLogic` batched once, per-request memo | ⬜ |
 | L3c | cost confidence from `costSource` (weakest ingredient wins) · substitution + reverse lookup | ⬜ |
 | L4 | actions + Thai errors + serializers (Decimal → string) | ⬜ |
 | L5 | `/recipes` list + form + cost view + branch comparison + substitution screen | ⬜ |
