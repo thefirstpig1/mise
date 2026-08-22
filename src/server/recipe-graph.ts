@@ -34,8 +34,15 @@ export const QTY_SCALE = 3;
  *
  * ADR 0007 chose the product graph's cap to line up with this one exactly, so
  * there is no off-by-one between them.
+ *
+ * RE-EXPORTED, not re-declared. The number is defined once, in the validations
+ * file, because a Client Component renders it inside an error message and
+ * `src/server/*` drags Prisma into the browser bundle. Two literals held
+ * together by a comment is what this Part inherited from ADR 0007 and is exactly
+ * what L3a was meant to end.
  */
-export const MAX_RECIPE_DEPTH = 5;
+export { MAX_RECIPE_DEPTH } from "@/lib/validations/recipe";
+import { MAX_RECIPE_DEPTH } from "@/lib/validations/recipe";
 
 // ------------------------------------------------------------
 // Node keys

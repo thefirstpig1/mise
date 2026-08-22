@@ -58,9 +58,11 @@ const hasAtMostThreeDecimals = (n: number) =>
  * a dish descending into a prepped product descending into its raw parent has
  * spent four.
  *
- * ⚠️ `src/server/product.ts` still hard-codes the same 5 in `assertParentValid`.
- * L3a wires it to this constant when it adds the type-change guard; until then
- * the two literals must be changed together.
+ * THE ONLY DEFINITION. `recipe-graph.ts` re-exports it and `product.ts`'s
+ * `assertParentValid` reads it from there (as `MAX_RECIPE_DEPTH - 1`, because
+ * that formula counts EDGES). It lives in this file rather than beside the walk
+ * because a Client Component renders it inside an error message, and
+ * `src/server/*` drags Prisma into the browser bundle.
  */
 export const MAX_RECIPE_DEPTH = 5;
 
@@ -535,6 +537,53 @@ export type RecipeUsageQuery = z.infer<typeof recipeUsageQuerySchema>;
 // ------------------------------------------------------------
 // Thai field labels
 // ------------------------------------------------------------
+
+// ------------------------------------------------------------
+// Cost confidence (Q6)
+// ------------------------------------------------------------
+
+/**
+ * HIGH / MEDIUM / LOW on a recipe cost, computed from the `cost_source` of every
+ * ingredient and taken from the WEAKEST one (rule R14).
+ *
+ * Lives here rather than beside the walk in `src/server/recipe-cost.ts` for the
+ * same reason `CostSource` lives in `stock-cost.ts`'s validations file: a Client
+ * Component has to render the label, and `src/server/*` drags Prisma into the
+ * browser bundle.
+ */
+export const RECIPE_CONFIDENCE_VALUES = ["HIGH", "MEDIUM", "LOW"] as const;
+export type RecipeConfidence = (typeof RECIPE_CONFIDENCE_VALUES)[number];
+
+export const RECIPE_CONFIDENCE_LABELS_TH: Record<RecipeConfidence, string> = {
+  HIGH: "เชื่อถือได้",
+  MEDIUM: "พอใช้",
+  LOW: "ยังไม่ครบ",
+};
+
+/** Why it is what it is — the caveat line, not a decoration (rule W4). */
+export const RECIPE_CONFIDENCE_HINTS_TH: Record<RecipeConfidence, string> = {
+  HIGH: "ทุกวัตถุดิบมีราคาจากของที่ซื้อเข้ามาจริง",
+  MEDIUM: "บางตัวใช้ราคาที่ระบุเอง หรือราคาซื้อครั้งล่าสุดเพราะของหมด",
+  LOW: "มีวัตถุดิบที่ยังไม่ทราบต้นทุน ตัวเลขนี้ต่ำกว่าความจริง",
+};
+
+/**
+ * The two ways a component can have no cost, which are two different problems
+ * with two different fixes — so they are never merged into one message.
+ */
+export const UNPRICED_REASON_LABELS_TH: Record<
+  "NEVER_PURCHASED" | "NO_RECIPE",
+  string
+> = {
+  NEVER_PURCHASED: "สาขานี้ยังไม่เคยซื้อเข้าระบบ",
+  NO_RECIPE: "ยังไม่มีสูตรบอกว่าทำจากอะไร",
+};
+
+/** A graph fault found while costing. The page says which recipe, not "error". */
+export const RECIPE_PROBLEM_LABELS_TH: Record<"CYCLE" | "TOO_DEEP", string> = {
+  CYCLE: "สูตรนี้วนกลับมาหาตัวเอง จึงคิดต้นทุนไม่ได้",
+  TOO_DEEP: `สูตรนี้ซ้อนกันเกิน ${MAX_RECIPE_DEPTH} ชั้น จึงคิดต้นทุนไม่ได้`,
+};
 
 export const RECIPE_FIELD_LABELS_TH: Record<string, string> = {
   menuId: "เมนู",

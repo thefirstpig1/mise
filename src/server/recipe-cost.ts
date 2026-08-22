@@ -55,7 +55,12 @@ import {
 } from "@/server/recipe-resolve";
 import { costKeyOf, replayPairsInTx, type ProductCost } from "@/server/stock-cost";
 import type { CostSource } from "@/lib/validations/stock-cost";
-import type { RecipeCostQuery } from "@/lib/validations/recipe";
+import {
+  type RecipeConfidence,
+  type RecipeCostQuery,
+} from "@/lib/validations/recipe";
+
+export type { RecipeConfidence };
 
 const ZERO = new Prisma.Decimal(0);
 const HUNDRED = new Prisma.Decimal(100);
@@ -75,9 +80,6 @@ const trim = (d: Prisma.Decimal) => d.toDecimalPlaces(RECIPE_COST_SCALE);
 // ------------------------------------------------------------
 // Confidence (Q6)
 // ------------------------------------------------------------
-
-export const RECIPE_CONFIDENCE_VALUES = ["HIGH", "MEDIUM", "LOW"] as const;
-export type RecipeConfidence = (typeof RECIPE_CONFIDENCE_VALUES)[number];
 
 /**
  * One ingredient's cost source, read as confidence.
