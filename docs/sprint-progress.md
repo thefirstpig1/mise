@@ -12,10 +12,10 @@ _(Sprint 4 — POS sales import · daily pulse: ✅ COMPLETE 2026-08-20, except 
 
 ---
 
-## Sprint 5 Part 21 — สูตรอาหาร + ต้นทุนสูตร: 🚧 L0–L3b DONE
+## Sprint 5 Part 21 — สูตรอาหาร + ต้นทุนสูตร: 🚧 L0–L3c DONE
 
 **ADR:** `docs/adr/0021-recipe-and-recipe-cost.md` (Q1–Q18, grill 2026-08-20/21)
-**Rules registered:** `docs/calculation-rules.md` §9, **R1–R13** (grill) + **R14–R17** (decided while building L3b)
+**Rules registered:** `docs/calculation-rules.md` §9, **R1–R13** (grill) + **R14–R19** (decided while building L3b/L3c)
 
 | L | What | Status |
 |---|---|---|
@@ -27,7 +27,7 @@ _(Sprint 4 — POS sales import · daily pulse: ✅ COMPLETE 2026-08-20, except 
 | L3-resolve | `recipe-resolve.ts` — which recipe applies at this **branch** on this **day** · graph loaded 4 queries/level, ≤6 levels | ✅ |
 | L3a | recipe CRUD + write guards · `recipe.ts` (create / edit-appends-a-version / delete-the-line / copy-to-branches) + `recipe-guards.ts` (cycle, depth **both directions**, Q1 method-exclusivity, Q13 type-change + delete block) · **relaxed the Part 7c PREPPED invariant in zod** — L1 owed it and only the DB half existed · **27 DB tests** | ✅ |
 | L3b | **recursive recipe cost** — `recipe-cost.ts`: one graph for every root, one batched `replayPairsInTx`, nothing stored · **confidence rolled up here too** (the floor over `costSource`, Q6) because a number nobody can safely display is not a layer · the L3a carry-over closed: a component menu with **no recipe** is found by scanning the graph and reported `NO_RECIPE`, since a leaf is a productId and the explosion cannot express it · Q16's yield-percentage read · **18 DB tests** | ✅ |
-| L3c | substitution across recipes (Q14/Q15) · the public reverse lookup · Q17's "which recipes does this ratio move" read | ⬜ |
+| L3c | substitution across recipes (Q14/Q15) — every target gets a **real version** through the same `appendVersion` the edit form uses, ids **derived** from `submitKey`+`recipeId` so a retry finds the same N rows · `recipe-read.ts`: usage grouped central/branch, the plan that decides where a quantity may carry (Q15), and Q17's unit-ratio read · **17 DB tests** | ✅ |
 | L4 | actions + Thai errors + serializers (Decimal → string) | ⬜ |
 | L5 | `/recipes` list + form + cost view + branch comparison + substitution screen | ⬜ |
 | L5b | fix the latent `/cost` bug: `r.grossProfit ? … : "—"` renders a real **0.00 as "—"** (`BranchCostTable.tsx:146,151,171,174`, `cost-view.ts:149-152`) — the file's own header says *"a zero would be a lie"* | ⬜ |
@@ -47,7 +47,7 @@ Part 21 grew, and each addition was accepted on the same argument — **the walk
 - **A set menu's revenue still lands on one department.** How 299 ฿ divides between kitchen and bar is a calculation rule for **Part 22**, where `/cost` is touched anyway.
 - **`Product.type` is load-bearing from now on** (Q13). Anything later that reads it must check the guard still covers it. L3a wired the guard into `updateProductLogic` / `deleteProductLogic` and gave the four new refusals Thai messages in `src/app/products/actions.ts` — without that, an existing page would have surfaced them as an unhandled Server Action error.
 - **A menu still has no delete path.** Part 19 gave `menu` a `deletedAt` column and no way to set it, so Q3's "a menu inside a set cannot be deleted" has nothing to attach to. `assertMenuNotUsedInRecipes` is written and exported so whoever adds the button does not have to rediscover that the guard is owed.
-- **Q17's ratio guard is still open.** Changing a `ProductUnit`'s `toBaseRatio` moves every recipe written in that unit, and the ADR asks that the write first SHOW which. The reverse lookup it needs (`recipesUsing`) exists as of L3a; the screen is L5's.
+- **Q17's ratio guard: the read exists, nothing calls it.** `getRecipesUsingUnitLogic` names the recipes a `toBaseRatio` correction would move. Deliberately a read and not a block — refusing a correction forces the data to stay wrong, the same argument Q13 makes about RAW → PREPPED. **L5 must show it on the product form before saving.**
 
 ---
 
