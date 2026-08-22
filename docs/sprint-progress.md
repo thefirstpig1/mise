@@ -12,7 +12,7 @@ _(Sprint 4 — POS sales import · daily pulse: ✅ COMPLETE 2026-08-20, except 
 
 ---
 
-## Sprint 5 Part 21 — สูตรอาหาร + ต้นทุนสูตร: 🚧 L0 DONE
+## Sprint 5 Part 21 — สูตรอาหาร + ต้นทุนสูตร: 🚧 L0–L3a DONE
 
 **ADR:** `docs/adr/0021-recipe-and-recipe-cost.md` (Q1–Q18, grill 2026-08-20/21)
 **Rules registered:** `docs/calculation-rules.md` §9, **R1–R13**
@@ -25,8 +25,8 @@ _(Sprint 4 — POS sales import · daily pulse: ✅ COMPLETE 2026-08-20, except 
 | L2 | zod — 4 write shapes + 3 reads · **47 tests** · qty IS allowed `.positive()` here, unlike sales | ✅ |
 | L3-walker | `recipe-graph.ts` — pure, no Prisma · depth/cycle over **products AND menus, one budget** · the two divisions of rule R2 · **33 tests** | ✅ |
 | L3-resolve | `recipe-resolve.ts` — which recipe applies at this **branch** on this **day** · graph loaded 4 queries/level, ≤6 levels | ✅ |
-| L3a | recipe CRUD + write guards (self-ref, cycle, depth, cross-tenant, ambiguous branch, Q1 method-exclusivity) + DB tests | ⬜ |
-| L3b | **recursive recipe cost** — `getProductCostsLogic` batched once, per-request memo | ⬜ |
+| L3a | recipe CRUD + write guards · `recipe.ts` (create / edit-appends-a-version / delete-the-line / copy-to-branches) + `recipe-guards.ts` (cycle, depth **both directions**, Q1 method-exclusivity, Q13 type-change + delete block) · **relaxed the Part 7c PREPPED invariant in zod** — L1 owed it and only the DB half existed · **27 DB tests** | ✅ |
+| L3b | **recursive recipe cost** — `getProductCostsLogic` batched once, per-request memo · ⚠️ **carry over from L3a:** a component MENU with no recipe currently contributes NOTHING to the set menu that holds it (`explodeToRaw` returns on `recipe === null`) — the same silently-too-good shape the walker already fixed for a method-less PREPPED product. It cannot be fixed in the walker (`LeafDemand` is a productId), so **L3b/L3c must report it as UNPRICED and make the whole recipe LOW** (Q6) | ⬜ |
 | L3c | cost confidence from `costSource` (weakest ingredient wins) · substitution + reverse lookup | ⬜ |
 | L4 | actions + Thai errors + serializers (Decimal → string) | ⬜ |
 | L5 | `/recipes` list + form + cost view + branch comparison + substitution screen | ⬜ |
@@ -45,7 +45,9 @@ Part 21 grew, and each addition was accepted on the same argument — **the walk
 - **Production movements are owed** — nothing can raise a PREPPED balance, so counting น้ำพริกเผา reports a gain every time. Part 21 says so on screen and does not fix it. Closes ADR 0017's `PREP_LOSS` note when it lands (Q11).
 - **Joint products are not supported** and Decision #6 is still a slogan — pending **Feature 7** now carries the beef case in full.
 - **A set menu's revenue still lands on one department.** How 299 ฿ divides between kitchen and bar is a calculation rule for **Part 22**, where `/cost` is touched anyway.
-- **`Product.type` is load-bearing from now on** (Q13). Anything later that reads it must check the guard still covers it.
+- **`Product.type` is load-bearing from now on** (Q13). Anything later that reads it must check the guard still covers it. L3a wired the guard into `updateProductLogic` / `deleteProductLogic` and gave the four new refusals Thai messages in `src/app/products/actions.ts` — without that, an existing page would have surfaced them as an unhandled Server Action error.
+- **A menu still has no delete path.** Part 19 gave `menu` a `deletedAt` column and no way to set it, so Q3's "a menu inside a set cannot be deleted" has nothing to attach to. `assertMenuNotUsedInRecipes` is written and exported so whoever adds the button does not have to rediscover that the guard is owed.
+- **Q17's ratio guard is still open.** Changing a `ProductUnit`'s `toBaseRatio` moves every recipe written in that unit, and the ADR asks that the write first SHOW which. The reverse lookup it needs (`recipesUsing`) exists as of L3a; the screen is L5's.
 
 ---
 

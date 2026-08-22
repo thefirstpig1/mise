@@ -23,6 +23,16 @@ import type { ProductInput } from "@/lib/validations/product";
 // from this module; we throw its MappingNotFoundError in the Q6 cascade path (L3b).
 // Safe because both refs are used inside function bodies, not module-init.
 import { MappingNotFoundError } from "@/server/supplier-product-mapping";
+// Part 21 Q13 falls due here: `type` is load-bearing from Sprint 5 on. These
+// guards deliberately live in a module that imports NOTHING from this one, so
+// the two files do not import each other (see recipe-guards.ts's header).
+import {
+  MAX_RECIPE_DEPTH,
+  assertNoProductionRecipeFor,
+  assertProductNotUsedInRecipes,
+  assertTypeChangeAllowed,
+  assertUsersStillWithinDepth,
+} from "@/server/recipe-guards";
 
 /** Product plus its units + category + (PREPPED only) a minimal parent
  *  projection — the shape reads return for the UI. `parent` joins on the FK
@@ -231,7 +241,10 @@ export type TenantScopedRef =
   | "supplier"
   | "branch"
   /// Part 11 adds "department" for PO line allocations (ADR 0012 Q2).
-  | "department";
+  | "department"
+  /// Part 21 adds "menu": a recipe makes one, and an ingredient may point at one
+  /// (ADR 0021 Q3, the shape that makes a set menu an ordinary recipe).
+  | "menu";
 
 /**
  * Guard: a referenced row (by `id`) must be a LIVE row owned by `tenantId`.
@@ -375,8 +388,11 @@ async function assertParentValid(
     selfId === null ? 0 : await descendantHeightLive(tx, selfId);
 
   const formula = ancestorDepth + 1 + descendantHeight;
-  if (formula > 4) {
-    // formula > 4 ↔ chain > 5 nodes (ADR 0007).
+  // formula counts EDGES, `MAX_RECIPE_DEPTH` counts NODES — hence the −1. ADR
+  // 0007 chose the product graph's cap to line up with Decision #58's exactly,
+  // and until Part 21 both files carried their own literal 5 with only a comment
+  // holding them together. One constant now, in the module that walks the graph.
+  if (formula > MAX_RECIPE_DEPTH - 1) {
     throw new ProductDepthExceededError(formula);
   }
 }
@@ -509,11 +525,12 @@ export async function createProductLogic(
       // Validate the template FK on the CLEANSED value (null after a COUNT
       // cleanse is a no-op). Global ref data — not assertRefBelongsToTenant.
       await assertLiquidDensityTemplateExists(tx, densityTemplateId);
-      if (isPrepped) {
+      // ADR 0021 Q1 relaxed the 7c invariant: a PREPPED product may have NO
+      // parent, because a production recipe makes it instead. So the parent
+      // guard is gated on the parent existing, not on the type.
+      if (isPrepped && parentId !== null) {
         await assertRefBelongsToTenant(tx, tenantId, "product", parentId);
-        // parentId is non-null on PREPPED (zod superRefine); assertRefBelongs
-        // would have thrown above if it were null/missing/cross-tenant.
-        await assertParentValid(tx, parentId as string, null);
+        await assertParentValid(tx, parentId, null);
       }
       skuUsed = input.sku ?? (await generateSku(tx, tenantId));
 
@@ -702,10 +719,33 @@ export async function updateProductLogic(
       await assertValidBaseUnit(tx, input.baseUnitName, input.primaryDimension);
       await assertRefBelongsToTenant(tx, tenantId, "category", input.categoryId);
       await assertLiquidDensityTemplateExists(tx, densityTemplateId);
-      if (isPrepped) {
-        await assertRefBelongsToTenant(tx, tenantId, "product", parentId);
+
+      // Part 21 Q13. The type this product had BEFORE this write decides which
+      // half of the guard applies, so it is read before anything is touched.
+      const before = await tx.product.findFirst({
+        where: { id, tenantId, deletedAt: null },
+        select: { type: true, name: true },
+      });
+      if (before !== null) {
+        await assertTypeChangeAllowed(tx, tenantId, id, before.type, input.type);
+      }
+
+      // ADR 0021 Q1: a PREPPED product may have NO parent, because a production
+      // recipe makes it instead — so this is gated on the parent, not the type.
+      if (isPrepped && parentId !== null) {
         // selfId = id → catches self-ref + cycle + depth incl. descendantHeight.
-        await assertParentValid(tx, parentId as string, id);
+        await assertRefBelongsToTenant(tx, tenantId, "product", parentId);
+        await assertParentValid(tx, parentId, id);
+        // The other half of Q1: a parent + yield OR a production recipe, never
+        // both. Both together would leave the walker choosing between two
+        // notations, and whichever it ignored would sit on the row with nothing
+        // reading it.
+        await assertNoProductionRecipeFor(
+          tx,
+          tenantId,
+          id,
+          before?.name ?? input.name
+        );
       }
 
       // Unchecked variant: includes the scalar FK `categoryId` (the checked
@@ -815,6 +855,19 @@ export async function updateProductLogic(
         }
       }
 
+      // Part 21 Q13, the RAW → PREPPED half. Every recipe using this product
+      // just gained a level and some may now pass Decision #58's five. Run AFTER
+      // the write so the walk sees the new shape; a refusal throws inside the
+      // transaction and takes the whole update with it.
+      //
+      // The change itself is NOT blocked — a RAW used in twenty recipes that
+      // turns out to need trimming should become PREPPED, and forbidding that
+      // forces the data to stay wrong. Only an overflowing chain is refused, and
+      // the error names it.
+      if (before !== null && before.type === "RAW" && input.type === "PREPPED") {
+        await assertUsersStillWithinDepth(tx, tenantId, id);
+      }
+
       return tx.product.findFirst({
         where: { id, tenantId, deletedAt: null },
         include: {
@@ -832,7 +885,12 @@ export async function updateProductLogic(
           },
         },
       });
-    });
+    },
+    // The Q13 depth recheck walks every recipe that uses this product, which is
+    // several round trips to Neon Singapore. Prisma's 5 s default is ample for a
+    // single-row write and not for this — the same call ADR 0013 Consequence 5
+    // made for a twenty-line goods receipt.
+    { timeout: 20_000 });
   } catch (e) {
     rethrowOnUniqueConflict(e, input.sku);
   }
@@ -865,6 +923,12 @@ export async function deleteProductLogic(
     if (liveChildren.length > 0) {
       throw new ProductHasChildrenError(liveChildren.map((c) => c.name));
     }
+
+    // Part 21 Q13: a product still used by a recipe cannot be deleted, whether
+    // as an ingredient or as a production recipe's output. Mirrors the child
+    // block above, and the refusal NAMES the recipes — "cannot delete" on its
+    // own leaves the user hunting through every dish they have.
+    await assertProductNotUsedInRecipes(tx, tenantId, id);
 
     // Q6 cascade: validate THEN soft-delete the selected mappings in the SAME tx,
     // so any failure rolls the whole delete back. Each id must be a LIVE mapping

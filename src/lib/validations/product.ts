@@ -174,21 +174,34 @@ export const productInputSchema = z.object({
       path: ["defaultBuyUnitName"],
     });
   }
-  // 7c invariant: PREPPED ↔ {parentProductId, yieldPercent} both non-null;
-  // RAW ↔ both null. ADR 0007.
+  // 7c invariant, RELAXED by ADR 0021 Q1 (Part 21). PREPPED used to require
+  // {parentProductId, yieldPercent} both non-null, because a prepped product was
+  // always one input trimmed down to less of itself. น้ำพริกเผา is not: five
+  // ingredients go in, and under the old rule four of them would have to vanish
+  // so one could be nominated the parent.
+  //
+  // So a PREPPED product is now made by **a parent + a yield, OR a production
+  // recipe, and never both**. This schema can only see the first half — whether
+  // a production recipe exists spans two tables — so what it enforces is that
+  // the parent half is either COMPLETE or ABSENT. A parent with no yield is
+  // still refused: the walker divides by that percentage and reading a missing
+  // one as 100% would silently understate every raw material below it.
+  //
+  // The other half of Q1 (a parent AND a production recipe) is refused in
+  // src/server/recipe-guards.ts, which is the only place that can see both.
   if (val.type === "PREPPED") {
-    if (!val.parentProductId) {
+    if (val.parentProductId !== null && val.yieldPercent === null) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "ของแปรรูปต้องระบุสินค้าแม่",
-        path: ["parentProductId"],
+        message: "ของแปรรูปที่ระบุสินค้าแม่ ต้องระบุเปอร์เซ็นต์ผลผลิตด้วย",
+        path: ["yieldPercent"],
       });
     }
-    if (val.yieldPercent === null) {
+    if (val.parentProductId === null && val.yieldPercent !== null) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "ของแปรรูปต้องระบุเปอร์เซ็นต์ผลผลิต",
-        path: ["yieldPercent"],
+        message: "เปอร์เซ็นต์ผลผลิตใช้ได้เมื่อระบุสินค้าแม่เท่านั้น",
+        path: ["parentProductId"],
       });
     }
   } else {

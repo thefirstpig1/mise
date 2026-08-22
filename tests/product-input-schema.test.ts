@@ -137,9 +137,13 @@ describe("productInputSchema", () => {
     expect(r.yieldPercent).toBeNull();
   });
 
-  // S7 — PREPPED must have BOTH parentProductId and yieldPercent
-  it("rejects PREPPED missing parentProductId or yieldPercent", () => {
-    // missing parent
+  // S7 — the parent half is COMPLETE or ABSENT; half of it is refused.
+  // Relaxed by ADR 0021 Q1: PREPPED no longer REQUIRES a parent, because a
+  // production recipe can make it instead. Half a parent is still refused —
+  // the walker divides by the yield, and a missing one read as 100% would
+  // silently understate every raw material below it.
+  it("rejects PREPPED carrying only one of parentProductId / yieldPercent", () => {
+    // yield without a parent
     const noParent = productInputSchema.safeParse({
       ...base,
       type: "PREPPED",
@@ -149,7 +153,7 @@ describe("productInputSchema", () => {
     if (!noParent.success) {
       expect(noParent.error.issues.some((i) => i.path[0] === "parentProductId")).toBe(true);
     }
-    // missing yield
+    // parent without a yield
     const noYield = productInputSchema.safeParse({
       ...base,
       type: "PREPPED",
@@ -159,6 +163,16 @@ describe("productInputSchema", () => {
     if (!noYield.success) {
       expect(noYield.error.issues.some((i) => i.path[0] === "yieldPercent")).toBe(true);
     }
+  });
+
+  // S7b — ADR 0021 Q1: น้ำพริกเผา. A PREPPED product with NEITHER a parent nor a
+  // yield is now valid — it is made by a production recipe, which lives in
+  // another table this schema cannot see.
+  it("accepts PREPPED with neither parent nor yield (made by a production recipe)", () => {
+    const r = productInputSchema.parse({ ...base, type: "PREPPED" });
+    expect(r.type).toBe("PREPPED");
+    expect(r.parentProductId).toBeNull();
+    expect(r.yieldPercent).toBeNull();
   });
 
   // S8 — PREPPED with a non-uuid parentProductId rejects on shape

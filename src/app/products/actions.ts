@@ -37,6 +37,17 @@ import {
   LiquidDensityTemplateNotFoundError,
   ProductUnitReferencedByMappingError,
 } from "@/server/product";
+// Part 21 (ADR 0021 Q13): `Product.type` became load-bearing, so the product
+// form and its delete control can now be refused by the recipe guards. Without
+// these, a refusal that the logic layer states clearly would reach the user as
+// an unhandled Server Action error.
+import {
+  ProductTypeChangeBlockedError,
+  ProductUsedInRecipeError,
+  RecipeCycleError,
+  RecipeDepthExceededError,
+  RecipeMethodConflictError,
+} from "@/server/recipe-guards";
 // L4 (Q6 cascade): the product delete forwards user-selected mapping ids to
 // deleteProductLogic, which throws this when a selected id isn't a live mapping
 // of this product (stale dialog selection). One-way import (Part 8 cross-slice).
@@ -108,6 +119,32 @@ function buildUnitReferencedMessage(mappingIds: string[]): string {
  */
 const CASCADE_MAPPING_INVALID_MESSAGE =
   "เลือกรายการราคาไม่ถูกต้อง — รบกวนรีเฟรชแล้วลองใหม่";
+
+/**
+ * Part 21 Q13. The same shape as `buildHasChildrenMessage` and for the same
+ * reason: a refusal that does not say WHICH recipes leaves the user opening
+ * every dish they have.
+ */
+const RECIPE_NAME_CAP = 3;
+function nameList(names: string[]): string {
+  const shown = names.slice(0, RECIPE_NAME_CAP).join(", ");
+  const remaining = names.length - RECIPE_NAME_CAP;
+  return `${shown}${remaining > 0 ? ` …และอีก ${remaining} รายการ` : ""}`;
+}
+
+function buildUsedInRecipeMessage(recipeNames: string[]): string {
+  return `ลบไม่ได้ — สินค้านี้ยังถูกใช้ในสูตร: ${nameList(recipeNames)}`;
+}
+
+function buildTypeChangeBlockedMessage(recipeNames: string[]): string {
+  return `เปลี่ยนเป็นวัตถุดิบไม่ได้ — มีสูตรที่ผลิตสินค้านี้อยู่: ${nameList(recipeNames)}`;
+}
+
+const METHOD_CONFLICT_MESSAGE =
+  "สินค้านี้มีสูตรผลิตอยู่แล้ว — เลือกได้อย่างเดียว: สูตรผลิต หรือ สินค้าแม่ + เปอร์เซ็นต์ผลผลิต";
+
+const RECIPE_DEPTH_MESSAGE =
+  "เปลี่ยนประเภทไม่ได้ — จะทำให้สูตรที่ใช้สินค้านี้ซ้อนกันเกิน 5 ชั้น";
 
 /** Map the form's snake_case FormData onto the schema's camelCase shape. */
 function rawFromFormData(formData: FormData): Record<string, unknown> {
@@ -210,6 +247,24 @@ function toFormError(e: unknown): ProductActionState {
   if (e instanceof ProductUnitReferencedByMappingError) {
     // L4 (Q5ii): removing a unit still used as a live mapping's orderUnit — form-level.
     return { ok: false, formError: buildUnitReferencedMessage(e.mappingIds) };
+  }
+  // --- Part 21 Q13: `type` is load-bearing from Sprint 5 on (ADR 0021) ---
+  if (e instanceof ProductTypeChangeBlockedError) {
+    return {
+      ok: false,
+      fieldErrors: { type: buildTypeChangeBlockedMessage(e.recipeNames) },
+    };
+  }
+  if (e instanceof RecipeMethodConflictError) {
+    // Q1: this product is already made by a production recipe, so it cannot
+    // also be made by a parent and a yield.
+    return { ok: false, fieldErrors: { parentProductId: METHOD_CONFLICT_MESSAGE } };
+  }
+  if (e instanceof RecipeDepthExceededError || e instanceof RecipeCycleError) {
+    // Turning a RAW into a PREPPED gives every recipe using it one more level,
+    // and some chain passed five. The field is `type`, not `parentProductId`:
+    // the parent is fine, it is the change of kind that overflowed.
+    return { ok: false, fieldErrors: { type: RECIPE_DEPTH_MESSAGE } };
   }
   throw e; // unexpected → let the error boundary handle it
 }
@@ -319,6 +374,11 @@ export async function deleteProduct(
     }
     if (e instanceof MappingNotFoundError) {
       return { ok: false, error: CASCADE_MAPPING_INVALID_MESSAGE };
+    }
+    // Part 21 Q13: the product is still an ingredient of — or the output of — a
+    // live recipe. Mirrors the PREPPED-children block above.
+    if (e instanceof ProductUsedInRecipeError) {
+      return { ok: false, error: buildUsedInRecipeMessage(e.recipeNames) };
     }
     throw e;
   }
