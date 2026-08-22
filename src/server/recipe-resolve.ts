@@ -194,7 +194,20 @@ export async function loadRecipeGraph(
   tenantId: string,
   roots: RecipeTarget[],
   branchId: string,
-  asOf: Date
+  asOf: Date,
+  /**
+   * Use THESE versions for the roots instead of resolving them (Part 21 L3b).
+   *
+   * A recipe page names a version and a branch separately: the user is looking
+   * at the central กะเพราหมู and asking what it would cost at สาขาอโศก, which is
+   * exactly the per-branch comparison Q5 puts on that page. Resolving the root
+   * would answer a different question — อโศก's OWN recipe at อโศก's prices — and
+   * the comparison would silently become one recipe against another.
+   *
+   * Only the roots are pinned. Everything below them still resolves for the
+   * branch and the day, because that is what those branches actually cook.
+   */
+  pinnedRoots?: Map<string, ResolvedRecipeRow>
 ): Promise<RecipeGraph> {
   const products = new Map<string, GraphProduct>();
   const menus = new Map<string, GraphMenu>();
@@ -249,6 +262,12 @@ export async function loadRecipeGraph(
       branchId,
       asOf
     );
+
+    if (level === 0 && pinnedRoots !== undefined) {
+      // Set rather than merge: a pinned root wins even where resolution found
+      // nothing, which is the case of a version the branch does not use.
+      for (const [key, row] of pinnedRoots) resolved.set(key, row);
+    }
 
     // 3. The ingredients of every recipe just resolved, in one query, with the
     //    unit ratio joined so the base-unit value can be computed at read (Q17).

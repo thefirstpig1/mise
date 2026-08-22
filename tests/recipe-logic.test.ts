@@ -201,6 +201,7 @@ describe("recipe write *Logic (ADR 0021 Part 21 L3a)", () => {
           data: { parentProductId: null },
         });
         await tx.product.deleteMany({ where: { tenantId: t } });
+        await tx.category.deleteMany({ where: { tenantId: t } });
         await tx.branch.deleteMany({ where: { tenantId: t } });
         await tx.tenant.deleteMany({ where: { id: t } });
       }

@@ -12,10 +12,10 @@ _(Sprint 4 — POS sales import · daily pulse: ✅ COMPLETE 2026-08-20, except 
 
 ---
 
-## Sprint 5 Part 21 — สูตรอาหาร + ต้นทุนสูตร: 🚧 L0–L3a DONE
+## Sprint 5 Part 21 — สูตรอาหาร + ต้นทุนสูตร: 🚧 L0–L3b DONE
 
 **ADR:** `docs/adr/0021-recipe-and-recipe-cost.md` (Q1–Q18, grill 2026-08-20/21)
-**Rules registered:** `docs/calculation-rules.md` §9, **R1–R13**
+**Rules registered:** `docs/calculation-rules.md` §9, **R1–R13** (grill) + **R14–R17** (decided while building L3b)
 
 | L | What | Status |
 |---|---|---|
@@ -26,8 +26,8 @@ _(Sprint 4 — POS sales import · daily pulse: ✅ COMPLETE 2026-08-20, except 
 | L3-walker | `recipe-graph.ts` — pure, no Prisma · depth/cycle over **products AND menus, one budget** · the two divisions of rule R2 · **33 tests** | ✅ |
 | L3-resolve | `recipe-resolve.ts` — which recipe applies at this **branch** on this **day** · graph loaded 4 queries/level, ≤6 levels | ✅ |
 | L3a | recipe CRUD + write guards · `recipe.ts` (create / edit-appends-a-version / delete-the-line / copy-to-branches) + `recipe-guards.ts` (cycle, depth **both directions**, Q1 method-exclusivity, Q13 type-change + delete block) · **relaxed the Part 7c PREPPED invariant in zod** — L1 owed it and only the DB half existed · **27 DB tests** | ✅ |
-| L3b | **recursive recipe cost** — `getProductCostsLogic` batched once, per-request memo · ⚠️ **carry over from L3a:** a component MENU with no recipe currently contributes NOTHING to the set menu that holds it (`explodeToRaw` returns on `recipe === null`) — the same silently-too-good shape the walker already fixed for a method-less PREPPED product. It cannot be fixed in the walker (`LeafDemand` is a productId), so **L3b/L3c must report it as UNPRICED and make the whole recipe LOW** (Q6) | ⬜ |
-| L3c | cost confidence from `costSource` (weakest ingredient wins) · substitution + reverse lookup | ⬜ |
+| L3b | **recursive recipe cost** — `recipe-cost.ts`: one graph for every root, one batched `replayPairsInTx`, nothing stored · **confidence rolled up here too** (the floor over `costSource`, Q6) because a number nobody can safely display is not a layer · the L3a carry-over closed: a component menu with **no recipe** is found by scanning the graph and reported `NO_RECIPE`, since a leaf is a productId and the explosion cannot express it · Q16's yield-percentage read · **18 DB tests** | ✅ |
+| L3c | substitution across recipes (Q14/Q15) · the public reverse lookup · Q17's "which recipes does this ratio move" read | ⬜ |
 | L4 | actions + Thai errors + serializers (Decimal → string) | ⬜ |
 | L5 | `/recipes` list + form + cost view + branch comparison + substitution screen | ⬜ |
 | L5b | fix the latent `/cost` bug: `r.grossProfit ? … : "—"` renders a real **0.00 as "—"** (`BranchCostTable.tsx:146,151,171,174`, `cost-view.ts:149-152`) — the file's own header says *"a zero would be a lie"* | ⬜ |
