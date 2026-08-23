@@ -28,7 +28,8 @@ import {
   seriesKeyOf,
   type PriceHistorySeries,
 } from "../_components/mapping-view";
-import ProductForm from "../_components/ProductForm";
+import { getRecipesUsingUnitLogic } from "@/server/recipe-read";
+import ProductForm, { type UnitRecipeUsage } from "../_components/ProductForm";
 import DeleteProductButton from "../_components/DeleteProductButton";
 import MappingListSection from "../_components/MappingListSection";
 import MappingHistoryViewer from "../_components/MappingHistoryViewer";
@@ -66,6 +67,27 @@ export default async function EditProductPage({
     getParLevelsForProductLogic(tenantId, id),
   ]);
   if (!product) notFound();
+
+  // Part 21 Q17 — which recipes are WRITTEN in each non-base unit of this
+  // product. ADR 0006 left this guard open for want of a downstream reference;
+  // recipes are that reference. It stays a WARNING: refusing a ratio correction
+  // would force the data to stay wrong, the same argument Q13 makes about
+  // RAW → PREPPED.
+  //
+  // One read per unit, and a product has a handful — the same "tuples are few"
+  // reasoning the price history below already runs on.
+  const extraUnits = product.productUnits.filter((u) => !u.isBase);
+  const unitRecipeUsage: UnitRecipeUsage[] = (
+    await Promise.all(
+      extraUnits.map(async (u) => ({
+        unitName: u.unitName,
+        originalRatio: u.toBaseRatio.toString(),
+        recipeLabels: (await getRecipesUsingUnitLogic(tenantId, u.id)).map(
+          (r) => r.label
+        ),
+      }))
+    )
+  ).filter((u) => u.recipeLabels.length > 0);
 
   // Price history (L5a): one series per distinct (supplier, branch) tuple drawn
   // from the live mappings. getPriceHistoryLogic returns ALL rows incl.
@@ -155,6 +177,7 @@ export default async function EditProductPage({
         parentOptions={parentOptions}
         availableTemplates={densityTemplates}
         submitLabel="บันทึกการแก้ไข"
+        unitRecipeUsage={unitRecipeUsage}
       />
 
       {/* Part 8 L5a — supplier price list + history (product-centric, Q9). Read

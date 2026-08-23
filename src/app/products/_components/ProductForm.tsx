@@ -51,6 +51,13 @@ type CategoryOption = {
  *  default-buy selection survives renames (we resolve id → name only at submit). */
 type UnitRow = { id: number; unitName: string; toBaseRatio: string };
 
+/** Q17: the recipes written in one unit, and the ratio they were written against. */
+export type UnitRecipeUsage = {
+  unitName: string;
+  originalRatio: string;
+  recipeLabels: string[];
+};
+
 /** 7d density section mode (Q5): ไม่ระบุ / ใช้ค่ามาตรฐาน / ใส่ค่าเอง. */
 type DensityMode = "none" | "template" | "custom";
 
@@ -66,6 +73,7 @@ export default function ProductForm({
   availableTemplates,
   submitLabel,
   showRestoreSuggestion = false,
+  unitRecipeUsage = [],
 }: {
   action: (
     prev: ProductActionState,
@@ -82,6 +90,17 @@ export default function ProductForm({
   /** Part 8.5 L5c — CREATE flow only: swap the plain name input for the
    *  restore-on-recreate typeahead + dialog. Default false keeps edit untouched. */
   showRestoreSuggestion?: boolean;
+  /**
+   * Part 21 Q17 — which recipes are WRITTEN in each of this product's units, so
+   * changing a ratio can say what it moves before it moves it (ADR 0006 left
+   * this guard open for want of a downstream reference; recipes supply it).
+   *
+   * Deliberately a WARNING and not a block: refusing a ratio correction forces
+   * the data to stay wrong, which is the same argument Q13 makes about
+   * RAW → PREPPED. Keyed by unit NAME, because that is the identity the form
+   * itself uses for these rows.
+   */
+  unitRecipeUsage?: UnitRecipeUsage[];
 }) {
   const router = useRouter();
   const [state, formAction, isPending] = useActionState(
@@ -642,8 +661,19 @@ export default function ProductForm({
             </span>
           </div>
 
-          {rows.map((row) => (
-            <div key={row.id} className="flex items-center gap-2">
+          {rows.map((row) => {
+            const usage = unitRecipeUsage.find(
+              (u) => u.unitName === row.unitName
+            );
+            // Only once the number actually differs. A permanent notice under
+            // every unit is a notice nobody reads by the third product.
+            const ratioMoved =
+              usage !== undefined &&
+              row.toBaseRatio.trim() !== "" &&
+              row.toBaseRatio.trim() !== usage.originalRatio;
+            return (
+            <div key={row.id} className="space-y-1">
+            <div className="flex items-center gap-2">
               <input
                 type="text"
                 name="additional_unit_name"
@@ -681,7 +711,26 @@ export default function ProductForm({
                 ลบ
               </button>
             </div>
-          ))}
+
+            {/* Q17. The instruction in the recipe has not changed — "1 กระสอบ"
+                still says กระสอบ — but the quantity it DENOTES has, and every
+                cost figure built on it moves with it. */}
+            {ratioMoved && usage ? (
+              <div className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                <p className="font-medium">
+                  แก้อัตราส่วนนี้จะเปลี่ยนปริมาณจริงใน {usage.recipeLabels.length} สูตร
+                  ที่เขียนไว้เป็น “{row.unitName}”
+                </p>
+                <p className="mt-0.5">{usage.recipeLabels.join(" · ")}</p>
+                <p className="mt-0.5">
+                  ข้อความในสูตรไม่เปลี่ยน แต่ปริมาณที่มันหมายถึงเปลี่ยน —
+                  ถ้าอัตราส่วนเดิมผิด นี่คือสิ่งที่ต้องแก้ ไม่ใช่สิ่งที่ต้องเลี่ยง
+                </p>
+              </div>
+            ) : null}
+            </div>
+            );
+          })}
         </div>
 
         {/* Resolved at submit: id → name (rename-safe). The base unit name is

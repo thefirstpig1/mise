@@ -140,15 +140,21 @@ export default function BranchCostTable({
                   >
                     {formatMoney(r.excessSpend)}
                   </td>
+                  {/* `!== null` and not a truthiness check. Both fields reach
+                      here as STRINGS, so "0" is truthy today and a real zero
+                      does render — but the day either becomes a number, `0`
+                      turns falsy and a branch that broke exactly even would
+                      print "—". A zero would be a lie (see this file's header),
+                      and the guard should not depend on the serializer's type. */}
                   <td
-                    className={`${tdNum} ${r.revenue ? "font-medium" : "text-muted-foreground"}`}
+                    className={`${tdNum} ${r.revenue !== null ? "font-medium" : "text-muted-foreground"}`}
                   >
-                    {r.revenue ? formatMoney(r.revenue) : "—"}
+                    {r.revenue !== null ? formatMoney(r.revenue) : "—"}
                   </td>
                   <td
-                    className={`${tdNum} ${r.grossProfit ? "font-medium" : "text-muted-foreground"}`}
+                    className={`${tdNum} ${r.grossProfit !== null ? "font-medium" : "text-muted-foreground"}`}
                   >
-                    {r.grossProfit ? formatMoney(r.grossProfit) : "—"}
+                    {r.grossProfit !== null ? formatMoney(r.grossProfit) : "—"}
                     <span className="mt-0.5 block text-[10px] font-normal leading-tight text-muted-foreground">
                       {r.grossProfitNote}
                     </span>
@@ -166,12 +172,12 @@ export default function BranchCostTable({
               <td className={`${tdNum} font-medium`}>{fmt(total.varianceValue)}</td>
               <td className={`${tdNum} font-medium`}>{fmt(total.excessSpend)}</td>
               <td className={`${tdNum} font-medium`}>
-                {rows.some((r) => r.revenue)
+                {rows.some((r) => r.revenue !== null)
                   ? fmt(rows.reduce((sum, r) => sum + Number(r.revenue ?? 0), 0))
                   : "—"}
               </td>
               <td className={`${tdNum} font-medium`}>
-                {rows.some((r) => r.grossProfit)
+                {rows.some((r) => r.grossProfit !== null)
                   ? fmt(rows.reduce((sum, r) => sum + Number(r.grossProfit ?? 0), 0))
                   : "—"}
               </td>
