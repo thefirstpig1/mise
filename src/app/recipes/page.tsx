@@ -219,6 +219,10 @@ export default async function RecipesPage({
           <h3 className="text-lg font-semibold">เมนู</h3>
           <p className="text-sm text-muted-foreground">
             {menus.length} รายการ ·{" "}
+            <a href="/recipes/substitute" className="text-primary hover:underline">
+              เปลี่ยนวัตถุดิบหลายสูตรพร้อมกัน
+            </a>{" "}
+            ·{" "}
             <a href="/menus" className="text-primary hover:underline">
               จัดการชื่อและหมวดของเมนู
             </a>
