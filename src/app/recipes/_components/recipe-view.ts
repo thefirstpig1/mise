@@ -21,16 +21,21 @@
 
 import type { Prisma } from "@prisma/client";
 import {
+  PREPPED_METHOD_LABELS_TH,
   RECIPE_CONFIDENCE_HINTS_TH,
   RECIPE_CONFIDENCE_LABELS_TH,
   RECIPE_PROBLEM_LABELS_TH,
   UNPRICED_REASON_LABELS_TH,
+  type PreppedMethod,
   type RecipeConfidence,
 } from "@/lib/validations/recipe";
 import type { RecipeCost } from "@/server/recipe-cost";
 import type { RecipeWithIngredients } from "@/server/recipe";
 import type {
+  RecipeBranchComparison,
+  RecipeListRow,
   RecipeUsageRow,
+  RecipeVersionRow,
   SubstitutionPlan,
   UnitRecipeUsageRow,
 } from "@/server/recipe-read";
@@ -280,5 +285,137 @@ export function toUnitRecipeUsageView(u: UnitRecipeUsageRow): UnitRecipeUsageVie
     isCentral: u.isCentral,
     qty: str(u.qty),
     productName: u.productName,
+  };
+}
+
+// ------------------------------------------------------------
+// The list, the branch comparison, the history (L5a)
+// ------------------------------------------------------------
+
+export type RecipeListRowView = {
+  kind: "menu" | "product";
+  targetId: string;
+  name: string;
+  categoryName: string | null;
+  isPosStub: boolean;
+  preppedMethod: PreppedMethod;
+  preppedMethodLabel: string;
+  recipeId: string | null;
+  lineId: string | null;
+  isBranchOwn: boolean;
+  servings: string | null;
+  /** Null together with `confidence`, never on its own. */
+  costPerServing: string | null;
+  confidence: RecipeConfidence | null;
+  confidenceLabel: string | null;
+  problem: "CYCLE" | "TOO_DEEP" | null;
+  problemLabel: string | null;
+};
+
+export function toRecipeListRowView(r: RecipeListRow): RecipeListRowView {
+  return {
+    kind: r.kind,
+    targetId: r.targetId,
+    name: r.name,
+    categoryName: r.categoryName,
+    isPosStub: r.isPosStub,
+    preppedMethod: r.preppedMethod,
+    preppedMethodLabel: PREPPED_METHOD_LABELS_TH[r.preppedMethod],
+    recipeId: r.recipeId,
+    lineId: r.lineId,
+    isBranchOwn: r.isBranchOwn,
+    servings: r.servings === null ? null : str(r.servings),
+    costPerServing: r.costPerServing === null ? null : baht(r.costPerServing),
+    confidence: r.confidence,
+    confidenceLabel:
+      r.confidence === null ? null : RECIPE_CONFIDENCE_LABELS_TH[r.confidence],
+    problem: r.problem,
+    problemLabel: r.problem === null ? null : RECIPE_PROBLEM_LABELS_TH[r.problem],
+  };
+}
+
+export type RecipeBranchGroupView = {
+  recipeId: string;
+  lineId: string;
+  isCentral: boolean;
+  branchNames: string[];
+  branchCount: number;
+  /** Shown here on purpose: a history-shaped view, where the date is the content. */
+  effectiveFrom: string;
+  effectiveFromLabel: string;
+  ingredientCount: number;
+  servings: string;
+  costPerServing: string | null;
+  confidence: RecipeConfidence | null;
+  confidenceLabel: string | null;
+  problem: "CYCLE" | "TOO_DEEP" | null;
+  problemLabel: string | null;
+  /**
+   * The branch the figure beside it was priced at. The screen MUST print it —
+   * two groups priced at two branches differ by their prices as well as by their
+   * ingredients, and without the name the reader attributes all of it to the
+   * recipe (rule R4).
+   */
+  pricedAtBranchName: string | null;
+};
+
+export type RecipeBranchComparisonView = {
+  label: string;
+  branchesWithNoRecipe: string[];
+  groups: RecipeBranchGroupView[];
+};
+
+export function toBranchComparisonView(
+  c: RecipeBranchComparison
+): RecipeBranchComparisonView {
+  return {
+    label: c.label,
+    branchesWithNoRecipe: c.branchesWithNoRecipe,
+    groups: c.groups.map((g) => ({
+      recipeId: g.recipeId,
+      lineId: g.lineId,
+      isCentral: g.isCentral,
+      branchNames: g.branchNames,
+      branchCount: g.branchCount,
+      effectiveFrom: g.effectiveFrom.toISOString(),
+      effectiveFromLabel: BANGKOK_DATE.format(g.effectiveFrom),
+      ingredientCount: g.ingredientCount,
+      servings: str(g.servings),
+      costPerServing: g.costPerServing === null ? null : baht(g.costPerServing),
+      confidence: g.confidence,
+      confidenceLabel:
+        g.confidence === null ? null : RECIPE_CONFIDENCE_LABELS_TH[g.confidence],
+      problem: g.problem,
+      problemLabel:
+        g.problem === null ? null : RECIPE_PROBLEM_LABELS_TH[g.problem],
+      pricedAtBranchName: g.pricedAtBranchName,
+    })),
+  };
+}
+
+export type RecipeVersionView = {
+  recipeId: string;
+  effectiveFrom: string;
+  effectiveFromLabel: string;
+  createdAtLabel: string;
+  ingredientCount: number;
+  servings: string;
+  notes: string | null;
+  isSuperseded: boolean;
+  isCurrent: boolean;
+};
+
+/** Rule R8's one screen: here the date IS the content. */
+export function toRecipeVersionView(v: RecipeVersionRow): RecipeVersionView {
+  return {
+    recipeId: v.recipeId,
+    effectiveFrom: v.effectiveFrom.toISOString(),
+    effectiveFromLabel: BANGKOK_DATE.format(v.effectiveFrom),
+    createdAtLabel: BANGKOK_DATE.format(v.createdAt),
+    ingredientCount: v.ingredientCount,
+    servings: str(v.servings),
+    notes: v.notes,
+    isSuperseded: v.isSuperseded,
+    isCurrent: v.isCurrent,
   };
 }

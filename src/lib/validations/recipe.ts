@@ -579,6 +579,20 @@ export const UNPRICED_REASON_LABELS_TH: Record<
   NO_RECIPE: "ยังไม่มีสูตรบอกว่าทำจากอะไร",
 };
 
+/**
+ * How a PREPPED product is made (Q1) — one parent + a yield, OR a production
+ * recipe with many inputs, NEVER both. `NONE` is where a product sits between
+ * being created and being told how it is made: not an error, a queue.
+ */
+export const PREPPED_METHOD_VALUES = ["PARENT_YIELD", "RECIPE", "NONE"] as const;
+export type PreppedMethod = (typeof PREPPED_METHOD_VALUES)[number];
+
+export const PREPPED_METHOD_LABELS_TH: Record<PreppedMethod, string> = {
+  PARENT_YIELD: "แปรรูปจากสินค้าแม่",
+  RECIPE: "มีสูตรผลิต",
+  NONE: "ยังไม่ได้ระบุว่าทำจากอะไร",
+};
+
 /** A graph fault found while costing. The page says which recipe, not "error". */
 export const RECIPE_PROBLEM_LABELS_TH: Record<"CYCLE" | "TOO_DEEP", string> = {
   CYCLE: "สูตรนี้วนกลับมาหาตัวเอง จึงคิดต้นทุนไม่ได้",
