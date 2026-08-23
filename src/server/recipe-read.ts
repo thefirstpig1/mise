@@ -30,6 +30,7 @@ import { withTenantContext } from "@/lib/db";
 import { computeBangkokToday } from "@/lib/bangkok-date";
 import { resolveRecipeIds, type RecipeTarget } from "@/server/recipe-resolve";
 import { getRecipeCostsLogic, type RecipeCost } from "@/server/recipe-cost";
+import type { RecipeWithIngredients } from "@/server/recipe";
 import type {
   PreppedMethod,
   RecipeConfidence,
@@ -845,5 +846,53 @@ export async function getRecipeHistoryLogic(
       isSuperseded: v.supersededAt !== null,
       isCurrent: v.id === currentId,
     }));
+  });
+}
+
+/**
+ * One recipe version, by its id, with what it is made of and what it makes.
+ *
+ * The page addresses a VERSION, not a line: `/recipes/<id>` opened from a
+ * history row has to render the version that row names, and resolving it back to
+ * "whatever is current" would quietly answer a different question. Which version
+ * governs today is `isCurrent` on the history rows, and the page says so.
+ */
+export async function getRecipeByIdLogic(
+  tenantId: string,
+  recipeId: string
+): Promise<
+  | (RecipeWithIngredients & {
+      targetName: string;
+      targetKind: "menu" | "product";
+      isSuperseded: boolean;
+      /** The branches that follow THIS line — empty on a central recipe. */
+      branchNames: string[];
+    })
+  | null
+> {
+  return withTenantContext(tenantId, async (tx) => {
+    const recipe = await tx.recipe.findFirst({
+      where: { id: recipeId, tenantId, deletedAt: null },
+      include: {
+        ingredients: true,
+        menu: { select: { name: true } },
+        outputProduct: { select: { name: true } },
+      },
+    });
+    if (recipe === null) return null;
+
+    const links = await tx.recipeBranch.findMany({
+      where: { tenantId, lineId: recipe.lineId },
+      select: { branch: { select: { name: true } } },
+    });
+
+    const { menu, outputProduct, ...rest } = recipe;
+    return {
+      ...rest,
+      targetName: menu?.name ?? outputProduct?.name ?? recipe.id,
+      targetKind: recipe.menuId !== null ? ("menu" as const) : ("product" as const),
+      isSuperseded: recipe.supersededAt !== null,
+      branchNames: links.map((l) => l.branch.name).sort(),
+    };
   });
 }
