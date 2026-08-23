@@ -12,10 +12,10 @@ _(Sprint 4 — POS sales import · daily pulse: ✅ COMPLETE 2026-08-20, except 
 
 ---
 
-## Sprint 5 Part 21 — สูตรอาหาร + ต้นทุนสูตร: 🚧 L0–L4 DONE
+## Sprint 5 Part 21 — สูตรอาหาร + ต้นทุนสูตร: 🚧 L0–L5 DONE, L6 next
 
 **ADR:** `docs/adr/0021-recipe-and-recipe-cost.md` (Q1–Q18, grill 2026-08-20/21)
-**Rules registered:** `docs/calculation-rules.md` §9, **R1–R13** (grill) + **R14–R19** (decided while building L3b/L3c)
+**Rules registered:** `docs/calculation-rules.md` §9, **R1–R13** (grill) + **R14–R19** (decided while building L3b/L3c) + **R20–R22** (decided while building L5a)
 
 | L | What | Status |
 |---|---|---|
@@ -29,8 +29,12 @@ _(Sprint 4 — POS sales import · daily pulse: ✅ COMPLETE 2026-08-20, except 
 | L3b | **recursive recipe cost** — `recipe-cost.ts`: one graph for every root, one batched `replayPairsInTx`, nothing stored · **confidence rolled up here too** (the floor over `costSource`, Q6) because a number nobody can safely display is not a layer · the L3a carry-over closed: a component menu with **no recipe** is found by scanning the graph and reported `NO_RECIPE`, since a leaf is a productId and the explosion cannot express it · Q16's yield-percentage read · **18 DB tests** | ✅ |
 | L3c | substitution across recipes (Q14/Q15) — every target gets a **real version** through the same `appendVersion` the edit form uses, ids **derived** from `submitKey`+`recipeId` so a retry finds the same N rows · `recipe-read.ts`: usage grouped central/branch, the plan that decides where a quantity may carry (Q15), and Q17's unit-ratio read · **17 DB tests** | ✅ |
 | L4 | 5 actions + Thai errors + serializers · `MAX_RECIPE_DEPTH` and the confidence vocabulary moved to `validations/recipe.ts` (**one definition**, and a Client Component can render them) · **a cost never leaves the serializer without its confidence** · the two acknowledge-flows return `needsAcknowledgement` so the screen can list what it is about to displace | ✅ |
-| L5 | `/recipes` list + form + cost view + branch comparison + substitution screen | ⬜ |
-| L5b | fix the latent `/cost` bug: `r.grossProfit ? … : "—"` renders a real **0.00 as "—"** (`BranchCostTable.tsx:146,151,171,174`, `cost-view.ts:149-152`) — the file's own header says *"a zero would be a lie"* | ⬜ |
+| L5a | the three reads a screen asks for, which L3 had none of — `getRecipeListLogic` (every menu at one branch on one day, recipe-or-not + cost, `missingOnly` = the queue), `getRecipeBranchComparisonLogic` (**Q9: group by recipe, count the branches**, each group priced at a branch it serves and carrying that branch's NAME — rules **R20/R21**), `getRecipeHistoryLogic` (rule R8's one screen) · `recipeListQuerySchema` was written in L2 and had **no consumer** until now · **15 DB tests, in their own tenant** — a list read returns everything in the tenant, so sharing `recipe-cost-logic`'s fixture would make every assertion depend on how many tests ran first | ✅ |
+| L5b | `/recipes` — **the MENU is the axis**, chosen by Kong 2026-08-23: a list of the recipes that exist cannot show what is missing, and what is missing is the work · PREPPED products in their own section naming their Q1 method, carrying **Q11 in words** (nothing can raise a prepped balance, so counting one always reports a gain) · dashboard link | ✅ |
+| L5c | `/recipes/[id]` + `/recipes/new` — addresses a **VERSION**, not a line, so a history link answers what it asked · **rule R8 enforced on the page, not in the serializer** (effectiveFrom prints only in the history block and the "not current" banner) · `submit_key` minted client-side and rotated after each success · **every ingredient row posts all five inputs including the empty one** — the action reads parallel arrays and a menu row omitting the product input would shift every row below it · copy-to-branches refuses once and names the branches (Q8) · a cost panel where the caveat is not a footnote | ✅ |
+| L5d | `/recipes/substitute` — two steps, and the first writes nothing · **Q15's empty box rendered as one** (blank + outlined, never a zero, never the old number) · branch recipes are their own group and start **UNTICKED** (Q8) · an unticked row's inputs are `disabled`, so it posts nothing and the arrays stay aligned | ✅ |
+| L5e | **Q17 gets its caller at last** — `getRecipesUsingUnitLogic` had zero call sites since L3c. The product form names the recipes written in a unit, and only once the ratio actually differs. A warning, never a block | ✅ |
+| L5f | the handoff's latent `/cost` bug — `r.grossProfit ? … : "—"` rendering a real 0.00 as "—" — **DOES NOT REPRODUCE**. Both fields reach the client as strings and `Prisma.Decimal(0).toString()` is `"0"`, which is truthy (verified against `@prisma/client`, not reasoned about). Guards tightened to `!== null` anyway: no change today, and it removes the class if either is ever serialized as a number | ✅ |
 | L6 | E2E through the real action stack · spec + config deleted, never committed · Neon swept | ⬜ |
 
 ### What the grill changed that the plan did not anticipate
@@ -47,7 +51,7 @@ Part 21 grew, and each addition was accepted on the same argument — **the walk
 - **A set menu's revenue still lands on one department.** How 299 ฿ divides between kitchen and bar is a calculation rule for **Part 22**, where `/cost` is touched anyway.
 - **`Product.type` is load-bearing from now on** (Q13). Anything later that reads it must check the guard still covers it. L3a wired the guard into `updateProductLogic` / `deleteProductLogic` and gave the four new refusals Thai messages in `src/app/products/actions.ts` — without that, an existing page would have surfaced them as an unhandled Server Action error.
 - **A menu still has no delete path.** Part 19 gave `menu` a `deletedAt` column and no way to set it, so Q3's "a menu inside a set cannot be deleted" has nothing to attach to. `assertMenuNotUsedInRecipes` is written and exported so whoever adds the button does not have to rediscover that the guard is owed.
-- **Q17's ratio guard: the read exists, nothing calls it.** `getRecipesUsingUnitLogic` names the recipes a `toBaseRatio` correction would move. Deliberately a read and not a block — refusing a correction forces the data to stay wrong, the same argument Q13 makes about RAW → PREPPED. **L5 must show it on the product form before saving.**
+- ~~**Q17's ratio guard: the read exists, nothing calls it.**~~ **Closed in L5e** — the product edit page names the recipes written in each non-base unit, and shows it only once the typed ratio differs from the stored one. Still a warning, never a block: refusing a correction forces the data to stay wrong, the same argument Q13 makes about RAW → PREPPED.
 
 ---
 
