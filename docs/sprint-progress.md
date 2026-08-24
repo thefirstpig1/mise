@@ -1,14 +1,39 @@
 # Mise Sprint Progress
 
-**Last updated:** 2026-08-21
+**Last updated:** 2026-08-24
 
 ## Current Sprint: Sprint 5 — Recipe + CONSUMPTION 🚧 IN PROGRESS
 
 _(Sprint 4 — POS sales import · daily pulse: ✅ COMPLETE 2026-08-20, except Part 20b which is blocked on choosing an inbound-mail vendor)_
 
-**Status:** grill complete (Q1–Q18) → **ADR 0021 written** · **L0–L2 done, L3 in progress** (walker + resolver built and committed; CRUD next).
+**Status:** **Part 21 ✅ COMPLETE 2026-08-24** (L0–L6, 17 commits pushed) · **Part 22 grill complete (Q1–Q11) → ADR 0022 written**, L1 next.
 **Split:** Sprint 5 is **three Parts** — **21** สูตรอาหาร + ต้นทุนสูตร (no ledger writes) · **22** `CONSUMPTION` + GP by recipe · **23** Menu Lab, menu merging, staff meal, recipe coverage.
 **Not in Sprint 5:** H.8 theoretical-vs-actual variance (→ Sprint 6, per the spec's own O16, decided 2026-08-21) · Price Volatility (Sprint 6) · Section B three-layer mirror and `recipe_change_diff` (**removed**, ADR 0021 Q3).
+
+---
+
+## Sprint 5 Part 22 — ตัดสต๊อกตามยอดขาย (`CONSUMPTION`): 🚧 L0 DONE, L1 next
+
+**ADR:** `docs/adr/0022-consumption-from-sales.md` (Q1–Q11, grill 2026-08-24)
+**Rules registered:** `docs/calculation-rules.md` §10, **N1–N12** (`S` was already the stock-count prefix)
+
+| L | What | Status |
+|---|---|---|
+| L0 | ADR 0022 · CONTEXT.md (Sales consumption run · Consumption coverage · Cancelled order; CONSUMPTION and Set menu rewritten) · rules N1–N12 · watchlist §11 reconciled — three ⏳ rows closed, the set-menu×department row **re-homed** | ✅ |
+| L1 | `part_22a` migration — the two enum values **alone** (Postgres refuses a new enum value in the transaction that added it) · then `part_22`: `sales_consumption_run` / `sales_consumption_item` · `tenant.cancelled_sale_policy` · `SourceType.SALES_CONSUMPTION` · `stock_movement_sign_check` dropped and re-declared · RLS · verify against Neon | ⬜ |
+| L2 | zod — the posting input, the void input, the coverage query · `MAX_BACKDATE_DAYS` reused **by import** (there are already two copies; do not make a third) | ⬜ |
+| L3a | the explosion — for one branch × day, resolve every sold menu's recipe **as of that day**, ONE `loadRecipeGraph` for all roots, `explodeToRaw` per root × qty, summed per product · **takes a `tx`**, because `getRecipeCostsLogic` opens its own context and must not be nested | ⬜ |
+| L3b | posting + the coverage report + N2's all-or-nothing rule + N9's window check, through `createStockMovementLogic` · needs explicit `TenantContextOptions` — a 30-day post is not a 5 s transaction | ⬜ |
+| L3c | the void path (N7) and the `fifo-replay.ts` case for `CONSUMPTION_REVERSAL` (N8) — **the first change to that file since Part 18** · wired into `commitSalesImportLogic` per N6 | ⬜ |
+| L3d | gross profit by สูตรอาหาร (N10) at the three existing branch points in `getBranchCostSummaryLogic`; the placeholder note in `cost-view.ts` goes | ⬜ |
+| L4 | actions + Thai refusals + serializers (Decimal → string, Pitfall #20) | ⬜ |
+| L5 | screens — the posting step on the import result · the coverage read · N11's "this day's recipe changed" warning · the **"การคำนวณ"** group in `/settings` (N12) which `gross_profit_method` joins · `/cost` losing its "—" | ⬜ |
+| L6 | E2E through the real action stack · spec + config deleted, never committed · Neon swept · batch push | ⬜ |
+
+### What the grill changed that the plan did not anticipate
+- **Q8 was withdrawn, not answered.** The set menu's department split was routed here on the grounds that `/cost` is touched anyway — but `stock_movement` has **no `department_id`** (the master spec says it does; ADR 0011 built it without, and the ADR wins) and `menu.primary_department_id` is read by no report. Deciding it here would have produced a rule no line enforces.
+- **Q9 reversed the plan's own recommendation.** "—" for a partly-posted period contradicts ADR 0019's requirement that every gross-profit row carry its count freshness, and W4's that every par row carry its own. The house rule for an imperfect figure is to print it **with its freshness attached**.
+- **Q3 became a tenant setting**, and with it a principle (N12) that outlives this Part: ambiguity that comes from *the nature of the shop* is the shop's to settle, with the consequence and an example on screen — but a switch is not a place to put decisions that have a right answer.
 
 ---
 
