@@ -156,6 +156,7 @@ const emptyState = (productId: string, branchId: string): ProductCost => ({
   totalIn: ZERO,
   totalOut: ZERO,
   outflows: [],
+  consumptionMoves: [],
 });
 
 /**
@@ -516,6 +517,20 @@ export type BranchCostSummary = {
    * method, and null when there is no revenue to set it against.
    */
   cogsSold: Prisma.Decimal | null;
+  /**
+   * Revenue of the days in this period whose consumption is POSTED and still
+   * stands (rule N3/N10). Zero when nothing is posted; it never goes null,
+   * because "we covered none of it" is a fact and "we do not know" is not.
+   *
+   * Read together with `revenue`, this is how honest the gross-profit figure
+   * above is — and by ADR 0019's rule, a figure whose freshness is invisible
+   * will be believed past the point it deserves.
+   */
+  consumptionCoveredNetAmount: Prisma.Decimal;
+  /** Business days in the period with a live posting. */
+  consumptionDaysPosted: number;
+  /** Business days in the period with any live sales at all. */
+  salesDaysInPeriod: number;
   /** Inventory value at the END of the day before the period began. */
   openingInventoryValue: Prisma.Decimal;
   /**
@@ -704,6 +719,95 @@ export async function getBranchCostSummaryLogic(
     });
     const grossProfitMethod = tenantRow.grossProfitMethod;
 
+    // --- what the recipes say was sold (ADR 0022 Q9, rule N10) ---
+    //
+    // Not read off the ledger by movement type. A period can hold a consumption
+    // whose run has since been voided by a re-import, and its reversal is dated
+    // NOW rather than on the sales day — so summing CONSUMPTION movements inside
+    // the period would count a day that no longer stands and never see the row
+    // that took it back.
+    //
+    // Asked of the DOCUMENTS instead: what did the runs that still stand consume?
+    // Voided runs drop out whole, originals and reversals together, so nothing
+    // needs netting. Only fetched under the method that uses it — this is the
+    // heaviest page in the system and a shop counting stock should not pay for it.
+    const consumptionSourceIds =
+      grossProfitMethod === "RECIPE_CONSUMPTION"
+        ? [...replayed.values()].flatMap((state) =>
+            state.consumptionMoves.map((c) => c.sourceId)
+          )
+        : [];
+
+    const consumptionItems = consumptionSourceIds.length
+      ? await tx.salesConsumptionItem.findMany({
+          where: { tenantId, id: { in: consumptionSourceIds } },
+          select: {
+            id: true,
+            run: {
+              select: { branchId: true, businessDate: true, voidedAt: true },
+            },
+          },
+        })
+      : [];
+    const runByItem = new Map(consumptionItems.map((i) => [i.id, i.run]));
+
+    const consumptionValueByBranch = new Map<string, Prisma.Decimal>();
+    if (grossProfitMethod === "RECIPE_CONSUMPTION") {
+      for (const state of replayed.values()) {
+        for (const move of state.consumptionMoves) {
+          const run = runByItem.get(move.sourceId);
+          if (run === undefined || run.voidedAt !== null) continue;
+          // The RUN's business date, not the movement's — they agree today, and
+          // pinning to the document keeps them agreeing if a compensating
+          // movement is ever dated differently again.
+          const d = run.businessDate.getTime();
+          if (d < from.getTime() || d > to.getTime()) continue;
+          consumptionValueByBranch.set(
+            run.branchId,
+            (consumptionValueByBranch.get(run.branchId) ?? ZERO).plus(move.value)
+          );
+        }
+      }
+    }
+
+    // Coverage, which every figure computed above has to be read against.
+    const coverageRuns = await tx.salesConsumptionRun.groupBy({
+      by: ["branchId"],
+      where: {
+        tenantId,
+        voidedAt: null,
+        businessDate: { gte: from, lte: to },
+      },
+      _sum: { coveredNetAmount: true },
+      _count: { _all: true },
+    });
+    const coveredByBranch = new Map(
+      coverageRuns.map((r) => [r.branchId, r._sum.coveredNetAmount ?? ZERO])
+    );
+    const daysPostedByBranch = new Map(
+      coverageRuns.map((r) => [r.branchId, r._count._all])
+    );
+
+    // How many days there were to post in the first place. A branch with three
+    // posted days out of three is complete; three out of thirty is not, and the
+    // difference is invisible from the posted count alone.
+    const salesDayRows = await tx.salesLine.groupBy({
+      by: ["branchId", "businessDate"],
+      where: {
+        tenantId,
+        supersededAt: null,
+        branchId: { in: branchIds },
+        businessDate: { gte: from, lte: to },
+      },
+    });
+    const salesDaysByBranch = new Map<string, number>();
+    for (const row of salesDayRows) {
+      salesDaysByBranch.set(
+        row.branchId,
+        (salesDaysByBranch.get(row.branchId) ?? 0) + 1
+      );
+    }
+
     const dayBeforeFrom = new Date(from.getTime() - 86_400_000);
     const openingReplayed =
       grossProfitMethod === "PERIODIC_INVENTORY"
@@ -789,10 +893,28 @@ export async function getBranchCostSummaryLogic(
 
       // COGS SOLD = opening + purchases − closing. The accounting identity, and
       // the only gross profit available to a shop with no recipes.
+      const daysPosted = daysPostedByBranch.get(branch.id) ?? 0;
+
+      // Two methods, and the second one arrived in Part 22.
+      //
+      // นับสต๊อก: opening + purchases − closing, the accounting identity, and the
+      //   only gross profit available to a shop with no recipes.
+      // สูตรอาหาร: what the recipes say the sold dishes actually consumed.
+      //
+      // The สูตรอาหาร figure stays NULL until at least one day of the period is
+      // posted, because 0.00 would read as "cost of goods sold was nothing"
+      // rather than "nothing has been posted" (Q9). Once ANY day is posted the
+      // number is shown — with its coverage beside it, never bare — since ADR
+      // 0019 already settled that an imperfect figure is printed with its
+      // freshness attached rather than withheld.
       const cogsSold =
-        grossProfitMethod === "PERIODIC_INVENTORY" && revenue !== null
-          ? openingInventoryValue.plus(cogsSpend).minus(inventoryValue)
-          : null;
+        revenue === null
+          ? null
+          : grossProfitMethod === "PERIODIC_INVENTORY"
+            ? openingInventoryValue.plus(cogsSpend).minus(inventoryValue)
+            : daysPosted > 0
+              ? (consumptionValueByBranch.get(branch.id) ?? ZERO)
+              : null;
 
       return {
         branchId: branch.id,
@@ -808,6 +930,9 @@ export async function getBranchCostSummaryLogic(
         unpricedProducts,
         revenue,
         grossProfit: revenue !== null && cogsSold !== null ? revenue.minus(cogsSold) : null,
+        consumptionCoveredNetAmount: coveredByBranch.get(branch.id) ?? ZERO,
+        consumptionDaysPosted: daysPosted,
+        salesDaysInPeriod: salesDaysByBranch.get(branch.id) ?? 0,
         grossProfitMethod,
         cogsSold,
         openingInventoryValue,

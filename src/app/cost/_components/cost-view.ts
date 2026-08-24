@@ -130,6 +130,16 @@ export type BranchCostSummaryView = {
   openingInventoryValue: string;
   /** The sentence that goes under the figure: how good is it, and why. */
   grossProfitNote: string;
+  /**
+   * Days of this period whose consumption is posted, out of the days that had
+   * sales (rule N10). Rendered beside the สูตรอาหาร figure, never behind it — a
+   * gross profit computed from three of thirty days is a real number about a
+   * tenth of a month, and printing it bare is how it gets read as a month.
+   */
+  consumptionDaysPosted: number;
+  salesDaysInPeriod: number;
+  /** Share of the period's revenue those days account for, 0–100, or null. */
+  consumptionCoveragePercent: number | null;
 };
 
 export const toBranchCostSummaryView = (
@@ -152,7 +162,25 @@ export const toBranchCostSummaryView = (
   cogsSold: row.cogsSold ? row.cogsSold.toString() : null,
   openingInventoryValue: row.openingInventoryValue.toString(),
   grossProfitNote: grossProfitNote(row),
+  consumptionDaysPosted: row.consumptionDaysPosted,
+  salesDaysInPeriod: row.salesDaysInPeriod,
+  consumptionCoveragePercent: coveragePercent(row),
 });
+
+/**
+ * Coverage as a share of REVENUE, not of dishes or of days (rule N3): the
+ * question behind it is how wrong the cost of goods sold is, and a ฿20 water is
+ * not a ฿300 steak.
+ *
+ * Null when there is no revenue to be a share of — a period with no sales has no
+ * coverage rather than 0% coverage, and the two read very differently.
+ */
+function coveragePercent(row: BranchCostSummary): number | null {
+  if (row.revenue === null || row.revenue.isZero()) return null;
+  return Number(
+    row.consumptionCoveredNetAmount.div(row.revenue).mul(100).toFixed(1)
+  );
+}
 
 const COUNT_DATE = new Intl.DateTimeFormat("th-TH", {
   timeZone: "Asia/Bangkok",
@@ -169,12 +197,29 @@ const COUNT_DATE = new Intl.DateTimeFormat("th-TH", {
  * know that before it believes a margin.
  */
 function grossProfitNote(row: BranchCostSummary): string {
-  if (row.grossProfitMethod === "RECIPE_CONSUMPTION") {
-    return "ร้านนี้เลือกคิดกำไรขั้นต้นจากสูตรอาหาร — ยังคำนวณไม่ได้จนกว่าระบบสูตรอาหารจะเสร็จ";
-  }
   if (row.revenue === null) {
     return "ยังไม่มียอดขายนำเข้าในช่วงนี้";
   }
+
+  // Part 22 (rule N10). The placeholder this replaces said the method was not
+  // built yet; it is now, and what the note has to carry instead is how much of
+  // the period it actually saw.
+  if (row.grossProfitMethod === "RECIPE_CONSUMPTION") {
+    const posted = row.consumptionDaysPosted;
+    const days = row.salesDaysInPeriod;
+    if (posted === 0) {
+      return days === 0
+        ? "ยังไม่มียอดขายนำเข้าในช่วงนี้"
+        : `ยังไม่ได้ตัดสต๊อกตามสูตรสักวันในช่วงนี้ (${days} วันที่มียอดขาย) — กดตัดสต๊อกก่อน จึงจะคิดกำไรขั้นต้นวิธีนี้ได้`;
+    }
+    const pct = coveragePercent(row);
+    const share =
+      pct === null ? "" : ` · ครอบคลุม ${pct}% ของยอดขายในช่วงนี้`;
+    return posted >= days
+      ? `คิดจากสูตรอาหาร — ตัดสต๊อกครบทุกวันที่มียอดขาย (${posted} วัน)${share}`
+      : `คิดจากสูตรอาหาร — ตัดสต๊อกแล้ว ${posted} จาก ${days} วันที่มียอดขาย${share} · วันที่เหลือยังไม่ถูกนับเป็นต้นทุน ตัวเลขจึงดูดีเกินจริง`;
+  }
+
   if (row.lastCountedAt === null) {
     return "สาขานี้ยังไม่เคยปิดการนับสต๊อก — ตัวเลขนี้จึงมาจากยอดคงเหลือที่ระบบเชื่อ ไม่ใช่ของที่นับจริง และมักดูดีเกินจริง";
   }

@@ -130,6 +130,28 @@ export type ReplayState = {
    * without walking the ledger a second time.
    */
   outflows: OutflowEntry[];
+  /**
+   * What each `sales_consumption_item` did to the money in this pile (Part 22).
+   *
+   * SIGNED: positive is money that left with the cooking, negative is money that
+   * came back — a day given up by a re-import, or (under TREAT_AS_NOT_COOKED) a
+   * day whose cancellations outweighed its sales.
+   *
+   * Separate from `outflows` because half of these are not outflows at all, and
+   * keyed by SOURCE rather than movement because the question it answers is
+   * asked of the document: gross profit by สูตรอาหาร is the cost of what the
+   * runs that still STAND say was sold, so `/cost` has to be able to drop the
+   * ones a re-import took back (rule N10).
+   */
+  consumptionMoves: ConsumptionMove[];
+};
+
+/** One consumption item's effect on this pile's money. */
+export type ConsumptionMove = {
+  /** `sales_consumption_item.id`. */
+  sourceId: string;
+  /** Positive = money out with the cooking; negative = money back. */
+  value: Prisma.Decimal;
 };
 
 /** One movement's realised cost of goods out. */
@@ -173,6 +195,7 @@ export function replayFifoLayers(
   let totalIn = ZERO;
   let totalOut = ZERO;
   const outflows: OutflowEntry[] = [];
+  const consumptionMoves: ConsumptionMove[] = [];
 
   // A voided receipt must cut ITS layer (Q8), and that layer may already be
   // partly or wholly consumed by the time the void lands — so the unit cost of
@@ -506,6 +529,7 @@ export function replayFifoLayers(
           qty: m.qty.negated(),
           value: takenValue,
         });
+        consumptionMoves.push({ sourceId: m.sourceId, value: takenValue });
         break;
       }
 
@@ -547,6 +571,7 @@ export function replayFifoLayers(
           // overstate what we know. Same choice as the transfer reversal.
           pricing: value.isZero() ? "UNPRICED" : "LAST_KNOWN",
         });
+        consumptionMoves.push({ sourceId: m.sourceId, value: value.negated() });
         break;
       }
 
@@ -615,5 +640,6 @@ export function replayFifoLayers(
     totalIn,
     totalOut,
     outflows,
+    consumptionMoves,
   };
 }
