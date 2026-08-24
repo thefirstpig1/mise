@@ -81,6 +81,12 @@ model Tenant {
   /// right answer follows whichever discipline they actually keep.
   grossProfitMethod GrossProfitMethod @default(PERIODIC_INVENTORY) @map("gross_profit_method")
 
+  /// What a cancelled bill does to stock (ADR 0022 Q3). The file cannot say
+  /// whether it was cancelled at the till before anyone cooked or sent back
+  /// after — the first returns nothing to stock, the second consumed the
+  /// ingredients — and both are common. The shop knows; we do not.
+  cancelledSalePolicy CancelledSalePolicy @default(TREAT_AS_COOKED) @map("cancelled_sale_policy")
+
   // v1.2 opt-in features
   enableDepartments     Boolean @default(false) @map("enable_departments")
   isVatRegistered       Boolean @default(false) @map("is_vat_registered")
@@ -130,6 +136,8 @@ model Tenant {
   recipes                 Recipe[]
   recipeIngredients       RecipeIngredient[]
   recipeBranches          RecipeBranch[]
+  salesConsumptionRuns    SalesConsumptionRun[]
+  salesConsumptionItems   SalesConsumptionItem[]
 
   @@map("tenant")
 }
@@ -187,6 +195,7 @@ model Branch {
   salesDays               SalesDay[]
   salesLines              SalesLine[]
   recipeBranches          RecipeBranch[]
+  salesConsumptionRuns    SalesConsumptionRun[]
 
   @@index([tenantId])
   @@map("branch")
@@ -225,6 +234,8 @@ model User {
   expensesCreated           Expense[]
   wasteLogged               WasteLog[]             @relation("WasteWastedBy")
   wasteVoided               WasteLog[]             @relation("WasteVoidedBy")
+  consumptionPosted         SalesConsumptionRun[]  @relation("ConsumptionPostedBy")
+  consumptionVoided         SalesConsumptionRun[]  @relation("ConsumptionVoidedBy")
   transfersDispatched       StockTransfer[]        @relation("TfDispatchedBy")
   /// Null on every row until user management ships (ADR 0018 Q3) — a company
   /// driver is a member and will confirm as themselves; a hired outside driver
@@ -453,6 +464,7 @@ model Product {
   stockTransferItems      StockTransferItem[]
   producedByRecipes       Recipe[]                 @relation("RecipeOutputProduct")
   usedInRecipes           RecipeIngredient[]
+  salesConsumptionItems   SalesConsumptionItem[]
 
   /// NOTE: per-tenant sku uniqueness is a PARTIAL unique index (WHERE deleted_at
   /// IS NULL) in prisma/manual/product_sku_unique.sql — NOT a Prisma @@unique,
@@ -567,6 +579,23 @@ enum MovementType {
   TRANSFER_OUT_REVERSAL // +  IN  — a void gives the goods back to the sender
   TRANSFER_IN_REVERSAL // -  OUT — a void takes them off the receiver
 
+  /// Part 22 (ADR 0021 Q12, ADR 0022). Stock that left to be cooked and eaten.
+  /// Named for WHAT HAPPENED to the stock, not for what caused it, so a sale and
+  /// (later) a staff meal share the type and are told apart by `source_type` —
+  /// the shape ADJUST_LOSS already has, serving an adjustment, a count variance
+  /// and a waste log. Deliberately NOT `RECIPE_CONSUME`: that phrasing claims the
+  /// word a production movement will need.
+  CONSUMPTION // -  OUT — written by a sales_consumption_item
+  /// +  IN  — a re-import or a re-post gives the day back before posting it again.
+  ///
+  /// A type of its own rather than waste's ADJUST_GAIN answer, because it must
+  /// give back the layers the original CONSUMPTION *took*, at the values it took
+  /// them at (ADR 0014 Q8). Returning them at last-known cost would let importing
+  /// the same file twice change what the stock is worth — 10 kg out at 180 and
+  /// back at 220 is ฿400 of inventory conjured by an upload. Waste can afford
+  /// that approximation; a month of sales cannot.
+  CONSUMPTION_REVERSAL
+
   @@map("movement_type")
 }
 
@@ -599,6 +628,15 @@ enum SourceType {
   /// ADJUST_LOSS: that one means "stock left without a document", and here there IS
   /// a document — it names the driver who accepted the goods at the roadside.
   TRANSFER_SHORTAGE
+  /// -> sales_consumption_item (Part 22, ADR 0022 Q1). The sales LINE cannot be
+  /// the source: stock_movement_source_unique keys on the PAIR, and one line
+  /// explodes into N raw products. Part 18's three-values-over-one-id trick does
+  /// not stretch to an unbounded N, so the run's item is the source instead.
+  ///
+  /// Named for the sale rather than generically, because a staff meal (Part 23)
+  /// brings its own document and its own value here — CONTEXT.md records that
+  /// intent, and a generic `origin` column would hold one value for a whole Part.
+  SALES_CONSUMPTION
   SYSTEM_INITIAL // reserved: onboarding initial stock (no writer in Part 10)
 
   @@map("source_type")
@@ -2139,10 +2177,10 @@ model Menu {
   updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
 
-  tenant            Tenant          @relation(fields: [tenantId], references: [id])
-  posIntegration    PosIntegration? @relation(fields: [posIntegrationId], references: [id])
-  menuCategory      MenuCategory?   @relation(fields: [menuCategoryId], references: [id])
-  primaryDepartment Department?     @relation(fields: [primaryDepartmentId], references: [id])
+  tenant            Tenant             @relation(fields: [tenantId], references: [id])
+  posIntegration    PosIntegration?    @relation(fields: [posIntegrationId], references: [id])
+  menuCategory      MenuCategory?      @relation(fields: [menuCategoryId], references: [id])
+  primaryDepartment Department?        @relation(fields: [primaryDepartmentId], references: [id])
   aliases           MenuAlias[]
   salesLines        SalesLine[]
   recipes           Recipe[]
@@ -2504,4 +2542,148 @@ model RecipeBranch {
   @@index([tenantId])
   @@index([branchId], map: "recipe_branch_branch_idx")
   @@map("recipe_branch")
+}
+
+/// What a cancelled bill does to stock (ADR 0022 Q3, rule N4).
+///
+/// The POS exports a cancellation as a negative row and says nothing about
+/// whether anyone had started cooking. Both readings are common, so this is the
+/// shop's to settle rather than ours to assume — and the settings screen shows
+/// each option's consequence with a worked example rather than only its name
+/// (rule N12).
+enum CancelledSalePolicy {
+  /// Negative rows are IGNORED: 12 sold and 1 cancelled consumes 12. A count
+  /// later shows a SURPLUS, which is itself the evidence that orders were
+  /// cancelled — visible, and traceable back to a cause.
+  TREAT_AS_COOKED
+  /// Negative rows are SUBTRACTED: the same day consumes 11. Right when the till
+  /// voided it before the pan was hot; a SHORTFALL indistinguishable from theft
+  /// when it did not.
+  TREAT_AS_NOT_COOKED
+
+  @@map("cancelled_sale_policy")
+}
+
+/// Why a run stopped counting. Machine-set, never typed — unlike waste's
+/// free-text voidReason, there are exactly two ways a posted day is taken back.
+enum ConsumptionVoidReason {
+  /// A newer file replaced the day's sales (ADR 0022 Q5). Fires automatically
+  /// inside the import's own transaction: superseding the sales lines makes these
+  /// movements refer to sales that no longer stand, and the ledger must not sit
+  /// knowingly wrong waiting for someone to notice.
+  RE_IMPORT
+  /// The user posted the day again — because recipes were added, or one covering
+  /// that day was edited (Q2b, Q7). Posting a day is never a top-up.
+  REPOST
+
+  @@map("consumption_void_reason")
+}
+
+/// การตัดสต๊อกตามยอดขาย — one branch's sales for one business day, turned into
+/// stock leaving the Ledger (ADR 0022).
+///
+/// A document of its own rather than movements hung off `sales_line`, because
+/// `stock_movement_source_unique` keys on the PAIR (source_type, source_id) and
+/// one sales line explodes into N raw products (Q1).
+///
+/// Deliberately NOT unique on (branch_id, business_date): a voided run and the
+/// run that replaced it both stand, side by side, so the screen shows the mistake
+/// and its correction together — ADR 0013 Q6's argument. What IS unique is the
+/// LIVE one, enforced by a partial index in
+/// prisma/manual/sales_consumption_unique.sql; without it a double-clicked button
+/// would consume the day twice.
+model SalesConsumptionRun {
+  id           String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  branchId     String   @map("branch_id") @db.Uuid
+  /// A plain DATE, like sales_line.business_date — never a timestamp to be
+  /// truncated, so no timezone enters the grouping (rule P15).
+  businessDate DateTime @map("business_date") @db.Date
+
+  postedAt DateTime @map("posted_at")
+  postedBy String   @map("posted_by")
+
+  /// The policy IN FORCE when this run posted (N4). Frozen because changing the
+  /// setting later changes what the same day would consume, and a run that cannot
+  /// say which rule it followed cannot explain its own numbers.
+  cancelledSalePolicy CancelledSalePolicy @map("cancelled_sale_policy")
+
+  voidedAt   DateTime?              @map("voided_at")
+  voidedBy   String?                @map("voided_by")
+  voidReason ConsumptionVoidReason? @map("void_reason")
+
+  /// Coverage, as a share of REVENUE rather than of dish count, because the
+  /// question behind it is how wrong the cost of goods sold is and a ฿20 water is
+  /// not a ฿300 steak (rule N3). Stored rather than recomputed: /cost labels every
+  /// period with it, and re-deriving would mean re-exploding every recipe for
+  /// every day on the heaviest page in the system.
+  ///
+  /// Not a cost, so ADR 0014's "cost is stored nowhere" does not reach it.
+  coveredNetAmount Decimal @map("covered_net_amount") @db.Decimal(15, 2)
+  totalNetAmount   Decimal @map("total_net_amount") @db.Decimal(15, 2)
+  menusPosted      Int     @map("menus_posted")
+  menusSkipped     Int     @map("menus_skipped")
+
+  /// The dishes this run could NOT post, each with its reason — no recipe, a
+  /// recipe that would not explode, a component menu with no recipe of its own,
+  /// or a business date past the backdate window (N2, N9). Read back by the
+  /// coverage screen, so the answer survives the request that computed it.
+  /// JSONB, following sales_import_batch.error_log.
+  skippedMenus Json? @map("skipped_menus") @db.JsonB
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant       Tenant                 @relation(fields: [tenantId], references: [id])
+  branch       Branch                 @relation(fields: [branchId], references: [id])
+  postedByUser User                   @relation("ConsumptionPostedBy", fields: [postedBy], references: [id])
+  voidedByUser User?                  @relation("ConsumptionVoidedBy", fields: [voidedBy], references: [id])
+  items        SalesConsumptionItem[]
+
+  @@index([tenantId])
+  @@index([branchId, businessDate], map: "sales_consumption_run_branch_date_idx")
+  @@map("sales_consumption_run")
+}
+
+/// One raw product's worth of a day's cooking. THIS ROW IS THE LEDGER'S SOURCE:
+/// source_type = SALES_CONSUMPTION, source_id = this id, which is what makes
+/// posting idempotent (the waste_log pattern).
+///
+/// Aggregated across every menu sold that day (Q1). An item per sales line ×
+/// product would answer "which dish ate what", which nothing asks — H.8's
+/// variance compares at the product level — while multiplying the ledger ~50×
+/// and making /cost replay every row of it.
+model SalesConsumptionItem {
+  id        String @id @default(uuid()) @db.Uuid
+  tenantId  String @map("tenant_id") @db.Uuid
+  runId     String @map("run_id") @db.Uuid
+  productId String @map("product_id") @db.Uuid
+
+  /// SIGNED, in the product's base unit, matching movement.qty exactly — normally
+  /// negative (stock leaving). Positive in two cases: a reversal item, and a day
+  /// whose cancellations outweighed its sales under TREAT_AS_NOT_COOKED (N8).
+  ///
+  /// No CHECK binding the sign to the reversal flag, unlike stock_transfer_item:
+  /// that second case is a genuine positive on a non-reversal row. Only `<> 0` is
+  /// enforced — a zero item is noise with a movement attached.
+  qty Decimal @db.Decimal(15, 3)
+
+  /// A void APPENDS reversal items to THIS run and posts the compensating
+  /// CONSUMPTION_REVERSAL against them. It cannot be an edit: the ledger is
+  /// append-only and the compensating movement needs a source_id of its own to
+  /// satisfy UNIQUE(source_type, source_id). At most one reversal per item —
+  /// partial unique in prisma/manual/sales_consumption_unique.sql, or a
+  /// double-submitted void would credit the stock back twice.
+  reversalOfItemId String? @map("reversal_of_item_id") @db.Uuid
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant     Tenant                 @relation(fields: [tenantId], references: [id])
+  run        SalesConsumptionRun    @relation(fields: [runId], references: [id])
+  product    Product                @relation(fields: [productId], references: [id])
+  reversalOf SalesConsumptionItem?  @relation("ConsumptionItemReversal", fields: [reversalOfItemId], references: [id])
+  reversedBy SalesConsumptionItem[] @relation("ConsumptionItemReversal")
+
+  @@index([tenantId])
+  @@index([runId], map: "sales_consumption_item_run_idx")
+  @@map("sales_consumption_item")
 }

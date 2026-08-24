@@ -57,6 +57,12 @@ export const MOVEMENT_TYPE_VALUES = [
   "TRANSFER_IN",
   "TRANSFER_OUT_REVERSAL",
   "TRANSFER_IN_REVERSAL",
+  // Part 22 (ADR 0022): stock leaving to be cooked and eaten. Read-only here —
+  // only a sales_consumption_run writes them. The reversal is a type of its own
+  // rather than an ADJUST_GAIN because it must give back the layers the original
+  // took, at the values it took them at (Q6).
+  "CONSUMPTION",
+  "CONSUMPTION_REVERSAL",
 ] as const;
 
 /** Polymorphic source discriminator (Q3). */
@@ -77,6 +83,10 @@ export const SOURCE_TYPE_VALUES = [
   // that one means "stock left without a document", and this one has a document
   // with the driver's name on it.
   "TRANSFER_SHORTAGE",
+  // Part 22 (ADR 0022 Q1): sales_consumption_item. The sales LINE cannot be the
+  // source — one line explodes into N products and the unique is on the PAIR — so
+  // the run's item is, one per product per day.
+  "SALES_CONSUMPTION",
   "SYSTEM_INITIAL",
 ] as const;
 
@@ -165,6 +175,11 @@ export const MOVEMENT_TYPE_LABELS_TH: Record<
   TRANSFER_IN: "รับโอนจากสาขาอื่น",
   TRANSFER_OUT_REVERSAL: "ยกเลิกการโอนออก",
   TRANSFER_IN_REVERSAL: "ยกเลิกการรับโอน",
+  // Part 22: worded as the kitchen using it, not as a loss. Nothing went wrong —
+  // this is stock doing the job it was bought for, and a history line reading
+  // "ปรับลด" would send the reader looking for a mistake that is not there.
+  CONSUMPTION: "ตัดสต๊อกตามยอดขาย",
+  CONSUMPTION_REVERSAL: "ยกเลิกการตัดสต๊อก",
 };
 
 /** Thai gloss per source — answers "รายการนี้มาจากไหน" in the history view. */
@@ -181,6 +196,7 @@ export const SOURCE_TYPE_LABELS_TH: Record<
   // Reads as a loss on purpose — it IS one — but names the journey, so the reader
   // knows to ask the driver rather than the kitchen.
   TRANSFER_SHORTAGE: "ของหายระหว่างขนส่ง",
+  SALES_CONSUMPTION: "ยอดขาย",
   SYSTEM_INITIAL: "ยอดยกมา",
 };
 

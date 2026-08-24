@@ -382,3 +382,19 @@ USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 -- ============================================================
 -- End Sprint 5 Part 21 RLS
 -- ============================================================
+
+-- ============================================================
+-- Sprint 5 Part 22 RLS (ADR 0022)
+-- ============================================================
+
+ALTER TABLE sales_consumption_run ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON sales_consumption_run
+USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+ALTER TABLE sales_consumption_item ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON sales_consumption_item
+USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+-- ============================================================
+-- End Sprint 5 Part 22 RLS
+-- ============================================================
