@@ -12,7 +12,7 @@ _(Sprint 4 — POS sales import · daily pulse: ✅ COMPLETE 2026-08-20, except 
 
 ---
 
-## Sprint 5 Part 21 — สูตรอาหาร + ต้นทุนสูตร: 🚧 L0–L5 DONE, L6 next
+## Sprint 5 Part 21 — สูตรอาหาร + ต้นทุนสูตร: ✅ COMPLETE (L0–L6, 2026-08-24)
 
 **ADR:** `docs/adr/0021-recipe-and-recipe-cost.md` (Q1–Q18, grill 2026-08-20/21)
 **Rules registered:** `docs/calculation-rules.md` §9, **R1–R13** (grill) + **R14–R19** (decided while building L3b/L3c) + **R20–R22** (decided while building L5a)
@@ -20,7 +20,7 @@ _(Sprint 4 — POS sales import · daily pulse: ✅ COMPLETE 2026-08-20, except 
 | L | What | Status |
 |---|---|---|
 | L0 | ADR 0021 · CONTEXT.md (Menu, Set menu, Production recipe, Central/branch recipe, Joint products, Servings per recipe + 6 rewritten) · rules R1–R13 · master-spec **9 supersede stamps** · pending Features 7 & 8 | ✅ |
-| L1 | `recipe` + `recipe_ingredient` + `recipe_branch` · relax the Part 7c PREPPED invariant · RLS · verify against Neon | ⬜ |
+| L1 | `recipe` + `recipe_ingredient` + `recipe_branch` · relax the Part 7c PREPPED invariant · RLS · verify against Neon | ✅ |
 | L1b | verified against Neon: **3 tables · 6 CHECKs (expressions read back) · 14 indexes · RLS ×3** | ✅ |
 | L2 | zod — 4 write shapes + 3 reads · **47 tests** · qty IS allowed `.positive()` here, unlike sales | ✅ |
 | L3-walker | `recipe-graph.ts` — pure, no Prisma · depth/cycle over **products AND menus, one budget** · the two divisions of rule R2 · **33 tests** | ✅ |
@@ -35,7 +35,7 @@ _(Sprint 4 — POS sales import · daily pulse: ✅ COMPLETE 2026-08-20, except 
 | L5d | `/recipes/substitute` — two steps, and the first writes nothing · **Q15's empty box rendered as one** (blank + outlined, never a zero, never the old number) · branch recipes are their own group and start **UNTICKED** (Q8) · an unticked row's inputs are `disabled`, so it posts nothing and the arrays stay aligned | ✅ |
 | L5e | **Q17 gets its caller at last** — `getRecipesUsingUnitLogic` had zero call sites since L3c. The product form names the recipes written in a unit, and only once the ratio actually differs. A warning, never a block | ✅ |
 | L5f | the handoff's latent `/cost` bug — `r.grossProfit ? … : "—"` rendering a real 0.00 as "—" — **DOES NOT REPRODUCE**. Both fields reach the client as strings and `Prisma.Decimal(0).toString()` is `"0"`, which is truthy (verified against `@prisma/client`, not reasoned about). Guards tightened to `!== null` anyway: no change today, and it removes the class if either is ever serialized as a number | ✅ |
-| L6 | E2E through the real action stack · spec + config deleted, never committed · Neon swept | ⬜ |
+| L6 | **21-case E2E** (E-01…E-20 + E-14b) through the real action stack — FormData → zod → `*Logic` → Neon → Thai error → view, only `require-tenant` and `next/cache` mocked · **found no production bug**: the one red case was the spec's own, swapping chilli → basil into a recipe that already held basil, which `SubstitutionDuplicateError` rightly refuses (merging two lines silently would make the cost right while the recipe on screen read wrong) — rewritten to swap onto a fresh product, and **E-14b added to pin the refusal**, which until now was proven only at the logic layer · E-16 tightened from a truthiness check to the Q13 message actually **naming the recipe** · spec + config deleted, never committed · Neon swept to 0 | ✅ |
 
 ### What the grill changed that the plan did not anticipate
 Part 21 grew, and each addition was accepted on the same argument — **the walker and the "which recipe applies" query are the expensive parts, and their shape is fixed by what they must handle on day one**:
@@ -53,7 +53,7 @@ Part 21 grew, and each addition was accepted on the same argument — **the walk
 - **A menu still has no delete path.** Part 19 gave `menu` a `deletedAt` column and no way to set it, so Q3's "a menu inside a set cannot be deleted" has nothing to attach to. `assertMenuNotUsedInRecipes` is written and exported so whoever adds the button does not have to rediscover that the guard is owed.
 - ~~**Q17's ratio guard: the read exists, nothing calls it.**~~ **Closed in L5e** — the product edit page names the recipes written in each non-base unit, and shows it only once the typed ratio differs from the stored one. Still a warning, never a block: refusing a correction forces the data to stay wrong, the same argument Q13 makes about RAW → PREPPED.
 
----
+### Next: Part 22 — `MovementType.CONSUMPTION`: posting from `sales_line`, compensating movements when a day is re-imported, and gross profit by **สูตรอาหาร**. Part 21 L0–L6 pushed as one batch (17 commits). Verified at close: `tsc` clean · `build` green (**53 routes**) · vitest **884 passed / 4 skipped** · 21-case action-stack E2E green · Neon swept to 0.
 
 ---
 
