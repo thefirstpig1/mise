@@ -12,7 +12,7 @@ _(Sprint 4 — POS sales import · daily pulse: ✅ COMPLETE 2026-08-20, except 
 
 ---
 
-## Sprint 5 Part 22 — ตัดสต๊อกตามยอดขาย (`CONSUMPTION`): 🚧 L0–L5 DONE, L6 next
+## Sprint 5 Part 22 — ตัดสต๊อกตามยอดขาย (`CONSUMPTION`): ✅ COMPLETE (L0–L6, 2026-08-25)
 
 **ADR:** `docs/adr/0022-consumption-from-sales.md` (Q1–Q11, grill 2026-08-24)
 **Rules registered:** `docs/calculation-rules.md` §10, **N1–N12** (`S` was already the stock-count prefix)
@@ -30,12 +30,21 @@ _(Sprint 4 — POS sales import · daily pulse: ✅ COMPLETE 2026-08-20, except 
 | L4a | `consumption-read.ts` — **ONE read behind three screens** (the posting panel, the coverage report, the queue), because they are one row: a day with sales and whatever a posting has or has not done to it · **rule N11 implemented without a new column** — a recipe created after `run.postedAt`, effective over that day, for a menu actually sold that day · the near-miss it must avoid is a recipe for a dish that day did not sell, since a warning nobody can act on teaches people to ignore the banner · **10 DB tests** | ✅ |
 | L4b | actions + Thai refusals + serializers · **the press is checked BEFORE it writes** — a press covering six days that would replace two refuses once, names both with what each covered, and obeys on the second POST (Q2b) · one transaction per day, not per press · posting revalidates `/cost` too, which is the point of the whole Part · no unit tests, per the thin-glue convention | ✅ |
 | L5 | `/consumption` — **the queue and the coverage report are one table**, because they are one row seen from two sides · the refusal IS the feature: a press that would replace a posted day names the days and what each covered, then obeys · a day past the window is never offered a button · the import result now says how many days it took back **and** that sales do not cut stock until someone presses · **the "บิลที่ถูกยกเลิก" group in `/settings`** with each option's consequence and a worked example, default tagged แนะนำ with its reason (N12) · dashboard link · **the `NO_RECIPE` hint now names the effective date** — the L3a finding: a recipe written today does not cover last month, and without that sentence a shop follows the advice and gets the same empty answer | ✅ |
-| L6 | E2E through the real action stack · spec + config deleted, never committed · Neon swept · batch push | ⬜ |
+| L6 | **16-case E2E** through the real action stack — FormData → zod → `*Logic` → Neon → Thai error → view, only `require-tenant` and `next/cache` mocked · **found no production bug**, which the 86 tests L2–L4 added had already earned · one assertion tightened during the run: "a Thai sentence, not a stack trace" passes for the generic fallback too, so it now pins the EXACT message · spec + config deleted, never committed · Neon swept to 0 | ✅ |
 
 ### What the grill changed that the plan did not anticipate
 - **Q8 was withdrawn, not answered.** The set menu's department split was routed here on the grounds that `/cost` is touched anyway — but `stock_movement` has **no `department_id`** (the master spec says it does; ADR 0011 built it without, and the ADR wins) and `menu.primary_department_id` is read by no report. Deciding it here would have produced a rule no line enforces.
 - **Q9 reversed the plan's own recommendation.** "—" for a partly-posted period contradicts ADR 0019's requirement that every gross-profit row carry its count freshness, and W4's that every par row carry its own. The house rule for an imperfect figure is to print it **with its freshness attached**.
 - **Q3 became a tenant setting**, and with it a principle (N12) that outlives this Part: ambiguity that comes from *the nature of the shop* is the shop's to settle, with the consequence and an example on screen — but a switch is not a place to put decisions that have a right answer.
+
+### Standing items this Part leaves behind
+- 🛑 **The test suite is going flaky under load.** Four consecutive full runs gave 0 / 1 / 4 / 0 spurious failures, every one concurrency-shaped (PO numbering, concurrent product creation), and every one green when its file is re-run alone. 52 files now share one Neon branch and Part 22 added five with heavy fixtures. It has not yet hidden a real failure, but it is making "red" unreadable — and each flake leaks a tenant, because `afterAll` does not finish. **Its own Part, before Beta.**
+- **A method-less PREPPED product holds its whole dish back** from posting (L3a). Right for stock, and it disappears the day production movements exist.
+- **A recipe written today does not cover last month.** Correct per ADR 0021 Q4, and now said on screen in the `NO_RECIPE` hint — but a shop backfilling history has to date every recipe back by hand. Whether the recipe form should OFFER that date when unposted sales exist is a real UX question, and not this Part's.
+- **The set menu's department split** moved out of this Part at the grill (Q8) — the ledger has no `department_id` at all.
+- 🛑 **`canPerform` still has zero call sites**, unchanged since Part 21 flagged it.
+
+### Next: Part 23 — Menu Lab, menu merging, staff meal, recipe coverage. Part 22 L0–L6 pushed as one batch (11 commits). Verified at close: `tsc` clean · `build` green (**54 routes**) · vitest **964 passed / 4 skipped** · 16-case action-stack E2E green · Neon swept to 0.
 
 ---
 
