@@ -93,6 +93,12 @@ export type SalesImportCommitState =
       daysReplaced: number;
       daysAdded: number;
       stubMenusCreated: number;
+      /**
+       * Days whose posted consumption this import took back (ADR 0022 Q5).
+       * Surfaced because a week of stock quietly returning to the ledger is the
+       * most expensive kind of invisible.
+       */
+      consumptionRunsVoided: number;
     }
   | { ok: false; formError?: string; fieldErrors?: Record<string, string> };
 
@@ -299,6 +305,7 @@ export async function commitSalesImportAction(
       daysReplaced: result.daysReplaced,
       daysAdded: result.daysAdded,
       stubMenusCreated: result.stubMenusCreated,
+      consumptionRunsVoided: result.consumptionRunsVoided,
     };
   } catch (e) {
     if (e instanceof SalesImportFileRejectedError) {

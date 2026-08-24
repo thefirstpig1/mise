@@ -140,6 +140,27 @@ export default function SalesImportWizard({
               </>
             )}
           </p>
+
+          {/*
+            Part 22 (rule N6). A re-import takes back the stock those days had
+            already consumed, inside the same transaction — the ledger is never
+            knowingly wrong. Saying so is not optional: a week of stock quietly
+            returning is the most expensive kind of invisible.
+          */}
+          {commitState.consumptionRunsVoided > 0 && (
+            <p className="mt-2 rounded border border-orange-300 bg-orange-50 p-2 text-xs text-orange-900">
+              {commitState.consumptionRunsVoided} วันเคยตัดสต๊อกตามสูตรไว้แล้ว —
+              ระบบยกเลิกการตัดของวันเหล่านั้นให้แล้ว เพราะยอดขายเดิมถูกแทนที่ ·
+              วัตถุดิบกลับเข้าสต๊อกตามมูลค่าเดิมที่มันออกไป
+            </p>
+          )}
+
+          <p className="mt-2 text-xs">
+            ยอดขายที่นำเข้ายัง<strong>ไม่ทำให้สต๊อกลดลง</strong> จนกว่าจะกดตัด —{" "}
+            <a href="/consumption" className="text-primary underline">
+              ไปตัดสต๊อกตามสูตร
+            </a>
+          </p>
         </div>
       )}
 

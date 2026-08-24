@@ -12,7 +12,7 @@ _(Sprint 4 — POS sales import · daily pulse: ✅ COMPLETE 2026-08-20, except 
 
 ---
 
-## Sprint 5 Part 22 — ตัดสต๊อกตามยอดขาย (`CONSUMPTION`): 🚧 L0–L4 DONE, L5 next
+## Sprint 5 Part 22 — ตัดสต๊อกตามยอดขาย (`CONSUMPTION`): 🚧 L0–L5 DONE, L6 next
 
 **ADR:** `docs/adr/0022-consumption-from-sales.md` (Q1–Q11, grill 2026-08-24)
 **Rules registered:** `docs/calculation-rules.md` §10, **N1–N12** (`S` was already the stock-count prefix)
@@ -29,7 +29,7 @@ _(Sprint 4 — POS sales import · daily pulse: ✅ COMPLETE 2026-08-20, except 
 | L3d | **กำไรขั้นต้นแบบสูตรอาหาร is real** — the cell ADR 0019 left as "—" since Sprint 4 · `cogsSold` is asked of the **documents, not the ledger**: what did the runs that still STAND consume? A period can hold a consumption whose run a re-import voided, and that reversal is dated NOW, so summing `CONSUMPTION` by date would count a day that no longer stands and never see the row that took it back · `ReplayState` gains `consumptionMoves` (signed, keyed by item) — the walk is the only place the money is known · a partly-posted period **prints its figure with its coverage** (N10), and only a period with nothing posted prints "—" · the two placeholder copy blocks are gone · **8 DB tests** | ✅ |
 | L4a | `consumption-read.ts` — **ONE read behind three screens** (the posting panel, the coverage report, the queue), because they are one row: a day with sales and whatever a posting has or has not done to it · **rule N11 implemented without a new column** — a recipe created after `run.postedAt`, effective over that day, for a menu actually sold that day · the near-miss it must avoid is a recipe for a dish that day did not sell, since a warning nobody can act on teaches people to ignore the banner · **10 DB tests** | ✅ |
 | L4b | actions + Thai refusals + serializers · **the press is checked BEFORE it writes** — a press covering six days that would replace two refuses once, names both with what each covered, and obeys on the second POST (Q2b) · one transaction per day, not per press · posting revalidates `/cost` too, which is the point of the whole Part · no unit tests, per the thin-glue convention | ✅ |
-| L5 | screens — the posting step on the import result · the coverage read · N11's "this day's recipe changed" warning · the **"การคำนวณ"** group in `/settings` (N12) which `gross_profit_method` joins · `/cost` losing its "—" | ⬜ |
+| L5 | `/consumption` — **the queue and the coverage report are one table**, because they are one row seen from two sides · the refusal IS the feature: a press that would replace a posted day names the days and what each covered, then obeys · a day past the window is never offered a button · the import result now says how many days it took back **and** that sales do not cut stock until someone presses · **the "บิลที่ถูกยกเลิก" group in `/settings`** with each option's consequence and a worked example, default tagged แนะนำ with its reason (N12) · dashboard link · **the `NO_RECIPE` hint now names the effective date** — the L3a finding: a recipe written today does not cover last month, and without that sentence a shop follows the advice and gets the same empty answer | ✅ |
 | L6 | E2E through the real action stack · spec + config deleted, never committed · Neon swept · batch push | ⬜ |
 
 ### What the grill changed that the plan did not anticipate

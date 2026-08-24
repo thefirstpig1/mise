@@ -1,4 +1,10 @@
 import { withTenantContext } from "@/lib/db";
+import {
+  CANCELLED_SALE_POLICY_HINTS_TH,
+  CANCELLED_SALE_POLICY_LABELS_TH,
+  CANCELLED_SALE_POLICY_VALUES,
+  RECOMMENDED_CANCELLED_SALE_POLICY,
+} from "@/lib/validations/consumption";
 import { requireTenant } from "@/lib/require-tenant";
 import { revalidatePath } from "next/cache";
 
@@ -21,6 +27,14 @@ export default async function SettingsPage() {
         ? "RECIPE_CONSUMPTION"
         : "PERIODIC_INVENTORY";
 
+    // Part 22 (ADR 0022 Q3). Also a radio, and for the same reason: both
+    // readings of a cancelled bill are legitimate and neither is the absence of
+    // the other.
+    const cancelPolicy =
+      formData.get("cancelled_sale_policy") === "TREAT_AS_NOT_COOKED"
+        ? "TREAT_AS_NOT_COOKED"
+        : "TREAT_AS_COOKED";
+
     await withTenantContext(tenantId, (tx) =>
       tx.tenant.update({
         where: { id: tenantId },
@@ -28,6 +42,7 @@ export default async function SettingsPage() {
           enableDepartments: enableDepts,
           isVatRegistered: isVat,
           grossProfitMethod: gpMethod,
+          cancelledSalePolicy: cancelPolicy,
         },
       })
     );
@@ -35,6 +50,7 @@ export default async function SettingsPage() {
     revalidatePath("/settings");
     revalidatePath("/dashboard");
     revalidatePath("/cost");
+    revalidatePath("/consumption");
   }
 
   return (
@@ -103,6 +119,57 @@ export default async function SettingsPage() {
                 </div>
               </label>
             </div>
+          </div>
+
+          {/* ---------- what a cancelled bill does to stock (ADR 0022 Q3) ---------- */}
+          {/*
+            Rule N12: the ambiguity here comes from the NATURE of the shop, not
+            from us not having thought it through, so it is the owner's to settle
+            — and each option shows what choosing it DOES, with a worked example.
+            A label alone would be two rules the shop has only been told the
+            names of.
+          */}
+          <div className="rounded-lg border border-border bg-card p-6">
+            <h3 className="mb-1 font-medium">บิลที่ถูกยกเลิก ตัดสต๊อกไหม</h3>
+            <p className="mb-4 text-sm text-muted-foreground">
+              ไฟล์จาก POS บอกแค่ว่า “บิลนี้ถูกยกเลิก” ไม่ได้บอกว่าครัวลงมือทำไปแล้วหรือยัง ·
+              ทั้งสองแบบเกิดขึ้นจริงทั้งคู่ และร้านคุณรู้ดีกว่าระบบว่าแบบไหนเกิดบ่อยกว่า
+            </p>
+
+            <div className="space-y-4">
+              {CANCELLED_SALE_POLICY_VALUES.map((value) => (
+                <label key={value} className="flex items-start gap-3">
+                  <input
+                    type="radio"
+                    name="cancelled_sale_policy"
+                    value={value}
+                    defaultChecked={tenant.cancelledSalePolicy === value}
+                    className="mt-1"
+                  />
+                  <div>
+                    <p className="font-medium">
+                      {CANCELLED_SALE_POLICY_LABELS_TH[value]}
+                      {value === RECOMMENDED_CANCELLED_SALE_POLICY && (
+                        <span className="ml-2 rounded bg-primary/10 px-1.5 py-0.5 text-xs font-normal text-primary">
+                          แนะนำ
+                        </span>
+                      )}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      <span className="text-xs">
+                        {CANCELLED_SALE_POLICY_HINTS_TH[value]}
+                      </span>
+                    </p>
+                  </div>
+                </label>
+              ))}
+            </div>
+
+            <p className="mt-4 text-xs text-muted-foreground">
+              ที่แนะนำแบบ “ทำไปแล้ว” เพราะถ้าเดาผิด ความผิดพลาดจะโผล่ตอนนับสต๊อกเป็น
+              <strong>ของเกิน</strong> ซึ่งมองเห็นและสืบกลับได้ · ส่วนอีกทางจะโผล่เป็น
+              <strong>ของขาด</strong> ซึ่งหน้าตาเหมือนของหายหรือถูกขโมย
+            </p>
           </div>
 
           {/* ---------- how gross profit is worked out (ADR 0019 Q17) ---------- */}

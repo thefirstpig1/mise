@@ -116,6 +116,18 @@ void _driftGuards;
 // reason and a Client Component can render it without importing from server/
 // ------------------------------------------------------------
 
+/**
+ * The default, and the one the settings screen tags "แนะนำ" with its reason
+ * (rule N12, ADR 0022 Q3b).
+ *
+ * Conservative in the direction that stays visible: if the guess is wrong, the
+ * error surfaces at the next count as a SURPLUS, which is traceable back to a
+ * cause. The other way round it surfaces as a shortfall, which is
+ * indistinguishable from theft.
+ */
+export const RECOMMENDED_CANCELLED_SALE_POLICY: CancelledSalePolicyValue =
+  "TREAT_AS_COOKED";
+
 export const CANCELLED_SALE_POLICY_LABELS_TH: Record<
   CancelledSalePolicyValue,
   string
@@ -162,7 +174,13 @@ export const CONSUMPTION_SKIP_REASON_HINTS_TH: Record<
   ConsumptionSkipReason,
   string
 > = {
-  NO_RECIPE: "เขียนสูตรให้เมนูนี้ แล้วกดตัดสต๊อกวันนี้ใหม่",
+  // The "มีผลตั้งแต่" half is not decoration. A recipe is a statement about a
+  // PERIOD (ADR 0021 Q4), so one written today covers today and says nothing
+  // about last month — a shop that imports a month of history, writes its
+  // recipes and presses again would otherwise get the same empty answer and no
+  // idea why.
+  NO_RECIPE:
+    "เขียนสูตรให้เมนูนี้ โดยตั้ง “วันที่มีผล” ให้ย้อนถึงวันขายนี้ แล้วกดตัดสต๊อกใหม่ · สูตรที่เขียนวันนี้จะไม่ครอบคลุมยอดขายของเมื่อวาน",
   RECIPE_UNRESOLVABLE:
     "เปิดสูตรของเมนูนี้ดู — ของแปรรูปที่ยังไม่ได้ใส่เปอร์เซ็นต์ผลผลิต หรือสูตรที่วนกลับมาหาตัวเอง",
   COMPONENT_MENU_NO_RECIPE:
