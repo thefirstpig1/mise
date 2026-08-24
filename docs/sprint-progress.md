@@ -12,7 +12,7 @@ _(Sprint 4 — POS sales import · daily pulse: ✅ COMPLETE 2026-08-20, except 
 
 ---
 
-## Sprint 5 Part 22 — ตัดสต๊อกตามยอดขาย (`CONSUMPTION`): 🚧 L0–L2 DONE, L3a next
+## Sprint 5 Part 22 — ตัดสต๊อกตามยอดขาย (`CONSUMPTION`): 🚧 L0–L3a DONE, L3b next
 
 **ADR:** `docs/adr/0022-consumption-from-sales.md` (Q1–Q11, grill 2026-08-24)
 **Rules registered:** `docs/calculation-rules.md` §10, **N1–N12** (`S` was already the stock-count prefix)
@@ -23,7 +23,7 @@ _(Sprint 4 — POS sales import · daily pulse: ✅ COMPLETE 2026-08-20, except 
 | L1 | `part_22a` — the three enum values **alone** · `part_22` — the two tables, `tenant.cancelled_sale_policy`, four hand-written CHECKs, and `stock_movement_sign_check` dropped and re-declared · three **partial uniques** in `prisma/manual/sales_consumption_unique.sql` (the live-run one is the real guard against consuming a day twice) · RLS ×2 · **the enum drift guard in `validations/stock-movement.ts` fired exactly as designed** and took the two unions + their Thai labels with it | ✅ |
 | L1b | verified against Neon: **2 tables · 4 new CHECKs + the re-declared sign check (expressions read back) · 9 indexes, 3 of them partial · RLS ×2 · `tenant.cancelled_sale_policy` NOT NULL default `TREAT_AS_COOKED`** · vitest **884 / 4 skipped** unchanged · Neon swept to 0 | ✅ |
 | L2 | zod — the posting input + the coverage query + the vocabularies the screens render · **the 90-day window is deliberately NOT a refusal here** (N9): every other write schema in the project rejects an old date, but refusing a batch for the sake of its oldest day would make the coverage report unreachable — the window is applied per day in L3 and reported · the FUTURE is refused, and so is a day carrying a TIME (`business_date` is a DATE column and would truncate it silently) · **no void input**: a void is never a standalone act, it is what a re-post or a re-import does first · **22 tests** | ✅ |
-| L3a | the explosion — for one branch × day, resolve every sold menu's recipe **as of that day**, ONE `loadRecipeGraph` for all roots, `explodeToRaw` per root × qty, summed per product · **takes a `tx`**, because `getRecipeCostsLogic` opens its own context and must not be nested | ⬜ |
+| L3a | `consumption.ts` — for one branch × day: resolve every sold menu's recipe **as of that day**, ONE `loadRecipeGraph` for all roots, `explodeToRaw` per root × servings sold, summed per product and **negated on the way out** (what the recipe consumed is what the ledger loses) · takes a `tx`, opens no context · the cancelled-sale policy parts **quantity** from **money**: revenue is what the till kept, whatever the policy says about stock · **a method-less PREPPED holds its whole dish back** — the walker emits it as a leaf, right for cost (UNPRICED) and wrong for stock, since nothing can raise a prepped balance · **18 DB tests, own tenant, buys nothing** | ✅ |
 | L3b | posting + the coverage report + N2's all-or-nothing rule + N9's window check, through `createStockMovementLogic` · needs explicit `TenantContextOptions` — a 30-day post is not a 5 s transaction | ⬜ |
 | L3c | the void path (N7) and the `fifo-replay.ts` case for `CONSUMPTION_REVERSAL` (N8) — **the first change to that file since Part 18** · wired into `commitSalesImportLogic` per N6 | ⬜ |
 | L3d | gross profit by สูตรอาหาร (N10) at the three existing branch points in `getBranchCostSummaryLogic`; the placeholder note in `cost-view.ts` goes | ⬜ |
