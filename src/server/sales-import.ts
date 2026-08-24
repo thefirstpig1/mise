@@ -23,6 +23,7 @@
 
 import { Prisma } from "@prisma/client";
 import type { PrismaClient, SalesImportBatch } from "@prisma/client";
+import { voidConsumptionForDayInTx } from "@/server/consumption-post";
 import { withTenantContext } from "@/lib/db";
 import { reconcilePulsesLogic, type PulseReconciliation } from "@/server/sales-pulse";
 import { isPulseMismatch, pulseMismatchThreshold } from "@/lib/validations/sales-pulse";
@@ -865,6 +866,15 @@ export interface CommitSalesImportResult {
   stubMenusCreated: number;
   categoriesCreated: number;
   rowsSuperseded: number;
+  /**
+   * Days whose posted consumption this import took back (ADR 0022 Q5).
+   *
+   * Surfaced rather than done silently: the stock those days consumed has just
+   * returned to the ledger, and the screen has to say so and offer to post the
+   * new figures — a re-import that quietly un-cut a week of stock would be the
+   * most expensive kind of invisible.
+   */
+  consumptionRunsVoided: number;
 }
 
 /**
@@ -985,6 +995,7 @@ export async function commitSalesImportLogic(
       // --- day by day: supersede, then write (rule P3) ---
       const now = new Date();
       let rowsSuperseded = 0;
+      let consumptionRunsVoided = 0;
       let daysAdded = 0;
       const rowsByDay = new Map<number, StagedSalesRow[]>();
       for (const r of parsed.rows) {
@@ -1018,6 +1029,29 @@ export async function commitSalesImportLogic(
             where: { id: salesDayId },
             data: { currentBatchId: input.batchId },
           });
+
+          // Part 22 (ADR 0022 Q5, rule N6). Superseding the day's sales makes any
+          // CONSUMPTION already posted from them refer to rows that no longer
+          // stand: the ledger is wrong and the system knows it. Waiting for
+          // someone to notice is not an option ADR 0019 Consequence 2 left open.
+          //
+          // Safe inside THIS transaction for the exact reason posting is not
+          // (Q2): voiding never touches a recipe. It reads the movements already
+          // written and appends their negation, so it cannot fail on a cycle or
+          // a missing yield, and a recipe problem still cannot sink a good file.
+          //
+          // Re-POSTING stays the user's own step, so a day whose new file lands
+          // at 3am is not silently re-cut against whatever the recipes say by
+          // morning.
+          const { voidedRunId } = await voidConsumptionForDayInTx(
+            tx,
+            tenantId,
+            profile.branchId,
+            day,
+            "RE_IMPORT",
+            userId
+          );
+          if (voidedRunId !== null) consumptionRunsVoided++;
         }
 
         const dayRows = rowsByDay.get(day.getTime()) ?? [];
@@ -1071,6 +1105,7 @@ export async function commitSalesImportLogic(
         stubMenusCreated: stubIds.size,
         categoriesCreated: newCategories.length,
         rowsSuperseded,
+        consumptionRunsVoided,
       };
     },
     { maxWait: 15_000, timeout: 120_000 }

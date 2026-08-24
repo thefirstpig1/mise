@@ -184,6 +184,18 @@ export function replayFifoLayers(
   // `stock_transfer_item.id` a void points back at.
   const transferUnitCost = new Map<string, Prisma.Decimal>();
 
+  // Part 22: what each day's consumption actually TOOK, keyed by the
+  // `sales_consumption_item.id` its reversal points back at.
+  //
+  // The third instance of the same idea, and the first for an OUTFLOW: a
+  // reversal has to give back the money that left, not today's price. Without
+  // it, re-importing one file would hand 10 kg back at 220 that went out at 180
+  // and quietly add ฿400 to what the stock is worth (ADR 0022 Q6).
+  const consumptionCostOut = new Map<
+    string,
+    { qty: Prisma.Decimal; value: Prisma.Decimal }
+  >();
+
   /** The debt layer, if the pile is currently negative (invariant: at most one). */
   const debtLayer = (): CostLayer | null =>
     stack.length === 1 && stack[0].qty.isNegative() ? stack[0] : null;
@@ -248,7 +260,8 @@ export function replayFifoLayers(
       sourceId: string;
       occurredAt: Date;
     }
-  ) => {
+    /** The money that left with it — what a reversal has to give back (Part 22). */
+  ): Prisma.Decimal => {
     let remaining = qty;
     let costOut = ZERO;
 
@@ -282,7 +295,7 @@ export function replayFifoLayers(
 
     if (remaining.lessThanOrEqualTo(0)) {
       record();
-      return;
+      return costOut;
     }
 
     const debt = debtLayer();
@@ -304,6 +317,7 @@ export function replayFifoLayers(
     totalOut = totalOut.plus(debtValue);
     costOut = costOut.plus(debtValue);
     record();
+    return costOut;
   };
 
   /**
@@ -473,6 +487,66 @@ export function replayFifoLayers(
             lastKnownUnitCost ??
             ZERO
         );
+        break;
+      }
+
+      case "CONSUMPTION": {
+        // An ordinary outflow — the generic rule below would cost it correctly
+        // and always did (the comment there named it before it existed). What
+        // this case adds is the REMEMBERING: its reversal needs the money, and
+        // only the walk ever knows it.
+        const takenValue = consume(m.qty.negated(), lastKnownUnitCost ?? ZERO, {
+          movementId: m.id,
+          type: m.type,
+          sourceType: m.sourceType,
+          sourceId: m.sourceId,
+          occurredAt: m.occurredAt,
+        });
+        consumptionCostOut.set(m.sourceId, {
+          qty: m.qty.negated(),
+          value: takenValue,
+        });
+        break;
+      }
+
+      case "CONSUMPTION_REVERSAL": {
+        // A day given back — by a re-import or a re-post — carrying the same
+        // money it left with, exactly as TRANSFER_OUT_REVERSAL does above and
+        // for the same reason (ADR 0014 Q8).
+        //
+        // The same accepted approximation applies: the layer re-enters at the
+        // BACK of the queue rather than its original position. Value is exact;
+        // FIFO ordering is not. Reconstructing which layers a day's cooking drew
+        // down and reinstating each would be a second replay inside the replay.
+        const original = m.reversalOfItemId
+          ? consumptionCostOut.get(m.reversalOfItemId)
+          : undefined;
+
+        // No original to give back: either an ordinary POSITIVE item — the
+        // TREAT_AS_NOT_COOKED day whose cancellations outweighed its sales, which
+        // reverses nothing — or a consumption that happened before this walk
+        // began. Both fall back to the generic inbound rule.
+        const value =
+          original !== undefined && original.qty.greaterThan(0)
+            ? m.qty.equals(original.qty)
+              ? original.value
+              : money(original.value.mul(m.qty).div(original.qty))
+            : money(m.qty.mul(lastKnownUnitCost ?? ZERO));
+
+        totalIn = totalIn.plus(value);
+        push({
+          movementId: m.id,
+          sourceType: m.sourceType,
+          sourceId: m.sourceId,
+          occurredAt: m.occurredAt,
+          qty: m.qty,
+          value,
+          // Not DOCUMENT. The money is exactly what left, but what left was
+          // itself drawn from layers of mixed provenance, and this walk does not
+          // track that mix — claiming a document's confidence for it would
+          // overstate what we know. Same choice as the transfer reversal.
+          pricing: value.isZero() ? "UNPRICED" : "LAST_KNOWN",
+        });
         break;
       }
 

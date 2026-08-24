@@ -262,6 +262,25 @@ async function replayPairs(
     : [];
   const transferById = new Map(transferItems.map((i) => [i.id, i]));
 
+  // Part 22: a consumption reversal needs its item's `reversal_of_item_id` to
+  // know WHICH day's cooking it is giving back, so the walk can return the money
+  // that left rather than today's price (ADR 0022 Q6). Same batched shape as the
+  // two lookups above — the ledger points at the item polymorphically.
+  //
+  // No cost column is read, and there is none: what a day's consumption was
+  // worth is this walk's own answer and is stored nowhere (ADR 0014).
+  const consumptionItemIds = movements
+    .filter((m) => m.sourceType === "SALES_CONSUMPTION")
+    .map((m) => m.sourceId);
+
+  const consumptionItems = consumptionItemIds.length
+    ? await tx.salesConsumptionItem.findMany({
+        where: { tenantId, id: { in: consumptionItemIds } },
+        select: { id: true, reversalOfItemId: true },
+      })
+    : [];
+  const consumptionById = new Map(consumptionItems.map((i) => [i.id, i]));
+
   // Live declarations only: a superseded one is a statement someone has since
   // corrected, and replaying it would resurrect the number they retracted (Q6).
   const declarations = await tx.stockCostDeclaration.findMany({
@@ -293,7 +312,12 @@ async function replayPairs(
       // Two documents feed this one field. A GR line's reversal and a transfer
       // line's are the same fact — "the row this one undoes" — and the walk cuts
       // its own layer from either (ADR 0014 Q8).
-      reversalOfItemId: gr?.reversalOfItemId ?? tf?.reversalOfItemId ?? null,
+      reversalOfItemId:
+        gr?.reversalOfItemId ??
+        tf?.reversalOfItemId ??
+        (m.sourceType === "SALES_CONSUMPTION"
+          ? (consumptionById.get(m.sourceId)?.reversalOfItemId ?? null)
+          : null),
       declaredUnitCost: declaredByMovement.get(m.id) ?? null,
       // Stored SIGNED on the line (negative on a reversal line, to keep the
       // document's own sums honest); the walk wants a magnitude, because it is
