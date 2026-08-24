@@ -308,6 +308,46 @@ export async function voidConsumptionForDayInTx(
   return { voidedRunId: live.id, reversedItems };
 }
 
+/**
+ * Which of these days already carry a live posting.
+ *
+ * The action asks BEFORE it writes anything, so a press that would replace six
+ * days refuses once, names all six, and then obeys — rather than posting four
+ * and stopping at the fifth (the Q8 shape Part 21 already uses for copying a
+ * recipe onto branches that decided for themselves).
+ */
+export async function findLivePostedDaysLogic(
+  tenantId: string,
+  branchId: string,
+  businessDates: Date[]
+): Promise<
+  {
+    businessDate: Date;
+    postedAt: Date;
+    coveredNetAmount: Prisma.Decimal;
+    totalNetAmount: Prisma.Decimal;
+  }[]
+> {
+  if (businessDates.length === 0) return [];
+  return withTenantContext(tenantId, (tx) =>
+    tx.salesConsumptionRun.findMany({
+      where: {
+        tenantId,
+        branchId,
+        voidedAt: null,
+        businessDate: { in: businessDates },
+      },
+      select: {
+        businessDate: true,
+        postedAt: true,
+        coveredNetAmount: true,
+        totalNetAmount: true,
+      },
+      orderBy: { businessDate: "asc" },
+    })
+  );
+}
+
 // ------------------------------------------------------------
 // Helpers
 // ------------------------------------------------------------
