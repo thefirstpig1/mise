@@ -696,7 +696,13 @@ const isInboundType = (type: MovementType): boolean =>
   type === "PO_RECEIVE" ||
   type === "ADJUST_GAIN" ||
   type === "TRANSFER_IN" ||
-  type === "TRANSFER_OUT_REVERSAL";
+  type === "TRANSFER_OUT_REVERSAL" ||
+  // Part 22: a re-import or a re-post giving a day back, and the
+  // TREAT_AS_NOT_COOKED day whose cancellations outweighed its sales. Both are
+  // stock ARRIVING. `CONSUMPTION` itself is outbound and needs no line here —
+  // this list names the exceptions — but its reversal does, and forgetting it
+  // was caught only because the DB CHECK and this function must agree.
+  type === "CONSUMPTION_REVERSAL";
 
 /**
  * Q3 guard: the source row must exist before the ledger points at it — and it
@@ -797,10 +803,29 @@ async function assertSourceExists(
                         }
                       : null
                   )
-              : // SYSTEM_INITIAL: reserved, no table and no writer (Q10).
-                (() => {
-                  throw new UnsupportedSourceTypeError(sourceType);
-                })();
+              : sourceType === "SALES_CONSUMPTION"
+                ? // Part 22 (ADR 0022 Q1): the consumption ITEM is the source. It
+                  // carries the product and takes its branch from the run, the
+                  // GR-line shape — a day's cooking happens at one place.
+                  //
+                  // The sales line could not be the source: one line explodes
+                  // into N raw products, and stock_movement_source_unique is a
+                  // key on the PAIR, so N-1 of them would have nowhere to point.
+                  await tx.salesConsumptionItem
+                    .findFirst({
+                      where: { id: sourceId, tenantId },
+                      select: {
+                        productId: true,
+                        run: { select: { branchId: true } },
+                      },
+                    })
+                    .then((r) =>
+                      r ? { productId: r.productId, branchId: r.run.branchId } : null
+                    )
+                : // SYSTEM_INITIAL: reserved, no table and no writer (Q10).
+                  (() => {
+                    throw new UnsupportedSourceTypeError(sourceType);
+                  })();
 
   if (!row) throw new MovementSourceNotFoundError(sourceType, sourceId);
   if (row.productId !== productId) {
