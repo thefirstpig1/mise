@@ -40,6 +40,46 @@ export type TenantContextOptions = {
 };
 
 /**
+ * How long a transaction may wait to BEGIN before Prisma gives up (ADR 0023 Q2).
+ *
+ * Prisma's own default is 2,000 ms, chosen for a Postgres on the same machine
+ * as the app. Mise talks to Neon in Singapore through pgbouncer, and Part 23
+ * measured what that link actually does: 1,771 transaction starts in a healthy
+ * run averaged 32 ms and never once passed 279 ms — but a rare, isolated stall
+ * takes a single *uncontended* start past two seconds, and Prisma then throws
+ * "Unable to start a transaction in the given time" at whichever test, or
+ * whichever user, happened to be holding it.
+ *
+ * 10 s is not a new number. It is what every caller in this codebase that ever
+ * thought about `maxWait` already wrote — six times, in five files. It simply
+ * never became the default, so the 126 call sites with no reason to think about
+ * it kept Prisma's.
+ *
+ * This is a CEILING, not a delay: a start that takes 30 ms still takes 30 ms.
+ *
+ * `timeout` deliberately does NOT get the same treatment. A transaction waiting
+ * to begin holds nothing; a transaction that is running pins a pgbouncer server
+ * connection for its whole life, and killing a runaway at 5 s is worth keeping.
+ * The twelve sites that need longer say so out loud, which also documents which
+ * operations are heavy.
+ */
+const DEFAULT_MAX_WAIT_MS = 10_000;
+
+/**
+ * Report how long each transaction took to START, when `MISE_TX_TRACE=1`.
+ *
+ * Kept deliberately (ADR 0023 Q6). This instrumentation is what identified the
+ * Part 23 failure — the distinction between "could not begin" and "ran too
+ * long" is invisible in the error message alone, and re-deriving it cost most
+ * of a session. Inert unless the flag is set.
+ *
+ * `MISE_TX_TRACE_MS` raises the reporting floor: unset logs every start (the
+ * full distribution), `MISE_TX_TRACE_MS=400` logs only the spikes.
+ */
+const TX_TRACE = process.env.MISE_TX_TRACE === "1";
+const TX_TRACE_FLOOR_MS = Number(process.env.MISE_TX_TRACE_MS ?? 0);
+
+/**
  * Execute callback with tenant context set.
  * MUST be used for all authenticated requests.
  *
@@ -54,14 +94,25 @@ export async function withTenantContext<T>(
   callback: (tx: PrismaClient) => Promise<T>,
   options?: TenantContextOptions
 ): Promise<T> {
-  return await prisma.$transaction(async (tx) => {
-    // SET LOCAL = only valid within this transaction
-    await tx.$executeRawUnsafe(
-      `SET LOCAL app.current_tenant_id = '${tenantId}'`
-    );
+  const startedAt = TX_TRACE ? Date.now() : 0;
 
-    return await callback(tx as unknown as PrismaClient);
-  }, options);
+  return await prisma.$transaction(
+    async (tx) => {
+      if (TX_TRACE) {
+        const waited = Date.now() - startedAt;
+        if (waited >= TX_TRACE_FLOOR_MS) {
+          console.log(`[mise-tx] start ${waited}ms`);
+        }
+      }
+      // SET LOCAL = only valid within this transaction
+      await tx.$executeRawUnsafe(
+        `SET LOCAL app.current_tenant_id = '${tenantId}'`
+      );
+
+      return await callback(tx as unknown as PrismaClient);
+    },
+    { maxWait: DEFAULT_MAX_WAIT_MS, ...options }
+  );
 }
 
 /**
