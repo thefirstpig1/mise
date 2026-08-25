@@ -7,9 +7,85 @@
 _(Sprint 4 — POS sales import · daily pulse: ✅ COMPLETE 2026-08-20, except Part 20b which is blocked on choosing an inbound-mail vendor)_
 
 **Status:** **Part 21 ✅ COMPLETE 2026-08-24** · **Part 22 ✅ COMPLETE 2026-08-25** · **Part 23 (test-suite reliability) 🚧 IN PROGRESS**.
-**Split:** Sprint 5 is **four Parts** — **21** สูตรอาหาร + ต้นทุนสูตร (no ledger writes) · **22** `CONSUMPTION` + GP by recipe · **23** test-suite reliability (ADR 0023) · **24** Menu Lab, menu merging, staff meal, recipe coverage.
+**Split:** Sprint 5 is **four Parts** — **21** สูตรอาหาร + ต้นทุนสูตร (no ledger writes) · **22** `CONSUMPTION` + GP by recipe · **23** test-suite reliability (ADR 0023) · **23.5** connection ที่ค้าง (ADR 0024) · **24** Menu Lab, menu merging, staff meal, recipe coverage.
 **Part 23 is not a feature.** It is the debugging session that found why the suite had been going red at random, and the two fixes that came out of it. Menu Lab moved to **Part 24** (ADR 0023 Q1): Part numbers here record what was built and when — Part 13.5 exists for the same reason.
 **Not in Sprint 5:** H.8 theoretical-vs-actual variance (→ Sprint 6, per the spec's own O16, decided 2026-08-21) · Price Volatility (Sprint 6) · Section B three-layer mirror and `recipe_change_diff` (**removed**, ADR 0021 Q3).
+
+---
+
+## Sprint 5 Part 23.5 — connection ที่ค้าง: ✅ COMPLETE (2026-08-25)
+
+**ADR:** `docs/adr/0024-connection-attempts-that-hang.md` (grill 2026-08-25)
+
+Part 23's verification turned up a second failure wearing similar clothes:
+`Can't reach database server`. It is not the same thing and not fixed by the
+same lever.
+
+### Six suspects, all ruled out by measurement
+
+| Suspect | What killed it |
+|---|---|
+| server capacity | peak **19** connections vs `max_connections` **901** |
+| Windows ephemeral ports | **11** in `TIME_WAIT` vs **16,384** available |
+| `$disconnect` poisoning a reused client | **54 files = 54 pids** — no process is ever reused |
+| the link | probe **205 : 1**; DNS never failed; zero failures during a red window |
+| the Part 23 change | interleaved, time-controlled: **1 / 11 vs 0 / 11** |
+| one bad spec | different file every time; **6 of 8** in a `beforeAll` |
+
+### What it actually is
+
+Three independent instruments all failed at **5.0–5.1 s** and never anywhere
+else — a fixed ceiling, not network variance. And raising that ceiling changed
+nothing:
+
+| Arm (~2,300 cold connections each) | Failures | Rate | Duration |
+|---|---|---|---|
+| default | 7 | **0.30 %** | 5097–5124 ms |
+| `connect_timeout=20` | 6 | **0.28 %** | 10098–10110 ms |
+| **retry immediately** | **0** | **0 %** | recovered in **266–315 ms** |
+
+A cold connection hangs ~3 times in 1,000 and **never** completes; only a fresh
+attempt succeeds. Every test file is its own process, so a run opens ~54 cold
+connections — which is why roughly one run in five went red (observed 7 / 31).
+
+### What shipped
+
+- Prisma client **extension** retrying `P1001` / `P2024` only — safe because both
+  mean the query never reached the server, so nothing can run twice.
+- The same retry at the **transaction** layer (the extension cannot see a BEGIN
+  that dies), guarded to fire **only while the callback has not started** — after
+  that, a lost connection could have followed a sent COMMIT, and re-running would
+  write twice.
+- `connect_timeout` **lowered** 5 s → 3 s, in code, not in `.env`. Opposite
+  direction to ADR 0023's `maxWait` and consistent with it: `maxWait` bounds a
+  wait that succeeds, this bounds an attempt that will not.
+
+### Verification
+
+| Condition | Red runs | Rate |
+|---|---|---|
+| before the fix | 7 / 31 | **23 %** |
+| retry present but never firing | 2 / 15 | 13 % |
+| **retry actually firing** | **0 / 15** | **0 %** |
+
+Mean duration unchanged at **78.3 s**.
+
+### The retry shipped broken first, and looked perfect
+
+The predicate tested `e.code === "P1001"`, and
+`PrismaClientInitializationError` **carries no code at all**. It matched
+nothing. `tsc` clean, 969 passing, normal duration, and a whole 15-run
+verification that read as "fixed but not enough". `tests/db-retry-logic.test.ts`
+(D1–D4) now pins it — **D2 uses a REAL Prisma failure from a dead port**, since a
+hand-made error object would have passed against the broken predicate too.
+Reverting the predicate turns 3 of 4 red.
+
+### Standing items
+
+- **This is tolerance, not a cure.** A layered probe caught raw TCP and TLS
+  connects exceeding **8 s**, both landing exactly on the minute. Why is unknown
+  and lives outside Mise.
+- Retries are **invisible**: if the rate worsens, the suite gets slower, not red.
 
 ---
 
