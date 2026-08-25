@@ -1,14 +1,87 @@
 # Mise Sprint Progress
 
-**Last updated:** 2026-08-24
+**Last updated:** 2026-08-25
 
 ## Current Sprint: Sprint 5 — Recipe + CONSUMPTION 🚧 IN PROGRESS
 
 _(Sprint 4 — POS sales import · daily pulse: ✅ COMPLETE 2026-08-20, except Part 20b which is blocked on choosing an inbound-mail vendor)_
 
-**Status:** **Part 21 ✅ COMPLETE 2026-08-24** (L0–L6, 17 commits pushed) · **Part 22 grill complete (Q1–Q11) → ADR 0022 written**, L1 next.
-**Split:** Sprint 5 is **three Parts** — **21** สูตรอาหาร + ต้นทุนสูตร (no ledger writes) · **22** `CONSUMPTION` + GP by recipe · **23** Menu Lab, menu merging, staff meal, recipe coverage.
+**Status:** **Part 21 ✅ COMPLETE 2026-08-24** · **Part 22 ✅ COMPLETE 2026-08-25** · **Part 23 (test-suite reliability) 🚧 IN PROGRESS**.
+**Split:** Sprint 5 is **four Parts** — **21** สูตรอาหาร + ต้นทุนสูตร (no ledger writes) · **22** `CONSUMPTION` + GP by recipe · **23** test-suite reliability (ADR 0023) · **24** Menu Lab, menu merging, staff meal, recipe coverage.
+**Part 23 is not a feature.** It is the debugging session that found why the suite had been going red at random, and the two fixes that came out of it. Menu Lab moved to **Part 24** (ADR 0023 Q1): Part numbers here record what was built and when — Part 13.5 exists for the same reason.
 **Not in Sprint 5:** H.8 theoretical-vs-actual variance (→ Sprint 6, per the spec's own O16, decided 2026-08-21) · Price Volatility (Sprint 6) · Section B three-layer mirror and `recipe_change_diff` (**removed**, ADR 0021 Q3).
+
+---
+
+## Sprint 5 Part 23 — ความน่าเชื่อถือของ test suite: ✅ COMPLETE (L0–L3, 2026-08-25)
+
+**ADR:** `docs/adr/0023-transaction-wait-ceiling-and-test-residue.md` (Q1–Q6, grill 2026-08-25)
+**Rules registered:** none — no calculation rule was decided. CONTEXT.md untouched: it is a domain glossary, and `maxWait` is not a restaurant word.
+
+### What was actually wrong
+
+Not the advisory lock, which is what five Parts' worth of evidence pointed at. The captured error was
+`Transaction API error: Unable to start a transaction in the given time` — a transaction that never
+**began**, on `stock-count-logic` N5, whose widest moment is a `Promise.all` of three.
+
+The ceiling is Prisma's `maxWait`, default **2,000 ms**, chosen for a Postgres on the same machine as
+the app. Mise talks to Neon in Singapore through pgbouncer.
+
+| Measurement | Value |
+|---|---|
+| Transaction starts in one green run | 1,771 |
+| Mean start-wait | **32 ms** |
+| Max start-wait | **279 ms** |
+| Starts above 500 ms | **0** |
+| Slow starts seen (503/521/542 ms) | all at `inflight=1` |
+| Peak simultaneous transactions per worker, whole suite | **3** of 29 |
+
+`inflight=1` is the finding that settles it: the stall happens when the process has nothing else in
+flight, so it is not our pool, not our parallelism, and not the lock. It is the link, and a 2 s
+ceiling is low enough for a rare stall to clear it.
+
+### What shipped
+
+| L | What | Status |
+|---|---|---|
+| L0 | grill Q1–Q6 → **ADR 0023** | ✅ |
+| L1 | `withTenantContext` defaults `maxWait` to **10 s**; `timeout` deliberately unchanged; `MISE_TX_TRACE` kept | ✅ |
+| L2 | sweep module, `globalSetup`/`globalTeardown`, `pnpm test:sweep`, dmmf coverage guard (5 tests) | ✅ |
+| L3 | 31-run verification + A/B against pre-change code + docs | ✅ |
+
+### The two things nobody had noticed
+
+1. **10 s was already this project's answer.** Every caller that ever thought about `maxWait` wrote
+   `10_000` — six times, in five files. Not one wrote `2_000`. It simply never became the default, so
+   the 126 call sites nobody had reason to think about kept Prisma's.
+2. **16 orphaned test users had been accumulating across sprints.** `User` carries no `tenantId`, and
+   "Neon swept to 0" has always counted **tenants** — so the check read zero the whole time. The sweep
+   now takes users that nothing claims: no membership, no account, no session.
+
+### Verification
+
+| Arm | Runs | `Unable to start a transaction` | `Can't reach database server` |
+|---|---|---|---|
+| after (this Part) | 31 | **0** | 7 |
+| before (`5537224`) | 20 | 0 | 0 |
+| **interleaved, time-controlled** | 11 + 11 | 0 / 0 | **1 / 0** |
+| bare connection probe | 205 | — | 1 |
+
+Baseline before the change was roughly **1 in 10** for the first column. It is now **0 in 31**.
+
+The second column is a **different mechanism** — see ADR 0023 Consequence 4. The raw 7-vs-0 is
+confounded by time (it arrives in windows, and the pre-change arm mostly ran outside them); the
+interleaved comparison, run partly while it was actively happening, shows **no detectable
+difference** between the two versions. The probe scoring 205:1 — and zero failures during the very
+window the suite went red — says it is about connection **count**, not connection health.
+
+### Standing items
+
+- **The suite is still slow, and this Part does not fix it.** Every read opens an interactive
+  transaction so `SET LOCAL app.current_tenant_id` has somewhere to live — four round trips to
+  Singapore to fetch one row — and per ADR 0004 that `SET LOCAL` protects nothing until Sprint 7.
+  Whether a read should pay for a transaction belongs to Sprint 7's RLS work.
+- **Vitest parallelism was left alone** on the evidence (`inflight=1`), not by omission.
 
 ---
 
@@ -44,7 +117,7 @@ _(Sprint 4 — POS sales import · daily pulse: ✅ COMPLETE 2026-08-20, except 
 - **The set menu's department split** moved out of this Part at the grill (Q8) — the ledger has no `department_id` at all.
 - 🛑 **`canPerform` still has zero call sites**, unchanged since Part 21 flagged it.
 
-### Next: Part 23 — Menu Lab, menu merging, staff meal, recipe coverage. Part 22 L0–L6 pushed as one batch (11 commits). Verified at close: `tsc` clean · `build` green (**54 routes**) · vitest **964 passed / 4 skipped** · 16-case action-stack E2E green · Neon swept to 0.
+### Next: Part 23 — test-suite reliability (ADR 0023), then Part 24 — Menu Lab, menu merging, staff meal, recipe coverage. Part 22 L0–L6 pushed as one batch (11 commits). Verified at close: `tsc` clean · `build` green (**54 routes**) · vitest **964 passed / 4 skipped** · 16-case action-stack E2E green · Neon swept to 0.
 
 ---
 

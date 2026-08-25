@@ -80,6 +80,22 @@ The sweep deletes what it finds, so the database does not accumulate, and **prin
 
 3. **Verification is a count of runs, and the count is honest about itself.** The baseline red rate was roughly one run in ten. Ten green runs after a change would still leave better than a one-in-three chance of having proved nothing, so the bar is **30 consecutive runs**, and the result is reported as what it is: evidence, not proof.
 
-4. **This changes the behaviour of all 133 `withTenantContext` call sites at once**, which is the reason it is written down here rather than left as a one-line diff.
+   **Result: the mechanism this Part fixes did not occur once in 31 post-change runs** (`Unable to start a transaction in the given time`, baseline roughly 1 in 10). Every red seen afterwards was the different mechanism in Consequence 4.
 
-5. **The suite is still slow, and this Part does not address it.** Every read in Mise opens an interactive transaction so that `SET LOCAL app.current_tenant_id` has somewhere to live — four round trips to Singapore to fetch one row. Per ADR 0004 that `SET LOCAL` protects nothing today: the app connects as the table owner, `FORCE ROW LEVEL SECURITY` is not set, and RLS does not become real until Sprint 7. Whether a read that needs no tenant context should still pay for a transaction is a genuine question, it is worth a decision, and it belongs to Sprint 7's RLS work rather than here.
+4. **A SECOND failure mechanism exists, it is not this one, and this Part does not fix it.** Verification turned up `Can't reach database server` — the connection failing outright, and from `withAdminContext`, which opens no transaction at all, so `maxWait` cannot be involved and no ceiling can help it.
+
+   What is known about it:
+
+   - **7 occurrences in 31 post-change runs, 0 in 20 pre-change runs** — but those two totals ran at different times, and the phenomenon comes in windows, so the raw counts are confounded and prove nothing on their own.
+   - **Interleaved run-for-run to control for time — including five pairs run while it was actively happening — it is 1 in 11 against 0 in 11.** No detectable difference between the two versions. That is a null result, not an acquittal: one event cannot separate 0 % from 9 %.
+   - **It is not reachability.** A bare probe opening a fresh connection to the same endpoint every two seconds scored **205 successes to 1 failure** overall, and **zero failures** across the window in which the suite went red. The endpoint answered a single client in the same minute the suite could not connect.
+   - **So it is about connection COUNT, not connection health** — which is the one thing a 14-worker suite does that a probe does not.
+   - It strikes a different spec every time, and in its first window it recurred at an interval of very close to **four minutes**. Four minutes is a cycle, and nothing in Mise runs on one.
+
+   The lever for this mechanism is the one that was rightly rejected for the first: capping `maxForks` reduces aggregate connections, and aggregate connections are exactly what this appears to be about. Consequence 2's reasoning does not transfer — it was about `inflight=1`, which is evidence concerning `maxWait` and says nothing here. **This needs its own investigation, and it should not be folded into this Part retroactively.**
+
+5. **When a `beforeAll` fails, the real error is buried by the teardown that follows it.** The spec's `afterAll` then runs with its tenant ids still `undefined` and throws `Can not use 'undefined' value within array` — which is louder, later, and says nothing true about what went wrong. Every red run in verification showed the misleading error second, where a reader looks first. Guarding those teardowns is a real improvement to how readable red is, which is this Part's whole subject, and it is left undone here deliberately: it touches 47 files and was not part of what the grill agreed.
+
+6. **This changes the behaviour of all 133 `withTenantContext` call sites at once**, which is the reason it is written down here rather than left as a one-line diff.
+
+7. **The suite is still slow, and this Part does not address it.** Every read in Mise opens an interactive transaction so that `SET LOCAL app.current_tenant_id` has somewhere to live — four round trips to Singapore to fetch one row. Per ADR 0004 that `SET LOCAL` protects nothing today: the app connects as the table owner, `FORCE ROW LEVEL SECURITY` is not set, and RLS does not become real until Sprint 7. Whether a read that needs no tenant context should still pay for a transaction is a genuine question, it is worth a decision, and it belongs to Sprint 7's RLS work rather than here.
