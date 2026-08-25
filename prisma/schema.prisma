@@ -2415,6 +2415,29 @@ model Recipe {
   supersededAt   DateTime? @map("superseded_at")
   supersededById String?   @map("superseded_by_id") @db.Uuid
 
+  /// Part 24 (ADR 0025 Q4). A recipe the shop is still deciding about, and one
+  /// that is true on NO day: it is filtered out in `recipe-resolve.ts` — the
+  /// single route by which a recipe reaches the ledger — and in
+  /// `recipe-guards.ts`, or drafting a change to a live dish would collide with
+  /// that dish's own published recipe.
+  ///
+  /// A flag rather than a `recipe_draft` table on purpose: `recipe-cost.ts`
+  /// holds the only recursive yield-correct cost walk in the system, and a draft
+  /// with a shape of its own would need a second one. Two cost engines drift,
+  /// and the day the lab disagrees with the recipe page nothing reports it.
+  isDraft Boolean @default(false) @map("is_draft")
+
+  /// The price being considered while designing — **ราคาที่ตั้งใจ**, never ราคา.
+  ///
+  /// ADR 0021 Q10 refused `menu.sale_price` because a typed price goes stale the
+  /// day the POS price changes, and that argument bites hardest here: if Menu
+  /// Lab works, the dish gets sold. On a draft the number means something that
+  /// cannot go stale — a fact about a design session, not a claim about today —
+  /// so it never competes with the price read from sales. Kept after publishing,
+  /// because "planned ฿89, selling at ฿85" is worth knowing, and **once the dish
+  /// has sales the sold price is the price** (ADR 0025 Q2).
+  plannedPrice Decimal? @map("planned_price") @db.Decimal(15, 2)
+
   notes String?
 
   createdBy String    @map("created_by")
