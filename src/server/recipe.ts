@@ -223,6 +223,11 @@ async function liveLinesFor(
       tenantId,
       deletedAt: null,
       supersededAt: null,
+      // Drafts are not lines (ADR 0025 Q4). Without this, drafting a change to a
+      // dish that already sells — half of what Menu Lab is for — would collide
+      // with that dish's own published recipe under RecipeAlreadyExistsError,
+      // and publishing the draft would then be refused by the thing it replaces.
+      isDraft: false,
       ...(target.kind === "menu"
         ? { menuId: target.id }
         : { outputProductId: target.id }),

@@ -96,6 +96,11 @@ export async function resolveRecipeIds(
       // Superseded means "this version was wrong" (see the model comment), so it
       // is excluded at every date, not only after some cut-off.
       supersededAt: null,
+      // A draft is true on NO day (ADR 0025 Q4). This is the single route by
+      // which a recipe reaches `stock_movement` — Part 22's explodeToRaw comes
+      // through here — so this one line is what stops a dish somebody is still
+      // deciding about from consuming real stock. `db-draft-isolation` pins it.
+      isDraft: false,
       effectiveFrom: { lte: asOf },
       OR: [
         ...(menuIds.length > 0 ? [{ menuId: { in: menuIds } }] : []),
