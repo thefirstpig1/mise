@@ -14,7 +14,8 @@
     "db:seed:system": "tsx prisma/seed-system.ts",
     "db:studio": "prisma studio",
     "db:reset": "prisma migrate reset --force",
-    "test": "vitest"
+    "test": "vitest",
+    "test:sweep": "tsx scripts/sweep-test-tenants.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.7.4",
