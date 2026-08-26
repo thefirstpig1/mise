@@ -55,7 +55,7 @@ import type {
  * happens once an hour can afford them. Prisma's 5 s default cannot — the same
  * call ADR 0013 Consequence 5 made for a twenty-line goods receipt.
  */
-const RECIPE_WRITE_TIMEOUT_MS = 20_000;
+export const RECIPE_WRITE_TIMEOUT_MS = 20_000;
 
 export type RecipeWithIngredients = Prisma.RecipeGetPayload<{
   include: { ingredients: true };
@@ -149,7 +149,7 @@ export class RecipeBranchAlreadyDecidedError extends Error {
 // Shared guards
 // ------------------------------------------------------------
 
-const targetOf = (r: {
+export const targetOf = (r: {
   menuId: string | null;
   outputProductId: string | null;
 }): RecipeTarget =>
@@ -165,10 +165,20 @@ const targetOf = (r: {
  * most a hundred lines (L2's cap) and the failure has to name WHICH line, which
  * a set-difference over one batched query would lose.
  */
-async function assertWriteRefsValid(
+export type RecipeRefsToCheck = {
+  menuId: string | null;
+  outputProductId: string | null;
+  ingredients: {
+    productId: string | null;
+    componentMenuId: string | null;
+    productUnitId: string | null;
+  }[];
+};
+
+export async function assertWriteRefsValid(
   tx: PrismaClient,
   tenantId: string,
-  input: Pick<RecipeInput, "menuId" | "outputProductId" | "ingredients">
+  input: RecipeRefsToCheck
 ): Promise<void> {
   await assertRefBelongsToTenant(tx, tenantId, "menu", input.menuId);
   await assertRefBelongsToTenant(tx, tenantId, "product", input.outputProductId);
@@ -197,7 +207,10 @@ async function assertWriteRefsValid(
 }
 
 /** The ingredient rows for one version, ready for a nested create. */
-const ingredientRowsFor = (tenantId: string, input: RecipeInput) =>
+export const ingredientRowsFor = (
+  tenantId: string,
+  input: { ingredients: RecipeInput["ingredients"] }
+) =>
   input.ingredients.map((line) => ({
     tenantId,
     productId: line.productId,
@@ -213,7 +226,7 @@ const ingredientRowsFor = (tenantId: string, input: RecipeInput) =>
  * "Central" is the line with NO `recipe_branch` rows at all — a line attached to
  * other branches is not a fallback, it belongs to them (Q8).
  */
-async function liveLinesFor(
+export async function liveLinesFor(
   tx: PrismaClient,
   tenantId: string,
   target: RecipeTarget
