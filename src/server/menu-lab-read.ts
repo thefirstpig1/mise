@@ -27,6 +27,12 @@ import { withTenantContext } from "@/lib/db";
 import { addDays, computeBangkokToday } from "@/lib/bangkok-date";
 import { MAX_SUGGESTION_LOOKUPS, suggestMenusLogic } from "@/server/menu";
 import { resolveRecipeIds } from "@/server/recipe-resolve";
+import {
+  expandMenuIds,
+  foldMenuId,
+  foldRowsByMenu,
+  loadMergeFold,
+} from "@/server/menu-merge-fold";
 import { getWhatIfCostLogic, type RecipeCost } from "@/server/recipe-cost";
 import type {
   LabWhatIfQuery,
@@ -137,6 +143,27 @@ export async function getRecipeCoverageLogic(
       _sum: { netAmount: true, qty: true },
     });
 
+    // Q5: REPORTING FOLDS RETROACTIVELY AND ALWAYS. A merge made today makes
+    // last month's two rows one, because "these are the same dish" is a fact
+    // about the dish and nothing stored moves. The date on the merge governs
+    // the ledger alone, and this read never asks about a losing menu again —
+    // after the fold every id below is a canonical one.
+    const fold = await loadMergeFold(tx, tenantId);
+    const folded = foldRowsByMenu(
+      fold,
+      grouped.map((g) => ({
+        menuId: foldMenuId(fold, g.menuId),
+        revenue: g._sum.netAmount ?? ZERO,
+        qty: g._sum.qty ?? ZERO,
+      })),
+      (r) => r.menuId,
+      (into, next) => ({
+        menuId: into.menuId,
+        revenue: into.revenue.plus(next.revenue),
+        qty: into.qty.plus(next.qty),
+      })
+    );
+
     const empty: RecipeCoverage = {
       branchId,
       from,
@@ -149,9 +176,9 @@ export async function getRecipeCoverageLogic(
       uncoveredMenuCount: 0,
       hintedRowCount: 0,
     };
-    if (grouped.length === 0) return empty;
+    if (folded.length === 0) return empty;
 
-    const menuIds = grouped.map((g) => g.menuId);
+    const menuIds = folded.map((g) => g.menuId);
     const covered = await coveredMenuIds(tx, tenantId, menuIds, branchId, to);
     const drafted = await draftedMenuIds(tx, tenantId, menuIds);
 
@@ -167,8 +194,8 @@ export async function getRecipeCoverageLogic(
     type Draft = Omit<CoverageRow, "shareOfRevenue" | "duplicateHint">;
     const uncovered: Draft[] = [];
 
-    for (const g of grouped) {
-      const revenue = g._sum.netAmount ?? ZERO;
+    for (const g of folded) {
+      const revenue = g.revenue;
       totalRevenue = totalRevenue.plus(revenue);
 
       if (covered.has(g.menuId)) {
@@ -183,7 +210,7 @@ export async function getRecipeCoverageLogic(
         // display problem — but a READ never throws for data reasons.
         name: menu?.name ?? "(ไม่พบเมนู)",
         revenue,
-        qty: g._sum.qty ?? ZERO,
+        qty: g.qty,
         hasDraft: drafted.has(g.menuId),
         isDeleted: menu?.deletedAt != null,
       });
@@ -427,11 +454,23 @@ export async function getDraftsLogic(tenantId: string): Promise<DraftRow[]> {
       tx.recipeBranch.findMany({ where: { tenantId }, select: { lineId: true } }),
       // A replaced day's rows are evidence, not sales — the same filter the
       // coverage read applies, for the same reason.
-      tx.salesLine.groupBy({
-        by: ["menuId"],
-        where: { tenantId, menuId: { in: menuIds }, supersededAt: null },
-        _count: { _all: true },
-      }),
+      // The OTHER direction (Q5): this read starts from a dish and has to find
+      // sales filed under its other spellings, so the ids are EXPANDED before
+      // the query and folded back after. Asking `foldMenuId` here would find
+      // nothing and say the dish never sold.
+      loadMergeFold(tx, tenantId).then((f) =>
+        tx.salesLine
+          .groupBy({
+            by: ["menuId"],
+            where: {
+              tenantId,
+              menuId: { in: expandMenuIds(f, menuIds) },
+              supersededAt: null,
+            },
+            _count: { _all: true },
+          })
+          .then((rows) => rows.map((r) => foldMenuId(f, r.menuId)))
+      ),
     ]);
 
     const linked = new Set(links.map((l) => l.lineId));
@@ -443,7 +482,7 @@ export async function getDraftsLogic(tenantId: string): Promise<DraftRow[]> {
       if (r.menuId === null || linked.has(r.lineId)) continue;
       liveCentralByMenu.set(r.menuId, r.id);
     }
-    const hasSales = new Set(sold.map((s) => s.menuId));
+    const hasSales = new Set(sold);
 
     return drafts.map((d) => ({
       recipeId: d.id,

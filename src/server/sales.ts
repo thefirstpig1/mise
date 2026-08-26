@@ -17,6 +17,11 @@
 
 import { Prisma } from "@prisma/client";
 import { withTenantContext } from "@/lib/db";
+import {
+  foldMenuId,
+  foldRowsByMenu,
+  loadMergeFold,
+} from "@/server/menu-merge-fold";
 
 export interface GetSalesQuery {
   branchId?: string;
@@ -173,8 +178,27 @@ export async function getSalesSummaryLogic(
       }
       const byWeekday = [...weekdayMap.values()].sort((a, b) => a.weekday - b.weekday);
 
+      // Q5: reporting folds retroactively and always, so a dish the POS spells
+      // two ways is ONE row here — and its category comes from the canonical
+      // menu, which is the only one anybody maintains after a merge.
+      const fold = await loadMergeFold(tx, tenantId);
+      const byMenu = foldRowsByMenu(
+        fold,
+        byMenuRows.map((r) => ({
+          menuId: foldMenuId(fold, r.menuId),
+          net: r._sum.netAmount ?? ZERO(),
+          qty: r._sum.qty ?? ZERO(),
+        })),
+        (r) => r.menuId,
+        (into, next) => ({
+          menuId: into.menuId,
+          net: into.net.plus(next.net),
+          qty: into.qty.plus(next.qty),
+        })
+      );
+
       // --- category and menu need names, which is one more trip ---
-      const menuIds = byMenuRows.map((r) => r.menuId);
+      const menuIds = byMenu.map((r) => r.menuId);
       const menus =
         menuIds.length === 0
           ? []
@@ -194,10 +218,9 @@ export async function getSalesSummaryLogic(
       const topMenus: SalesByMenu[] = [];
       let unidentifiedMenuCount = 0;
 
-      for (const row of byMenuRows) {
+      for (const row of byMenu) {
         const menu = menuById.get(row.menuId);
-        const net = row._sum.netAmount ?? ZERO();
-        const qty = row._sum.qty ?? ZERO();
+        const { net, qty } = row;
 
         topMenus.push({
           menuId: row.menuId,

@@ -41,6 +41,7 @@ import {
   type GraphRecipe,
   type RecipeGraph,
 } from "@/server/recipe-graph";
+import { foldMenuId, loadMergeFold } from "@/server/menu-merge-fold";
 
 /** What a resolution asks about: one menu, or one product's production recipe. */
 export type RecipeTarget =
@@ -86,8 +87,27 @@ export async function resolveRecipeIds(
   const resolved = new Map<string, ResolvedRecipeRow>();
   if (targets.length === 0) return resolved;
 
-  const menuIds = targets.filter((t) => t.kind === "menu").map((t) => t.id);
+  const askedMenuIds = targets.filter((t) => t.kind === "menu").map((t) => t.id);
   const productIds = targets.filter((t) => t.kind === "product").map((t) => t.id);
+
+  // ADR 0026 Q2/Q5 — THE THIRD FALLBACK LEVEL, and the only place a merge
+  // reaches the ledger.
+  //
+  // Dated on purpose: `asOf` is the business date, so a merge folds here only
+  // from its `effectiveFrom`. Reporting folds retroactively because it stores
+  // nothing; writing movements into a past day changes what happened, so this
+  // one does not.
+  //
+  // The canonical menus are added to the QUERY, not consulted afterwards, so a
+  // dish whose recipe lives on the menu it was merged into is resolved in the
+  // same round trip as everything else.
+  const fold = await loadMergeFold(tx, tenantId, asOf);
+  const canonicalOf = new Map<string, string>();
+  for (const id of askedMenuIds) {
+    const canonical = foldMenuId(fold, id);
+    if (canonical !== id) canonicalOf.set(id, canonical);
+  }
+  const menuIds = [...new Set([...askedMenuIds, ...canonicalOf.values()])];
 
   const candidates: ResolvedRecipeRow[] = await tx.recipe.findMany({
     where: {
@@ -165,6 +185,20 @@ export async function resolveRecipeIds(
     })[0];
 
     resolved.set(key, best);
+  }
+
+  // A merged menu that has no recipe of its own borrows the one belonging to
+  // the dish it counts as. LAST, so a losing menu that HAS a recipe keeps using
+  // it — for every past day it was posted against and every future one. That is
+  // what makes merging able only to ADD costing, never to change costing that
+  // already existed (Q2), and why no merge can falsify a day already posted.
+  for (const [menuId, canonicalId] of canonicalOf) {
+    // The literal this function's own keys use — `menuKey` from recipe-graph
+    // builds the WALKER's `m:` form, which is a different namespace.
+    const key = `menu:${menuId}`;
+    if (resolved.has(key)) continue;
+    const borrowed = resolved.get(`menu:${canonicalId}`);
+    if (borrowed !== undefined) resolved.set(key, borrowed);
   }
 
   return resolved;
