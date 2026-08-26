@@ -34,6 +34,7 @@ export const TENANT_SCOPED_DELETE_ORDER = [
   "ExpenseItem",
   "GoodsReceiptItemAllocation",
   "MenuAlias",
+  "MenuMerge",
   "ParLevel",
   "RecipeBranch",
   "RecipeIngredient",

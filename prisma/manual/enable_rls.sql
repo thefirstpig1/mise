@@ -398,3 +398,15 @@ USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 -- ============================================================
 -- End Sprint 5 Part 22 RLS
 -- ============================================================
+
+-- ============================================================
+-- Sprint 5 Part 25 RLS (ADR 0026)
+-- ============================================================
+
+ALTER TABLE menu_merge ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON menu_merge
+USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+-- ============================================================
+-- End Sprint 5 Part 25 RLS
+-- ============================================================
