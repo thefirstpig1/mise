@@ -225,6 +225,13 @@ export default async function RecipesPage({
             ·{" "}
             <a href="/menus" className="text-primary hover:underline">
               จัดการชื่อและหมวดของเมนู
+            </a>{" "}
+            ·{" "}
+            {/* The lab is where a recipe is TRIED; this page is where one is
+                written down for real. Linking them is what stops somebody
+                editing a live recipe to answer a what-if. */}
+            <a href="/menus/lab" className="text-primary hover:underline">
+              ทดลองสูตรก่อนใช้จริง
             </a>
           </p>
         </div>

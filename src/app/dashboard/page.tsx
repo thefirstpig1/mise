@@ -170,6 +170,12 @@ export default async function DashboardPage() {
           <a href="/recipes" className="text-sm text-primary hover:underline">
             → สูตรอาหาร
           </a>
+          <a href="/menus/lab" className="text-sm text-primary hover:underline">
+            → ทดลองเมนู
+          </a>
+          <a href="/menus/coverage" className="text-sm text-primary hover:underline">
+            → เมนูที่ยังไม่มีสูตร
+          </a>
           <a href="/consumption" className="text-sm text-primary hover:underline">
             → ตัดสต๊อกตามยอดขาย
           </a>

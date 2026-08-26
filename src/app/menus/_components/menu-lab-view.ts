@@ -33,6 +33,7 @@ import {
 import type { RecipeWithIngredients } from "@/server/recipe";
 import type {
   CoverageRow,
+  DraftRow,
   DuplicateHint,
   LabWhatIf,
   RecipeCoverage,
@@ -79,6 +80,44 @@ export function toDraftView(r: RecipeWithIngredients): DraftView {
 }
 
 // ------------------------------------------------------------
+// A draft on a list
+// ------------------------------------------------------------
+
+export type DraftRowView = {
+  recipeId: string;
+  menuId: string;
+  menuName: string;
+  menuIsMise: boolean;
+  plannedPrice: string | null;
+  servings: string;
+  ingredientCount: number;
+  updatedAtLabel: string;
+  /**
+   * Publishing this takes over a recipe that is already live. Carried as an ID
+   * rather than a boolean so the row can LINK to it: "this replaces that" is a
+   * sentence somebody should be able to follow before they press anything.
+   */
+  liveRecipeId: string | null;
+  /** Q2: the dish sells, so the sold price is the price. */
+  hasSales: boolean;
+};
+
+export function toDraftRowView(d: DraftRow): DraftRowView {
+  return {
+    recipeId: d.recipeId,
+    menuId: d.menuId,
+    menuName: d.menuName,
+    menuIsMise: d.menuIsMise,
+    plannedPrice: d.plannedPrice === null ? null : baht(d.plannedPrice),
+    servings: d.servings.toString(),
+    ingredientCount: d.ingredientCount,
+    updatedAtLabel: BANGKOK_DATE.format(d.updatedAt),
+    liveRecipeId: d.liveRecipeId,
+    hasSales: d.hasSales,
+  };
+}
+
+// ------------------------------------------------------------
 // The live calculator
 // ------------------------------------------------------------
 
@@ -93,6 +132,9 @@ export type LabWhatIfView = {
    */
   branchName: string;
   branchWasDefaulted: boolean;
+  /** Rendered here, not in the browser: page 1 in Node and page 2 in the
+   * browser is how a list hydrates two ways. */
+  asOfLabel: string;
   plannedPrice: string | null;
   /**
    * `null`, never "0.0", when there is no planned price: a 0% food cost is the
@@ -113,6 +155,7 @@ export function toLabWhatIfView(w: LabWhatIf): LabWhatIfView {
     branchId: w.branchId,
     branchName: w.branchName,
     branchWasDefaulted: w.branchWasDefaulted,
+    asOfLabel: BANGKOK_DATE.format(w.cost.asOf),
     plannedPrice: w.plannedPrice === null ? null : baht(w.plannedPrice),
     foodCostPercent:
       w.foodCostPercent === null ? null : percent(w.foodCostPercent),
