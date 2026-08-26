@@ -336,6 +336,131 @@ async function duplicateHints(
 }
 
 // ------------------------------------------------------------
+// The drafts somebody is in the middle of (L5a)
+// ------------------------------------------------------------
+
+/**
+ * A draft on its way to a list.
+ *
+ * No cost on it. Costing N drafts is N graph walks against a FIFO replay, and a
+ * list is not where a person weighs a price — the lab screen is, one dish at a
+ * time, with the branch named beside the figure (Q6). A cheap number on a list
+ * would be the one figure in this Part that arrives without its confidence.
+ */
+export type DraftRow = {
+  recipeId: string;
+  menuId: string;
+  menuName: string;
+  /**
+   * The menu was created by the lab, so no POS knows it (Q3). Until Part 25 can
+   * merge, these accumulate — and a person looking at the list should be able
+   * to see which dishes are experiments and which are things the shop sells.
+   */
+  menuIsMise: boolean;
+  plannedPrice: Prisma.Decimal | null;
+  servings: Prisma.Decimal;
+  ingredientCount: number;
+  updatedAt: Date;
+  /**
+   * The dish already has a live CENTRAL recipe, which publishing takes over.
+   * Non-null is not a problem — drafting a change to a dish that sells is half
+   * of what the lab is for — but the screen must say so before the button, not
+   * after: nothing about tomorrow's figures looks different, because yesterday
+   * stays costed against yesterday's recipe.
+   */
+  liveRecipeId: string | null;
+  /**
+   * The dish has sales. Q2: from then on the SOLD price is the price, and
+   * ราคาที่ตั้งใจ sits beside it as a comparison, never in place of it. This is
+   * what `PLANNED_PRICE_VS_SOLD_HINT_TH` is for.
+   */
+  hasSales: boolean;
+};
+
+/**
+ * Every draft in the tenant, newest first.
+ *
+ * Drafts are not scoped to a branch: a draft resolves on no day at no branch
+ * (L3b), so there is no branch whose question this list would be answering.
+ */
+export async function getDraftsLogic(tenantId: string): Promise<DraftRow[]> {
+  return withTenantContext(tenantId, async (tx) => {
+    const drafts = await tx.recipe.findMany({
+      where: { tenantId, isDraft: true, deletedAt: null },
+      select: {
+        id: true,
+        menuId: true,
+        servings: true,
+        plannedPrice: true,
+        updatedAt: true,
+        menu: { select: { id: true, name: true, source: true } },
+        _count: { select: { ingredients: true } },
+      },
+      orderBy: { updatedAt: "desc" },
+    });
+    if (drafts.length === 0) return [];
+
+    // A draft always hangs off a menu — `createDraftLogic` makes one when the
+    // dish does not exist — but `recipe.menuId` is nullable for the production
+    // recipes Part 21 writes, so the narrowing is real rather than ceremonial.
+    const menuIds = [
+      ...new Set(
+        drafts
+          .map((d) => d.menuId)
+          .filter((id): id is string => id !== null)
+      ),
+    ];
+
+    const [liveRows, links, sold] = await Promise.all([
+      // The same rule `liveLinesFor` applies, asked once for the whole list
+      // instead of once per row: live, not superseded, NOT A DRAFT.
+      tx.recipe.findMany({
+        where: {
+          tenantId,
+          deletedAt: null,
+          supersededAt: null,
+          isDraft: false,
+          menuId: { in: menuIds },
+        },
+        select: { id: true, lineId: true, menuId: true },
+      }),
+      tx.recipeBranch.findMany({ where: { tenantId }, select: { lineId: true } }),
+      // A replaced day's rows are evidence, not sales — the same filter the
+      // coverage read applies, for the same reason.
+      tx.salesLine.groupBy({
+        by: ["menuId"],
+        where: { tenantId, menuId: { in: menuIds }, supersededAt: null },
+        _count: { _all: true },
+      }),
+    ]);
+
+    const linked = new Set(links.map((l) => l.lineId));
+    const liveCentralByMenu = new Map<string, string>();
+    for (const r of liveRows) {
+      // A branch recipe is not what publishing displaces (Q8): a branch that
+      // copied a recipe stopped following central, and central is what a draft
+      // replaces.
+      if (r.menuId === null || linked.has(r.lineId)) continue;
+      liveCentralByMenu.set(r.menuId, r.id);
+    }
+    const hasSales = new Set(sold.map((s) => s.menuId));
+
+    return drafts.map((d) => ({
+      recipeId: d.id,
+      menuId: d.menuId ?? "",
+      menuName: d.menu?.name ?? "",
+      menuIsMise: d.menu?.source === "MISE",
+      plannedPrice: d.plannedPrice,
+      servings: d.servings,
+      ingredientCount: d._count.ingredients,
+      updatedAt: d.updatedAt,
+      liveRecipeId: d.menuId === null ? null : (liveCentralByMenu.get(d.menuId) ?? null),
+      hasSales: d.menuId !== null && hasSales.has(d.menuId),
+    }));
+  });
+}
+
+// ------------------------------------------------------------
 // The live calculator (Q3, Q6)
 // ------------------------------------------------------------
 
