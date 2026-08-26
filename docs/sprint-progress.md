@@ -6,10 +6,48 @@
 
 _(Sprint 4 — POS sales import · daily pulse: ✅ COMPLETE 2026-08-20, except Part 20b which is blocked on choosing an inbound-mail vendor)_
 
-**Status:** **Part 21 ✅ COMPLETE 2026-08-24** · **Part 22 ✅ COMPLETE 2026-08-25** · **Part 23 (test-suite reliability) 🚧 IN PROGRESS**.
-**Split:** Sprint 5 is **four Parts** — **21** สูตรอาหาร + ต้นทุนสูตร (no ledger writes) · **22** `CONSUMPTION` + GP by recipe · **23** test-suite reliability (ADR 0023) · **23.5** connection ที่ค้าง (ADR 0024) · **24** Menu Lab, menu merging, staff meal, recipe coverage.
+**Status:** **Part 21 ✅ COMPLETE 2026-08-24** · **Part 22 ✅ COMPLETE 2026-08-25** · **Part 23 ✅** · **Part 23.5 ✅ COMPLETE 2026-08-25** · **Part 24 (Menu Lab + recipe coverage) ✅ COMPLETE 2026-08-26**.
+**Split:** Sprint 5 is **five Parts** — **21** สูตรอาหาร + ต้นทุนสูตร (no ledger writes) · **22** `CONSUMPTION` + GP by recipe · **23** test-suite reliability (ADR 0023) · **23.5** connection ที่ค้าง (ADR 0024) · **24** Menu Lab + recipe coverage (ADR 0025). **Menu merging became Part 25 and staff meal Part 26** — ADR 0025 Q1: merging rewrites `sales_line` rows already imported and consumption runs already posted, and staff meal writes to the ledger with its own `source_type`. Neither is the same kind of work as a screen that writes only a draft.
 **Part 23 is not a feature.** It is the debugging session that found why the suite had been going red at random, and the two fixes that came out of it. Menu Lab moved to **Part 24** (ADR 0023 Q1): Part numbers here record what was built and when — Part 13.5 exists for the same reason.
 **Not in Sprint 5:** H.8 theoretical-vs-actual variance (→ Sprint 6, per the spec's own O16, decided 2026-08-21) · Price Volatility (Sprint 6) · Section B three-layer mirror and `recipe_change_diff` (**removed**, ADR 0021 Q3).
+
+---
+
+## Sprint 5 Part 24 — Menu Lab + ความครอบคลุมของสูตร: ✅ COMPLETE (L0–L6, 2026-08-26)
+
+**ADR:** `docs/adr/0025-menu-lab-and-recipe-coverage.md` (Q1–Q6, grill 2026-08-25)
+**Rules registered:** `docs/calculation-rules.md` §11, **M1–M7** (grill) + **M8–M10** (decided while building L3d/L5b)
+
+The one screen in Mise where **nothing has happened yet**. Every other number comes from something real — cost from the ledger, price from the sales file — but *"฿89 or ฿99?"* is a question about a dish nobody has cooked. Part 24 builds it, and the coverage list that says which dish to write down first.
+
+**No new table.** A draft is a `recipe` row with `is_draft` set, filtered in exactly two places.
+
+| L | What | Status |
+|---|---|---|
+| L0 | ADR 0025 · CONTEXT.md gains [Draft recipe], [Menu Lab], [Recipe coverage] · rules M1–M7 | ✅ |
+| L1 | migration: `recipe.is_draft` + `recipe.planned_price` + CHECK + **partial index** — two columns, no new table, no relaxed constraint | ✅ |
+| **L3b** | **the two filters, built BEFORE the thing they hold back** — `recipe-resolve.ts` (the single route by which a recipe reaches `stock_movement`) and `recipe.ts` `liveLinesFor` (without it, drafting a change to a dish that sells collides with its own published recipe) · **4 isolation tests, each verified by removing a filter and watching it go red** | ✅ |
+| L2 | zod: `plannedPrice` (nullable, zero refused), the draft shape's two ways to name a dish, publish/discard, the lab query that may hold NO ingredients · 27 tests | ✅ |
+| L3a | `menu-lab.ts` — four writes, each a deliberate departure from Part 21's CRUD: **a draft is not a line** (no uniqueness check) · **an edit writes no version** (a draft is true on no day) · **the graph is checked at PUBLISH, not at save** · **publishing ADOPTS the live line**, so yesterday stays costed by yesterday's recipe · 8 DB tests | ✅ |
+| L3c | coverage — menus with no recipe **ranked by REVENUE**, the headline a share of revenue and `null` (not 0%) when the period earned nothing · a draft is not coverage · covered means covered FOR THIS BRANCH · per-row trigram hint that says whether the twin already HAS a recipe, capped, and **the cap is reported** · 6 DB tests | ✅ |
+| **L3d** | **the live what-if** — `getWhatIfCostLogic` SPLICES a virtual menu root into the real graph, so the walk, the batched FIFO replay, the confidence floor and the assembler are the ones every saved recipe uses. **A lab with its own arithmetic is the second engine Q4 refused**, and the day it disagreed nothing would report it · an empty calculator is ฿0 at **LOW** · a line naming something this tenant lacks is DROPPED, not thrown (a read never throws for data reasons) · 6 DB tests, **W1 being the one that matters: an unsaved what-if and the identical SAVED recipe agree to the satang** | ✅ |
+| L4 | 5 actions + Thai errors + serializers · the fifth writes nothing: `getLabWhatIfAction` takes **the same FormData Save takes**, so the figure is priced from the rows Save would write · `ingredientRowsFromFormData` moved to `validations/recipe.ts` — a `"use server"` file can export nothing but actions, and the lab posts the same parallel arrays · **the cost serializer is imported from /recipes, never rewritten** | ✅ |
+| L5a | `getDraftsLogic` — the read a list asks for, which L3 never wrote. **No cost on the row** (N walks for a list nobody prices from) · `liveRecipeId` and `hasSales` so the screen warns BEFORE a button · 5 DB tests, **B3/B4 verified by making them red** | ✅ |
+| L5b | `/menus/lab`, `/menus/lab/new`, `/menus/lab/[id]` — the cost re-asks the server on every edit, debounced, and **the branch's NAME travels with the number** · publish refuses once and only THEN renders the acknowledgement · a published recipe reached at `/menus/lab/[id]` **redirects to `/recipes/[id]`** (same row, no longer a what-if) | ✅ |
+| L5c | `/menus/coverage` — the ordering IS the answer · no 0% for a period that earned nothing · nothing grouped, hidden or merged · an absent duplicate hint means "not looked at", never "no duplicate" | ✅ |
+| L6 | **14-case E2E** through the real action stack (FormData → zod → `*Logic` → Neon → Thai error → view, only `require-tenant` and `next/cache` mocked) · **found no production bug** — the single red was the spec's own use of the resolver's key format · spec + config deleted, never committed · docs + rules M8–M10 | ✅ |
+
+### The five decisions most likely to be undone by accident
+1. **`is_draft` is filtered in exactly two places, and both are load-bearing.** Lists elsewhere may show drafts; that is presentation, not correctness. `tests/recipe-draft-isolation.test.ts` pins it.
+2. **The typed price is ราคาที่ตั้งใจ, never ราคา** (Q2). Once the dish has sales, the sold price IS the price and the planned figure sits beside it.
+3. **A draft for a new dish creates a `menu` with `source: MISE`.** `recipe_target_check` is untouched, and the eventual MISE-vs-POS duplicate is Part 25's central case rather than a special one.
+4. **Coverage ranks by revenue and warns about duplicates without touching them.** A similarity score suggests; a person decides (ADR 0019).
+5. **Cost needs a branch** (ADR 0014 Q9). The lab opens on the branch with the freshest `PO_RECEIVE`, names it beside the number, and carries `confidence` like every other cost read.
+
+### Standing items this Part leaves behind
+- **Part 25 (menu merging)** now owns every MISE menu a discarded draft left behind. They carry no sales, so they cannot move revenue, coverage or consumption — but they appear in menu lists until merging has somewhere to put them.
+- **Part 26 (staff meal)** still owed; it writes to the ledger and needs its own `source_type`.
+- 🛑 **`canPerform` still has zero call sites** — unchanged by this Part, and still owed before Beta (ADR 0021 Q18).
 
 ---
 
