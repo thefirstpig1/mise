@@ -34,6 +34,7 @@
 // that holds it and would otherwise make the set look cheap.
 // ============================================================
 
+import { randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import type { PrismaClient } from "@prisma/client";
 import { withTenantContext } from "@/lib/db";
@@ -372,6 +373,223 @@ export async function getRecipeCostLogic(
     asOf: query.asOf,
   });
   return costs.get(query.recipeId) ?? null;
+}
+
+// ------------------------------------------------------------
+// The what-if (Part 24 L3d, ADR 0025 Q3)
+// ------------------------------------------------------------
+
+/**
+ * A recipe that exists nowhere: the lines a person is typing into Menu Lab,
+ * before Save and possibly for ever.
+ *
+ * It lives in THIS file rather than in a lab-shaped one, and that placement is
+ * ADR 0025 Q4's whole argument made concrete. The walk, the batched replay, the
+ * confidence floor and the assembler below are used unchanged; the only new
+ * thing is a root node spliced into the loaded graph. A lab with its own cost
+ * code would be the second engine that ADR refused, and the day it disagreed
+ * with the recipe page nothing would report it.
+ *
+ * The root is a MENU node with a synthetic id, so every rule that applies to a
+ * dish applies here: the depth cap counts it, a cycle through it throws, a
+ * component menu with no recipe drags it to LOW.
+ */
+export type WhatIfLine = {
+  productId: string | null;
+  componentMenuId: string | null;
+  qty: number;
+  productUnitId: string | null;
+  sortOrder: number;
+};
+
+export type WhatIfCostQuery = {
+  lines: WhatIfLine[];
+  servings: number;
+  branchId: string;
+  asOf?: Date;
+};
+
+export async function getWhatIfCostLogic(
+  tenantId: string,
+  query: WhatIfCostQuery
+): Promise<RecipeCost> {
+  const asOf = query.asOf ?? computeBangkokToday();
+  const { branchId } = query;
+  const servings = new Prisma.Decimal(query.servings);
+  // Not a real menu and never written down. Random rather than fixed so it
+  // cannot collide with a row somebody creates.
+  const virtualId = randomUUID();
+
+  const emptyCost: RecipeCost = {
+    recipeId: virtualId,
+    branchId,
+    asOf,
+    servings,
+    costPerServing: ZERO,
+    costPerBatch: ZERO,
+    // An empty calculator is a screen somebody just opened. ฿0.00 at HIGH
+    // confidence would be the "a zero would be a lie" failure with nothing on
+    // screen to contradict it.
+    confidence: "LOW",
+    lines: [],
+    leaves: [],
+    unpriced: [],
+    yieldPercentComputed: null,
+    problem: null,
+  };
+  if (query.lines.length === 0) return emptyCost;
+
+  return withTenantContext(tenantId, async (tx) => {
+    // The units and names the lines are written in — the same joins
+    // `getRecipeCostsLogic` gets for free from `recipeIngredient`.
+    const unitIds = query.lines
+      .map((l) => l.productUnitId)
+      .filter((id): id is string => id !== null);
+    const productIds = query.lines
+      .map((l) => l.productId)
+      .filter((id): id is string => id !== null);
+    const menuIds = query.lines
+      .map((l) => l.componentMenuId)
+      .filter((id): id is string => id !== null);
+
+    const [units, products, menus] = await Promise.all([
+      unitIds.length === 0
+        ? Promise.resolve([])
+        : tx.productUnit.findMany({
+            where: { id: { in: unitIds }, product: { tenantId } },
+            select: {
+              id: true,
+              productId: true,
+              unitName: true,
+              toBaseRatio: true,
+            },
+          }),
+      productIds.length === 0
+        ? Promise.resolve([])
+        : tx.product.findMany({
+            where: { id: { in: productIds }, tenantId, deletedAt: null },
+            select: { id: true, name: true },
+          }),
+      menuIds.length === 0
+        ? Promise.resolve([])
+        : tx.menu.findMany({
+            where: { id: { in: menuIds }, tenantId, deletedAt: null },
+            select: { id: true, name: true },
+          }),
+    ]);
+    const unitById = new Map(units.map((u) => [u.id, u]));
+    const productById = new Map(products.map((p) => [p.id, p]));
+    const menuById = new Map(menus.map((m) => [m.id, m]));
+
+    // A line naming something this tenant does not have is dropped rather than
+    // thrown: a READ never throws for data reasons, and the form is L2's job.
+    const usable = query.lines.filter((l) =>
+      l.productId !== null
+        ? productById.has(l.productId) && unitById.has(l.productUnitId ?? "")
+        : menuById.has(l.componentMenuId as string)
+    );
+    if (usable.length === 0) return emptyCost;
+
+    const targets: RecipeTarget[] = usable.map((l) =>
+      l.productId !== null
+        ? { kind: "product", id: l.productId }
+        : { kind: "menu", id: l.componentMenuId as string }
+    );
+
+    const graph = await loadRecipeGraph(tx, tenantId, targets, branchId, asOf);
+
+    // THE SPLICE. Everything below the root was loaded and resolved normally;
+    // this adds the one node that has no row anywhere.
+    graph.menus.set(virtualId, {
+      id: virtualId,
+      recipe: {
+        id: virtualId,
+        servings,
+        ingredients: usable.map((l) => ({
+          productId: l.productId,
+          componentMenuId: l.componentMenuId,
+          qty: new Prisma.Decimal(l.qty),
+          toBaseRatio:
+            l.productUnitId === null
+              ? null
+              : (unitById.get(l.productUnitId)?.toBaseRatio ?? null),
+        })),
+      },
+    });
+
+    const root = {
+      id: virtualId,
+      menuId: virtualId,
+      outputProductId: null,
+      servings,
+    };
+
+    let demand: Map<string, Prisma.Decimal> | null = null;
+    let problem: RecipeCost["problem"] = null;
+    try {
+      demand = new Map(
+        explodeToRaw(graph, menuKey(virtualId), servings).map((l) => [
+          l.productId,
+          l.qty,
+        ])
+      );
+    } catch (e) {
+      if (e instanceof RecipeCycleError) problem = "CYCLE";
+      else if (e instanceof RecipeDepthExceededError) problem = "TOO_DEEP";
+      else throw e;
+    }
+
+    const leafProductIds = [...(demand?.keys() ?? [])];
+    const costs =
+      leafProductIds.length === 0
+        ? new Map<string, ProductCost>()
+        : await replayPairsInTx(tx, tenantId, leafProductIds, [branchId], asOf);
+
+    const names = await loadNames(tx, tenantId, graph, leafProductIds);
+
+    return assemble({
+      root,
+      demand,
+      problem,
+      graph,
+      costs,
+      names,
+      // A menu root has no yield percentage to compute (portions are not a
+      // weight), so the dimension lookup would be a query with no reader.
+      dimensions: new Map(),
+      lineRows: usable.map((l, i) => ({
+        // The screen keys its rows by position; nothing here is stored.
+        id: `${i}`,
+        recipeId: virtualId,
+        productId: l.productId,
+        componentMenuId: l.componentMenuId,
+        qty: new Prisma.Decimal(l.qty),
+        sortOrder: l.sortOrder,
+        product:
+          l.productId === null
+            ? null
+            : { name: productById.get(l.productId)?.name ?? l.productId },
+        componentMenu:
+          l.componentMenuId === null
+            ? null
+            : {
+                name:
+                  menuById.get(l.componentMenuId)?.name ?? l.componentMenuId,
+              },
+        productUnit:
+          l.productUnitId === null
+            ? null
+            : {
+                unitName: unitById.get(l.productUnitId)?.unitName ?? "",
+                toBaseRatio:
+                  unitById.get(l.productUnitId)?.toBaseRatio ??
+                  new Prisma.Decimal(1),
+              },
+      })),
+      branchId,
+      asOf,
+    });
+  });
 }
 
 // ------------------------------------------------------------

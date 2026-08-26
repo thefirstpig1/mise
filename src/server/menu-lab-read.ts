@@ -27,7 +27,11 @@ import { withTenantContext } from "@/lib/db";
 import { addDays, computeBangkokToday } from "@/lib/bangkok-date";
 import { MAX_SUGGESTION_LOOKUPS, suggestMenusLogic } from "@/server/menu";
 import { resolveRecipeIds } from "@/server/recipe-resolve";
-import type { RecipeCoverageQuery } from "@/lib/validations/menu-lab";
+import { getWhatIfCostLogic, type RecipeCost } from "@/server/recipe-cost";
+import type {
+  LabWhatIfQuery,
+  RecipeCoverageQuery,
+} from "@/lib/validations/menu-lab";
 
 const ZERO = new Prisma.Decimal(0);
 const HUNDRED = new Prisma.Decimal(100);
@@ -329,4 +333,134 @@ async function duplicateHints(
       { ...b, hasRecipe: withRecipe.has(b.menuId) },
     ])
   );
+}
+
+// ------------------------------------------------------------
+// The live calculator (Q3, Q6)
+// ------------------------------------------------------------
+
+/** A tenant with no branch cannot be asked what anything costs (ADR 0014 Q9). */
+export class NoBranchForCostError extends Error {
+  constructor() {
+    super("This tenant has no branch to cost against");
+    this.name = "NoBranchForCostError";
+  }
+}
+
+export type LabWhatIf = {
+  /** Walked by the same engine as every other recipe — never a second one. */
+  cost: RecipeCost;
+  branchId: string;
+  /** Q6: the branch's NAME sits beside the number, not in a setting. */
+  branchName: string;
+  /** True when the branch was chosen for the person rather than by them. */
+  branchWasDefaulted: boolean;
+  plannedPrice: Prisma.Decimal | null;
+  /**
+   * `costPerServing ÷ ราคาที่ตั้งใจ × 100` — the number the whole screen exists
+   * for. `null` without a planned price, never 0: a food cost of 0% would be
+   * the most flattering possible answer to a question nobody asked.
+   *
+   * It carries `cost.confidence` wherever it is shown. A 22% food cost over
+   * ingredients half of which are UNPRICED is not a 22% food cost.
+   */
+  foodCostPercent: Prisma.Decimal | null;
+  grossProfitPerServing: Prisma.Decimal | null;
+};
+
+/**
+ * Cost the lines somebody is typing, at one branch, with the price they are
+ * considering.
+ *
+ * The branch is not optional to the ENGINE — a two-branch shop buying pork at
+ * two prices has two answers (ADR 0014 Q9) — so when the caller names none, the
+ * one with the freshest purchases is chosen and said out loud.
+ */
+export async function getLabWhatIfLogic(
+  tenantId: string,
+  query: LabWhatIfQuery
+): Promise<LabWhatIf> {
+  const chosen =
+    query.branchId === undefined
+      ? await freshestCostBranch(tenantId)
+      : await namedBranch(tenantId, query.branchId);
+
+  const cost = await getWhatIfCostLogic(tenantId, {
+    lines: query.ingredients.map((l) => ({
+      productId: l.productId,
+      componentMenuId: l.componentMenuId,
+      qty: l.qty,
+      productUnitId: l.productUnitId,
+      sortOrder: l.sortOrder,
+    })),
+    servings: query.servings,
+    branchId: chosen.id,
+  });
+
+  const plannedPrice =
+    query.plannedPrice === null ? null : new Prisma.Decimal(query.plannedPrice);
+
+  return {
+    cost,
+    branchId: chosen.id,
+    branchName: chosen.name,
+    branchWasDefaulted: query.branchId === undefined,
+    plannedPrice,
+    foodCostPercent:
+      plannedPrice === null || plannedPrice.isZero()
+        ? null
+        : cost.costPerServing.dividedBy(plannedPrice).times(HUNDRED),
+    grossProfitPerServing:
+      plannedPrice === null ? null : plannedPrice.minus(cost.costPerServing),
+  };
+}
+
+/**
+ * The branch whose cost data is freshest — the most recent PURCHASE, because
+ * that is where FIFO money comes from. A branch that has only ever transferred
+ * stock in is priced by whatever the sending branch paid, which is a frozen
+ * figure rather than a fresh one (ADR 0018).
+ *
+ * A shop that has never received anything falls back to its first branch by
+ * name: every ingredient will read UNPRICED, which is the honest state of a
+ * dish nobody has bought anything for, and the confidence badge says so.
+ */
+async function freshestCostBranch(
+  tenantId: string
+): Promise<{ id: string; name: string }> {
+  return withTenantContext(tenantId, async (tx) => {
+    const branches = await tx.branch.findMany({
+      where: { tenantId, deletedAt: null },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    });
+    if (branches.length === 0) throw new NoBranchForCostError();
+    if (branches.length === 1) return branches[0];
+
+    const latest = await tx.stockMovement.groupBy({
+      by: ["branchId"],
+      where: { tenantId, type: "PO_RECEIVE" },
+      _max: { occurredAt: true },
+    });
+    if (latest.length === 0) return branches[0];
+
+    const at = (r: (typeof latest)[number]) =>
+      r._max?.occurredAt?.getTime() ?? 0;
+    const best = latest.reduce((a, b) => (at(b) > at(a) ? b : a));
+    return branches.find((b) => b.id === best.branchId) ?? branches[0];
+  });
+}
+
+async function namedBranch(
+  tenantId: string,
+  branchId: string
+): Promise<{ id: string; name: string }> {
+  return withTenantContext(tenantId, async (tx) => {
+    const branch = await tx.branch.findFirst({
+      where: { id: branchId, tenantId, deletedAt: null },
+      select: { id: true, name: true },
+    });
+    if (branch === null) throw new NoBranchForCostError();
+    return branch;
+  });
 }
