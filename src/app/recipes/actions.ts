@@ -32,6 +32,7 @@ import { requireTenant } from "@/lib/require-tenant";
 import {
   copyRecipeToBranchesInputSchema,
   deleteRecipeInputSchema,
+  ingredientRowsFromFormData,
   recipeInputSchema,
   substituteIngredientInputSchema,
 } from "@/lib/validations/recipe";
@@ -242,53 +243,6 @@ function revalidateRecipeViews(recipeId?: string): void {
 // ------------------------------------------------------------
 
 /**
- * Ingredient rows arrive as parallel, ordered arrays — one entry per row in the
- * form, the same shape ProductForm's additional units use. Zipped by index.
- *
- * A row with NEITHER a product nor a menu is dropped: that is an "+ เพิ่มวัตถุดิบ"
- * somebody changed their mind about. A row that names something but leaves the
- * QUANTITY blank is KEPT, so zod says "จำนวนต้องมากกว่า 0" instead of the line
- * vanishing silently — a dropped ingredient is a dish that costs less than it
- * does, which is the failure this Part is arranged against.
- */
-function ingredientsFromFormData(formData: FormData): Record<string, unknown>[] {
-  const productIds = formData.getAll("ingredient_product_id");
-  const menuIds = formData.getAll("ingredient_component_menu_id");
-  const quantities = formData.getAll("ingredient_qty");
-  const unitIds = formData.getAll("ingredient_product_unit_id");
-  const notes = formData.getAll("ingredient_notes");
-
-  const rowCount = Math.max(
-    productIds.length,
-    menuIds.length,
-    quantities.length,
-    unitIds.length
-  );
-
-  const rows: Record<string, unknown>[] = [];
-  for (let i = 0; i < rowCount; i++) {
-    const productId = productIds[i] ?? null;
-    const componentMenuId = menuIds[i] ?? null;
-    const named =
-      (typeof productId === "string" && productId.trim() !== "") ||
-      (typeof componentMenuId === "string" && componentMenuId.trim() !== "");
-    if (!named) continue;
-
-    rows.push({
-      productId,
-      componentMenuId,
-      qty: quantities[i] ?? "",
-      productUnitId: unitIds[i] ?? null,
-      // The order on screen IS the order in the list; the form does not carry a
-      // separate field for it.
-      sortOrder: rows.length,
-      notes: notes[i] ?? null,
-    });
-  }
-  return rows;
-}
-
-/**
  * `effective_from` is absent on a normal save and present only on "แก้ย้อนหลัง"
  * (Q4). Today is filled in HERE rather than defaulted in zod, because the schema
  * is shared with the substitution shape and a silent default there would let a
@@ -309,7 +263,7 @@ function rawRecipeFromFormData(formData: FormData): Record<string, unknown> {
     outputProductId: formData.get("output_product_id"),
     servings: formData.get("servings") ?? 1,
     effectiveFrom: effectiveFromFormData(formData),
-    ingredients: ingredientsFromFormData(formData),
+    ingredients: ingredientRowsFromFormData(formData),
     notes: formData.get("notes"),
   };
 }

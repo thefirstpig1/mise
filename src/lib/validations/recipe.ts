@@ -161,6 +161,62 @@ export const recipeIngredientInputSchema = z
 
 export type RecipeIngredientInput = z.infer<typeof recipeIngredientInputSchema>;
 
+/**
+ * The wire shape of the rows above: parallel, ordered arrays — one entry per
+ * row on screen, the same shape ProductForm's additional units use. Zipped by
+ * index.
+ *
+ * It lives beside the schema it feeds rather than in the action file that first
+ * needed it, because Part 24's lab posts the SAME rows to a different route
+ * (a draft, and the live what-if), and the two rules below are the kind that
+ * must not drift between two copies:
+ *
+ *   - A row with NEITHER a product nor a menu is DROPPED: that is an
+ *     "+ เพิ่มวัตถุดิบ" somebody changed their mind about.
+ *   - A row that names something but leaves the QUANTITY blank is KEPT, so zod
+ *     says "จำนวนต้องมากกว่า 0" instead of the line vanishing silently. A dropped
+ *     ingredient is a dish that costs less than it does, which is the failure
+ *     the whole recipe Part is arranged against.
+ */
+export function ingredientRowsFromFormData(
+  formData: FormData
+): Record<string, unknown>[] {
+  const productIds = formData.getAll("ingredient_product_id");
+  const menuIds = formData.getAll("ingredient_component_menu_id");
+  const quantities = formData.getAll("ingredient_qty");
+  const unitIds = formData.getAll("ingredient_product_unit_id");
+  const notes = formData.getAll("ingredient_notes");
+
+  const rowCount = Math.max(
+    productIds.length,
+    menuIds.length,
+    quantities.length,
+    unitIds.length
+  );
+
+  const rows: Record<string, unknown>[] = [];
+  for (let i = 0; i < rowCount; i++) {
+    const productId = productIds[i] ?? null;
+    const componentMenuId = menuIds[i] ?? null;
+    const named =
+      (typeof productId === "string" && productId.trim() !== "") ||
+      (typeof componentMenuId === "string" && componentMenuId.trim() !== "");
+    if (!named) continue;
+
+    rows.push({
+      productId,
+      componentMenuId,
+      qty: quantities[i] ?? "",
+      productUnitId: unitIds[i] ?? null,
+      // The order on screen IS the order in the list; the form does not carry a
+      // separate field for it.
+      sortOrder: rows.length,
+      notes: notes[i] ?? null,
+    });
+  }
+  return rows;
+}
+
 // ------------------------------------------------------------
 // Creating / editing a recipe
 // ------------------------------------------------------------
