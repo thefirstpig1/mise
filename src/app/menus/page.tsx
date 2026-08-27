@@ -150,6 +150,20 @@ export default async function MenusPage({
           <input type="checkbox" name="stubs" value="true" defaultChecked={query.stubsOnly} />
           เฉพาะเมนูรอตรวจ
         </label>
+        {/* ADR 0027 Q2 — off by default, which is only safe because the
+            contradiction has its own voice: the import preview warns when a
+            retired dish is still in the file, and the row prints its last sale
+            date. Hiding a row that still takes money without either of those
+            would be the thing ADR 0026 spent a Part refusing to do. */}
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            name="retired"
+            value="true"
+            defaultChecked={query.includeRetired}
+          />
+          รวมเมนูที่เลิกขายแล้ว
+        </label>
         <button type="submit" className="rounded-lg border border-border px-4 py-2 text-sm">
           ดู
         </button>
@@ -165,7 +179,11 @@ export default async function MenusPage({
       {rows.length === 0 ? (
         <div className="rounded-lg border border-border bg-card p-6 text-sm">
           <p className="font-medium">
-            {query.stubsOnly ? "ไม่มีเมนูรอตรวจ" : "ยังไม่มีเมนูในระบบ"}
+            {query.stubsOnly
+              ? "ไม่มีเมนูรอตรวจ"
+              : query.includeRetired
+                ? "ยังไม่มีเมนูในระบบ"
+                : "ไม่มีเมนูที่ยังขายอยู่"}
           </p>
           <p className="mt-2 text-muted-foreground">
             เมนูเกิดขึ้นเองเมื่อนำเข้ายอดขาย — ไม่ต้องพิมพ์รายการเมนูเข้าไปก่อน

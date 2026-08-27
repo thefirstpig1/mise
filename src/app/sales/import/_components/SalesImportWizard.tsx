@@ -280,6 +280,29 @@ export default function SalesImportWizard({
             </div>
           )}
 
+          {preview.retiredSelling.length > 0 && (
+            // ADR 0027 Q3. WARNS, never blocks — the sale is real: sales_line
+            // will be written and Part 22 will deduct stock from it, exactly
+            // as Q2 requires. The only thing wrong is the flag, and it is
+            // wrong in the POS rather than here.
+            <div className="mt-4 rounded-lg border border-amber-500/50 bg-amber-500/5 p-3">
+              <p className="text-sm font-medium">
+                ไฟล์นี้มียอดขายของเมนูที่ทำเครื่องหมายเลิกขายไว้{" "}
+                {preview.retiredSelling.length} รายการ
+              </p>
+              <ul className="mt-2 space-y-1 text-xs">
+                {preview.retiredSelling.map((m) => (
+                  <li key={m.menuId}>{m.label}</li>
+                ))}
+              </ul>
+              <p className="mt-2 text-xs text-muted-foreground">
+                นำเข้าต่อได้ ระบบไม่บล็อก — ยอดขายเข้าตามปกติและตัดสต๊อกตามปกติ
+                ถ้าเลิกขายจริงแล้ว ต้องเอาออกจาก POS ด้วย ถ้ายังขายอยู่
+                ให้กด “กลับมาขาย” ที่หน้าเมนู
+              </p>
+            </div>
+          )}
+
           {preview.replacedDays.length > 0 && (
             <div className="mt-4 rounded-lg border border-amber-500/50 bg-amber-500/5 p-3">
               <p className="text-sm font-medium">

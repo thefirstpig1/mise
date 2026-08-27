@@ -14,6 +14,13 @@
 // merged away by a control sitting next to "แก้ไข" would be merged away by
 // accident.
 //
+// Part 27 (ADR 0027) gave the row the two lifecycle controls. They are NOT two
+// grades of one act and the row must not make them look like it: เลิกขาย is
+// always offered and always reversible, and ลบ appears only where deleting
+// breaks nothing — everywhere else the server's refusal names what is in the
+// way and says เลิกขาย instead. The delete confirm never fires blind: a menu
+// carrying its own recipe is refused once, and only then does the button arm.
+//
 // What this row DOES carry since Part 25 (ADR 0026 Q6) is the nesting: the
 // spellings folded into this dish are collapsed beneath it — "+2 ชื่อที่รวมแล้ว",
 // expandable, and not editable from here. Hiding them entirely would take rows
@@ -28,6 +35,15 @@ import {
   type MenuActionState,
   type MenuAliasActionState,
 } from "@/app/menus/actions";
+import {
+  deleteMenuAction,
+  setMenuActiveAction,
+  type MenuLifecycleActionState,
+} from "@/app/menus/lifecycle-actions";
+import {
+  RETIRE_MEANS_TH,
+  RETIRE_NOT_IN_POS_TH,
+} from "@/lib/validations/menu-lifecycle";
 import type { MenuRowView, MenuSuggestionRowView } from "./menu-view";
 import {
   mergedSpellingsLabel,
@@ -77,6 +93,39 @@ export default function MenuRowEditor({
   const [suggestions, setSuggestions] = useState<MenuSuggestionRowView[] | null>(null);
   const [looking, startLooking] = useTransition();
 
+  const [lifecycle, setLifecycle] = useState<MenuLifecycleActionState | null>(null);
+  const [busy, startLifecycle] = useTransition();
+  /** Armed only by a refusal that has already named the recipe (Q4). */
+  const [recipeCount, setRecipeCount] = useState<number | null>(null);
+  const armed = recipeCount !== null;
+
+  const toggleActive = () => {
+    setLifecycle(null);
+    startLifecycle(async () => {
+      setLifecycle(await setMenuActiveAction(menu.id, menu.isRetired));
+    });
+  };
+
+  const remove = () => {
+    if (
+      !window.confirm(
+        armed
+          ? `ยืนยันลบ “${menu.name}” — สูตร ${recipeCount} รายการจะถูกลบไปด้วย`
+          : `ลบ “${menu.name}” ออกจากระบบ?`
+      )
+    ) {
+      return;
+    }
+    setLifecycle(null);
+    startLifecycle(async () => {
+      const res = await deleteMenuAction(menu.id, armed);
+      setLifecycle(res);
+      if (!res.ok && res.needsAcknowledgement) {
+        setRecipeCount(res.needsAcknowledgement.recipeCount);
+      }
+    });
+  };
+
   const findSimilar = () => {
     startLooking(async () => {
       const result = await getMenuSuggestionsAction(menu.posMenuName ?? menu.name);
@@ -92,6 +141,11 @@ export default function MenuRowEditor({
           {menu.isPosStub && (
             <span className="ml-2 rounded bg-amber-500/20 px-1.5 py-0.5 text-xs">รอตรวจ</span>
           )}
+          {menu.isRetired && (
+            <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
+              เลิกขายแล้ว
+            </span>
+          )}
           {menu.posName && (
             <span className="ml-2 text-xs text-muted-foreground">{menu.posName}</span>
           )}
@@ -100,6 +154,15 @@ export default function MenuRowEditor({
           <a href={`/menus/merges?menu=${menu.id}`} className={linkClass}>
             รวมเมนู
           </a>
+          <button
+            type="button"
+            onClick={toggleActive}
+            disabled={busy}
+            className={linkClass}
+            title={`${RETIRE_MEANS_TH} · ${RETIRE_NOT_IN_POS_TH}`}
+          >
+            {menu.isRetired ? "กลับมาขาย" : "เลิกขาย"}
+          </button>
           <button type="button" onClick={() => setOpen((v) => !v)} className={linkClass}>
             {open ? "ปิด" : "แก้ไข"}
           </button>
@@ -113,10 +176,40 @@ export default function MenuRowEditor({
         </p>
       )}
 
+      {menu.lastSoldLabel !== null && (
+        // Q3: a FACT, not an inference. Mise cannot know when the button was
+        // pressed — but if this date is recent, the POS never got the message,
+        // and the reader draws that conclusion themselves.
+        <p className="mt-0.5 text-xs text-muted-foreground">{menu.lastSoldLabel}</p>
+      )}
+
       {mergedIntoLabel !== null && (
         <p className="mt-0.5 text-xs text-muted-foreground">
           นับรวมเป็น “{mergedIntoLabel}” — รายการนี้ยังรับยอดขายใหม่ตามปกติ
         </p>
+      )}
+
+      {lifecycle !== null && !lifecycle.ok && (
+        <p className="mt-1 text-xs text-red-600">{lifecycle.error}</p>
+      )}
+
+      {open && (
+        <div className="mt-2 flex items-baseline justify-between gap-3 rounded-lg border border-red-200 bg-red-50/40 px-2 py-1.5">
+          <p className="text-xs text-muted-foreground">
+            {/* Said here rather than only in the confirm, because the honest
+                answer to "can I delete this?" is usually no — and เลิกขาย is
+                what the person actually wants. */}
+            {RETIRE_MEANS_TH}
+          </p>
+          <button
+            type="button"
+            onClick={remove}
+            disabled={busy}
+            className="shrink-0 rounded-lg border border-red-200 px-2 py-1 text-xs text-red-700 hover:bg-red-50 disabled:opacity-50"
+          >
+            {armed ? "ยืนยันลบเมนู" : "ลบเมนู"}
+          </button>
+        </div>
       )}
 
       {spellings.length > 0 && (

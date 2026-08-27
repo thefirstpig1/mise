@@ -185,6 +185,13 @@ export type CoverageRowView = {
   hasDraft: boolean;
   isDeleted: boolean;
   /**
+   * ADR 0027 Q5 — the shop has stopped selling it, but it earned this money
+   * during the period, so it is counted in full and only labelled. The label
+   * is worth printing because it changes what the reader should DO: writing a
+   * recipe for a dish nobody sells any more helps nothing.
+   */
+  isRetired: boolean;
+  /**
    * `null` means one of two different things, and the screen has to tell them
    * apart using `hintsWereCapped` on the parent: below the cap it means no
    * similar name was found; at or beyond it, nobody looked. An absent hint is
@@ -232,6 +239,7 @@ function toCoverageRowView(r: CoverageRow): CoverageRowView {
     shareOfRevenue: percent(r.shareOfRevenue),
     hasDraft: r.hasDraft,
     isDeleted: r.isDeleted,
+    isRetired: r.isRetired,
     duplicateHint:
       r.duplicateHint === null ? null : toDuplicateHintView(r.duplicateHint),
   };

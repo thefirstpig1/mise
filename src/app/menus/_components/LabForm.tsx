@@ -28,6 +28,11 @@ import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { DraftActionState } from "@/app/menus/lab/actions";
 import { getLabWhatIfAction } from "@/app/menus/lab/actions";
+import {
+  findDeletedMenuByNameAction,
+  restoreMenuAction,
+} from "@/app/menus/lifecycle-actions";
+import { RESTORE_OFFER_TH } from "@/lib/validations/menu-lifecycle";
 import type {
   DraftView,
   LabWhatIfView,
@@ -124,6 +129,38 @@ export default function LabForm({
   );
   const [menuId, setMenuId] = useState(initial?.menuId ?? "");
   const [newMenuName, setNewMenuName] = useState("");
+
+  // ADR 0027 Q6/Q7 — the restore door, and the ONLY one. Typing the name of a
+  // dish that was deleted offers it back with the recipe that died alongside
+  // it, rather than making somebody rebuild twenty ingredient lines.
+  //
+  // The import never offers this: Part 19's rule is that money lands in full
+  // immediately and a file never stops to ask a question.
+  const [restorable, setRestorable] = useState<
+    { id: string; name: string; recipeCount: number } | null
+  >(null);
+  const [restoring, setRestoring] = useState(false);
+  const [restoreError, setRestoreError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const name = newMenuName.trim();
+    if (targetKind !== "new" || name === "") {
+      setRestorable(null);
+      return;
+    }
+    // Debounced, because this fires as somebody types a dish name. Exact match
+    // only — a trigram score may SUGGEST (ADR 0019 Q7) and this arms a button
+    // that brings a recipe back, so it has to be the dish.
+    let live = true;
+    const t = setTimeout(async () => {
+      const res = await findDeletedMenuByNameAction(name);
+      if (live) setRestorable(res.ok ? res.found : null);
+    }, 400);
+    return () => {
+      live = false;
+      clearTimeout(t);
+    };
+  }, [newMenuName, targetKind]);
   const [menuCategoryId, setMenuCategoryId] = useState("");
   const [servings, setServings] = useState(initial?.servings ?? "1");
   const [plannedPrice, setPlannedPrice] = useState(initial?.plannedPrice ?? "");
@@ -271,6 +308,44 @@ export default function LabForm({
                     บันทึกแล้วระบบจะสร้างเมนูนี้ให้ — ยังไม่มีการขายและไม่กระทบสต๊อก
                     จนกว่าจะเผยแพร่สูตร
                   </p>
+                  {restorable !== null ? (
+                    <div className="mt-2 rounded-lg border border-border bg-card p-2">
+                      <p className="text-xs">
+                        {RESTORE_OFFER_TH}
+                        {restorable.recipeCount > 0
+                          ? ` (สูตร ${restorable.recipeCount} รายการ)`
+                          : " (ไม่มีสูตรติดมาด้วย)"}
+                      </p>
+                      <button
+                        type="button"
+                        disabled={restoring}
+                        onClick={async () => {
+                          setRestoring(true);
+                          setRestoreError(null);
+                          const res = await restoreMenuAction(restorable.id);
+                          setRestoring(false);
+                          if (res.ok) {
+                            // The dish exists again, so this is no longer the
+                            // "create one" half of Q3 — switch the form to it,
+                            // rather than leaving a name that would make a
+                            // second menu for the same food.
+                            setTargetKind("existing");
+                            setMenuId(res.menuId);
+                            setNewMenuName("");
+                            setRestorable(null);
+                          } else {
+                            setRestoreError(res.error);
+                          }
+                        }}
+                        className="mt-1 rounded-lg border border-border px-2 py-1 text-xs disabled:opacity-50"
+                      >
+                        {restoring ? "กำลังกู้คืน…" : "กู้คืนเมนูเดิม"}
+                      </button>
+                      {restoreError !== null ? (
+                        <p className="mt-1 text-xs text-red-600">{restoreError}</p>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </div>
                 <div>
                   <label className={labelClass} htmlFor="menu_category_id">

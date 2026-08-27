@@ -304,6 +304,14 @@ export type ImportPreviewView = {
   blankRowNotice: string | null;
   /** Days whose recorded till figure disagrees with this file (ADR 0020 Q3). */
   pulseWarnings: PulseReconciliationView[];
+  /**
+   * Dishes in this file the shop has marked เลิกขาย (ADR 0027 Q3).
+   *
+   * Retiring in Mise does not retire in the POS, so this is an ordinary
+   * mistake rather than a rare one — and it is the only reason `/menus` may
+   * hide retired rows by default at all.
+   */
+  retiredSelling: { menuId: string; label: string }[];
 };
 
 export type MenuSuggestionView = {
@@ -367,6 +375,10 @@ export function toImportPreviewView(p: ImportPreview): ImportPreviewView {
         ? `ข้ามแถวว่าง ${p.blankRowsSkipped.toLocaleString("th-TH")} แถว`
         : null,
     pulseWarnings: p.pulseMismatches.map(toPulseReconciliationView),
+    retiredSelling: p.retiredMenusSelling.map((m) => ({
+      menuId: m.menuId,
+      label: `${m.name} — ${m.qty.toFixed(0)} จาน ${m.net.toFixed(2)} บาท`,
+    })),
   };
 }
 

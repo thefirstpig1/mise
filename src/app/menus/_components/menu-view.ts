@@ -12,7 +12,7 @@
 // given a recipe in Sprint 5, so it will never consume stock.
 // ============================================================
 
-import type { MenuWithRelations, MenuSuggestion } from "@/server/menu";
+import type { MenuListRow, MenuSuggestion } from "@/server/menu";
 import { similarityBadge } from "@/app/sales/_components/sales-view";
 
 export type MenuRowView = {
@@ -26,6 +26,17 @@ export type MenuRowView = {
   primaryDepartmentId: string | null;
   primaryDepartmentName: string | null;
   isPosStub: boolean;
+  /** ADR 0027 — the shop has stopped selling this dish. */
+  isRetired: boolean;
+  /**
+   * When this dish last sold, printed only on a retired row (Q3).
+   *
+   * It is the fact that replaces a `deactivated_at` column. Mise cannot know
+   * WHEN somebody pressed เลิกขาย, and does not need to: if a dish marked
+   * เลิกขาย sold yesterday, the POS never got the message, and that conclusion
+   * is the reader's to draw from a date rather than the system's to infer.
+   */
+  lastSoldLabel: string | null;
   /** Why this row is in the queue, in one sentence. Null when it is not. */
   todoLabel: string | null;
   /** What the shop loses by leaving it. Null when nothing is missing. */
@@ -39,7 +50,17 @@ const NEEDS_DEPARTMENT = "ยังไม่ได้ระบุแผนกท
 const NO_CATEGORY_CONSEQUENCE = "จะไม่ปรากฏในกราฟแยกหมวด";
 const NO_DEPARTMENT_CONSEQUENCE = "รายได้จะไม่เข้าแผนกไหนในหน้าต้นทุน";
 
-export function toMenuRowView(m: MenuWithRelations, departmentsEnabled: boolean): MenuRowView {
+/** A Buddhist-era short date, the way every other Mise screen prints one. */
+function formatThaiDate(d: Date): string {
+  return new Intl.DateTimeFormat("th-TH", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(d);
+}
+
+export function toMenuRowView(m: MenuListRow, departmentsEnabled: boolean): MenuRowView {
   const todos: string[] = [];
   const consequences: string[] = [];
 
@@ -70,6 +91,11 @@ export function toMenuRowView(m: MenuWithRelations, departmentsEnabled: boolean)
     primaryDepartmentId: m.primaryDepartmentId,
     primaryDepartmentName: m.primaryDepartment?.name ?? null,
     isPosStub: m.isPosStub,
+    isRetired: !m.isActive,
+    lastSoldLabel:
+      !m.isActive && m.lastSoldAt !== null
+        ? `ขายล่าสุด ${formatThaiDate(m.lastSoldAt)}`
+        : null,
     todoLabel: todos.length > 0 ? todos.join(" · ") : null,
     consequenceLabel: consequences.length > 0 ? consequences.join(" · ") : null,
   };
