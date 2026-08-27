@@ -1,17 +1,56 @@
 # Mise Sprint Progress
 
-**Last updated:** 2026-08-25
+**Last updated:** 2026-08-27
 
 ## Current Sprint: Sprint 5 — Recipe + CONSUMPTION 🚧 IN PROGRESS
 
 _(Sprint 4 — POS sales import · daily pulse: ✅ COMPLETE 2026-08-20, except Part 20b which is blocked on choosing an inbound-mail vendor)_
 
-**Status:** **Part 21 ✅ COMPLETE 2026-08-24** · **Part 22 ✅ COMPLETE 2026-08-25** · **Part 23 ✅** · **Part 23.5 ✅ COMPLETE 2026-08-25** · **Part 24 (Menu Lab + recipe coverage) ✅ COMPLETE 2026-08-26**.
+**Status:** **Part 21 ✅ COMPLETE 2026-08-24** · **Part 22 ✅ COMPLETE 2026-08-25** · **Part 23 ✅** · **Part 23.5 ✅ COMPLETE 2026-08-25** · **Part 24 (Menu Lab + recipe coverage) ✅ COMPLETE 2026-08-26** · **Part 25 (การรวมเมนู) ✅ COMPLETE 2026-08-27**.
 **Split:** Sprint 5 is **five Parts** — **21** สูตรอาหาร + ต้นทุนสูตร (no ledger writes) · **22** `CONSUMPTION` + GP by recipe · **23** test-suite reliability (ADR 0023) · **23.5** connection ที่ค้าง (ADR 0024) · **24** Menu Lab + recipe coverage (ADR 0025). **Menu merging became Part 25 and staff meal Part 26** — ADR 0025 Q1: merging rewrites `sales_line` rows already imported and consumption runs already posted, and staff meal writes to the ledger with its own `source_type`. Neither is the same kind of work as a screen that writes only a draft.
-**Part 25 — การรวมเมนู: ADR 0026 เขียนแล้ว (grill Q1–Q7, 2026-08-26), ยังไม่ได้สร้าง (L0 เท่านั้น).** สิ่งที่ grill พลิกจากที่ตั้งไว้: เมนูซ้ำ**ไม่ใช่เคสหายาก แต่เป็นค่าเริ่มต้นของทุกร้านที่มีมากกว่าหนึ่งสาขา** (`PosIntegration.branchId` เป็น non-nullable + unique เป็น `(pos_integration_id, pos_menu_id)` → ร้าน 2 สาขาได้เมนูซ้ำตั้งแต่ import แรก) · การรวม **ไม่ย้าย `sales_line` สักแถว** — ฝั่งแพ้ถือรหัส POS ตลอดกาลและรับยอดขายต่อไปเรื่อย ๆ เพราะ soft-delete เมนู POS ทำให้ import ถัดไปล่ม · สูตรได้ **fallback ชั้นที่สาม** (สาขา → กลาง → เมนูที่ถูกรวมเข้าไป) ทำให้การรวม**เติมได้อย่างเดียว ทับไม่ได้** และไม่ต้องถามว่าจะเก็บสูตรไหน · **รายงานรวมย้อนหลังเสมอ แต่การตัดสต๊อกรวมตั้งแต่ `effective_from`** (ค่าเริ่มต้น = วันนี้) · `menu_merge` เป็นตารางของตัวเอง มี `revoked_at` — **การรวมย้อนกลับได้ เพราะไม่มีแถวไหนถูกเขียนทับ** · ห้ามรวมเป็นทอด (ดาว ไม่ใช่โซ่). รูลส์ **G1–G6** ใน §11.5. 🛑 ต้องขออนุมัติ schema ก่อนเริ่ม L1 (ตารางใหม่).
+**Part 25 — การรวมเมนู: ✅ COMPLETE 2026-08-27 (L0–L6), ADR 0026 (grill Q1–Q7, 2026-08-26).** สิ่งที่ grill พลิกจากที่ตั้งไว้: เมนูซ้ำ**ไม่ใช่เคสหายาก แต่เป็นค่าเริ่มต้นของทุกร้านที่มีมากกว่าหนึ่งสาขา** (`PosIntegration.branchId` เป็น non-nullable + unique เป็น `(pos_integration_id, pos_menu_id)` → ร้าน 2 สาขาได้เมนูซ้ำตั้งแต่ import แรก) · การรวม **ไม่ย้าย `sales_line` สักแถว** — ฝั่งแพ้ถือรหัส POS ตลอดกาลและรับยอดขายต่อไปเรื่อย ๆ เพราะ soft-delete เมนู POS ทำให้ import ถัดไปล่ม · สูตรได้ **fallback ชั้นที่สาม** (สาขา → กลาง → เมนูที่ถูกรวมเข้าไป) ทำให้การรวม**เติมได้อย่างเดียว ทับไม่ได้** และไม่ต้องถามว่าจะเก็บสูตรไหน · **รายงานรวมย้อนหลังเสมอ แต่การตัดสต๊อกรวมตั้งแต่ `effective_from`** (ค่าเริ่มต้น = วันนี้) · `menu_merge` เป็นตารางของตัวเอง มี `revoked_at` — **การรวมย้อนกลับได้ เพราะไม่มีแถวไหนถูกเขียนทับ** · ห้ามรวมเป็นทอด (ดาว ไม่ใช่โซ่). รูลส์ **G1–G6** ใน §11.5. รายละเอียดที่สร้างจริงอยู่ในหัวข้อ "Sprint 5 Part 25" ด้านล่าง.
 **Part 27 — วงจรชีวิตของเมนู (reserved 2026-08-26, ยังไม่มี ADR).** `menu.isActive` ถูกสร้างใน Part 19 และ **ไม่มีใครอ่านเลยสักที่** เหมือน `canPerform` — ไม่มี Part ไหนจองไว้ จึงแยกเป็น Part ของตัวเอง. ขอบเขต: ทำให้ `isActive` ทำงานจริงตามแบบแผนที่ master-spec บรรทัด 482 เขียนไว้แล้ว (`is_active=false, deleted_at=NULL` = ปิดชั่วคราว · `deleted_at` = ลบ · รายงานติดป้าย "(inactive)") · ปุ่มลบเมนู ซึ่งจะเป็น **call site แรกของ `assertMenuNotUsedInRecipes`** ที่ Part 21 เขียนทิ้งไว้ · และ guard ที่ Part 25's grill เพิ่งพิสูจน์ว่าจำเป็น: **เมนูที่มี `pos_menu_id` ห้าม soft-delete เด็ดขาด** เพราะ `menu_pos_identity_unique` ไม่กรอง `deleted_at` (ตั้งใจ — รหัส POS ถูกยึดตลอดกาล) แต่ `planMenuResolutionLogic` กรอง → ไฟล์ถัดไปที่ถือรหัสนั้นจะหา byCode ไม่เจอ แล้วไปสร้าง stub ที่ **ชน unique → import ล่ม**. ผลที่ผู้ใช้ต้องรู้: "เลิกขาย" กับ "ลบ" เป็นคนละเรื่อง และเมนูที่มาจาก POS ทำได้แค่อย่างแรกตลอดไป.
 **Part 23 is not a feature.** It is the debugging session that found why the suite had been going red at random, and the two fixes that came out of it. Menu Lab moved to **Part 24** (ADR 0023 Q1): Part numbers here record what was built and when — Part 13.5 exists for the same reason.
 **Not in Sprint 5:** H.8 theoretical-vs-actual variance (→ Sprint 6, per the spec's own O16, decided 2026-08-21) · Price Volatility (Sprint 6) · Section B three-layer mirror and `recipe_change_diff` (**removed**, ADR 0021 Q3).
+
+---
+
+## Sprint 5 Part 25 — การรวมเมนู: ✅ COMPLETE (L0–L6, 2026-08-27)
+
+**ADR:** `docs/adr/0026-menu-merging.md` (Q1–Q7, grill 2026-08-26)
+**Rules registered:** `docs/calculation-rules.md` §11.5, **G1–G6**
+**Glossary:** `CONTEXT.md` — [Menu merge], [Canonical menu], [Merge effective date]
+
+A POS reports ข้าวผัดกุ้ง more than once, so Mise carries more than one `menu` row for one dish and the shop's revenue, its recipe work and its stock deduction all split along that seam. Part 25 closes the seam — **not by making two rows into one row, which the schema forbids, but by recording that one row is another row's spelling, from a date onwards.**
+
+**This is not a tidying feature.** `PosIntegration.branchId` is NOT NULL and `menu` is unique on `(pos_integration_id, pos_menu_id)`, so **a two-branch shop gets two `menu` rows for one dish on its first import and a five-branch shop gets five**. Until this Part shipped, such a shop wrote every recipe twice and half its stock deduction was silently skipped.
+
+| L | What | Status |
+|---|---|---|
+| L0 | ADR 0026 · CONTEXT.md ×3 terms · rules G1–G6 · Part 27 reserved | ✅ |
+| L1 | migration: `menu_merge` + 3 CHECKs + **partial** unique on `losing_menu_id WHERE revoked_at IS NULL` + RLS | ✅ |
+| L2 | zod ×3 shapes — merge / revoke / candidates — + the **five shared Thai sentences** no screen may rewrite · a future `effective_from` refused · 12 tests | ✅ |
+| L3a | `menu-merge.ts` — merge + revoke, **one row each, and neither touches a sale** · 4 guards in a deliberate order (replay → menus exist → chains → already-merged → posted-days LAST, so nobody acknowledges their way into a chain) · 10 DB tests | ✅ |
+| L3b | `menu-merge-fold.ts` + **4 fold sites** (coverage, `hasSales`, revenue per menu, `resolveRecipeIds`) · the third fallback level · 7 DB tests, **all 7 verified by removing the fold and watching them go red** — a fold over an empty map and a fold that never runs look identical when nothing is merged | ✅ |
+| L4 | `menu-merge-read.ts` (**never folds** — Q6's other side) + serializers + 3 actions with Thai for all six typed errors · candidates carry `mergedIntoMenuId` and `spellingCount`, so a blocked pairing never reaches a pressable button · 9 DB tests, the four that pin a decision each verified red | ✅ |
+| L5 | `/menus/merges` + nesting on `/menus` — losers collapse under the dish ("+2 ชื่อที่รวมแล้ว", expandable, not editable there) · **the form never guesses which row is the dish** (Q7) · a loser whose winner is off screen stays an ordinary row, labelled | ✅ |
+| L6 | **15-case E2E** through the real action stack (FormData → zod → `*Logic` → Neon → Thai error → view; only `require-tenant` and `next/cache` mocked) · **found no production bug** · spec + config deleted, never committed · docs + rules | ✅ |
+
+Verified at close: `tsc` clean · `build` green (**59 routes**) · vitest **1071 passed / 4 skipped** · Neon swept to 0.
+
+### The six decisions most likely to be undone by accident
+1. **A merge moves NO row and the losing menu never dies.** It holds its POS code for ever (`menu_pos_identity_unique` has no `deleted_at` predicate — deliberately, and the category unique ten lines below it in `sales_unique.sql` *does* have one, with the reason written out), so it keeps matching byCode and keeps collecting sales after the merge. **Soft-deleting either side breaks the next import that carries its code.**
+2. **Reporting folds retroactively and always; the ledger folds only from `effective_from`.** Two rules, one table, on purpose — reporting stores nothing and reverses instantly, movements do not. `effective_from` defaults to today, so a merge fixes double-counted revenue at once and moves not one gram of stock.
+3. **The ledger fold lives ONLY in `resolveRecipeIds`**, as a third fallback level *after* branch and central, and it **fills gaps only**. A losing menu with its own recipe keeps it, so a merge can never falsify a day already posted. `consumption.ts` was not touched.
+4. **No chains** — a winner may not be somebody's loser, a loser may not be anybody's winner. Many losers may share one winner (a star). This spans rows so no CHECK can see it; `mergeMenusLogic` guards both directions and the migration says why the CHECK is absent.
+5. **`menu_merge_live_losing_unique` is PARTIAL on `revoked_at IS NULL`.** A full unique would let a revoked merge hold that menu for ever (Pitfall #22/#23).
+6. **Two reads must NEVER fold** and are as load-bearing as the four that must: `planMenuResolutionLogic` (or the next import lands nowhere) and the merge screen itself (a merge nobody can see is a merge nobody can undo).
+
+### Standing items this Part leaves behind
+- **G5 has no surface yet.** No screen prints a merged dish's price per plate, so the "show the spread, never a blended average" rule has nothing to be violated by — **read it before building that screen**, not after.
+- **Part 25 owes a guard on recipe delete**: deleting the winner's recipe silently stops the losers' stock deduction (ADR 0026 Consequence 3). Nothing warns today.
+- **Part 27 — วงจรชีวิตของเมนู** is the safe "stop selling" this Part proved is missing (Consequence 2).
+- 🛑 **`canPerform` still has zero call sites** — unchanged by this Part, still owed before Beta (ADR 0021 Q18).
 
 ---
 
