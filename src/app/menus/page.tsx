@@ -22,7 +22,12 @@ import {
 } from "@/server/menu";
 import { getMenusQuerySchema } from "@/lib/validations/sales-import";
 import { withTenantContext } from "@/lib/db";
+import { getMenuMergesLogic } from "@/server/menu-merge-read";
 import { toMenuRowView } from "./_components/menu-view";
+import {
+  groupMergesByWinner,
+  toMenuMergeRowView,
+} from "./_components/menu-merge-view";
 import MenuRowEditor, {
   type CategoryOption,
   type DepartmentOption,
@@ -53,7 +58,7 @@ export default async function MenusPage({
 
   const departmentsEnabled = membership.tenant.enableDepartments;
 
-  const [menus, categories, integrations, departments] = await Promise.all([
+  const [menus, categories, integrations, departments, merges] = await Promise.all([
     getMenusLogic(tenantId, query),
     getMenuCategoriesLogic(tenantId),
     getPosIntegrationsLogic(tenantId),
@@ -63,9 +68,28 @@ export default async function MenusPage({
         orderBy: { name: "asc" },
       })
     ),
+    // NOT a fold. This screen shows both rows — a merge nobody can see is a
+    // merge nobody can undo (Q6) — it only NESTS one under the other.
+    getMenuMergesLogic(tenantId, { winningMenuId: undefined, includeRevoked: false }),
   ]);
 
-  const rows = menus.map((m) => toMenuRowView(m, departmentsEnabled));
+  const mergeRows = merges.map(toMenuMergeRowView);
+  const spellingsByWinner = groupMergesByWinner(mergeRows);
+  const onScreen = new Set(menus.map((m) => m.id));
+
+  // A losing row is collapsed under its winner ONLY when the winner is also on
+  // screen. Under a filter or a search that excluded the winner it stays an
+  // ordinary row, labelled — because it is a row that still collects money every
+  // day, and a row like that must never simply disappear.
+  const nestedUnder = new Map<string, string>();
+  for (const m of mergeRows) {
+    if (onScreen.has(m.winner.id)) nestedUnder.set(m.loser.id, m.winner.id);
+  }
+  const winnerLabelOf = new Map(mergeRows.map((m) => [m.loser.id, m.winner.label]));
+
+  const rows = menus
+    .filter((m) => !nestedUnder.has(m.id))
+    .map((m) => toMenuRowView(m, departmentsEnabled));
   const stubCount = rows.filter((r) => r.isPosStub).length;
 
   const categoryOptions: CategoryOption[] = categories.map((c) => ({ id: c.id, name: c.name }));
@@ -79,9 +103,14 @@ export default async function MenusPage({
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <h2 className="text-base font-bold">เมนู</h2>
-        <a href="/sales" className="text-sm text-primary hover:underline">
-          ดูยอดขาย →
-        </a>
+        <div className="flex items-baseline gap-4">
+          <a href="/menus/merges" className="text-sm text-primary hover:underline">
+            รวมเมนูที่ซ้ำ
+          </a>
+          <a href="/sales" className="text-sm text-primary hover:underline">
+            ดูยอดขาย →
+          </a>
+        </div>
       </div>
 
       {stubCount > 0 && !query.stubsOnly && (
@@ -148,6 +177,8 @@ export default async function MenusPage({
               departments={departmentOptions}
               departmentsEnabled={departmentsEnabled}
               posIntegrationId={defaultIntegrationId}
+              spellings={(spellingsByWinner.get(m.id) ?? []).map((x) => x.loser)}
+              mergedIntoLabel={winnerLabelOf.get(m.id) ?? null}
             />
           ))}
         </ul>

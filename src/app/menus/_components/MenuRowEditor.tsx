@@ -7,12 +7,18 @@
 // Saving clears the รอตรวจ flag, because somebody has now looked at it — which
 // is the entire meaning of the flag.
 //
-// What this component deliberately cannot do is merge. A stub already holds
-// revenue; pointing it at another dish would have to move that money, and moving
-// it needs a decision about both histories and, from Sprint 5, both recipes. So
-// the "จับคู่ชื่อ" control creates an ALIAS, which applies from the next import
-// onwards, and the row says so in as many words rather than implying a merge
-// that will not happen.
+// What this component deliberately cannot do is merge, and Part 25 did not
+// change that — it answered it. The "จับคู่ชื่อ" control still creates an ALIAS,
+// which applies from the next import onwards and touches no history. Merging is
+// its own screen because it is its own decision, and because a row that could be
+// merged away by a control sitting next to "แก้ไข" would be merged away by
+// accident.
+//
+// What this row DOES carry since Part 25 (ADR 0026 Q6) is the nesting: the
+// spellings folded into this dish are collapsed beneath it — "+2 ชื่อที่รวมแล้ว",
+// expandable, and not editable from here. Hiding them entirely would take rows
+// that still collect money every day out of sight; showing them as ordinary rows
+// would give back the duplicate the shop just merged away.
 
 import { useActionState, useState, useTransition } from "react";
 import {
@@ -23,6 +29,10 @@ import {
   type MenuAliasActionState,
 } from "@/app/menus/actions";
 import type { MenuRowView, MenuSuggestionRowView } from "./menu-view";
+import {
+  mergedSpellingsLabel,
+  type MergeMenuView,
+} from "./menu-merge-view";
 
 const inputClass =
   "w-full rounded-lg border border-border bg-background px-2 py-1.5 text-sm focus:border-primary focus:outline-none";
@@ -39,14 +49,23 @@ export default function MenuRowEditor({
   departments,
   departmentsEnabled,
   posIntegrationId,
+  spellings = [],
+  mergedIntoLabel = null,
 }: {
   menu: MenuRowView;
   categories: CategoryOption[];
   departments: DepartmentOption[];
   departmentsEnabled: boolean;
   posIntegrationId: string | null;
+  /** The other spellings of this dish, collapsed beneath it (Q6). */
+  spellings?: MergeMenuView[];
+  /** Set when THIS row is a spelling whose dish is not on screen — under a
+   *  filter or a search that excluded it. It is still a live row taking sales,
+   *  so it is shown, labelled, rather than nested into nothing. */
+  mergedIntoLabel?: string | null;
 }) {
   const [open, setOpen] = useState(false);
+  const [spellingsOpen, setSpellingsOpen] = useState(false);
   const [state, action, saving] = useActionState<MenuActionState | null, FormData>(
     updateMenuAction,
     null
@@ -77,9 +96,14 @@ export default function MenuRowEditor({
             <span className="ml-2 text-xs text-muted-foreground">{menu.posName}</span>
           )}
         </div>
-        <button type="button" onClick={() => setOpen((v) => !v)} className={linkClass}>
-          {open ? "ปิด" : "แก้ไข"}
-        </button>
+        <div className="flex items-baseline gap-3">
+          <a href={`/menus/merges?menu=${menu.id}`} className={linkClass}>
+            รวมเมนู
+          </a>
+          <button type="button" onClick={() => setOpen((v) => !v)} className={linkClass}>
+            {open ? "ปิด" : "แก้ไข"}
+          </button>
+        </div>
       </div>
 
       {menu.todoLabel && (
@@ -87,6 +111,41 @@ export default function MenuRowEditor({
           {menu.todoLabel}
           {menu.consequenceLabel && <span> — {menu.consequenceLabel}</span>}
         </p>
+      )}
+
+      {mergedIntoLabel !== null && (
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          นับรวมเป็น “{mergedIntoLabel}” — รายการนี้ยังรับยอดขายใหม่ตามปกติ
+        </p>
+      )}
+
+      {spellings.length > 0 && (
+        <div className="mt-1">
+          <button
+            type="button"
+            onClick={() => setSpellingsOpen((v) => !v)}
+            className={linkClass}
+          >
+            {spellingsOpen ? "ซ่อนชื่อที่รวมแล้ว" : mergedSpellingsLabel(spellings.length)}
+          </button>
+          {spellingsOpen && (
+            <ul className="mt-1 space-y-0.5 border-l-2 border-border pl-3">
+              {spellings.map((s) => (
+                <li key={s.id} className="text-xs text-muted-foreground">
+                  {s.label} · {s.originLabel}
+                </li>
+              ))}
+            </ul>
+          )}
+          {spellingsOpen && (
+            <p className="mt-1 pl-3 text-xs text-muted-foreground">
+              ชื่อเหล่านี้ยังอยู่ในระบบและยังรับยอดขายใหม่ทุกวัน — แก้หรือยกเลิกการรวมได้ที่{" "}
+              <a href="/menus/merges" className="underline">
+                หน้ารวมเมนู
+              </a>
+            </p>
+          )}
+        </div>
       )}
 
       {open && (
