@@ -58,6 +58,7 @@ import {
   RecipeDepthExceededError,
   RecipeMethodConflictError,
   RecipeOutputNotPreppedError,
+  MergedMenusDependOnRecipeError,
 } from "@/server/recipe-guards";
 import { RecipeMethodMissingError } from "@/server/recipe-graph";
 import { CrossTenantReferenceError } from "@/server/product";
@@ -107,6 +108,21 @@ const DEPTH_MESSAGE =
 const METHOD_MISSING_MESSAGE =
   "มีของแปรรูปในสูตรที่ยังไม่ได้ระบุเปอร์เซ็นต์ผลผลิต จึงคำนวณต่อไม่ได้";
 
+/**
+ * ADR 0026 Consequence 3, and the whole reason this Part exists: the names go IN
+ * the sentence. "ลบไม่ได้เพราะมีเมนูอื่นใช้อยู่" would leave the person hunting
+ * for menus that are, by construction, filed under a different spelling.
+ *
+ * It says ตัดสต๊อก rather than ต้นทุน on purpose — losing the cost figure is
+ * visible on the next report, losing the DEDUCTION is not visible anywhere until
+ * a stock count comes up short.
+ */
+function mergedMenusMessage(menuNames: string[]): string {
+  return `เมนูที่ถูกรวมเข้ากับจานนี้ยังใช้สูตรนี้ตัดสต๊อกอยู่ — ${menuNames.join(", ")}
+
+ถ้าลบ เมนูเหล่านี้จะขายต่อไปโดยไม่ตัดสต๊อกเลย กดลบอีกครั้งเพื่อยืนยัน`;
+}
+
 // ------------------------------------------------------------
 // Action state
 // ------------------------------------------------------------
@@ -127,7 +143,17 @@ export type RecipeActionState =
 
 export type DeleteRecipeActionState =
   | { ok: true }
-  | { ok: false; error: string };
+  | {
+      ok: false;
+      error: string;
+      /**
+       * ADR 0026 Consequence 3 — the menus that borrow this recipe. Present
+       * ONLY on the first refusal; the screen shows the names and re-submits
+       * with the acknowledgement, which is what turns "we deleted it" into
+       * "you were told whose stock deduction stops".
+       */
+       needsAcknowledgement?: { mergedMenuNames: string[] };
+    };
 
 export type SubstitutionActionState =
   | { ok: true; changedCount: number }
@@ -328,9 +354,18 @@ export async function updateRecipeAction(
   }
 }
 
-/** Soft-delete the whole LINE — every version of it (see deleteRecipeLogic). */
+/**
+ * Soft-delete the whole LINE — every version of it (see deleteRecipeLogic).
+ *
+ * Refuses ONCE where menus merged into this one borrow the recipe, naming them
+ * (ADR 0026 Consequence 3); `acknowledgeMergedMenus` on the second call goes
+ * through. The acknowledgement is a parameter rather than something this action
+ * decides for itself, for the reason every other one in the codebase is: an
+ * acknowledgement the screen could skip is not an acknowledgement.
+ */
 export async function deleteRecipeAction(
-  recipeId: string
+  recipeId: string,
+  acknowledgeMergedMenus = false
 ): Promise<DeleteRecipeActionState> {
   const { tenantId } = await requireTenant();
 
@@ -340,13 +375,22 @@ export async function deleteRecipeAction(
   }
 
   try {
-    const deleted = await deleteRecipeLogic(tenantId, parsed.data.recipeId);
+    const deleted = await deleteRecipeLogic(tenantId, parsed.data.recipeId, {
+      acknowledgeMergedMenus,
+    });
     if (!deleted) return { ok: false, error: NOT_FOUND_MESSAGE };
     revalidateRecipeViews();
     return { ok: true };
   } catch (e) {
     if (e instanceof RecipeNotFoundError) {
       return { ok: false, error: NOT_FOUND_MESSAGE };
+    }
+    if (e instanceof MergedMenusDependOnRecipeError) {
+      return {
+        ok: false,
+        error: mergedMenusMessage(e.menuNames),
+        needsAcknowledgement: { mergedMenuNames: e.menuNames },
+      };
     }
     throw e;
   }

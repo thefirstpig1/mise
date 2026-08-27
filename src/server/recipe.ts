@@ -42,6 +42,8 @@ import { assertRefBelongsToTenant } from "@/server/product";
 import {
   assertMethodExclusivityForRecipe,
   assertRecipeGraphValid,
+  MergedMenusDependOnRecipeError,
+  menusDependingOnRecipeLine,
 } from "@/server/recipe-guards";
 import type { RecipeTarget } from "@/server/recipe-resolve";
 import type {
@@ -522,17 +524,38 @@ export async function updateRecipeLogic(
  * they name is deleted (resolution filters `deletedAt`), and they record which
  * branches had decided for themselves, which is the one thing a later "why does
  * this branch follow central again" question needs.
+ *
+ * ⚠️ IT MAY NOT BE ONLY THIS DISH'S RECIPE (ADR 0026 Consequence 3). A menu
+ * merged into this one borrows this recipe when it has none of its own, so the
+ * delete stops ITS stock deduction too — and nothing else in the product would
+ * ever say so. `menusDependingOnRecipeLine` names them and the first attempt is
+ * refused; a second carrying `acknowledgeMergedMenus` goes through, because
+ * "stop costing this dish" is a legitimate thing to want and making the person
+ * revoke a true merge to get at it would be the wrong trade.
  */
 export async function deleteRecipeLogic(
   tenantId: string,
-  recipeId: string
+  recipeId: string,
+  options: { acknowledgeMergedMenus?: boolean } = {}
 ): Promise<boolean> {
   return withTenantContext(tenantId, async (tx) => {
     const recipe = await tx.recipe.findFirst({
       where: { id: recipeId, tenantId, deletedAt: null },
-      select: { lineId: true },
+      select: { lineId: true, menuId: true },
     });
     if (recipe === null) throw new RecipeNotFoundError(recipeId);
+
+    if (recipe.menuId !== null && options.acknowledgeMergedMenus !== true) {
+      const dependents = await menusDependingOnRecipeLine(
+        tx,
+        tenantId,
+        recipe.menuId,
+        recipe.lineId
+      );
+      if (dependents.length > 0) {
+        throw new MergedMenusDependOnRecipeError(recipe.menuId, dependents);
+      }
+    }
 
     const { count } = await tx.recipe.updateMany({
       where: { tenantId, lineId: recipe.lineId, deletedAt: null },

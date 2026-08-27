@@ -118,7 +118,11 @@ The merge screen **offers** the choice across branches and explains the differen
 
 2. **`menu.is_active` is the only safe "stop selling", and nothing reads it yet.** Context (3)+(4) make soft-deleting any POS menu a broken import waiting for the next file. The column exists (Part 19) with zero readers, exactly as `canPerform` does. Reserved as **Part 27 — วงจรชีวิตของเมนู**, which also owes the menu delete path Part 21 left behind and gives `assertMenuNotUsedInRecipes` its first call site.
 
-3. **Deleting the winner's RECIPE silently stops the losers' stock deduction.** Nothing today warns. Part 25 owes a guard on recipe delete naming the menus that depend on it — the same shape as `assertMenuNotUsedInRecipes`, one level over.
+3. **Deleting the winner's RECIPE silently stops the losers' stock deduction.** ✅ **PAID 2026-08-27** — `menusDependingOnRecipeLine` in `recipe-guards.ts`, called from `deleteRecipeLogic`.
+
+   It came out **softer** than this line assumed. `assertMenuNotUsedInRecipes` refuses outright; this one refuses ONCE, names the menus, and lets a second call carrying `acknowledgeMergedMenus` through. Blocking outright would mean the only way to delete a recipe is to first revoke a merge that is TRUE — making someone undo a correct statement to get at a false one — and the acknowledge shape is what the rest of the codebase already uses for a second-order effect (`acknowledge_backdate`, `acknowledge_posted`, `acknowledge_repost`, `acknowledge_replace`).
+
+   **The test on both sides is "is there a CENTRAL line left".** That is Q2's fallback read at the level that matters: a menu with a live central line resolves at every branch, one without resolves only where it copied. So deleting a branch copy while central survives does not interrupt (nothing stops; at worst a cost changes at one branch, which is what editing a recipe does anyway), and a loser that copied to one branch is still named, because it borrows everywhere else. Merges effective in the FUTURE count — the date decides when a fold reaches the ledger, not whether the dependency is real.
 
 4. **A merge made while a period was posted is not undone by revoking it.** The movements stand, because the ledger is append-only. Recovering means void + re-post through Part 22's existing N6 machinery, and the screen must say so before revoking.
 

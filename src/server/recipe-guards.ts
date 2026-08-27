@@ -653,3 +653,125 @@ export {
   RecipeCycleError,
   RecipeDepthExceededError,
 } from "@/server/recipe-graph";
+
+// ------------------------------------------------------------
+// ADR 0026 Consequence 3 — the winner's recipe is somebody else's too
+// ------------------------------------------------------------
+
+/**
+ * The refusal Part 25 owed. Carries the menu NAMES, because "this recipe is
+ * borrowed" without saying by whom is a dead end for whoever has to act on it.
+ *
+ * Not a hard block, unlike its two neighbours above: deleting a recipe for a
+ * dish you have stopped costing is a legitimate thing to want, and forcing a
+ * revoke of the merge first would make the person undo a TRUE statement ("these
+ * are one dish") to get at a false one. So it interrupts once, names the menus,
+ * and a second press carrying the acknowledgement goes through — the shape
+ * `acknowledge_backdate` / `acknowledge_posted` / `acknowledge_repost` already
+ * use everywhere else in this codebase.
+ */
+export class MergedMenusDependOnRecipeError extends Error {
+  constructor(
+    public readonly menuId: string,
+    public readonly menuNames: string[]
+  ) {
+    super(
+      `Deleting the recipe for menu ${menuId} stops stock deduction for ${menuNames.length} merged menu(s): ${menuNames.join(", ")}`
+    );
+    this.name = "MergedMenusDependOnRecipeError";
+  }
+}
+
+/** Live, non-draft lines for one menu, each flagged central or branch-owned. */
+async function liveLinesForMenu(
+  tx: PrismaClient,
+  tenantId: string,
+  menuId: string
+): Promise<{ lineId: string; hasBranches: boolean }[]> {
+  const rows = await tx.recipe.findMany({
+    where: {
+      tenantId,
+      menuId,
+      deletedAt: null,
+      supersededAt: null,
+      // A draft is true on no day (ADR 0025 Q4), so it is not a line and can
+      // neither be borrowed nor keep a borrow alive.
+      isDraft: false,
+    },
+    select: { lineId: true },
+  });
+  if (rows.length === 0) return [];
+
+  const lineIds = [...new Set(rows.map((r) => r.lineId))];
+  const links = await tx.recipeBranch.findMany({
+    where: { tenantId, lineId: { in: lineIds } },
+    select: { lineId: true },
+  });
+  const linked = new Set(links.map((l) => l.lineId));
+
+  return lineIds.map((lineId) => ({ lineId, hasBranches: linked.has(lineId) }));
+}
+
+/**
+ * Which merged-in menus would stop deducting stock if this recipe LINE were
+ * deleted — ADR 0026 Consequence 3, the one second-order effect of a merge that
+ * nothing on screen shows.
+ *
+ * A losing menu with no recipe of its own borrows the winner's, and the borrow
+ * lives in exactly one place: the last loop of `resolveRecipeIds`. Delete the
+ * winner's recipe and that loop finds nothing to lend — the loser goes on
+ * selling and its ingredients stop leaving the ledger, silently.
+ *
+ * **THE TEST IS "IS THERE A CENTRAL LINE LEFT", BOTH SIDES.** That is not a
+ * simplification of the branch rule but the same rule read at the level that
+ * matters here: `resolveRecipeIds` gives a branch its own line if it has one and
+ * the CENTRAL line otherwise, so a menu with a live central line resolves at
+ * EVERY branch and a menu without one resolves only where it has copied.
+ *
+ *   * The winner keeps a central line after this delete → every borrower still
+ *     resolves everywhere. Nothing stops; at worst a cost changes at one branch,
+ *     which is what editing a recipe does anyway. No interruption.
+ *   * The winner is left with none → the borrow fails at every branch that has
+ *     not copied, which is the silent stop. Interrupt.
+ *   * A loser with its own central line never borrowed in the first place, at
+ *     any branch, so it is not named however the winner ends up.
+ *
+ * Merges effective in the FUTURE count. The date decides when a fold reaches the
+ * ledger, not whether the dependency is real, and a delete today would leave
+ * next Monday's merge with nothing to borrow.
+ *
+ * Returns `[]` for a production recipe — a recipe with no `menuId` can be
+ * nobody's spelling.
+ */
+export async function menusDependingOnRecipeLine(
+  tx: PrismaClient,
+  tenantId: string,
+  menuId: string,
+  lineIdBeingDeleted: string
+): Promise<string[]> {
+  const merges = await tx.menuMerge.findMany({
+    where: { tenantId, winningMenuId: menuId, revokedAt: null },
+    select: { losingMenuId: true },
+  });
+  if (merges.length === 0) return [];
+
+  const survivors = (await liveLinesForMenu(tx, tenantId, menuId)).filter(
+    (l) => l.lineId !== lineIdBeingDeleted
+  );
+  if (survivors.some((l) => !l.hasBranches)) return [];
+
+  const losingIds = [...new Set(merges.map((m) => m.losingMenuId))];
+  const borrowers: string[] = [];
+  for (const losingId of losingIds) {
+    const own = await liveLinesForMenu(tx, tenantId, losingId);
+    if (!own.some((l) => !l.hasBranches)) borrowers.push(losingId);
+  }
+  if (borrowers.length === 0) return [];
+
+  const menus = await tx.menu.findMany({
+    where: { tenantId, id: { in: borrowers } },
+    select: { id: true, name: true },
+  });
+  const nameOf = new Map(menus.map((m) => [m.id, m.name]));
+  return borrowers.map((id) => nameOf.get(id) ?? id).sort();
+}
