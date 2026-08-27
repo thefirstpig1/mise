@@ -36,7 +36,7 @@ export default async function SubstitutePage({
 
   const [products, menus] = await Promise.all([
     getProductsLogic(tenantId),
-    getMenusLogic(tenantId, { stubsOnly: false }),
+    getMenusLogic(tenantId, { stubsOnly: false, includeRetired: false }),
   ]);
 
   const productOptions = [...products].sort((a, b) =>

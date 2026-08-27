@@ -65,7 +65,15 @@ export default async function MenuMergesPage({
         }),
     search === undefined
       ? Promise.resolve(null)
-      : getMenusLogic(tenantId, { stubsOnly: false, search }),
+      : getMenusLogic(tenantId, {
+          stubsOnly: false,
+          // ADR 0027 Q9 — the ONE picker that still offers retired menus. This
+          // screen is the repair tool for exactly the row a shop retires when
+          // it has not found the merge button yet, and that row is still taking
+          // money every day. ADR 0026 Q6 already forbade hiding anything here.
+          includeRetired: true,
+          search,
+        }),
   ]);
 
   const mergeRows = merges.map(toMenuMergeRowView);

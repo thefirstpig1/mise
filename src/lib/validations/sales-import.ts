@@ -519,5 +519,12 @@ export const getMenusQuerySchema = z.object({
   menuCategoryId: z.preprocess(blankToUndefined, z.string().uuid().optional()),
   /** The "รอตรวจ" queue — stubs a file created that nobody has identified yet. */
   stubsOnly: z.preprocess(flagPreprocess, z.boolean()),
+  /**
+   * ADR 0027 Q2 — show the ones the shop has stopped selling. OFF by default,
+   * which is only safe because the contradiction has its own voice: the import
+   * preview warns when a retired dish is still in the file, and a retired row
+   * prints its last sale date.
+   */
+  includeRetired: z.preprocess(flagPreprocess, z.boolean()),
   search: z.preprocess(blankToUndefined, z.string().trim().max(200).optional()),
 });

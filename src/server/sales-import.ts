@@ -582,6 +582,14 @@ export interface ReplacedDay {
   currentImportedAt: Date | null;
 }
 
+/** One retired dish a file still carries, with what it would bring in. */
+export interface RetiredMenuSelling {
+  menuId: string;
+  name: string;
+  qty: Prisma.Decimal;
+  net: Prisma.Decimal;
+}
+
 export interface ImportPreview {
   batchId: string;
   fileName: string;
@@ -619,6 +627,20 @@ export interface ImportPreview {
    * inside it says it is incomplete.
    */
   pulseMismatches: PulseReconciliation[];
+  /**
+   * ADR 0027 Q3 — dishes in this file that the shop has marked เลิกขาย.
+   *
+   * Retiring a menu in Mise does not retire it in the POS, so a retired dish
+   * that keeps selling is an ordinary mistake rather than a rare one — and it
+   * is the reason `/menus` is allowed to hide retired rows by default at all.
+   * Without this line, hiding them would be hiding a row that still takes
+   * money, which ADR 0026 spent a whole Part refusing to do.
+   *
+   * Shown HERE, before the commit, and it WARNS — never blocks. The sale is
+   * real: `sales_line` will be written and Part 22 will deduct stock from it,
+   * exactly as ADR 0027 Q2 requires. The only thing wrong is the flag.
+   */
+  retiredMenusSelling: RetiredMenuSelling[];
 }
 
 /** What the acknowledgement counts on the commit payload have to match. */
@@ -795,6 +817,44 @@ export async function previewSalesImportLogic(
         })
         .filter((r) => r.isMismatch);
 
+      // What the file would land on a dish nobody is supposed to be selling.
+      // The match result already says which menu each row hit, so this costs
+      // one lookup over menus that matched — never a scan.
+      const perMenu = new Map<string, { qty: Prisma.Decimal; net: Prisma.Decimal }>();
+      for (const r of parsed.rows) {
+        const menuId = plan.matched.get(
+          menuLookupId({ code: r.posMenuCode, matchKey: r.menuMatchKey })
+        );
+        if (menuId === undefined) continue;
+        const acc = perMenu.get(menuId) ?? {
+          qty: new Prisma.Decimal(0),
+          net: new Prisma.Decimal(0),
+        };
+        perMenu.set(menuId, {
+          qty: acc.qty.plus(r.qty),
+          net: acc.net.plus(r.netAmount),
+        });
+      }
+      const retiredMenusSelling: RetiredMenuSelling[] = [];
+      if (perMenu.size > 0) {
+        const retired = await tx.menu.findMany({
+          where: {
+            tenantId,
+            id: { in: [...perMenu.keys()] },
+            deletedAt: null,
+            isActive: false,
+          },
+          select: { id: true, name: true },
+        });
+        for (const m of retired) {
+          const totals = perMenu.get(m.id);
+          if (totals === undefined) continue;
+          retiredMenusSelling.push({ menuId: m.id, name: m.name, ...totals });
+        }
+        // Biggest first: the one worth acting on is the one earning most.
+        retiredMenusSelling.sort((a, b) => b.net.comparedTo(a.net));
+      }
+
       let totalNet = new Prisma.Decimal(0);
       let totalQty = new Prisma.Decimal(0);
       for (const r of parsed.rows) {
@@ -821,6 +881,7 @@ export async function previewSalesImportLogic(
         suggestions,
         newCategories,
         pulseMismatches,
+        retiredMenusSelling,
       };
     },
     { maxWait: 10_000, timeout: 30_000 }

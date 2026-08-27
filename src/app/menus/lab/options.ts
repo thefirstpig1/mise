@@ -25,7 +25,7 @@ export type LabOptions = {
 export async function loadLabOptions(tenantId: string): Promise<LabOptions> {
   const [products, menus, categories, branches, live] = await Promise.all([
     getProductsLogic(tenantId),
-    getMenusLogic(tenantId, { stubsOnly: false }),
+    getMenusLogic(tenantId, { stubsOnly: false, includeRetired: false }),
     getMenuCategoriesLogic(tenantId),
     withTenantContext(tenantId, (tx) =>
       tx.branch.findMany({

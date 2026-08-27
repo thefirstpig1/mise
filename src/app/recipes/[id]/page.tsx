@@ -88,7 +88,7 @@ export default async function RecipePage({
     getRecipeHistoryLogic(tenantId, recipe.lineId, asOf),
     getRecipeBranchComparisonLogic(tenantId, { target, asOf }),
     getProductsLogic(tenantId),
-    getMenusLogic(tenantId, { stubsOnly: false }),
+    getMenusLogic(tenantId, { stubsOnly: false, includeRetired: false }),
   ]);
 
   const view = toRecipeView(recipe);

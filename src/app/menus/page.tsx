@@ -50,11 +50,18 @@ export default async function MenusPage({
     posIntegrationId: one("pos"),
     menuCategoryId: one("category"),
     stubsOnly: one("stubs"),
+    includeRetired: one("retired"),
     search: one("q"),
   });
   const query = parsed.success
     ? parsed.data
-    : { posIntegrationId: undefined, menuCategoryId: undefined, stubsOnly: false, search: undefined };
+    : {
+        posIntegrationId: undefined,
+        menuCategoryId: undefined,
+        stubsOnly: false,
+        includeRetired: false,
+        search: undefined,
+      };
 
   const departmentsEnabled = membership.tenant.enableDepartments;
 

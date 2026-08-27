@@ -292,7 +292,7 @@ describe("menu resolution *Logic (which dish is this row about?)", () => {
     });
     const id = [...created.values()][0];
 
-    const menus = await getMenusLogic(tenantA, { stubsOnly: true });
+    const menus = await getMenusLogic(tenantA, { stubsOnly: true, includeRetired: false });
     const stub = menus.find((m) => m.id === id);
     expect(stub).toBeDefined();
     expect(stub?.isPosStub).toBe(true);
@@ -318,7 +318,7 @@ describe("menu resolution *Logic (which dish is this row about?)", () => {
     });
     expect(updated.isPosStub).toBe(false);
 
-    const stubs = await getMenusLogic(tenantA, { stubsOnly: true });
+    const stubs = await getMenusLogic(tenantA, { stubsOnly: true, includeRetired: false });
     expect(stubs.map((m) => m.id)).not.toContain(id);
   });
 
@@ -368,7 +368,7 @@ describe("menu resolution *Logic (which dish is this row about?)", () => {
   });
 
   it("M21: stubs sort to the top of the menu list — a queue nobody sees is a queue nobody works", async () => {
-    const menus = await getMenusLogic(tenantA, { stubsOnly: false });
+    const menus = await getMenusLogic(tenantA, { stubsOnly: false, includeRetired: false });
     const firstNonStub = menus.findIndex((m) => !m.isPosStub);
     const lastStub = menus.map((m) => m.isPosStub).lastIndexOf(true);
     if (firstNonStub !== -1 && lastStub !== -1) {

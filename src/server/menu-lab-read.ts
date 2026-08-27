@@ -79,6 +79,17 @@ export type CoverageRow = {
   hasDraft: boolean;
   /** Sales exist and the dish does not any more. It cannot be worked on. */
   isDeleted: boolean;
+  /**
+   * ADR 0027 Q5 — the shop has stopped selling this dish.
+   *
+   * A LABEL, never a filter. This row stays in the list AND in the denominator:
+   * dropping it would shrink `totalRevenue`, so pressing เลิกขาย today would
+   * change last month's coverage percentage — which is exactly the "never
+   * touches the past" that Q2 turns on, broken by the feature itself. And the
+   * dish somebody just retired is very often the one that sold hardest all
+   * month.
+   */
+  isRetired: boolean;
   duplicateHint: DuplicateHint | null;
 };
 
@@ -188,7 +199,7 @@ export async function getRecipeCoverageLogic(
 
     const menus = await tx.menu.findMany({
       where: { tenantId, id: { in: menuIds } },
-      select: { id: true, name: true, deletedAt: true },
+      select: { id: true, name: true, deletedAt: true, isActive: true },
     });
     const menuById = new Map(menus.map((m) => [m.id, m]));
 
@@ -217,6 +228,8 @@ export async function getRecipeCoverageLogic(
         qty: g.qty,
         hasDraft: drafted.has(g.menuId),
         isDeleted: menu?.deletedAt != null,
+        // Counted and ranked exactly as rule M3 says; only labelled.
+        isRetired: menu?.isActive === false,
       });
     }
 

@@ -77,7 +77,7 @@ export default async function NewRecipePage({
 
   const [products, menus] = await Promise.all([
     getProductsLogic(tenantId),
-    getMenusLogic(tenantId, { stubsOnly: false }),
+    getMenusLogic(tenantId, { stubsOnly: false, includeRetired: false }),
   ]);
 
   const productOptions: RecipeProductOption[] = products
