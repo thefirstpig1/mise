@@ -9,9 +9,45 @@ _(Sprint 4 — POS sales import · daily pulse: ✅ COMPLETE 2026-08-20, except 
 **Status:** **Part 21 ✅ COMPLETE 2026-08-24** · **Part 22 ✅ COMPLETE 2026-08-25** · **Part 23 ✅** · **Part 23.5 ✅ COMPLETE 2026-08-25** · **Part 24 (Menu Lab + recipe coverage) ✅ COMPLETE 2026-08-26** · **Part 25 (การรวมเมนู) ✅ COMPLETE 2026-08-27**.
 **Split:** Sprint 5 is **five Parts** — **21** สูตรอาหาร + ต้นทุนสูตร (no ledger writes) · **22** `CONSUMPTION` + GP by recipe · **23** test-suite reliability (ADR 0023) · **23.5** connection ที่ค้าง (ADR 0024) · **24** Menu Lab + recipe coverage (ADR 0025). **Menu merging became Part 25 and staff meal Part 26** — ADR 0025 Q1: merging rewrites `sales_line` rows already imported and consumption runs already posted, and staff meal writes to the ledger with its own `source_type`. Neither is the same kind of work as a screen that writes only a draft.
 **Part 25 — การรวมเมนู: ✅ COMPLETE 2026-08-27 (L0–L6), ADR 0026 (grill Q1–Q7, 2026-08-26).** สิ่งที่ grill พลิกจากที่ตั้งไว้: เมนูซ้ำ**ไม่ใช่เคสหายาก แต่เป็นค่าเริ่มต้นของทุกร้านที่มีมากกว่าหนึ่งสาขา** (`PosIntegration.branchId` เป็น non-nullable + unique เป็น `(pos_integration_id, pos_menu_id)` → ร้าน 2 สาขาได้เมนูซ้ำตั้งแต่ import แรก) · การรวม **ไม่ย้าย `sales_line` สักแถว** — ฝั่งแพ้ถือรหัส POS ตลอดกาลและรับยอดขายต่อไปเรื่อย ๆ เพราะ soft-delete เมนู POS ทำให้ import ถัดไปล่ม · สูตรได้ **fallback ชั้นที่สาม** (สาขา → กลาง → เมนูที่ถูกรวมเข้าไป) ทำให้การรวม**เติมได้อย่างเดียว ทับไม่ได้** และไม่ต้องถามว่าจะเก็บสูตรไหน · **รายงานรวมย้อนหลังเสมอ แต่การตัดสต๊อกรวมตั้งแต่ `effective_from`** (ค่าเริ่มต้น = วันนี้) · `menu_merge` เป็นตารางของตัวเอง มี `revoked_at` — **การรวมย้อนกลับได้ เพราะไม่มีแถวไหนถูกเขียนทับ** · ห้ามรวมเป็นทอด (ดาว ไม่ใช่โซ่). รูลส์ **G1–G6** ใน §11.5. รายละเอียดที่สร้างจริงอยู่ในหัวข้อ "Sprint 5 Part 25" ด้านล่าง.
-**Part 27 — วงจรชีวิตของเมนู (reserved 2026-08-26, ยังไม่มี ADR).** `menu.isActive` ถูกสร้างใน Part 19 และ **ไม่มีใครอ่านเลยสักที่** เหมือน `canPerform` — ไม่มี Part ไหนจองไว้ จึงแยกเป็น Part ของตัวเอง. ขอบเขต: ทำให้ `isActive` ทำงานจริงตามแบบแผนที่ master-spec บรรทัด 482 เขียนไว้แล้ว (`is_active=false, deleted_at=NULL` = ปิดชั่วคราว · `deleted_at` = ลบ · รายงานติดป้าย "(inactive)") · ปุ่มลบเมนู ซึ่งจะเป็น **call site แรกของ `assertMenuNotUsedInRecipes`** ที่ Part 21 เขียนทิ้งไว้ · และ guard ที่ Part 25's grill เพิ่งพิสูจน์ว่าจำเป็น: **เมนูที่มี `pos_menu_id` ห้าม soft-delete เด็ดขาด** เพราะ `menu_pos_identity_unique` ไม่กรอง `deleted_at` (ตั้งใจ — รหัส POS ถูกยึดตลอดกาล) แต่ `planMenuResolutionLogic` กรอง → ไฟล์ถัดไปที่ถือรหัสนั้นจะหา byCode ไม่เจอ แล้วไปสร้าง stub ที่ **ชน unique → import ล่ม**. ผลที่ผู้ใช้ต้องรู้: "เลิกขาย" กับ "ลบ" เป็นคนละเรื่อง และเมนูที่มาจาก POS ทำได้แค่อย่างแรกตลอดไป.
+**Part 27 — วงจรชีวิตของเมนู: ✅ COMPLETE 2026-08-27 (L0–L6), ADR 0027 (grill Q1–Q9).** สิ่งที่ grill พลิกจากที่ตั้งไว้: **แบบสองสถานะของ master-spec บรรทัด 482 ใช้กับเมนูไม่ได้ทั้งดุ้น** — `deleted_at` เป็นระเบิดสำหรับเมนู POS ทุกตัว จึงเปิดให้ลบเฉพาะเมนูที่ลบแล้วไม่พังจริง ๆ · **`is_active` ห้ามแตะการจับคู่ไฟล์ และนี่ไม่ใช่ทางเลือก** — `createStubMenusLogic` เขียน `create` ดิบ ๆ ไม่มี catch รหัสที่หยุด match จะพาไฟล์ทั้งไฟล์ล่มกลางคอมมิต · จึงเหลือให้ `is_active` เป็น**คำแถลงเรื่องอนาคตเท่านั้น** ไม่แตะ ledger ไม่แตะอดีต · **ความครอบคลุมนับเมนูที่เลิกขายเต็มจำนวน** ติดป้ายอย่างเดียว เพราะตัดออกแล้วตัวหารหด = กดปุ่มวันนี้ทำให้ % ของเดือนที่แล้วเปลี่ยน · เจอ**ทางพังที่ห้าระหว่าง grill**: `menu_alias` ไม่มี `deleted_at` และ ALIAS ชนะ NAME → alias ที่ห้อยอยู่จะพาเงินจริงไปลงแถวที่ตายแล้ว · **ไม่มี migration เลยทั้ง Part** — ปฏิเสธคอลัมน์ใหม่สองตัว (`deactivated_at`, `menu_alias.deleted_at`) และตอบคำถามเดิมได้ครบด้วยข้อเท็จจริงที่ข้อมูลมีอยู่แล้ว. รูลส์ **L1–L6** ใน §11.6. รายละเอียดที่สร้างจริงอยู่ในหัวข้อ "Sprint 5 Part 27" ด้านล่าง.
 **Part 23 is not a feature.** It is the debugging session that found why the suite had been going red at random, and the two fixes that came out of it. Menu Lab moved to **Part 24** (ADR 0023 Q1): Part numbers here record what was built and when — Part 13.5 exists for the same reason.
 **Not in Sprint 5:** H.8 theoretical-vs-actual variance (→ Sprint 6, per the spec's own O16, decided 2026-08-21) · Price Volatility (Sprint 6) · Section B three-layer mirror and `recipe_change_diff` (**removed**, ADR 0021 Q3).
+
+---
+
+## Sprint 5 Part 27 — วงจรชีวิตของเมนู: ✅ COMPLETE (L0–L6, 2026-08-27)
+
+**ADR:** `docs/adr/0027-menu-lifecycle.md` (Q1–Q9, grill 2026-08-27)
+**Rules registered:** `docs/calculation-rules.md` §11.6, **L1–L6**
+
+Two columns that had sat in the schema since Part 19 — `menu.is_active` with no reader, `menu.deleted_at` with no writer — finally get one each. They are **not two grades of one act**: เลิกขาย is available for every menu and is the answer for almost every real case; deleting is available only for a menu whose deletion breaks nothing, which in practice is a row created in the Lab and abandoned.
+
+| L | What | ✅ |
+|---|---|---|
+| L0 | ADR 0027 · CONTEXT.md ×2 terms ([Retired], [Menu deletion]) · rules L1–L6 | ✅ |
+| L1 | **none — and that is a decision, not an omission.** Q3 refused `deactivated_at`; Q8 refused `menu_alias.deleted_at`. No migration in this Part | ✅ |
+| L2 | zod ×3 + **six shared Thai sentences** · S6 pins that an invented `force` flag is stripped rather than honoured · 9 tests | ✅ |
+| L3a | `menu-lifecycle.ts` — five hard blockers in a deliberate order, then the one soft interruption · **ONE `Date` into two tables** · 12 DB tests, 5 verified red | ✅ |
+| L3b | four reads change, and **the two that must not are pinned hardest** (R4 matching, R6 coverage) · `includeRetired` REQUIRED so all six pickers had to answer · 6 DB tests, 3 verified red | ✅ |
+| L4 | 4 actions · every refusal names what is in the way and five point at เลิกขาย · `revalidateLifecycleViews` deliberately omits `/sales` and `/cost` | ✅ |
+| L5 | row buttons + `/menus` toggle + import warning + coverage label + the Lab's restore door | ✅ |
+| L6 | **5-case E2E** through the real action stack · **found no production bug** · spec + config deleted, never committed · docs + rules | ✅ |
+
+### The six decisions most likely to be undone by accident
+
+1. **`is_active` NEVER reaches matching.** `createStubMenusLogic` writes a bare `tx.menu.create` with no catch, so a POS code that stops matching falls through to stub creation and collides with `menu_pos_identity_unique` — a P2002 mid-commit that takes down a file with nothing wrong in it. R4 pins it; it was verified by adding `isActive: true` to `planMenuResolutionLogic` and watching R4 go red. **Identity is not lifecycle.**
+2. **`is_active` never reaches the ledger or the past either.** The sale is real, so `sales_line` is written and Part 22 deducts stock. The only thing wrong is the flag, and it is wrong in the POS.
+3. **Coverage counts a retired menu in FULL** and only labels it (R6). Dropping it shrinks `totalRevenue`, so pressing เลิกขาย today would move last month's percentage — Q2 broken by the feature itself. The dish somebody just retired is very often the one that sold hardest.
+4. **The delete blockers are ordered on purpose**: five hard ones, then the recipe interruption LAST. Reversing it would let somebody confirm the loss of a recipe and only then be told the menu was never deletable (K8).
+5. **The delete writes ONE `Date` value into `menu.deleted_at` and the recipe's.** Restore brings back exactly the recipes whose `deleted_at` matches — by equality, never a time window. That is how Q3 and Q8 each refused a column and still answered what they were asked (K10).
+6. **`/menus/merges` is the one picker that still offers retired menus** (Q9). It is the repair tool for exactly the row a shop retires when it has not found the merge button yet — and that row is still taking money every day. ADR 0026 Q6 already forbade hiding anything on that screen.
+
+### Standing items this Part leaves behind
+- **`menu_alias` still has no `deleted_at`, on purpose.** Q8 chose a blocker over a migration. A future Part that lets shops REMOVE an alias inherits this and should re-open it rather than adding a column quietly.
+- **The stub path is still a bare `create`.** This Part routes around it; a duplicate code still produces a raw P2002. Whoever hardens the import owes that a real error.
+- 🛑 **`canPerform` still has zero call sites**, and this Part adds two more destructive buttons any authenticated member can press (ADR 0021 Q18).
+
+Verified at close: `tsc` clean · `build` green (**59 routes**) · vitest **1106 passed / 4 skipped** · `pnpm test:sweep` → nothing to sweep.
 
 ---
 
@@ -49,7 +85,7 @@ Verified at close: `tsc` clean · `build` green (**59 routes**) · vitest **1071
 ### Standing items this Part leaves behind
 - **G5 has no surface yet.** No screen prints a merged dish's price per plate, so the "show the spread, never a blended average" rule has nothing to be violated by — **read it before building that screen**, not after.
 - ~~**Part 25 owes a guard on recipe delete**~~ — **PAID 2026-08-27.** `menusDependingOnRecipeLine` (`src/server/recipe-guards.ts`) + `deleteRecipeLogic({ acknowledgeMergedMenus })`: the delete is **refused once, naming the menus**, and a second press goes through. Not a hard block, unlike its two neighbours in that file — "stop costing this dish" is a legitimate thing to want, and forcing a revoke of the merge first would make somebody undo a TRUE statement to get at a false one. **The test on BOTH sides is "is there a CENTRAL line left"**, which is the resolution rule read at the level that matters: a menu with a live central line resolves at every branch, one without resolves only where it copied. So a branch copy deleted while central survives does not interrupt, and a loser that copied to one branch is still named because it borrows everywhere else. 8 DB tests in `tests/recipe-delete-merge-guard.test.ts`, each verified by breaking the code and watching the right one go red — D2/D5 discriminate as a pair (a guard naming every loser passes D5 by accident; one asking "has any line at all" passes D2 and fails D5).
-- **Part 27 — วงจรชีวิตของเมนู** is the safe "stop selling" this Part proved is missing (Consequence 2).
+- ~~**Part 27 — วงจรชีวิตของเมนู**~~ — **BUILT 2026-08-27** (ADR 0027). It confirmed Consequence 2 rather than re-opening it, and found a fifth breakage Part 25 had not seen: `menu_alias` has no `deleted_at` and ALIAS outranks NAME.
 - 🛑 **`canPerform` still has zero call sites** — unchanged by this Part, still owed before Beta (ADR 0021 Q18).
 
 ---
