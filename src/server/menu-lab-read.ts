@@ -14,11 +14,15 @@
 // than the ฿15 soda sold 400 times, and the ordering has to match the reason
 // somebody sat down.
 //
-// **NOTHING IS GROUPED, HIDDEN OR MERGED.** A POS that reports ข้าวผัด three ways
+// **NOTHING IS GROUPED BY GUESSWORK.** A POS that reports ข้าวผัด three ways
 // produces three rows. Each carries a per-row hint — "อาจซ้ำกับ …" — from the
 // `pg_trgm` search built for Part 19, under ADR 0019's standing rule: a
-// similarity score SUGGESTS, a person decides. Merging is Part 25, and until it
-// exists the screen says so rather than quietly folding rows together.
+// similarity score SUGGESTS, a person decides.
+//
+// What DOES group rows is a merge somebody made: since Part 25 L3b this file
+// folds through `loadMergeFold` with no date, because reporting folds
+// retroactively and always (ADR 0026 Q5). A score still merges nothing on its
+// own, and never will.
 // ============================================================
 
 import { Prisma } from "@prisma/client";
