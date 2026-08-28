@@ -87,6 +87,19 @@ model Tenant {
   /// ingredients — and both are common. The shop knows; we do not.
   cancelledSalePolicy CancelledSalePolicy @default(TREAT_AS_COOKED) @map("cancelled_sale_policy")
 
+  /// The two staff-meal controls (ADR 0028 Q9). Both nullable, and null means
+  /// NOT CHECKED rather than zero — a shop with no policy must not read as a
+  /// shop whose staff may eat nothing.
+  ///
+  /// A ceiling on the SELLING PRICE of a dish a staff meal may be, which is the
+  /// question actually asked ("ไม่ให้พนักงานสั่งเมนูแพงๆ") — not a ceiling on
+  /// what the ingredients cost, which nobody at the counter can see.
+  staffMealMaxMenuPrice Decimal? @map("staff_meal_max_menu_price") @db.Decimal(15, 2)
+  /// Baht per person per day, the default every staff_member inherits unless
+  /// its own row overrides. Without the override a shop has to switch the quota
+  /// off for everybody because of one head chef.
+  staffMealDailyQuota   Decimal? @map("staff_meal_daily_quota") @db.Decimal(15, 2)
+
   // v1.2 opt-in features
   enableDepartments     Boolean @default(false) @map("enable_departments")
   isVatRegistered       Boolean @default(false) @map("is_vat_registered")
@@ -139,6 +152,9 @@ model Tenant {
   recipeBranches          RecipeBranch[]
   salesConsumptionRuns    SalesConsumptionRun[]
   salesConsumptionItems   SalesConsumptionItem[]
+  staffMembers            StaffMember[]
+  staffMeals              StaffMeal[]
+  staffMealItems          StaffMealItem[]
 
   @@map("tenant")
 }
@@ -197,6 +213,8 @@ model Branch {
   salesLines              SalesLine[]
   recipeBranches          RecipeBranch[]
   salesConsumptionRuns    SalesConsumptionRun[]
+  staffMembers            StaffMember[]
+  staffMeals              StaffMeal[]
 
   @@index([tenantId])
   @@map("branch")
@@ -235,6 +253,8 @@ model User {
   expensesCreated           Expense[]
   wasteLogged               WasteLog[]             @relation("WasteWastedBy")
   wasteVoided               WasteLog[]             @relation("WasteVoidedBy")
+  staffMealsRecorded        StaffMeal[]            @relation("StaffMealRecordedBy")
+  staffMealsVoided          StaffMeal[]            @relation("StaffMealVoidedBy")
   consumptionPosted         SalesConsumptionRun[]  @relation("ConsumptionPostedBy")
   consumptionVoided         SalesConsumptionRun[]  @relation("ConsumptionVoidedBy")
   transfersDispatched       StockTransfer[]        @relation("TfDispatchedBy")
@@ -468,6 +488,7 @@ model Product {
   producedByRecipes       Recipe[]                 @relation("RecipeOutputProduct")
   usedInRecipes           RecipeIngredient[]
   salesConsumptionItems   SalesConsumptionItem[]
+  staffMealItems          StaffMealItem[]
 
   /// NOTE: per-tenant sku uniqueness is a PARTIAL unique index (WHERE deleted_at
   /// IS NULL) in prisma/manual/product_sku_unique.sql — NOT a Prisma @@unique,
@@ -499,6 +520,7 @@ model ProductUnit {
   parLevels               ParLevel[]
   stockTransferItems      StockTransferItem[]
   recipeIngredients       RecipeIngredient[]
+  staffMealItems          StaffMealItem[]
 
   @@unique([productId, unitName])
   @@index([productId])
@@ -640,9 +662,42 @@ enum SourceType {
   /// brings its own document and its own value here — CONTEXT.md records that
   /// intent, and a generic `origin` column would hold one value for a whole Part.
   SALES_CONSUMPTION
+  /// -> staff_meal_item (Part 26, ADR 0028 Q8). The SECOND source type to post
+  /// `CONSUMPTION`, which is what the comment above promised and what
+  /// `stock-cost.ts` was one filter short of surviving: `fifo-replay` collects
+  /// consumption by MOVEMENT TYPE, `stock-cost` read it back by SOURCE TYPE,
+  /// and while there was only one source the gap could not show (Consequence 1).
+  ///
+  /// The item is the source, not the `staff_meal` row: one menu explodes into N
+  /// products and `stock_movement_source_unique` keys on the PAIR — the same
+  /// reason ADR 0022 Q1 gave, unchanged.
+  ///
+  /// No new MOVEMENT type, so `stock_movement_sign_check` is untouched: stock
+  /// leaving to be cooked and eaten is what `CONSUMPTION` already means, and who
+  /// ate it is what a source type is for.
+  STAFF_MEAL
   SYSTEM_INITIAL // reserved: onboarding initial stock (no writer in Part 10)
 
   @@map("source_type")
+}
+
+/// Where the selling price frozen onto a staff meal came from (ADR 0028 Q7,
+/// rule S3). Stored because a number that cannot say where it came from cannot
+/// explain itself, and these three deserve very different amounts of trust.
+enum StaffMealPriceSource {
+  /// Worked out from what the dish actually sold for — `sum(net_amount)/sum(qty)`
+  /// over live sales lines. The real answer, and the only one ADR 0025 Q2 calls
+  /// a price.
+  SOLD
+  /// The dish has never sold, so `recipe.planned_price` was used instead —
+  /// **ราคาที่ตั้งใจ**, and the screen must say so. A fact about a design
+  /// session, not a claim about today.
+  PLANNED
+  /// Neither exists. The frozen price is NULL and the quota says so out loud
+  /// rather than treating the meal as free (ADR 0019: null is not zero).
+  NONE
+
+  @@map("staff_meal_price_source")
 }
 
 /// Why something was thrown away (ADR 0017 Q3). Each value names a DIFFERENT
@@ -2190,6 +2245,7 @@ model Menu {
   usedInRecipes     RecipeIngredient[] @relation("RecipeComponentMenu")
   mergedInto        MenuMerge[]        @relation("MenuMergeLosing")
   mergesReceived    MenuMerge[]        @relation("MenuMergeWinning")
+  staffMeals        StaffMeal[]
 
   /// UNIQUE(pos_integration_id, pos_menu_id) WHERE source='POS' AND pos_menu_id
   /// IS NOT NULL lives in prisma/manual/sales_unique.sql (Prisma 5.22 cannot
@@ -2340,6 +2396,17 @@ model SalesLine {
   netAmount           Decimal @map("net_amount") @db.Decimal(15, 2)
   serviceChargeAmount Decimal @map("service_charge_amount") @db.Decimal(15, 2)
   vatAmount           Decimal @map("vat_amount") @db.Decimal(15, 2)
+
+  /// The tag the POS put on the discount — "อาหารพนักงาน", "ของแถม", "voucher"
+  /// (ADR 0028 Q6). Stored EXACTLY as the file wrote it and interpreted by
+  /// nobody: the values are free text each shop invents, and letting a spelling
+  /// move money between accounts is what ADR 0019 Q7 spent a whole Part refusing.
+  ///
+  /// Its one job is to let the staff-meal screen's warning say WHICH zero-price
+  /// line is which, so a meal the POS already deducted is not deducted again by
+  /// hand. A blunt `net_amount = 0` test cannot: it lumps a staff meal in with a
+  /// giveaway, a voucher and a cancelled bill.
+  discountReason String? @map("discount_reason")
 
   /// --- present only when the file had them (Q4) ---
   channel   SalesChannel?
@@ -2776,4 +2843,203 @@ model SalesConsumptionItem {
   @@index([tenantId])
   @@index([runId], map: "sales_consumption_item_run_idx")
   @@map("sales_consumption_item")
+}
+
+// ============================================================
+// Part 26 - staff meal (ADR 0028)
+// ============================================================
+
+/// Someone on the shop's own roster of people who EAT. Not a [User]: a login
+/// answers *who may sign in*, this answers *who ate*, and in a Thai SME the two
+/// lists barely overlap - the four `*_by_name` columns in this schema exist
+/// because the owner holds the only account and the staff do the work.
+///
+/// It exists at all only because ADR 0028 Q3 bought transparency: "who went over
+/// their quota" cannot be counted from free text, where "somchai", "somchai " and
+/// "chai" are three people.
+///
+/// Deliberately NOT an HR record (Q4, line 2): a name, a home branch, and
+/// whether they still work here. No ID number, no wage, no phone, no start date
+/// - no question in this Part is answered by any of them, and each is a duty to
+/// protect under PDPA bought for nothing.
+///
+/// It is also NOT linked to `User`, even for the owner who has a login. That FK
+/// would create a question nobody asked ("which name wins?"); the owner who eats
+/// a staff meal is a row here like everybody else.
+model StaffMember {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  /// Home branch. A staff meal eaten at another branch still records against
+  /// THAT branch on the document - this is where the person usually works, not
+  /// a fence around where they may eat.
+  branchId String @map("branch_id") @db.Uuid
+  name     String
+
+  /// Overrides `tenant.staff_meal_daily_quota` for this person (Q9). Null =
+  /// follow the tenant default. Without it a shop has to switch the quota off
+  /// for everybody because one head chef is allowed more.
+  dailyQuotaAmount Decimal? @map("daily_quota_amount") @db.Decimal(15, 2)
+
+  /// Still works here. A claim about the FUTURE and nothing else - rule S7,
+  /// which is ADR 0027's L1 read one table across: someone who leaves is still
+  /// counted IN FULL in any past month and merely labelled, because dropping
+  /// them would move last month's figure by pressing a button today.
+  isActive Boolean @default(true) @map("is_active")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  tenant Tenant      @relation(fields: [tenantId], references: [id])
+  branch Branch      @relation(fields: [branchId], references: [id])
+  meals  StaffMeal[]
+
+  @@index([tenantId])
+  @@index([branchId, isActive], map: "staff_member_branch_active_idx")
+  @@map("staff_member")
+}
+
+/// One staff meal: one person's dish, or one pot the kitchen cooked for
+/// everybody. The document, never the ledger's source - that is the item below
+/// (Q8).
+///
+/// The two real-world shapes are told apart by `menu_id` alone, which is why the
+/// `staff_meal_mode` tenant setting the grill set out to build dissolved (Q1):
+///   * `menu_id` set  - a dish from the menu. Items come from exploding its
+///                      recipe AS OF `business_date` (ADR 0021 Q4), and
+///                      `staff_member_id` is REQUIRED by the application.
+///   * `menu_id` null - the kitchen cooked from raw stock. Items are typed by
+///                      hand with the unit the person typed, and there is no
+///                      one eater to name.
+///
+/// That requirement is enforced in the application and NOT as a CHECK, because
+/// the empty case is legitimate rather than exceptional (Q4, line 3).
+model StaffMeal {
+  id           String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  branchId     String   @map("branch_id") @db.Uuid
+  /// A plain DATE like `sales_consumption_run.business_date` - never a timestamp
+  /// to be truncated, so no timezone enters the grouping (rule P15). Every
+  /// question asked of this row is per day: the quota is daily, the total is
+  /// monthly.
+  businessDate DateTime @map("business_date") @db.Date
+
+  /// Null for a communal pot. See the model comment - the application requires
+  /// it whenever `menuId` is set.
+  staffMemberId String? @map("staff_member_id") @db.Uuid
+  /// Null when the kitchen cooked from raw stock rather than ringing a dish.
+  menuId        String? @map("menu_id") @db.Uuid
+  /// Servings of `menuId`. Always 1 for a pot, where the real quantities live on
+  /// the items.
+  servings      Decimal @default(1) @db.Decimal(15, 3)
+
+  /// The dish's SELLING price per serving, frozen at entry (Q7, rule S2).
+  ///
+  /// Frozen because it is derived live from sales and drifts: without this,
+  /// checking last month's quota would return a different answer each time it
+  /// was asked. Same discipline as `sales_consumption_run.cancelled_sale_policy`.
+  ///
+  /// **This is not a cost and never becomes one.** The ledger moves at what the
+  /// ingredients cost, which only FIFO is entitled to say (ADR 0014, rule S1);
+  /// booking 89 baht against 32 baht of food would invent 57 baht of expense
+  /// with no money leaving the business. Null when the price is not knowable -
+  /// never 0.00, which would read as "the meal was free".
+  ///
+  /// Excludes VAT and service charge, because `sales_line.net_amount` does
+  /// (ADR 0019 Q10). A 89 baht dish on the board freezes at 83.18, and rule S4
+  /// requires the screen to say so.
+  frozenUnitPrice Decimal?             @map("frozen_unit_price") @db.Decimal(15, 2)
+  priceSource     StaffMealPriceSource @map("price_source")
+
+  /// The login that recorded it, plus who actually served it - the pattern
+  /// `waste_log` established. Distinct from `staff_member_id`, which is who ATE.
+  recordedBy     String  @map("recorded_by")
+  recordedByName String? @map("recorded_by_name")
+  notes          String?
+
+  /// A void APPENDS reversal items to THIS document and posts the compensating
+  /// `CONSUMPTION_REVERSAL`, exactly as a consumption run does. Never an edit,
+  /// never a delete: the ledger is append-only (ADR 0011 Q7) and the
+  /// compensating movement needs a `source_id` of its own to satisfy
+  /// UNIQUE(source_type, source_id).
+  voidedAt   DateTime? @map("voided_at")
+  voidedBy   String?   @map("voided_by")
+  voidReason String?   @map("void_reason")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant         Tenant          @relation(fields: [tenantId], references: [id])
+  branch         Branch          @relation(fields: [branchId], references: [id])
+  staffMember    StaffMember?    @relation(fields: [staffMemberId], references: [id])
+  menu           Menu?           @relation(fields: [menuId], references: [id])
+  recordedByUser User            @relation("StaffMealRecordedBy", fields: [recordedBy], references: [id])
+  voidedByUser   User?           @relation("StaffMealVoidedBy", fields: [voidedBy], references: [id])
+  items          StaffMealItem[]
+
+  @@index([tenantId])
+  @@index([branchId, businessDate], map: "staff_meal_branch_date_idx")
+  @@index([staffMemberId, businessDate], map: "staff_meal_member_date_idx")
+  @@map("staff_meal")
+}
+
+/// One raw product's worth of a staff meal. THIS ROW IS THE LEDGER'S SOURCE:
+/// `source_type = STAFF_MEAL`, `source_id = this id`, which is what makes
+/// posting idempotent (the `waste_log` pattern).
+///
+/// The `staff_meal` row above cannot be the source: one menu explodes into N
+/// products and `stock_movement_source_unique` keys on the PAIR - ADR 0022 Q1's
+/// finding, unchanged, and ADR 0018 Q4's three-values-over-one-id trick does not
+/// stretch to an unbounded N.
+///
+/// NOT aggregated to product x day the way `sales_consumption_item` is. There,
+/// a day holds thousands of sales lines and not aggregating multiplied the
+/// ledger ~50x. Here a day holds about ten rows, and aggregating would destroy
+/// the per-person attribution that is the whole point of Q3 - a saving that does
+/// not exist, bought with the feature.
+model StaffMealItem {
+  id          String @id @default(uuid()) @db.Uuid
+  tenantId    String @map("tenant_id") @db.Uuid
+  staffMealId String @map("staff_meal_id") @db.Uuid
+  productId   String @map("product_id") @db.Uuid
+
+  /// SIGNED, in the product's base unit, matching `movement.qty` exactly -
+  /// negative when stock leaves, positive on a reversal item. Signed rather than
+  /// magnitude-plus-a-flag for the reason `sales_consumption_item.qty` gives:
+  /// the value goes straight onto the movement, and a magnitude would have to be
+  /// negated on the way, where one negation eventually gets forgotten.
+  ///
+  /// Only `<> 0` is enforced (`staff_meal_item_qty_check`): a zero item is noise
+  /// with a movement attached.
+  qty Decimal @db.Decimal(15, 3)
+
+  /// What the person actually typed, for a hand-entered pot line - 2 kg, not
+  /// 2000 g. Null on a line the recipe produced, where the base unit IS what the
+  /// recipe said and there is no other rendering to preserve.
+  inputQty    Decimal? @map("input_qty") @db.Decimal(15, 3)
+  inputUnitId String?  @map("input_unit_id") @db.Uuid
+
+  /// The item this one gives back. Read by the FIFO walk so a void returns the
+  /// layers the original took AT THE VALUES IT TOOK THEM AT (ADR 0014 Q8) -
+  /// returning them at last-known cost would let voiding twice change what the
+  /// stock is worth.
+  ///
+  /// At most ONE reversal per item, enforced by a partial unique in
+  /// prisma/manual/staff_meal_unique.sql, or a double-submitted void would
+  /// credit the stock back twice. Mirrors `sales_consumption_item` and
+  /// `waste_log`.
+  reversalOfItemId String? @map("reversal_of_item_id") @db.Uuid
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant         Tenant          @relation(fields: [tenantId], references: [id])
+  staffMeal      StaffMeal       @relation(fields: [staffMealId], references: [id])
+  product        Product         @relation(fields: [productId], references: [id])
+  inputUnit      ProductUnit?    @relation(fields: [inputUnitId], references: [id])
+  reversalOfItem StaffMealItem?  @relation("StaffMealItemReversal", fields: [reversalOfItemId], references: [id])
+  reversals      StaffMealItem[] @relation("StaffMealItemReversal")
+
+  @@index([tenantId])
+  @@index([staffMealId], map: "staff_meal_item_meal_idx")
+  @@index([productId], map: "staff_meal_item_product_idx")
+  @@map("staff_meal_item")
 }

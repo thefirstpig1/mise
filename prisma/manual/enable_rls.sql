@@ -410,3 +410,23 @@ USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 -- ============================================================
 -- End Sprint 5 Part 25 RLS
 -- ============================================================
+
+-- ============================================================
+-- Sprint 5 Part 26 RLS (ADR 0028)
+-- ============================================================
+
+ALTER TABLE staff_member ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON staff_member
+USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+ALTER TABLE staff_meal ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON staff_meal
+USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+ALTER TABLE staff_meal_item ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON staff_meal_item
+USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+-- ============================================================
+-- End Sprint 5 Part 26 RLS
+-- ============================================================

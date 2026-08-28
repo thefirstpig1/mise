@@ -87,6 +87,11 @@ export const SOURCE_TYPE_VALUES = [
   // source — one line explodes into N products and the unique is on the PAIR — so
   // the run's item is, one per product per day.
   "SALES_CONSUMPTION",
+  // Part 26 (ADR 0028 Q8): staff_meal_item. The SECOND source type to post
+  // CONSUMPTION, which is what that movement type was named for — stock that
+  // left to be cooked and eaten, told apart by WHO ate it rather than by a type
+  // of its own. Same reason the item is the source and the document is not.
+  "STAFF_MEAL",
   "SYSTEM_INITIAL",
 ] as const;
 
@@ -197,6 +202,10 @@ export const SOURCE_TYPE_LABELS_TH: Record<
   // knows to ask the driver rather than the kitchen.
   TRANSFER_SHORTAGE: "ของหายระหว่างขนส่ง",
   SALES_CONSUMPTION: "ยอดขาย",
+  // Shares CONSUMPTION with the line above, and this label is the only thing on
+  // screen that tells them apart — the movement says stock left to be cooked,
+  // the source says nobody paid for it.
+  STAFF_MEAL: "มื้อพนักงาน",
   SYSTEM_INITIAL: "ยอดยกมา",
 };
 
