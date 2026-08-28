@@ -9,13 +9,14 @@ _(Sprint 4 — POS sales import · daily pulse: ✅ COMPLETE 2026-08-20, except 
 **Status:** **Part 21 ✅ COMPLETE 2026-08-24** · **Part 22 ✅ COMPLETE 2026-08-25** · **Part 23 ✅** · **Part 23.5 ✅ COMPLETE 2026-08-25** · **Part 24 (Menu Lab + recipe coverage) ✅ COMPLETE 2026-08-26** · **Part 25 (การรวมเมนู) ✅ COMPLETE 2026-08-27**.
 **Split:** Sprint 5 is **five Parts** — **21** สูตรอาหาร + ต้นทุนสูตร (no ledger writes) · **22** `CONSUMPTION` + GP by recipe · **23** test-suite reliability (ADR 0023) · **23.5** connection ที่ค้าง (ADR 0024) · **24** Menu Lab + recipe coverage (ADR 0025). **Menu merging became Part 25 and staff meal Part 26** — ADR 0025 Q1: merging rewrites `sales_line` rows already imported and consumption runs already posted, and staff meal writes to the ledger with its own `source_type`. Neither is the same kind of work as a screen that writes only a draft.
 **Part 25 — การรวมเมนู: ✅ COMPLETE 2026-08-27 (L0–L6), ADR 0026 (grill Q1–Q7, 2026-08-26).** สิ่งที่ grill พลิกจากที่ตั้งไว้: เมนูซ้ำ**ไม่ใช่เคสหายาก แต่เป็นค่าเริ่มต้นของทุกร้านที่มีมากกว่าหนึ่งสาขา** (`PosIntegration.branchId` เป็น non-nullable + unique เป็น `(pos_integration_id, pos_menu_id)` → ร้าน 2 สาขาได้เมนูซ้ำตั้งแต่ import แรก) · การรวม **ไม่ย้าย `sales_line` สักแถว** — ฝั่งแพ้ถือรหัส POS ตลอดกาลและรับยอดขายต่อไปเรื่อย ๆ เพราะ soft-delete เมนู POS ทำให้ import ถัดไปล่ม · สูตรได้ **fallback ชั้นที่สาม** (สาขา → กลาง → เมนูที่ถูกรวมเข้าไป) ทำให้การรวม**เติมได้อย่างเดียว ทับไม่ได้** และไม่ต้องถามว่าจะเก็บสูตรไหน · **รายงานรวมย้อนหลังเสมอ แต่การตัดสต๊อกรวมตั้งแต่ `effective_from`** (ค่าเริ่มต้น = วันนี้) · `menu_merge` เป็นตารางของตัวเอง มี `revoked_at` — **การรวมย้อนกลับได้ เพราะไม่มีแถวไหนถูกเขียนทับ** · ห้ามรวมเป็นทอด (ดาว ไม่ใช่โซ่). รูลส์ **G1–G6** ใน §11.5. รายละเอียดที่สร้างจริงอยู่ในหัวข้อ "Sprint 5 Part 25" ด้านล่าง.
+**Part 26 — มื้อพนักงาน: ✅ COMPLETE 2026-08-28 (L0–L6), ADR 0028 (grill Q1–Q9).** สิ่งที่ grill พลิกจากที่ตั้งไว้: **หนึ่งในสามแบบที่ร้านทำ ไม่ต้องเขียนโค้ดเลย** — ร้านที่ตั้งงบแล้วซื้ออาหารพนักงานแยก ของไม่เคยเข้าสต๊อก มันคือรายจ่ายใต้ `OpEx / Labor` ที่ seed ไว้แล้ว · **setting `staff_meal_mode` ที่ตั้งใจจะทำละลายไปเอง** เพราะสองแบบที่เหลือต่างกันแค่ว่าเอกสารมี `menuId` หรือไม่มี · **สองตัวเลขที่ไม่เท่ากันและไม่แทนกัน** — ledger เคลื่อนที่ต้นทุนวัตถุดิบเสมอ, ราคาขายเป็นตัวเลขคุมโควตาที่ freeze ลงเอกสาร (ลงบัญชีที่ราคาขาย = สร้างค่าใช้จ่ายผีที่ไม่มีเงินออกจากร้าน) · **ระบบไม่เคยรู้จัก "คน"** จึงเกิด `staff_member` ล้อมด้วยสามเส้นไม่ให้กลายเป็นระบบ HR · **ไฟล์ POS ไม่มีชื่อคน** ทางเข้าจึงมีทางเดียวคือพิมพ์เอง, tag ส่วนลดถูก import มา**แสดงให้คนอ่าน ไม่ให้ระบบตีความ** · **ทั้ง Part ไม่ห้ามอะไรที่เป็นนโยบายเลย** — ของกินไปแล้ว การปฏิเสธไม่ได้ทำให้ของกลับมา มันทำให้สต๊อกผิดและไม่มีใครรู้ว่ามีคนกินเกิน · 🔴 **เจอบั๊กที่มีอยู่แล้วสองตัว และแก้ให้ทั้งคู่** — `stock-cost.ts` ค้น reversal เฉพาะ `SALES_CONSUMPTION`, และ **void ของ Part 22 เองก็ลำดับผิดเมื่อเอกสารเป็นของวันนี้** (`reversalInstantFor`). รูลส์ **S1–S9** ใน §11.7. รายละเอียดที่สร้างจริงอยู่ในหัวข้อ "Sprint 5 Part 26" ด้านล่าง.
 **Part 27 — วงจรชีวิตของเมนู: ✅ COMPLETE 2026-08-27 (L0–L6), ADR 0027 (grill Q1–Q9).** สิ่งที่ grill พลิกจากที่ตั้งไว้: **แบบสองสถานะของ master-spec บรรทัด 482 ใช้กับเมนูไม่ได้ทั้งดุ้น** — `deleted_at` เป็นระเบิดสำหรับเมนู POS ทุกตัว จึงเปิดให้ลบเฉพาะเมนูที่ลบแล้วไม่พังจริง ๆ · **`is_active` ห้ามแตะการจับคู่ไฟล์ และนี่ไม่ใช่ทางเลือก** — `createStubMenusLogic` เขียน `create` ดิบ ๆ ไม่มี catch รหัสที่หยุด match จะพาไฟล์ทั้งไฟล์ล่มกลางคอมมิต · จึงเหลือให้ `is_active` เป็น**คำแถลงเรื่องอนาคตเท่านั้น** ไม่แตะ ledger ไม่แตะอดีต · **ความครอบคลุมนับเมนูที่เลิกขายเต็มจำนวน** ติดป้ายอย่างเดียว เพราะตัดออกแล้วตัวหารหด = กดปุ่มวันนี้ทำให้ % ของเดือนที่แล้วเปลี่ยน · เจอ**ทางพังที่ห้าระหว่าง grill**: `menu_alias` ไม่มี `deleted_at` และ ALIAS ชนะ NAME → alias ที่ห้อยอยู่จะพาเงินจริงไปลงแถวที่ตายแล้ว · **ไม่มี migration เลยทั้ง Part** — ปฏิเสธคอลัมน์ใหม่สองตัว (`deactivated_at`, `menu_alias.deleted_at`) และตอบคำถามเดิมได้ครบด้วยข้อเท็จจริงที่ข้อมูลมีอยู่แล้ว. รูลส์ **L1–L6** ใน §11.6. รายละเอียดที่สร้างจริงอยู่ในหัวข้อ "Sprint 5 Part 27" ด้านล่าง.
 **Part 23 is not a feature.** It is the debugging session that found why the suite had been going red at random, and the two fixes that came out of it. Menu Lab moved to **Part 24** (ADR 0023 Q1): Part numbers here record what was built and when — Part 13.5 exists for the same reason.
 **Not in Sprint 5:** H.8 theoretical-vs-actual variance (→ Sprint 6, per the spec's own O16, decided 2026-08-21) · Price Volatility (Sprint 6) · Section B three-layer mirror and `recipe_change_diff` (**removed**, ADR 0021 Q3).
 
 ---
 
-## Sprint 5 Part 26 — มื้อพนักงาน: 🚧 IN PROGRESS (grill เสร็จ 2026-08-28)
+## Sprint 5 Part 26 — มื้อพนักงาน: ✅ COMPLETE (L0–L6, 2026-08-28)
 
 **ADR:** `docs/adr/0028-staff-meal.md` (Q1–Q9, grill 2026-08-28)
 **Rules registered:** `docs/calculation-rules.md` §11.7, **S1–S9**
@@ -31,12 +32,13 @@ Part สุดท้ายที่ ADR 0025 Q1 แยกออกมา แล�
 | L | What | ✅ |
 |---|---|---|
 | L0 | ADR 0028 · CONTEXT.md ×3 terms ([Staff meal] เขียนใหม่, [Staff member], [Discount reason]) · rules S1–S9 · หัวข้อนี้ | ✅ |
-| L1 | schema + migration — 3 ตารางใหม่, 2 enum, 3 คอลัมน์บนตารางเดิม, manual SQL (RLS + partial unique + CHECK) | 🚧 |
-| L2 | zod validations | ⬜ |
-| L3 | server logic + tests | ⬜ |
-| L4 | server actions | ⬜ |
-| L5 | UI | ⬜ |
-| L6 | E2E + docs | ⬜ |
+| L1 | 3 ตารางใหม่ · `SourceType.STAFF_MEAL` (**ไม่แตะ** `stock_movement_sign_check`) · `StaffMealPriceSource` · 3 คอลัมน์บนตารางเดิม · manual SQL (RLS + partial unique ×2 + CHECK ×4) · **enum drift guard ยิงตั้งแต่ `tsc` แรก** ตามที่ Part 13 สร้างมันมา | ✅ |
+| L2 | zod ×5 + superRefine ที่เป็นตัว Part เอง (เมนู→ต้องมีคนกิน, หม้อ→ต้องมีวัตถุดิบ) · 14 tests, 2 verified red | ✅ |
+| L3 | `staff-meal.ts` — ระเบิดสูตร ณ วันนั้น, 4 refusals, item id **derived** จาก submit key · **จ่ายหนี้ ADR Consequence 1+2** · 12 write tests + 2 money tests, **3 verified red** | ✅ |
+| L3c | `staff-meal-read.ts` — roster · history · quota · คำเตือนตัดซ้ำ · 10 tests, 3 verified red | ✅ |
+| L4 | 4 actions · refusal ทั้ง 4 บอก**ว่าไปแก้ที่ไหน** · `/consumption` ไม่ revalidate เพราะมื้อพนักงานไม่เขียน run | ✅ |
+| L5 | `/staff-meals` + `/staff-meals/people` · ฟอร์มเดียวสองรูปแบบ · **เตือน 3 อย่าง ไม่ห้ามสักอย่าง** · build **61 routes** | ✅ |
+| L6 | **10-case action-stack E2E** ผ่านหมด · **ไม่เจอบั๊ก production** · spec + config ลบทิ้ง ไม่ commit · docs + rules | ✅ |
 
 ## Sprint 5 Part 27 — วงจรชีวิตของเมนู: ✅ COMPLETE (L0–L6, 2026-08-27)
 
@@ -146,7 +148,7 @@ The one screen in Mise where **nothing has happened yet**. Every other number co
 
 ### Standing items this Part leaves behind
 - **Part 25 (menu merging)** now owns every MISE menu a discarded draft left behind. They carry no sales, so they cannot move revenue, coverage or consumption — but they appear in menu lists until merging has somewhere to put them.
-- **Part 26 (staff meal)** still owed; it writes to the ledger and needs its own `source_type`.
+- ~~**Part 26 (staff meal)** still owed~~ — ✅ **COMPLETE 2026-08-28** (ADR 0028). Sprint 5 ครบทุก Part แล้ว.
 - 🛑 **`canPerform` still has zero call sites** — unchanged by this Part, and still owed before Beta (ADR 0021 Q18).
 
 ---
