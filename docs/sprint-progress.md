@@ -15,6 +15,29 @@ _(Sprint 4 — POS sales import · daily pulse: ✅ COMPLETE 2026-08-20, except 
 
 ---
 
+## Sprint 5 Part 26 — มื้อพนักงาน: 🚧 IN PROGRESS (grill เสร็จ 2026-08-28)
+
+**ADR:** `docs/adr/0028-staff-meal.md` (Q1–Q9, grill 2026-08-28)
+**Rules registered:** `docs/calculation-rules.md` §11.7, **S1–S9**
+
+Part สุดท้ายที่ ADR 0025 Q1 แยกออกมา และเป็น Part แรกของ Sprint 5 ที่**เพิ่มตารางใหม่**. สิ่งที่ grill พลิกจากที่ตั้งไว้:
+
+- **หนึ่งในสามแบบที่ร้านทำ ไม่ต้องเขียนโค้ดเลย** — ร้านที่ตั้งงบแล้วซื้ออาหารพนักงานแยก ของไม่เคยเข้าสต๊อก มันคือ [Expense] ใต้ `OpEx / Labor` ซึ่ง `tenant-init.ts:117` seed ไว้แล้ว. Part นี้จึงครอบคลุมแค่สองแบบที่ของออกจากชั้นวางจริง และ **`staff_meal_mode` setting ที่ตั้งใจจะทำละลายไปเอง** — สองแบบนั้นต่างกันแค่ว่าเอกสารมี `menuId` หรือไม่มี
+- **สองตัวเลขที่ไม่เท่ากันและไม่แทนกัน** — ledger เคลื่อนที่ต้นทุนวัตถุดิบเสมอ (FIFO ตีราคา, ไม่มี setting), ราคาขายเป็น**ตัวเลขคุมโควตา**ที่ freeze ลงเอกสาร. ลงบัญชีที่ราคาขาย = สร้างค่าใช้จ่ายผีที่ไม่มีเงินออกจากร้านคู่กัน
+- **ระบบไม่เคยรู้จัก "คน"** — มีแต่ `User` (บัญชี) กับชื่อ free text บนเอกสารสี่ใบ. ความโปร่งใสที่ขอ (ใครสั่งเกิน) นับ free text ไม่ได้ จึงเกิด `staff_member` — และถูกล้อมด้วยสามเส้นไม่ให้กลายเป็นระบบ HR
+- **ไฟล์ POS ตอบคำถามหลักไม่ได้** — มันไม่เคยมีชื่อคน ทางเข้าจึงมีทางเดียวคือพิมพ์เอง. tag ส่วนลดถูก import มา**แสดงให้คนอ่าน ไม่ให้ระบบตีความ**
+- 🔴 **เจอบั๊กที่มีอยู่แล้ววันนี้** — `stock-cost.ts:273` ค้น `reversalOfItemId` เฉพาะ `SALES_CONSUMPTION` พอ `STAFF_MEAL` เป็น `CONSUMPTION` ตัวที่สอง การยกเลิกจะคืนของที่ราคาผิด. และการที่มื้อพนักงานหลุดจาก `cogsSold` **ถูกโดยบังเอิญ** เพราะ query หาไม่เจอ ไม่ใช่เพราะมีกฎ — ต้องกลายเป็น filter ที่ตั้งใจ
+
+| L | What | ✅ |
+|---|---|---|
+| L0 | ADR 0028 · CONTEXT.md ×3 terms ([Staff meal] เขียนใหม่, [Staff member], [Discount reason]) · rules S1–S9 · หัวข้อนี้ | ✅ |
+| L1 | schema + migration — 3 ตารางใหม่, 2 enum, 3 คอลัมน์บนตารางเดิม, manual SQL (RLS + partial unique + CHECK) | 🚧 |
+| L2 | zod validations | ⬜ |
+| L3 | server logic + tests | ⬜ |
+| L4 | server actions | ⬜ |
+| L5 | UI | ⬜ |
+| L6 | E2E + docs | ⬜ |
+
 ## Sprint 5 Part 27 — วงจรชีวิตของเมนู: ✅ COMPLETE (L0–L6, 2026-08-27)
 
 **ADR:** `docs/adr/0027-menu-lifecycle.md` (Q1–Q9, grill 2026-08-27)
