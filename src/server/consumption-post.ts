@@ -25,7 +25,10 @@ import {
 import { createHash } from "node:crypto";
 import { withTenantContext } from "@/lib/db";
 import { assertRefBelongsToTenant } from "@/server/product";
-import { createStockMovementLogic } from "@/server/stock-movement";
+import {
+  createStockMovementLogic,
+  reversalInstantFor,
+} from "@/server/stock-movement";
 import {
   computeConsumptionForDayLogic,
   type ConsumptionDemand,
@@ -267,7 +270,15 @@ export async function voidConsumptionRunInTx(
       // compensating movement would silently change the balance "as of" a past
       // date and force the cost engine to re-value a period the shop may have
       // closed.
-      occurredAt: new Date(),
+      //
+      // Part 26 found the one exception, and it is not an exception to the rule
+      // above but to how "now" SORTS: costing reads a date-only occurred_at as
+      // its Bangkok day END, so for a run posted and re-posted on the SAME day,
+      // a bare  walks BEFORE the consumption it reverses — finds no
+      // original, and gives the stock back at last-known cost. Which is the
+      // failure CONSUMPTION_REVERSAL exists to prevent (Q6), through the back
+      // door, on the commonest correction there is. See reversalInstantFor.
+      occurredAt: reversalInstantFor(run.businessDate),
       createdBy: voidedBy,
     });
   }

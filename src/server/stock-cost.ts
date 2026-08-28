@@ -282,6 +282,29 @@ async function replayPairs(
     : [];
   const consumptionById = new Map(consumptionItems.map((i) => [i.id, i]));
 
+  // Part 26: the SECOND document that posts CONSUMPTION, and it needs exactly
+  // the same lookup for exactly the same reason (ADR 0028 Consequence 1). Left
+  // out, a voided staff meal would return its stock at LAST-KNOWN cost rather
+  // than the cost it left at — so voiding one twice would change what the stock
+  // is worth with no food having moved, which is precisely what ADR 0022 Q6
+  // built CONSUMPTION_REVERSAL to prevent.
+  //
+  // Two queries rather than one polymorphic read: the ledger points at its
+  // sources by (type, id) pair and these are different tables. The reversal
+  // pointer means the same thing in both, which is why the map below merges
+  // them and the walk never learns there were two.
+  const staffMealItemIds = movements
+    .filter((m) => m.sourceType === "STAFF_MEAL")
+    .map((m) => m.sourceId);
+
+  const staffMealItems = staffMealItemIds.length
+    ? await tx.staffMealItem.findMany({
+        where: { tenantId, id: { in: staffMealItemIds } },
+        select: { id: true, reversalOfItemId: true },
+      })
+    : [];
+  const staffMealById = new Map(staffMealItems.map((i) => [i.id, i]));
+
   // Live declarations only: a superseded one is a statement someone has since
   // corrected, and replaying it would resurrect the number they retracted (Q6).
   const declarations = await tx.stockCostDeclaration.findMany({
@@ -318,7 +341,9 @@ async function replayPairs(
         tf?.reversalOfItemId ??
         (m.sourceType === "SALES_CONSUMPTION"
           ? (consumptionById.get(m.sourceId)?.reversalOfItemId ?? null)
-          : null),
+          : m.sourceType === "STAFF_MEAL"
+            ? (staffMealById.get(m.sourceId)?.reversalOfItemId ?? null)
+            : null),
       declaredUnitCost: declaredByMovement.get(m.id) ?? null,
       // Stored SIGNED on the line (negative on a reversal line, to keep the
       // document's own sums honest); the walk wants a magnitude, because it is
@@ -731,10 +756,23 @@ export async function getBranchCostSummaryLogic(
     // Voided runs drop out whole, originals and reversals together, so nothing
     // needs netting. Only fetched under the method that uses it — this is the
     // heaviest page in the system and a shop counting stock should not pay for it.
+    //
+    // Filtered to SALES_CONSUMPTION deliberately, and this line is load-bearing
+    // (ADR 0028 Consequence 2, rule S5). A staff meal posts the same movement
+    // type, so it arrives in `consumptionMoves` too — and it must NOT be in
+    // cost of goods SOLD, because nobody sold it: its cost belongs on the
+    // labour/welfare side of the accounts.
+    //
+    // Before Part 26 the exclusion happened anyway, by accident: the id was
+    // looked up in `sales_consumption_item`, was not found, and the row was
+    // skipped. Right answer, no rule — and the day somebody widened that query
+    // the staff meals would have walked into COGS with nothing reporting it.
     const consumptionSourceIds =
       grossProfitMethod === "RECIPE_CONSUMPTION"
         ? [...replayed.values()].flatMap((state) =>
-            state.consumptionMoves.map((c) => c.sourceId)
+            state.consumptionMoves
+              .filter((c) => c.sourceType === "SALES_CONSUMPTION")
+              .map((c) => c.sourceId)
           )
         : [];
 
@@ -755,6 +793,10 @@ export async function getBranchCostSummaryLogic(
     if (grossProfitMethod === "RECIPE_CONSUMPTION") {
       for (const state of replayed.values()) {
         for (const move of state.consumptionMoves) {
+          // Same rule as the id gather above, said again at the point of use:
+          // a staff meal is not a sale, and the two loops must not be able to
+          // disagree about that.
+          if (move.sourceType !== "SALES_CONSUMPTION") continue;
           const run = runByItem.get(move.sourceId);
           if (run === undefined || run.voidedAt !== null) continue;
           // The RUN's business date, not the movement's — they agree today, and

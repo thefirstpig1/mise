@@ -647,6 +647,37 @@ export class MovementSourceConflictError extends Error {
  * (Q10). GR_LINE gained its writer in Part 13. Better a named refusal than a
  * ledger row whose source can never be resolved.
  */
+/**
+ * When a reversal should be recorded so that the FIFO walk sees it AFTER the
+ * movement it reverses (Part 26, ADR 0028).
+ *
+ * A ledger reverses on the day the error is found, so the natural answer is
+ * `new Date()` — and for a document dated in the past it is the right one. But
+ * costing does not order by the stored instant: `costSortKey` reads a DATE-only
+ * `occurred_at` as its Bangkok day END (stock-cost.ts), because a day's
+ * counting happened after that day's deliveries.
+ *
+ * So for a document dated TODAY, "now" sorts BEFORE it. The reversal is then
+ * walked first, finds no original to give back, and falls through to
+ * last-known cost — which is precisely the failure `CONSUMPTION_REVERSAL` was
+ * created to prevent (ADR 0022 Q6), reappearing through the back door on the
+ * commonest correction there is: keyed it wrong, fixed it the same day.
+ *
+ * Answer: keep "now" unless the document's own day has not yet closed for
+ * costing, in which case take the document's date. Both rows are then day-values
+ * on the same day, and the sort's `createdAt` tiebreak puts the reversal second
+ * — which is true.
+ *
+ * Used by every same-shaped void: a staff meal, and a consumption run.
+ */
+export function reversalInstantFor(businessDate: Date): Date {
+  const now = new Date();
+  return isDayValue(businessDate) &&
+    bangkokDayEndUtc(businessDate).getTime() - 1 > now.getTime()
+    ? businessDate
+    : now;
+}
+
 export class UnsupportedSourceTypeError extends Error {
   constructor(public readonly sourceType: SourceType) {
     super(`Source type ${sourceType} has no writer`);
@@ -822,10 +853,32 @@ async function assertSourceExists(
                     .then((r) =>
                       r ? { productId: r.productId, branchId: r.run.branchId } : null
                     )
-                : // SYSTEM_INITIAL: reserved, no table and no writer (Q10).
-                  (() => {
-                    throw new UnsupportedSourceTypeError(sourceType);
-                  })();
+                : sourceType === "STAFF_MEAL"
+                  ? // Part 26 (ADR 0028 Q8): the staff meal ITEM is the source,
+                    // for the same reason and in the same shape — one menu
+                    // explodes into N products, so the document cannot be it.
+                    //
+                    // The branch comes from the meal, not from the item: a meal
+                    // happens at one place, and the eater's HOME branch is not
+                    // it (somebody covering a shift elsewhere ate that branch's
+                    // pork).
+                    await tx.staffMealItem
+                      .findFirst({
+                        where: { id: sourceId, tenantId },
+                        select: {
+                          productId: true,
+                          staffMeal: { select: { branchId: true } },
+                        },
+                      })
+                      .then((r) =>
+                        r
+                          ? { productId: r.productId, branchId: r.staffMeal.branchId }
+                          : null
+                      )
+                  : // SYSTEM_INITIAL: reserved, no table and no writer (Q10).
+                    (() => {
+                      throw new UnsupportedSourceTypeError(sourceType);
+                    })();
 
   if (!row) throw new MovementSourceNotFoundError(sourceType, sourceId);
   if (row.productId !== productId) {

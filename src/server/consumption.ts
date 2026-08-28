@@ -427,12 +427,18 @@ export async function computeConsumptionForDayLogic(
 /**
  * The first menu reachable from `root` that has no recipe of its own, or null.
  *
+ * Exported since Part 26: a staff meal explodes ONE menu and needs the same
+ * check for the same reason. A second copy of this walk would be a second
+ * opinion about what "the recipe is complete" means, and the day the two
+ * disagreed a staff meal would deduct less than it should with nothing on
+ * screen looking wrong (the shape ADR 0025 Q4 refused for cost).
+ *
  * The root itself is excluded: it is in `withRecipe` precisely because it has
  * one, and the graph loads one level past the depth cap, so a node that is
  * present-but-recipe-less deeper down is a real gap rather than an artefact of
  * where the loader stopped.
  */
-function recipelessComponent(
+export function recipelessComponent(
   graph: Parameters<typeof reachable>[0],
   root: string,
   rootMenuId: string

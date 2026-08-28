@@ -148,8 +148,23 @@ export type ReplayState = {
 
 /** One consumption item's effect on this pile's money. */
 export type ConsumptionMove = {
-  /** `sales_consumption_item.id`. */
+  /** `sales_consumption_item.id` or `staff_meal_item.id` — see `sourceType`. */
   sourceId: string;
+  /**
+   * WHICH document this id belongs to (Part 26, ADR 0028 Consequence 1/2).
+   *
+   * The walk collects these by MOVEMENT type, because that is what it can see.
+   * Every reader of them then has to resolve `sourceId` against a table, and
+   * until Part 26 there was only one candidate — so the callers keyed off
+   * `SALES_CONSUMPTION` and were right by having no alternative. A staff meal
+   * posts the same movement type from a different table, and both readers in
+   * `stock-cost.ts` would have failed SILENTLY: one looking up a reversal's
+   * original and finding none (returning the stock at last-known cost instead
+   * of the cost it left at), the other dropping the row from cost of goods sold
+   * — which is the RIGHT answer, arrived at by a query missing rather than by a
+   * rule. Carrying the source type turns both into decisions.
+   */
+  sourceType: SourceType;
   /** Positive = money out with the cooking; negative = money back. */
   value: Prisma.Decimal;
 };
@@ -529,7 +544,11 @@ export function replayFifoLayers(
           qty: m.qty.negated(),
           value: takenValue,
         });
-        consumptionMoves.push({ sourceId: m.sourceId, value: takenValue });
+        consumptionMoves.push({
+          sourceId: m.sourceId,
+          sourceType: m.sourceType,
+          value: takenValue,
+        });
         break;
       }
 
@@ -571,7 +590,11 @@ export function replayFifoLayers(
           // overstate what we know. Same choice as the transfer reversal.
           pricing: value.isZero() ? "UNPRICED" : "LAST_KNOWN",
         });
-        consumptionMoves.push({ sourceId: m.sourceId, value: value.negated() });
+        consumptionMoves.push({
+          sourceId: m.sourceId,
+          sourceType: m.sourceType,
+          value: value.negated(),
+        });
         break;
       }
 
