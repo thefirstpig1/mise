@@ -158,6 +158,9 @@ export default async function DashboardPage() {
           <a href="/waste" className="text-sm text-primary hover:underline">
             → ของเสีย
           </a>
+          <a href="/staff-meals" className="text-sm text-primary hover:underline">
+            → มื้อพนักงาน
+          </a>
           <a href="/transfers" className="text-sm text-primary hover:underline">
             → โอนของระหว่างสาขา
           </a>
