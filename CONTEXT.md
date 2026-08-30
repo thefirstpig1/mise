@@ -10,11 +10,15 @@ on resolution during /grill-with-docs sessions.
 - **Branch** — a physical restaurant location of a Tenant. A Tenant has 1+ branches. It is where stock physically exists, and therefore the unit at which quantity and **cost** are *measured* — two branches hold two different piles bought on different days at different prices. Measuring per branch and managing per tenant are separate things; a business-wide figure is an explicit roll-up of branch figures, never a silent average.
 - **Department** — internal grouping within a Tenant (e.g., Bar, Kitchen, Bakery). Optional feature — opt-in via tenant.enable_departments.
 - **Main department** — default department auto-created on tenant signup (H.1.2). Used when departments are disabled.
-- **Owner** — top-level role on a Tenant. Has all permissions including billing.
-- **Manager** — full operational role, no billing access.
-- **Purchaser** — can create PRs/POs/GRs and manage suppliers.
-- **Kitchen staff** — can create PRs, count stock, confirm GRs.
-- **Accountant** — view-only on operations + edit on financial.
+- **Role** — a named bundle of **capabilities** carried by a person's membership in a Tenant. It answers *what a person may do*, never *where* — reach is a separate thing (see **Branch reach**). Seven roles, fixed by Mise, not editable per shop.
+- **Capability** — one named thing a person may do or see: post stock, approve a purchase order, see cost. The unit permission is granted in. Most **reading** needs no capability at all; the exceptions are the four confidential ones — cost, expense, sales, staff.
+- **Owner** — the person the account belongs to. Every capability plus billing, and the only role that may create or modify another Owner. A Tenant always has at least one; the last one cannot be removed.
+- **Admin** — head-office administrator (ส่วนกลาง). Everything an Owner can do operationally, but cannot touch an Owner, cannot grant the Owner role, and has no billing. Exists because running a branch and administering people are not the same job.
+- **Manager** — full operational role for the branches they reach, including inviting and managing people **within those branches**. No billing.
+- **Purchaser** — purchase orders, goods receipts, suppliers.
+- **Kitchen staff** — counts stock, records waste and staff meals, and reads recipes — **but not their cost**. The dish is their job; the price of it is not.
+- **Accountant** — expenses, sales figures and cost. No operational writing.
+- **Viewer** — reads, and writes nothing at all.
 
 ## Master Data
 
@@ -128,7 +132,10 @@ on resolution during /grill-with-docs sessions.
 - **withTenantContext** — Prisma helper that sets `app.current_tenant_id` for RLS to use.
 - **Tenant isolation** — guarantee that Tenant A cannot read/write Tenant B's data, even with bugged app code.
 - **Branch override** — pattern where tenant-default settings can be overridden per-branch (Section A). First concrete use: **Supplier-Product Mapping** — `branchId` null = tenant default, `branchId` set = branch override; the branch-specific row **wholly replaces** the default for that branch (lookup tries branch-specific first, then falls back to the tenant default), not a field-level merge. See ADR 0009.
-- **Permission triple-filter** — role × user_branch_access × user_department_assignment (H.4).
+- **Permission double-filter** — authorization is decided on two axes only: **role** (what a person may do) × **branch reach** (where). Department is deliberately not a third filter — it exists on three tables and never on the ledger. Supersedes H.4's triple filter; see ADR 0029.
+- **Branch reach** — which branches a person may see and change: an explicit list, or **ทุกสาขา** — all branches, including ones that open tomorrow. Reach belongs to the membership, not the role, so an area manager is a tick box rather than a role of its own.
+- **Invitation** — เชิญคนเข้าร้าน: adding someone to a Tenant *is* creating their membership. There is no separate invitation object and no acceptance step — proving you own the email, via the same magic link that logs everyone in, is the acceptance.
+- **Active shop** — the Tenant a person is currently working in. Only meaningful for someone who belongs to more than one — an outside bookkeeper, or someone invited to a second shop — and Mise asks which rather than guessing.
 - **Materialized view freshness** — H.7: combine pre-computed mat view with live UNION for fresh + fast.
 
 ## Localization
