@@ -13,7 +13,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { randomUUID } from "node:crypto";
-import { withAdminContext } from "@/lib/db";
+import { withRlsBypass } from "@/lib/db-admin";
 import { prisma } from "@/lib/db";
 import {
   inviteMemberInputSchema,
@@ -82,7 +82,7 @@ describe("membership writes (ADR 0029 Part 29 L3)", () => {
     );
 
   beforeAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       const t = await tx.tenant.create({ data: { name: "Membership Tenant" } });
       tenantA = t.id;
       asok = (
@@ -112,13 +112,13 @@ describe("membership writes (ADR 0029 Part 29 L3)", () => {
   });
 
   afterAll(async () => {
-    const users = await withAdminContext((tx) =>
+    const users = await withRlsBypass((tx) =>
       tx.tenantMembership.findMany({
         where: { tenantId: tenantA },
         select: { userId: true },
       })
     );
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       await tx.userBranchAccess.deleteMany({
         where: { membership: { tenantId: tenantA } },
       });
@@ -139,7 +139,7 @@ describe("membership writes (ADR 0029 Part 29 L3)", () => {
     const addr = email("m1");
     const res = await invite({ email: addr, role: "purchaser" });
 
-    const row = await withAdminContext((tx) =>
+    const row = await withRlsBypass((tx) =>
       tx.tenantMembership.findUniqueOrThrow({
         where: { id: res.membershipId },
         select: {
@@ -262,7 +262,7 @@ describe("membership writes (ADR 0029 Part 29 L3)", () => {
     ).rejects.toBeInstanceOf(LastOwnerError);
 
     // put the fixture back for the tests below
-    await withAdminContext((tx) =>
+    await withRlsBypass((tx) =>
       tx.tenantMembership.update({
         where: { id: ownerMembership },
         data: { role: "owner" },
@@ -316,7 +316,7 @@ describe("membership writes (ADR 0029 Part 29 L3)", () => {
   });
 
   it("M11 — a branch id from another shop is refused before anything is written", async () => {
-    const other = await withAdminContext(async (tx) => {
+    const other = await withRlsBypass(async (tx) => {
       const t = await tx.tenant.create({ data: { name: "Someone Else" } });
       const b = await tx.branch.create({
         data: { tenantId: t.id, name: "ของร้านอื่น", code: "OTH" },
@@ -330,7 +330,7 @@ describe("membership writes (ADR 0029 Part 29 L3)", () => {
     ).rejects.toBeInstanceOf(BranchNotFoundError);
 
     // Nothing half-written: no membership...
-    const rows = await withAdminContext((tx) =>
+    const rows = await withRlsBypass((tx) =>
       tx.tenantMembership.count({
         where: { tenantId: tenantA, user: { email: addr } },
       })
@@ -350,7 +350,7 @@ describe("membership writes (ADR 0029 Part 29 L3)", () => {
     const people = await prisma.user.count({ where: { email: addr } });
     expect(people, "a refused invitation left a user row behind").toBe(0);
 
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       await tx.branch.deleteMany({ where: { tenantId: other.tenantId } });
       await tx.tenant.deleteMany({ where: { id: other.tenantId } });
     });
@@ -380,7 +380,7 @@ describe("membership writes (ADR 0029 Part 29 L3)", () => {
     expect(back.membershipId).toBe(first.membershipId);
     expect(back.userId).toBe(first.userId);
 
-    const row = await withAdminContext((tx) =>
+    const row = await withRlsBypass((tx) =>
       tx.tenantMembership.findUniqueOrThrow({
         where: { id: back.membershipId },
         select: {
@@ -400,14 +400,14 @@ describe("membership writes (ADR 0029 Part 29 L3)", () => {
     const addr = email("m13");
     const m = await invite({ email: addr, role: "viewer" });
 
-    const before = await withAdminContext((tx) =>
+    const before = await withRlsBypass((tx) =>
       tx.tenantMembership.findUniqueOrThrow({
         where: { id: m.membershipId },
         select: { roleChangedAt: true },
       })
     );
 
-    const second = await withAdminContext((tx) =>
+    const second = await withRlsBypass((tx) =>
       tx.user.create({ data: { email: email("m13-actor"), name: "ผู้จัดการ" } })
     );
     strayUsers.push(second.id);
@@ -423,7 +423,7 @@ describe("membership writes (ADR 0029 Part 29 L3)", () => {
       { userId: second.id, role: "owner", reach: { allBranches: true, allowedBranchIds: [] } }
     );
 
-    const after = await withAdminContext((tx) =>
+    const after = await withRlsBypass((tx) =>
       tx.tenantMembership.findUniqueOrThrow({
         where: { id: m.membershipId },
         select: { roleChangedBy: true, roleChangedAt: true },

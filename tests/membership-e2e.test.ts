@@ -42,7 +42,7 @@ vi.mock("next/headers", () => ({
   }),
 }));
 
-const { withAdminContext } = await import("@/lib/db");
+const { withRlsBypass } = await import("@/lib/db-admin");
 const {
   inviteMemberAction,
   setMemberActiveAction,
@@ -83,7 +83,7 @@ describe("the invite screen, pressed (ADR 0029 Part 29 L6)", () => {
   };
 
   beforeAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       const t = await tx.tenant.create({ data: { name: "Invite E2E Shop" } });
       tenantA = t.id;
       const t2 = await tx.tenant.create({ data: { name: "The Other Shop" } });
@@ -135,13 +135,13 @@ describe("the invite screen, pressed (ADR 0029 Part 29 L6)", () => {
   afterAll(async () => {
     currentUserId = null;
     cookieValue = null;
-    const users = await withAdminContext((tx) =>
+    const users = await withRlsBypass((tx) =>
       tx.tenantMembership.findMany({
         where: { tenantId: { in: [tenantA, tenantB] } },
         select: { userId: true },
       })
     );
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       await tx.userBranchAccess.deleteMany({
         where: { membership: { tenantId: { in: [tenantA, tenantB] } } },
       });
@@ -163,7 +163,7 @@ describe("the invite screen, pressed (ADR 0029 Part 29 L6)", () => {
   it("I1 — a cook cannot reach this screen at all", async () => {
     // Before the four rules can matter, `member:manage` has to keep the wrong
     // people out of the room.
-    const cook = await withAdminContext(async (tx) => {
+    const cook = await withRlsBypass(async (tx) => {
       const u = await tx.user.create({ data: { email: email("cook"), name: "คนครัว" } });
       await tx.tenantMembership.create({
         data: { tenantId: tenantA, userId: u.id, role: "kitchen_staff", allBranches: true },
@@ -206,7 +206,7 @@ describe("the invite screen, pressed (ADR 0029 Part 29 L6)", () => {
     expect(!res.ok && res.formError).toContain("ไม่มีสิทธิ์ทั้งหมด");
 
     // Nothing written: no membership, and no user row either.
-    const count = await withAdminContext((tx) =>
+    const count = await withRlsBypass((tx) =>
       tx.tenantMembership.count({ where: { tenantId: tenantA, role: "owner" } })
     );
     expect(count).toBe(1);
@@ -228,7 +228,7 @@ describe("the invite screen, pressed (ADR 0029 Part 29 L6)", () => {
     // Rule 1's sentence, and only rule 1's.
     expect(!res.ok && res.formError).toContain("แก้ไขได้โดยเจ้าของร้านเท่านั้น");
 
-    const owners = await withAdminContext((tx) =>
+    const owners = await withRlsBypass((tx) =>
       tx.tenantMembership.count({ where: { tenantId: tenantA, role: "owner" } })
     );
     expect(owners).toBe(1);
@@ -279,7 +279,7 @@ describe("the invite screen, pressed (ADR 0029 Part 29 L6)", () => {
     // Rule 3's sentence, and only rule 3's.
     expect(!res.ok && res.formError).toContain("อย่างน้อย 1 คน");
 
-    const stillThere = await withAdminContext((tx) =>
+    const stillThere = await withRlsBypass((tx) =>
       tx.tenantMembership.count({
         where: { tenantId: tenantA, role: "owner", isActive: true },
       })

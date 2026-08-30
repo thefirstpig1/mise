@@ -21,7 +21,7 @@ import { costAccessFor } from "@/lib/permissions/cost-access";
 const SEES_COST = costAccessFor("owner");
 import { EVERY_BRANCH } from "./support/reach";
 import { randomUUID } from "node:crypto";
-import { withAdminContext } from "@/lib/db";
+import { withRlsBypass } from "@/lib/db-admin";
 import { addDays, computeBangkokToday } from "@/lib/bangkok-date";
 import { productInputSchema } from "@/lib/validations/product";
 import { createProductLogic, type ProductWithUnits } from "@/server/product";
@@ -90,7 +90,7 @@ describe("recipe list reads (ADR 0021 Part 21 L5a)", () => {
     );
 
   const makeMenu = (name: string): Promise<{ id: string; name: string }> =>
-    withAdminContext((tx) =>
+    withRlsBypass((tx) =>
       tx.menu.create({
         data: { tenantId: tenantA, source: "MISE", name },
         select: { id: true, name: true },
@@ -183,7 +183,7 @@ describe("recipe list reads (ADR 0021 Part 21 L5a)", () => {
     }, SEES_COST);
 
   beforeAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       const t = await tx.tenant.create({ data: { name: "Recipe List Tenant" } });
       tenantA = t.id;
       const [a, b, c] = await Promise.all([
@@ -236,7 +236,7 @@ describe("recipe list reads (ADR 0021 Part 21 L5a)", () => {
   }, 240_000);
 
   afterAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       await tx.recipeBranch.deleteMany({ where: { tenantId: tenantA } });
       await tx.recipeIngredient.deleteMany({ where: { tenantId: tenantA } });
       await tx.recipe.updateMany({

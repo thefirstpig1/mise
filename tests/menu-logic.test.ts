@@ -17,7 +17,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { randomUUID } from "node:crypto";
-import { withAdminContext } from "@/lib/db";
+import { withRlsBypass } from "@/lib/db-admin";
 import {
   MenuNotFoundError,
   confirmMenuAliasLogic,
@@ -59,7 +59,7 @@ describe("menu resolution *Logic (which dish is this row about?)", () => {
     deleted?: boolean;
     integrationId?: string;
   }) =>
-    withAdminContext(async (tx) =>
+    withRlsBypass(async (tx) =>
       tx.menu.create({
         data: {
           tenantId: tenantA,
@@ -75,7 +75,7 @@ describe("menu resolution *Logic (which dish is this row about?)", () => {
     );
 
   beforeAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       const t = await tx.tenant.create({ data: { name: "Menu Test Tenant" } });
       tenantA = t.id;
       const b = await tx.branch.create({
@@ -100,7 +100,7 @@ describe("menu resolution *Logic (which dish is this row about?)", () => {
   });
 
   afterAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       await tx.menuAlias.deleteMany({ where: { tenantId: tenantA } });
       await tx.menu.deleteMany({ where: { tenantId: tenantA } });
       await tx.menuCategory.deleteMany({ where: { tenantId: tenantA } });
@@ -279,7 +279,7 @@ describe("menu resolution *Logic (which dish is this row about?)", () => {
 
   it("M15: stub menus are created with the file's name and marked for the queue", async () => {
     const raw = `ลาบทอด-${randomUUID().slice(0, 8)}`;
-    const created = await withAdminContext(async (tx) => {
+    const created = await withRlsBypass(async (tx) => {
       const cats = await ensureMenuCategoriesLogic(tx, tenantA, ["ของทอด"]);
       return createStubMenusLogic(tx, tenantA, posA, [
         {
@@ -303,7 +303,7 @@ describe("menu resolution *Logic (which dish is this row about?)", () => {
 
   it("M16: a stub, once identified, leaves the queue", async () => {
     const raw = `ปีกไก่ทอด-${randomUUID().slice(0, 8)}`;
-    const created = await withAdminContext((tx) =>
+    const created = await withRlsBypass((tx) =>
       createStubMenusLogic(tx, tenantA, posA, [
         { code: null, rawName: raw, matchKey: normalizeMenuName(raw), menuCategoryId: null },
       ])
@@ -324,8 +324,8 @@ describe("menu resolution *Logic (which dish is this row about?)", () => {
 
   it("M17: categories are created once and reused, matching the POS's name too", async () => {
     const name = `หมวดทดสอบ-${randomUUID().slice(0, 6)}`;
-    const first = await withAdminContext((tx) => ensureMenuCategoriesLogic(tx, tenantA, [name]));
-    const second = await withAdminContext((tx) =>
+    const first = await withRlsBypass((tx) => ensureMenuCategoriesLogic(tx, tenantA, [name]));
+    const second = await withRlsBypass((tx) =>
       ensureMenuCategoriesLogic(tx, tenantA, [`  ${name}  `, name])
     );
     expect(second.get(normalizeMenuName(name))).toBe(first.get(name));
@@ -335,7 +335,7 @@ describe("menu resolution *Logic (which dish is this row about?)", () => {
   });
 
   it("M18: a first import has nothing to suggest against, and does not go looking", async () => {
-    const empty = await withAdminContext(async (tx) => {
+    const empty = await withRlsBypass(async (tx) => {
       const t = await tx.tenant.create({ data: { name: "Menu Empty Tenant" } });
       return t.id;
     });
@@ -345,7 +345,7 @@ describe("menu resolution *Logic (which dish is this row about?)", () => {
       ]);
       expect(out.size).toBe(0);
     } finally {
-      await withAdminContext((tx) => tx.tenant.deleteMany({ where: { id: empty } }));
+      await withRlsBypass((tx) => tx.tenant.deleteMany({ where: { id: empty } }));
     }
   });
 

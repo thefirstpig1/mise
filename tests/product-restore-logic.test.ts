@@ -15,7 +15,8 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { randomUUID } from "node:crypto";
 import { Prisma, type Supplier } from "@prisma/client";
-import { withAdminContext, prisma } from "@/lib/db";
+import { prisma } from "@/lib/db";
+import { withRlsBypass } from "@/lib/db-admin";
 import { supplierInputSchema } from "@/lib/validations/supplier";
 import { productInputSchema } from "@/lib/validations/product";
 import { supplierProductMappingInputSchema as mappingSchema } from "@/lib/validations/supplier-product-mapping";
@@ -79,14 +80,14 @@ describe("product-restore *Logic (read; tenant-scoped, app-layer isolation)", ()
     );
 
   beforeAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       const a = await tx.tenant.create({ data: { name: "Restore Test Tenant A" } });
       tenantA = a.id;
     });
   });
 
   afterAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       await tx.supplierProductMapping.deleteMany({ where: { tenantId: tenantA } });
       await tx.productUnit.deleteMany({ where: { product: { tenantId: tenantA } } });
       await tx.product.deleteMany({ where: { tenantId: tenantA } });
@@ -281,7 +282,7 @@ describe("product-restore *Logic (read; tenant-scoped, app-layer isolation)", ()
   const ymd = (d: Date): string => d.toISOString().slice(0, 10);
   /** Every mapping row of a product (incl. closed history), oldest effectiveFrom first. */
   const rowsOf = (productId: string) =>
-    withAdminContext((tx) =>
+    withRlsBypass((tx) =>
       tx.supplierProductMapping.findMany({
         where: { productId },
         orderBy: { effectiveFrom: "asc" },
@@ -348,7 +349,7 @@ describe("product-restore *Logic (read; tenant-scoped, app-layer isolation)", ()
       ProductSkuConflictError
     );
     // rolled back: the dead product stays soft-deleted, the live owner keeps the sku.
-    const [still] = await withAdminContext((tx) =>
+    const [still] = await withRlsBypass((tx) =>
       tx.product.findMany({ where: { id: dead.id } })
     );
     expect(still.deletedAt).not.toBeNull();
@@ -432,7 +433,7 @@ describe("product-restore *Logic (read; tenant-scoped, app-layer isolation)", ()
     ).rejects.toBeInstanceOf(MappingNotFoundError);
 
     // atomic (Q4): the Step-3 undelete rolled back with the failed mapping write.
-    const [still] = await withAdminContext((tx) =>
+    const [still] = await withRlsBypass((tx) =>
       tx.product.findMany({ where: { id: p.id } })
     );
     expect(still.deletedAt).not.toBeNull();

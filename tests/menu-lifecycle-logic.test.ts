@@ -23,7 +23,8 @@
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { randomUUID } from "node:crypto";
-import { withAdminContext, prisma } from "@/lib/db";
+import { prisma } from "@/lib/db";
+import { withRlsBypass } from "@/lib/db-admin";
 import { computeBangkokToday } from "@/lib/bangkok-date";
 import { productInputSchema } from "@/lib/validations/product";
 import { createProductLogic, type ProductWithUnits } from "@/server/product";
@@ -63,7 +64,7 @@ describe("menu lifecycle writes (ADR 0027 L3a)", () => {
 
   /** A menu Mise owns — the only kind that is ever deletable. */
   const makeMenu = (name: string): Promise<{ id: string; name: string }> =>
-    withAdminContext((tx) =>
+    withRlsBypass((tx) =>
       tx.menu.create({
         data: {
           tenantId: tenantA,
@@ -76,7 +77,7 @@ describe("menu lifecycle writes (ADR 0027 L3a)", () => {
 
   /** A menu the POS reported, holding a code it can never give back. */
   const makePosMenu = (name: string): Promise<{ id: string; posMenuId: string }> =>
-    withAdminContext(async (tx) => {
+    withRlsBypass(async (tx) => {
       const code = randomUUID().slice(0, 8);
       const m = await tx.menu.create({
         data: {
@@ -92,7 +93,7 @@ describe("menu lifecycle writes (ADR 0027 L3a)", () => {
     });
 
   const sell = (menuId: string, opts: { superseded?: boolean } = {}) =>
-    withAdminContext(async (tx) => {
+    withRlsBypass(async (tx) => {
       const day = await tx.salesDay.upsert({
         where: { branchId_businessDate: { branchId: branchA, businessDate: today } },
         create: {
@@ -163,7 +164,7 @@ describe("menu lifecycle writes (ADR 0027 L3a)", () => {
     );
 
   const menuRow = (id: string) =>
-    withAdminContext((tx) =>
+    withRlsBypass((tx) =>
       tx.menu.findUnique({
         where: { id },
         select: { isActive: true, isPosStub: true, deletedAt: true },
@@ -171,7 +172,7 @@ describe("menu lifecycle writes (ADR 0027 L3a)", () => {
     );
 
   beforeAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       const t = await tx.tenant.create({ data: { name: "Menu Lifecycle Tenant" } });
       tenantA = t.id;
       const u = await tx.user.create({
@@ -234,7 +235,7 @@ describe("menu lifecycle writes (ADR 0027 L3a)", () => {
   }, 120_000);
 
   afterAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       await tx.menuMerge.deleteMany({ where: { tenantId: tenantA } });
       await tx.menuAlias.deleteMany({ where: { tenantId: tenantA } });
       await tx.recipeBranch.deleteMany({ where: { tenantId: tenantA } });
@@ -270,7 +271,7 @@ describe("menu lifecycle writes (ADR 0027 L3a)", () => {
 
   it("K1 retiring sets the flag, clears the stub mark, and deletes nothing", async () => {
     const { id } = await makePosMenu("K1 ข้าวผัด");
-    await withAdminContext((tx) =>
+    await withRlsBypass((tx) =>
       tx.menu.update({ where: { id }, data: { isPosStub: true } })
     );
 
@@ -385,7 +386,7 @@ describe("menu lifecycle writes (ADR 0027 L3a)", () => {
 
   it("K7 a confirmed POS spelling refuses it", async () => {
     const menu = await makeMenu("K7 ส้มตำ");
-    await withAdminContext((tx) =>
+    await withRlsBypass((tx) =>
       tx.menuAlias.create({
         data: {
           tenantId: tenantA,
@@ -435,7 +436,7 @@ describe("menu lifecycle writes (ADR 0027 L3a)", () => {
 
     const after = await menuRow(menu.id);
     expect(after?.deletedAt).not.toBeNull();
-    const recipeRow = await withAdminContext((tx) =>
+    const recipeRow = await withRlsBypass((tx) =>
       tx.recipe.findUnique({ where: { id: recipe.id }, select: { deletedAt: true } })
     );
     // ONE value in both tables — the fact the restore reads.
@@ -461,7 +462,7 @@ describe("menu lifecycle writes (ADR 0027 L3a)", () => {
     );
 
     expect(restored.restoredRecipeIds).toEqual([kept.id]);
-    const rows = await withAdminContext((tx) =>
+    const rows = await withRlsBypass((tx) =>
       tx.recipe.findMany({
         where: { id: { in: [abandoned.id, kept.id] } },
         select: { id: true, deletedAt: true },

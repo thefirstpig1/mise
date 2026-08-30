@@ -43,7 +43,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { randomUUID } from "node:crypto";
-import { withAdminContext } from "@/lib/db";
+import { withRlsBypass } from "@/lib/db-admin";
 import { addDays, computeBangkokToday } from "@/lib/bangkok-date";
 import { productInputSchema } from "@/lib/validations/product";
 import { createProductLogic, type ProductWithUnits } from "@/server/product";
@@ -81,7 +81,7 @@ describe("cost:view at the exit, not at the engine (ADR 0029 Part 28 L4)", () =>
     p.productUnits.find((u) => u.isBase)!.id;
 
   beforeAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       const t = await tx.tenant.create({ data: { name: "Cost Access Tenant" } });
       tenantA = t.id;
       const b = await tx.branch.create({
@@ -110,7 +110,7 @@ describe("cost:view at the exit, not at the engine (ADR 0029 Part 28 L4)", () =>
       })
     );
 
-    kaphrao = await withAdminContext((tx) =>
+    kaphrao = await withRlsBypass((tx) =>
       tx.menu.create({
         data: {
           tenantId: tenantA,
@@ -189,7 +189,7 @@ describe("cost:view at the exit, not at the engine (ADR 0029 Part 28 L4)", () =>
   });
 
   afterAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       await tx.stockTransferItem.deleteMany({ where: { tenantId: tenantA } });
       await tx.stockTransfer.deleteMany({ where: { tenantId: tenantA } });
       await tx.staffMealItem.deleteMany({ where: { tenantId: tenantA } });
@@ -294,7 +294,7 @@ describe("cost:view at the exit, not at the engine (ADR 0029 Part 28 L4)", () =>
       userA
     );
 
-    const line = await withAdminContext((tx) =>
+    const line = await withRlsBypass((tx) =>
       tx.stockTransferItem.findFirstOrThrow({
         where: { tenantId: tenantA, stockTransferId: tf.id },
         select: { costTotal: true, costSource: true },
@@ -327,7 +327,7 @@ describe("cost:view at the exit, not at the engine (ADR 0029 Part 28 L4)", () =>
       userA
     );
 
-    const moves = await withAdminContext((tx) =>
+    const moves = await withRlsBypass((tx) =>
       tx.stockMovement.findMany({
         where: { tenantId: tenantA, sourceType: "STAFF_MEAL" },
         select: { qty: true, productId: true },

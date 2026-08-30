@@ -8,7 +8,8 @@
 // ============================================================
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { withAdminContext, prisma } from "@/lib/db";
+import { prisma } from "@/lib/db";
+import { withRlsBypass } from "@/lib/db-admin";
 import { categoryInputSchema } from "@/lib/validations/category";
 import {
   createCategoryLogic,
@@ -33,7 +34,7 @@ describe("category *Logic (tenant-scoped, app-layer isolation)", () => {
   let tenantB: string;
 
   beforeAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       const a = await tx.tenant.create({ data: { name: "Category Test Tenant A" } });
       const b = await tx.tenant.create({ data: { name: "Category Test Tenant B" } });
       tenantA = a.id;
@@ -42,7 +43,7 @@ describe("category *Logic (tenant-scoped, app-layer isolation)", () => {
   });
 
   afterAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       await tx.category.deleteMany({ where: { tenantId: { in: [tenantA, tenantB] } } });
       await tx.tenant.deleteMany({ where: { id: { in: [tenantA, tenantB] } } });
     });
@@ -133,7 +134,7 @@ describe("category *Logic (tenant-scoped, app-layer isolation)", () => {
     expect(aGroups).not.toContain("Building");
 
     // row still physically exists (soft-delete, not hard delete)
-    const row = await withAdminContext((tx) =>
+    const row = await withRlsBypass((tx) =>
       tx.category.findUnique({ where: { id: created.id } })
     );
     expect(row?.deletedAt).not.toBeNull();

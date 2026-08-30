@@ -15,7 +15,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
-import { withAdminContext } from "@/lib/db";
+import { withRlsBypass } from "@/lib/db-admin";
 import { productInputSchema } from "@/lib/validations/product";
 import { createProductLogic, type ProductWithUnits } from "@/server/product";
 import {
@@ -154,7 +154,7 @@ describe("transfer *Logic (the fifth writer, and the first at two branches)", ()
     );
 
   beforeAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       const t = await tx.tenant.create({ data: { name: "Transfer Test Tenant" } });
       tenantA = t.id;
       const [b1, b2] = await Promise.all([
@@ -171,7 +171,7 @@ describe("transfer *Logic (the fifth writer, and the first at two branches)", ()
   });
 
   afterAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       // Reversal lines go FIRST, and are never null'd out on the way. waste_log's
       // teardown clears its self-FK before deleting; the same move here violates
       // stock_transfer_item_sign_check, because a negative qty_sent is only legal
@@ -213,7 +213,7 @@ describe("transfer *Logic (the fifth writer, and the first at two branches)", ()
     const tf = await send(p, 4);
 
     const item = tf.items[0];
-    const movements = await withAdminContext((tx) =>
+    const movements = await withRlsBypass((tx) =>
       tx.stockMovement.findMany({
         where: { tenantId: tenantA, sourceId: item.id },
         orderBy: { sourceType: "asc" },
@@ -337,7 +337,7 @@ describe("transfer *Logic (the fifth writer, and the first at two branches)", ()
     expect(await balanceOf(p, ari)).toBe(8);
     expect(await balanceOf(p, thonglor)).toBe(10);
 
-    const shortage = await withAdminContext((tx) =>
+    const shortage = await withRlsBypass((tx) =>
       tx.stockMovement.findFirst({
         where: { tenantId: tenantA, sourceType: "TRANSFER_SHORTAGE" },
       })
@@ -363,7 +363,7 @@ describe("transfer *Logic (the fifth writer, and the first at two branches)", ()
       userA
     );
 
-    const shortages = await withAdminContext((tx) =>
+    const shortages = await withRlsBypass((tx) =>
       tx.stockMovement.count({
         where: {
           tenantId: tenantA,

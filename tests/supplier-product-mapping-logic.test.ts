@@ -18,7 +18,8 @@
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import type { Supplier } from "@prisma/client";
-import { withAdminContext, prisma } from "@/lib/db";
+import { prisma } from "@/lib/db";
+import { withRlsBypass } from "@/lib/db-admin";
 import { supplierProductMappingInputSchema as schema } from "@/lib/validations/supplier-product-mapping";
 import { supplierInputSchema } from "@/lib/validations/supplier";
 import { productInputSchema } from "@/lib/validations/product";
@@ -86,7 +87,7 @@ describe("supplier-product-mapping *Logic (tenant-scoped, app-layer isolation)",
     });
 
   beforeAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       const a = await tx.tenant.create({ data: { name: "Mapping Test Tenant A" } });
       const b = await tx.tenant.create({ data: { name: "Mapping Test Tenant B" } });
       tenantA = a.id;
@@ -102,7 +103,7 @@ describe("supplier-product-mapping *Logic (tenant-scoped, app-layer isolation)",
 
   afterAll(async () => {
     const ids = [tenantA, tenantB];
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       await tx.supplierProductMapping.deleteMany({ where: { tenantId: { in: ids } } });
       await tx.productUnit.deleteMany({ where: { product: { tenantId: { in: ids } } } });
       await tx.product.deleteMany({ where: { tenantId: { in: ids } } });
@@ -336,7 +337,7 @@ describe("supplier-product-mapping *Logic (tenant-scoped, app-layer isolation)",
     expect(history.some((h) => h.id === r.id)).toBe(true);
 
     // row physically survives
-    const row = await withAdminContext((tx) =>
+    const row = await withRlsBypass((tx) =>
       tx.supplierProductMapping.findUnique({ where: { id: r.id } })
     );
     expect(row?.deletedAt).not.toBeNull();

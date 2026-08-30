@@ -19,7 +19,8 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
-import { withAdminContext, prisma } from "@/lib/db";
+import { prisma } from "@/lib/db";
+import { withRlsBypass } from "@/lib/db-admin";
 import { addDays, computeBangkokToday } from "@/lib/bangkok-date";
 import { productInputSchema } from "@/lib/validations/product";
 import { createProductLogic, type ProductWithUnits } from "@/server/product";
@@ -117,7 +118,7 @@ describe("purchase-order read *Logic (tenant-scoped, app-layer isolation)", () =
     toBaseRatio?: number;
     deletedAt?: Date | null;
   }) =>
-    withAdminContext((tx) =>
+    withRlsBypass((tx) =>
       tx.purchaseOrder.create({
         data: {
           tenantId: opts.tenantId,
@@ -154,7 +155,7 @@ describe("purchase-order read *Logic (tenant-scoped, app-layer isolation)", () =
     );
 
   beforeAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       const a = await tx.tenant.create({ data: { name: "PO Test Tenant A" } });
       const b = await tx.tenant.create({ data: { name: "PO Test Tenant B" } });
       tenantA = a.id;
@@ -241,7 +242,7 @@ describe("purchase-order read *Logic (tenant-scoped, app-layer isolation)", () =
 
   afterAll(async () => {
     const ids = [tenantA, tenantB];
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       await tx.purchaseOrderItemAllocation.deleteMany({
         where: { tenantId: { in: ids } },
       });
@@ -367,7 +368,7 @@ describe("purchase-order read *Logic (tenant-scoped, app-layer isolation)", () =
       )
     ).toContain(doomed);
 
-    await withAdminContext((tx) =>
+    await withRlsBypass((tx) =>
       tx.supplier.update({ where: { id: doomed }, data: { deletedAt: new Date() } })
     );
 

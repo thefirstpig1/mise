@@ -14,7 +14,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { EVERY_BRANCH } from "./support/reach";
 import { randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
-import { withAdminContext } from "@/lib/db";
+import { withRlsBypass } from "@/lib/db-admin";
 import { addDays, computeBangkokToday } from "@/lib/bangkok-date";
 import {
   SalesPulseLockedError,
@@ -44,7 +44,7 @@ describe("daily pulse *Logic (one number, and what it catches)", () => {
     businessDate: Date,
     lines: { net: number; vat: number; sc: number }[]
   ) =>
-    withAdminContext(async (tx) => {
+    withRlsBypass(async (tx) => {
       const day = await tx.salesDay.upsert({
         where: { branchId_businessDate: { branchId, businessDate } },
         create: { tenantId: tenantA, branchId, businessDate },
@@ -90,7 +90,7 @@ describe("daily pulse *Logic (one number, and what it catches)", () => {
     });
 
   beforeAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       const t = await tx.tenant.create({ data: { name: "Pulse Test Tenant" } });
       tenantA = t.id;
       const [b1, b2] = await Promise.all([
@@ -130,7 +130,7 @@ describe("daily pulse *Logic (one number, and what it catches)", () => {
   });
 
   afterAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       await tx.salesLine.deleteMany({ where: { tenantId: tenantA } });
       await tx.salesDay.deleteMany({ where: { tenantId: tenantA } });
       await tx.salesImportBatch.deleteMany({ where: { tenantId: tenantA } });
@@ -157,7 +157,7 @@ describe("daily pulse *Logic (one number, and what it catches)", () => {
     expect(num(r.amount)).toBe(42800);
     expect(r.replacedPrevious).toBe(false);
 
-    const day = await withAdminContext((tx) =>
+    const day = await withRlsBypass((tx) =>
       tx.salesDay.findUniqueOrThrow({
         where: { branchId_businessDate: { branchId: branchB, businessDate: twoDaysAgo } },
       })
@@ -186,7 +186,7 @@ describe("daily pulse *Logic (one number, and what it catches)", () => {
   });
 
   it("P3: the note survives — the explanation is worth more than the detection", async () => {
-    const day = await withAdminContext((tx) =>
+    const day = await withRlsBypass((tx) =>
       tx.salesDay.findUniqueOrThrow({
         where: { branchId_businessDate: { branchId: branchB, businessDate: yesterday } },
       })

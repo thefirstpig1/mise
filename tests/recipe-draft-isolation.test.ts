@@ -16,7 +16,8 @@
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { randomUUID } from "node:crypto";
-import { withAdminContext, prisma } from "@/lib/db";
+import { prisma } from "@/lib/db";
+import { withRlsBypass } from "@/lib/db-admin";
 import { addDays, computeBangkokToday } from "@/lib/bangkok-date";
 import { productInputSchema } from "@/lib/validations/product";
 import { createProductLogic, type ProductWithUnits } from "@/server/product";
@@ -38,7 +39,7 @@ describe("a draft recipe cannot reach the ledger (ADR 0025 Q4)", () => {
   const DAY = addDays(today, -1);
 
   const makeMenu = (name: string) =>
-    withAdminContext((tx) =>
+    withRlsBypass((tx) =>
       tx.menu.create({
         data: {
           tenantId: tenantA,
@@ -83,7 +84,7 @@ describe("a draft recipe cannot reach the ledger (ADR 0025 Q4)", () => {
    * if the draft-creating flow is later changed or replaced.
    */
   const draft = async (menuId: string, qty: number, plannedPrice?: number) =>
-    withAdminContext(async (tx) => {
+    withRlsBypass(async (tx) => {
       const lineId = randomUUID();
       const r = await tx.recipe.create({
         data: {
@@ -113,7 +114,7 @@ describe("a draft recipe cannot reach the ledger (ADR 0025 Q4)", () => {
     });
 
   const sell = (menuId: string, qty: number, net: number) =>
-    withAdminContext(async (tx) => {
+    withRlsBypass(async (tx) => {
       const day = await tx.salesDay.upsert({
         where: {
           branchId_businessDate: { branchId: branchA, businessDate: DAY },
@@ -146,7 +147,7 @@ describe("a draft recipe cannot reach the ledger (ADR 0025 Q4)", () => {
     });
 
   beforeAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       const t = await tx.tenant.create({ data: { name: "Draft Isolation Tenant" } });
       tenantA = t.id;
       const b = await tx.branch.create({
@@ -207,7 +208,7 @@ describe("a draft recipe cannot reach the ledger (ADR 0025 Q4)", () => {
   }, 120_000);
 
   afterAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       await tx.salesConsumptionItem.deleteMany({ where: { tenantId: tenantA } });
       await tx.salesConsumptionRun.deleteMany({ where: { tenantId: tenantA } });
       await tx.stockMovement.deleteMany({ where: { tenantId: tenantA } });

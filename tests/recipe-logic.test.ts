@@ -17,7 +17,8 @@
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { randomUUID } from "node:crypto";
-import { withAdminContext, withTenantContext } from "@/lib/db";
+import { withTenantContext } from "@/lib/db";
+import { withRlsBypass } from "@/lib/db-admin";
 import { addDays, computeBangkokToday } from "@/lib/bangkok-date";
 import { productInputSchema } from "@/lib/validations/product";
 import {
@@ -95,7 +96,7 @@ describe("recipe write *Logic (ADR 0021 Part 21 L3a)", () => {
     );
 
   const makeMenu = (tenant: string, name: string): Promise<{ id: string }> =>
-    withAdminContext((tx) =>
+    withRlsBypass((tx) =>
       tx.menu.create({
         data: { tenantId: tenant, source: "MISE", name: `${name}-${randomUUID().slice(0, 6)}` },
         select: { id: true },
@@ -144,7 +145,7 @@ describe("recipe write *Logic (ADR 0021 Part 21 L3a)", () => {
     ).then((m) => m.get(`menu:${menuId}`) ?? null);
 
   beforeAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       const [a, b] = await Promise.all([
         tx.tenant.create({ data: { name: "Recipe Test Tenant A" } }),
         tx.tenant.create({ data: { name: "Recipe Test Tenant B" } }),
@@ -183,7 +184,7 @@ describe("recipe write *Logic (ADR 0021 Part 21 L3a)", () => {
   });
 
   afterAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       for (const t of [tenantA, tenantB]) {
         await tx.recipeBranch.deleteMany({ where: { tenantId: t } });
         await tx.recipeIngredient.deleteMany({ where: { tenantId: t } });
@@ -245,7 +246,7 @@ describe("recipe write *Logic (ADR 0021 Part 21 L3a)", () => {
     const second = await createRecipeLogic(tenantA, input, userA);
 
     expect(second.id).toBe(first.id);
-    const count = await withAdminContext((tx) =>
+    const count = await withRlsBypass((tx) =>
       tx.recipe.count({ where: { tenantId: tenantA, menuId: menu.id } })
     );
     expect(count).toBe(1);
@@ -434,7 +435,7 @@ describe("recipe write *Logic (ADR 0021 Part 21 L3a)", () => {
       userA
     );
 
-    const stored = await withAdminContext((tx) =>
+    const stored = await withRlsBypass((tx) =>
       tx.recipe.findUniqueOrThrow({ where: { id: wrong.id } })
     );
     expect(stored.supersededAt).not.toBeNull();
@@ -475,7 +476,7 @@ describe("recipe write *Logic (ADR 0021 Part 21 L3a)", () => {
 
     expect(same.id).toBe(v1.id);
     expect(same.notes).toBe("ใหม่");
-    const versions = await withAdminContext((tx) =>
+    const versions = await withRlsBypass((tx) =>
       tx.recipe.count({ where: { tenantId: tenantA, lineId: v1.lineId } })
     );
     expect(versions).toBe(1);
@@ -570,7 +571,7 @@ describe("recipe write *Logic (ADR 0021 Part 21 L3a)", () => {
 
     expect(await deleteRecipeLogic(tenantA, v2.id)).toBe(true);
 
-    const live = await withAdminContext((tx) =>
+    const live = await withRlsBypass((tx) =>
       tx.recipe.count({
         where: { tenantId: tenantA, lineId: v1.lineId, deletedAt: null },
       })
@@ -663,7 +664,7 @@ describe("recipe write *Logic (ADR 0021 Part 21 L3a)", () => {
     // The discarded line served อโศก and nobody else. Left alive with no branch
     // links it would read as CENTRAL — a rejected branch variant silently
     // becoming everyone's recipe.
-    const orphan = await withAdminContext((tx) =>
+    const orphan = await withRlsBypass((tx) =>
       tx.recipe.findUniqueOrThrow({ where: { id: first.id } })
     );
     expect(orphan.deletedAt).not.toBeNull();
@@ -704,7 +705,7 @@ describe("recipe write *Logic (ADR 0021 Part 21 L3a)", () => {
     ).rejects.toBeInstanceOf(RecipeCycleError);
 
     // …and the refusal rolled the write back rather than leaving a cyclic row.
-    const versions = await withAdminContext((tx) =>
+    const versions = await withRlsBypass((tx) =>
       tx.recipe.count({ where: { tenantId: tenantA, lineId: dishRecipe.lineId } })
     );
     expect(versions).toBe(1);

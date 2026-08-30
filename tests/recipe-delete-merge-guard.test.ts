@@ -32,7 +32,8 @@
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { randomUUID } from "node:crypto";
-import { withAdminContext, withTenantContext } from "@/lib/db";
+import { withTenantContext } from "@/lib/db";
+import { withRlsBypass } from "@/lib/db-admin";
 import { computeBangkokToday } from "@/lib/bangkok-date";
 import { productInputSchema } from "@/lib/validations/product";
 import { createProductLogic, type ProductWithUnits } from "@/server/product";
@@ -62,7 +63,7 @@ describe("deleting a recipe that a merged menu borrows (ADR 0026 C3)", () => {
   const today = computeBangkokToday();
 
   const makeMenu = (name: string): Promise<{ id: string; name: string }> =>
-    withAdminContext((tx) =>
+    withRlsBypass((tx) =>
       tx.menu.create({
         data: {
           tenantId: tenantA,
@@ -131,7 +132,7 @@ describe("deleting a recipe that a merged menu borrows (ADR 0026 C3)", () => {
     ).then((m) => m.get(`menu:${menuId}`) ?? null);
 
   beforeAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       const t = await tx.tenant.create({ data: { name: "Recipe Delete Guard Tenant" } });
       tenantA = t.id;
       const u = await tx.user.create({
@@ -162,7 +163,7 @@ describe("deleting a recipe that a merged menu borrows (ADR 0026 C3)", () => {
   }, 120_000);
 
   afterAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       await tx.menuMerge.deleteMany({ where: { tenantId: tenantA } });
       await tx.recipeBranch.deleteMany({ where: { tenantId: tenantA } });
       await tx.recipeIngredient.deleteMany({ where: { tenantId: tenantA } });

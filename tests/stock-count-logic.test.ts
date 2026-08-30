@@ -14,7 +14,8 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
-import { withAdminContext, prisma } from "@/lib/db";
+import { prisma } from "@/lib/db";
+import { withRlsBypass } from "@/lib/db-admin";
 import { productInputSchema } from "@/lib/validations/product";
 import { createProductLogic, type ProductWithUnits } from "@/server/product";
 import { createStockAdjustmentLogic, getStockBalanceLogic } from "@/server/stock-movement";
@@ -125,7 +126,7 @@ describe("stock count *Logic (the document that reconciles the ledger)", () => {
     );
 
   beforeAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       const t = await tx.tenant.create({ data: { name: "Count Test Tenant" } });
       tenantA = t.id;
       const [b1, b2] = await Promise.all([
@@ -142,7 +143,7 @@ describe("stock count *Logic (the document that reconciles the ledger)", () => {
   });
 
   afterAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       await tx.stockCountEntry.deleteMany({ where: { tenantId: tenantA } });
       await tx.stockCountItem.deleteMany({ where: { tenantId: tenantA } });
       await tx.stockCount.deleteMany({ where: { tenantId: tenantA } });
@@ -275,7 +276,7 @@ describe("stock count *Logic (the document that reconciles the ledger)", () => {
     expect(await balanceOf(over)).toBe(108);
     expect(await balanceOf(exact)).toBe(100);
 
-    const movements = await withAdminContext((tx) =>
+    const movements = await withRlsBypass((tx) =>
       tx.stockMovement.findMany({
         where: { tenantId: tenantA, sourceType: "STOCK_COUNT" },
         select: { productId: true, qty: true, type: true },
@@ -326,7 +327,7 @@ describe("stock count *Logic (the document that reconciles the ledger)", () => {
       userA
     );
 
-    const movement = await withAdminContext((tx) =>
+    const movement = await withRlsBypass((tx) =>
       tx.stockMovement.findFirst({
         where: { tenantId: tenantA, productId: p.id, sourceType: "STOCK_COUNT" },
         select: { occurredAt: true, sourceId: true },

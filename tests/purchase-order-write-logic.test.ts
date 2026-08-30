@@ -16,7 +16,8 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
-import { withAdminContext, prisma } from "@/lib/db";
+import { prisma } from "@/lib/db";
+import { withRlsBypass } from "@/lib/db-admin";
 import { productInputSchema } from "@/lib/validations/product";
 import { createProductLogic, type ProductWithUnits } from "@/server/product";
 import { supplierInputSchema } from "@/lib/validations/supplier";
@@ -99,7 +100,7 @@ describe("purchase-order write *Logic (lifecycle + snapshot invariants)", () => 
     });
 
   beforeAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       const a = await tx.tenant.create({ data: { name: "POW Test Tenant A" } });
       const b = await tx.tenant.create({ data: { name: "POW Test Tenant B" } });
       tenantA = a.id;
@@ -149,7 +150,7 @@ describe("purchase-order write *Logic (lifecycle + snapshot invariants)", () => 
 
   afterAll(async () => {
     const ids = [tenantA, tenantB];
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       await tx.purchaseOrderItemAllocation.deleteMany({ where: { tenantId: { in: ids } } });
       await tx.purchaseOrderItem.deleteMany({ where: { tenantId: { in: ids } } });
       await tx.purchaseOrder.deleteMany({ where: { tenantId: { in: ids } } });
@@ -324,7 +325,7 @@ describe("purchase-order write *Logic (lifecycle + snapshot invariants)", () => 
   });
 
   it("W8: refuses provenance pointing at another product's or supplier's price", async () => {
-    const foreign = await withAdminContext((tx) =>
+    const foreign = await withRlsBypass((tx) =>
       tx.supplierProductMapping.create({
         data: {
           tenantId: tenantA,
@@ -412,7 +413,7 @@ describe("purchase-order write *Logic (lifecycle + snapshot invariants)", () => 
     expect(num(updated.vatAmount)).toBe(0);
 
     // the replaced line's allocations went with it (FK cascade)
-    const orphans = await withAdminContext((tx) =>
+    const orphans = await withRlsBypass((tx) =>
       tx.purchaseOrderItemAllocation.count({
         where: { purchaseOrderItemId: firstLineId },
       })
@@ -467,7 +468,7 @@ describe("purchase-order write *Logic (lifecycle + snapshot invariants)", () => 
     await sendPurchaseOrderLogic(tenantA, po.id, userA);
 
     // someone "corrects" the sack from 25 kg to 30 kg, after the order went out
-    await withAdminContext((tx) =>
+    await withRlsBypass((tx) =>
       tx.productUnit.update({
         where: { id: unitOf(prod, "กระสอบ") },
         data: { toBaseRatio: new Prisma.Decimal(30), unitName: "กระสอบใหญ่" },
@@ -479,7 +480,7 @@ describe("purchase-order write *Logic (lifecycle + snapshot invariants)", () => 
     expect(after!.items[0].orderUnitName).toBe("กระสอบ");
 
     // put it back for the remaining slices
-    await withAdminContext((tx) =>
+    await withRlsBypass((tx) =>
       tx.productUnit.update({
         where: { id: unitOf(prod, "กระสอบ") },
         data: { toBaseRatio: new Prisma.Decimal(25), unitName: "กระสอบ" },
@@ -530,7 +531,7 @@ describe("purchase-order write *Logic (lifecycle + snapshot invariants)", () => 
     // PARTIALLY_RECEIVED is Part 13's state; cancelling it needs a reversal story
     const partial = await createPurchaseOrderLogic(tenantA, draft(), userA);
     await sendPurchaseOrderLogic(tenantA, partial.id, userA);
-    await withAdminContext((tx) =>
+    await withRlsBypass((tx) =>
       tx.purchaseOrder.update({
         where: { id: partial.id },
         data: { status: "PARTIALLY_RECEIVED" },

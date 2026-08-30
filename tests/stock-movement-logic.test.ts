@@ -22,7 +22,8 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { EVERY_BRANCH } from "./support/reach";
 import { randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
-import { withAdminContext, prisma } from "@/lib/db";
+import { prisma } from "@/lib/db";
+import { withRlsBypass } from "@/lib/db-admin";
 import { addDays, computeBangkokToday } from "@/lib/bangkok-date";
 import { productInputSchema } from "@/lib/validations/product";
 import { createProductLogic, type ProductWithUnits } from "@/server/product";
@@ -80,7 +81,7 @@ describe("stock-movement read *Logic (tenant-scoped, app-layer isolation)", () =
     sourceId?: string;
     notes?: string | null;
   }) =>
-    withAdminContext((tx) =>
+    withRlsBypass((tx) =>
       tx.stockMovement.create({
         data: {
           tenantId: opts.tenantId,
@@ -99,7 +100,7 @@ describe("stock-movement read *Logic (tenant-scoped, app-layer isolation)", () =
     );
 
   beforeAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       const a = await tx.tenant.create({ data: { name: "Stock Test Tenant A" } });
       const b = await tx.tenant.create({ data: { name: "Stock Test Tenant B" } });
       tenantA = a.id;
@@ -141,7 +142,7 @@ describe("stock-movement read *Logic (tenant-scoped, app-layer isolation)", () =
 
   afterAll(async () => {
     const ids = [tenantA, tenantB];
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       await tx.stockMovement.deleteMany({ where: { tenantId: { in: ids } } });
       await tx.stockAdjustment.deleteMany({ where: { tenantId: { in: ids } } });
       await tx.productUnit.deleteMany({
@@ -355,7 +356,7 @@ describe("stock-movement read *Logic (tenant-scoped, app-layer isolation)", () =
       type: "ADJUST_GAIN",
       occurredAt: day(-1),
     });
-    await withAdminContext((tx) =>
+    await withRlsBypass((tx) =>
       tx.product.update({
         where: { id: prodGone.id },
         data: { deletedAt: new Date() },
@@ -494,7 +495,7 @@ describe("stock-movement read *Logic (tenant-scoped, app-layer isolation)", () =
   // both resolvers correctly come back null — that is the case under test here.
   it("S12: each source type resolves its own shape, and an unresolvable id stays null", async () => {
     const adjustmentId = randomUUID();
-    await withAdminContext((tx) =>
+    await withRlsBypass((tx) =>
       tx.stockAdjustment.create({
         data: {
           id: adjustmentId,

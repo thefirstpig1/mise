@@ -17,7 +17,8 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { EVERY_BRANCH } from "./support/reach";
 import { randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
-import { withAdminContext, prisma } from "@/lib/db";
+import { prisma } from "@/lib/db";
+import { withRlsBypass } from "@/lib/db-admin";
 import { productInputSchema } from "@/lib/validations/product";
 import { createProductLogic, type ProductWithUnits } from "@/server/product";
 import { supplierInputSchema } from "@/lib/validations/supplier";
@@ -143,7 +144,7 @@ describe("goods-receipt *Logic (PO → รับของ → ledger)", () => {
     );
 
   beforeAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       const a = await tx.tenant.create({ data: { name: "GR Test Tenant A" } });
       const b = await tx.tenant.create({ data: { name: "GR Test Tenant B" } });
       tenantA = a.id;
@@ -184,7 +185,7 @@ describe("goods-receipt *Logic (PO → รับของ → ledger)", () => {
 
   afterAll(async () => {
     const ids = [tenantA, tenantB];
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       await tx.stockMovement.deleteMany({ where: { tenantId: { in: ids } } });
       await tx.goodsReceiptItemAllocation.deleteMany({ where: { tenantId: { in: ids } } });
       await tx.goodsReceiptItem.deleteMany({ where: { tenantId: { in: ids } } });
@@ -330,7 +331,7 @@ describe("goods-receipt *Logic (PO → รับของ → ledger)", () => {
 
     expect(second.id).toBe(first.id);
     expect(second.grNumber).toBe(first.grNumber);
-    const count = await withAdminContext((tx) =>
+    const count = await withRlsBypass((tx) =>
       tx.goodsReceipt.count({ where: { tenantId: tenantA, purchaseOrderId: po!.id } })
     );
     expect(count).toBe(1);
@@ -551,7 +552,7 @@ describe("goods-receipt *Logic (PO → รับของ → ledger)", () => {
     expect(await balanceOf(p.id)).toBe(100);
     expect(num(postBalances[0].balance)).toBe(100);
 
-    const movements = await withAdminContext((tx) =>
+    const movements = await withRlsBypass((tx) =>
       tx.stockMovement.findMany({
         where: { tenantId: tenantA, productId: p.id },
       })
@@ -574,7 +575,7 @@ describe("goods-receipt *Logic (PO → รับของ → ledger)", () => {
     const p = await freshProduct(tenantA, "F2");
     const po = await sentPo(p, 4, 250);
 
-    await withAdminContext((tx) =>
+    await withRlsBypass((tx) =>
       tx.productUnit.update({
         where: { id: unitOf(p, "กระสอบ") },
         data: { toBaseRatio: new Prisma.Decimal(30) },
@@ -746,7 +747,7 @@ describe("goods-receipt *Logic (PO → รับของ → ledger)", () => {
     );
     const { receipt: confirmed } = await confirmGoodsReceiptLogic(tenantA, gr.id, userA);
     const originalMovementId = (
-      await withAdminContext((tx) =>
+      await withRlsBypass((tx) =>
         tx.stockMovement.findFirst({
           where: { sourceType: "GR_LINE", sourceId: confirmed.items[0].id },
         })
@@ -774,7 +775,7 @@ describe("goods-receipt *Logic (PO → รับของ → ledger)", () => {
 
     // Balance nets to zero, and the original ledger row is untouched.
     expect(await balanceOf(p.id)).toBe(0);
-    const movements = await withAdminContext((tx) =>
+    const movements = await withRlsBypass((tx) =>
       tx.stockMovement.findMany({
         where: { tenantId: tenantA, productId: p.id },
         orderBy: { createdAt: "asc" },

@@ -20,7 +20,8 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { EVERY_BRANCH } from "./support/reach";
 import { randomUUID } from "node:crypto";
-import { withAdminContext, prisma } from "@/lib/db";
+import { prisma } from "@/lib/db";
+import { withRlsBypass } from "@/lib/db-admin";
 import { addDays, computeBangkokToday } from "@/lib/bangkok-date";
 import { productInputSchema } from "@/lib/validations/product";
 import { createProductLogic, type ProductWithUnits } from "@/server/product";
@@ -75,7 +76,7 @@ describe("Menu Lab's live calculator (ADR 0025 Q3)", () => {
     );
 
   const makeMenu = (name: string) =>
-    withAdminContext((tx) =>
+    withRlsBypass((tx) =>
       tx.menu.create({
         data: {
           tenantId: tenantA,
@@ -172,7 +173,7 @@ describe("Menu Lab's live calculator (ADR 0025 Q3)", () => {
     , EVERY_BRANCH);
 
   beforeAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       const t = await tx.tenant.create({ data: { name: "What-If Tenant" } });
       tenantA = t.id;
       const u = await tx.user.create({
@@ -214,7 +215,7 @@ describe("Menu Lab's live calculator (ADR 0025 Q3)", () => {
   }, 180_000);
 
   afterAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       await tx.recipeIngredient.deleteMany({ where: { tenantId: tenantA } });
       await tx.recipeBranch.deleteMany({ where: { tenantId: tenantA } });
       await tx.recipe.updateMany({

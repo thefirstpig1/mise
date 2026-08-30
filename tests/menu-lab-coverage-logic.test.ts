@@ -16,7 +16,8 @@
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { randomUUID } from "node:crypto";
-import { withAdminContext, prisma } from "@/lib/db";
+import { prisma } from "@/lib/db";
+import { withRlsBypass } from "@/lib/db-admin";
 import { addDays, computeBangkokToday } from "@/lib/bangkok-date";
 import { productInputSchema } from "@/lib/validations/product";
 import { createProductLogic, type ProductWithUnits } from "@/server/product";
@@ -43,7 +44,7 @@ describe("recipe coverage (ADR 0025 Q5)", () => {
   const DAY = (n: number) => addDays(today, -n);
 
   const makeMenu = (name: string) =>
-    withAdminContext((tx) =>
+    withRlsBypass((tx) =>
       tx.menu.create({
         data: { tenantId: tenantA, source: "MISE", name },
         select: { id: true, name: true },
@@ -95,7 +96,7 @@ describe("recipe coverage (ADR 0025 Q5)", () => {
 
   /** A recipe that belongs to ONE branch and never reaches the other (Q8). */
   const giveBranchOnlyRecipe = (menuId: string, branchId: string) =>
-    withAdminContext(async (tx) => {
+    withRlsBypass(async (tx) => {
       const lineId = randomUUID();
       const r = await tx.recipe.create({
         data: {
@@ -140,7 +141,7 @@ describe("recipe coverage (ADR 0025 Q5)", () => {
     qty: number,
     net: number
   ) =>
-    withAdminContext(async (tx) => {
+    withRlsBypass(async (tx) => {
       const day = await tx.salesDay.upsert({
         where: { branchId_businessDate: { branchId, businessDate } },
         create: {
@@ -182,7 +183,7 @@ describe("recipe coverage (ADR 0025 Q5)", () => {
     });
 
   beforeAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       const t = await tx.tenant.create({ data: { name: "Coverage Tenant" } });
       tenantA = t.id;
       const u = await tx.user.create({
@@ -250,7 +251,7 @@ describe("recipe coverage (ADR 0025 Q5)", () => {
   }, 120_000);
 
   afterAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       await tx.recipeIngredient.deleteMany({ where: { tenantId: tenantA } });
       await tx.recipeBranch.deleteMany({ where: { tenantId: tenantA } });
       await tx.recipe.updateMany({
@@ -333,7 +334,7 @@ describe("recipe coverage (ADR 0025 Q5)", () => {
     const replaced = await sell(branchA, batchA, day, menu.id, 5, 500);
     await sell(branchA, batchA, day, menu.id, 6, 600);
 
-    await withAdminContext((tx) =>
+    await withRlsBypass((tx) =>
       tx.salesLine.update({
         where: { id: replaced.id },
         data: { supersededAt: new Date(), supersededByBatchId: batchA },

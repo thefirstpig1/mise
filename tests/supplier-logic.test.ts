@@ -13,7 +13,8 @@
 // ============================================================
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { withAdminContext, prisma } from "@/lib/db";
+import { prisma } from "@/lib/db";
+import { withRlsBypass } from "@/lib/db-admin";
 import { supplierInputSchema } from "@/lib/validations/supplier";
 import { productInputSchema } from "@/lib/validations/product";
 import { supplierProductMappingInputSchema } from "@/lib/validations/supplier-product-mapping";
@@ -41,7 +42,7 @@ describe("supplier *Logic (tenant-scoped, app-layer isolation)", () => {
   let tenantB: string;
 
   beforeAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       const a = await tx.tenant.create({ data: { name: "Supplier Test Tenant A" } });
       const b = await tx.tenant.create({ data: { name: "Supplier Test Tenant B" } });
       tenantA = a.id;
@@ -51,7 +52,7 @@ describe("supplier *Logic (tenant-scoped, app-layer isolation)", () => {
 
   afterAll(async () => {
     const ids = [tenantA, tenantB];
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       // Part 8 L3b: mappings RESTRICT supplier/product hard-deletes → clear first.
       await tx.supplierProductMapping.deleteMany({ where: { tenantId: { in: ids } } });
       await tx.productUnit.deleteMany({ where: { product: { tenantId: { in: ids } } } });
@@ -157,7 +158,7 @@ describe("supplier *Logic (tenant-scoped, app-layer isolation)", () => {
     expect(aNames).not.toContain("บริษัท ลบทิ้ง จำกัด");
 
     // but the row still physically exists (soft-delete, not hard delete)
-    const row = await withAdminContext((tx) =>
+    const row = await withRlsBypass((tx) =>
       tx.supplier.findUnique({ where: { id: created.id } })
     );
     expect(row?.deletedAt).not.toBeNull();

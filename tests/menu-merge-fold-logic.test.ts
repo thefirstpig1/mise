@@ -19,7 +19,8 @@
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { randomUUID } from "node:crypto";
-import { withAdminContext, prisma } from "@/lib/db";
+import { prisma } from "@/lib/db";
+import { withRlsBypass } from "@/lib/db-admin";
 import { addDays, computeBangkokToday } from "@/lib/bangkok-date";
 import { productInputSchema } from "@/lib/validations/product";
 import { createProductLogic, type ProductWithUnits } from "@/server/product";
@@ -47,7 +48,7 @@ describe("folding merged menus (ADR 0026 Q5)", () => {
   const LONG_AGO = addDays(today, -60);
 
   const makeMenu = (name: string) =>
-    withAdminContext((tx) =>
+    withRlsBypass((tx) =>
       tx.menu.create({
         data: {
           tenantId: tenantA,
@@ -61,7 +62,7 @@ describe("folding merged menus (ADR 0026 Q5)", () => {
     );
 
   const sell = (businessDate: Date, menuId: string, net: number, qty = 1) =>
-    withAdminContext(async (tx) => {
+    withRlsBypass(async (tx) => {
       const day = await tx.salesDay.upsert({
         where: { branchId_businessDate: { branchId: branchA, businessDate } },
         create: {
@@ -142,7 +143,7 @@ describe("folding merged menus (ADR 0026 Q5)", () => {
     resolveRecipeIds(prisma, tenantA, [{ kind: "menu", id: menuId }], branchA, asOf);
 
   beforeAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       const t = await tx.tenant.create({ data: { name: "Merge Fold Tenant" } });
       tenantA = t.id;
       const u = await tx.user.create({
@@ -202,7 +203,7 @@ describe("folding merged menus (ADR 0026 Q5)", () => {
   }, 180_000);
 
   afterAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       await tx.menuMerge.deleteMany({ where: { tenantId: tenantA } });
       await tx.recipeIngredient.deleteMany({ where: { tenantId: tenantA } });
       await tx.recipeBranch.deleteMany({ where: { tenantId: tenantA } });

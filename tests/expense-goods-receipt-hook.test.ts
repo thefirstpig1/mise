@@ -16,7 +16,8 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { EVERY_BRANCH } from "./support/reach";
 import { randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
-import { withAdminContext, prisma } from "@/lib/db";
+import { prisma } from "@/lib/db";
+import { withRlsBypass } from "@/lib/db-admin";
 import { productInputSchema } from "@/lib/validations/product";
 import { createProductLogic, type ProductWithUnits } from "@/server/product";
 import { supplierInputSchema } from "@/lib/validations/supplier";
@@ -113,7 +114,7 @@ describe("goods receipt → expense (ADR 0016 Q2/Q3)", () => {
   };
 
   beforeAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       const [a, b] = await Promise.all([
         tx.tenant.create({ data: { name: "Hook Unregistered" } }),
         tx.tenant.create({
@@ -167,7 +168,7 @@ describe("goods receipt → expense (ADR 0016 Q2/Q3)", () => {
 
   afterAll(async () => {
     const ids = [tenantUnreg, tenantReg];
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       await tx.stockMovement.deleteMany({ where: { tenantId: { in: ids } } });
       await tx.goodsReceiptItemAllocation.deleteMany({ where: { tenantId: { in: ids } } });
       await tx.goodsReceiptItem.deleteMany({ where: { tenantId: { in: ids } } });

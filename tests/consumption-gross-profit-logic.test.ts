@@ -15,7 +15,8 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { EVERY_BRANCH } from "./support/reach";
 import { randomUUID } from "node:crypto";
-import { prisma, withAdminContext } from "@/lib/db";
+import { prisma,  } from "@/lib/db";
+import { withRlsBypass } from "@/lib/db-admin";
 import { addDays, computeBangkokToday } from "@/lib/bangkok-date";
 import { productInputSchema } from "@/lib/validations/product";
 import { createProductLogic, type ProductWithUnits } from "@/server/product";
@@ -66,7 +67,7 @@ describe("gross profit by สูตรอาหาร (ADR 0022 Part 22 L3d)", (
   const view = async () => toBranchCostSummaryView(await summary());
 
   const setMethod = (method: "PERIODIC_INVENTORY" | "RECIPE_CONSUMPTION") =>
-    withAdminContext((tx) =>
+    withRlsBypass((tx) =>
       tx.tenant.update({
         where: { id: tenantA },
         data: { grossProfitMethod: method },
@@ -74,7 +75,7 @@ describe("gross profit by สูตรอาหาร (ADR 0022 Part 22 L3d)", (
     );
 
   const sell = async (businessDate: Date, qty: number, netAmount: number) => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       const day = await tx.salesDay.upsert({
         where: { branchId_businessDate: { branchId: branchA, businessDate } },
         create: {
@@ -118,7 +119,7 @@ describe("gross profit by สูตรอาหาร (ADR 0022 Part 22 L3d)", (
     );
 
   beforeAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       const t = await tx.tenant.create({ data: { name: "Consumption GP Tenant" } });
       tenantA = t.id;
       const b = await tx.branch.create({
@@ -266,7 +267,7 @@ describe("gross profit by สูตรอาหาร (ADR 0022 Part 22 L3d)", (
   }, 300_000);
 
   afterAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       await tx.stockMovement.deleteMany({ where: { tenantId: tenantA } });
       await tx.salesConsumptionItem.deleteMany({
         where: { tenantId: tenantA, reversalOfItemId: { not: null } },

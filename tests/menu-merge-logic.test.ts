@@ -17,7 +17,8 @@
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { randomUUID } from "node:crypto";
-import { withAdminContext, prisma } from "@/lib/db";
+import { prisma } from "@/lib/db";
+import { withRlsBypass } from "@/lib/db-admin";
 import { addDays, computeBangkokToday } from "@/lib/bangkok-date";
 import { mergeMenusInputSchema, revokeMergeInputSchema } from "@/lib/validations/menu-merge";
 import {
@@ -41,7 +42,7 @@ describe("menu merging writes (ADR 0026)", () => {
   const today = computeBangkokToday();
 
   const makeMenu = (name: string) =>
-    withAdminContext((tx) =>
+    withRlsBypass((tx) =>
       tx.menu.create({
         data: {
           tenantId: tenantA,
@@ -55,7 +56,7 @@ describe("menu merging writes (ADR 0026)", () => {
     );
 
   const sell = (businessDate: Date, menuId: string, net = 100) =>
-    withAdminContext(async (tx) => {
+    withRlsBypass(async (tx) => {
       const day = await tx.salesDay.upsert({
         where: { branchId_businessDate: { branchId: branchA, businessDate } },
         create: {
@@ -88,7 +89,7 @@ describe("menu merging writes (ADR 0026)", () => {
 
   /** A run that STANDS — what makes a day "already deducted". */
   const post = (businessDate: Date) =>
-    withAdminContext((tx) =>
+    withRlsBypass((tx) =>
       tx.salesConsumptionRun.create({
         data: {
           tenantId: tenantA,
@@ -114,7 +115,7 @@ describe("menu merging writes (ADR 0026)", () => {
     );
 
   beforeAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       const t = await tx.tenant.create({ data: { name: "Menu Merge Tenant" } });
       tenantA = t.id;
       const u = await tx.user.create({
@@ -163,7 +164,7 @@ describe("menu merging writes (ADR 0026)", () => {
   }, 120_000);
 
   afterAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       await tx.menuMerge.deleteMany({ where: { tenantId: tenantA } });
       await tx.salesConsumptionItem.deleteMany({ where: { tenantId: tenantA } });
       await tx.salesConsumptionRun.deleteMany({ where: { tenantId: tenantA } });
@@ -196,7 +197,7 @@ describe("menu merging writes (ADR 0026)", () => {
     expect(row.revokedAt).toBeNull();
 
     // THE POINT OF THE WHOLE PART: the sale still says what the file said.
-    const after = await withAdminContext((tx) =>
+    const after = await withRlsBypass((tx) =>
       tx.salesLine.findFirst({
         where: { id: line.id },
         select: { menuId: true, supersededAt: true },
@@ -206,7 +207,7 @@ describe("menu merging writes (ADR 0026)", () => {
     expect(after?.supersededAt).toBeNull();
 
     // And the losing menu is still alive — it has to be, it holds its POS code.
-    const stillThere = await withAdminContext((tx) =>
+    const stillThere = await withRlsBypass((tx) =>
       tx.menu.findFirst({ where: { id: loser.id }, select: { deletedAt: true } })
     );
     expect(stillThere?.deletedAt).toBeNull();
@@ -228,7 +229,7 @@ describe("menu merging writes (ADR 0026)", () => {
     const second = await mergeMenusLogic(tenantA, build(), userA);
     expect(second.id).toBe(first.id);
 
-    const count = await withAdminContext((tx) =>
+    const count = await withRlsBypass((tx) =>
       tx.menuMerge.count({ where: { tenantId: tenantA, losingMenuId: loser.id } })
     );
     expect(count).toBe(1);
@@ -281,7 +282,7 @@ describe("menu merging writes (ADR 0026)", () => {
     await merge({ losingMenuId: asoke.id, winningMenuId: dish.id });
     await merge({ losingMenuId: pattaya.id, winningMenuId: dish.id });
 
-    const losers = await withAdminContext((tx) =>
+    const losers = await withRlsBypass((tx) =>
       tx.menuMerge.count({
         where: { tenantId: tenantA, winningMenuId: dish.id, revokedAt: null },
       })
@@ -308,7 +309,7 @@ describe("menu merging writes (ADR 0026)", () => {
     ).toBe(day.getTime());
 
     // Nothing was written by the refusal.
-    const none = await withAdminContext((tx) =>
+    const none = await withRlsBypass((tx) =>
       tx.menuMerge.count({ where: { tenantId: tenantA, losingMenuId: spelling.id } })
     );
     expect(none).toBe(0);
@@ -412,7 +413,7 @@ describe("menu merging writes (ADR 0026)", () => {
     });
     expect(right.winningMenuId).toBe(second.id);
 
-    const live = await withAdminContext((tx) =>
+    const live = await withRlsBypass((tx) =>
       tx.menuMerge.count({
         where: { tenantId: tenantA, losingMenuId: spelling.id, revokedAt: null },
       })

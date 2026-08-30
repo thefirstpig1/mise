@@ -36,7 +36,7 @@
 
 import { redirect } from "next/navigation";
 import { auth } from "./auth";
-import { prisma } from "./db";
+import { prismaBypass } from "./db-admin";
 import { canAccessBranch, hasCapability, type Requirement } from "./permissions/service";
 import { costAccessFor, type CostAccess } from "./permissions/cost-access";
 import { pickActiveTenant, readActiveTenantCookie } from "./active-tenant";
@@ -74,13 +74,24 @@ export async function requireTenant(
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
 
-  // Layer 1: membership discovery — cross-tenant (by userId) → bare prisma.
+  // Layer 1: membership discovery — cross-tenant BY NATURE.
+  //
+  // THE ONLY ALLOWLISTED USE OF THE RLS-BYPASSING CONNECTION IN THE WHOLE
+  // APPLICATION (ADR 0030 Q2). It has to be: the query is keyed on userId
+  // because it is the one that DISCOVERS which tenants exist for this
+  // person, and a row-security policy that keys on the current tenant has
+  // nothing to match against before that answer exists. Under the app role
+  // this returns zero rows and every login lands on /signup.
+  //
+  // It reads memberships for ONE userId and nothing else. Widening it —
+  // another table, another filter — widens the only hole in tenant
+  // isolation the product has.
   //
   // findMANY since Part 29. Until invitations existed nobody could belong to
   // two shops, and taking the oldest was a guess that could never be wrong. It
   // can be wrong now — an outside bookkeeper does the books for three shops —
   // so the guess is gone (ADR 0029 Q3).
-  const memberships = await prisma.tenantMembership.findMany({
+  const memberships = await prismaBypass.tenantMembership.findMany({
     where: { userId: session.user.id, isActive: true },
     include: {
       tenant: true,

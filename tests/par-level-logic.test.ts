@@ -12,7 +12,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
-import { withAdminContext } from "@/lib/db";
+import { withRlsBypass } from "@/lib/db-admin";
 import { productInputSchema } from "@/lib/validations/product";
 import { createProductLogic, type ProductWithUnits } from "@/server/product";
 import { createStockAdjustmentLogic } from "@/server/stock-movement";
@@ -116,7 +116,7 @@ describe("par level *Logic (knowing before you run out)", () => {
   ) => {
     const unitName = opts.unit ?? "kg";
     const unit = p.productUnits.find((u) => u.unitName === unitName)!;
-    return withAdminContext(async (tx) => {
+    return withRlsBypass(async (tx) => {
       const po = await tx.purchaseOrder.create({
         data: {
           tenantId: tenantA,
@@ -179,7 +179,7 @@ describe("par level *Logic (knowing before you run out)", () => {
   };
 
   beforeAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       const t = await tx.tenant.create({ data: { name: "Par Test Tenant" } });
       tenantA = t.id;
       const [b1, b2] = await Promise.all([
@@ -200,7 +200,7 @@ describe("par level *Logic (knowing before you run out)", () => {
   });
 
   afterAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       await tx.parLevel.deleteMany({ where: { tenantId: tenantA } });
       await tx.purchaseOrderItem.deleteMany({ where: { tenantId: tenantA } });
       await tx.purchaseOrder.deleteMany({ where: { tenantId: tenantA } });
@@ -235,7 +235,7 @@ describe("par level *Logic (knowing before you run out)", () => {
     expect(second.id).toBe(first.id);
     expect(num(second.parQty)).toBe(15);
 
-    const live = await withAdminContext((tx) =>
+    const live = await withRlsBypass((tx) =>
       tx.parLevel.findMany({ where: { tenantId: tenantA, productId: p.id } })
     );
     expect(live).toHaveLength(1);
@@ -414,7 +414,7 @@ describe("par level *Logic (knowing before you run out)", () => {
     // And re-setting it revives the same row rather than leaving a dead one.
     const revived = await setPar(p, 12);
     expect(revived.id).toBe(par.id);
-    const live = await withAdminContext((tx) =>
+    const live = await withRlsBypass((tx) =>
       tx.parLevel.findMany({ where: { tenantId: tenantA, productId: p.id } })
     );
     expect(live).toHaveLength(1);

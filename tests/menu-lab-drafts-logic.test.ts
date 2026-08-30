@@ -18,7 +18,8 @@
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { randomUUID } from "node:crypto";
-import { withAdminContext, prisma } from "@/lib/db";
+import { prisma } from "@/lib/db";
+import { withRlsBypass } from "@/lib/db-admin";
 import { addDays, computeBangkokToday } from "@/lib/bangkok-date";
 import { productInputSchema } from "@/lib/validations/product";
 import { createProductLogic, type ProductWithUnits } from "@/server/product";
@@ -49,7 +50,7 @@ describe("the drafts list (ADR 0025 L5a)", () => {
   const LONG_AGO = addDays(today, -60);
 
   const makeMenu = (name: string, source: "POS" | "MISE" = "POS") =>
-    withAdminContext((tx) =>
+    withRlsBypass((tx) =>
       tx.menu.create({
         data: {
           tenantId: tenantA,
@@ -114,7 +115,7 @@ describe("the drafts list (ADR 0025 L5a)", () => {
     net: number,
     superseded = false
   ) =>
-    withAdminContext(async (tx) => {
+    withRlsBypass(async (tx) => {
       const day = await tx.salesDay.upsert({
         where: {
           branchId_businessDate: { branchId: branchA, businessDate },
@@ -154,7 +155,7 @@ describe("the drafts list (ADR 0025 L5a)", () => {
     (await getDraftsLogic(tenantA)).find((r) => r.recipeId === recipeId);
 
   beforeAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       const t = await tx.tenant.create({ data: { name: "Drafts List Tenant" } });
       tenantA = t.id;
       const u = await tx.user.create({
@@ -220,7 +221,7 @@ describe("the drafts list (ADR 0025 L5a)", () => {
   }, 120_000);
 
   afterAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       await tx.recipeIngredient.deleteMany({ where: { tenantId: tenantA } });
       await tx.recipeBranch.deleteMany({ where: { tenantId: tenantA } });
       // Both halves, or `recipe_superseded_pair_check` refuses the row.
@@ -290,7 +291,7 @@ describe("the drafts list (ADR 0025 L5a)", () => {
     // The branch stops following central (Q8) — its copy is its own line, and a
     // draft does not replace it. If this row leaked into the lookup, the screen
     // would warn about taking over a recipe publishing leaves alone.
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       const branchCopy = await tx.recipe.create({
         data: {
           tenantId: tenantA,

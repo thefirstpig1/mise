@@ -20,7 +20,8 @@
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { randomUUID } from "node:crypto";
-import { withAdminContext, prisma } from "@/lib/db";
+import { prisma } from "@/lib/db";
+import { withRlsBypass } from "@/lib/db-admin";
 import { computeBangkokToday, addDays } from "@/lib/bangkok-date";
 import { getMenusLogic, planMenuResolutionLogic } from "@/server/menu";
 import { normalizeMenuName } from "@/lib/sales-file";
@@ -40,7 +41,7 @@ describe("what retiring a menu changes (ADR 0027 L3b)", () => {
   const makePosMenu = (
     name: string
   ): Promise<{ id: string; name: string; posMenuId: string }> =>
-    withAdminContext(async (tx) => {
+    withRlsBypass(async (tx) => {
       const code = `C-${randomUUID().slice(0, 8)}`;
       const m = await tx.menu.create({
         data: {
@@ -62,7 +63,7 @@ describe("what retiring a menu changes (ADR 0027 L3b)", () => {
     );
 
   const sell = (menuId: string, businessDate: Date, net = 100) =>
-    withAdminContext(async (tx) => {
+    withRlsBypass(async (tx) => {
       const day = await tx.salesDay.upsert({
         where: { branchId_businessDate: { branchId: branchA, businessDate } },
         create: {
@@ -97,7 +98,7 @@ describe("what retiring a menu changes (ADR 0027 L3b)", () => {
     getMenusLogic(tenantA, { stubsOnly: false, includeRetired, search });
 
   beforeAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       const t = await tx.tenant.create({ data: { name: "Menu Retire Reads Tenant" } });
       tenantA = t.id;
       const u = await tx.user.create({
@@ -146,7 +147,7 @@ describe("what retiring a menu changes (ADR 0027 L3b)", () => {
   }, 120_000);
 
   afterAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       await tx.menuAlias.deleteMany({ where: { tenantId: tenantA } });
       await tx.salesLine.deleteMany({ where: { tenantId: tenantA } });
       await tx.salesDay.deleteMany({ where: { tenantId: tenantA } });
@@ -226,7 +227,7 @@ describe("what retiring a menu changes (ADR 0027 L3b)", () => {
   it("R5 an alias pointing at a deleted menu cannot match", async () => {
     const menu = await makePosMenu("R5 ยำวุ้นเส้น");
     const spelling = `yum-${randomUUID().slice(0, 8)}`;
-    await withAdminContext((tx) =>
+    await withRlsBypass((tx) =>
       tx.menuAlias.create({
         data: {
           tenantId: tenantA,
@@ -247,7 +248,7 @@ describe("what retiring a menu changes (ADR 0027 L3b)", () => {
 
     // Straight past blocker 5, which is the only way to reach this state — the
     // point of a second line of defence is that it holds when the first is gone.
-    await withAdminContext((tx) =>
+    await withRlsBypass((tx) =>
       tx.menu.update({ where: { id: menu.id }, data: { deletedAt: new Date() } })
     );
 

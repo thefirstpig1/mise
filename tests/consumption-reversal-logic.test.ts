@@ -19,7 +19,8 @@
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { randomUUID } from "node:crypto";
-import { prisma, withAdminContext } from "@/lib/db";
+import { prisma,  } from "@/lib/db";
+import { withRlsBypass } from "@/lib/db-admin";
 import { addDays, computeBangkokToday } from "@/lib/bangkok-date";
 import { computeHeaderSignature } from "@/lib/sales-file";
 import { productInputSchema } from "@/lib/validations/product";
@@ -179,7 +180,7 @@ describe("consumption reversal and the import's auto-void (ADR 0022 Part 22 L3c)
     getProductCostLogic(tenantA, { productId: pork.id, branchId: branchA });
 
   const liveRunFor = (businessDate: Date) =>
-    withAdminContext((tx) =>
+    withRlsBypass((tx) =>
       tx.salesConsumptionRun.findFirst({
         where: { tenantId: tenantA, businessDate, voidedAt: null },
         select: { id: true },
@@ -187,7 +188,7 @@ describe("consumption reversal and the import's auto-void (ADR 0022 Part 22 L3c)
     );
 
   beforeAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       const t = await tx.tenant.create({ data: { name: "Consumption Reversal Tenant" } });
       tenantA = t.id;
       const b = await tx.branch.create({
@@ -255,7 +256,7 @@ describe("consumption reversal and the import's auto-void (ADR 0022 Part 22 L3c)
     // The first import creates the menu as a stub; the recipe is written against
     // it afterwards, dated back over every day under test.
     await importDay(D_IMPORT, 1, 100);
-    const menu = await withAdminContext((tx) =>
+    const menu = await withRlsBypass((tx) =>
       tx.menu.findFirstOrThrow({
         where: { tenantId: tenantA },
         select: { id: true },
@@ -286,7 +287,7 @@ describe("consumption reversal and the import's auto-void (ADR 0022 Part 22 L3c)
   }, 300_000);
 
   afterAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       await tx.stockMovement.deleteMany({ where: { tenantId: tenantA } });
       await tx.salesConsumptionItem.deleteMany({
         where: { tenantId: tenantA, reversalOfItemId: { not: null } },

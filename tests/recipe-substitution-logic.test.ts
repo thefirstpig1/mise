@@ -13,7 +13,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { randomUUID } from "node:crypto";
-import { withAdminContext } from "@/lib/db";
+import { withRlsBypass } from "@/lib/db-admin";
 import { addDays, computeBangkokToday } from "@/lib/bangkok-date";
 import { productInputSchema } from "@/lib/validations/product";
 import { createProductLogic, type ProductWithUnits } from "@/server/product";
@@ -73,7 +73,7 @@ describe("substitution + reverse lookup *Logic (ADR 0021 Q14/Q15/Q17)", () => {
     );
 
   const makeMenu = (name: string): Promise<{ id: string }> =>
-    withAdminContext((tx) =>
+    withRlsBypass((tx) =>
       tx.menu.create({
         data: {
           tenantId: tenantA,
@@ -145,7 +145,7 @@ describe("substitution + reverse lookup *Logic (ADR 0021 Q14/Q15/Q17)", () => {
     });
 
   beforeAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       const t = await tx.tenant.create({ data: { name: "Substitution Tenant" } });
       tenantA = t.id;
       const b = await tx.branch.create({
@@ -174,7 +174,7 @@ describe("substitution + reverse lookup *Logic (ADR 0021 Q14/Q15/Q17)", () => {
   }, 120_000);
 
   afterAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       await tx.recipeBranch.deleteMany({ where: { tenantId: tenantA } });
       await tx.recipeIngredient.deleteMany({ where: { tenantId: tenantA } });
       await tx.recipe.updateMany({
@@ -257,7 +257,7 @@ describe("substitution + reverse lookup *Logic (ADR 0021 Q14/Q15/Q17)", () => {
     expect(swapped.lineId).toBe(recipe.lineId);
     // A bulk swap leaves the same kind of history as a hand edit — both go
     // through `appendVersion`.
-    const old = await withAdminContext((tx) =>
+    const old = await withRlsBypass((tx) =>
       tx.recipe.findUniqueOrThrow({ where: { id: recipe.id } })
     );
     expect(old.deletedAt).toBeNull();
@@ -279,7 +279,7 @@ describe("substitution + reverse lookup *Logic (ADR 0021 Q14/Q15/Q17)", () => {
       userA
     );
 
-    const old = await withAdminContext((tx) =>
+    const old = await withRlsBypass((tx) =>
       tx.recipe.findUniqueOrThrow({ where: { id: recipe.id } })
     );
     expect(old.supersededById).toBe(swapped.id);
@@ -404,7 +404,7 @@ describe("substitution + reverse lookup *Logic (ADR 0021 Q14/Q15/Q17)", () => {
       )
     ).rejects.toBeInstanceOf(RecipeCycleError);
 
-    const versions = await withAdminContext((tx) =>
+    const versions = await withRlsBypass((tx) =>
       tx.recipe.count({ where: { tenantId: tenantA, lineId: dish.recipe.lineId } })
     );
     expect(versions).toBe(1);
@@ -426,7 +426,7 @@ describe("substitution + reverse lookup *Logic (ADR 0021 Q14/Q15/Q17)", () => {
 
     expect(first).toHaveLength(2);
     expect(second.map((r) => r.id).sort()).toEqual(first.map((r) => r.id).sort());
-    const total = await withAdminContext((tx) =>
+    const total = await withRlsBypass((tx) =>
       tx.recipe.count({
         where: { tenantId: tenantA, lineId: { in: [a.recipe.lineId, b.recipe.lineId] } },
       })

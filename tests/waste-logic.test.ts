@@ -12,7 +12,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
-import { withAdminContext } from "@/lib/db";
+import { withRlsBypass } from "@/lib/db-admin";
 import { productInputSchema } from "@/lib/validations/product";
 import { createProductLogic, type ProductWithUnits } from "@/server/product";
 import {
@@ -119,7 +119,7 @@ describe("waste *Logic (the fourth writer to the ledger)", () => {
     );
 
   beforeAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       const t = await tx.tenant.create({ data: { name: "Waste Test Tenant" } });
       tenantA = t.id;
       const [b1, b2] = await Promise.all([
@@ -136,7 +136,7 @@ describe("waste *Logic (the fourth writer to the ledger)", () => {
   });
 
   afterAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       await tx.wasteLog.updateMany({
         where: { tenantId: tenantA },
         data: { reversalOfId: null },
@@ -255,7 +255,7 @@ describe("waste *Logic (the fourth writer to the ledger)", () => {
     // The stock comes back exactly, and the original entry is still there to read.
     expect(await balanceOf(p)).toBe(30);
 
-    const rows = await withAdminContext((tx) =>
+    const rows = await withRlsBypass((tx) =>
       tx.wasteLog.findMany({ where: { tenantId: tenantA, productId: p.id } })
     );
     expect(rows).toHaveLength(2);
@@ -291,7 +291,7 @@ describe("waste *Logic (the fourth writer to the ledger)", () => {
     );
 
     const reversal = (
-      await withAdminContext((tx) =>
+      await withRlsBypass((tx) =>
         tx.wasteLog.findMany({ where: { tenantId: tenantA, productId: p.id } })
       )
     ).find((r) => r.reversalOfId !== null)!;
@@ -407,7 +407,7 @@ describe("waste *Logic (the fourth writer to the ledger)", () => {
     // Someone corrects the sack size afterwards. Recomputing the reversal from
     // today's ratio would credit back 60 kg for stock that left as 50 — the
     // ledger would be permanently 10 kg richer than the shelf.
-    await withAdminContext((tx) =>
+    await withRlsBypass((tx) =>
       tx.productUnit.update({
         where: { id: unitOf(p, "กระสอบ") },
         data: { toBaseRatio: new Prisma.Decimal(30) },

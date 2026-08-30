@@ -96,7 +96,7 @@ export async function retryOnConnectionFailure<T>(
  * Applied to the URL in code, deliberately: `.env` holds the credentials and is
  * not this module's to edit.
  */
-function withConnectTimeout(url: string | undefined): string | undefined {
+export function withConnectTimeout(url: string | undefined): string | undefined {
   if (!url || url.includes("connect_timeout=")) return url;
   return url + (url.includes("?") ? "&" : "?") + "connect_timeout=3";
 }
@@ -120,15 +120,24 @@ const basePrisma = new PrismaClient({
  * The cast back to `PrismaClient` keeps all 133 call sites' types unchanged; the
  * extension is invisible to them, which is the point.
  */
-export const prisma =
-  global.prismaGlobal ??
-  (basePrisma.$extends({
+/** The ADR 0024 retry, as an extension. Shared with the bypass client. */
+export function withConnectionRetry(client: PrismaClient): PrismaClient {
+  return client.$extends({
     query: {
       async $allOperations({ args, query }) {
         return await retryOnConnectionFailure(() => query(args));
       },
     },
-  }) as unknown as PrismaClient);
+  }) as unknown as PrismaClient;
+}
+
+/**
+ * The application's client. Since Part 30 it connects as a role that is
+ * SUBJECT TO row-level security — not the table owner, no BYPASSRLS — so a
+ * query that reaches the database without a tenant context is refused by
+ * Postgres rather than trusted (ADR 0030 Q1).
+ */
+export const prisma = global.prismaGlobal ?? withConnectionRetry(basePrisma);
 
 if (process.env.NODE_ENV !== "production") {
   global.prismaGlobal = prisma;
@@ -257,10 +266,12 @@ async function runTenantTransaction<T>(
           console.log(`[mise-tx] start ${waited}ms`);
         }
       }
-      // SET LOCAL = only valid within this transaction
-      await tx.$executeRawUnsafe(
-        `SET LOCAL app.current_tenant_id = '${tenantId}'`
-      );
+      // The line that decides tenant isolation, and therefore the one line
+      // in this project that must not be assembled from a template string.
+      // `SET LOCAL` takes no bind parameters; `set_config(..., true)` is its
+      // parameterised equivalent and is local to this transaction in exactly
+      // the same way (ADR 0030 Context 4).
+      await tx.$executeRaw`select set_config('app.current_tenant_id', ${tenantId}, true)`;
 
       return await callback(tx as unknown as PrismaClient);
     },
@@ -268,14 +279,12 @@ async function runTenantTransaction<T>(
   );
 }
 
-/**
- * Admin context — BYPASSES RLS.
- * Use ONLY for: migrations, support tools, monitoring.
- * NEVER expose to user-facing API.
- */
-export async function withAdminContext<T>(
-  callback: (tx: PrismaClient) => Promise<T>
-): Promise<T> {
-  // No SET LOCAL → uses mise_admin role (BYPASSRLS)
-  return await callback(prisma);
-}
+// `withAdminContext` used to live here. It has moved to `db-admin.ts` and is
+// now called `withRlsBypass`, because in this module it was neither: it
+// returned the ordinary client, its comment named a `mise_admin` role that
+// has never existed in this database, and nothing was bypassed because
+// nothing was being enforced (ADR 0030 Context 2).
+//
+// Keeping it out of `db.ts` is deliberate. This module is imported by every
+// page and every action; the door that ignores tenant isolation should not
+// be one autocomplete away from them.

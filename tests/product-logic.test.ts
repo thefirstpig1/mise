@@ -9,7 +9,8 @@
 // ============================================================
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { withAdminContext, prisma } from "@/lib/db";
+import { prisma } from "@/lib/db";
+import { withRlsBypass } from "@/lib/db-admin";
 import { productInputSchema } from "@/lib/validations/product";
 import { supplierInputSchema } from "@/lib/validations/supplier";
 import { supplierProductMappingInputSchema } from "@/lib/validations/supplier-product-mapping";
@@ -54,7 +55,7 @@ describe("product *Logic (tenant-scoped, app-layer isolation)", () => {
   let tenantD: string; // dedicated to the concurrent sku generation test
 
   beforeAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       const a = await tx.tenant.create({ data: { name: "Product Test Tenant A" } });
       const b = await tx.tenant.create({ data: { name: "Product Test Tenant B" } });
       const c = await tx.tenant.create({ data: { name: "Product Test Tenant C" } });
@@ -68,7 +69,7 @@ describe("product *Logic (tenant-scoped, app-layer isolation)", () => {
 
   afterAll(async () => {
     const ids = [tenantA, tenantB, tenantC, tenantD];
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       // Part 8 L3b: mappings RESTRICT product/supplier hard-deletes → clear first.
       await tx.supplierProductMapping.deleteMany({ where: { tenantId: { in: ids } } });
       // 7c: PREPPED chains create parent_product_id FKs. Null them out before
@@ -144,7 +145,7 @@ describe("product *Logic (tenant-scoped, app-layer isolation)", () => {
 
   // Slice 2 — categoryId is set and the relation is returned
   it("createProductLogic links the chosen category", async () => {
-    const cat = await withAdminContext((tx) =>
+    const cat = await withRlsBypass((tx) =>
       tx.category.create({
         data: { tenantId: tenantA, account: "COGS", accountingSection: "Food", groupName: "Meat" },
       })
@@ -227,7 +228,7 @@ describe("product *Logic (tenant-scoped, app-layer isolation)", () => {
     expect(await getProductByIdLogic(tenantA, created.id)).toBeNull();
 
     // row still physically exists (soft-delete, not hard delete)
-    const row = await withAdminContext((tx) =>
+    const row = await withRlsBypass((tx) =>
       tx.product.findUnique({ where: { id: created.id } })
     );
     expect(row?.deletedAt).not.toBeNull();
@@ -370,7 +371,7 @@ describe("product *Logic (tenant-scoped, app-layer isolation)", () => {
     expect(updated!.productUnits.filter((u) => u.isDefaultBuyUnit)).toHaveLength(1);
 
     // hard delete: the additional row is physically gone (no deletedAt on ProductUnit)
-    const ghost = await withAdminContext((tx) => tx.productUnit.findUnique({ where: { id: sackId } }));
+    const ghost = await withRlsBypass((tx) => tx.productUnit.findUnique({ where: { id: sackId } }));
     expect(ghost).toBeNull();
   });
 
@@ -414,7 +415,7 @@ describe("product *Logic (tenant-scoped, app-layer isolation)", () => {
   // Slice 10 — categoryId must belong to the calling tenant (cross-tenant FK guard)
   it("rejects a categoryId owned by another tenant, on both create and update", async () => {
     // B's category — A must NOT be able to reference it.
-    const bCat = await withAdminContext((tx) =>
+    const bCat = await withRlsBypass((tx) =>
       tx.category.create({
         data: { tenantId: tenantB, account: "COGS", accountingSection: "Food", groupName: "B-Only" },
       })
@@ -616,7 +617,7 @@ describe("product *Logic (tenant-scoped, app-layer isolation)", () => {
   // L15 — live-only traversal: a soft-deleted ancestor mid-chain doesn't count.
   // Build a max-depth chain (5 nodes), then BYPASS deleteProductLogic (which
   // would block on live children — Q5) by directly stamping the middle node as
-  // soft-deleted via withAdminContext. With one ancestor removed from the
+  // soft-deleted via withRlsBypass. With one ancestor removed from the
   // count, adding a 6th descendant via the live walker (formula = 3+1+0 = 4)
   // succeeds where the raw walker (formula = 4+1+0 = 5) would have rejected.
   it("live-only traversal: soft-deleted ancestors don't count toward depth", async () => {
@@ -629,7 +630,7 @@ describe("product *Logic (tenant-scoped, app-layer isolation)", () => {
 
     // Bypass Q5 to soft-delete the middle node (chain[2]) while it has live
     // descendants — simulates a state the live-only walker must still handle.
-    await withAdminContext((tx) =>
+    await withRlsBypass((tx) =>
       tx.product.update({
         where: { id: chain[2].id },
         data: { deletedAt: new Date() },
@@ -682,7 +683,7 @@ describe("product *Logic (tenant-scoped, app-layer isolation)", () => {
 
   /** Read a raw product row (all scalars) bypassing tenant scope. */
   const rawProductRow = (id: string) =>
-    withAdminContext((tx) => tx.product.findUnique({ where: { id } }));
+    withRlsBypass((tx) => tx.product.findUnique({ where: { id } }));
 
   // A well-formed uuid that is NOT a seeded template id.
   const MISSING_TEMPLATE_ID = "00000000-0000-4000-8000-000000000000";
@@ -942,7 +943,7 @@ describe("product *Logic (tenant-scoped, app-layer isolation)", () => {
     expect(await getSupplierProductMappingByIdLogic(tenantA, m1.id)).toBeNull();
     expect(await getSupplierProductMappingByIdLogic(tenantA, m2.id)).toBeNull();
     // rows physically survive with deletedAt stamped (soft-delete, not hard delete)
-    const rows = await withAdminContext((tx) =>
+    const rows = await withRlsBypass((tx) =>
       tx.supplierProductMapping.findMany({ where: { id: { in: [m1.id, m2.id] } } })
     );
     expect(rows.every((r) => r.deletedAt !== null)).toBe(true);

@@ -15,7 +15,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { randomUUID } from "node:crypto";
-import { withAdminContext } from "@/lib/db";
+import { withRlsBypass } from "@/lib/db-admin";
 import { computeHeaderSignature } from "@/lib/sales-file";
 import {
   SalesImportAlreadyCommittedError,
@@ -72,7 +72,7 @@ describe("sales import preview + commit *Logic (a day has one source)", () => {
   };
 
   const liveLines = (branchId = branchA) =>
-    withAdminContext((tx) =>
+    withRlsBypass((tx) =>
       tx.salesLine.findMany({
         where: { tenantId: tenantA, branchId, supersededAt: null },
         orderBy: { businessDate: "asc" },
@@ -80,7 +80,7 @@ describe("sales import preview + commit *Logic (a day has one source)", () => {
     );
 
   beforeAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       const t = await tx.tenant.create({ data: { name: "Sales Import Test Tenant" } });
       tenantA = t.id;
       const [b1, b2] = await Promise.all([
@@ -117,7 +117,7 @@ describe("sales import preview + commit *Logic (a day has one source)", () => {
   });
 
   afterAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       await tx.salesLine.deleteMany({ where: { tenantId: tenantA } });
       await tx.salesDay.deleteMany({ where: { tenantId: tenantA } });
       await tx.salesImportBatch.deleteMany({ where: { tenantId: tenantA } });
@@ -160,7 +160,7 @@ describe("sales import preview + commit *Logic (a day has one source)", () => {
     const tag = randomUUID().slice(0, 6);
     const { batchId } = await importFile([["02/01/2568", `อาหาร-${tag}`, `ต้มยำ-${tag}`, "1", "150"]]);
 
-    const [batch, pos] = await withAdminContext(async (tx) => [
+    const [batch, pos] = await withRlsBypass(async (tx) => [
       await tx.salesImportBatch.findUniqueOrThrow({ where: { id: batchId } }),
       await tx.posIntegration.findUniqueOrThrow({ where: { id: posA } }),
     ]);
@@ -175,7 +175,7 @@ describe("sales import preview + commit *Logic (a day has one source)", () => {
     const tag = randomUUID().slice(0, 6);
     await importFile([["03/01/2568", `ของหวาน-${tag}`, `บัวลอย-${tag}`, "1", "60"]]);
 
-    const menu = await withAdminContext((tx) =>
+    const menu = await withRlsBypass((tx) =>
       tx.menu.findFirstOrThrow({
         where: { tenantId: tenantA, posMenuName: `บัวลอย-${tag}` },
         include: { menuCategory: true },
@@ -211,7 +211,7 @@ describe("sales import preview + commit *Logic (a day has one source)", () => {
       ["11/01/2568", `อาหาร-${tag}`, `หมูกรอบ-${tag}`, "5", "500"],
     ]);
 
-    const all = await withAdminContext((tx) =>
+    const all = await withRlsBypass((tx) =>
       tx.salesLine.findMany({
         where: { tenantId: tenantA, businessDate: day("2025-01-11") },
         orderBy: { createdAt: "asc" },
@@ -231,7 +231,7 @@ describe("sales import preview + commit *Logic (a day has one source)", () => {
     await importFile([["12/01/2568", `อาหาร-${tag}`, `ยำ-${tag}`, "1", "100"]]);
     const { batchId } = await importFile([["12/01/2568", `อาหาร-${tag}`, `ยำ-${tag}`, "2", "200"]]);
 
-    const salesDay = await withAdminContext((tx) =>
+    const salesDay = await withRlsBypass((tx) =>
       tx.salesDay.findFirstOrThrow({
         where: { tenantId: tenantA, branchId: branchA, businessDate: day("2025-01-12") },
       })
@@ -269,7 +269,7 @@ describe("sales import preview + commit *Logic (a day has one source)", () => {
   it("N9: a spelling pointed at an existing dish by hand never becomes a stub", async () => {
     const tag = randomUUID().slice(0, 6);
     await importFile([["25/01/2568", `อาหาร-${tag}`, `ปลาทอด-${tag}`, "1", "200"]]);
-    const menu = await withAdminContext((tx) =>
+    const menu = await withRlsBypass((tx) =>
       tx.menu.findFirstOrThrow({ where: { tenantId: tenantA, posMenuName: `ปลาทอด-${tag}` } })
     );
 
@@ -286,7 +286,7 @@ describe("sales import preview + commit *Logic (a day has one source)", () => {
     expect(p.newMenus).toHaveLength(0);
     expect(result.stubMenusCreated).toBe(0);
 
-    const lines = await withAdminContext((tx) =>
+    const lines = await withRlsBypass((tx) =>
       tx.salesLine.findMany({
         where: { tenantId: tenantA, businessDate: day("2025-01-26"), supersededAt: null },
       })
@@ -319,7 +319,7 @@ describe("sales import preview + commit *Logic (a day has one source)", () => {
       )
     ).rejects.toBeInstanceOf(SalesImportPreviewStaleError);
 
-    const lines = await withAdminContext((tx) =>
+    const lines = await withRlsBypass((tx) =>
       tx.salesLine.count({ where: { tenantId: tenantA, businessDate: day("2025-01-27") } })
     );
     expect(lines).toBe(0);
@@ -356,7 +356,7 @@ describe("sales import preview + commit *Logic (a day has one source)", () => {
     const rows = [["29/01/2568", "อาหาร", "ข้าวผัด", "", "100"]];
     await expect(preview(rows, batchId)).rejects.toBeInstanceOf(SalesImportFileRejectedError);
 
-    const batch = await withAdminContext((tx) =>
+    const batch = await withRlsBypass((tx) =>
       tx.salesImportBatch.findUniqueOrThrow({ where: { id: batchId } })
     );
     expect(batch.status).toBe("FAILED");
@@ -398,7 +398,7 @@ describe("sales import preview + commit *Logic (a day has one source)", () => {
       ["05/02/2568", `อาหาร-${tag}`, `หมูสะเต๊ะ-${tag}`, "2", "0"],
       ["05/02/2568", `อาหาร-${tag}`, `หมูสะเต๊ะ-${tag}`, "-1", "-90"],
     ]);
-    const lines = await withAdminContext((tx) =>
+    const lines = await withRlsBypass((tx) =>
       tx.salesLine.findMany({
         where: { tenantId: tenantA, businessDate: day("2025-02-05"), supersededAt: null },
         orderBy: { netAmount: "desc" },
@@ -412,12 +412,12 @@ describe("sales import preview + commit *Logic (a day has one source)", () => {
     // sales_day is UNIQUE(branch_id, business_date), so one branch's re-import
     // can never touch another's figures.
     const tag = randomUUID().slice(0, 6);
-    const posB = await withAdminContext((tx) =>
+    const posB = await withRlsBypass((tx) =>
       tx.posIntegration.create({
         data: { tenantId: tenantA, branchId: branchB, posType: "CUSTOM", name: "อารีย์ POS" },
       })
     );
-    const profB = await withAdminContext((tx) =>
+    const profB = await withRlsBypass((tx) =>
       tx.salesImportProfile.create({
         data: {
           tenantId: tenantA,

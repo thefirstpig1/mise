@@ -52,8 +52,19 @@ CREATE ROLE mise_app WITH LOGIN PASSWORD 'REPLACE_ME_BEFORE_RUNNING';
 -- file. Revoking is harmless if it was never granted.
 REVOKE neon_superuser FROM mise_app;
 
--- Belt and braces: state the absence rather than relying on the default.
-ALTER ROLE mise_app NOBYPASSRLS NOSUPERUSER NOCREATEDB NOCREATEROLE;
+-- ⚠️ THERE IS NO `ALTER ROLE ... NOSUPERUSER` HERE, AND THAT IS DELIBERATE.
+-- The obvious belt-and-braces line
+--
+--     ALTER ROLE mise_app NOBYPASSRLS NOSUPERUSER NOCREATEDB NOCREATEROLE;
+--
+-- CANNOT RUN on Neon: neondb_owner is not a superuser, and Postgres answers
+-- "Only roles with the SUPERUSER attribute may change the SUPERUSER attribute".
+-- In a pasted batch that error stops every statement after it — which is
+-- exactly what happened the first time this file was run, leaving a role that
+-- could log in and had no grants at all.
+--
+-- It is also unnecessary: a role created by SQL gets NOSUPERUSER and
+-- NOBYPASSRLS by default. Verify rather than assert (section 5).
 
 
 -- ============================================================

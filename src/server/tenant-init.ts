@@ -5,6 +5,7 @@
 // Called from /api/tenant/create or signup flow
 // ============================================================
 
+import { randomUUID } from "node:crypto";
 import { prisma } from "../lib/db";
 import { initializeTenant } from "../../prisma/seed";
 
@@ -28,10 +29,26 @@ export interface CreateTenantInput {
  * 5. Auto-seed Main dept + assign owner (H.1)
  */
 export async function createTenant(input: CreateTenantInput) {
+  // The id is minted HERE rather than by the database, because every one of
+  // the seven inserts below has to pass a row-security policy that keys on
+  // `app.current_tenant_id` — and the very first of them is the tenant
+  // itself. Postgres uses a policy's USING expression as its WITH CHECK
+  // when none is given, so `tenant` cannot be inserted at all unless the
+  // context already names the id being inserted (ADR 0030 Q4).
+  //
+  // The alternative was to let signup use the RLS-bypassing connection.
+  // Refused: /signup needs no login, and that would make it the only place
+  // in the product where an unauthenticated request touches the connection
+  // that ignores tenant isolation.
+  const tenantId = randomUUID();
+
   return await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`select set_config('app.current_tenant_id', ${tenantId}, true)`;
+
     // 1. Create tenant
     const tenant = await tx.tenant.create({
       data: {
+        id: tenantId,
         name: input.tenantName,
         legalName: input.legalName,
         taxId: input.taxId,

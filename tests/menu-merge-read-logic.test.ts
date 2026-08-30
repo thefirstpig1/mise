@@ -26,7 +26,8 @@
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { randomUUID } from "node:crypto";
-import { withAdminContext, prisma } from "@/lib/db";
+import { prisma } from "@/lib/db";
+import { withRlsBypass } from "@/lib/db-admin";
 import {
   menuMergeListQuerySchema,
   mergeCandidatesQuerySchema,
@@ -48,7 +49,7 @@ describe("menu merging reads (ADR 0026 Q6/Q7)", () => {
   let posPattaya: string;
 
   const makeMenu = (name: string, posIntegrationId?: string) =>
-    withAdminContext((tx) =>
+    withRlsBypass((tx) =>
       tx.menu.create({
         data: {
           tenantId: tenantA,
@@ -89,7 +90,7 @@ describe("menu merging reads (ADR 0026 Q6/Q7)", () => {
     );
 
   beforeAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       const t = await tx.tenant.create({ data: { name: "Merge Read Tenant" } });
       tenantA = t.id;
       const u = await tx.user.create({
@@ -124,7 +125,7 @@ describe("menu merging reads (ADR 0026 Q6/Q7)", () => {
   }, 180_000);
 
   afterAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       await tx.menuMerge.deleteMany({ where: { tenantId: tenantA } });
       await tx.menu.deleteMany({ where: { tenantId: tenantA } });
       await tx.posIntegration.deleteMany({ where: { tenantId: tenantA } });

@@ -17,7 +17,8 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
-import { withAdminContext, withTenantContext, prisma } from "@/lib/db";
+import { withTenantContext, prisma } from "@/lib/db";
+import { withRlsBypass } from "@/lib/db-admin";
 import { addDays, computeBangkokToday } from "@/lib/bangkok-date";
 import { productInputSchema } from "@/lib/validations/product";
 import {
@@ -84,7 +85,7 @@ describe("stock adjustment write *Logic (append-only ledger, ADR 0011)", () => {
     });
 
   beforeAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       const a = await tx.tenant.create({ data: { name: "Adjust Test Tenant A" } });
       const b = await tx.tenant.create({ data: { name: "Adjust Test Tenant B" } });
       tenantA = a.id;
@@ -139,7 +140,7 @@ describe("stock adjustment write *Logic (append-only ledger, ADR 0011)", () => {
 
   afterAll(async () => {
     const ids = [tenantA, tenantB];
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       await tx.stockMovement.deleteMany({ where: { tenantId: { in: ids } } });
       await tx.stockAdjustment.deleteMany({ where: { tenantId: { in: ids } } });
       await tx.productUnit.deleteMany({
@@ -288,7 +289,7 @@ describe("stock adjustment write *Logic (append-only ledger, ADR 0011)", () => {
     ).rejects.toThrow(QtyRoundsToZeroError);
 
     // The whole tx rolled back — no orphan source row (Q4).
-    const rows = await withAdminContext((tx) =>
+    const rows = await withRlsBypass((tx) =>
       tx.stockAdjustment.count({ where: { productId: prodTiny.id } })
     );
     expect(rows).toBe(0);
@@ -348,7 +349,7 @@ describe("stock adjustment write *Logic (append-only ledger, ADR 0011)", () => {
     );
 
     expect(replay.id).toBe(first.movement.id);
-    const count = await withAdminContext((tx) =>
+    const count = await withRlsBypass((tx) =>
       tx.stockMovement.count({
         where: { sourceType: "ADJUSTMENT", sourceId: first.adjustment.id },
       })

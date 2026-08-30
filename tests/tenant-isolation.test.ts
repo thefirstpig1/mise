@@ -6,7 +6,8 @@
 // ============================================================
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { prisma, withTenantContext, withAdminContext } from "@/lib/db";
+import { prisma, withTenantContext,  } from "@/lib/db";
+import { withRlsBypass } from "@/lib/db-admin";
 
 // SKIPPED until Sprint 7 — these are PURE-RLS tests (they call findMany()
 // with no WHERE and expect the DB to filter by app.current_tenant_id).
@@ -23,7 +24,7 @@ describe.skip("Tenant Isolation (RLS — H.10) — re-enable at Sprint 7 FORCE R
 
   beforeAll(async () => {
     // Create 2 tenants via admin context (bypasses RLS)
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       const a = await tx.tenant.create({ data: { name: "Tenant A (test)" } });
       const b = await tx.tenant.create({ data: { name: "Tenant B (test)" } });
       tenantA = a.id;
@@ -36,7 +37,7 @@ describe.skip("Tenant Isolation (RLS — H.10) — re-enable at Sprint 7 FORCE R
   });
 
   afterAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       await tx.branch.deleteMany({ where: { tenantId: { in: [tenantA, tenantB] } } });
       await tx.tenant.deleteMany({ where: { id: { in: [tenantA, tenantB] } } });
     });
@@ -64,7 +65,7 @@ describe.skip("Tenant Isolation (RLS — H.10) — re-enable at Sprint 7 FORCE R
   });
 
   it("Admin context sees all branches (BYPASSRLS)", async () => {
-    const branches = await withAdminContext(async (tx) => {
+    const branches = await withRlsBypass(async (tx) => {
       return await tx.branch.findMany({
         where: { tenantId: { in: [tenantA, tenantB] } },
       });
@@ -75,7 +76,7 @@ describe.skip("Tenant Isolation (RLS — H.10) — re-enable at Sprint 7 FORCE R
 
   it("Tenant A cannot read Tenant B by id", async () => {
     // Try to read Tenant B's branch from Tenant A context
-    const tenantBBranch = await withAdminContext(async (tx) => {
+    const tenantBBranch = await withRlsBypass(async (tx) => {
       return await tx.branch.findFirst({ where: { tenantId: tenantB } });
     });
 

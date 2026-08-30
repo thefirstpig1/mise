@@ -40,7 +40,7 @@ vi.mock("next/cache", () => ({
   revalidateTag: () => {},
 }));
 
-const { withAdminContext } = await import("@/lib/db");
+const { withRlsBypass } = await import("@/lib/db-admin");
 const { computeBangkokToday } = await import("@/lib/bangkok-date");
 const { productInputSchema } = await import("@/lib/validations/product");
 const { createProductLogic } = await import("@/server/product");
@@ -122,12 +122,12 @@ describe("the gate, pressed (ADR 0029 Part 28 L6)", () => {
   };
 
   const movementCount = () =>
-    withAdminContext((tx) =>
+    withRlsBypass((tx) =>
       tx.stockMovement.count({ where: { tenantId: tenantA } })
     );
 
   beforeAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       const t = await tx.tenant.create({ data: { name: "Gate Pressed Tenant" } });
       tenantA = t.id;
 
@@ -189,7 +189,7 @@ describe("the gate, pressed (ADR 0029 Part 28 L6)", () => {
 
   afterAll(async () => {
     currentUserId = null;
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       await tx.stockCountEntry.deleteMany({ where: { tenantId: tenantA } });
       await tx.stockCountItem.deleteMany({ where: { tenantId: tenantA } });
       await tx.stockCount.deleteMany({ where: { tenantId: tenantA } });

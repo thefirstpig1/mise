@@ -21,7 +21,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { EVERY_BRANCH } from "./support/reach";
 import { randomUUID } from "node:crypto";
-import { withAdminContext } from "@/lib/db";
+import { withRlsBypass } from "@/lib/db-admin";
 import { addDays, computeBangkokToday } from "@/lib/bangkok-date";
 import { productInputSchema } from "@/lib/validations/product";
 import { createProductLogic, type ProductWithUnits } from "@/server/product";
@@ -140,7 +140,7 @@ describe("staff meal — money (ADR 0028 Consequences 1 & 2)", () => {
     );
 
   beforeAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       const t = await tx.tenant.create({
         data: { name: "Staff Meal Cost Tenant", grossProfitMethod: "RECIPE_CONSUMPTION" },
       });
@@ -206,7 +206,7 @@ describe("staff meal — money (ADR 0028 Consequences 1 & 2)", () => {
       })
     );
 
-    kaphrao = await withAdminContext((tx) =>
+    kaphrao = await withRlsBypass((tx) =>
       tx.menu.create({
         data: {
           tenantId: tenantA,
@@ -253,7 +253,7 @@ describe("staff meal — money (ADR 0028 Consequences 1 & 2)", () => {
   }, 300_000);
 
   afterAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       await tx.stockMovement.deleteMany({ where: { tenantId: tenantA } });
       await tx.staffMealItem.deleteMany({
         where: { tenantId: tenantA, reversalOfItemId: { not: null } },
@@ -333,7 +333,7 @@ describe("staff meal — money (ADR 0028 Consequences 1 & 2)", () => {
 
   it("C2: a staff meal stays out of cogsSold, by rule and not by a query missing", async () => {
     // A real sale on its own day, posted. 5 plates × 100 g = 0.5 kg.
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       const day = await tx.salesDay.create({
         data: {
           tenantId: tenantA,

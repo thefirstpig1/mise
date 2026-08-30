@@ -13,7 +13,8 @@
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { randomUUID } from "node:crypto";
-import { prisma, withAdminContext } from "@/lib/db";
+import { prisma,  } from "@/lib/db";
+import { withRlsBypass } from "@/lib/db-admin";
 import { addDays, computeBangkokToday } from "@/lib/bangkok-date";
 import { productInputSchema } from "@/lib/validations/product";
 import { createProductLogic, type ProductWithUnits } from "@/server/product";
@@ -55,7 +56,7 @@ describe("posting consumption (ADR 0022 Part 22 L3b)", () => {
     );
 
   const makeMenu = (name: string): Promise<{ id: string; name: string }> =>
-    withAdminContext((tx) =>
+    withRlsBypass((tx) =>
       tx.menu.create({
         data: {
           tenantId: tenantA,
@@ -97,7 +98,7 @@ describe("posting consumption (ADR 0022 Part 22 L3b)", () => {
     qty: number,
     netAmount: number
   ) => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       const day = await tx.salesDay.upsert({
         where: { branchId_businessDate: { branchId: branchA, businessDate } },
         create: {
@@ -150,7 +151,7 @@ describe("posting consumption (ADR 0022 Part 22 L3b)", () => {
     );
 
   const movementsFor = (p: ProductWithUnits) =>
-    withAdminContext((tx) =>
+    withRlsBypass((tx) =>
       tx.stockMovement.findMany({
         where: { tenantId: tenantA, productId: p.id },
         orderBy: { createdAt: "asc" },
@@ -165,7 +166,7 @@ describe("posting consumption (ADR 0022 Part 22 L3b)", () => {
     );
 
   beforeAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       const t = await tx.tenant.create({ data: { name: "Consumption Post Tenant" } });
       tenantA = t.id;
       const b = await tx.branch.create({
@@ -222,7 +223,7 @@ describe("posting consumption (ADR 0022 Part 22 L3b)", () => {
   }, 300_000);
 
   afterAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       await tx.stockMovement.deleteMany({ where: { tenantId: tenantA } });
       // The reversal rows go FIRST, and are not nulled on the way out:
       // `sales_consumption_item_product_unique` covers (run_id, product_id)
@@ -290,7 +291,7 @@ describe("posting consumption (ADR 0022 Part 22 L3b)", () => {
 
     expect(second.run.id).toBe(first.run.id);
     expect(await balance(pork)).toBe("-1.7"); // 1.2 + 0.5, not 2.2
-    const runs = await withAdminContext((tx) =>
+    const runs = await withRlsBypass((tx) =>
       tx.salesConsumptionRun.count({
         where: { tenantId: tenantA, businessDate: day },
       })
@@ -333,7 +334,7 @@ describe("posting consumption (ADR 0022 Part 22 L3b)", () => {
 
   it("P-05 the void APPENDS reversal rows — nothing is edited and nothing is deleted", async () => {
     const day = addDays(today, -2);
-    const rows = await withAdminContext((tx) =>
+    const rows = await withRlsBypass((tx) =>
       tx.salesConsumptionItem.findMany({
         where: { tenantId: tenantA, run: { businessDate: day }, productId: pork.id },
         orderBy: { createdAt: "asc" },
@@ -347,7 +348,7 @@ describe("posting consumption (ADR 0022 Part 22 L3b)", () => {
     expect(rows.filter((r) => r.reversalOfItemId !== null)).toHaveLength(1);
     expect(rows[1].qty.toString()).toBe("0.5");
 
-    const voided = await withAdminContext((tx) =>
+    const voided = await withRlsBypass((tx) =>
       tx.salesConsumptionRun.findFirst({
         where: { tenantId: tenantA, businessDate: day, voidedAt: { not: null } },
         select: { voidReason: true, voidedBy: true },
@@ -372,7 +373,7 @@ describe("posting consumption (ADR 0022 Part 22 L3b)", () => {
 
   it("P-07 exactly one LIVE run per day survives all of that", async () => {
     const day = addDays(today, -2);
-    const live = await withAdminContext((tx) =>
+    const live = await withRlsBypass((tx) =>
       tx.salesConsumptionRun.count({
         where: { tenantId: tenantA, businessDate: day, voidedAt: null },
       })
@@ -407,7 +408,7 @@ describe("posting consumption (ADR 0022 Part 22 L3b)", () => {
 
   it("P-09 the run freezes the policy it was computed under", async () => {
     const day = addDays(today, -3);
-    const run = await withAdminContext((tx) =>
+    const run = await withRlsBypass((tx) =>
       tx.salesConsumptionRun.findFirst({
         where: { tenantId: tenantA, businessDate: day, voidedAt: null },
         select: { cancelledSalePolicy: true },
@@ -468,7 +469,7 @@ describe("posting consumption (ADR 0022 Part 22 L3b)", () => {
 
   it("P-12 voiding an already-voided run by id is a no-op too", async () => {
     const day = addDays(today, -4);
-    const run = await withAdminContext((tx) =>
+    const run = await withRlsBypass((tx) =>
       tx.salesConsumptionRun.findFirst({
         where: { tenantId: tenantA, businessDate: day },
         select: { id: true },
@@ -485,7 +486,7 @@ describe("posting consumption (ADR 0022 Part 22 L3b)", () => {
   // ------------------------------------------------------------
 
   it("P-13 a day whose cancellations outweigh its sales posts stock BACK", async () => {
-    await withAdminContext((tx) =>
+    await withRlsBypass((tx) =>
       tx.tenant.update({
         where: { id: tenantA },
         data: { cancelledSalePolicy: "TREAT_AS_NOT_COOKED" },
@@ -508,7 +509,7 @@ describe("posting consumption (ADR 0022 Part 22 L3b)", () => {
     expect(mv!.type).toBe("CONSUMPTION_REVERSAL");
     expect(Number(await balance(pork))).toBeCloseTo(before + 0.4, 6);
 
-    await withAdminContext((tx) =>
+    await withRlsBypass((tx) =>
       tx.tenant.update({
         where: { id: tenantA },
         data: { cancelledSalePolicy: "TREAT_AS_COOKED" },

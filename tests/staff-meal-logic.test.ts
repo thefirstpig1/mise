@@ -11,7 +11,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { randomUUID } from "node:crypto";
-import { withAdminContext } from "@/lib/db";
+import { withRlsBypass } from "@/lib/db-admin";
 import { addDays, computeBangkokToday } from "@/lib/bangkok-date";
 import { productInputSchema } from "@/lib/validations/product";
 import { createProductLogic, type ProductWithUnits } from "@/server/product";
@@ -69,7 +69,7 @@ describe("staff meal — writing (ADR 0028 Part 26 L3)", () => {
     );
 
   const makeMenu = (name: string) =>
-    withAdminContext((tx) =>
+    withRlsBypass((tx) =>
       tx.menu.create({
         data: {
           tenantId: tenantA,
@@ -117,7 +117,7 @@ describe("staff meal — writing (ADR 0028 Part 26 L3)", () => {
     );
 
   const sell = async (menuId: string, qty: number, netAmount: number) => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       const day = await tx.salesDay.upsert({
         where: {
           branchId_businessDate: { branchId: branchA, businessDate: YESTERDAY },
@@ -174,7 +174,7 @@ describe("staff meal — writing (ADR 0028 Part 26 L3)", () => {
     );
 
   const movementsFor = (p: ProductWithUnits) =>
-    withAdminContext((tx) =>
+    withRlsBypass((tx) =>
       tx.stockMovement.findMany({
         where: { tenantId: tenantA, productId: p.id },
         orderBy: { createdAt: "asc" },
@@ -183,7 +183,7 @@ describe("staff meal — writing (ADR 0028 Part 26 L3)", () => {
     );
 
   beforeAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       const t = await tx.tenant.create({ data: { name: "Staff Meal Tenant" } });
       tenantA = t.id;
       const b = await tx.branch.create({
@@ -249,7 +249,7 @@ describe("staff meal — writing (ADR 0028 Part 26 L3)", () => {
     await makeRecipe(neverSold.id, [[pork, 0.1]]);
     // planned_price is written by Menu Lab, not by createRecipeLogic — the
     // fixture arranges the state rather than driving the lab to reach it.
-    await withAdminContext((tx) =>
+    await withRlsBypass((tx) =>
       tx.recipe.updateMany({
         where: { tenantId: tenantA, menuId: neverSold.id },
         data: { plannedPrice: 45 },
@@ -266,7 +266,7 @@ describe("staff meal — writing (ADR 0028 Part 26 L3)", () => {
       branchId: branchA,
       dailyQuotaAmount: null,
     })).id;
-    await withAdminContext((tx) =>
+    await withRlsBypass((tx) =>
       tx.staffMember.update({
         where: { id: departed },
         data: { isActive: false },
@@ -278,7 +278,7 @@ describe("staff meal — writing (ADR 0028 Part 26 L3)", () => {
   }, 300_000);
 
   afterAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       await tx.stockMovement.deleteMany({ where: { tenantId: tenantA } });
       // Reversal rows first, and their pointers are NOT nulled on the way out:
       // staff_meal_item_product_unique covers (staff_meal_id, product_id) WHERE
@@ -361,7 +361,7 @@ describe("staff meal — writing (ADR 0028 Part 26 L3)", () => {
     expect(Number(await balance(basil))).toBeCloseTo(Number(before) - 0.5, 5);
 
     // The unit the person typed is kept, so re-opening shows 500 g and not 0.5 kg.
-    const item = await withAdminContext((tx) =>
+    const item = await withRlsBypass((tx) =>
       tx.staffMealItem.findFirst({
         where: { staffMealId: res.id },
         select: { inputQty: true, inputUnitId: true, qty: true },
@@ -392,7 +392,7 @@ describe("staff meal — writing (ADR 0028 Part 26 L3)", () => {
     // And the item's id is the DERIVED one, which is what makes the ledger's
     // UNIQUE(source_type, source_id) reachable from a re-press that somehow got
     // past the document check.
-    const items = await withAdminContext((tx) =>
+    const items = await withRlsBypass((tx) =>
       tx.staffMealItem.findMany({
         where: { staffMealId: first.id },
         select: { id: true, productId: true },
@@ -423,7 +423,7 @@ describe("staff meal — writing (ADR 0028 Part 26 L3)", () => {
     // Stock is back where it started.
     expect(Number(await balance(pork))).toBeCloseTo(Number(before), 5);
 
-    const doc = await withAdminContext((tx) =>
+    const doc = await withRlsBypass((tx) =>
       tx.staffMeal.findUnique({
         where: { id: meal.id },
         select: {
@@ -464,7 +464,7 @@ describe("staff meal — writing (ADR 0028 Part 26 L3)", () => {
 
   it("K6: a dish with no recipe writes NOTHING, rather than a meal that deducts nothing", async () => {
     const before = await balance(pork);
-    const countBefore = await withAdminContext((tx) =>
+    const countBefore = await withRlsBypass((tx) =>
       tx.staffMeal.count({ where: { tenantId: tenantA } })
     );
 
@@ -474,7 +474,7 @@ describe("staff meal — writing (ADR 0028 Part 26 L3)", () => {
 
     expect(await balance(pork)).toBe(before);
     expect(
-      await withAdminContext((tx) =>
+      await withRlsBypass((tx) =>
         tx.staffMeal.count({ where: { tenantId: tenantA } })
       )
     ).toBe(countBefore);
@@ -533,7 +533,7 @@ describe("staff meal — writing (ADR 0028 Part 26 L3)", () => {
     // (rule S2).
     await sell(kaphrao.id, 1, 200);
 
-    const stored = await withAdminContext((tx) =>
+    const stored = await withRlsBypass((tx) =>
       tx.staffMeal.findUnique({
         where: { id: meal.id },
         select: { frozenUnitPrice: true },

@@ -16,7 +16,8 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { EVERY_BRANCH } from "./support/reach";
 import { randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
-import { withAdminContext, withTenantContext, prisma } from "@/lib/db";
+import { withTenantContext, prisma } from "@/lib/db";
+import { withRlsBypass } from "@/lib/db-admin";
 import { productInputSchema } from "@/lib/validations/product";
 import { createProductLogic, type ProductWithUnits } from "@/server/product";
 import { supplierInputSchema } from "@/lib/validations/supplier";
@@ -205,7 +206,7 @@ describe("cost read *Logic (FIFO by ledger replay, ADR 0014)", () => {
     );
 
   beforeAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       const a = await tx.tenant.create({ data: { name: "Cost Test Tenant A" } });
       const b = await tx.tenant.create({ data: { name: "Cost Test Tenant B" } });
       tenantA = a.id;
@@ -247,7 +248,7 @@ describe("cost read *Logic (FIFO by ledger replay, ADR 0014)", () => {
 
   afterAll(async () => {
     const ids = [tenantA, tenantB];
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       await tx.stockCostDeclaration.deleteMany({ where: { tenantId: { in: ids } } });
       await tx.wasteLog.deleteMany({ where: { tenantId: { in: ids } } });
       await tx.stockMovement.deleteMany({ where: { tenantId: { in: ids } } });
@@ -356,7 +357,7 @@ describe("cost read *Logic (FIFO by ledger replay, ADR 0014)", () => {
     expect(cost.costSource).toBe("UNPRICED");
     expect(cost.hasUnpricedLayers).toBe(true);
 
-    await withAdminContext((tx) =>
+    await withRlsBypass((tx) =>
       tx.stockCostDeclaration.create({
         data: {
           tenantId: tenantA,
@@ -376,7 +377,7 @@ describe("cost read *Logic (FIFO by ledger replay, ADR 0014)", () => {
     expect(num(cost.inventoryValue)).toBe(1500);
 
     // Correct it: the old statement closes, the new one governs.
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       await tx.stockCostDeclaration.updateMany({
         where: { movementId: movement.id, supersededAt: null },
         data: { supersededAt: new Date() },

@@ -13,7 +13,8 @@
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { randomUUID } from "node:crypto";
-import { prisma, withAdminContext } from "@/lib/db";
+import { prisma,  } from "@/lib/db";
+import { withRlsBypass } from "@/lib/db-admin";
 import { addDays, computeBangkokToday } from "@/lib/bangkok-date";
 import { MAX_BACKDATE_DAYS } from "@/lib/validations/stock-movement";
 import { productInputSchema } from "@/lib/validations/product";
@@ -53,7 +54,7 @@ describe("consumption day status (ADR 0022 Part 22 L4a)", () => {
     p.productUnits.find((u) => u.isBase)!.id;
 
   const makeMenu = (name: string) =>
-    withAdminContext((tx) =>
+    withRlsBypass((tx) =>
       tx.menu.create({
         data: {
           tenantId: tenantA,
@@ -95,7 +96,7 @@ describe("consumption day status (ADR 0022 Part 22 L4a)", () => {
     qty: number,
     netAmount: number
   ) => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       const day = await tx.salesDay.upsert({
         where: { branchId_businessDate: { branchId, businessDate } },
         create: {
@@ -142,7 +143,7 @@ describe("consumption day status (ADR 0022 Part 22 L4a)", () => {
     );
 
   beforeAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       const t = await tx.tenant.create({ data: { name: "Consumption Read Tenant" } });
       tenantA = t.id;
       const [a, b] = await Promise.all([
@@ -208,7 +209,7 @@ describe("consumption day status (ADR 0022 Part 22 L4a)", () => {
   }, 300_000);
 
   afterAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       await tx.stockMovement.deleteMany({ where: { tenantId: tenantA } });
       await tx.salesConsumptionItem.deleteMany({
         where: { tenantId: tenantA, reversalOfItemId: { not: null } },

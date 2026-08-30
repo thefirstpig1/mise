@@ -14,7 +14,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { randomUUID } from "node:crypto";
-import { withAdminContext } from "@/lib/db";
+import { withRlsBypass } from "@/lib/db-admin";
 import { addDays, computeBangkokToday } from "@/lib/bangkok-date";
 import { productInputSchema } from "@/lib/validations/product";
 import { createProductLogic, type ProductWithUnits } from "@/server/product";
@@ -84,7 +84,7 @@ describe("consumption demand (ADR 0022 Part 22 L3a)", () => {
     );
 
   const makeMenu = (name: string): Promise<{ id: string; name: string }> =>
-    withAdminContext((tx) =>
+    withRlsBypass((tx) =>
       tx.menu.create({
         data: { tenantId: tenantA, source: "MISE", name: `${name}-${randomUUID().slice(0, 4)}` },
         select: { id: true, name: true },
@@ -139,7 +139,7 @@ describe("consumption demand (ADR 0022 Part 22 L3a)", () => {
     qty: number,
     netAmount: number
   ) => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       const day = await tx.salesDay.upsert({
         where: { branchId_businessDate: { branchId, businessDate } },
         create: {
@@ -190,7 +190,7 @@ describe("consumption demand (ADR 0022 Part 22 L3a)", () => {
   ) => d.lines.find((l) => l.productId === p.id)?.qty.toString();
 
   beforeAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       const t = await tx.tenant.create({ data: { name: "Consumption Tenant" } });
       tenantA = t.id;
       const [a, b] = await Promise.all([
@@ -264,7 +264,7 @@ describe("consumption demand (ADR 0022 Part 22 L3a)", () => {
   }, 300_000);
 
   afterAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       await tx.salesLine.deleteMany({ where: { tenantId: tenantA } });
       await tx.salesDay.deleteMany({ where: { tenantId: tenantA } });
       await tx.salesImportBatch.deleteMany({ where: { tenantId: tenantA } });
@@ -580,7 +580,7 @@ describe("consumption demand (ADR 0022 Part 22 L3a)", () => {
     // If the reader took them too, every re-imported day would eat double.
     const day = addDays(today, -11);
     await sell(branchA, day, kaphrao.id, 10, 1000);
-    await withAdminContext((tx) =>
+    await withRlsBypass((tx) =>
       tx.salesLine.updateMany({
         where: { tenantId: tenantA, businessDate: day },
         data: { supersededAt: new Date(), supersededByBatchId: batchId },

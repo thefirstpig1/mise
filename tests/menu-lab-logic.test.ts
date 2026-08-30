@@ -18,7 +18,8 @@
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { randomUUID } from "node:crypto";
-import { withAdminContext, prisma } from "@/lib/db";
+import { prisma } from "@/lib/db";
+import { withRlsBypass } from "@/lib/db-admin";
 import { addDays, computeBangkokToday } from "@/lib/bangkok-date";
 import { productInputSchema } from "@/lib/validations/product";
 import {
@@ -56,7 +57,7 @@ describe("Menu Lab writes (ADR 0025)", () => {
   const YESTERDAY = addDays(today, -1);
 
   const makeMenu = (name: string) =>
-    withAdminContext((tx) =>
+    withRlsBypass((tx) =>
       tx.menu.create({
         data: {
           tenantId: tenantA,
@@ -112,7 +113,7 @@ describe("Menu Lab writes (ADR 0025)", () => {
     resolveRecipeIds(prisma, tenantA, [{ kind: "menu", id: menuId }], branchA, asOf);
 
   beforeAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       const t = await tx.tenant.create({ data: { name: "Menu Lab Tenant" } });
       tenantA = t.id;
       const b = await tx.branch.create({
@@ -153,7 +154,7 @@ describe("Menu Lab writes (ADR 0025)", () => {
   }, 120_000);
 
   afterAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       await tx.recipeIngredient.deleteMany({ where: { tenantId: tenantA } });
       await tx.recipeBranch.deleteMany({ where: { tenantId: tenantA } });
       // BOTH halves, or `recipe_superseded_pair_check` refuses the row: the pair
@@ -196,7 +197,7 @@ describe("Menu Lab writes (ADR 0025)", () => {
     expect(draft.menuId).not.toBeNull();
     expect(draft.plannedPrice?.toString()).toBe("89");
 
-    const menu = await withAdminContext((tx) =>
+    const menu = await withRlsBypass((tx) =>
       tx.menu.findUniqueOrThrow({ where: { id: draft.menuId! } })
     );
     // A menu Mise owns, with no POS identity to collide on.
@@ -239,7 +240,7 @@ describe("Menu Lab writes (ADR 0025)", () => {
     const second = await createDraftLogic(tenantA, input, userA);
 
     expect(second.id).toBe(first.id);
-    const rows = await withAdminContext((tx) =>
+    const rows = await withRlsBypass((tx) =>
       tx.recipe.count({ where: { tenantId: tenantA, menuId: menu.id } })
     );
     expect(rows).toBe(1);
@@ -273,12 +274,12 @@ describe("Menu Lab writes (ADR 0025)", () => {
 
     // A draft is true on no day, so there is no past to preserve: one row, not
     // a stack of versions of what somebody typed while thinking.
-    const rows = await withAdminContext((tx) =>
+    const rows = await withRlsBypass((tx) =>
       tx.recipe.count({ where: { tenantId: tenantA, menuId: menu.id } })
     );
     expect(rows).toBe(1);
 
-    const lines = await withAdminContext((tx) =>
+    const lines = await withRlsBypass((tx) =>
       tx.recipeIngredient.count({ where: { recipeId: draft.id } })
     );
     expect(lines).toBe(2);
@@ -357,7 +358,7 @@ describe("Menu Lab writes (ADR 0025)", () => {
     ).rejects.toBeInstanceOf(DraftReplacesLiveRecipeError);
 
     // Nothing moved: the refusal is a refusal, not a half-write.
-    const untouched = await withAdminContext((tx) =>
+    const untouched = await withRlsBypass((tx) =>
       tx.recipe.findUniqueOrThrow({ where: { id: draft.id } })
     );
     expect(untouched.isDraft).toBe(true);
@@ -395,7 +396,7 @@ describe("Menu Lab writes (ADR 0025)", () => {
       live.id
     );
 
-    const old = await withAdminContext((tx) =>
+    const old = await withRlsBypass((tx) =>
       tx.recipe.findUniqueOrThrow({ where: { id: live.id } })
     );
     expect(old.supersededAt).toBeNull();
@@ -417,7 +418,7 @@ describe("Menu Lab writes (ADR 0025)", () => {
 
     // Both would apply on the same day, so the older one is marked WRONG rather
     // than left to be resolved by a tiebreak nobody chose.
-    const old = await withAdminContext((tx) =>
+    const old = await withRlsBypass((tx) =>
       tx.recipe.findUniqueOrThrow({ where: { id: live.id } })
     );
     expect(old.supersededAt).not.toBeNull();
@@ -448,7 +449,7 @@ describe("Menu Lab writes (ADR 0025)", () => {
 
     // The draft was valid when it was saved; the ingredient stopped existing
     // afterwards, which is the whole reason publish checks again.
-    await withAdminContext((tx) =>
+    await withRlsBypass((tx) =>
       tx.product.update({
         where: { id: gone.id },
         data: { deletedAt: new Date() },
@@ -462,7 +463,7 @@ describe("Menu Lab writes (ADR 0025)", () => {
       })
     ).rejects.toBeInstanceOf(CrossTenantReferenceError);
 
-    const still = await withAdminContext((tx) =>
+    const still = await withRlsBypass((tx) =>
       tx.recipe.findUniqueOrThrow({ where: { id: draft.id } })
     );
     expect(still.isDraft).toBe(true);
@@ -499,14 +500,14 @@ describe("Menu Lab writes (ADR 0025)", () => {
 
     await discardDraftLogic(tenantA, { recipeId: draft.id });
 
-    const row = await withAdminContext((tx) =>
+    const row = await withRlsBypass((tx) =>
       tx.recipe.findUniqueOrThrow({ where: { id: draft.id } })
     );
     expect(row.deletedAt).not.toBeNull();
 
     // Kept on purpose: a MISE menu carries no sales, so it moves no revenue and
     // no consumption, and Part 25 is where it gets reconciled with the POS.
-    const menu = await withAdminContext((tx) =>
+    const menu = await withRlsBypass((tx) =>
       tx.menu.findUnique({ where: { id: menuId } })
     );
     expect(menu).not.toBeNull();

@@ -11,7 +11,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { randomUUID } from "node:crypto";
-import { withAdminContext } from "@/lib/db";
+import { withRlsBypass } from "@/lib/db-admin";
 import { addDays, computeBangkokToday } from "@/lib/bangkok-date";
 import { productInputSchema } from "@/lib/validations/product";
 import { createProductLogic, type ProductWithUnits } from "@/server/product";
@@ -46,7 +46,7 @@ describe("staff meal — reads (ADR 0028 Part 26 L3c)", () => {
     p.productUnits.find((u) => u.isBase)!.id;
 
   const makeMenu = (name: string) =>
-    withAdminContext((tx) =>
+    withRlsBypass((tx) =>
       tx.menu.create({
         data: {
           tenantId: tenantA,
@@ -105,7 +105,7 @@ describe("staff meal — reads (ADR 0028 Part 26 L3c)", () => {
     gross: number,
     discountReason: string | null
   ) => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       const day = await tx.salesDay.upsert({
         where: {
           branchId_businessDate: { branchId: branchA, businessDate: SALES_DAY },
@@ -140,7 +140,7 @@ describe("staff meal — reads (ADR 0028 Part 26 L3c)", () => {
   };
 
   beforeAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       const t = await tx.tenant.create({
         data: { name: "Staff Meal Read Tenant", staffMealDailyQuota: 100 },
       });
@@ -218,7 +218,7 @@ describe("staff meal — reads (ADR 0028 Part 26 L3c)", () => {
         dailyQuotaAmount: null,
       })
     ).id;
-    await withAdminContext((tx) =>
+    await withRlsBypass((tx) =>
       tx.staffMember.update({
         where: { id: departed },
         data: { isActive: false },
@@ -227,7 +227,7 @@ describe("staff meal — reads (ADR 0028 Part 26 L3c)", () => {
 
     // กะเพรา sells for ฿60 net a plate. เมนูไม่มีราคา never sells and has no
     // planned price, so it stays NONE.
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       const day = await tx.salesDay.create({
         data: {
           tenantId: tenantA,
@@ -257,7 +257,7 @@ describe("staff meal — reads (ADR 0028 Part 26 L3c)", () => {
   }, 300_000);
 
   afterAll(async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       await tx.stockMovement.deleteMany({ where: { tenantId: tenantA } });
       await tx.staffMealItem.deleteMany({
         where: { tenantId: tenantA, reversalOfItemId: { not: null } },
@@ -366,7 +366,7 @@ describe("staff meal — reads (ADR 0028 Part 26 L3c)", () => {
   });
 
   it("R5: a shop with no quota is not a shop whose quota is zero", async () => {
-    await withAdminContext((tx) =>
+    await withRlsBypass((tx) =>
       tx.tenant.update({
         where: { id: tenantA },
         data: { staffMealDailyQuota: null },
@@ -382,7 +382,7 @@ describe("staff meal — reads (ADR 0028 Part 26 L3c)", () => {
     expect(q.used.toString()).toBe("120");
     expect(q.over).toBe(false);
 
-    await withAdminContext((tx) =>
+    await withRlsBypass((tx) =>
       tx.tenant.update({
         where: { id: tenantA },
         data: { staffMealDailyQuota: 100 },
@@ -391,7 +391,7 @@ describe("staff meal — reads (ADR 0028 Part 26 L3c)", () => {
   });
 
   it("R6: a person's own quota beats the tenant default, and says which", async () => {
-    await withAdminContext((tx) =>
+    await withRlsBypass((tx) =>
       tx.staffMember.update({
         where: { id: somchai },
         data: { dailyQuotaAmount: 500 },
@@ -405,7 +405,7 @@ describe("staff meal — reads (ADR 0028 Part 26 L3c)", () => {
     expect(q.quotaSource).toBe("PERSON");
     expect(q.over).toBe(false);
 
-    await withAdminContext((tx) =>
+    await withRlsBypass((tx) =>
       tx.staffMember.update({
         where: { id: somchai },
         data: { dailyQuotaAmount: null },
@@ -441,7 +441,7 @@ describe("staff meal — reads (ADR 0028 Part 26 L3c)", () => {
   });
 
   it("R8: a cancelled bill is not a giveaway, and stays out of the warning", async () => {
-    await withAdminContext(async (tx) => {
+    await withRlsBypass(async (tx) => {
       const day = await tx.salesDay.findFirstOrThrow({
         where: { branchId: branchA, businessDate: SALES_DAY },
         select: { id: true },
