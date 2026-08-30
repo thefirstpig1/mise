@@ -1,0 +1,52 @@
+-- ============================================================
+-- Part 28 — branch reach leaves the role  (ADR 0029 Q5b)
+-- ============================================================
+-- One column, and it is here to make a DELETION safe rather than to add a
+-- feature. `canAccessBranch` has opened with `if (user.role === "owner") return
+-- true` since Sprint 0, which is the only way "every branch" has ever been
+-- expressible. That put two different meanings in one column: `role` was being
+-- asked BOTH what a person may do AND where they may do it.
+--
+-- WHY THAT MATTERED THE MOMENT SOMEBODY ASKED ABOUT AN AREA MANAGER. A person
+-- who oversees every branch but must not touch billing or delete the shop had
+-- nowhere to stand: make them `owner` and they get both, enumerate their
+-- branches and they silently vanish from branch six on the day it opens —
+-- failing closed, which is safe, and invisible, which is not. Encoding reach in
+-- the role instead would grow roles by MULTIPLICATION: area_manager, then
+-- area_purchaser, then area_accountant.
+--
+-- With this column the check is one line with no role in it at all:
+--
+--     allBranches || allowedBranchIds.includes(branchId)
+--
+-- and three different questions — the area manager, the bookkeeper who reads
+-- every branch but writes nothing, the owner who only wants one branch on
+-- screen — become the same tick box instead of three new roles (rule A2).
+--
+-- WHY NO BACKFILL SCRIPT AND WHY THE UPDATE BELOW IS STILL CORRECT. Every
+-- membership row in existence today was written by tenant-init.ts:50, which
+-- hardcodes role = 'owner' — there has never been a second member of any
+-- tenant, because nothing else in the project writes this table. So the UPDATE
+-- touches exactly the rows the bypass used to cover, and preserves today's
+-- behaviour precisely rather than approximately. It is written as a predicate
+-- on `role` rather than an unconditional `SET true` so that it stays right if
+-- this migration is ever applied to a database that already has other roles.
+--
+-- WHAT IS NOT HERE. `role_changed_at` / `role_changed_by` (ADR 0029 Q14) belong
+-- to Part 29, where people can first be invited and roles can first be changed
+-- by someone other than the account's own creator. Adding them now would give
+-- this Part two columns nothing writes.
+--
+-- `role` STAYS A `String`, NOT AN ENUM. Part 28 introduces `admin` as a seventh
+-- role and Part 29 may want more; a text column means a new role is a code
+-- change reviewed once, with no migration and no deploy ordering. The values
+-- are a TypeScript union, so a typo is a compile error where it is written —
+-- which is more checking than a Postgres enum would give the places that read.
+-- ============================================================
+
+ALTER TABLE "tenant_membership"
+  ADD COLUMN "all_branches" BOOLEAN NOT NULL DEFAULT false;
+
+-- Preserve the bypass being deleted, exactly: owners could reach every branch,
+-- and after this they still can — by carrying the same flag as everybody else.
+UPDATE "tenant_membership" SET "all_branches" = true WHERE "role" = 'owner';

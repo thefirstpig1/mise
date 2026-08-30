@@ -278,8 +278,16 @@ model TenantMembership {
   id       String  @id @default(uuid()) @db.Uuid
   tenantId String  @map("tenant_id") @db.Uuid
   userId   String  @map("user_id")
-  role     String // owner, manager, purchaser, kitchen_staff, accountant, viewer
+  role     String // owner, admin, manager, purchaser, kitchen_staff, accountant, viewer
   isActive Boolean @default(true) @map("is_active")
+
+  /// Branch reach (ADR 0029 Q5b) — WHERE a person may act, kept deliberately
+  /// off `role`, which answers WHAT they may do. True means every branch of
+  /// the tenant including ones that open tomorrow, so an area manager is a
+  /// tick box rather than a role of its own. `owner` carries it like anyone
+  /// else: the old `if (role === "owner") return true` bypass is gone, and
+  /// the branch check no longer names a role at all (rule A2).
+  allBranches Boolean @default(false) @map("all_branches")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")

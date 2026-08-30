@@ -43,12 +43,18 @@ export async function createTenant(input: CreateTenantInput) {
     });
 
     // 2. Create owner membership
+    //
+    // `allBranches` is written here rather than left to the column default,
+    // because the owner is created BEFORE the first branch exists (step 3) and
+    // therefore cannot be granted reach by enumeration. It is also the reason
+    // `canAccessBranch` needs no owner special-case any more (ADR 0029 Q5b).
     const ownerMembership = await tx.tenantMembership.create({
       data: {
         tenantId: tenant.id,
         userId: input.ownerUserId,
         role: "owner",
         isActive: true,
+        allBranches: true,
       },
     });
 
