@@ -26,6 +26,7 @@
 // ============================================================
 
 import type { Prisma, PrismaClient } from "@prisma/client";
+import { branchScopeWhere, type BranchReach } from "@/lib/permissions/service";
 import { withTenantContext } from "@/lib/db";
 import { computeBangkokToday } from "@/lib/bangkok-date";
 import { resolveRecipeIds, type RecipeTarget } from "@/server/recipe-resolve";
@@ -628,7 +629,13 @@ export type RecipeBranchComparison = {
  */
 export async function getRecipeBranchComparisonLogic(
   tenantId: string,
-  args: { target: RecipeTarget; asOf?: Date }
+  args: { target: RecipeTarget; asOf?: Date },
+  /**
+   * Rule A5. Both the branch list AND the recipe_branch links are narrowed:
+   * the links carry `branch.name`, so narrowing only the first would have
+   * left every branch's name arriving by the other road.
+   */
+  reach: BranchReach
 ): Promise<RecipeBranchComparison | null> {
   const asOf = args.asOf ?? computeBangkokToday();
   const { target } = args;
@@ -671,13 +678,17 @@ export async function getRecipeBranchComparisonLogic(
     if (candidates.length === 0) return null;
 
     const branches = await tx.branch.findMany({
-      where: { tenantId, deletedAt: null },
+      where: { tenantId, deletedAt: null, ...branchScopeWhere(reach) },
       select: { id: true, name: true },
       orderBy: { name: "asc" },
     });
 
     const links = await tx.recipeBranch.findMany({
-      where: { tenantId, lineId: { in: candidates.map((c) => c.lineId) } },
+      where: {
+        tenantId,
+        lineId: { in: candidates.map((c) => c.lineId) },
+        branchId: { in: branches.map((b) => b.id) },
+      },
       select: { lineId: true, branchId: true, branch: { select: { name: true } } },
     });
 

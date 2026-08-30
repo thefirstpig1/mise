@@ -5,6 +5,7 @@
 // picker to start disagreeing with the ingredient picker about what a menu is.
 
 import { withTenantContext } from "@/lib/db";
+import { branchScopeWhere, type BranchReach } from "@/lib/permissions/service";
 import { getProductsLogic } from "@/server/product";
 import { getMenusLogic } from "@/server/menu";
 import { getMenuCategoriesLogic } from "@/server/menu";
@@ -22,14 +23,18 @@ export type LabOptions = {
   branches: LabBranchOption[];
 };
 
-export async function loadLabOptions(tenantId: string): Promise<LabOptions> {
+export async function loadLabOptions(
+  tenantId: string,
+  /** Rule A5: the lab costs against a branch, so it may only offer reachable ones. */
+  reach: BranchReach
+): Promise<LabOptions> {
   const [products, menus, categories, branches, live] = await Promise.all([
     getProductsLogic(tenantId),
     getMenusLogic(tenantId, { stubsOnly: false, includeRetired: false }),
     getMenuCategoriesLogic(tenantId),
     withTenantContext(tenantId, (tx) =>
       tx.branch.findMany({
-        where: { tenantId, deletedAt: null },
+        where: { tenantId, deletedAt: null, ...branchScopeWhere(reach) },
         select: { id: true, name: true },
         orderBy: { name: "asc" },
       })

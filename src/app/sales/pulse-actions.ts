@@ -66,7 +66,7 @@ export async function recordSalesPulseAction(
   _prev: RecordPulseActionState | null,
   formData: FormData
 ): Promise<RecordPulseActionState> {
-  const { tenantId, user } = await requireTenant("sales:import");
+  const { tenantId, user, assertBranch} = await requireTenant("sales:import");
 
   const parsed = recordSalesPulseInputSchema.safeParse({
     branchId: formData.get("branchId"),
@@ -75,6 +75,8 @@ export async function recordSalesPulseAction(
     note: formData.get("note"),
   });
   if (!parsed.success) return { ok: false, fieldErrors: toFieldErrors(parsed.error) };
+
+  assertBranch(parsed.data.branchId);
 
   try {
     const result = await recordSalesPulseLogic(tenantId, user.id, parsed.data);

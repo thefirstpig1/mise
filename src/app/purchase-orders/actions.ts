@@ -202,12 +202,14 @@ export async function createPurchaseOrderAction(
   _prevState: PurchaseOrderActionState,
   formData: FormData
 ): Promise<PurchaseOrderActionState> {
-  const { tenantId, membership } = await requireTenant("purchase:write");
+  const { tenantId, membership, assertBranch} = await requireTenant("purchase:write");
 
   const parsed = purchaseOrderInputSchema.safeParse(rawFromFormData(formData));
   if (!parsed.success) {
     return { ok: false, fieldErrors: toFieldErrors(parsed.error) };
   }
+
+  assertBranch(parsed.data.branchId);
 
   try {
     const po = await createPurchaseOrderLogic(
@@ -227,7 +229,7 @@ export async function updatePurchaseOrderAction(
   _prevState: PurchaseOrderActionState,
   formData: FormData
 ): Promise<PurchaseOrderActionState> {
-  const { tenantId } = await requireTenant("purchase:write");
+  const { tenantId, assertBranch} = await requireTenant("purchase:write");
 
   const id = String(formData.get("id") ?? "");
   if (!id) return { ok: false, formError: NOT_FOUND_MESSAGE };
@@ -236,6 +238,8 @@ export async function updatePurchaseOrderAction(
   if (!parsed.success) {
     return { ok: false, fieldErrors: toFieldErrors(parsed.error) };
   }
+
+  assertBranch(parsed.data.branchId);
 
   try {
     const po = await updatePurchaseOrderLogic(tenantId, id, parsed.data);

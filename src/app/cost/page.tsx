@@ -21,7 +21,7 @@ export default async function CostOverviewPage({
 }: {
   searchParams: Promise<{ from?: string; to?: string }>;
 }) {
-  const { tenantId } = await requireTenant("cost:view");
+  const { tenantId, reach} = await requireTenant("cost:view");
   const { from: fromParam, to: toParam } = await searchParams;
 
   // Default window: the last 30 Bangkok days. Computed on the SERVER — a browser
@@ -41,7 +41,7 @@ export default async function CostOverviewPage({
     ? parsed.data
     : getBranchCostSummaryQuerySchema.parse({ from: defaultFrom, to: defaultTo });
 
-  const rows = (await getBranchCostSummaryLogic(tenantId, query)).map(
+  const rows = (await getBranchCostSummaryLogic(tenantId, query, reach)).map(
     toBranchCostSummaryView
   );
 

@@ -13,8 +13,8 @@ import { loadLabOptions } from "../options";
 import LabForm from "../../_components/LabForm";
 
 export default async function NewDraftPage() {
-  const { tenantId } = await requireTenant("recipe:write");
-  const options = await loadLabOptions(tenantId);
+  const { tenantId, reach} = await requireTenant("recipe:write");
+  const options = await loadLabOptions(tenantId, reach);
 
   return (
     <div className="space-y-6">

@@ -41,7 +41,7 @@ export default async function EditProductPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const { tenantId } = await requireTenant("master:write");
+  const { tenantId, reach} = await requireTenant("master:write");
 
   const [
     product,
@@ -63,7 +63,7 @@ export default async function EditProductPage({
     getProductMappingsLogic(tenantId, id, "all"),
     // Part 17 (ADR 0017 Q5 + Consequence 4): the par is set from here, because
     // nothing fills it in automatically and a list nobody can reach goes unused.
-    getBranchesLogic(tenantId),
+    getBranchesLogic(tenantId, reach),
     getParLevelsForProductLogic(tenantId, id),
   ]);
   if (!product) notFound();

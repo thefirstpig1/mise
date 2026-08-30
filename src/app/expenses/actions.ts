@@ -244,12 +244,14 @@ export async function createExpenseAction(
   _prevState: ExpenseActionState,
   formData: FormData
 ): Promise<ExpenseActionState> {
-  const { tenantId, membership } = await requireTenant("expense:write");
+  const { tenantId, membership, assertBranch} = await requireTenant("expense:write");
 
   const parsed = expenseInputSchema.safeParse(expenseFromFormData(formData));
   if (!parsed.success) {
     return { ok: false, fieldErrors: toFieldErrors(parsed.error, EXPENSE_FIELD_LABELS_TH) };
   }
+
+  assertBranch(parsed.data.branchId);
 
   try {
     const expense = await createExpenseLogic(tenantId, parsed.data, membership.userId);
@@ -264,7 +266,7 @@ export async function updateExpenseAction(
   _prevState: ExpenseActionState,
   formData: FormData
 ): Promise<ExpenseActionState> {
-  const { tenantId } = await requireTenant("expense:write");
+  const { tenantId, assertBranch} = await requireTenant("expense:write");
 
   const parsed = updateExpenseInputSchema.safeParse({
     ...expenseFromFormData(formData),
@@ -273,6 +275,8 @@ export async function updateExpenseAction(
   if (!parsed.success) {
     return { ok: false, fieldErrors: toFieldErrors(parsed.error, EXPENSE_FIELD_LABELS_TH) };
   }
+
+  assertBranch(parsed.data.branchId);
 
   try {
     const expense = await updateExpenseLogic(tenantId, parsed.data);
@@ -355,7 +359,7 @@ export async function createRecurringExpenseAction(
   _prevState: RecurringExpenseActionState,
   formData: FormData
 ): Promise<RecurringExpenseActionState> {
-  const { tenantId } = await requireTenant("expense:write");
+  const { tenantId, assertBranch} = await requireTenant("expense:write");
 
   const parsed = recurringExpenseInputSchema.safeParse(recurringFromFormData(formData));
   if (!parsed.success) {
@@ -364,6 +368,8 @@ export async function createRecurringExpenseAction(
       fieldErrors: toFieldErrors(parsed.error, RECURRING_EXPENSE_FIELD_LABELS_TH),
     };
   }
+
+  if (parsed.data.branchId) assertBranch(parsed.data.branchId);
 
   try {
     const template = await createRecurringExpenseLogic(tenantId, parsed.data);
@@ -382,7 +388,7 @@ export async function updateRecurringExpenseAction(
   _prevState: RecurringExpenseActionState,
   formData: FormData
 ): Promise<RecurringExpenseActionState> {
-  const { tenantId } = await requireTenant("expense:write");
+  const { tenantId, assertBranch} = await requireTenant("expense:write");
 
   const parsed = updateRecurringExpenseInputSchema.safeParse({
     ...recurringFromFormData(formData),
@@ -394,6 +400,8 @@ export async function updateRecurringExpenseAction(
       fieldErrors: toFieldErrors(parsed.error, RECURRING_EXPENSE_FIELD_LABELS_TH),
     };
   }
+
+  if (parsed.data.branchId) assertBranch(parsed.data.branchId);
 
   try {
     const template = await updateRecurringExpenseLogic(tenantId, parsed.data);

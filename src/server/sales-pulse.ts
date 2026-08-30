@@ -19,6 +19,7 @@
 // ============================================================
 
 import { Prisma } from "@prisma/client";
+import { branchScopeWhere, type BranchReach } from "@/lib/permissions/service";
 import type { PrismaClient } from "@prisma/client";
 import { withTenantContext } from "@/lib/db";
 import { addDays, computeBangkokToday } from "@/lib/bangkok-date";
@@ -311,6 +312,8 @@ export const PULSE_WINDOW_DAYS = 7;
 
 export async function getPulseDashboardLogic(
   tenantId: string,
+  /** Rule A5 — the dashboard shows a pulse per branch. */
+  reach: BranchReach,
   opts: { branchId?: string } = {}
 ): Promise<PulseDashboard> {
   return withTenantContext(tenantId, async (tx) => {
@@ -327,6 +330,7 @@ export async function getPulseDashboardLogic(
         deletedAt: null,
         isActive: true,
         ...(opts.branchId ? { id: opts.branchId } : {}),
+        ...branchScopeWhere(reach),
       },
       select: { id: true, name: true },
       orderBy: { name: "asc" },

@@ -13,9 +13,9 @@ import PurchaseOrderForm from "../_components/PurchaseOrderForm";
 import { loadPurchaseOrderFormOptions } from "../_components/form-options";
 
 export default async function NewPurchaseOrderPage() {
-  const { tenantId, membership } = await requireTenant("purchase:write");
+  const { tenantId, membership, reach} = await requireTenant("purchase:write");
   const { products, suppliers, branches } =
-    await loadPurchaseOrderFormOptions(tenantId);
+    await loadPurchaseOrderFormOptions(tenantId, reach);
 
   const blocked =
     suppliers.length === 0

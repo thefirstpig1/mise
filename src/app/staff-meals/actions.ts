@@ -203,7 +203,7 @@ export async function createStaffMealAction(
   _prevState: StaffMealActionState,
   formData: FormData
 ): Promise<StaffMealActionState> {
-  const { tenantId, membership } = await requireTenant("staffmeal:write");
+  const { tenantId, membership, assertBranch} = await requireTenant("staffmeal:write");
 
   // Pot lines arrive as three parallel arrays, the shape every multi-line form
   // in this project uses. Zipped here rather than in zod so the schema stays a
@@ -235,6 +235,8 @@ export async function createStaffMealAction(
   if (!parsed.success) {
     return { ok: false, fieldErrors: toFieldErrors(parsed.error) };
   }
+
+  assertBranch(parsed.data.branchId);
 
   try {
     const res = await createStaffMealLogic(
@@ -297,7 +299,7 @@ export async function createStaffMemberAction(
   _prevState: StaffMemberActionState,
   formData: FormData
 ): Promise<StaffMemberActionState> {
-  const { tenantId } = await requireTenant("staffmeal:write");
+  const { tenantId, assertBranch} = await requireTenant("staffmeal:write");
 
   const parsed = createStaffMemberInputSchema.safeParse({
     name: formData.get("name"),
@@ -307,6 +309,8 @@ export async function createStaffMemberAction(
   if (!parsed.success) {
     return { ok: false, fieldErrors: toFieldErrors(parsed.error) };
   }
+
+  if (parsed.data.branchId) assertBranch(parsed.data.branchId);
 
   try {
     const member = await createStaffMemberLogic(tenantId, parsed.data);
@@ -330,7 +334,7 @@ export async function updateStaffMemberAction(
   _prevState: StaffMemberActionState,
   formData: FormData
 ): Promise<StaffMemberActionState> {
-  const { tenantId } = await requireTenant("staffmeal:write");
+  const { tenantId, assertBranch} = await requireTenant("staffmeal:write");
 
   const parsed = updateStaffMemberInputSchema.safeParse({
     id: formData.get("id"),
@@ -342,6 +346,8 @@ export async function updateStaffMemberAction(
   if (!parsed.success) {
     return { ok: false, fieldErrors: toFieldErrors(parsed.error) };
   }
+
+  if (parsed.data.branchId) assertBranch(parsed.data.branchId);
 
   try {
     const member = await updateStaffMemberLogic(tenantId, parsed.data);

@@ -39,11 +39,11 @@ export default async function NewGoodsReceiptPage({
 }: {
   searchParams: Promise<{ po?: string }>;
 }) {
-  const { tenantId } = await requireTenant("receive:write");
+  const { tenantId, reach} = await requireTenant("receive:write");
   const sp = await searchParams;
 
   const { products, suppliers, branches, purchaseOrders } =
-    await loadGoodsReceiptFormOptions(tenantId);
+    await loadGoodsReceiptFormOptions(tenantId, reach);
 
   const initialPo = sp.po
     ? await getReceivablePurchaseOrderLogic(tenantId, sp.po)

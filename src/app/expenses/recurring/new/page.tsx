@@ -9,10 +9,10 @@ import { createRecurringExpenseAction } from "../../actions";
 import RecurringExpenseForm from "../../_components/RecurringExpenseForm";
 
 export default async function NewRecurringExpensePage() {
-  const { tenantId } = await requireTenant("expense:write");
+  const { tenantId, reach} = await requireTenant("expense:write");
 
   const [branches, suppliers, categories] = await Promise.all([
-    getBranchesLogic(tenantId),
+    getBranchesLogic(tenantId, reach),
     getSuppliersLogic(tenantId),
     getCategoriesLogic(tenantId),
   ]);

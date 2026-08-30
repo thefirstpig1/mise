@@ -24,12 +24,12 @@ export default async function EditRecurringExpensePage({
 }: {
   params: Promise<{ recurringId: string }>;
 }) {
-  const { tenantId } = await requireTenant("expense:write");
+  const { tenantId, reach} = await requireTenant("expense:write");
   const { recurringId } = await params;
 
   const [row, branches, suppliers, categories] = await Promise.all([
     getRecurringExpenseByIdLogic(tenantId, recurringId),
-    getBranchesLogic(tenantId),
+    getBranchesLogic(tenantId, reach),
     getSuppliersLogic(tenantId),
     getCategoriesLogic(tenantId),
   ]);

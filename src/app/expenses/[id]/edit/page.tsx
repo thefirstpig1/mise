@@ -21,12 +21,12 @@ export default async function EditExpensePage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { tenantId } = await requireTenant("expense:write");
+  const { tenantId, reach} = await requireTenant("expense:write");
   const { id } = await params;
 
   const [row, branches, suppliers, categories] = await Promise.all([
     getExpenseByIdLogic(tenantId, id),
-    getBranchesLogic(tenantId),
+    getBranchesLogic(tenantId, reach),
     getSuppliersLogic(tenantId),
     getCategoriesLogic(tenantId),
   ]);

@@ -312,12 +312,14 @@ export async function createGoodsReceiptAction(
   _prevState: GoodsReceiptActionState,
   formData: FormData
 ): Promise<GoodsReceiptActionState> {
-  const { tenantId, membership } = await requireTenant("receive:write");
+  const { tenantId, membership, assertBranch} = await requireTenant("receive:write");
 
   const parsed = goodsReceiptInputSchema.safeParse(rawFromFormData(formData));
   if (!parsed.success) {
     return { ok: false, fieldErrors: toFieldErrors(parsed.error) };
   }
+
+  assertBranch(parsed.data.branchId);
 
   try {
     const gr = await createGoodsReceiptLogic(
@@ -337,7 +339,7 @@ export async function updateGoodsReceiptAction(
   _prevState: GoodsReceiptActionState,
   formData: FormData
 ): Promise<GoodsReceiptActionState> {
-  const { tenantId } = await requireTenant("receive:write");
+  const { tenantId, assertBranch} = await requireTenant("receive:write");
 
   const id = String(formData.get("id") ?? "");
   if (!id) return { ok: false, formError: NOT_FOUND_MESSAGE };
@@ -346,6 +348,8 @@ export async function updateGoodsReceiptAction(
   if (!parsed.success) {
     return { ok: false, fieldErrors: toFieldErrors(parsed.error) };
   }
+
+  assertBranch(parsed.data.branchId);
 
   try {
     const gr = await updateGoodsReceiptLogic(tenantId, id, parsed.data);

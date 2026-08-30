@@ -24,7 +24,7 @@ export default async function DraftPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { tenantId } = await requireTenant("recipe:write");
+  const { tenantId, reach} = await requireTenant("recipe:write");
   const { id } = await params;
 
   const row = await withTenantContext(tenantId, (tx) =>
@@ -47,7 +47,7 @@ export default async function DraftPage({
         );
 
   const [options, drafts] = await Promise.all([
-    loadLabOptions(tenantId),
+    loadLabOptions(tenantId, reach),
     getDraftsLogic(tenantId),
   ]);
   // The list read already answers both questions this page needs about the

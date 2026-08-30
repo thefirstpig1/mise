@@ -21,11 +21,11 @@ import StockAdjustForm, {
 } from "../_components/StockAdjustForm";
 
 export default async function StockAdjustPage() {
-  const { tenantId } = await requireTenant("stock:write");
+  const { tenantId, reach} = await requireTenant("stock:write");
 
   const [products, branches] = await Promise.all([
     getProductsLogic(tenantId),
-    getBranchesLogic(tenantId),
+    getBranchesLogic(tenantId, reach),
   ]);
 
   // getProductsLogic orders by category tree (built for the product page); a

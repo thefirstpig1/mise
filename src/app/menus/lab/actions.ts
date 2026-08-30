@@ -380,7 +380,7 @@ export async function discardDraftAction(
 export async function getLabWhatIfAction(
   formData: FormData
 ): Promise<LabWhatIfState> {
-  const { tenantId } = await requireTenant("recipe:write");
+  const { tenantId, reach, assertBranch} = await requireTenant("recipe:write");
 
   const parsed = labWhatIfQuerySchema.safeParse({
     branchId: formData.get("branch_id"),
@@ -392,8 +392,10 @@ export async function getLabWhatIfAction(
     return { ok: false, fieldErrors: toFieldErrors(parsed.error) };
   }
 
+  if (parsed.data.branchId) assertBranch(parsed.data.branchId);
+
   try {
-    const whatIf = await getLabWhatIfLogic(tenantId, parsed.data);
+    const whatIf = await getLabWhatIfLogic(tenantId, parsed.data, reach);
     return { ok: true, whatIf: toLabWhatIfView(whatIf) };
   } catch (e) {
     return { ok: false, ...toFormError(e) };

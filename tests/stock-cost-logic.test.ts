@@ -13,6 +13,7 @@
 // ============================================================
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { EVERY_BRANCH } from "./support/reach";
 import { randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { withAdminContext, withTenantContext, prisma } from "@/lib/db";
@@ -457,7 +458,7 @@ describe("cost read *Logic (FIFO by ledger replay, ADR 0014)", () => {
       from: new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000),
       to: today,
     });
-    const before = await getBranchCostSummaryLogic(tenantA, period);
+    const before = await getBranchCostSummaryLogic(tenantA, period, EVERY_BRANCH);
     const priorOf = (branchId: string) => before.find((r) => r.branchId === branchId)!;
 
     const p = await freshProduct(tenantA, "K9");
@@ -466,7 +467,7 @@ describe("cost read *Logic (FIFO by ledger replay, ADR 0014)", () => {
     await receiveInto(branchA2, p, 4, 500); // อารีย์  100 kg for 2,000
     await adjust(branchA2, p, "ADJUST_LOSS", 10); // and อารีย์ throws 10 kg away
 
-    const rows = await getBranchCostSummaryLogic(tenantA, period);
+    const rows = await getBranchCostSummaryLogic(tenantA, period, EVERY_BRANCH);
     const thonglor = rows.find((r) => r.branchId === branchA)!;
     const aree = rows.find((r) => r.branchId === branchA2)!;
 
@@ -524,7 +525,7 @@ describe("cost read *Logic (FIFO by ledger replay, ADR 0014)", () => {
       from: new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000),
       to: today,
     });
-    const before = await getBranchCostSummaryLogic(tenantA, period);
+    const before = await getBranchCostSummaryLogic(tenantA, period, EVERY_BRANCH);
     const prior = before.find((r) => r.branchId === branchA)!;
 
     const p = await freshProduct(tenantA, "K9b");
@@ -532,7 +533,7 @@ describe("cost read *Logic (FIFO by ledger replay, ADR 0014)", () => {
     await throwAway(branchA, p, 10); // 200 ฿ with a document
     await adjust(branchA, p, "ADJUST_LOSS", 5); // 100 ฿ without one
 
-    const row = (await getBranchCostSummaryLogic(tenantA, period)).find(
+    const row = (await getBranchCostSummaryLogic(tenantA, period, EVERY_BRANCH)).find(
       (r) => r.branchId === branchA
     )!;
     expect(num(row.wasteValue.minus(prior.wasteValue))).toBe(200);
@@ -551,7 +552,7 @@ describe("cost read *Logic (FIFO by ledger replay, ADR 0014)", () => {
       from: new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000),
       to: today,
     });
-    const before = await getBranchCostSummaryLogic(tenantA, period);
+    const before = await getBranchCostSummaryLogic(tenantA, period, EVERY_BRANCH);
     const priorVariance = before.find((r) => r.branchId === branchA)!.varianceValue;
 
     const p = await freshProduct(tenantA, "K11");
@@ -564,7 +565,7 @@ describe("cost read *Logic (FIFO by ledger replay, ADR 0014)", () => {
     // The pile never went negative: the delivery is costed first, then the waste.
     expect(cost.negativeStock).toBe(false);
 
-    const rows = await getBranchCostSummaryLogic(tenantA, period);
+    const rows = await getBranchCostSummaryLogic(tenantA, period, EVERY_BRANCH);
     const thonglor = rows.find((r) => r.branchId === branchA)!;
     // 10 kg valued at what the goods actually cost that day — not 0, and not
     // yesterday's price. The COLUMN is ส่วนต่าง/ปรับปรุง since Part 17 (this is

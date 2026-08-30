@@ -75,12 +75,12 @@ export default async function WastePage({
     to?: string;
   }>;
 }) {
-  const { tenantId } = await requireTenant("stock:write");
+  const { tenantId, reach} = await requireTenant("stock:write");
   const sp = await searchParams;
 
   const [products, branches] = await Promise.all([
     getProductsLogic(tenantId),
-    getBranchesLogic(tenantId),
+    getBranchesLogic(tenantId, reach),
   ]);
 
   const month = currentMonthBangkok();

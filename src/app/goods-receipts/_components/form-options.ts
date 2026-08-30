@@ -7,6 +7,7 @@
 import { getProductsLogic } from "@/server/product";
 import { getSuppliersLogic } from "@/server/supplier";
 import { getBranchesLogic } from "@/server/branch";
+import type { BranchReach } from "@/lib/permissions/service";
 import { getPurchaseOrdersLogic } from "@/server/purchase-order";
 import { RECEIVABLE_PO_STATUSES } from "@/lib/validations/goods-receipt";
 import { formatBangkokDate } from "./goods-receipt-view";
@@ -25,12 +26,14 @@ export type GoodsReceiptFormOptions = {
 };
 
 export async function loadGoodsReceiptFormOptions(
-  tenantId: string
+  tenantId: string,
+  /** Rule A5: the picker only ever offers branches this person may act on. */
+  reach: BranchReach
 ): Promise<GoodsReceiptFormOptions> {
   const [products, suppliers, branches, orders] = await Promise.all([
     getProductsLogic(tenantId),
     getSuppliersLogic(tenantId),
-    getBranchesLogic(tenantId),
+    getBranchesLogic(tenantId, reach),
     getPurchaseOrdersLogic(tenantId, {}),
   ]);
 

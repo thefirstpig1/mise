@@ -9,6 +9,7 @@
 // ============================================================
 
 import { requireTenant } from "@/lib/require-tenant";
+import { branchScopeWhere } from "@/lib/permissions/service";
 import { withTenantContext } from "@/lib/db";
 import { addDays, computeBangkokToday } from "@/lib/bangkok-date";
 import { getConsumptionDayStatusLogic } from "@/server/consumption-read";
@@ -23,12 +24,12 @@ export default async function ConsumptionPage({
 }: {
   searchParams: Promise<{ branch?: string; from?: string; to?: string }>;
 }) {
-  const { tenantId } = await requireTenant("consumption:post");
+  const { tenantId, reach} = await requireTenant("consumption:post");
   const params = await searchParams;
 
   const branches = await withTenantContext(tenantId, (tx) =>
     tx.branch.findMany({
-      where: { tenantId, deletedAt: null },
+      where: { tenantId, deletedAt: null, ...branchScopeWhere(reach) },
       select: { id: true, name: true },
       orderBy: { name: "asc" },
     })

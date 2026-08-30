@@ -56,13 +56,13 @@ export default async function RecipePage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ branch?: string }>;
 }) {
-  const { tenantId } = await requireTenant("any:member");
+  const { tenantId, reach} = await requireTenant("any:member");
   const { id } = await params;
   const sp = await searchParams;
 
   const [recipe, branches] = await Promise.all([
     getRecipeByIdLogic(tenantId, id),
-    getBranchesLogic(tenantId),
+    getBranchesLogic(tenantId, reach),
   ]);
   if (recipe === null) notFound();
   if (branches.length === 0) notFound();
@@ -86,7 +86,7 @@ export default async function RecipePage({
   const [cost, history, comparison, products, menus] = await Promise.all([
     getRecipeCostLogic(tenantId, { recipeId: recipe.id, branchId, asOf }),
     getRecipeHistoryLogic(tenantId, recipe.lineId, asOf),
-    getRecipeBranchComparisonLogic(tenantId, { target, asOf }),
+    getRecipeBranchComparisonLogic(tenantId, { target, asOf }, reach),
     getProductsLogic(tenantId),
     getMenusLogic(tenantId, { stubsOnly: false, includeRetired: false }),
   ]);

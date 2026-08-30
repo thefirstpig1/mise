@@ -20,7 +20,7 @@ export default async function EditPurchaseOrderPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { tenantId, membership } = await requireTenant("purchase:write");
+  const { tenantId, membership, reach} = await requireTenant("purchase:write");
   const { id } = await params;
 
   const order = await getPurchaseOrderByIdLogic(tenantId, id);
@@ -47,7 +47,7 @@ export default async function EditPurchaseOrderPage({
   }
 
   const { products, suppliers, branches } =
-    await loadPurchaseOrderFormOptions(tenantId);
+    await loadPurchaseOrderFormOptions(tenantId, reach);
 
   return (
     <div className="space-y-6">

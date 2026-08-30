@@ -18,6 +18,7 @@
 // ============================================================
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { EVERY_BRANCH } from "./support/reach";
 import { randomUUID } from "node:crypto";
 import { withAdminContext, prisma } from "@/lib/db";
 import { addDays, computeBangkokToday } from "@/lib/bangkok-date";
@@ -168,7 +169,7 @@ describe("Menu Lab's live calculator (ADR 0025 Q3)", () => {
         ingredients: [],
         ...over,
       })
-    );
+    , EVERY_BRANCH);
 
   beforeAll(async () => {
     await withAdminContext(async (tx) => {

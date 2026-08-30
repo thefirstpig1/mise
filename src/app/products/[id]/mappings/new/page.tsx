@@ -18,12 +18,12 @@ export default async function NewMappingPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const { tenantId } = await requireTenant("master:write");
+  const { tenantId, reach} = await requireTenant("master:write");
 
   const [product, suppliers, branches] = await Promise.all([
     getProductByIdLogic(tenantId, id),
     getSuppliersLogic(tenantId),
-    getBranchesLogic(tenantId),
+    getBranchesLogic(tenantId, reach),
   ]);
   if (!product) notFound();
 

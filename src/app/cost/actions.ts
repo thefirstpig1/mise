@@ -136,10 +136,12 @@ export type CostReadState<T> =
 export async function getProductCostAction(
   query: unknown
 ): Promise<CostReadState<ProductCostView>> {
-  const { tenantId } = await requireTenant("cost:view");
+  const { tenantId, assertBranch} = await requireTenant("cost:view");
 
   const parsed = getProductCostQuerySchema.safeParse(query);
   if (!parsed.success) return { ok: false, formError: BAD_QUERY_MESSAGE };
+
+  assertBranch(parsed.data.branchId);
 
   const cost = await getProductCostLogic(tenantId, parsed.data);
   return { ok: true, data: toProductCostView(cost) };
@@ -158,11 +160,11 @@ export async function getCostDeclarationsAction(
 export async function getBranchCostSummaryAction(
   query: unknown
 ): Promise<CostReadState<BranchCostSummaryView[]>> {
-  const { tenantId } = await requireTenant("cost:view");
+  const { tenantId, reach } = await requireTenant("cost:view");
 
   const parsed = getBranchCostSummaryQuerySchema.safeParse(query);
   if (!parsed.success) return { ok: false, formError: BAD_QUERY_MESSAGE };
 
-  const rows = await getBranchCostSummaryLogic(tenantId, parsed.data);
+  const rows = await getBranchCostSummaryLogic(tenantId, parsed.data, reach);
   return { ok: true, data: rows.map(toBranchCostSummaryView) };
 }

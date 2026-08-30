@@ -14,6 +14,7 @@
 // ============================================================
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { EVERY_BRANCH } from "./support/reach";
 import { randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { withAdminContext, prisma } from "@/lib/db";
@@ -960,7 +961,7 @@ describe("goods-receipt *Logic (PO → รับของ → ledger)", () => {
         productId: p.id,
         sourceType: "GR_LINE",
       })
-    );
+    , EVERY_BRANCH);
     expect(feed.rows.length).toBe(1);
     const src = feed.rows[0].goodsReceipt!;
     expect(src).not.toBeNull();

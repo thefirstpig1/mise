@@ -134,7 +134,7 @@ export async function createWasteAction(
   _prevState: WasteActionState,
   formData: FormData
 ): Promise<WasteActionState> {
-  const { tenantId, membership } = await requireTenant("stock:write");
+  const { tenantId, membership, assertBranch} = await requireTenant("stock:write");
 
   const parsed = createWasteInputSchema.safeParse({
     submitKey: formData.get("submit_key"),
@@ -150,6 +150,8 @@ export async function createWasteAction(
   if (!parsed.success) {
     return { ok: false, fieldErrors: toFieldErrors(parsed.error) };
   }
+
+  assertBranch(parsed.data.branchId);
 
   try {
     const { waste, postBalance } = await createWasteLogic(

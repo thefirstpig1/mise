@@ -159,7 +159,7 @@ export async function createMappingAction(
   _prevState: MappingActionState,
   formData: FormData
 ): Promise<MappingActionState> {
-  const { tenantId } = await requireTenant("master:write");
+  const { tenantId, assertBranch} = await requireTenant("master:write");
 
   const parsed = supplierProductMappingInputSchema.safeParse(
     rawFromFormData(formData)
@@ -167,6 +167,8 @@ export async function createMappingAction(
   if (!parsed.success) {
     return { ok: false, fieldErrors: toFieldErrors(parsed.error) };
   }
+
+  if (parsed.data.branchId) assertBranch(parsed.data.branchId);
 
   try {
     await createSupplierProductMappingLogic(tenantId, parsed.data);
@@ -188,7 +190,7 @@ export async function updateMappingAction(
   _prevState: MappingActionState,
   formData: FormData
 ): Promise<MappingActionState> {
-  const { tenantId } = await requireTenant("master:write");
+  const { tenantId, assertBranch} = await requireTenant("master:write");
 
   const parsed = supplierProductMappingInputSchema.safeParse(
     rawFromFormData(formData)
@@ -196,6 +198,8 @@ export async function updateMappingAction(
   if (!parsed.success) {
     return { ok: false, fieldErrors: toFieldErrors(parsed.error) };
   }
+
+  if (parsed.data.branchId) assertBranch(parsed.data.branchId);
 
   try {
     const updated = await updateSupplierProductMappingLogic(

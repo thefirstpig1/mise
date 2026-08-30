@@ -34,7 +34,7 @@ export default async function EditGoodsReceiptPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { tenantId } = await requireTenant("receive:write");
+  const { tenantId, reach} = await requireTenant("receive:write");
   const { id } = await params;
 
   const row = await getGoodsReceiptByIdLogic(tenantId, id);
@@ -70,7 +70,7 @@ export default async function EditGoodsReceiptPage({
   }
 
   const { products, suppliers, branches, purchaseOrders } =
-    await loadGoodsReceiptFormOptions(tenantId);
+    await loadGoodsReceiptFormOptions(tenantId, reach);
 
   const today = computeBangkokToday();
   const nowLocal = toBangkokDateTimeLocal(new Date());

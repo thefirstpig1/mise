@@ -32,12 +32,12 @@ export default async function NewTransferPage({
 }: {
   searchParams: Promise<{ from?: string }>;
 }) {
-  const { tenantId } = await requireTenant("stock:write");
+  const { tenantId, reach} = await requireTenant("stock:write");
   const sp = await searchParams;
 
   const [products, branches] = await Promise.all([
     getProductsLogic(tenantId),
-    getBranchesLogic(tenantId),
+    getBranchesLogic(tenantId, reach),
   ]);
 
   if (branches.length < 2) {

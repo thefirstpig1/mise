@@ -41,10 +41,10 @@ export default async function StockLevelsPage({
 }: {
   searchParams: Promise<{ branch?: string }>;
 }) {
-  const { tenantId } = await requireTenant("any:member");
+  const { tenantId, reach} = await requireTenant("any:member");
   const { branch: branchParam } = await searchParams;
 
-  const branches = await getBranchesLogic(tenantId);
+  const branches = await getBranchesLogic(tenantId, reach);
 
   if (branches.length === 0) {
     // Onboarding guarantees ≥1 branch (ADR 0011 Q6 pre-task), so this is a

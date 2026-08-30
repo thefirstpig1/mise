@@ -26,6 +26,7 @@
 // ============================================================
 
 import { Prisma } from "@prisma/client";
+import { branchScopeWhere, type BranchReach } from "@/lib/permissions/service";
 import type { PrismaClient } from "@prisma/client";
 import { withTenantContext } from "@/lib/db";
 import { addDays, computeBangkokToday } from "@/lib/bangkok-date";
@@ -559,11 +560,17 @@ export type LabWhatIf = {
  */
 export async function getLabWhatIfLogic(
   tenantId: string,
-  query: LabWhatIfQuery
+  query: LabWhatIfQuery,
+  /**
+   * Rule A5. The Lab names the branch it priced against beside the number
+   * (ADR 0025), so choosing one outside reach would print another branch's
+   * cost under its own name — the leak is the label, not just the figure.
+   */
+  reach: BranchReach
 ): Promise<LabWhatIf> {
   const chosen =
     query.branchId === undefined
-      ? await freshestCostBranch(tenantId)
+      ? await freshestCostBranch(tenantId, reach)
       : await namedBranch(tenantId, query.branchId);
 
   const cost = await getWhatIfCostLogic(tenantId, {
@@ -607,11 +614,12 @@ export async function getLabWhatIfLogic(
  * dish nobody has bought anything for, and the confidence badge says so.
  */
 async function freshestCostBranch(
-  tenantId: string
+  tenantId: string,
+  reach: BranchReach
 ): Promise<{ id: string; name: string }> {
   return withTenantContext(tenantId, async (tx) => {
     const branches = await tx.branch.findMany({
-      where: { tenantId, deletedAt: null },
+      where: { tenantId, deletedAt: null, ...branchScopeWhere(reach) },
       select: { id: true, name: true },
       orderBy: { name: "asc" },
     });

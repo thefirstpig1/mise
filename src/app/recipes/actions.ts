@@ -405,7 +405,7 @@ export async function copyRecipeToBranchesAction(
   _prevState: RecipeActionState,
   formData: FormData
 ): Promise<RecipeActionState> {
-  const { tenantId, membership } = await requireTenant("recipe:write");
+  const { tenantId, membership, assertBranch} = await requireTenant("recipe:write");
 
   const parsed = copyRecipeToBranchesInputSchema.safeParse({
     submitKey: formData.get("submit_key"),
@@ -416,6 +416,8 @@ export async function copyRecipeToBranchesAction(
   if (!parsed.success) {
     return { ok: false, fieldErrors: toFieldErrors(parsed.error) };
   }
+
+  for (const id of parsed.data.branchIds) assertBranch(id);
 
   try {
     const copy = await copyRecipeToBranchesLogic(

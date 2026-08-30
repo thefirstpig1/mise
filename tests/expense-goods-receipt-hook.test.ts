@@ -13,6 +13,7 @@
 // ============================================================
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { EVERY_BRANCH } from "./support/reach";
 import { randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { withAdminContext, prisma } from "@/lib/db";
@@ -402,7 +403,7 @@ describe("goods receipt → expense (ADR 0016 Q2/Q3)", () => {
         from: "2026-01-01",
         to: "2027-12-31",
       })
-    );
+    , EVERY_BRANCH);
     const priorCogs = Number(
       before.find((r) => r.branchId === branchUnreg)?.cogsSpend ?? 0
     );
@@ -419,7 +420,7 @@ describe("goods receipt → expense (ADR 0016 Q2/Q3)", () => {
         from: "2026-01-01",
         to: "2027-12-31",
       })
-    );
+    , EVERY_BRANCH);
     const row = after.find((r) => r.branchId === branchUnreg)!;
 
     // Net of VAT, and on the COGS side because that is where a stocked product's

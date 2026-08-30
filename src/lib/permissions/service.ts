@@ -284,6 +284,26 @@ export function canAccessBranch(user: BranchReach, branchId: string): boolean {
   return user.allBranches || user.allowedBranchIds.includes(branchId);
 }
 
+/**
+ * The `where` fragment that narrows a branch query to a person's reach.
+ *
+ * Rule A5 is enforced at the SET of branches rather than inside every read that
+ * happens to mention one: "the branches you can see are the branches you may
+ * act on". Narrowing the list once makes the picker on a form and the
+ * every-branch loop on /cost correct by the same line, and neither can drift
+ * from the other because there is only one of them.
+ *
+ * Passing reach is REQUIRED at each of these call sites for the same reason the
+ * capability argument is: an optional narrowing is a narrowing somebody forgets,
+ * and it fails OPEN.
+ */
+export function branchScopeWhere(
+  user: BranchReach
+): { id?: { in: string[] } } {
+  if (user.allBranches) return {};
+  return { id: { in: [...user.allowedBranchIds] } };
+}
+
 /** The branches to show, from the branches that exist. Rule A5. */
 export function narrowBranches<T extends { id: string }>(
   user: BranchReach,

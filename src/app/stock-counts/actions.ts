@@ -119,7 +119,7 @@ export async function openStockCountAction(
   _prevState: StockCountActionState,
   formData: FormData
 ): Promise<StockCountActionState> {
-  const { tenantId, membership } = await requireTenant("count:write");
+  const { tenantId, membership, assertBranch} = await requireTenant("count:write");
 
   const parsed = openStockCountInputSchema.safeParse({
     branchId: formData.get("branch_id"),
@@ -129,6 +129,8 @@ export async function openStockCountAction(
     notes: formData.get("notes"),
   });
   if (!parsed.success) return { ok: false, fieldErrors: toFieldErrors(parsed.error) };
+
+  assertBranch(parsed.data.branchId);
 
   try {
     const count = await openStockCountLogic(tenantId, parsed.data, membership.userId);

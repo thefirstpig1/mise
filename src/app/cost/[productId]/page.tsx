@@ -23,13 +23,13 @@ export default async function ProductCostPage({
   params: Promise<{ productId: string }>;
   searchParams: Promise<{ branch?: string }>;
 }) {
-  const { tenantId } = await requireTenant("cost:view");
+  const { tenantId, reach} = await requireTenant("cost:view");
   const { productId } = await params;
   const { branch: branchParam } = await searchParams;
 
   const [product, branches] = await Promise.all([
     getProductByIdLogic(tenantId, productId),
-    getBranchesLogic(tenantId),
+    getBranchesLogic(tenantId, reach),
   ]);
 
   if (!product) notFound();

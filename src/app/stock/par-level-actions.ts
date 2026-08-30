@@ -90,7 +90,7 @@ export async function setParLevelAction(
   _prevState: ParLevelActionState,
   formData: FormData
 ): Promise<ParLevelActionState> {
-  const { tenantId } = await requireTenant("stock:write");
+  const { tenantId, assertBranch} = await requireTenant("stock:write");
 
   const parsed = setParLevelInputSchema.safeParse({
     productId: formData.get("product_id"),
@@ -101,6 +101,8 @@ export async function setParLevelAction(
   if (!parsed.success) {
     return { ok: false, fieldErrors: toFieldErrors(parsed.error) };
   }
+
+  assertBranch(parsed.data.branchId);
 
   try {
     const par = await setParLevelLogic(tenantId, parsed.data);

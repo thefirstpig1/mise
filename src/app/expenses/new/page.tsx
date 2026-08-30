@@ -22,11 +22,11 @@ export default async function NewExpensePage({
 }: {
   searchParams: Promise<{ recurring?: string; period?: string }>;
 }) {
-  const { tenantId } = await requireTenant("expense:write");
+  const { tenantId, reach} = await requireTenant("expense:write");
   const { recurring, period } = await searchParams;
 
   const [branches, suppliers, categories] = await Promise.all([
-    getBranchesLogic(tenantId),
+    getBranchesLogic(tenantId, reach),
     getSuppliersLogic(tenantId),
     getCategoriesLogic(tenantId),
   ]);

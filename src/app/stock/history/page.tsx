@@ -38,7 +38,7 @@ export default async function StockHistoryPage({
     to?: string;
   }>;
 }) {
-  const { tenantId } = await requireTenant("any:member");
+  const { tenantId, reach} = await requireTenant("any:member");
   const sp = await searchParams;
 
   // The URL is user-editable, so it is parsed, not trusted. A malformed filter
@@ -58,8 +58,8 @@ export default async function StockHistoryPage({
 
   const [products, branches, page] = await Promise.all([
     getProductsLogic(tenantId),
-    getBranchesLogic(tenantId),
-    getStockMovementHistoryLogic(tenantId, query),
+    getBranchesLogic(tenantId, reach),
+    getStockMovementHistoryLogic(tenantId, query, reach),
   ]);
 
   // Only the filters the schema accepted are replayed for the next page.

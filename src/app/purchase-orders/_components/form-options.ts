@@ -9,6 +9,7 @@
 import { getProductsLogic } from "@/server/product";
 import { getSuppliersLogic } from "@/server/supplier";
 import { getBranchesLogic } from "@/server/branch";
+import type { BranchReach } from "@/lib/permissions/service";
 import type {
   POBranchOption,
   POProductOption,
@@ -22,12 +23,14 @@ export type PurchaseOrderFormOptions = {
 };
 
 export async function loadPurchaseOrderFormOptions(
-  tenantId: string
+  tenantId: string,
+  /** Rule A5: the picker only ever offers branches this person may act on. */
+  reach: BranchReach
 ): Promise<PurchaseOrderFormOptions> {
   const [products, suppliers, branches] = await Promise.all([
     getProductsLogic(tenantId),
     getSuppliersLogic(tenantId),
-    getBranchesLogic(tenantId),
+    getBranchesLogic(tenantId, reach),
   ]);
 
   return {

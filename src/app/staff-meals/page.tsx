@@ -65,7 +65,7 @@ export default async function StaffMealsPage({
     day?: string;
   }>;
 }) {
-  const { tenantId } = await requireTenant("staffmeal:write");
+  const { tenantId, reach} = await requireTenant("staffmeal:write");
   const sp = await searchParams;
 
   const todayIso = computeBangkokToday().toISOString().slice(0, 10);
@@ -74,7 +74,7 @@ export default async function StaffMealsPage({
   const to = sp.to || month.to;
 
   const [branches, members, menus, products, tenant] = await Promise.all([
-    getBranchesLogic(tenantId),
+    getBranchesLogic(tenantId, reach),
     // The PICKER wants people who still work here. The history below asks for
     // everybody, because dropping someone who left would move last month's
     // figure by pressing a button today (rule S7).

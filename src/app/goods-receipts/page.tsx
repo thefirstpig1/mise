@@ -27,10 +27,10 @@ export default async function GoodsReceiptsPage({
 }: {
   searchParams: Promise<{ status?: string; branch?: string; flagged?: string }>;
 }) {
-  const { tenantId } = await requireTenant("receive:write");
+  const { tenantId, reach} = await requireTenant("receive:write");
   const sp = await searchParams;
 
-  const branches = await getBranchesLogic(tenantId);
+  const branches = await getBranchesLogic(tenantId, reach);
 
   // The URL is parsed, not trusted: a malformed filter falls back to the
   // unfiltered list rather than erroring the page (the Part 10 L5c rule).

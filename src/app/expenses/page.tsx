@@ -43,7 +43,7 @@ export default async function ExpenseListPage({
     to?: string;
   }>;
 }) {
-  const { tenantId } = await requireTenant("expense:view");
+  const { tenantId, reach} = await requireTenant("expense:view");
   const sp = await searchParams;
 
   // A malformed filter falls back to the unfiltered list rather than erroring:
@@ -59,7 +59,7 @@ export default async function ExpenseListPage({
   const query = parsed.success ? parsed.data : {};
 
   const [branches, suppliers, rows, due] = await Promise.all([
-    getBranchesLogic(tenantId),
+    getBranchesLogic(tenantId, reach),
     getSuppliersLogic(tenantId),
     getExpensesLogic(tenantId, query).then((list) => list.map(toExpenseListRowView)),
     getDueRecurringLogic(tenantId, { branchId: query.branchId }).then((list) =>

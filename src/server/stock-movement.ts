@@ -25,6 +25,7 @@
 // ============================================================
 
 import { Prisma, type PrismaClient } from "@prisma/client";
+import { branchScopeWhere, type BranchReach } from "@/lib/permissions/service";
 import type {
   MovementType,
   SourceType,
@@ -248,6 +249,8 @@ export async function getStockBalancesByBranchLogic(
 export async function getStockBalancesByProductLogic(
   tenantId: string,
   productId: string,
+  /** Rule A5 — one row per branch, so it is a branch list like any other. */
+  reach: BranchReach,
   asOf?: Date
 ): Promise<BranchStockBalance[]> {
   return withTenantContext(tenantId, async (tx) => {
@@ -269,6 +272,9 @@ export async function getStockBalancesByProductLogic(
       where: {
         tenantId,
         OR: [{ deletedAt: null }, { id: { in: [...byBranchId.keys()] } }],
+        // The OR above deliberately keeps a soft-deleted branch that still
+        // holds movements; reach narrows both halves of it.
+        ...branchScopeWhere(reach),
       },
       select: BRANCH_SELECT,
       orderBy: [{ name: "asc" }],
@@ -360,7 +366,14 @@ export type StockMovementHistoryPage = {
  */
 export async function getStockMovementHistoryLogic(
   tenantId: string,
-  query: GetStockMovementHistoryQuery
+  query: GetStockMovementHistoryQuery,
+  /**
+   * Rule A5, and the one place where an assertion is the WRONG tool: this
+   * query's `branchId` is optional, and absent means "every branch". Asserting
+   * a value that is not there guards nothing, so reach narrows the rows
+   * instead — omitting the filter must not widen the answer.
+   */
+  reach: BranchReach
 ): Promise<StockMovementHistoryPage> {
   const {
     productId,
@@ -381,7 +394,11 @@ export async function getStockMovementHistoryLogic(
       where: {
         tenantId,
         ...(productId ? { productId } : {}),
-        ...(branchId ? { branchId } : {}),
+        ...(branchId
+          ? { branchId }
+          : reach.allBranches
+            ? {}
+            : { branchId: { in: [...reach.allowedBranchIds] } }),
         ...(type ? { type } : {}),
         ...(sourceType ? { sourceType } : {}),
         ...(occurredAt ? { occurredAt } : {}),

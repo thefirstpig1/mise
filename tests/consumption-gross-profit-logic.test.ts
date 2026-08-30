@@ -13,6 +13,7 @@
 // ============================================================
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { EVERY_BRANCH } from "./support/reach";
 import { randomUUID } from "node:crypto";
 import { prisma, withAdminContext } from "@/lib/db";
 import { addDays, computeBangkokToday } from "@/lib/bangkok-date";
@@ -58,7 +59,7 @@ describe("gross profit by สูตรอาหาร (ADR 0022 Part 22 L3d)", (
     p.productUnits.find((u) => u.isBase)!.id;
 
   const summary = () =>
-    getBranchCostSummaryLogic(tenantA, { from: FROM, to: today }).then(
+    getBranchCostSummaryLogic(tenantA, { from: FROM, to: today }, EVERY_BRANCH).then(
       (rows) => rows.find((r) => r.branchId === branchA)!
     );
 

@@ -193,7 +193,7 @@ export async function createStockAdjustmentAction(
   _prevState: StockAdjustmentActionState,
   formData: FormData
 ): Promise<StockAdjustmentActionState> {
-  const { tenantId, membership } = await requireTenant("stock:write");
+  const { tenantId, membership, assertBranch} = await requireTenant("stock:write");
 
   const parsed = createStockAdjustmentInputSchema.safeParse(
     rawFromFormData(formData)
@@ -201,6 +201,8 @@ export async function createStockAdjustmentAction(
   if (!parsed.success) {
     return { ok: false, fieldErrors: toFieldErrors(parsed.error) };
   }
+
+  assertBranch(parsed.data.branchId);
 
   try {
     const { movement, postBalance } = await createStockAdjustmentLogic(
@@ -235,10 +237,12 @@ export type StockReadState<T> =
 export async function getStockBalanceAction(
   query: unknown
 ): Promise<StockReadState<StockBalanceView>> {
-  const { tenantId } = await requireTenant("any:member");
+  const { tenantId, assertBranch } = await requireTenant("any:member");
 
   const parsed = getStockBalanceQuerySchema.safeParse(query);
   if (!parsed.success) return { ok: false, formError: BAD_QUERY_MESSAGE };
+
+  assertBranch(parsed.data.branchId);
 
   const balance = await getStockBalanceLogic(tenantId, parsed.data);
   return { ok: true, data: toStockBalanceView(balance) };
@@ -253,12 +257,16 @@ export async function getStockMovementHistoryAction(
 ): Promise<
   StockReadState<{ rows: StockMovementView[]; nextCursor: string | null }>
 > {
-  const { tenantId } = await requireTenant("any:member");
+  const { tenantId, reach, assertBranch } = await requireTenant("any:member");
 
   const parsed = getStockMovementHistoryQuerySchema.safeParse(query);
   if (!parsed.success) return { ok: false, formError: BAD_QUERY_MESSAGE };
 
-  const page = await getStockMovementHistoryLogic(tenantId, parsed.data);
+  // Naming a branch is checked; naming none is narrowed inside the read, since
+  // omitting the filter must not widen the answer (ADR 0029 Q5).
+  if (parsed.data.branchId) assertBranch(parsed.data.branchId);
+
+  const page = await getStockMovementHistoryLogic(tenantId, parsed.data, reach);
   return {
     ok: true,
     data: {

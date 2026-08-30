@@ -126,7 +126,7 @@ export async function postConsumptionAction(
   _prevState: PostConsumptionActionState,
   formData: FormData
 ): Promise<PostConsumptionActionState> {
-  const { tenantId, membership } = await requireTenant("consumption:post");
+  const { tenantId, membership, assertBranch} = await requireTenant("consumption:post");
 
   const parsed = postConsumptionInputSchema.safeParse({
     submitKey: formData.get("submit_key"),
@@ -137,6 +137,8 @@ export async function postConsumptionAction(
   if (!parsed.success) {
     return { ok: false, fieldErrors: toFieldErrors(parsed.error) };
   }
+
+  assertBranch(parsed.data.branchId);
   const input = parsed.data;
 
   // --- ask before writing anything (Q2b) ---

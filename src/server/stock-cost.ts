@@ -20,6 +20,7 @@
 // ============================================================
 
 import { Prisma } from "@prisma/client";
+import { branchScopeWhere, type BranchReach } from "@/lib/permissions/service";
 import type { GrossProfitMethod } from "@prisma/client";
 import type { CostSource, PrismaClient, SourceType } from "@prisma/client";
 import { withTenantContext } from "@/lib/db";
@@ -579,13 +580,20 @@ export type BranchCostSummary = {
  */
 export async function getBranchCostSummaryLogic(
   tenantId: string,
-  query: GetBranchCostSummaryQuery
+  query: GetBranchCostSummaryQuery,
+  /**
+   * Rule A5. /cost's business-wide figure is a roll-up of branch rows
+   * (CONTEXT.md: never a silent average), so narrowing the branch list
+   * narrows the total with it — a branch manager's ยอดรวม is the sum of
+   * what they run, and it says which branches it covers.
+   */
+  reach: BranchReach
 ): Promise<BranchCostSummary[]> {
   const { from, to } = query;
 
   return withTenantContext(tenantId, async (tx) => {
     const branches = await tx.branch.findMany({
-      where: { tenantId, deletedAt: null },
+      where: { tenantId, deletedAt: null, ...branchScopeWhere(reach) },
       select: { id: true, name: true, code: true },
       orderBy: { name: "asc" },
     });

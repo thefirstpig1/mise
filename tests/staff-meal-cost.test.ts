@@ -19,6 +19,7 @@
 // ============================================================
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { EVERY_BRANCH } from "./support/reach";
 import { randomUUID } from "node:crypto";
 import { withAdminContext } from "@/lib/db";
 import { addDays, computeBangkokToday } from "@/lib/bangkok-date";
@@ -377,7 +378,7 @@ describe("staff meal — money (ADR 0028 Consequences 1 & 2)", () => {
       branchId: undefined,
     };
 
-    const before = await getBranchCostSummaryLogic(tenantA, period as never);
+    const before = await getBranchCostSummaryLogic(tenantA, period as never, EVERY_BRANCH);
     const soldOnly = before.find((b) => b.branchId === branchA)!.cogsSold;
     expect(soldOnly).not.toBeNull();
 
@@ -385,7 +386,7 @@ describe("staff meal — money (ADR 0028 Consequences 1 & 2)", () => {
     // if it leaked into cogsSold there would be no mistaking it.
     await eatRaw(3);
 
-    const after = await getBranchCostSummaryLogic(tenantA, period as never);
+    const after = await getBranchCostSummaryLogic(tenantA, period as never, EVERY_BRANCH);
     const row = after.find((b) => b.branchId === branchA)!;
 
     // Cost of goods SOLD is unmoved: nobody sold the staff their lunch.

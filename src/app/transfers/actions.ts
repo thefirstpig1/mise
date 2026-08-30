@@ -180,7 +180,7 @@ export async function dispatchTransferAction(
   _prevState: DispatchTransferActionState,
   formData: FormData
 ): Promise<DispatchTransferActionState> {
-  const { tenantId, membership } = await requireTenant("stock:write");
+  const { tenantId, membership, assertBranch} = await requireTenant("stock:write");
 
   // Lines arrive as parallel arrays — the shape a no-JS form posts, which is the
   // same reason goods-receipts/ reads them this way.
@@ -208,6 +208,9 @@ export async function dispatchTransferAction(
   if (!parsed.success) {
     return { ok: false, fieldErrors: toFieldErrors(parsed.error) };
   }
+
+  assertBranch(parsed.data.fromBranchId);
+  assertBranch(parsed.data.toBranchId);
 
   try {
     const transfer = await dispatchTransferLogic(

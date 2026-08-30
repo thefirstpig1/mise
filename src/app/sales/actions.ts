@@ -328,7 +328,7 @@ export async function createPosIntegrationAction(
   _prev: PosIntegrationActionState | null,
   formData: FormData
 ): Promise<PosIntegrationActionState> {
-  const { tenantId } = await requireTenant("sales:import");
+  const { tenantId, assertBranch} = await requireTenant("sales:import");
 
   const parsed = posIntegrationInputSchema.safeParse({
     branchId: formData.get("branchId"),
@@ -336,6 +336,8 @@ export async function createPosIntegrationAction(
     name: formData.get("name"),
   });
   if (!parsed.success) return { ok: false, fieldErrors: toFieldErrors(parsed.error) };
+
+  assertBranch(parsed.data.branchId);
 
   try {
     const created = await createPosIntegrationLogic(tenantId, parsed.data);

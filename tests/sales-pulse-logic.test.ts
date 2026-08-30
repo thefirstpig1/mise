@@ -11,6 +11,7 @@
 // ============================================================
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { EVERY_BRANCH } from "./support/reach";
 import { randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { withAdminContext } from "@/lib/db";
@@ -290,7 +291,7 @@ describe("daily pulse *Logic (one number, and what it catches)", () => {
   // ------------------------------------------------------------
 
   it("P10: detail wins where it exists, the pulse fills the gap, and both say which", async () => {
-    const d = await getPulseDashboardLogic(tenantA);
+    const d = await getPulseDashboardLogic(tenantA, EVERY_BRANCH);
     const a = d.branches.find((b) => b.branchId === branchA)!;
     const b = d.branches.find((b) => b.branchId === branchB)!;
 
@@ -302,7 +303,7 @@ describe("daily pulse *Logic (one number, and what it catches)", () => {
   });
 
   it("P11: a day with neither says so rather than showing a zero", async () => {
-    const d = await getPulseDashboardLogic(tenantA);
+    const d = await getPulseDashboardLogic(tenantA, EVERY_BRANCH);
     const b = d.branches.find((x) => x.branchId === branchB)!;
     expect(b.today.amount).toBeNull();
     expect(b.today.source).toBeNull();
@@ -310,7 +311,7 @@ describe("daily pulse *Logic (one number, and what it catches)", () => {
   });
 
   it("P12: the business-wide line is an explicit roll-up, and says what it is missing", async () => {
-    const d = await getPulseDashboardLogic(tenantA);
+    const d = await getPulseDashboardLogic(tenantA, EVERY_BRANCH);
     const expected = d.branches.reduce(
       (sum, r) => sum + (r.yesterday.amount?.toNumber() ?? 0),
       0
@@ -320,7 +321,7 @@ describe("daily pulse *Logic (one number, and what it catches)", () => {
   });
 
   it("P13: the seven-day window counts only the days that have a figure", async () => {
-    const d = await getPulseDashboardLogic(tenantA, { branchId: branchB });
+    const d = await getPulseDashboardLogic(tenantA, EVERY_BRANCH, { branchId: branchB });
     const b = d.branches[0];
     // branchB has yesterday and two days ago, and nothing else in the window.
     expect(b.last7DaysWithFigure).toBe(2);
@@ -328,7 +329,7 @@ describe("daily pulse *Logic (one number, and what it catches)", () => {
   });
 
   it("P14: asking about one branch returns one branch", async () => {
-    const d = await getPulseDashboardLogic(tenantA, { branchId: branchA });
+    const d = await getPulseDashboardLogic(tenantA, EVERY_BRANCH, { branchId: branchA });
     expect(d.branches).toHaveLength(1);
     expect(d.branches[0].branchId).toBe(branchA);
   });

@@ -19,6 +19,7 @@
 // ============================================================
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { EVERY_BRANCH } from "./support/reach";
 import { randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { withAdminContext, prisma } from "@/lib/db";
@@ -379,7 +380,7 @@ describe("stock-movement read *Logic (tenant-scoped, app-layer isolation)", () =
       occurredAt: day(-1),
     });
 
-    const rows = await getStockBalancesByProductLogic(tenantA, prodMain.id);
+    const rows = await getStockBalancesByProductLogic(tenantA, prodMain.id, EVERY_BRANCH);
     const byBranch = new Map(rows.map((r) => [r.branchId, r]));
 
     expect(dec(byBranch.get(branchA1)!.balance)).toBe(9.5);
@@ -405,7 +406,7 @@ describe("stock-movement read *Logic (tenant-scoped, app-layer isolation)", () =
         productId: prodMain.id,
         branchId: branchA1,
       })
-    );
+    , EVERY_BRANCH);
 
     const occurred = page.rows.map((r) => r.occurredAt.getTime());
     expect([...occurred].sort((a, b) => b - a)).toEqual(occurred);
@@ -424,7 +425,7 @@ describe("stock-movement read *Logic (tenant-scoped, app-layer isolation)", () =
         productId: prodMain.id,
         type: "ADJUST_LOSS",
       })
-    );
+    , EVERY_BRANCH);
     expect(losses.rows.length).toBe(1);
     expect(dec(losses.rows[0].qty)).toBe(-4);
 
@@ -434,7 +435,7 @@ describe("stock-movement read *Logic (tenant-scoped, app-layer isolation)", () =
         productId: prodMain.id,
         sourceType: "GR_LINE",
       })
-    );
+    , EVERY_BRANCH);
     expect(fromGr.rows.length).toBe(1);
     expect(fromGr.rows[0].type).toBe("PO_RECEIVE");
 
@@ -448,7 +449,7 @@ describe("stock-movement read *Logic (tenant-scoped, app-layer isolation)", () =
         dateFrom: day(-2),
         dateTo: day(-2),
       })
-    );
+    , EVERY_BRANCH);
     expect(window.rows.length).toBe(2);
     expect(
       window.rows.every(
@@ -463,7 +464,7 @@ describe("stock-movement read *Logic (tenant-scoped, app-layer isolation)", () =
     const all = await getStockMovementHistoryLogic(
       tenantA,
       getStockMovementHistoryQuerySchema.parse({ productId: prodMain.id })
-    );
+    , EVERY_BRANCH);
     expect(all.rows.length).toBe(6); // 4 in A1 + 1 in A2 + 1 in the closed branch
 
     const seen: string[] = [];
@@ -479,7 +480,7 @@ describe("stock-movement read *Logic (tenant-scoped, app-layer isolation)", () =
             limit: 2,
             ...(cursor ? { cursor } : {}),
           })
-        );
+        , EVERY_BRANCH);
       seen.push(...page.rows.map((r) => r.id));
       cursor = page.nextCursor;
     } while (cursor && ++guard < 10);
@@ -527,7 +528,7 @@ describe("stock-movement read *Logic (tenant-scoped, app-layer isolation)", () =
         productId: prodMain.id,
         branchId: branchA2,
       })
-    );
+    , EVERY_BRANCH);
 
     const resolved = page.rows.find((r) => r.sourceId === adjustmentId);
     expect(resolved).toBeDefined();
@@ -546,7 +547,7 @@ describe("stock-movement read *Logic (tenant-scoped, app-layer isolation)", () =
         productId: prodMain.id,
         sourceType: "GR_LINE",
       })
-    );
+    , EVERY_BRANCH);
     expect(gr.rows[0].adjustment).toBeNull();
     expect(gr.rows[0].goodsReceipt).toBeNull();
   });
@@ -555,13 +556,13 @@ describe("stock-movement read *Logic (tenant-scoped, app-layer isolation)", () =
     const fromA = await getStockMovementHistoryLogic(
       tenantA,
       getStockMovementHistoryQuerySchema.parse({ productId: prodB.id })
-    );
+    , EVERY_BRANCH);
     expect(fromA.rows.length).toBe(0);
 
     const fromB = await getStockMovementHistoryLogic(
       tenantB,
       getStockMovementHistoryQuerySchema.parse({})
-    );
+    , EVERY_BRANCH);
     expect(fromB.rows.length).toBe(1);
     expect(dec(fromB.rows[0].qty)).toBe(99);
   });
@@ -606,7 +607,7 @@ describe("stock-movement read *Logic (tenant-scoped, app-layer isolation)", () =
         dateFrom: target,
         dateTo: target,
       })
-    );
+    , EVERY_BRANCH);
     expect(sameDay.rows.length).toBe(2);
 
     // The previous Bangkok day contains neither — under the old UTC bucketing
@@ -618,7 +619,7 @@ describe("stock-movement read *Logic (tenant-scoped, app-layer isolation)", () =
         dateFrom: day(-31),
         dateTo: day(-31),
       })
-    );
+    , EVERY_BRANCH);
     expect(dayBefore.rows.length).toBe(0);
 
     // "Balance as of that day" sees both, and stops there.

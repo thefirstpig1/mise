@@ -12,12 +12,30 @@
 
 import type { Branch } from "@prisma/client";
 import { withTenantContext } from "@/lib/db";
+import {
+  branchScopeWhere,
+  type BranchReach,
+} from "@/lib/permissions/service";
 
-/** List a tenant's live (non-soft-deleted) branches, ordered by name. */
-export async function getBranchesLogic(tenantId: string): Promise<Branch[]> {
+/**
+ * List the live branches a person may act on, ordered by name.
+ *
+ * `reach` is REQUIRED (Part 28, ADR 0029 Q5). This function is the door 26
+ * screens use to fill a branch picker or loop over "every branch", so narrowing
+ * here narrows all of them at once — and an optional parameter would be one
+ * somebody forgets, failing open.
+ *
+ * A caller that genuinely serves no user — a background job, a fixture — says
+ * so out loud with `{ allBranches: true, allowedBranchIds: [] }` rather than
+ * being allowed to say nothing.
+ */
+export async function getBranchesLogic(
+  tenantId: string,
+  reach: BranchReach
+): Promise<Branch[]> {
   return withTenantContext(tenantId, (tx) =>
     tx.branch.findMany({
-      where: { tenantId, deletedAt: null },
+      where: { tenantId, deletedAt: null, ...branchScopeWhere(reach) },
       orderBy: { name: "asc" },
     })
   );

@@ -126,10 +126,10 @@ export default async function RecipesPage({
 }: {
   searchParams: Promise<{ branch?: string; q?: string; missing?: string }>;
 }) {
-  const { tenantId } = await requireTenant("any:member");
+  const { tenantId, reach} = await requireTenant("any:member");
   const sp = await searchParams;
 
-  const branches = await getBranchesLogic(tenantId);
+  const branches = await getBranchesLogic(tenantId, reach);
   if (branches.length === 0) {
     return (
       <div className="rounded-lg border border-border bg-muted/30 p-6 text-sm">
