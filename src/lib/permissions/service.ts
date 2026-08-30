@@ -314,6 +314,84 @@ export function narrowBranches<T extends { id: string }>(
 }
 
 // ============================================================
+// Giving permissions away — the four rules (Part 29, ADR 0029 Q10)
+// ============================================================
+// `member:manage` is held by `owner`, `admin` AND `manager`, because a shop
+// with three branches will not have its owner personally invite every cook.
+// The moment more than one role can hand out permissions, the system has to
+// answer: what stops a manager from making themselves an owner?
+//
+// NOT BY RANKING THE ROLES. Q4 made a role a SET of capabilities, not a rung on
+// a ladder — `purchaser` and `accountant` cannot be compared and should not be.
+// Any rule of the form "you may not touch someone above you" would smuggle an
+// ordering back in and then need one invented for every new role.
+//
+// So the four rules below compare sets and names, never heights. Three live
+// here as pure functions; rule 3 needs to count rows and lives in the write
+// path, where it can see the database.
+//
+// AND THE HOLE THEY ACTUALLY CLOSE is not "promote myself" — that is easy to
+// spot in review. It is: **invite my own second email address as `owner`, then
+// sign in as it.** Q2 makes an invitation one INSERT, so that attack is thirty
+// seconds long, and rule 4 is what ends it.
+// ============================================================
+
+/**
+ * RULE 4 — you may only hand out a role whose capabilities you already hold.
+ *
+ * Set containment, which is defined without any ordering: `manager` may create
+ * an `accountant` because a manager holds everything an accountant does, and
+ * nobody may create an `owner` unless they hold everything an owner does.
+ *
+ * That last consequence is why "only an owner may grant owner" is NOT written
+ * as a rule of its own — it falls out of this one, for everybody except
+ * `admin`, who holds every capability and is stopped by rule 1 instead.
+ *
+ * The rule is also an honesty check on the role table: whoever can grant a
+ * capability effectively has it already, because they can always grant it to an
+ * address they control. A system claiming otherwise is lying to itself.
+ */
+export function canGrantRole(granterRole: string, targetRole: string): boolean {
+  const mine = capabilitiesOf(granterRole);
+  return [...capabilitiesOf(targetRole)].every((cap) => mine.has(cap));
+}
+
+/**
+ * RULE 1 — an `owner` row may only be touched by an `owner`.
+ *
+ * Deactivating, demoting, or changing the reach of an owner. Rule 4 does not
+ * cover this on its own: an `admin` holds every capability, so containment
+ * would happily let them demote the person whose account it is.
+ *
+ * One role is named, and only one. That is not a ladder — it is the single
+ * asymmetry the product actually has, which is that somebody owns the account.
+ */
+export function canModifyMembershipOf(
+  actorRole: string,
+  targetCurrentRole: string
+): boolean {
+  if (targetCurrentRole === "owner") return actorRole === "owner";
+  return true;
+}
+
+/**
+ * RULE 2 — you may only hand out branch reach you have yourself.
+ *
+ * A manager at อโศก may invite a cook to อโศก and nowhere else, and may not
+ * hand out `allBranches` at all. An area manager (`allBranches: true`) may do
+ * both, which is how "manages people across the region" is expressed without a
+ * role of its own — the same tick box that answered Q5b.
+ */
+export function canGrantReach(
+  actor: BranchReach,
+  wanted: BranchReach
+): boolean {
+  if (actor.allBranches) return true;
+  if (wanted.allBranches) return false;
+  return wanted.allowedBranchIds.every((id) => actor.allowedBranchIds.includes(id));
+}
+
+// ============================================================
 // Departments — present, and deliberately NOT wired
 // ============================================================
 // `canAccessDepartment` keeps its Sprint 0 shape and keeps having no callers,
