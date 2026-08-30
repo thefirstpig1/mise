@@ -112,6 +112,20 @@ describe("the gate's shape (ADR 0029 Part 28 L3)", () => {
     expect(bad).toEqual([]);
   });
 
+  it("G5 — /choose-shop is the one page that must NOT call requireTenant", () => {
+    // It is where requireTenant SENDS people when it cannot tell which shop
+    // they mean, so calling it there is an infinite bounce. The absence is a
+    // decision, and an absence nobody wrote down is an absence somebody
+    // helpfully "fixes" (ADR 0029 Q3).
+    const chooser = sites.filter((s) => s.file.includes("app/choose-shop/"));
+    expect(chooser).toEqual([]);
+
+    // ...and the file has to actually exist, or this passes by looking at
+    // nothing at all.
+    const page = join(process.cwd(), "src", "app", "choose-shop", "page.tsx");
+    expect(readFileSync(page, "utf8")).toContain("auth()");
+  });
+
   it("G4 — any:member is used sparingly and deliberately", () => {
     // The sentinel is honest for a dashboard and a stock level. If it starts
     // spreading it has stopped meaning "considered and open" and started

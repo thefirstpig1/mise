@@ -33,7 +33,19 @@ const BRANCH_FIELDS = ["branchId", "fromBranchId", "toBranchId", "branchIds"];
  * A name alone is not an exemption; B4 requires a reason long enough to have
  * been thought about.
  */
-const EXEMPT: Record<string, string> = {};
+const EXEMPT: Record<string, string> = {
+  // These take branch ids to GRANT them to somebody else, which is a different
+  // question from acting on a branch, and `assertBranch` answers it wrongly in
+  // both directions. It would pass a branch manager handing out `allBranches`
+  // (the ids list is empty, so there is nothing to assert), and it says nothing
+  // about the act being a grant. Rule 2 — `canGrantReach` in membership.ts —
+  // is the stronger check and the one these use: it refuses reach laundering
+  // as well as out-of-reach branches. Pinned by Q15-3 in membership-e2e.
+  inviteMemberAction:
+    "grants reach rather than acting on it; enforced by canGrantReach (rule 2), which also refuses allBranches laundering",
+  updateMemberAction:
+    "grants reach rather than acting on it; enforced by canGrantReach (rule 2), which also refuses allBranches laundering",
+};
 
 function walk(dir: string, ext: string, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {
@@ -147,6 +159,19 @@ describe("branch scope on writes (ADR 0029 Part 28 L3c)", () => {
     // was tried and NOTHING WENT RED: the unit tests cover the helper, and the 26
     // screens that call it have no test of their own. A static scan is the
     // cheapest thing that can see it.
+    // A listing that must NOT narrow, with the reason. The only one.
+    //
+    // `assertBranchesExist` asks "is this branch part of this SHOP", which is a
+    // different question from "may you reach it" and has to stay that way: if
+    // it narrowed to the actor's reach, a manager granting สีลม would be told
+    // "ไม่พบสาขา" — that the branch does not exist — when the truth is that it
+    // does and they may not hand it out. Rule 2 gives that person the right
+    // sentence, and it runs first.
+    const MUST_NOT_NARROW: Record<string, string> = {
+      "src/server/membership.ts":
+        "tenant membership check, not a reach check — narrowing it would report a real branch as missing",
+    };
+
     const offenders: string[] = [];
 
     const src = join(process.cwd(), "src");
@@ -159,7 +184,7 @@ describe("branch scope on writes (ADR 0029 Part 28 L3c)", () => {
         if (!/\bbranch\.findMany\(/.test(lines[i])) continue;
         // the where clause sits within a few lines of the call
         const near = lines.slice(i, i + 12).join("\n");
-        if (!near.includes("branchScopeWhere(")) {
+        if (!near.includes("branchScopeWhere(") && !MUST_NOT_NARROW[file]) {
           offenders.push(`${file}:${i + 1}`);
         }
       }
@@ -180,6 +205,11 @@ describe("branch scope on writes (ADR 0029 Part 28 L3c)", () => {
   });
 
   it("B4 — every exemption carries a reason, not just a name", () => {
+    // An exemption list is where a guard goes to die. Each entry has to name
+    // a function that still exists and give a reason long enough to have been
+    // thought about — otherwise the next person adds a name and moves on.
+    expect(Object.keys(EXEMPT).length, "exemptions are creeping").toBeLessThan(5);
+
     for (const [name, why] of Object.entries(EXEMPT)) {
       expect(fns.some((f) => f.name === name), `${name} no longer exists`).toBe(true);
       expect(why.length, `${name} needs a real reason`).toBeGreaterThan(30);

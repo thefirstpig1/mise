@@ -39,6 +39,7 @@ import { auth } from "./auth";
 import { prisma } from "./db";
 import { canAccessBranch, hasCapability, type Requirement } from "./permissions/service";
 import { costAccessFor, type CostAccess } from "./permissions/cost-access";
+import { pickActiveTenant, readActiveTenantCookie } from "./active-tenant";
 
 /** Where a person may act. `role` answers what; this answers where. */
 export interface Reach {
@@ -74,16 +75,31 @@ export async function requireTenant(
   if (!session?.user?.id) redirect("/login");
 
   // Layer 1: membership discovery — cross-tenant (by userId) → bare prisma.
-  const membership = await prisma.tenantMembership.findFirst({
+  //
+  // findMANY since Part 29. Until invitations existed nobody could belong to
+  // two shops, and taking the oldest was a guess that could never be wrong. It
+  // can be wrong now — an outside bookkeeper does the books for three shops —
+  // so the guess is gone (ADR 0029 Q3).
+  const memberships = await prisma.tenantMembership.findMany({
     where: { userId: session.user.id, isActive: true },
     include: {
       tenant: true,
       branchAccess: { select: { branchId: true } },
     },
-    orderBy: { createdAt: "asc" }, // "first active membership" = oldest joined
+    orderBy: { createdAt: "asc" },
   });
 
-  if (!membership) redirect("/signup");
+  if (memberships.length === 0) redirect("/signup");
+
+  // The cookie is read ONLY here, only when there is a real choice to make, and
+  // only to select from the list above — never as an input to a query (rule
+  // A9). One-shop tenants, which is every shop today, never touch `cookies()`.
+  const membership = pickActiveTenant(
+    memberships,
+    memberships.length === 1 ? null : await readActiveTenantCookie()
+  );
+
+  if (!membership) redirect("/choose-shop");
 
   const role = membership.role;
   if (!hasCapability(role, need)) deny(need);
@@ -102,6 +118,14 @@ export async function requireTenant(
     tenantId: membership.tenantId,
     role,
     reach,
+
+    /**
+     * How many shops this person belongs to. Only ever compared against 1: the
+     * dashboard offers "สลับร้าน" when there is somewhere to switch TO, and
+     * says nothing when there is not (ADR 0029 Q3). Free — the memberships were
+     * all fetched above to avoid guessing.
+     */
+    membershipCount: memberships.length,
 
     /**
      * The ticket a cost-bearing read needs, or `null`. Minted here and nowhere

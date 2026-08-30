@@ -39,6 +39,13 @@ describe("membership writes (ADR 0029 Part 29 L3)", () => {
   let ownerMembership: string;
   let asok: string;
   let silom: string;
+  /**
+   * Users this spec creates that never get a membership — the actor in M13.
+   * The teardown below collects everybody else THROUGH their membership, so
+   * a user without one walks straight past it and is left in `app_user` for
+   * ever. The run stays green and only the sweep notices (ADR 0023 Q5).
+   */
+  const strayUsers: string[] = [];
 
   const email = (tag: string) => `mem-${tag}-${randomUUID().slice(0, 8)}@example.com`;
 
@@ -119,7 +126,7 @@ describe("membership writes (ADR 0029 Part 29 L3)", () => {
       await tx.branch.deleteMany({ where: { tenantId: tenantA } });
       await tx.tenant.deleteMany({ where: { id: tenantA } });
       await tx.user.deleteMany({
-        where: { id: { in: users.map((u) => u.userId) } },
+        where: { id: { in: [...users.map((u) => u.userId), ...strayUsers] } },
       });
     });
   });
@@ -322,13 +329,26 @@ describe("membership writes (ADR 0029 Part 29 L3)", () => {
       invite({ email: addr, branchIds: [other.branchId] })
     ).rejects.toBeInstanceOf(BranchNotFoundError);
 
-    // Nothing half-written: the membership must not exist.
+    // Nothing half-written: no membership...
     const rows = await withAdminContext((tx) =>
       tx.tenantMembership.count({
         where: { tenantId: tenantA, user: { email: addr } },
       })
     );
     expect(rows).toBe(0);
+
+    // ...AND no person. The `user.upsert` cannot run inside the tenant
+    // transaction (it keys on email, so it is cross-tenant by nature), which
+    // means it is not rolled back by the refusal — the branch check has to
+    // happen BEFORE it or a rejected form leaves a stranger in `app_user`
+    // for ever.
+    //
+    // This assertion exists because the suite went green and the test SWEEP
+    // reported orphaned users, which is the case ADR 0023 Q5 built that
+    // warning for. Without this line the bug is invisible again the moment
+    // somebody reorders the function.
+    const people = await prisma.user.count({ where: { email: addr } });
+    expect(people, "a refused invitation left a user row behind").toBe(0);
 
     await withAdminContext(async (tx) => {
       await tx.branch.deleteMany({ where: { tenantId: other.tenantId } });
@@ -390,6 +410,7 @@ describe("membership writes (ADR 0029 Part 29 L3)", () => {
     const second = await withAdminContext((tx) =>
       tx.user.create({ data: { email: email("m13-actor"), name: "ผู้จัดการ" } })
     );
+    strayUsers.push(second.id);
 
     await updateMemberLogic(
       tenantA,

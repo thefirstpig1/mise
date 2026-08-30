@@ -260,7 +260,22 @@ export async function inviteMemberLogic(
 ): Promise<{ membershipId: string; userId: string; wasReactivated: boolean }> {
   assertMayGrant(actor, input.role, wantedReach(input), null);
 
-  // Cross-tenant by nature: bare prisma, before the scoped transaction.
+  // ── the branches are checked BEFORE the person is created ────────────────
+  //
+  // Order, not tidiness. The upsert below cannot live inside the scoped
+  // transaction — it keys on email, not tenantId, so it is cross-tenant by
+  // nature like `requireTenant`'s own discovery (ADR 0004) — which means an
+  // invitation that fails validation AFTER it would leave a `User` row behind
+  // for somebody who was never added to anything.
+  //
+  // Found by the test sweep, not by reading: the suite went green and the
+  // teardown reported orphaned users, which is exactly the case ADR 0023 Q5
+  // built that warning to surface.
+  await withTenantContext(tenantId, (tx) =>
+    assertBranchesExist(tx, tenantId, input.branchIds)
+  );
+
+  // Cross-tenant by nature: bare prisma, outside the scoped transaction.
   const user = await prisma.user.upsert({
     where: { email: input.email },
     // The name is only written when the person is NEW. Overwriting what
@@ -272,8 +287,6 @@ export async function inviteMemberLogic(
   });
 
   return withTenantContext(tenantId, async (tx) => {
-    await assertBranchesExist(tx, tenantId, input.branchIds);
-
     const existing = await tx.tenantMembership.findFirst({
       where: { tenantId, userId: user.id },
       select: { id: true, isActive: true, role: true },

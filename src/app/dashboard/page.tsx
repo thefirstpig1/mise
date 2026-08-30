@@ -38,10 +38,11 @@ const NAV: readonly { href: string; label: string; need: Requirement }[] = [
   { href: "/expenses", label: "ค่าใช้จ่าย", need: "expense:view" },
   { href: "/cost", label: "ต้นทุน", need: "cost:view" },
   { href: "/settings", label: "ตั้งค่าร้าน", need: "settings:write" },
+  { href: "/settings/members", label: "คนในร้าน", need: "member:manage" },
 ];
 
 export default async function DashboardPage() {
-  const { user, membership, tenantId, reach, costAccess, can } =
+  const { user, membership, tenantId, reach, costAccess, can, membershipCount } =
     await requireTenant("any:member");
   const { tenant } = membership;
 
@@ -189,6 +190,14 @@ export default async function DashboardPage() {
               → {item.label}
             </a>
           ))}
+          {/* Only when there is somewhere to switch TO. A person in one shop —
+              which is every shop today — never sees this, and never sees the
+              chooser either (ADR 0029 Q3). */}
+          {membershipCount > 1 && (
+            <a href="/choose-shop" className="text-sm text-primary hover:underline">
+              → สลับร้าน
+            </a>
+          )}
         </div>
       </main>
     </div>
