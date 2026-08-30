@@ -1,8 +1,19 @@
 # Mise Sprint Progress
 
-**Last updated:** 2026-08-27
+**Last updated:** 2026-08-30
 
-## Current Sprint: Sprint 5 — Recipe + CONSUMPTION 🚧 IN PROGRESS
+## Current Sprint: Sprint 6 — Permissions 🚧 IN PROGRESS
+
+_(Sprint 5 — Recipe + CONSUMPTION: ✅ COMPLETE 2026-08-28, Parts 21–27)_
+
+**Status:** **Part 28 (สิทธิ์) ✅ COMPLETE 2026-08-30** · **Part 29 (เชิญคนเข้าร้าน) — next**.
+**Split:** ADR 0029 covers BOTH Parts and was written once (Q1–Q16). Part 28 is the gate;
+Part 29 is the second person who can be held by it. ⛔ **The reverse order is forbidden** —
+shipping the ability to create weak users before the gate exists is worse than today.
+
+---
+
+## Sprint 5 — Recipe + CONSUMPTION: ✅ COMPLETE (2026-08-28)
 
 _(Sprint 4 — POS sales import · daily pulse: ✅ COMPLETE 2026-08-20, except Part 20b which is blocked on choosing an inbound-mail vendor)_
 
@@ -15,6 +26,36 @@ _(Sprint 4 — POS sales import · daily pulse: ✅ COMPLETE 2026-08-20, except 
 **Not in Sprint 5:** H.8 theoretical-vs-actual variance (→ Sprint 6, per the spec's own O16, decided 2026-08-21) · Price Volatility (Sprint 6) · Section B three-layer mirror and `recipe_change_diff` (**removed**, ADR 0021 Q3).
 
 ---
+
+## Sprint 6 Part 28 — สิทธิ์ (capability + branch reach): ✅ COMPLETE (L0–L6, 2026-08-30)
+
+**ADR:** `docs/adr/0029-permissions-and-the-second-user.md` (Q1–Q16, grill 2026-08-30)
+**Rules registered:** `docs/calculation-rules.md` §11.8, **A1–A10**
+
+หนี้ที่ ADR 0021 Q18 บันทึกไว้เมื่อ 6 Parts ก่อน. สิ่งที่ grill พลิกจากที่ตั้งไว้:
+
+- **ประโยคที่ส่งต่อกันมาจริงแค่ครึ่งเดียว** — *"ใครก็ตามที่ login ได้ ทำได้ทุกอย่าง รวมทั้ง `viewer`"* จริงในเชิงโค้ด แต่ `tenant-init.ts:50` เป็นที่**เดียว**ที่เขียน `tenant_membership` และมัน hardcode `role: "owner"` → ทุก tenant มีสมาชิกคนเดียวเสมอ **`viewer` ยังไม่เคยมีตัวตน** งานจึงเป็น "ด่าน + คนที่จะถูกกั้น" ไม่ใช่ "ต่อสาย `canPerform`"
+- **`ROLE_PERMISSIONS` บรรยายระบบที่ไม่เคยถูกสร้าง** — `purchase_request` / `sales_transaction` ไม่มีตาราง ส่วนตารางจริงราว 14 ตัวไม่มีที่ยืน **ลบทิ้ง ไม่ใช่ซ่อม** และ **master-spec §H.4 ตายทั้งก้อน** (เมทริกซ์ · อัลกอริทึม 8 ขั้น · `scope_filter` ทั้งสามค่า)
+- **หน่วยของสิทธิ์ไม่ใช่ `resource × action`** — ของที่ต้องป้องกันหลายอย่างไม่ใช่ "ของ": **ต้นทุนไม่ถูกเก็บที่ไหนเลย** (ADR 0014), การอนุมัติ PO ไม่ใช่ตาราง, การเชิญคนไม่ใช่ตาราง. แกน resource บังคับให้ประดิษฐ์ resource ปลอมชื่อ `"cost"` ซึ่งเป็นการโกหกในโครงสร้างข้อมูล → **capability ที่มีชื่อ 17 ตัว** และข้อบกพร่องที่ ADR 0021 Q18 แก้ไม่ได้ก็ละลายไป: `cost:view` พูดได้ในคำเดียว
+- **พารามิเตอร์บังคับ ทำให้ลืมไม่ได้** — `requireTenant(capability)` เปลี่ยน 145 call site เป็น **compile error พอดี 145 ข้อ** ในครั้งแรก. หน้าใหม่ที่ไม่บอกว่าต้องใช้สิทธิ์อะไร **ไม่คอมไพล์**
+- **reach ย้ายออกจาก role** — `canAccessBranch` เคยเปิดด้วย `if (role === "owner") return true` ซึ่งเป็นวิธีเดียวที่จะพูดว่า "ทุกสาขา" ได้ → `all_branches` ทำให้ผู้จัดการเขต, บัญชีที่ดูทุกสาขา, และเจ้าของที่ดูสาขาเดียว **เป็นการติ๊กช่องเดียว ไม่ใช่ role ใหม่สามอัน**
+- 🔴 **เกือบวางด่านผิดชั้น** — `stock-cost.ts` ไม่ได้ถูกเรียกเพื่อแสดงผลอย่างเดียว มันถูกเรียกตอน**เขียน ledger**: การโอนสาขา freeze ราคา FIFO ลงบรรทัดกลาง transaction (ADR 0018 Q5) โดยคนที่อาจไม่มีสิทธิ์เห็นราคาเลย. **คำนวณต้นทุน ≠ แสดงต้นทุน** — ตั๋วอยู่ที่ทางออกสู่หน้าจอ
+- **และเหตุผลแข็งกว่าที่เถียงไว้** — ตอนหักเครื่องยนต์เพื่อพิสูจน์ พบว่า `transfer.ts` กับ `stock-cost.ts` ไม่มีคำว่า role / capability / costAccess เลยแม้แต่ครั้งเดียว: **write path ไม่มี user context ให้ถือตั๋วตั้งแต่แรก** ด่านอยู่ที่ทางออกไม่ใช่เพราะรสนิยม แต่เพราะไม่มีที่อื่นให้อยู่
+
+| L | What | ✅ |
+|---|---|---|
+| L0 | ADR 0029 (Q1–Q16) · CONTEXT.md (role 7 ตัว + `Capability` `Branch reach` `Invitation` `Active shop`, triple→**double filter**) · rules A1–A10 | ✅ |
+| L1 | `tenant_membership.all_branches` **1 คอลัมน์** · migration UPDATE รักษา bypass เดิมเป๊ะ ๆ (ทุกแถวในระบบเป็น owner) · `tenant-init` เขียนตรง ๆ เพราะ owner เกิดก่อนสาขา · **ไม่มีตารางใหม่** | ✅ |
+| L2 | `service.ts` เขียนใหม่ทั้งไฟล์ — 17 capability, 7 role, `canAccessBranch` **ไม่มีคำว่า role** · `canAccessDepartment` อยู่ต่อโดยไม่ต่อสาย พร้อมเหตุผล 11 บรรทัด · 15 tests, **4 verified red** | ✅ |
+| L3 | `requireTenant(capability)` บังคับ → **145 errors, 145 แก้** · `/denied` (ห้าม 404) · ตั๋ว `CostAccess` แบบ opaque · เทสต์สแกน: ห้ามอยู่ใน `try`, ห้ามไม่ใช่ literal · **4 verified red** | ✅ |
+| L3c | บีบ `branch.findMany` **9 จุด** ที่ต้นทาง · `assertBranch` **24 จุด** ใน 16 ไฟล์ · guard อ่านจาก **zod schema จริง** ไม่ใช่เดาจาก source · **3 breaks, 1 พบรูจริง** (B5) | ✅ |
+| L4 | ตั๋วเข้า 6 หน้าที่รั่วเงิน · `costHidden` บอกว่าทำไมถึงว่าง · **ห้าม `฿0` ห้าม `—`** · 5 tests, breaks พบว่าเหตุผลจริงแข็งกว่าที่เขียนไว้ | ✅ |
+| L5 | เมนูแดชบอร์ด 19 ลิงก์กรองตาม capability · เทสต์ผูกเมนูกับหน้าไว้ทั้งสองทาง · `staff:view` เลิกเป็นสวิตช์ตาย · build **62 routes** · **2 verified red** | ✅ |
+| L6 | **E2E ที่กด action จริง** — mock แค่ `auth()` ปล่อย `requireTenant` ทำงานเต็ม · 5 เคส + positive control · **3 breaks ลงตรงเทสต์ที่ถูกต้อง ไม่ใช่ทั้งไฟล์** | ✅ |
+
+**Verified at close:** `tsc` clean · `build` green (**62 routes**) · vitest **1183 passed / 4 skipped** (จาก 1144) · Neon swept to 0
+
+**หนี้ที่ Part 28 ทิ้งไว้ให้ Part 29:** การเชิญคน (Q2) · หน้าเลือกร้านเมื่อมีหลาย membership (Q3) · กฎกันไต่สิทธิ์ 4 ข้อ (Q10) · role `admin` (Q11) · `role_changed_at`/`role_changed_by` (Q14) · เคสที่ 3–5 ของ Q15. **ลำดับกลับด้านเป็นสิ่งต้องห้าม** — 29 ก่อน 28 คือการส่งมอบความสามารถสร้างผู้ใช้สิทธิ์น้อยโดยไม่มีด่าน
 
 ## Sprint 5 Part 26 — มื้อพนักงาน: ✅ COMPLETE (L0–L6, 2026-08-28)
 
