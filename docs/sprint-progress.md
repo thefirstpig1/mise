@@ -2,11 +2,11 @@
 
 **Last updated:** 2026-08-30
 
-## Current Sprint: Sprint 6 — Permissions 🚧 IN PROGRESS
+## Current Sprint: Sprint 6 — Permissions ✅ COMPLETE (2026-08-30)
 
 _(Sprint 5 — Recipe + CONSUMPTION: ✅ COMPLETE 2026-08-28, Parts 21–27)_
 
-**Status:** **Part 28 (สิทธิ์) ✅ COMPLETE 2026-08-30** · **Part 29 (เชิญคนเข้าร้าน) — next**.
+**Status:** **Part 28 (สิทธิ์) ✅ COMPLETE 2026-08-30** · **Part 29 (เชิญคนเข้าร้าน) ✅ COMPLETE 2026-08-30**. **Sprint 6 ปิดครบ.**
 **Split:** ADR 0029 covers BOTH Parts and was written once (Q1–Q16). Part 28 is the gate;
 Part 29 is the second person who can be held by it. ⛔ **The reverse order is forbidden** —
 shipping the ability to create weak users before the gate exists is worse than today.
@@ -26,6 +26,34 @@ _(Sprint 4 — POS sales import · daily pulse: ✅ COMPLETE 2026-08-20, except 
 **Not in Sprint 5:** H.8 theoretical-vs-actual variance (→ Sprint 6, per the spec's own O16, decided 2026-08-21) · Price Volatility (Sprint 6) · Section B three-layer mirror and `recipe_change_diff` (**removed**, ADR 0021 Q3).
 
 ---
+
+## Sprint 6 Part 29 — เชิญคนเข้าร้าน: ✅ COMPLETE (L1–L6, 2026-08-30)
+
+**ADR:** `docs/adr/0029-permissions-and-the-second-user.md` (Q2, Q3, Q10, Q11, Q14 — เขียนครั้งเดียวคุมทั้งสอง Part)
+**Rules:** `docs/calculation-rules.md` §11.8 — A6 บังคับจริงตั้งแต่ Part นี้
+
+Part ที่ทำให้ `viewer` มีตัวตนได้เป็นครั้งแรก. `tenant_membership` มีคนเขียนคนเดียวมา 28 Parts — `tenant-init.ts:50` — นี่คือคนที่สอง
+
+- **คำเชิญ *คือ* แถว membership** — ไม่มี token ไม่มีวันหมดอายุ ไม่มีขั้นตอน "ยอมรับ" ไม่มีตาราง `tenant_invitation`. magic link พิสูจน์ความเป็นเจ้าของอีเมลอยู่แล้ว **นั่นคือการยอมรับในตัว** — credential ใบที่สองคือเครื่องจักรที่ทำซ้ำของเดิม และส่งไม่ได้จนถึง Sprint 7 อยู่ดี
+- **ช่องโหว่จริงไม่ใช่ "เลื่อนขั้นตัวเอง"** แต่คือ **เชิญอีเมลสำรองของตัวเองเป็น `owner` แล้วล็อกอินเป็นคนนั้น** — เพราะคำเชิญเป็น INSERT เดียว ช่องนี้กว้าง 30 วินาที และกฎ 4 (สับเซ็ต) คือสิ่งที่ปิดมัน **โดยไม่มีการจัดอันดับ role เลย**
+- **`requireTenant` เลิกเดา** — เดิม `findFirst` + `orderBy createdAt asc` เอาอันเก่าสุด ซึ่งผิดไม่ได้ตราบใดที่ไม่มีใครมี 2 ร้าน. บัญชีนอกที่ดูแล 3 ร้านจะเห็นร้านเดียวตลอดไปโดยไม่มีอะไรบอก → หน้า **เลือกร้าน** + cookie ที่ **ใช้เลือกจากลิสต์เท่านั้น ไม่เคยเป็น input ของ query** (กฎ A9)
+- **หน้าจัดการคนเสนอทุก role รวม `owner` แม้กับ manager ที่ให้ไม่ได้** — กรอง dropdown แล้วผู้จัดการจะไม่มีวันรู้ว่ามี role นั้นอยู่ และจะไปขอ "อันที่เห็นทุกอย่าง" โดยไม่มีชื่อเรียก. กดแล้วได้ประโยคบอกเหตุผล **การซ่อนมีไว้สำหรับประตูที่ไม่นำไปไหนเลย** (กฎ A7)
+
+🔴 **สองอย่างที่การตรวจสอบเจอ แต่การอ่านโค้ดไม่เจอ:**
+
+1. **ลบกฎ 4 แล้วสวีทยังเขียว — ลบกฎ 1 ก็ยังเขียว** ข้อความปฏิเสธของทั้งคู่มีคำว่า "เจ้าของร้าน" และเทสต์ assert ที่คำนั้น มันจึงพิสูจน์แค่ว่า *มีอะไรบางอย่างปฏิเสธ* ซึ่งเป็นข้ออ้างที่อ่อนที่สุด. แก้โดย assert **ครึ่งที่เป็นเอกลักษณ์ของแต่ละประโยค** และเพิ่ม Q15-4b (admin ที่ผ่านกฎ 4 และถูกกฎ 1 หยุด). **กฎ 3 เป็นโรคเดียวกันลึกลงไปอีกชั้น** — เคสของมันใช้ admin ซึ่งกฎ 1 ปฏิเสธก่อนที่กฎ 3 จะถูกเรียก **กฎที่นั่งอยู่หลังกฎอื่นคือกฎที่ไม่มีอะไรทดสอบ**
+2. **sweep รายงาน orphaned users บนรันที่เขียว** — ตรงตามที่ ADR 0023 Q5 สร้างคำเตือนนั้นมา. `inviteMemberLogic` สร้าง `User` ก่อนตรวจสาขา และ upsert อยู่ใน transaction ของ tenant ไม่ได้ (มันคีย์ที่ email = cross-tenant เหมือน `requireTenant`) ฟอร์มที่ถูกปฏิเสธจึงทิ้งคนแปลกหน้าไว้ใน `app_user` ตลอดกาล
+
+| L | What | ✅ |
+|---|---|---|
+| L1 | `role_changed_at` + `role_changed_by` + CHECK คู่ · FK ชี้ `app_user` ไม่ใช่ `"User"` (จับได้ก่อนรัน) | ✅ |
+| L2 | กฎ 1/2/4 เป็นฟังก์ชันบริสุทธิ์ · zod + 7 role labels + hint บอกว่าแต่ละ role **เห็นอะไร** · 9 tests, **4 verified red** | ✅ |
+| L3 | `membership.ts` — เชิญ/แก้/นำออก · กฎ 3 อยู่ที่นี่เพราะต้องนับแถว · **ลำดับกฎ 4→1→2 ตัดสินว่าใครได้เหตุผลอะไร** · 13 tests, **5 verified red** | ✅ |
+| L3c | `pickActiveTenant` + หน้าเลือกร้าน (หน้าเดียวที่ห้ามเรียก `requireTenant`) · 5 tests, **2 verified red** · G5 ปักหมุดการไม่เรียกนั้นไว้ | ✅ |
+| L5 | `/settings/members` · เมนู "คนในร้าน" + "สลับร้าน" ที่โผล่เฉพาะคนที่มีหลายร้าน · build **64 routes** | ✅ |
+| L6 | **E2E 12 เคส** ผ่าน action จริง — Q15 ข้อ 3, 4, 5 ครบ + Q3 ทั้งสามทาง · **5 breaks ลงตรงเทสต์ที่ถูกต้อง** | ✅ |
+
+**Verified at close:** `tsc` clean · `build` green (**64 routes**) · vitest **1223 passed / 4 skipped** (จาก 1144 ต้น Sprint) · sweep เงียบ
 
 ## Sprint 6 Part 28 — สิทธิ์ (capability + branch reach): ✅ COMPLETE (L0–L6, 2026-08-30)
 
