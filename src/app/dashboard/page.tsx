@@ -1,4 +1,5 @@
 import { signOut } from "@/lib/auth";
+import type { Requirement } from "@/lib/permissions/service";
 import { withTenantContext } from "@/lib/db";
 import { requireTenant } from "@/lib/require-tenant";
 import { getTransfersLogic } from "@/server/transfer";
@@ -9,8 +10,39 @@ import { getPulseDashboardLogic } from "@/server/sales-pulse";
 import { toPulseDashboardView } from "@/app/sales/_components/sales-view";
 import PulsePanel from "./_components/PulsePanel";
 
+/**
+ * Every door in Mise, with the capability its page requires.
+ *
+ * Order is the order it has always been in: master data, then buying, then
+ * what happens to the stock, then what it all cost. A cook sees three of these
+ * and an owner sees nineteen, which is the point — nineteen links of which
+ * fourteen refuse is not a menu, it is a maze.
+ */
+const NAV: readonly { href: string; label: string; need: Requirement }[] = [
+  { href: "/suppliers", label: "ซัพพลายเออร์", need: "any:member" },
+  { href: "/categories", label: "หมวดบัญชี", need: "any:member" },
+  { href: "/products", label: "สินค้า/วัตถุดิบ", need: "any:member" },
+  { href: "/stock", label: "สต๊อก", need: "any:member" },
+  { href: "/purchase-orders", label: "ใบสั่งซื้อ", need: "purchase:write" },
+  { href: "/goods-receipts", label: "รับสินค้า", need: "receive:write" },
+  { href: "/stock-counts", label: "นับสต๊อก", need: "count:write" },
+  { href: "/waste", label: "ของเสีย", need: "stock:write" },
+  { href: "/staff-meals", label: "มื้อพนักงาน", need: "staffmeal:write" },
+  { href: "/transfers", label: "โอนของระหว่างสาขา", need: "any:member" },
+  { href: "/sales", label: "ยอดขาย", need: "sales:view" },
+  { href: "/menus", label: "เมนู", need: "any:member" },
+  { href: "/recipes", label: "สูตรอาหาร", need: "any:member" },
+  { href: "/menus/lab", label: "ทดลองเมนู", need: "recipe:write" },
+  { href: "/menus/coverage", label: "เมนูที่ยังไม่มีสูตร", need: "sales:view" },
+  { href: "/consumption", label: "ตัดสต๊อกตามยอดขาย", need: "consumption:post" },
+  { href: "/expenses", label: "ค่าใช้จ่าย", need: "expense:view" },
+  { href: "/cost", label: "ต้นทุน", need: "cost:view" },
+  { href: "/settings", label: "ตั้งค่าร้าน", need: "settings:write" },
+];
+
 export default async function DashboardPage() {
-  const { user, membership, tenantId, reach, costAccess} = await requireTenant("any:member");
+  const { user, membership, tenantId, reach, costAccess, can } =
+    await requireTenant("any:member");
   const { tenant } = membership;
 
   // Layer 2: this membership's branch + dept access (tenant-scoped read).
@@ -133,64 +165,30 @@ export default async function DashboardPage() {
           </p>
         </div>
 
-        <div className="mt-6 flex gap-4">
-          <a href="/suppliers" className="text-sm text-primary hover:underline">
-            → ซัพพลายเออร์
-          </a>
-          <a href="/categories" className="text-sm text-primary hover:underline">
-            → หมวดบัญชี
-          </a>
-          <a href="/products" className="text-sm text-primary hover:underline">
-            → สินค้า/วัตถุดิบ
-          </a>
-          <a href="/stock" className="text-sm text-primary hover:underline">
-            → สต๊อก
-          </a>
-          <a href="/purchase-orders" className="text-sm text-primary hover:underline">
-            → ใบสั่งซื้อ
-          </a>
-          <a href="/goods-receipts" className="text-sm text-primary hover:underline">
-            → รับสินค้า
-          </a>
-          <a href="/stock-counts" className="text-sm text-primary hover:underline">
-            → นับสต๊อก
-          </a>
-          <a href="/waste" className="text-sm text-primary hover:underline">
-            → ของเสีย
-          </a>
-          <a href="/staff-meals" className="text-sm text-primary hover:underline">
-            → มื้อพนักงาน
-          </a>
-          <a href="/transfers" className="text-sm text-primary hover:underline">
-            → โอนของระหว่างสาขา
-          </a>
-          <a href="/sales" className="text-sm text-primary hover:underline">
-            → ยอดขาย
-          </a>
-          <a href="/menus" className="text-sm text-primary hover:underline">
-            → เมนู
-          </a>
-          <a href="/recipes" className="text-sm text-primary hover:underline">
-            → สูตรอาหาร
-          </a>
-          <a href="/menus/lab" className="text-sm text-primary hover:underline">
-            → ทดลองเมนู
-          </a>
-          <a href="/menus/coverage" className="text-sm text-primary hover:underline">
-            → เมนูที่ยังไม่มีสูตร
-          </a>
-          <a href="/consumption" className="text-sm text-primary hover:underline">
-            → ตัดสต๊อกตามยอดขาย
-          </a>
-          <a href="/expenses" className="text-sm text-primary hover:underline">
-            → ค่าใช้จ่าย
-          </a>
-          <a href="/cost" className="text-sm text-primary hover:underline">
-            → ต้นทุน
-          </a>
-          <a href="/settings" className="text-sm text-primary hover:underline">
-            → ตั้งค่าร้าน
-          </a>
+        {/* The dashboard IS the navigation — there is no shared chrome in
+            this project (src/app/layout.tsx renders bare children), so this
+            one list is every door in Mise. Filtering it here filters all of
+            them.
+
+            The capability beside each link is the SAME one its page declares
+            to requireTenant. It has to be, or the menu offers a door that
+            refuses — which is worse than no door, because the person cannot
+            tell a permission from a bug (rule A8, the /denied page's whole
+            reason). tests/permissions-nav.test.ts holds the two lists
+            together.
+
+            Hiding is tidiness, not security (rule A7): every page below still
+            refuses on its own. */}
+        <div className="mt-6 flex flex-wrap gap-4">
+          {NAV.filter((item) => can(item.need)).map((item) => (
+            <a
+              key={item.href}
+              href={item.href}
+              className="text-sm text-primary hover:underline"
+            >
+              → {item.label}
+            </a>
+          ))}
         </div>
       </main>
     </div>

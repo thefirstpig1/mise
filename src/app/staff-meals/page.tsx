@@ -65,7 +65,14 @@ export default async function StaffMealsPage({
     day?: string;
   }>;
 }) {
-  const { tenantId, reach} = await requireTenant("staffmeal:write");
+  const { tenantId, reach, can } = await requireTenant("staffmeal:write");
+
+  // Recording a meal and reading back how much ONE NAMED PERSON has eaten
+  // are different questions, and only the first is kitchen work. The page
+  // gate is `staffmeal:write`; the quota standing below is `staff:view`,
+  // which is the whole reason that capability exists (ADR 0029 Q7 — the
+  // roster picker on the form is part of recording, not of surveillance).
+  const seesPeople = can("staff:view");
   const sp = await searchParams;
 
   const todayIso = computeBangkokToday().toISOString().slice(0, 10);
@@ -114,14 +121,17 @@ export default async function StaffMealsPage({
   ]);
 
   // Today's quota standing for the person being filtered on, when there is one.
-  const quota = sp.member
-    ? toStaffMealQuotaView(
-        await getStaffMealQuotaLogic(tenantId, {
-          staffMemberId: sp.member,
-          businessDate: new Date(`${todayIso}T00:00:00Z`),
-        })
-      )
-    : null;
+  // Not fetched at all without `staff:view` — this is the per-person aggregate,
+  // the one read in this Part that is about a human rather than about stock.
+  const quota =
+    sp.member && seesPeople
+      ? toStaffMealQuotaView(
+          await getStaffMealQuotaLogic(tenantId, {
+            staffMemberId: sp.member,
+            businessDate: new Date(`${todayIso}T00:00:00Z`),
+          })
+        )
+      : null;
 
   const rows = history.rows.map((r) =>
     toStaffMealRowView(r, tenant.staffMealMaxMenuPrice)
@@ -209,6 +219,14 @@ export default async function StaffMealsPage({
       </form>
 
       {/* --- the quota standing, when one person is in view --- */}
+      {sp.member && !seesPeople && (
+        // Said out loud rather than left blank: someone who filtered to a person
+        // and got nothing would read it as "this person has eaten nothing"
+        // (rule A8).
+        <div className="rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">
+          ไม่มีสิทธิ์ดูโควตารายคน
+        </div>
+      )}
       {quota && (
         <div className="rounded-xl border border-border bg-card p-4 text-sm">
           <p className="font-medium">
