@@ -2,7 +2,13 @@
 
 **Last updated:** 2026-08-30
 
-## Current Sprint: Sprint 6 — Permissions ✅ COMPLETE (2026-08-30)
+## Current Sprint: Sprint 7 — RLS 🚧 IN PROGRESS
+
+**Status:** **Part 30 (เปิด RLS ให้ทำงานจริง) ✅ COMPLETE 2026-08-30** — หนี้ที่ ADR 0004 เลื่อนมาตั้งแต่ Sprint 1 · อีกครึ่งของการแยกที่ Sprint 6 ทำค้างไว้ (ADR 0029 Consequence 3)
+
+---
+
+## Sprint 6 — Permissions ✅ COMPLETE (2026-08-30)
 
 _(Sprint 5 — Recipe + CONSUMPTION: ✅ COMPLETE 2026-08-28, Parts 21–27)_
 
@@ -26,6 +32,37 @@ _(Sprint 4 — POS sales import · daily pulse: ✅ COMPLETE 2026-08-20, except 
 **Not in Sprint 5:** H.8 theoretical-vs-actual variance (→ Sprint 6, per the spec's own O16, decided 2026-08-21) · Price Volatility (Sprint 6) · Section B three-layer mirror and `recipe_change_diff` (**removed**, ADR 0021 Q3).
 
 ---
+
+## Sprint 7 Part 30 — เปิด RLS ให้ทำงานจริง: ✅ COMPLETE (L0–L2, 2026-08-30)
+
+**ADR:** `docs/adr/0030-rls-enforcement.md` (Q1–Q6, grill 2026-08-30)
+**Rules:** `docs/calculation-rules.md` §11.9, **I1–I8**
+**SQL:** `prisma/manual/enforce_rls.sql` — รันด้วยมือในฐานะเจ้าของตาราง ไม่ใช่ migration
+
+RLS ไม่ได้ *ขาดหายไป* จาก Mise — มัน**เปิดอยู่ตั้งแต่ Sprint 0 พร้อม policy 47 อัน และไม่เคยกรองแถวไหนเลย** เพราะแอปต่อด้วย role ที่ทั้งเป็นเจ้าของตารางและมี `BYPASSRLS`. ADR 0004 Consequence 3 บันทึกไว้ตั้งแต่ Sprint 1 และเลื่อนมาที่นี่ด้วยชื่อ
+
+- **`FORCE ROW LEVEL SECURITY` อย่างเดียวไม่มีผลเลย** — มันแก้เฉพาะ bypass ของ *เจ้าของ* ไม่แตะ **attribute `BYPASSRLS`** ที่ `neondb_owner` มีด้วย. แก้ SQL 47 บรรทัดแล้วได้ผลเป็นศูนย์ ซึ่งเป็นรูปทรงเดียวกับปัญหาที่กำลังแก้ · สิ่งที่ทำให้มันทำงานคือ **role ใหม่ที่ไม่ใช่เจ้าของและไม่มี BYPASSRLS**
+- **ประตูข้าม RLS ย้ายออกจาก `db.ts`** ไปอยู่ `db-admin.ts` — เพราะ `db.ts` ถูก import โดยทุกหน้าและทุก action และประตูที่มองข้ามการแยกร้านไม่ควรอยู่ห่างแค่ autocomplete เดียว · **allowlist มีรายการเดียว** คือ `require-tenant.ts`
+- **`withAdminContext` → `withRlsBypass`** (335 จุด, 48 ไฟล์) ชื่อเดิมโกหกสองชั้น: อ้าง role `mise_admin` ที่ไม่เคยมีอยู่ในฐานข้อมูลนี้ และไม่ได้ bypass อะไรเพราะไม่มีอะไรถูกบังคับ
+- **สร้างร้านใหม่มินต์ uuid เองแล้ว `set_config` ก่อน INSERT แถวแรก** — policy ของ `tenant` ใช้ `USING` เป็น `WITH CHECK` ด้วย ปฏิเสธการให้ signup ใช้ประตูข้าม เพราะ `/signup` ไม่ต้องล็อกอิน
+- **policy เลิกสุภาพ** — ตัด `true` ออกจาก `current_setting` ทั้ง 47 อัน query ที่ไม่มี context จึง **error** แทนที่จะคืนศูนย์แถวเงียบ ๆ (กฎ A8 ยกระดับเป็นทั้งหน้าจอ)
+
+🔴 **เปิดสวิตช์แล้วแดง 51 เทสต์ใน 13 ไฟล์ — ไม่มีอันไหนที่ RLS ผิด ทุกอันคือของที่รอดมาได้ 29 Parts:**
+
+1. **เทสต์ส่ง client ที่ไม่มี context ให้ตรรกะที่ผูก tenant** (~40) — `computeConsumptionForDayLogic(prisma, …)` รับ `tx` โปรดักชันส่ง tx จริงจาก `withTenantContext` เทสต์ส่ง client เปล่า · รวม `prisma.$transaction((tx) => …)` 6 บล็อกที่เป็นทรานแซกชันจริงแต่ไม่ประกาศ tenant
+2. **sweep อยู่ในร้านไม่ได้** — มันลบข้าม tenant ทุกร้าน ซึ่งเป็นไปไม่ได้ใต้ RLS · ทั้งสามทางเข้าย้ายไปใช้ประตูข้าม
+3. 🔴 **การแยกแยะ P2002 พังเงียบ ๆ สองที่ — เป็นบั๊กที่ถึงมือผู้ใช้จริง** Postgres **ปิดชื่อ constraint บนตารางที่มี RLS** เพราะการบอกชื่อ index เท่ากับยืนยันว่ามีแถวที่ role นี้ไม่มีสิทธิ์เห็น → `meta.target` หายไป → ตัวแยกแยะทั้งสองตกไปที่ค่า default: **ชื่อหน่วยซ้ำถูกรายงานว่า "SKU ซ้ำ"** และการยืนยันเดือนซ้ำโผล่เป็น error ดิบแทนข้อความไทย · ทั้งคู่เก็บทางเร็วไว้เมื่อ `meta` มี และ **ถามฐานข้อมูลเมื่อไม่มี**
+4. 🔴 **เครื่องพิสูจน์ของผมเองทดสอบ role ผิด** — มันอ่าน `MISE_APP_URL` แต่การสลับทำโดย**สลับชื่อตัวแปร** มันจึงเงียบ ๆ ไปทดสอบเจ้าของ และรายงานว่า query ไม่มี context คืน 17 แถวโดยไม่รู้ว่านั่นคือฝีมือตัวเอง · ตอนนี้อ่าน `DATABASE_URL` ซึ่งเป็นข้ออ้างที่ถูกต้อง: *อะไรก็ตามที่แอปต่อด้วย ต้องถูกแยก*
+
+| L | What | ✅ |
+|---|---|---|
+| L0 | ADR 0030 (Q1–Q6) · rules I1–I8 · CONTEXT.md 4 คำ · `enforce_rls.sql` **generate จากฐานข้อมูลจริง** ไม่ใช่เขียนมือ | ✅ |
+| L1 | `db-admin.ts` · `set_config` รับ parameter · `require-tenant` + `tenant-init` · **harness เห็นแดง 4/6 ตอนชี้ไป role ที่ bypass** · guard 5 ข้อ, **3 verified red** | ✅ |
+| L2 | เปิดสวิตช์ → แก้ 51 เทสต์แดง 4 กลุ่ม รวม**บั๊กโปรดักชัน 2 ตัว** | ✅ |
+
+**Verified at close:** `tsc` clean · `build` green (**64 routes**) · vitest **1234 passed / 4 skipped** · sweep เงียบ · **FORCED 47/47 · policy สุภาพเหลือ 0 · `DATABASE_URL` = `mise_app` (bypassrls=false)**
+
+⚠️ **ยังเหลือ:** รัน `enforce_rls.sql` §1–4 บน Neon branch อื่น (production/staging) ตอน deploy · หมุนรหัสผ่านทั้งสอง role · Part 20b + อีเมล production ยังติดที่การเลือกผู้ให้บริการ
 
 ## Sprint 6 Part 29 — เชิญคนเข้าร้าน: ✅ COMPLETE (L1–L6, 2026-08-30)
 
