@@ -15,10 +15,13 @@
 
 import { describe, it, expect, afterAll } from "vitest";
 import { randomUUID } from "node:crypto";
-import { PrismaClient } from "@prisma/client";
+import { prismaBypass } from "@/lib/db-admin";
 import { sweepTestTenants, sweepOrphanUsers } from "./support/sweep";
 
-const db = new PrismaClient();
+// The sweep deletes across EVERY tenant, which is cross-tenant by nature and
+// therefore impossible under row security: a tenant-scoped connection can only
+// ever see the shop it is currently in. It runs on the bypass (ADR 0030 Q2).
+const db = prismaBypass;
 
 // `User` carries no tenantId, so the sweep does not (and must not) touch it —
 // it is Auth.js's table, shared across tenants. This spec cleans up its own.

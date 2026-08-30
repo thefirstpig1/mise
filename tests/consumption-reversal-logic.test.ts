@@ -19,7 +19,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { randomUUID } from "node:crypto";
-import { prisma,  } from "@/lib/db";
+import { prisma, withTenantContext} from "@/lib/db";
 import { withRlsBypass } from "@/lib/db-admin";
 import { addDays, computeBangkokToday } from "@/lib/bangkok-date";
 import { computeHeaderSignature } from "@/lib/sales-file";
@@ -351,7 +351,7 @@ describe("consumption reversal and the import's auto-void (ADR 0022 Part 22 L3c)
   });
 
   it("V-03 giving the day back restores ฿1,800 — the money that LEFT", async () => {
-    await prisma.$transaction((tx) =>
+    await withTenantContext(tenantA, (tx) =>
       voidConsumptionForDayInTx(
         tx as never,
         tenantA,

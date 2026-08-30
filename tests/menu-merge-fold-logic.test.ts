@@ -19,7 +19,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { randomUUID } from "node:crypto";
-import { prisma } from "@/lib/db";
+import { prisma, withTenantContext} from "@/lib/db";
 import { withRlsBypass } from "@/lib/db-admin";
 import { addDays, computeBangkokToday } from "@/lib/bangkok-date";
 import { productInputSchema } from "@/lib/validations/product";
@@ -140,7 +140,9 @@ describe("folding merged menus (ADR 0026 Q5)", () => {
     });
 
   const recipeFor = (menuId: string, asOf: Date) =>
-    resolveRecipeIds(prisma, tenantA, [{ kind: "menu", id: menuId }], branchA, asOf);
+    withTenantContext(tenantA, (tx) =>
+      resolveRecipeIds(tx, tenantA, [{ kind: "menu", id: menuId }], branchA, asOf)
+    );
 
   beforeAll(async () => {
     await withRlsBypass(async (tx) => {

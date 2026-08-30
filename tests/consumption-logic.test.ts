@@ -25,7 +25,7 @@ import {
   computeConsumptionForDayLogic,
   isWithinBackdateWindow,
 } from "@/server/consumption";
-import { prisma } from "@/lib/db";
+import { prisma, withTenantContext} from "@/lib/db";
 
 describe("consumption demand (ADR 0022 Part 22 L3a)", () => {
   let tenantA: string;
@@ -177,12 +177,17 @@ describe("consumption demand (ADR 0022 Part 22 L3a)", () => {
       cancelledSalePolicy: "TREAT_AS_COOKED" | "TREAT_AS_NOT_COOKED";
     }> = {}
   ) =>
-    computeConsumptionForDayLogic(prisma, tenantA, {
+    // `computeConsumptionForDayLogic` takes a `tx` — production hands it one
+    // from inside withTenantContext (consumption-post.ts). Passing the bare
+    // client here was invisible until RLS started enforcing.
+    withTenantContext(tenantA, (tx) =>
+      computeConsumptionForDayLogic(tx, tenantA, {
       branchId: branchA,
       businessDate: D1,
       cancelledSalePolicy: "TREAT_AS_COOKED",
-      ...over,
-    });
+        ...over,
+      })
+    );
 
   const qtyOf = (
     d: { lines: { productId: string; qty: { toString(): string } }[] },

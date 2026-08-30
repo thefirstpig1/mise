@@ -16,7 +16,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { EVERY_BRANCH } from "./support/reach";
 import { randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
-import { prisma } from "@/lib/db";
+import { prisma, withTenantContext} from "@/lib/db";
 import { withRlsBypass } from "@/lib/db-admin";
 import { productInputSchema } from "@/lib/validations/product";
 import { createProductLogic, type ProductWithUnits } from "@/server/product";
@@ -247,12 +247,14 @@ describe("goods receipt → expense (ADR 0016 Q2/Q3)", () => {
     const detail2 = await getExpenseByIdLogic(tenantUnreg, expense2!.id);
     expect(detail2!.items[0].categoryId).toBe(detail!.items[0].categoryId);
 
-    const fallbacks = await prisma.category.count({
+    const fallbacks = await withTenantContext(tenantUnreg, (tx) =>
+      tx.category.count({
       where: {
         tenantId: tenantUnreg,
         groupName: UNCATEGORISED_CATEGORY.groupName,
       },
-    });
+      })
+    );
     expect(fallbacks).toBe(1);
   });
 
@@ -269,7 +271,9 @@ describe("goods receipt → expense (ADR 0016 Q2/Q3)", () => {
     );
 
     expect(await getExpenseByGoodsReceiptLogic(tenantUnreg, receipt.id)).toBeNull();
-    const row = await prisma.expense.findUnique({ where: { id: expense!.id } });
+    const row = await withTenantContext(tenantUnreg, (tx) =>
+      tx.expense.findUnique({ where: { id: expense!.id } })
+    );
     // Soft-deleted, not reversed: the receipt already records who voided it and
     // why, and duplicating that would let the two disagree.
     expect(row?.deletedAt).toBeInstanceOf(Date);

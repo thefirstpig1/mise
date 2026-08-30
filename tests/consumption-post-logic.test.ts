@@ -13,7 +13,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { randomUUID } from "node:crypto";
-import { prisma,  } from "@/lib/db";
+import { prisma, withTenantContext} from "@/lib/db";
 import { withRlsBypass } from "@/lib/db-admin";
 import { addDays, computeBangkokToday } from "@/lib/bangkok-date";
 import { productInputSchema } from "@/lib/validations/product";
@@ -429,7 +429,7 @@ describe("posting consumption (ADR 0022 Part 22 L3b)", () => {
     await post(day);
     const before = await balance(pork);
 
-    const res = await prisma.$transaction((tx) =>
+    const res = await withTenantContext(tenantA, (tx) =>
       voidConsumptionForDayInTx(
         tx as never,
         tenantA,
@@ -450,7 +450,7 @@ describe("posting consumption (ADR 0022 Part 22 L3b)", () => {
     const day = addDays(today, -4);
     const before = await balance(pork);
 
-    const again = await prisma.$transaction((tx) =>
+    const again = await withTenantContext(tenantA, (tx) =>
       voidConsumptionForDayInTx(
         tx as never,
         tenantA,
@@ -475,7 +475,7 @@ describe("posting consumption (ADR 0022 Part 22 L3b)", () => {
         select: { id: true },
       })
     );
-    const res = await prisma.$transaction((tx) =>
+    const res = await withTenantContext(tenantA, (tx) =>
       voidConsumptionRunInTx(tx as never, tenantA, run!.id, "REPOST", userA)
     );
     expect(res.reversedItems).toBe(0);

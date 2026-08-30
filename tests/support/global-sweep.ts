@@ -12,7 +12,7 @@
 // ============================================================
 
 import { config } from "dotenv";
-import { PrismaClient } from "@prisma/client";
+import { prismaBypass } from "@/lib/db-admin";
 import { sweepTestTenants, sweepOrphanUsers } from "./sweep";
 
 config({ path: ".env" });
@@ -25,7 +25,10 @@ export async function setup() {
 }
 
 export async function teardown() {
-  const db = new PrismaClient();
+// The sweep deletes across EVERY tenant, which is cross-tenant by nature and
+// therefore impossible under row security: a tenant-scoped connection can only
+// ever see the shop it is currently in. It runs on the bypass (ADR 0030 Q2).
+  const db = prismaBypass;
   try {
     const swept = await sweepTestTenants(db, { createdAfter: runStartedAt });
     // Users only become orphans once their tenant is gone, so this runs second.
@@ -54,6 +57,6 @@ export async function teardown() {
       }`
     );
   } finally {
-    await db.$disconnect();
+    // Not disconnected here: `prismaBypass` is shared, and the run is over.
   }
 }

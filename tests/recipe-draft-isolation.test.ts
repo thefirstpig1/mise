@@ -16,7 +16,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { randomUUID } from "node:crypto";
-import { prisma } from "@/lib/db";
+import { prisma, withTenantContext} from "@/lib/db";
 import { withRlsBypass } from "@/lib/db-admin";
 import { addDays, computeBangkokToday } from "@/lib/bangkok-date";
 import { productInputSchema } from "@/lib/validations/product";
@@ -241,12 +241,8 @@ describe("a draft recipe cannot reach the ledger (ADR 0025 Q4)", () => {
     const menu = await makeMenu("G1");
     await draft(menu.id, 5);
 
-    const resolved = await resolveRecipeIds(
-      prisma,
-      tenantA,
-      [{ kind: "menu", id: menu.id }],
-      branchA,
-      DAY
+    const resolved = await withTenantContext(tenantA, (tx) =>
+      resolveRecipeIds(tx, tenantA, [{ kind: "menu", id: menu.id }], branchA, DAY)
     );
 
     // Not "resolves to something else" — resolves to nothing at all.
@@ -263,12 +259,8 @@ describe("a draft recipe cannot reach the ledger (ADR 0025 Q4)", () => {
     expect(real.id).toBeTruthy();
     expect(real.isDraft).toBe(false);
 
-    const resolved = await resolveRecipeIds(
-      prisma,
-      tenantA,
-      [{ kind: "menu", id: menu.id }],
-      branchA,
-      DAY
+    const resolved = await withTenantContext(tenantA, (tx) =>
+      resolveRecipeIds(tx, tenantA, [{ kind: "menu", id: menu.id }], branchA, DAY)
     );
     expect(resolved.get(`menu:${menu.id}`)?.id).toBe(real.id);
   });
@@ -278,11 +270,13 @@ describe("a draft recipe cannot reach the ledger (ADR 0025 Q4)", () => {
     await draft(menu.id, 5);
     await sell(menu.id, 3, 300);
 
-    const demand = await computeConsumptionForDayLogic(prisma, tenantA, {
+    const demand = await withTenantContext(tenantA, (tx) =>
+      computeConsumptionForDayLogic(tx, tenantA, {
       branchId: branchA,
       businessDate: DAY,
-      cancelledSalePolicy: "TREAT_AS_COOKED",
-    });
+        cancelledSalePolicy: "TREAT_AS_COOKED",
+      })
+    );
 
     // Nothing of the draft's flour is demanded...
     expect(demand.lines.find((l) => l.productId === flour.id)).toBeUndefined();

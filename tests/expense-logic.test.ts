@@ -14,7 +14,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
-import { prisma } from "@/lib/db";
+import { prisma, withTenantContext} from "@/lib/db";
 import { withRlsBypass } from "@/lib/db-admin";
 import { CrossTenantReferenceError } from "@/server/product";
 import {
@@ -482,9 +482,9 @@ describe("expense *Logic (every baht that leaves, in one place)", () => {
     expect(num(updated.vatAmount)).toBe(280);
     expect(num(updated.totalAmount)).toBe(4_280);
     // No orphans: the old line is gone, not merely detached.
-    const orphans = await prisma.expenseItem.count({
-      where: { expenseId: created.id },
-    });
+    const orphans = await withTenantContext(tenantA, (tx) =>
+      tx.expenseItem.count({ where: { expenseId: created.id } })
+    );
     expect(orphans).toBe(2);
   });
 
@@ -496,7 +496,9 @@ describe("expense *Logic (every baht that leaves, in one place)", () => {
     expect(await getExpenseByIdLogic(tenantA, created.id)).toBeNull();
     const list = await getExpensesLogic(tenantA, getExpensesQuerySchema.parse({}));
     expect(list.some((e) => e.id === created.id)).toBe(false);
-    const row = await prisma.expense.findUnique({ where: { id: created.id } });
+    const row = await withTenantContext(tenantA, (tx) =>
+      tx.expense.findUnique({ where: { id: created.id } })
+    );
     expect(row?.deletedAt).toBeInstanceOf(Date);
   });
 
@@ -536,9 +538,11 @@ describe("expense *Logic (every baht that leaves, in one place)", () => {
     const t = await createRecurringExpenseLogic(tenantA, template());
 
     // Nothing was written but the template itself.
-    const generated = await prisma.expense.count({
+    const generated = await withTenantContext(tenantA, (tx) =>
+      tx.expense.count({
       where: { recurringExpenseId: t.id },
-    });
+      })
+    );
     expect(generated).toBe(0);
 
     const due = await getDueRecurringLogic(

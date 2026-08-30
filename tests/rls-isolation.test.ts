@@ -30,8 +30,21 @@ import { tenantScopedModels } from "./support/sweep";
 
 config({ path: ".env" });
 
-/** The role that RLS applies to. Never the app's current DATABASE_URL. */
-const APP_URL = process.env.MISE_APP_URL ?? process.env.DATABASE_URL;
+/**
+ * The connection the APPLICATION uses — deliberately, and this was wrong
+ * once already.
+ *
+ * The first version read `MISE_APP_URL` on the theory that naming the role
+ * was more precise than naming the app's own variable. Then the switch
+ * happened by SWAPPING the two names in `.env`, and this file quietly began
+ * testing the owner: it reported that a context-less read returned 17 rows
+ * and had no idea that was its own doing.
+ *
+ * `DATABASE_URL` is the honest choice. It says "whatever the application
+ * connects as must be isolated", which is the claim worth making, and it is
+ * red before the switch and green after without anybody editing this file.
+ */
+const APP_URL = process.env.DATABASE_URL;
 /** The owner. Used only to create and destroy the fixture. */
 const OWNER_URL = process.env.ADMIN_DATABASE_URL ?? process.env.DIRECT_URL;
 

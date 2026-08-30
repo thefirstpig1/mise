@@ -35,7 +35,7 @@
 
 import { Prisma } from "@prisma/client";
 import type { PrismaClient, Expense, RecurringExpense } from "@prisma/client";
-import { withTenantContext } from "@/lib/db";
+import { withTenantContext, uniqueTargetWithheld } from "@/lib/db";
 import { assertRefBelongsToTenant } from "@/server/product";
 import { computeBangkokToday } from "@/lib/bangkok-date";
 import type {
@@ -151,6 +151,33 @@ const isUniqueViolationOn = (e: unknown, columns: string[], indexName: string): 
   const asText = Array.isArray(target) ? target.join(",") : String(target ?? "");
   return asText.includes(indexName) || columns.every((c) => asText.includes(c));
 };
+
+/**
+ * The same question when Postgres will not answer it.
+ *
+ * On an RLS-protected table the constraint identity is withheld — naming it
+ * would confirm a row exists that this role may not see (ADR 0030). Prisma then
+ * reports no `meta.target`, `isUniqueViolationOn` says false, and a duplicate
+ * confirmation surfaced as a raw PrismaClientKnownRequestError instead of the
+ * Thai "เดือนนี้ยืนยันไปแล้ว".
+ *
+ * There is only ONE unique index on `expense` that a caller can collide with
+ * this way, so a withheld P2002 on this path can only be that one — but it is
+ * confirmed by looking rather than assumed, because "only one" is the kind of
+ * fact a later Part quietly falsifies.
+ */
+async function isRecurringPeriodTaken(
+  tx: PrismaClient,
+  tenantId: string,
+  recurringExpenseId: string,
+  period: string
+): Promise<boolean> {
+  const existing = await tx.expense.findFirst({
+    where: { tenantId, recurringExpenseId, period },
+    select: { id: true },
+  });
+  return existing !== null;
+}
 
 /** `expense_recurring_period_unique` — one confirmation per template per month. */
 const RECURRING_PERIOD_UNIQUE = {
@@ -742,11 +769,21 @@ export async function createExpenseLogic(
       if (
         input.recurringExpenseId !== null &&
         input.period !== null &&
-        isUniqueViolationOn(
+        (isUniqueViolationOn(
           e,
           RECURRING_PERIOD_UNIQUE.columns,
           RECURRING_PERIOD_UNIQUE.indexName
-        )
+        ) ||
+          // RLS withheld which index fired — ask (ADR 0030).
+          (uniqueTargetWithheld(e) &&
+            (await withTenantContext(tenantId, (tx) =>
+              isRecurringPeriodTaken(
+                tx,
+                tenantId,
+                input.recurringExpenseId!,
+                input.period!
+              )
+            ))))
       ) {
         throw new RecurringPeriodAlreadyConfirmedError(
           input.recurringExpenseId,
@@ -881,11 +918,21 @@ export async function updateExpenseLogic(
       if (
         input.recurringExpenseId !== null &&
         input.period !== null &&
-        isUniqueViolationOn(
+        (isUniqueViolationOn(
           e,
           RECURRING_PERIOD_UNIQUE.columns,
           RECURRING_PERIOD_UNIQUE.indexName
-        )
+        ) ||
+          // RLS withheld which index fired — ask (ADR 0030).
+          (uniqueTargetWithheld(e) &&
+            (await withTenantContext(tenantId, (tx) =>
+              isRecurringPeriodTaken(
+                tx,
+                tenantId,
+                input.recurringExpenseId!,
+                input.period!
+              )
+            ))))
       ) {
         throw new RecurringPeriodAlreadyConfirmedError(
           input.recurringExpenseId,

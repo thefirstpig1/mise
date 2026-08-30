@@ -203,7 +203,11 @@ export class LiquidDensityTemplateNotFoundError extends Error {
  * conflict, otherwise the product `sku` index. 7b makes the unit-name case
  * reachable (multi-unit). Non-P2002 errors pass through unchanged.
  */
-function rethrowOnUniqueConflict(e: unknown, sku: string | null): never {
+async function rethrowOnUniqueConflict(
+  tenantId: string,
+  e: unknown,
+  sku: string | null
+): Promise<never> {
   if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
     const target = e.meta?.target;
     const targetStr = Array.isArray(target)
@@ -212,7 +216,25 @@ function rethrowOnUniqueConflict(e: unknown, sku: string | null): never {
     if (targetStr.includes("unit_name")) {
       throw new ProductUnitNameConflictError(null);
     }
-    throw new ProductSkuConflictError(sku);
+    if (targetStr.includes("sku")) {
+      throw new ProductSkuConflictError(sku);
+    }
+
+    // Postgres withheld the index name because the table is RLS-protected
+    // (ADR 0030). Falling through to "sku" here — which is what this function
+    // did until Part 30 — reports a duplicate UNIT NAME as a duplicate SKU, on
+    // a screen, to a real user. So ask instead of assume.
+    //
+    // A null sku cannot have collided on the sku index at all, which settles it
+    // without a query.
+    if (sku === null) throw new ProductUnitNameConflictError(null);
+
+    const skuTaken = await withTenantContext(tenantId, (tx) =>
+      tx.product.findFirst({ where: { tenantId, sku }, select: { id: true } })
+    );
+    throw skuTaken === null
+      ? new ProductUnitNameConflictError(null)
+      : new ProductSkuConflictError(sku);
   }
   throw e;
 }
@@ -607,7 +629,9 @@ export async function createProductLogic(
       });
     });
   } catch (e) {
-    rethrowOnUniqueConflict(e, skuUsed);
+    // `Promise<never>`, so this returns nothing — but TypeScript needs the
+    // `return` to see that the function ends here.
+    return await rethrowOnUniqueConflict(tenantId, e, skuUsed);
   }
 }
 
@@ -892,7 +916,9 @@ export async function updateProductLogic(
     // made for a twenty-line goods receipt.
     { timeout: 20_000 });
   } catch (e) {
-    rethrowOnUniqueConflict(e, input.sku);
+    // `Promise<never>`, so this returns nothing — but TypeScript needs the
+    // `return` to see that the function ends here.
+    return await rethrowOnUniqueConflict(tenantId, e, input.sku);
   }
 }
 

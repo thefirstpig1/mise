@@ -6,7 +6,7 @@
 // PostgreSQL RLS denies cross-tenant access.
 // ============================================================
 
-import { PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
 
 declare global {
   // eslint-disable-next-line no-var
@@ -68,6 +68,32 @@ export function isRetryableConnectionError(e: unknown): boolean {
  * Exported so a test can prove it actually retries. A retry that silently never
  * fires is indistinguishable from one that works, right up until it matters.
  */
+/**
+ * Did Postgres decline to say WHICH unique index a P2002 came from?
+ *
+ * It does that on a table protected by row-level security, deliberately: naming
+ * the constraint would confirm that a row exists which this role is not allowed
+ * to see, and that is a leak. Prisma surfaces it as `meta.target` being absent
+ * or the literal "(not available)".
+ *
+ * Nothing in this project could observe it before Part 30, because nothing was
+ * protected. Two places had narrowed P2002 by reading `meta.target` — the
+ * product SKU-vs-unit-name split and the recurring-expense period — and both
+ * silently fell through to the wrong error the day RLS started enforcing:
+ * a duplicate unit name reported "SKU ซ้ำ".
+ *
+ * Callers should treat `true` as "ask the database which one it was", not as
+ * "give up".
+ */
+export function uniqueTargetWithheld(e: unknown): boolean {
+  if (!(e instanceof Prisma.PrismaClientKnownRequestError) || e.code !== "P2002") {
+    return false;
+  }
+  const target = e.meta?.target;
+  const asText = Array.isArray(target) ? target.join(",") : String(target ?? "");
+  return asText.trim() === "" || asText.includes("not available");
+}
+
 export async function retryOnConnectionFailure<T>(
   fn: () => Promise<T>,
   retries: number = CONNECTION_RETRIES
