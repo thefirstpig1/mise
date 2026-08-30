@@ -128,8 +128,10 @@ on resolution during /grill-with-docs sessions.
 
 ## Architecture
 
-- **RLS (Row-Level Security)** — Postgres feature enforcing tenant_id filter at DB layer. Defense-in-depth (H.10, Decision #55).
-- **withTenantContext** — Prisma helper that sets `app.current_tenant_id` for RLS to use.
+- **RLS (Row-Level Security)** — Postgres filtering every query by tenant at the database layer, so a bug in application code cannot read another shop's rows (H.10, Decision #55, ADR 0001). **Enabled since Sprint 0 and inert until Sprint 7**: the connecting role both owned the tables and carried `BYPASSRLS`, so forty-seven policies never filtered a row — recorded in ADR 0004 when it was deferred, and ended by ADR 0030. It protects only tables that carry a `tenant_id`; Auth.js's four do not.
+- **App role** — the database role the application connects as. It is deliberately **not** the owner of any table and carries no `BYPASSRLS`, which is what makes the policies apply to it at all. Migrations still run as the owner.
+- **RLS bypass** — the one connection that ignores row security. It exists for the queries that are cross-tenant *by nature* — discovering which shop a person belongs to — and for test fixtures. Kept in a module of its own so that reaching for it is a visible act rather than a convenient one.
+- **withTenantContext** — the wrapper that opens a transaction and declares which tenant the queries inside it belong to. Every scoped read and write goes through it; a query that skips it has no tenant and is refused by the database rather than quietly returning nothing.
 - **Tenant isolation** — guarantee that Tenant A cannot read/write Tenant B's data, even with bugged app code.
 - **Branch override** — pattern where tenant-default settings can be overridden per-branch (Section A). First concrete use: **Supplier-Product Mapping** — `branchId` null = tenant default, `branchId` set = branch override; the branch-specific row **wholly replaces** the default for that branch (lookup tries branch-specific first, then falls back to the tenant default), not a field-level merge. See ADR 0009.
 - **Permission double-filter** — authorization is decided on two axes only: **role** (what a person may do) × **branch reach** (where). Department is deliberately not a third filter — it exists on three tables and never on the ledger. Supersedes H.4's triple filter; see ADR 0029.
