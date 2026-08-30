@@ -26,7 +26,7 @@ export default async function StockCountListPage({
 }: {
   searchParams: Promise<{ branch?: string; status?: string }>;
 }) {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("count:write");
   const { branch, status } = await searchParams;
 
   const [branches] = await Promise.all([getBranchesLogic(tenantId)]);

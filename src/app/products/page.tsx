@@ -8,7 +8,7 @@ import { toProductView } from "./_components/product-view";
 import ProductTree from "./_components/ProductTree";
 
 export default async function ProductsPage() {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("any:member");
   const products = await getProductsLogic(tenantId);
   return <ProductTree products={products.map(toProductView)} />;
 }

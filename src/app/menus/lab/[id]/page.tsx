@@ -24,7 +24,7 @@ export default async function DraftPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("recipe:write");
   const { id } = await params;
 
   const row = await withTenantContext(tenantId, (tx) =>

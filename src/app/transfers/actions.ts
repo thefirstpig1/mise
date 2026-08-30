@@ -180,7 +180,7 @@ export async function dispatchTransferAction(
   _prevState: DispatchTransferActionState,
   formData: FormData
 ): Promise<DispatchTransferActionState> {
-  const { tenantId, membership } = await requireTenant();
+  const { tenantId, membership } = await requireTenant("stock:write");
 
   // Lines arrive as parallel arrays — the shape a no-JS form posts, which is the
   // same reason goods-receipts/ reads them this way.
@@ -233,7 +233,7 @@ export async function receiveTransferAction(
   _prevState: TransferActionState,
   formData: FormData
 ): Promise<TransferActionState> {
-  const { tenantId, membership } = await requireTenant();
+  const { tenantId, membership } = await requireTenant("stock:write");
 
   const itemIds = formData.getAll("line_item_id").map(String);
   const qtys = formData.getAll("line_qty_received").map(String);
@@ -273,7 +273,7 @@ export async function voidTransferAction(
   _prevState: TransferActionState,
   formData: FormData
 ): Promise<TransferActionState> {
-  const { tenantId, membership } = await requireTenant();
+  const { tenantId, membership } = await requireTenant("stock:write");
 
   const parsed = voidTransferInputSchema.safeParse({
     id: formData.get("id"),

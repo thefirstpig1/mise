@@ -44,7 +44,7 @@ export default async function MenuMergesPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("master:write");
   const params = await searchParams;
   const one = (k: string) => (Array.isArray(params[k]) ? params[k][0] : params[k]);
 

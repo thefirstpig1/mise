@@ -193,7 +193,7 @@ export async function createStockAdjustmentAction(
   _prevState: StockAdjustmentActionState,
   formData: FormData
 ): Promise<StockAdjustmentActionState> {
-  const { tenantId, membership } = await requireTenant();
+  const { tenantId, membership } = await requireTenant("stock:write");
 
   const parsed = createStockAdjustmentInputSchema.safeParse(
     rawFromFormData(formData)
@@ -235,7 +235,7 @@ export type StockReadState<T> =
 export async function getStockBalanceAction(
   query: unknown
 ): Promise<StockReadState<StockBalanceView>> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("any:member");
 
   const parsed = getStockBalanceQuerySchema.safeParse(query);
   if (!parsed.success) return { ok: false, formError: BAD_QUERY_MESSAGE };
@@ -253,7 +253,7 @@ export async function getStockMovementHistoryAction(
 ): Promise<
   StockReadState<{ rows: StockMovementView[]; nextCursor: string | null }>
 > {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("any:member");
 
   const parsed = getStockMovementHistoryQuerySchema.safeParse(query);
   if (!parsed.success) return { ok: false, formError: BAD_QUERY_MESSAGE };

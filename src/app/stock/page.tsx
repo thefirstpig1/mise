@@ -41,7 +41,7 @@ export default async function StockLevelsPage({
 }: {
   searchParams: Promise<{ branch?: string }>;
 }) {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("any:member");
   const { branch: branchParam } = await searchParams;
 
   const branches = await getBranchesLogic(tenantId);

@@ -27,7 +27,7 @@ export default async function GoodsReceiptsPage({
 }: {
   searchParams: Promise<{ status?: string; branch?: string; flagged?: string }>;
 }) {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("receive:write");
   const sp = await searchParams;
 
   const branches = await getBranchesLogic(tenantId);

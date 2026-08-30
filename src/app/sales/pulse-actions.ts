@@ -66,7 +66,7 @@ export async function recordSalesPulseAction(
   _prev: RecordPulseActionState | null,
   formData: FormData
 ): Promise<RecordPulseActionState> {
-  const { tenantId, user } = await requireTenant();
+  const { tenantId, user } = await requireTenant("sales:import");
 
   const parsed = recordSalesPulseInputSchema.safeParse({
     branchId: formData.get("branchId"),

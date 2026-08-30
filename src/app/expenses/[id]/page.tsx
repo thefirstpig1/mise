@@ -45,7 +45,7 @@ export default async function ExpenseDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("expense:view");
   const { id } = await params;
 
   const row = await getExpenseByIdLogic(tenantId, id);

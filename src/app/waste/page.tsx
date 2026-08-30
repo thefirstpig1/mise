@@ -75,7 +75,7 @@ export default async function WastePage({
     to?: string;
   }>;
 }) {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("stock:write");
   const sp = await searchParams;
 
   const [products, branches] = await Promise.all([

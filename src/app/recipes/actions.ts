@@ -303,7 +303,7 @@ export async function createRecipeAction(
   _prevState: RecipeActionState,
   formData: FormData
 ): Promise<RecipeActionState> {
-  const { tenantId, membership } = await requireTenant();
+  const { tenantId, membership } = await requireTenant("recipe:write");
 
   const parsed = recipeInputSchema.safeParse(rawRecipeFromFormData(formData));
   if (!parsed.success) {
@@ -333,7 +333,7 @@ export async function updateRecipeAction(
   _prevState: RecipeActionState,
   formData: FormData
 ): Promise<RecipeActionState> {
-  const { tenantId, membership } = await requireTenant();
+  const { tenantId, membership } = await requireTenant("recipe:write");
 
   const parsed = recipeInputSchema.safeParse(rawRecipeFromFormData(formData));
   if (!parsed.success) {
@@ -367,7 +367,7 @@ export async function deleteRecipeAction(
   recipeId: string,
   acknowledgeMergedMenus = false
 ): Promise<DeleteRecipeActionState> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("recipe:write");
 
   const parsed = deleteRecipeInputSchema.safeParse({ recipeId });
   if (!parsed.success) {
@@ -405,7 +405,7 @@ export async function copyRecipeToBranchesAction(
   _prevState: RecipeActionState,
   formData: FormData
 ): Promise<RecipeActionState> {
-  const { tenantId, membership } = await requireTenant();
+  const { tenantId, membership } = await requireTenant("recipe:write");
 
   const parsed = copyRecipeToBranchesInputSchema.safeParse({
     submitKey: formData.get("submit_key"),
@@ -442,7 +442,7 @@ export async function substituteIngredientAction(
   _prevState: SubstitutionActionState,
   formData: FormData
 ): Promise<SubstitutionActionState> {
-  const { tenantId, membership } = await requireTenant();
+  const { tenantId, membership } = await requireTenant("recipe:write");
 
   const recipeIds = formData.getAll("target_recipe_id");
   const quantities = formData.getAll("target_qty");

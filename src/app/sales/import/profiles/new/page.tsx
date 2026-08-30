@@ -29,7 +29,7 @@ const POS_TYPE_LABELS: Record<string, string> = {
 };
 
 export default async function NewProfilePage() {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("sales:import");
   const [integrations, branches] = await Promise.all([
     getPosIntegrationsLogic(tenantId),
     getBranchesLogic(tenantId),

@@ -49,7 +49,7 @@ function firstReasons(errorLog: unknown): string[] {
 }
 
 export default async function SalesImportPage() {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("sales:import");
 
   const [profiles, batches] = await Promise.all([
     getSalesImportProfilesLogic(tenantId),

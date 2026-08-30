@@ -153,7 +153,7 @@ function mappingUpdatesFromFormData(
 export async function searchSoftDeletedProductsAction(
   searchTerm: string
 ): Promise<FuzzyMatchCandidate[]> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("master:write");
 
   const parsed = fuzzySearchInputSchema.safeParse({ searchTerm });
   if (!parsed.success) return [];
@@ -173,7 +173,7 @@ export async function restoreProductAction(
   _prevState: RestoreActionState | undefined,
   formData: FormData
 ): Promise<RestoreActionState> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("master:write");
 
   // Raw extract (snake_case FormData → camelCase). productId falls back to "" so a
   // missing field fails the zod uuid check with the Thai message (not a type error);
@@ -256,7 +256,7 @@ function toOrphanMappingRow(m: MappingWithRefs): OrphanMappingRow {
 export async function getOrphanMappingsForProductAction(
   productId: string
 ): Promise<OrphanMappingRow[]> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("master:write");
   const rows = await getOrphanMappingsForProductLogic(tenantId, productId);
   return rows.map(toOrphanMappingRow);
 }

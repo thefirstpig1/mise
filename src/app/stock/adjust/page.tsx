@@ -21,7 +21,7 @@ import StockAdjustForm, {
 } from "../_components/StockAdjustForm";
 
 export default async function StockAdjustPage() {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("stock:write");
 
   const [products, branches] = await Promise.all([
     getProductsLogic(tenantId),

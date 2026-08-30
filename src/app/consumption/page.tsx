@@ -23,7 +23,7 @@ export default async function ConsumptionPage({
 }: {
   searchParams: Promise<{ branch?: string; from?: string; to?: string }>;
 }) {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("consumption:post");
   const params = await searchParams;
 
   const branches = await withTenantContext(tenantId, (tx) =>

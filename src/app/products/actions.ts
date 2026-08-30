@@ -274,7 +274,7 @@ export async function createProduct(
   _prevState: ProductActionState,
   formData: FormData
 ): Promise<ProductActionState> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("master:write");
 
   const parsed = productInputSchema.safeParse(rawFromFormData(formData));
   if (!parsed.success) {
@@ -299,7 +299,7 @@ export async function updateProduct(
   _prevState: ProductActionState,
   formData: FormData
 ): Promise<ProductActionState> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("master:write");
 
   const parsed = productInputSchema.safeParse(rawFromFormData(formData));
   if (!parsed.success) {
@@ -334,7 +334,7 @@ export async function deleteProduct(
   // which validates each id (live + this product + this tenant) in the same tx.
   mappingIdsToSoftDelete: string[] = []
 ): Promise<{ ok: boolean; error?: string }> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("master:write");
 
   // (Part 9 decision ii — aggressive) cross-view revalidation: a cascade
   // soft-deletes mappings that ALSO render on their suppliers' detail pages

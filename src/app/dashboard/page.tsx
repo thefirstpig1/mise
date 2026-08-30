@@ -10,7 +10,7 @@ import { toPulseDashboardView } from "@/app/sales/_components/sales-view";
 import PulsePanel from "./_components/PulsePanel";
 
 export default async function DashboardPage() {
-  const { user, membership, tenantId } = await requireTenant();
+  const { user, membership, tenantId } = await requireTenant("any:member");
   const { tenant } = membership;
 
   // Layer 2: this membership's branch + dept access (tenant-scoped read).

@@ -20,7 +20,7 @@ export default async function NewStockCountPage({
 }: {
   searchParams: Promise<{ branch?: string }>;
 }) {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("count:write");
   const [branches, { branch: branchParam }] = await Promise.all([
     getBranchesLogic(tenantId),
     searchParams,

@@ -51,7 +51,7 @@ export default async function PurchaseOrderDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { tenantId, membership } = await requireTenant();
+  const { tenantId, membership } = await requireTenant("purchase:write");
   const { id } = await params;
 
   const order = await getPurchaseOrderByIdLogic(tenantId, id);

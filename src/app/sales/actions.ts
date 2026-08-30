@@ -190,7 +190,7 @@ export async function inspectSalesFileAction(
   _prev: InspectFileState | null,
   formData: FormData
 ): Promise<InspectFileState> {
-  await requireTenant();
+  await requireTenant("sales:import");
 
   const read = await readUploadedFile(formData);
   if (!read.ok) return { ok: false, formError: read.message };
@@ -218,7 +218,7 @@ export async function previewSalesImportAction(
   _prev: SalesImportPreviewState | null,
   formData: FormData
 ): Promise<SalesImportPreviewState> {
-  const { tenantId, user } = await requireTenant();
+  const { tenantId, user } = await requireTenant("sales:import");
 
   const read = await readUploadedFile(formData);
   if (!read.ok) return { ok: false, fieldErrors: { file: read.message } };
@@ -276,7 +276,7 @@ export async function commitSalesImportAction(
   _prev: SalesImportCommitState | null,
   formData: FormData
 ): Promise<SalesImportCommitState> {
-  const { tenantId, user } = await requireTenant();
+  const { tenantId, user } = await requireTenant("sales:import");
 
   const read = await readUploadedFile(formData);
   if (!read.ok) return { ok: false, fieldErrors: { file: read.message } };
@@ -328,7 +328,7 @@ export async function createPosIntegrationAction(
   _prev: PosIntegrationActionState | null,
   formData: FormData
 ): Promise<PosIntegrationActionState> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("sales:import");
 
   const parsed = posIntegrationInputSchema.safeParse({
     branchId: formData.get("branchId"),
@@ -351,7 +351,7 @@ export async function createSalesImportProfileAction(
   _prev: ProfileActionState | null,
   formData: FormData
 ): Promise<ProfileActionState> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("sales:import");
 
   const rawColumnMap = formData.get("columnMap");
   let columnMap: unknown;

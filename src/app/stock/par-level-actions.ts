@@ -90,7 +90,7 @@ export async function setParLevelAction(
   _prevState: ParLevelActionState,
   formData: FormData
 ): Promise<ParLevelActionState> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("stock:write");
 
   const parsed = setParLevelInputSchema.safeParse({
     productId: formData.get("product_id"),
@@ -116,7 +116,7 @@ export async function deleteParLevelAction(
   _prevState: ParLevelActionState,
   formData: FormData
 ): Promise<ParLevelActionState> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("stock:write");
 
   const parsed = deleteParLevelInputSchema.safeParse({ id: formData.get("id") });
   if (!parsed.success) {

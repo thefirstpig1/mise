@@ -211,6 +211,36 @@ describe("the role table (ADR 0029 Part 28 L2)", () => {
     ).toEqual([]);
   });
 
+  it("A15 — every role that reaches a priced screen may also see cost", () => {
+    // Purchase orders, goods receipts, supplier-product mappings and the Menu
+    // Lab all print money on the line. Their surfaces are gated on a WRITE
+    // capability, not on `cost:view`, so today the prices are safe only because
+    // no role holds one without the other.
+    //
+    // That is an accident until it is written down. Pinned here so the day
+    // someone invents a "receiver" who may book stock in but must not see what
+    // it cost, this fails and the pages get the CostAccess treatment instead of
+    // leaking quietly.
+    const pricedSurfaces: Capability[] = [
+      "purchase:write",
+      "purchase:approve",
+      "receive:write",
+      "master:write",
+      "recipe:write",
+    ];
+
+    for (const role of ALL_ROLES) {
+      for (const cap of pricedSurfaces) {
+        if (hasCapability(role, cap)) {
+          expect(
+            hasCapability(role, "cost:view"),
+            `${role} reaches a priced screen via ${cap} but cannot see cost`
+          ).toBe(true);
+        }
+      }
+    }
+  });
+
   // ── the sentinel ──────────────────────────────────────────────────────────
 
   it("A14 — any:member is satisfied by every role and held by none", () => {

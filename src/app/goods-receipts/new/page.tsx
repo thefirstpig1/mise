@@ -39,7 +39,7 @@ export default async function NewGoodsReceiptPage({
 }: {
   searchParams: Promise<{ po?: string }>;
 }) {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("receive:write");
   const sp = await searchParams;
 
   const { products, suppliers, branches, purchaseOrders } =

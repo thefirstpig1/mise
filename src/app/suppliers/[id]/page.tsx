@@ -32,7 +32,7 @@ export default async function EditSupplierPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("master:write");
 
   const [supplier, mappings] = await Promise.all([
     getSupplierByIdLogic(tenantId, id),

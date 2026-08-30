@@ -32,7 +32,7 @@ export default async function NewTransferPage({
 }: {
   searchParams: Promise<{ from?: string }>;
 }) {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("stock:write");
   const sp = await searchParams;
 
   const [products, branches] = await Promise.all([

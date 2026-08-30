@@ -4,7 +4,7 @@ import { createSupplier } from "../actions";
 import SupplierForm from "../_components/SupplierForm";
 
 export default async function NewSupplierPage() {
-  await requireTenant(); // auth gate / redirect; tenantId resolved inside the action
+  await requireTenant("master:write"); // auth gate / redirect; tenantId resolved inside the action
   return (
     <div className="space-y-6">
       <h2 className="text-xl font-bold">เพิ่มซัพพลายเออร์</h2>

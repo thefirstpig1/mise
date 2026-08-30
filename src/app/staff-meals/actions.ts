@@ -203,7 +203,7 @@ export async function createStaffMealAction(
   _prevState: StaffMealActionState,
   formData: FormData
 ): Promise<StaffMealActionState> {
-  const { tenantId, membership } = await requireTenant();
+  const { tenantId, membership } = await requireTenant("staffmeal:write");
 
   // Pot lines arrive as three parallel arrays, the shape every multi-line form
   // in this project uses. Zipped here rather than in zod so the schema stays a
@@ -266,7 +266,7 @@ export async function voidStaffMealAction(
   _prevState: VoidStaffMealActionState,
   formData: FormData
 ): Promise<VoidStaffMealActionState> {
-  const { tenantId, membership } = await requireTenant();
+  const { tenantId, membership } = await requireTenant("staffmeal:write");
 
   const parsed = voidStaffMealInputSchema.safeParse({
     id: formData.get("id"),
@@ -297,7 +297,7 @@ export async function createStaffMemberAction(
   _prevState: StaffMemberActionState,
   formData: FormData
 ): Promise<StaffMemberActionState> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("staffmeal:write");
 
   const parsed = createStaffMemberInputSchema.safeParse({
     name: formData.get("name"),
@@ -330,7 +330,7 @@ export async function updateStaffMemberAction(
   _prevState: StaffMemberActionState,
   formData: FormData
 ): Promise<StaffMemberActionState> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("staffmeal:write");
 
   const parsed = updateStaffMemberInputSchema.safeParse({
     id: formData.get("id"),

@@ -233,7 +233,7 @@ export async function mergeMenusAction(
   _prevState: MenuMergeActionState,
   formData: FormData
 ): Promise<MenuMergeActionState> {
-  const { tenantId, membership } = await requireTenant();
+  const { tenantId, membership } = await requireTenant("master:write");
 
   const parsed = mergeMenusInputSchema.safeParse({
     submitKey: formData.get("submit_key"),
@@ -267,7 +267,7 @@ export async function revokeMergeAction(
   _prevState: MenuMergeActionState,
   formData: FormData
 ): Promise<MenuMergeActionState> {
-  const { tenantId, membership } = await requireTenant();
+  const { tenantId, membership } = await requireTenant("master:write");
 
   const parsed = revokeMergeInputSchema.safeParse({
     mergeId: formData.get("merge_id"),
@@ -302,7 +302,7 @@ export async function getMergeCandidatesAction(
   menuId: string,
   limit?: number
 ): Promise<MergeCandidatesState> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("master:write");
 
   const parsed = mergeCandidatesQuerySchema.safeParse({ menuId, limit });
   if (!parsed.success) {

@@ -13,7 +13,7 @@ import { createProduct } from "../actions";
 import ProductForm from "../_components/ProductForm";
 
 export default async function NewProductPage() {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("master:write");
   const [units, categories, parentOptions, densityTemplates] =
     await Promise.all([
       getUnitTemplates(),

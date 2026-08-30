@@ -24,7 +24,7 @@ export default async function EditRecurringExpensePage({
 }: {
   params: Promise<{ recurringId: string }>;
 }) {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("expense:write");
   const { recurringId } = await params;
 
   const [row, branches, suppliers, categories] = await Promise.all([

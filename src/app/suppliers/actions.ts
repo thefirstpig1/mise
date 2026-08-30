@@ -106,7 +106,7 @@ export async function createSupplier(
   _prevState: SupplierActionState,
   formData: FormData
 ): Promise<SupplierActionState> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("master:write");
 
   const parsed = supplierInputSchema.safeParse(rawFromFormData(formData));
   if (!parsed.success) {
@@ -134,7 +134,7 @@ export async function updateSupplier(
   _prevState: SupplierActionState,
   formData: FormData
 ): Promise<SupplierActionState> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("master:write");
 
   const parsed = supplierInputSchema.safeParse(rawFromFormData(formData));
   if (!parsed.success) {
@@ -172,7 +172,7 @@ export async function deleteSupplier(
   // the product UPDATE path, not supplier delete.
   mappingIdsToSoftDelete: string[] = []
 ): Promise<{ ok: boolean; error?: string }> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("master:write");
 
   // (Part 9 decision ii — aggressive) cross-view revalidation, mirror of
   // deleteProduct: a cascade soft-deletes mappings that ALSO render on their

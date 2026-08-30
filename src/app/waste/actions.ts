@@ -134,7 +134,7 @@ export async function createWasteAction(
   _prevState: WasteActionState,
   formData: FormData
 ): Promise<WasteActionState> {
-  const { tenantId, membership } = await requireTenant();
+  const { tenantId, membership } = await requireTenant("stock:write");
 
   const parsed = createWasteInputSchema.safeParse({
     submitKey: formData.get("submit_key"),
@@ -174,7 +174,7 @@ export async function voidWasteAction(
   _prevState: VoidWasteActionState,
   formData: FormData
 ): Promise<VoidWasteActionState> {
-  const { tenantId, membership } = await requireTenant();
+  const { tenantId, membership } = await requireTenant("stock:write");
 
   const parsed = voidWasteInputSchema.safeParse({
     id: formData.get("id"),

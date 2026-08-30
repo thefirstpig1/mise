@@ -244,7 +244,7 @@ export async function createExpenseAction(
   _prevState: ExpenseActionState,
   formData: FormData
 ): Promise<ExpenseActionState> {
-  const { tenantId, membership } = await requireTenant();
+  const { tenantId, membership } = await requireTenant("expense:write");
 
   const parsed = expenseInputSchema.safeParse(expenseFromFormData(formData));
   if (!parsed.success) {
@@ -264,7 +264,7 @@ export async function updateExpenseAction(
   _prevState: ExpenseActionState,
   formData: FormData
 ): Promise<ExpenseActionState> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("expense:write");
 
   const parsed = updateExpenseInputSchema.safeParse({
     ...expenseFromFormData(formData),
@@ -288,7 +288,7 @@ export async function setExpensePaymentAction(
   _prevState: ExpenseActionState,
   formData: FormData
 ): Promise<ExpenseActionState> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("expense:write");
 
   const parsed = setExpensePaymentInputSchema.safeParse({
     id: formData.get("id"),
@@ -313,7 +313,7 @@ export async function deleteExpenseAction(
   _prevState: ExpenseActionState,
   formData: FormData
 ): Promise<ExpenseActionState> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("expense:write");
 
   const parsed = deleteExpenseInputSchema.safeParse({ id: formData.get("id") });
   if (!parsed.success) {
@@ -355,7 +355,7 @@ export async function createRecurringExpenseAction(
   _prevState: RecurringExpenseActionState,
   formData: FormData
 ): Promise<RecurringExpenseActionState> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("expense:write");
 
   const parsed = recurringExpenseInputSchema.safeParse(recurringFromFormData(formData));
   if (!parsed.success) {
@@ -382,7 +382,7 @@ export async function updateRecurringExpenseAction(
   _prevState: RecurringExpenseActionState,
   formData: FormData
 ): Promise<RecurringExpenseActionState> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("expense:write");
 
   const parsed = updateRecurringExpenseInputSchema.safeParse({
     ...recurringFromFormData(formData),
@@ -413,7 +413,7 @@ export async function deleteRecurringExpenseAction(
   _prevState: RecurringExpenseActionState,
   formData: FormData
 ): Promise<RecurringExpenseActionState> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("expense:write");
 
   const parsed = deleteRecurringExpenseInputSchema.safeParse({ id: formData.get("id") });
   if (!parsed.success) {

@@ -39,7 +39,7 @@ export default async function PurchaseOrdersPage({
 }: {
   searchParams: Promise<{ status?: string; branch?: string }>;
 }) {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("purchase:write");
   const sp = await searchParams;
 
   const branches = await getBranchesLogic(tenantId);

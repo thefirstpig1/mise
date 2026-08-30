@@ -126,7 +126,7 @@ export async function postConsumptionAction(
   _prevState: PostConsumptionActionState,
   formData: FormData
 ): Promise<PostConsumptionActionState> {
-  const { tenantId, membership } = await requireTenant();
+  const { tenantId, membership } = await requireTenant("consumption:post");
 
   const parsed = postConsumptionInputSchema.safeParse({
     submitKey: formData.get("submit_key"),
@@ -215,7 +215,7 @@ export async function getConsumptionDaysAction(query: {
   from: string;
   to: string;
 }): Promise<ConsumptionDayView[]> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("consumption:post");
   const rows = await getConsumptionDayStatusLogic(tenantId, {
     branchId: query.branchId,
     from: new Date(`${query.from}T00:00:00.000Z`),

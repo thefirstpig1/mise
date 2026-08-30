@@ -23,7 +23,7 @@ export default async function ProductCostPage({
   params: Promise<{ productId: string }>;
   searchParams: Promise<{ branch?: string }>;
 }) {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("cost:view");
   const { productId } = await params;
   const { branch: branchParam } = await searchParams;
 

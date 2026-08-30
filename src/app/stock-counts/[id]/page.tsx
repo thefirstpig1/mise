@@ -33,7 +33,7 @@ export default async function StockCountDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("count:write");
   const { id } = await params;
 
   const count = await getStockCountByIdLogic(tenantId, id);

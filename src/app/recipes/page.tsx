@@ -126,7 +126,7 @@ export default async function RecipesPage({
 }: {
   searchParams: Promise<{ branch?: string; q?: string; missing?: string }>;
 }) {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("any:member");
   const sp = await searchParams;
 
   const branches = await getBranchesLogic(tenantId);

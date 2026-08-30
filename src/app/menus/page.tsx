@@ -42,7 +42,7 @@ export default async function MenusPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { tenantId, membership } = await requireTenant();
+  const { tenantId, membership } = await requireTenant("any:member");
   const params = await searchParams;
   const one = (k: string) => (Array.isArray(params[k]) ? params[k][0] : params[k]);
 

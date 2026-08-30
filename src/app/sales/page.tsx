@@ -47,7 +47,7 @@ export default async function SalesPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("sales:view");
   const params = await searchParams;
   const one = (k: string) => (Array.isArray(params[k]) ? params[k][0] : params[k]);
 

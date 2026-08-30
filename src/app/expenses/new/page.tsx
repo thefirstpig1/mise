@@ -22,7 +22,7 @@ export default async function NewExpensePage({
 }: {
   searchParams: Promise<{ recurring?: string; period?: string }>;
 }) {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("expense:write");
   const { recurring, period } = await searchParams;
 
   const [branches, suppliers, categories] = await Promise.all([

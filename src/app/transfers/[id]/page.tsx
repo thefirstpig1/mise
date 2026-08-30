@@ -30,7 +30,7 @@ export default async function TransferDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("any:member");
   const { id } = await params;
 
   const found = await getTransferByIdLogic(tenantId, id);

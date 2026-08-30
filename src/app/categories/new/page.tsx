@@ -4,7 +4,7 @@ import { createCategory } from "../actions";
 import CategoryForm from "../_components/CategoryForm";
 
 export default async function NewCategoryPage() {
-  await requireTenant(); // auth gate; tenantId resolved inside the action
+  await requireTenant("master:write"); // auth gate; tenantId resolved inside the action
   return (
     <div className="space-y-6">
       <h2 className="text-xl font-bold">เพิ่มหมวดบัญชี</h2>

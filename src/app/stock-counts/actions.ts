@@ -119,7 +119,7 @@ export async function openStockCountAction(
   _prevState: StockCountActionState,
   formData: FormData
 ): Promise<StockCountActionState> {
-  const { tenantId, membership } = await requireTenant();
+  const { tenantId, membership } = await requireTenant("count:write");
 
   const parsed = openStockCountInputSchema.safeParse({
     branchId: formData.get("branch_id"),
@@ -147,7 +147,7 @@ export async function saveStockCountLineAction(
   _prevState: StockCountActionState,
   formData: FormData
 ): Promise<StockCountActionState> {
-  const { tenantId, membership } = await requireTenant();
+  const { tenantId, membership } = await requireTenant("count:write");
 
   const unitIds = formData.getAll("entry_unit_id");
   const qtys = formData.getAll("entry_qty");
@@ -180,7 +180,7 @@ export async function removeStockCountLineAction(
   stockCountId: string,
   itemId: string
 ): Promise<StockCountActionState> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("count:write");
   try {
     const count = await deleteStockCountLineLogic(tenantId, stockCountId, itemId);
     revalidateCountViews(count.id);
@@ -194,7 +194,7 @@ export async function closeStockCountAction(
   _prevState: StockCountActionState,
   formData: FormData
 ): Promise<StockCountActionState> {
-  const { tenantId, membership } = await requireTenant();
+  const { tenantId, membership } = await requireTenant("count:write");
 
   const parsed = closeStockCountInputSchema.safeParse({ id: formData.get("id") });
   if (!parsed.success) return { ok: false, fieldErrors: toFieldErrors(parsed.error) };
@@ -212,7 +212,7 @@ export async function voidStockCountAction(
   _prevState: StockCountActionState,
   formData: FormData
 ): Promise<StockCountActionState> {
-  const { tenantId, membership } = await requireTenant();
+  const { tenantId, membership } = await requireTenant("count:write");
 
   const parsed = voidStockCountInputSchema.safeParse({
     id: formData.get("id"),
@@ -234,7 +234,7 @@ export async function discardStockCountAction(
   _prevState: StockCountActionState,
   formData: FormData
 ): Promise<StockCountActionState> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("count:write");
   const id = String(formData.get("id") ?? "");
 
   try {

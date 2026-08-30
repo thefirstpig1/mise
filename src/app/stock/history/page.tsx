@@ -38,7 +38,7 @@ export default async function StockHistoryPage({
     to?: string;
   }>;
 }) {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("any:member");
   const sp = await searchParams;
 
   // The URL is user-editable, so it is parsed, not trusted. A malformed filter

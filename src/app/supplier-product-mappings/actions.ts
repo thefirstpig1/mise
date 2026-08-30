@@ -159,7 +159,7 @@ export async function createMappingAction(
   _prevState: MappingActionState,
   formData: FormData
 ): Promise<MappingActionState> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("master:write");
 
   const parsed = supplierProductMappingInputSchema.safeParse(
     rawFromFormData(formData)
@@ -188,7 +188,7 @@ export async function updateMappingAction(
   _prevState: MappingActionState,
   formData: FormData
 ): Promise<MappingActionState> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("master:write");
 
   const parsed = supplierProductMappingInputSchema.safeParse(
     rawFromFormData(formData)
@@ -228,7 +228,7 @@ export async function deleteMappingAction(
   _prevState: MappingActionState,
   _formData: FormData
 ): Promise<MappingActionState> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("master:write");
 
   const existing = await getSupplierProductMappingByIdLogic(tenantId, id);
   const deleted = await deleteSupplierProductMappingLogic(tenantId, id);

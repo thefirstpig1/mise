@@ -258,7 +258,7 @@ export async function createDraftAction(
   _prevState: DraftActionState,
   formData: FormData
 ): Promise<DraftActionState> {
-  const { tenantId, membership } = await requireTenant();
+  const { tenantId, membership } = await requireTenant("recipe:write");
 
   const parsed = draftRecipeInputSchema.safeParse(rawDraftFromFormData(formData));
   if (!parsed.success) {
@@ -284,7 +284,7 @@ export async function updateDraftAction(
   _prevState: DraftActionState,
   formData: FormData
 ): Promise<DraftActionState> {
-  const { tenantId, membership } = await requireTenant();
+  const { tenantId, membership } = await requireTenant("recipe:write");
 
   const parsed = draftRecipeInputSchema.safeParse(rawDraftFromFormData(formData));
   if (!parsed.success) {
@@ -316,7 +316,7 @@ export async function publishDraftAction(
   _prevState: DraftActionState,
   formData: FormData
 ): Promise<DraftActionState> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("recipe:write");
 
   const parsed = publishDraftInputSchema.safeParse({
     recipeId: formData.get("recipe_id"),
@@ -344,7 +344,7 @@ export async function publishDraftAction(
 export async function discardDraftAction(
   recipeId: string
 ): Promise<DiscardDraftActionState> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("recipe:write");
 
   const parsed = discardDraftInputSchema.safeParse({ recipeId });
   if (!parsed.success) {
@@ -380,7 +380,7 @@ export async function discardDraftAction(
 export async function getLabWhatIfAction(
   formData: FormData
 ): Promise<LabWhatIfState> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("recipe:write");
 
   const parsed = labWhatIfQuerySchema.safeParse({
     branchId: formData.get("branch_id"),

@@ -22,7 +22,7 @@ import {
 } from "./_components/StaffMemberForm";
 
 export default async function StaffPeoplePage() {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("staffmeal:write");
 
   const [branches, members, tenant] = await Promise.all([
     getBranchesLogic(tenantId),

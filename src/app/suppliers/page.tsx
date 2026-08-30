@@ -8,7 +8,7 @@ import SupplierList from "./_components/SupplierList";
 import { toSupplierView } from "./_components/supplier-view";
 
 export default async function SuppliersPage() {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("any:member");
   const suppliers = await getSuppliersLogic(tenantId);
   return <SupplierList suppliers={suppliers.map(toSupplierView)} />;
 }

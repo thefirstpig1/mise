@@ -21,7 +21,7 @@ export default async function CostOverviewPage({
 }: {
   searchParams: Promise<{ from?: string; to?: string }>;
 }) {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("cost:view");
   const { from: fromParam, to: toParam } = await searchParams;
 
   // Default window: the last 30 Bangkok days. Computed on the SERVER — a browser

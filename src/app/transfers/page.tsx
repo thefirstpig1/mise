@@ -43,7 +43,7 @@ export default async function TransfersPage({
     status?: string;
   }>;
 }) {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("any:member");
   const sp = await searchParams;
 
   const branches = await getBranchesLogic(tenantId);

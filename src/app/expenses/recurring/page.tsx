@@ -14,7 +14,7 @@ import { formatMoney } from "@/app/cost/_components/cost-view";
 import { toRecurringExpenseView } from "../_components/expense-view";
 
 export default async function RecurringExpensePage() {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("expense:view");
 
   const [templates, due] = await Promise.all([
     getRecurringExpensesLogic(tenantId).then((rows) => rows.map(toRecurringExpenseView)),

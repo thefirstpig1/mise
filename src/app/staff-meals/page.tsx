@@ -65,7 +65,7 @@ export default async function StaffMealsPage({
     day?: string;
   }>;
 }) {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("staffmeal:write");
   const sp = await searchParams;
 
   const todayIso = computeBangkokToday().toISOString().slice(0, 10);

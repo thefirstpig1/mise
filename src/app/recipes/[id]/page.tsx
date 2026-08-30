@@ -56,7 +56,7 @@ export default async function RecipePage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ branch?: string }>;
 }) {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("any:member");
   const { id } = await params;
   const sp = await searchParams;
 

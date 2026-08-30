@@ -74,7 +74,7 @@ export async function createCategory(
   _prevState: CategoryActionState,
   formData: FormData
 ): Promise<CategoryActionState> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("master:write");
 
   const parsed = categoryInputSchema.safeParse(rawFromFormData(formData));
   if (!parsed.success) {
@@ -102,7 +102,7 @@ export async function updateCategory(
   _prevState: CategoryActionState,
   formData: FormData
 ): Promise<CategoryActionState> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("master:write");
 
   const parsed = categoryInputSchema.safeParse(rawFromFormData(formData));
   if (!parsed.success) {
@@ -132,7 +132,7 @@ export async function updateCategory(
 export async function deleteCategory(
   id: string
 ): Promise<{ ok: boolean; error?: string }> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("master:write");
 
   const deleted = await deleteCategoryLogic(tenantId, id);
   if (!deleted) {

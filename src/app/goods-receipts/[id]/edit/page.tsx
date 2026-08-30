@@ -34,7 +34,7 @@ export default async function EditGoodsReceiptPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("receive:write");
   const { id } = await params;
 
   const row = await getGoodsReceiptByIdLogic(tenantId, id);

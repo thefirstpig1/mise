@@ -202,7 +202,7 @@ export async function createPurchaseOrderAction(
   _prevState: PurchaseOrderActionState,
   formData: FormData
 ): Promise<PurchaseOrderActionState> {
-  const { tenantId, membership } = await requireTenant();
+  const { tenantId, membership } = await requireTenant("purchase:write");
 
   const parsed = purchaseOrderInputSchema.safeParse(rawFromFormData(formData));
   if (!parsed.success) {
@@ -227,7 +227,7 @@ export async function updatePurchaseOrderAction(
   _prevState: PurchaseOrderActionState,
   formData: FormData
 ): Promise<PurchaseOrderActionState> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("purchase:write");
 
   const id = String(formData.get("id") ?? "");
   if (!id) return { ok: false, formError: NOT_FOUND_MESSAGE };
@@ -254,7 +254,7 @@ export async function updatePurchaseOrderAction(
 export async function sendPurchaseOrderAction(
   id: string
 ): Promise<PurchaseOrderActionState> {
-  const { tenantId, membership } = await requireTenant();
+  const { tenantId, membership } = await requireTenant("purchase:approve");
   try {
     const po = await sendPurchaseOrderLogic(tenantId, id, membership.userId);
     revalidatePurchaseOrderViews(po.id);
@@ -269,7 +269,7 @@ export async function cancelPurchaseOrderAction(
   _prevState: PurchaseOrderActionState,
   formData: FormData
 ): Promise<PurchaseOrderActionState> {
-  const { tenantId, membership } = await requireTenant();
+  const { tenantId, membership } = await requireTenant("purchase:approve");
 
   const parsed = cancelPurchaseOrderInputSchema.safeParse({
     id: formData.get("id"),
@@ -296,7 +296,7 @@ export async function cancelPurchaseOrderAction(
 export async function deletePurchaseOrderDraftAction(
   id: string
 ): Promise<PurchaseOrderActionState> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("purchase:write");
   try {
     const po = await deletePurchaseOrderDraftLogic(tenantId, id);
     revalidatePurchaseOrderViews();
@@ -318,7 +318,7 @@ export async function resolveSupplierPriceAction(query: {
   supplierId: string;
   branchId: string;
 }): Promise<{ ok: true; data: ResolvedPriceView | null } | { ok: false; formError: string }> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("purchase:write");
 
   const { productId, supplierId, branchId } = query;
   if (!productId || !supplierId || !branchId) {

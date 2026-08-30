@@ -43,7 +43,7 @@ export default async function ExpenseListPage({
     to?: string;
   }>;
 }) {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("expense:view");
   const sp = await searchParams;
 
   // A malformed filter falls back to the unfiltered list rather than erroring:

@@ -29,7 +29,7 @@ export default async function NewRecipePage({
 }: {
   searchParams: Promise<{ menu?: string; product?: string }>;
 }) {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("recipe:write");
   const sp = await searchParams;
 
   if (!sp.menu && !sp.product) notFound();

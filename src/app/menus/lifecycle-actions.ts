@@ -123,7 +123,7 @@ export async function setMenuActiveAction(
   menuId: string,
   isActive: boolean
 ): Promise<MenuLifecycleActionState> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("master:write");
 
   const parsed = setMenuActiveInputSchema.safeParse({ menuId, isActive });
   if (!parsed.success) return { ok: false, error: "เมนูไม่ถูกต้อง" };
@@ -152,7 +152,7 @@ export async function deleteMenuAction(
   menuId: string,
   acknowledgeRecipe = false
 ): Promise<MenuLifecycleActionState> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("recipe:write");
 
   const parsed = deleteMenuInputSchema.safeParse({ menuId, acknowledgeRecipe });
   if (!parsed.success) return { ok: false, error: "เมนูไม่ถูกต้อง" };
@@ -182,7 +182,7 @@ export async function deleteMenuAction(
 export async function restoreMenuAction(
   menuId: string
 ): Promise<MenuLifecycleActionState> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("recipe:write");
 
   const parsed = restoreMenuInputSchema.safeParse({ menuId });
   if (!parsed.success) return { ok: false, error: "เมนูไม่ถูกต้อง" };
@@ -209,7 +209,7 @@ export async function restoreMenuAction(
 export async function findDeletedMenuByNameAction(
   name: string
 ): Promise<DeletedMenuLookupState> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("master:write");
 
   if (typeof name !== "string") return { ok: true, found: null };
 

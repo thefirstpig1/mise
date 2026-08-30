@@ -116,7 +116,7 @@ export async function updateMenuAction(
   _prev: MenuActionState | null,
   formData: FormData
 ): Promise<MenuActionState> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("master:write");
 
   const parsed = updateMenuInputSchema.safeParse({
     menuId: formData.get("menuId"),
@@ -139,7 +139,7 @@ export async function createMenuCategoryAction(
   _prev: MenuCategoryActionState | null,
   formData: FormData
 ): Promise<MenuCategoryActionState> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("master:write");
 
   const parsed = menuCategoryInputSchema.safeParse({
     name: formData.get("name"),
@@ -169,7 +169,7 @@ export async function confirmMenuAliasAction(
   _prev: MenuAliasActionState | null,
   formData: FormData
 ): Promise<MenuAliasActionState> {
-  const { tenantId, user } = await requireTenant();
+  const { tenantId, user } = await requireTenant("master:write");
 
   const parsed = resolveMenuAliasInputSchema.safeParse({
     posIntegrationId: formData.get("posIntegrationId"),
@@ -192,7 +192,7 @@ export async function confirmMenuAliasAction(
  * choice — there is no code path here that picks one.
  */
 export async function getMenuSuggestionsAction(term: string): Promise<MenuSuggestionsState> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("master:write");
   try {
     const hits = await suggestMenusLogic(tenantId, term);
     return { ok: true, suggestions: hits.map(toMenuSuggestionRowView) };

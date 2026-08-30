@@ -312,7 +312,7 @@ export async function createGoodsReceiptAction(
   _prevState: GoodsReceiptActionState,
   formData: FormData
 ): Promise<GoodsReceiptActionState> {
-  const { tenantId, membership } = await requireTenant();
+  const { tenantId, membership } = await requireTenant("receive:write");
 
   const parsed = goodsReceiptInputSchema.safeParse(rawFromFormData(formData));
   if (!parsed.success) {
@@ -337,7 +337,7 @@ export async function updateGoodsReceiptAction(
   _prevState: GoodsReceiptActionState,
   formData: FormData
 ): Promise<GoodsReceiptActionState> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("receive:write");
 
   const id = String(formData.get("id") ?? "");
   if (!id) return { ok: false, formError: NOT_FOUND_MESSAGE };
@@ -365,7 +365,7 @@ export async function updateGoodsReceiptAction(
 export async function confirmGoodsReceiptAction(
   id: string
 ): Promise<GoodsReceiptPostActionState> {
-  const { tenantId, membership } = await requireTenant();
+  const { tenantId, membership } = await requireTenant("receive:write");
   try {
     const result = await confirmGoodsReceiptLogic(tenantId, id, membership.userId);
     revalidateGoodsReceiptViews(result.receipt.id, result.receipt.purchaseOrderId);
@@ -380,7 +380,7 @@ export async function voidGoodsReceiptAction(
   _prevState: GoodsReceiptPostActionState,
   formData: FormData
 ): Promise<GoodsReceiptPostActionState> {
-  const { tenantId, membership } = await requireTenant();
+  const { tenantId, membership } = await requireTenant("receive:write");
 
   const parsed = voidGoodsReceiptInputSchema.safeParse({
     id: formData.get("id"),
@@ -407,7 +407,7 @@ export async function voidGoodsReceiptAction(
 export async function deleteGoodsReceiptDraftAction(
   id: string
 ): Promise<GoodsReceiptActionState> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("receive:write");
   try {
     const gr = await deleteGoodsReceiptDraftLogic(tenantId, id);
     revalidateGoodsReceiptViews(undefined, gr.purchaseOrderId);
@@ -426,7 +426,7 @@ export async function closePurchaseOrderShortAction(
   _prevState: GoodsReceiptActionState,
   formData: FormData
 ): Promise<GoodsReceiptActionState> {
-  const { tenantId, membership } = await requireTenant();
+  const { tenantId, membership } = await requireTenant("purchase:approve");
 
   const parsed = closePurchaseOrderShortInputSchema.safeParse({
     id: formData.get("id"),
@@ -462,7 +462,7 @@ export async function getReceivablePurchaseOrderAction(
   | { ok: true; data: ReceivablePurchaseOrderView | null }
   | { ok: false; formError: string }
 > {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("receive:write");
   if (!purchaseOrderId) {
     return { ok: false, formError: PO_NOT_FOUND_MESSAGE };
   }

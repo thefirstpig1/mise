@@ -16,7 +16,7 @@ import { toDraftRowView } from "../_components/menu-lab-view";
 import { PLANNED_PRICE_LABEL_TH } from "@/lib/validations/menu-lab";
 
 export default async function MenuLabPage() {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("recipe:write");
   const drafts = (await getDraftsLogic(tenantId)).map(toDraftRowView);
 
   return (

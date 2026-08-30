@@ -9,14 +9,14 @@ import { requireTenant } from "@/lib/require-tenant";
 import { revalidatePath } from "next/cache";
 
 export default async function SettingsPage() {
-  const { membership } = await requireTenant();
+  const { membership } = await requireTenant("settings:write");
   const { tenant } = membership;
 
   async function updateTenant(formData: FormData) {
     "use server";
     // Re-authenticate inside the action — server actions are independent
     // requests, so we don't rely on the render-time closure for scoping.
-    const { tenantId } = await requireTenant();
+    const { tenantId } = await requireTenant("settings:write");
     const enableDepts = formData.get("enable_departments") === "on";
     const isVat = formData.get("is_vat_registered") === "on";
     // A radio, not a checkbox: both methods are legitimate and neither is the

@@ -7,7 +7,7 @@ import { getCategoriesLogic } from "@/server/category";
 import CategoryTree from "./_components/CategoryTree";
 
 export default async function CategoriesPage() {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("any:member");
   const categories = await getCategoriesLogic(tenantId);
   return <CategoryTree categories={categories} />;
 }

@@ -31,7 +31,7 @@ export default async function SubstitutePage({
 }: {
   searchParams: Promise<{ from?: string; to?: string }>;
 }) {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("recipe:write");
   const sp = await searchParams;
 
   const [products, menus] = await Promise.all([

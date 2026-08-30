@@ -36,7 +36,7 @@ export default async function GoodsReceiptDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { tenantId, membership } = await requireTenant();
+  const { tenantId, membership } = await requireTenant("receive:write");
   const { id } = await params;
 
   const row = await getGoodsReceiptByIdLogic(tenantId, id);

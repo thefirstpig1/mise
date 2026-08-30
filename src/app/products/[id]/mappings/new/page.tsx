@@ -18,7 +18,7 @@ export default async function NewMappingPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireTenant("master:write");
 
   const [product, suppliers, branches] = await Promise.all([
     getProductByIdLogic(tenantId, id),
