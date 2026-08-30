@@ -14,6 +14,11 @@
 // ============================================================
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { costAccessFor } from "@/lib/permissions/cost-access";
+
+/** The ticket an owner carries. Minted through the single real door,
+ *  so a role that loses `cost:view` makes these fixtures null too. */
+const SEES_COST = costAccessFor("owner");
 import { EVERY_BRANCH } from "./support/reach";
 import { randomUUID } from "node:crypto";
 import { withAdminContext } from "@/lib/db";
@@ -175,7 +180,7 @@ describe("recipe list reads (ADR 0021 Part 21 L5a)", () => {
       branchId: branchA,
       missingOnly: false,
       ...over,
-    });
+    }, SEES_COST);
 
   beforeAll(async () => {
     await withAdminContext(async (tx) => {
@@ -424,7 +429,7 @@ describe("recipe list reads (ADR 0021 Part 21 L5a)", () => {
     // ต้มยำ: central, which ทองหล่อ and ภูเก็ต follow, plus อโศก's own copy.
     const cmp = (await getRecipeBranchComparisonLogic(tenantA, {
       target: { kind: "menu", id: tomYum.id },
-    }, EVERY_BRANCH))!;
+    }, SEES_COST, EVERY_BRANCH))!;
 
     expect(cmp.groups.length).toBe(2);
     // Central first, always.
@@ -441,7 +446,7 @@ describe("recipe list reads (ADR 0021 Part 21 L5a)", () => {
   it("L-10 every figure names the branch it was priced at (rule R4)", async () => {
     const cmp = (await getRecipeBranchComparisonLogic(tenantA, {
       target: { kind: "menu", id: tomYum.id },
-    }, EVERY_BRANCH))!;
+    }, SEES_COST, EVERY_BRANCH))!;
 
     const central = cmp.groups.find((g) => g.isCentral)!;
     const own = cmp.groups.find((g) => !g.isCentral)!;
@@ -458,7 +463,7 @@ describe("recipe list reads (ADR 0021 Part 21 L5a)", () => {
   it("L-11 a dish nobody has a recipe for compares to nothing, not to zero", async () => {
     const cmp = await getRecipeBranchComparisonLogic(tenantA, {
       target: { kind: "menu", id: plainRice.id },
-    }, EVERY_BRANCH);
+    }, SEES_COST, EVERY_BRANCH);
     expect(cmp).toBeNull();
   });
 
@@ -482,7 +487,7 @@ describe("recipe list reads (ADR 0021 Part 21 L5a)", () => {
 
     const cmp = (await getRecipeBranchComparisonLogic(tenantA, {
       target: { kind: "menu", id: menu.id },
-    }, EVERY_BRANCH))!;
+    }, SEES_COST, EVERY_BRANCH))!;
     const centralGroup = cmp.groups.find((g) => g.isCentral)!;
 
     // It still exists and it still governs no branch. Inventing a branch to

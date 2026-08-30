@@ -26,7 +26,7 @@ export default async function StockCountListPage({
 }: {
   searchParams: Promise<{ branch?: string; status?: string }>;
 }) {
-  const { tenantId, reach} = await requireTenant("count:write");
+  const { tenantId, reach, costAccess} = await requireTenant("count:write");
   const { branch, status } = await searchParams;
 
   const [branches] = await Promise.all([getBranchesLogic(tenantId, reach)]);
@@ -52,7 +52,7 @@ export default async function StockCountListPage({
     ? (branches.find((b) => b.id === query.branchId) ?? null)
     : null;
   const incoming = noticeBranch
-    ? (await getIncomingTransfersLogic(tenantId, noticeBranch.id)).map(toTransferView)
+    ? (await getIncomingTransfersLogic(tenantId, noticeBranch.id)).map((t) => toTransferView(t, costAccess))
     : [];
 
   return (

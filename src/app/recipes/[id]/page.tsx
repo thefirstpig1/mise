@@ -56,7 +56,7 @@ export default async function RecipePage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ branch?: string }>;
 }) {
-  const { tenantId, reach} = await requireTenant("any:member");
+  const { tenantId, reach, costAccess} = await requireTenant("any:member");
   const { id } = await params;
   const sp = await searchParams;
 
@@ -84,9 +84,13 @@ export default async function RecipePage({
       : ({ kind: "product", id: recipe.outputProductId as string } as const);
 
   const [cost, history, comparison, products, menus] = await Promise.all([
-    getRecipeCostLogic(tenantId, { recipeId: recipe.id, branchId, asOf }),
+    // The engine itself stays open (a cook must be able to POST a staff meal,
+    // which prices FIFO) — what is gated is the figure reaching this page.
+    costAccess
+      ? getRecipeCostLogic(tenantId, { recipeId: recipe.id, branchId, asOf })
+      : null,
     getRecipeHistoryLogic(tenantId, recipe.lineId, asOf),
-    getRecipeBranchComparisonLogic(tenantId, { target, asOf }, reach),
+    getRecipeBranchComparisonLogic(tenantId, { target, asOf }, costAccess, reach),
     getProductsLogic(tenantId),
     getMenusLogic(tenantId, { stubsOnly: false, includeRetired: false }),
   ]);
@@ -220,12 +224,26 @@ export default async function RecipePage({
               </button>
             </form>
 
-            <RecipeCostPanel
-              cost={costView}
-              branchName={branchName}
-              asOfLabel={BANGKOK_DATE.format(asOf)}
-              isPreppedOutput={recipe.targetKind === "product"}
-            />
+            {costAccess === null ? (
+              // The panel's own empty state means "this recipe cannot be
+              // costed", which is a statement about the dish. This is a
+              // statement about the reader, and they must not be confused
+              // (rule A8). ADR 0021 Q18's case, on the screen it was about:
+              // the cook keeps the recipe and loses only the money.
+              <div className="rounded-lg border border-border p-4 text-sm text-muted-foreground">
+                ไม่มีสิทธิ์ดูต้นทุน
+                <p className="mt-1 text-xs">
+                  สูตรและส่วนผสมดูได้ตามปกติ — ขอสิทธิ์ดูต้นทุนได้จากเจ้าของร้านหรือผู้จัดการ
+                </p>
+              </div>
+            ) : (
+              <RecipeCostPanel
+                cost={costView}
+                branchName={branchName}
+                asOfLabel={BANGKOK_DATE.format(asOf)}
+                isPreppedOutput={recipe.targetKind === "product"}
+              />
+            )}
           </div>
         </aside>
       </div>
@@ -277,7 +295,13 @@ export default async function RecipePage({
                       {g.ingredientCount}
                     </td>
                     <td className="px-3 py-2 text-right text-sm tabular-nums">
-                      {g.costPerServing === null ? (
+                      {/* Before the em dash, which here would claim the recipe
+                          cannot be priced rather than that you may not see it. */}
+                      {comparisonView.costHidden ? (
+                        <span className="text-xs text-muted-foreground">
+                          ไม่มีสิทธิ์ดู
+                        </span>
+                      ) : g.costPerServing === null ? (
                         <span className="text-muted-foreground">—</span>
                       ) : (
                         <>

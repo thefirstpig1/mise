@@ -10,7 +10,7 @@ import { toPulseDashboardView } from "@/app/sales/_components/sales-view";
 import PulsePanel from "./_components/PulsePanel";
 
 export default async function DashboardPage() {
-  const { user, membership, tenantId, reach} = await requireTenant("any:member");
+  const { user, membership, tenantId, reach, costAccess} = await requireTenant("any:member");
   const { tenant } = membership;
 
   // Layer 2: this membership's branch + dept access (tenant-scoped read).
@@ -32,7 +32,7 @@ export default async function DashboardPage() {
       tenantId,
       getTransfersQuerySchema.parse({ status: "SENT", includeReversalLines: "false" })
     )
-  ).map(toTransferView);
+  ).map((t) => toTransferView(t, costAccess));
 
   // Part 20a Q4 — the answer to "the shop runs blind between imports". Detail
   // where a file has landed, the typed pulse where it has not, and every figure

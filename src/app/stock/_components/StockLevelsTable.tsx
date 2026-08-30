@@ -38,7 +38,7 @@ export type StockLevelRow = {
    * Never `cost x balance` — with two layers at different prices that product is
    * a different, wrong number.
    */
-  inventoryValue: string;
+  inventoryValue: string | null;
   /** true = some of this stock was priced by guesswork, or not at all. */
   costUncertain: boolean;
 };
@@ -163,15 +163,24 @@ export default function StockLevelsTable({ rows }: { rows: StockLevelRow[] }) {
                     )}
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums">
-                    <a
-                      href={`/cost/${r.productId}`}
-                      className="text-primary hover:underline"
-                    >
-                      {Number(r.inventoryValue).toLocaleString("th-TH", {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}
-                    </a>
+                    {r.inventoryValue === null ? (
+                      // Not ฿0 and not a dash: both read as claims about the
+                      // stock, and this is a fact about the reader (rule A8).
+                      // The link is dropped with the figure — /cost is behind
+                      // the same capability, so offering it would send someone
+                      // to a refusal.
+                      <span className="text-muted-foreground">ไม่มีสิทธิ์ดู</span>
+                    ) : (
+                      <a
+                        href={`/cost/${r.productId}`}
+                        className="text-primary hover:underline"
+                      >
+                        {Number(r.inventoryValue).toLocaleString("th-TH", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </a>
+                    )}
                     {r.costUncertain && (
                       <span
                         className="ml-1 text-amber-600"

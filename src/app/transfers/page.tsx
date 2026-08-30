@@ -43,7 +43,7 @@ export default async function TransfersPage({
     status?: string;
   }>;
 }) {
-  const { tenantId, reach} = await requireTenant("any:member");
+  const { tenantId, reach, costAccess} = await requireTenant("any:member");
   const sp = await searchParams;
 
   const branches = await getBranchesLogic(tenantId, reach);
@@ -56,7 +56,7 @@ export default async function TransfersPage({
   });
 
   const fetched = query.success
-    ? (await getTransfersLogic(tenantId, query.data)).map(toTransferView)
+    ? (await getTransfersLogic(tenantId, query.data)).map((t) => toTransferView(t, costAccess))
     : [];
   const truncated = fetched.length > MAX_TRANSFER_ROWS;
   const rows = truncated ? fetched.slice(0, MAX_TRANSFER_ROWS) : fetched;
@@ -184,7 +184,14 @@ export default async function TransfersPage({
               <p className="mt-2 text-xs text-muted-foreground">{t.statusHint}</p>
 
               <p className="mt-2 text-sm">
-                {t.lineCount} รายการ · มูลค่า {t.totalCost} ฿
+                {t.lineCount} รายการ · มูลค่า{" "}
+                {/* An empty gap would read as "this transfer was worth
+                    nothing". Say whose limit it is (rule A8). */}
+                {t.costHidden ? (
+                  <span className="text-muted-foreground">ไม่มีสิทธิ์ดู</span>
+                ) : (
+                  <>{t.totalCost} ฿</>
+                )}
                 {t.hasShortage && (
                   <span className="ml-2 rounded-full border border-red-300 bg-red-50 px-2 py-0.5 text-xs text-red-700">
                     ของมาไม่ครบ

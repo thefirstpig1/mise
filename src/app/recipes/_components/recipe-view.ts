@@ -363,6 +363,12 @@ export type RecipeBranchComparisonView = {
   label: string;
   branchesWithNoRecipe: string[];
   groups: RecipeBranchGroupView[];
+  /**
+   * True when every `costPerServing` below is null because the reader lacks
+   * `cost:view`, not because the recipe cannot be priced. The screen must say
+   * which — the two look the same in the data (rule A8).
+   */
+  costHidden: boolean;
 };
 
 export function toBranchComparisonView(
@@ -371,6 +377,7 @@ export function toBranchComparisonView(
   return {
     label: c.label,
     branchesWithNoRecipe: c.branchesWithNoRecipe,
+    costHidden: c.costHidden,
     groups: c.groups.map((g) => ({
       recipeId: g.recipeId,
       lineId: g.lineId,

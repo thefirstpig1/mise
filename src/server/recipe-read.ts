@@ -27,6 +27,7 @@
 
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { branchScopeWhere, type BranchReach } from "@/lib/permissions/service";
+import type { CostAccess } from "@/lib/permissions/cost-access";
 import { withTenantContext } from "@/lib/db";
 import { computeBangkokToday } from "@/lib/bangkok-date";
 import { resolveRecipeIds, type RecipeTarget } from "@/server/recipe-resolve";
@@ -403,6 +404,13 @@ export type RecipeListResult = {
   prepped: RecipeListRow[];
   /** Menus with no recipe at this branch — the count beside the filter. */
   missingCount: number;
+  /**
+   * True when the reader may not see cost, so every `costPerServing` and
+   * `confidence` above is null for that reason and NOT because there is no
+   * recipe to cost (ADR 0029 Q12, rule A8). The two look identical in the
+   * data and mean opposite things on the screen, so the screen is told which.
+   */
+  costHidden: boolean;
 };
 
 /**
@@ -423,7 +431,16 @@ export async function getRecipeListLogic(
     search?: string;
     missingOnly: boolean;
     asOf?: Date;
-  }
+  },
+  /**
+   * The ticket from `requireTenant`, or null. This is the read ADR 0021 Q18
+   * was written about: the cook needs the dish and must not have the price,
+   * and before Part 28 the two arrived welded together in one payload.
+   *
+   * Null does not just blank the field — it SKIPS the cost walk entirely.
+   * A recipe graph is expensive to price and there is nobody to show it to.
+   */
+  cost: CostAccess | null
 ): Promise<RecipeListResult> {
   const asOf = query.asOf ?? computeBangkokToday();
   const search = query.search;
@@ -500,7 +517,7 @@ export async function getRecipeListLogic(
 
   const recipeIds = [...base.resolved.values()].map((r) => r.id);
   const costs =
-    recipeIds.length === 0
+    cost === null || recipeIds.length === 0
       ? new Map<string, RecipeCost>()
       : await getRecipeCostsLogic(tenantId, {
           recipeIds,
@@ -567,6 +584,7 @@ export async function getRecipeListLogic(
   const missingCount = menuRows.filter((r) => r.recipeId === null).length;
 
   return {
+    costHidden: cost === null,
     menus: query.missingOnly
       ? menuRows.filter((r) => r.recipeId === null)
       : menuRows,
@@ -613,6 +631,8 @@ export type RecipeBranchComparison = {
   branchesWithNoRecipe: string[];
   /** Central first, then by branch count. */
   groups: RecipeBranchGroup[];
+  /** See `RecipeListResult.costHidden` — same rule, same reason. */
+  costHidden: boolean;
 };
 
 /**
@@ -630,6 +650,8 @@ export type RecipeBranchComparison = {
 export async function getRecipeBranchComparisonLogic(
   tenantId: string,
   args: { target: RecipeTarget; asOf?: Date },
+  /** See `getRecipeListLogic` — the same ticket, on the same kind of read. */
+  cost: CostAccess | null,
   /**
    * Rule A5. Both the branch list AND the recipe_branch links are narrowed:
    * the links carry `branch.name`, so narrowing only the first would have
@@ -748,9 +770,11 @@ export async function getRecipeBranchComparisonLogic(
     else list.push(d.w.id);
   }
   const costs = new Map<string, RecipeCost>();
-  for (const [branchId, recipeIds] of byBranch) {
-    const batch = await getRecipeCostsLogic(tenantId, { recipeIds, branchId, asOf });
-    for (const [id, c] of batch) costs.set(id, c);
+  if (cost !== null) {
+    for (const [branchId, recipeIds] of byBranch) {
+      const batch = await getRecipeCostsLogic(tenantId, { recipeIds, branchId, asOf });
+      for (const [id, c] of batch) costs.set(id, c);
+    }
   }
 
   const groups: RecipeBranchGroup[] = draft.map((d) => {
@@ -786,7 +810,7 @@ export async function getRecipeBranchComparisonLogic(
     ? []
     : followsCentral.map((b) => b.name);
 
-  return { label, branchesWithNoRecipe, groups };
+  return { label, branchesWithNoRecipe, groups, costHidden: cost === null };
 }
 
 // ------------------------------------------------------------

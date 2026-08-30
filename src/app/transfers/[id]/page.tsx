@@ -30,12 +30,12 @@ export default async function TransferDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { tenantId } = await requireTenant("any:member");
+  const { tenantId, costAccess} = await requireTenant("any:member");
   const { id } = await params;
 
   const found = await getTransferByIdLogic(tenantId, id);
   if (!found) notFound();
-  const t = toTransferView(found);
+  const t = toTransferView(found, costAccess);
 
   const liveLines = t.lines.filter((l) => !l.isReversal);
   const reversalLines = t.lines.filter((l) => l.isReversal);
@@ -144,10 +144,16 @@ export default async function TransferDetailPage({
                   )}
                 </td>
                 <td className="px-3 py-2 text-right">
-                  {l.costTotal}
+                  {/* Blank would read as free, and ฿0 as free too — both are
+                      claims about the goods. This is about the reader. */}
+                  {l.costTotal === null ? (
+                    <span className="text-muted-foreground">ไม่มีสิทธิ์ดู</span>
+                  ) : (
+                    l.costTotal
+                  )}
                   {/* 0.00 is not always "free" — it can mean the sending branch
                       never knew what these goods cost (ADR 0014 Q10). */}
-                  {l.costSource === "UNPRICED" && (
+                  {l.costTotal !== null && l.costSource === "UNPRICED" && (
                     <span className="block text-xs text-amber-700">
                       {l.costSourceLabel}
                     </span>
@@ -161,7 +167,15 @@ export default async function TransferDetailPage({
               <td className="px-3 py-2 font-medium" colSpan={4}>
                 รวม {t.lineCount} รายการ
               </td>
-              <td className="px-3 py-2 text-right font-medium">{t.totalCost}</td>
+              <td className="px-3 py-2 text-right font-medium">
+                {t.costHidden ? (
+                  <span className="font-normal text-muted-foreground">
+                    ไม่มีสิทธิ์ดู
+                  </span>
+                ) : (
+                  t.totalCost
+                )}
+              </td>
             </tr>
           </tfoot>
         </table>
@@ -177,7 +191,8 @@ export default async function TransferDetailPage({
           <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
             {reversalLines.map((l) => (
               <li key={l.id}>
-                {l.product.name}: {l.qtySent} {l.inputUnitName} · {l.costTotal} ฿
+                {l.product.name}: {l.qtySent} {l.inputUnitName}
+                {l.costTotal !== null && ` · ${l.costTotal} ฿`}
               </li>
             ))}
           </ul>

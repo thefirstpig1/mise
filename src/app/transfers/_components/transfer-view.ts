@@ -19,6 +19,7 @@
 // ============================================================
 
 import type { Prisma, StockTransferStatus } from "@prisma/client";
+import type { CostAccess } from "@/lib/permissions/cost-access";
 import type { TransferDetail } from "@/server/transfer";
 import {
   TRANSFER_STATUS_HINTS_TH,
@@ -71,7 +72,8 @@ export type TransferLineView = {
   /** Dispatched minus received, once there is a count. Positive = went missing. */
   qtyMissing: string | null;
   /** The money frozen at dispatch (Q5), as a string (Pitfall #20). */
-  costTotal: string;
+  /** Null when the reader may not see cost — never 0, never a dash. */
+  costTotal: string | null;
   /** How well the SENDING branch knew that money — 0.00 is not always free. */
   costSource: CostSource;
   costSourceLabel: string;
@@ -118,7 +120,10 @@ export type TransferView = {
    */
   lineCount: number;
   /** Total money on the move, which IS summable — it is all baht. */
-  totalCost: string;
+  /** Null when the reader may not see cost (rule A8). */
+  totalCost: string | null;
+  /** True when the nulls above are about permission, not about the data. */
+  costHidden: boolean;
   /** Anything dispatched and never counted, in baht. Null until received. */
   hasShortage: boolean;
 };
@@ -127,7 +132,15 @@ const account = (u: { name: string | null; email: string } | null) =>
   u ? (u.name ?? u.email) : null;
 
 export function toTransferLineView(
-  l: TransferDetail["items"][number]
+  l: TransferDetail["items"][number],
+  /**
+   * A transfer line carries the sending branch's FIFO money FROZEN onto it —
+   * the one deliberate exception to "cost is stored nowhere" (ADR 0018). So
+   * unlike every other cost on a screen, this one needs no engine call to
+   * leak: it arrives with the row. The ticket is checked HERE, at the
+   * serializer, because that is the only place it passes through.
+   */
+  cost: CostAccess | null
 ): TransferLineView {
   const qtyMissing =
     l.qtyReceived === null ? null : l.qtySent.minus(l.qtyReceived);
@@ -144,7 +157,7 @@ export function toTransferLineView(
     qtyReceived: l.qtyReceived === null ? null : str(l.qtyReceived),
     inputUnitName: l.inputUnitName,
     qtyMissing: qtyMissing === null ? null : str(qtyMissing),
-    costTotal: str(l.costTotal),
+    costTotal: cost === null ? null : str(l.costTotal),
     costSource: l.costSource,
     costSourceLabel: COST_SOURCE_LABELS_TH[l.costSource],
     notes: l.notes,
@@ -152,7 +165,10 @@ export function toTransferLineView(
   };
 }
 
-export function toTransferView(t: TransferDetail): TransferView {
+export function toTransferView(
+  t: TransferDetail,
+  cost: CostAccess | null
+): TransferView {
   // Reversal lines are excluded from the totals but kept in `lines`, so a voided
   // document still reads as what happened AND what undid it — the same choice
   // Part 17 made for a voided waste entry.
@@ -191,9 +207,10 @@ export function toTransferView(t: TransferDetail): TransferView {
     voidedAtLabel: t.voidedAt ? BANGKOK_DATE.format(t.voidedAt) : null,
     voidReason: t.voidReason,
     notes: t.notes,
-    lines: t.items.map(toTransferLineView),
+    lines: t.items.map((l) => toTransferLineView(l, cost)),
     lineCount: live.length,
-    totalCost: totalCost ? str(totalCost) : "0",
+    totalCost: cost === null ? null : totalCost ? str(totalCost) : "0",
+    costHidden: cost === null,
     hasShortage: live.some(
       (l) => l.qtyReceived !== null && l.qtyReceived.lessThan(l.qtySent)
     ),

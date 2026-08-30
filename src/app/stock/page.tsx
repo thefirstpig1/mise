@@ -41,7 +41,7 @@ export default async function StockLevelsPage({
 }: {
   searchParams: Promise<{ branch?: string }>;
 }) {
-  const { tenantId, reach} = await requireTenant("any:member");
+  const { tenantId, reach, costAccess} = await requireTenant("any:member");
   const { branch: branchParam } = await searchParams;
 
   const branches = await getBranchesLogic(tenantId, reach);
@@ -63,7 +63,7 @@ export default async function StockLevelsPage({
 
   const incoming = (
     await getIncomingTransfersLogic(tenantId, activeBranch.id)
-  ).map(toTransferView);
+  ).map((t) => toTransferView(t, costAccess));
 
   const balances = await getStockBalancesByBranchLogic(tenantId, activeBranch.id);
 
@@ -71,13 +71,18 @@ export default async function StockLevelsPage({
   // 200 products x a round trip to Neon Singapore is 6-16 seconds, which is risk
   // R1 in ADR 0014's register and the reason the read layer exposes no
   // per-product query to loop over.
-  const costs = await getProductCostsLogic(
-    tenantId,
-    getProductCostsQuerySchema.parse({
-      productIds: balances.map((b) => b.productId),
-      branchId: activeBranch.id,
-    })
-  );
+  // Not asked for at all without the ticket: a FIFO replay per product is the
+  // most expensive read on this page, and there is nobody to show it to
+  // (ADR 0029 Q12).
+  const costs = costAccess
+    ? await getProductCostsLogic(
+        tenantId,
+        getProductCostsQuerySchema.parse({
+          productIds: balances.map((b) => b.productId),
+          branchId: activeBranch.id,
+        })
+      )
+    : null;
 
   // Part 17 (ADR 0017 Q6): what is under its par at THIS branch.
   //
@@ -111,8 +116,14 @@ export default async function StockLevelsPage({
         : null,
       deleted: b.product.deleted,
       // Summed layer by layer by the replay — NOT cost x balance (ADR 0014 Q3b).
-      inventoryValue: costs.get(b.product.id)?.inventoryValue.toString() ?? "0",
-      costUncertain: costs.get(b.product.id)?.hasUnpricedLayers ?? false,
+      //
+      // NULL, never "0", when the reader may not see cost: ฿0 is a claim about
+      // the stock and this is a fact about the person (rule A8).
+      inventoryValue:
+        costs === null
+          ? null
+          : (costs.get(b.product.id)?.inventoryValue.toString() ?? "0"),
+      costUncertain: costs?.get(b.product.id)?.hasUnpricedLayers ?? false,
     }));
 
   return (

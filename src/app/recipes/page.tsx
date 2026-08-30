@@ -66,7 +66,19 @@ function ConfidenceChip({ row }: { row: RecipeListRowView }) {
 }
 
 /** The cost cell: the figure, its caveat, or an honest dash. */
-function CostCell({ row }: { row: RecipeListRowView }) {
+function CostCell({
+  row,
+  costHidden,
+}: {
+  row: RecipeListRowView;
+  costHidden: boolean;
+}) {
+  // Checked BEFORE the null branch below, because without the ticket every row
+  // has a null cost and the em dash would say "no recipe to cost" about a dish
+  // that has one. Two different facts, one shape in the data (rule A8).
+  if (costHidden) {
+    return <span className="text-xs text-muted-foreground">ไม่มีสิทธิ์ดู</span>;
+  }
   if (row.problem !== null) {
     return (
       <span className="text-xs text-red-700">{row.problemLabel}</span>
@@ -83,7 +95,13 @@ function CostCell({ row }: { row: RecipeListRowView }) {
   );
 }
 
-function MenuRow({ row }: { row: RecipeListRowView }) {
+function MenuRow({
+  row,
+  costHidden,
+}: {
+  row: RecipeListRowView;
+  costHidden: boolean;
+}) {
   const href =
     row.recipeId !== null
       ? `/recipes/${row.recipeId}`
@@ -115,7 +133,7 @@ function MenuRow({ row }: { row: RecipeListRowView }) {
         )}
       </td>
       <td className={tdNum}>
-        <CostCell row={row} />
+        <CostCell row={row} costHidden={costHidden} />
       </td>
     </tr>
   );
@@ -126,7 +144,7 @@ export default async function RecipesPage({
 }: {
   searchParams: Promise<{ branch?: string; q?: string; missing?: string }>;
 }) {
-  const { tenantId, reach} = await requireTenant("any:member");
+  const { tenantId, reach, costAccess} = await requireTenant("any:member");
   const sp = await searchParams;
 
   const branches = await getBranchesLogic(tenantId, reach);
@@ -158,11 +176,15 @@ export default async function RecipesPage({
   const branchName = branches.find((b) => b.id === branchId)!.name;
 
   const asOf = computeBangkokToday();
-  const result = await getRecipeListLogic(tenantId, {
-    branchId,
-    search: query.search,
-    missingOnly: query.missingOnly,
-  });
+  const result = await getRecipeListLogic(
+    tenantId,
+    {
+      branchId,
+      search: query.search,
+      missingOnly: query.missingOnly,
+    },
+    costAccess
+  );
 
   const menus = result.menus.map(toRecipeListRowView);
   const prepped = result.prepped.map(toRecipeListRowView);
@@ -255,7 +277,11 @@ export default async function RecipesPage({
               </thead>
               <tbody>
                 {menus.map((row) => (
-                  <MenuRow key={row.targetId} row={row} />
+                  <MenuRow
+                    key={row.targetId}
+                    row={row}
+                    costHidden={result.costHidden}
+                  />
                 ))}
               </tbody>
             </table>
@@ -325,7 +351,7 @@ export default async function RecipesPage({
                       )}
                     </td>
                     <td className={tdNum}>
-                      <CostCell row={row} />
+                      <CostCell row={row} costHidden={result.costHidden} />
                     </td>
                   </tr>
                 ))}
