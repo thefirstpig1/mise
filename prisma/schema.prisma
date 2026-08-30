@@ -236,6 +236,7 @@ model User {
   accounts                  Account[]
   sessions                  Session[]
   memberships               TenantMembership[]
+  membershipRoleChanges     TenantMembership[] @relation("MembershipRoleChangedBy")
   stockMovements            StockMovement[]
   stockAdjustments          StockAdjustment[]
   stockCostDeclarations     StockCostDeclaration[]
@@ -289,11 +290,26 @@ model TenantMembership {
   /// the branch check no longer names a role at all (rule A2).
   allBranches Boolean @default(false) @map("all_branches")
 
+  /// Who last changed this person's role or reach, and when (ADR 0029 Q14).
+  ///
+  /// Not a log. A membership is a row that gets UPDATED, and the dispute a
+  /// shop actually has is about the PRESENT — "why can I not see cost any
+  /// more, and who did that" — which the last change answers in full. A
+  /// `membership_change_log` was refused: a new table, an RLS policy, a
+  /// delete-order entry and a screen, bought to answer a question nobody
+  /// asks ("how many times has this changed?").
+  ///
+  /// Null on a row nobody has touched since it was created, which includes
+  /// every owner made by tenant-init.
+  roleChangedAt DateTime? @map("role_changed_at")
+  roleChangedBy String?   @map("role_changed_by")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   tenant          Tenant                     @relation(fields: [tenantId], references: [id])
   user            User                       @relation(fields: [userId], references: [id])
+  roleChangedByUser User? @relation("MembershipRoleChangedBy", fields: [roleChangedBy], references: [id])
   branchAccess    UserBranchAccess[]
   deptAssignments UserDepartmentAssignment[]
 
