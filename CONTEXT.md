@@ -62,6 +62,7 @@ on resolution during /grill-with-docs sessions.
 - **GR excess** — received more than PO. **Never blocked** — the goods are already in the kitchen; recorded in full, sets `has_discrepancy`, and requires a note on the line (Decision #56, H.3). No tolerance band.
 - **ปิดรับ (closed short)** — manually closing a PO the supplier will not complete: sets `status = RECEIVED` and stamps `closed_short_at/by/reason`. Nothing infers it — without the button a PO short by 2 kg would stay in the open-orders read forever. ADR 0013 Q8.
 - **Allocation** — the split of one PO or GR line's quantity **across departments** (cost-centre attribution) — *not* the matching of GR lines to PO lines, which is a direct parent reference. Every line's allocations must sum to the line's quantity. While departments are off, a line has exactly one allocation row, "Main".
+- **Department usage cost** — the value of the materials a department actually **consumed**, traced back through the menus it sold. Not the same number as [Allocation], which is what a department **ordered**: the difference between them is stock that was bought and not yet used. Gross profit per department pairs revenue with the usage cost, never the ordered cost (ADR 0032).
 - **Mirror trigger** — DB trigger that updates dependent rows when PR/PO/GR confirmed (H.2). **Not built** — the allocation sum is enforced in the application instead, until multi-department allocation is reachable (ADR 0012).
 
 ## Inventory
