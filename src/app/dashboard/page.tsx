@@ -37,6 +37,7 @@ const NAV: readonly { href: string; label: string; need: Requirement }[] = [
   { href: "/consumption", label: "ตัดสต๊อกตามยอดขาย", need: "consumption:post" },
   { href: "/expenses", label: "ค่าใช้จ่าย", need: "expense:view" },
   { href: "/cost", label: "ต้นทุน", need: "cost:view" },
+  { href: "/cost/departments", label: "ต้นทุนตามแผนก", need: "cost:view" },
   { href: "/settings", label: "ตั้งค่าร้าน", need: "settings:write" },
   { href: "/settings/members", label: "คนในร้าน", need: "member:manage" },
 ];
