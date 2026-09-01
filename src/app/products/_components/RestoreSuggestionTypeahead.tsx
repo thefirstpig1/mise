@@ -165,7 +165,7 @@ export default function RestoreSuggestionTypeahead({
         <ul
           id={listboxId}
           role="listbox"
-          className="absolute z-20 mt-1 max-h-80 w-full overflow-y-auto rounded-lg border border-border bg-card shadow-lg"
+          className="absolute z-20 mt-1 max-h-80 w-full overflow-y-auto rounded-lg border border-border bg-surface shadow-lg"
         >
           {visible.map((c) => {
             const badge = scoreBadge(c.score);

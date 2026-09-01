@@ -56,7 +56,7 @@ export default function PulsePanel({
   const multi = dashboard.branches.length > 1;
 
   return (
-    <section className="rounded-lg border border-border bg-card p-4">
+    <section className="rounded-lg border border-border bg-surface p-4">
       <div className="flex items-baseline justify-between">
         <h2 className="text-sm font-medium">ยอดขาย</h2>
         <a href="/sales" className="text-xs text-primary hover:underline">
@@ -161,7 +161,7 @@ export default function PulsePanel({
       )}
 
       {state?.ok === false && (
-        <p className="mt-2 text-xs text-destructive">
+        <p className="mt-2 text-xs text-bad">
           {state.formError ?? Object.values(state.fieldErrors ?? {})[0]}
         </p>
       )}

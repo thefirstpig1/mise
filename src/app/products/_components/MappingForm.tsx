@@ -119,7 +119,7 @@ export default function MappingForm({
       <input type="hidden" name="product_id" value={productId} />
 
       {/* Supplier + branch (identity — locked on edit) */}
-      <section className="space-y-4 rounded-lg border border-border bg-card p-6">
+      <section className="space-y-4 rounded-lg border border-border bg-surface p-6">
         <div>
           <label htmlFor="supplier_id" className="mb-1 block text-sm font-medium">
             ซัพพลายเออร์<span className="text-bad"> *</span>
@@ -226,7 +226,7 @@ export default function MappingForm({
       </section>
 
       {/* Supplier's own item code/name (optional) */}
-      <section className="space-y-4 rounded-lg border border-border bg-card p-6">
+      <section className="space-y-4 rounded-lg border border-border bg-surface p-6">
         <div>
           <label
             htmlFor="supplier_item_code"
@@ -270,7 +270,7 @@ export default function MappingForm({
       </section>
 
       {/* Order unit + pricing */}
-      <section className="space-y-4 rounded-lg border border-border bg-card p-6">
+      <section className="space-y-4 rounded-lg border border-border bg-surface p-6">
         <div>
           <label htmlFor="order_unit_id" className="mb-1 block text-sm font-medium">
             หน่วยสั่งซื้อ
@@ -394,7 +394,7 @@ export default function MappingForm({
       </section>
 
       {/* Effective dates (Q1/Q4) */}
-      <section className="space-y-4 rounded-lg border border-border bg-card p-6">
+      <section className="space-y-4 rounded-lg border border-border bg-surface p-6">
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label

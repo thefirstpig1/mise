@@ -101,7 +101,7 @@ export default function ProfileBuilder({ posOptions }: { posOptions: PosOption[]
   return (
     <div className="space-y-6">
       {/* ---------- 1. read a real file ---------- */}
-      <form action={inspectAction} className="rounded-lg border border-border bg-card p-4">
+      <form action={inspectAction} className="rounded-lg border border-border bg-surface p-4">
         <h2 className="text-sm font-medium">1. อัปไฟล์ตัวอย่างจาก POS</h2>
         <p className="mt-1 text-xs text-muted-foreground">
           ใช้ไฟล์จริงหนึ่งไฟล์ ระบบจะอ่านหัวตารางกับข้อมูลตัวอย่างมาให้จับคู่ — ไม่มีการบันทึกอะไร
@@ -131,13 +131,13 @@ export default function ProfileBuilder({ posOptions }: { posOptions: PosOption[]
           {inspecting ? "กำลังอ่าน…" : "อ่านหัวตาราง"}
         </button>
         {inspectState?.ok === false && (
-          <p className="mt-2 text-sm text-destructive">{inspectState.formError}</p>
+          <p className="mt-2 text-sm text-bad">{inspectState.formError}</p>
         )}
       </form>
 
       {/* ---------- 2. map it ---------- */}
       {inspectState?.ok && header && (
-        <form action={saveAction} className="rounded-lg border border-border bg-card p-4">
+        <form action={saveAction} className="rounded-lg border border-border bg-surface p-4">
           <h2 className="text-sm font-medium">2. จับคู่คอลัมน์</h2>
 
           <div className="mt-3 overflow-x-auto">
@@ -169,7 +169,7 @@ export default function ProfileBuilder({ posOptions }: { posOptions: PosOption[]
             {COLUMN_MAP_FIELDS.map((field) => (
               <label key={field} className="block text-sm">
                 {FIELD_LABELS_TH[field].label}
-                {FIELD_LABELS_TH[field].required && <span className="text-destructive"> *</span>}
+                {FIELD_LABELS_TH[field].required && <span className="text-bad"> *</span>}
                 <select
                   value={columnMap[field] ?? ""}
                   onChange={(e) => setField(field, e.target.value)}
@@ -280,7 +280,7 @@ export default function ProfileBuilder({ posOptions }: { posOptions: PosOption[]
           <input type="hidden" name="columnMap" value={JSON.stringify(columnMap)} />
 
           {saveState?.ok === false && (
-            <div className="mt-4 space-y-1 text-sm text-destructive">
+            <div className="mt-4 space-y-1 text-sm text-bad">
               {saveState.formError && <p>{saveState.formError}</p>}
               {saveState.fieldErrors &&
                 Object.entries(saveState.fieldErrors).map(([k, v]) => <p key={k}>{v}</p>)}

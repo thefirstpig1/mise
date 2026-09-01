@@ -223,12 +223,12 @@ export default async function StaffMealsPage({
         // Said out loud rather than left blank: someone who filtered to a person
         // and got nothing would read it as "this person has eaten nothing"
         // (rule A8).
-        <div className="rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">
+        <div className="rounded-xl border border-border bg-surface p-4 text-sm text-muted-foreground">
           ไม่มีสิทธิ์ดูโควตารายคน
         </div>
       )}
       {quota && (
-        <div className="rounded-xl border border-border bg-card p-4 text-sm">
+        <div className="rounded-xl border border-border bg-surface p-4 text-sm">
           <p className="font-medium">
             โควตาวันนี้ของ {quota.staffMemberName}
           </p>

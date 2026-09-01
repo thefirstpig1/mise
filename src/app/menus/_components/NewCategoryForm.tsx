@@ -32,7 +32,7 @@ export default function NewCategoryForm() {
         {pending ? "กำลังเพิ่ม…" : "เพิ่ม"}
       </button>
       {state?.ok === false && (
-        <p className="w-full text-xs text-destructive">
+        <p className="w-full text-xs text-bad">
           {state.formError ?? Object.values(state.fieldErrors ?? {})[0]}
         </p>
       )}

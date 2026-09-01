@@ -97,7 +97,7 @@ export default function SupplierForm({
         </div>
       )}
 
-      <section className="space-y-4 rounded-lg border border-border bg-card p-6">
+      <section className="space-y-4 rounded-lg border border-border bg-surface p-6">
         <h3 className="font-medium">ข้อมูลพื้นฐาน</h3>
         <TextField
           name="code"
@@ -128,7 +128,7 @@ export default function SupplierForm({
         </label>
       </section>
 
-      <section className="space-y-4 rounded-lg border border-border bg-card p-6">
+      <section className="space-y-4 rounded-lg border border-border bg-surface p-6">
         <h3 className="font-medium">ข้อมูลติดต่อ</h3>
         <TextField
           name="contact_name"
@@ -172,7 +172,7 @@ export default function SupplierForm({
         </div>
       </section>
 
-      <section className="space-y-4 rounded-lg border border-border bg-card p-6">
+      <section className="space-y-4 rounded-lg border border-border bg-surface p-6">
         <h3 className="font-medium">ภาษี</h3>
         <TextField
           name="tax_id"
@@ -220,7 +220,7 @@ export default function SupplierForm({
         )}
       </section>
 
-      <section className="space-y-4 rounded-lg border border-border bg-card p-6">
+      <section className="space-y-4 rounded-lg border border-border bg-surface p-6">
         <h3 className="font-medium">อื่นๆ</h3>
         <TextField
           name="payment_terms"

@@ -138,7 +138,7 @@ export default function SubstitutionForm({
             return (
               <div
                 key={r.recipeId}
-                className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card p-3"
+                className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-surface p-3"
               >
                 <label className="flex min-w-[12rem] flex-1 items-center gap-2 text-sm">
                   <input
@@ -228,7 +228,7 @@ export default function SubstitutionForm({
         value={toComponentMenuId ?? ""}
       />
 
-      <div className="rounded-xl border border-border bg-card p-4 text-sm">
+      <div className="rounded-xl border border-border bg-surface p-4 text-sm">
         เปลี่ยน <strong>{fromLabel}</strong> เป็น <strong>{toLabel}</strong> ใน
         สูตรที่ติ๊กไว้ · เลือกแล้ว {checkedCount} สูตร
       </div>

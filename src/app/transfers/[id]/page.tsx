@@ -66,7 +66,7 @@ export default async function TransferDetailPage({
 
       {/* The three people (Q3). Shown even when empty, because a blank "คนขับ"
           is itself the fact worth seeing when a crate goes missing. */}
-      <dl className="grid gap-3 rounded-lg border border-border bg-card p-4 text-sm sm:grid-cols-3">
+      <dl className="grid gap-3 rounded-lg border border-border bg-surface p-4 text-sm sm:grid-cols-3">
         <div>
           <dt className="text-muted-foreground">ผู้ส่ง</dt>
           <dd className="mt-0.5">
@@ -204,7 +204,7 @@ export default async function TransferDetailPage({
       )}
 
       {t.status === "SENT" && (
-        <section className="rounded-lg border border-border bg-card p-4">
+        <section className="rounded-lg border border-border bg-surface p-4">
           <h3 className="mb-3 font-medium">รับของที่ {t.toBranch.name}</h3>
           <ReceiveTransferForm
             action={receiveTransferAction}

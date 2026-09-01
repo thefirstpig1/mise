@@ -163,7 +163,7 @@ export default function RecipeForm({
         <input type="hidden" name="output_product_id" value={target.id} />
       )}
 
-      <div className="rounded-xl border border-border bg-card p-5">
+      <div className="rounded-xl border border-border bg-surface p-5">
         <p className="text-xs text-muted-foreground">
           {target.kind === "menu" ? "สูตรของเมนู" : "สูตรผลิตของแปรรูป"}
         </p>
@@ -238,7 +238,7 @@ export default function RecipeForm({
             return (
               <div
                 key={line.key}
-                className="rounded-lg border border-border bg-card p-3"
+                className="rounded-lg border border-border bg-surface p-3"
               >
                 <div className="grid gap-2 sm:grid-cols-12">
                   <select

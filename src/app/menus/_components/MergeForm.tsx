@@ -113,7 +113,7 @@ export default function MergeForm({
 
   if (candidates.length === 0) {
     return (
-      <div className="rounded-lg border border-border bg-card p-4 text-sm">
+      <div className="rounded-lg border border-border bg-surface p-4 text-sm">
         <p className="font-medium">ไม่พบเมนูที่ชื่อใกล้เคียงกับรายการนี้</p>
         <p className="mt-1 text-muted-foreground">
           ถ้ารู้ว่าซ้ำกับเมนูไหน ให้เปิดจากเมนูนั้นแทน — ระบบค้นจากความคล้ายของชื่อ
@@ -124,7 +124,7 @@ export default function MergeForm({
   }
 
   return (
-    <form action={formAction} className="space-y-5 rounded-lg border border-border bg-card p-4">
+    <form action={formAction} className="space-y-5 rounded-lg border border-border bg-surface p-4">
       <input type="hidden" name="submit_key" value={submitKey} />
       <input type="hidden" name="losing_menu_id" value={loser?.id ?? ""} />
       <input type="hidden" name="winning_menu_id" value={winner?.id ?? ""} />
@@ -240,7 +240,7 @@ export default function MergeForm({
           </p>
         ) : null}
         {fieldErrors?.effectiveFrom ? (
-          <p className="mt-1 text-xs text-destructive">{fieldErrors.effectiveFrom}</p>
+          <p className="mt-1 text-xs text-bad">{fieldErrors.effectiveFrom}</p>
         ) : null}
       </div>
 
@@ -252,7 +252,7 @@ export default function MergeForm({
 
       {/* ---------- refusals ---------- */}
       {fieldErrors?.losingMenuId ? (
-        <p className="text-sm text-destructive">
+        <p className="text-sm text-bad">
           {fieldErrors.losingMenuId}
           {existingMerge ? (
             <a href="/menus/merges" className="ml-1 underline">
@@ -262,7 +262,7 @@ export default function MergeForm({
         </p>
       ) : null}
       {fieldErrors?.winningMenuId ? (
-        <p className="text-sm text-destructive">{fieldErrors.winningMenuId}</p>
+        <p className="text-sm text-bad">{fieldErrors.winningMenuId}</p>
       ) : null}
 
       {formError ? (

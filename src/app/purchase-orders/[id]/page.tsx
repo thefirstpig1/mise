@@ -107,7 +107,7 @@ export default async function PurchaseOrderDetailPage({
       )}
 
       {/* ---------- the document ---------- */}
-      <article className="rounded-lg border border-border bg-card p-6 print:border-0 print:p-0">
+      <article className="rounded-lg border border-border bg-surface p-6 print:border-0 print:p-0">
         <header className="flex flex-wrap items-start justify-between gap-4 border-b border-border pb-4">
           <div>
             <h2 className="text-lg font-bold">ใบสั่งซื้อ / Purchase Order</h2>

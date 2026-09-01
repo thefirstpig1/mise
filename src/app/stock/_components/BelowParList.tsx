@@ -33,7 +33,7 @@ function Card({ row, branchId }: { row: ParLevelRowView; branchId: string }) {
   const [open, setOpen] = useState(false);
 
   return (
-    <li className="rounded-lg border border-border bg-card">
+    <li className="rounded-lg border border-border bg-surface">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}

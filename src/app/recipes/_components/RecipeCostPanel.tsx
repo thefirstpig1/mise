@@ -51,7 +51,7 @@ export default function RecipeCostPanel({
 
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border border-border bg-card p-5">
+      <div className="rounded-xl border border-border bg-surface p-5">
         <p className="text-xs text-muted-foreground">
           ต้นทุนที่ <strong>{branchName}</strong> ณ วันที่ {asOfLabel}
         </p>
@@ -112,7 +112,7 @@ export default function RecipeCostPanel({
         </div>
       ) : null}
 
-      <div className="overflow-x-auto rounded-xl border border-border bg-card">
+      <div className="overflow-x-auto rounded-xl border border-border bg-surface">
         <table className="w-full min-w-[24rem]">
           <thead className="bg-muted/40">
             <tr>

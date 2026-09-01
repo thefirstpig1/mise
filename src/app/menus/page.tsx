@@ -130,7 +130,7 @@ export default async function MenusPage({
       )}
 
       {/* ---------- filters ---------- */}
-      <form className="flex flex-wrap items-end gap-3 rounded-lg border border-border bg-card p-4">
+      <form className="flex flex-wrap items-end gap-3 rounded-lg border border-border bg-surface p-4">
         <label className="text-sm">
           ค้นหา
           <input name="q" defaultValue={one("q") ?? ""} placeholder="ชื่อหรือรหัสเมนู" className={`${inputClass} mt-1 block`} />
@@ -170,14 +170,14 @@ export default async function MenusPage({
       </form>
 
       {/* ---------- new category ---------- */}
-      <details className="rounded-lg border border-border bg-card p-4">
+      <details className="rounded-lg border border-border bg-surface p-4">
         <summary className="cursor-pointer text-sm font-medium">เพิ่มหมวดเมนู</summary>
         <NewCategoryForm />
       </details>
 
       {/* ---------- list ---------- */}
       {rows.length === 0 ? (
-        <div className="rounded-lg border border-border bg-card p-6 text-sm">
+        <div className="rounded-lg border border-border bg-surface p-6 text-sm">
           <p className="font-medium">
             {query.stubsOnly
               ? "ไม่มีเมนูรอตรวจ"
@@ -193,7 +193,7 @@ export default async function MenusPage({
           </a>
         </div>
       ) : (
-        <ul className="divide-y divide-border rounded-lg border border-border bg-card">
+        <ul className="divide-y divide-border rounded-lg border border-border bg-surface">
           {rows.map((m) => (
             <MenuRowEditor
               key={m.id}

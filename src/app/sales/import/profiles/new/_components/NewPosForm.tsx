@@ -36,7 +36,7 @@ export default function NewPosForm({
   );
 
   return (
-    <form action={action} className="space-y-4 rounded-lg border border-border bg-card p-4">
+    <form action={action} className="space-y-4 rounded-lg border border-border bg-surface p-4">
       <label className="block text-sm">
         สาขา
         <select name="branchId" className={`${inputClass} mt-1`}>
@@ -62,7 +62,7 @@ export default function NewPosForm({
         <input name="name" className={`${inputClass} mt-1`} placeholder="เช่น เครื่องหน้าร้าน" />
       </label>
       {state?.ok === false && (
-        <p className="text-xs text-destructive">
+        <p className="text-xs text-bad">
           {state.formError ?? Object.values(state.fieldErrors ?? {})[0]}
         </p>
       )}

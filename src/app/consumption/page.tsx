@@ -61,7 +61,7 @@ export default async function ConsumptionPage({
 
   return (
     <div className="min-h-screen">
-      <header className="border-b border-border bg-card">
+      <header className="border-b border-border bg-surface">
         <div className="container mx-auto px-4 py-3">
           <a href="/dashboard" className="text-sm text-muted-foreground hover:text-foreground">
             ← กลับ

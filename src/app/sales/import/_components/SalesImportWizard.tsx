@@ -109,7 +109,7 @@ export default function SalesImportWizard({
 
   if (profiles.length === 0) {
     return (
-      <div className="rounded-lg border border-border bg-card p-6 text-sm">
+      <div className="rounded-lg border border-border bg-surface p-6 text-sm">
         <p className="font-medium">ยังไม่ได้ตั้งค่ารูปแบบไฟล์</p>
         <p className="mt-2 text-muted-foreground">
           ก่อนนำเข้ายอดขายครั้งแรก ต้องบอกระบบก่อนว่าไฟล์จาก POS ของคุณ
@@ -165,7 +165,7 @@ export default function SalesImportWizard({
       )}
 
       {/* ---------- step 1 ---------- */}
-      <section className="rounded-lg border border-border bg-card p-4">
+      <section className="rounded-lg border border-border bg-surface p-4">
         <h2 className="text-sm font-medium">1. เลือกไฟล์</h2>
 
         <label className="mt-4 block text-sm">
@@ -197,7 +197,7 @@ export default function SalesImportWizard({
           />
         </label>
         {previewState?.ok === false && previewState.fieldErrors?.file && (
-          <p className="mt-1 text-xs text-destructive">{previewState.fieldErrors.file}</p>
+          <p className="mt-1 text-xs text-bad">{previewState.fieldErrors.file}</p>
         )}
 
         <button type="button" onClick={runPreview} disabled={pending} className={`${buttonClass} mt-4`}>
@@ -207,7 +207,7 @@ export default function SalesImportWizard({
 
       {/* ---------- rejection ---------- */}
       {previewState?.ok === false && (previewState.formError || previewState.rowErrors) && (
-        <section className="rounded-lg border border-destructive bg-destructive/5 p-4">
+        <section className="rounded-lg border border-bad-border bg-bad-bg p-4">
           <p className="text-sm font-medium">{previewState.formError ?? "ไฟล์นี้ยังนำเข้าไม่ได้"}</p>
           {previewState.rowErrors && previewState.rowErrors.length > 0 && (
             <>
@@ -230,7 +230,7 @@ export default function SalesImportWizard({
 
       {/* ---------- step 2 ---------- */}
       {preview && (
-        <section className="rounded-lg border border-border bg-card p-4">
+        <section className="rounded-lg border border-border bg-surface p-4">
           <h2 className="text-sm font-medium">2. ตรวจก่อนบันทึก</h2>
 
           <dl className="mt-4 grid grid-cols-2 gap-4 text-sm sm:grid-cols-4">
@@ -360,7 +360,7 @@ export default function SalesImportWizard({
           )}
 
           {commitState?.ok === false && commitState.formError && (
-            <p className="mt-4 text-sm text-destructive">{commitState.formError}</p>
+            <p className="mt-4 text-sm text-bad">{commitState.formError}</p>
           )}
 
           <div className="mt-4 flex gap-2">

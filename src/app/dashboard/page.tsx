@@ -77,7 +77,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="min-h-screen">
-      <header className="border-b border-border bg-card">
+      <header className="border-b border-border bg-surface">
         <div className="container mx-auto flex items-center justify-between px-4 py-3">
           <div>
             <h1 className="text-lg font-bold">Mise</h1>
@@ -128,12 +128,12 @@ export default async function DashboardPage() {
         )}
 
         <div className="grid gap-4 md:grid-cols-3">
-          <div className="rounded-lg border border-border bg-card p-6">
+          <div className="rounded-lg border border-border bg-surface p-6">
             <p className="text-sm text-muted-foreground">บทบาท</p>
             <p className="mt-1 text-2xl font-semibold capitalize">{activeMembership.role}</p>
           </div>
 
-          <div className="rounded-lg border border-border bg-card p-6">
+          <div className="rounded-lg border border-border bg-surface p-6">
             <p className="text-sm text-muted-foreground">สาขาที่เข้าถึงได้</p>
             <p className="mt-1 text-2xl font-semibold">
               {activeMembership.branchAccess.length}
@@ -143,7 +143,7 @@ export default async function DashboardPage() {
             </p>
           </div>
 
-          <div className="rounded-lg border border-border bg-card p-6">
+          <div className="rounded-lg border border-border bg-surface p-6">
             <p className="text-sm text-muted-foreground">แผนก</p>
             <p className="mt-1 text-2xl font-semibold">
               {tenant.enableDepartments

@@ -255,7 +255,7 @@ export default function LabForm({
         {/* Q3: an existing dish, or one that does not exist yet. Saving the
             second kind creates a MISE menu — never a recipe with no target. */}
         {mode === "edit" ? (
-          <div className="rounded-xl border border-border bg-card p-5">
+          <div className="rounded-xl border border-border bg-surface p-5">
             <p className="text-xs text-muted-foreground">กำลังร่างสูตรของ</p>
             <p className="text-lg font-semibold">{initialMenuName}</p>
             <input type="hidden" name="menu_id" value={menuId} />
@@ -264,7 +264,7 @@ export default function LabForm({
             </p>
           </div>
         ) : (
-          <div className="space-y-3 rounded-xl border border-border bg-card p-5">
+          <div className="space-y-3 rounded-xl border border-border bg-surface p-5">
             <div className="flex gap-4 text-sm">
               <label className="flex items-center gap-2">
                 <input
@@ -309,7 +309,7 @@ export default function LabForm({
                     จนกว่าจะเผยแพร่สูตร
                   </p>
                   {restorable !== null ? (
-                    <div className="mt-2 rounded-lg border border-border bg-card p-2">
+                    <div className="mt-2 rounded-lg border border-border bg-surface p-2">
                       <p className="text-xs">
                         {RESTORE_OFFER_TH}
                         {restorable.recipeCount > 0
@@ -484,7 +484,7 @@ export default function LabForm({
               return (
                 <div
                   key={line.key}
-                  className="rounded-lg border border-border bg-card p-3"
+                  className="rounded-lg border border-border bg-surface p-3"
                 >
                   <div className="grid gap-2 sm:grid-cols-12">
                     <select
@@ -683,7 +683,7 @@ export default function LabForm({
 
       {/* The answer to the question the screen exists for. */}
       <div className="space-y-4 lg:col-span-2">
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div className="rounded-xl border border-border bg-surface p-5">
           <label className={labelClass} htmlFor="branch_id">
             คิดต้นทุนที่สาขา
           </label>
@@ -718,7 +718,7 @@ export default function LabForm({
         </div>
 
         {whatIf !== null && whatIf.plannedPrice !== null ? (
-          <div className="rounded-xl border border-border bg-card p-5">
+          <div className="rounded-xl border border-border bg-surface p-5">
             <p className="text-xs text-muted-foreground">
               ถ้าขายจานละ {whatIf.plannedPrice} บาท
             </p>

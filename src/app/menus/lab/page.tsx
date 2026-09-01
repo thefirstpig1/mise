@@ -57,7 +57,7 @@ export default async function MenuLabPage() {
           {drafts.map((d) => (
             <li
               key={d.recipeId}
-              className="rounded-xl border border-border bg-card p-4"
+              className="rounded-xl border border-border bg-surface p-4"
             >
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <a

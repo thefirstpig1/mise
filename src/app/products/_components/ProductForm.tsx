@@ -268,7 +268,7 @@ export default function ProductForm({
       )}
 
       {/* Identity */}
-      <section className="space-y-4 rounded-lg border border-border bg-card p-6">
+      <section className="space-y-4 rounded-lg border border-border bg-surface p-6">
         <div>
           <label htmlFor="name" className="mb-1 block text-sm font-medium">
             {L.name}
@@ -331,7 +331,7 @@ export default function ProductForm({
       </section>
 
       {/* 7c: Type + (conditional) PREPPED production fields */}
-      <section className="space-y-4 rounded-lg border border-border bg-card p-6">
+      <section className="space-y-4 rounded-lg border border-border bg-surface p-6">
         <div>
           <span className="mb-2 block text-sm font-medium">
             {L.type}
@@ -448,7 +448,7 @@ export default function ProductForm({
       </section>
 
       {/* Measurement */}
-      <section className="space-y-4 rounded-lg border border-border bg-card p-6">
+      <section className="space-y-4 rounded-lg border border-border bg-surface p-6">
         <div>
           <label
             htmlFor="primary_dimension"
@@ -517,7 +517,7 @@ export default function ProductForm({
           active field is rendered, so template-vs-override XOR holds by
           construction; the server still cleanses + zod still guards. */}
       {densityApplies && (
-        <section className="space-y-4 rounded-lg border border-border bg-card p-6">
+        <section className="space-y-4 rounded-lg border border-border bg-surface p-6">
           <div>
             <h3 className="text-sm font-medium">ความหนาแน่น (ของเหลว)</h3>
             <p className="mt-1 text-xs text-muted-foreground">
@@ -621,7 +621,7 @@ export default function ProductForm({
       )}
 
       {/* Additional units (7b) — extra buy/sell units beyond the base */}
-      <section className="space-y-4 rounded-lg border border-border bg-card p-6">
+      <section className="space-y-4 rounded-lg border border-border bg-surface p-6">
         <div className="flex items-center justify-between gap-4">
           <div>
             <h3 className="text-sm font-medium">{L.additionalUnits}</h3>
@@ -746,7 +746,7 @@ export default function ProductForm({
       </section>
 
       {/* Classification + status */}
-      <section className="space-y-4 rounded-lg border border-border bg-card p-6">
+      <section className="space-y-4 rounded-lg border border-border bg-surface p-6">
         <div>
           <label htmlFor="category_id" className="mb-1 block text-sm font-medium">
             {L.categoryId}

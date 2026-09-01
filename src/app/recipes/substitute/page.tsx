@@ -93,7 +93,7 @@ export default async function SubstitutePage({
 
       <form
         method="get"
-        className="flex flex-wrap items-end gap-3 rounded-xl border border-border bg-card p-5"
+        className="flex flex-wrap items-end gap-3 rounded-xl border border-border bg-surface p-5"
       >
         <div>
           <label className="block text-sm font-medium" htmlFor="from">

@@ -89,7 +89,7 @@ export default async function MenuMergesPage({
       </div>
 
       {/* ---------- what this screen is for ---------- */}
-      <div className="space-y-2 rounded-lg border border-border bg-card p-4 text-sm">
+      <div className="space-y-2 rounded-lg border border-border bg-surface p-4 text-sm">
         <p>
           ร้านที่มีมากกว่าหนึ่งสาขาจะได้เมนูซ้ำตั้งแต่ไฟล์ยอดขายไฟล์แรก
           เพราะเครื่อง POS ของแต่ละสาขาส่งรหัสของตัวเองมา — จานเดียวกันจึงกลายเป็นคนละรายการ
@@ -123,7 +123,7 @@ export default async function MenuMergesPage({
           (searchResults.length === 0 ? (
             <p className="text-sm text-muted-foreground">ไม่พบเมนูที่ตรงกับคำค้นนี้</p>
           ) : (
-            <ul className="divide-y divide-border rounded-lg border border-border bg-card text-sm">
+            <ul className="divide-y divide-border rounded-lg border border-border bg-surface text-sm">
               {searchResults.slice(0, 20).map((m) => (
                 <li key={m.id} className="flex items-baseline justify-between gap-3 px-3 py-2">
                   <span>
@@ -191,11 +191,11 @@ export default async function MenuMergesPage({
         </div>
 
         {mergeRows.length === 0 ? (
-          <p className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">
+          <p className="rounded-lg border border-border bg-surface p-4 text-sm text-muted-foreground">
             ยังไม่มีการรวมเมนู
           </p>
         ) : (
-          <ul className="divide-y divide-border rounded-lg border border-border bg-card">
+          <ul className="divide-y divide-border rounded-lg border border-border bg-surface">
             {mergeRows.map((m) => (
               <li key={m.id} className="space-y-2 px-3 py-3 text-sm">
                 <div className="flex flex-wrap items-baseline gap-2">

@@ -90,7 +90,7 @@ export default function MappingListSection({
   const orphanCount = mappings.filter((m) => copy.isOrphan(m)).length;
 
   return (
-    <section className="space-y-4 rounded-lg border border-border bg-card p-6">
+    <section className="space-y-4 rounded-lg border border-border bg-surface p-6">
       <div className="flex items-center justify-between gap-4">
         <h3 className="text-sm font-medium">{copy.title}</h3>
         <div className="flex items-center gap-4">

@@ -265,7 +265,7 @@ export default async function RecipesPage({
               : "ยังไม่มีเมนูในระบบ — เมนูเกิดจากการนำเข้ายอดขาย หรือเพิ่มเองที่หน้าเมนู"}
           </div>
         ) : (
-          <div className="overflow-x-auto rounded-xl border border-border bg-card">
+          <div className="overflow-x-auto rounded-xl border border-border bg-surface">
             <table className="w-full min-w-[36rem]">
               <thead className="bg-muted/40">
                 <tr>
@@ -308,7 +308,7 @@ export default async function RecipesPage({
               : "ยังไม่มีของแปรรูปในระบบ"}
           </div>
         ) : (
-          <div className="overflow-x-auto rounded-xl border border-border bg-card">
+          <div className="overflow-x-auto rounded-xl border border-border bg-surface">
             <table className="w-full min-w-[36rem]">
               <thead className="bg-muted/40">
                 <tr>

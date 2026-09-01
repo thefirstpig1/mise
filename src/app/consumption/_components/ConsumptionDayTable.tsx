@@ -98,7 +98,7 @@ export function ConsumptionDayTable({
       )}
 
       {!state.ok && state.formError && (
-        <p className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+        <p className="rounded-lg border border-bad-border bg-bad-bg p-3 text-sm text-bad">
           {state.formError}
         </p>
       )}

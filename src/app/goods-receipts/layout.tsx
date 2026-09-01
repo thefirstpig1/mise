@@ -11,7 +11,7 @@ export default function GoodsReceiptsLayout({
 }) {
   return (
     <div className="min-h-screen">
-      <header className="border-b border-border bg-card print:hidden">
+      <header className="border-b border-border bg-surface print:hidden">
         <div className="container mx-auto px-4 py-3">
           <a
             href="/dashboard"

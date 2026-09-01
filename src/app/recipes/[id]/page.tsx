@@ -252,7 +252,7 @@ export default async function RecipePage({
       {comparisonView !== null && comparisonView.groups.length > 1 ? (
         <section className="space-y-3">
           <h3 className="text-lg font-semibold">เมนูนี้แต่ละสาขาทำไม่เหมือนกัน</h3>
-          <div className="overflow-x-auto rounded-xl border border-border bg-card">
+          <div className="overflow-x-auto rounded-xl border border-border bg-surface">
             <table className="w-full min-w-[32rem]">
               <thead className="bg-muted/40">
                 <tr>
@@ -331,7 +331,7 @@ export default async function RecipePage({
         </section>
       ) : null}
 
-      <section className="space-y-3 rounded-xl border border-border bg-card p-5">
+      <section className="space-y-3 rounded-xl border border-border bg-surface p-5">
         <h3 className="text-lg font-semibold">แยกสูตรให้สาขา</h3>
         <CopyToBranchesForm
           action={copyRecipeToBranchesAction}
@@ -343,7 +343,7 @@ export default async function RecipePage({
       {/* Rule R8's home: here the date IS the content. */}
       <section className="space-y-3">
         <h3 className="text-lg font-semibold">ประวัติการแก้สูตร</h3>
-        <div className="overflow-x-auto rounded-xl border border-border bg-card">
+        <div className="overflow-x-auto rounded-xl border border-border bg-surface">
           <table className="w-full min-w-[28rem]">
             <thead className="bg-muted/40">
               <tr>

@@ -44,7 +44,7 @@ export default function MappingHistoryViewer({
 
   if (series.length === 0) {
     return (
-      <section className="space-y-4 rounded-lg border border-border bg-card p-6">
+      <section className="space-y-4 rounded-lg border border-border bg-surface p-6">
         <h3 className="text-sm font-medium">ประวัติราคา</h3>
         <p className="text-sm text-muted-foreground">ยังไม่มีประวัติราคา</p>
       </section>
@@ -55,7 +55,7 @@ export default function MappingHistoryViewer({
     selected === "all" ? series : series.filter((s) => s.key === selected);
 
   return (
-    <section className="space-y-4 rounded-lg border border-border bg-card p-6">
+    <section className="space-y-4 rounded-lg border border-border bg-surface p-6">
       <div className="flex items-center justify-between gap-4">
         <h3 className="text-sm font-medium">ประวัติราคา</h3>
         {series.length > 1 && (

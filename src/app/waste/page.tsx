@@ -143,7 +143,7 @@ export default async function WastePage({
           </a>
         </div>
       ) : (
-        <section className="rounded-xl border border-border bg-card p-5">
+        <section className="rounded-xl border border-border bg-surface p-5">
           <WasteEntryForm
             action={createWasteAction}
             products={productOptions}
@@ -249,7 +249,7 @@ export default async function WastePage({
                   className={`rounded-lg border p-4 text-sm ${
                     isVoided || row.isReversal
                       ? "border-border bg-muted/30 text-muted-foreground"
-                      : "border-border bg-card"
+                      : "border-border bg-surface"
                   }`}
                 >
                   <div className="flex flex-wrap items-baseline justify-between gap-2">

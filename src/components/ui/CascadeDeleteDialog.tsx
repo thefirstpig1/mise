@@ -83,7 +83,7 @@ export default function CascadeDeleteDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-lg space-y-4 rounded-lg border border-border bg-card p-6 shadow-lg">
+      <div className="w-full max-w-lg space-y-4 rounded-lg border border-border bg-surface p-6 shadow-lg">
         <h3 className="text-base font-semibold">{title}</h3>
 
         <p className="rounded-lg border border-warn-border bg-warn-bg p-3 text-sm text-warn">

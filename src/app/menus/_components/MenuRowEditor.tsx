@@ -288,7 +288,7 @@ export default function MenuRowEditor({
             </div>
 
             {state?.ok === false && (
-              <div className="space-y-1 text-xs text-destructive">
+              <div className="space-y-1 text-xs text-bad">
                 {state.formError && <p>{state.formError}</p>}
                 {state.fieldErrors &&
                   Object.entries(state.fieldErrors).map(([k, v]) => <p key={k}>{v}</p>)}
@@ -333,7 +333,7 @@ export default function MenuRowEditor({
                       ))}
                   </select>
                   {aliasState?.ok === false && (
-                    <p className="text-xs text-destructive">
+                    <p className="text-xs text-bad">
                       {aliasState.formError ??
                         Object.values(aliasState.fieldErrors ?? {})[0] ??
                         "จับคู่ไม่สำเร็จ"}

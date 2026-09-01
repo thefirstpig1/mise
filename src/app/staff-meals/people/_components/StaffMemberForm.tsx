@@ -54,7 +54,7 @@ export function CreateStaffMemberForm({
   return (
     <form
       action={formAction}
-      className="space-y-3 rounded-xl border border-border bg-card p-4"
+      className="space-y-3 rounded-xl border border-border bg-surface p-4"
     >
       <div className="grid gap-3 sm:grid-cols-3">
         <div>

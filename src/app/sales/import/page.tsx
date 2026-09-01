@@ -109,7 +109,7 @@ export default async function SalesImportPage() {
                     </span>
                   </div>
                   {reasons.length > 0 && (
-                    <ul className="mt-1 space-y-0.5 text-xs text-destructive">
+                    <ul className="mt-1 space-y-0.5 text-xs text-bad">
                       {reasons.map((r, i) => (
                         <li key={i}>{r}</li>
                       ))}

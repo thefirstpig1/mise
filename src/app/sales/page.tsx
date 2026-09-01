@@ -94,7 +94,7 @@ export default async function SalesPage({
       </div>
 
       {/* ---------- filters ---------- */}
-      <form className="flex flex-wrap items-end gap-3 rounded-lg border border-border bg-card p-4">
+      <form className="flex flex-wrap items-end gap-3 rounded-lg border border-border bg-surface p-4">
         <label className="text-sm">
           สาขา
           <select name="branch" defaultValue={one("branch") ?? ""} className={`${inputClass} mt-1 block`}>
@@ -131,7 +131,7 @@ export default async function SalesPage({
       </form>
 
       {empty ? (
-        <div className="rounded-lg border border-border bg-card p-6 text-sm">
+        <div className="rounded-lg border border-border bg-surface p-6 text-sm">
           <p className="font-medium">ยังไม่มียอดขายในช่วงนี้</p>
           <p className="mt-2 text-muted-foreground">
             ยอดขายเข้าระบบด้วยการนำเข้าไฟล์จาก POS — ไฟล์เดียวครอบได้หลายวัน
@@ -154,7 +154,7 @@ export default async function SalesPage({
           </section>
 
           {(s.availability.billNotice || s.availability.timeNotice) && (
-            <section className="rounded-lg border border-border bg-card p-3 text-xs text-muted-foreground">
+            <section className="rounded-lg border border-border bg-surface p-3 text-xs text-muted-foreground">
               {s.availability.billNotice && <p>{s.availability.billNotice}</p>}
               {s.availability.timeNotice && <p className="mt-1">{s.availability.timeNotice}</p>}
             </section>
@@ -325,7 +325,7 @@ export default async function SalesPage({
 
 function Tile({ label, value, note }: { label: string; value: string; note?: string }) {
   return (
-    <div className="rounded-lg border border-border bg-card p-3">
+    <div className="rounded-lg border border-border bg-surface p-3">
       <p className="text-xs text-muted-foreground">{label}</p>
       <p className="mt-1 text-lg font-bold">{value}</p>
       {note && <p className="mt-0.5 text-xs text-muted-foreground">{note}</p>}

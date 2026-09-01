@@ -54,7 +54,7 @@ export default function CategoryForm({
         </div>
       )}
 
-      <section className="space-y-4 rounded-lg border border-border bg-card p-6">
+      <section className="space-y-4 rounded-lg border border-border bg-surface p-6">
         <div>
           <label htmlFor="account" className="mb-1 block text-sm font-medium">
             {L.account}
