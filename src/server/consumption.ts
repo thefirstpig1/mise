@@ -74,10 +74,30 @@ export type ConsumptionSkip = {
   detail: string | null;
 };
 
+/**
+ * One menu's own share of the day's product demand, kept UNaggregated.
+ *
+ * Part 32 (ADR 0032 Q1). `lines` below sums this across menus, and that sum is
+ * what posts — the menu is genuinely gone from `sales_consumption_item` by
+ * design (ADR 0022). Reporting needs the step before the sum, because
+ * `menu.primary_department_id` is the only thing that says whose cost it was.
+ *
+ * Computed here rather than in a reporting module on purpose: `explodeToRaw`
+ * has already run at this point, and a second explosion elsewhere would be a
+ * second opinion about what a dish consumes — the shape ADR 0025 Q4 refused
+ * for cost and rule N2 refused for the recipe walk.
+ */
+export type MenuProductDemand = {
+  menuId: string;
+  lines: ConsumptionLine[];
+};
+
 export type ConsumptionDemand = {
   branchId: string;
   businessDate: Date;
   lines: ConsumptionLine[];
+  /** The same demand as `lines`, before it was summed across menus (Part 32). */
+  byMenu: MenuProductDemand[];
   /** Revenue of the dishes that DID post (rule N3 — coverage is money, not dishes). */
   coveredNetAmount: Prisma.Decimal;
   /** The day's whole revenue, from the same live rows /cost sums. */
@@ -223,6 +243,7 @@ export async function computeConsumptionForDayLogic(
     branchId,
     businessDate,
     lines: [],
+    byMenu: [],
     coveredNetAmount: ZERO,
     totalNetAmount,
     menusPosted: 0,
@@ -303,6 +324,7 @@ export async function computeConsumptionForDayLogic(
   );
 
   const totals = new Map<string, Prisma.Decimal>();
+  const byMenu: MenuProductDemand[] = [];
   let coveredNetAmount = ZERO;
   let menusPosted = 0;
 
@@ -378,12 +400,28 @@ export async function computeConsumptionForDayLogic(
       continue;
     }
 
+    const own = new Map<string, Prisma.Decimal>();
     for (const leaf of leaves) {
       totals.set(
         leaf.productId,
         (totals.get(leaf.productId) ?? ZERO).plus(leaf.qty)
       );
+      own.set(leaf.productId, (own.get(leaf.productId) ?? ZERO).plus(leaf.qty));
     }
+    // Negated and rounded exactly as `lines` is below, so the two agree line for
+    // line. They are the same demand at two grains, and a report that summed
+    // this one to a different total than the ledger holds would break rule F2
+    // in the one place nothing else checks.
+    byMenu.push({
+      menuId: s.menuId,
+      lines: [...own.entries()]
+        .map(([productId, qty]) => ({
+          productId,
+          qty: qty.negated().toDecimalPlaces(QTY_SCALE),
+        }))
+        .filter((l) => !l.qty.isZero())
+        .sort((a, b) => (a.productId < b.productId ? -1 : 1)),
+    });
     coveredNetAmount = coveredNetAmount.plus(s.netAmount);
     menusPosted += 1;
   }
@@ -411,6 +449,7 @@ export async function computeConsumptionForDayLogic(
     branchId,
     businessDate,
     lines,
+    byMenu,
     coveredNetAmount: coveredNetAmount.toDecimalPlaces(MONEY_SCALE),
     totalNetAmount,
     menusPosted,

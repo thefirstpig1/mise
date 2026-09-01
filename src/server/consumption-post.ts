@@ -439,6 +439,12 @@ function demandOf(
     lines: run.items
       .filter((i) => i.reversalOfItemId === null)
       .map((i) => ({ productId: i.productId, qty: i.qty })),
+    // EMPTY, and not a shortcut: a run stores product × branch × day and threw
+    // the menu away when it exploded the dishes (ADR 0022). Nothing here can
+    // say which menu wanted which gram, so this reports that rather than
+    // guessing — and it is why Part 32's report re-explodes from the sales
+    // lines instead of reading the runs (ADR 0032 Q1).
+    byMenu: [],
     coveredNetAmount: run.coveredNetAmount,
     totalNetAmount: run.totalNetAmount,
     menusPosted: run.menusPosted,
