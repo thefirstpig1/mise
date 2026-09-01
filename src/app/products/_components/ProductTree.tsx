@@ -71,7 +71,7 @@ function ProductLeaf({ p, pad }: { p: ProductView; pad: string }) {
       <span className="flex items-center gap-2 text-sm">
         <span className="text-primary hover:underline">{p.name}</span>
         {isPrepped && (
-          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-800">
+          <span className="rounded-full bg-warn-bg px-2 py-0.5 text-xs text-warn">
             แปรรูป
           </span>
         )}

@@ -262,7 +262,7 @@ export default function ProductForm({
     <>
       <form action={formAction} className="space-y-6">
       {formError && (
-        <div className="rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-700">
+        <div className="rounded-lg border border-bad-border bg-bad-bg p-4 text-sm text-bad">
           {formError}
         </div>
       )}
@@ -272,7 +272,7 @@ export default function ProductForm({
         <div>
           <label htmlFor="name" className="mb-1 block text-sm font-medium">
             {L.name}
-            <span className="text-red-600"> *</span>
+            <span className="text-bad"> *</span>
           </label>
           {showRestoreSuggestion ? (
             // CREATE flow: controlled typeahead owns the name input; selecting a
@@ -294,7 +294,7 @@ export default function ProductForm({
             />
           )}
           {err("name") && (
-            <p className="mt-1 text-sm text-red-600">{err("name")}</p>
+            <p className="mt-1 text-sm text-bad">{err("name")}</p>
           )}
         </div>
 
@@ -335,7 +335,7 @@ export default function ProductForm({
         <div>
           <span className="mb-2 block text-sm font-medium">
             {L.type}
-            <span className="text-red-600"> *</span>
+            <span className="text-bad"> *</span>
           </span>
           <div className="flex flex-wrap gap-4">
             {PRODUCT_TYPE_VALUES.map((t) => (
@@ -358,7 +358,7 @@ export default function ProductForm({
               : "ผลิตจากสินค้าแม่ — ระบุสินค้าแม่และเปอร์เซ็นต์ผลผลิตด้านล่าง"}
           </p>
           {err("type") && (
-            <p className="mt-1 text-sm text-red-600">{err("type")}</p>
+            <p className="mt-1 text-sm text-bad">{err("type")}</p>
           )}
         </div>
 
@@ -370,7 +370,7 @@ export default function ProductForm({
                 className="mb-1 block text-sm font-medium"
               >
                 {L.parentProductId}
-                <span className="text-red-600"> *</span>
+                <span className="text-bad"> *</span>
               </label>
               <select
                 id="parent_product_id"
@@ -400,7 +400,7 @@ export default function ProductForm({
                 สินค้าที่นำมาแปรรูปเป็นสินค้านี้
               </p>
               {err("parentProductId") && (
-                <p className="mt-1 text-sm text-red-600">
+                <p className="mt-1 text-sm text-bad">
                   {err("parentProductId")}
                 </p>
               )}
@@ -412,7 +412,7 @@ export default function ProductForm({
                 className="mb-1 block text-sm font-medium"
               >
                 {L.yieldPercent}
-                <span className="text-red-600"> *</span>
+                <span className="text-bad"> *</span>
               </label>
               <div className="flex items-center gap-2">
                 <input
@@ -434,13 +434,13 @@ export default function ProductForm({
                 yield 80 = เนื้อ 100 kg → ได้ 80 kg)
               </p>
               {showHighYieldHint && (
-                <p className="mt-1 text-xs text-amber-600">
+                <p className="mt-1 text-xs text-warn">
                   yield &gt; 300% มักเป็นการดูดน้ำของวัตถุดิบ (เช่น ข้าวสุก,
                   ถั่วแช่น้ำ) — ตรวจสอบอีกครั้งว่าใช่หรือไม่
                 </p>
               )}
               {err("yieldPercent") && (
-                <p className="mt-1 text-sm text-red-600">{err("yieldPercent")}</p>
+                <p className="mt-1 text-sm text-bad">{err("yieldPercent")}</p>
               )}
             </div>
           </div>
@@ -455,7 +455,7 @@ export default function ProductForm({
             className="mb-1 block text-sm font-medium"
           >
             {L.primaryDimension}
-            <span className="text-red-600"> *</span>
+            <span className="text-bad"> *</span>
           </label>
           <select
             id="primary_dimension"
@@ -474,7 +474,7 @@ export default function ProductForm({
             ))}
           </select>
           {err("primaryDimension") && (
-            <p className="mt-1 text-sm text-red-600">{err("primaryDimension")}</p>
+            <p className="mt-1 text-sm text-bad">{err("primaryDimension")}</p>
           )}
         </div>
 
@@ -484,7 +484,7 @@ export default function ProductForm({
             className="mb-1 block text-sm font-medium"
           >
             {L.baseUnitName}
-            <span className="text-red-600"> *</span>
+            <span className="text-bad"> *</span>
           </label>
           <select
             id="base_unit_name"
@@ -507,7 +507,7 @@ export default function ProductForm({
             หน่วยที่ใช้บันทึกสต๊อกของสินค้านี้ (เพิ่มหน่วยซื้อ-ขายอื่นได้ภายหลัง)
           </p>
           {err("baseUnitName") && (
-            <p className="mt-1 text-sm text-red-600">{err("baseUnitName")}</p>
+            <p className="mt-1 text-sm text-bad">{err("baseUnitName")}</p>
           )}
         </div>
       </section>
@@ -569,7 +569,7 @@ export default function ProductForm({
                   ))}
                 </select>
                 {err("liquidDensityTemplateId") && (
-                  <p className="mt-1 text-sm text-red-600">
+                  <p className="mt-1 text-sm text-bad">
                     {err("liquidDensityTemplateId")}
                   </p>
                 )}
@@ -605,12 +605,12 @@ export default function ProductForm({
                   <span className="text-sm text-muted-foreground">g/ml</span>
                 </div>
                 {showDensityHint && (
-                  <p className="mt-1 text-xs text-amber-600">
+                  <p className="mt-1 text-xs text-warn">
                     ค่านอกช่วงปกติของเหลวอาหาร (0.5-2.0 g/ml) — กรุณาตรวจสอบ
                   </p>
                 )}
                 {err("densityGPerMlOverride") && (
-                  <p className="mt-1 text-sm text-red-600">
+                  <p className="mt-1 text-sm text-bad">
                     {err("densityGPerMlOverride")}
                   </p>
                 )}
@@ -705,7 +705,7 @@ export default function ProductForm({
               <button
                 type="button"
                 onClick={() => removeRow(row.id)}
-                className="shrink-0 rounded-lg border border-border px-2 py-2 text-sm text-red-600 hover:bg-red-50"
+                className="shrink-0 rounded-lg border border-border px-2 py-2 text-sm text-bad hover:bg-bad-bg"
                 aria-label="ลบหน่วย"
               >
                 ลบ
@@ -716,7 +716,7 @@ export default function ProductForm({
                 still says กระสอบ — but the quantity it DENOTES has, and every
                 cost figure built on it moves with it. */}
             {ratioMoved && usage ? (
-              <div className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+              <div className="rounded-lg border border-warn-border bg-warn-bg px-3 py-2 text-xs text-warn">
                 <p className="font-medium">
                   แก้อัตราส่วนนี้จะเปลี่ยนปริมาณจริงใน {usage.recipeLabels.length} สูตร
                   ที่เขียนไว้เป็น “{row.unitName}”
@@ -738,10 +738,10 @@ export default function ProductForm({
         <input type="hidden" name="default_buy_unit_name" value={defaultBuyName} />
 
         {err("additionalUnits") && (
-          <p className="text-sm text-red-600">{err("additionalUnits")}</p>
+          <p className="text-sm text-bad">{err("additionalUnits")}</p>
         )}
         {err("defaultBuyUnitName") && (
-          <p className="text-sm text-red-600">{err("defaultBuyUnitName")}</p>
+          <p className="text-sm text-bad">{err("defaultBuyUnitName")}</p>
         )}
       </section>
 

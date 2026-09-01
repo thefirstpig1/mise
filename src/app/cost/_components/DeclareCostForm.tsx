@@ -63,7 +63,7 @@ export default function DeclareCostForm({
         </p>
 
         {formError && (
-          <div className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">
+          <div className="rounded-lg border border-bad-border bg-bad-bg p-3 text-sm text-bad">
             {formError}
           </div>
         )}
@@ -71,7 +71,7 @@ export default function DeclareCostForm({
         <div className="flex flex-wrap items-end gap-3">
           <div className="min-w-[9rem] flex-1">
             <label htmlFor={`unit_cost-${movementId}`} className="block text-sm font-medium">
-              ต้นทุน (บาท) <span className="text-red-600">*</span>
+              ต้นทุน (บาท) <span className="text-bad">*</span>
             </label>
             <input
               id={`unit_cost-${movementId}`}
@@ -84,13 +84,13 @@ export default function DeclareCostForm({
               placeholder="เช่น 4500"
             />
             {fieldErrors?.unitCost && (
-              <p className="mt-1 text-xs text-red-600">{fieldErrors.unitCost}</p>
+              <p className="mt-1 text-xs text-bad">{fieldErrors.unitCost}</p>
             )}
           </div>
 
           <div className="min-w-[8rem]">
             <label htmlFor={`unit_id-${movementId}`} className="block text-sm font-medium">
-              ต่อหน่วย <span className="text-red-600">*</span>
+              ต่อหน่วย <span className="text-bad">*</span>
             </label>
             <select
               id={`unit_id-${movementId}`}
@@ -108,7 +108,7 @@ export default function DeclareCostForm({
               ))}
             </select>
             {fieldErrors?.unitId && (
-              <p className="mt-1 text-xs text-red-600">{fieldErrors.unitId}</p>
+              <p className="mt-1 text-xs text-bad">{fieldErrors.unitId}</p>
             )}
           </div>
         </div>
@@ -126,7 +126,7 @@ export default function DeclareCostForm({
             placeholder="เช่น ของจากใบส่งของ 15 ส.ค. ที่ลืมคีย์"
           />
           {fieldErrors?.note && (
-            <p className="mt-1 text-xs text-red-600">{fieldErrors.note}</p>
+            <p className="mt-1 text-xs text-bad">{fieldErrors.note}</p>
           )}
         </div>
 

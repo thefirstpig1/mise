@@ -42,7 +42,7 @@ function QtyCell({ qty }: { qty: string }) {
   const isOut = qty.startsWith("-");
   return (
     <span
-      className={`font-medium tabular-nums ${isOut ? "text-red-700" : "text-green-700"}`}
+      className={`font-medium tabular-nums ${isOut ? "text-bad" : "text-good"}`}
     >
       {isOut ? qty : `+${qty}`}
     </span>
@@ -156,7 +156,7 @@ export default function StockMovementHistory({
         ))}
       </ul>
 
-      {loadError && <p className="text-xs text-red-600">{loadError}</p>}
+      {loadError && <p className="text-xs text-bad">{loadError}</p>}
 
       {cursor && (
         <button

@@ -63,14 +63,14 @@ export default function OpenCountForm({
   return (
     <form action={formAction} className="max-w-lg space-y-5">
       {formError && (
-        <div className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">
+        <div className="rounded-lg border border-bad-border bg-bad-bg p-3 text-sm text-bad">
           {formError}
         </div>
       )}
 
       <div>
         <label htmlFor="branch_id" className={labelClass}>
-          สาขา <span className="text-red-600">*</span>
+          สาขา <span className="text-bad">*</span>
         </label>
         <select
           id="branch_id"
@@ -88,10 +88,10 @@ export default function OpenCountForm({
           ))}
         </select>
         {fieldErrors?.branchId && (
-          <p className="mt-1 text-xs text-red-600">{fieldErrors.branchId}</p>
+          <p className="mt-1 text-xs text-bad">{fieldErrors.branchId}</p>
         )}
         {blockedBy && (
-          <p className="mt-1 text-xs text-amber-700">
+          <p className="mt-1 text-xs text-warn">
             สาขานี้มีใบนับที่ยังไม่ปิด —{" "}
             <a href={`/stock-counts/${blockedBy}`} className="underline">
               เข้าไปนับต่อในใบเดิม
@@ -103,7 +103,7 @@ export default function OpenCountForm({
 
       <div>
         <label htmlFor="count_date" className={labelClass}>
-          วันที่นับ <span className="text-red-600">*</span>
+          วันที่นับ <span className="text-bad">*</span>
         </label>
         <input
           type="date"
@@ -117,7 +117,7 @@ export default function OpenCountForm({
           ใช้เป็นชื่อเรียกใบนับเท่านั้น — ส่วนต่างจะบันทึกตามเวลาที่นับจริงของแต่ละรายการ
         </p>
         {fieldErrors?.countDate && (
-          <p className="mt-1 text-xs text-red-600">{fieldErrors.countDate}</p>
+          <p className="mt-1 text-xs text-bad">{fieldErrors.countDate}</p>
         )}
       </div>
 

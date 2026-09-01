@@ -96,12 +96,12 @@ export default function ReceiveTransferForm({
               </div>
 
               {missing !== null && missing > 0 && (
-                <p className="mt-2 text-xs text-red-700">
+                <p className="mt-2 text-xs text-bad">
                   หาย {missing} {l.inputUnitName} — จะถูกบันทึกเป็นของหายระหว่างขนส่งของสาขานี้
                 </p>
               )}
               {missing !== null && missing < 0 && (
-                <p className="mt-2 text-xs text-red-700">
+                <p className="mt-2 text-xs text-bad">
                   รับได้ไม่เกินจำนวนที่ส่ง — ถ้านับได้มากกว่านี้จริง แปลว่ามีฝั่งใดฝั่งหนึ่งนับผิด
                   ต้องคุยกันก่อน ไม่ใช่บันทึกเพิ่ม
                 </p>
@@ -115,10 +115,10 @@ export default function ReceiveTransferForm({
       </div>
 
       {fieldErrors.qtyReceived && (
-        <p className="text-xs text-red-600">{fieldErrors.qtyReceived}</p>
+        <p className="text-xs text-bad">{fieldErrors.qtyReceived}</p>
       )}
       {fieldErrors.lines && (
-        <p className="text-xs text-red-600">{fieldErrors.lines}</p>
+        <p className="text-xs text-bad">{fieldErrors.lines}</p>
       )}
 
       <label className="block text-sm font-medium">
@@ -138,7 +138,7 @@ export default function ReceiveTransferForm({
       </label>
 
       {formError && (
-        <p className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">
+        <p className="rounded-lg border border-bad-border bg-bad-bg p-3 text-sm text-bad">
           {formError}
         </p>
       )}

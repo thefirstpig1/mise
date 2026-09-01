@@ -107,7 +107,7 @@ export default function GoodsReceiptActions({
   return (
     <div className="space-y-3 print:hidden">
       {error && (
-        <div className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">
+        <div className="rounded-lg border border-bad-border bg-bad-bg p-3 text-sm text-bad">
           {error}
         </div>
       )}
@@ -116,8 +116,8 @@ export default function GoodsReceiptActions({
         <div
           className={`rounded-lg border p-3 text-sm ${
             posted.negative
-              ? "border-red-300 bg-red-50 text-red-800"
-              : "border-green-300 bg-green-50 text-green-800"
+              ? "border-bad-border bg-bad-bg text-bad"
+              : "border-good-border bg-good-bg text-good"
           }`}
         >
           <p className="font-medium">
@@ -173,7 +173,7 @@ export default function GoodsReceiptActions({
             type="button"
             onClick={() => setVoiding(true)}
             disabled={pending}
-            className="rounded-lg border border-red-300 px-4 py-2 text-sm text-red-700 hover:bg-red-50 disabled:opacity-50"
+            className="rounded-lg border border-bad-border px-4 py-2 text-sm text-bad hover:bg-bad-bg disabled:opacity-50"
           >
             ยกเลิกใบรับ
           </button>
@@ -184,7 +184,7 @@ export default function GoodsReceiptActions({
             type="button"
             onClick={discard}
             disabled={pending}
-            className="rounded-lg px-4 py-2 text-sm text-muted-foreground hover:text-red-700 disabled:opacity-50"
+            className="rounded-lg px-4 py-2 text-sm text-muted-foreground hover:text-bad disabled:opacity-50"
           >
             ทิ้งร่าง
           </button>
@@ -194,12 +194,12 @@ export default function GoodsReceiptActions({
       {voiding && (
         <form
           action={submitVoid}
-          className="rounded-lg border border-red-300 bg-red-50 p-4"
+          className="rounded-lg border border-bad-border bg-bad-bg p-4"
         >
           <input type="hidden" name="id" value={id} />
           <label
             htmlFor="void_reason"
-            className="block text-sm font-medium text-red-900"
+            className="block text-sm font-medium text-bad"
           >
             เหตุผลที่ยกเลิกใบรับ (จำเป็น)
           </label>
@@ -209,9 +209,9 @@ export default function GoodsReceiptActions({
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             placeholder="เช่น รับผิดใบ / ของไม่ตรงสเปกและส่งคืนทั้งหมด"
-            className="mt-1 w-full rounded-lg border border-red-300 bg-background px-3 py-2 text-sm"
+            className="mt-1 w-full rounded-lg border border-bad-border bg-background px-3 py-2 text-sm"
           />
-          <p className="mt-1 text-xs text-red-800">
+          <p className="mt-1 text-xs text-bad">
             ระบบจะไม่ลบรายการเดิม แต่จะเพิ่ม &quot;รายการกลับรายการ&quot;
             ที่หักสต๊อกคืนเท่ากัน ทั้งสองบรรทัดจะอยู่ในใบนี้ตลอดไปเพื่อให้ตรวจย้อนหลังได้
           </p>
@@ -219,7 +219,7 @@ export default function GoodsReceiptActions({
             <button
               type="submit"
               disabled={pending}
-              className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+              className="rounded-lg bg-bad px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
             >
               ยืนยันยกเลิกใบรับ
             </button>

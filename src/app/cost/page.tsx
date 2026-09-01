@@ -55,7 +55,7 @@ export default async function CostOverviewPage({
       </div>
 
       {!parsed.success && (
-        <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+        <div className="rounded-lg border border-warn-border bg-warn-bg p-3 text-sm text-warn">
           ช่วงเวลาที่ระบุไม่ถูกต้อง — แสดงข้อมูล 30 วันล่าสุดแทน
         </div>
       )}

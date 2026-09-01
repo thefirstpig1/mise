@@ -121,7 +121,7 @@ export default async function MenusPage({
       </div>
 
       {stubCount > 0 && !query.stubsOnly && (
-        <div className="rounded-lg border border-amber-500/50 bg-amber-500/5 p-3 text-sm">
+        <div className="rounded-lg border border-warn/50 bg-warn/5 p-3 text-sm">
           มีเมนูรอตรวจ {stubCount} รายการ —{" "}
           <a href="/menus?stubs=true" className="text-primary underline">
             ดูเฉพาะรายการที่ต้องตรวจ

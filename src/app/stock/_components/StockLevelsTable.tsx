@@ -79,7 +79,7 @@ export default function StockLevelsTable({ rows }: { rows: StockLevelRow[] }) {
   return (
     <div className="space-y-4">
       {negativeCount > 0 && (
-        <div className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">
+        <div className="rounded-lg border border-bad-border bg-bad-bg p-3 text-sm text-bad">
           มี {negativeCount} รายการที่ยอดติดลบ — ตรวจสอบว่าลืมบันทึกรับของหรือนับผิด
         </div>
       )}
@@ -150,14 +150,14 @@ export default function StockLevelsTable({ rows }: { rows: StockLevelRow[] }) {
                     )}
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums">
-                    <span className={r.negative ? "font-medium text-red-700" : ""}>
+                    <span className={r.negative ? "font-medium text-bad" : ""}>
                       {r.balance}
                     </span>
                     <span className="ml-1 text-xs text-muted-foreground">
                       {r.baseUnitName ?? ""}
                     </span>
                     {r.negative && (
-                      <span className="ml-2 rounded bg-red-100 px-1.5 py-0.5 text-xs font-medium text-red-700">
+                      <span className="ml-2 rounded bg-bad-bg px-1.5 py-0.5 text-xs font-medium text-bad">
                         ต้องตรวจสอบ
                       </span>
                     )}
@@ -183,7 +183,7 @@ export default function StockLevelsTable({ rows }: { rows: StockLevelRow[] }) {
                     )}
                     {r.costUncertain && (
                       <span
-                        className="ml-1 text-amber-600"
+                        className="ml-1 text-warn"
                         title="ต้นทุนบางส่วนยังไม่ทราบ"
                       >
                         *

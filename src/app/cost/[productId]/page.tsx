@@ -116,7 +116,7 @@ export default async function ProductCostPage({
         <div className="rounded-lg border border-border p-4">
           <p className="text-xs text-muted-foreground">คงเหลือ</p>
           <p
-            className={`mt-1 text-2xl font-semibold tabular-nums ${cost.negativeStock ? "text-red-700" : ""}`}
+            className={`mt-1 text-2xl font-semibold tabular-nums ${cost.negativeStock ? "text-bad" : ""}`}
           >
             {formatQty(cost.qtyOnHand)}{" "}
             <span className="text-sm font-normal">{baseUnitName}</span>
@@ -133,14 +133,14 @@ export default async function ProductCostPage({
       </div>
 
       {cost.negativeStock && (
-        <div className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-800">
+        <div className="rounded-lg border border-bad-border bg-bad-bg p-3 text-sm text-bad">
           สต๊อกติดลบ — มีการตัดของออกมากกว่าที่บันทึกรับเข้ามา
           ตรวจสอบว่ามีใบรับของที่ยังไม่ได้คีย์หรือไม่ ตัวเลขจะกลับมาถูกเองเมื่อคีย์ครบ
         </div>
       )}
 
       {cost.hasUnpricedLayers && (
-        <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+        <div className="rounded-lg border border-warn-border bg-warn-bg p-3 text-sm text-warn">
           มีของบางล็อตที่ยังไม่ทราบต้นทุน — กด &ldquo;ระบุต้นทุน&rdquo; ในตารางด้านล่างเพื่อใส่ราคาที่ถูกต้อง
         </div>
       )}

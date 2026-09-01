@@ -76,7 +76,7 @@ export default async function RecurringExpensePage() {
                       {t.description}
                     </a>
                     {(dueCount.get(t.id) ?? 0) > 0 && (
-                      <div className="text-xs text-amber-700">
+                      <div className="text-xs text-warn">
                         ค้าง {dueCount.get(t.id)} งวด
                       </div>
                     )}

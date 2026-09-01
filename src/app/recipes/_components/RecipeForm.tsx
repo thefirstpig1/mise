@@ -175,7 +175,7 @@ export default function RecipeForm({
       </div>
 
       {formError ? (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+        <div className="rounded-lg border border-bad-border bg-bad-bg p-3 text-sm text-bad">
           {formError}
         </div>
       ) : null}
@@ -197,7 +197,7 @@ export default function RecipeForm({
             ใส่ตามที่ทำจริง — ผัดทีละ 4 จานก็ใส่ 4 ระบบจะหารให้เอง
           </p>
           {fieldErrors?.servings ? (
-            <p className="mt-1 text-xs text-red-600">{fieldErrors.servings}</p>
+            <p className="mt-1 text-xs text-bad">{fieldErrors.servings}</p>
           ) : null}
         </div>
 
@@ -225,7 +225,7 @@ export default function RecipeForm({
         </div>
 
         {fieldErrors?.ingredients ? (
-          <p className="text-xs text-red-600">{fieldErrors.ingredients}</p>
+          <p className="text-xs text-bad">{fieldErrors.ingredients}</p>
         ) : null}
 
         <div className="space-y-3">
@@ -380,7 +380,7 @@ export default function RecipeForm({
                 />
 
                 {rowError ? (
-                  <p className="mt-1 text-xs text-red-600">{rowError}</p>
+                  <p className="mt-1 text-xs text-bad">{rowError}</p>
                 ) : null}
               </div>
             );
@@ -424,7 +424,7 @@ export default function RecipeForm({
               ไม่ใช่สูตรวันนี้
             </p>
             {fieldErrors?.effectiveFrom ? (
-              <p className="mt-1 text-xs text-red-600">
+              <p className="mt-1 text-xs text-bad">
                 {fieldErrors.effectiveFrom}
               </p>
             ) : null}

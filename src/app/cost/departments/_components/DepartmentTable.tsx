@@ -65,7 +65,7 @@ export default function DepartmentTable({
   return (
     <div className="space-y-4">
       {nothingPosted && (
-        <div className="rounded-lg border border-red-300 bg-red-50 p-4 text-sm">
+        <div className="rounded-lg border border-bad-border bg-bad-bg p-4 text-sm">
           <p className="font-medium">ยังไม่ได้ตัดสต๊อกตามยอดขายในช่วงนี้</p>
           <p className="mt-1 text-muted-foreground">
             ยอดขายนำเข้ามาแล้ว แต่ยังไม่ได้กดตัดสต๊อก — ต้นทุนวัตถุดิบจึงเป็น 0 ทุกแผนก
@@ -76,7 +76,7 @@ export default function DepartmentTable({
       )}
 
       {!nothingPosted && coveragePct !== null && coveragePct < 99.5 && (
-        <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm">
+        <div className="rounded-lg border border-warn-border bg-warn-bg p-4 text-sm">
           <p className="font-medium">
             ตัวเลขนี้ครอบคลุมรายได้ {coveragePct.toFixed(1)}% ของช่วงเวลา
           </p>
@@ -88,7 +88,7 @@ export default function DepartmentTable({
       )}
 
       {grossProfitUnavailable && (
-        <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm">
+        <div className="rounded-lg border border-warn-border bg-warn-bg p-4 text-sm">
           <p className="font-medium">ร้านนี้คิดกำไรขั้นต้นแบบ “นับสต๊อก”</p>
           <p className="mt-1 text-muted-foreground">
             วิธีนั้นแยกตามแผนกไม่ได้ เพราะของที่เหลือในสต๊อกอยู่ในห้องเก็บของของสาขา
@@ -181,7 +181,7 @@ export default function DepartmentTable({
           ของเสียมีคอลัมน์ของตัวเองในหน้าต้นทุน และของที่หายโดยไม่มีใครบันทึกอยู่ในหน้า “ของหายไปไหน”
         </p>
         {skippedCount > 0 && (
-          <p className="text-amber-700">
+          <p className="text-warn">
             มี {skippedCount} เมนูที่ระเบิดสูตรไม่ได้ในช่วงนี้ —
             ยอดขายของมันอยู่ในคอลัมน์รายได้ แต่ต้นทุนไม่ได้ถูกนับ
           </p>

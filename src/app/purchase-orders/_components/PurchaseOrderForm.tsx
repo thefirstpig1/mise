@@ -88,7 +88,7 @@ export type PurchaseOrderFormInitial = {
 const inputClass =
   "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none";
 const labelClass = "block text-sm font-medium";
-const errorClass = "mt-1 text-xs text-red-600";
+const errorClass = "mt-1 text-xs text-bad";
 
 let rowSeq = 0;
 const newRow = (): LineRow => ({
@@ -237,7 +237,7 @@ export default function PurchaseOrderForm({
       {isEdit && <input type="hidden" name="id" value={initial!.id} />}
 
       {state.ok && (
-        <div className="rounded-lg border border-green-300 bg-green-50 p-4 text-sm text-green-800">
+        <div className="rounded-lg border border-good-border bg-good-bg p-4 text-sm text-good">
           บันทึกแล้ว — เลขที่ <strong>{state.poNumber}</strong>{" "}
           <a href={`/purchase-orders/${state.id}`} className="ml-2 underline">
             เปิดใบสั่งซื้อ
@@ -246,7 +246,7 @@ export default function PurchaseOrderForm({
       )}
 
       {formError && (
-        <div className="rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-700">
+        <div className="rounded-lg border border-bad-border bg-bad-bg p-4 text-sm text-bad">
           {formError}
         </div>
       )}
@@ -262,7 +262,7 @@ export default function PurchaseOrderForm({
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label htmlFor="supplier_id" className={labelClass}>
-            ผู้ขาย <span className="text-red-600">*</span>
+            ผู้ขาย <span className="text-bad">*</span>
           </label>
           <select
             id="supplier_id"
@@ -290,7 +290,7 @@ export default function PurchaseOrderForm({
 
         <div>
           <label htmlFor="branch_id" className={labelClass}>
-            สาขา <span className="text-red-600">*</span>
+            สาขา <span className="text-bad">*</span>
           </label>
           <select
             id="branch_id"
@@ -423,12 +423,12 @@ export default function PurchaseOrderForm({
                       </span>
                     )}
                     {row.priceScope === "none" && (
-                      <span className="rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-amber-800">
+                      <span className="rounded-full border border-warn-border bg-warn-bg px-2 py-0.5 text-warn">
                         ไม่มีราคาในระบบ — กรอกเอง
                       </span>
                     )}
                     {belowMin && (
-                      <span className="text-amber-700">
+                      <span className="text-warn">
                         ผู้ขายกำหนดขั้นต่ำ {row.minOrderQty}
                       </span>
                     )}
@@ -444,7 +444,7 @@ export default function PurchaseOrderForm({
                         onClick={() =>
                           setRows((rs) => rs.filter((r) => r.key !== row.key))
                         }
-                        className="text-red-600 hover:underline"
+                        className="text-bad hover:underline"
                       >
                         ลบรายการที่ {i + 1}
                       </button>

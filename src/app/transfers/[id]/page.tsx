@@ -20,7 +20,7 @@ import ReceiveTransferForm from "../_components/ReceiveTransferForm";
 import VoidTransferButton from "../_components/VoidTransferButton";
 
 const STATUS_STYLE: Record<string, string> = {
-  SENT: "border-amber-300 bg-amber-50 text-amber-800",
+  SENT: "border-warn-border bg-warn-bg text-warn",
   RECEIVED: "border-emerald-300 bg-emerald-50 text-emerald-800",
   VOIDED: "border-border bg-muted/40 text-muted-foreground",
 };
@@ -138,7 +138,7 @@ export default async function TransferDetailPage({
                   {l.qtyMissing === null || Number(l.qtyMissing) === 0 ? (
                     <span className="text-muted-foreground">—</span>
                   ) : (
-                    <span className="text-red-700">
+                    <span className="text-bad">
                       {l.qtyMissing} {l.inputUnitName}
                     </span>
                   )}
@@ -154,7 +154,7 @@ export default async function TransferDetailPage({
                   {/* 0.00 is not always "free" — it can mean the sending branch
                       never knew what these goods cost (ADR 0014 Q10). */}
                   {l.costTotal !== null && l.costSource === "UNPRICED" && (
-                    <span className="block text-xs text-amber-700">
+                    <span className="block text-xs text-warn">
                       {l.costSourceLabel}
                     </span>
                   )}

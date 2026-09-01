@@ -49,7 +49,7 @@ export default function CategoryForm({
   return (
     <form action={formAction} className="space-y-6">
       {formError && (
-        <div className="rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-700">
+        <div className="rounded-lg border border-bad-border bg-bad-bg p-4 text-sm text-bad">
           {formError}
         </div>
       )}
@@ -58,7 +58,7 @@ export default function CategoryForm({
         <div>
           <label htmlFor="account" className="mb-1 block text-sm font-medium">
             {L.account}
-            <span className="text-red-600"> *</span>
+            <span className="text-bad"> *</span>
           </label>
           <select
             id="account"
@@ -76,7 +76,7 @@ export default function CategoryForm({
             ))}
           </select>
           {err("account") && (
-            <p className="mt-1 text-sm text-red-600">{err("account")}</p>
+            <p className="mt-1 text-sm text-bad">{err("account")}</p>
           )}
         </div>
 
@@ -86,7 +86,7 @@ export default function CategoryForm({
             className="mb-1 block text-sm font-medium"
           >
             {L.accountingSection}
-            <span className="text-red-600"> *</span>
+            <span className="text-bad"> *</span>
           </label>
           <input
             id="accounting_section"
@@ -97,7 +97,7 @@ export default function CategoryForm({
             className={inputClass}
           />
           {err("accountingSection") && (
-            <p className="mt-1 text-sm text-red-600">
+            <p className="mt-1 text-sm text-bad">
               {err("accountingSection")}
             </p>
           )}
@@ -106,7 +106,7 @@ export default function CategoryForm({
         <div>
           <label htmlFor="group_name" className="mb-1 block text-sm font-medium">
             {L.groupName}
-            <span className="text-red-600"> *</span>
+            <span className="text-bad"> *</span>
           </label>
           <input
             id="group_name"
@@ -117,7 +117,7 @@ export default function CategoryForm({
             className={inputClass}
           />
           {err("groupName") && (
-            <p className="mt-1 text-sm text-red-600">{err("groupName")}</p>
+            <p className="mt-1 text-sm text-bad">{err("groupName")}</p>
           )}
         </div>
       </section>

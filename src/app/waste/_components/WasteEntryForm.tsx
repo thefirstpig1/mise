@@ -45,7 +45,7 @@ export type WasteBranchOption = { id: string; name: string };
 const inputClass =
   "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none";
 const labelClass = "block text-sm font-medium";
-const errorClass = "mt-1 text-xs text-red-600";
+const errorClass = "mt-1 text-xs text-bad";
 
 /** A fresh `submit_key` — the id the server will give the `waste_log` row. */
 function newSubmitKey(): string {
@@ -122,13 +122,13 @@ export default function WasteEntryForm({
       <input type="hidden" name="submit_key" value={submitKey} />
 
       {state.ok && (
-        <div className="rounded-lg border border-green-300 bg-green-50 p-4 text-sm text-green-800">
+        <div className="rounded-lg border border-good-border bg-good-bg p-4 text-sm text-good">
           บันทึกแล้ว — ยอดคงเหลือใหม่{" "}
           <strong>
             {state.postBalance} {baseUnitLabel}
           </strong>
           {state.negative && (
-            <span className="ml-2 font-medium text-red-700">
+            <span className="ml-2 font-medium text-bad">
               (ติดลบ — อาจยังไม่ได้บันทึกใบรับของ)
             </span>
           )}
@@ -136,7 +136,7 @@ export default function WasteEntryForm({
       )}
 
       {formError && (
-        <div className="rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-700">
+        <div className="rounded-lg border border-bad-border bg-bad-bg p-4 text-sm text-bad">
           {formError}
         </div>
       )}
@@ -144,7 +144,7 @@ export default function WasteEntryForm({
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="sm:col-span-2">
           <label htmlFor="product_id" className={labelClass}>
-            วัตถุดิบ <span className="text-red-600">*</span>
+            วัตถุดิบ <span className="text-bad">*</span>
           </label>
           <select
             id="product_id"
@@ -166,7 +166,7 @@ export default function WasteEntryForm({
 
         <div>
           <label htmlFor="input_qty" className={labelClass}>
-            จำนวนที่ทิ้ง <span className="text-red-600">*</span>
+            จำนวนที่ทิ้ง <span className="text-bad">*</span>
           </label>
           <input
             ref={qtyRef}
@@ -185,7 +185,7 @@ export default function WasteEntryForm({
 
         <div>
           <label htmlFor="input_unit_id" className={labelClass}>
-            หน่วย <span className="text-red-600">*</span>
+            หน่วย <span className="text-bad">*</span>
           </label>
           <select
             id="input_unit_id"
@@ -207,7 +207,7 @@ export default function WasteEntryForm({
 
         <div className="sm:col-span-2">
           <label htmlFor="reason" className={labelClass}>
-            สาเหตุ <span className="text-red-600">*</span>
+            สาเหตุ <span className="text-bad">*</span>
           </label>
           <select
             id="reason"
@@ -234,7 +234,7 @@ export default function WasteEntryForm({
 
         <div>
           <label htmlFor="branch_id" className={labelClass}>
-            สาขา <span className="text-red-600">*</span>
+            สาขา <span className="text-bad">*</span>
           </label>
           <select
             id="branch_id"
@@ -255,7 +255,7 @@ export default function WasteEntryForm({
 
         <div>
           <label htmlFor="occurred_at" className={labelClass}>
-            วันที่ <span className="text-red-600">*</span>
+            วันที่ <span className="text-bad">*</span>
           </label>
           <input
             id="occurred_at"

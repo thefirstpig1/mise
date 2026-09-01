@@ -84,7 +84,7 @@ export default function LeakTable({ rows }: { rows: LeakRowView[] }) {
                       </td>
                       <td
                         className={`py-2 text-right tabular-nums ${
-                          short ? "text-red-700" : "text-muted-foreground"
+                          short ? "text-bad" : "text-muted-foreground"
                         }`}
                       >
                         {qty(r.varianceQty)}

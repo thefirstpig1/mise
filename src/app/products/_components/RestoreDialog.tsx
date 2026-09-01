@@ -136,7 +136,7 @@ export default function RestoreDialog({
         </h3>
 
         {formError && (
-          <p className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">
+          <p className="rounded-lg border border-bad-border bg-bad-bg p-3 text-sm text-bad">
             {formError}
           </p>
         )}
@@ -146,8 +146,8 @@ export default function RestoreDialog({
 
           {/* Section 1 — newSku, ONLY on a live-sku conflict (Q5). */}
           {candidate.hasSkuConflict && (
-            <div className="space-y-1 rounded-lg border border-amber-300 bg-amber-50 p-3">
-              <p className="text-sm text-amber-800">
+            <div className="space-y-1 rounded-lg border border-warn-border bg-warn-bg p-3">
+              <p className="text-sm text-warn">
                 ⚠️ รหัส {candidate.sku} ถูกใช้แล้วโดย “
                 {candidate.conflictingLiveProductName}” — กรุณาตั้งรหัสใหม่
               </p>
@@ -162,7 +162,7 @@ export default function RestoreDialog({
                 className={FIELD_INPUT_CLASS}
               />
               {err("newSku") && (
-                <p className="text-sm text-red-600">{err("newSku")}</p>
+                <p className="text-sm text-bad">{err("newSku")}</p>
               )}
             </div>
           )}
@@ -180,7 +180,7 @@ export default function RestoreDialog({
                 </p>
               )}
               {loadError && (
-                <p className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">
+                <p className="rounded-lg border border-bad-border bg-bad-bg p-3 text-sm text-bad">
                   {loadError}
                 </p>
               )}
@@ -200,7 +200,7 @@ export default function RestoreDialog({
                       <span>
                         <span className="font-medium">{row.supplierName}</span>
                         {row.isPreferred && (
-                          <span className="ml-1 rounded-full border border-green-300 bg-green-50 px-1.5 py-0.5 text-xs text-green-700">
+                          <span className="ml-1 rounded-full border border-good-border bg-good-bg px-1.5 py-0.5 text-xs text-good">
                             หลัก
                           </span>
                         )}
@@ -283,22 +283,22 @@ export default function RestoreDialog({
 
                     {/* Per-field errors (dotted, decision #7) + a row-level fallback. */}
                     {err(`mappingUpdates.${i}.updates.currentUnitPrice`) && (
-                      <p className="text-sm text-red-600">
+                      <p className="text-sm text-bad">
                         {err(`mappingUpdates.${i}.updates.currentUnitPrice`)}
                       </p>
                     )}
                     {err(`mappingUpdates.${i}.updates.minOrderQty`) && (
-                      <p className="text-sm text-red-600">
+                      <p className="text-sm text-bad">
                         {err(`mappingUpdates.${i}.updates.minOrderQty`)}
                       </p>
                     )}
                     {err(`mappingUpdates.${i}.updates.leadTimeDays`) && (
-                      <p className="text-sm text-red-600">
+                      <p className="text-sm text-bad">
                         {err(`mappingUpdates.${i}.updates.leadTimeDays`)}
                       </p>
                     )}
                     {err(`mappingUpdates.${i}.updates`) && (
-                      <p className="text-sm text-red-600">
+                      <p className="text-sm text-bad">
                         {err(`mappingUpdates.${i}.updates`)}
                       </p>
                     )}

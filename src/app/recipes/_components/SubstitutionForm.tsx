@@ -177,7 +177,7 @@ export default function SubstitutionForm({
                   aria-label={`จำนวนใหม่สำหรับ ${r.label}`}
                   className={`${inputClass} w-28 ${
                     r.carryQty === null && s.checked && s.qty === ""
-                      ? "border-amber-400 bg-amber-50"
+                      ? "border-warn-border bg-warn-bg"
                       : ""
                   }`}
                 />
@@ -208,7 +208,7 @@ export default function SubstitutionForm({
                 )}
 
                 {rowError ? (
-                  <p className="w-full text-xs text-red-600">{rowError}</p>
+                  <p className="w-full text-xs text-bad">{rowError}</p>
                 ) : null}
               </div>
             );
@@ -258,7 +258,7 @@ export default function SubstitutionForm({
       {[...central, ...branch].some(
         (r) => r.carryQty === null && rows[r.recipeId]?.checked
       ) ? (
-        <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+        <div className="rounded-lg border border-warn-border bg-warn-bg p-4 text-sm text-warn">
           บางบรรทัดต้องกรอกจำนวนใหม่เอง — ของใหม่ไม่ใช่ของชนิดเดียวกันหรือคนละหน่วย
           จำนวนเดิมจึงใช้แทนกันไม่ได้
         </div>
@@ -291,13 +291,13 @@ export default function SubstitutionForm({
       </div>
 
       {formError ? (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+        <div className="rounded-lg border border-bad-border bg-bad-bg p-3 text-sm text-bad">
           {formError}
         </div>
       ) : null}
 
       {needsAck ? (
-        <div className="space-y-2 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+        <div className="space-y-2 rounded-lg border border-warn-border bg-warn-bg p-4 text-sm text-warn">
           <p className="font-medium">
             การเปลี่ยนนี้จะไปแก้สูตรที่สาขาเหล่านี้แยกไว้เอง:
           </p>

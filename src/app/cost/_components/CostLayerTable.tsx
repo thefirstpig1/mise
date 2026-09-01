@@ -27,8 +27,8 @@ const PRICING_LABEL: Record<string, string> = {
 const PRICING_CLASS: Record<string, string> = {
   DOCUMENT: "bg-emerald-50 text-emerald-800 border-emerald-200",
   DECLARED: "bg-sky-50 text-sky-800 border-sky-200",
-  LAST_KNOWN: "bg-amber-50 text-amber-900 border-amber-200",
-  UNPRICED: "bg-red-50 text-red-800 border-red-200",
+  LAST_KNOWN: "bg-warn-bg text-warn border-warn-border",
+  UNPRICED: "bg-bad-bg text-bad border-bad-border",
 };
 
 const th = "px-3 py-2 text-left text-xs font-medium text-muted-foreground";
@@ -89,12 +89,12 @@ export default function CostLayerTable({
               <tr key={l.movementId} className="align-top">
                 <td colSpan={5} className="p-0">
                   <div
-                    className={`grid grid-cols-[1fr_auto_auto_auto_auto] items-center ${negative ? "bg-red-50/50" : ""}`}
+                    className={`grid grid-cols-[1fr_auto_auto_auto_auto] items-center ${negative ? "bg-bad-bg/50" : ""}`}
                   >
                     <div className={td}>
                       {l.occurredAtLabel}
                       {negative && (
-                        <span className="ml-2 text-xs font-medium text-red-700">
+                        <span className="ml-2 text-xs font-medium text-bad">
                           ติดลบ — ใช้ของที่ยังไม่ได้บันทึกรับ
                         </span>
                       )}

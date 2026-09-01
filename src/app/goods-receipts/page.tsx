@@ -83,7 +83,7 @@ export default async function GoodsReceiptsPage({
       </div>
 
       {!parsed.success && (
-        <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
+        <div className="rounded-lg border border-warn-border bg-warn-bg p-3 text-sm text-warn">
           ตัวกรองใน URL ไม่ถูกต้อง — แสดงรายการทั้งหมดแทน
         </div>
       )}
@@ -159,7 +159,7 @@ export default async function GoodsReceiptsPage({
                   <td className="px-3 py-2">
                     {gr.supplierName}
                     {gr.supplierDeleted && (
-                      <span className="ml-1 text-xs text-amber-700">(ถูกลบแล้ว)</span>
+                      <span className="ml-1 text-xs text-warn">(ถูกลบแล้ว)</span>
                     )}
                   </td>
                   <td className="px-3 py-2 text-muted-foreground">
@@ -182,7 +182,7 @@ export default async function GoodsReceiptsPage({
                   <td className="space-x-1 px-3 py-2">
                     <StatusBadge status={gr.status} />
                     {gr.hasDiscrepancy && (
-                      <span className="inline-block whitespace-nowrap rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800">
+                      <span className="inline-block whitespace-nowrap rounded-full border border-warn-border bg-warn-bg px-2 py-0.5 text-xs font-medium text-warn">
                         ต้องตรวจสอบ
                       </span>
                     )}

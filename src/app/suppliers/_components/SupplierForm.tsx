@@ -35,7 +35,7 @@ function TextField({
     <div>
       <label htmlFor={name} className="mb-1 block text-sm font-medium">
         {label}
-        {required && <span className="text-red-600"> *</span>}
+        {required && <span className="text-bad"> *</span>}
       </label>
       <input
         id={name}
@@ -45,7 +45,7 @@ function TextField({
         defaultValue={defaultValue}
         className={inputClass}
       />
-      {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
+      {error && <p className="mt-1 text-sm text-bad">{error}</p>}
     </div>
   );
 }
@@ -92,7 +92,7 @@ export default function SupplierForm({
   return (
     <form action={formAction} className="space-y-6">
       {formError && (
-        <div className="rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-700">
+        <div className="rounded-lg border border-bad-border bg-bad-bg p-4 text-sm text-bad">
           {formError}
         </div>
       )}
@@ -167,7 +167,7 @@ export default function SupplierForm({
             className={inputClass}
           />
           {err("address") && (
-            <p className="mt-1 text-sm text-red-600">{err("address")}</p>
+            <p className="mt-1 text-sm text-bad">{err("address")}</p>
           )}
         </div>
       </section>

@@ -98,7 +98,7 @@ export default async function MenuMergesPage({
           การรวมทำให้ทุกหน้านับเป็นจานเดียว โดย
           <strong>ไม่ลบรายการไหนและไม่ย้ายยอดขายสักแถว</strong>
         </p>
-        <p className="text-amber-700">{MERGE_NOT_SAME_DISH_WARNING_TH}</p>
+        <p className="text-warn">{MERGE_NOT_SAME_DISH_WARNING_TH}</p>
       </div>
 
       {/* ---------- pick the menu ---------- */}
@@ -162,7 +162,7 @@ export default async function MenuMergesPage({
           </div>
 
           {picked.subject.mergedIntoMenuId !== null ? (
-            <p className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+            <p className="rounded-lg border border-warn-border bg-warn-bg p-3 text-sm text-warn">
               เมนูนี้ถูกรวมเข้ากับเมนูอื่นอยู่แล้ว — ต้องยกเลิกการรวมเดิมด้านล่างก่อน
               จึงจะรวมใหม่ได้
             </p>

@@ -105,20 +105,20 @@ export default async function DashboardPage() {
         </div>
 
         {waiting.length > 0 && (
-          <div className="mb-8 rounded-lg border border-amber-300 bg-amber-50 p-4">
-            <p className="text-sm font-medium text-amber-900">
+          <div className="mb-8 rounded-lg border border-warn-border bg-warn-bg p-4">
+            <p className="text-sm font-medium text-warn">
               มีใบโอน {waiting.length} ใบที่ปลายทางยังไม่กดรับ
             </p>
-            <p className="mt-1 text-xs text-amber-800">
+            <p className="mt-1 text-xs text-warn">
               ของเข้ายอดของสาขาปลายทางแล้วตั้งแต่ต้นทางกดส่ง — ที่ค้างคือการนับยืนยัน
             </p>
             <ul className="mt-2 space-y-1 text-sm">
               {waiting.map((t) => (
                 <li key={t.id}>
-                  <a href={`/transfers/${t.id}`} className="text-amber-900 hover:underline">
+                  <a href={`/transfers/${t.id}`} className="text-warn hover:underline">
                     {t.tfNumber}
                   </a>{" "}
-                  <span className="text-amber-800">
+                  <span className="text-warn">
                     {t.fromBranch.name} → {t.toBranch.name} · {t.dispatchedAtLabel}
                   </span>
                 </li>

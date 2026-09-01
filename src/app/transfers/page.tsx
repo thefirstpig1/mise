@@ -29,7 +29,7 @@ const inputClass =
   "rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none";
 
 const STATUS_STYLE: Record<string, string> = {
-  SENT: "border-amber-300 bg-amber-50 text-amber-800",
+  SENT: "border-warn-border bg-warn-bg text-warn",
   RECEIVED: "border-emerald-300 bg-emerald-50 text-emerald-800",
   VOIDED: "border-border bg-muted/40 text-muted-foreground",
 };
@@ -141,7 +141,7 @@ export default async function TransfersPage({
       </form>
 
       {waiting.length > 0 && (
-        <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+        <div className="rounded-lg border border-warn-border bg-warn-bg p-4 text-sm text-warn">
           <strong>{waiting.length} ใบยังไม่มีใครกดรับ</strong> — ของอยู่ในยอดของสาขาปลายทางแล้ว
           แต่ยังไม่มีใครที่ปลายทางนับยืนยัน
         </div>
@@ -193,7 +193,7 @@ export default async function TransfersPage({
                   <>{t.totalCost} ฿</>
                 )}
                 {t.hasShortage && (
-                  <span className="ml-2 rounded-full border border-red-300 bg-red-50 px-2 py-0.5 text-xs text-red-700">
+                  <span className="ml-2 rounded-full border border-bad-border bg-bad-bg px-2 py-0.5 text-xs text-bad">
                     ของมาไม่ครบ
                   </span>
                 )}

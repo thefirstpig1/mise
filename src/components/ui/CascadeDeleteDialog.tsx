@@ -86,7 +86,7 @@ export default function CascadeDeleteDialog({
       <div className="w-full max-w-lg space-y-4 rounded-lg border border-border bg-card p-6 shadow-lg">
         <h3 className="text-base font-semibold">{title}</h3>
 
-        <p className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
+        <p className="rounded-lg border border-warn-border bg-warn-bg p-3 text-sm text-warn">
           {warning}
         </p>
 
@@ -131,7 +131,7 @@ export default function CascadeDeleteDialog({
         </ul>
 
         {error && (
-          <p className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">
+          <p className="rounded-lg border border-bad-border bg-bad-bg p-3 text-sm text-bad">
             {error}
           </p>
         )}
@@ -149,7 +149,7 @@ export default function CascadeDeleteDialog({
             type="button"
             onClick={() => onConfirm([...selected])}
             disabled={isPending}
-            className="rounded-lg border border-red-300 bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700 disabled:opacity-50"
+            className="rounded-lg border border-bad-border bg-bad px-4 py-2 text-sm text-white hover:bg-bad disabled:opacity-50"
           >
             {isPending ? "กำลังลบ..." : confirmLabel}
           </button>

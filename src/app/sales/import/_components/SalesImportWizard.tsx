@@ -257,13 +257,13 @@ export default function SalesImportWizard({
           )}
 
           {preview.consistencyWarning && (
-            <div className="mt-4 rounded-lg border border-amber-500/50 bg-amber-500/5 p-3 text-xs">
+            <div className="mt-4 rounded-lg border border-warn/50 bg-warn/5 p-3 text-xs">
               {preview.consistencyWarning}
             </div>
           )}
 
           {preview.pulseWarnings.length > 0 && (
-            <div className="mt-4 rounded-lg border border-red-500/60 bg-red-500/5 p-3">
+            <div className="mt-4 rounded-lg border border-bad/60 bg-bad/5 p-3">
               <p className="text-sm font-medium">
                 ไฟล์นี้ไม่ตรงกับยอดที่คีย์ไว้ตอนปิดร้าน {preview.pulseWarnings.length} วัน
               </p>
@@ -285,7 +285,7 @@ export default function SalesImportWizard({
             // will be written and Part 22 will deduct stock from it, exactly
             // as Q2 requires. The only thing wrong is the flag, and it is
             // wrong in the POS rather than here.
-            <div className="mt-4 rounded-lg border border-amber-500/50 bg-amber-500/5 p-3">
+            <div className="mt-4 rounded-lg border border-warn/50 bg-warn/5 p-3">
               <p className="text-sm font-medium">
                 ไฟล์นี้มียอดขายของเมนูที่ทำเครื่องหมายเลิกขายไว้{" "}
                 {preview.retiredSelling.length} รายการ
@@ -304,7 +304,7 @@ export default function SalesImportWizard({
           )}
 
           {preview.replacedDays.length > 0 && (
-            <div className="mt-4 rounded-lg border border-amber-500/50 bg-amber-500/5 p-3">
+            <div className="mt-4 rounded-lg border border-warn/50 bg-warn/5 p-3">
               <p className="text-sm font-medium">
                 จะแทนที่ข้อมูลเดิม {preview.replacedDays.length} วัน
               </p>

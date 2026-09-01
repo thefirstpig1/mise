@@ -113,7 +113,7 @@ export default function SupplierList({
                         </span>
                       )}
                       {s.defaultSubjectToWht && (
-                        <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-700">
+                        <span className="rounded bg-warn-bg px-1.5 py-0.5 text-xs text-warn">
                           หัก ณ ที่จ่าย
                         </span>
                       )}
@@ -124,7 +124,7 @@ export default function SupplierList({
                   </td>
                   <td className="px-4 py-2">
                     {s.isActive ? (
-                      <span className="text-xs text-green-700">ใช้งาน</span>
+                      <span className="text-xs text-good">ใช้งาน</span>
                     ) : (
                       <span className="text-xs text-muted-foreground">
                         ไม่ใช้งาน

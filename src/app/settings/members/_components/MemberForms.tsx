@@ -52,7 +52,7 @@ function Feedback({ state }: { state: MemberActionState }) {
     );
   }
   if (state.formError) {
-    return <p className="mt-2 text-sm text-red-700">{state.formError}</p>;
+    return <p className="mt-2 text-sm text-bad">{state.formError}</p>;
   }
   return null;
 }
@@ -178,7 +178,7 @@ function InviteForm({
             className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
           />
           {!state.ok && state.fieldErrors?.email && (
-            <p className="mt-1 text-xs text-red-700">{state.fieldErrors.email}</p>
+            <p className="mt-1 text-xs text-bad">{state.fieldErrors.email}</p>
           )}
         </div>
         <div>
@@ -262,14 +262,14 @@ function MemberRow({
             </span>
           )}
           {!row.isActive && (
-            <span className="ml-2 rounded-full border border-red-300 bg-red-50 px-2 py-0.5 text-xs text-red-700">
+            <span className="ml-2 rounded-full border border-bad-border bg-bad-bg px-2 py-0.5 text-xs text-bad">
               ออกจากร้านแล้ว
             </span>
           )}
           {row.isActive && row.neverSignedIn && (
             // No status column and no invitation table: "never signed in" IS
             // the pending state, read off the account (ADR 0029 Q2).
-            <span className="ml-2 rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-xs text-amber-700">
+            <span className="ml-2 rounded-full border border-warn-border bg-warn-bg px-2 py-0.5 text-xs text-warn">
               ยังไม่เคยเข้าใช้งาน
             </span>
           )}

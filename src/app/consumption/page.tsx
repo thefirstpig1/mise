@@ -118,7 +118,7 @@ export default async function ConsumptionPage({
         )}
 
         {unposted > 0 && (
-          <p className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+          <p className="rounded-lg border border-warn-border bg-warn-bg p-3 text-sm text-warn">
             ยังมี {unposted} วันที่ยอดขายเข้ามาแล้วแต่ยังไม่ได้ตัดสต๊อก —
             ต้นทุนของวันเหล่านั้นยังไม่ถูกนับ กำไรขั้นต้นแบบสูตรอาหารจึงยังดูดีเกินจริง
           </p>

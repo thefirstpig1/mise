@@ -172,7 +172,7 @@ export default function CountSheet({
           <div className="rounded-lg border border-border p-4">
             <p className="text-xs text-muted-foreground">ขาด / เกิน (จำนวน)</p>
             <p className="mt-1 text-lg font-semibold tabular-nums">
-              <span className="text-red-700">−{formatQty(detail.totalShortQty)}</span>
+              <span className="text-bad">−{formatQty(detail.totalShortQty)}</span>
               {" / "}
               <span className="text-emerald-700">+{formatQty(detail.totalOverQty)}</span>
             </p>
@@ -183,7 +183,7 @@ export default function CountSheet({
           <div className="rounded-lg border border-border p-4">
             <p className="text-xs text-muted-foreground">มูลค่าส่วนต่าง (ประมาณ)</p>
             <p
-              className={`mt-1 text-2xl font-semibold tabular-nums ${totalVarianceValue < 0 ? "text-red-700" : ""}`}
+              className={`mt-1 text-2xl font-semibold tabular-nums ${totalVarianceValue < 0 ? "text-bad" : ""}`}
             >
               {formatMoney(String(totalVarianceValue))}
             </p>
@@ -201,7 +201,7 @@ export default function CountSheet({
           <h3 className="text-sm font-medium">บันทึกจำนวนที่นับได้</h3>
 
           {saveFormError && (
-            <div className="mt-3 rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">
+            <div className="mt-3 rounded-lg border border-bad-border bg-bad-bg p-3 text-sm text-bad">
               {saveFormError}
             </div>
           )}
@@ -209,7 +209,7 @@ export default function CountSheet({
           <div className="mt-3 space-y-3">
             <div>
               <label htmlFor="product_id" className={labelClass}>
-                วัตถุดิบ <span className="text-red-600">*</span>
+                วัตถุดิบ <span className="text-bad">*</span>
               </label>
               <select
                 ref={productRef}
@@ -228,19 +228,19 @@ export default function CountSheet({
                 ))}
               </select>
               {productId && alreadyCounted.has(productId) && (
-                <p className="mt-1 text-xs text-amber-700">
+                <p className="mt-1 text-xs text-warn">
                   นับรายการนี้ไปแล้ว — บันทึกอีกครั้งจะเป็นการแก้ตัวเลขเดิม
                 </p>
               )}
               {saveErrors?.productId && (
-                <p className="mt-1 text-xs text-red-600">{saveErrors.productId}</p>
+                <p className="mt-1 text-xs text-bad">{saveErrors.productId}</p>
               )}
             </div>
 
             {product && (
               <div>
                 <span className={labelClass}>
-                  จำนวนที่นับได้ <span className="text-red-600">*</span>
+                  จำนวนที่นับได้ <span className="text-bad">*</span>
                 </span>
                 <p className="mb-1 text-xs text-muted-foreground">
                   นับได้หลายหน่วยรวมกันได้ เช่น 2 กระสอบ + 3 kg
@@ -289,7 +289,7 @@ export default function CountSheet({
                           onClick={() =>
                             setEntries((rows) => rows.filter((_, j) => j !== i))
                           }
-                          className="text-xs text-muted-foreground hover:text-red-700"
+                          className="text-xs text-muted-foreground hover:text-bad"
                         >
                           ลบ
                         </button>
@@ -305,7 +305,7 @@ export default function CountSheet({
                   + เพิ่มหน่วย
                 </button>
                 {saveErrors?.entries && (
-                  <p className="mt-1 text-xs text-red-600">{saveErrors.entries}</p>
+                  <p className="mt-1 text-xs text-bad">{saveErrors.entries}</p>
                 )}
                 <p className="mt-1 text-xs text-muted-foreground">
                   ถ้าไปดูแล้วไม่มีของเลย ให้ใส่ 0 — ระบบจะตัดสต๊อกให้เหลือศูนย์
@@ -414,7 +414,7 @@ export default function CountSheet({
                           {formatQty(item.qtyExpected)}
                         </td>
                         <td
-                          className={`px-3 py-2 text-right text-sm tabular-nums ${item.varianceIsShort ? "font-medium text-red-700" : item.varianceIsZero ? "text-muted-foreground" : "font-medium text-emerald-700"}`}
+                          className={`px-3 py-2 text-right text-sm tabular-nums ${item.varianceIsShort ? "font-medium text-bad" : item.varianceIsZero ? "text-muted-foreground" : "font-medium text-emerald-700"}`}
                         >
                           {item.varianceIsZero
                             ? "ตรง"
@@ -442,7 +442,7 @@ export default function CountSheet({
                         >
                           <button
                             type="submit"
-                            className="text-xs text-muted-foreground hover:text-red-700"
+                            className="text-xs text-muted-foreground hover:text-bad"
                           >
                             เอาออก
                           </button>
@@ -467,14 +467,14 @@ export default function CountSheet({
           </p>
 
           {uncountedStocked > 0 && (
-            <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+            <div className="mt-3 rounded-lg border border-warn-border bg-warn-bg p-3 text-sm text-warn">
               ยังมีวัตถุดิบอีก <strong>{uncountedStocked}</strong> รายการที่มีของอยู่แต่ไม่ได้นับรอบนี้
               — ของพวกนี้จะไม่ถูกแตะต้อง ปิดใบได้ตามปกติถ้าตั้งใจนับแค่บางส่วน
             </div>
           )}
 
           {closeError && (
-            <div className="mt-3 rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">
+            <div className="mt-3 rounded-lg border border-bad-border bg-bad-bg p-3 text-sm text-bad">
               {closeError}
             </div>
           )}
@@ -505,7 +505,7 @@ export default function CountSheet({
             <button
               type="button"
               onClick={() => setVoidOpen(true)}
-              className="text-sm text-red-700 hover:underline"
+              className="text-sm text-bad hover:underline"
             >
               ยกเลิกใบนับนี้
             </button>
@@ -518,13 +518,13 @@ export default function CountSheet({
                 รายการเดิมจะยังอยู่ครบ
               </p>
               {voidError && (
-                <div className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">
+                <div className="rounded-lg border border-bad-border bg-bad-bg p-3 text-sm text-bad">
                   {voidError}
                 </div>
               )}
               <div>
                 <label htmlFor="void_reason" className={labelClass}>
-                  เหตุผล <span className="text-red-600">*</span>
+                  เหตุผล <span className="text-bad">*</span>
                 </label>
                 <input
                   id="void_reason"
@@ -540,7 +540,7 @@ export default function CountSheet({
                 <button
                   type="submit"
                   disabled={voiding}
-                  className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+                  className="rounded-lg bg-bad px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
                 >
                   {voiding ? "กำลังยกเลิก…" : "ยืนยันยกเลิก"}
                 </button>

@@ -93,7 +93,7 @@ export default async function StockHistoryPage({
       </div>
 
       {!parsed.success && (
-        <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
+        <div className="rounded-lg border border-warn-border bg-warn-bg p-3 text-sm text-warn">
           เงื่อนไขการค้นหาใน URL ไม่ถูกต้อง — แสดงรายการทั้งหมดแทน
         </div>
       )}

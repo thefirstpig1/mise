@@ -100,7 +100,7 @@ export default async function PurchaseOrderDetailPage({
         </div>
       )}
       {po.status === "CANCELLED" && (
-        <div className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-800">
+        <div className="rounded-lg border border-bad-border bg-bad-bg p-3 text-sm text-bad">
           ใบสั่งซื้อนี้ถูกยกเลิกเมื่อ {po.cancelledAtLabel}
           {po.cancelReason ? ` — ${po.cancelReason}` : ""}
         </div>
@@ -131,7 +131,7 @@ export default async function PurchaseOrderDetailPage({
             <p className="font-medium">
               {po.supplier.nameFull}
               {po.supplier.deleted && (
-                <span className="ml-1 text-xs text-amber-700">(ถูกลบแล้ว)</span>
+                <span className="ml-1 text-xs text-warn">(ถูกลบแล้ว)</span>
               )}
             </p>
             {po.supplier.address && (
@@ -183,7 +183,7 @@ export default async function PurchaseOrderDetailPage({
                     <div className="text-xs text-muted-foreground">
                       {l.productSku}
                       {l.productDeleted && (
-                        <span className="ml-1 text-amber-700">(ถูกลบแล้ว)</span>
+                        <span className="ml-1 text-warn">(ถูกลบแล้ว)</span>
                       )}
                     </div>
                     {l.notes && (
@@ -275,9 +275,9 @@ export default async function PurchaseOrderDetailPage({
                       <td
                         className={`py-2 pr-2 text-right tabular-nums ${
                           outstanding > 0
-                            ? "text-amber-700"
+                            ? "text-warn"
                             : outstanding < 0
-                              ? "text-amber-700"
+                              ? "text-warn"
                               : "text-muted-foreground"
                         }`}
                       >
@@ -304,7 +304,7 @@ export default async function PurchaseOrderDetailPage({
                   <span className="text-muted-foreground">{r.receivedAtLabel}</span>
                   <GrStatusBadge status={r.status} />
                   {r.hasDiscrepancy && (
-                    <span className="rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-xs text-amber-800">
+                    <span className="rounded-full border border-warn-border bg-warn-bg px-2 py-0.5 text-xs text-warn">
                       ต้องตรวจสอบ
                     </span>
                   )}

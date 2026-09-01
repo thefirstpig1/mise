@@ -72,7 +72,7 @@ export default async function NewExpensePage({
       </div>
 
       {categories.length === 0 ? (
-        <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+        <div className="rounded-lg border border-warn-border bg-warn-bg p-4 text-sm text-warn">
           ยังไม่มีหมวดบัญชีในระบบ — ต้องมีอย่างน้อย 1 หมวดก่อนบันทึกค่าใช้จ่าย{" "}
           <a href="/categories" className="font-medium underline">
             ไปตั้งค่าหมวดบัญชี

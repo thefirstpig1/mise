@@ -81,7 +81,7 @@ export default async function StockCountListPage({
       )}
 
       {openSheet && (
-        <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+        <div className="rounded-lg border border-warn-border bg-warn-bg p-3 text-sm text-warn">
           มีใบนับที่ยังไม่ปิดอยู่ —{" "}
           <a href={`/stock-counts/${openSheet.id}`} className="font-medium underline">
             {openSheet.scNumber} ({openSheet.branchName})

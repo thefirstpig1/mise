@@ -32,7 +32,7 @@ export default async function EditPurchaseOrderPage({
     return (
       <div className="space-y-4">
         <h2 className="text-xl font-bold">แก้ไขไม่ได้</h2>
-        <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+        <div className="rounded-lg border border-warn-border bg-warn-bg p-4 text-sm text-warn">
           ใบสั่งซื้อ <strong>{view.poNumber}</strong> ส่งออกไปแล้ว จึงแก้ไขไม่ได้ —
           ผู้ขายถือสำเนาใบเดียวกันอยู่ หากต้องเปลี่ยนให้ยกเลิกใบนี้แล้วออกใบใหม่
         </div>

@@ -111,7 +111,7 @@ function BranchParForm({
             <button
               type="submit"
               disabled={delPending}
-              className="rounded-lg px-2 py-2 text-xs text-muted-foreground hover:text-red-700 disabled:opacity-50"
+              className="rounded-lg px-2 py-2 text-xs text-muted-foreground hover:text-bad disabled:opacity-50"
             >
               {delPending ? "กำลังลบ…" : "ไม่ตั้งขั้นต่ำ"}
             </button>
@@ -120,12 +120,12 @@ function BranchParForm({
       </div>
 
       {errors.map((e, i) => (
-        <p key={i} className="mt-1 text-xs text-red-600">
+        <p key={i} className="mt-1 text-xs text-bad">
           {e}
         </p>
       ))}
       {(setState.ok || delState.ok) && errors.length === 0 && (
-        <p className="mt-1 text-xs text-green-700">บันทึกแล้ว</p>
+        <p className="mt-1 text-xs text-good">บันทึกแล้ว</p>
       )}
     </div>
   );

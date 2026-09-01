@@ -85,7 +85,7 @@ export default async function MenuLabPage() {
                   </span>
                 ) : null}
                 {d.liveRecipeId !== null ? (
-                  <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] text-amber-900">
+                  <span className="rounded-full bg-warn-bg px-2 py-0.5 text-[11px] text-warn">
                     เผยแพร่แล้วจะใช้แทนสูตรเดิมของเมนูนี้
                   </span>
                 ) : null}

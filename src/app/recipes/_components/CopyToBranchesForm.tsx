@@ -96,7 +96,7 @@ export default function CopyToBranchesForm({
             />
             {b.name}
             {b.alreadyOwn ? (
-              <span className="rounded border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] text-amber-900">
+              <span className="rounded border border-warn-border bg-warn-bg px-1.5 py-0.5 text-[10px] text-warn">
                 มีสูตรของตัวเองอยู่แล้ว
               </span>
             ) : null}
@@ -105,11 +105,11 @@ export default function CopyToBranchesForm({
       </div>
 
       {formError ? (
-        <p className="text-sm text-red-600">{formError}</p>
+        <p className="text-sm text-bad">{formError}</p>
       ) : null}
 
       {needsAck ? (
-        <div className="space-y-2 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+        <div className="space-y-2 rounded-lg border border-warn-border bg-warn-bg p-4 text-sm text-warn">
           <p className="font-medium">
             สาขาต่อไปนี้มีสูตรของตัวเองอยู่แล้ว และจะถูกทับ:
           </p>

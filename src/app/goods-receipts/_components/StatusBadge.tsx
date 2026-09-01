@@ -10,8 +10,8 @@ import { GOODS_RECEIPT_STATUS_LABELS_TH } from "@/lib/validations/goods-receipt"
 
 const STYLES: Record<string, string> = {
   DRAFT: "border-border bg-muted/60 text-muted-foreground",
-  CONFIRMED: "border-green-300 bg-green-50 text-green-800",
-  VOIDED: "border-red-300 bg-red-50 text-red-700",
+  CONFIRMED: "border-good-border bg-good-bg text-good",
+  VOIDED: "border-bad-border bg-bad-bg text-bad",
 };
 
 export default function StatusBadge({ status }: { status: string }) {

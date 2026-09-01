@@ -192,7 +192,7 @@ export default function ExpenseForm({
       )}
 
       {formError && (
-        <div className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">
+        <div className="rounded-lg border border-bad-border bg-bad-bg p-3 text-sm text-bad">
           {formError}
         </div>
       )}
@@ -217,7 +217,7 @@ export default function ExpenseForm({
       <section className="grid gap-4 sm:grid-cols-2">
         <div>
           <label htmlFor="branch_id" className={labelClass}>
-            สาขา <span className="text-red-600">*</span>
+            สาขา <span className="text-bad">*</span>
           </label>
           <select
             id="branch_id"
@@ -237,7 +237,7 @@ export default function ExpenseForm({
           {/* A disabled control posts nothing, so the value is carried by hand. */}
           {locked && <input type="hidden" name="branch_id" value={branchId} />}
           {err("branchId") && (
-            <p className="mt-1 text-xs text-red-600">{err("branchId")}</p>
+            <p className="mt-1 text-xs text-bad">{err("branchId")}</p>
           )}
         </div>
 
@@ -267,13 +267,13 @@ export default function ExpenseForm({
             />
           )}
           {err("supplierId") && (
-            <p className="mt-1 text-xs text-red-600">{err("supplierId")}</p>
+            <p className="mt-1 text-xs text-bad">{err("supplierId")}</p>
           )}
         </div>
 
         <div>
           <label htmlFor="bill_date" className={labelClass}>
-            วันที่บิล <span className="text-red-600">*</span>
+            วันที่บิล <span className="text-bad">*</span>
           </label>
           <input
             id="bill_date"
@@ -288,7 +288,7 @@ export default function ExpenseForm({
             <input type="hidden" name="bill_date" value={existing!.billDate} />
           )}
           {err("billDate") && (
-            <p className="mt-1 text-xs text-red-600">{err("billDate")}</p>
+            <p className="mt-1 text-xs text-bad">{err("billDate")}</p>
           )}
         </div>
 
@@ -307,7 +307,7 @@ export default function ExpenseForm({
             <input type="hidden" name="bill_no" value={existing?.billNo ?? ""} />
           )}
           {err("billNo") && (
-            <p className="mt-1 text-xs text-red-600">{err("billNo")}</p>
+            <p className="mt-1 text-xs text-bad">{err("billNo")}</p>
           )}
         </div>
 
@@ -352,9 +352,9 @@ export default function ExpenseForm({
           )}
         </div>
 
-        {err("items") && <p className="text-xs text-red-600">{err("items")}</p>}
+        {err("items") && <p className="text-xs text-bad">{err("items")}</p>}
         {err("categoryId") && (
-          <p className="text-xs text-red-600">{err("categoryId")}</p>
+          <p className="text-xs text-bad">{err("categoryId")}</p>
         )}
 
         <div className="space-y-3">
@@ -429,7 +429,7 @@ export default function ExpenseForm({
 
               <div className="sm:col-span-2">
                 <label className={`${labelClass} text-xs`}>
-                  จำนวนเงิน <span className="text-red-600">*</span>
+                  จำนวนเงิน <span className="text-bad">*</span>
                 </label>
                 <input
                   name="item_line_total"
@@ -467,7 +467,7 @@ export default function ExpenseForm({
                     onClick={() =>
                       setLines((prev) => prev.filter((l) => l.key !== line.key))
                     }
-                    className="text-xs text-red-600 hover:underline"
+                    className="text-xs text-bad hover:underline"
                   >
                     ลบรายการนี้
                   </button>
@@ -498,7 +498,7 @@ export default function ExpenseForm({
             <input type="hidden" name="vat_rate_percent" value={vatRate} />
           )}
           {err("vatRatePercent") && (
-            <p className="mt-1 text-xs text-red-600">{err("vatRatePercent")}</p>
+            <p className="mt-1 text-xs text-bad">{err("vatRatePercent")}</p>
           )}
           <label className="mt-2 flex items-center gap-2 text-sm">
             <input
@@ -536,7 +536,7 @@ export default function ExpenseForm({
                 className={inputClass}
               />
               {err("whtRatePercent") && (
-                <p className="text-xs text-red-600">{err("whtRatePercent")}</p>
+                <p className="text-xs text-bad">{err("whtRatePercent")}</p>
               )}
               <input
                 name="wht_certificate_no"
@@ -587,7 +587,7 @@ export default function ExpenseForm({
             </div>
           )}
           {err("paidAt") && (
-            <p className="mt-1 text-xs text-red-600">{err("paidAt")}</p>
+            <p className="mt-1 text-xs text-bad">{err("paidAt")}</p>
           )}
         </div>
 

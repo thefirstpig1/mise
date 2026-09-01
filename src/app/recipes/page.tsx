@@ -54,8 +54,8 @@ function ConfidenceChip({ row }: { row: RecipeListRowView }) {
     row.confidence === "HIGH"
       ? "bg-emerald-50 text-emerald-700 border-emerald-200"
       : row.confidence === "MEDIUM"
-        ? "bg-amber-50 text-amber-800 border-amber-200"
-        : "bg-red-50 text-red-700 border-red-200";
+        ? "bg-warn-bg text-warn border-warn-border"
+        : "bg-bad-bg text-bad border-bad-border";
   return (
     <span
       className={`ml-2 inline-block rounded border px-1.5 py-0.5 text-[10px] font-normal ${tone}`}
@@ -81,7 +81,7 @@ function CostCell({
   }
   if (row.problem !== null) {
     return (
-      <span className="text-xs text-red-700">{row.problemLabel}</span>
+      <span className="text-xs text-bad">{row.problemLabel}</span>
     );
   }
   if (row.costPerServing === null) {
@@ -364,7 +364,7 @@ export default async function RecipesPage({
             count sheet. Nothing in the system can RAISE a prepped balance yet —
             production movements are a Part of their own — so the stock figure for
             these products only ever goes down. */}
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+        <div className="rounded-lg border border-warn-border bg-warn-bg p-4 text-sm text-warn">
           <strong>ยังนับสต๊อกของแปรรูปไม่ได้</strong> — ตอนนี้ระบบยังไม่มีการ
           “บันทึกการผลิต” ที่จะเพิ่มยอดของแปรรูปเข้าคลัง ยอดคงเหลือจึงมีแต่ลดลง
           ถ้าไปนับสต๊อกของพวกนี้ ระบบจะรายงานว่า “ของเกิน” ทุกครั้ง

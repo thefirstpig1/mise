@@ -44,11 +44,11 @@ export default function RetireRecurringButton({
       <button
         type="submit"
         disabled={isPending}
-        className="text-sm text-red-600 hover:underline disabled:opacity-60"
+        className="text-sm text-bad hover:underline disabled:opacity-60"
       >
         {isPending ? "กำลังเลิกใช้…" : "เลิกใช้รายการประจำนี้"}
       </button>
-      {formError && <p className="mt-1 text-xs text-red-600">{formError}</p>}
+      {formError && <p className="mt-1 text-xs text-bad">{formError}</p>}
     </form>
   );
 }

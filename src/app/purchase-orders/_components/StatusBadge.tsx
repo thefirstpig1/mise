@@ -12,9 +12,9 @@ import { PURCHASE_ORDER_STATUS_LABELS_TH } from "@/lib/validations/purchase-orde
 const STYLES: Record<string, string> = {
   DRAFT: "border-border bg-muted/60 text-muted-foreground",
   SENT: "border-blue-300 bg-blue-50 text-blue-700",
-  PARTIALLY_RECEIVED: "border-amber-300 bg-amber-50 text-amber-800",
-  RECEIVED: "border-green-300 bg-green-50 text-green-800",
-  CANCELLED: "border-red-300 bg-red-50 text-red-700",
+  PARTIALLY_RECEIVED: "border-warn-border bg-warn-bg text-warn",
+  RECEIVED: "border-good-border bg-good-bg text-good",
+  CANCELLED: "border-bad-border bg-bad-bg text-bad",
 };
 
 export default function StatusBadge({ status }: { status: string }) {

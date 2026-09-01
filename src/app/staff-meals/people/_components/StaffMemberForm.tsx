@@ -72,7 +72,7 @@ export function CreateStaffMemberForm({
             className={inputClass}
           />
           {fieldErrors?.name && (
-            <p className="mt-1 text-xs text-red-600">{fieldErrors.name}</p>
+            <p className="mt-1 text-xs text-bad">{fieldErrors.name}</p>
           )}
         </div>
         <div>
@@ -106,7 +106,7 @@ export function CreateStaffMemberForm({
             className={inputClass}
           />
           {fieldErrors?.dailyQuotaAmount && (
-            <p className="mt-1 text-xs text-red-600">
+            <p className="mt-1 text-xs text-bad">
               {fieldErrors.dailyQuotaAmount}
             </p>
           )}
@@ -171,7 +171,7 @@ export function EditStaffMemberRow({
           aria-label="ชื่อ"
         />
         {fieldErrors?.name && (
-          <p className="mt-1 text-xs text-red-600">{fieldErrors.name}</p>
+          <p className="mt-1 text-xs text-bad">{fieldErrors.name}</p>
         )}
       </div>
       <select

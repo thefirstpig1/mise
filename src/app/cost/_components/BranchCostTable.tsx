@@ -112,7 +112,7 @@ export default function BranchCostTable({
                       </span>
                     )}
                     {(r.negativeStockProducts > 0 || r.unpricedProducts > 0) && (
-                      <div className="mt-0.5 text-xs text-amber-700">
+                      <div className="mt-0.5 text-xs text-warn">
                         {r.negativeStockProducts > 0 &&
                           `สต๊อกติดลบ ${r.negativeStockProducts} รายการ`}
                         {r.negativeStockProducts > 0 &&
@@ -126,17 +126,17 @@ export default function BranchCostTable({
                   <td className={tdNum}>{formatMoney(r.cogsSpend)}</td>
                   <td className={tdNum}>{formatMoney(r.opexSpend)}</td>
                   <td
-                    className={`${tdNum} ${waste > 0 ? "font-medium text-red-700" : "text-muted-foreground"}`}
+                    className={`${tdNum} ${waste > 0 ? "font-medium text-bad" : "text-muted-foreground"}`}
                   >
                     {formatMoney(r.wasteValue)}
                   </td>
                   <td
-                    className={`${tdNum} ${variance > 0 ? "font-medium text-red-700" : "text-muted-foreground"}`}
+                    className={`${tdNum} ${variance > 0 ? "font-medium text-bad" : "text-muted-foreground"}`}
                   >
                     {formatMoney(r.varianceValue)}
                   </td>
                   <td
-                    className={`${tdNum} ${excess > 0 ? "font-medium text-red-700" : "text-muted-foreground"}`}
+                    className={`${tdNum} ${excess > 0 ? "font-medium text-bad" : "text-muted-foreground"}`}
                   >
                     {formatMoney(r.excessSpend)}
                   </td>
@@ -251,7 +251,7 @@ export default function BranchCostTable({
       </p>
 
       {hasDataQualityIssue && (
-        <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
+        <div className="rounded-lg border border-warn-border bg-warn-bg p-3 text-xs text-warn">
           บางสาขามีสต๊อกติดลบหรือของที่ยังไม่ทราบต้นทุน — ตัวเลขต้นทุนของสาขานั้นจะแม่นขึ้นเมื่อคีย์ใบรับของครบและระบุต้นทุนของที่นับเจอเพิ่ม
         </div>
       )}

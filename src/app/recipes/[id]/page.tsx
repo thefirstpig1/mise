@@ -155,7 +155,7 @@ export default async function RecipePage({
       {/* Rule R8's second permitted place: the date is the whole reason this
           banner exists — it says the version on screen is not today's. */}
       {recipe.isSuperseded ? (
-        <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+        <div className="rounded-lg border border-warn-border bg-warn-bg p-4 text-sm text-warn">
           <strong>เวอร์ชันนี้ถูกแก้ทิ้งไปแล้ว</strong> — มีคนแก้เพราะกรอกผิด
           ไม่ใช่เพราะสูตรเปลี่ยน จึงไม่ได้ใช้กับวันไหนเลย
           {current ? (
@@ -409,7 +409,7 @@ export default async function RecipePage({
       </section>
 
       {recipe.targetKind === "product" ? (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+        <div className="rounded-lg border border-warn-border bg-warn-bg p-4 text-sm text-warn">
           <strong>ยังนับสต๊อกของแปรรูปไม่ได้</strong> — ระบบยังไม่มีการบันทึกการผลิต
           ที่จะเพิ่มยอดของแปรรูปเข้าคลัง ยอดคงเหลือจึงมีแต่ลดลง
           ถ้าไปนับสต๊อกตัวนี้ ระบบจะรายงานว่า “ของเกิน” ทุกครั้ง

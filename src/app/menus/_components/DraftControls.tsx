@@ -82,8 +82,8 @@ export default function DraftControls({
         <div
           className={`rounded-lg border p-3 text-sm ${
             needsAck
-              ? "border-amber-200 bg-amber-50 text-amber-900"
-              : "border-red-200 bg-red-50 text-red-700"
+              ? "border-warn-border bg-warn-bg text-warn"
+              : "border-bad-border bg-bad-bg text-bad"
           }`}
         >
           <p>{state.formError}</p>
@@ -120,7 +120,7 @@ export default function DraftControls({
 
       <div className="border-t border-border pt-4">
         {discardError ? (
-          <p className="mb-2 text-xs text-red-600">{discardError}</p>
+          <p className="mb-2 text-xs text-bad">{discardError}</p>
         ) : null}
         {confirmDiscard ? (
           <div className="flex items-center gap-3">
@@ -137,7 +137,7 @@ export default function DraftControls({
                   else setDiscardError(result.error);
                 })
               }
-              className="rounded-lg border border-red-200 px-3 py-1.5 text-xs text-red-700 hover:bg-red-50 disabled:opacity-50"
+              className="rounded-lg border border-bad-border px-3 py-1.5 text-xs text-bad hover:bg-bad-bg disabled:opacity-50"
             >
               {discarding ? "กำลังทิ้ง…" : "ทิ้งร่าง"}
             </button>

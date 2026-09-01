@@ -250,7 +250,7 @@ export default function ProfileBuilder({ posOptions }: { posOptions: PosOption[]
           </div>
 
           {/* The three questions with no default (rule P10 / P13). */}
-          <fieldset className="mt-4 rounded-lg border border-amber-500/50 bg-amber-500/5 p-3">
+          <fieldset className="mt-4 rounded-lg border border-warn/50 bg-warn/5 p-3">
             <legend className="px-1 text-xs font-medium">
               สามข้อนี้ต้องตอบ — ตอบผิดแล้วตัวเลขจะเพี้ยนทุกแถวโดยไม่มีอะไรฟ้อง
             </legend>

@@ -139,7 +139,7 @@ export default function MenuRowEditor({
         <div>
           <span className="text-sm font-medium">{menu.name}</span>
           {menu.isPosStub && (
-            <span className="ml-2 rounded bg-amber-500/20 px-1.5 py-0.5 text-xs">รอตรวจ</span>
+            <span className="ml-2 rounded bg-warn/20 px-1.5 py-0.5 text-xs">รอตรวจ</span>
           )}
           {menu.isRetired && (
             <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
@@ -190,11 +190,11 @@ export default function MenuRowEditor({
       )}
 
       {lifecycle !== null && !lifecycle.ok && (
-        <p className="mt-1 text-xs text-red-600">{lifecycle.error}</p>
+        <p className="mt-1 text-xs text-bad">{lifecycle.error}</p>
       )}
 
       {open && (
-        <div className="mt-2 flex items-baseline justify-between gap-3 rounded-lg border border-red-200 bg-red-50/40 px-2 py-1.5">
+        <div className="mt-2 flex items-baseline justify-between gap-3 rounded-lg border border-bad-border bg-bad-bg/40 px-2 py-1.5">
           <p className="text-xs text-muted-foreground">
             {/* Said here rather than only in the confirm, because the honest
                 answer to "can I delete this?" is usually no — and เลิกขาย is
@@ -205,7 +205,7 @@ export default function MenuRowEditor({
             type="button"
             onClick={remove}
             disabled={busy}
-            className="shrink-0 rounded-lg border border-red-200 px-2 py-1 text-xs text-red-700 hover:bg-red-50 disabled:opacity-50"
+            className="shrink-0 rounded-lg border border-bad-border px-2 py-1 text-xs text-bad hover:bg-bad-bg disabled:opacity-50"
           >
             {armed ? "ยืนยันลบเมนู" : "ลบเมนู"}
           </button>

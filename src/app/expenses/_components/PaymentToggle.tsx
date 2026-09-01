@@ -62,7 +62,7 @@ export default function PaymentToggle({
             ? "ทำเครื่องหมายว่าจ่ายแล้ว"
             : "ยกเลิกสถานะจ่ายแล้ว"}
       </button>
-      {formError && <p className="text-xs text-red-600">{formError}</p>}
+      {formError && <p className="text-xs text-bad">{formError}</p>}
     </form>
   );
 }

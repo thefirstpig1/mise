@@ -103,17 +103,17 @@ export default async function ExpenseListPage({
         never arrive.
       */}
       {due.length > 0 && (
-        <section className="rounded-lg border border-amber-300 bg-amber-50 p-4">
-          <h3 className="text-sm font-bold text-amber-900">
+        <section className="rounded-lg border border-warn-border bg-warn-bg p-4">
+          <h3 className="text-sm font-bold text-warn">
             ถึงกำหนดบันทึก ({due.reduce((n, d) => n + d.duePeriods.length, 0)} งวด)
           </h3>
-          <p className="mt-1 text-xs text-amber-800">
+          <p className="mt-1 text-xs text-warn">
             รายการประจำที่ยังไม่ได้บันทึกในเดือนนั้น — ระบบไม่บันทึกให้เอง
             เพราะยอดจริงแต่ละเดือนไม่เท่ากัน
           </p>
           <ul className="mt-3 space-y-2">
             {due.map((d) => (
-              <li key={d.template.id} className="text-sm text-amber-900">
+              <li key={d.template.id} className="text-sm text-warn">
                 <span className="font-medium">{d.template.description}</span>
                 <span className="ml-2 text-xs">
                   {d.template.branchName} · ทุกวันที่ {d.template.dayOfMonth} ·
@@ -124,7 +124,7 @@ export default async function ExpenseListPage({
                     <a
                       key={period}
                       href={`/expenses/new?recurring=${d.template.id}&period=${period}`}
-                      className="rounded-lg border border-amber-400 bg-white px-2 py-1 text-xs font-medium hover:bg-amber-100"
+                      className="rounded-lg border border-warn-border bg-white px-2 py-1 text-xs font-medium hover:bg-warn-bg"
                     >
                       บันทึกงวด {period}
                     </a>

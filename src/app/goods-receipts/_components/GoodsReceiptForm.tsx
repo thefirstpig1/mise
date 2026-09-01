@@ -109,7 +109,7 @@ export type GoodsReceiptFormInitial = {
 const inputClass =
   "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none";
 const labelClass = "block text-sm font-medium";
-const errorClass = "mt-1 text-xs text-red-600";
+const errorClass = "mt-1 text-xs text-bad";
 
 let rowSeq = 0;
 const newRow = (): LineRow => ({
@@ -339,12 +339,12 @@ export default function GoodsReceiptForm({
       <input type="hidden" name="supplier_id" value={supplierId} />
 
       {!state.ok && state.formError && (
-        <div className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">
+        <div className="rounded-lg border border-bad-border bg-bad-bg p-3 text-sm text-bad">
           {state.formError}
         </div>
       )}
       {state.ok && (
-        <div className="rounded-lg border border-green-300 bg-green-50 p-3 text-sm text-green-800">
+        <div className="rounded-lg border border-good-border bg-good-bg p-3 text-sm text-good">
           บันทึกฉบับร่าง {state.grNumber} แล้ว —{" "}
           <a href={`/goods-receipts/${state.id}`} className="font-medium underline">
             เปิดเพื่อยืนยันรับของ
@@ -570,7 +570,7 @@ export default function GoodsReceiptForm({
               <div
                 key={r.key}
                 className={`space-y-2 rounded-lg border p-3 ${
-                  over ? "border-amber-300 bg-amber-50/50" : "border-border"
+                  over ? "border-warn-border bg-warn-bg/50" : "border-border"
                 }`}
               >
                 <input type="hidden" name="line_po_item_id" value={r.purchaseOrderItemId} />
@@ -681,7 +681,7 @@ export default function GoodsReceiptForm({
                   )}
                   {r.orderedUnitPrice !== null &&
                     n(r.unitPrice) !== n(r.orderedUnitPrice) && (
-                      <span className="text-amber-700">
+                      <span className="text-warn">
                         ราคาต่างจากใบสั่งซื้อ ({r.orderedUnitPrice})
                       </span>
                     )}
@@ -697,7 +697,7 @@ export default function GoodsReceiptForm({
                     appears then — an always-on field would be ignored. */}
                 {over ? (
                   <div>
-                    <label className="text-xs font-medium text-amber-800">
+                    <label className="text-xs font-medium text-warn">
                       รับเกินที่ค้างอยู่ — ระบุเหตุผล (จำเป็น)
                     </label>
                     <input
@@ -723,7 +723,7 @@ export default function GoodsReceiptForm({
       </section>
 
       {anyOver && (
-        <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
+        <div className="rounded-lg border border-warn-border bg-warn-bg p-3 text-sm text-warn">
           มีรายการที่รับเกินจำนวนที่สั่ง — ระบบจะบันทึกเข้าคลังตามจริงและติดธง
           &quot;ต้องตรวจสอบ&quot; ไว้ให้ผู้จัดการดู
         </div>

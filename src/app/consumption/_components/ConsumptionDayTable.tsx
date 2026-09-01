@@ -45,10 +45,10 @@ const money = (v: string) =>
   });
 
 const STATE_TONE: Record<ConsumptionDayView["state"], string> = {
-  NOT_POSTED: "bg-amber-50 text-amber-900 border-amber-300",
+  NOT_POSTED: "bg-warn-bg text-warn border-warn-border",
   OUT_OF_WINDOW: "bg-muted text-muted-foreground border-border",
   POSTED: "bg-emerald-50 text-emerald-900 border-emerald-300",
-  POSTED_PARTIAL: "bg-amber-50 text-amber-900 border-amber-300",
+  POSTED_PARTIAL: "bg-warn-bg text-warn border-warn-border",
   POSTED_STALE: "bg-orange-50 text-orange-900 border-orange-300",
 };
 

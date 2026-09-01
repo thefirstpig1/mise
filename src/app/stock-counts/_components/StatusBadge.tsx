@@ -8,7 +8,7 @@ import type { StockCountStatus } from "@prisma/client";
 import { STOCK_COUNT_STATUS_LABELS_TH } from "@/lib/validations/stock-count";
 
 const CLASS: Record<StockCountStatus, string> = {
-  DRAFT: "border-amber-200 bg-amber-50 text-amber-900",
+  DRAFT: "border-warn-border bg-warn-bg text-warn",
   CLOSED: "border-emerald-200 bg-emerald-50 text-emerald-800",
   VOIDED: "border-border bg-muted text-muted-foreground line-through",
 };

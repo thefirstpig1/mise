@@ -49,16 +49,16 @@ export default function IncomingTransfers({
   }
 
   return (
-    <div className="rounded-lg border border-amber-300 bg-amber-50 p-4">
-      <p className="text-sm font-medium text-amber-900">
+    <div className="rounded-lg border border-warn-border bg-warn-bg p-4">
+      <p className="text-sm font-medium text-warn">
         มีของกำลังส่งมาที่{branchName} {transfers.length} ใบ ยังไม่มีใครกดรับ
       </p>
-      <p className="mt-1 text-xs text-amber-800">
+      <p className="mt-1 text-xs text-warn">
         ของอยู่ในยอดคงเหลือของสาขานี้เรียบร้อยแล้ว — ที่ยังค้างคือการนับยืนยันว่าได้รับจริง
       </p>
 
       {countWarning && (
-        <p className="mt-2 rounded-lg border border-amber-400 bg-amber-100 p-2 text-xs text-amber-900">
+        <p className="mt-2 rounded-lg border border-warn-border bg-warn-bg p-2 text-xs text-warn">
           ถ้านับสต๊อกตอนนี้โดยของยังไม่ถึง จะนับได้ขาดเท่าจำนวนที่อยู่บนรถพอดี
           และระบบจะบันทึกส่วนต่างนั้นเป็นของหายจริงพร้อมชื่อคนนับ — นับรวมของบนรถ
           หรือรอให้ของถึงก่อนก็ได้ แต่ควรตั้งใจเลือก
@@ -68,10 +68,10 @@ export default function IncomingTransfers({
       <ul className="mt-3 space-y-1 text-sm">
         {transfers.map((t) => (
           <li key={t.id}>
-            <a href={`/transfers/${t.id}`} className="text-amber-900 hover:underline">
+            <a href={`/transfers/${t.id}`} className="text-warn hover:underline">
               {t.tfNumber}
             </a>{" "}
-            <span className="text-amber-800">
+            <span className="text-warn">
               จาก {t.fromBranch.name} · {t.lineCount} รายการ · ส่ง {t.dispatchedAtLabel}
             </span>
           </li>

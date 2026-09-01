@@ -76,7 +76,7 @@ export default async function GoodsReceiptDetailPage({
         </div>
       )}
       {gr.status === "VOIDED" && (
-        <div className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-800">
+        <div className="rounded-lg border border-bad-border bg-bad-bg p-3 text-sm text-bad">
           ใบรับนี้ถูกยกเลิกเมื่อ {gr.voidedAtLabel}
           {gr.voidedByName ? ` โดย ${gr.voidedByName}` : ""}
           {gr.voidReason ? ` — ${gr.voidReason}` : ""}
@@ -104,7 +104,7 @@ export default async function GoodsReceiptDetailPage({
       )}
 
       {gr.hasDiscrepancy && gr.status === "CONFIRMED" && (
-        <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 print:hidden">
+        <div className="rounded-lg border border-warn-border bg-warn-bg p-3 text-sm text-warn print:hidden">
           ใบนี้ถูกติดธง &quot;ต้องตรวจสอบ&quot; — จำนวนหรือราคาไม่ตรงกับใบสั่งซื้อ
           ดูคอลัมน์ &quot;ต่างจากที่สั่ง&quot; ด้านล่าง
         </div>
@@ -135,7 +135,7 @@ export default async function GoodsReceiptDetailPage({
             <p className="font-medium">
               {gr.supplier.nameFull}
               {gr.supplier.deleted && (
-                <span className="ml-1 text-xs text-amber-700">(ถูกลบแล้ว)</span>
+                <span className="ml-1 text-xs text-warn">(ถูกลบแล้ว)</span>
               )}
             </p>
             {gr.supplier.contactPhone && (
@@ -189,7 +189,7 @@ export default async function GoodsReceiptDetailPage({
                 <tr
                   key={l.id}
                   className={`border-b border-border align-top ${
-                    l.isReversal ? "bg-red-50/50 text-red-800" : ""
+                    l.isReversal ? "bg-bad-bg/50 text-bad" : ""
                   }`}
                 >
                   <td className="py-2 pr-2 tabular-nums text-muted-foreground">
@@ -205,7 +205,7 @@ export default async function GoodsReceiptDetailPage({
                     <div className="text-xs text-muted-foreground">
                       {l.productSku}
                       {l.productDeleted && (
-                        <span className="ml-1 text-amber-700">(ถูกลบแล้ว)</span>
+                        <span className="ml-1 text-warn">(ถูกลบแล้ว)</span>
                       )}
                     </div>
                     {l.notes && (
@@ -224,7 +224,7 @@ export default async function GoodsReceiptDetailPage({
                         <span
                           className={
                             Number(l.ordered.varianceQty) > 0
-                              ? "text-amber-700"
+                              ? "text-warn"
                               : "text-muted-foreground"
                           }
                         >
@@ -239,7 +239,7 @@ export default async function GoodsReceiptDetailPage({
                   <td className="py-2 pr-2 text-right tabular-nums">
                     {formatMoney(l.unitPriceActual)}
                     {l.ordered && Number(l.ordered.variancePrice) !== 0 && (
-                      <div className="text-xs text-amber-700">
+                      <div className="text-xs text-warn">
                         สั่งที่ {formatMoney(l.ordered.unitPrice)}
                       </div>
                     )}

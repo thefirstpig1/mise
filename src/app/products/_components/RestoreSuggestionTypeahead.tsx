@@ -44,13 +44,13 @@ function scoreBadge(score: number): { label: string; className: string } {
   if (score > 0.7) {
     return {
       label: "ตรงกันมาก",
-      className: "border-green-300 bg-green-50 text-green-700",
+      className: "border-good-border bg-good-bg text-good",
     };
   }
   if (score >= 0.5) {
     return {
       label: "ใกล้เคียง",
-      className: "border-amber-300 bg-amber-50 text-amber-700",
+      className: "border-warn-border bg-warn-bg text-warn",
     };
   }
   return {
@@ -194,7 +194,7 @@ export default function RestoreSuggestionTypeahead({
 
                   {/* Q5 — sku conflict warning (informational; resolve in L5b). */}
                   {c.hasSkuConflict && (
-                    <span className="mt-0.5 block text-xs text-amber-700">
+                    <span className="mt-0.5 block text-xs text-warn">
                       ⚠️ รหัส {c.sku} ถูกใช้แล้วโดย “
                       {c.conflictingLiveProductName}”
                     </span>

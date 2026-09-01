@@ -46,7 +46,7 @@ export default async function EditGoodsReceiptPage({
     return (
       <div className="space-y-4">
         <h2 className="text-xl font-bold">{gr.grNumber}</h2>
-        <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+        <div className="rounded-lg border border-warn-border bg-warn-bg p-4 text-sm text-warn">
           <p className="font-medium">
             ใบรับสินค้านี้แก้ไขไม่ได้ (สถานะ:{" "}
             {GOODS_RECEIPT_STATUS_LABELS_TH[

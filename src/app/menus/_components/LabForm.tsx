@@ -300,7 +300,7 @@ export default function LabForm({
                     className={`${inputClass} mt-1`}
                   />
                   {fieldErrors?.newMenuName ? (
-                    <p className="mt-1 text-xs text-red-600">
+                    <p className="mt-1 text-xs text-bad">
                       {fieldErrors.newMenuName}
                     </p>
                   ) : null}
@@ -342,7 +342,7 @@ export default function LabForm({
                         {restoring ? "กำลังกู้คืน…" : "กู้คืนเมนูเดิม"}
                       </button>
                       {restoreError !== null ? (
-                        <p className="mt-1 text-xs text-red-600">{restoreError}</p>
+                        <p className="mt-1 text-xs text-bad">{restoreError}</p>
                       ) : null}
                     </div>
                   ) : null}
@@ -366,7 +366,7 @@ export default function LabForm({
                     ))}
                   </select>
                   {fieldErrors?.menuCategoryId ? (
-                    <p className="mt-1 text-xs text-red-600">
+                    <p className="mt-1 text-xs text-bad">
                       {fieldErrors.menuCategoryId}
                     </p>
                   ) : null}
@@ -396,7 +396,7 @@ export default function LabForm({
                     ))}
                   </select>
                   {fieldErrors?.menuId ? (
-                    <p className="mt-1 text-xs text-red-600">{fieldErrors.menuId}</p>
+                    <p className="mt-1 text-xs text-bad">{fieldErrors.menuId}</p>
                   ) : null}
                   <p className="mt-1 text-xs text-muted-foreground">
                     เมนูที่มีสูตรอยู่แล้วก็ร่างได้ — สูตรเดิมยังใช้งานตามปกติ
@@ -409,7 +409,7 @@ export default function LabForm({
         )}
 
         {formError ? (
-          <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          <div className="rounded-lg border border-bad-border bg-bad-bg p-3 text-sm text-bad">
             {formError}
           </div>
         ) : null}
@@ -431,7 +431,7 @@ export default function LabForm({
               ใส่ตามที่ทำจริง — ผัดทีละ 4 จานก็ใส่ 4 ระบบจะหารให้เอง
             </p>
             {fieldErrors?.servings ? (
-              <p className="mt-1 text-xs text-red-600">{fieldErrors.servings}</p>
+              <p className="mt-1 text-xs text-bad">{fieldErrors.servings}</p>
             ) : null}
           </div>
 
@@ -454,7 +454,7 @@ export default function LabForm({
                 : PLANNED_PRICE_HINT_TH}
             </p>
             {fieldErrors?.plannedPrice ? (
-              <p className="mt-1 text-xs text-red-600">
+              <p className="mt-1 text-xs text-bad">
                 {fieldErrors.plannedPrice}
               </p>
             ) : null}
@@ -470,7 +470,7 @@ export default function LabForm({
           </div>
 
           {fieldErrors?.ingredients ? (
-            <p className="text-xs text-red-600">{fieldErrors.ingredients}</p>
+            <p className="text-xs text-bad">{fieldErrors.ingredients}</p>
           ) : null}
 
           <div className="space-y-3">
@@ -629,7 +629,7 @@ export default function LabForm({
                   />
 
                   {rowError ? (
-                    <p className="mt-1 text-xs text-red-600">{rowError}</p>
+                    <p className="mt-1 text-xs text-bad">{rowError}</p>
                   ) : null}
                 </div>
               );
@@ -750,7 +750,7 @@ export default function LabForm({
         )}
 
         {whatIfError !== null ? (
-          <p className="text-xs text-amber-700">{whatIfError}</p>
+          <p className="text-xs text-warn">{whatIfError}</p>
         ) : null}
         {costing ? (
           <p className="text-xs text-muted-foreground">กำลังคิดต้นทุน…</p>

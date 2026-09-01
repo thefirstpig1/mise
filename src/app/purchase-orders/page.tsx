@@ -91,7 +91,7 @@ export default async function PurchaseOrdersPage({
       </div>
 
       {!parsed.success && (
-        <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
+        <div className="rounded-lg border border-warn-border bg-warn-bg p-3 text-sm text-warn">
           ตัวกรองใน URL ไม่ถูกต้อง — แสดงรายการทั้งหมดแทน
         </div>
       )}
@@ -159,7 +159,7 @@ export default async function PurchaseOrdersPage({
                   <td className="px-3 py-2">
                     {po.supplierName}
                     {po.supplierDeleted && (
-                      <span className="ml-1 text-xs text-amber-700">(ถูกลบแล้ว)</span>
+                      <span className="ml-1 text-xs text-warn">(ถูกลบแล้ว)</span>
                     )}
                   </td>
                   <td className="px-3 py-2 text-muted-foreground">{po.branchName}</td>

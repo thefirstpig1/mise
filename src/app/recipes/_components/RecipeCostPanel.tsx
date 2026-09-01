@@ -17,8 +17,8 @@ import type { RecipeCostView } from "./recipe-view";
 
 const tone: Record<string, string> = {
   HIGH: "border-emerald-200 bg-emerald-50 text-emerald-800",
-  MEDIUM: "border-amber-200 bg-amber-50 text-amber-900",
-  LOW: "border-red-200 bg-red-50 text-red-800",
+  MEDIUM: "border-warn-border bg-warn-bg text-warn",
+  LOW: "border-bad-border bg-bad-bg text-bad",
 };
 
 export default function RecipeCostPanel({
@@ -42,7 +42,7 @@ export default function RecipeCostPanel({
 
   if (cost.problem !== null) {
     return (
-      <div className="rounded-xl border border-red-200 bg-red-50 p-5 text-sm text-red-800">
+      <div className="rounded-xl border border-bad-border bg-bad-bg p-5 text-sm text-bad">
         <p className="font-medium">คิดต้นทุนไม่ได้</p>
         <p className="mt-1">{cost.problemLabel}</p>
       </div>
@@ -83,7 +83,7 @@ export default function RecipeCostPanel({
       </div>
 
       {cost.unpriced.length > 0 ? (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+        <div className="rounded-xl border border-bad-border bg-bad-bg p-4 text-sm text-bad">
           <p className="font-medium">
             ตัวเลขนี้ต่ำกว่าความจริง — มี {cost.unpriced.length} อย่างที่ยังไม่รู้ต้นทุน
           </p>

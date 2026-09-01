@@ -59,7 +59,7 @@ export default function RecurringExpenseForm({
       {existing && <input type="hidden" name="id" value={existing.id} />}
 
       {formError && (
-        <div className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">
+        <div className="rounded-lg border border-bad-border bg-bad-bg p-3 text-sm text-bad">
           {formError}
         </div>
       )}
@@ -67,7 +67,7 @@ export default function RecurringExpenseForm({
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="sm:col-span-2">
           <label htmlFor="description" className={labelClass}>
-            รายการ <span className="text-red-600">*</span>
+            รายการ <span className="text-bad">*</span>
           </label>
           <input
             id="description"
@@ -78,13 +78,13 @@ export default function RecurringExpenseForm({
             required
           />
           {err("description") && (
-            <p className="mt-1 text-xs text-red-600">{err("description")}</p>
+            <p className="mt-1 text-xs text-bad">{err("description")}</p>
           )}
         </div>
 
         <div>
           <label htmlFor="branch_id" className={labelClass}>
-            สาขา <span className="text-red-600">*</span>
+            สาขา <span className="text-bad">*</span>
           </label>
           <select
             id="branch_id"
@@ -100,7 +100,7 @@ export default function RecurringExpenseForm({
             ))}
           </select>
           {err("branchId") && (
-            <p className="mt-1 text-xs text-red-600">{err("branchId")}</p>
+            <p className="mt-1 text-xs text-bad">{err("branchId")}</p>
           )}
         </div>
 
@@ -125,7 +125,7 @@ export default function RecurringExpenseForm({
 
         <div>
           <label htmlFor="category_id" className={labelClass}>
-            หมวดบัญชี <span className="text-red-600">*</span>
+            หมวดบัญชี <span className="text-bad">*</span>
           </label>
           <select
             id="category_id"
@@ -141,13 +141,13 @@ export default function RecurringExpenseForm({
             ))}
           </select>
           {err("categoryId") && (
-            <p className="mt-1 text-xs text-red-600">{err("categoryId")}</p>
+            <p className="mt-1 text-xs text-bad">{err("categoryId")}</p>
           )}
         </div>
 
         <div>
           <label htmlFor="default_amount" className={labelClass}>
-            ยอดตั้งต้น <span className="text-red-600">*</span>
+            ยอดตั้งต้น <span className="text-bad">*</span>
           </label>
           <input
             id="default_amount"
@@ -161,13 +161,13 @@ export default function RecurringExpenseForm({
             เป็นแค่ยอดตั้งต้น — ตอนบันทึกจริงแก้ได้ทุกเดือน
           </p>
           {err("defaultAmount") && (
-            <p className="mt-1 text-xs text-red-600">{err("defaultAmount")}</p>
+            <p className="mt-1 text-xs text-bad">{err("defaultAmount")}</p>
           )}
         </div>
 
         <div>
           <label htmlFor="day_of_month" className={labelClass}>
-            ครบกำหนดวันที่ <span className="text-red-600">*</span>
+            ครบกำหนดวันที่ <span className="text-bad">*</span>
           </label>
           <input
             id="day_of_month"
@@ -183,13 +183,13 @@ export default function RecurringExpenseForm({
             ได้ถึงวันที่ 28 เท่านั้น — วันที่ 29-31 จะข้ามเดือนกุมภาพันธ์
           </p>
           {err("dayOfMonth") && (
-            <p className="mt-1 text-xs text-red-600">{err("dayOfMonth")}</p>
+            <p className="mt-1 text-xs text-bad">{err("dayOfMonth")}</p>
           )}
         </div>
 
         <div>
           <label htmlFor="start_period" className={labelClass}>
-            เริ่มงวด (YYYY-MM) <span className="text-red-600">*</span>
+            เริ่มงวด (YYYY-MM) <span className="text-bad">*</span>
           </label>
           <input
             id="start_period"
@@ -200,7 +200,7 @@ export default function RecurringExpenseForm({
             required
           />
           {err("startPeriod") && (
-            <p className="mt-1 text-xs text-red-600">{err("startPeriod")}</p>
+            <p className="mt-1 text-xs text-bad">{err("startPeriod")}</p>
           )}
         </div>
 
@@ -216,7 +216,7 @@ export default function RecurringExpenseForm({
             className={`${inputClass} mt-1`}
           />
           {err("endPeriod") && (
-            <p className="mt-1 text-xs text-red-600">{err("endPeriod")}</p>
+            <p className="mt-1 text-xs text-bad">{err("endPeriod")}</p>
           )}
         </div>
 
@@ -262,7 +262,7 @@ export default function RecurringExpenseForm({
                 className={`${inputClass} mt-2`}
               />
               {err("whtRatePercent") && (
-                <p className="mt-1 text-xs text-red-600">{err("whtRatePercent")}</p>
+                <p className="mt-1 text-xs text-bad">{err("whtRatePercent")}</p>
               )}
             </>
           ) : (

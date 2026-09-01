@@ -161,7 +161,7 @@ export default async function SalesPage({
           )}
 
           {s.unidentifiedMenuCount > 0 && (
-            <section className="rounded-lg border border-amber-500/50 bg-amber-500/5 p-3 text-sm">
+            <section className="rounded-lg border border-warn/50 bg-warn/5 p-3 text-sm">
               มีเมนูที่ยังไม่ได้ตรวจ {s.unidentifiedMenuCount} รายการในช่วงนี้ —{" "}
               <a href="/menus?stubs=true" className="text-primary underline">
                 ไปจัดการ
@@ -248,7 +248,7 @@ export default async function SalesPage({
                       <td className="px-2 py-1">
                         {m.name}
                         {m.isPosStub && (
-                          <span className="ml-1 rounded bg-amber-500/20 px-1 text-xs">รอตรวจ</span>
+                          <span className="ml-1 rounded bg-warn/20 px-1 text-xs">รอตรวจ</span>
                         )}
                       </td>
                       <td className="px-2 py-1 text-muted-foreground">{m.menuCategoryName ?? "—"}</td>
@@ -296,7 +296,7 @@ export default async function SalesPage({
                             <span>฿{bahtShort(d.pulseAmount)}</span>
                             {d.pulseDifference !== null && (
                               <span
-                                className={`ml-1 text-xs ${d.pulseIsMismatch ? "font-medium text-red-700" : "text-muted-foreground"}`}
+                                className={`ml-1 text-xs ${d.pulseIsMismatch ? "font-medium text-bad" : "text-muted-foreground"}`}
                               >
                                 ({Number(d.pulseDifference) >= 0 ? "+" : ""}
                                 {bahtShort(d.pulseDifference)})

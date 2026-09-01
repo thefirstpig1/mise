@@ -48,7 +48,7 @@ export default function VoidTransferButton({
         ยกเลิกใบโอนนี้
       </summary>
 
-      <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
+      <div className="mt-3 rounded-lg border border-warn-border bg-warn-bg p-3 text-xs text-warn">
         <p className="font-medium">ยกเลิก ≠ โอนกลับ</p>
         <p className="mt-1">
           <strong>ยกเลิก</strong> = ใบนี้ไม่ควรมีอยู่ตั้งแต่แรก (คีย์ผิดสินค้า ผิดสาขา ผิดจำนวน) —
@@ -76,12 +76,12 @@ export default function VoidTransferButton({
           placeholder="เหตุผล เช่น คีย์ผิดสาขา"
           className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none"
         />
-        {fieldError && <p className="text-xs text-red-600">{fieldError}</p>}
-        {formError && <p className="text-xs text-red-600">{formError}</p>}
+        {fieldError && <p className="text-xs text-bad">{fieldError}</p>}
+        {formError && <p className="text-xs text-bad">{formError}</p>}
         <button
           type="submit"
           disabled={isPending}
-          className="rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
+          className="rounded-lg border border-bad-border px-3 py-1.5 text-xs font-medium text-bad hover:bg-bad-bg disabled:opacity-50"
         >
           {isPending ? "กำลังยกเลิก…" : "ยืนยันการยกเลิก"}
         </button>

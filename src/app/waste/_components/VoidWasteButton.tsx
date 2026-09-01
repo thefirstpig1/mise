@@ -57,12 +57,12 @@ export default function VoidWasteButton({
           placeholder="เหตุผล เช่น คีย์ผิดหน่วย"
           className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none"
         />
-        {fieldError && <p className="text-xs text-red-600">{fieldError}</p>}
-        {formError && <p className="text-xs text-red-600">{formError}</p>}
+        {fieldError && <p className="text-xs text-bad">{fieldError}</p>}
+        {formError && <p className="text-xs text-bad">{formError}</p>}
         <button
           type="submit"
           disabled={isPending}
-          className="rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
+          className="rounded-lg border border-bad-border px-3 py-1.5 text-xs font-medium text-bad hover:bg-bad-bg disabled:opacity-50"
         >
           {isPending ? "กำลังยกเลิก…" : "ยืนยันการยกเลิก"}
         </button>

@@ -190,7 +190,7 @@ export default function MappingListSection({
                         )}
                         {copy.isOrphan(m) && (
                           <span
-                            className={`${badgeBase} bg-amber-100 text-amber-700`}
+                            className={`${badgeBase} bg-warn-bg text-warn`}
                           >
                             {copy.orphanBadge}
                           </span>

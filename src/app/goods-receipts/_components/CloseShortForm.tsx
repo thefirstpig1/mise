@@ -75,7 +75,7 @@ export default function CloseShortForm({
         ใบสั่งซื้อจะเปลี่ยนเป็น &quot;รับของครบแล้ว&quot; ส่วนตัวเลขที่รับจริงจะยังเป็นตามเดิม
         และจะไม่ค้างอยู่ในรายการของที่กำลังมาอีก
       </p>
-      {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+      {error && <p className="mt-1 text-xs text-bad">{error}</p>}
       <div className="mt-3 flex gap-2">
         <button
           type="submit"

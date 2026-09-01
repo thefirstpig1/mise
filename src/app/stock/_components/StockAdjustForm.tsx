@@ -63,7 +63,7 @@ export type StockBranchOption = { id: string; name: string };
 const inputClass =
   "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none";
 const labelClass = "block text-sm font-medium";
-const errorClass = "mt-1 text-xs text-red-600";
+const errorClass = "mt-1 text-xs text-bad";
 
 /** Trim a preview number to the ledger's 3 decimal places, without trailing zeros. */
 const fmt = (n: number): string =>
@@ -256,13 +256,13 @@ export default function StockAdjustForm({
       <input type="hidden" name="submit_key" value={submitKey} />
 
       {state.ok && (
-        <div className="rounded-lg border border-green-300 bg-green-50 p-4 text-sm text-green-800">
+        <div className="rounded-lg border border-good-border bg-good-bg p-4 text-sm text-good">
           บันทึกแล้ว — ยอดคงเหลือใหม่{" "}
           <strong>
             {state.postBalance} {baseUnitLabel}
           </strong>
           {state.negative && (
-            <span className="ml-2 font-medium text-red-700">
+            <span className="ml-2 font-medium text-bad">
               (ติดลบ — ต้องตรวจสอบ)
             </span>
           )}
@@ -270,7 +270,7 @@ export default function StockAdjustForm({
       )}
 
       {formError && (
-        <div className="rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-700">
+        <div className="rounded-lg border border-bad-border bg-bad-bg p-4 text-sm text-bad">
           {formError}
         </div>
       )}
@@ -278,7 +278,7 @@ export default function StockAdjustForm({
       {/* --- what + where --- */}
       <div>
         <label htmlFor="product_id" className={labelClass}>
-          วัตถุดิบ <span className="text-red-600">*</span>
+          วัตถุดิบ <span className="text-bad">*</span>
         </label>
         <select
           id="product_id"
@@ -300,7 +300,7 @@ export default function StockAdjustForm({
 
       <div>
         <label htmlFor="branch_id" className={labelClass}>
-          สาขา <span className="text-red-600">*</span>
+          สาขา <span className="text-bad">*</span>
         </label>
         <select
           id="branch_id"
@@ -327,7 +327,7 @@ export default function StockAdjustForm({
           ) : balance ? (
             <>
               <span className="text-muted-foreground">ยอดคงเหลือปัจจุบัน: </span>
-              <strong className={balance.negative ? "text-red-700" : ""}>
+              <strong className={balance.negative ? "text-bad" : ""}>
                 {balance.balance} {baseUnitLabel}
               </strong>
               {balance.movementCount === 0 && (
@@ -345,7 +345,7 @@ export default function StockAdjustForm({
       {/* --- direction --- */}
       <fieldset>
         <legend className={labelClass}>
-          ประเภทการปรับ <span className="text-red-600">*</span>
+          ประเภทการปรับ <span className="text-bad">*</span>
         </legend>
         <div className="mt-2 flex gap-4">
           {ADJUSTMENT_TYPE_VALUES.map((t) => (
@@ -368,7 +368,7 @@ export default function StockAdjustForm({
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label htmlFor="input_qty" className={labelClass}>
-            จำนวน <span className="text-red-600">*</span>
+            จำนวน <span className="text-bad">*</span>
           </label>
           <input
             ref={qtyRef}
@@ -387,7 +387,7 @@ export default function StockAdjustForm({
 
         <div>
           <label htmlFor="input_unit_id" className={labelClass}>
-            หน่วย <span className="text-red-600">*</span>
+            หน่วย <span className="text-bad">*</span>
           </label>
           <select
             id="input_unit_id"
@@ -415,7 +415,7 @@ export default function StockAdjustForm({
         <div
           className={`rounded-lg border p-3 text-sm ${
             willGoNegative
-              ? "border-red-300 bg-red-50 text-red-700"
+              ? "border-bad-border bg-bad-bg text-bad"
               : "border-border bg-muted/30"
           }`}
         >
@@ -454,7 +454,7 @@ export default function StockAdjustForm({
       {/* --- why --- */}
       <div>
         <label htmlFor="reason" className={labelClass}>
-          เหตุผล <span className="text-red-600">*</span>
+          เหตุผล <span className="text-bad">*</span>
         </label>
         <select
           id="reason"
@@ -485,7 +485,7 @@ export default function StockAdjustForm({
       {/* --- when (business time; backdatable within the Q5 window) --- */}
       <div>
         <label htmlFor="occurred_at" className={labelClass}>
-          วันที่ <span className="text-red-600">*</span>
+          วันที่ <span className="text-bad">*</span>
         </label>
         <input
           id="occurred_at"
@@ -612,7 +612,7 @@ export default function StockAdjustForm({
           {isPending ? "กำลังบันทึก…" : "บันทึกการปรับสต๊อก"}
         </button>
         {blockedByNegative && (
-          <span className="text-xs text-red-600">
+          <span className="text-xs text-bad">
             ติ๊กยืนยันด้านบนก่อนจึงจะบันทึกได้
           </span>
         )}

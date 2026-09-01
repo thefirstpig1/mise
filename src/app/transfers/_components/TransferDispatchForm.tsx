@@ -146,7 +146,7 @@ export default function TransferDispatchForm({
             ))}
           </select>
           {fieldErrors.fromBranchId && (
-            <p className="mt-1 text-xs text-red-600">{fieldErrors.fromBranchId}</p>
+            <p className="mt-1 text-xs text-bad">{fieldErrors.fromBranchId}</p>
           )}
         </label>
 
@@ -165,7 +165,7 @@ export default function TransferDispatchForm({
             ))}
           </select>
           {fieldErrors.toBranchId && (
-            <p className="mt-1 text-xs text-red-600">{fieldErrors.toBranchId}</p>
+            <p className="mt-1 text-xs text-bad">{fieldErrors.toBranchId}</p>
           )}
         </label>
 
@@ -182,7 +182,7 @@ export default function TransferDispatchForm({
             ย้อนหลังได้ไม่เกิน {MAX_BACKDATE_DAYS} วัน
           </span>
           {fieldErrors.dispatchedAt && (
-            <p className="mt-1 text-xs text-red-600">{fieldErrors.dispatchedAt}</p>
+            <p className="mt-1 text-xs text-bad">{fieldErrors.dispatchedAt}</p>
           )}
         </label>
 
@@ -214,7 +214,7 @@ export default function TransferDispatchForm({
               className={`mt-1 ${inputClass}`}
             />
             {fieldErrors.driverName && (
-              <p className="mt-1 text-xs text-red-600">{fieldErrors.driverName}</p>
+              <p className="mt-1 text-xs text-bad">{fieldErrors.driverName}</p>
             )}
           </label>
           <label className="flex items-center gap-2 text-sm sm:mt-7">
@@ -233,10 +233,10 @@ export default function TransferDispatchForm({
       <fieldset className="rounded-lg border border-border p-4">
         <legend className="px-1 text-sm font-medium">รายการที่โอน</legend>
         {fieldErrors.lines && (
-          <p className="mb-2 text-xs text-red-600">{fieldErrors.lines}</p>
+          <p className="mb-2 text-xs text-bad">{fieldErrors.lines}</p>
         )}
         {fieldErrors.qtySent && (
-          <p className="mb-2 text-xs text-red-600">{fieldErrors.qtySent}</p>
+          <p className="mb-2 text-xs text-bad">{fieldErrors.qtySent}</p>
         )}
 
         <div className="space-y-3">
@@ -329,7 +329,7 @@ export default function TransferDispatchForm({
       </label>
 
       {formError && (
-        <p className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">
+        <p className="rounded-lg border border-bad-border bg-bad-bg p-3 text-sm text-bad">
           {formError}
         </p>
       )}

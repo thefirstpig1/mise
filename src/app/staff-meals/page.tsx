@@ -237,14 +237,14 @@ export default async function StaffMealsPage({
               ร้านยังไม่ได้ตั้งโควตา — ใช้ไปวันนี้ ฿{quota.used}
             </p>
           ) : (
-            <p className={`mt-1 ${quota.over ? "text-amber-700" : "text-muted-foreground"}`}>
+            <p className={`mt-1 ${quota.over ? "text-warn" : "text-muted-foreground"}`}>
               ใช้ไป ฿{quota.used} จาก ฿{quota.quota}
               {quota.quotaSource === "PERSON" ? " (โควตาเฉพาะคนนี้)" : " (โควตาของร้าน)"}
               {quota.over && " — เกินโควตา"}
             </p>
           )}
           {quota.unpricedCount > 0 && (
-            <p className="mt-1 text-xs text-amber-700">
+            <p className="mt-1 text-xs text-warn">
               มีอีก {quota.unpricedCount} มื้อที่ยังไม่มีราคา ตัวเลขข้างบนจึงเป็น
               <strong>อย่างน้อย</strong> ไม่ใช่ยอดเต็ม
             </p>
@@ -311,7 +311,7 @@ export default async function StaffMealsPage({
                 </p>
 
                 {r.overCeiling && (
-                  <p className="mt-1 text-xs text-amber-700">
+                  <p className="mt-1 text-xs text-warn">
                     ราคาจานนี้เกินเพดานที่ร้านตั้งไว้ (เทียบกับเพดานที่ใช้อยู่ตอนนี้)
                   </p>
                 )}
@@ -319,7 +319,7 @@ export default async function StaffMealsPage({
                 {r.notes && <p className="mt-1 text-xs">{r.notes}</p>}
 
                 {r.voidedAt ? (
-                  <p className="mt-1 text-xs text-red-700">
+                  <p className="mt-1 text-xs text-bad">
                     ยกเลิกเมื่อ {r.voidedAtLabel}
                     {r.voidReason && ` — ${r.voidReason}`}
                   </p>

@@ -69,7 +69,7 @@ export default async function LoginPage({
           <div
             className={`mb-6 rounded-lg border p-4 ${
               notice.tone === "error"
-                ? "border-red-300 bg-red-50"
+                ? "border-bad-border bg-bad-bg"
                 : "border-border bg-muted/40"
             }`}
           >

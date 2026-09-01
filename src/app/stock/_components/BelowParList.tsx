@@ -23,8 +23,8 @@ import { useState } from "react";
 import type { ParLevelRowView } from "./par-level-view";
 
 const STATE_STYLES: Record<string, string> = {
-  NEEDS_ORDER: "border-red-300 bg-red-50 text-red-800",
-  OVERDUE: "border-amber-400 bg-amber-50 text-amber-900",
+  NEEDS_ORDER: "border-bad-border bg-bad-bg text-bad",
+  OVERDUE: "border-warn-border bg-warn-bg text-warn",
   ON_ORDER: "border-blue-300 bg-blue-50 text-blue-800",
   OK: "border-border bg-muted/30 text-muted-foreground",
 };
@@ -146,7 +146,7 @@ export default function BelowParList({
 
   if (rows.length === 0) {
     return (
-      <section className="rounded-lg border border-green-300 bg-green-50 p-4 text-sm text-green-800">
+      <section className="rounded-lg border border-good-border bg-good-bg p-4 text-sm text-good">
         ของทุกตัวที่ตั้งขั้นต่ำไว้ ({parCount} รายการ) ยังอยู่เหนือขั้นต่ำ
       </section>
     );

@@ -110,7 +110,7 @@ export default function MappingForm({
   return (
     <form action={formAction} className="space-y-6">
       {formError && (
-        <div className="rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-700">
+        <div className="rounded-lg border border-bad-border bg-bad-bg p-4 text-sm text-bad">
           {formError}
         </div>
       )}
@@ -122,7 +122,7 @@ export default function MappingForm({
       <section className="space-y-4 rounded-lg border border-border bg-card p-6">
         <div>
           <label htmlFor="supplier_id" className="mb-1 block text-sm font-medium">
-            ซัพพลายเออร์<span className="text-red-600"> *</span>
+            ซัพพลายเออร์<span className="text-bad"> *</span>
           </label>
           {isEdit ? (
             <>
@@ -156,7 +156,7 @@ export default function MappingForm({
             </select>
           )}
           {err("supplierId") && (
-            <p className="mt-1 text-sm text-red-600">{err("supplierId")}</p>
+            <p className="mt-1 text-sm text-bad">{err("supplierId")}</p>
           )}
         </div>
 
@@ -220,7 +220,7 @@ export default function MappingForm({
             </div>
           )}
           {err("branchId") && (
-            <p className="mt-1 text-sm text-red-600">{err("branchId")}</p>
+            <p className="mt-1 text-sm text-bad">{err("branchId")}</p>
           )}
         </div>
       </section>
@@ -244,7 +244,7 @@ export default function MappingForm({
             className={inputClass}
           />
           {err("supplierItemCode") && (
-            <p className="mt-1 text-sm text-red-600">{err("supplierItemCode")}</p>
+            <p className="mt-1 text-sm text-bad">{err("supplierItemCode")}</p>
           )}
         </div>
         <div>
@@ -264,7 +264,7 @@ export default function MappingForm({
             className={inputClass}
           />
           {err("supplierItemName") && (
-            <p className="mt-1 text-sm text-red-600">{err("supplierItemName")}</p>
+            <p className="mt-1 text-sm text-bad">{err("supplierItemName")}</p>
           )}
         </div>
       </section>
@@ -292,7 +292,7 @@ export default function MappingForm({
             หน่วยที่สั่งซื้อจากซัพพลายเออร์รายนี้ (ต้องเป็นหน่วยของวัตถุดิบนี้)
           </p>
           {err("orderUnitId") && (
-            <p className="mt-1 text-sm text-red-600">{err("orderUnitId")}</p>
+            <p className="mt-1 text-sm text-bad">{err("orderUnitId")}</p>
           )}
         </div>
 
@@ -317,12 +317,12 @@ export default function MappingForm({
               className={inputClass}
             />
             {showHighPriceHint && (
-              <p className="mt-1 text-xs text-amber-600">
+              <p className="mt-1 text-xs text-warn">
                 ราคาสูง — กรุณาตรวจสอบอีกครั้ง
               </p>
             )}
             {err("currentUnitPrice") && (
-              <p className="mt-1 text-sm text-red-600">{err("currentUnitPrice")}</p>
+              <p className="mt-1 text-sm text-bad">{err("currentUnitPrice")}</p>
             )}
           </div>
           <div>
@@ -344,7 +344,7 @@ export default function MappingForm({
               className={inputClass}
             />
             {err("minOrderQty") && (
-              <p className="mt-1 text-sm text-red-600">{err("minOrderQty")}</p>
+              <p className="mt-1 text-sm text-bad">{err("minOrderQty")}</p>
             )}
           </div>
           <div>
@@ -368,12 +368,12 @@ export default function MappingForm({
               className={inputClass}
             />
             {showLongLeadHint && (
-              <p className="mt-1 text-xs text-amber-600">
+              <p className="mt-1 text-xs text-warn">
                 Lead time มากกว่า 30 วัน — กรุณาตรวจสอบ
               </p>
             )}
             {err("leadTimeDays") && (
-              <p className="mt-1 text-sm text-red-600">{err("leadTimeDays")}</p>
+              <p className="mt-1 text-sm text-bad">{err("leadTimeDays")}</p>
             )}
           </div>
         </div>
@@ -389,7 +389,7 @@ export default function MappingForm({
           ตั้งเป็นซัพพลายเออร์แนะนำ (1 รายต่อสาขา)
         </label>
         {err("isPreferred") && (
-          <p className="text-sm text-red-600">{err("isPreferred")}</p>
+          <p className="text-sm text-bad">{err("isPreferred")}</p>
         )}
       </section>
 
@@ -401,7 +401,7 @@ export default function MappingForm({
               htmlFor="effective_from"
               className="mb-1 block text-sm font-medium"
             >
-              เริ่มมีผล<span className="text-red-600"> *</span>
+              เริ่มมีผล<span className="text-bad"> *</span>
             </label>
             <input
               id="effective_from"
@@ -411,7 +411,7 @@ export default function MappingForm({
               className={inputClass}
             />
             {err("effectiveFrom") && (
-              <p className="mt-1 text-sm text-red-600">{err("effectiveFrom")}</p>
+              <p className="mt-1 text-sm text-bad">{err("effectiveFrom")}</p>
             )}
           </div>
           <div>
@@ -432,7 +432,7 @@ export default function MappingForm({
               เว้นว่าง = ราคาปัจจุบัน (ยังไม่สิ้นสุด)
             </p>
             {err("effectiveTo") && (
-              <p className="mt-1 text-sm text-red-600">{err("effectiveTo")}</p>
+              <p className="mt-1 text-sm text-bad">{err("effectiveTo")}</p>
             )}
           </div>
         </div>

@@ -166,12 +166,12 @@ export default function MergeForm({
                     {c.originLabel} · {c.badge}
                   </span>
                   {c.isPosStub ? (
-                    <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px]">
+                    <span className="rounded bg-warn/20 px-1.5 py-0.5 text-[10px]">
                       รอตรวจ
                     </span>
                   ) : null}
                   {unusable ? (
-                    <span className="w-full text-xs text-amber-700">{unusable}</span>
+                    <span className="w-full text-xs text-warn">{unusable}</span>
                   ) : null}
                 </label>
               </li>
@@ -234,7 +234,7 @@ export default function MergeForm({
           {MERGE_REPORT_VS_STOCK_HINT_TH}
         </p>
         {isBackdated ? (
-          <p className="mt-1 text-xs text-amber-700">
+          <p className="mt-1 text-xs text-warn">
             วันที่ย้อนหลัง — ถ้าย้อนไปถึงวันที่ตัดสต๊อกไปแล้ว
             ระบบจะบอกก่อนว่ากี่วัน แล้วให้ยืนยันอีกครั้ง
           </p>
@@ -269,8 +269,8 @@ export default function MergeForm({
         <div
           className={`rounded-lg border p-3 text-sm ${
             needsAck
-              ? "border-amber-300 bg-amber-50 text-amber-900"
-              : "border-red-200 bg-red-50 text-red-700"
+              ? "border-warn-border bg-warn-bg text-warn"
+              : "border-bad-border bg-bad-bg text-bad"
           }`}
         >
           <p>{formError}</p>
@@ -283,7 +283,7 @@ export default function MergeForm({
         </div>
       ) : null}
 
-      {blocked ? <p className="text-sm text-amber-700">{blocked}</p> : null}
+      {blocked ? <p className="text-sm text-warn">{blocked}</p> : null}
 
       {succeeded ? (
         <p className="text-sm text-emerald-700">

@@ -229,7 +229,7 @@ export default async function WastePage({
         </div>
 
         {truncated && (
-          <p className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
+          <p className="rounded-lg border border-warn-border bg-warn-bg p-3 text-xs text-warn">
             แสดง {MAX_WASTE_ROWS} รายการแรกของช่วงนี้เท่านั้น — ลองแคบช่วงวันที่
             หรือเลือกวัตถุดิบ เพื่อให้เห็นครบ
           </p>
@@ -271,7 +271,7 @@ export default async function WastePage({
                       <span className="font-medium">รายการคืนของ</span>
                     )}
                     {isVoided && (
-                      <span className="font-medium text-red-700">
+                      <span className="font-medium text-bad">
                         ยกเลิกแล้ว — {row.voidReason}
                       </span>
                     )}

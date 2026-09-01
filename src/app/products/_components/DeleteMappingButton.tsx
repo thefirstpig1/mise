@@ -48,11 +48,11 @@ export default function DeleteMappingButton({
       <button
         type="submit"
         disabled={isPending}
-        className="rounded-lg border border-red-300 px-4 py-2 text-sm text-red-700 hover:bg-red-50 disabled:opacity-50"
+        className="rounded-lg border border-bad-border px-4 py-2 text-sm text-bad hover:bg-bad-bg disabled:opacity-50"
       >
         {isPending ? "กำลังลบ..." : "ลบรายการราคา"}
       </button>
-      {formError && <p className="mt-2 text-sm text-red-600">{formError}</p>}
+      {formError && <p className="mt-2 text-sm text-bad">{formError}</p>}
     </form>
   );
 }

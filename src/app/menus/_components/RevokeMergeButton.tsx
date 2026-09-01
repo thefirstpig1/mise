@@ -63,8 +63,8 @@ export default function RevokeMergeButton({
         <div
           className={`rounded-lg border p-2 text-xs ${
             needsAck
-              ? "border-amber-300 bg-amber-50 text-amber-900"
-              : "border-red-200 bg-red-50 text-red-700"
+              ? "border-warn-border bg-warn-bg text-warn"
+              : "border-bad-border bg-bad-bg text-bad"
           }`}
         >
           <p>{formError}</p>
