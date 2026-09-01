@@ -26,6 +26,8 @@ describe("the leak report (ADR 0032 Q6/Q7)", () => {
 
   let pork: ProductWithUnits;
   let lime: ProductWithUnits;
+  /** Never counted, only written off — the row the old report could not show. */
+  let oil: ProductWithUnits;
 
   const today = computeBangkokToday();
   const FROM = addDays(today, -20);
@@ -50,6 +52,57 @@ describe("the leak report (ADR 0032 Q6/Q7)", () => {
         defaultBuyUnitName: "kg",
       })
     );
+
+
+  const baseUnitOf = (p: ProductWithUnits) =>
+    p.productUnits.find((u) => u.isBase)!.id;
+
+  /**
+   * A ledger row with a price on it.
+   *
+   * `stock_movement` carries no cost column — FIFO gets its money from the
+   * goods receipt behind a PO_RECEIVE or from a live `stock_cost_declaration`
+   * (stock-cost.ts:311). The declaration is the cheap way to give a fixture a
+   * priced layer without building a whole receipt, and it is a real production
+   * path, not a test-only door.
+   */
+  const move = async (
+    p: ProductWithUnits,
+    qty: number,
+    type: "ADJUST_GAIN" | "ADJUST_LOSS",
+    sourceType: "ADJUSTMENT" | "STOCK_COUNT",
+    occurredAt: Date,
+    unitCost?: number
+  ) => {
+    await withRlsBypass(async (tx) => {
+      const m = await tx.stockMovement.create({
+        data: {
+          tenantId,
+          productId: p.id,
+          branchId,
+          qty,
+          type,
+          sourceType,
+          sourceId: randomUUID(),
+          occurredAt,
+          createdBy: userId,
+        },
+        select: { id: true },
+      });
+      if (unitCost !== undefined) {
+        await tx.stockCostDeclaration.create({
+          data: {
+            tenantId,
+            movementId: m.id,
+            inputUnitCost: unitCost,
+            inputUnitId: baseUnitOf(p),
+            unitCost,
+            declaredBy: userId,
+          },
+        });
+      }
+    });
+  };
 
   /** A count, written straight in — Part 15 is proved by Part 15's own tests. */
   const count = async (
@@ -114,10 +167,24 @@ describe("the leak report (ADR 0032 Q6/Q7)", () => {
 
     pork = await makeProduct("pork");
     lime = await makeProduct("lime");
+    oil = await makeProduct("oil");
+
+    // A real, priced ledger — without it every row is worth ฿0 and the money
+    // assertions below hold trivially. (They did, on the first version of this
+    // fixture, and stayed green under every break aimed at them.)
+    await move(pork, 20, "ADJUST_GAIN", "ADJUSTMENT", addDays(today, -18), 250);
+    await move(pork, -13, "ADJUST_LOSS", "STOCK_COUNT", addDays(today, -5));
+    await move(pork, -2, "ADJUST_LOSS", "ADJUSTMENT", addDays(today, -3));
+
+    // Never counted, only written off by hand.
+    await move(oil, 10, "ADJUST_GAIN", "ADJUSTMENT", addDays(today, -18), 100);
+    await move(oil, -5, "ADJUST_LOSS", "ADJUSTMENT", addDays(today, -4));
   });
 
   afterAll(async () => {
     await withRlsBypass(async (tx) => {
+      await tx.stockCostDeclaration.deleteMany({ where: { tenantId } });
+      await tx.stockMovement.deleteMany({ where: { tenantId } });
       await tx.stockCountItem.deleteMany({ where: { tenantId } });
       await tx.stockCount.deleteMany({ where: { tenantId } });
       await tx.productUnit.deleteMany({ where: { product: { tenantId } } });
@@ -195,5 +262,50 @@ describe("the leak report (ADR 0032 Q6/Q7)", () => {
     // test here, not the valuation.
     const rows = await run();
     expect(rows[0].productId).toBe(pork.id);
+  });
+
+  it("L7 — the two money columns are separate facts that add to /cost's figure", async () => {
+    // 🔴 The review's finding 6. The first version summed the count's own
+    // shortfall together with hand-typed write-offs and transfers that never
+    // arrived, so a product counted with NO variance could sit beside a ฿5,000
+    // figure — a row contradicting itself. They are different facts about
+    // different events and now have a column each; added, they still equal the
+    // ส่วนต่าง/ปรับปรุง that /cost reports for the branch.
+    const rows = await run();
+    for (const r of rows) {
+      expect(
+        r.countVarianceValue.plus(r.otherLossValue).toFixed(2)
+      ).toBe(r.totalLossValue.toFixed(2));
+    }
+
+    // หมู: 20 kg in at ฿250, then 13 kg out by COUNT and 2 kg out by hand.
+    // Those are two different events and the row now says so.
+    const p = rowFor(rows, pork)!;
+    expect(p.countVarianceValue.toFixed(2)).toBe("3250.00");
+    expect(p.otherLossValue.toFixed(2)).toBe("500.00");
+    expect(p.totalLossValue.toFixed(2)).toBe("3750.00");
+  });
+
+  it("L8 — a product never counted in the window can still appear", async () => {
+    // The other half of finding 6, and the worse half: the product list used to
+    // be seeded from count lines ALONE, so a product that leaked money and
+    // happened not to be counted was simply absent from a report about leaks.
+    // `neverCounted` is what lets the screen say so instead of printing 0/0/0,
+    // which reads as counted-and-fine.
+    const rows = await run();
+    for (const r of rows) {
+      expect(r.neverCounted).toBe(r.countLines === 0);
+      // Every row earns its place: it was counted, or money left it, or both.
+      expect(r.countLines > 0 || !r.totalLossValue.isZero()).toBe(true);
+    }
+
+    // น้ำมัน was never counted and lost ฿500 by hand. The old report seeded its
+    // product list from count lines alone, so this row did not exist at all.
+    const o = rowFor(rows, oil)!;
+    expect(o).toBeDefined();
+    expect(o.neverCounted).toBe(true);
+    expect(o.countLines).toBe(0);
+    expect(o.otherLossValue.toFixed(2)).toBe("500.00");
+    expect(o.countVarianceValue.toFixed(2)).toBe("0.00");
   });
 });

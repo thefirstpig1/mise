@@ -54,12 +54,34 @@ export type LeakRow = {
   /** counted − expected. Negative is the leak. */
   varianceQty: Prisma.Decimal;
   /**
-   * The realised cost the ledger recorded for undocumented outflows of this
-   * product in the period. Positive = money gone.
+   * 🔴 Part 32.5. The money is split because the two halves are DIFFERENT
+   * FACTS, and the first version added them into one column that could
+   * contradict its own row — a product counted with no variance sitting beside
+   * a ฿5,000 figure, because a hand-typed write-off three weeks later had been
+   * folded in.
+   *
+   * This half is the count's own shortfall, valued by the ledger. It is the
+   * one that pairs with the quantity columns above.
    */
-  varianceValue: Prisma.Decimal;
-  /** How many count lines the quantities came from — 0 means never counted. */
+  countVarianceValue: Prisma.Decimal;
+  /**
+   * Everything else that left without a waste document in the period — a
+   * manual write-off, a transfer that never arrived. Real, worth seeing, and
+   * NOT what the count found, so it gets its own column rather than being
+   * summed into one.
+   */
+  otherLossValue: Prisma.Decimal;
+  /** The two together, which is the figure /cost shows as ส่วนต่าง/ปรับปรุง. */
+  totalLossValue: Prisma.Decimal;
+  /** 0 = this product was never counted in the window (see `neverCounted`). */
   countLines: number;
+  /**
+   * True when the product only appears because money left it, with no count to
+   * compare against. The old report could not show these AT ALL — its product
+   * list was seeded from count lines alone, so a product that leaked ฿5,000 and
+   * was never counted was simply absent from a report about leaks.
+   */
+  neverCounted: boolean;
   usage: LeakUsage[];
 };
 
@@ -119,7 +141,32 @@ export async function getLeakReportLogic(
     }
 
     // ── the money side (the ledger) ─────────────────────────────────────────
-    const productIds = [...counted.keys()];
+    //
+    // 🔴 Part 32.5. The product list is the UNION of "was counted" and "lost
+    // money", not just the first. Seeding it from count lines alone meant a
+    // product that leaked ฿5,000 and happened not to be counted never appeared
+    // on a report whose entire subject is leaks.
+    //
+    // Discovery only — the authoritative value still comes from the replay
+    // below, filtered by `costSortKey` exactly as /cost filters it. The window
+    // is widened a day either side because this query compares raw
+    // `occurred_at` while the replay compares the costing instant, and a
+    // product missed here would have its money silently dropped.
+    const lossProducts = await tx.stockMovement.findMany({
+      where: {
+        tenantId,
+        branchId,
+        type: "ADJUST_LOSS",
+        sourceType: { not: "WASTE_LOG" },
+        occurredAt: { gte: addDays(from, -1), lt: addDays(to, 2) },
+      },
+      select: { productId: true },
+      distinct: ["productId"],
+    });
+
+    const productIds = [
+      ...new Set([...counted.keys(), ...lossProducts.map((m) => m.productId)]),
+    ];
     if (productIds.length === 0) return [];
 
     const replayed = await replayPairsInTx(tx, tenantId, productIds, [branchId], to);
@@ -128,11 +175,15 @@ export async function getLeakReportLogic(
     const lower = bounds.gte.getTime();
     const upper = bounds.lt.getTime();
 
-    const valueOf = new Map<string, Prisma.Decimal>();
+    const valueOf = new Map<
+      string,
+      { fromCount: Prisma.Decimal; other: Prisma.Decimal }
+    >();
     for (const productId of productIds) {
       const state = replayed.get(costKeyOf(productId, branchId));
       if (state === undefined) continue;
-      let value = ZERO;
+      let fromCount = ZERO;
+      let other = ZERO;
       for (const out of state.outflows) {
         // The three tests /cost applies, in the same order and for the same
         // reasons: a transfer is not a loss, the costing instant decides the
@@ -142,9 +193,15 @@ export async function getLeakReportLogic(
         const t = costSortKey(out.occurredAt);
         if (t < lower || t >= upper) continue;
         if (out.sourceType === "WASTE_LOG") continue;
-        value = value.plus(out.value);
+        // The ONE extra test this report makes that /cost does not: which of
+        // those undocumented outflows was the count itself. /cost is right to
+        // add them — its number is the branch's whole unexplained loss — but a
+        // per-product row that prints a count's quantities has to say which
+        // part of the money that count actually found.
+        if (out.sourceType === "STOCK_COUNT") fromCount = fromCount.plus(out.value);
+        else other = other.plus(out.value);
       }
-      valueOf.set(productId, value);
+      valueOf.set(productId, { fromCount, other });
     }
 
     // ── who uses it (Q7 — named, never blamed) ──────────────────────────────
@@ -162,24 +219,33 @@ export async function getLeakReportLogic(
     const nameOf = new Map(names.map((p) => [p.id, p.name]));
 
     const rows: LeakRow[] = productIds.map((productId) => {
-      const c = counted.get(productId)!;
+      const c = counted.get(productId);
+      const v = valueOf.get(productId) ?? { fromCount: ZERO, other: ZERO };
       return {
         productId,
         productName: nameOf.get(productId) ?? productId,
-        expectedQty: c.expected,
-        countedQty: c.counted,
-        varianceQty: c.counted.minus(c.expected),
-        varianceValue: valueOf.get(productId) ?? ZERO,
-        countLines: c.lines,
+        expectedQty: c?.expected ?? ZERO,
+        countedQty: c?.counted ?? ZERO,
+        varianceQty: (c?.counted ?? ZERO).minus(c?.expected ?? ZERO),
+        countVarianceValue: v.fromCount,
+        otherLossValue: v.other,
+        totalLossValue: v.fromCount.plus(v.other),
+        countLines: c?.lines ?? 0,
+        neverCounted: c === undefined,
         usage: usageShares(demandResult.demand.get(productId) ?? []),
       };
-    });
+    })
+      // A product discovered by the widened lookup whose money fell outside the
+      // real costing bounds after all, and which was never counted either, has
+      // nothing to say. Dropping it here rather than widening less keeps the
+      // discovery safe and the report quiet.
+      .filter((r) => !(r.neverCounted && r.totalLossValue.isZero()));
 
     // Ranked by money, biggest leak first — the whole point of the view. Ties
     // fall back to quantity so two products worth nothing still order stably.
     return rows.sort(
       (a, b) =>
-        b.varianceValue.comparedTo(a.varianceValue) ||
+        b.totalLossValue.comparedTo(a.totalLossValue) ||
         a.varianceQty.comparedTo(b.varianceQty) ||
         (a.productName < b.productName ? -1 : 1)
     );
@@ -205,3 +271,6 @@ function usageShares(
     }))
     .sort((a, b) => b.share - a.share);
 }
+
+const DAY_MS = 86_400_000;
+const addDays = (d: Date, n: number) => new Date(d.getTime() + n * DAY_MS);

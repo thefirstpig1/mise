@@ -103,8 +103,10 @@ export default async function LeakPage({
           expectedQty: r.expectedQty.toString(),
           countedQty: r.countedQty.toString(),
           varianceQty: r.varianceQty.toString(),
-          varianceValue: r.varianceValue.toFixed(2),
-          countLines: r.countLines,
+          countVarianceValue: r.countVarianceValue.toFixed(2),
+          otherLossValue: r.otherLossValue.toFixed(2),
+          totalLossValue: r.totalLossValue.toFixed(2),
+          neverCounted: r.neverCounted,
           usage: r.usage.map((u) => ({
             name:
               u.departmentId === null
