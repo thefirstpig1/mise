@@ -87,6 +87,8 @@ export type ConsumptionSkip = {
  * second opinion about what a dish consumes — the shape ADR 0025 Q4 refused
  * for cost and rule N2 refused for the recipe walk.
  */
+export type { MenuSales };
+
 export type MenuProductDemand = {
   menuId: string;
   lines: ConsumptionLine[];
@@ -152,11 +154,20 @@ type MenuSales = {
  * and a cancelled bill kept nothing. Reading revenue any other way would make
  * `/cost`'s coverage disagree with `/cost`'s revenue on the same page.
  */
-async function menuSalesForDay(
+export type BusinessDateFilter = Date | { gte: Date; lte: Date };
+
+export async function menuSalesForDay(
   tx: PrismaClient,
   tenantId: string,
   branchId: string,
-  businessDate: Date,
+  /**
+   * A single day, or a RANGE (Part 32 L2b). The range form exists so the
+   * department report can ask one segment's worth of sales in one query instead
+   * of thirty — it is the same grouping, over a wider `where`, which is why it
+   * lives here rather than in a second fetcher that could drift from this one
+   * about what "live" or the cancelled-sale policy mean.
+   */
+  businessDate: BusinessDateFilter,
   policy: CancelledSalePolicy
 ): Promise<MenuSales[]> {
   const live = {
@@ -283,6 +294,173 @@ export async function computeConsumptionForDayLogic(
   const sold = sales.filter((s) => !s.qty.isZero());
   if (sold.length === 0) return empty([]);
 
+  const exploded = await explodeMenuSalesLogic(tx, tenantId, {
+    sales: sold,
+    branchId,
+    resolutionDate: businessDate,
+    names,
+  });
+
+  const { lines, byMenu, coveredNetAmount, menusPosted } = exploded;
+  const skipped = exploded.skipped;
+
+  return {
+    branchId,
+    businessDate,
+    lines,
+    byMenu,
+    coveredNetAmount: coveredNetAmount.toDecimalPlaces(MONEY_SCALE),
+    totalNetAmount,
+    menusPosted,
+    menusSkipped: skipped.length,
+    skipped,
+    cancelledSalePolicy,
+  };
+}
+
+// ------------------------------------------------------------
+// Helpers
+// ------------------------------------------------------------
+
+/**
+ * The first menu reachable from `root` that has no recipe of its own, or null.
+ *
+ * Exported since Part 26: a staff meal explodes ONE menu and needs the same
+ * check for the same reason. A second copy of this walk would be a second
+ * opinion about what "the recipe is complete" means, and the day the two
+ * disagreed a staff meal would deduct less than it should with nothing on
+ * screen looking wrong (the shape ADR 0025 Q4 refused for cost).
+ *
+ * The root itself is excluded: it is in `withRecipe` precisely because it has
+ * one, and the graph loads one level past the depth cap, so a node that is
+ * present-but-recipe-less deeper down is a real gap rather than an artefact of
+ * where the loader stopped.
+ */
+export function recipelessComponent(
+  graph: Parameters<typeof reachable>[0],
+  root: string,
+  rootMenuId: string
+): string | null {
+  for (const key of reachable(graph, root)) {
+    if (!key.startsWith("m:")) continue;
+    const id = keyId(key);
+    if (id === rootMenuId) continue;
+    if (graph.menus.get(id)?.recipe == null) return id;
+  }
+  return null;
+}
+
+/**
+ * Turn every `detail` that is still a bare id into a name a person can read.
+ *
+ * Two reasons carry one: `COMPONENT_MENU_NO_RECIPE` names a MENU that was not
+ * itself sold (so it is not in the day's name map), and the prepped-leaf case of
+ * `RECIPE_UNRESOLVABLE` names a PRODUCT. Done once at the end, and only when
+ * there is something to look up — a reason that names a uuid sends the reader
+ * hunting the tree by hand, which is what the detail exists to prevent.
+ */
+async function nameUnresolved(
+  tx: PrismaClient,
+  tenantId: string,
+  knownMenus: Map<string, string>,
+  skipped: ConsumptionSkip[]
+): Promise<void> {
+  const menuIds = skipped
+    .filter((s) => s.reason === "COMPONENT_MENU_NO_RECIPE" && s.detail !== null)
+    .map((s) => s.detail as string)
+    .filter((id) => !knownMenus.has(id));
+  const productIds = skipped
+    .filter((s) => s.reason === "RECIPE_UNRESOLVABLE" && isUuid(s.detail))
+    .map((s) => s.detail as string);
+  if (menuIds.length === 0 && productIds.length === 0) return;
+
+  const [menus, products] = await Promise.all([
+    menuNames(tx, tenantId, menuIds),
+    productNames(tx, tenantId, productIds),
+  ]);
+  for (const s of skipped) {
+    if (s.detail === null) continue;
+    s.detail = menus.get(s.detail) ?? products.get(s.detail) ?? s.detail;
+  }
+}
+
+/**
+ * A `RECIPE_UNRESOLVABLE` detail is either a product id or the walker's own
+ * message; only the first is worth a lookup.
+ */
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const isUuid = (v: string | null): boolean => v !== null && UUID_RE.test(v);
+
+async function productNames(
+  tx: PrismaClient,
+  tenantId: string,
+  productIds: string[]
+): Promise<Map<string, string>> {
+  if (productIds.length === 0) return new Map();
+  const rows = await tx.product.findMany({
+    where: { tenantId, id: { in: [...new Set(productIds)] } },
+    select: { id: true, name: true },
+  });
+  return new Map(rows.map((r) => [r.id, r.name]));
+}
+
+async function menuNames(
+  tx: PrismaClient,
+  tenantId: string,
+  menuIds: string[]
+): Promise<Map<string, string>> {
+  if (menuIds.length === 0) return new Map();
+  const rows = await tx.menu.findMany({
+    where: { tenantId, id: { in: [...new Set(menuIds)] } },
+    select: { id: true, name: true },
+  });
+  return new Map(rows.map((r) => [r.id, r.name]));
+}
+
+
+/**
+ * The explosion itself, with the fetching lifted out (Part 32 L2b).
+ *
+ * This IS the engine `computeConsumptionForDayLogic` has always run — the loop
+ * moved here verbatim. It was lifted because the department report needs the
+ * same answer over a PERIOD, and measurement said the per-day path costs 70 ms
+ * a day inside one transaction: 2.1 s for a one-branch month and 6.3 s for
+ * three branches, nearly all of it re-resolving and re-loading a recipe graph
+ * that had not changed.
+ *
+ * Lifting the fetch is the alternative to writing a second explosion, which
+ * ADR 0025 Q4 refused for cost and rule N2 refused for the recipe walk. One
+ * caller feeds it a single day; the other feeds it a segment of days over which
+ * resolution is provably constant. Neither owns any arithmetic.
+ *
+ * `resolutionDate` is the day the recipes and merges resolve as of. For a
+ * single day that is the business date. For a segment it is any day in it —
+ * which is only sound because the segment is CUT at every date on which
+ * resolution could change (`recipe.effective_from`, `menu_merge.effective_from`).
+ */
+export async function explodeMenuSalesLogic(
+  tx: PrismaClient,
+  tenantId: string,
+  params: {
+    sales: MenuSales[];
+    branchId: string;
+    resolutionDate: Date;
+    /** Menu id -> name, already fetched by the caller for its own skips. */
+    names: Map<string, string>;
+  }
+): Promise<{
+  lines: ConsumptionLine[];
+  byMenu: MenuProductDemand[];
+  coveredNetAmount: Prisma.Decimal;
+  menusPosted: number;
+  skipped: ConsumptionSkip[];
+}> {
+  const { sales: sold, branchId, names } = params;
+  const businessDate = params.resolutionDate;
+  const nameOf = (id: string) => names.get(id) ?? id;
+  const skipped: ConsumptionSkip[] = [];
+
   const resolved = await resolveRecipeIds(
     tx,
     tenantId,
@@ -291,7 +469,6 @@ export async function computeConsumptionForDayLogic(
     businessDate
   );
 
-  const skipped: ConsumptionSkip[] = [];
   const withRecipe: MenuSales[] = [];
   for (const s of sold) {
     if (resolved.has(`menu:${s.menuId}`)) {
@@ -309,7 +486,15 @@ export async function computeConsumptionForDayLogic(
   }
 
   if (withRecipe.length === 0) {
-    return { ...empty(skipped), totalNetAmount };
+    // Every dish sold was skipped. Coverage is money, not dishes (rule N3), so
+    // the caller still reports the day's revenue — it just holds none of it.
+    return {
+      lines: [],
+      byMenu: [],
+      coveredNetAmount: ZERO,
+      menusPosted: 0,
+      skipped,
+    };
   }
 
   // ONE graph for every dish sold that day — the whole reason `loadRecipeGraph`
@@ -444,117 +629,5 @@ export async function computeConsumptionForDayLogic(
     // and `sales_consumption_item_qty_check` would refuse the row anyway.
     .filter((l) => !l.qty.isZero())
     .sort((a, b) => (a.productId < b.productId ? -1 : 1));
-
-  return {
-    branchId,
-    businessDate,
-    lines,
-    byMenu,
-    coveredNetAmount: coveredNetAmount.toDecimalPlaces(MONEY_SCALE),
-    totalNetAmount,
-    menusPosted,
-    menusSkipped: skipped.length,
-    skipped,
-    cancelledSalePolicy,
-  };
-}
-
-// ------------------------------------------------------------
-// Helpers
-// ------------------------------------------------------------
-
-/**
- * The first menu reachable from `root` that has no recipe of its own, or null.
- *
- * Exported since Part 26: a staff meal explodes ONE menu and needs the same
- * check for the same reason. A second copy of this walk would be a second
- * opinion about what "the recipe is complete" means, and the day the two
- * disagreed a staff meal would deduct less than it should with nothing on
- * screen looking wrong (the shape ADR 0025 Q4 refused for cost).
- *
- * The root itself is excluded: it is in `withRecipe` precisely because it has
- * one, and the graph loads one level past the depth cap, so a node that is
- * present-but-recipe-less deeper down is a real gap rather than an artefact of
- * where the loader stopped.
- */
-export function recipelessComponent(
-  graph: Parameters<typeof reachable>[0],
-  root: string,
-  rootMenuId: string
-): string | null {
-  for (const key of reachable(graph, root)) {
-    if (!key.startsWith("m:")) continue;
-    const id = keyId(key);
-    if (id === rootMenuId) continue;
-    if (graph.menus.get(id)?.recipe == null) return id;
-  }
-  return null;
-}
-
-/**
- * Turn every `detail` that is still a bare id into a name a person can read.
- *
- * Two reasons carry one: `COMPONENT_MENU_NO_RECIPE` names a MENU that was not
- * itself sold (so it is not in the day's name map), and the prepped-leaf case of
- * `RECIPE_UNRESOLVABLE` names a PRODUCT. Done once at the end, and only when
- * there is something to look up — a reason that names a uuid sends the reader
- * hunting the tree by hand, which is what the detail exists to prevent.
- */
-async function nameUnresolved(
-  tx: PrismaClient,
-  tenantId: string,
-  knownMenus: Map<string, string>,
-  skipped: ConsumptionSkip[]
-): Promise<void> {
-  const menuIds = skipped
-    .filter((s) => s.reason === "COMPONENT_MENU_NO_RECIPE" && s.detail !== null)
-    .map((s) => s.detail as string)
-    .filter((id) => !knownMenus.has(id));
-  const productIds = skipped
-    .filter((s) => s.reason === "RECIPE_UNRESOLVABLE" && isUuid(s.detail))
-    .map((s) => s.detail as string);
-  if (menuIds.length === 0 && productIds.length === 0) return;
-
-  const [menus, products] = await Promise.all([
-    menuNames(tx, tenantId, menuIds),
-    productNames(tx, tenantId, productIds),
-  ]);
-  for (const s of skipped) {
-    if (s.detail === null) continue;
-    s.detail = menus.get(s.detail) ?? products.get(s.detail) ?? s.detail;
-  }
-}
-
-/**
- * A `RECIPE_UNRESOLVABLE` detail is either a product id or the walker's own
- * message; only the first is worth a lookup.
- */
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const isUuid = (v: string | null): boolean => v !== null && UUID_RE.test(v);
-
-async function productNames(
-  tx: PrismaClient,
-  tenantId: string,
-  productIds: string[]
-): Promise<Map<string, string>> {
-  if (productIds.length === 0) return new Map();
-  const rows = await tx.product.findMany({
-    where: { tenantId, id: { in: [...new Set(productIds)] } },
-    select: { id: true, name: true },
-  });
-  return new Map(rows.map((r) => [r.id, r.name]));
-}
-
-async function menuNames(
-  tx: PrismaClient,
-  tenantId: string,
-  menuIds: string[]
-): Promise<Map<string, string>> {
-  if (menuIds.length === 0) return new Map();
-  const rows = await tx.menu.findMany({
-    where: { tenantId, id: { in: [...new Set(menuIds)] } },
-    select: { id: true, name: true },
-  });
-  return new Map(rows.map((r) => [r.id, r.name]));
+  return { lines, byMenu, coveredNetAmount, menusPosted, skipped };
 }
