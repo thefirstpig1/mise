@@ -140,6 +140,48 @@ describe("splitValueByDepartment — rule F2 (ADR 0032)", () => {
     expect(total(shares).toFixed(2)).toBe("100.00");
   });
 
+  it("F11 — demand that nearly cancels is refused, not divided into nonsense", () => {
+    // 🔴 The review's finding 5. The zero guard above catches only the exact
+    // case; +101 against −100 nets to 1, and cutting ฿1.00 by that ratio hands
+    // ครัว ฿101.00 and บาร์ −฿100.00. The total is right and both rows are
+    // gibberish — the failure the zero guard was written for, arriving through
+    // the door it does not cover.
+    const shares = splitValueByDepartment(D("1.00"), [
+      { departmentId: KITCHEN, qty: D("101") },
+      { departmentId: BAR, qty: D("-100") },
+    ]);
+    expect(shares).toHaveLength(1);
+    expect(shares[0].departmentId).toBeNull();
+    expect(shares[0].value.toFixed(2)).toBe("1.00");
+  });
+
+  it("F12 — weights that all run the same way can never trip that guard", () => {
+    // The refusal must not be reachable from an ordinary day. With one sign the
+    // net IS the gross, so the ratio is 100% however lopsided the split —
+    // 999999 against 1 still divides.
+    const shares = splitValueByDepartment(D("500.00"), [
+      { departmentId: KITCHEN, qty: D("-999999") },
+      { departmentId: BAR, qty: D("-1") },
+    ]);
+    expect(total(shares).toFixed(2)).toBe("500.00");
+    expect(shares.every((s) => !s.value.isNegative())).toBe(true);
+    expect(shares.find((s) => s.departmentId === KITCHEN)).toBeDefined();
+  });
+
+  it("F13 — a mixed-sign day that still divides sensibly is left alone", () => {
+    // F8's case must survive: ครัว put stock back while บาร์ took more out.
+    // Net 4 of gross 8 is 50% — well clear of the floor — so it is a real
+    // answer about a real day and the guard has no business touching it. The
+    // first version of the guard caught this case, which is how the structural
+    // formulation was found to be wrong.
+    const shares = splitValueByDepartment(D("100.00"), [
+      { departmentId: KITCHEN, qty: D("2") },
+      { departmentId: BAR, qty: D("-6") },
+    ]);
+    expect(shares.length).toBeGreaterThan(1);
+    expect(total(shares).toFixed(2)).toBe("100.00");
+  });
+
   it("F9 — nothing moved means no rows, not a row of zeroes per department", () => {
     // A department that had no part in a figure should not appear beside it.
     expect(splitValueByDepartment(D("0.00"), [

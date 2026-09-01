@@ -43,6 +43,14 @@ import { Prisma } from "@prisma/client";
 const ZERO = new Prisma.Decimal(0);
 const SATANG = new Prisma.Decimal(100);
 
+/**
+ * How much of a period's gross demand must survive netting before the split is
+ * worth making. See the comment at the guard for the two anchor cases.
+ *
+ * ⚠️ A starting value. Validate against a real shop before Beta.
+ */
+const NET_TO_GROSS_FLOOR = new Prisma.Decimal("0.25");
+
 /** `null` is ไม่ระบุแผนก — a real bucket, not a missing value. */
 export type DepartmentId = string | null;
 
@@ -115,6 +123,28 @@ export function splitValueByDepartment(
       remainder: exact - floor,
     };
   });
+
+  // 🔴 THE OTHER END OF THE ZERO GUARD, and the reason that guard was not
+  // enough on its own. `weightTotal` merely CLOSE to zero is as meaningless as
+  // its being zero and far more likely: demand of +101 and −100 nets to 1, so
+  // cutting ฿1.00 by it hands one department ฿101.00 and the other −฿100.00.
+  // The sum is right and both rows are nonsense on a screen an owner reads.
+  //
+  // Measured as net-to-gross, because there is no structural line here — only a
+  // matter of degree, and the first attempt at a structural one ("no share may
+  // exceed the whole") also caught F8, a mixed-sign day that divides perfectly
+  // sensibly. The two anchors:
+  //
+  //   +2 / −6   net 4 of gross 8    = 50%    a real day, must divide
+  //   +101/−100 net 1 of gross 201  = 0.5%   nothing to attribute
+  //
+  // ⚠️ 25% IS A STARTING VALUE, NOT A REASONED ONE — the same honesty ADR 0020
+  // gives its 1%/฿100 and rule-limit thresholds. It sits an order of magnitude
+  // clear of both anchors and wants checking against a real shop's data.
+  const grossWeight = demand.reduce((t, d) => t.plus(d.qty.abs()), ZERO);
+  if (weightTotal.abs().div(grossWeight).lessThan(NET_TO_GROSS_FLOOR)) {
+    return unattributable();
+  }
 
   let leftover = totalSatang - shares.reduce((t, s) => t + s.floor, 0);
 
