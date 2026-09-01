@@ -31,13 +31,18 @@
 // rather than introduces, and it is why adoption is not a boundary.
 // ============================================================
 
+import { Prisma as PrismaNS } from "@prisma/client";
 import type { PrismaClient, Prisma } from "@prisma/client";
 import {
   explodeMenuSalesLogic,
   menuSalesForDay,
   type MenuSales,
 } from "./consumption";
-import type { DepartmentDemand, DepartmentId } from "./department-split";
+import {
+  splitValueByDepartment,
+  type DepartmentDemand,
+  type DepartmentId,
+} from "./department-split";
 
 /** Product id -> the demand each department's menus generated for it. */
 export type PeriodDemand = Map<string, DepartmentDemand[]>;
@@ -50,6 +55,7 @@ export type PeriodDemandResult = {
   skippedMenuIds: string[];
 };
 
+const ZERO = new PrismaNS.Decimal(0);
 const DAY_MS = 86_400_000;
 const addDays = (d: Date, n: number) => new Date(d.getTime() + n * DAY_MS);
 
@@ -215,4 +221,143 @@ export function totalDemand(
     (t, d) => t.plus(d.qty),
     demand[0].qty.minus(demand[0].qty)
   );
+}
+
+// ============================================================
+// L3 — the demand above, cut against the money the ledger actually moved
+// ============================================================
+
+/**
+ * One department's line on the matrix. MATERIALS and REVENUE only: rent and
+ * electricity are operating costs of the whole shop and never enter a food-cost
+ * figure (rule F5), so OpEx by department is a separate report and not this one.
+ */
+export type DepartmentBreakdownRow = {
+  departmentId: DepartmentId;
+  /** Value of the stock this department's menus consumed, apportioned (F2). */
+  materialCost: Prisma.Decimal;
+  /** Revenue of the dishes it sold, live rows only, same basis as /cost. */
+  revenue: Prisma.Decimal;
+};
+
+export type DepartmentBreakdown = {
+  rows: DepartmentBreakdownRow[];
+  segments: number;
+  /** Menus that could not be exploded — the caller carries this as coverage. */
+  skippedMenuIds: string[];
+};
+
+/**
+ * Revenue per department for the period.
+ *
+ * Independent of recipes entirely: a shop with no recipes still gets this, which
+ * is the half of rule F4 that survives when gross profit per department cannot
+ * be computed. Read off the live sales rows on the same basis /cost uses, so the
+ * two pages cannot disagree about what a period earned.
+ */
+export async function departmentRevenueForPeriodLogic(
+  tx: PrismaClient,
+  tenantId: string,
+  params: { branchId: string; from: Date; to: Date }
+): Promise<Map<DepartmentId, Prisma.Decimal>> {
+  const { branchId, from, to } = params;
+
+  const byMenu = await tx.salesLine.groupBy({
+    by: ["menuId"],
+    where: {
+      tenantId,
+      branchId,
+      businessDate: { gte: from, lte: to },
+      supersededAt: null,
+    },
+    _sum: { netAmount: true },
+  });
+  if (byMenu.length === 0) return new Map();
+
+  const menus = await tx.menu.findMany({
+    where: { tenantId, id: { in: byMenu.map((r) => r.menuId) } },
+    select: { id: true, primaryDepartmentId: true },
+  });
+  const departmentOf = new Map(menus.map((m) => [m.id, m.primaryDepartmentId]));
+
+  const out = new Map<DepartmentId, Prisma.Decimal>();
+  for (const r of byMenu) {
+    // A menu the lookup did not return still counts, into ไม่ระบุแผนก. Dropping
+    // it would shrink the revenue this page reports below what /cost reports
+    // for the same period, and nothing would say which was right (rule F8).
+    const dept = departmentOf.get(r.menuId) ?? null;
+    const amount = r._sum.netAmount;
+    if (amount === null) continue;
+    out.set(dept, (out.get(dept) ?? amount.minus(amount)).plus(amount));
+  }
+  return out;
+}
+
+/**
+ * The whole of Part 32's arithmetic, in the order rule F2 requires.
+ *
+ * `consumptionValueByProduct` must be the value the LEDGER moved for this
+ * branch and period — the caller has it from the FIFO replay, and passing it in
+ * is what stops this module ever computing a cost of its own (ADR 0032 Q2).
+ */
+export async function departmentBreakdownLogic(
+  tx: PrismaClient,
+  tenantId: string,
+  params: {
+    branchId: string;
+    from: Date;
+    to: Date;
+    cancelledSalePolicy: "TREAT_AS_COOKED" | "TREAT_AS_NOT_COOKED";
+    consumptionValueByProduct: ReadonlyMap<string, Prisma.Decimal>;
+  }
+): Promise<DepartmentBreakdown> {
+  const { consumptionValueByProduct, ...periodParams } = params;
+
+  const [demandResult, revenue] = await Promise.all([
+    departmentDemandForPeriodLogic(tx, tenantId, periodParams),
+    departmentRevenueForPeriodLogic(tx, tenantId, {
+      branchId: params.branchId,
+      from: params.from,
+      to: params.to,
+    }),
+  ]);
+
+  const cost = new Map<DepartmentId, Prisma.Decimal>();
+  for (const [productId, value] of consumptionValueByProduct) {
+    // A product the ledger moved but no menu asked for — waste, a manual
+    // adjustment, a staff meal the caller did not filter out. splitValue…
+    // sends it to ไม่ระบุแผนก rather than losing it (rule F7).
+    const shares = splitValueByDepartment(
+      value,
+      demandResult.demand.get(productId) ?? []
+    );
+    for (const s of shares) {
+      cost.set(
+        s.departmentId,
+        (cost.get(s.departmentId) ?? s.value.minus(s.value)).plus(s.value)
+      );
+    }
+  }
+
+  const departments = new Set<DepartmentId>([...cost.keys(), ...revenue.keys()]);
+  const rows: DepartmentBreakdownRow[] = [...departments].map((departmentId) => ({
+    departmentId,
+    materialCost: cost.get(departmentId) ?? ZERO,
+    revenue: revenue.get(departmentId) ?? ZERO,
+  }));
+
+  // Named departments first and ไม่ระบุ last, so the bucket that means "we do
+  // not know" never sits above the ones that do.
+  rows.sort((a, b) => {
+    if (a.departmentId === b.departmentId) return 0;
+    if (a.departmentId === null) return 1;
+    if (b.departmentId === null) return -1;
+    return a.departmentId < b.departmentId ? -1 : 1;
+  });
+
+  return {
+    rows,
+    segments: demandResult.segments,
+    skippedMenuIds: demandResult.skippedMenuIds,
+  };
 }

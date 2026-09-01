@@ -19,7 +19,12 @@ import { productInputSchema } from "@/lib/validations/product";
 import { createProductLogic, type ProductWithUnits } from "@/server/product";
 import { recipeInputSchema } from "@/lib/validations/recipe";
 import { createRecipeLogic, updateRecipeLogic } from "@/server/recipe";
-import { departmentDemandForPeriodLogic } from "@/server/department-cost";
+import {
+  departmentDemandForPeriodLogic,
+  departmentRevenueForPeriodLogic,
+  departmentBreakdownLogic,
+} from "@/server/department-cost";
+import { Prisma } from "@prisma/client";
 import { withTenantContext } from "@/lib/db";
 
 describe("department demand over a period (ADR 0032 Q1/Q2)", () => {
@@ -310,5 +315,74 @@ describe("department demand over a period (ADR 0032 Q1/Q2)", () => {
     const r = await run({ to: addDays(CHANGED_ON, -1) });
     expect(r.segments).toBe(1);
     expect(share(r, bar)).toBe("-6");
+  });
+
+  // ----------------------------------------------------------
+  // L3 — the demand above, cut against money the ledger moved
+  // ----------------------------------------------------------
+
+  const breakdown = (values: Record<string, string>) =>
+    withTenantContext(tenantId, (tx) =>
+      departmentBreakdownLogic(tx, tenantId, {
+        branchId,
+        from: FROM,
+        to: TO,
+        cancelledSalePolicy: "TREAT_AS_COOKED",
+        consumptionValueByProduct: new Map(
+          Object.entries(values).map(([k, v]) => [k, new Prisma.Decimal(v)])
+        ),
+      })
+    );
+
+  const rowFor = (
+    b: Awaited<ReturnType<typeof breakdown>>,
+    dept: string | null
+  ) => b.rows.find((r) => r.departmentId === dept);
+
+  it("P6 — revenue is split by the menu's department, with no recipe involved", async () => {
+    // Rule F4's surviving half: a shop with no recipes at all still gets this.
+    const rev = await withTenantContext(tenantId, (tx) =>
+      departmentRevenueForPeriodLogic(tx, tenantId, { branchId, from: FROM, to: TO })
+    );
+    // ยำ 100 x 100 = 10,000 (ครัว) · โซดา 200 x 100 = 20,000 (บาร์)
+    // ของหวาน 200 x 100 = 20,000 (ไม่ระบุ)
+    expect(rev.get(kitchen)?.toString()).toBe("10000");
+    expect(rev.get(bar)?.toString()).toBe("20000");
+    expect(rev.get(null)?.toString()).toBe("20000");
+  });
+
+  it("P7 — the department columns sum to the money the ledger moved (rule F2)", async () => {
+    // The end-to-end statement of F2. Lime moved ฿1,400 in total; whatever the
+    // ratios work out to, the columns must add back to exactly that.
+    const b = await breakdown({ [lime.id]: "1400.00" });
+    const total = b.rows.reduce(
+      (t, r) => t.plus(r.materialCost),
+      new Prisma.Decimal(0)
+    );
+    expect(total.toFixed(2)).toBe("1400.00");
+  });
+
+  it("P8 — the split follows demand: ครัว 4kg, บาร์ 8kg, ไม่ระบุ 2kg of 14kg", async () => {
+    // 4 + 8 + 2 = 14 kg of lime, so ฿1,400 lands as 400 / 800 / 200.
+    const b = await breakdown({ [lime.id]: "1400.00" });
+    expect(rowFor(b, kitchen)?.materialCost.toFixed(2)).toBe("400.00");
+    expect(rowFor(b, bar)?.materialCost.toFixed(2)).toBe("800.00");
+    expect(rowFor(b, null)?.materialCost.toFixed(2)).toBe("200.00");
+  });
+
+  it("P9 — a product no menu asked for lands in ไม่ระบุ, never nowhere (rule F7)", async () => {
+    // Waste and manual adjustments arrive exactly like this: real money in the
+    // ledger with no menu behind it.
+    const ghost = await makeProduct("ghost");
+    const b = await breakdown({ [ghost.id]: "750.00" });
+    expect(rowFor(b, null)?.materialCost.toFixed(2)).toBe("750.00");
+    expect(rowFor(b, kitchen)?.materialCost.toFixed(2)).toBe("0.00");
+  });
+
+  it("P10 — ไม่ระบุแผนก always sorts last", async () => {
+    // The bucket that means "we do not know" must never sit above the ones that
+    // do, on a screen an owner reads top-down.
+    const b = await breakdown({ [lime.id]: "1400.00" });
+    expect(b.rows[b.rows.length - 1].departmentId).toBeNull();
   });
 });
