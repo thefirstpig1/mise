@@ -1,10 +1,10 @@
 # Mise Sprint Progress
 
-**Last updated:** 2026-08-30
+**Last updated:** 2026-09-01
 
-## Current Sprint: Sprint 7 — RLS 🚧 IN PROGRESS
+## Current Sprint: Sprint 7 — RLS + อีเมลขาออก 🚧 IN PROGRESS
 
-**Status:** **Part 30 (เปิด RLS ให้ทำงานจริง) ✅ COMPLETE 2026-08-30** — หนี้ที่ ADR 0004 เลื่อนมาตั้งแต่ Sprint 1 · อีกครึ่งของการแยกที่ Sprint 6 ทำค้างไว้ (ADR 0029 Consequence 3)
+**Status:** **Part 30 (เปิด RLS ให้ทำงานจริง) ✅ COMPLETE 2026-08-30** · **Part 31 (อีเมลขาออก) ✅ COMPLETE 2026-09-01** — Part 30 คือหนี้ที่ ADR 0004 เลื่อนมาตั้งแต่ Sprint 1 · Part 31 ปลด blocker ที่ทุกเอกสารเขียนผิดมาตั้งแต่ Sprint 4: มันเป็นสองการตัดสินใจ ไม่ใช่หนึ่ง และขาออกไม่เคยต้องรอขาเข้าเลย
 
 ---
 
@@ -21,7 +21,7 @@ shipping the ability to create weak users before the gate exists is worse than t
 
 ## Sprint 5 — Recipe + CONSUMPTION: ✅ COMPLETE (2026-08-28)
 
-_(Sprint 4 — POS sales import · daily pulse: ✅ COMPLETE 2026-08-20, except Part 20b which is blocked on choosing an inbound-mail vendor)_
+_(Sprint 4 — POS sales import · daily pulse: ✅ COMPLETE 2026-08-20, except Part 20b which is blocked on choosing an **inbound**-mail vendor — outbound was split off and shipped in Part 31, ADR 0031 Q1)_
 
 **Status:** **Part 21 ✅ COMPLETE 2026-08-24** · **Part 22 ✅ COMPLETE 2026-08-25** · **Part 23 ✅** · **Part 23.5 ✅ COMPLETE 2026-08-25** · **Part 24 (Menu Lab + recipe coverage) ✅ COMPLETE 2026-08-26** · **Part 25 (การรวมเมนู) ✅ COMPLETE 2026-08-27**.
 **Split:** Sprint 5 is **five Parts** — **21** สูตรอาหาร + ต้นทุนสูตร (no ledger writes) · **22** `CONSUMPTION` + GP by recipe · **23** test-suite reliability (ADR 0023) · **23.5** connection ที่ค้าง (ADR 0024) · **24** Menu Lab + recipe coverage (ADR 0025). **Menu merging became Part 25 and staff meal Part 26** — ADR 0025 Q1: merging rewrites `sales_line` rows already imported and consumption runs already posted, and staff meal writes to the ledger with its own `source_type`. Neither is the same kind of work as a screen that writes only a draft.
@@ -30,6 +30,48 @@ _(Sprint 4 — POS sales import · daily pulse: ✅ COMPLETE 2026-08-20, except 
 **Part 27 — วงจรชีวิตของเมนู: ✅ COMPLETE 2026-08-27 (L0–L6), ADR 0027 (grill Q1–Q9).** สิ่งที่ grill พลิกจากที่ตั้งไว้: **แบบสองสถานะของ master-spec บรรทัด 482 ใช้กับเมนูไม่ได้ทั้งดุ้น** — `deleted_at` เป็นระเบิดสำหรับเมนู POS ทุกตัว จึงเปิดให้ลบเฉพาะเมนูที่ลบแล้วไม่พังจริง ๆ · **`is_active` ห้ามแตะการจับคู่ไฟล์ และนี่ไม่ใช่ทางเลือก** — `createStubMenusLogic` เขียน `create` ดิบ ๆ ไม่มี catch รหัสที่หยุด match จะพาไฟล์ทั้งไฟล์ล่มกลางคอมมิต · จึงเหลือให้ `is_active` เป็น**คำแถลงเรื่องอนาคตเท่านั้น** ไม่แตะ ledger ไม่แตะอดีต · **ความครอบคลุมนับเมนูที่เลิกขายเต็มจำนวน** ติดป้ายอย่างเดียว เพราะตัดออกแล้วตัวหารหด = กดปุ่มวันนี้ทำให้ % ของเดือนที่แล้วเปลี่ยน · เจอ**ทางพังที่ห้าระหว่าง grill**: `menu_alias` ไม่มี `deleted_at` และ ALIAS ชนะ NAME → alias ที่ห้อยอยู่จะพาเงินจริงไปลงแถวที่ตายแล้ว · **ไม่มี migration เลยทั้ง Part** — ปฏิเสธคอลัมน์ใหม่สองตัว (`deactivated_at`, `menu_alias.deleted_at`) และตอบคำถามเดิมได้ครบด้วยข้อเท็จจริงที่ข้อมูลมีอยู่แล้ว. รูลส์ **L1–L6** ใน §11.6. รายละเอียดที่สร้างจริงอยู่ในหัวข้อ "Sprint 5 Part 27" ด้านล่าง.
 **Part 23 is not a feature.** It is the debugging session that found why the suite had been going red at random, and the two fixes that came out of it. Menu Lab moved to **Part 24** (ADR 0023 Q1): Part numbers here record what was built and when — Part 13.5 exists for the same reason.
 **Not in Sprint 5:** H.8 theoretical-vs-actual variance (→ Sprint 6, per the spec's own O16, decided 2026-08-21) · Price Volatility (Sprint 6) · Section B three-layer mirror and `recipe_change_diff` (**removed**, ADR 0021 Q3).
+
+---
+
+## Sprint 7 Part 31 — อีเมลขาออก: magic link ที่ส่งได้จริง: ✅ COMPLETE (L0–L6, 2026-09-01)
+
+**ADR:** `docs/adr/0031-outbound-email.md` (Q1–Q9, grill 2026-09-01)
+**Rules:** ไม่มี — ไม่มีกฎการคำนวณใดถูกตัดสิน `docs/calculation-rules.md` และ `CONTEXT.md` ไม่ถูกแตะ (ไม่มีคำไหนเป็นคำในโลกร้านอาหาร และรายการ [Invitation] เดิมยังจริงทุกตัวอักษร)
+**ไม่มี migration · ไม่มี dependency ใหม่ทั้ง Part**
+
+ทุกเอกสารในโปรเจกต์เขียนตรงกันว่า blocker คือ *"choosing an **inbound-mail** vendor"* — ประโยคเดียวที่มัดของสองอย่างที่ไม่ผูกกันทางเทคนิคเลยไว้ด้วยกัน ผลคือ**ทางเข้าเดียวของทุกคนรอ feature ที่ ADR ของมันเองเรียกว่า "a bonus, never a precondition"** มาตั้งแต่ Sprint 4
+
+- **Q1 แยกขาออกจากขาเข้า** — magic link ต้องการโดเมนที่ verify SPF/DKIM, Part 20b ต้องการ **MX record** + vendor ที่มี inbound parse ถ้าอยากได้ขาเข้าวันหนึ่งก็ใช้คนละเจ้าได้ (MX ชี้ subdomain แยก ไม่แตะ SPF/DKIM ของโดเมนที่ใช้ส่ง) · **Part 20b ยังบล็อกอยู่ และนั่นคือเจตนา**
+- 🔴 **Q2 — magic link คือ URL และยังไม่มี URL** ไม่มี `vercel.json` ไม่มี Dockerfile ไม่มี `.github/` และ `AUTH_URL` = `localhost:3000` สิ่งที่บล็อก *production login* ไม่ใช่อีเมล **มันคือยังไม่มี production** · Part นี้จึงเป็น **A** (ทางส่งที่พิสูจน์แล้ว) ไม่ใช่ **C** (deploy) — และ C ควรถูกเรียกว่า Part เรื่อง deployment ไม่ใช่ Part เรื่องอีเมล
+- **Q3 SMTP ผ่าน `nodemailer` ที่อยู่ใน `package.json` มาตั้งแต่ Sprint 0 โดยไม่มีใครใช้เลยสักบรรทัด** — ไม่มี dependency ใหม่ และ**ทำให้ Q4 ย้อนกลับได้ด้วยการแก้ `.env`** เพราะทุกเจ้าพูด SMTP เหมือนกัน · `.env.example` ของ Sprint 0 เดาทางนี้ไว้ครบชุดแล้วและไม่เคยเดินต่อ
+- **Q4 Resend** ตรวจจากหน้าเว็บจริงก่อนเขียนโค้ดบรรทัดแรก: `smtp.resend.com` port 587 · user `resend` · password = API key · **`resend.dev` ส่งถึงได้เฉพาะอีเมลเจ้าของบัญชี ซึ่งคือนิยามของ A พอดี** · free tier 3,000/เดือน · คู่แข่งจริงข้อเดียวคือ **Postmark** และเหตุผลของมันถูกต้อง (อีเมลคือทางเข้าเดียว ไม่มีรหัสผ่านสำรอง) — วันที่ deliverability ไม่พอ นั่นคือชื่อที่ต้องหยิบ และการหยิบคือแก้ `.env`
+- **Q5 คำเชิญได้จดหมายแจ้ง และมันไม่ใช่ credential ใบที่สอง** — ADR 0029 Q2 ปฏิเสธ *token* ไม่ได้ปฏิเสธการบอกกล่าว จดหมายชี้ `/login` เฉย ๆ คนอ่านต้องพิมพ์อีเมลตัวเองขอลิงก์ **ซึ่งคือการยอมรับตาม ADR 0029** · ล้อมสามเส้น: ไม่พก credential · ส่งหลัง commit ไม่ใช่ใน tx · ส่งล้มไม่ทำให้คำเชิญล้ม
+- 🔴 **Q6 `/login` เป็นปืนยิงอีเมลสาธารณะที่ Part นี้เป็นคนบรรจุกระสุน** ของที่เสียหายไม่ใช่ค่าส่งเมล: เมลที่ไม่มีใครขอ → spam complaint → deliverability ตก → **ร้านที่จ่ายเงินล็อกอินไม่ได้** คนโจมตีไม่เจ็บ · **ชั้น 1** นับ `verification_token` ที่ค้าง ไม่ต้อง migration และไม่ต้องใช้ประตูข้ามของ Part 30 (ตารางนี้ไม่มี policy และ `mise_app` มี SELECT) · **ชั้น 2 (ต่อ IP) ยังเป็นหนี้ และกำหนดชำระคือ *ก่อน verify โดเมน* ไม่ใช่ก่อน deploy**
+- **Q7 สวิตช์ย้ายจาก `NODE_ENV` ไป "มี credential ไหม"** ตาราง 2×2 · ช่องที่สำคัญที่สุดคือ **production + ไม่มี credential = ปฏิเสธ** เพราะ log เงียบ ๆ คือ credential ที่ใช้ได้จริงกองอยู่ใน log ของเซิร์ฟเวอร์ **และ** ผู้ใช้เห็น "เช็คอีเมล" สำหรับเมลที่ไม่มีวันมา
+- **Q8 จดหมายแจ้งไม่ได้สร้างช่องโหว่ typo แต่ประกาศมัน** — แถว membership ที่ผูกกับข้อความอีเมลต่างหากที่สร้าง (ADR 0029 ยอมรับไว้แล้ว) ทางแก้คือคำในจดหมายเอง (*"ถ้าคุณไม่รู้จักร้านนี้ ไม่ต้องทำอะไร"*) + `neverSignedIn` ที่ Part 29 ทำไว้ · ปฏิเสธขั้นยืนยันที่อยู่ (คนกดโดยไม่อ่าน) และขั้นตอน "ยอมรับคำเชิญ" (กลับคำ ADR 0029 Q2 ทั้งข้อ = Part ของมันเอง)
+- **Q9 ล้มต้องให้เห็น** — เพิ่ม `pages.error` ที่ไม่เคยมี ความล้มเหลวเคยไปโผล่หน้าอังกฤษของ Auth.js
+
+🔴 **สามอย่างที่อ่านจากซอร์ส `@auth/core` แล้วขัดกับที่แผนสมมติไว้ — ทั้งสามเปลี่ยนโค้ด:**
+
+1. **Auth.js สร้างแถว token ไม่ใช่ก่อนและไม่ใช่หลัง แต่*พร้อมกัน*** (`send-token.js` เรียกทั้งสองแล้ว `await Promise.all`) ผลนับจึง **±1 แบบ race** ไม่ใช่ลำดับที่แน่นอน → เลือก N หลวมพอที่หนึ่งแถวไม่มีความหมาย และ**เทสต์เรียกตัวนับตรง ๆ** เพราะเทสต์ที่ยืนบนขอบผ่านทางจริงคือ flake แบบเดียวกับที่ Part 23 ใช้ทั้ง Part กำจัด · **ยืนยันด้วย log จริงตอน L5: `SELECT COUNT(*)` รันก่อน `INSERT`**
+2. **คำขอที่ถูกปฏิเสธยังเขียนแถว token อยู่ดี** — `createVerificationToken` ออกตัวไปแล้ว ซึ่งเป็นสิ่งที่ต้องการ: ยิงรัวแล้วลิมิต**ค้างตริป** ไม่ใช่รีเซ็ต
+3. **`pages.error` ทำงานจาก Server Action เฉพาะกับ `Error` ธรรมดา** (`index.js:124` re-throw `AuthError` เมื่ออยู่โหมด `raw` และ `signIn()` ใน Server Action คือ raw) — **ห้ามโยน AuthError** · ราคาที่จ่าย: ทุกความล้มเหลวมาเป็น `?error=Configuration` **หน้าจอแยก "SMTP ล่ม" กับ "ขอถี่เกิน" ไม่ได้** จึงเขียนประโยคให้จริงกับทั้งสองแทนการประดิษฐ์ช่องส่งสัญญาณ
+
+🔴 **บั๊กที่ L2 เปิดรูไว้ใต้ `signup/page.tsx` และ L3 ปิด** — `createTenant` รัน**ก่อน**ส่ง magic link ซึ่งไม่เคยเป็นปัญหาเพราะบรรทัดนั้นโยน error เสมอใน production (signup พังทั้งดุ้นมาตลอด) พอส่งได้จริงมันก็ล้มได้จริง → คนสมัครได้ร้านจริงแล้วไปจบที่หน้า error → กด "สร้างบัญชี" ใหม่ = **ได้ร้านที่สองชื่อเดียวกัน** เพราะ `user.upsert` เจอคนเดิมและไม่มีอะไร idempotent · ตอนนี้บอกตรง ๆ ว่าร้านมีแล้ว ทางเข้าคือหน้า login
+
+| L | What | ✅ |
+|---|---|---|
+| L0 | ADR 0031 (Q1–Q9) · ตรวจเงื่อนไข Resend จากหน้าเว็บจริงก่อนเขียนโค้ด | ✅ |
+| L1 | `email/transport.ts` + `templates.ts` · ยังไม่มีใครเรียก · **C6 จับบั๊กก่อนได้รัน**: `parseInt("587x")` = 587 | ✅ |
+| L2 | ตาราง 2×2 · rate limit ชั้น 1 · `pages.error` · **สามข้อจากซอร์ส** | ✅ |
+| L3 | สองหน้าจอเลิกโกหก · `redirect:false` คือกุญแจ · **ปิดรูร้านซ้ำของ signup** | ✅ |
+| L4 | จดหมายแจ้งคำเชิญ · **สามผลลัพธ์ ไม่ใช่สอง** (`skipped` ≠ `failed`) | ✅ |
+| L5 | **เมลจริงถึงกล่องจริง · magic link ถูกคลิกและได้ session · rate limit ยิงจริง (123ms vs 3381ms)** | ✅ |
+| L6 | เอกสาร + แก้ประโยค blocker ทุกที่ให้พูดถึงขาเข้าอย่างเดียว | ✅ |
+
+**Verified at close:** `tsc` clean · `build` green (**64 routes**) · vitest **1276 passed / 4 skipped** · sweep เงียบ · **เมลจริงส่งออกและถูกคลิกจนได้ session (`emailVerified = yes`)**
+
+⚠️ **ยังเหลือ:** **B** ซื้อโดเมน + verify SPF/DKIM (ตอนนี้ส่งถึงได้เฉพาะอีเมลเจ้าของบัญชี Resend) · **C** deploy + `AUTH_URL` จริง — **จนกว่าจะถึง C คำเชิญของ Part 29 ยังใช้จริงไม่ได้ เพราะลิงก์ยังชี้ `localhost`** · **rate limit ชั้น 2 (ต่อ IP) ต้องมาก่อน B** · `.env` มี `EMAIL_FROM` สองบรรทัด บรรทัดแรกเป็นค่าเก่าจาก Sprint 0 ที่ dotenv ทับให้อยู่แล้ว แต่ลบทิ้งจะปลอดภัยกว่า
 
 ---
 
@@ -511,7 +553,7 @@ One number per branch per day — what the customer paid — closing the window 
 A POS export covering only PART of a day passes every defence Part 19 built — every row real, header signature matching, no blank cells, every menu resolved. It is merely incomplete, and nothing inside the file says so. The pulse is the only witness.
 
 ### NOT in this Part
-**Part 20b — email intake.** It needs an inbound-mail vendor and an `.env` edit, both stop-and-ask items. `SalesPulseSource` therefore ships with `MANUAL` only: an enum value with no writer is debt, not preparation (ADR 0019's own reasoning about `SYSTEM_INITIAL`).
+**Part 20b — email intake.** It needs an **inbound**-mail vendor and an `.env` edit, both stop-and-ask items. ⚠️ Until Part 31 this sentence was read as blocking the magic link too; ADR 0031 Q1 split them, and outbound no longer waits on this. `SalesPulseSource` therefore ships with `MANUAL` only: an enum value with no writer is debt, not preparation (ADR 0019's own reasoning about `SYSTEM_INITIAL`).
 
 ---
 
