@@ -111,7 +111,7 @@ const keyOf = (productId: string, branchId: string) => `${productId}|${branchId}
  * value; that is a display order, and changing it is Part 10's call, not this
  * Part's.
  */
-const costSortKey = (occurredAt: Date): number =>
+export const costSortKey = (occurredAt: Date): number =>
   isDayValue(occurredAt)
     ? bangkokDayEndUtc(occurredAt).getTime() - 1
     : occurredAt.getTime();
