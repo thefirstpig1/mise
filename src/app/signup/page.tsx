@@ -32,7 +32,31 @@ async function handleSignup(formData: FormData) {
   });
 
   // 3. Send magic link to login
-  await signIn("email", { email, redirectTo: "/dashboard" });
+  //
+  // 🔴 THE SHOP ALREADY EXISTS BY THE TIME WE GET HERE. Until Part 31 this
+  // line always threw in production, so signup was wholly broken there and the
+  // order never mattered. Now the send can fail on its own (SMTP down, or the
+  // ADR 0031 Q6 limit) — and a failure that just bubbles leaves a real user
+  // with a real shop looking at an error page. The obvious thing to do next is
+  // press "สร้างบัญชี" again, and `createTenant` would happily make a SECOND
+  // shop with the same name, because `prisma.user.upsert` above finds the user
+  // and nothing here is idempotent.
+  //
+  // So the failure is caught and named: the account is fine, only the letter
+  // failed, and the way in is the login page — not another signup.
+  //
+  // `redirect: false` for the reason in login/page.tsx, and it also keeps this
+  // block from having to tell a NEXT_REDIRECT apart from a real failure.
+  const outcome = await signIn("email", {
+    email,
+    redirectTo: "/dashboard",
+    redirect: false,
+  });
+
+  const code = new URL(outcome, "http://internal").searchParams.get("error");
+  if (code) redirect("/login?error=SignupEmailFailed");
+
+  redirect(`/login?check-email=${encodeURIComponent(email)}`);
 }
 
 export default function SignupPage() {

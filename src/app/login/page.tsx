@@ -1,4 +1,12 @@
+import { redirect } from "next/navigation";
 import { signIn } from "@/lib/auth";
+import { decideEmailDelivery, isProductionRuntime } from "@/lib/email/delivery";
+import { isEmailConfigured } from "@/lib/email/transport";
+import {
+  loginNoticeFor,
+  displayableAddress,
+  checkEmailHintFor,
+} from "@/lib/email/login-messages";
 
 // Next 15 made `searchParams` a Promise (it was a plain object in 14). This page
 // dates from Sprint 0 and kept the old signature — which `next build` rejects in
@@ -6,12 +14,48 @@ import { signIn } from "@/lib/auth";
 // never caught it because the generated .next/types route types are outside the
 // tsconfig scope; dev and vitest are unaffected, so it went unnoticed for
 // 9 parts. Found by the Part 10 L5a build check.
+//
+// Part 31 (ADR 0031 Q7/Q9): this page had TWO ways of saying something untrue
+// the moment real sending was switched on — it told every visitor to look in a
+// dev-server terminal, and it had no way at all to report a failed send, so a
+// failure showed Auth.js's own English page at /api/auth/error.
+//
+// `redirect: false` on signIn is what makes the difference. Without it the
+// action redirects from inside Auth.js and this page never learns which
+// address was used or whether the send worked.
+
+async function requestLink(formData: FormData) {
+  "use server";
+
+  const email = String(formData.get("email") ?? "").trim();
+  if (!email) redirect("/login");
+
+  // Returns the URL instead of throwing a redirect, so the outcome is a value
+  // this action can read rather than control flow it cannot intercept.
+  const outcome = await signIn("email", { email, redirect: false });
+
+  const code = new URL(outcome, "http://internal").searchParams.get("error");
+  if (code) redirect(`/login?error=${encodeURIComponent(code)}`);
+
+  redirect(`/login?check-email=${encodeURIComponent(email)}`);
+}
+
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ "check-email"?: string }>;
+  searchParams: Promise<{ "check-email"?: string; error?: string }>;
 }) {
-  const checkEmail = (await searchParams)["check-email"] !== undefined;
+  const params = await searchParams;
+  const checkEmail = params["check-email"] !== undefined;
+  const sentTo = displayableAddress(params["check-email"]);
+  const notice = loginNoticeFor(params.error);
+
+  // The same decision auth.ts makes, asked the same way — so this line cannot
+  // drift out of agreement with what actually happened to the letter.
+  const mode = decideEmailDelivery({
+    isProduction: isProductionRuntime(),
+    configured: isEmailConfigured(),
+  });
 
   return (
     <main className="flex min-h-screen items-center justify-center px-4">
@@ -21,24 +65,47 @@ export default async function LoginPage({
           ระบบจะส่งลิงก์ login ไปอีเมลของคุณ
         </p>
 
+        {notice ? (
+          <div
+            className={`mb-6 rounded-lg border p-4 ${
+              notice.tone === "error"
+                ? "border-red-300 bg-red-50"
+                : "border-border bg-muted/40"
+            }`}
+          >
+            <p className="mb-1 text-sm font-medium">{notice.title}</p>
+            <p className="text-sm text-muted-foreground">{notice.detail}</p>
+          </div>
+        ) : null}
+
         {checkEmail ? (
           <div className="rounded-lg border border-border bg-muted/40 p-6 text-center">
             <p className="mb-2 text-lg font-medium">📧 เช็คอีเมลของคุณ</p>
-            <p className="text-sm text-muted-foreground">
-              คลิกลิงก์ในอีเมลเพื่อเข้าสู่ระบบ
-            </p>
+            {sentTo ? (
+              // Naming the address is where a typo becomes visible. Without it
+              // somebody who typed gmial.com sees a success screen and waits.
+              <p className="text-sm text-muted-foreground">
+                ส่งลิงก์ไปที่ <span className="font-medium">{sentTo}</span> แล้ว
+              </p>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                คลิกลิงก์ในอีเมลเพื่อเข้าสู่ระบบ
+              </p>
+            )}
             <p className="mt-4 text-xs text-muted-foreground">
-              (Dev mode — ลิงก์จะแสดงใน terminal ของ dev server)
+              {checkEmailHintFor(mode)}
             </p>
+            {sentTo ? (
+              <p className="mt-4 text-xs text-muted-foreground">
+                กรอกอีเมลผิด?{" "}
+                <a href="/login" className="text-primary underline">
+                  ลองใหม่
+                </a>
+              </p>
+            ) : null}
           </div>
         ) : (
-          <form
-            action={async (formData) => {
-              "use server";
-              await signIn("email", formData);
-            }}
-            className="space-y-4"
-          >
+          <form action={requestLink} className="space-y-4">
             <div>
               <label htmlFor="email" className="mb-1 block text-sm font-medium">
                 อีเมล
