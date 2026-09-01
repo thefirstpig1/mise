@@ -43,6 +43,10 @@ import {
   updateMemberLogic,
   type MembershipActor,
 } from "@/server/membership";
+import {
+  notifyInvitedPerson,
+  type NotifyOutcome,
+} from "@/server/invite-notify";
 import type { Role } from "@/lib/permissions/service";
 import type { ZodError } from "zod";
 
@@ -143,14 +147,50 @@ export async function inviteMemberAction(
   try {
     const res = await inviteMemberLogic(ctx.tenantId, parsed.data, actorOf(ctx));
     revalidateMembers();
+
+    // Part 31 (ADR 0031 Q5). AFTER the logic returned, so its transaction is
+    // closed: a send failure inside it would roll back an invitation that was
+    // perfectly correct. Nothing below can throw, and the row stands whatever
+    // it returns — all that changes is which sentence the owner reads.
+    const notice = await notifyInvitedPerson({
+      email: parsed.data.email,
+      shopName: ctx.membership.tenant.name,
+      roleLabel: ROLE_LABELS_TH[parsed.data.role as Role] ?? parsed.data.role,
+    });
+
     return {
       ok: true,
-      message: res.wasReactivated
-        ? `เพิ่ม ${parsed.data.email} กลับเข้าร้านแล้ว`
-        : `เชิญ ${parsed.data.email} แล้ว — เข้าใช้งานได้ทันทีเมื่อล็อกอินด้วยอีเมลนี้`,
+      message: inviteMessage(parsed.data.email, res.wasReactivated, notice),
     };
   } catch (e) {
     return toFormError(e);
+  }
+}
+
+/**
+ * Three outcomes, three sentences, and none of them pretends. "ส่งไม่สำเร็จ" on
+ * a dev machine with no transport would be as untrue as silence in production
+ * where the letter really was owed and never went.
+ */
+function inviteMessage(
+  email: string,
+  wasReactivated: boolean,
+  notice: NotifyOutcome
+): string {
+  const added = wasReactivated
+    ? `เพิ่ม ${email} กลับเข้าร้านแล้ว`
+    : `เชิญ ${email} แล้ว`;
+
+  switch (notice) {
+    case "sent":
+      return `${added} — ส่งอีเมลแจ้งไปที่ ${email} เรียบร้อย`;
+    case "failed":
+      // The invitation is real; only the telling failed. Say what to do about
+      // it, because a message that cannot be acted on is the failure ADR 0027
+      // spent a whole question on.
+      return `${added} แต่ส่งอีเมลแจ้งไม่สำเร็จ — บอกเขาให้เข้าที่หน้าเข้าสู่ระบบด้วยอีเมลนี้`;
+    case "skipped":
+      return `${added} — เข้าใช้งานได้ทันทีเมื่อล็อกอินด้วยอีเมลนี้`;
   }
 }
 
