@@ -26,6 +26,7 @@ import {
 } from "@/server/department-cost";
 import { Prisma } from "@prisma/client";
 import { withTenantContext } from "@/lib/db";
+import { getDepartmentReportLogic } from "@/server/department-read";
 
 describe("department demand over a period (ADR 0032 Q1/Q2)", () => {
   let tenantId: string;
@@ -40,6 +41,7 @@ describe("department demand over a period (ADR 0032 Q1/Q2)", () => {
   let yum: string; // ครัว
   let soda: string; // บาร์
   let orphan: string; // no department
+  let noRecipe: string; // sells, has no recipe at all
   let sodaRecipeId: string;
 
   const today = computeBangkokToday();
@@ -243,6 +245,8 @@ describe("department demand over a period (ADR 0032 Q1/Q2)", () => {
     yum = await makeMenu("ยำ", kitchen);
     soda = await makeMenu("โซดามะนาว", bar);
     orphan = await makeMenu("ของหวานพิเศษ", null);
+    // No recipe, on purpose: the only thing that can populate `skipped`.
+    noRecipe = await makeMenu("เมนูไม่มีสูตร", kitchen);
 
     // Effective well before the period, so the whole period resolves to them.
     await makeRecipe(yum, 0.04, addDays(today, -60));
@@ -317,6 +321,95 @@ describe("department demand over a period (ADR 0032 Q1/Q2)", () => {
     expect(share(r, bar)).toBe("-6");
   });
 
+  it("P11 — a skipped menu is counted ONCE, not once per segment", async () => {
+    // The page renders this length as "N เมนูที่ระเบิดสูตรไม่ได้". By now there
+    // are two segments (P4 published a recipe mid-period) and this menu sells in
+    // BOTH — one menu with one problem, which must not be reported as two.
+    //
+    // 🔴 The first version of this case asserted `length === new Set(...).size`
+    // against a fixture where every menu had a recipe, so `skipped` was always
+    // empty and the assertion was vacuous — it stayed green under every break
+    // aimed at it. A menu with no recipe selling either side of the boundary is
+    // what makes it able to fail.
+    await sell(addDays(today, -13), noRecipe, 5); // segment 1
+    await sell(addDays(today, -7), noRecipe, 5); // segment 2
+
+    const r = await run();
+    expect(r.segments).toBe(2);
+    expect(r.skippedMenuIds.filter((id) => id === noRecipe)).toHaveLength(1);
+  });
+
+  it("P12 — onlyDates narrows demand to the days the caller names", async () => {
+    // 🔴 The fix for the review's finding 3. The ratio is used to cut money the
+    // ledger moved on the POSTED days; taking it over the whole period hands a
+    // department a share of money for stock it never consumed. Totals still add
+    // up, so nothing on screen looks wrong — which is what makes it the worse
+    // of the two failures.
+    const all = await run();
+    const soloDay = await withTenantContext(tenantId, (tx) =>
+      departmentDemandForPeriodLogic(tx, tenantId, {
+        branchId,
+        from: FROM,
+        to: TO,
+        cancelledSalePolicy: "TREAT_AS_COOKED",
+        onlyDates: [addDays(today, -15)], // the day only ยำ (ครัว) sold
+      })
+    );
+
+    // Over the whole period บาร์ and ไม่ระบุ both have demand for lime.
+    expect(share(all, bar)).toBeDefined();
+    expect(share(all, null)).toBeDefined();
+
+    // Narrowed to one kitchen-only day, they have none — and ครัว has all of it.
+    const only = (dept: string | null) =>
+      (soloDay.demand.get(lime.id) ?? [])
+        .find((d) => d.departmentId === dept)
+        ?.qty.toString();
+    expect(only(kitchen)).toBe("-4");
+    expect(only(bar)).toBeUndefined();
+    expect(only(null)).toBeUndefined();
+  });
+
+  it("P13 — a day list that misses a segment entirely does not read it", async () => {
+    // Guards the `continue` that skips a segment with none of the caller's days
+    // in it: without it the segment would fall back to its full range and pull
+    // in days the caller excluded.
+    const none = await withTenantContext(tenantId, (tx) =>
+      departmentDemandForPeriodLogic(tx, tenantId, {
+        branchId,
+        from: FROM,
+        to: TO,
+        cancelledSalePolicy: "TREAT_AS_COOKED",
+        onlyDates: [],
+      })
+    );
+    expect(none.demand.size).toBe(0);
+    expect(none.skippedMenuIds).toEqual([]);
+  });
+
+  it("P14 — the real entry point reports ZERO coverage when nothing was posted (rule F10)", async () => {
+    // 🔴 The review's finding 1, and the case that made it worth fixing: this
+    // fixture has sales and no consumption runs at all — every menu resolves,
+    // so `skippedMenuIds` names nobody, and the old report handed the screen a
+    // material cost of 0 with no signal whatsoever. The page then printed
+    // gross profit = the whole revenue at a 0.0% food cost. Arithmetically
+    // correct, and a lie.
+    //
+    // It also covers `getDepartmentReportLogic` itself, which the page calls
+    // and which had no test before this.
+    const report = await getDepartmentReportLogic(tenantId, {
+      branchId,
+      from: FROM,
+      to: TO,
+    });
+
+    expect(report.postedDays).toBe(0);
+    expect(report.coveredNetAmount.toFixed(2)).toBe("0.00");
+    expect(report.materialCostTotal.toFixed(2)).toBe("0.00");
+    // Revenue is real, which is exactly what makes a bare gross profit dangerous.
+    expect(Number(report.revenueTotal)).toBeGreaterThan(0);
+  });
+
   // ----------------------------------------------------------
   // L3 — the demand above, cut against money the ledger moved
   // ----------------------------------------------------------
@@ -344,9 +437,13 @@ describe("department demand over a period (ADR 0032 Q1/Q2)", () => {
     const rev = await withTenantContext(tenantId, (tx) =>
       departmentRevenueForPeriodLogic(tx, tenantId, { branchId, from: FROM, to: TO })
     );
-    // ยำ 100 x 100 = 10,000 (ครัว) · โซดา 200 x 100 = 20,000 (บาร์)
-    // ของหวาน 200 x 100 = 20,000 (ไม่ระบุ)
-    expect(rev.get(kitchen)?.toString()).toBe("10000");
+    // ยำ 100 x 100 = 10,000 plus เมนูไม่มีสูตร 10 x 100 = 1,000, both ครัว ·
+    // โซดา 200 x 100 = 20,000 (บาร์) · ของหวาน 200 x 100 = 20,000 (ไม่ระบุ)
+    //
+    // The recipe-less menu's REVENUE counts here even though it contributes no
+    // cost — which is the asymmetry rule F10 exists to make visible, and why
+    // coverage is reported as money rather than as a count of dishes.
+    expect(rev.get(kitchen)?.toString()).toBe("11000");
     expect(rev.get(bar)?.toString()).toBe("20000");
     expect(rev.get(null)?.toString()).toBe("20000");
   });
@@ -371,8 +468,14 @@ describe("department demand over a period (ADR 0032 Q1/Q2)", () => {
   });
 
   it("P9 — a product no menu asked for lands in ไม่ระบุ, never nowhere (rule F7)", async () => {
-    // Waste and manual adjustments arrive exactly like this: real money in the
-    // ledger with no menu behind it.
+    // 🔴 The comment here used to say "waste and manual adjustments arrive
+    // exactly like this", and a review showed that is false: the caller filters
+    // to SALES_CONSUMPTION, so an ADJUST_LOSS never reaches this map. What DOES
+    // reach it is a product consumed on a posted day whose menus fell out of
+    // the demand — a menu deleted since, or a day whose sales rows were
+    // superseded. The behaviour under test is unchanged; the claim about where
+    // it comes from was wrong, and a test that misnames its own case is a test
+    // nobody can act on.
     const ghost = await makeProduct("ghost");
     const b = await breakdown({ [ghost.id]: "750.00" });
     expect(rowFor(b, null)?.materialCost.toFixed(2)).toBe("750.00");

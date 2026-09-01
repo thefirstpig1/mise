@@ -122,6 +122,8 @@ export default async function DepartmentCostPage({
           revenueTotal={report.revenueTotal.toFixed(2)}
           grossProfitUnavailable={report.grossProfitUnavailable}
           skippedCount={report.skippedMenuIds.length}
+          coveredNetAmount={report.coveredNetAmount.toFixed(2)}
+          postedDays={report.postedDays}
         />
       )}
     </div>

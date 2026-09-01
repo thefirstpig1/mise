@@ -33,13 +33,27 @@ export default function DepartmentTable({
   revenueTotal,
   grossProfitUnavailable,
   skippedCount,
+  coveredNetAmount,
+  postedDays,
 }: {
   rows: DepartmentRowView[];
   materialCostTotal: string;
   revenueTotal: string;
   grossProfitUnavailable: boolean;
   skippedCount: number;
+  /** Revenue with consumption behind it — rule F10, and money not days (N3). */
+  coveredNetAmount: string;
+  postedDays: number;
 }) {
+  // 🔴 Rule F10. Nothing was posted, so every material cost is zero and the
+  // gross profit column would read as the entire revenue at a 0.0% food cost.
+  // Every figure would be arithmetically correct and the page would be a lie,
+  // which is the one thing a screen in this system may not be.
+  const nothingPosted = postedDays === 0 || Number(coveredNetAmount) === 0;
+  const coveragePct =
+    Number(revenueTotal) === 0
+      ? null
+      : (Number(coveredNetAmount) / Number(revenueTotal)) * 100;
   if (rows.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
@@ -50,6 +64,29 @@ export default function DepartmentTable({
 
   return (
     <div className="space-y-4">
+      {nothingPosted && (
+        <div className="rounded-lg border border-red-300 bg-red-50 p-4 text-sm">
+          <p className="font-medium">ยังไม่ได้ตัดสต๊อกตามยอดขายในช่วงนี้</p>
+          <p className="mt-1 text-muted-foreground">
+            ยอดขายนำเข้ามาแล้ว แต่ยังไม่ได้กดตัดสต๊อก — ต้นทุนวัตถุดิบจึงเป็น 0 ทุกแผนก
+            และ <strong>กำไรขั้นต้นด้านล่างยังไม่ใช่ตัวเลขจริง</strong> ไปที่หน้าตัดสต๊อกตามยอดขายก่อน
+            แล้วกลับมาดูอีกครั้ง
+          </p>
+        </div>
+      )}
+
+      {!nothingPosted && coveragePct !== null && coveragePct < 99.5 && (
+        <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm">
+          <p className="font-medium">
+            ตัวเลขนี้ครอบคลุมรายได้ {coveragePct.toFixed(1)}% ของช่วงเวลา
+          </p>
+          <p className="mt-1 text-muted-foreground">
+            ส่วนที่เหลือคือวันที่ยังไม่ได้ตัดสต๊อก หรือเมนูที่ระเบิดสูตรไม่ได้ —
+            ต้นทุนและกำไรขั้นต้นด้านล่างเป็นของส่วนที่ครอบคลุมเท่านั้น
+          </p>
+        </div>
+      )}
+
       {grossProfitUnavailable && (
         <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm">
           <p className="font-medium">ร้านนี้คิดกำไรขั้นต้นแบบ “นับสต๊อก”</p>
@@ -135,8 +172,13 @@ export default function DepartmentTable({
         </p>
         <p>
           <strong className="text-foreground">ไม่ระบุแผนก</strong>{" "}
-          คือเมนูที่ยังไม่ได้เลือกแผนก และของที่ไม่ได้มาจากเมนู เช่น ของเสียกับการปรับสต๊อกมือ
-          ซึ่งไม่มีทางรู้ว่าเป็นของแผนกไหน
+          คือเมนูที่ขายแล้วยังไม่ได้เลือกแผนกให้ · ตั้งแผนกให้เมนูได้ที่หน้าเมนู
+          แล้วตัวเลขจะย้ายไปแถวที่ถูกต้องเอง
+        </p>
+        <p>
+          <strong className="text-foreground">ของเสียกับการปรับสต๊อกมือไม่อยู่ในตารางนี้</strong>{" "}
+          — ตารางนี้นับเฉพาะของที่ถูกใช้ไปตามสูตรเพื่อขาย ซึ่งคือตัวที่คู่กับรายได้เป็นกำไรขั้นต้น ·
+          ของเสียมีคอลัมน์ของตัวเองในหน้าต้นทุน และของที่หายโดยไม่มีใครบันทึกอยู่ในหน้า “ของหายไปไหน”
         </p>
         {skippedCount > 0 && (
           <p className="text-amber-700">

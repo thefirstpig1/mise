@@ -154,7 +154,16 @@ type MenuSales = {
  * and a cancelled bill kept nothing. Reading revenue any other way would make
  * `/cost`'s coverage disagree with `/cost`'s revenue on the same page.
  */
-export type BusinessDateFilter = Date | { gte: Date; lte: Date };
+export type BusinessDateFilter =
+  | Date
+  | { gte: Date; lte: Date }
+  /**
+   * An explicit day list (Part 32.5). The department report has to read exactly
+   * the days whose consumption was POSTED — its ratio is used to cut money the
+   * ledger moved on those days, and a ratio taken over days that never posted
+   * attributes that money to whoever happened to be selling on the other days.
+   */
+  | { in: Date[] };
 
 export async function menuSalesForDay(
   tx: PrismaClient,

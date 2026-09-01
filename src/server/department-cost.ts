@@ -111,9 +111,24 @@ export async function departmentDemandForPeriodLogic(
     from: Date;
     to: Date;
     cancelledSalePolicy: "TREAT_AS_COOKED" | "TREAT_AS_NOT_COOKED";
+    /**
+     * 🔴 Part 32.5. When given, ONLY these business days are read.
+     *
+     * The caller that cuts money must pass the days whose consumption actually
+     * posted, because the ratio computed here is used to divide the value the
+     * ledger moved on exactly those days. Reading the whole period instead
+     * hands a department a share of money for stock it never consumed — rule F2
+     * still holds (the parts sum to the whole) while the split is attributed to
+     * the wrong department, which is the worse failure of the two because
+     * nothing about the totals looks wrong.
+     *
+     * Omitted by the leak report on purpose: "who uses this product" is a
+     * question about the shop, not about which days happened to be posted.
+     */
+    onlyDates?: Date[];
   }
 ): Promise<PeriodDemandResult> {
-  const { branchId, from, to, cancelledSalePolicy } = params;
+  const { branchId, from, to, cancelledSalePolicy, onlyDates } = params;
 
   const boundaries = await resolutionBoundaries(tx, tenantId, from, to);
 
@@ -128,7 +143,11 @@ export async function departmentDemandForPeriodLogic(
   segments.push({ start: cursor, end: to });
 
   const demand: PeriodDemand = new Map();
-  const skippedMenuIds: string[] = [];
+  // A SET: a menu with no recipe is skipped once per segment, and the page
+  // renders this length as "N เมนูที่ระเบิดสูตรไม่ได้". Publishing one recipe
+  // mid-month makes two segments and would have doubled the count of a problem
+  // that did not change.
+  const skippedMenuIds = new Set<string>();
   // Menu -> department, fetched once for the whole period. A menu's department
   // is NOT dated (there is one column on `menu`), so unlike its recipe it does
   // not vary by segment — which is also what makes rule F9 true: changing it
@@ -136,11 +155,23 @@ export async function departmentDemandForPeriodLogic(
   const departmentOf = new Map<string, DepartmentId>();
 
   for (const seg of segments) {
+    // The segment's own window, narrowed to the caller's day list when there is
+    // one. A segment with none of those days in it has nothing to read.
+    const segDates =
+      onlyDates === undefined
+        ? null
+        : onlyDates.filter(
+            (d) =>
+              d.getTime() >= seg.start.getTime() &&
+              d.getTime() <= seg.end.getTime()
+          );
+    if (segDates !== null && segDates.length === 0) continue;
+
     const sales = await menuSalesForDay(
       tx,
       tenantId,
       branchId,
-      { gte: seg.start, lte: seg.end },
+      segDates === null ? { gte: seg.start, lte: seg.end } : { in: segDates },
       cancelledSalePolicy
     );
 
@@ -161,7 +192,7 @@ export async function departmentDemandForPeriodLogic(
       names,
     });
 
-    for (const s of exploded.skipped) skippedMenuIds.push(s.menuId);
+    for (const s of exploded.skipped) skippedMenuIds.add(s.menuId);
 
     for (const m of exploded.byMenu) {
       const departmentId = departmentOf.get(m.menuId) ?? null;
@@ -178,7 +209,7 @@ export async function departmentDemandForPeriodLogic(
     }
   }
 
-  return { demand, segments: segments.length, skippedMenuIds };
+  return { demand, segments: segments.length, skippedMenuIds: [...skippedMenuIds] };
 }
 
 async function loadDepartments(
@@ -309,6 +340,8 @@ export async function departmentBreakdownLogic(
     to: Date;
     cancelledSalePolicy: "TREAT_AS_COOKED" | "TREAT_AS_NOT_COOKED";
     consumptionValueByProduct: ReadonlyMap<string, Prisma.Decimal>;
+    /** The posted days the value came from — see departmentDemandForPeriodLogic. */
+    onlyDates?: Date[];
   }
 ): Promise<DepartmentBreakdown> {
   const { consumptionValueByProduct, ...periodParams } = params;
@@ -324,9 +357,14 @@ export async function departmentBreakdownLogic(
 
   const cost = new Map<DepartmentId, Prisma.Decimal>();
   for (const [productId, value] of consumptionValueByProduct) {
-    // A product the ledger moved but no menu asked for — waste, a manual
-    // adjustment, a staff meal the caller did not filter out. splitValue…
-    // sends it to ไม่ระบุแผนก rather than losing it (rule F7).
+    // A product the ledger CONSUMED that no menu in this period asked for.
+    // splitValueByDepartment sends it to ไม่ระบุแผนก rather than losing it.
+    //
+    // ⚠️ Corrected in Part 32.5 after a review: this comment used to say waste
+    // and manual adjustments arrive here, and they cannot. The caller filters
+    // to `SALES_CONSUMPTION`, so an ADJUST_LOSS never reaches this map at all —
+    // which is right (waste is not cost of goods SOLD and has its own column on
+    // /cost), but the screen was repeating the wrong claim in a footnote.
     const shares = splitValueByDepartment(
       value,
       demandResult.demand.get(productId) ?? []
