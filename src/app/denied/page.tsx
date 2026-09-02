@@ -13,6 +13,7 @@
 
 import Link from "next/link";
 import { requireTenant } from "@/lib/require-tenant";
+import Logo from "@/components/layout/Logo";
 
 /**
  * Thai for each requirement. A capability with no entry falls back to its own
@@ -59,6 +60,12 @@ export default async function DeniedPage({
   return (
     <main className="flex min-h-screen items-center justify-center px-4 py-8">
       <div className="w-full max-w-md">
+        <div className="mb-7 flex items-center gap-3">
+          <Logo size={38} />
+          <span className="font-display text-2xl font-semibold text-primary">
+            Mise
+          </span>
+        </div>
         <h1 className="mb-2 text-2xl font-bold">ยังไม่มีสิทธิ์ใช้หน้านี้</h1>
 
         <p className="mb-6 text-muted-foreground">

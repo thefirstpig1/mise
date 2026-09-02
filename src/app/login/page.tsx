@@ -7,6 +7,7 @@ import {
   displayableAddress,
   checkEmailHintFor,
 } from "@/lib/email/login-messages";
+import Logo from "@/components/layout/Logo";
 
 // Next 15 made `searchParams` a Promise (it was a plain object in 14). This page
 // dates from Sprint 0 and kept the old signature — which `next build` rejects in
@@ -60,6 +61,12 @@ export default async function LoginPage({
   return (
     <main className="flex min-h-screen items-center justify-center px-4">
       <div className="w-full max-w-md">
+        <div className="mb-7 flex items-center gap-3">
+          <Logo size={38} />
+          <span className="font-display text-2xl font-semibold text-primary">
+            Mise
+          </span>
+        </div>
         <h1 className="mb-2 text-3xl font-bold">เข้าสู่ระบบ</h1>
         <p className="mb-8 text-muted-foreground">
           ระบบจะส่งลิงก์ login ไปอีเมลของคุณ

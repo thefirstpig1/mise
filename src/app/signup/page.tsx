@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { createTenant } from "@/server/tenant-init";
 import { signIn } from "@/lib/auth";
+import Logo from "@/components/layout/Logo";
 
 async function handleSignup(formData: FormData) {
   "use server";
@@ -63,6 +64,12 @@ export default function SignupPage() {
   return (
     <main className="flex min-h-screen items-center justify-center px-4 py-8">
       <div className="w-full max-w-lg">
+        <div className="mb-7 flex items-center gap-3">
+          <Logo size={38} />
+          <span className="font-display text-2xl font-semibold text-primary">
+            Mise
+          </span>
+        </div>
         <h1 className="mb-2 text-3xl font-bold">สมัครใช้งาน Mise</h1>
         <p className="mb-8 text-muted-foreground">
           สร้างบัญชี + ตั้งค่าร้านของคุณ

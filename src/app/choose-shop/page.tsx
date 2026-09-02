@@ -24,6 +24,7 @@ import {
 } from "@/lib/active-tenant";
 import { ROLE_LABELS_TH } from "@/lib/validations/membership";
 import type { Role } from "@/lib/permissions/service";
+import Logo from "@/components/layout/Logo";
 
 async function chooseShop(formData: FormData) {
   "use server";
@@ -77,6 +78,12 @@ export default async function ChooseShopPage() {
   return (
     <main className="flex min-h-screen items-center justify-center px-4 py-8">
       <div className="w-full max-w-md">
+        <div className="mb-7 flex items-center gap-3">
+          <Logo size={38} />
+          <span className="font-display text-2xl font-semibold text-primary">
+            Mise
+          </span>
+        </div>
         <h1 className="mb-2 text-2xl font-bold">เลือกร้าน</h1>
         <p className="mb-6 text-sm text-muted-foreground">
           บัญชีของคุณอยู่ใน {memberships.length} ร้าน — เลือกร้านที่จะทำงานด้วยตอนนี้
