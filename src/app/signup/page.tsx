@@ -62,120 +62,125 @@ async function handleSignup(formData: FormData) {
 
 export default function SignupPage() {
   return (
-    <main className="flex min-h-screen items-center justify-center px-4 py-8">
-      <div className="w-full max-w-lg">
-        <div className="mb-9 flex flex-col items-center gap-3.5">
-          <Logo size={58} />
+    <main className="min-h-screen md:grid md:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+      <div className="flex items-center justify-center border-b border-border bg-surface-sunk px-6 py-14 md:border-b-0 md:border-r md:py-0">
+        <div className="flex flex-col items-center gap-5">
+          <Logo size={78} className="md:hidden" />
+          <Logo size={116} className="hidden md:block" />
           <div className="text-center">
-            <div className="font-display text-4xl font-semibold leading-none text-primary">
+            <div className="font-display text-5xl font-semibold leading-none text-primary md:text-6xl">
               Mise
             </div>
-            <div className="mt-2 text-xs tracking-[0.14em] text-muted-foreground">
+            <div className="mt-3 text-xs tracking-[0.16em] text-muted-foreground md:text-sm">
               Restaurant Management
             </div>
           </div>
         </div>
-        <h1 className="mb-2 text-3xl font-bold">สมัครใช้งาน Mise</h1>
-        <p className="mb-8 text-muted-foreground">
-          สร้างบัญชี + ตั้งค่าร้านของคุณ
-        </p>
+      </div>
+      <div className="flex items-center justify-center px-4 py-12 md:py-0">
+        <div className="w-full max-w-lg">
+          <h1 className="mb-2 text-3xl font-bold">สมัครใช้งาน Mise</h1>
+          <p className="mb-8 text-muted-foreground">
+            สร้างบัญชี + ตั้งค่าร้านของคุณ
+          </p>
 
-        <form action={handleSignup} className="space-y-4">
-          <div className="border-b border-border pb-4">
-            <h2 className="mb-3 text-sm font-medium uppercase text-muted-foreground">
-              ข้อมูลผู้ใช้
-            </h2>
-            <div className="space-y-3">
-              <div>
-                <label htmlFor="name" className="mb-1 block text-sm font-medium">
-                  ชื่อของคุณ
-                </label>
-                <input
-                  id="name"
-                  name="name"
-                  type="text"
-                  required
-                  className="w-full rounded-lg border border-border bg-background px-4 py-2"
-                />
-              </div>
-              <div>
-                <label htmlFor="email" className="mb-1 block text-sm font-medium">
-                  อีเมล
-                </label>
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  required
-                  className="w-full rounded-lg border border-border bg-background px-4 py-2"
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="border-b border-border pb-4">
-            <h2 className="mb-3 text-sm font-medium uppercase text-muted-foreground">
-              ข้อมูลร้าน
-            </h2>
-            <div className="space-y-3">
-              <div>
-                <label htmlFor="tenant_name" className="mb-1 block text-sm font-medium">
-                  ชื่อร้าน
-                </label>
-                <input
-                  id="tenant_name"
-                  name="tenant_name"
-                  type="text"
-                  required
-                  placeholder="เช่น ครัวคุณแม่"
-                  className="w-full rounded-lg border border-border bg-background px-4 py-2"
-                />
-              </div>
-              <div>
-                <label htmlFor="branch_name" className="mb-1 block text-sm font-medium">
-                  ชื่อสาขาแรก
-                </label>
-                <input
-                  id="branch_name"
-                  name="branch_name"
-                  type="text"
-                  defaultValue="สาขาหลัก"
-                  className="w-full rounded-lg border border-border bg-background px-4 py-2"
-                />
-              </div>
-              <div className="flex items-start gap-2 pt-2">
-                <input
-                  id="is_vat_registered"
-                  name="is_vat_registered"
-                  type="checkbox"
-                  className="mt-1"
-                />
+          <form action={handleSignup} className="space-y-4">
+            <div className="border-b border-border pb-4">
+              <h2 className="mb-3 text-sm font-medium uppercase text-muted-foreground">
+                ข้อมูลผู้ใช้
+              </h2>
+              <div className="space-y-3">
                 <div>
-                  <label htmlFor="is_vat_registered" className="text-sm font-medium">
-                    ร้านจดทะเบียน VAT
+                  <label htmlFor="name" className="mb-1 block text-sm font-medium">
+                    ชื่อของคุณ
                   </label>
-                  <p className="text-xs text-muted-foreground">
-                    ถ้ารายได้เกิน ฿1.8M ต่อปี ต้องจด VAT
-                  </p>
+                  <input
+                    id="name"
+                    name="name"
+                    type="text"
+                    required
+                    className="w-full rounded-lg border border-border bg-background px-4 py-2"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="email" className="mb-1 block text-sm font-medium">
+                    อีเมล
+                  </label>
+                  <input
+                    id="email"
+                    name="email"
+                    type="email"
+                    required
+                    className="w-full rounded-lg border border-border bg-background px-4 py-2"
+                  />
                 </div>
               </div>
             </div>
-          </div>
 
-          <button
-            type="submit"
-            className="w-full rounded-lg bg-primary py-3 font-medium text-primary-foreground hover:opacity-90"
-          >
-            สร้างบัญชี
-          </button>
-        </form>
+            <div className="border-b border-border pb-4">
+              <h2 className="mb-3 text-sm font-medium uppercase text-muted-foreground">
+                ข้อมูลร้าน
+              </h2>
+              <div className="space-y-3">
+                <div>
+                  <label htmlFor="tenant_name" className="mb-1 block text-sm font-medium">
+                    ชื่อร้าน
+                  </label>
+                  <input
+                    id="tenant_name"
+                    name="tenant_name"
+                    type="text"
+                    required
+                    placeholder="เช่น ครัวคุณแม่"
+                    className="w-full rounded-lg border border-border bg-background px-4 py-2"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="branch_name" className="mb-1 block text-sm font-medium">
+                    ชื่อสาขาแรก
+                  </label>
+                  <input
+                    id="branch_name"
+                    name="branch_name"
+                    type="text"
+                    defaultValue="สาขาหลัก"
+                    className="w-full rounded-lg border border-border bg-background px-4 py-2"
+                  />
+                </div>
+                <div className="flex items-start gap-2 pt-2">
+                  <input
+                    id="is_vat_registered"
+                    name="is_vat_registered"
+                    type="checkbox"
+                    className="mt-1"
+                  />
+                  <div>
+                    <label htmlFor="is_vat_registered" className="text-sm font-medium">
+                      ร้านจดทะเบียน VAT
+                    </label>
+                    <p className="text-xs text-muted-foreground">
+                      ถ้ารายได้เกิน ฿1.8M ต่อปี ต้องจด VAT
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
 
-        <p className="mt-6 text-center text-sm text-muted-foreground">
-          มีบัญชีแล้ว?{" "}
-          <a href="/login" className="text-primary underline">
-            เข้าสู่ระบบ
-          </a>
-        </p>
+            <button
+              type="submit"
+              className="w-full rounded-lg bg-primary py-3 font-medium text-primary-foreground hover:opacity-90"
+            >
+              สร้างบัญชี
+            </button>
+          </form>
+
+          <p className="mt-6 text-center text-sm text-muted-foreground">
+            มีบัญชีแล้ว?{" "}
+            <a href="/login" className="text-primary underline">
+              เข้าสู่ระบบ
+            </a>
+          </p>
+        </div>
       </div>
     </main>
   );
