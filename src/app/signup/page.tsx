@@ -64,11 +64,16 @@ export default function SignupPage() {
   return (
     <main className="flex min-h-screen items-center justify-center px-4 py-8">
       <div className="w-full max-w-lg">
-        <div className="mb-7 flex items-center gap-3">
-          <Logo size={38} />
-          <span className="font-display text-2xl font-semibold text-primary">
-            Mise
-          </span>
+        <div className="mb-9 flex flex-col items-center gap-3.5">
+          <Logo size={58} />
+          <div className="text-center">
+            <div className="font-display text-4xl font-semibold leading-none text-primary">
+              Mise
+            </div>
+            <div className="mt-2 text-xs tracking-[0.14em] text-muted-foreground">
+              Restaurant Management
+            </div>
+          </div>
         </div>
         <h1 className="mb-2 text-3xl font-bold">สมัครใช้งาน Mise</h1>
         <p className="mb-8 text-muted-foreground">
