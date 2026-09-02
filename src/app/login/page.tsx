@@ -59,22 +59,20 @@ export default async function LoginPage({
   });
 
   return (
-    <main className="min-h-screen md:grid md:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-      <div className="flex items-center justify-center border-b border-border bg-surface-sunk px-6 py-14 md:border-b-0 md:border-r md:py-0">
-        <div className="flex flex-col items-center gap-5">
-          <Logo size={78} className="md:hidden" />
-          <Logo size={116} className="hidden md:block" />
+    <main className="flex min-h-screen items-center justify-center px-5 py-12">
+      <div className="flex w-full max-w-3xl flex-col items-center gap-10 md:flex-row md:gap-12">
+        <div className="flex shrink-0 flex-col items-center gap-4">
+          <Logo size={76} className="md:hidden" />
+          <Logo size={92} className="hidden md:block" />
           <div className="text-center">
-            <div className="font-display text-5xl font-semibold leading-none text-primary md:text-6xl">
+            <div className="font-display text-4xl font-semibold leading-none text-primary md:text-5xl">
               Mise
             </div>
-            <div className="mt-3 text-xs tracking-[0.16em] text-muted-foreground md:text-sm">
+            <div className="mt-2.5 text-xs tracking-[0.15em] text-muted-foreground">
               Restaurant Management
             </div>
           </div>
         </div>
-      </div>
-      <div className="flex items-center justify-center px-4 py-12 md:py-0">
         <div className="w-full max-w-md">
           <h1 className="mb-2 text-3xl font-bold">เข้าสู่ระบบ</h1>
           <p className="mb-8 text-muted-foreground">
