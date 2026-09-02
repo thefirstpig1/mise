@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Logo from "@/components/layout/Logo";
 
 // Sprint 2 Part 11 L5a — shared chrome for every /purchase-orders route.
 // Mirrors src/app/stock/layout.tsx.
@@ -21,7 +22,10 @@ export default function PurchaseOrdersLayout({
           >
             ← กลับหน้าหลัก
           </a>
-          <h1 className="mt-1 text-lg font-bold">ใบสั่งซื้อ</h1>
+          <div className="mt-1 flex items-center gap-2.5">
+            <Logo size={26} />
+            <h1 className="text-lg font-bold">ใบสั่งซื้อ</h1>
+          </div>
         </div>
       </header>
 

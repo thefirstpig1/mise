@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Logo from "@/components/layout/Logo";
 
 // Sprint 3 Part 18 L5a — shared chrome for every /transfers route.
 // Mirrors src/app/waste/layout.tsx.
@@ -13,7 +14,10 @@ export default function TransfersLayout({ children }: { children: ReactNode }) {
           >
             ← กลับหน้าหลัก
           </a>
-          <h1 className="mt-1 text-lg font-bold">โอนของระหว่างสาขา</h1>
+          <div className="mt-1 flex items-center gap-2.5">
+            <Logo size={26} />
+            <h1 className="text-lg font-bold">โอนของระหว่างสาขา</h1>
+          </div>
         </div>
       </header>
 

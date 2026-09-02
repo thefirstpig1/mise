@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <!--
+    Favicon. Next's App Router picks this file up by name and writes the
+    <link> itself — do not add one to layout.tsx.
+
+    It carries its own olive tile rather than sitting on transparency: a
+    browser tab can be light or dark, and an olive mark on a dark tab is
+    invisible. The tile makes the mark hold everywhere.
+
+    No groove, and a heavier stroke — this is only ever seen at 16-32px,
+    which is exactly where the groove becomes a smear.
+  -->
+  <rect width="48" height="48" rx="10" fill="#41431B"/>
+  <g transform="translate(24,24) scale(0.76) translate(-24,-24)">
+    <path d="M37.5,9.5 L19.5,30.5 A9.5,9.5 0 0 0 38.5,30.5"
+          fill="none" stroke="#F8F3E1" stroke-width="6.4"
+          stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M0,-11 C4.8,-7.2 6.5,-3 6.5,0.8 C6.5,5.6 3.9,9.8 0,11 C-3.9,9.8 -6.5,5.6 -6.5,0.8 C-6.5,-3 -4.8,-7.2 0,-11 Z"
+          fill="#D9AC42" transform="translate(13,14) rotate(-16) scale(0.7)"/>
+  </g>
+</svg>

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Logo from "@/components/layout/Logo";
 
 // Sprint 2 Part 13 L5a — shared chrome for every /goods-receipts route.
 // Mirrors src/app/purchase-orders/layout.tsx, including `print:hidden` on the
@@ -19,7 +20,10 @@ export default function GoodsReceiptsLayout({
           >
             ← กลับหน้าหลัก
           </a>
-          <h1 className="mt-1 text-lg font-bold">รับสินค้า</h1>
+          <div className="mt-1 flex items-center gap-2.5">
+            <Logo size={26} />
+            <h1 className="text-lg font-bold">รับสินค้า</h1>
+          </div>
         </div>
       </header>
 

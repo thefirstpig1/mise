@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Logo from "@/components/layout/Logo";
 
 // Sprint 1 Part 7a — shared chrome for every /products route.
 // Mirrors src/app/categories/layout.tsx.
@@ -13,7 +14,10 @@ export default function ProductsLayout({ children }: { children: ReactNode }) {
           >
             ← กลับหน้าหลัก
           </a>
-          <h1 className="mt-1 text-lg font-bold">สินค้า/วัตถุดิบ</h1>
+          <div className="mt-1 flex items-center gap-2.5">
+            <Logo size={26} />
+            <h1 className="text-lg font-bold">สินค้า/วัตถุดิบ</h1>
+          </div>
         </div>
       </header>
 

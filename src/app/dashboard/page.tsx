@@ -9,6 +9,7 @@ import { computeBangkokToday } from "@/lib/bangkok-date";
 import { getPulseDashboardLogic } from "@/server/sales-pulse";
 import { toPulseDashboardView } from "@/app/sales/_components/sales-view";
 import PulsePanel from "./_components/PulsePanel";
+import Logo from "@/components/layout/Logo";
 
 /**
  * Every door in Mise, with the capability its page requires.
@@ -79,9 +80,12 @@ export default async function DashboardPage() {
     <div className="min-h-screen">
       <header className="border-b border-border bg-surface">
         <div className="container mx-auto flex items-center justify-between px-4 py-3">
-          <div>
-            <h1 className="text-lg font-bold">Mise</h1>
-            <p className="text-xs text-muted-foreground">{tenant.name}</p>
+          <div className="flex items-center gap-3">
+            <Logo size={34} />
+            <div>
+              <h1 className="text-lg font-bold">Mise</h1>
+              <p className="text-xs text-muted-foreground">{tenant.name}</p>
+            </div>
           </div>
           <div className="flex items-center gap-3 text-sm">
             <span className="text-muted-foreground">{user.email}</span>

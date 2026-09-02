@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Logo from "@/components/layout/Logo";
 
 // Sprint 2 Part 10 L5a — shared chrome for every /stock route.
 // Mirrors src/app/products/layout.tsx.
@@ -13,7 +14,10 @@ export default function StockLayout({ children }: { children: ReactNode }) {
           >
             ← กลับหน้าหลัก
           </a>
-          <h1 className="mt-1 text-lg font-bold">สต๊อก</h1>
+          <div className="mt-1 flex items-center gap-2.5">
+            <Logo size={26} />
+            <h1 className="text-lg font-bold">สต๊อก</h1>
+          </div>
         </div>
       </header>
 
