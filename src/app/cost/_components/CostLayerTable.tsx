@@ -25,8 +25,8 @@ const PRICING_LABEL: Record<string, string> = {
 };
 
 const PRICING_CLASS: Record<string, string> = {
-  DOCUMENT: "bg-emerald-50 text-emerald-800 border-emerald-200",
-  DECLARED: "bg-sky-50 text-sky-800 border-sky-200",
+  DOCUMENT: "bg-good-bg text-good border-good-border",
+  DECLARED: "bg-muted text-muted-foreground border-border-strong",
   LAST_KNOWN: "bg-warn-bg text-warn border-warn-border",
   UNPRICED: "bg-bad-bg text-bad border-bad-border",
 };

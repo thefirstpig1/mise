@@ -11,7 +11,7 @@ import { PURCHASE_ORDER_STATUS_LABELS_TH } from "@/lib/validations/purchase-orde
 
 const STYLES: Record<string, string> = {
   DRAFT: "border-border bg-muted/60 text-muted-foreground",
-  SENT: "border-blue-300 bg-blue-50 text-blue-700",
+  SENT: "border-border-strong bg-muted text-muted-foreground",
   PARTIALLY_RECEIVED: "border-warn-border bg-warn-bg text-warn",
   RECEIVED: "border-good-border bg-good-bg text-good",
   CANCELLED: "border-bad-border bg-bad-bg text-bad",

@@ -96,7 +96,7 @@ export default function MappingHistoryViewer({
                     {r.orderUnit ? ` / ${r.orderUnit.name}` : ""}
                   </span>
                   {r.isOpen && (
-                    <span className={`${badgeBase} bg-sky-100 text-sky-700`}>
+                    <span className={`${badgeBase} bg-muted text-muted-foreground`}>
                       ปัจจุบัน
                     </span>
                   )}

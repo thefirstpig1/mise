@@ -183,7 +183,7 @@ export default function MappingListSection({
                         )}
                         {m.isOpen && (
                           <span
-                            className={`${badgeBase} bg-sky-100 text-sky-700`}
+                            className={`${badgeBase} bg-muted text-muted-foreground`}
                           >
                             ปัจจุบัน
                           </span>

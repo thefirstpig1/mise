@@ -25,7 +25,7 @@ import type { ParLevelRowView } from "./par-level-view";
 const STATE_STYLES: Record<string, string> = {
   NEEDS_ORDER: "border-bad-border bg-bad-bg text-bad",
   OVERDUE: "border-warn-border bg-warn-bg text-warn",
-  ON_ORDER: "border-blue-300 bg-blue-50 text-blue-800",
+  ON_ORDER: "border-border-strong bg-muted text-muted-foreground",
   OK: "border-border bg-muted/30 text-muted-foreground",
 };
 

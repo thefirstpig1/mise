@@ -413,7 +413,7 @@ export default function PurchaseOrderForm({
                 <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs">
                   <div className="flex flex-wrap items-center gap-2">
                     {row.priceScope === "branch" && (
-                      <span className="rounded-full border border-blue-300 bg-blue-50 px-2 py-0.5 text-blue-700">
+                      <span className="rounded-full border border-border-strong bg-muted px-2 py-0.5 text-muted-foreground">
                         ราคาเฉพาะสาขานี้
                       </span>
                     )}

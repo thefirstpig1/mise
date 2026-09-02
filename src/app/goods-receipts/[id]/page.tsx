@@ -86,7 +86,7 @@ export default async function GoodsReceiptDetailPage({
         </div>
       )}
       {expense && (
-        <div className="rounded-lg border border-sky-300 bg-sky-50 p-3 text-sm text-sky-900 print:hidden">
+        <div className="rounded-lg border border-border-strong bg-muted p-3 text-sm text-foreground print:hidden">
           ใบนี้บันทึกเป็นค่าใช้จ่ายให้อัตโนมัติแล้ว —{" "}
           <a href={`/expenses/${expense.id}`} className="font-medium underline">
             ดูบิลค่าใช้จ่าย

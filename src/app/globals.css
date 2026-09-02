@@ -6,4 +6,29 @@
   body {
     @apply text-foreground;
   }
+
+  /* ============================================================
+     Where the two faces land (Part 33).
+     ------------------------------------------------------------
+     Prompt carries headings and figures; Noto Sans Thai carries
+     everything else. Doing it here rather than with a `font-display`
+     class on every heading keeps it ONE rule in ONE place — 15 layouts
+     and every page get it without being edited, and a heading added
+     tomorrow is right by default instead of right if someone remembers.
+
+     `tabular-nums` is the hook for figures because it already marks
+     exactly the thing we mean: a number in a column that has to line
+     up with the number above it. There are 103 of them, and they are
+     the reason Prompt is here at all.
+     ============================================================ */
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-display;
+  }
+
+  .tabular-nums {
+    @apply font-display;
+  }
 }

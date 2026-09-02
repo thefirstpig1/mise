@@ -80,7 +80,7 @@ export default async function ExpenseDetailPage({
       {/* The link Q7 asks for: a system-created document has to be reachable
           from the document that created it, and vice versa. */}
       {expense.sourceGrId && (
-        <div className="rounded-lg border border-sky-300 bg-sky-50 p-3 text-sm text-sky-900">
+        <div className="rounded-lg border border-border-strong bg-muted p-3 text-sm text-foreground">
           บิลนี้สร้างอัตโนมัติจากใบรับของ{" "}
           <a
             href={`/goods-receipts/${expense.sourceGrId}`}

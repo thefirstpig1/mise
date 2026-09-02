@@ -125,7 +125,7 @@ function MenuRow({
             + เขียนสูตร
           </a>
         ) : row.isBranchOwn ? (
-          <span className="rounded border border-blue-200 bg-blue-50 px-1.5 py-0.5 text-xs text-blue-800">
+          <span className="rounded border border-border-strong bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
             สูตรของสาขานี้
           </span>
         ) : (

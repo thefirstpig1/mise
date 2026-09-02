@@ -198,7 +198,7 @@ export default function ExpenseForm({
       )}
 
       {locked && (
-        <div className="rounded-lg border border-sky-300 bg-sky-50 p-3 text-sm text-sky-900">
+        <div className="rounded-lg border border-border-strong bg-muted p-3 text-sm text-foreground">
           บิลนี้สร้างจากใบรับของ{" "}
           {existing?.sourceGrNumber && (
             <a
