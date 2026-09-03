@@ -46,6 +46,44 @@ function fail(message) {
 }
 
 /**
+ * Read `.env` when there is one, WITHOUT the `dotenv` package.
+ *
+ * This script runs in two places that get their environment in two different
+ * ways. In the production image, Fly injects secrets as real environment
+ * variables and there is no `.env` at all — the Dockerfile's .dockerignore
+ * makes sure of it, since a secret in a layer is a secret that has escaped. On
+ * a dev machine the values live in `.env`, and nothing loads it for a plain
+ * `node` script: Next and vitest each load it themselves, which is why this was
+ * invisible until the script was run on its own.
+ *
+ * `dotenv` is a devDependency, so importing it would work in dev and crash in
+ * the image — the exact split this file cannot afford. Fifteen lines of parsing
+ * is the cheaper half of that trade.
+ *
+ * 🔴 A REAL ENVIRONMENT VARIABLE ALWAYS WINS. Never the other way around: on
+ * Fly the injected secret is the truth, and a stray `.env` that somehow arrived
+ * must not be able to quietly point production at a dev database.
+ */
+function loadDotEnv() {
+  const file = path.join(ROOT, ".env");
+  if (!fs.existsSync(file)) return;
+
+  for (const line of fs.readFileSync(file, "utf8").split(/\r?\n/)) {
+    const m = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/);
+    if (!m) continue; // blank line, comment, or something we do not understand
+
+    let value = m[2].trim();
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+    if (process.env[m[1]] === undefined) process.env[m[1]] = value;
+  }
+}
+
+/**
  * Replace `${NAME}` with the environment's value, for an allowlisted NAME only.
  *
  * The result is spliced into a SQL string literal, so this is the one place in
@@ -123,6 +161,8 @@ function assertPasswordsAgree() {
 }
 
 function main() {
+  loadDotEnv();
+
   if (!fs.existsSync(PRISMA_CLI)) {
     fail(
       `The Prisma CLI is not at ${PRISMA_CLI}.\n` +
@@ -145,6 +185,21 @@ function main() {
       `These files are in ${MANUAL_SQL_DIR}/ but not in MANUAL_SQL_ORDER, so they ` +
         `would never be applied: ${unlisted.join(", ")}.\n` +
         `  Add them to scripts/manual-sql-order.mjs, in the right group.`
+    );
+  }
+
+  // `--only <file>` narrows the run to one file, which is how `pnpm
+  // db:seed:system` reaches system_reference_seed.sql. It is a FILTER over the
+  // same list, not a second way in: the env expansion, its three refusals, the
+  // DIRECT_URL rule and the coverage checks above all still apply. A separate
+  // command that shelled out to `prisma db execute` directly would be a second
+  // code path, and the two would drift the first time either changed.
+  const onlyIndex = process.argv.indexOf("--only");
+  const only = onlyIndex === -1 ? null : process.argv[onlyIndex + 1];
+  if (onlyIndex !== -1 && !listed.has(only)) {
+    fail(
+      `--only ${only ?? "(nothing)"} — that file is not in MANUAL_SQL_ORDER. ` +
+        `Available: ${MANUAL_SQL_ORDER.join(", ")}`
     );
   }
 
@@ -180,7 +235,9 @@ function main() {
   //
   // A missing environment variable must be a refusal, not a half-applied
   // database.
-  const prepared = MANUAL_SQL_ORDER.map((file) => {
+  const toRun = only ? [only] : MANUAL_SQL_ORDER;
+
+  const prepared = toRun.map((file) => {
     const full = path.join(dir, file);
     if (!fs.existsSync(full)) {
       fail(
@@ -216,7 +273,7 @@ function main() {
     console.log(`[manual-sql]   ok  ${file}`);
   }
 
-  console.log(`[manual-sql] all ${MANUAL_SQL_ORDER.length} files applied.`);
+  console.log(`[manual-sql] all ${prepared.length} files applied.`);
 }
 
 main();

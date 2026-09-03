@@ -29,9 +29,13 @@ export const MANUAL_SQL_DIR = "prisma/manual";
  *    idempotent and mutually independent. They need only the tables, which
  *    `prisma migrate deploy` has just created.
  *
- * 2. `enable_rls.sql` — creates the 47 policies. Must come before enforce.
+ * 2. SYSTEM REFERENCE DATA — the only file here that writes rows rather than
+ *    schema. Independent of the rest; grouped separately because it is a
+ *    different KIND of thing and should not be mistaken for an index.
  *
- * 3. `enforce_rls.sql` — LAST, and it is the only file that depends on another.
+ * 3. `enable_rls.sql` — creates the 47 policies. Must come before enforce.
+ *
+ * 4. `enforce_rls.sql` — LAST, and it is the only file that depends on another.
  *    Its section 4 ALTERs each policy that enable_rls.sql created, so running
  *    it first fails on a policy that does not exist. Its sections 1-2 also
  *    grant on ALL TABLES, which must mean all of them.
@@ -55,12 +59,26 @@ export const MANUAL_SQL_ORDER = [
   "supplier_product_mapping_unique.sql",
   "waste_and_par_unique.sql",
 
-  // --- 2. the policies ----------------------------------------------------
+  // --- 2. system reference data -------------------------------------------
+  // Global, shared by every tenant, owned by none. Without it the unit dropdown
+  // on the product form is empty on a fresh database — see the file's header.
+  "system_reference_seed.sql",
+
+  // --- 3. the policies ----------------------------------------------------
   "enable_rls.sql",
 
-  // --- 3. the switch ------------------------------------------------------
+  // --- 4. the switch ------------------------------------------------------
   "enforce_rls.sql",
 ];
+
+/**
+ * The system reference data, addressable on its own for `pnpm db:seed:system`.
+ *
+ * Named here rather than typed at the call site so there is one spelling of the
+ * filename in the project: the coverage test checks it exists, and a rename
+ * that missed one place would go red rather than quiet.
+ */
+export const SYSTEM_REFERENCE_SEED = "system_reference_seed.sql";
 
 /**
  * Environment variables a file may interpolate as `${NAME}`.
