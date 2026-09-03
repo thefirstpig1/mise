@@ -1,8 +1,36 @@
 -- ============================================================
 -- Mise — RLS Policies for Sprint 0 (Section H.10)
 -- ============================================================
--- Run this AFTER `prisma migrate dev` creates the tables.
--- Command: docker exec -i mise-postgres psql -U mise -d mise_db < prisma/migrations/manual/enable_rls.sql
+-- Run this AFTER `prisma migrate deploy` creates the tables, and BEFORE
+-- enforce_rls.sql — whose section 4 ALTERs every policy this file creates, and
+-- which therefore fails on a policy that does not exist yet.
+--
+-- Applied automatically by `scripts/apply-manual-sql.mjs`, which Fly runs as
+-- the release command on every deploy (ADR 0033 Q6/Q9).
+--
+-- RE-RUNNABLE SINCE PART 34, AND IT HAD TO BECOME SO. This file was written
+-- append-only, because Postgres has no `CREATE POLICY IF NOT EXISTS` — each
+-- section carried "apply this section only, never re-run the whole file".
+-- That instruction survives below for the record; it is no longer true.
+--
+-- A release command that runs on EVERY deploy cannot have a file that fails
+-- the second time: the deploy would be cancelled and the shop would stay on
+-- the old version with no obvious reason. So every CREATE POLICY is now
+-- preceded by `DROP POLICY IF EXISTS`.
+--
+-- WHY DROP + CREATE IS SAFE HERE, THOUGH enforce_rls.sql REFUSES IT. That file
+-- deliberately uses ALTER POLICY, on the grounds that a dropped policy leaves a
+-- table with none. The grounds are right and the conclusion does not carry to
+-- this file: RLS is ENABLED on the line above each policy, and a table with RLS
+-- enabled and no policy DENIES EVERY ROW to a non-owner role. The window is
+-- fail-closed, it lasts one statement, and mise_app is not the owner.
+--
+-- The other half is ordering: this file runs before enforce_rls.sql on every
+-- release, so the policies it recreates in their original "polite" form
+-- (`current_setting(..., true)`) are tightened again moments later by
+-- enforce_rls.sql section 4. Reversing the two would leave them polite —
+-- returning zero rows instead of raising — which is the exact failure ADR 0030
+-- went to the trouble of removing.
 -- ============================================================
 
 -- Enable RLS on all tenant-scoped tables (Sprint 0 set)
@@ -17,15 +45,19 @@ ALTER TABLE user_department_assignment ENABLE ROW LEVEL SECURITY;
 -- POLICIES — Direct tenant_id tables
 -- ============================================================
 
+DROP POLICY IF EXISTS tenant_isolation ON tenant;
 CREATE POLICY tenant_isolation ON tenant
 USING (id = current_setting('app.current_tenant_id', true)::uuid);
 
+DROP POLICY IF EXISTS tenant_isolation ON branch;
 CREATE POLICY tenant_isolation ON branch
 USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
+DROP POLICY IF EXISTS tenant_isolation ON tenant_membership;
 CREATE POLICY tenant_isolation ON tenant_membership
 USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
+DROP POLICY IF EXISTS tenant_isolation ON department;
 CREATE POLICY tenant_isolation ON department
 USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
@@ -33,6 +65,7 @@ USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 -- POLICIES — Child tables (no tenant_id, inherited from parent)
 -- ============================================================
 
+DROP POLICY IF EXISTS tenant_isolation ON user_branch_access;
 CREATE POLICY tenant_isolation ON user_branch_access
 USING (
   EXISTS (
@@ -42,6 +75,7 @@ USING (
   )
 );
 
+DROP POLICY IF EXISTS tenant_isolation ON user_department_assignment;
 CREATE POLICY tenant_isolation ON user_department_assignment
 USING (
   EXISTS (
@@ -73,26 +107,31 @@ USING (
 
 -- supplier (direct tenant_id)
 ALTER TABLE supplier ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON supplier;
 CREATE POLICY tenant_isolation ON supplier
 USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
 -- category (direct tenant_id)
 ALTER TABLE category ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON category;
 CREATE POLICY tenant_isolation ON category
 USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
 -- product (direct tenant_id)
 ALTER TABLE product ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON product;
 CREATE POLICY tenant_isolation ON product
 USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
 -- supplier_product_mapping (direct tenant_id)
 ALTER TABLE supplier_product_mapping ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON supplier_product_mapping;
 CREATE POLICY tenant_isolation ON supplier_product_mapping
 USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
 -- product_unit (NO direct tenant_id — inherits via product)
 ALTER TABLE product_unit ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON product_unit;
 CREATE POLICY tenant_isolation ON product_unit
 USING (
   EXISTS (
@@ -125,11 +164,13 @@ USING (
 
 -- stock_movement (direct tenant_id)
 ALTER TABLE stock_movement ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON stock_movement;
 CREATE POLICY tenant_isolation ON stock_movement
 USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
 -- stock_adjustment (direct tenant_id)
 ALTER TABLE stock_adjustment ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON stock_adjustment;
 CREATE POLICY tenant_isolation ON stock_adjustment
 USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
@@ -153,16 +194,19 @@ USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
 -- purchase_order (direct tenant_id)
 ALTER TABLE purchase_order ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON purchase_order;
 CREATE POLICY tenant_isolation ON purchase_order
 USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
 -- purchase_order_item (direct tenant_id)
 ALTER TABLE purchase_order_item ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON purchase_order_item;
 CREATE POLICY tenant_isolation ON purchase_order_item
 USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
 -- purchase_order_item_allocation (direct tenant_id)
 ALTER TABLE purchase_order_item_allocation ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON purchase_order_item_allocation;
 CREATE POLICY tenant_isolation ON purchase_order_item_allocation
 USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
@@ -185,16 +229,19 @@ USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
 -- goods_receipt (direct tenant_id)
 ALTER TABLE goods_receipt ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON goods_receipt;
 CREATE POLICY tenant_isolation ON goods_receipt
 USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
 -- goods_receipt_item (direct tenant_id)
 ALTER TABLE goods_receipt_item ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON goods_receipt_item;
 CREATE POLICY tenant_isolation ON goods_receipt_item
 USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
 -- goods_receipt_item_allocation (direct tenant_id)
 ALTER TABLE goods_receipt_item_allocation ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON goods_receipt_item_allocation;
 CREATE POLICY tenant_isolation ON goods_receipt_item_allocation
 USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
@@ -214,6 +261,7 @@ USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
 -- stock_cost_declaration (direct tenant_id)
 ALTER TABLE stock_cost_declaration ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON stock_cost_declaration;
 CREATE POLICY tenant_isolation ON stock_cost_declaration
 USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
@@ -232,14 +280,17 @@ USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 -- ============================================================
 
 ALTER TABLE stock_count ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON stock_count;
 CREATE POLICY tenant_isolation ON stock_count
 USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
 ALTER TABLE stock_count_item ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON stock_count_item;
 CREATE POLICY tenant_isolation ON stock_count_item
 USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
 ALTER TABLE stock_count_entry ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON stock_count_entry;
 CREATE POLICY tenant_isolation ON stock_count_entry
 USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
@@ -255,14 +306,17 @@ USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 -- ============================================================
 
 ALTER TABLE expense ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON expense;
 CREATE POLICY tenant_isolation ON expense
 USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
 ALTER TABLE expense_item ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON expense_item;
 CREATE POLICY tenant_isolation ON expense_item
 USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
 ALTER TABLE recurring_expense ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON recurring_expense;
 CREATE POLICY tenant_isolation ON recurring_expense
 USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
@@ -278,10 +332,12 @@ USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 -- ============================================================
 
 ALTER TABLE waste_log ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON waste_log;
 CREATE POLICY tenant_isolation ON waste_log
 USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
 ALTER TABLE par_level ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON par_level;
 CREATE POLICY tenant_isolation ON par_level
 USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
@@ -302,10 +358,12 @@ USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 -- ============================================================
 
 ALTER TABLE stock_transfer ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON stock_transfer;
 CREATE POLICY tenant_isolation ON stock_transfer
 USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
 ALTER TABLE stock_transfer_item ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON stock_transfer_item;
 CREATE POLICY tenant_isolation ON stock_transfer_item
 USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
@@ -328,34 +386,42 @@ USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 -- ============================================================
 
 ALTER TABLE pos_integration ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON pos_integration;
 CREATE POLICY tenant_isolation ON pos_integration
 USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
 ALTER TABLE sales_import_profile ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON sales_import_profile;
 CREATE POLICY tenant_isolation ON sales_import_profile
 USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
 ALTER TABLE sales_import_batch ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON sales_import_batch;
 CREATE POLICY tenant_isolation ON sales_import_batch
 USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
 ALTER TABLE sales_day ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON sales_day;
 CREATE POLICY tenant_isolation ON sales_day
 USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
 ALTER TABLE menu_category ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON menu_category;
 CREATE POLICY tenant_isolation ON menu_category
 USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
 ALTER TABLE menu ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON menu;
 CREATE POLICY tenant_isolation ON menu
 USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
 ALTER TABLE menu_alias ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON menu_alias;
 CREATE POLICY tenant_isolation ON menu_alias
 USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
 ALTER TABLE sales_line ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON sales_line;
 CREATE POLICY tenant_isolation ON sales_line
 USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
@@ -368,14 +434,17 @@ USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 -- ============================================================
 
 ALTER TABLE recipe ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON recipe;
 CREATE POLICY tenant_isolation ON recipe
 USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
 ALTER TABLE recipe_ingredient ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON recipe_ingredient;
 CREATE POLICY tenant_isolation ON recipe_ingredient
 USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
 ALTER TABLE recipe_branch ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON recipe_branch;
 CREATE POLICY tenant_isolation ON recipe_branch
 USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
@@ -388,10 +457,12 @@ USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 -- ============================================================
 
 ALTER TABLE sales_consumption_run ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON sales_consumption_run;
 CREATE POLICY tenant_isolation ON sales_consumption_run
 USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
 ALTER TABLE sales_consumption_item ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON sales_consumption_item;
 CREATE POLICY tenant_isolation ON sales_consumption_item
 USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
@@ -404,6 +475,7 @@ USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 -- ============================================================
 
 ALTER TABLE menu_merge ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON menu_merge;
 CREATE POLICY tenant_isolation ON menu_merge
 USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
@@ -416,14 +488,17 @@ USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 -- ============================================================
 
 ALTER TABLE staff_member ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON staff_member;
 CREATE POLICY tenant_isolation ON staff_member
 USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
 ALTER TABLE staff_meal ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON staff_meal;
 CREATE POLICY tenant_isolation ON staff_meal
 USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
 ALTER TABLE staff_meal_item ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON staff_meal_item;
 CREATE POLICY tenant_isolation ON staff_meal_item
 USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 

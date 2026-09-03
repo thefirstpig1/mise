@@ -3,6 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "packageManager": "pnpm@11.1.3",
+  "engines": {
+    "node": ">=22.11.0 <25",
+    "pnpm": ">=11.0.0"
+  },
   "description": "Mise — Restaurant Back-Office Platform (Sprint 1 — Master Data)",
   "scripts": {
     "dev": "next dev",
@@ -15,7 +19,9 @@
     "db:studio": "prisma studio",
     "db:reset": "prisma migrate reset --force",
     "test": "vitest",
-    "test:sweep": "tsx scripts/sweep-test-tenants.ts"
+    "test:sweep": "tsx scripts/sweep-test-tenants.ts",
+    "db:manual": "node scripts/apply-manual-sql.mjs",
+    "release": "prisma migrate deploy && node scripts/apply-manual-sql.mjs"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.7.4",

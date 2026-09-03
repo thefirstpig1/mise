@@ -1,0 +1,33 @@
+# ============================================================
+# Mise — what never enters the build context (Part 34, ADR 0033)
+# ============================================================
+# The first entry is the one that matters: .env holds DATABASE_URL,
+# DIRECT_URL and AUTH_SECRET, and a Docker build context is copied
+# wholesale into the daemon. Secrets reach the container through
+# `fly secrets`, never through a layer.
+
+.env
+.env.*
+!.env.example
+
+.git
+.gitignore
+
+node_modules
+.next
+tsconfig.tsbuildinfo
+
+# Nothing in here runs in production, and excluding it keeps the
+# build context small enough that the layer cache is worth having.
+tests
+docs
+.claude
+scripts/diagnostics
+CLAUDE.md
+CONTEXT.md
+README.md
+docker-compose.yml
+vitest.config.ts
+
+Dockerfile
+.dockerignore
