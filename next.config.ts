@@ -25,11 +25,40 @@ import type { NextConfig } from "next";
  */
 const standalone = process.env.BUILD_STANDALONE === "1";
 
+/**
+ * 🔴 THE SALES IMPORT HAS BEEN CAPPED AT 1 MB SINCE PART 19 AND NOBODY KNEW.
+ *
+ * Read from the framework's source, not its docs — `action-handler.js:434`:
+ *
+ *     const defaultBodySizeLimit = '1 MB'
+ *     ...
+ *     if (size > bodySizeLimitBytes) callback(new ApiError(413, ...))
+ *
+ * Part 19 declares `MAX_SALES_FILE_BYTES = 15 * 1024 * 1024` and checks it in
+ * `readUploadedFile`, with a Thai message naming 15 MB. That check has never
+ * been reachable for a file over 1 MB: Next rejects the Server Action first,
+ * with an English 413, so a shop uploading a real month of per-bill POS data
+ * sees a generic failure and the sentence we wrote for exactly this case is
+ * dead code.
+ *
+ * ADR 0033 fact 3 lists "must accept requests up to 15 MB" as a property of
+ * the deployment, which is what surfaced it.
+ *
+ * ABOVE the app's own limit, deliberately. If the two were equal, the file that
+ * is a byte too big would be refused by the framework in English rather than by
+ * `readUploadedFile` in Thai. The app owns the refusal; this only stops the
+ * framework owning it first. `tests/upload-limits.test.ts` pins the ordering.
+ */
+const SERVER_ACTION_BODY_LIMIT = "16mb";
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   ...(standalone ? { output: "standalone" as const } : {}),
   experimental: {
     typedRoutes: true,
+    serverActions: {
+      bodySizeLimit: SERVER_ACTION_BODY_LIMIT,
+    },
   },
 };
 

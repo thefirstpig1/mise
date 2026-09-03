@@ -1,0 +1,124 @@
+# ============================================================
+# Mise — production machine (Sprint 7 Part 34, ADR 0033)
+# ============================================================
+# Deploy with:  fly deploy
+#
+# 🛑 BEFORE THE FIRST DEPLOY, THE SECRETS MUST EXIST. The release command runs
+#    before the new version goes live and will fail without them, which cancels
+#    the deploy — by design (Q9), but it reads as a broken deploy if you were
+#    not expecting it. See the list at the bottom of this file.
+# ============================================================
+
+# The name is global across Fly and decides the hostname. AUTH_URL must match
+# it exactly — a magic link is a URL, and a link pointing at the wrong host is
+# a login nobody can complete. Change both together or neither.
+app = "mise-th"
+
+# 🔴 NOT A PREFERENCE — A CONSTRAINT (Q1). Neon lives in ap-southeast-1, and
+# every page opens roughly fifteen round trips because each read runs in its own
+# interactive transaction (174 call sites of runTenantTransaction). Singapore is
+# ~1-3 ms and a page is ~40 ms. US East is ~230 ms and the SAME page is ~3.5
+# SECONDS — and it looks like bad code, not distance.
+#
+# Vercel's default region is `iad1`. That is the shape of the mistake this line
+# exists to prevent.
+primary_region = "sin"
+
+[build]
+  dockerfile = "Dockerfile"
+
+# ------------------------------------------------------------
+# The release command — what makes forgetting impossible
+# ------------------------------------------------------------
+# Fly runs this IN THE NEW IMAGE, before the new version takes traffic, with
+# access to secrets. A non-zero exit CANCELS the deploy and the old version
+# keeps serving (Q9).
+#
+# That is the whole point. A fresh database gets its tables from
+# `prisma migrate deploy` and NOTHING from prisma/manual/ — and every one of
+# those 18 files fails silently when absent: a re-imported sales day duplicates
+# instead of replacing, a merged menu loses its POS identity, and row-level
+# security is enabled but filtering nothing. A script alone still needs someone
+# to run it; a checklist in a document is what we had, and it went unpaid for
+# two sprints.
+#
+# Both commands run as the OWNER through DIRECT_URL, because mise_app cannot
+# create a table or a role. That means the owner's credential lives on this
+# machine — an accepted, deliberate widening of the blast radius (Consequence 4).
+[deploy]
+  release_command = "pnpm release"
+
+[env]
+  PORT = "3000"
+  # AUTH_URL is NOT here. It is set with `fly secrets` alongside the rest, so
+  # there is one place to look when the login link points somewhere wrong.
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+
+  # 🔴 NEVER ZERO (Q2). Stopping the machine when idle would recreate exactly
+  # what this ADR chose Fly to avoid: every visit becomes a cold start, and a
+  # cold start is a fresh Prisma pool, and a fresh pool is the cold-connection
+  # hang ADR 0024 measured at ~0.3% and permanent. A back office has a handful
+  # of users, which means scale-to-zero would make almost EVERY page load a cold
+  # start.
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+
+  # 🔴 ONE MACHINE, AND THE RATE LIMIT DEPENDS ON IT. Layer 2 of the login limit
+  # counts in memory (ADR 0033 Q7), which is correct only while there is exactly
+  # one instance. Two machines means twenty sends per IP becomes forty, silently.
+  # src/instrumentation.ts prints the machine id at startup so that two of them
+  # are visible in the log — but this is the line that keeps it true.
+  [http_service.concurrency]
+    type = "requests"
+    hard_limit = 200
+    soft_limit = 150
+
+  # 🔴 TCP ONLY. IT MUST NOT TOUCH THE DATABASE (Q13).
+  # Fly checks every 15 seconds. A check that queried Neon would mean the
+  # compute NEVER sleeps — burning the free plan's allowance twenty-four hours a
+  # day for a shop that opens the app a few times — and it would destroy Q8
+  # silently, with nothing on fire to notice.
+  #
+  # TCP answers the question a health check should answer: is the process alive?
+  # "Is the database well?" is not that question. If Neon is down, restarting
+  # the app fixes nothing and the restart loop makes it worse.
+  [[http_service.checks]]
+    type = "tcp"
+    interval = "15s"
+    timeout = "2s"
+    grace_period = "10s"
+
+[[vm]]
+  size = "shared-cpu-1x"
+
+  # 1GB, NOT 512MB — about $2.6 a month apart (Q13). Prisma's query engine is a
+  # separate process whose memory sits on top of the Next server's. An OOM on
+  # Fly is a silent kill and restart, which looks exactly like "the app crashes
+  # at random" — so we would hunt a bug that does not exist, and it would happen
+  # when several people are using it at once, which is when a shop is watching.
+  memory = "1gb"
+  cpus = 1
+
+# ============================================================
+# Secrets — `fly secrets set NAME=value`. None of these belong in this file.
+# ============================================================
+#   DATABASE_URL          pooled,   role mise_app       (RLS-subject, Part 30)
+#   DIRECT_URL            unpooled, role neondb_owner   (migrations + manual SQL)
+#   ADMIN_DATABASE_URL    pooled,   role neondb_owner   (the bypass door)
+#   MISE_APP_DB_PASSWORD  🔴 must equal the password inside DATABASE_URL — the
+#                         release script refuses when they disagree, rather than
+#                         letting a live version discover it on its first page
+#   AUTH_SECRET           openssl rand -base64 32
+#   AUTH_URL              https://<app>.fly.dev   — must match `app` above
+#   EMAIL_FROM
+#   EMAIL_SERVER_HOST     smtp.resend.com
+#   EMAIL_SERVER_PORT     587
+#   EMAIL_SERVER_USER     resend
+#   EMAIL_SERVER_PASSWORD
+#
+# NODE_ENV is set to production by the Dockerfile and must not be set here.
+# ============================================================
