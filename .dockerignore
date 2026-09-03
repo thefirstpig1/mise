@@ -17,17 +17,26 @@ node_modules
 .next
 tsconfig.tsbuildinfo
 
-# Nothing in here runs in production, and excluding it keeps the
-# build context small enough that the layer cache is worth having.
-tests
+# 🔴 `tests/` AND `scripts/` STAY IN, AND THE FIRST BUILD PROVED WHY.
+# Excluding tests/ looked free — nothing in production runs them. But
+# `next build` type-checks everything tsconfig includes, which is `**/*.ts`,
+# which is `scripts/sweep-test-tenants.ts`, which imports
+# `../tests/support/sweep`. The build died at the type-check pass with a
+# module-not-found on a file that exists perfectly well in the repository.
+#
+# Excluding source from a build context to save a few hundred kilobytes buys
+# nothing and costs a failure that reads as a broken import. Only things that
+# are not code come out.
+
 docs
 .claude
-scripts/diagnostics
 CLAUDE.md
 CONTEXT.md
 README.md
+
+# Dead since Sprint 0 — the local Postgres that Neon replaced
+# (CLAUDE.md lesson 2, ADR 0033 Consequence 6).
 docker-compose.yml
-vitest.config.ts
 
 Dockerfile
 .dockerignore

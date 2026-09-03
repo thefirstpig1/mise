@@ -166,9 +166,21 @@ function main() {
   }
   const childEnv = { ...process.env, DATABASE_URL: directUrl };
 
-  console.log(`[manual-sql] applying ${MANUAL_SQL_ORDER.length} files from ${MANUAL_SQL_DIR}/`);
-
-  for (const file of MANUAL_SQL_ORDER) {
+  // 🔴 EVERY FILE IS READ AND EXPANDED BEFORE ANY OF THEM IS APPLIED, AND THE
+  // ORDER OF THOSE TWO THINGS IS THE WHOLE POINT.
+  //
+  // The first version expanded each file as it applied it, which put the
+  // MISE_APP_DB_PASSWORD refusal inside enforce_rls.sql — the LAST file. By the
+  // time it fired, enable_rls.sql had already run and recreated all 47 policies
+  // in their original "polite" form, `current_setting(..., true)`. enforce_rls
+  // then never ran to tighten them, so the database would be left silently
+  // returning ZERO ROWS for a context-less query instead of raising: exactly
+  // the failure ADR 0030 spent a Part removing, reintroduced by the script
+  // meant to install it.
+  //
+  // A missing environment variable must be a refusal, not a half-applied
+  // database.
+  const prepared = MANUAL_SQL_ORDER.map((file) => {
     const full = path.join(dir, file);
     if (!fs.existsSync(full)) {
       fail(
@@ -176,9 +188,12 @@ function main() {
           `or deleted without updating scripts/manual-sql-order.mjs.`
       );
     }
+    return { file, sql: expand(fs.readFileSync(full, "utf8"), file) };
+  });
 
-    const sql = expand(fs.readFileSync(full, "utf8"), file);
+  console.log(`[manual-sql] applying ${prepared.length} files from ${MANUAL_SQL_DIR}/`);
 
+  for (const { file, sql } of prepared) {
     // --stdin rather than --file: the expanded text holds the mise_app password
     // and must not touch disk, not even as a temporary file.
     //
