@@ -25,6 +25,7 @@
 // to be true of both rather than inventing a side channel to separate them.
 // ============================================================
 
+import { headers } from "next/headers";
 import NextAuth from "next-auth";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "./db";
@@ -32,6 +33,7 @@ import { decideEmailDelivery, isProductionRuntime } from "./email/delivery";
 import { isEmailConfigured, sendEmail } from "./email/transport";
 import { magicLinkEmail } from "./email/templates";
 import { tooManyOutstandingLinks } from "./email/rate-limit";
+import { clientIpFrom, tooManySendsFromIp } from "./email/ip-rate-limit";
 
 /** One source of truth for the link's life — the letter is told, never guesses. */
 const MAGIC_LINK_MAX_AGE_SECONDS = 24 * 60 * 60;
@@ -78,6 +80,29 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           console.log(`Click here: ${url}`);
           console.log("=".repeat(60) + "\n");
           return;
+        }
+
+        // Layer 2 of ADR 0031 Q6, built in Part 34 once ADR 0033 named the
+        // edge. BEFORE layer 1 on purpose: this one is a Map lookup and layer 1
+        // is a round trip to Singapore, so the cheap refusal goes first — and
+        // an attacker spraying addresses is exactly who should not be granted a
+        // database query per attempt.
+        //
+        // `headers()` is read inside a try: Auth.js calls this from a route
+        // handler and from a Server Action, both of which have a request scope,
+        // but a future call path without one must PASS rather than throw. Same
+        // rule as a missing header (ADR 0033 Q7).
+        let clientIp: string | null = null;
+        try {
+          clientIp = clientIpFrom(await headers());
+        } catch {
+          clientIp = null;
+        }
+        if (tooManySendsFromIp(clientIp)) {
+          console.error(
+            `[email] refusing to send: too many sign-in requests from ${clientIp}`,
+          );
+          throw new Error("too many sign-in requests from this address");
         }
 
         // Layer 1 of ADR 0031 Q6. Deliberately before the send and after the
