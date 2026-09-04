@@ -72,7 +72,7 @@ export default async function TransfersPage({
         </div>
         <a
           href="/transfers/new"
-          className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+          className="btn"
         >
           สร้างใบโอน
         </a>

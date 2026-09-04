@@ -31,7 +31,7 @@ export default async function MenuLabPage() {
         </div>
         <a
           href="/menus/lab/new"
-          className="shrink-0 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+          className="btn shrink-0"
         >
           + ร่างสูตรใหม่
         </a>

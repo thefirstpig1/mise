@@ -147,7 +147,7 @@ export default function GoodsReceiptActions({
               type="button"
               onClick={confirmReceipt}
               disabled={pending}
-              className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
+              className="btn"
             >
               ยืนยันรับของเข้าคลัง
             </button>

@@ -211,7 +211,7 @@ function InviteForm({
       <button
         type="submit"
         disabled={pending}
-        className="rounded-lg bg-primary px-4 py-2 text-sm text-primary-foreground disabled:opacity-50"
+        className="btn"
       >
         {pending ? "กำลังเชิญ…" : "เชิญ"}
       </button>

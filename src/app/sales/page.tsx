@@ -136,7 +136,7 @@ export default async function SalesPage({
           </p>
           <a
             href="/sales/import"
-            className="mt-4 inline-block rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+            className="btn mt-4 inline-block"
           >
             นำเข้ายอดขาย
           </a>

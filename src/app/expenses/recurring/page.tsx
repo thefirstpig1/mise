@@ -40,7 +40,7 @@ export default async function RecurringExpensePage() {
         </div>
         <a
           href="/expenses/recurring/new"
-          className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+          className="btn"
         >
           เพิ่มรายการประจำ
         </a>

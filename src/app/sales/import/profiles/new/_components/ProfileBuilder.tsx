@@ -40,8 +40,6 @@ import { SALES_DATE_FORMATS } from "@/lib/sales-file";
 
 export type PosOption = { id: string; label: string };
 
-const buttonClass =
-  "rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50";
 
 /** Thai for each mappable field, and whether the profile cannot do without it. */
 const FIELD_LABELS_TH: Record<ColumnMapField, { label: string; required?: boolean }> = {
@@ -89,7 +87,7 @@ export default function ProfileBuilder({ posOptions }: { posOptions: PosOption[]
         <p className="mt-2 text-muted-foreground">
           ครั้งต่อไปอัปไฟล์หน้าตาเดิม ระบบจะอ่านได้เองโดยไม่ถามอะไรอีก
         </p>
-        <a href="/sales/import" className={`${buttonClass} mt-4 inline-block`}>
+        <a href="/sales/import" className={"btn mt-4 inline-block"}>
           ไปหน้านำเข้ายอดขาย
         </a>
       </div>
@@ -125,7 +123,7 @@ export default function ProfileBuilder({ posOptions }: { posOptions: PosOption[]
           </label>
         </div>
 
-        <button type="submit" disabled={inspecting} className={`${buttonClass} mt-4`}>
+        <button type="submit" disabled={inspecting} className={"btn mt-4"}>
           {inspecting ? "กำลังอ่าน…" : "อ่านหัวตาราง"}
         </button>
         {inspectState?.ok === false && (
@@ -285,7 +283,7 @@ export default function ProfileBuilder({ posOptions }: { posOptions: PosOption[]
             </div>
           )}
 
-          <button type="submit" disabled={saving} className={`${buttonClass} mt-4`}>
+          <button type="submit" disabled={saving} className={"btn mt-4"}>
             {saving ? "กำลังบันทึก…" : "บันทึกรูปแบบไฟล์"}
           </button>
         </form>

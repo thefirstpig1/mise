@@ -76,7 +76,7 @@ export default async function GoodsReceiptsPage({
         </div>
         <a
           href="/goods-receipts/new"
-          className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+          className="btn"
         >
           รับสินค้า
         </a>

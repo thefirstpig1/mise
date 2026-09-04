@@ -73,7 +73,7 @@ export default function CategoryTree({
         <h2 className="text-xl font-bold">หมวดบัญชี</h2>
         <Link
           href="/categories/new"
-          className="rounded-lg bg-primary px-4 py-2 text-sm text-primary-foreground hover:opacity-90"
+          className="btn"
         >
           + เพิ่มหมวดบัญชี
         </Link>

@@ -24,7 +24,7 @@ export default async function HomePage() {
         <div className="flex justify-center gap-3">
           <Link
             href="/login"
-            className="rounded-lg bg-primary px-6 py-2 text-primary-foreground hover:opacity-90"
+            className="btn px-6 text-base"
           >
             เข้าสู่ระบบ
           </Link>

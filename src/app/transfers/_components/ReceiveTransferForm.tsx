@@ -144,7 +144,7 @@ export default function ReceiveTransferForm({
       <button
         type="submit"
         disabled={isPending}
-        className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-50"
+        className="btn w-full py-2.5"
       >
         {isPending ? "กำลังบันทึก…" : "ยืนยันรับของ"}
       </button>

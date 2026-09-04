@@ -104,7 +104,7 @@ export default function PulsePanel({
                         <button
                           type="submit"
                           disabled={pending}
-                          className="rounded-lg bg-primary px-2 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
+                          className="btn px-2 py-1.5 text-xs"
                         >
                           {pending ? "…" : "บันทึก"}
                         </button>

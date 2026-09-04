@@ -66,7 +66,7 @@ export default async function StockCountListPage({
         </div>
         <a
           href="/stock-counts/new"
-          className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+          className="btn"
         >
           เปิดใบนับใหม่
         </a>

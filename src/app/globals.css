@@ -65,4 +65,35 @@
   .label {
     @apply block text-sm font-medium;
   }
+
+  /* --------------------------------------------------------
+     The primary button — 54 places, 17 different strings.
+     --------------------------------------------------------
+     Thirty-six of them were already this exact shape and
+     differed only in ways nobody chose: `disabled:opacity-50`
+     or `-60` or neither, `font-medium` or not, and three
+     mutually exclusive hovers (`opacity-90`, `bg-primary-deep`,
+     none at all — "none" being the most common).
+
+     The hover here is not invented. `primary.deep` exists in
+     tailwind.config.ts with the comment "for text and hover
+     states that need to go darker than the brand", and the
+     newest buttons in the product — the doors Part 33 built for
+     /login and /signup — already use exactly this. Fading the
+     whole button with `opacity-90` fades its LABEL too, which
+     is the reason to prefer a background shift.
+
+     🔴 There is deliberately no `.btn-outline`. The outlined
+        shape looked like the same story but the count says
+        otherwise: 36 distinct strings over ~56 uses, at six
+        padding scales, and several of them are not buttons at
+        all — a chip, a badge, a static box that only borrows
+        the border. Naming that would either restyle dozens of
+        unrelated elements or need so many overrides it saves
+        nothing. It stays raw until it is one thing.
+     -------------------------------------------------------- */
+  .btn {
+    @apply rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground;
+    @apply transition-colors hover:bg-primary-deep disabled:opacity-50;
+  }
 }

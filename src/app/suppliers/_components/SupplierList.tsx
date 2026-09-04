@@ -33,7 +33,7 @@ export default function SupplierList({
         <h2 className="text-xl font-bold">รายการซัพพลายเออร์</h2>
         <Link
           href="/suppliers/new"
-          className="rounded-lg bg-primary px-4 py-2 text-sm text-primary-foreground hover:opacity-90"
+          className="btn"
         >
           + เพิ่มซัพพลายเออร์
         </Link>

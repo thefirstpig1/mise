@@ -339,7 +339,7 @@ export default function TransferDispatchForm({
       <button
         type="submit"
         disabled={isPending || branches.length < 2}
-        className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-50"
+        className="btn w-full py-2.5"
       >
         {isPending ? "กำลังบันทึก…" : "ส่งของ"}
       </button>

@@ -132,7 +132,7 @@ export default function ProductTree({ products }: { products: ProductView[] }) {
         <h2 className="text-xl font-bold">สินค้า/วัตถุดิบ</h2>
         <Link
           href="/products/new"
-          className="rounded-lg bg-primary px-4 py-2 text-sm text-primary-foreground hover:opacity-90"
+          className="btn"
         >
           + เพิ่มสินค้า
         </Link>

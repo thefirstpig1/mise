@@ -229,7 +229,7 @@ export default async function SettingsPage() {
 
           <button
             type="submit"
-            className="rounded-lg bg-primary px-6 py-2 text-primary-foreground hover:opacity-90"
+            className="btn"
           >
             บันทึก
           </button>

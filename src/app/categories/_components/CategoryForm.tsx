@@ -124,7 +124,7 @@ export default function CategoryForm({
         <button
           type="submit"
           disabled={isPending}
-          className="rounded-lg bg-primary px-6 py-2 text-primary-foreground hover:opacity-90 disabled:opacity-50"
+          className="btn"
         >
           {isPending ? "กำลังบันทึก..." : submitLabel}
         </button>

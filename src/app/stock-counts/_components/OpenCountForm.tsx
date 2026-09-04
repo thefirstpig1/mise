@@ -146,7 +146,7 @@ export default function OpenCountForm({
       <button
         type="submit"
         disabled={isPending || Boolean(blockedBy)}
-        className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
+        className="btn"
       >
         {isPending ? "กำลังเปิด…" : "เปิดใบนับ"}
       </button>

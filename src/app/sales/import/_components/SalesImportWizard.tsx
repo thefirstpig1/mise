@@ -39,8 +39,6 @@ export type ImportProfileOption = {
   encodingLabel: string;
 };
 
-const buttonClass =
-  "rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50";
 const secondaryButtonClass =
   "rounded-lg border border-border px-4 py-2 text-sm font-medium disabled:opacity-50";
 
@@ -113,7 +111,7 @@ export default function SalesImportWizard({
           ก่อนนำเข้ายอดขายครั้งแรก ต้องบอกระบบก่อนว่าไฟล์จาก POS ของคุณ
           คอลัมน์ไหนคืออะไร ทำครั้งเดียว ครั้งต่อไประบบจำได้เอง
         </p>
-        <a href="/sales/import/profiles/new" className={`${buttonClass} mt-4 inline-block`}>
+        <a href="/sales/import/profiles/new" className={"btn mt-4 inline-block"}>
           ตั้งค่ารูปแบบไฟล์
         </a>
       </div>
@@ -198,7 +196,7 @@ export default function SalesImportWizard({
           <p className="mt-1 text-xs text-bad">{previewState.fieldErrors.file}</p>
         )}
 
-        <button type="button" onClick={runPreview} disabled={pending} className={`${buttonClass} mt-4`}>
+        <button type="button" onClick={runPreview} disabled={pending} className={"btn mt-4"}>
           {pending ? "กำลังตรวจ…" : "ตรวจไฟล์"}
         </button>
       </section>
@@ -362,7 +360,7 @@ export default function SalesImportWizard({
           )}
 
           <div className="mt-4 flex gap-2">
-            <button type="button" onClick={runCommit} disabled={pending} className={buttonClass}>
+            <button type="button" onClick={runCommit} disabled={pending} className="btn">
               {pending ? "กำลังบันทึก…" : "ยืนยันนำเข้า"}
             </button>
             <button

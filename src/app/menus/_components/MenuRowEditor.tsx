@@ -50,8 +50,6 @@ import {
   type MergeMenuView,
 } from "./menu-merge-view";
 
-const buttonClass =
-  "rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50";
 const linkClass = "text-xs text-primary hover:underline";
 
 export type CategoryOption = { id: string; name: string };
@@ -294,7 +292,7 @@ export default function MenuRowEditor({
             )}
             {state?.ok && <p className="text-xs text-primary">บันทึกแล้ว</p>}
 
-            <button type="submit" disabled={saving} className={buttonClass}>
+            <button type="submit" disabled={saving} className="btn px-3 py-1.5 text-xs">
               {saving ? "กำลังบันทึก…" : "บันทึก"}
             </button>
           </form>
@@ -338,7 +336,7 @@ export default function MenuRowEditor({
                     </p>
                   )}
                   {aliasState?.ok && <p className="text-xs text-primary">จำไว้แล้ว</p>}
-                  <button type="submit" disabled={aliasSaving} className={buttonClass}>
+                  <button type="submit" disabled={aliasSaving} className="btn px-3 py-1.5 text-xs">
                     {aliasSaving ? "กำลังบันทึก…" : "จำชื่อนี้ไว้"}
                   </button>
                 </form>
