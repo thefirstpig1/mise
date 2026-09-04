@@ -15,10 +15,22 @@
 app = "mise-th"
 
 # 🔴 NOT A PREFERENCE — A CONSTRAINT (Q1). Neon lives in ap-southeast-1, and
-# every page opens roughly fifteen round trips because each read runs in its own
-# interactive transaction (174 call sites of runTenantTransaction). Singapore is
-# ~1-3 ms and a page is ~40 ms. US East is ~230 ms and the SAME page is ~3.5
-# SECONDS — and it looks like bad code, not distance.
+# every page opens many round trips because each read runs in its own
+# interactive transaction (174 call sites of runTenantTransaction).
+#
+# Q1 arrived at "roughly fifteen round trips, ~40 ms a page" by multiplication.
+# MEASURED 2026-09-04 over a seeded one-month shop, from a container 33.3 ms
+# from Neon: a transaction costs exactly four round trips (BEGIN + SET LOCAL +
+# the query + COMMIT — 133.7 ms, measured), each extra serial query adds one
+# more, and the relation is linear to the millisecond. Inverting it gives the
+# real count per page: 9 for /products, 16 for a median page, 39 for
+# /cost/departments.
+#
+# So at Singapore's 1-3 ms a median page is 23-55 ms and the heaviest is
+# 46-125 ms — Q1's ~40 ms was right for the middle. At US East's ~230 ms the
+# median page is 3.7 SECONDS (Q1 guessed 3.5) and the heaviest is 9.0, which is
+# two and a half times worse than the figure this decision was made on. It
+# looks like bad code, not distance.
 #
 # Vercel's default region is `iad1`. That is the shape of the mistake this line
 # exists to prevent.
@@ -95,11 +107,29 @@ primary_region = "sin"
 [[vm]]
   size = "shared-cpu-1x"
 
-  # 1GB, NOT 512MB — about $2.6 a month apart (Q13). Prisma's query engine is a
-  # separate process whose memory sits on top of the Next server's. An OOM on
-  # Fly is a silent kill and restart, which looks exactly like "the app crashes
-  # at random" — so we would hunt a bug that does not exist, and it would happen
-  # when several people are using it at once, which is when a shop is watching.
+  # 1GB, NOT 512MB — about $2.6 a month apart (Q13). An OOM on Fly is a silent
+  # kill and restart, which looks exactly like "the app crashes at random" — so
+  # we would hunt a bug that does not exist, and it would happen when several
+  # people are using it at once, which is when a shop is watching.
+  #
+  # 🔴 MEASURED 2026-09-04 against this image at `--memory=1g`, over a seeded
+  #    one-month shop (1,013 stock movements, 750 sales lines). The reason
+  #    originally written here was wrong: Prisma 5.22 uses the LIBRARY engine,
+  #    loaded into the Next server's own process — a container under load has
+  #    one pid, not two — so there is no second process stacking memory on top.
+  #
+  #    Idle 131-153 MiB. Eight concurrent readers: 188 MiB. Twenty-four:
+  #    238 MiB, or 23% of the gigabyte, with no OOM and no restart. 512MB would
+  #    in fact have held. The gigabyte is kept for headroom that costs almost
+  #    nothing, not because the workload needs it — and that is now a measured
+  #    choice rather than a guessed requirement.
+  #
+  #    🔴 What runs out first is the CPU, not the memory: twenty-four concurrent
+  #    readers saturate this single vCPU (90-105%) while memory sits at a
+  #    quarter. That matters for `hard_limit` above, which is set at 200 and has
+  #    never been measured. Left alone deliberately — a back office has a
+  #    handful of users, and changing it on a synthetic load test would be
+  #    tuning against the wrong shape of traffic.
   memory = "1gb"
   cpus = 1
 

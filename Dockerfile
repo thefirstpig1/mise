@@ -45,14 +45,21 @@ WORKDIR /app
 # ------------------------------------------------------------
 # deps — install with a FLAT node_modules, deliberately
 # ------------------------------------------------------------
-# pnpm's default symlink layout puts the generated Prisma client inside
-# node_modules/.pnpm/@prisma+client@.../node_modules/.prisma — a path that
-# carries a version in it. Every later COPY would have to know that string,
-# and would break silently on a Prisma bump.
+# pnpm's default symlink layout puts every package inside
+# node_modules/.pnpm/<name>@<version>/node_modules/... — a path that carries a
+# version in it. Every later COPY would have to know that string, and would
+# break silently on a version bump.
 #
 # `--node-linker=hoisted` gives the npm-style flat tree for the IMAGE ONLY.
 # The lockfile is linker-agnostic, so this changes nothing about which
 # versions are installed, and nothing at all about local development.
+#
+# What it buys is the four hand-written COPYs in the runner stage
+# (node_modules/prisma, node_modules/@prisma, and the two below them): they
+# name a top-level directory and no version. It does NOT flatten away the
+# virtual store — `node_modules/.pnpm` still exists, and the runner image still
+# contains it, because Next's trace copies whatever real path a require()
+# resolves to. Measured 2026-09-04, see the runner stage.
 FROM base AS deps
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile --node-linker=hoisted
@@ -104,10 +111,23 @@ RUN groupadd --system --gid 1001 nodejs \
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# 🔴 The trace misses Prisma's engine. It is a .node binary loaded by a path
-#    computed at runtime, which static analysis cannot follow, and the failure
-#    is "Query engine library for current platform could not be found" on the
-#    first request. Copy it in by hand.
+# Prisma's query engine, kept by hand as a belt-and-braces copy.
+#
+# 🔴 MEASURED 2026-09-04, AND IT IS NOT WHAT THIS COMMENT USED TO CLAIM. The
+#    line was added on the theory that the trace misses the engine — a .node
+#    binary loaded by a runtime-computed path that static analysis cannot
+#    follow. The trace does NOT miss it: `/proc/1/maps` in a running container
+#    shows the loaded library is
+#      node_modules/.pnpm/@prisma+client@<ver>/node_modules/.prisma/client/
+#        libquery_engine-debian-openssl-3.0.x.so.node
+#    which Next copied in on its own. What this COPY brings across is 52 KB
+#    with NO engine in it, because the hoisted top-level `.prisma` holds only
+#    the generated client's index files.
+#
+#    Kept anyway: it costs 52 KB, and the day the trace does change its mind
+#    the failure is "Query engine library for current platform could not be
+#    found" on the first request in production. But do not read this line as
+#    the thing that makes Prisma work — it currently is not.
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
 
 # --- what `release_command` needs (ADR 0033 Q9) --------------
