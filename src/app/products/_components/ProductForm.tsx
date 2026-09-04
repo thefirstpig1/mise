@@ -61,8 +61,6 @@ export type UnitRecipeUsage = {
 /** 7d density section mode (Q5): ไม่ระบุ / ใช้ค่ามาตรฐาน / ใส่ค่าเอง. */
 type DensityMode = "none" | "template" | "custom";
 
-const inputClass =
-  "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none";
 
 export default function ProductForm({
   action,
@@ -270,7 +268,7 @@ export default function ProductForm({
       {/* Identity */}
       <section className="space-y-4 rounded-lg border border-border bg-surface p-6">
         <div>
-          <label htmlFor="name" className="mb-1 block text-sm font-medium">
+          <label htmlFor="name" className="mb-1 label">
             {L.name}
             <span className="text-bad"> *</span>
           </label>
@@ -290,7 +288,7 @@ export default function ProductForm({
               type="text"
               defaultValue={initial?.name ?? ""}
               placeholder="เช่น หมูสามชั้น, น้ำมันพืช"
-              className={inputClass}
+              className="input w-full"
             />
           )}
           {err("name") && (
@@ -299,7 +297,7 @@ export default function ProductForm({
         </div>
 
         <div>
-          <label htmlFor="name_en" className="mb-1 block text-sm font-medium">
+          <label htmlFor="name_en" className="mb-1 label">
             {L.nameEn}
           </label>
           <input
@@ -308,12 +306,12 @@ export default function ProductForm({
             type="text"
             defaultValue={initial?.nameEn ?? ""}
             placeholder="เช่น Pork belly"
-            className={inputClass}
+            className="input w-full"
           />
         </div>
 
         <div>
-          <label htmlFor="sku" className="mb-1 block text-sm font-medium">
+          <label htmlFor="sku" className="mb-1 label">
             {L.sku}
           </label>
           <input
@@ -322,7 +320,7 @@ export default function ProductForm({
             type="text"
             defaultValue={initial?.sku ?? ""}
             placeholder="เว้นว่างเพื่อสร้างอัตโนมัติ (เช่น P-0001)"
-            className={inputClass}
+            className="input w-full"
           />
           <p className="mt-1 text-xs text-muted-foreground">
             เว้นว่างไว้ ระบบจะสร้างรหัสให้อัตโนมัติ
@@ -333,7 +331,7 @@ export default function ProductForm({
       {/* 7c: Type + (conditional) PREPPED production fields */}
       <section className="space-y-4 rounded-lg border border-border bg-surface p-6">
         <div>
-          <span className="mb-2 block text-sm font-medium">
+          <span className="mb-2 label">
             {L.type}
             <span className="text-bad"> *</span>
           </span>
@@ -367,7 +365,7 @@ export default function ProductForm({
             <div>
               <label
                 htmlFor="parent_product_id"
-                className="mb-1 block text-sm font-medium"
+                className="mb-1 label"
               >
                 {L.parentProductId}
                 <span className="text-bad"> *</span>
@@ -377,7 +375,7 @@ export default function ProductForm({
                 name="parent_product_id"
                 value={parentId}
                 onChange={(e) => setParentId(e.target.value)}
-                className={inputClass}
+                className="input w-full"
               >
                 <option value="" disabled>
                   — เลือกสินค้าแม่ —
@@ -409,7 +407,7 @@ export default function ProductForm({
             <div>
               <label
                 htmlFor="yield_percent"
-                className="mb-1 block text-sm font-medium"
+                className="mb-1 label"
               >
                 {L.yieldPercent}
                 <span className="text-bad"> *</span>
@@ -425,7 +423,7 @@ export default function ProductForm({
                   min="0.01"
                   max="999.99"
                   placeholder="เช่น 80.00"
-                  className={`${inputClass} max-w-[10rem]`}
+                  className={"input w-full max-w-[10rem]"}
                 />
                 <span className="text-sm text-muted-foreground">%</span>
               </div>
@@ -452,7 +450,7 @@ export default function ProductForm({
         <div>
           <label
             htmlFor="primary_dimension"
-            className="mb-1 block text-sm font-medium"
+            className="mb-1 label"
           >
             {L.primaryDimension}
             <span className="text-bad"> *</span>
@@ -462,7 +460,7 @@ export default function ProductForm({
             name="primary_dimension"
             value={dimension}
             onChange={(e) => onDimensionChange(e.target.value)}
-            className={inputClass}
+            className="input w-full"
           >
             <option value="" disabled>
               — เลือกหน่วยวัดหลัก —
@@ -481,7 +479,7 @@ export default function ProductForm({
         <div>
           <label
             htmlFor="base_unit_name"
-            className="mb-1 block text-sm font-medium"
+            className="mb-1 label"
           >
             {L.baseUnitName}
             <span className="text-bad"> *</span>
@@ -492,7 +490,7 @@ export default function ProductForm({
             value={baseUnit}
             onChange={(e) => setBaseUnit(e.target.value)}
             disabled={!dimension}
-            className={`${inputClass} disabled:opacity-50`}
+            className={"input w-full disabled:opacity-50"}
           >
             <option value="" disabled>
               {dimension ? "— เลือกหน่วยพื้นฐาน —" : "เลือกหน่วยวัดหลักก่อน"}
@@ -557,7 +555,7 @@ export default function ProductForm({
                   name="liquid_density_template_id"
                   value={densityTemplateId}
                   onChange={(e) => setDensityTemplateId(e.target.value)}
-                  className={inputClass}
+                  className="input w-full"
                 >
                   <option value="" disabled>
                     — เลือกค่ามาตรฐาน —
@@ -600,7 +598,7 @@ export default function ProductForm({
                     min="0"
                     inputMode="decimal"
                     placeholder="1.030"
-                    className={`${inputClass} max-w-[10rem]`}
+                    className={"input w-full max-w-[10rem]"}
                   />
                   <span className="text-sm text-muted-foreground">g/ml</span>
                 </div>
@@ -680,7 +678,7 @@ export default function ProductForm({
                 value={row.unitName}
                 onChange={(e) => patchRow(row.id, { unitName: e.target.value })}
                 placeholder="ชื่อหน่วย เช่น กระสอบ"
-                className={inputClass}
+                className="input w-full"
               />
               <input
                 type="number"
@@ -690,7 +688,7 @@ export default function ProductForm({
                 step="any"
                 min="0"
                 placeholder={`= กี่ ${baseUnit || "หน่วยพื้นฐาน"}`}
-                className={`${inputClass} max-w-[10rem]`}
+                className={"input w-full max-w-[10rem]"}
               />
               <label className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
                 <input
@@ -748,14 +746,14 @@ export default function ProductForm({
       {/* Classification + status */}
       <section className="space-y-4 rounded-lg border border-border bg-surface p-6">
         <div>
-          <label htmlFor="category_id" className="mb-1 block text-sm font-medium">
+          <label htmlFor="category_id" className="mb-1 label">
             {L.categoryId}
           </label>
           <select
             id="category_id"
             name="category_id"
             defaultValue={initial?.categoryId ?? ""}
-            className={inputClass}
+            className="input w-full"
           >
             <option value="">— ไม่ระบุหมวดหมู่ —</option>
             {categories.map((c) => (

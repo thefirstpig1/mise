@@ -121,7 +121,7 @@ export default async function LoginPage({
           ) : (
             <form action={requestLink} className="space-y-4">
               <div>
-                <label htmlFor="email" className="mb-1 block text-sm font-medium">
+                <label htmlFor="email" className="mb-1 label">
                   อีเมล
                 </label>
                 <input

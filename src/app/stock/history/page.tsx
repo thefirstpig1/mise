@@ -23,8 +23,6 @@ import StockMovementHistory, {
   type HistoryFilter,
 } from "../_components/StockMovementHistory";
 
-const inputClass =
-  "rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none";
 
 export default async function StockHistoryPage({
   searchParams,
@@ -105,7 +103,7 @@ export default async function StockHistoryPage({
       >
         <label className="flex flex-col gap-1 text-xs text-muted-foreground">
           วัตถุดิบ
-          <select name="product" defaultValue={sp.product ?? ""} className={inputClass}>
+          <select name="product" defaultValue={sp.product ?? ""} className="input">
             <option value="">ทั้งหมด</option>
             {products.map((p) => (
               <option key={p.id} value={p.id}>
@@ -117,7 +115,7 @@ export default async function StockHistoryPage({
 
         <label className="flex flex-col gap-1 text-xs text-muted-foreground">
           สาขา
-          <select name="branch" defaultValue={sp.branch ?? ""} className={inputClass}>
+          <select name="branch" defaultValue={sp.branch ?? ""} className="input">
             <option value="">ทั้งหมด</option>
             {branches.map((b) => (
               <option key={b.id} value={b.id}>
@@ -129,7 +127,7 @@ export default async function StockHistoryPage({
 
         <label className="flex flex-col gap-1 text-xs text-muted-foreground">
           ประเภท
-          <select name="type" defaultValue={sp.type ?? ""} className={inputClass}>
+          <select name="type" defaultValue={sp.type ?? ""} className="input">
             <option value="">ทั้งหมด</option>
             {MOVEMENT_TYPE_VALUES.map((t) => (
               <option key={t} value={t}>
@@ -141,7 +139,7 @@ export default async function StockHistoryPage({
 
         <label className="flex flex-col gap-1 text-xs text-muted-foreground">
           แหล่งที่มา
-          <select name="source" defaultValue={sp.source ?? ""} className={inputClass}>
+          <select name="source" defaultValue={sp.source ?? ""} className="input">
             <option value="">ทั้งหมด</option>
             {SOURCE_TYPE_VALUES.map((s) => (
               <option key={s} value={s}>
@@ -157,7 +155,7 @@ export default async function StockHistoryPage({
             type="date"
             name="from"
             defaultValue={asDateValue(query.dateFrom)}
-            className={inputClass}
+            className="input"
           />
         </label>
 
@@ -167,7 +165,7 @@ export default async function StockHistoryPage({
             type="date"
             name="to"
             defaultValue={asDateValue(query.dateTo)}
-            className={inputClass}
+            className="input"
           />
         </label>
 

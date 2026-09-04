@@ -28,8 +28,6 @@ import {
   toSalesSummaryView,
 } from "./_components/sales-view";
 
-const inputClass =
-  "rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none";
 
 const baht = (v: string) =>
   Number(v).toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -97,7 +95,7 @@ export default async function SalesPage({
       <form className="flex flex-wrap items-end gap-3 rounded-lg border border-border bg-surface p-4">
         <label className="text-sm">
           สาขา
-          <select name="branch" defaultValue={one("branch") ?? ""} className={`${inputClass} mt-1 block`}>
+          <select name="branch" defaultValue={one("branch") ?? ""} className={"input mt-1 block"}>
             <option value="">ทุกสาขา</option>
             {branches.map((b) => (
               <option key={b.id} value={b.id}>
@@ -108,15 +106,15 @@ export default async function SalesPage({
         </label>
         <label className="text-sm">
           ตั้งแต่
-          <input type="date" name="from" defaultValue={one("from") ?? month.from} className={`${inputClass} mt-1 block`} />
+          <input type="date" name="from" defaultValue={one("from") ?? month.from} className={"input mt-1 block"} />
         </label>
         <label className="text-sm">
           ถึง
-          <input type="date" name="to" defaultValue={one("to") ?? month.to} className={`${inputClass} mt-1 block`} />
+          <input type="date" name="to" defaultValue={one("to") ?? month.to} className={"input mt-1 block"} />
         </label>
         <label className="text-sm">
           หมวดเมนู
-          <select name="category" defaultValue={one("category") ?? ""} className={`${inputClass} mt-1 block`}>
+          <select name="category" defaultValue={one("category") ?? ""} className={"input mt-1 block"}>
             <option value="">ทุกหมวด</option>
             {categories.map((c) => (
               <option key={c.id} value={c.id}>

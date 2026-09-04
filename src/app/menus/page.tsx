@@ -34,8 +34,6 @@ import MenuRowEditor, {
 } from "./_components/MenuRowEditor";
 import NewCategoryForm from "./_components/NewCategoryForm";
 
-const inputClass =
-  "rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none";
 
 export default async function MenusPage({
   searchParams,
@@ -133,11 +131,11 @@ export default async function MenusPage({
       <form className="flex flex-wrap items-end gap-3 rounded-lg border border-border bg-surface p-4">
         <label className="text-sm">
           ค้นหา
-          <input name="q" defaultValue={one("q") ?? ""} placeholder="ชื่อหรือรหัสเมนู" className={`${inputClass} mt-1 block`} />
+          <input name="q" defaultValue={one("q") ?? ""} placeholder="ชื่อหรือรหัสเมนู" className={"input mt-1 block"} />
         </label>
         <label className="text-sm">
           หมวด
-          <select name="category" defaultValue={one("category") ?? ""} className={`${inputClass} mt-1 block`}>
+          <select name="category" defaultValue={one("category") ?? ""} className={"input mt-1 block"}>
             <option value="">ทุกหมวด</option>
             {categories.map((c) => (
               <option key={c.id} value={c.id}>

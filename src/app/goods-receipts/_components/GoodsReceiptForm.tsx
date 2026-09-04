@@ -106,9 +106,6 @@ export type GoodsReceiptFormInitial = {
   }[];
 };
 
-const inputClass =
-  "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none";
-const labelClass = "block text-sm font-medium";
 const errorClass = "mt-1 text-xs text-bad";
 
 let rowSeq = 0;
@@ -364,12 +361,12 @@ export default function GoodsReceiptForm({
           </p>
         ) : (
           <div>
-            <label className={labelClass} htmlFor="po-picker">
+            <label className="label" htmlFor="po-picker">
               ใบสั่งซื้อ
             </label>
             <select
               id="po-picker"
-              className={`${inputClass} mt-1`}
+              className={"input w-full mt-1"}
               value={poId}
               onChange={(e) => {
                 setPoId(e.target.value);
@@ -404,12 +401,12 @@ export default function GoodsReceiptForm({
 
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
-            <label className={labelClass} htmlFor="branch">
+            <label className="label" htmlFor="branch">
               สาขา
             </label>
             <select
               id="branch"
-              className={`${inputClass} mt-1 disabled:bg-muted/50`}
+              className={"input w-full mt-1 disabled:bg-muted/50"}
               value={branchId}
               disabled={poMode || isEdit}
               onChange={(e) => setBranchId(e.target.value)}
@@ -424,12 +421,12 @@ export default function GoodsReceiptForm({
           </div>
 
           <div>
-            <label className={labelClass} htmlFor="supplier">
+            <label className="label" htmlFor="supplier">
               ผู้ขาย
             </label>
             <select
               id="supplier"
-              className={`${inputClass} mt-1 disabled:bg-muted/50`}
+              className={"input w-full mt-1 disabled:bg-muted/50"}
               value={supplierId}
               disabled={poMode || isEdit}
               onChange={(e) => {
@@ -465,7 +462,7 @@ export default function GoodsReceiptForm({
       {/* ---------------- header ---------------- */}
       <section className="grid gap-3 rounded-lg border border-border p-4 sm:grid-cols-2">
         <div>
-          <label className={labelClass} htmlFor="received_at">
+          <label className="label" htmlFor="received_at">
             วันเวลาที่รับของ
           </label>
           <input
@@ -475,7 +472,7 @@ export default function GoodsReceiptForm({
             defaultValue={initial?.receivedAtLocal ?? nowLocal}
             min={minLocal}
             max={maxLocal}
-            className={`${inputClass} mt-1`}
+            className={"input w-full mt-1"}
           />
           <p className="mt-1 text-xs text-muted-foreground">
             เวลาไทย — ย้อนหลังได้ไม่เกิน 90 วัน
@@ -486,14 +483,14 @@ export default function GoodsReceiptForm({
         </div>
 
         <div>
-          <label className={labelClass} htmlFor="invoice_no">
+          <label className="label" htmlFor="invoice_no">
             เลขที่ใบส่งของ / ใบกำกับภาษี
           </label>
           <input
             id="invoice_no"
             name="invoice_no"
             defaultValue={initial?.invoiceNo ?? ""}
-            className={`${inputClass} mt-1`}
+            className={"input w-full mt-1"}
             placeholder="ไม่บังคับ"
           />
           {fieldErrors?.invoiceNo && (
@@ -502,7 +499,7 @@ export default function GoodsReceiptForm({
         </div>
 
         <div>
-          <label className={labelClass} htmlFor="vat_rate_percent">
+          <label className="label" htmlFor="vat_rate_percent">
             อัตรา VAT (%)
           </label>
           <input
@@ -514,7 +511,7 @@ export default function GoodsReceiptForm({
               setVatRate(e.target.value);
               setVatTouched(true);
             }}
-            className={`${inputClass} mt-1`}
+            className={"input w-full mt-1"}
             placeholder="เว้นว่าง = ใบนี้ไม่มี VAT"
           />
           <p className="mt-1 text-xs text-muted-foreground">
@@ -527,7 +524,7 @@ export default function GoodsReceiptForm({
         </div>
 
         <div className="sm:col-span-2">
-          <label className={labelClass} htmlFor="notes">
+          <label className="label" htmlFor="notes">
             หมายเหตุ
           </label>
           <textarea
@@ -535,7 +532,7 @@ export default function GoodsReceiptForm({
             name="notes"
             rows={2}
             defaultValue={initial?.notes ?? ""}
-            className={`${inputClass} mt-1`}
+            className={"input w-full mt-1"}
           />
         </div>
       </section>
@@ -593,7 +590,7 @@ export default function GoodsReceiptForm({
                       </div>
                     ) : (
                       <select
-                        className={`${inputClass} mt-1`}
+                        className={"input w-full mt-1"}
                         value={r.productId}
                         onChange={(e) => {
                           const p = productById.get(e.target.value);
@@ -620,7 +617,7 @@ export default function GoodsReceiptForm({
                       <div className="mt-1 text-sm">{r.orderedUnitName}</div>
                     ) : (
                       <select
-                        className={`${inputClass} mt-1`}
+                        className={"input w-full mt-1"}
                         value={r.receivedUnitId}
                         onChange={(e) => setRow(r.key, { receivedUnitId: e.target.value })}
                         disabled={!product}
@@ -643,7 +640,7 @@ export default function GoodsReceiptForm({
                       min="0"
                       value={r.qty}
                       onChange={(e) => setRow(r.key, { qty: e.target.value })}
-                      className={`${inputClass} mt-1 text-right`}
+                      className={"input w-full mt-1 text-right"}
                     />
                   </div>
 
@@ -656,7 +653,7 @@ export default function GoodsReceiptForm({
                       min="0"
                       value={r.unitPrice}
                       onChange={(e) => setRow(r.key, { unitPrice: e.target.value })}
-                      className={`${inputClass} mt-1 text-right`}
+                      className={"input w-full mt-1 text-right"}
                     />
                   </div>
 
@@ -704,7 +701,7 @@ export default function GoodsReceiptForm({
                       name="line_notes"
                       value={r.notes}
                       onChange={(e) => setRow(r.key, { notes: e.target.value })}
-                      className={`${inputClass} mt-1`}
+                      className={"input w-full mt-1"}
                       placeholder="เช่น ซัพส่งเกินมา 2 กระสอบ / แถมให้"
                     />
                   </div>

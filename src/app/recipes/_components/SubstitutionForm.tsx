@@ -29,8 +29,6 @@ import type { SubstitutionPlanRowView } from "@/app/recipes/_components/recipe-v
 
 export type ReplacementUnit = { id: string; unitName: string; isBase: boolean };
 
-const inputClass =
-  "rounded-lg border border-border bg-background px-2 py-1 text-sm focus:border-primary focus:outline-none";
 
 function newSubmitKey(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -175,7 +173,7 @@ export default function SubstitutionForm({
                   inputMode="decimal"
                   placeholder={r.carryQty === null ? "ต้องกรอกใหม่" : "จำนวน"}
                   aria-label={`จำนวนใหม่สำหรับ ${r.label}`}
-                  className={`${inputClass} w-28 ${
+                  className={`$"input px-2 py-1" w-28 ${
                     r.carryQty === null && s.checked && s.qty === ""
                       ? "border-warn-border bg-warn-bg"
                       : ""
@@ -189,7 +187,7 @@ export default function SubstitutionForm({
                     onChange={(e) => patch(r.recipeId, { unitId: e.target.value })}
                     disabled={!s.checked}
                     aria-label={`หน่วยสำหรับ ${r.label}`}
-                    className={`${inputClass} w-28`}
+                    className={"input px-2 py-1 w-28"}
                   >
                     <option value="">— หน่วย —</option>
                     {units.map((u) => (
@@ -281,7 +279,7 @@ export default function SubstitutionForm({
             value={effectiveFrom}
             max={todayBangkok}
             onChange={(e) => setEffectiveFrom(e.target.value)}
-            className={`${inputClass} mt-2`}
+            className={"input px-2 py-1 mt-2"}
           />
         ) : (
           <p className="mt-1 text-xs text-muted-foreground">

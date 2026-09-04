@@ -16,8 +16,6 @@ import { POS_TYPE_VALUES } from "@/lib/validations/sales-import";
 import NewPosForm from "./_components/NewPosForm";
 import ProfileBuilder, { type PosOption } from "./_components/ProfileBuilder";
 
-const inputClass =
-  "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none";
 
 const POS_TYPE_LABELS: Record<string, string> = {
   FOODSTORY: "FoodStory",

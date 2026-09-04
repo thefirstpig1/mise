@@ -147,7 +147,7 @@ export default function PurchaseOrderActions({
       {cancelling && (
         <form action={submitCancel} className="rounded-lg border border-bad-border bg-bad-bg p-4">
           <input type="hidden" name="id" value={id} />
-          <label htmlFor="cancel_reason" className="block text-sm font-medium text-bad">
+          <label htmlFor="cancel_reason" className="label text-bad">
             เหตุผลที่ยกเลิก
           </label>
           <input

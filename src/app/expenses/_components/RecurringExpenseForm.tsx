@@ -17,9 +17,6 @@ import type { RecurringExpenseActionState } from "../actions";
 import type { CategoryOption } from "./ExpenseForm";
 import type { RecurringExpenseView } from "./expense-view";
 
-const inputClass =
-  "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none";
-const labelClass = "block text-sm font-medium";
 
 export default function RecurringExpenseForm({
   action,
@@ -66,7 +63,7 @@ export default function RecurringExpenseForm({
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="sm:col-span-2">
-          <label htmlFor="description" className={labelClass}>
+          <label htmlFor="description" className="label">
             รายการ <span className="text-bad">*</span>
           </label>
           <input
@@ -74,7 +71,7 @@ export default function RecurringExpenseForm({
             name="description"
             placeholder="ค่าเช่าร้าน / ค่าไฟฟ้า / ค่าทำบัญชี"
             defaultValue={existing?.description ?? ""}
-            className={`${inputClass} mt-1`}
+            className={"input w-full mt-1"}
             required
           />
           {err("description") && (
@@ -83,14 +80,14 @@ export default function RecurringExpenseForm({
         </div>
 
         <div>
-          <label htmlFor="branch_id" className={labelClass}>
+          <label htmlFor="branch_id" className="label">
             สาขา <span className="text-bad">*</span>
           </label>
           <select
             id="branch_id"
             name="branch_id"
             defaultValue={existing?.branchId ?? branches[0]?.id ?? ""}
-            className={`${inputClass} mt-1`}
+            className={"input w-full mt-1"}
             required
           >
             {branches.map((b) => (
@@ -105,14 +102,14 @@ export default function RecurringExpenseForm({
         </div>
 
         <div>
-          <label htmlFor="supplier_id" className={labelClass}>
+          <label htmlFor="supplier_id" className="label">
             ผู้ขาย
           </label>
           <select
             id="supplier_id"
             name="supplier_id"
             defaultValue={existing?.supplierId ?? ""}
-            className={`${inputClass} mt-1`}
+            className={"input w-full mt-1"}
           >
             <option value="">ไม่ระบุ</option>
             {suppliers.map((s) => (
@@ -124,14 +121,14 @@ export default function RecurringExpenseForm({
         </div>
 
         <div>
-          <label htmlFor="category_id" className={labelClass}>
+          <label htmlFor="category_id" className="label">
             หมวดบัญชี <span className="text-bad">*</span>
           </label>
           <select
             id="category_id"
             name="category_id"
             defaultValue={existing?.categoryId ?? categories[0]?.id ?? ""}
-            className={`${inputClass} mt-1`}
+            className={"input w-full mt-1"}
             required
           >
             {categories.map((c) => (
@@ -146,7 +143,7 @@ export default function RecurringExpenseForm({
         </div>
 
         <div>
-          <label htmlFor="default_amount" className={labelClass}>
+          <label htmlFor="default_amount" className="label">
             ยอดตั้งต้น <span className="text-bad">*</span>
           </label>
           <input
@@ -154,7 +151,7 @@ export default function RecurringExpenseForm({
             name="default_amount"
             inputMode="decimal"
             defaultValue={existing?.defaultAmount ?? ""}
-            className={`${inputClass} mt-1 text-right tabular-nums`}
+            className={"input w-full mt-1 text-right tabular-nums"}
             required
           />
           <p className="mt-1 text-xs text-muted-foreground">
@@ -166,7 +163,7 @@ export default function RecurringExpenseForm({
         </div>
 
         <div>
-          <label htmlFor="day_of_month" className={labelClass}>
+          <label htmlFor="day_of_month" className="label">
             ครบกำหนดวันที่ <span className="text-bad">*</span>
           </label>
           <input
@@ -176,7 +173,7 @@ export default function RecurringExpenseForm({
             min={1}
             max={28}
             defaultValue={existing?.dayOfMonth ?? 5}
-            className={`${inputClass} mt-1`}
+            className={"input w-full mt-1"}
             required
           />
           <p className="mt-1 text-xs text-muted-foreground">
@@ -188,7 +185,7 @@ export default function RecurringExpenseForm({
         </div>
 
         <div>
-          <label htmlFor="start_period" className={labelClass}>
+          <label htmlFor="start_period" className="label">
             เริ่มงวด (YYYY-MM) <span className="text-bad">*</span>
           </label>
           <input
@@ -196,7 +193,7 @@ export default function RecurringExpenseForm({
             name="start_period"
             placeholder={currentPeriod}
             defaultValue={existing?.startPeriod ?? currentPeriod}
-            className={`${inputClass} mt-1`}
+            className={"input w-full mt-1"}
             required
           />
           {err("startPeriod") && (
@@ -205,7 +202,7 @@ export default function RecurringExpenseForm({
         </div>
 
         <div>
-          <label htmlFor="end_period" className={labelClass}>
+          <label htmlFor="end_period" className="label">
             ถึงงวด (เว้นว่าง = ไม่มีกำหนดจบ)
           </label>
           <input
@@ -213,7 +210,7 @@ export default function RecurringExpenseForm({
             name="end_period"
             placeholder="YYYY-MM"
             defaultValue={existing?.endPeriod ?? ""}
-            className={`${inputClass} mt-1`}
+            className={"input w-full mt-1"}
           />
           {err("endPeriod") && (
             <p className="mt-1 text-xs text-bad">{err("endPeriod")}</p>
@@ -221,7 +218,7 @@ export default function RecurringExpenseForm({
         </div>
 
         <div>
-          <label htmlFor="vat_rate_percent" className={labelClass}>
+          <label htmlFor="vat_rate_percent" className="label">
             อัตรา VAT (%)
           </label>
           <input
@@ -230,7 +227,7 @@ export default function RecurringExpenseForm({
             inputMode="decimal"
             placeholder="เว้นว่าง = ไม่มี VAT"
             defaultValue={existing?.vatRatePercent ?? ""}
-            className={`${inputClass} mt-1`}
+            className={"input w-full mt-1"}
           />
           <label className="mt-2 flex items-center gap-2 text-sm">
             <input
@@ -259,7 +256,7 @@ export default function RecurringExpenseForm({
                 inputMode="decimal"
                 placeholder="อัตรา % (เช่น 5 สำหรับค่าเช่า)"
                 defaultValue={existing?.whtRatePercent ?? ""}
-                className={`${inputClass} mt-2`}
+                className={"input w-full mt-2"}
               />
               {err("whtRatePercent") && (
                 <p className="mt-1 text-xs text-bad">{err("whtRatePercent")}</p>

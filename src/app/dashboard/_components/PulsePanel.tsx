@@ -28,8 +28,6 @@ import {
 } from "@/app/sales/pulse-actions";
 import type { PulseDashboardView } from "@/app/sales/_components/sales-view";
 
-const inputClass =
-  "rounded-lg border border-border bg-background px-2 py-1.5 text-sm focus:border-primary focus:outline-none";
 
 const baht = (v: string | null) =>
   v === null
@@ -96,12 +94,12 @@ export default function PulsePanel({
                           name="amount"
                           inputMode="decimal"
                           placeholder="ยอดวันนี้"
-                          className={`${inputClass} w-28 text-right`}
+                          className={"input px-2 py-1.5 w-28 text-right"}
                         />
                         <input
                           name="note"
                           placeholder="หมายเหตุ"
-                          className={`${inputClass} w-24`}
+                          className={"input px-2 py-1.5 w-24"}
                         />
                         <button
                           type="submit"

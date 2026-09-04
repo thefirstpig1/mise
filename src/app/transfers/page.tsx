@@ -25,8 +25,6 @@ import {
 } from "@/lib/validations/transfer";
 import { toTransferView } from "./_components/transfer-view";
 
-const inputClass =
-  "rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none";
 
 const STATUS_STYLE: Record<string, string> = {
   SENT: "border-warn-border bg-warn-bg text-warn",
@@ -95,7 +93,7 @@ export default async function TransfersPage({
       >
         <label className="text-sm">
           <span className="mb-1 block text-muted-foreground">สาขา</span>
-          <select name="branch" defaultValue={sp.branch ?? ""} className={inputClass}>
+          <select name="branch" defaultValue={sp.branch ?? ""} className="input">
             <option value="">ทุกสาขา</option>
             {branches.map((b) => (
               <option key={b.id} value={b.id}>
@@ -110,7 +108,7 @@ export default async function TransfersPage({
           <select
             name="direction"
             defaultValue={sp.direction ?? "ANY"}
-            className={inputClass}
+            className="input"
           >
             {TRANSFER_DIRECTION_VALUES.map((d) => (
               <option key={d} value={d}>
@@ -122,7 +120,7 @@ export default async function TransfersPage({
 
         <label className="text-sm">
           <span className="mb-1 block text-muted-foreground">สถานะ</span>
-          <select name="status" defaultValue={sp.status ?? ""} className={inputClass}>
+          <select name="status" defaultValue={sp.status ?? ""} className="input">
             <option value="">ทุกสถานะ</option>
             {TRANSFER_STATUS_VALUES.map((s) => (
               <option key={s} value={s}>

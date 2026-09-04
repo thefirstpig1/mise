@@ -33,8 +33,6 @@ import {
 import MergeForm from "../_components/MergeForm";
 import RevokeMergeButton from "../_components/RevokeMergeButton";
 
-const inputClass =
-  "rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none";
 
 /** A uuid, or nothing. A stray `?menu=` must not become a database round trip. */
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -111,7 +109,7 @@ export default async function MenuMergesPage({
               name="q"
               defaultValue={search ?? ""}
               placeholder="ชื่อหรือรหัสเมนู"
-              className={`${inputClass} mt-1 block`}
+              className={"input mt-1 block"}
             />
           </label>
           <button type="submit" className="rounded-lg border border-border px-4 py-2 text-sm">

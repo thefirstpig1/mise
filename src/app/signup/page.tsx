@@ -89,7 +89,7 @@ export default function SignupPage() {
               </h2>
               <div className="space-y-3">
                 <div>
-                  <label htmlFor="name" className="mb-1 block text-sm font-medium">
+                  <label htmlFor="name" className="mb-1 label">
                     ชื่อของคุณ
                   </label>
                   <input
@@ -101,7 +101,7 @@ export default function SignupPage() {
                   />
                 </div>
                 <div>
-                  <label htmlFor="email" className="mb-1 block text-sm font-medium">
+                  <label htmlFor="email" className="mb-1 label">
                     อีเมล
                   </label>
                   <input
@@ -121,7 +121,7 @@ export default function SignupPage() {
               </h2>
               <div className="space-y-3">
                 <div>
-                  <label htmlFor="tenant_name" className="mb-1 block text-sm font-medium">
+                  <label htmlFor="tenant_name" className="mb-1 label">
                     ชื่อร้าน
                   </label>
                   <input
@@ -134,7 +134,7 @@ export default function SignupPage() {
                   />
                 </div>
                 <div>
-                  <label htmlFor="branch_name" className="mb-1 block text-sm font-medium">
+                  <label htmlFor="branch_name" className="mb-1 label">
                     ชื่อสาขาแรก
                   </label>
                   <input

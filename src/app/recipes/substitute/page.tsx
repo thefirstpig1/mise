@@ -23,8 +23,6 @@ import SubstitutionForm, {
   type ReplacementUnit,
 } from "../_components/SubstitutionForm";
 
-const inputClass =
-  "rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none";
 
 export default async function SubstitutePage({
   searchParams,
@@ -96,14 +94,14 @@ export default async function SubstitutePage({
         className="flex flex-wrap items-end gap-3 rounded-xl border border-border bg-surface p-5"
       >
         <div>
-          <label className="block text-sm font-medium" htmlFor="from">
+          <label className="label" htmlFor="from">
             เปลี่ยนจาก
           </label>
           <select
             id="from"
             name="from"
             defaultValue={sp.from ?? ""}
-            className={`${inputClass} mt-1`}
+            className={"input mt-1"}
           >
             <option value="">— เลือกวัตถุดิบเดิม —</option>
             {productOptions.map((p) => (
@@ -115,14 +113,14 @@ export default async function SubstitutePage({
         </div>
 
         <div>
-          <label className="block text-sm font-medium" htmlFor="to">
+          <label className="label" htmlFor="to">
             เปลี่ยนเป็น
           </label>
           <select
             id="to"
             name="to"
             defaultValue={sp.to ?? ""}
-            className={`${inputClass} mt-1`}
+            className={"input mt-1"}
           >
             <option value="">— เลือกของใหม่ —</option>
             <optgroup label="วัตถุดิบ">

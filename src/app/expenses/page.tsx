@@ -28,8 +28,6 @@ import PaymentBadge from "./_components/PaymentBadge";
 const dateLabel = (iso: string) =>
   new Date(iso).toLocaleDateString("th-TH", { dateStyle: "medium" });
 
-const inputClass =
-  "mt-1 rounded-lg border border-border bg-background px-3 py-2 text-sm";
 
 export default async function ExpenseListPage({
   searchParams,
@@ -139,14 +137,14 @@ export default async function ExpenseListPage({
       <form method="get" className="flex flex-wrap items-end gap-3">
         {branches.length > 1 && (
           <div>
-            <label htmlFor="branch" className="block text-sm font-medium">
+            <label htmlFor="branch" className="label">
               สาขา
             </label>
             <select
               id="branch"
               name="branch"
               defaultValue={query.branchId ?? ""}
-              className={inputClass}
+              className="input mt-1"
             >
               <option value="">ทุกสาขา</option>
               {branches.map((b) => (
@@ -158,14 +156,14 @@ export default async function ExpenseListPage({
           </div>
         )}
         <div>
-          <label htmlFor="supplier" className="block text-sm font-medium">
+          <label htmlFor="supplier" className="label">
             ผู้ขาย
           </label>
           <select
             id="supplier"
             name="supplier"
             defaultValue={query.supplierId ?? ""}
-            className={inputClass}
+            className="input mt-1"
           >
             <option value="">ทั้งหมด</option>
             {suppliers.map((s) => (
@@ -176,14 +174,14 @@ export default async function ExpenseListPage({
           </select>
         </div>
         <div>
-          <label htmlFor="source" className="block text-sm font-medium">
+          <label htmlFor="source" className="label">
             ที่มา
           </label>
           <select
             id="source"
             name="source"
             defaultValue={query.source ?? ""}
-            className={inputClass}
+            className="input mt-1"
           >
             <option value="">ทั้งหมด</option>
             {EXPENSE_SOURCE_VALUES.map((s) => (
@@ -194,14 +192,14 @@ export default async function ExpenseListPage({
           </select>
         </div>
         <div>
-          <label htmlFor="status" className="block text-sm font-medium">
+          <label htmlFor="status" className="label">
             การจ่ายเงิน
           </label>
           <select
             id="status"
             name="status"
             defaultValue={query.paymentStatus ?? ""}
-            className={inputClass}
+            className="input mt-1"
           >
             <option value="">ทั้งหมด</option>
             {EXPENSE_PAYMENT_STATUS_VALUES.map((s) => (
@@ -212,7 +210,7 @@ export default async function ExpenseListPage({
           </select>
         </div>
         <div>
-          <label htmlFor="from" className="block text-sm font-medium">
+          <label htmlFor="from" className="label">
             ตั้งแต่
           </label>
           <input
@@ -220,11 +218,11 @@ export default async function ExpenseListPage({
             name="from"
             type="date"
             defaultValue={sp.from ?? ""}
-            className={inputClass}
+            className="input mt-1"
           />
         </div>
         <div>
-          <label htmlFor="to" className="block text-sm font-medium">
+          <label htmlFor="to" className="label">
             ถึง
           </label>
           <input
@@ -232,7 +230,7 @@ export default async function ExpenseListPage({
             name="to"
             type="date"
             defaultValue={sp.to ?? ""}
-            className={inputClass}
+            className="input mt-1"
           />
         </div>
         <button

@@ -65,9 +65,6 @@ type LineDraft = {
   notes: string;
 };
 
-const inputClass =
-  "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none";
-const labelClass = "block text-sm font-medium";
 
 /** How long after the last keystroke the server is asked what this costs. */
 const WHATIF_DEBOUNCE_MS = 600;
@@ -288,7 +285,7 @@ export default function LabForm({
               <>
                 <input type="hidden" name="menu_id" value="" />
                 <div>
-                  <label className={labelClass} htmlFor="new_menu_name">
+                  <label className="label" htmlFor="new_menu_name">
                     ชื่อเมนูใหม่
                   </label>
                   <input
@@ -297,7 +294,7 @@ export default function LabForm({
                     value={newMenuName}
                     onChange={(e) => setNewMenuName(e.target.value)}
                     placeholder="เช่น ข้าวผัดปูไข่เค็ม"
-                    className={`${inputClass} mt-1`}
+                    className={"input w-full mt-1"}
                   />
                   {fieldErrors?.newMenuName ? (
                     <p className="mt-1 text-xs text-bad">
@@ -348,7 +345,7 @@ export default function LabForm({
                   ) : null}
                 </div>
                 <div>
-                  <label className={labelClass} htmlFor="menu_category_id">
+                  <label className="label" htmlFor="menu_category_id">
                     หมวด (ไม่บังคับ)
                   </label>
                   <select
@@ -356,7 +353,7 @@ export default function LabForm({
                     name="menu_category_id"
                     value={menuCategoryId}
                     onChange={(e) => setMenuCategoryId(e.target.value)}
-                    className={`${inputClass} mt-1`}
+                    className={"input w-full mt-1"}
                   >
                     <option value="">— ไม่ระบุ —</option>
                     {categories.map((c) => (
@@ -377,7 +374,7 @@ export default function LabForm({
                 <input type="hidden" name="new_menu_name" value="" />
                 <input type="hidden" name="menu_category_id" value="" />
                 <div>
-                  <label className={labelClass} htmlFor="menu_id">
+                  <label className="label" htmlFor="menu_id">
                     เมนู
                   </label>
                   <select
@@ -385,7 +382,7 @@ export default function LabForm({
                     name="menu_id"
                     value={menuId}
                     onChange={(e) => setMenuId(e.target.value)}
-                    className={`${inputClass} mt-1`}
+                    className={"input w-full mt-1"}
                   >
                     <option value="">— เลือกเมนู —</option>
                     {menus.map((m) => (
@@ -416,7 +413,7 @@ export default function LabForm({
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label className={labelClass} htmlFor="servings">
+            <label className="label" htmlFor="servings">
               สูตรนี้ทำได้กี่จาน
             </label>
             <input
@@ -425,7 +422,7 @@ export default function LabForm({
               value={servings}
               onChange={(e) => setServings(e.target.value)}
               inputMode="decimal"
-              className={`${inputClass} mt-1`}
+              className={"input w-full mt-1"}
             />
             <p className="mt-1 text-xs text-muted-foreground">
               ใส่ตามที่ทำจริง — ผัดทีละ 4 จานก็ใส่ 4 ระบบจะหารให้เอง
@@ -436,7 +433,7 @@ export default function LabForm({
           </div>
 
           <div>
-            <label className={labelClass} htmlFor="planned_price">
+            <label className="label" htmlFor="planned_price">
               {PLANNED_PRICE_LABEL_TH}
             </label>
             <input
@@ -446,7 +443,7 @@ export default function LabForm({
               onChange={(e) => setPlannedPrice(e.target.value)}
               inputMode="decimal"
               placeholder="เช่น 189"
-              className={`${inputClass} mt-1`}
+              className={"input w-full mt-1"}
             />
             <p className="mt-1 text-xs text-muted-foreground">
               {initialMenuHasSales
@@ -497,7 +494,7 @@ export default function LabForm({
                           productUnitId: "",
                         })
                       }
-                      className={`${inputClass} sm:col-span-2`}
+                      className={"input w-full sm:col-span-2"}
                       aria-label="ชนิดของส่วนประกอบ"
                     >
                       <option value="product">วัตถุดิบ</option>
@@ -517,7 +514,7 @@ export default function LabForm({
                                 unitsOf.get(e.target.value)?.[0]?.id ?? "",
                             })
                           }
-                          className={`${inputClass} sm:col-span-4`}
+                          className={"input w-full sm:col-span-4"}
                           aria-label="วัตถุดิบ"
                         >
                           <option value="">— เลือกวัตถุดิบ —</option>
@@ -546,7 +543,7 @@ export default function LabForm({
                           onChange={(e) =>
                             setLine(line.key, { componentMenuId: e.target.value })
                           }
-                          className={`${inputClass} sm:col-span-4`}
+                          className={"input w-full sm:col-span-4"}
                           aria-label="เมนูที่เป็นส่วนประกอบ"
                         >
                           <option value="">— เลือกเมนู —</option>
@@ -567,7 +564,7 @@ export default function LabForm({
                       onChange={(e) => setLine(line.key, { qty: e.target.value })}
                       inputMode="decimal"
                       placeholder="จำนวน"
-                      className={`${inputClass} sm:col-span-2`}
+                      className={"input w-full sm:col-span-2"}
                       aria-label="จำนวน"
                     />
 
@@ -578,7 +575,7 @@ export default function LabForm({
                         onChange={(e) =>
                           setLine(line.key, { productUnitId: e.target.value })
                         }
-                        className={`${inputClass} sm:col-span-2`}
+                        className={"input w-full sm:col-span-2"}
                         aria-label="หน่วย"
                       >
                         <option value="">— หน่วย —</option>
@@ -624,7 +621,7 @@ export default function LabForm({
                     value={line.notes}
                     onChange={(e) => setLine(line.key, { notes: e.target.value })}
                     placeholder="หมายเหตุของบรรทัดนี้ (ไม่บังคับ)"
-                    className={`${inputClass} mt-2`}
+                    className={"input w-full mt-2"}
                     aria-label="หมายเหตุของวัตถุดิบ"
                   />
 
@@ -647,7 +644,7 @@ export default function LabForm({
         </div>
 
         <div>
-          <label className={labelClass} htmlFor="notes">
+          <label className="label" htmlFor="notes">
             หมายเหตุ
           </label>
           <input
@@ -656,7 +653,7 @@ export default function LabForm({
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="เช่น ลองลดกะทิลง แล้วเพิ่มพริกแกง"
-            className={`${inputClass} mt-1`}
+            className={"input w-full mt-1"}
           />
         </div>
 
@@ -684,7 +681,7 @@ export default function LabForm({
       {/* The answer to the question the screen exists for. */}
       <div className="space-y-4 lg:col-span-2">
         <div className="rounded-xl border border-border bg-surface p-5">
-          <label className={labelClass} htmlFor="branch_id">
+          <label className="label" htmlFor="branch_id">
             คิดต้นทุนที่สาขา
           </label>
           <select
@@ -696,7 +693,7 @@ export default function LabForm({
             form="lab-form"
             value={branchId}
             onChange={(e) => setBranchId(e.target.value)}
-            className={`${inputClass} mt-1`}
+            className={"input w-full mt-1"}
           >
             <option value="">— สาขาที่ข้อมูลใหม่ที่สุด —</option>
             {branches.map((b) => (

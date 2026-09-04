@@ -50,8 +50,6 @@ import {
   type MergeMenuView,
 } from "./menu-merge-view";
 
-const inputClass =
-  "w-full rounded-lg border border-border bg-background px-2 py-1.5 text-sm focus:border-primary focus:outline-none";
 const buttonClass =
   "rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50";
 const linkClass = "text-xs text-primary hover:underline";
@@ -247,7 +245,7 @@ export default function MenuRowEditor({
             <input type="hidden" name="menuId" value={menu.id} />
             <label className="block text-xs">
               ชื่อเมนู
-              <input name="name" defaultValue={menu.name} className={`${inputClass} mt-1`} />
+              <input name="name" defaultValue={menu.name} className={"input w-full px-2 py-1.5 mt-1"} />
             </label>
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="block text-xs">
@@ -255,7 +253,7 @@ export default function MenuRowEditor({
                 <select
                   name="menuCategoryId"
                   defaultValue={menu.menuCategoryId ?? ""}
-                  className={`${inputClass} mt-1`}
+                  className={"input w-full px-2 py-1.5 mt-1"}
                 >
                   <option value="">— ไม่ระบุ —</option>
                   {categories.map((c) => (
@@ -271,7 +269,7 @@ export default function MenuRowEditor({
                   <select
                     name="primaryDepartmentId"
                     defaultValue={menu.primaryDepartmentId ?? ""}
-                    className={`${inputClass} mt-1`}
+                    className={"input w-full px-2 py-1.5 mt-1"}
                   >
                     <option value="">— ไม่ระบุ —</option>
                     {departments.map((d) => (
@@ -320,7 +318,7 @@ export default function MenuRowEditor({
                 <form action={aliasAction} className="mt-2 space-y-2">
                   <input type="hidden" name="posIntegrationId" value={posIntegrationId} />
                   <input type="hidden" name="rawName" value={menu.posMenuName} />
-                  <select name="menuId" className={inputClass} defaultValue="">
+                  <select name="menuId" className="input w-full px-2 py-1.5" defaultValue="">
                     <option value="" disabled>
                       — เลือกเมนูที่ใช่ —
                     </option>

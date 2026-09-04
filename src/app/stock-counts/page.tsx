@@ -93,14 +93,14 @@ export default async function StockCountListPage({
       <form method="get" className="flex flex-wrap items-end gap-3">
         {branches.length > 1 && (
           <div>
-            <label htmlFor="branch" className="block text-sm font-medium">
+            <label htmlFor="branch" className="label">
               สาขา
             </label>
             <select
               id="branch"
               name="branch"
               defaultValue={query.branchId ?? ""}
-              className="mt-1 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+              className="input mt-1"
             >
               <option value="">ทุกสาขา</option>
               {branches.map((b) => (
@@ -112,14 +112,14 @@ export default async function StockCountListPage({
           </div>
         )}
         <div>
-          <label htmlFor="status" className="block text-sm font-medium">
+          <label htmlFor="status" className="label">
             สถานะ
           </label>
           <select
             id="status"
             name="status"
             defaultValue={query.status ?? ""}
-            className="mt-1 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+            className="input mt-1"
           >
             <option value="">ทั้งหมด</option>
             {STOCK_COUNT_STATUS_VALUES.map((s) => (

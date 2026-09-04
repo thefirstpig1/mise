@@ -85,9 +85,6 @@ export type PurchaseOrderFormInitial = {
   }[];
 };
 
-const inputClass =
-  "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none";
-const labelClass = "block text-sm font-medium";
 const errorClass = "mt-1 text-xs text-bad";
 
 let rowSeq = 0;
@@ -261,7 +258,7 @@ export default function PurchaseOrderForm({
       {/* --- who + where --- */}
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
-          <label htmlFor="supplier_id" className={labelClass}>
+          <label htmlFor="supplier_id" className="label">
             ผู้ขาย <span className="text-bad">*</span>
           </label>
           <select
@@ -269,7 +266,7 @@ export default function PurchaseOrderForm({
             name="supplier_id"
             value={supplierId}
             onChange={(e) => setSupplierId(e.target.value)}
-            className={`${inputClass} mt-1`}
+            className={"input w-full mt-1"}
             required
             disabled={isEdit}
           >
@@ -289,7 +286,7 @@ export default function PurchaseOrderForm({
         </div>
 
         <div>
-          <label htmlFor="branch_id" className={labelClass}>
+          <label htmlFor="branch_id" className="label">
             สาขา <span className="text-bad">*</span>
           </label>
           <select
@@ -297,7 +294,7 @@ export default function PurchaseOrderForm({
             name="branch_id"
             value={branchId}
             onChange={(e) => setBranchId(e.target.value)}
-            className={`${inputClass} mt-1`}
+            className={"input w-full mt-1"}
             required
             disabled={isEdit}
           >
@@ -341,12 +338,12 @@ export default function PurchaseOrderForm({
               >
                 <div className="grid gap-3 sm:grid-cols-12">
                   <div className="sm:col-span-5">
-                    <label className={labelClass}>วัตถุดิบ</label>
+                    <label className="label">วัตถุดิบ</label>
                     <select
                       name="line_product_id"
                       value={row.productId}
                       onChange={(e) => onProductChange(row, e.target.value)}
-                      className={`${inputClass} mt-1`}
+                      className={"input w-full mt-1"}
                     >
                       <option value="">— เลือกวัตถุดิบ —</option>
                       {products.map((p) => (
@@ -358,7 +355,7 @@ export default function PurchaseOrderForm({
                   </div>
 
                   <div className="sm:col-span-2">
-                    <label className={labelClass}>จำนวน</label>
+                    <label className="label">จำนวน</label>
                     <input
                       name="line_qty"
                       type="number"
@@ -366,19 +363,19 @@ export default function PurchaseOrderForm({
                       min="0"
                       value={row.qty}
                       onChange={(e) => patch(row.key, { qty: e.target.value })}
-                      className={`${inputClass} mt-1`}
+                      className={"input w-full mt-1"}
                     />
                   </div>
 
                   <div className="sm:col-span-2">
-                    <label className={labelClass}>หน่วย</label>
+                    <label className="label">หน่วย</label>
                     <select
                       name="line_order_unit_id"
                       value={row.orderUnitId}
                       onChange={(e) =>
                         patch(row.key, { orderUnitId: e.target.value })
                       }
-                      className={`${inputClass} mt-1`}
+                      className={"input w-full mt-1"}
                       disabled={!product}
                     >
                       {!product && <option value="">—</option>}
@@ -392,7 +389,7 @@ export default function PurchaseOrderForm({
                   </div>
 
                   <div className="sm:col-span-3">
-                    <label className={labelClass}>ราคา/หน่วย</label>
+                    <label className="label">ราคา/หน่วย</label>
                     <input
                       name="line_unit_price"
                       type="number"
@@ -402,7 +399,7 @@ export default function PurchaseOrderForm({
                       onChange={(e) =>
                         patch(row.key, { unitPrice: e.target.value })
                       }
-                      className={`${inputClass} mt-1`}
+                      className={"input w-full mt-1"}
                     />
                   </div>
                 </div>
@@ -460,7 +457,7 @@ export default function PurchaseOrderForm({
       {/* --- terms --- */}
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
-          <label htmlFor="expected_delivery_date" className={labelClass}>
+          <label htmlFor="expected_delivery_date" className="label">
             กำหนดรับของ
           </label>
           <input
@@ -468,7 +465,7 @@ export default function PurchaseOrderForm({
             name="expected_delivery_date"
             type="date"
             defaultValue={initial?.expectedDeliveryDate ?? ""}
-            className={`${inputClass} mt-1`}
+            className={"input w-full mt-1"}
           />
           {err("expectedDeliveryDate") && (
             <p className={errorClass}>{err("expectedDeliveryDate")}</p>
@@ -476,7 +473,7 @@ export default function PurchaseOrderForm({
         </div>
 
         <div>
-          <label htmlFor="vat_rate_percent" className={labelClass}>
+          <label htmlFor="vat_rate_percent" className="label">
             VAT (%)
           </label>
           <input
@@ -488,7 +485,7 @@ export default function PurchaseOrderForm({
             max="100"
             value={vatRate}
             onChange={(e) => setVatRate(e.target.value)}
-            className={`${inputClass} mt-1`}
+            className={"input w-full mt-1"}
           />
           <p className="mt-1 text-xs text-muted-foreground">
             เว้นว่าง = ใบนี้ไม่มี VAT
@@ -518,7 +515,7 @@ export default function PurchaseOrderForm({
       </div>
 
       <div>
-        <label htmlFor="notes" className={labelClass}>
+        <label htmlFor="notes" className="label">
           หมายเหตุถึงผู้ขาย
         </label>
         <textarea
@@ -526,7 +523,7 @@ export default function PurchaseOrderForm({
           name="notes"
           rows={2}
           defaultValue={initial?.notes ?? ""}
-          className={`${inputClass} mt-1`}
+          className={"input w-full mt-1"}
         />
         {err("notes") && <p className={errorClass}>{err("notes")}</p>}
       </div>

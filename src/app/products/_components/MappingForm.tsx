@@ -31,8 +31,6 @@ export type OrderUnitOption = { id: string; unitName: string };
 
 type BranchMode = "all" | "specific";
 
-const inputClass =
-  "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none";
 const lockedClass =
   "w-full rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground";
 
@@ -121,7 +119,7 @@ export default function MappingForm({
       {/* Supplier + branch (identity — locked on edit) */}
       <section className="space-y-4 rounded-lg border border-border bg-surface p-6">
         <div>
-          <label htmlFor="supplier_id" className="mb-1 block text-sm font-medium">
+          <label htmlFor="supplier_id" className="mb-1 label">
             ซัพพลายเออร์<span className="text-bad"> *</span>
           </label>
           {isEdit ? (
@@ -143,7 +141,7 @@ export default function MappingForm({
               id="supplier_id"
               name="supplier_id"
               defaultValue=""
-              className={inputClass}
+              className="input w-full"
             >
               <option value="" disabled>
                 — เลือกซัพพลายเออร์ —
@@ -161,7 +159,7 @@ export default function MappingForm({
         </div>
 
         <div>
-          <span className="mb-2 block text-sm font-medium">ขอบเขตสาขา</span>
+          <span className="mb-2 label">ขอบเขตสาขา</span>
           {isEdit ? (
             <>
               <div className={lockedClass}>{branchDisplay}</div>
@@ -204,7 +202,7 @@ export default function MappingForm({
                     name="branch_id"
                     value={branchId}
                     onChange={(e) => setBranchId(e.target.value)}
-                    className={inputClass}
+                    className="input w-full"
                   >
                     <option value="" disabled>
                       — เลือกสาขา —
@@ -230,7 +228,7 @@ export default function MappingForm({
         <div>
           <label
             htmlFor="supplier_item_code"
-            className="mb-1 block text-sm font-medium"
+            className="mb-1 label"
           >
             รหัสสินค้าของซัพพลายเออร์
           </label>
@@ -241,7 +239,7 @@ export default function MappingForm({
             maxLength={64}
             defaultValue={initial?.supplierItemCode ?? ""}
             placeholder="เช่น SKU ฝั่งซัพพลายเออร์"
-            className={inputClass}
+            className="input w-full"
           />
           {err("supplierItemCode") && (
             <p className="mt-1 text-sm text-bad">{err("supplierItemCode")}</p>
@@ -250,7 +248,7 @@ export default function MappingForm({
         <div>
           <label
             htmlFor="supplier_item_name"
-            className="mb-1 block text-sm font-medium"
+            className="mb-1 label"
           >
             ชื่อสินค้าของซัพพลายเออร์
           </label>
@@ -261,7 +259,7 @@ export default function MappingForm({
             maxLength={200}
             defaultValue={initial?.supplierItemName ?? ""}
             placeholder="ชื่อที่ซัพพลายเออร์ใช้เรียกสินค้านี้"
-            className={inputClass}
+            className="input w-full"
           />
           {err("supplierItemName") && (
             <p className="mt-1 text-sm text-bad">{err("supplierItemName")}</p>
@@ -272,14 +270,14 @@ export default function MappingForm({
       {/* Order unit + pricing */}
       <section className="space-y-4 rounded-lg border border-border bg-surface p-6">
         <div>
-          <label htmlFor="order_unit_id" className="mb-1 block text-sm font-medium">
+          <label htmlFor="order_unit_id" className="mb-1 label">
             หน่วยสั่งซื้อ
           </label>
           <select
             id="order_unit_id"
             name="order_unit_id"
             defaultValue={initial?.orderUnitId ?? ""}
-            className={inputClass}
+            className="input w-full"
           >
             <option value="">— ไม่ระบุ —</option>
             {orderUnits.map((u) => (
@@ -300,7 +298,7 @@ export default function MappingForm({
           <div>
             <label
               htmlFor="current_unit_price"
-              className="mb-1 block text-sm font-medium"
+              className="mb-1 label"
             >
               ราคา/หน่วย (บาท)
             </label>
@@ -314,7 +312,7 @@ export default function MappingForm({
               min="0"
               inputMode="decimal"
               placeholder="เช่น 25.00"
-              className={inputClass}
+              className="input w-full"
             />
             {showHighPriceHint && (
               <p className="mt-1 text-xs text-warn">
@@ -328,7 +326,7 @@ export default function MappingForm({
           <div>
             <label
               htmlFor="min_order_qty"
-              className="mb-1 block text-sm font-medium"
+              className="mb-1 label"
             >
               ปริมาณขั้นต่ำ
             </label>
@@ -341,7 +339,7 @@ export default function MappingForm({
               min="0"
               inputMode="decimal"
               placeholder="เช่น 1"
-              className={inputClass}
+              className="input w-full"
             />
             {err("minOrderQty") && (
               <p className="mt-1 text-sm text-bad">{err("minOrderQty")}</p>
@@ -350,7 +348,7 @@ export default function MappingForm({
           <div>
             <label
               htmlFor="lead_time_days"
-              className="mb-1 block text-sm font-medium"
+              className="mb-1 label"
             >
               Lead time (วัน)
             </label>
@@ -365,7 +363,7 @@ export default function MappingForm({
               max="365"
               inputMode="numeric"
               placeholder="เช่น 3"
-              className={inputClass}
+              className="input w-full"
             />
             {showLongLeadHint && (
               <p className="mt-1 text-xs text-warn">
@@ -399,7 +397,7 @@ export default function MappingForm({
           <div>
             <label
               htmlFor="effective_from"
-              className="mb-1 block text-sm font-medium"
+              className="mb-1 label"
             >
               เริ่มมีผล<span className="text-bad"> *</span>
             </label>
@@ -408,7 +406,7 @@ export default function MappingForm({
               name="effective_from"
               type="date"
               defaultValue={initial?.effectiveFrom ?? todayLocal()}
-              className={inputClass}
+              className="input w-full"
             />
             {err("effectiveFrom") && (
               <p className="mt-1 text-sm text-bad">{err("effectiveFrom")}</p>
@@ -417,7 +415,7 @@ export default function MappingForm({
           <div>
             <label
               htmlFor="effective_to"
-              className="mb-1 block text-sm font-medium"
+              className="mb-1 label"
             >
               สิ้นสุด
             </label>
@@ -426,7 +424,7 @@ export default function MappingForm({
               name="effective_to"
               type="date"
               defaultValue={initial?.effectiveTo ?? ""}
-              className={inputClass}
+              className="input w-full"
             />
             <p className="mt-1 text-xs text-muted-foreground">
               เว้นว่าง = ราคาปัจจุบัน (ยังไม่สิ้นสุด)

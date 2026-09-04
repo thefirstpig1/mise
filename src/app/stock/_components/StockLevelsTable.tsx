@@ -90,7 +90,7 @@ export default function StockLevelsTable({ rows }: { rows: StockLevelRow[] }) {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="ค้นหาชื่อหรือรหัส"
-          className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none"
+          className="flex-1 input"
         />
         <div className="flex gap-1">
           {(Object.keys(FILTER_LABELS) as Filter[]).map((f) => (

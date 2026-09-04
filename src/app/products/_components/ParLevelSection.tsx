@@ -30,8 +30,6 @@ export type ParBranchRow = {
   inputUnitId: string | null;
 };
 
-const inputClass =
-  "rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none";
 
 function BranchParForm({
   productId,
@@ -81,13 +79,13 @@ function BranchParForm({
             min="0"
             defaultValue={row.inputQty ?? ""}
             placeholder="ขั้นต่ำ"
-            className={`${inputClass} w-28`}
+            className={"input w-28"}
             required
           />
           <select
             name="input_unit_id"
             defaultValue={defaultUnitId}
-            className={inputClass}
+            className="input"
             required
           >
             {units.map((u) => (

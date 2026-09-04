@@ -84,7 +84,7 @@ export default function CategoryTree({
         value={search}
         onChange={(e) => setSearch(e.target.value)}
         placeholder="ค้นหา บัญชี/หมวด/กลุ่ม"
-        className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none"
+        className="input w-full"
       />
 
       {categories.length === 0 ? (

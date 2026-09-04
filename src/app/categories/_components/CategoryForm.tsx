@@ -16,8 +16,6 @@ import {
   CATEGORY_FIELD_LABELS_TH,
 } from "@/lib/validations/category";
 
-const inputClass =
-  "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none";
 
 export default function CategoryForm({
   action,
@@ -56,7 +54,7 @@ export default function CategoryForm({
 
       <section className="space-y-4 rounded-lg border border-border bg-surface p-6">
         <div>
-          <label htmlFor="account" className="mb-1 block text-sm font-medium">
+          <label htmlFor="account" className="mb-1 label">
             {L.account}
             <span className="text-bad"> *</span>
           </label>
@@ -64,7 +62,7 @@ export default function CategoryForm({
             id="account"
             name="account"
             defaultValue={initial?.account ?? ""}
-            className={inputClass}
+            className="input w-full"
           >
             <option value="" disabled>
               — เลือกประเภทบัญชี —
@@ -83,7 +81,7 @@ export default function CategoryForm({
         <div>
           <label
             htmlFor="accounting_section"
-            className="mb-1 block text-sm font-medium"
+            className="mb-1 label"
           >
             {L.accountingSection}
             <span className="text-bad"> *</span>
@@ -94,7 +92,7 @@ export default function CategoryForm({
             type="text"
             defaultValue={initial?.accountingSection ?? ""}
             placeholder="เช่น Food, Beverage, Utilities"
-            className={inputClass}
+            className="input w-full"
           />
           {err("accountingSection") && (
             <p className="mt-1 text-sm text-bad">
@@ -104,7 +102,7 @@ export default function CategoryForm({
         </div>
 
         <div>
-          <label htmlFor="group_name" className="mb-1 block text-sm font-medium">
+          <label htmlFor="group_name" className="mb-1 label">
             {L.groupName}
             <span className="text-bad"> *</span>
           </label>
@@ -114,7 +112,7 @@ export default function CategoryForm({
             type="text"
             defaultValue={initial?.groupName ?? ""}
             placeholder="เช่น Meat, Coffee, Electricity"
-            className={inputClass}
+            className="input w-full"
           />
           {err("groupName") && (
             <p className="mt-1 text-sm text-bad">{err("groupName")}</p>

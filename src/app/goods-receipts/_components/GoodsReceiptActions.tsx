@@ -199,7 +199,7 @@ export default function GoodsReceiptActions({
           <input type="hidden" name="id" value={id} />
           <label
             htmlFor="void_reason"
-            className="block text-sm font-medium text-bad"
+            className="label text-bad"
           >
             เหตุผลที่ยกเลิกใบรับ (จำเป็น)
           </label>

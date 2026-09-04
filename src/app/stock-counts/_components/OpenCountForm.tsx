@@ -13,9 +13,6 @@ import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { StockCountActionState } from "../actions";
 
-const inputClass =
-  "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none";
-const labelClass = "block text-sm font-medium";
 
 export default function OpenCountForm({
   action,
@@ -69,7 +66,7 @@ export default function OpenCountForm({
       )}
 
       <div>
-        <label htmlFor="branch_id" className={labelClass}>
+        <label htmlFor="branch_id" className="label">
           สาขา <span className="text-bad">*</span>
         </label>
         <select
@@ -77,7 +74,7 @@ export default function OpenCountForm({
           name="branch_id"
           value={branchId}
           onChange={(e) => setBranchId(e.target.value)}
-          className={`${inputClass} mt-1`}
+          className={"input w-full mt-1"}
           required
         >
           {branches.map((b) => (
@@ -102,7 +99,7 @@ export default function OpenCountForm({
       </div>
 
       <div>
-        <label htmlFor="count_date" className={labelClass}>
+        <label htmlFor="count_date" className="label">
           วันที่นับ <span className="text-bad">*</span>
         </label>
         <input
@@ -110,7 +107,7 @@ export default function OpenCountForm({
           id="count_date"
           name="count_date"
           defaultValue={todayBangkok}
-          className={`${inputClass} mt-1`}
+          className={"input w-full mt-1"}
           required
         />
         <p className="mt-1 text-xs text-muted-foreground">
@@ -140,10 +137,10 @@ export default function OpenCountForm({
       </div>
 
       <div>
-        <label htmlFor="notes" className={labelClass}>
+        <label htmlFor="notes" className="label">
           หมายเหตุ
         </label>
-        <textarea id="notes" name="notes" rows={2} className={`${inputClass} mt-1`} />
+        <textarea id="notes" name="notes" rows={2} className={"input w-full mt-1"} />
       </div>
 
       <button

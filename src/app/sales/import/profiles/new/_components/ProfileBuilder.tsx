@@ -40,8 +40,6 @@ import { SALES_DATE_FORMATS } from "@/lib/sales-file";
 
 export type PosOption = { id: string; label: string };
 
-const inputClass =
-  "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none";
 const buttonClass =
   "rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50";
 
@@ -110,11 +108,11 @@ export default function ProfileBuilder({ posOptions }: { posOptions: PosOption[]
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <label className="block text-sm">
             ไฟล์
-            <input type="file" name="file" accept=".csv,text/csv,text/plain" className={`${inputClass} mt-1`} />
+            <input type="file" name="file" accept=".csv,text/csv,text/plain" className={"input w-full mt-1"} />
           </label>
           <label className="block text-sm">
             การเข้ารหัสไฟล์
-            <select name="encoding" defaultValue="UTF8" className={`${inputClass} mt-1`}>
+            <select name="encoding" defaultValue="UTF8" className={"input w-full mt-1"}>
               {FILE_ENCODING_VALUES.map((e) => (
                 <option key={e} value={e}>
                   {FILE_ENCODING_LABELS_TH[e]}
@@ -173,7 +171,7 @@ export default function ProfileBuilder({ posOptions }: { posOptions: PosOption[]
                 <select
                   value={columnMap[field] ?? ""}
                   onChange={(e) => setField(field, e.target.value)}
-                  className={`${inputClass} mt-1`}
+                  className={"input w-full mt-1"}
                 >
                   <option value="">— ไม่มีในไฟล์ —</option>
                   {header.map((h, i) => (
@@ -197,7 +195,7 @@ export default function ProfileBuilder({ posOptions }: { posOptions: PosOption[]
           <div className="mt-3 grid gap-4 sm:grid-cols-2">
             <label className="block text-sm">
               เครื่อง POS / สาขา
-              <select name="posIntegrationId" className={`${inputClass} mt-1`}>
+              <select name="posIntegrationId" className={"input w-full mt-1"}>
                 {posOptions.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.label}
@@ -208,12 +206,12 @@ export default function ProfileBuilder({ posOptions }: { posOptions: PosOption[]
 
             <label className="block text-sm">
               ชื่อรูปแบบไฟล์
-              <input name="name" className={`${inputClass} mt-1`} placeholder="เช่น สรุปรายวัน FoodStory" />
+              <input name="name" className={"input w-full mt-1"} placeholder="เช่น สรุปรายวัน FoodStory" />
             </label>
 
             <label className="block text-sm">
               หนึ่งแถวคืออะไร
-              <select name="fileKind" className={`${inputClass} mt-1`}>
+              <select name="fileKind" className={"input w-full mt-1"}>
                 {SALES_FILE_KIND_VALUES.map((k) => (
                   <option key={k} value={k}>
                     {SALES_FILE_KIND_LABELS_TH[k]}
@@ -224,7 +222,7 @@ export default function ProfileBuilder({ posOptions }: { posOptions: PosOption[]
 
             <label className="block text-sm">
               รูปแบบวันที่ในไฟล์
-              <select name="dateFormat" className={`${inputClass} mt-1`}>
+              <select name="dateFormat" className={"input w-full mt-1"}>
                 {SALES_DATE_FORMATS.map((f) => (
                   <option key={f} value={f}>
                     {f}
@@ -235,7 +233,7 @@ export default function ProfileBuilder({ posOptions }: { posOptions: PosOption[]
 
             <label className="block text-sm">
               ช่องทางขายของไฟล์นี้
-              <select name="defaultChannel" defaultValue="" className={`${inputClass} mt-1`}>
+              <select name="defaultChannel" defaultValue="" className={"input w-full mt-1"}>
                 <option value="">— ไม่ระบุ —</option>
                 {SALES_CHANNEL_VALUES.map((c) => (
                   <option key={c} value={c}>

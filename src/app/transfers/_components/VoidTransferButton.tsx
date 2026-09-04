@@ -74,7 +74,7 @@ export default function VoidTransferButton({
           maxLength={500}
           required
           placeholder="เหตุผล เช่น คีย์ผิดสาขา"
-          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none"
+          className="input w-full"
         />
         {fieldError && <p className="text-xs text-bad">{fieldError}</p>}
         {formError && <p className="text-xs text-bad">{formError}</p>}

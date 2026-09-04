@@ -60,7 +60,7 @@ export default function CloseShortForm({
   return (
     <form action={submit} className="rounded-lg border border-border bg-muted/30 p-4">
       <input type="hidden" name="id" value={purchaseOrderId} />
-      <label htmlFor="closed_short_reason" className="block text-sm font-medium">
+      <label htmlFor="closed_short_reason" className="label">
         เหตุผลที่ปิดรับทั้งที่ยังได้ไม่ครบ (จำเป็น)
       </label>
       <input
@@ -69,7 +69,7 @@ export default function CloseShortForm({
         value={reason}
         onChange={(e) => setReason(e.target.value)}
         placeholder="เช่น ซัพแจ้งของหมด ไม่ส่งส่วนที่เหลือแล้ว"
-        className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+        className="input mt-1 w-full"
       />
       <p className="mt-1 text-xs text-muted-foreground">
         ใบสั่งซื้อจะเปลี่ยนเป็น &quot;รับของครบแล้ว&quot; ส่วนตัวเลขที่รับจริงจะยังเป็นตามเดิม

@@ -34,9 +34,6 @@ export type StaffMealProductOption = {
 /** One hand-typed pot line, in the browser only. */
 type PotLine = { key: string; productId: string; qty: string; unitId: string };
 
-const inputClass =
-  "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none";
-const labelClass = "block text-sm font-medium";
 const errorClass = "mt-1 text-xs text-bad";
 
 function newId(): string {
@@ -183,7 +180,7 @@ export default function StaffMealEntryForm({
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
-          <label className={labelClass} htmlFor="sm-branch">
+          <label className="label" htmlFor="sm-branch">
             สาขา
           </label>
           <select
@@ -191,7 +188,7 @@ export default function StaffMealEntryForm({
             name="branch_id"
             value={branchId}
             onChange={(e) => setBranchId(e.target.value)}
-            className={inputClass}
+            className="input w-full"
           >
             {branches.map((b) => (
               <option key={b.id} value={b.id}>
@@ -203,7 +200,7 @@ export default function StaffMealEntryForm({
         </div>
 
         <div>
-          <label className={labelClass} htmlFor="sm-date">
+          <label className="label" htmlFor="sm-date">
             วันที่
           </label>
           <input
@@ -214,7 +211,7 @@ export default function StaffMealEntryForm({
             min={minBackdate}
             max={todayBangkok}
             onChange={(e) => setBusinessDate(e.target.value)}
-            className={inputClass}
+            className="input w-full"
           />
           {err("businessDate") && (
             <p className={errorClass}>{err("businessDate")}</p>
@@ -226,7 +223,7 @@ export default function StaffMealEntryForm({
         <>
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
-              <label className={labelClass} htmlFor="sm-member">
+              <label className="label" htmlFor="sm-member">
                 ใครกิน
               </label>
               <select
@@ -234,7 +231,7 @@ export default function StaffMealEntryForm({
                 name="staff_member_id"
                 value={staffMemberId}
                 onChange={(e) => setStaffMemberId(e.target.value)}
-                className={inputClass}
+                className="input w-full"
               >
                 <option value="">— เลือกพนักงาน —</option>
                 {members.map((m) => (
@@ -257,7 +254,7 @@ export default function StaffMealEntryForm({
             </div>
 
             <div>
-              <label className={labelClass} htmlFor="sm-servings">
+              <label className="label" htmlFor="sm-servings">
                 จำนวนที่
               </label>
               <input
@@ -268,14 +265,14 @@ export default function StaffMealEntryForm({
                 min="0.001"
                 value={servings}
                 onChange={(e) => setServings(e.target.value)}
-                className={inputClass}
+                className="input w-full"
               />
               {err("servings") && <p className={errorClass}>{err("servings")}</p>}
             </div>
           </div>
 
           <div>
-            <label className={labelClass} htmlFor="sm-menu">
+            <label className="label" htmlFor="sm-menu">
               เมนู
             </label>
             <select
@@ -283,7 +280,7 @@ export default function StaffMealEntryForm({
               name="menu_id"
               value={menuId}
               onChange={(e) => setMenuId(e.target.value)}
-              className={inputClass}
+              className="input w-full"
             >
               <option value="">— เลือกเมนู —</option>
               {menus.map((m) => (
@@ -305,7 +302,7 @@ export default function StaffMealEntryForm({
           {/* A pot has no single eater. The field is offered, not required —
               sometimes one person really did take 2 kg of pork home to cook. */}
           <div>
-            <label className={labelClass} htmlFor="sm-member-pot">
+            <label className="label" htmlFor="sm-member-pot">
               ใครกิน <span className="text-muted-foreground">(ไม่ระบุก็ได้ ถ้ากินกันหลายคน)</span>
             </label>
             <select
@@ -313,7 +310,7 @@ export default function StaffMealEntryForm({
               name="staff_member_id"
               value={staffMemberId}
               onChange={(e) => setStaffMemberId(e.target.value)}
-              className={inputClass}
+              className="input w-full"
             >
               <option value="">— กินกันหลายคน —</option>
               {members.map((m) => (
@@ -325,7 +322,7 @@ export default function StaffMealEntryForm({
           </div>
 
           <div>
-            <p className={labelClass}>วัตถุดิบที่ใช้</p>
+            <p className="label">วัตถุดิบที่ใช้</p>
             <div className="mt-2 space-y-2">
               {lines.map((l) => {
                 const p = productOf(l.productId);
@@ -343,7 +340,7 @@ export default function StaffMealEntryForm({
                           unitId: base?.id ?? "",
                         });
                       }}
-                      className={inputClass}
+                      className="input w-full"
                     >
                       <option value="">— เลือกวัตถุดิบ —</option>
                       {products.map((prod) => (
@@ -360,13 +357,13 @@ export default function StaffMealEntryForm({
                       value={l.qty}
                       onChange={(e) => setLine(l.key, { qty: e.target.value })}
                       placeholder="จำนวน"
-                      className={inputClass}
+                      className="input w-full"
                     />
                     <select
                       name="item_input_unit_id"
                       value={l.unitId}
                       onChange={(e) => setLine(l.key, { unitId: e.target.value })}
-                      className={inputClass}
+                      className="input w-full"
                     >
                       {(p?.units ?? []).map((u) => (
                         <option key={u.id} value={u.id}>
@@ -409,7 +406,7 @@ export default function StaffMealEntryForm({
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
-          <label className={labelClass} htmlFor="sm-recorded-by">
+          <label className="label" htmlFor="sm-recorded-by">
             คนบันทึก/คนเสิร์ฟ <span className="text-muted-foreground">(ถ้าไม่ใช่เจ้าของบัญชี)</span>
           </label>
           <input
@@ -417,11 +414,11 @@ export default function StaffMealEntryForm({
             name="recorded_by_name"
             type="text"
             maxLength={100}
-            className={inputClass}
+            className="input w-full"
           />
         </div>
         <div>
-          <label className={labelClass} htmlFor="sm-notes">
+          <label className="label" htmlFor="sm-notes">
             หมายเหตุ
           </label>
           <textarea
@@ -430,7 +427,7 @@ export default function StaffMealEntryForm({
             name="notes"
             rows={1}
             maxLength={500}
-            className={inputClass}
+            className="input w-full"
           />
         </div>
       </div>

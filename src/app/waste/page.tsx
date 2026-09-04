@@ -25,8 +25,6 @@ import WasteEntryForm, {
 } from "./_components/WasteEntryForm";
 import VoidWasteButton from "./_components/VoidWasteButton";
 
-const inputClass =
-  "rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none";
 
 /**
  * A serialized row's `reason` is a plain string (the view layer stays
@@ -175,7 +173,7 @@ export default async function WastePage({
               type="date"
               name="from"
               defaultValue={fromParam}
-              className={inputClass}
+              className="input"
               aria-label="ตั้งแต่วันที่"
             />
             <span className="text-sm text-muted-foreground">ถึง</span>
@@ -183,10 +181,10 @@ export default async function WastePage({
               type="date"
               name="to"
               defaultValue={toParam}
-              className={inputClass}
+              className="input"
               aria-label="ถึงวันที่"
             />
-            <select name="branch" defaultValue={sp.branch ?? ""} className={inputClass}>
+            <select name="branch" defaultValue={sp.branch ?? ""} className="input">
               <option value="">ทุกสาขา</option>
               {branchOptions.map((b) => (
                 <option key={b.id} value={b.id}>
@@ -194,7 +192,7 @@ export default async function WastePage({
                 </option>
               ))}
             </select>
-            <select name="product" defaultValue={sp.product ?? ""} className={inputClass}>
+            <select name="product" defaultValue={sp.product ?? ""} className="input">
               <option value="">ทุกวัตถุดิบ</option>
               {productOptions.map((p) => (
                 <option key={p.id} value={p.id}>
@@ -202,7 +200,7 @@ export default async function WastePage({
                 </option>
               ))}
             </select>
-            <select name="reason" defaultValue={sp.reason ?? ""} className={inputClass}>
+            <select name="reason" defaultValue={sp.reason ?? ""} className="input">
               <option value="">ทุกสาเหตุ</option>
               {WASTE_REASON_VALUES.map((r) => (
                 <option key={r} value={r}>

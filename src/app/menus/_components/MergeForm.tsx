@@ -59,8 +59,6 @@ function newSubmitKey(): string {
   });
 }
 
-const inputClass =
-  "rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none";
 
 export default function MergeForm({
   subject,
@@ -227,7 +225,7 @@ export default function MergeForm({
             value={effectiveFrom}
             max={todayIso}
             onChange={(e) => setEffectiveFrom(e.target.value)}
-            className={`${inputClass} mt-1 block`}
+            className={"input mt-1 block"}
           />
         </label>
         <p className="mt-1 text-xs text-muted-foreground">

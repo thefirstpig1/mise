@@ -54,9 +54,6 @@ type LineDraft = {
   notes: string;
 };
 
-const inputClass =
-  "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none";
-const labelClass = "block text-sm font-medium";
 
 /** A fresh `submit_key` — the id the server will give the `recipe` row. */
 function newSubmitKey(): string {
@@ -182,7 +179,7 @@ export default function RecipeForm({
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
-          <label className={labelClass} htmlFor="servings">
+          <label className="label" htmlFor="servings">
             {target.kind === "menu" ? "สูตรนี้ทำได้กี่จาน" : "สูตรนี้ได้ของกี่หน่วย"}
           </label>
           <input
@@ -191,7 +188,7 @@ export default function RecipeForm({
             value={servings}
             onChange={(e) => setServings(e.target.value)}
             inputMode="decimal"
-            className={`${inputClass} mt-1`}
+            className={"input w-full mt-1"}
           />
           <p className="mt-1 text-xs text-muted-foreground">
             ใส่ตามที่ทำจริง — ผัดทีละ 4 จานก็ใส่ 4 ระบบจะหารให้เอง
@@ -202,7 +199,7 @@ export default function RecipeForm({
         </div>
 
         <div>
-          <label className={labelClass} htmlFor="notes">
+          <label className="label" htmlFor="notes">
             หมายเหตุ
           </label>
           <input
@@ -211,7 +208,7 @@ export default function RecipeForm({
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="เช่น ผัดไฟแรง ใส่พริกท้ายสุด"
-            className={`${inputClass} mt-1`}
+            className={"input w-full mt-1"}
           />
         </div>
       </div>
@@ -251,7 +248,7 @@ export default function RecipeForm({
                         productUnitId: "",
                       })
                     }
-                    className={`${inputClass} sm:col-span-2`}
+                    className={"input w-full sm:col-span-2"}
                     aria-label="ชนิดของส่วนประกอบ"
                   >
                     <option value="product">วัตถุดิบ</option>
@@ -271,7 +268,7 @@ export default function RecipeForm({
                               unitsOf.get(e.target.value)?.[0]?.id ?? "",
                           })
                         }
-                        className={`${inputClass} sm:col-span-4`}
+                        className={"input w-full sm:col-span-4"}
                         aria-label="วัตถุดิบ"
                       >
                         <option value="">— เลือกวัตถุดิบ —</option>
@@ -296,7 +293,7 @@ export default function RecipeForm({
                         onChange={(e) =>
                           setLine(line.key, { componentMenuId: e.target.value })
                         }
-                        className={`${inputClass} sm:col-span-4`}
+                        className={"input w-full sm:col-span-4"}
                         aria-label="เมนูที่เป็นส่วนประกอบ"
                       >
                         <option value="">— เลือกเมนู —</option>
@@ -317,7 +314,7 @@ export default function RecipeForm({
                     onChange={(e) => setLine(line.key, { qty: e.target.value })}
                     inputMode="decimal"
                     placeholder="จำนวน"
-                    className={`${inputClass} sm:col-span-2`}
+                    className={"input w-full sm:col-span-2"}
                     aria-label="จำนวน"
                   />
 
@@ -328,7 +325,7 @@ export default function RecipeForm({
                       onChange={(e) =>
                         setLine(line.key, { productUnitId: e.target.value })
                       }
-                      className={`${inputClass} sm:col-span-2`}
+                      className={"input w-full sm:col-span-2"}
                       aria-label="หน่วย"
                     >
                       <option value="">— หน่วย —</option>
@@ -375,7 +372,7 @@ export default function RecipeForm({
                   value={line.notes}
                   onChange={(e) => setLine(line.key, { notes: e.target.value })}
                   placeholder="หมายเหตุของบรรทัดนี้ (ไม่บังคับ)"
-                  className={`${inputClass} mt-2`}
+                  className={"input w-full mt-2"}
                   aria-label="หมายเหตุของวัตถุดิบ"
                 />
 
@@ -417,7 +414,7 @@ export default function RecipeForm({
               min={minEffectiveFrom}
               max={todayBangkok}
               onChange={(e) => setEffectiveFrom(e.target.value)}
-              className={inputClass}
+              className="input w-full"
             />
             <p className="mt-1 text-xs text-muted-foreground">
               ยอดขายที่นำเข้าย้อนหลังจะถูกคิดด้วยสูตรที่ใช้อยู่ ณ วันนั้น

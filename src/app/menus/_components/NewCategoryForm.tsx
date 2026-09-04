@@ -9,8 +9,6 @@
 import { useActionState } from "react";
 import { createMenuCategoryAction, type MenuCategoryActionState } from "@/app/menus/actions";
 
-const inputClass =
-  "rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none";
 
 export default function NewCategoryForm() {
   const [state, action, pending] = useActionState<MenuCategoryActionState | null, FormData>(
@@ -22,7 +20,7 @@ export default function NewCategoryForm() {
     <form action={action} className="mt-3 flex flex-wrap items-end gap-3">
       <label className="text-sm">
         ชื่อหมวด
-        <input name="name" className={`${inputClass} mt-1 block`} placeholder="เช่น ของหวาน" />
+        <input name="name" className={"input mt-1 block"} placeholder="เช่น ของหวาน" />
       </label>
       <button
         type="submit"

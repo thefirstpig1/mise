@@ -15,8 +15,6 @@
 import { useActionState, useEffect, useRef } from "react";
 import type { StaffMemberActionState } from "@/app/staff-meals/actions";
 
-const inputClass =
-  "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none";
 
 export type BranchOption = { id: string; name: string };
 
@@ -58,7 +56,7 @@ export function CreateStaffMemberForm({
     >
       <div className="grid gap-3 sm:grid-cols-3">
         <div>
-          <label className="block text-sm font-medium" htmlFor="new-name">
+          <label className="label" htmlFor="new-name">
             ชื่อเรียก
           </label>
           <input
@@ -69,21 +67,21 @@ export function CreateStaffMemberForm({
             maxLength={100}
             required
             placeholder="เช่น สมชาย"
-            className={inputClass}
+            className="input w-full"
           />
           {fieldErrors?.name && (
             <p className="mt-1 text-xs text-bad">{fieldErrors.name}</p>
           )}
         </div>
         <div>
-          <label className="block text-sm font-medium" htmlFor="new-branch">
+          <label className="label" htmlFor="new-branch">
             สาขาประจำ
           </label>
           <select
             id="new-branch"
             name="branch_id"
             defaultValue={defaultBranchId}
-            className={inputClass}
+            className="input w-full"
           >
             {branches.map((b) => (
               <option key={b.id} value={b.id}>
@@ -93,7 +91,7 @@ export function CreateStaffMemberForm({
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium" htmlFor="new-quota">
+          <label className="label" htmlFor="new-quota">
             โควตา/วัน (บาท)
           </label>
           <input
@@ -103,7 +101,7 @@ export function CreateStaffMemberForm({
             step="0.01"
             min="0"
             placeholder={tenantQuota ?? "ไม่มีโควตา"}
-            className={inputClass}
+            className="input w-full"
           />
           {fieldErrors?.dailyQuotaAmount && (
             <p className="mt-1 text-xs text-bad">
@@ -167,7 +165,7 @@ export function EditStaffMemberRow({
           type="text"
           maxLength={100}
           defaultValue={member.name}
-          className={inputClass}
+          className="input w-full"
           aria-label="ชื่อ"
         />
         {fieldErrors?.name && (
@@ -177,7 +175,7 @@ export function EditStaffMemberRow({
       <select
         name="branch_id"
         defaultValue={member.branchId}
-        className={inputClass}
+        className="input w-full"
         aria-label="สาขา"
       >
         {branches.map((b) => (
@@ -193,7 +191,7 @@ export function EditStaffMemberRow({
         min="0"
         defaultValue={member.dailyQuotaAmount ?? ""}
         placeholder="ตามร้าน"
-        className={inputClass}
+        className="input w-full"
         aria-label="โควตาต่อวัน"
       />
       <label className="flex items-center gap-2 text-sm">

@@ -35,9 +35,6 @@ export type TransferBranchOption = { id: string; name: string; code: string };
 
 type LineDraft = { key: number; productId: string; qty: string; unitId: string };
 
-const inputClass =
-  "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none";
-const labelClass = "block text-sm font-medium";
 
 /** A fresh `submit_key` — the id the server will give the `stock_transfer` row. */
 function newSubmitKey(): string {
@@ -122,7 +119,7 @@ export default function TransferDispatchForm({
       )}
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <label className={labelClass}>
+        <label className="label">
           สาขาต้นทาง
           <select
             name="from_branch_id"
@@ -137,7 +134,7 @@ export default function TransferDispatchForm({
                 );
               }
             }}
-            className={`mt-1 ${inputClass}`}
+            className={`mt-1 $"input w-full"`}
           >
             {branches.map((b) => (
               <option key={b.id} value={b.id}>
@@ -150,13 +147,13 @@ export default function TransferDispatchForm({
           )}
         </label>
 
-        <label className={labelClass}>
+        <label className="label">
           สาขาปลายทาง
           <select
             name="to_branch_id"
             value={toBranchId}
             onChange={(e) => setToBranchId(e.target.value)}
-            className={`mt-1 ${inputClass}`}
+            className={`mt-1 $"input w-full"`}
           >
             {destinations.map((b) => (
               <option key={b.id} value={b.id}>
@@ -169,14 +166,14 @@ export default function TransferDispatchForm({
           )}
         </label>
 
-        <label className={labelClass}>
+        <label className="label">
           วันเวลาที่ส่ง
           <input
             type="datetime-local"
             name="dispatched_at"
             defaultValue={nowBangkok}
             required
-            className={`mt-1 ${inputClass}`}
+            className={`mt-1 $"input w-full"`}
           />
           <span className="mt-1 block text-xs text-muted-foreground">
             ย้อนหลังได้ไม่เกิน {MAX_BACKDATE_DAYS} วัน
@@ -186,13 +183,13 @@ export default function TransferDispatchForm({
           )}
         </label>
 
-        <label className={labelClass}>
+        <label className="label">
           ผู้ส่งของ (ถ้าไม่ใช่บัญชีนี้)
           <input
             name="dispatched_by_name"
             type="text"
             maxLength={100}
-            className={`mt-1 ${inputClass}`}
+            className={`mt-1 $"input w-full"`}
             placeholder="ชื่อคนที่ยกของขึ้นรถ"
           />
         </label>
@@ -205,13 +202,13 @@ export default function TransferDispatchForm({
           จะได้รู้ว่าหายก่อนขึ้นรถหรือหายระหว่างทาง
         </p>
         <div className="grid gap-4 sm:grid-cols-2">
-          <label className={labelClass}>
+          <label className="label">
             ชื่อคนขับ
             <input
               name="driver_name"
               type="text"
               maxLength={100}
-              className={`mt-1 ${inputClass}`}
+              className={`mt-1 $"input w-full"`}
             />
             {fieldErrors.driverName && (
               <p className="mt-1 text-xs text-bad">{fieldErrors.driverName}</p>
@@ -257,7 +254,7 @@ export default function TransferDispatchForm({
                     });
                   }}
                   required
-                  className={inputClass}
+                  className="input w-full"
                 >
                   <option value="">เลือกวัตถุดิบ</option>
                   {products.map((p) => (
@@ -276,7 +273,7 @@ export default function TransferDispatchForm({
                   onChange={(e) => setLine(l.key, { qty: e.target.value })}
                   required
                   placeholder="จำนวน"
-                  className={inputClass}
+                  className="input w-full"
                 />
 
                 <select
@@ -284,7 +281,7 @@ export default function TransferDispatchForm({
                   value={l.unitId}
                   onChange={(e) => setLine(l.key, { unitId: e.target.value })}
                   required
-                  className={inputClass}
+                  className="input w-full"
                 >
                   {(product?.units ?? []).map((u) => (
                     <option key={u.id} value={u.id}>
@@ -323,9 +320,9 @@ export default function TransferDispatchForm({
         </button>
       </fieldset>
 
-      <label className={labelClass}>
+      <label className="label">
         หมายเหตุ
-        <input name="notes" type="text" maxLength={500} className={`mt-1 ${inputClass}`} />
+        <input name="notes" type="text" maxLength={500} className={`mt-1 $"input w-full"`} />
       </label>
 
       {formError && (

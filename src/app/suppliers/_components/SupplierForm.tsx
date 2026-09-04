@@ -11,8 +11,6 @@ import type { SupplierActionState } from "@/app/suppliers/actions";
 import { SUPPLIER_FIELD_LABELS_TH } from "@/lib/validations/supplier";
 import type { SupplierView } from "./supplier-view";
 
-const inputClass =
-  "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none";
 
 function TextField({
   name,
@@ -33,7 +31,7 @@ function TextField({
 }) {
   return (
     <div>
-      <label htmlFor={name} className="mb-1 block text-sm font-medium">
+      <label htmlFor={name} className="mb-1 label">
         {label}
         {required && <span className="text-bad"> *</span>}
       </label>
@@ -43,7 +41,7 @@ function TextField({
         type={type}
         step={step}
         defaultValue={defaultValue}
-        className={inputClass}
+        className="input w-full"
       />
       {error && <p className="mt-1 text-sm text-bad">{error}</p>}
     </div>
@@ -156,7 +154,7 @@ export default function SupplierForm({
           error={err("lineId")}
         />
         <div>
-          <label htmlFor="address" className="mb-1 block text-sm font-medium">
+          <label htmlFor="address" className="mb-1 label">
             {L.address}
           </label>
           <textarea
@@ -164,7 +162,7 @@ export default function SupplierForm({
             name="address"
             rows={2}
             defaultValue={initial?.address ?? ""}
-            className={inputClass}
+            className="input w-full"
           />
           {err("address") && (
             <p className="mt-1 text-sm text-bad">{err("address")}</p>

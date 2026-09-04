@@ -35,9 +35,10 @@ const MIN_CHARS = 3; // Q3 — typeahead fires at 3+ chars
 const DEBOUNCE_MS = 400; // Q3
 const INITIAL_VISIBLE = 5; // Q1 — top 5 shown; server pre-fetches 10
 
-// Match ProductForm's inputClass for visual consistency (no shared const yet).
-const DEFAULT_INPUT_CLASS =
-  "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none";
+// The field this component renders when the caller does not override it. The
+// comment that used to sit here said "match ProductForm for visual consistency
+// (no shared const yet)" — there is one now: `.input` in globals.css.
+const DEFAULT_INPUT_CLASS = "input w-full";
 
 /** Q1 — map the raw pg_trgm similarity to a coarse Thai badge (decimal never shown). */
 function scoreBadge(score: number): { label: string; className: string } {

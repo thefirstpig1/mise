@@ -32,3 +32,37 @@
     @apply font-display;
   }
 }
+
+/* ============================================================
+   The two shapes every form in this product is built out of.
+   ------------------------------------------------------------
+   Counted before they were written, which is the only reason
+   these two are here and a `.badge` is not:
+
+     the field   79 places — 35 files had each declared their own
+                 `const inputClass = "…"` holding the SAME string,
+                 and 44 more wrote it inline
+     the label   12 files, again as a private const
+     a badge      3 places, which is not a pattern
+
+   35 files independently agreeing on one string is the clearest
+   possible signal that the string wanted somewhere to live. It
+   follows the rule `@layer base` above already follows: put it in
+   one place so a screen written tomorrow is right by default,
+   rather than right if somebody remembers.
+
+   🔴 `w-full` is deliberately NOT in `.input`. Thirteen of the
+      thirty-five consts leave it out, and how wide a field is
+      belongs to the layout around it, not to what a field IS.
+      Write `class="input w-full"` where the form wants it.
+   ============================================================ */
+@layer components {
+  .input {
+    @apply rounded-lg border border-border bg-background px-3 py-2 text-sm;
+    @apply focus:border-primary focus:outline-none;
+  }
+
+  .label {
+    @apply block text-sm font-medium;
+  }
+}

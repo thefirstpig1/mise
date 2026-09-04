@@ -60,9 +60,6 @@ export type StockProductOption = {
 
 export type StockBranchOption = { id: string; name: string };
 
-const inputClass =
-  "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none";
-const labelClass = "block text-sm font-medium";
 const errorClass = "mt-1 text-xs text-bad";
 
 /** Trim a preview number to the ledger's 3 decimal places, without trailing zeros. */
@@ -277,7 +274,7 @@ export default function StockAdjustForm({
 
       {/* --- what + where --- */}
       <div>
-        <label htmlFor="product_id" className={labelClass}>
+        <label htmlFor="product_id" className="label">
           วัตถุดิบ <span className="text-bad">*</span>
         </label>
         <select
@@ -285,7 +282,7 @@ export default function StockAdjustForm({
           name="product_id"
           value={productId}
           onChange={(e) => setProductId(e.target.value)}
-          className={`${inputClass} mt-1`}
+          className={"input w-full mt-1"}
           required
         >
           <option value="">— เลือกวัตถุดิบ —</option>
@@ -299,7 +296,7 @@ export default function StockAdjustForm({
       </div>
 
       <div>
-        <label htmlFor="branch_id" className={labelClass}>
+        <label htmlFor="branch_id" className="label">
           สาขา <span className="text-bad">*</span>
         </label>
         <select
@@ -307,7 +304,7 @@ export default function StockAdjustForm({
           name="branch_id"
           value={branchId}
           onChange={(e) => setBranchId(e.target.value)}
-          className={`${inputClass} mt-1`}
+          className={"input w-full mt-1"}
           required
         >
           {branches.map((b) => (
@@ -344,7 +341,7 @@ export default function StockAdjustForm({
 
       {/* --- direction --- */}
       <fieldset>
-        <legend className={labelClass}>
+        <legend className="label">
           ประเภทการปรับ <span className="text-bad">*</span>
         </legend>
         <div className="mt-2 flex gap-4">
@@ -367,7 +364,7 @@ export default function StockAdjustForm({
       {/* --- how much, in which unit --- */}
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label htmlFor="input_qty" className={labelClass}>
+          <label htmlFor="input_qty" className="label">
             จำนวน <span className="text-bad">*</span>
           </label>
           <input
@@ -379,14 +376,14 @@ export default function StockAdjustForm({
             min="0"
             value={qty}
             onChange={(e) => setQty(e.target.value)}
-            className={`${inputClass} mt-1`}
+            className={"input w-full mt-1"}
             required
           />
           {err("inputQty") && <p className={errorClass}>{err("inputQty")}</p>}
         </div>
 
         <div>
-          <label htmlFor="input_unit_id" className={labelClass}>
+          <label htmlFor="input_unit_id" className="label">
             หน่วย <span className="text-bad">*</span>
           </label>
           <select
@@ -394,7 +391,7 @@ export default function StockAdjustForm({
             name="input_unit_id"
             value={unitId}
             onChange={(e) => setUnitId(e.target.value)}
-            className={`${inputClass} mt-1`}
+            className={"input w-full mt-1"}
             required
             disabled={!product}
           >
@@ -453,14 +450,14 @@ export default function StockAdjustForm({
 
       {/* --- why --- */}
       <div>
-        <label htmlFor="reason" className={labelClass}>
+        <label htmlFor="reason" className="label">
           เหตุผล <span className="text-bad">*</span>
         </label>
         <select
           id="reason"
           name="reason"
           defaultValue="RECOUNT"
-          className={`${inputClass} mt-1`}
+          className={"input w-full mt-1"}
           required
         >
           {/* Part 17 Q4: SPOILAGE and DAMAGE are gone from this list. An
@@ -484,7 +481,7 @@ export default function StockAdjustForm({
 
       {/* --- when (business time; backdatable within the Q5 window) --- */}
       <div>
-        <label htmlFor="occurred_at" className={labelClass}>
+        <label htmlFor="occurred_at" className="label">
           วันที่ <span className="text-bad">*</span>
         </label>
         <input
@@ -494,7 +491,7 @@ export default function StockAdjustForm({
           defaultValue={todayBangkok}
           min={minBackdate}
           max={todayBangkok}
-          className={`${inputClass} mt-1`}
+          className={"input w-full mt-1"}
           required
         />
         <p className="mt-1 text-xs text-muted-foreground">
@@ -504,7 +501,7 @@ export default function StockAdjustForm({
       </div>
 
       <div>
-        <label htmlFor="notes" className={labelClass}>
+        <label htmlFor="notes" className="label">
           หมายเหตุ
         </label>
         <textarea
@@ -512,7 +509,7 @@ export default function StockAdjustForm({
           id="notes"
           name="notes"
           rows={2}
-          className={`${inputClass} mt-1`}
+          className={"input w-full mt-1"}
         />
         {err("notes") && <p className={errorClass}>{err("notes")}</p>}
       </div>
@@ -544,7 +541,7 @@ export default function StockAdjustForm({
             <div className="mt-2 space-y-2">
               <div className="flex flex-wrap items-end gap-2">
                 <div className="min-w-[8rem] flex-1">
-                  <label htmlFor="cost_unit_cost" className={labelClass}>
+                  <label htmlFor="cost_unit_cost" className="label">
                     ต้นทุน (บาท)
                   </label>
                   <input
@@ -554,12 +551,12 @@ export default function StockAdjustForm({
                     type="number"
                     step="0.0001"
                     min="0"
-                    className={`${inputClass} mt-1`}
+                    className={"input w-full mt-1"}
                     placeholder="เช่น 4500"
                   />
                 </div>
                 <div className="min-w-[7rem]">
-                  <label htmlFor="cost_unit_id" className={labelClass}>
+                  <label htmlFor="cost_unit_id" className="label">
                     ต่อหน่วย
                   </label>
                   <select
@@ -567,7 +564,7 @@ export default function StockAdjustForm({
                     name="cost_unit_id"
                     value={costUnitId}
                     onChange={(e) => setCostUnitId(e.target.value)}
-                    className={`${inputClass} mt-1`}
+                    className={"input w-full mt-1"}
                   >
                     {(product?.units ?? []).map((u) => (
                       <option key={u.id} value={u.id}>
@@ -579,7 +576,7 @@ export default function StockAdjustForm({
                 </div>
               </div>
               <div>
-                <label htmlFor="cost_note" className={labelClass}>
+                <label htmlFor="cost_note" className="label">
                   ที่มา / หมายเหตุ
                 </label>
                 <input
@@ -588,7 +585,7 @@ export default function StockAdjustForm({
                   name="cost_note"
                   type="text"
                   maxLength={500}
-                  className={`${inputClass} mt-1`}
+                  className={"input w-full mt-1"}
                   placeholder="เช่น ของจากใบส่งของที่ลืมคีย์"
                 />
               </div>

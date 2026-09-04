@@ -84,7 +84,7 @@ export default async function ConsumptionPage({
               <select
                 name="branch"
                 defaultValue={branchId}
-                className="mt-1 block rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                className="input mt-1 block"
               >
                 {branches.map((b) => (
                   <option key={b.id} value={b.id}>

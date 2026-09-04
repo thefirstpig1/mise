@@ -22,9 +22,6 @@ import { useRouter } from "next/navigation";
 import type { ExpenseActionState } from "../actions";
 import type { ExpenseDetailView } from "./expense-view";
 
-const inputClass =
-  "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none disabled:bg-muted/50 disabled:text-muted-foreground";
-const labelClass = "block text-sm font-medium";
 
 export type CategoryOption = {
   id: string;
@@ -216,7 +213,7 @@ export default function ExpenseForm({
       {/* ---------------- header ---------------- */}
       <section className="grid gap-4 sm:grid-cols-2">
         <div>
-          <label htmlFor="branch_id" className={labelClass}>
+          <label htmlFor="branch_id" className="label">
             สาขา <span className="text-bad">*</span>
           </label>
           <select
@@ -224,7 +221,7 @@ export default function ExpenseForm({
             name="branch_id"
             value={branchId}
             onChange={(e) => setBranchId(e.target.value)}
-            className={`${inputClass} mt-1`}
+            className={"input w-full disabled:bg-muted/50 disabled:text-muted-foreground mt-1"}
             disabled={locked}
             required
           >
@@ -242,14 +239,14 @@ export default function ExpenseForm({
         </div>
 
         <div>
-          <label htmlFor="supplier_id" className={labelClass}>
+          <label htmlFor="supplier_id" className="label">
             ผู้ขาย
           </label>
           <select
             id="supplier_id"
             name="supplier_id"
             defaultValue={existing?.supplierId ?? prefill?.supplierId ?? ""}
-            className={`${inputClass} mt-1`}
+            className={"input w-full disabled:bg-muted/50 disabled:text-muted-foreground mt-1"}
             disabled={locked}
           >
             <option value="">ไม่ระบุ (เช่น ค่าไฟ ค่าเช่า)</option>
@@ -272,7 +269,7 @@ export default function ExpenseForm({
         </div>
 
         <div>
-          <label htmlFor="bill_date" className={labelClass}>
+          <label htmlFor="bill_date" className="label">
             วันที่บิล <span className="text-bad">*</span>
           </label>
           <input
@@ -280,7 +277,7 @@ export default function ExpenseForm({
             name="bill_date"
             type="date"
             defaultValue={existing?.billDate ?? todayBangkok}
-            className={`${inputClass} mt-1`}
+            className={"input w-full disabled:bg-muted/50 disabled:text-muted-foreground mt-1"}
             disabled={locked}
             required
           />
@@ -293,14 +290,14 @@ export default function ExpenseForm({
         </div>
 
         <div>
-          <label htmlFor="bill_no" className={labelClass}>
+          <label htmlFor="bill_no" className="label">
             เลขที่บิล / ใบส่งของ
           </label>
           <input
             id="bill_no"
             name="bill_no"
             defaultValue={existing?.billNo ?? ""}
-            className={`${inputClass} mt-1`}
+            className={"input w-full disabled:bg-muted/50 disabled:text-muted-foreground mt-1"}
             disabled={locked}
           />
           {locked && (
@@ -312,19 +309,19 @@ export default function ExpenseForm({
         </div>
 
         <div>
-          <label htmlFor="vat_invoice_no" className={labelClass}>
+          <label htmlFor="vat_invoice_no" className="label">
             เลขที่ใบกำกับภาษี
           </label>
           <input
             id="vat_invoice_no"
             name="vat_invoice_no"
             defaultValue={existing?.vatInvoiceNo ?? ""}
-            className={`${inputClass} mt-1`}
+            className={"input w-full disabled:bg-muted/50 disabled:text-muted-foreground mt-1"}
           />
         </div>
 
         <div>
-          <label htmlFor="payment_method" className={labelClass}>
+          <label htmlFor="payment_method" className="label">
             วิธีชำระเงิน
           </label>
           <input
@@ -332,7 +329,7 @@ export default function ExpenseForm({
             name="payment_method"
             placeholder="เงินสด / โอน / บัตร"
             defaultValue={existing?.paymentMethod ?? ""}
-            className={`${inputClass} mt-1`}
+            className={"input w-full disabled:bg-muted/50 disabled:text-muted-foreground mt-1"}
           />
         </div>
       </section>
@@ -364,12 +361,12 @@ export default function ExpenseForm({
               className="grid gap-3 rounded-lg border border-border p-3 sm:grid-cols-12"
             >
               <div className="sm:col-span-4">
-                <label className={`${labelClass} text-xs`}>หมวดบัญชี</label>
+                <label className={"label text-xs"}>หมวดบัญชี</label>
                 <select
                   name="item_category_id"
                   value={line.categoryId}
                   onChange={(e) => updateLine(line.key, { categoryId: e.target.value })}
-                  className={`${inputClass} mt-1`}
+                  className={"input w-full disabled:bg-muted/50 disabled:text-muted-foreground mt-1"}
                   disabled={locked}
                   required
                 >
@@ -385,12 +382,12 @@ export default function ExpenseForm({
               </div>
 
               <div className="sm:col-span-4">
-                <label className={`${labelClass} text-xs`}>รายละเอียด</label>
+                <label className={"label text-xs"}>รายละเอียด</label>
                 <input
                   name="item_description"
                   value={line.description}
                   onChange={(e) => updateLine(line.key, { description: e.target.value })}
-                  className={`${inputClass} mt-1`}
+                  className={"input w-full disabled:bg-muted/50 disabled:text-muted-foreground mt-1"}
                   disabled={locked}
                   required
                 />
@@ -400,26 +397,26 @@ export default function ExpenseForm({
               </div>
 
               <div className="sm:col-span-1">
-                <label className={`${labelClass} text-xs`}>จำนวน</label>
+                <label className={"label text-xs"}>จำนวน</label>
                 <input
                   name="item_qty"
                   inputMode="decimal"
                   value={line.qty}
                   onChange={(e) => updateLine(line.key, { qty: e.target.value })}
-                  className={`${inputClass} mt-1`}
+                  className={"input w-full disabled:bg-muted/50 disabled:text-muted-foreground mt-1"}
                   disabled={locked}
                 />
                 {locked && <input type="hidden" name="item_qty" value={line.qty} />}
               </div>
 
               <div className="sm:col-span-1">
-                <label className={`${labelClass} text-xs`}>ราคา/หน่วย</label>
+                <label className={"label text-xs"}>ราคา/หน่วย</label>
                 <input
                   name="item_unit_price"
                   inputMode="decimal"
                   value={line.unitPrice}
                   onChange={(e) => updateLine(line.key, { unitPrice: e.target.value })}
-                  className={`${inputClass} mt-1`}
+                  className={"input w-full disabled:bg-muted/50 disabled:text-muted-foreground mt-1"}
                   disabled={locked}
                 />
                 {locked && (
@@ -428,7 +425,7 @@ export default function ExpenseForm({
               </div>
 
               <div className="sm:col-span-2">
-                <label className={`${labelClass} text-xs`}>
+                <label className={"label text-xs"}>
                   จำนวนเงิน <span className="text-bad">*</span>
                 </label>
                 <input
@@ -436,7 +433,7 @@ export default function ExpenseForm({
                   inputMode="decimal"
                   value={line.lineTotal}
                   onChange={(e) => updateLine(line.key, { lineTotal: e.target.value })}
-                  className={`${inputClass} mt-1 text-right tabular-nums`}
+                  className={"input w-full disabled:bg-muted/50 disabled:text-muted-foreground mt-1 text-right tabular-nums"}
                   disabled={locked}
                   required
                 />
@@ -481,7 +478,7 @@ export default function ExpenseForm({
       {/* ---------------- tax ---------------- */}
       <section className="grid gap-4 rounded-lg border border-border p-4 sm:grid-cols-2">
         <div>
-          <label htmlFor="vat_rate_percent" className={labelClass}>
+          <label htmlFor="vat_rate_percent" className="label">
             อัตรา VAT (%)
           </label>
           <input
@@ -491,7 +488,7 @@ export default function ExpenseForm({
             placeholder="เว้นว่าง = บิลนี้ไม่มี VAT"
             value={vatRate}
             onChange={(e) => setVatRate(e.target.value)}
-            className={`${inputClass} mt-1`}
+            className={"input w-full disabled:bg-muted/50 disabled:text-muted-foreground mt-1"}
             disabled={locked}
           />
           {locked && (
@@ -533,7 +530,7 @@ export default function ExpenseForm({
                 placeholder="อัตรา % (เช่น 3)"
                 value={whtRate}
                 onChange={(e) => setWhtRate(e.target.value)}
-                className={inputClass}
+                className="input w-full disabled:bg-muted/50 disabled:text-muted-foreground"
               />
               {err("whtRatePercent") && (
                 <p className="text-xs text-bad">{err("whtRatePercent")}</p>
@@ -542,7 +539,7 @@ export default function ExpenseForm({
                 name="wht_certificate_no"
                 placeholder="เลขที่หนังสือรับรอง 50 ทวิ"
                 defaultValue={existing?.whtCertificateNo ?? ""}
-                className={inputClass}
+                className="input w-full disabled:bg-muted/50 disabled:text-muted-foreground"
               />
               <p className="text-xs text-muted-foreground">
                 คิดจากยอด<strong>ก่อน VAT</strong> — 10,000 + VAT 7% หัก 3% = 300 บาท
@@ -557,7 +554,7 @@ export default function ExpenseForm({
       {/* ---------------- payment + preview ---------------- */}
       <section className="grid gap-4 sm:grid-cols-2">
         <div>
-          <label htmlFor="payment_status" className={labelClass}>
+          <label htmlFor="payment_status" className="label">
             สถานะการจ่ายเงิน
           </label>
           <select
@@ -567,14 +564,14 @@ export default function ExpenseForm({
             onChange={(e) =>
               setPaymentStatus(e.target.value as "UNPAID" | "PAID")
             }
-            className={`${inputClass} mt-1`}
+            className={"input w-full disabled:bg-muted/50 disabled:text-muted-foreground mt-1"}
           >
             <option value="UNPAID">ยังไม่จ่าย</option>
             <option value="PAID">จ่ายแล้ว</option>
           </select>
           {paymentStatus === "PAID" && (
             <div className="mt-2">
-              <label htmlFor="paid_at" className={`${labelClass} text-xs`}>
+              <label htmlFor="paid_at" className={"label text-xs"}>
                 วันที่จ่าย (เว้นว่าง = วันนี้)
               </label>
               <input
@@ -582,7 +579,7 @@ export default function ExpenseForm({
                 name="paid_at"
                 type="date"
                 defaultValue={existing?.paidAt?.slice(0, 10) ?? ""}
-                className={`${inputClass} mt-1`}
+                className={"input w-full disabled:bg-muted/50 disabled:text-muted-foreground mt-1"}
               />
             </div>
           )}
@@ -623,7 +620,7 @@ export default function ExpenseForm({
       </section>
 
       <div>
-        <label htmlFor="notes" className={labelClass}>
+        <label htmlFor="notes" className="label">
           หมายเหตุ
         </label>
         <textarea
@@ -631,7 +628,7 @@ export default function ExpenseForm({
           name="notes"
           rows={2}
           defaultValue={existing?.notes ?? ""}
-          className={`${inputClass} mt-1`}
+          className={"input w-full disabled:bg-muted/50 disabled:text-muted-foreground mt-1"}
         />
       </div>
 

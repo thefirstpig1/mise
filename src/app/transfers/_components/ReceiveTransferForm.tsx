@@ -22,8 +22,6 @@ import { useActionState, useState } from "react";
 import type { TransferActionState } from "@/app/transfers/actions";
 import type { TransferLineView } from "./transfer-view";
 
-const inputClass =
-  "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none";
 
 export default function ReceiveTransferForm({
   action,
@@ -90,7 +88,7 @@ export default function ReceiveTransferForm({
                     onChange={(e) =>
                       setCounts((c) => ({ ...c, [l.id]: e.target.value }))
                     }
-                    className={inputClass}
+                    className="input w-full"
                   />
                 </label>
               </div>
@@ -121,20 +119,20 @@ export default function ReceiveTransferForm({
         <p className="text-xs text-bad">{fieldErrors.lines}</p>
       )}
 
-      <label className="block text-sm font-medium">
+      <label className="label">
         ผู้รับ (ถ้าไม่ใช่บัญชีนี้)
         <input
           name="received_by_name"
           type="text"
           maxLength={100}
-          className={`mt-1 ${inputClass}`}
+          className={`mt-1 $"input w-full"`}
           placeholder="ชื่อคนที่นับของ"
         />
       </label>
 
-      <label className="block text-sm font-medium">
+      <label className="label">
         หมายเหตุ
-        <input name="notes" type="text" maxLength={500} className={`mt-1 ${inputClass}`} />
+        <input name="notes" type="text" maxLength={500} className={`mt-1 $"input w-full"`} />
       </label>
 
       {formError && (

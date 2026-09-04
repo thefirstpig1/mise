@@ -39,8 +39,6 @@ export type ImportProfileOption = {
   encodingLabel: string;
 };
 
-const inputClass =
-  "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none";
 const buttonClass =
   "rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50";
 const secondaryButtonClass =
@@ -173,7 +171,7 @@ export default function SalesImportWizard({
           <select
             value={profileId}
             onChange={(e) => setProfileId(e.target.value)}
-            className={`${inputClass} mt-1`}
+            className={"input w-full mt-1"}
           >
             {profiles.map((p) => (
               <option key={p.id} value={p.id}>
@@ -189,7 +187,7 @@ export default function SalesImportWizard({
             ref={fileRef}
             type="file"
             accept=".csv,text/csv,text/plain"
-            className={`${inputClass} mt-1`}
+            className={"input w-full mt-1"}
             onChange={() => {
               setPreviewState(null);
               setCommitState(null);

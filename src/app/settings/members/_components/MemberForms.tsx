@@ -126,7 +126,7 @@ function RoleSelect({
 
   return (
     <div>
-      <label htmlFor={id} className="mb-1 block text-sm font-medium">
+      <label htmlFor={id} className="mb-1 label">
         บทบาท
       </label>
       <select
@@ -134,7 +134,7 @@ function RoleSelect({
         name="role"
         value={role}
         onChange={(e) => setRole(e.target.value)}
-        className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+        className="input w-full"
       >
         {roleOptions.map((r) => (
           <option key={r.value} value={r.value}>
@@ -167,7 +167,7 @@ function InviteForm({
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
-          <label htmlFor="invite-email" className="mb-1 block text-sm font-medium">
+          <label htmlFor="invite-email" className="mb-1 label">
             อีเมล
           </label>
           <input
@@ -175,21 +175,21 @@ function InviteForm({
             name="email"
             type="email"
             required
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+            className="input w-full"
           />
           {!state.ok && state.fieldErrors?.email && (
             <p className="mt-1 text-xs text-bad">{state.fieldErrors.email}</p>
           )}
         </div>
         <div>
-          <label htmlFor="invite-name" className="mb-1 block text-sm font-medium">
+          <label htmlFor="invite-name" className="mb-1 label">
             ชื่อ <span className="text-muted-foreground">(ไม่บังคับ)</span>
           </label>
           <input
             id="invite-name"
             name="name"
             type="text"
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+            className="input w-full"
           />
           {/* Said out loud, because an upsert that overwrote it would be a
               silent surprise for the person who owns the account. */}

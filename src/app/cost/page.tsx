@@ -62,7 +62,7 @@ export default async function CostOverviewPage({
 
       <form method="get" className="flex flex-wrap items-end gap-3">
         <div>
-          <label htmlFor="from" className="block text-sm font-medium">
+          <label htmlFor="from" className="label">
             ตั้งแต่
           </label>
           <input
@@ -70,11 +70,11 @@ export default async function CostOverviewPage({
             id="from"
             name="from"
             defaultValue={iso(query.from)}
-            className="mt-1 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+            className="input mt-1"
           />
         </div>
         <div>
-          <label htmlFor="to" className="block text-sm font-medium">
+          <label htmlFor="to" className="label">
             ถึง
           </label>
           <input
@@ -82,7 +82,7 @@ export default async function CostOverviewPage({
             id="to"
             name="to"
             defaultValue={iso(query.to)}
-            className="mt-1 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+            className="input mt-1"
           />
         </div>
         <button

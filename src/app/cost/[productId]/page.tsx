@@ -80,14 +80,14 @@ export default async function ProductCostPage({
       {branches.length > 1 && (
         <form method="get" className="flex items-end gap-3">
           <div>
-            <label htmlFor="branch" className="block text-sm font-medium">
+            <label htmlFor="branch" className="label">
               สาขา
             </label>
             <select
               id="branch"
               name="branch"
               defaultValue={activeBranch.id}
-              className="mt-1 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+              className="input mt-1"
             >
               {branches.map((b) => (
                 <option key={b.id} value={b.id}>

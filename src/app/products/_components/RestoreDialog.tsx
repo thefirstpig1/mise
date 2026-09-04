@@ -44,7 +44,7 @@ type MappingChoice = "keep" | "update";
 const INITIAL_STATE: RestoreActionState = { ok: false };
 
 const FIELD_INPUT_CLASS =
-  "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none";
+  "input w-full";
 
 export default function RestoreDialog({
   candidate,
@@ -151,7 +151,7 @@ export default function RestoreDialog({
                 ⚠️ รหัส {candidate.sku} ถูกใช้แล้วโดย “
                 {candidate.conflictingLiveProductName}” — กรุณาตั้งรหัสใหม่
               </p>
-              <label htmlFor="new_sku" className="block text-sm font-medium">
+              <label htmlFor="new_sku" className="label">
                 รหัสสินค้าใหม่
               </label>
               <input

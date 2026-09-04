@@ -26,8 +26,6 @@ import {
   type RecipeListRowView,
 } from "./_components/recipe-view";
 
-const inputClass =
-  "rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none";
 
 const th = "px-3 py-2 text-left text-xs font-medium text-muted-foreground";
 const thNum = "px-3 py-2 text-right text-xs font-medium text-muted-foreground";
@@ -204,7 +202,7 @@ export default async function RecipesPage({
 
       {/* GET form: the filters belong in the URL, not in component state. */}
       <form method="get" className="flex flex-wrap items-center gap-2">
-        <select name="branch" defaultValue={branchId} className={inputClass}>
+        <select name="branch" defaultValue={branchId} className="input">
           {branches.map((b) => (
             <option key={b.id} value={b.id}>
               {b.name}
@@ -216,7 +214,7 @@ export default async function RecipesPage({
           name="q"
           defaultValue={query.search ?? ""}
           placeholder="ค้นหาชื่อเมนู"
-          className={inputClass}
+          className="input"
         />
         <label className="flex items-center gap-2 text-sm">
           <input

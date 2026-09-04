@@ -45,7 +45,7 @@ export default function SupplierList({
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="ค้นหาชื่อ/รหัส"
-          className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none"
+          className="flex-1 input"
         />
         <label className="flex items-center gap-2 text-sm text-muted-foreground">
           <input

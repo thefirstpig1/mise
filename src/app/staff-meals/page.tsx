@@ -34,8 +34,6 @@ import {
 import StaffMealEntryForm from "./_components/StaffMealEntryForm";
 import VoidStaffMealButton from "./_components/VoidStaffMealButton";
 
-const inputClass =
-  "rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none";
 
 /**
  * The list defaults to THIS MONTH, not to all of history — the same call /waste
@@ -172,7 +170,7 @@ export default async function StaffMealsPage({
           <label className="block text-xs text-muted-foreground" htmlFor="f-branch">
             สาขา
           </label>
-          <select id="f-branch" name="branch" defaultValue={sp.branch ?? ""} className={inputClass}>
+          <select id="f-branch" name="branch" defaultValue={sp.branch ?? ""} className="input">
             <option value="">ทุกสาขา</option>
             {branches.map((b) => (
               <option key={b.id} value={b.id}>
@@ -185,7 +183,7 @@ export default async function StaffMealsPage({
           <label className="block text-xs text-muted-foreground" htmlFor="f-member">
             พนักงาน
           </label>
-          <select id="f-member" name="member" defaultValue={sp.member ?? ""} className={inputClass}>
+          <select id="f-member" name="member" defaultValue={sp.member ?? ""} className="input">
             <option value="">ทุกคน</option>
             {members.map((m) => (
               <option key={m.id} value={m.id}>
@@ -198,13 +196,13 @@ export default async function StaffMealsPage({
           <label className="block text-xs text-muted-foreground" htmlFor="f-from">
             ตั้งแต่
           </label>
-          <input id="f-from" name="from" type="date" defaultValue={from} className={inputClass} />
+          <input id="f-from" name="from" type="date" defaultValue={from} className="input" />
         </div>
         <div>
           <label className="block text-xs text-muted-foreground" htmlFor="f-to">
             ถึง
           </label>
-          <input id="f-to" name="to" type="date" defaultValue={to} className={inputClass} />
+          <input id="f-to" name="to" type="date" defaultValue={to} className="input" />
         </div>
         <label className="flex items-center gap-2 py-2 text-sm">
           <input type="checkbox" name="voided" value="true" defaultChecked={sp.voided === "true"} />

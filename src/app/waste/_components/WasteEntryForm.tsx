@@ -42,9 +42,6 @@ export type WasteProductOption = {
 
 export type WasteBranchOption = { id: string; name: string };
 
-const inputClass =
-  "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none";
-const labelClass = "block text-sm font-medium";
 const errorClass = "mt-1 text-xs text-bad";
 
 /** A fresh `submit_key` — the id the server will give the `waste_log` row. */
@@ -143,7 +140,7 @@ export default function WasteEntryForm({
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="sm:col-span-2">
-          <label htmlFor="product_id" className={labelClass}>
+          <label htmlFor="product_id" className="label">
             วัตถุดิบ <span className="text-bad">*</span>
           </label>
           <select
@@ -151,7 +148,7 @@ export default function WasteEntryForm({
             name="product_id"
             value={productId}
             onChange={(e) => setProductId(e.target.value)}
-            className={`${inputClass} mt-1`}
+            className={"input w-full mt-1"}
             required
           >
             <option value="">— เลือกวัตถุดิบ —</option>
@@ -165,7 +162,7 @@ export default function WasteEntryForm({
         </div>
 
         <div>
-          <label htmlFor="input_qty" className={labelClass}>
+          <label htmlFor="input_qty" className="label">
             จำนวนที่ทิ้ง <span className="text-bad">*</span>
           </label>
           <input
@@ -177,14 +174,14 @@ export default function WasteEntryForm({
             min="0"
             value={qty}
             onChange={(e) => setQty(e.target.value)}
-            className={`${inputClass} mt-1`}
+            className={"input w-full mt-1"}
             required
           />
           {err("inputQty") && <p className={errorClass}>{err("inputQty")}</p>}
         </div>
 
         <div>
-          <label htmlFor="input_unit_id" className={labelClass}>
+          <label htmlFor="input_unit_id" className="label">
             หน่วย <span className="text-bad">*</span>
           </label>
           <select
@@ -192,7 +189,7 @@ export default function WasteEntryForm({
             name="input_unit_id"
             value={unitId}
             onChange={(e) => setUnitId(e.target.value)}
-            className={`${inputClass} mt-1`}
+            className={"input w-full mt-1"}
             required
             disabled={!product}
           >
@@ -206,14 +203,14 @@ export default function WasteEntryForm({
         </div>
 
         <div className="sm:col-span-2">
-          <label htmlFor="reason" className={labelClass}>
+          <label htmlFor="reason" className="label">
             สาเหตุ <span className="text-bad">*</span>
           </label>
           <select
             id="reason"
             name="reason"
             defaultValue="SPOILED"
-            className={`${inputClass} mt-1`}
+            className={"input w-full mt-1"}
             required
           >
             {WASTE_REASON_VALUES.map((r) => (
@@ -233,7 +230,7 @@ export default function WasteEntryForm({
         </div>
 
         <div>
-          <label htmlFor="branch_id" className={labelClass}>
+          <label htmlFor="branch_id" className="label">
             สาขา <span className="text-bad">*</span>
           </label>
           <select
@@ -241,7 +238,7 @@ export default function WasteEntryForm({
             name="branch_id"
             value={branchId}
             onChange={(e) => setBranchId(e.target.value)}
-            className={`${inputClass} mt-1`}
+            className={"input w-full mt-1"}
             required
           >
             {branches.map((b) => (
@@ -254,7 +251,7 @@ export default function WasteEntryForm({
         </div>
 
         <div>
-          <label htmlFor="occurred_at" className={labelClass}>
+          <label htmlFor="occurred_at" className="label">
             วันที่ <span className="text-bad">*</span>
           </label>
           <input
@@ -264,14 +261,14 @@ export default function WasteEntryForm({
             defaultValue={todayBangkok}
             min={minBackdate}
             max={todayBangkok}
-            className={`${inputClass} mt-1`}
+            className={"input w-full mt-1"}
             required
           />
           {err("occurredAt") && <p className={errorClass}>{err("occurredAt")}</p>}
         </div>
 
         <div>
-          <label htmlFor="wasted_by_name" className={labelClass}>
+          <label htmlFor="wasted_by_name" className="label">
             ใครทิ้ง
           </label>
           <input
@@ -280,7 +277,7 @@ export default function WasteEntryForm({
             type="text"
             maxLength={100}
             placeholder="เช่น เชฟหนึ่ง (ไม่ใส่ก็ได้)"
-            className={`${inputClass} mt-1`}
+            className={"input w-full mt-1"}
           />
           {/* ADR 0015 Q2's rule: the owner holds the only login and the staff do
               the work, so the account alone would record "the owner threw
@@ -289,7 +286,7 @@ export default function WasteEntryForm({
         </div>
 
         <div>
-          <label htmlFor="notes" className={labelClass}>
+          <label htmlFor="notes" className="label">
             หมายเหตุ
           </label>
           <textarea
@@ -298,7 +295,7 @@ export default function WasteEntryForm({
             name="notes"
             rows={1}
             maxLength={500}
-            className={`${inputClass} mt-1`}
+            className={"input w-full mt-1"}
           />
           {err("notes") && <p className={errorClass}>{err("notes")}</p>}
         </div>

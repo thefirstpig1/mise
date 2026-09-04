@@ -31,9 +31,6 @@ type ProductOption = {
 
 type EntryRow = { unitId: string; qty: string };
 
-const inputClass =
-  "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none";
-const labelClass = "block text-sm font-medium";
 
 export default function CountSheet({
   detail,
@@ -216,7 +213,7 @@ export default function CountSheet({
 
           <div className="mt-3 space-y-3">
             <div>
-              <label htmlFor="product_id" className={labelClass}>
+              <label htmlFor="product_id" className="label">
                 วัตถุดิบ <span className="text-bad">*</span>
               </label>
               <select
@@ -225,7 +222,7 @@ export default function CountSheet({
                 name="product_id"
                 value={productId}
                 onChange={(e) => setProductId(e.target.value)}
-                className={`${inputClass} mt-1`}
+                className={"input w-full mt-1"}
                 required
               >
                 <option value="">— เลือกวัตถุดิบ —</option>
@@ -247,7 +244,7 @@ export default function CountSheet({
 
             {product && (
               <div>
-                <span className={labelClass}>
+                <span className="label">
                   จำนวนที่นับได้ <span className="text-bad">*</span>
                 </span>
                 <p className="mb-1 text-xs text-muted-foreground">
@@ -269,7 +266,7 @@ export default function CountSheet({
                             )
                           )
                         }
-                        className={`${inputClass} flex-1`}
+                        className={"input w-full flex-1"}
                         placeholder="0"
                       />
                       <select
@@ -282,7 +279,7 @@ export default function CountSheet({
                             )
                           )
                         }
-                        className={`${inputClass} w-40`}
+                        className={"input w-full w-40"}
                       >
                         {product.units.map((u) => (
                           <option key={u.id} value={u.id}>
@@ -324,7 +321,7 @@ export default function CountSheet({
 
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
-                <label htmlFor="counted_by_name" className={labelClass}>
+                <label htmlFor="counted_by_name" className="label">
                   ผู้นับ
                 </label>
                 <input
@@ -332,12 +329,12 @@ export default function CountSheet({
                   name="counted_by_name"
                   type="text"
                   maxLength={100}
-                  className={`${inputClass} mt-1`}
+                  className={"input w-full mt-1"}
                   placeholder="ชื่อคนที่เดินนับ (ถ้าไม่ใช่คุณ)"
                 />
               </div>
               <div>
-                <label htmlFor="line_notes" className={labelClass}>
+                <label htmlFor="line_notes" className="label">
                   หมายเหตุ
                 </label>
                 <input
@@ -345,7 +342,7 @@ export default function CountSheet({
                   name="notes"
                   type="text"
                   maxLength={500}
-                  className={`${inputClass} mt-1`}
+                  className={"input w-full mt-1"}
                 />
               </div>
             </div>
@@ -531,7 +528,7 @@ export default function CountSheet({
                 </div>
               )}
               <div>
-                <label htmlFor="void_reason" className={labelClass}>
+                <label htmlFor="void_reason" className="label">
                   เหตุผล <span className="text-bad">*</span>
                 </label>
                 <input
@@ -540,7 +537,7 @@ export default function CountSheet({
                   type="text"
                   maxLength={500}
                   required
-                  className={`${inputClass} mt-1`}
+                  className={"input w-full mt-1"}
                   placeholder="เช่น นับซ้ำช่องเดิม / ลืมว่ายกของไปสาขาอื่น"
                 />
               </div>

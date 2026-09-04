@@ -20,8 +20,6 @@ export type DeclareUnitOption = {
   isBase: boolean;
 };
 
-const inputClass =
-  "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none";
 
 export default function DeclareCostForm({
   movementId,
@@ -70,7 +68,7 @@ export default function DeclareCostForm({
 
         <div className="flex flex-wrap items-end gap-3">
           <div className="min-w-[9rem] flex-1">
-            <label htmlFor={`unit_cost-${movementId}`} className="block text-sm font-medium">
+            <label htmlFor={`unit_cost-${movementId}`} className="label">
               ต้นทุน (บาท) <span className="text-bad">*</span>
             </label>
             <input
@@ -80,7 +78,7 @@ export default function DeclareCostForm({
               step="0.0001"
               min="0"
               required
-              className={`${inputClass} mt-1`}
+              className={"input w-full mt-1"}
               placeholder="เช่น 4500"
             />
             {fieldErrors?.unitCost && (
@@ -89,7 +87,7 @@ export default function DeclareCostForm({
           </div>
 
           <div className="min-w-[8rem]">
-            <label htmlFor={`unit_id-${movementId}`} className="block text-sm font-medium">
+            <label htmlFor={`unit_id-${movementId}`} className="label">
               ต่อหน่วย <span className="text-bad">*</span>
             </label>
             <select
@@ -97,7 +95,7 @@ export default function DeclareCostForm({
               name="unit_id"
               value={unitId}
               onChange={(e) => setUnitId(e.target.value)}
-              className={`${inputClass} mt-1`}
+              className={"input w-full mt-1"}
               required
             >
               {units.map((u) => (
@@ -114,7 +112,7 @@ export default function DeclareCostForm({
         </div>
 
         <div>
-          <label htmlFor={`note-${movementId}`} className="block text-sm font-medium">
+          <label htmlFor={`note-${movementId}`} className="label">
             ที่มา / หมายเหตุ
           </label>
           <input
@@ -122,7 +120,7 @@ export default function DeclareCostForm({
             name="note"
             type="text"
             maxLength={500}
-            className={`${inputClass} mt-1`}
+            className={"input w-full mt-1"}
             placeholder="เช่น ของจากใบส่งของ 15 ส.ค. ที่ลืมคีย์"
           />
           {fieldErrors?.note && (
