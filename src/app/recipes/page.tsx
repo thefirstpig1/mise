@@ -52,7 +52,7 @@ function ConfidenceChip({ row }: { row: RecipeListRowView }) {
   if (row.confidence === null) return null;
   const tone =
     row.confidence === "HIGH"
-      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+      ? "bg-good-bg text-good border-good-border"
       : row.confidence === "MEDIUM"
         ? "bg-warn-bg text-warn border-warn-border"
         : "bg-bad-bg text-bad border-bad-border";

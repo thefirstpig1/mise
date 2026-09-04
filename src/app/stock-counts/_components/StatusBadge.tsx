@@ -9,7 +9,7 @@ import { STOCK_COUNT_STATUS_LABELS_TH } from "@/lib/validations/stock-count";
 
 const CLASS: Record<StockCountStatus, string> = {
   DRAFT: "border-warn-border bg-warn-bg text-warn",
-  CLOSED: "border-emerald-200 bg-emerald-50 text-emerald-800",
+  CLOSED: "border-good-border bg-good-bg text-good",
   VOIDED: "border-border bg-muted text-muted-foreground line-through",
 };
 

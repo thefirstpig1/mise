@@ -133,7 +133,7 @@ export default function CopyToBranchesForm({
       ) : null}
 
       {succeeded ? (
-        <p className="text-sm text-emerald-700">คัดลอกให้สาขาที่เลือกแล้ว</p>
+        <p className="text-sm text-good">คัดลอกให้สาขาที่เลือกแล้ว</p>
       ) : null}
 
       <button

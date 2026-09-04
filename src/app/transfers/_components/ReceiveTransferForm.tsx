@@ -107,7 +107,7 @@ export default function ReceiveTransferForm({
                 </p>
               )}
               {missing === 0 && (
-                <p className="mt-2 text-xs text-emerald-700">ครบตามที่ส่งมา</p>
+                <p className="mt-2 text-xs text-good">ครบตามที่ส่งมา</p>
               )}
             </div>
           );

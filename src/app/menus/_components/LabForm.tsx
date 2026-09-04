@@ -673,7 +673,7 @@ export default function LabForm({
                 : "บันทึกการแก้ไข"}
           </button>
           {succeeded && mode === "edit" ? (
-            <span className="text-sm text-emerald-700">บันทึกแล้ว</span>
+            <span className="text-sm text-good">บันทึกแล้ว</span>
           ) : null}
           <span className="text-xs text-muted-foreground">
             ร่างยังไม่ตัดสต๊อกและยังไม่คิดต้นทุนขายจนกว่าจะกดเผยแพร่

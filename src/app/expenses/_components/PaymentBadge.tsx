@@ -7,7 +7,7 @@ import { EXPENSE_PAYMENT_STATUS_LABELS_TH } from "@/lib/validations/expense";
 
 const STYLES: Record<"UNPAID" | "PAID", string> = {
   UNPAID: "bg-warn-bg text-warn border-warn-border",
-  PAID: "bg-emerald-100 text-emerald-900 border-emerald-300",
+  PAID: "bg-good-bg text-good border-good-border",
 };
 
 export default function PaymentBadge({

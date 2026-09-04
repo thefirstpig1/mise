@@ -46,7 +46,7 @@ export default function RevokeMergeButton({
 
   if (state.ok) {
     return (
-      <p className="text-xs text-emerald-700">
+      <p className="text-xs text-good">
         ยกเลิกแล้ว — “{loserLabel}” ไม่ถูกนับเป็น “{winnerLabel}” อีกต่อไป
       </p>
     );

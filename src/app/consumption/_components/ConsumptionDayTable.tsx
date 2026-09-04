@@ -47,9 +47,9 @@ const money = (v: string) =>
 const STATE_TONE: Record<ConsumptionDayView["state"], string> = {
   NOT_POSTED: "bg-warn-bg text-warn border-warn-border",
   OUT_OF_WINDOW: "bg-muted text-muted-foreground border-border",
-  POSTED: "bg-emerald-50 text-emerald-900 border-emerald-300",
+  POSTED: "bg-good-bg text-good border-good-border",
   POSTED_PARTIAL: "bg-warn-bg text-warn border-warn-border",
-  POSTED_STALE: "bg-orange-50 text-orange-900 border-orange-300",
+  POSTED_STALE: "bg-warn-bg text-warn border-warn-border",
 };
 
 export function ConsumptionDayTable({
@@ -104,7 +104,7 @@ export function ConsumptionDayTable({
       )}
 
       {needsAck && (
-        <div className="rounded-lg border border-orange-300 bg-orange-50 p-4 text-sm text-orange-900">
+        <div className="rounded-lg border border-warn-border bg-warn-bg p-4 text-sm text-warn">
           <p className="font-medium">
             {needsAck.days.length} วันนี้ตัดสต๊อกไปแล้ว — กดต่อจะ<strong>ยกเลิกของเดิมทั้งวัน แล้วตัดใหม่</strong>
           </p>

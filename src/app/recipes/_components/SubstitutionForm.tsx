@@ -318,7 +318,7 @@ export default function SubstitutionForm({
       ) : null}
 
       {succeeded && state.ok ? (
-        <p className="text-sm text-emerald-700">
+        <p className="text-sm text-good">
           แก้แล้ว {state.changedCount} สูตร
         </p>
       ) : null}

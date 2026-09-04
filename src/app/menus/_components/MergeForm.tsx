@@ -286,7 +286,7 @@ export default function MergeForm({
       {blocked ? <p className="text-sm text-warn">{blocked}</p> : null}
 
       {succeeded ? (
-        <p className="text-sm text-emerald-700">
+        <p className="text-sm text-good">
           รวมแล้ว — ทุกหน้าจะนับสองรายการนี้เป็นเมนูเดียวตั้งแต่ตอนนี้
         </p>
       ) : null}

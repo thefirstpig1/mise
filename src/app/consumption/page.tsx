@@ -105,7 +105,7 @@ export default async function ConsumptionPage({
         )}
 
         {stale > 0 && (
-          <div className="rounded-lg border border-orange-300 bg-orange-50 p-4 text-sm text-orange-900">
+          <div className="rounded-lg border border-warn-border bg-warn-bg p-4 text-sm text-warn">
             <p className="font-medium">
               {stale} วันถูกตัดไว้ก่อนที่สูตรจะเปลี่ยน
             </p>

@@ -174,9 +174,16 @@ export default function MappingListSection({
                     </td>
                     <td className="py-2 pr-4">
                       <div className="flex flex-wrap gap-1">
+                        {/*
+                          A neutral marker, not a verdict (rule 2): the
+                          preferred supplier is a designation somebody made,
+                          not something good for the shop. It keeps a strong
+                          border so it still reads louder than the plain muted
+                          chip beside it.
+                        */}
                         {m.isPreferred && (
                           <span
-                            className={`${badgeBase} bg-emerald-100 text-emerald-700`}
+                            className={`${badgeBase} border border-border-strong bg-muted text-muted-foreground`}
                           >
                             แนะนำ
                           </span>

@@ -148,7 +148,7 @@ export default function SalesImportWizard({
             returning is the most expensive kind of invisible.
           */}
           {commitState.consumptionRunsVoided > 0 && (
-            <p className="mt-2 rounded border border-orange-300 bg-orange-50 p-2 text-xs text-orange-900">
+            <p className="mt-2 rounded border border-warn-border bg-warn-bg p-2 text-xs text-warn">
               {commitState.consumptionRunsVoided} วันเคยตัดสต๊อกตามสูตรไว้แล้ว —
               ระบบยกเลิกการตัดของวันเหล่านั้นให้แล้ว เพราะยอดขายเดิมถูกแทนที่ ·
               วัตถุดิบกลับเข้าสต๊อกตามมูลค่าเดิมที่มันออกไป

@@ -385,7 +385,10 @@ export default async function RecipePage({
                         แก้ทิ้ง (กรอกผิด)
                       </span>
                     ) : v.isCurrent ? (
-                      <span className="rounded border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[10px] text-emerald-800">
+                      /* Which version is live is a neutral state (rule 2) —
+                         the two siblings are muted, so this one carries the
+                         strong border rather than a verdict colour. */
+                      <span className="rounded border border-border-strong bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
                         ใช้อยู่ตอนนี้
                       </span>
                     ) : (

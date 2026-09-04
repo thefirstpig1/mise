@@ -102,7 +102,7 @@ export default function MappingHistoryViewer({
                   )}
                   {r.deleted && (
                     <span
-                      className={`${badgeBase} bg-rose-100 text-rose-700`}
+                      className={`${badgeBase} bg-bad-bg text-bad`}
                     >
                       ถูกลบ
                     </span>

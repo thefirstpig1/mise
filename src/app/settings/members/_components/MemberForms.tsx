@@ -48,7 +48,7 @@ const IDLE: MemberActionState = { ok: false };
 function Feedback({ state }: { state: MemberActionState }) {
   if (state.ok) {
     return (
-      <p className="mt-2 text-sm text-emerald-700">{state.message}</p>
+      <p className="mt-2 text-sm text-good">{state.message}</p>
     );
   }
   if (state.formError) {

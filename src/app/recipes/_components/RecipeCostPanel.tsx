@@ -16,7 +16,7 @@
 import type { RecipeCostView } from "./recipe-view";
 
 const tone: Record<string, string> = {
-  HIGH: "border-emerald-200 bg-emerald-50 text-emerald-800",
+  HIGH: "border-good-border bg-good-bg text-good",
   MEDIUM: "border-warn-border bg-warn-bg text-warn",
   LOW: "border-bad-border bg-bad-bg text-bad",
 };

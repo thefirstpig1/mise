@@ -30,7 +30,7 @@ const inputClass =
 
 const STATUS_STYLE: Record<string, string> = {
   SENT: "border-warn-border bg-warn-bg text-warn",
-  RECEIVED: "border-emerald-300 bg-emerald-50 text-emerald-800",
+  RECEIVED: "border-good-border bg-good-bg text-good",
   VOIDED: "border-border bg-muted/40 text-muted-foreground",
 };
 

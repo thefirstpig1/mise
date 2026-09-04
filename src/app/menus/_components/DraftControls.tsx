@@ -50,7 +50,7 @@ export default function DraftControls({
 
   if (state.ok) {
     return (
-      <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-5 text-sm text-emerald-800">
+      <div className="rounded-xl border border-good-border bg-good-bg p-5 text-sm text-good">
         <p className="font-medium">เผยแพร่แล้ว — {menuName} มีสูตรใช้งานจริงแล้ว</p>
         <p className="mt-1">
           ตั้งแต่วันนี้เป็นต้นไป ยอดขายของเมนูนี้จะตัดสต๊อกตามสูตรนี้

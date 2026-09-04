@@ -93,8 +93,15 @@ export default async function RecurringExpensePage() {
                     {t.startPeriod} – {t.endPeriod ?? "ไม่มีกำหนด"}
                   </td>
                   <td className="px-3 py-2">
+                    {/*
+                      On or off is a NEUTRAL STATE, not a verdict — a template
+                      being active is not good for the shop, it is merely on.
+                      Rule 2 of the theme: what is not a verdict is warm grey.
+                      The pair stays legible because the live one keeps the
+                      ordinary ink and the closed one is muted.
+                    */}
                     {t.isActive ? (
-                      <span className="text-xs text-emerald-700">เปิดใช้งาน</span>
+                      <span className="text-xs text-foreground">เปิดใช้งาน</span>
                     ) : (
                       <span className="text-xs text-muted-foreground">ปิดแล้ว</span>
                     )}

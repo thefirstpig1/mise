@@ -153,7 +153,7 @@ export default function CountSheet({
       )}
 
       {detail.status === "CLOSED" && (
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
+        <div className="rounded-lg border border-good-border bg-good-bg p-3 text-sm text-good">
           ปิดใบแล้วเมื่อ {detail.closedAtLabel}
           {detail.closedBy && ` โดย ${detail.closedBy}`} — ส่วนต่างถูกบันทึกเข้าคลังเรียบร้อย
         </div>
@@ -172,9 +172,17 @@ export default function CountSheet({
           <div className="rounded-lg border border-border p-4">
             <p className="text-xs text-muted-foreground">ขาด / เกิน (จำนวน)</p>
             <p className="mt-1 text-lg font-semibold tabular-nums">
+              {/*
+                Short is `bad` and over is `warn`, NOT `good`. A surplus at a
+                count is not a gain — it is evidence the ledger was wrong, and
+                nothing about it is good for the shop. Rule 1 of the theme:
+                the verdict colours mean good-or-bad for the shop, never up or
+                down. Both sides are a discrepancy; one of them is money that
+                already left.
+              */}
               <span className="text-bad">−{formatQty(detail.totalShortQty)}</span>
               {" / "}
-              <span className="text-emerald-700">+{formatQty(detail.totalOverQty)}</span>
+              <span className="text-warn">+{formatQty(detail.totalOverQty)}</span>
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
               คนละหน่วยกัน — ดูเป็นรายรายการด้านล่าง
@@ -414,7 +422,7 @@ export default function CountSheet({
                           {formatQty(item.qtyExpected)}
                         </td>
                         <td
-                          className={`px-3 py-2 text-right text-sm tabular-nums ${item.varianceIsShort ? "font-medium text-bad" : item.varianceIsZero ? "text-muted-foreground" : "font-medium text-emerald-700"}`}
+                          className={`px-3 py-2 text-right text-sm tabular-nums ${item.varianceIsShort ? "font-medium text-bad" : item.varianceIsZero ? "text-muted-foreground" : "font-medium text-warn"}`}
                         >
                           {item.varianceIsZero
                             ? "ตรง"

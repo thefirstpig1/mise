@@ -55,7 +55,7 @@ function scoreBadge(score: number): { label: string; className: string } {
   }
   return {
     label: "อาจเกี่ยวข้อง",
-    className: "border-orange-300 bg-orange-50 text-orange-700",
+    className: "border-warn-border bg-warn-bg text-warn",
   };
 }
 

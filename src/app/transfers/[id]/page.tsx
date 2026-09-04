@@ -21,7 +21,7 @@ import VoidTransferButton from "../_components/VoidTransferButton";
 
 const STATUS_STYLE: Record<string, string> = {
   SENT: "border-warn-border bg-warn-bg text-warn",
-  RECEIVED: "border-emerald-300 bg-emerald-50 text-emerald-800",
+  RECEIVED: "border-good-border bg-good-bg text-good",
   VOIDED: "border-border bg-muted/40 text-muted-foreground",
 };
 
@@ -83,7 +83,7 @@ export default async function TransferDetailPage({
           <dd className="mt-0.5">
             {t.driverName ?? "— ไม่ได้ระบุ"}
             {t.driverConfirmedAtLabel && (
-              <span className="block text-xs text-emerald-700">
+              <span className="block text-xs text-good">
                 นับและรับไปแล้ว {t.driverConfirmedAtLabel}
               </span>
             )}

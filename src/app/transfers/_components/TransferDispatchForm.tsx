@@ -113,7 +113,7 @@ export default function TransferDispatchForm({
       <input type="hidden" name="submit_key" value={submitKey} />
 
       {succeeded && (
-        <div className="rounded-lg border border-emerald-300 bg-emerald-50 p-4 text-sm text-emerald-900">
+        <div className="rounded-lg border border-good-border bg-good-bg p-4 text-sm text-good">
           บันทึกใบโอน <strong>{state.tfNumber}</strong> แล้ว — ของออกจากสาขาต้นทางและเข้าสาขาปลายทางเรียบร้อย{" "}
           <a href={`/transfers/${state.transferId}`} className="underline">
             เปิดใบโอน
