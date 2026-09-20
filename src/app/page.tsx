@@ -13,7 +13,7 @@ export default async function HomePage() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center px-4">
       <div className="max-w-2xl text-center">
-        <h1 className="mb-4 text-5xl font-bold tracking-tight">Mise</h1>
+        <h1 className="mb-4 text-5xl font-bold tracking-tight">คิดครัว</h1>
         <p className="mb-2 text-xl text-muted-foreground">
           ระบบหลังบ้านสำหรับร้านอาหาร
         </p>

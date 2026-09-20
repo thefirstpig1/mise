@@ -69,15 +69,15 @@ export default function SignupPage() {
           <Logo size={92} className="hidden md:block" />
           <div className="text-center">
             <div className="font-display text-4xl font-semibold leading-none text-primary md:text-5xl">
-              Mise
+              คิดครัว
             </div>
             <div className="mt-2.5 text-xs tracking-[0.15em] text-muted-foreground">
-              Restaurant Management
+              KitKrua · Restaurant Management
             </div>
           </div>
         </div>
         <div className="w-full max-w-lg">
-          <h1 className="mb-2 text-3xl font-bold">สมัครใช้งาน Mise</h1>
+          <h1 className="mb-2 text-3xl font-bold">สมัครใช้งานคิดครัว</h1>
           <p className="mb-8 text-muted-foreground">
             สร้างบัญชี + ตั้งค่าร้านของคุณ
           </p>

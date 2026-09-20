@@ -63,7 +63,7 @@ export default async function DeniedPage({
         <div className="mb-7 flex items-center gap-3">
           <Logo size={38} />
           <span className="font-display text-2xl font-semibold text-primary">
-            Mise
+            คิดครัว
           </span>
         </div>
         <h1 className="mb-2 text-2xl font-bold">ยังไม่มีสิทธิ์ใช้หน้านี้</h1>
@@ -71,7 +71,7 @@ export default async function DeniedPage({
         <p className="mb-6 text-muted-foreground">
           {isBranch
             ? "บัญชีของคุณไม่ได้รับสิทธิ์ในสาขาที่กำลังเปิดอยู่"
-            : "บัญชีของคุณเข้าใช้ Mise ได้ แต่ยังไม่ได้รับสิทธิ์ส่วนนี้"}
+            : "บัญชีของคุณเข้าใช้คิดครัวได้ แต่ยังไม่ได้รับสิทธิ์ส่วนนี้"}
         </p>
 
         {what && (

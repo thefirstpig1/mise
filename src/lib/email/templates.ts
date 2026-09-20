@@ -50,10 +50,10 @@ const FONT_STACK =
 function shell(bodyHtml: string): string {
   return [
     `<div style="font-family:${FONT_STACK};max-width:480px;margin:0 auto;padding:24px;color:#111">`,
-    `<p style="font-size:20px;font-weight:700;margin:0 0 24px">Mise</p>`,
+    `<p style="font-size:20px;font-weight:700;margin:0 0 24px">คิดครัว</p>`,
     bodyHtml,
     `<hr style="border:none;border-top:1px solid #e5e5e5;margin:32px 0 16px">`,
-    `<p style="font-size:12px;color:#666;margin:0">Mise — ระบบหลังร้านสำหรับร้านอาหาร</p>`,
+    `<p style="font-size:12px;color:#666;margin:0">คิดครัว (KitKrua) — ระบบหลังร้านสำหรับร้านอาหาร</p>`,
     `</div>`,
   ].join("");
 }
@@ -95,7 +95,7 @@ export function magicLinkEmail(input: {
   const { url, expiresHours } = input;
 
   const text = [
-    "คลิกลิงก์ด้านล่างเพื่อเข้าสู่ระบบ Mise",
+    "คลิกลิงก์ด้านล่างเพื่อเข้าสู่ระบบคิดครัว",
     "",
     url,
     "",
@@ -105,7 +105,7 @@ export function magicLinkEmail(input: {
 
   const html = shell(
     [
-      `<p style="margin:0 0 24px">คลิกปุ่มด้านล่างเพื่อเข้าสู่ระบบ Mise</p>`,
+      `<p style="margin:0 0 24px">คลิกปุ่มด้านล่างเพื่อเข้าสู่ระบบคิดครัว</p>`,
       button(url, "เข้าสู่ระบบ"),
       copyableUrl(url),
       `<p style="font-size:13px;color:#666;margin:0">`,
@@ -114,7 +114,7 @@ export function magicLinkEmail(input: {
     ].join(""),
   );
 
-  return { subject: "ลิงก์เข้าสู่ระบบ Mise", text, html };
+  return { subject: "ลิงก์เข้าสู่ระบบคิดครัว", text, html };
 }
 
 // ------------------------------------------------------------
@@ -166,7 +166,7 @@ export function invitationEmail(input: {
   );
 
   return {
-    subject: `คุณถูกเชิญเข้าใช้งาน Mise ของ ${shopName}`,
+    subject: `คุณถูกเชิญเข้าใช้งานคิดครัว ของ ${shopName}`,
     text,
     html,
   };

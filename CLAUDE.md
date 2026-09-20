@@ -1,6 +1,7 @@
 # Mise — Restaurant Back-Office Platform
 
 ## What is this project
+**Product name (2026-09-20): คิดครัว / KitKrua** — "Mise" stays as the CODENAME for the repo, code identifiers, DB role `mise_app`, env vars and ADRs. Only user-visible strings, emails, `<title>`, `EMAIL_FROM` and the Fly app name (`kitkrua`) carry the product name.
 B2B SaaS for Thailand restaurant SMEs. "MarketMan-for-Thailand-SME" — 90% cheaper, 30-min setup, works without recipes.
 
 ## Project Status

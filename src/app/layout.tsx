@@ -53,7 +53,7 @@ const mono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Mise — Restaurant Back-Office",
+  title: "คิดครัว — ระบบหลังร้านสำหรับร้านอาหาร",
   description: "ระบบหลังบ้านสำหรับร้านอาหาร",
 };
 

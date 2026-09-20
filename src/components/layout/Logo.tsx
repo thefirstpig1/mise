@@ -70,7 +70,7 @@ export default function Logo({
       viewBox="0 0 48 48"
       className={className}
       role="img"
-      aria-label="Mise"
+      aria-label="คิดครัว"
     >
       <path
         d={STROKE_D}

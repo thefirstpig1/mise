@@ -83,7 +83,7 @@ export default async function DashboardPage() {
           <div className="flex items-center gap-3">
             <Logo size={34} />
             <div>
-              <h1 className="text-lg font-bold">Mise</h1>
+              <h1 className="text-lg font-bold">คิดครัว</h1>
               <p className="text-xs text-muted-foreground">{tenant.name}</p>
             </div>
           </div>

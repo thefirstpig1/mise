@@ -66,10 +66,10 @@ export default async function LoginPage({
           <Logo size={92} className="hidden md:block" />
           <div className="text-center">
             <div className="font-display text-4xl font-semibold leading-none text-primary md:text-5xl">
-              Mise
+              คิดครัว
             </div>
             <div className="mt-2.5 text-xs tracking-[0.15em] text-muted-foreground">
-              Restaurant Management
+              KitKrua · Restaurant Management
             </div>
           </div>
         </div>

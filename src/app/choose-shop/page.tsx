@@ -81,7 +81,7 @@ export default async function ChooseShopPage() {
         <div className="mb-7 flex items-center gap-3">
           <Logo size={38} />
           <span className="font-display text-2xl font-semibold text-primary">
-            Mise
+            คิดครัว
           </span>
         </div>
         <h1 className="mb-2 text-2xl font-bold">เลือกร้าน</h1>

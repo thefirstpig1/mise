@@ -12,7 +12,7 @@
 # The name is global across Fly and decides the hostname. AUTH_URL must match
 # it exactly — a magic link is a URL, and a link pointing at the wrong host is
 # a login nobody can complete. Change both together or neither.
-app = "mise-th"
+app = "kitkrua"
 
 # 🔴 NOT A PREFERENCE — A CONSTRAINT (Q1). Neon lives in ap-southeast-1, and
 # every page opens many round trips because each read runs in its own

@@ -1,4 +1,4 @@
-# Mise — Restaurant Back-Office Platform
+# คิดครัว (KitKrua) — Restaurant Back-Office Platform (codename Mise)
 
 ระบบหลังบ้านสำหรับร้านอาหาร SME ในประเทศไทย — "MarketMan สำหรับ SME ไทย" ราคาถูกกว่า ~90% ตั้งค่าเสร็จใน 30 นาที ใช้ได้โดยไม่ต้องมีสูตรอาหาร
 

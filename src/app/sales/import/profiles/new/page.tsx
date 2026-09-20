@@ -39,7 +39,7 @@ export default async function NewProfilePage() {
         <h2 className="text-base font-bold">ลงทะเบียนเครื่อง POS ก่อน</h2>
         <p className="text-sm text-muted-foreground">
           บอกระบบว่าไฟล์ยอดขายมาจากสาขาไหน — ไม่ต้องกรอกรหัสผ่านหรือเชื่อมต่ออะไรทั้งสิ้น
-          Mise ไม่เคยเข้าไปแตะ POS ของคุณ
+          คิดครัวไม่เคยเข้าไปแตะ POS ของคุณ
         </p>
         <NewPosForm branches={branches.map((b) => ({ id: b.id, name: b.name }))} />
       </div>

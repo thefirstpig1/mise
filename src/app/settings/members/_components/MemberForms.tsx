@@ -194,7 +194,7 @@ function InviteForm({
           {/* Said out loud, because an upsert that overwrote it would be a
               silent surprise for the person who owns the account. */}
           <p className="mt-1 text-xs text-muted-foreground">
-            ใช้เฉพาะกับอีเมลที่ยังไม่เคยเข้าใช้ Mise — ไม่ทับชื่อที่เจ้าตัวตั้งไว้เอง
+            ใช้เฉพาะกับอีเมลที่ยังไม่เคยเข้าใช้คิดครัว — ไม่ทับชื่อที่เจ้าตัวตั้งไว้เอง
           </p>
         </div>
       </div>

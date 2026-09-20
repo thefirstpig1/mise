@@ -7,7 +7,7 @@
     "node": ">=22.11.0 <25",
     "pnpm": ">=11.0.0"
   },
-  "description": "Mise — Restaurant Back-Office Platform (Sprint 1 — Master Data)",
+  "description": "KitKrua (คิดครัว) — Restaurant Back-Office Platform (codename Mise)",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
