@@ -138,7 +138,7 @@ Fly รัน `release_command` **ในอิมเมจใหม่ ก่อ
 ### หมุด B — เงื่อนไขก่อนร้านแรก (ยังไม่ถึงคิว)
 
 - ซื้อโดเมน · verify SPF/DKIM กับ Resend · เปลี่ยน `AUTH_URL`
-- **`pg_dump` ตั้งเวลาเป็น GitHub Action** — Neon แพลนฟรีเก็บประวัติย้อนหลังแค่ **6 ชั่วโมง**
+- ~~**`pg_dump` ตั้งเวลาเป็น GitHub Action**~~ ✅ **เขียนแล้ว 2026-09-20** — `.github/workflows/backup-production-db.yml` ทุกคืน 03:00 (ไทย) เก็บ 30 คืนเป็น artifact · **เหลือขั้นเดียวที่ต้องเป็น Kong:** GitHub → repo **Settings → Secrets and variables → Actions → New repository secret** ชื่อ `PROD_DIRECT_URL` ค่า = direct string ของ Neon โปรดักชัน (ตัวที่ **ไม่มี** `-pooler` — workflow ปฏิเสธถ้าใส่ pooled) · แล้วกด **Actions → backup-production-db → Run workflow** หนึ่งครั้งเพื่อดูว่าเขียว · 🔴 โปรดักชันเป็น **Postgres 18** (วัดแล้ว) runner ของ GitHub มีแค่ client 16 จึงติดตั้ง 18 จาก PGDG ในทุก run — วันที่ Neon ขึ้น major version ต้องขยับ pin ในไฟล์นั้นด้วย · ซ้อมกับ dev แล้ว: 6 วินาที, 454 KB, 54 ตาราง, 47 policy ติดมาครบ (เหตุผลเดิม: Neon แพลนฟรีเก็บประวัติย้อนหลังแค่ **6 ชั่วโมง**)
 - **error tracking** — `fly logs` ดูได้แค่ของสด ร้านเจอปัญหาตอนเช้าแล้วบอกตอนเย็น log หายไปแล้ว
 - Part 33 ที่เหลือ: `.btn`/`.badge` เป็นคลาสร่วม · palette ดิบ 64 จุด
 

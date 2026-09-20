@@ -1,0 +1,110 @@
+# ============================================================
+# คิดครัว — nightly pg_dump of the production database (Part 34, หมุด B)
+# ============================================================
+# Why this exists: Neon's free plan keeps point-in-time history for SIX HOURS.
+# A shop that deletes the wrong thing at 09:00 and notices at 16:00 has already
+# lost the window. This takes a full logical dump once a night and keeps 30 of
+# them as workflow artifacts, which costs nothing and needs no third service.
+#
+# What it needs from a person, ONCE:
+#   GitHub → repo Settings → Secrets and variables → Actions → New secret
+#     PROD_DIRECT_URL = the UNPOOLED production string, role neondb_owner
+#                       (the same value as Fly's DIRECT_URL). Unpooled because
+#                       pg_dump holds one session for the whole run and
+#                       pgbouncer in transaction mode would not keep it.
+#
+# 🔴 pg_dump must be at least as new as the server. Production is Postgres 18
+#    (measured 2026-09-20: `select version()` → 18.6), and ubuntu-latest ships
+#    client 16, which refuses with "server version mismatch". So the client is
+#    installed from the PGDG repository, pinned to 18. When Neon's major
+#    version is raised, raise the pin here in the same change.
+#
+# The dump is `--format=custom` (compressed, restorable table-by-table) with
+# `--no-owner --no-privileges`, so it restores into a FRESH Neon project whose
+# roles differ. Policies travel with their tables; grants and the mise_app role
+# do not, and are not needed to: the release path (`pnpm release`, ADR 0033 Q6)
+# recreates the role, its password and its grants on the next deploy.
+#
+# To RESTORE (the day this is for):
+#   1. Download the artifact from the Actions run → unzip → kitkrua-<stamp>.dump
+#   2. Create a new Neon project (Singapore) — never restore over the live one
+#      while it is still being investigated.
+#   3. pg_restore --no-owner --no-privileges --dbname "<new DIRECT url>" kitkrua-<stamp>.dump
+#      (`_prisma_migrations` is in the dump, so `prisma migrate deploy` will
+#      see every migration as applied.)
+#   4. Point Fly's DATABASE_URL / DIRECT_URL / ADMIN_DATABASE_URL at it and
+#      deploy — the release command runs enforce_rls.sql, which creates
+#      mise_app with the password in MISE_APP_DB_PASSWORD.
+#
+# Failure notification: GitHub emails the person who last committed this file
+# when a scheduled run fails. A run that produces an empty or unreadable dump
+# is made to FAIL rather than upload it, so silence means a real backup exists.
+# ============================================================
+name: backup-production-db
+
+on:
+  schedule:
+    # 20:00 UTC = 03:00 Asia/Bangkok — after every shop has closed its day.
+    - cron: "0 20 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dump:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Install pg_dump 18 (PGDG — ubuntu-latest ships 16)
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-common >/dev/null
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y -qq postgresql-client-18 >/dev/null
+          pg_dump --version
+
+      - name: Dump
+        env:
+          PROD_DIRECT_URL: ${{ secrets.PROD_DIRECT_URL }}
+        run: |
+          set -euo pipefail
+          if [ -z "${PROD_DIRECT_URL:-}" ]; then
+            echo "::error::PROD_DIRECT_URL secret is not set — see the header of this workflow"
+            exit 1
+          fi
+          case "$PROD_DIRECT_URL" in
+            *-pooler.*)
+              echo "::error::PROD_DIRECT_URL is a POOLED string (host contains -pooler). pg_dump needs the unpooled one."
+              exit 1 ;;
+          esac
+          stamp="$(TZ=Asia/Bangkok date +%Y%m%d-%H%M)"
+          file="kitkrua-${stamp}.dump"
+          pg_dump "$PROD_DIRECT_URL" --format=custom --no-owner --no-privileges --file "$file"
+
+          # Refuse to call an unreadable or hollow file a backup. 53 models in
+          # schema.prisma + _prisma_migrations = 54 TABLE DATA entries (measured
+          # against dev on 2026-09-20: 54, with all 47 policies riding along);
+          # anything far below that means the secret points at the wrong
+          # database. Counted on 'TABLE DATA', not ' TABLE ' — the latter
+          # also matches the DATA lines and doubles the number.
+          tables="$(pg_restore --list "$file" | grep -c 'TABLE DATA' || true)"
+          echo "tables in dump: $tables"
+          if [ "$tables" -lt 50 ]; then
+            echo "::error::dump holds only $tables tables — expected ~54. Wrong database?"
+            exit 1
+          fi
+          pg_restore --list "$file" | grep -q '_prisma_migrations' \
+            || { echo "::error::dump has no _prisma_migrations table"; exit 1; }
+          ls -l "$file"
+          echo "DUMP_FILE=$file" >> "$GITHUB_ENV"
+
+      - name: Keep 30 nights
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.DUMP_FILE }}
+          path: ${{ env.DUMP_FILE }}
+          retention-days: 30
+          if-no-files-found: error
+          compression-level: 0
