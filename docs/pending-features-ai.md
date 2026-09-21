@@ -180,6 +180,21 @@ Free sign-up multiplies traffic on `/login`, which is a public email cannon (ADR
 
 ---
 
+## Local models — a fixed-cost path, captured 2026-09-22, NOT designed
+
+Kong asked whether the app could talk to a model **we run ourselves on a GPU** instead of a frontier API. Technically yes: Ollama / llama.cpp / vLLM expose an HTTP API, open-weight models exist for vision (Qwen-VL) and for Thai (Typhoon by SCB 10X, OpenThaiGPT). The point that makes this an idea worth keeping rather than a decision: **it is the same reversibility pattern as ADR 0031 (email) and ADR 0033 (host)** — if `src/lib/ai/` is an interface at the level of *our* jobs (`extractBill(image) → lines`, `narratePnl(figures) → text`), not at the level of a vendor SDK, then the provider is one config value.
+
+Where it differs from running a model at home:
+- **It is a server, not a laptop.** The app is on Fly in Singapore; a GPU must be reachable 24/7. A rented always-on GPU is tens of thousands of baht a month against $2–8 per shop on the API — break-even is on the order of **a hundred shops using AI**. Scale-to-zero GPUs fix the bill but cost 30–90 s to load weights: fine for A2 (monthly) and A4 (a person waiting for a draft), **not for A3** (a person holding a phone at the back door).
+- **Quality on Thai receipts is unknown until measured.** A5 and A2 are within reach of a small model; A3 is the risky one.
+- **One more thing for one person to operate** — drivers, VRAM, model updates — which is the cost ADR 0033 was written to avoid.
+
+What only the local path gives: **data never leaves the system** (AI-7 dissolves), and the cost becomes **fixed instead of per call** — past break-even, giving AI away inside freemium becomes possible, which reverses the sentence "AI features are the thing that cannot be free" above.
+
+Direction, not decision: start on the API (nothing to operate, pay per use, right-sized for 0–100 shops), keep the interface vendor-free, move when volume says so. **The move is safe only with an eval set** — see O42.
+
+---
+
 ## Open questions for the grill, when it happens
 - O36: Which feature is the first AI Part? (Suggestion from the 2026-09-22 conversation: **A1 + A2** — cheapest, no new input path, teaches the shop what AI in the product looks like; A3 second, once the cost per shop is measured on real bills.)
 - O37: Where does the AI call live — inside the existing Server Action after the read (AI-4), or in a small `src/lib/ai/` module that Server Actions call? (The second, probably, so the prompt and the model choice have one home.)
@@ -187,3 +202,4 @@ Free sign-up multiplies traffic on `/login`, which is a public email cannon (ADR
 - O39: What does the screen say when the API is down or the key is missing? (Precedent: Part 31's `skipped` — a dev machine with no key has not *failed* to draft anything. The feature degrades to the manual path, which still exists for every feature above.)
 - O40: Retention and terms — what the shop is told, and whether any feature needs an opt-in per shop.
 - O41: Does A3 want the photo kept (Feature 5) or discarded? The shops will answer this: a bill that was OCR'd and then thrown away has no evidence behind it.
+- O42: **An eval set from the first AI Part onward, whichever provider is used** — ~50 real bills and ~50 real menus with the answer a person would give. Switching model or provider (API ↔ local, one model tier ↔ another) is then a measured comparison, not an eyeballed one. Without it, every switch is a guess about quality, and the day a cheaper model is wrong nothing reports it.
