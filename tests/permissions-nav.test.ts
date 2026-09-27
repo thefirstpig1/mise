@@ -1,10 +1,10 @@
 // ============================================================
 // Mise — the menu must not offer a door that refuses (Part 28 L5, ADR 0029 Q13)
 // ============================================================
-// The dashboard IS the navigation: `src/app/layout.tsx` renders bare children
-// and `src/components/layout/` is empty, so nineteen links in one file are
-// every door in the product. Filtering them by capability is what stops a cook
-// seeing a menu of which fourteen entries bounce.
+// The sidebar IS the navigation (Part 35 L4 moved it there from the
+// dashboard's grid of links): `src/components/layout/nav.ts` lists every door
+// in the product, and the `(app)` layout filters it by capability. Filtering
+// is what stops a cook seeing a menu of which fourteen entries bounce.
 //
 // But a filtered menu introduces its own failure, and it is a nasty one: if the
 // capability beside a link ever stops matching the one its PAGE declares, the
@@ -19,47 +19,40 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { ALL_CAPABILITIES, ALL_ROLES, hasCapability } from "@/lib/permissions/service";
+import { NAV_ITEMS } from "@/components/layout/nav";
 
-const DASHBOARD = join(process.cwd(), "src", "app", "dashboard", "page.tsx");
-
-interface NavItem {
+interface NavRow {
   href: string;
   need: string;
 }
 
-/** The NAV table as written, read out of the source. */
-function navTable(): NavItem[] {
-  const src = readFileSync(DASHBOARD, "utf8");
-  const start = src.indexOf("const NAV:");
-  expect(start, "NAV table not found on the dashboard").toBeGreaterThan(-1);
-  const end = src.indexOf("];", start);
-  const block = src.slice(start, end);
-
-  const items: NavItem[] = [];
-  const re = /\{\s*href:\s*"([^"]+)",\s*label:\s*"[^"]*",\s*need:\s*"([^"]+)"\s*\}/g;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(block)) !== null) {
-    items.push({ href: m[1], need: m[2] });
-  }
-  return items;
+/** The sidebar's table, as the app renders it. */
+function navTable(): NavRow[] {
+  return NAV_ITEMS.map((i) => ({ href: i.href, need: i.need }));
 }
 
 /** What the page behind an href actually asks requireTenant for. */
 function pageRequirement(href: string): string | null {
-  // "/menus/lab" -> src/app/menus/lab/page.tsx
-  const file = join(process.cwd(), "src", "app", ...href.split("/").filter(Boolean), "page.tsx");
-  let src: string;
-  try {
-    src = readFileSync(file, "utf8");
-  } catch {
-    return null;
+  // "/menus/lab" -> src/app/(app)/menus/lab/page.tsx (or outside the group)
+  const parts = href.split("/").filter(Boolean);
+  for (const root of [["src", "app", "(app)"], ["src", "app"]]) {
+    try {
+      const src = readFileSync(join(process.cwd(), ...root, ...parts, "page.tsx"), "utf8");
+      const m = src.match(/requireTenant\(\s*"([^"]+)"/);
+      return m ? m[1] : null;
+    } catch {
+      // try the next root
+    }
   }
-  const m = src.match(/requireTenant\(\s*"([^"]+)"/);
-  return m ? m[1] : null;
+  return null;
 }
 
-describe("the dashboard menu (ADR 0029 Part 28 L5)", () => {
+describe("the sidebar menu (ADR 0029 Part 28 L5, moved in Part 35 L4)", () => {
   const nav = navTable();
+
+  it("N0 — every page the table names exists (a renamed route must not leave a dead link)", () => {
+    expect(nav.filter((n) => pageRequirement(n.href) === null).map((n) => n.href)).toEqual([]);
+  });
 
   it("N1 — every link in the product is in the table", () => {
     // 19 doors when this was written. The number is asserted rather than the

@@ -31,6 +31,7 @@ import {
   updateDepartmentLogic,
 } from "@/server/department";
 
+const ALL = { allBranches: true, allowedBranchIds: [] };
 let tenantA: string;
 let tenantB: string;
 let mainDeptId: string;
@@ -73,7 +74,7 @@ describe("createBranchLogic", () => {
   it("creates a branch the admin list then shows", async () => {
     const b = await createBranchLogic(tenantA, branchInputSchema.parse({ name: "สาขาลาดพร้าว", code: "LPR", address: "ลาดพร้าว 71" }));
     expect(b.isActive).toBe(true);
-    const names = (await getAllBranchesForAdminLogic(tenantA)).map((x) => x.name);
+    const names = (await getAllBranchesForAdminLogic(tenantA, ALL)).map((x) => x.name);
     expect(names).toEqual(["สาขาหลัก", "สาขาลาดพร้าว"]);
   });
 
@@ -89,9 +90,17 @@ describe("createBranchLogic", () => {
   });
 });
 
+describe("the settings list obeys reach (rule A5)", () => {
+  it("an admin given one branch lists only that branch", async () => {
+    const all = await getAllBranchesForAdminLogic(tenantA, ALL);
+    const one = await getAllBranchesForAdminLogic(tenantA, { allBranches: false, allowedBranchIds: [all[0].id] });
+    expect(one.map((b) => b.id)).toEqual([all[0].id]);
+  });
+});
+
 describe("updateBranchLogic", () => {
   it("renames and leaves the code alone", async () => {
-    const [, lpr] = await getAllBranchesForAdminLogic(tenantA);
+    const [, lpr] = await getAllBranchesForAdminLogic(tenantA, ALL);
     const after = await updateBranchLogic(
       tenantA,
       updateBranchInputSchema.parse({ id: lpr.id, name: "สาขาลาดพร้าว 71", address: null })
@@ -101,11 +110,11 @@ describe("updateBranchLogic", () => {
   });
 
   it("cannot reach another shop's branch", async () => {
-    const [other] = await getAllBranchesForAdminLogic(tenantB);
+    const [other] = await getAllBranchesForAdminLogic(tenantB, ALL);
     await expect(
       updateBranchLogic(tenantA, updateBranchInputSchema.parse({ id: other.id, name: "hijack", address: null }))
     ).rejects.toBeInstanceOf(BranchNotFoundError);
-    const [still] = await getAllBranchesForAdminLogic(tenantB);
+    const [still] = await getAllBranchesForAdminLogic(tenantB, ALL);
     expect(still.name).toBe("อื่น");
   });
 });

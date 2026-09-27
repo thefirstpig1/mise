@@ -37,14 +37,18 @@ export class BranchNotFoundError extends Error {
 }
 
 /**
- * Every branch in the tenant, for the settings screen.
- * Deliberately NOT narrowed by reach: only `settings:write` reaches this list,
- * and that capability belongs to people who run the whole business.
+ * The branches the settings screen lists. Narrowed to reach like every other
+ * branch listing (rule A5, pinned by tests/permissions-branch-scope.test.ts B5):
+ * `settings:write` belongs to owner and admin, and an admin can be given named
+ * branches rather than all of them.
  */
-export async function getAllBranchesForAdminLogic(tenantId: string): Promise<Branch[]> {
+export async function getAllBranchesForAdminLogic(
+  tenantId: string,
+  reach: BranchReach
+): Promise<Branch[]> {
   return withTenantContext(tenantId, (tx) =>
     tx.branch.findMany({
-      where: { tenantId, deletedAt: null },
+      where: { tenantId, deletedAt: null, ...branchScopeWhere(reach) },
       orderBy: { createdAt: "asc" },
     })
   );
