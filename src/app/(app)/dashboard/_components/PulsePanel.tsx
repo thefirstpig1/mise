@@ -53,122 +53,118 @@ export default function PulsePanel({
 
   const multi = dashboard.branches.length > 1;
 
+  // Kong (2026-09-28): the table was "ง่อยเกิ้น" — four cramped columns, a
+  // tiny "+ คีย์ยอดวันนี้" link, and a paragraph of footnote. Rebuilt as one card
+  // per branch: today is the headline (or a real button when nobody has keyed
+  // it), yesterday and the week sit underneath, and the long explanation folds
+  // away behind "ตัวเลขนี้คืออะไร?". The three rules in the header still hold.
   return (
-    <section className="rounded-lg border border-border bg-surface p-4">
-      <div className="flex items-baseline justify-between">
-        <h2 className="text-sm font-medium">ยอดขาย</h2>
-        <a href="/sales" className="text-xs text-primary hover:underline">
-          ดูทั้งเดือน →
+    <section className="rounded-xl border border-border bg-surface p-5">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <div>
+          <h2 className="text-base font-semibold">ยอดที่ลูกค้าจ่ายรายวัน</h2>
+          <p className="text-xs text-muted-foreground">ตัวเลขจากเครื่องเก็บเงิน รวม VAT และ service charge</p>
+        </div>
+        <a href="/sales" className="text-xs font-medium text-primary hover:underline">
+          ดูยอดขายทั้งเดือน →
         </a>
       </div>
 
-      <div className="mt-3 overflow-x-auto">
-        <table className="min-w-full text-sm">
-          <thead>
-            <tr className="border-b border-border text-xs text-muted-foreground">
-              <th className="px-2 py-1 text-left">สาขา</th>
-              <th className="px-2 py-1 text-right">วันนี้</th>
-              <th className="px-2 py-1 text-right">เมื่อวาน</th>
-              <th className="px-2 py-1 text-right">7 วันล่าสุด</th>
-            </tr>
-          </thead>
-          <tbody>
-            {dashboard.branches.map((b) => (
-              <tr key={b.branchId} className="border-b border-border/50 align-top">
-                <td className="px-2 py-2">
-                  <div className="font-medium">{b.branchName}</div>
-                  {b.today.sourceLabel && (
-                    <div className="text-xs text-muted-foreground">{b.today.sourceLabel}</div>
-                  )}
-                  {b.today.note && (
-                    <div className="text-xs text-muted-foreground">“{b.today.note}”</div>
-                  )}
-                </td>
-                <td className="px-2 py-2 text-right">
-                  {b.today.amount === null ? (
-                    openBranchId === b.branchId ? (
-                      <form action={action} className="flex items-center justify-end gap-1">
-                        <input type="hidden" name="branchId" value={b.branchId} />
-                        <input type="hidden" name="businessDate" value={todayIso} />
-                        <input
-                          name="amount"
-                          inputMode="decimal"
-                          placeholder="ยอดวันนี้"
-                          className={"input px-2 py-1.5 w-28 text-right"}
-                        />
-                        <input
-                          name="note"
-                          placeholder="หมายเหตุ"
-                          className={"input px-2 py-1.5 w-24"}
-                        />
-                        <button
-                          type="submit"
-                          disabled={pending}
-                          className="btn px-2 py-1.5 text-xs"
-                        >
-                          {pending ? "…" : "บันทึก"}
-                        </button>
-                      </form>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => setOpenBranchId(b.branchId)}
-                        className="text-xs text-primary hover:underline"
-                      >
-                        + คีย์ยอดวันนี้
-                      </button>
-                    )
-                  ) : (
-                    <span className="font-medium">{baht(b.today.amount)}</span>
-                  )}
-                </td>
-                <td className="px-2 py-2 text-right">
-                  <div>{baht(b.yesterday.amount)}</div>
-                  {b.yesterday.sourceLabel && (
-                    <div className="text-[10px] text-muted-foreground">
-                      {b.yesterday.source === "PULSE" ? "คีย์เอง" : "จากไฟล์"}
-                    </div>
-                  )}
-                </td>
-                <td className="px-2 py-2 text-right">
-                  <div>{baht(b.last7Total)}</div>
-                  <div className="text-[10px] text-muted-foreground">
-                    {b.last7DaysWithFigure} วัน
+      <div className={`mt-4 grid gap-3 ${multi ? "sm:grid-cols-2 xl:grid-cols-3" : "sm:max-w-md"}`}>
+        {dashboard.branches.map((b) => {
+          const keying = openBranchId === b.branchId;
+          return (
+            <div key={b.branchId} className="rounded-lg border border-border bg-background p-4">
+              <div className="flex items-baseline justify-between gap-2">
+                <p className="font-medium">{b.branchName}</p>
+                {b.today.sourceLabel ? (
+                  <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">{b.today.sourceLabel}</span>
+                ) : null}
+              </div>
+
+              <p className="mt-3 text-xs text-muted-foreground">วันนี้</p>
+              {b.today.amount !== null ? (
+                <p className="tabular-nums text-2xl font-semibold">{baht(b.today.amount)}</p>
+              ) : keying ? (
+                <form action={action} className="mt-1 space-y-2">
+                  <input type="hidden" name="branchId" value={b.branchId} />
+                  <input type="hidden" name="businessDate" value={todayIso} />
+                  <input name="amount" inputMode="decimal" placeholder="ยอดที่ลูกค้าจ่ายวันนี้ (บาท)" className="input w-full" autoFocus />
+                  <input name="note" placeholder="หมายเหตุ (ไม่บังคับ)" className="input w-full" />
+                  <div className="flex items-center gap-2">
+                    <button type="submit" disabled={pending} className="btn">
+                      {pending ? "กำลังบันทึก…" : "บันทึก"}
+                    </button>
+                    <button type="button" onClick={() => setOpenBranchId(null)} className="text-sm text-muted-foreground hover:text-foreground">
+                      ยกเลิก
+                    </button>
                   </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-          {multi && (
-            <tfoot className="border-t-2 border-border">
-              <tr>
-                <td className="px-2 py-2 text-sm font-medium">รวมทุกสาขา</td>
-                <td className="px-2 py-2 text-right font-medium">{baht(dashboard.todayTotal)}</td>
-                <td className="px-2 py-2 text-right font-medium">
-                  {baht(dashboard.yesterdayTotal)}
-                </td>
-                <td className="px-2 py-2 text-right font-medium">{baht(dashboard.last7Total)}</td>
-              </tr>
-            </tfoot>
-          )}
-        </table>
+                </form>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setOpenBranchId(b.branchId)}
+                  className="mt-1 w-full rounded-lg border border-dashed border-border-strong px-3 py-2.5 text-sm font-medium text-primary hover:bg-muted"
+                >
+                  + คีย์ยอดวันนี้
+                </button>
+              )}
+              {b.today.note ? <p className="mt-1 text-xs text-muted-foreground">“{b.today.note}”</p> : null}
+
+              <div className="mt-4 grid grid-cols-2 gap-3 border-t border-border pt-3">
+                <div>
+                  <p className="text-xs text-muted-foreground">เมื่อวาน</p>
+                  <p className="tabular-nums text-sm font-medium">{baht(b.yesterday.amount)}</p>
+                  {b.yesterday.source ? (
+                    <p className="text-[11px] text-muted-subtle">{b.yesterday.source === "PULSE" ? "คีย์เอง" : "จากไฟล์"}</p>
+                  ) : null}
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">7 วันล่าสุด</p>
+                  <p className="tabular-nums text-sm font-medium">{baht(b.last7Total)}</p>
+                  <p className="text-[11px] text-muted-subtle">
+                    {b.last7DaysWithFigure === 0 ? "ยังไม่มีข้อมูล" : `มีข้อมูล ${b.last7DaysWithFigure} จาก 7 วัน`}
+                  </p>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+
+        {multi ? (
+          <div className="rounded-lg border border-border bg-surface-sunk p-4">
+            <p className="font-medium">รวมทุกสาขา</p>
+            <p className="mt-3 text-xs text-muted-foreground">วันนี้</p>
+            <p className="tabular-nums text-2xl font-semibold">{baht(dashboard.todayTotal)}</p>
+            {dashboard.branchesMissingToday > 0 ? (
+              <p className="mt-1 text-xs text-warn">ยังไม่ครบ — อีก {dashboard.branchesMissingToday} สาขายังไม่มีตัวเลขวันนี้</p>
+            ) : null}
+            <div className="mt-4 grid grid-cols-2 gap-3 border-t border-border pt-3">
+              <div>
+                <p className="text-xs text-muted-foreground">เมื่อวาน</p>
+                <p className="tabular-nums text-sm font-medium">{baht(dashboard.yesterdayTotal)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">7 วันล่าสุด</p>
+                <p className="tabular-nums text-sm font-medium">{baht(dashboard.last7Total)}</p>
+              </div>
+            </div>
+          </div>
+        ) : null}
       </div>
 
-      {dashboard.rollUpNote && (
-        <p className="mt-2 text-xs text-muted-foreground">{dashboard.rollUpNote}</p>
-      )}
-
       {state?.ok === false && (
-        <p className="mt-2 text-xs text-bad">
-          {state.formError ?? Object.values(state.fieldErrors ?? {})[0]}
-        </p>
+        <p className="mt-3 text-sm text-bad">{state.formError ?? Object.values(state.fieldErrors ?? {})[0]}</p>
       )}
 
-      <p className="mt-3 text-xs text-muted-foreground">
-        ยอดที่คีย์เองคือ <strong>ยอดที่ลูกค้าจ่าย</strong> (ตัวเลขในเครื่องเก็บเงิน รวม VAT
-        และ Service charge) — ไม่ใช่ตัวเลข “ยอดขาย” ในหน้าต้นทุน ซึ่งไม่รวมสองอย่างนั้น ·
-        พอนำเข้าไฟล์ของวันนั้นแล้ว ระบบจะใช้ตัวเลขจากไฟล์ และเก็บยอดที่คีย์ไว้เป็นตัวตรวจสอบ
-      </p>
+      <details className="mt-4 text-xs text-muted-foreground">
+        <summary className="cursor-pointer select-none font-medium text-primary">ตัวเลขนี้คืออะไร?</summary>
+        <p className="mt-2 leading-relaxed">
+          ยอดที่คีย์เองคือ <strong>ยอดที่ลูกค้าจ่าย</strong> ตามเครื่องเก็บเงิน (รวม VAT และ service charge)
+          จึงไม่เท่ากับ “ยอดขาย” ในการ์ดด้านบนและหน้าต้นทุน ซึ่งไม่รวมสองอย่างนั้น ·
+          เมื่อนำเข้าไฟล์ยอดขายของวันนั้นแล้ว ระบบจะใช้ตัวเลขจากไฟล์ และเก็บยอดที่คีย์ไว้เป็นตัวตรวจสอบ
+        </p>
+      </details>
     </section>
   );
 }

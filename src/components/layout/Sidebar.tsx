@@ -47,34 +47,42 @@ export default function Sidebar({
         </div>
       </div>
 
-      <div className="flex-1 space-y-5 overflow-y-auto px-3 pb-4">
-        {groups.map((g) => (
-          <div key={g.label}>
-            <p className="px-2 pb-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-              {g.label}
-            </p>
-            <ul className="space-y-0.5">
-              {g.items.map((item) => {
-                const active = item.href === current;
-                return (
-                  <li key={item.href}>
-                    <a
-                      href={item.href}
-                      aria-current={active ? "page" : undefined}
-                      className={`block rounded-md px-2 py-1.5 text-sm transition-colors ${
-                        active
-                          ? "bg-primary font-medium text-primary-foreground"
-                          : "text-foreground hover:bg-muted"
-                      }`}
-                    >
-                      {item.label}
-                    </a>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        ))}
+      {/* Kong (2026-09-28): the group heading was SMALLER than the items under
+          it, so nothing read as a heading at all. Now a heading is the
+          largest, darkest text in its block, and its items hang off a rule
+          beneath it — hierarchy by size, weight AND position, not by colour. */}
+      <div className="flex-1 space-y-4 overflow-y-auto px-3 pb-4">
+        {groups.map((g) => {
+          const link = (item: NavGroup["items"][number], nested: boolean) => {
+            const active = item.href === current;
+            return (
+              <a
+                href={item.href}
+                aria-current={active ? "page" : undefined}
+                className={`block rounded-md py-1.5 pr-2 transition-colors ${nested ? "pl-3 text-sm" : "px-2 text-[15px] font-semibold"} ${
+                  active ? "bg-primary font-medium text-primary-foreground" : "text-foreground hover:bg-muted"
+                }`}
+              >
+                {item.label}
+              </a>
+            );
+          };
+          // A one-item group is just a link; a heading over one line is noise.
+          if (g.items.length === 1) return <div key={g.label}>{link(g.items[0], false)}</div>;
+          const open = g.items.some((i) => i.href === current);
+          return (
+            <div key={g.label}>
+              <p className={`px-2 pb-1.5 text-[15px] font-semibold ${open ? "text-primary" : "text-foreground"}`}>
+                {g.label}
+              </p>
+              <ul className="ml-3 space-y-0.5 border-l border-border-strong pl-1.5">
+                {g.items.map((item) => (
+                  <li key={item.href}>{link(item, true)}</li>
+                ))}
+              </ul>
+            </div>
+          );
+        })}
       </div>
 
       <div className="space-y-2 border-t border-border px-5 py-4 text-sm">

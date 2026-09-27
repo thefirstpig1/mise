@@ -12,8 +12,8 @@ import { getPulseDashboardLogic } from "@/server/sales-pulse";
 import { toPulseDashboardView } from "@/app/(app)/sales/_components/sales-view";
 import PulsePanel from "./_components/PulsePanel";
 import DashboardControls, { type BranchChip } from "./_components/DashboardControls";
+import BarList, { type BarListGroup } from "@/components/charts/BarList";
 import {
-  ExpenseMixChart,
   PnlWaterfallChart,
   RevenueTrendChart,
   SERIES,
@@ -150,15 +150,46 @@ async function Analytics({
     .filter((c) => activeIds.includes(c.id) && revenueDays.some((p) => p.branchId === c.id))
     .map((c) => ({ branchId: c.id, name: c.name, color: c.color }));
 
-  const mix = [
-    ...(seeGross && pnl.cogs !== null ? [{ label: "ต้นทุนขาย (วัตถุดิบ)", value: num(pnl.cogs)! }] : []),
-    ...(see.expense ? pnl.opexBySection.map((s) => ({ label: s.section, value: Number(s.amount.toString()) })) : []),
+  // Where the revenue went (Kong, 2026-09-28: the donut cut every label off).
+  const qs = `from=${isoDay(period.from)}&to=${isoDay(period.to)}`;
+  const spendGroups: BarListGroup[] = [
+    ...(seeGross && pnl.cogs !== null
+      ? [
+          {
+            heading: "ต้นทุนขาย",
+            rows: [
+              {
+                key: "cogs",
+                label: "วัตถุดิบที่ขายไป",
+                detail:
+                  pnl.recipeCoverage !== null
+                    ? `คิดจากสูตรอาหาร · ครอบคลุม ${(pnl.recipeCoverage * 100).toFixed(0)}% ของยอดขาย`
+                    : "คิดจากการนับสต๊อก",
+                value: num(pnl.cogs)!,
+                href: "/cost",
+              },
+            ],
+          },
+        ]
+      : []),
+    ...(see.expense
+      ? [
+          {
+            heading: "ค่าใช้จ่ายดำเนินงาน",
+            rows: pnl.opexBySection.map((sct) => ({
+              key: sct.section,
+              label: sct.section,
+              detail: sct.groups.length > 1 ? sct.groups.map((g) => g.group).join(" · ") : undefined,
+              value: Number(sct.amount.toString()),
+              href: `/expenses?${qs}`,
+            })),
+          },
+        ]
+      : []),
   ];
-  // Six categorical slots (dataviz: never a generated seventh hue) — the rest fold into อื่น ๆ.
-  const mixSlices =
-    mix.length > 6
-      ? [...mix.slice(0, 5), { label: "อื่น ๆ", value: mix.slice(5).reduce((s, x) => s + x.value, 0) }]
-      : mix;
+  const spendTotal = spendGroups.reduce((s, g) => s + g.rows.reduce((t, r) => t + r.value, 0), 0);
+  const revenueNum = num(pnl.revenue);
+  const shareBase = revenueNum && revenueNum > 0 ? revenueNum : spendTotal;
 
   return (
     <div className="space-y-6">
@@ -178,14 +209,6 @@ async function Analytics({
             )}
           </Card>
         ) : null}
-        {see.expense || seeGross ? (
-          <Card className="xl:col-span-2" title="ภาพรวมรายจ่าย" hint="ต้นทุนวัตถุดิบที่ขายไป และค่าใช้จ่ายแยกตามหมวด">
-            <ExpenseMixChart slices={mixSlices} />
-          </Card>
-        ) : null}
-      </div>
-
-      <div className="grid gap-6 xl:grid-cols-5">
         {seeNet && pnl.netProfit !== null && pnl.revenue !== null ? (
           <Card className="xl:col-span-2" title="จากยอดขายสู่กำไร" hint="ยอดขาย − ต้นทุนขาย − ค่าใช้จ่าย = กำไรสุทธิ">
             <PnlWaterfallChart
@@ -193,8 +216,20 @@ async function Analytics({
             />
           </Card>
         ) : null}
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-5">
+        {see.expense || seeGross ? (
+          <Card
+            className="xl:col-span-3"
+            title="เงินจากยอดขายไปอยู่ที่ไหน"
+            hint={`${revenueNum ? "% คือสัดส่วนของยอดขาย" : "% คือสัดส่วนของรายจ่ายรวม"} · กดแต่ละแถวเพื่อดูรายละเอียด`}
+          >
+            <BarList groups={spendGroups} total={shareBase} emptyText="ยังไม่มีรายจ่ายในช่วงนี้" />
+          </Card>
+        ) : null}
         {see.sales ? (
-          <Card className="xl:col-span-3" title="เมนูขายดี 10 อันดับ" hint="เรียงตามยอดขาย · ชี้ที่แท่งเพื่อดูจำนวนจาน">
+          <Card className="xl:col-span-2" title="เมนูขายดี 10 อันดับ" hint="เรียงตามยอดขาย · ชี้ที่แท่งเพื่อดูจำนวนจาน">
             <TopMenusChart rows={menus} />
           </Card>
         ) : null}
@@ -420,20 +455,37 @@ async function WorkQueue({
     <div className="space-y-4">
       <h2 className="text-lg font-semibold">งานที่รออยู่</h2>
       {waiting.length > 0 ? (
-        <div className="rounded-lg border border-warn-border bg-warn-bg p-4">
-          <p className="text-sm font-medium text-warn">มีใบโอน {waiting.length} ใบที่ปลายทางยังไม่กดรับ</p>
+        // Kong (2026-09-28): this must LEAD somewhere. The heading opens the
+        // transfer list filtered to the ones waiting; each document opens its
+        // own page (items, quantities, who sent it).
+        <div className="rounded-xl border border-warn-border bg-warn-bg p-4">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <a href="/transfers?status=SENT" className="text-sm font-semibold text-warn hover:underline">
+              มีใบโอน {waiting.length} ใบที่ปลายทางยังไม่กดรับ
+            </a>
+            <a href="/transfers?status=SENT" className="text-xs font-medium text-warn hover:underline">
+              ดูใบโอนที่รอรับทั้งหมด →
+            </a>
+          </div>
           <p className="mt-1 text-xs text-warn">
-            ของเข้ายอดของสาขาปลายทางแล้วตั้งแต่ต้นทางกดส่ง — ที่ค้างคือการนับยืนยัน
+            ของเข้ายอดของสาขาปลายทางแล้วตั้งแต่ต้นทางกดส่ง — ที่ค้างคือการนับยืนยันที่ปลายทาง
           </p>
-          <ul className="mt-2 space-y-1 text-sm">
+          <ul className="mt-3 divide-y divide-warn-border overflow-hidden rounded-lg border border-warn-border bg-surface">
             {waiting.map((t) => (
               <li key={t.id}>
-                <a href={`/transfers/${t.id}`} className="text-warn hover:underline">
-                  {t.tfNumber}
-                </a>{" "}
-                <span className="text-warn">
-                  {t.fromBranch.name} → {t.toBranch.name} · {t.dispatchedAtLabel}
-                </span>
+                <a
+                  href={`/transfers/${t.id}`}
+                  className="flex items-center justify-between gap-3 px-3 py-2 text-sm hover:bg-muted"
+                >
+                  <span className="min-w-0">
+                    <span className="font-mono text-xs text-muted-foreground">{t.tfNumber}</span>{" "}
+                    <span className="font-medium">
+                      {t.fromBranch.name} → {t.toBranch.name}
+                    </span>
+                    <span className="block text-xs text-muted-foreground">ส่งเมื่อ {t.dispatchedAtLabel}</span>
+                  </span>
+                  <span className="shrink-0 text-xs font-medium text-primary">ดูรายละเอียด →</span>
+                </a>
               </li>
             ))}
           </ul>

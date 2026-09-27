@@ -23,8 +23,6 @@ import {
   Legend,
   Line,
   LineChart,
-  Pie,
-  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -32,7 +30,11 @@ import {
 } from "recharts";
 
 /** Fixed order, never cycled — a series keeps its colour when others hide. */
-export const SERIES = ["#008F84", "#D46F2A", "#6D55B0", "#B8870F", "#C24F86", "#5D8A2B"] as const;
+// Kong (2026-09-28) rejected the first set as off-brand. This one starts from
+// the brand's own olive and stays earthy — and still passes all six checks
+// of the dataviz validator (re-run on this exact order; the order matters,
+// olive beside clay fails colour-blind separation).
+export const SERIES = ["#5E6B14", "#8A4F9E", "#C0692B", "#008F84", "#A8820A"] as const;
 
 const INK = "#262811";
 const INK_MUTED = "#5A5C31";
@@ -40,6 +42,7 @@ const GRID = "#E9E3C8";
 const GOOD = "#5A7333";
 const BAD = "#A83A22";
 const NEUTRAL = "#8B8D63";
+const BRAND = "#41431B";
 
 const baht = (n: number) =>
   new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB", maximumFractionDigits: 0 }).format(n);
@@ -134,78 +137,6 @@ export function RevenueTrendChart({ rows, series }: { rows: RevenueRow[]; series
 }
 
 // ------------------------------------------------------------
-// 2. Where the money went — a donut of cost of goods + each expense section
-// ------------------------------------------------------------
-export type MixSlice = { label: string; value: number };
-
-export function ExpenseMixChart({ slices }: { slices: MixSlice[] }) {
-  const total = slices.reduce((s, x) => s + x.value, 0);
-  const [active, setActive] = useState<number | null>(null);
-  if (total <= 0) {
-    return <p className="py-16 text-center text-sm text-muted-foreground">ยังไม่มีรายจ่ายในช่วงนี้</p>;
-  }
-  return (
-    <div className="grid items-center gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-      <div className="relative h-56">
-        <ResponsiveContainer>
-          <PieChart>
-            <Pie
-              data={slices}
-              dataKey="value"
-              nameKey="label"
-              innerRadius="62%"
-              outerRadius="92%"
-              paddingAngle={1}
-              stroke="#FFFFFF"
-              strokeWidth={2}
-              onMouseEnter={(_, i) => setActive(i)}
-              onMouseLeave={() => setActive(null)}
-            >
-              {slices.map((s, i) => (
-                <Cell key={s.label} fill={SERIES[i % SERIES.length]} opacity={active === null || active === i ? 1 : 0.35} />
-              ))}
-            </Pie>
-            <Tooltip
-              content={({ active: a, payload }) =>
-                a && payload?.length ? (
-                  <TooltipBox
-                    title={String(payload[0].name)}
-                    rows={[
-                      { label: "จำนวน", value: baht(Number(payload[0].value)) },
-                      { label: "สัดส่วน", value: `${((Number(payload[0].value) / total) * 100).toFixed(1)}%` },
-                    ]}
-                  />
-                ) : null
-              }
-            />
-          </PieChart>
-        </ResponsiveContainer>
-        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-xs text-muted-foreground">รายจ่ายรวม</span>
-          <span className="tabular-nums text-lg font-semibold">{compact(total)}</span>
-        </div>
-      </div>
-      {/* The legend IS the table view: every slice named with its money. */}
-      <ul className="space-y-1.5 text-sm">
-        {slices.map((s, i) => (
-          <li
-            key={s.label}
-            className={`flex items-center gap-2 rounded px-1 ${active === i ? "bg-highlight-soft" : ""}`}
-            onMouseEnter={() => setActive(i)}
-            onMouseLeave={() => setActive(null)}
-          >
-            <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ backgroundColor: SERIES[i % SERIES.length] }} />
-            <span className="min-w-0 flex-1 truncate">{s.label}</span>
-            <span className="tabular-nums text-muted-foreground">{((s.value / total) * 100).toFixed(0)}%</span>
-            <span className="w-24 text-right tabular-nums">{baht(s.value)}</span>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-// ------------------------------------------------------------
 // 3. From sales to profit — a waterfall
 // ------------------------------------------------------------
 export type WaterfallInput = { revenue: number; cogs: number; opex: number; net: number };
@@ -218,7 +149,7 @@ export function PnlWaterfallChart({ data }: { data: WaterfallInput }) {
   // base cannot do that: Recharts stacks negatives from zero separately.)
   const span = (a: number, b: number): [number, number] => [Math.min(a, b), Math.max(a, b)];
   const rows = [
-    { name: "ยอดขาย", range: span(0, revenue), color: SERIES[0], shown: revenue },
+    { name: "ยอดขาย", range: span(0, revenue), color: BRAND, shown: revenue },
     { name: "ต้นทุนขาย", range: span(revenue, gross), color: BAD, shown: -cogs },
     { name: "ค่าใช้จ่าย", range: span(gross, net), color: BAD, shown: -opex },
     { name: "กำไรสุทธิ", range: span(0, net), color: net >= 0 ? GOOD : BAD, shown: net },

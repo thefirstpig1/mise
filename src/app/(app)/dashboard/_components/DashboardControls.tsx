@@ -19,14 +19,13 @@ export default function DashboardControls({
 }: {
   preset: PeriodPreset;
   branches: BranchChip[];
-  /** Empty = all on. */
+  /** Empty = every branch; one id = that branch alone. */
   selected: string[];
   rangeLabel: string;
 }) {
   const router = useRouter();
   const params = useSearchParams();
   const [pending, start] = useTransition();
-  const on = (id: string) => selected.length === 0 || selected.includes(id);
 
   function go(next: { p?: string; b?: string[] }) {
     const q = new URLSearchParams(params.toString());
@@ -38,11 +37,13 @@ export default function DashboardControls({
     start(() => router.push(`/dashboard?${q.toString()}`, { scroll: false }));
   }
 
-  function toggle(id: string) {
-    const current = branches.filter((b) => on(b.id)).map((b) => b.id);
-    const next = current.includes(id) ? current.filter((x) => x !== id) : [...current, id];
-    if (next.length === 0) return; // at least one branch stays on
-    go({ b: next });
+  // Kong (2026-09-28): one branch at a time, and pressing the branch that is
+  // already on goes BACK to every branch — so "this branch vs the whole shop"
+  // is one tap each way. (The first version toggled branches in and out of a
+  // set, which could never get you back to the overview in one press.)
+  const current = selected.length === 1 ? selected[0] : null;
+  function pick(id: string | null) {
+    go({ b: id === null || id === current ? [] : [id] });
   }
 
   return (
@@ -66,24 +67,24 @@ export default function DashboardControls({
 
       {branches.length > 1 ? (
         <div className="flex flex-wrap items-center gap-2" role="group" aria-label="สาขา">
-          {branches.map((b) => {
-            const active = on(b.id);
+          {[{ id: null as string | null, name: "ทุกสาขา", color: null as string | null }, ...branches].map((b) => {
+            const active = b.id === current;
             return (
               <button
-                key={b.id}
+                key={b.id ?? "all"}
                 type="button"
-                onClick={() => toggle(b.id)}
+                onClick={() => pick(b.id)}
                 aria-pressed={active}
-                title={active ? "กดเพื่อซ่อนสาขานี้" : "กดเพื่อแสดงสาขานี้"}
+                title={b.id && active ? "กดอีกครั้งเพื่อกลับไปดูทุกสาขา" : undefined}
                 className={`flex items-center gap-2 rounded-full border px-3 py-1 text-sm transition-colors ${
-                  active ? "border-border-strong bg-surface text-foreground" : "border-border bg-transparent text-muted-subtle"
+                  active
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border-strong bg-surface text-foreground hover:bg-muted"
                 }`}
               >
-                <span
-                  aria-hidden
-                  className="h-2.5 w-2.5 rounded-full"
-                  style={{ backgroundColor: active ? b.color : "transparent", boxShadow: `inset 0 0 0 1.5px ${b.color}` }}
-                />
+                {b.color ? (
+                  <span aria-hidden className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: b.color }} />
+                ) : null}
                 {b.name}
               </button>
             );

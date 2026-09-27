@@ -34,7 +34,7 @@
 
 import { Prisma } from "@prisma/client";
 import { withTenantContext } from "@/lib/db";
-import type { BranchReach } from "@/lib/permissions/service";
+import { branchScopeWhere, type BranchReach } from "@/lib/permissions/service";
 import { getBranchCostSummaryLogic, type BranchCostSummary } from "@/server/stock-cost";
 import type { GrossProfitMethod } from "@prisma/client";
 
@@ -66,6 +66,8 @@ export interface PnlBranchRow {
 export interface PnlSection {
   section: string;
   amount: Prisma.Decimal;
+  /** The groups inside the section, largest first — "ค่าไฟฟ้า ฿x · ค่าน้ำ ฿y". */
+  groups: { group: string; amount: Prisma.Decimal }[];
 }
 
 export interface Pnl {
@@ -176,17 +178,78 @@ async function opexBySectionFor(
         category: { account: { not: "COGS" } },
         expense: { tenantId, deletedAt: null, branchId: { in: branchIds }, billDate: { gte: from, lte: to } },
       },
-      select: { totalPrice: true, category: { select: { accountingSection: true } } },
+      select: { totalPrice: true, category: { select: { accountingSection: true, groupName: true } } },
     })
   );
-  const by = new Map<string, Prisma.Decimal>();
+  return groupLines(lines.map((l) => ({ section: l.category.accountingSection, group: l.category.groupName, amount: l.totalPrice })));
+}
+
+/** Section → group totals, both levels largest first. Pure. */
+export function groupLines(lines: { section: string; group: string; amount: Prisma.Decimal }[]): PnlSection[] {
+  const by = new Map<string, Map<string, Prisma.Decimal>>();
   for (const l of lines) {
-    const k = l.category.accountingSection;
-    by.set(k, (by.get(k) ?? ZERO()).plus(l.totalPrice));
+    const g = by.get(l.section) ?? new Map<string, Prisma.Decimal>();
+    g.set(l.group, (g.get(l.group) ?? ZERO()).plus(l.amount));
+    by.set(l.section, g);
   }
   return [...by.entries()]
-    .map(([section, amount]) => ({ section, amount }))
+    .map(([section, groups]) => {
+      const list = [...groups.entries()]
+        .map(([group, amount]) => ({ group, amount }))
+        .sort((a, b) => b.amount.comparedTo(a.amount));
+      return { section, amount: list.reduce((s, x) => s.plus(x.amount), ZERO()), groups: list };
+    })
     .sort((a, b) => b.amount.comparedTo(a.amount));
+}
+
+// ------------------------------------------------------------
+// What the bills say — the /expenses breakdown (Kong, 2026-09-28)
+// ------------------------------------------------------------
+
+export interface SpendBreakdown {
+  /** Account COGS: what was BOUGHT for the kitchen, by bill — not what was sold. */
+  cogs: PnlSection[];
+  opex: PnlSection[];
+  total: Prisma.Decimal;
+}
+
+/**
+ * Every expense line in the period, by account → section → group. This is
+ * SPEND, which is why it lives beside the bill list and not in the P&L: the
+ * ingredients bought this month are not the ingredients sold this month (the
+ * difference is stock carried forward — ADR 0019 Q17, rule F3).
+ */
+export async function getSpendBreakdownLogic(
+  tenantId: string,
+  query: { from: Date; to: Date; branchId?: string },
+  reach: BranchReach
+): Promise<SpendBreakdown> {
+  const lines = await withTenantContext(tenantId, async (tx) => {
+    const branches = await tx.branch.findMany({
+      where: { tenantId, deletedAt: null, ...branchScopeWhere(reach), ...(query.branchId ? { id: query.branchId } : {}) },
+      select: { id: true },
+    });
+    return tx.expenseItem.findMany({
+      where: {
+        tenantId,
+        expense: {
+          tenantId,
+          deletedAt: null,
+          branchId: { in: branches.map((b) => b.id) },
+          billDate: { gte: query.from, lte: query.to },
+        },
+      },
+      select: { totalPrice: true, category: { select: { account: true, accountingSection: true, groupName: true } } },
+    });
+  });
+  const cogs = groupLines(
+    lines.filter((l) => l.category.account === "COGS").map((l) => ({ section: l.category.accountingSection, group: l.category.groupName, amount: l.totalPrice }))
+  );
+  const opex = groupLines(
+    lines.filter((l) => l.category.account !== "COGS").map((l) => ({ section: l.category.accountingSection, group: l.category.groupName, amount: l.totalPrice }))
+  );
+  const total = [...cogs, ...opex].reduce((s, x) => s.plus(x.amount), ZERO());
+  return { cogs, opex, total };
 }
 
 export async function getPnlLogic(tenantId: string, query: PnlQuery, reach: BranchReach): Promise<Pnl> {

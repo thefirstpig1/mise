@@ -26,6 +26,9 @@ import { formatMoney } from "@/app/(app)/cost/_components/cost-view";
 import PaymentBadge from "./_components/PaymentBadge";
 
 import EmptyState from "@/components/ui/EmptyState";
+import BarList from "@/components/charts/BarList";
+import { getSpendBreakdownLogic } from "@/server/pnl";
+import { computeBangkokToday } from "@/lib/bangkok-date";
 const dateLabel = (iso: string) =>
   new Date(iso).toLocaleDateString("th-TH", { dateStyle: "medium" });
 
@@ -57,14 +60,33 @@ export default async function ExpenseListPage({
   });
   const query = parsed.success ? parsed.data : {};
 
-  const [branches, suppliers, rows, due] = await Promise.all([
+  // The breakdown needs a period even when the list is unfiltered: default to
+  // this month, the question an owner opening the page is asking.
+  const today = computeBangkokToday();
+  const breakdownFrom = query.from ?? new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
+  const breakdownTo = query.to ?? today;
+
+  const [branches, suppliers, rows, due, spend] = await Promise.all([
     getBranchesLogic(tenantId, reach),
     getSuppliersLogic(tenantId),
     getExpensesLogic(tenantId, query).then((list) => list.map(toExpenseListRowView)),
     getDueRecurringLogic(tenantId, { branchId: query.branchId }).then((list) =>
       list.map(toDueRecurringView)
     ),
+    getSpendBreakdownLogic(tenantId, { from: breakdownFrom, to: breakdownTo, branchId: query.branchId }, reach),
   ]);
+  const spendTotal = Number(spend.total.toString());
+  // One money style inside the breakdown, the same as the bars beside it.
+  const bahtWhole = (n: number) =>
+    new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB", maximumFractionDigits: 0 }).format(n);
+  const toRows = (list: typeof spend.opex) =>
+    list.map((sct) => ({
+      key: sct.section,
+      label: sct.section,
+      detail: sct.groups.map((g) => `${g.group} ${bahtWhole(Number(g.amount.toString()))}`).join(" · "),
+      value: Number(sct.amount.toString()),
+    }));
+  const periodLabel = `${breakdownFrom.toLocaleDateString("th-TH", { day: "numeric", month: "short", timeZone: "UTC" })} – ${breakdownTo.toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}`;
 
   const unpaidTotal = rows
     .filter((r) => r.paymentStatus === "UNPAID")
@@ -134,6 +156,30 @@ export default async function ExpenseListPage({
           </ul>
         </section>
       )}
+
+      {/* Kong (2026-09-28): the spend breakdown belongs on this page. It is
+          SPEND by bill — what was bought — and says so, because the dashboard's
+          "ต้นทุนขาย" is what was SOLD and the two differ by the stock carried
+          forward (ADR 0019 Q17). */}
+      <section className="rounded-xl border border-border bg-surface p-5">
+        <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
+          <div>
+            <h3 className="text-base font-semibold">รายจ่ายตามหมวด</h3>
+            <p className="text-xs text-muted-foreground">
+              {periodLabel} · ตามวันที่บิล ไม่รวม VAT · % คือสัดส่วนของรายจ่ายรวม
+            </p>
+          </div>
+          <p className="tabular-nums text-lg font-semibold">{bahtWhole(spendTotal)}</p>
+        </div>
+        <BarList
+          total={spendTotal}
+          emptyText="ยังไม่มีบิลในช่วงนี้"
+          groups={[
+            { heading: "ซื้อวัตถุดิบและของใช้ในครัว", note: "ยอดที่ซื้อเข้ามา — ไม่ใช่ต้นทุนของที่ขายไป (ส่วนต่างคือของที่ยังอยู่ในสต๊อก)", rows: toRows(spend.cogs) },
+            { heading: "ค่าใช้จ่ายดำเนินงาน", rows: toRows(spend.opex) },
+          ]}
+        />
+      </section>
 
       <form method="get" className="flex flex-wrap items-end gap-3">
         {branches.length > 1 && (
