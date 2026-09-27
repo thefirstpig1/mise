@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { createTenant } from "@/server/tenant-init";
-import { auth, signIn } from "@/lib/auth";
+import { auth, signIn, signOut } from "@/lib/auth";
 import Logo from "@/components/layout/Logo";
 import { KitchenDoodle, MarkerUnderline } from "@/components/layout/Doodles";
 
@@ -70,6 +70,11 @@ async function handleSignup(formData: FormData) {
   if (code) redirect("/login?error=SignupEmailFailed");
 
   redirect(`/login?check-email=${encodeURIComponent(email)}`);
+}
+
+async function signOutToUseAnotherEmail() {
+  "use server";
+  await signOut({ redirectTo: "/login" });
 }
 
 export default async function SignupPage() {
@@ -204,12 +209,26 @@ export default async function SignupPage() {
             </button>
           </form>
 
-          <p className="mt-6 text-center text-sm text-muted-foreground">
-            มีบัญชีแล้ว?{" "}
-            <a href="/login" className="text-primary underline">
-              เข้าสู่ระบบ
-            </a>
-          </p>
+          {signedInEmail ? (
+            // 🔴 NOT a link to /login. A signed-in person with no shop is
+            // bounced /login → /dashboard → /signup, straight back here, so
+            // "เข้าสู่ระบบ" was a button that did nothing (Kong, 2026-09-27).
+            // What they can actually want from this spot is a different
+            // address, and that means signing out first.
+            <form action={signOutToUseAnotherEmail} className="mt-6 text-center text-sm text-muted-foreground">
+              หากต้องการใช้อีเมลอื่น{" "}
+              <button type="submit" className="text-primary underline">
+                ออกจากระบบ
+              </button>
+            </form>
+          ) : (
+            <p className="mt-6 text-center text-sm text-muted-foreground">
+              มีบัญชีแล้ว?{" "}
+              <a href="/login" className="text-primary underline">
+                เข้าสู่ระบบ
+              </a>
+            </p>
+          )}
         </div>
       </div>
     </main>
