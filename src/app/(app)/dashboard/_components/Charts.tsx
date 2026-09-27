@@ -307,6 +307,34 @@ export function MonthlyPnlChart({ points, active }: { points: MonthPoint[]; acti
 }
 
 // ------------------------------------------------------------
+// 3c. Money per day — one series of bars (used by วิเคราะห์รายจ่าย)
+// ------------------------------------------------------------
+export function DailyBarsChart({ rows, label }: { rows: { day: string; amount: number }[]; label: string }) {
+  if (rows.length === 0) {
+    return <p className="py-12 text-center text-sm text-muted-foreground">ยังไม่มีข้อมูลในช่วงนี้</p>;
+  }
+  return (
+    <div className="h-60 w-full">
+      <ResponsiveContainer>
+        <BarChart data={rows} margin={{ top: 8, right: 12, bottom: 0, left: 4 }}>
+          <CartesianGrid stroke={GRID} vertical={false} />
+          <XAxis dataKey="day" tickFormatter={dayLabel} minTickGap={16} {...axis} />
+          <YAxis tickFormatter={compact} width={48} {...axis} axisLine={false} />
+          <Tooltip
+            cursor={{ fill: "rgb(174 183 132 / 0.14)" }}
+            content={({ active, payload }) => {
+              const r = active && payload?.length ? (payload[0].payload as { day: string; amount: number }) : null;
+              return r ? <TooltipBox title={dayLabel(r.day)} rows={[{ label, value: baht(r.amount) }]} /> : null;
+            }}
+          />
+          <Bar dataKey="amount" fill={SERIES[0]} radius={[4, 4, 0, 0]} />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+// ------------------------------------------------------------
 // 4. Best sellers
 // ------------------------------------------------------------
 export type MenuBar = { name: string; net: number; qty: number };

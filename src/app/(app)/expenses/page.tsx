@@ -27,6 +27,7 @@ import PaymentBadge from "./_components/PaymentBadge";
 
 import EmptyState from "@/components/ui/EmptyState";
 import BarList from "@/components/charts/BarList";
+import ActionLink from "@/components/ui/ActionLink";
 import { getSpendBreakdownLogic } from "@/server/pnl";
 import { computeBangkokToday } from "@/lib/bangkok-date";
 const dateLabel = (iso: string) =>
@@ -169,7 +170,10 @@ export default async function ExpenseListPage({
               {periodLabel} · ตามวันที่บิล ไม่รวม VAT · % คือสัดส่วนของรายจ่ายรวม
             </p>
           </div>
-          <p className="tabular-nums text-lg font-semibold">{bahtWhole(spendTotal)}</p>
+          <div className="flex items-center gap-3">
+            <p className="tabular-nums text-lg font-semibold">{bahtWhole(spendTotal)}</p>
+            <ActionLink href="/expenses/analysis">วิเคราะห์ละเอียด</ActionLink>
+          </div>
         </div>
         <BarList
           total={spendTotal}
