@@ -26,7 +26,7 @@ import {
   postConsumptionForDayLogic,
   voidConsumptionForDayInTx,
 } from "@/server/consumption-post";
-import { toConsumptionDayView } from "@/app/consumption/_components/consumption-view";
+import { toConsumptionDayView } from "@/app/(app)/consumption/_components/consumption-view";
 
 describe("consumption day status (ADR 0022 Part 22 L4a)", () => {
   let tenantA: string;

@@ -45,9 +45,9 @@ const { computeBangkokToday } = await import("@/lib/bangkok-date");
 const { productInputSchema } = await import("@/lib/validations/product");
 const { createProductLogic } = await import("@/server/product");
 const { createStaffMealAction, createStaffMemberAction } = await import(
-  "@/app/staff-meals/actions"
+  "@/app/(app)/staff-meals/actions"
 );
-const { openStockCountAction } = await import("@/app/stock-counts/actions");
+const { openStockCountAction } = await import("@/app/(app)/stock-counts/actions");
 
 type ProductWithUnits = Awaited<ReturnType<typeof createProductLogic>>;
 

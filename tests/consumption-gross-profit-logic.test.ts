@@ -35,7 +35,7 @@ import {
 import { recipeInputSchema } from "@/lib/validations/recipe";
 import { createRecipeLogic } from "@/server/recipe";
 import { getBranchCostSummaryLogic } from "@/server/stock-cost";
-import { toBranchCostSummaryView } from "@/app/cost/_components/cost-view";
+import { toBranchCostSummaryView } from "@/app/(app)/cost/_components/cost-view";
 import {
   postConsumptionForDayLogic,
   voidConsumptionForDayInTx,

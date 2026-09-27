@@ -47,7 +47,7 @@ const {
   inviteMemberAction,
   setMemberActiveAction,
   updateMemberAction,
-} = await import("@/app/settings/members/actions");
+} = await import("@/app/(app)/settings/members/actions");
 
 function redirectTarget(e: unknown): string | null {
   const digest = (e as { digest?: string })?.digest;

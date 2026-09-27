@@ -57,7 +57,7 @@ vi.mock("next/headers", () => ({
 
 const { notifyInvitedPerson } = await import("@/server/invite-notify");
 const { withRlsBypass } = await import("@/lib/db-admin");
-const { inviteMemberAction } = await import("@/app/settings/members/actions");
+const { inviteMemberAction } = await import("@/app/(app)/settings/members/actions");
 
 const SHOP = "ร้านเจ๊แดง";
 
