@@ -17,6 +17,7 @@ import { PERIOD_REGEX } from "@/lib/validations/expense";
 import { createExpenseAction } from "../actions";
 import ExpenseForm from "../_components/ExpenseForm";
 
+import EmptyState from "@/components/ui/EmptyState";
 export default async function NewExpensePage({
   searchParams,
 }: {
@@ -72,12 +73,12 @@ export default async function NewExpensePage({
       </div>
 
       {categories.length === 0 ? (
-        <div className="rounded-lg border border-warn-border bg-warn-bg p-4 text-sm text-warn">
+        <EmptyState art="setup">
           ยังไม่มีหมวดบัญชีในระบบ — ต้องมีอย่างน้อย 1 หมวดก่อนบันทึกค่าใช้จ่าย{" "}
           <a href="/categories" className="font-medium underline">
             ไปตั้งค่าหมวดบัญชี
           </a>
-        </div>
+        </EmptyState>
       ) : (
         <ExpenseForm
           action={createExpenseAction}

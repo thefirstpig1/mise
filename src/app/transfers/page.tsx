@@ -26,6 +26,7 @@ import {
 import { toTransferView } from "./_components/transfer-view";
 
 
+import EmptyState from "@/components/ui/EmptyState";
 const STATUS_STYLE: Record<string, string> = {
   SENT: "border-warn-border bg-warn-bg text-warn",
   RECEIVED: "border-good-border bg-good-bg text-good",
@@ -146,11 +147,11 @@ export default async function TransfersPage({
       )}
 
       {rows.length === 0 ? (
-        <div className="rounded-lg border border-border bg-muted/30 p-6 text-sm text-muted-foreground">
+        <EmptyState art={branches.length < 2 ? "setup" : "none"}>
           {branches.length < 2
             ? "ยังโอนของไม่ได้ เพราะต้องมีอย่างน้อย 2 สาขา"
             : "ยังไม่มีใบโอนที่ตรงกับเงื่อนไขนี้"}
-        </div>
+        </EmptyState>
       ) : (
         <ul className="space-y-3">
           {rows.map((t) => (

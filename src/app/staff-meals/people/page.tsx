@@ -21,6 +21,7 @@ import {
   EditStaffMemberRow,
 } from "./_components/StaffMemberForm";
 
+import EmptyState from "@/components/ui/EmptyState";
 export default async function StaffPeoplePage() {
   const { tenantId, reach} = await requireTenant("staffmeal:write");
 
@@ -67,9 +68,9 @@ export default async function StaffPeoplePage() {
           ยังทำงานอยู่ ({active.length})
         </h2>
         {active.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+          <EmptyState art="start">
             ยังไม่มีรายชื่อ
-          </p>
+          </EmptyState>
         ) : (
           active.map((m) => (
             <EditStaffMemberRow

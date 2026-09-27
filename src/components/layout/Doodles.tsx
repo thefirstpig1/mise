@@ -310,3 +310,74 @@ export function EmptyPlate({ className }: { className?: string }) {
     </svg>
   );
 }
+
+// ------------------------------------------------------------
+// Empty-state art (doodle wave 2). Small by design — they sit above a
+// sentence that carries the meaning, and must never compete with it.
+// Rendered through <EmptyState>, which picks one of the three by what the
+// emptiness MEANS, not by which page it is on.
+// ------------------------------------------------------------
+
+/** "Nothing yet — make the first one": a blank notebook and a pencil. */
+export function BlankNotebook({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 120 90" className={`text-primary ${className ?? ""}`} aria-hidden="true" focusable="false">
+      <Wobble id="doodle-wobble-notebook" scale={1.8} />
+      <g filter="url(#doodle-wobble-notebook)">
+        <g transform="rotate(-6 50 48)">
+          <path className="fill-wash" transform="translate(4 4)" d="M22 14 L78 12 L80 80 L24 82 Z" />
+          <path {...ink} d="M22 14 L78 12 L80 80 L24 82 Z" />
+          <path {...ink} strokeWidth={2} d="M32 7 v11 M44 6 v11 M56 6 v11 M68 6 v11" />
+          <path {...ink} strokeWidth={1.4} strokeOpacity={0.35} d="M32 36 H70 M32 50 H70 M32 64 H62" />
+        </g>
+        {/* the pencil, laid across the page */}
+        <g transform="rotate(38 92 50)">
+          <path className="fill-sage" transform="translate(2 2)" d="M86 22 H98 V70 H86 Z" />
+          <path {...ink} d="M86 22 H98 V70 H86 Z M86 70 L92 82 L98 70 M86 30 H98" />
+          <path {...ink} strokeWidth={1.6} d="M90.5 78 L92 82 L93.5 78" />
+        </g>
+      </g>
+      <Sparkle x={14} y={20} s={0.55} />
+    </svg>
+  );
+}
+
+/** "Nothing in this period / filter": the market basket, empty. */
+export function EmptyBasket({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 120 90" className={`text-primary ${className ?? ""}`} aria-hidden="true" focusable="false">
+      <Wobble id="doodle-wobble-basket" scale={1.8} />
+      <g filter="url(#doodle-wobble-basket)">
+        {/* handle */}
+        <path {...ink} d="M32 42 C 34 10, 86 10, 88 42" />
+        <path className="fill-sage/55" transform="translate(4 4)" d="M20 42 H100 L90 80 H30 Z" />
+        <path {...ink} d="M20 42 H100 L90 80 H30 Z" />
+        <path {...ink} strokeWidth={2.8} d="M17 42 H103" />
+        {/* the weave */}
+        <path {...ink} strokeWidth={1.4} strokeOpacity={0.45} d="M24 54 H96 M27 66 H93 M40 44 L44 78 M55 44 L57 78 M70 44 L68 78 M84 44 L80 78" />
+        <path {...ink} strokeOpacity={0.45} d="M8 84 C 40 81, 80 86, 114 83" />
+      </g>
+      <Grain x={108} y={74} r={65} />
+    </svg>
+  );
+}
+
+/** "This page needs something set up elsewhere first": a signpost. */
+export function Signpost({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 120 90" className={`text-primary ${className ?? ""}`} aria-hidden="true" focusable="false">
+      <Wobble id="doodle-wobble-signpost" scale={1.8} />
+      <g filter="url(#doodle-wobble-signpost)">
+        <path {...ink} strokeWidth={2.8} d="M46 22 V84" />
+        {/* the board, an arrow pointing on */}
+        <path className="fill-sage/60" transform="translate(4 4)" d="M28 20 H86 L100 32 L86 44 H28 Z" />
+        <path {...ink} d="M28 20 H86 L100 32 L86 44 H28 Z" />
+        <path {...ink} strokeWidth={1.6} strokeOpacity={0.5} d="M38 32 H80" />
+        {/* a tuft of grass at the foot */}
+        <path {...ink} strokeWidth={1.8} d="M36 84 l3 -8 l3 8 M50 84 l3 -9 l3 9" />
+        <path {...ink} strokeOpacity={0.45} d="M10 85 C 40 82, 80 87, 112 84" />
+      </g>
+      <Grain x={88} y={70} r={-30} />
+    </svg>
+  );
+}

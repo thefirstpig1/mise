@@ -12,6 +12,7 @@ import {
 import PurchaseOrderForm from "../_components/PurchaseOrderForm";
 import { loadPurchaseOrderFormOptions } from "../_components/form-options";
 
+import EmptyState from "@/components/ui/EmptyState";
 export default async function NewPurchaseOrderPage() {
   const { tenantId, membership, reach} = await requireTenant("purchase:write");
   const { products, suppliers, branches } =
@@ -34,12 +35,12 @@ export default async function NewPurchaseOrderPage() {
       </div>
 
       {blocked ? (
-        <div className="rounded-lg border border-border bg-muted/30 p-6 text-sm">
+        <EmptyState art="setup">
           ยังไม่มี{blocked.what}ในระบบ —{" "}
           <a href={blocked.href} className="text-primary hover:underline">
             {blocked.cta}ก่อน
           </a>
-        </div>
+        </EmptyState>
       ) : (
         <PurchaseOrderForm
           action={createPurchaseOrderAction}

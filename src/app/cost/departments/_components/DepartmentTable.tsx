@@ -7,6 +7,8 @@
 // Decimal cannot cross into a Client Component (Pitfall #20), so every figure
 // arrives as a formatted string.
 
+import EmptyState from "@/components/ui/EmptyState";
+
 const baht = (s: string) =>
   `฿${Number(s).toLocaleString("th-TH", {
     minimumFractionDigits: 2,
@@ -56,9 +58,9 @@ export default function DepartmentTable({
       : (Number(coveredNetAmount) / Number(revenueTotal)) * 100;
   if (rows.length === 0) {
     return (
-      <p className="text-sm text-muted-foreground">
+      <EmptyState art="none">
         ยังไม่มียอดขายหรือการตัดสต๊อกในช่วงนี้
-      </p>
+      </EmptyState>
     );
   }
 

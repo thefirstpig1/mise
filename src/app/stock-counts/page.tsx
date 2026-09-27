@@ -21,6 +21,7 @@ import { getIncomingTransfersLogic } from "@/server/transfer";
 import { toTransferView } from "@/app/transfers/_components/transfer-view";
 import IncomingTransfers from "@/app/transfers/_components/IncomingTransfers";
 
+import EmptyState from "@/components/ui/EmptyState";
 export default async function StockCountListPage({
   searchParams,
 }: {
@@ -138,9 +139,9 @@ export default async function StockCountListPage({
       </form>
 
       {rows.length === 0 ? (
-        <div className="rounded-lg border border-border bg-muted/30 p-6 text-sm">
+        <EmptyState art="start">
           ยังไม่มีใบนับสต๊อก — กด &ldquo;เปิดใบนับใหม่&rdquo; เพื่อเริ่มนับครั้งแรก
-        </div>
+        </EmptyState>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-border">
           <table className="w-full min-w-[34rem]">

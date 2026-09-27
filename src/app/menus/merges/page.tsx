@@ -34,6 +34,7 @@ import MergeForm from "../_components/MergeForm";
 import RevokeMergeButton from "../_components/RevokeMergeButton";
 
 
+import EmptyState from "@/components/ui/EmptyState";
 /** A uuid, or nothing. A stray `?menu=` must not become a database round trip. */
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -189,9 +190,9 @@ export default async function MenuMergesPage({
         </div>
 
         {mergeRows.length === 0 ? (
-          <p className="rounded-lg border border-border bg-surface p-4 text-sm text-muted-foreground">
+          <EmptyState art="start">
             ยังไม่มีการรวมเมนู
-          </p>
+          </EmptyState>
         ) : (
           <ul className="divide-y divide-border rounded-lg border border-border bg-surface">
             {mergeRows.map((m) => (

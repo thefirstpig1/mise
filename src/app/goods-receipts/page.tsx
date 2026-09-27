@@ -22,6 +22,7 @@ import {
 import { toGoodsReceiptListView } from "./_components/goods-receipt-view";
 import StatusBadge from "./_components/StatusBadge";
 
+import EmptyState from "@/components/ui/EmptyState";
 export default async function GoodsReceiptsPage({
   searchParams,
 }: {
@@ -123,9 +124,9 @@ export default async function GoodsReceiptsPage({
       )}
 
       {receipts.length === 0 ? (
-        <div className="rounded-lg border border-border bg-muted/30 p-6 text-sm text-muted-foreground">
+        <EmptyState art="none">
           ยังไม่มีใบรับสินค้าตามเงื่อนไขนี้
-        </div>
+        </EmptyState>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-border">
           <table className="w-full text-sm">

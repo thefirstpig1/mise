@@ -35,6 +35,7 @@ import StaffMealEntryForm from "./_components/StaffMealEntryForm";
 import VoidStaffMealButton from "./_components/VoidStaffMealButton";
 
 
+import EmptyState from "@/components/ui/EmptyState";
 /**
  * The list defaults to THIS MONTH, not to all of history — the same call /waste
  * made. A staff meal log grows every single day, and the month is the period a
@@ -268,9 +269,9 @@ export default async function StaffMealsPage({
         </p>
 
         {rows.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+          <EmptyState art="none">
             ยังไม่มีรายการในช่วงที่เลือก
-          </p>
+          </EmptyState>
         ) : (
           <ul className="space-y-2">
             {rows.map((r) => (

@@ -34,6 +34,7 @@ import {
   toReceivablePurchaseOrderView,
 } from "../_components/goods-receipt-view";
 
+import EmptyState from "@/components/ui/EmptyState";
 export default async function NewGoodsReceiptPage({
   searchParams,
 }: {
@@ -76,12 +77,12 @@ export default async function NewGoodsReceiptPage({
       </div>
 
       {blocked ? (
-        <div className="rounded-lg border border-border bg-muted/30 p-6 text-sm">
+        <EmptyState art="setup">
           ยังไม่มี{blocked.what}ในระบบ —{" "}
           <a href={blocked.href} className="text-primary hover:underline">
             {blocked.cta}ก่อน
           </a>
-        </div>
+        </EmptyState>
       ) : (
         <GoodsReceiptForm
           action={createGoodsReceiptAction}

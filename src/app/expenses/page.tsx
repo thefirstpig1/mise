@@ -25,6 +25,7 @@ import {
 import { formatMoney } from "@/app/cost/_components/cost-view";
 import PaymentBadge from "./_components/PaymentBadge";
 
+import EmptyState from "@/components/ui/EmptyState";
 const dateLabel = (iso: string) =>
   new Date(iso).toLocaleDateString("th-TH", { dateStyle: "medium" });
 
@@ -242,10 +243,10 @@ export default async function ExpenseListPage({
       </form>
 
       {rows.length === 0 ? (
-        <div className="rounded-lg border border-border bg-muted/30 p-6 text-sm">
+        <EmptyState art="start">
           ยังไม่มีรายการค่าใช้จ่าย — กด &ldquo;บันทึกค่าใช้จ่าย&rdquo;
           เพื่อบันทึกบิลแรก (บิลค่าของจะถูกสร้างให้เองเมื่อยืนยันใบรับของ)
-        </div>
+        </EmptyState>
       ) : (
         <>
           {unpaidTotal > 0 && (

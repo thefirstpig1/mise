@@ -8,6 +8,8 @@
 //
 // Decimal cannot cross into a Client Component (Pitfall #20): strings only.
 
+import EmptyState from "@/components/ui/EmptyState";
+
 const baht = (s: string) =>
   `฿${Number(s).toLocaleString("th-TH", {
     minimumFractionDigits: 2,
@@ -35,7 +37,7 @@ export type LeakRowView = {
 export default function LeakTable({ rows }: { rows: LeakRowView[] }) {
   if (rows.length === 0) {
     return (
-      <div className="space-y-2">
+      <EmptyState art="none">
         <p className="text-sm text-muted-foreground">
           ยังไม่มีการนับสต๊อกที่ปิดแล้วในช่วงนี้
         </p>
@@ -43,7 +45,7 @@ export default function LeakTable({ rows }: { rows: LeakRowView[] }) {
           ตารางนี้เปรียบเทียบยอดที่ระบบคิดว่าควรเหลือ กับยอดที่คนไปนับมาจริง —
           ถ้ายังไม่เคยนับ ก็ยังไม่มีอะไรให้เทียบ
         </p>
-      </div>
+      </EmptyState>
     );
   }
 

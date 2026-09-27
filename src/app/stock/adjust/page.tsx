@@ -20,6 +20,7 @@ import StockAdjustForm, {
   type StockProductOption,
 } from "../_components/StockAdjustForm";
 
+import EmptyState from "@/components/ui/EmptyState";
 export default async function StockAdjustPage() {
   const { tenantId, reach} = await requireTenant("stock:write");
 
@@ -69,12 +70,12 @@ export default async function StockAdjustPage() {
       </div>
 
       {productOptions.length === 0 ? (
-        <div className="rounded-lg border border-border bg-muted/30 p-6 text-sm">
+        <EmptyState art="setup">
           ยังไม่มีวัตถุดิบในระบบ —{" "}
           <a href="/products/new" className="text-primary hover:underline">
             เพิ่มวัตถุดิบก่อน
           </a>
-        </div>
+        </EmptyState>
       ) : (
         <StockAdjustForm
           action={createStockAdjustmentAction}

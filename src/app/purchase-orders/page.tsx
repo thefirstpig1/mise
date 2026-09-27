@@ -22,6 +22,7 @@ import {
 import { toPurchaseOrderListView } from "./_components/purchase-order-view";
 import StatusBadge from "./_components/StatusBadge";
 
+import EmptyState from "@/components/ui/EmptyState";
 const THB = new Intl.NumberFormat("th-TH", {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
@@ -125,9 +126,9 @@ export default async function PurchaseOrdersPage({
       )}
 
       {orders.length === 0 ? (
-        <div className="rounded-lg border border-border bg-muted/30 p-6 text-sm text-muted-foreground">
+        <EmptyState art="none">
           ยังไม่มีใบสั่งซื้อตามเงื่อนไขนี้
-        </div>
+        </EmptyState>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-border">
           <table className="w-full text-sm">

@@ -35,6 +35,7 @@ import MenuRowEditor, {
 import NewCategoryForm from "./_components/NewCategoryForm";
 
 
+import EmptyState from "@/components/ui/EmptyState";
 export default async function MenusPage({
   searchParams,
 }: {
@@ -175,7 +176,7 @@ export default async function MenusPage({
 
       {/* ---------- list ---------- */}
       {rows.length === 0 ? (
-        <div className="rounded-lg border border-border bg-surface p-6 text-sm">
+        <EmptyState art="start">
           <p className="font-medium">
             {query.stubsOnly
               ? "ไม่มีเมนูรอตรวจ"
@@ -189,7 +190,7 @@ export default async function MenusPage({
           <a href="/sales/import" className="mt-4 inline-block text-sm text-primary underline">
             นำเข้ายอดขาย
           </a>
-        </div>
+        </EmptyState>
       ) : (
         <ul className="divide-y divide-border rounded-lg border border-border bg-surface">
           {rows.map((m) => (

@@ -26,6 +26,7 @@ import WasteEntryForm, {
 import VoidWasteButton from "./_components/VoidWasteButton";
 
 
+import EmptyState from "@/components/ui/EmptyState";
 /**
  * A serialized row's `reason` is a plain string (the view layer stays
  * structural), so the lookup falls back to the raw value rather than casting.
@@ -134,12 +135,12 @@ export default async function WastePage({
       </div>
 
       {productOptions.length === 0 || branchOptions.length === 0 ? (
-        <div className="rounded-lg border border-border bg-muted/30 p-6 text-sm">
+        <EmptyState art="setup">
           ยังไม่มีวัตถุดิบหรือสาขาในระบบ —{" "}
           <a href="/products/new" className="text-primary hover:underline">
             เพิ่มวัตถุดิบก่อน
           </a>
-        </div>
+        </EmptyState>
       ) : (
         <section className="rounded-xl border border-border bg-surface p-5">
           <WasteEntryForm

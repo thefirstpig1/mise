@@ -12,6 +12,7 @@ import Link from "next/link";
 import { ACCOUNT_LABELS_TH, type Account } from "@/lib/validations/category";
 import type { ProductView } from "./product-view";
 
+import EmptyState from "@/components/ui/EmptyState";
 type GroupNode = { group: string; products: ProductView[] };
 type SectionNode = { section: string; total: number; groups: GroupNode[] };
 type AccountNode = { account: string; total: number; sections: SectionNode[] };
@@ -158,13 +159,13 @@ export default function ProductTree({ products }: { products: ProductView[] }) {
       </div>
 
       {products.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border p-8 text-center text-muted-foreground">
+        <EmptyState art="start">
           ยังไม่มีสินค้า — กด &quot;เพิ่มสินค้า&quot; เพื่อเริ่มต้น
-        </div>
+        </EmptyState>
       ) : !hasResults ? (
-        <div className="rounded-lg border border-dashed border-border p-8 text-center text-muted-foreground">
+        <EmptyState art="none">
           ไม่พบสินค้าที่ค้นหา
-        </div>
+        </EmptyState>
       ) : (
         <div className="divide-y divide-border rounded-lg border border-border">
           {accounts.map((acc) => {

@@ -8,6 +8,7 @@ import { useState } from "react";
 import Link from "next/link";
 import type { SupplierView } from "./supplier-view";
 
+import EmptyState from "@/components/ui/EmptyState";
 export default function SupplierList({
   suppliers,
 }: {
@@ -58,13 +59,13 @@ export default function SupplierList({
       </div>
 
       {suppliers.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border p-8 text-center text-muted-foreground">
+        <EmptyState art="start">
           ยังไม่มีซัพพลายเออร์ — กด &quot;เพิ่มซัพพลายเออร์&quot; เพื่อเริ่มต้น
-        </div>
+        </EmptyState>
       ) : filtered.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border p-8 text-center text-muted-foreground">
+        <EmptyState art="none">
           ไม่พบข้อมูลที่ค้นหา
-        </div>
+        </EmptyState>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-border">
           <table className="w-full text-sm">

@@ -11,6 +11,7 @@ import Link from "next/link";
 import type { Category } from "@prisma/client";
 import { ACCOUNT_LABELS_TH, type Account } from "@/lib/validations/category";
 
+import EmptyState from "@/components/ui/EmptyState";
 type SectionNode = { section: string; leaves: Category[] };
 type AccountNode = { account: string; total: number; sections: SectionNode[] };
 
@@ -88,13 +89,13 @@ export default function CategoryTree({
       />
 
       {categories.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border p-8 text-center text-muted-foreground">
+        <EmptyState art="start">
           ยังไม่มีหมวดบัญชี — กด &quot;เพิ่มหมวดบัญชี&quot; เพื่อเริ่มต้น
-        </div>
+        </EmptyState>
       ) : tree.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border p-8 text-center text-muted-foreground">
+        <EmptyState art="none">
           ไม่พบหมวดบัญชีที่ค้นหา
-        </div>
+        </EmptyState>
       ) : (
         <div className="divide-y divide-border rounded-lg border border-border">
           {tree.map((acc) => {

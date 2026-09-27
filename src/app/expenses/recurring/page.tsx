@@ -13,6 +13,7 @@ import {
 import { formatMoney } from "@/app/cost/_components/cost-view";
 import { toRecurringExpenseView } from "../_components/expense-view";
 
+import EmptyState from "@/components/ui/EmptyState";
 export default async function RecurringExpensePage() {
   const { tenantId } = await requireTenant("expense:view");
 
@@ -47,10 +48,10 @@ export default async function RecurringExpensePage() {
       </div>
 
       {templates.length === 0 ? (
-        <div className="rounded-lg border border-border bg-muted/30 p-6 text-sm">
+        <EmptyState art="start">
           ยังไม่มีรายการประจำ — เพิ่มค่าเช่า ค่าไฟ หรือค่าทำบัญชี
           แล้วระบบจะเตือนทุกเดือน
-        </div>
+        </EmptyState>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-border">
           <table className="w-full min-w-[42rem]">

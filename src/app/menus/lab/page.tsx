@@ -15,6 +15,7 @@ import { getDraftsLogic } from "@/server/menu-lab-read";
 import { toDraftRowView } from "../_components/menu-lab-view";
 import { PLANNED_PRICE_LABEL_TH } from "@/lib/validations/menu-lab";
 
+import EmptyState from "@/components/ui/EmptyState";
 export default async function MenuLabPage() {
   const { tenantId } = await requireTenant("recipe:write");
   const drafts = (await getDraftsLogic(tenantId)).map(toDraftRowView);
@@ -47,11 +48,11 @@ export default async function MenuLabPage() {
       </div>
 
       {drafts.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border p-8 text-center">
+        <EmptyState art="start">
           <p className="text-sm text-muted-foreground">
             ยังไม่มีร่างสูตร — กด “ร่างสูตรใหม่” เพื่อลองคิดต้นทุนของจานที่ยังไม่ได้ขาย
           </p>
-        </div>
+        </EmptyState>
       ) : (
         <ul className="space-y-3">
           {drafts.map((d) => (

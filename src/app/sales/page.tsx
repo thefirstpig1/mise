@@ -29,6 +29,7 @@ import {
 } from "./_components/sales-view";
 
 
+import EmptyState from "@/components/ui/EmptyState";
 const baht = (v: string) =>
   Number(v).toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const bahtShort = (v: string) => Number(v).toLocaleString("th-TH", { maximumFractionDigits: 0 });
@@ -129,7 +130,7 @@ export default async function SalesPage({
       </form>
 
       {empty ? (
-        <div className="rounded-lg border border-border bg-surface p-6 text-sm">
+        <EmptyState art="none">
           <p className="font-medium">ยังไม่มียอดขายในช่วงนี้</p>
           <p className="mt-2 text-muted-foreground">
             ยอดขายเข้าระบบด้วยการนำเข้าไฟล์จาก POS — ไฟล์เดียวครอบได้หลายวัน
@@ -140,7 +141,7 @@ export default async function SalesPage({
           >
             นำเข้ายอดขาย
           </a>
-        </div>
+        </EmptyState>
       ) : (
         <>
           {/* ---------- totals ---------- */}
