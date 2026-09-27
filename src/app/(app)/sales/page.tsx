@@ -27,6 +27,10 @@ import {
   toSalesDayRowView,
   toSalesSummaryView,
 } from "./_components/sales-view";
+import { MenuTable, SalesDailyChart, WeekdayChart } from "./_components/SalesCharts";
+import BarList from "@/components/charts/BarList";
+import ActionLink from "@/components/ui/ActionLink";
+import { recentMonths } from "@/app/(app)/dashboard/_components/dashboard-period";
 
 
 import EmptyState from "@/components/ui/EmptyState";
@@ -80,6 +84,44 @@ export default async function SalesPage({
   ]);
 
   const s = toSalesSummaryView(summaryRaw);
+
+  // Part 35 C — a clicked day opens below the chart (Kong's "click a bar to
+  // see that day"). Its own summary, the same function, one day wide.
+  const dayParam = one("day");
+  const dayValid = dayParam && /^\d{4}-\d{2}-\d{2}$/.test(dayParam) ? dayParam : null;
+  const daySummary = dayValid
+    ? toSalesSummaryView(
+        await getSalesSummaryLogic(
+          tenantId,
+          getSalesQuerySchema.parse({
+            branchId: query.branchId,
+            from: dayValid,
+            to: dayValid,
+            menuCategoryId: query.menuCategoryId,
+            includeSuperseded: "false",
+          })
+        )
+      )
+    : null;
+
+  // Filters as pills — every one a plain link that keeps the others.
+  const fromIso = one("from") ?? month.from;
+  const toIso = one("to") ?? month.to;
+  const link = (next: Record<string, string | undefined>) => {
+    const cur: Record<string, string | undefined> = { branch: one("branch"), from: fromIso, to: toIso, category: one("category") };
+    const q = new URLSearchParams();
+    for (const [k, v] of Object.entries({ ...cur, ...next })) if (v) q.set(k, v);
+    return `/sales?${q.toString()}`;
+  };
+  const months = recentMonths(6).map((m) => ({
+    key: m.key,
+    from: m.from.toISOString().slice(0, 10),
+    to: m.to.toISOString().slice(0, 10),
+    label: new Date(`${m.key}-01T00:00:00Z`).toLocaleDateString("th-TH", { month: "short", year: "2-digit", timeZone: "UTC" }),
+  }));
+  const pill = (active: boolean) =>
+    `rounded-full border px-3 py-1 text-sm transition-colors ${active ? "border-primary bg-primary text-primary-foreground" : "border-border-strong bg-surface hover:bg-muted"}`;
+  const totalNet = Number(s.totals.net);
   const days = daysRaw.map(toSalesDayRowView);
   const empty = s.totals.rows === 0;
 
@@ -87,13 +129,44 @@ export default async function SalesPage({
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <h2 className="text-base font-bold">ยอดขาย</h2>
-        <a href="/sales/import" className="text-sm text-primary hover:underline">
-          นำเข้ายอดขาย →
-        </a>
+        <ActionLink href="/sales/import">นำเข้ายอดขาย</ActionLink>
       </div>
 
-      {/* ---------- filters ---------- */}
-      <form className="flex flex-wrap items-end gap-3 rounded-lg border border-border bg-surface p-4">
+      {/* ---------- filters (Part 35 C: pills, sticky, like Kong's sheet) ---------- */}
+      <section className="sticky top-0 z-20 space-y-3 rounded-xl border border-border bg-surface/95 p-4 shadow-sm backdrop-blur lg:top-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="w-16 shrink-0 text-xs font-medium text-muted-foreground">เดือน</span>
+          {months.map((m) => (
+            <a key={m.key} href={link({ from: m.from, to: m.to })} className={pill(fromIso === m.from && toIso === m.to)}>
+              {m.label}
+            </a>
+          ))}
+        </div>
+        {branches.length > 1 ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="w-16 shrink-0 text-xs font-medium text-muted-foreground">สาขา</span>
+            <a href={link({ branch: undefined })} className={pill(!one("branch"))}>ทุกสาขา</a>
+            {branches.map((b) => (
+              <a key={b.id} href={link({ branch: one("branch") === b.id ? undefined : b.id })} className={pill(one("branch") === b.id)}>
+                {b.name}
+              </a>
+            ))}
+          </div>
+        ) : null}
+        {categories.length > 0 ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="w-16 shrink-0 text-xs font-medium text-muted-foreground">หมวดเมนู</span>
+            <a href={link({ category: undefined })} className={pill(!one("category"))}>ทุกหมวด</a>
+            {categories.map((c) => (
+              <a key={c.id} href={link({ category: one("category") === c.id ? undefined : c.id })} className={pill(one("category") === c.id)}>
+                {c.name}
+              </a>
+            ))}
+          </div>
+        ) : null}
+        <details className="text-sm">
+          <summary className="cursor-pointer select-none text-xs font-medium text-primary">กำหนดช่วงวันที่เอง</summary>
+          <form className="mt-3 flex flex-wrap items-end gap-3">
         <label className="text-sm">
           สาขา
           <select name="branch" defaultValue={one("branch") ?? ""} className={"input mt-1 block"}>
@@ -128,6 +201,8 @@ export default async function SalesPage({
           ดู
         </button>
       </form>
+        </details>
+      </section>
 
       {empty ? (
         <EmptyState art="none">
@@ -168,96 +243,127 @@ export default async function SalesPage({
             </section>
           )}
 
-          {/* ---------- by weekday ---------- */}
-          <section>
-            <h3 className="text-sm font-medium">วันไหนของสัปดาห์ขายดี</h3>
-            <p className="mt-1 text-xs text-muted-foreground">
-              เฉลี่ยต่อวัน หารด้วยจำนวนวันนั้นที่มีจริงในช่วง — สามวันจันทร์ไม่ใช่หนึ่งวันจันทร์
+          {/* ---------- Part 35 C: the charts Kong's sheet had ---------- */}
+          <section className="rounded-xl border border-border bg-surface p-5">
+            <h3 className="text-base font-semibold">ยอดขายรายวัน</h3>
+            <p className="mb-4 mt-0.5 text-xs text-muted-foreground">กดที่แท่งเพื่อดูรายละเอียดของวันนั้น · กดซ้ำเพื่อปิด</p>
+            <SalesDailyChart
+              activeDay={dayValid}
+              rows={s.byDay.map((d) => ({
+                day: d.businessDate.slice(0, 10),
+                label: d.dayLabel,
+                weekday: d.weekdayLabel,
+                net: Number(d.net),
+                qty: Number(d.qty),
+              }))}
+            />
+          </section>
+
+          {daySummary ? (
+            <section id="day" className="rounded-xl border-2 border-primary-line bg-surface p-5">
+              <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
+                <div>
+                  <h3 className="text-base font-semibold">
+                    วันที่{" "}
+                    {new Date(`${dayValid}T00:00:00Z`).toLocaleDateString("th-TH", {
+                      weekday: "long",
+                      day: "numeric",
+                      month: "long",
+                      year: "numeric",
+                      timeZone: "UTC",
+                    })}
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    ยอดขาย ฿{bahtShort(daySummary.totals.net)} · {Number(daySummary.totals.qty).toLocaleString("th-TH")} จาน
+                  </p>
+                </div>
+                <ActionLink href={link({})}>ปิดวันนี้</ActionLink>
+              </div>
+              <div className="grid gap-6 lg:grid-cols-2">
+                <div>
+                  <p className="mb-2 text-sm font-medium">แยกตามหมวดเมนู</p>
+                  <BarList
+                    total={Number(daySummary.totals.net)}
+                    groups={[
+                      {
+                        rows: daySummary.byCategory.map((c) => ({
+                          key: c.menuCategoryId ?? "none",
+                          label: c.name,
+                          value: Number(c.net),
+                        })),
+                      },
+                    ]}
+                  />
+                </div>
+                <div>
+                  <p className="mb-2 text-sm font-medium">เมนูของวันนี้</p>
+                  <BarList
+                    total={Number(daySummary.totals.net)}
+                    groups={[
+                      {
+                        rows: daySummary.topMenus.slice(0, 12).map((m) => ({
+                          key: m.menuId,
+                          label: m.name,
+                          detail: `${Number(m.qty).toLocaleString("th-TH")} จาน`,
+                          value: Number(m.net),
+                        })),
+                      },
+                    ]}
+                  />
+                </div>
+              </div>
+            </section>
+          ) : null}
+
+          <div className="grid gap-6 xl:grid-cols-2">
+            <section className="rounded-xl border border-border bg-surface p-5">
+              <h3 className="text-base font-semibold">วันไหนของสัปดาห์ขายดี</h3>
+              <p className="mb-4 mt-0.5 text-xs text-muted-foreground">
+                เฉลี่ยต่อวัน หารด้วยจำนวนวันนั้นที่มีจริงในช่วง — วันที่ขายดีที่สุดเป็นแท่งเข้ม · ใช้วางกะพนักงาน
+              </p>
+              <WeekdayChart
+                rows={[1, 2, 3, 4, 5, 6, 0]
+                  .map((wd) => s.byWeekday.find((w) => w.weekday === wd))
+                  .filter((w): w is NonNullable<typeof w> => Boolean(w))
+                  .map((w) => ({ label: w.weekdayLabel, average: Number(w.averageNet), days: w.dayCount }))}
+              />
+            </section>
+            <section className="rounded-xl border border-border bg-surface p-5">
+              <h3 className="text-base font-semibold">สัดส่วนหมวดเมนู</h3>
+              <p className="mb-4 mt-0.5 text-xs text-muted-foreground">กดหมวดเพื่อดูเฉพาะเมนูในหมวดนั้นทั้งหน้า</p>
+              <BarList
+                total={totalNet}
+                groups={[
+                  {
+                    rows: s.byCategory.map((c) => ({
+                      key: c.menuCategoryId ?? "none",
+                      label: c.name,
+                      detail: `${Number(c.qty).toLocaleString("th-TH")} จาน`,
+                      value: Number(c.net),
+                      href: c.menuCategoryId ? link({ category: c.menuCategoryId }) : undefined,
+                    })),
+                  },
+                ]}
+              />
+            </section>
+          </div>
+
+          <section className="rounded-xl border border-border bg-surface p-5">
+            <h3 className="text-base font-semibold">เมนูทำเงินสูงสุด</h3>
+            <p className="mb-4 mt-0.5 text-xs text-muted-foreground">
+              {s.topMenus.length} อันดับแรกของช่วงนี้ · ค้นหาได้ · กดหัวคอลัมน์เพื่อเรียงลำดับ
             </p>
-            <div className="mt-2 overflow-x-auto">
-              <table className="min-w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border text-xs text-muted-foreground">
-                    <th className="px-2 py-1 text-left">วัน</th>
-                    <th className="px-2 py-1 text-right">เฉลี่ย/วัน</th>
-                    <th className="px-2 py-1 text-right">รวม</th>
-                    <th className="px-2 py-1 text-right">จำนวนวัน</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {s.byWeekday.map((w) => (
-                    <tr key={w.weekday} className="border-b border-border/50">
-                      <td className="px-2 py-1">{w.weekdayLabel}</td>
-                      <td className="px-2 py-1 text-right font-medium">฿{baht(w.averageNet)}</td>
-                      <td className="px-2 py-1 text-right text-muted-foreground">฿{bahtShort(w.net)}</td>
-                      <td className="px-2 py-1 text-right text-muted-foreground">{w.dayCount}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
-
-          {/* ---------- by category ---------- */}
-          <section>
-            <h3 className="text-sm font-medium">สัดส่วนหมวดเมนู</h3>
-            <ul className="mt-2 space-y-1">
-              {s.byCategory.map((c) => (
-                <li key={c.menuCategoryId ?? "none"} className="text-sm">
-                  <div className="flex justify-between">
-                    <a
-                      href={`/sales?${new URLSearchParams({
-                        ...(one("branch") ? { branch: one("branch")! } : {}),
-                        from: one("from") ?? month.from,
-                        to: one("to") ?? month.to,
-                        ...(c.menuCategoryId ? { category: c.menuCategoryId } : {}),
-                      }).toString()}`}
-                      className="hover:underline"
-                    >
-                      {c.name}
-                    </a>
-                    <span className="text-muted-foreground">
-                      ฿{bahtShort(c.net)} · {c.sharePercent}%
-                    </span>
-                  </div>
-                  <div className="mt-0.5 h-1.5 w-full rounded bg-border">
-                    <div className="h-1.5 rounded bg-primary" style={{ width: `${c.sharePercent}%` }} />
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </section>
-
-          {/* ---------- top menus ---------- */}
-          <section>
-            <h3 className="text-sm font-medium">เมนูทำเงินสูงสุด</h3>
-            <div className="mt-2 overflow-x-auto">
-              <table className="min-w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border text-xs text-muted-foreground">
-                    <th className="px-2 py-1 text-left">เมนู</th>
-                    <th className="px-2 py-1 text-left">หมวด</th>
-                    <th className="px-2 py-1 text-right">จำนวน</th>
-                    <th className="px-2 py-1 text-right">ยอดขาย</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {s.topMenus.map((m) => (
-                    <tr key={m.menuId} className="border-b border-border/50">
-                      <td className="px-2 py-1">
-                        {m.name}
-                        {m.isPosStub && (
-                          <span className="ml-1 rounded bg-warn/20 px-1 text-xs">รอตรวจ</span>
-                        )}
-                      </td>
-                      <td className="px-2 py-1 text-muted-foreground">{m.menuCategoryName ?? "—"}</td>
-                      <td className="px-2 py-1 text-right">{Number(m.qty).toLocaleString("th-TH")}</td>
-                      <td className="px-2 py-1 text-right font-medium">฿{bahtShort(m.net)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <MenuTable
+              total={totalNet}
+              rows={s.topMenus.map((m) => ({
+                id: m.menuId,
+                name: m.name,
+                category: m.menuCategoryName ?? "—",
+                qty: Number(m.qty),
+                net: Number(m.net),
+                stub: m.isPosStub,
+              }))}
+            />
           </section>
 
           {/* ---------- the days themselves ---------- */}
