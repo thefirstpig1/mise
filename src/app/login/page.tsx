@@ -8,6 +8,12 @@ import {
   checkEmailHintFor,
 } from "@/lib/email/login-messages";
 import Logo from "@/components/layout/Logo";
+import {
+  KitchenDoodle,
+  MarkerUnderline,
+  CurlArrow,
+  EnvelopeDoodle,
+} from "@/components/layout/Doodles";
 
 // Next 15 made `searchParams` a Promise (it was a plain object in 14). This page
 // dates from Sprint 0 and kept the old signature — which `next build` rejects in
@@ -72,9 +78,16 @@ export default async function LoginPage({
               KitKrua · Restaurant Management
             </div>
           </div>
+          {/* Desktop only: on a phone it would push the form below the fold. */}
+          <KitchenDoodle className="mt-2 hidden w-72 md:block" />
         </div>
         <div className="w-full max-w-md">
-          <h1 className="mb-2 text-3xl font-bold">เข้าสู่ระบบ</h1>
+          <h1 className="mb-2 text-3xl font-bold">
+            <span className="relative inline-block">
+              <span className="relative z-10">เข้าสู่ระบบ</span>
+              <MarkerUnderline className="absolute -bottom-1 left-0 h-3 w-full" />
+            </span>
+          </h1>
           <p className="mb-8 text-muted-foreground">
             ระบบจะส่งลิงก์ login ไปอีเมลของคุณ
           </p>
@@ -94,7 +107,8 @@ export default async function LoginPage({
 
           {checkEmail ? (
             <div className="rounded-lg border border-border bg-muted/40 p-6 text-center">
-              <p className="mb-2 text-lg font-medium">📧 เช็คอีเมลของคุณ</p>
+              <EnvelopeDoodle className="mx-auto mb-3 w-28" />
+              <p className="mb-2 text-lg font-medium">เช็คอีเมลของคุณ</p>
               {sentTo ? (
                 // Naming the address is where a typo becomes visible. Without it
                 // somebody who typed gmial.com sees a success screen and waits.
@@ -121,9 +135,17 @@ export default async function LoginPage({
           ) : (
             <form action={requestLink} className="space-y-4">
               <div>
-                <label htmlFor="email" className="mb-1 label">
-                  อีเมล
-                </label>
+                <div className="mb-1 flex items-end justify-between">
+                  <label htmlFor="email" className="label">
+                    อีเมล
+                  </label>
+                  {/* A margin note, not an instruction — true of every
+                      sign-in, since the magic link is the only way in. */}
+                  <span className="flex items-end gap-1 text-xs text-muted-foreground">
+                    ไม่ต้องจำรหัสผ่าน
+                    <CurlArrow className="-mb-3 h-9 w-10" />
+                  </span>
+                </div>
                 <input
                   id="email"
                   name="email"
