@@ -5,6 +5,7 @@
 // Called from /api/tenant/create or signup flow
 // ============================================================
 
+import { DEFAULT_CATEGORIES } from "@/lib/category-seed";
 import { randomUUID } from "node:crypto";
 import { prisma } from "../lib/db";
 import { initializeTenant } from "../../prisma/seed";
@@ -117,48 +118,15 @@ export async function createTenant(input: CreateTenantInput) {
       },
     });
 
-    // 7. Auto-seed 17 default categories (H.1.2)
-    const DEFAULT_CATEGORIES = [
-      // COGS — Food
-      { account: "COGS", accountingSection: "Food", groupName: "Meat" },
-      { account: "COGS", accountingSection: "Food", groupName: "Seafood" },
-      { account: "COGS", accountingSection: "Food", groupName: "Vegetables" },
-      { account: "COGS", accountingSection: "Food", groupName: "Dry goods" },
-      // COGS — Beverage
-      { account: "COGS", accountingSection: "Beverage", groupName: "Coffee" },
-      { account: "COGS", accountingSection: "Beverage", groupName: "Alcohol" },
-      { account: "COGS", accountingSection: "Beverage", groupName: "Soft drinks" },
-      // COGS — Packaging
-      { account: "COGS", accountingSection: "Packaging", groupName: "Single-use" },
-      // OpEx — Utilities
-      { account: "OpEx", accountingSection: "Utilities", groupName: "Electricity" },
-      { account: "OpEx", accountingSection: "Utilities", groupName: "Water" },
-      { account: "OpEx", accountingSection: "Utilities", groupName: "Internet" },
-      // OpEx — Rent
-      { account: "OpEx", accountingSection: "Rent", groupName: "Building" },
-      // OpEx — Labor
-      { account: "OpEx", accountingSection: "Labor", groupName: "Salary" },
-      { account: "OpEx", accountingSection: "Labor", groupName: "Service charge" },
-      // OpEx — Marketing
-      { account: "OpEx", accountingSection: "Marketing", groupName: "Online ads" },
-      // OpEx — Commission (Part 19, ADR 0019 Q12). A delivery platform keeps
-      // 25-32% of an order; the Thai trade calls that "GP", which is NOT this
-      // project's gross profit. It is seeded rather than left to each shop to
-      // name, because it is one of the largest costs a restaurant carries and
-      // letting every tenant invent a label makes it impossible to compare.
-      // Revenue stays the price on the bill — the commission is an expense,
-      // never a deduction from revenue (rule P16).
-      { account: "OpEx", accountingSection: "Commission", groupName: "Delivery apps" },
-      // OpEx — Professional
-      { account: "OpEx", accountingSection: "Professional", groupName: "Accounting" },
-    ];
-
+    // 7. Auto-seed 17 default categories (H.1.2) — in Thai since Part 35. The
+    // list lives in src/lib/category-seed.ts so the rename file for older shops
+    // (prisma/manual/category_names_th.sql) is held to the same names.
     await tx.category.createMany({
       data: DEFAULT_CATEGORIES.map((c) => ({
         tenantId: tenant.id,
         account: c.account,
-        accountingSection: c.accountingSection,
-        groupName: c.groupName,
+        accountingSection: c.th.section,
+        groupName: c.th.group,
       })),
     });
 

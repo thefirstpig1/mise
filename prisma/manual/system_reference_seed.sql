@@ -64,23 +64,46 @@
 -- `display_order_th` / `display_order_en` differ because ขีด, ฟอง, ลูก, ใบ, แพ็ค
 -- and ถุง have no English ordering to give — they are NULL there rather than
 -- translated into something no kitchen says.
+--
+-- Part 35 (2026-09-27): THAI NAMES ADDED, NOT SWAPPED IN. Seeding a demo shop
+-- found that a beer could only be counted in "ชิ้น" and every weight had to be
+-- typed as "kg" — there was no ขวด, no กระป๋อง, no กก. Renaming 'kg' to 'กก.'
+-- is the breaking change the warning above describes (it would insert a new
+-- row, and every product already on 'kg' keeps pointing at the old name), so
+-- the Thai spellings arrive as ENTRIES OF THEIR OWN and are ordered first;
+-- products already on 'kg' / 'l' are untouched and keep working. Nothing in
+-- the app converts between two products' units by template name — every
+-- conversion is per-product `product_unit` — so two names for one size are
+-- two labels, never two quantities.
 
 INSERT INTO unit_template (id, unit_name, unit_dimension, to_si_ratio, display_order_th, display_order_en)
 VALUES
   -- WEIGHT — grams
-  (gen_random_uuid(), 'g',     'WEIGHT',    1.0,  1,    1),
-  (gen_random_uuid(), 'kg',    'WEIGHT', 1000.0,  2,    2),
+  (gen_random_uuid(), 'กรัม',   'WEIGHT',    1.0,  1, NULL),
+  (gen_random_uuid(), 'กก.',    'WEIGHT', 1000.0,  2, NULL),
   (gen_random_uuid(), 'ขีด',    'WEIGHT',  100.0,  3, NULL),
+  (gen_random_uuid(), 'g',     'WEIGHT',    1.0,  4,    1),
+  (gen_random_uuid(), 'kg',    'WEIGHT', 1000.0,  5,    2),
   -- VOLUME — millilitres
-  (gen_random_uuid(), 'ml',    'VOLUME',    1.0,  1,    1),
-  (gen_random_uuid(), 'l',     'VOLUME', 1000.0,  2,    2),
+  (gen_random_uuid(), 'มล.',    'VOLUME',    1.0,  1, NULL),
+  (gen_random_uuid(), 'ลิตร',   'VOLUME', 1000.0,  2, NULL),
+  (gen_random_uuid(), 'ml',    'VOLUME',    1.0,  3,    1),
+  (gen_random_uuid(), 'l',     'VOLUME', 1000.0,  4,    2),
   -- COUNT — no ratio, deliberately
   (gen_random_uuid(), 'ชิ้น',   'COUNT',   NULL,  1, NULL),
   (gen_random_uuid(), 'ฟอง',   'COUNT',   NULL,  2, NULL),
   (gen_random_uuid(), 'ลูก',    'COUNT',   NULL,  3, NULL),
   (gen_random_uuid(), 'ใบ',     'COUNT',   NULL,  4, NULL),
-  (gen_random_uuid(), 'แพ็ค',   'COUNT',   NULL,  5, NULL),
-  (gen_random_uuid(), 'ถุง',    'COUNT',   NULL,  6, NULL)
+  (gen_random_uuid(), 'ขวด',    'COUNT',   NULL,  5, NULL),
+  (gen_random_uuid(), 'กระป๋อง', 'COUNT',   NULL,  6, NULL),
+  (gen_random_uuid(), 'กล่อง',   'COUNT',   NULL,  7, NULL),
+  (gen_random_uuid(), 'แพ็ค',   'COUNT',   NULL,  8, NULL),
+  (gen_random_uuid(), 'ถุง',    'COUNT',   NULL,  9, NULL),
+  (gen_random_uuid(), 'ห่อ',    'COUNT',   NULL, 10, NULL),
+  (gen_random_uuid(), 'ซอง',    'COUNT',   NULL, 11, NULL),
+  (gen_random_uuid(), 'ตัว',    'COUNT',   NULL, 12, NULL),
+  (gen_random_uuid(), 'มัด',    'COUNT',   NULL, 13, NULL),
+  (gen_random_uuid(), 'แผง',    'COUNT',   NULL, 14, NULL)
 ON CONFLICT (unit_name) DO UPDATE SET
   unit_dimension   = EXCLUDED.unit_dimension,
   to_si_ratio      = EXCLUDED.to_si_ratio,

@@ -63,6 +63,11 @@ export const MANUAL_SQL_ORDER = [
   // Global, shared by every tenant, owned by none. Without it the unit dropdown
   // on the product form is empty on a fresh database — see the file's header.
   "system_reference_seed.sql",
+  // Part 35: renames the English categories older shops were seeded with. A
+  // data fix-up, not reference data — but it belongs to this group for the
+  // same reason: it writes rows, depends on no index or policy, and must run
+  // before enforce_rls changes who is allowed to write them.
+  "category_names_th.sql",
 
   // --- 3. the policies ----------------------------------------------------
   "enable_rls.sql",

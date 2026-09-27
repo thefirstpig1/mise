@@ -33,6 +33,7 @@
 // L3b, in goods-receipt.ts where the transaction already is.
 // ============================================================
 
+import { UNCATEGORISED } from "@/lib/category-seed";
 import { Prisma } from "@prisma/client";
 import type { PrismaClient, Expense, RecurringExpense } from "@prisma/client";
 import { withTenantContext, uniqueTargetWithheld } from "@/lib/db";
@@ -1016,9 +1017,11 @@ export async function deleteExpenseLogic(
  * which kind, so an owner can see it and fix it.
  */
 export const UNCATEGORISED_CATEGORY = {
-  account: "COGS",
-  accountingSection: "Food",
-  groupName: "ไม่ระบุหมวด",
+  account: UNCATEGORISED.account,
+  // Part 35: the section follows the seeded food section, now Thai — left as
+  // "Food" it would grow a second, English heading beside อาหาร.
+  accountingSection: UNCATEGORISED.th.section,
+  groupName: UNCATEGORISED.th.group,
 } as const;
 
 export async function resolveUncategorisedCategoryId(
