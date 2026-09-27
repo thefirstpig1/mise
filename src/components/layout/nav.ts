@@ -69,6 +69,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
       { href: "/cost", label: "ต้นทุน", need: "cost:view" },
       { href: "/cost/departments", label: "ต้นทุนตามแผนก", need: "cost:view" },
       { href: "/cost/leaks", label: "ของหายไปไหน", need: "cost:view" },
+      { href: "/cost/prices", label: "ราคาวัตถุดิบขึ้นลง", need: "cost:view" },
     ],
   },
   {
