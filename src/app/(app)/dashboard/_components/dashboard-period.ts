@@ -22,8 +22,15 @@ export const PERIOD_LABELS_TH: Record<PeriodPreset, string> = {
   "90d": "90 วัน",
 };
 
+/** A preset, or one calendar month picked on the monthly chart ("2026-08"). */
+export type PeriodChoice = PeriodPreset | `${number}-${number}`;
+
+const MONTH_RE = /^(\d{4})-(0[1-9]|1[0-2])$/;
+
 export interface Period {
-  preset: PeriodPreset;
+  preset: PeriodChoice;
+  /** Set when a single calendar month is on screen — the chart highlights it. */
+  month: string | null;
   from: Date;
   to: Date;
   /** The same number of days immediately before — what the ↑↓ compares against. */
@@ -35,17 +42,45 @@ export interface Period {
 const DAY = 24 * 60 * 60 * 1000;
 const utc = (y: number, m: number, d: number) => new Date(Date.UTC(y, m, d));
 
-export function parsePreset(raw: string | undefined): PeriodPreset {
+export function parsePreset(raw: string | undefined): PeriodChoice {
+  if (raw && MONTH_RE.test(raw)) return raw as PeriodChoice;
   return (PERIOD_PRESETS as readonly string[]).includes(raw ?? "") ? (raw as PeriodPreset) : "month";
 }
 
+export const monthKey = (d: Date) => d.toISOString().slice(0, 7);
+
+/** The calendar months ending with the one `today` falls in, oldest first. */
+export function recentMonths(count: number, today: Date = computeBangkokToday()): { key: string; from: Date; to: Date }[] {
+  const y = today.getUTCFullYear();
+  const m = today.getUTCMonth();
+  const out: { key: string; from: Date; to: Date }[] = [];
+  for (let i = count - 1; i >= 0; i--) {
+    const from = utc(y, m - i, 1);
+    const end = utc(y, m - i + 1, 0);
+    const to = end.getTime() > today.getTime() ? today : end;
+    out.push({ key: monthKey(from), from, to });
+  }
+  return out;
+}
+
 /** Pure: `today` is injected so a test can pin it. */
-export function periodFor(preset: PeriodPreset, today: Date = computeBangkokToday()): Period {
+export function periodFor(preset: PeriodChoice, today: Date = computeBangkokToday()): Period {
   let from: Date;
   let to: Date;
   const y = today.getUTCFullYear();
   const m = today.getUTCMonth();
-  switch (preset) {
+  const picked = MONTH_RE.exec(preset);
+  if (picked) {
+    // One calendar month, compared with the one before it in full.
+    const py = Number(picked[1]);
+    const pm = Number(picked[2]) - 1;
+    from = utc(py, pm, 1);
+    const end = utc(py, pm + 1, 0);
+    to = end.getTime() > today.getTime() ? today : end;
+    const days = Math.round((to.getTime() - from.getTime()) / DAY) + 1;
+    return { preset, month: monthKey(from), from, to, prevFrom: utc(py, pm - 1, 1), prevTo: utc(py, pm, 0), days };
+  }
+  switch (preset as PeriodPreset) {
     case "month":
       from = utc(y, m, 1);
       to = today;
@@ -65,7 +100,8 @@ export function periodFor(preset: PeriodPreset, today: Date = computeBangkokToda
   // whole of it — 27 days against 31 would show every month as a fall.
   const prevTo = preset === "month" ? utc(y, m - 1, Math.min(today.getUTCDate(), utc(y, m, 0).getUTCDate())) : addDays(from, -1);
   const prevFrom = preset === "month" ? utc(y, m - 1, 1) : addDays(from, -days);
-  return { preset, from, to, prevFrom, prevTo, days };
+  const month = preset === "month" || preset === "last-month" ? monthKey(from) : null;
+  return { preset, month, from, to, prevFrom, prevTo, days };
 }
 
 /** `?b=a,b,c` → ids, kept only when the reader may see them. Empty = all. */

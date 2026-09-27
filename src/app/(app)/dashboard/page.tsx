@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { requireTenant } from "@/lib/require-tenant";
 import { computeBangkokToday } from "@/lib/bangkok-date";
 import { getBranchesLogic } from "@/server/branch";
-import { getPnlLogic, getRevenueByDayLogic, type Pnl } from "@/server/pnl";
+import { getMonthlyPnlLogic, getPnlLogic, getRevenueByDayLogic, type Pnl } from "@/server/pnl";
 import { getSalesSummaryLogic } from "@/server/sales";
 import { getSalesQuerySchema } from "@/lib/validations/sales-import";
 import { getTransfersLogic } from "@/server/transfer";
@@ -15,6 +15,7 @@ import ActionLink, { RowChevron } from "@/components/ui/ActionLink";
 import DashboardControls, { type BranchChip } from "./_components/DashboardControls";
 import BarList, { type BarListGroup } from "@/components/charts/BarList";
 import {
+  MonthlyPnlChart,
   PnlWaterfallChart,
   RevenueTrendChart,
   SERIES,
@@ -22,7 +23,7 @@ import {
   type MenuBar,
   type RevenueRow,
 } from "./_components/Charts";
-import { isoDay, parseBranchParam, parsePreset, periodFor, type Period } from "./_components/dashboard-period";
+import { isoDay, parseBranchParam, parsePreset, periodFor, recentMonths, type Period } from "./_components/dashboard-period";
 
 // ============================================================
 // Mise — แดชบอร์ด (rewritten in Part 35 L5)
@@ -98,6 +99,11 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
               see={{ sales: seeSales, cost: seeCost, expense: seeExpense }}
             />
           </Suspense>
+          {seeSales && seeCost && seeExpense ? (
+            <Suspense key={`m|${activeIds.join(",")}|${period.month ?? ""}`} fallback={<div className="h-96 animate-pulse rounded-xl border border-border bg-surface-sunk" />}>
+              <MonthlyTrend tenantId={tenantId} reach={reach} selected={selected} activeMonth={period.month} />
+            </Suspense>
+          ) : null}
         </>
       ) : null}
 
@@ -254,6 +260,40 @@ async function Analytics({
   );
 }
 
+// Six months, each a full P&L — its own Suspense so the cards above never
+// wait for it. Needs every money capability: it prints net profit.
+async function MonthlyTrend({
+  tenantId,
+  reach,
+  selected,
+  activeMonth,
+}: {
+  tenantId: string;
+  reach: Awaited<ReturnType<typeof requireTenant>>["reach"];
+  selected: string[];
+  activeMonth: string | null;
+}) {
+  const months = recentMonths(6);
+  const pts = await getMonthlyPnlLogic(tenantId, months, selected, reach);
+  const label = (key: string) =>
+    new Date(`${key}-01T00:00:00Z`).toLocaleDateString("th-TH", { month: "short", year: "2-digit", timeZone: "UTC" });
+  return (
+    <Card title="กำไรรายเดือน (6 เดือนล่าสุด)" hint="กดที่เดือนเพื่อดูตัวเลขของเดือนนั้นทั้งหน้า · เดือนปัจจุบันนับถึงวันนี้">
+      <MonthlyPnlChart
+        active={activeMonth}
+        points={pts.map((p) => ({
+          key: p.key,
+          label: label(p.key),
+          revenue: num(p.revenue),
+          expenses: num(p.expenses),
+          net: num(p.netProfit),
+          note: p.unknownReason === "GROSS_PROFIT_UNKNOWN" ? "ต้นทุนขายยังคำนวณไม่ได้" : null,
+        }))}
+      />
+    </Card>
+  );
+}
+
 async function topMenus(tenantId: string, period: Period, branchIds: string[]): Promise<MenuBar[]> {
   // One summary per branch — getSalesSummaryLogic already folds merged menus
   // (ADR 0026: reporting folds retroactively and always), so summing its rows
@@ -311,12 +351,14 @@ function Kpi({
   sub,
   delta,
   tone,
+  extra,
 }: {
   label: string;
   value: number | null;
   sub?: string;
   delta: React.ReactNode;
   tone?: "good" | "bad";
+  extra?: React.ReactNode;
 }) {
   return (
     <div className="rounded-xl border border-border bg-surface p-4">
@@ -326,9 +368,31 @@ function Kpi({
       </p>
       {sub ? <p className="mt-0.5 text-xs text-muted-foreground">{sub}</p> : null}
       <div className="mt-2">{delta}</div>
+      {extra ? <div className="mt-1">{extra}</div> : null}
     </div>
   );
 }
+
+/** Change in a margin, in percentage POINTS — "51% → 53%" is +2 pp, not +4%. */
+function MarginDelta({ label, cur, prev }: { label: string; cur: number | null; prev: number | null }) {
+  if (cur === null) return null;
+  const d = prev === null ? null : cur - prev;
+  return (
+    <span className="text-xs text-muted-foreground">
+      {label} {cur.toFixed(1)}%
+      {d === null ? null : (
+        <span className={`ml-1 font-medium ${d >= 0 ? "text-good" : "text-bad"}`}>
+          {d >= 0 ? "▲" : "▼"} {Math.abs(d).toFixed(1)} pp
+        </span>
+      )}
+    </span>
+  );
+}
+
+const marginOf = (part: { toString(): string } | null, whole: { toString(): string } | null) => {
+  const w = whole === null ? null : Number(whole.toString());
+  return part === null || !w ? null : (Number(part.toString()) / w) * 100;
+};
 
 function KpiRow({
   pnl,
@@ -344,7 +408,6 @@ function KpiRow({
   const gross = num(pnl.grossProfit);
   const net = num(pnl.netProfit);
   const foodCost = revenue && cogs !== null ? `food cost ${((cogs / revenue) * 100).toFixed(1)}% ของยอดขาย` : undefined;
-  const margin = revenue && net !== null ? `${((net / revenue) * 100).toFixed(1)}% ของยอดขาย` : undefined;
   const coverage =
     pnl.recipeCoverage !== null ? `คิดจากสูตร ครอบคลุม ${(pnl.recipeCoverage * 100).toFixed(0)}% ของยอดขาย` : undefined;
 
@@ -357,7 +420,13 @@ function KpiRow({
         <Kpi label="ต้นทุนขาย" value={cogs} sub={foodCost ?? coverage} delta={<Delta cur={cogs} prev={num(prev.cogs)} goodWhenUp={false} />} />
       ) : null}
       {see.gross ? (
-        <Kpi label="กำไรขั้นต้น" value={gross} sub={coverage} delta={<Delta cur={gross} prev={num(prev.grossProfit)} goodWhenUp />} />
+        <Kpi
+          label="กำไรขั้นต้น"
+          value={gross}
+          sub={coverage}
+          delta={<Delta cur={gross} prev={num(prev.grossProfit)} goodWhenUp />}
+          extra={<MarginDelta label="อัตรากำไรขั้นต้น" cur={marginOf(pnl.grossProfit, pnl.revenue)} prev={marginOf(prev.grossProfit, prev.revenue)} />}
+        />
       ) : null}
       {see.expense ? (
         <Kpi label="ค่าใช้จ่ายดำเนินงาน" value={num(pnl.opex)} sub="ค่าเช่า ค่าแรง ค่าน้ำไฟ ฯลฯ" delta={<Delta cur={num(pnl.opex)} prev={num(prev.opex)} goodWhenUp={false} />} />
@@ -366,9 +435,9 @@ function KpiRow({
         <Kpi
           label="กำไรสุทธิ"
           value={net}
-          sub={margin}
           tone={net === null ? undefined : net >= 0 ? "good" : "bad"}
           delta={<Delta cur={net} prev={num(prev.netProfit)} goodWhenUp />}
+          extra={<MarginDelta label="อัตรากำไรสุทธิ" cur={marginOf(pnl.netProfit, pnl.revenue)} prev={marginOf(prev.netProfit, prev.revenue)} />}
         />
       ) : null}
     </div>

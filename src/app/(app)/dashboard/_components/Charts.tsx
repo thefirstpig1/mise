@@ -15,11 +15,13 @@
 // ============================================================
 
 import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Bar,
   BarChart,
   CartesianGrid,
   Cell,
+  ComposedChart,
   Legend,
   Line,
   LineChart,
@@ -176,6 +178,130 @@ export function PnlWaterfallChart({ data }: { data: WaterfallInput }) {
           </Bar>
         </BarChart>
       </ResponsiveContainer>
+    </div>
+  );
+}
+
+// ------------------------------------------------------------
+// 3b. Month by month — revenue vs expenses, with net profit as a line
+// ------------------------------------------------------------
+// From Kong's own "Finance Dashboard" (2026-09-28): the chart he already
+// reads every month. Kept: bars for money in and out, a line for what is
+// left, the picked month bright and the others faded, click a month to open
+// it. Changed: ONE y-axis — all three series are baht, and his margin chart's
+// second axis is the dataviz #1 anti-pattern — and a month whose cost cannot
+// be worked out shows no expense bar and no profit point rather than a fake 0.
+export type MonthPoint = {
+  key: string;
+  label: string;
+  revenue: number | null;
+  expenses: number | null;
+  net: number | null;
+  note: string | null;
+};
+
+export function MonthlyPnlChart({ points, active }: { points: MonthPoint[]; active: string | null }) {
+  const router = useRouter();
+  const params = useSearchParams();
+  const open = (key: string) => {
+    const q = new URLSearchParams(params.toString());
+    q.set("p", key);
+    router.push(`/dashboard?${q.toString()}`, { scroll: false });
+  };
+  const fade = (key: string) => (active === null || active === key ? 1 : 0.35);
+  const prevOf = (i: number) => (i > 0 ? points[i - 1] : null);
+  const growth = (cur: number | null, prev: number | null | undefined) =>
+    cur === null || prev === null || prev === undefined || prev === 0 ? null : ((cur - prev) / Math.abs(prev)) * 100;
+
+  return (
+    <div>
+      <div className="mb-2 flex flex-wrap gap-4 text-xs text-muted-foreground">
+        <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: BRAND }} />รายรับ</span>
+        <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: SERIES[2] }} />รายจ่าย (ต้นทุนขาย + ค่าใช้จ่าย)</span>
+        <span className="flex items-center gap-1.5"><span className="h-0.5 w-3.5" style={{ backgroundColor: GOOD }} />กำไรสุทธิ</span>
+      </div>
+      <div className="h-72 w-full">
+        <ResponsiveContainer>
+          <ComposedChart
+            data={points}
+            margin={{ top: 8, right: 12, bottom: 0, left: 4 }}
+            barCategoryGap="24%"
+            onClick={(e) => {
+              const key = (e as { activeLabel?: string } | null)?.activeLabel;
+              const pt = points.find((p) => p.label === key);
+              if (pt) open(pt.key);
+            }}
+          >
+            <CartesianGrid stroke={GRID} vertical={false} />
+            <XAxis dataKey="label" {...axis} />
+            <YAxis tickFormatter={compact} width={48} {...axis} axisLine={false} />
+            <Tooltip
+              cursor={{ fill: "rgb(174 183 132 / 0.14)" }}
+              content={({ active: a, payload }) => {
+                const pt = a && payload?.length ? (payload[0].payload as MonthPoint) : null;
+                if (!pt) return null;
+                const i = points.indexOf(pt);
+                const g = growth(pt.revenue, prevOf(i)?.revenue);
+                const margin = pt.net !== null && pt.revenue ? `${((pt.net / pt.revenue) * 100).toFixed(1)}%` : "—";
+                return (
+                  <TooltipBox
+                    title={`${pt.label} · กดเพื่อดูเดือนนี้`}
+                    rows={[
+                      { label: "รายรับ", value: pt.revenue === null ? "ยังไม่มียอดขาย" : `${baht(pt.revenue)}${g === null ? "" : `  (${g >= 0 ? "+" : ""}${g.toFixed(1)}%)`}` },
+                      { label: "รายจ่าย", value: pt.expenses === null ? "คำนวณไม่ได้" : baht(pt.expenses) },
+                      { label: "กำไรสุทธิ", value: pt.net === null ? "—" : baht(pt.net) },
+                      { label: "อัตรากำไร", value: margin },
+                    ]}
+                  />
+                );
+              }}
+            />
+            <Bar dataKey="revenue" radius={[4, 4, 0, 0]} cursor="pointer">
+              {points.map((p) => (
+                <Cell key={p.key} fill={BRAND} fillOpacity={fade(p.key)} />
+              ))}
+            </Bar>
+            <Bar dataKey="expenses" radius={[4, 4, 0, 0]} cursor="pointer">
+              {points.map((p) => (
+                <Cell key={p.key} fill={SERIES[2]} fillOpacity={fade(p.key)} />
+              ))}
+            </Bar>
+            <Line
+              dataKey="net"
+              stroke={GOOD}
+              strokeWidth={2.5}
+              connectNulls={false}
+              dot={(props: { cx?: number; cy?: number; payload?: MonthPoint; index?: number }) => {
+                const { cx, cy, payload, index } = props;
+                if (cx === undefined || cy === undefined || !payload || payload.net === null) {
+                  return <g key={`d${index}`} />;
+                }
+                const on = active === null || active === payload.key;
+                return (
+                  <circle
+                    key={`d${index}`}
+                    cx={cx}
+                    cy={cy}
+                    r={on ? 5 : 3}
+                    fill={payload.net >= 0 ? GOOD : BAD}
+                    stroke="#FFFFFF"
+                    strokeWidth={2}
+                    opacity={on ? 1 : 0.5}
+                  />
+                );
+              }}
+            />
+          </ComposedChart>
+        </ResponsiveContainer>
+      </div>
+      {points.some((p) => p.note) ? (
+        <p className="mt-2 text-xs text-muted-foreground">
+          {points
+            .filter((p) => p.note)
+            .map((p) => `${p.label}: ${p.note}`)
+            .join(" · ")}
+        </p>
+      ) : null}
     </div>
   );
 }

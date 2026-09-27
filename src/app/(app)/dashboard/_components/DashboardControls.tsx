@@ -7,7 +7,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTransition } from "react";
-import { PERIOD_LABELS_TH, PERIOD_PRESETS, type PeriodPreset } from "./dashboard-period";
+import { PERIOD_LABELS_TH, PERIOD_PRESETS, type PeriodChoice } from "./dashboard-period";
 
 export type BranchChip = { id: string; name: string; color: string };
 
@@ -17,7 +17,7 @@ export default function DashboardControls({
   selected,
   rangeLabel,
 }: {
-  preset: PeriodPreset;
+  preset: PeriodChoice;
   branches: BranchChip[];
   /** Empty = every branch; one id = that branch alone. */
   selected: string[];

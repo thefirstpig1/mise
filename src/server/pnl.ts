@@ -306,3 +306,44 @@ export async function getRevenueByDayLogic(
     net: r._sum.netAmount ?? ZERO(),
   }));
 }
+
+// ------------------------------------------------------------
+// The monthly trend on the dashboard (Part 35, Kong's sample "Finance
+// Dashboard": revenue vs expense bars with a net-profit line)
+// ------------------------------------------------------------
+
+export interface MonthlyPnlPoint {
+  key: string;
+  revenue: Prisma.Decimal | null;
+  expenses: Prisma.Decimal | null;
+  netProfit: Prisma.Decimal | null;
+  unknownReason: PnlUnknownReason | null;
+}
+
+/**
+ * One full P&L per month — the same getPnlLogic, so every bar agrees with the
+ * cards when that month is picked. Each month is a FIFO replay (measured
+ * ~1 s from Bangkok, far less on Fly beside the database), so they run in
+ * parallel and the caller streams this behind its own Suspense.
+ *
+ * `expenses` is cost of goods sold + operating expenses, and is null when
+ * the cost of goods sold is unknown — a bar of rent alone would pretend the
+ * food was free (rule PL5).
+ */
+export async function getMonthlyPnlLogic(
+  tenantId: string,
+  months: { key: string; from: Date; to: Date }[],
+  branchIds: readonly string[],
+  reach: BranchReach
+): Promise<MonthlyPnlPoint[]> {
+  const all = await Promise.all(
+    months.map((m) => getPnlLogic(tenantId, { from: m.from, to: m.to, branchIds }, reach))
+  );
+  return all.map((p, i) => ({
+    key: months[i].key,
+    revenue: p.revenue,
+    expenses: p.cogs !== null ? p.cogs.plus(p.opex) : null,
+    netProfit: p.netProfit,
+    unknownReason: p.unknownReason,
+  }));
+}
