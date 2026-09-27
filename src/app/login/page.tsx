@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { signIn } from "@/lib/auth";
+import { auth, signIn } from "@/lib/auth";
 import { decideEmailDelivery, isProductionRuntime } from "@/lib/email/delivery";
 import { isEmailConfigured } from "@/lib/email/transport";
 import {
@@ -40,7 +40,18 @@ async function requestLink(formData: FormData) {
 
   // Returns the URL instead of throwing a redirect, so the outcome is a value
   // this action can read rather than control flow it cannot intercept.
-  const outcome = await signIn("email", { email, redirect: false });
+  //
+  // 🔴 `redirectTo` IS NOT OPTIONAL HERE. Without it Auth.js takes the page the
+  // request came from — /login — as where the link lands, so the first
+  // production login (2026-09-27) verified the token, created a session, and
+  // put the person straight back on this form as if nothing had happened.
+  // /dashboard sends someone with no shop on to /signup by itself
+  // (require-tenant.ts), so this one target is right for both.
+  const outcome = await signIn("email", {
+    email,
+    redirectTo: "/dashboard",
+    redirect: false,
+  });
 
   const code = new URL(outcome, "http://internal").searchParams.get("error");
   if (code) redirect(`/login?error=${encodeURIComponent(code)}`);
@@ -56,6 +67,12 @@ export default async function LoginPage({
 }: {
   searchParams: Promise<{ "check-email"?: string; error?: string; sent?: string }>;
 }) {
+  // Somebody already signed in has no business on this form — and showing it
+  // to them reads as "the link did not work". Every link sent before the fix
+  // above still lands here, so this is what rescues those.
+  const session = await auth();
+  if (session?.user) redirect("/dashboard");
+
   const params = await searchParams;
   const checkEmail = params["check-email"] !== undefined;
   const sentTo = displayableAddress(params["check-email"]);
@@ -138,9 +155,9 @@ export default async function LoginPage({
               ) : null}
               {sentTo ? (
                 <p className="mt-4 text-xs text-muted-foreground">
-                  กรอกอีเมลผิด?{" "}
+                  หากอีเมลไม่ถูกต้อง{" "}
                   <a href="/login" className="text-primary underline">
-                    ลองใหม่
+                    กรอกอีเมลใหม่
                   </a>
                 </p>
               ) : null}

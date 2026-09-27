@@ -45,8 +45,10 @@ export default function ResendLink({
   return (
     <form action={action} onSubmit={() => setPending(true)} className="mt-5">
       <input type="hidden" name="email" value={email} />
+      {/* Spoken to a customer, not a colleague: polite particle-free Thai
+          that asks rather than instructs (Kong, 2026-09-27). */}
       <p className="mb-2 text-xs text-muted-foreground">
-        ยังไม่ได้รับอีเมล? ลองดูในโฟลเดอร์สแปมหรือโปรโมชันก่อน
+        หากยังไม่ได้รับอีเมล กรุณาตรวจสอบในกล่องจดหมายขยะ (Spam) หรือแท็บโปรโมชัน
       </p>
       <button
         type="submit"
@@ -56,8 +58,8 @@ export default function ResendLink({
         {pending
           ? "กำลังส่ง…"
           : left > 0
-            ? `ส่งลิงก์อีกครั้งได้ใน ${left} วินาที`
-            : "ส่งลิงก์อีกครั้ง"}
+            ? `ขอลิงก์ใหม่ได้ในอีก ${left} วินาที`
+            : "ส่งลิงก์ใหม่อีกครั้ง"}
       </button>
     </form>
   );

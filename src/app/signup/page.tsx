@@ -1,14 +1,23 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { createTenant } from "@/server/tenant-init";
-import { signIn } from "@/lib/auth";
+import { auth, signIn } from "@/lib/auth";
 import Logo from "@/components/layout/Logo";
 import { KitchenDoodle, MarkerUnderline } from "@/components/layout/Doodles";
 
 async function handleSignup(formData: FormData) {
   "use server";
 
-  const email = formData.get("email") as string;
+  // Somebody who already signed in with a magic link and has no shop is sent
+  // here by require-tenant.ts. Their address is PROVEN — asking for it again
+  // and mailing a second link would make them wait on a letter to reach a
+  // shop they could have in one click. So the session's address wins over the
+  // form (which does not even show the field for them), and the letter is
+  // skipped.
+  const session = await auth();
+  const signedInEmail = session?.user?.email ?? null;
+
+  const email = signedInEmail ?? (formData.get("email") as string);
   const name = formData.get("name") as string;
   const tenantName = formData.get("tenant_name") as string;
   const branchName = formData.get("branch_name") as string;
@@ -32,6 +41,8 @@ async function handleSignup(formData: FormData) {
     isVatRegistered,
     firstBranchName: branchName || "สาขาหลัก",
   });
+
+  if (signedInEmail) redirect("/dashboard");
 
   // 3. Send magic link to login
   //
@@ -61,7 +72,10 @@ async function handleSignup(formData: FormData) {
   redirect(`/login?check-email=${encodeURIComponent(email)}`);
 }
 
-export default function SignupPage() {
+export default async function SignupPage() {
+  const session = await auth();
+  const signedInEmail = session?.user?.email ?? null;
+
   return (
     <main className="flex min-h-screen items-center justify-center px-5 py-12">
       <div className="flex w-full max-w-4xl flex-col items-center gap-10 md:flex-row md:gap-12">
@@ -109,18 +123,27 @@ export default function SignupPage() {
                     className="w-full rounded-lg border border-border bg-background px-4 py-2"
                   />
                 </div>
-                <div>
-                  <label htmlFor="email" className="mb-1 label">
-                    อีเมล
-                  </label>
-                  <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    required
-                    className="w-full rounded-lg border border-border bg-background px-4 py-2"
-                  />
-                </div>
+                {signedInEmail ? (
+                  <div>
+                    <span className="mb-1 label">อีเมล</span>
+                    <p className="rounded-lg border border-border bg-muted/40 px-4 py-2 text-sm">
+                      {signedInEmail}
+                    </p>
+                  </div>
+                ) : (
+                  <div>
+                    <label htmlFor="email" className="mb-1 label">
+                      อีเมล
+                    </label>
+                    <input
+                      id="email"
+                      name="email"
+                      type="email"
+                      required
+                      className="w-full rounded-lg border border-border bg-background px-4 py-2"
+                    />
+                  </div>
+                )}
               </div>
             </div>
 
