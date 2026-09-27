@@ -26,6 +26,7 @@ import {
   recordSalesPulseAction,
   type RecordPulseActionState,
 } from "@/app/(app)/sales/pulse-actions";
+import ActionLink from "@/components/ui/ActionLink";
 import type { PulseDashboardView } from "@/app/(app)/sales/_components/sales-view";
 
 
@@ -65,9 +66,7 @@ export default function PulsePanel({
           <h2 className="text-base font-semibold">ยอดที่ลูกค้าจ่ายรายวัน</h2>
           <p className="text-xs text-muted-foreground">ตัวเลขจากเครื่องเก็บเงิน รวม VAT และ service charge</p>
         </div>
-        <a href="/sales" className="text-xs font-medium text-primary hover:underline">
-          ดูยอดขายทั้งเดือน →
-        </a>
+        <ActionLink href="/sales">ดูยอดขายทั้งเดือน</ActionLink>
       </div>
 
       <div className={`mt-4 grid gap-3 ${multi ? "sm:grid-cols-2 xl:grid-cols-3" : "sm:max-w-md"}`}>

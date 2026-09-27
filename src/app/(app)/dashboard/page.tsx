@@ -11,6 +11,7 @@ import { toTransferView } from "@/app/(app)/transfers/_components/transfer-view"
 import { getPulseDashboardLogic } from "@/server/sales-pulse";
 import { toPulseDashboardView } from "@/app/(app)/sales/_components/sales-view";
 import PulsePanel from "./_components/PulsePanel";
+import ActionLink, { RowChevron } from "@/components/ui/ActionLink";
 import DashboardControls, { type BranchChip } from "./_components/DashboardControls";
 import BarList, { type BarListGroup } from "@/components/charts/BarList";
 import {
@@ -210,14 +211,14 @@ async function Analytics({
                 {noSales.length > 0 ? (
                   <p className="mt-3 text-xs text-muted-foreground">
                     ไม่มีเส้นของ {noSales.map((c) => c.name).join(", ")} เพราะยังไม่มียอดขายที่นำเข้าในช่วงนี้ ·{" "}
-                    <a href="/sales/import" className="text-primary underline">นำเข้าไฟล์ยอดขาย</a>
+                    <ActionLink href="/sales/import" className="ml-1 align-middle">นำเข้าไฟล์ยอดขาย</ActionLink>
                   </p>
                 ) : null}
               </>
             ) : (
               <p className="py-16 text-center text-sm text-muted-foreground">
                 ยังไม่มียอดขายในช่วงนี้ ·{" "}
-                <a href="/sales/import" className="text-primary underline">นำเข้าไฟล์ยอดขาย</a>
+                <ActionLink href="/sales/import" className="ml-1 align-middle">นำเข้าไฟล์ยอดขาย</ActionLink>
               </p>
             )}
           </Card>
@@ -382,13 +383,13 @@ function UnknownNote({ pnl, seeGross }: { pnl: Pnl; seeGross: boolean }) {
       {pnl.unknownReason === "NO_SALES" ? (
         <>
           ยังคำนวณกำไรไม่ได้ เพราะยังไม่มียอดขายในช่วงนี้ ·{" "}
-          <a href="/sales/import" className="underline">นำเข้าไฟล์ยอดขาย</a>
+          <ActionLink href="/sales/import" tone="warn" className="ml-1 align-middle">นำเข้าไฟล์ยอดขาย</ActionLink>
         </>
       ) : (
         <>
           ยังคำนวณกำไรรวมไม่ได้ เพราะ {pnl.branchesMissingGrossProfit.join(", ")} มียอดขายแต่ยังหาต้นทุนขายไม่ได้
           (วิธีนับสต๊อกต้องมีการนับทั้งต้นงวดและปลายงวด) · ดูรายละเอียดที่{" "}
-          <a href="/cost" className="underline">หน้าต้นทุน</a>
+          <ActionLink href="/cost" tone="warn" className="ml-1 align-middle">หน้าต้นทุน</ActionLink>
         </>
       )}
     </div>
@@ -473,12 +474,10 @@ async function WorkQueue({
         // own page (items, quantities, who sent it).
         <div className="rounded-xl border border-warn-border bg-warn-bg p-4">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <a href="/transfers?status=SENT" className="text-sm font-semibold text-warn hover:underline">
-              มีใบโอน {waiting.length} ใบที่ปลายทางยังไม่กดรับ
-            </a>
-            <a href="/transfers?status=SENT" className="text-xs font-medium text-warn hover:underline">
-              ดูใบโอนที่รอรับทั้งหมด →
-            </a>
+            <p className="text-sm font-semibold text-warn">มีใบโอน {waiting.length} ใบที่ปลายทางยังไม่กดรับ</p>
+            <ActionLink href="/transfers?status=SENT" tone="warn">
+              ดูใบโอนที่รอรับทั้งหมด
+            </ActionLink>
           </div>
           <p className="mt-1 text-xs text-warn">
             ของเข้ายอดของสาขาปลายทางแล้วตั้งแต่ต้นทางกดส่ง — ที่ค้างคือการนับยืนยันที่ปลายทาง
@@ -488,7 +487,7 @@ async function WorkQueue({
               <li key={t.id}>
                 <a
                   href={`/transfers/${t.id}`}
-                  className="flex items-center justify-between gap-3 px-3 py-2 text-sm hover:bg-muted"
+                  className="group flex items-center justify-between gap-3 px-3 py-2.5 text-sm hover:bg-muted"
                 >
                   <span className="min-w-0">
                     <span className="font-mono text-xs text-muted-foreground">{t.tfNumber}</span>{" "}
@@ -497,7 +496,7 @@ async function WorkQueue({
                     </span>
                     <span className="block text-xs text-muted-foreground">ส่งเมื่อ {t.dispatchedAtLabel}</span>
                   </span>
-                  <span className="shrink-0 text-xs font-medium text-primary">ดูรายละเอียด →</span>
+                  <RowChevron label="ดูรายละเอียด" />
                 </a>
               </li>
             ))}
