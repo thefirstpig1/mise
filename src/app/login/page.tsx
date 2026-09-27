@@ -8,6 +8,7 @@ import {
   checkEmailHintFor,
 } from "@/lib/email/login-messages";
 import Logo from "@/components/layout/Logo";
+import ResendLink from "./ResendLink";
 import {
   KitchenDoodle,
   MarkerUnderline,
@@ -44,13 +45,16 @@ async function requestLink(formData: FormData) {
   const code = new URL(outcome, "http://internal").searchParams.get("error");
   if (code) redirect(`/login?error=${encodeURIComponent(code)}`);
 
-  redirect(`/login?check-email=${encodeURIComponent(email)}`);
+  // `sent` is only a render key: a resend lands on this same URL, and without a
+  // new value the resend button would keep its finished countdown and its
+  // "กำลังส่ง…" state instead of starting over.
+  redirect(`/login?check-email=${encodeURIComponent(email)}&sent=${Date.now()}`);
 }
 
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ "check-email"?: string; error?: string }>;
+  searchParams: Promise<{ "check-email"?: string; error?: string; sent?: string }>;
 }) {
   const params = await searchParams;
   const checkEmail = params["check-email"] !== undefined;
@@ -123,6 +127,15 @@ export default async function LoginPage({
               <p className="mt-4 text-xs text-muted-foreground">
                 {checkEmailHintFor(mode)}
               </p>
+              {sentTo && mode === "send" ? (
+                // Only when a letter really goes out. In console mode the link
+                // is in the terminal already, and there is nothing to resend to.
+                <ResendLink
+                  key={params.sent ?? "first"}
+                  email={sentTo}
+                  action={requestLink}
+                />
+              ) : null}
               {sentTo ? (
                 <p className="mt-4 text-xs text-muted-foreground">
                   กรอกอีเมลผิด?{" "}
