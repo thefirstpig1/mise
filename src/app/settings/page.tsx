@@ -80,12 +80,15 @@ export default async function SettingsPage() {
                   className="mt-1"
                 />
                 <div>
-                  <p className="font-medium">เปิดใช้งานแผนก (Departments)</p>
+                  <p className="font-medium">เปิดใช้งานแผนก</p>
                   <p className="text-sm text-muted-foreground">
-                    สำหรับร้านที่มีหลายแผนกแยกกัน เช่น Bar, Kitchen, Bakery
+                    สำหรับร้านที่แยกต้นทุนตามส่วนงาน เช่น ครัว บาร์ เบเกอรี่ ·{" "}
+                    <a href="/settings/departments" className="text-primary underline">
+                      จัดการแผนก
+                    </a>
                     <br />
                     <span className="text-xs">
-                      ถ้าปิด ระบบจะใช้แผนก &quot;Main&quot; เป็น default ทุกรายการ
+                      ถ้าปิด ทุกรายการจะลงที่แผนกตั้งต้น
                     </span>
                   </p>
                 </div>
