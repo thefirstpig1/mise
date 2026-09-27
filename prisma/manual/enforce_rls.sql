@@ -76,12 +76,27 @@ ALTER ROLE mise_app WITH LOGIN PASSWORD '${MISE_APP_DB_PASSWORD}';
 
 -- Neon puts every role in the `neon_superuser` group by default in some
 -- setups; that group carries BYPASSRLS and would silently undo this whole
--- file. Revoking is harmless if it was never granted — but it is an ERROR if
--- the group role does not exist at all, which is true of any Postgres that is
--- not Neon, so it is guarded rather than assumed.
+-- file. It is an ERROR if the group role does not exist at all, which is true
+-- of any Postgres that is not Neon, so it is guarded rather than assumed.
+--
+-- 🔴 GUARDED ON THE MEMBERSHIP, NOT ON THE GROUP. This used to say "revoking
+-- is harmless if it was never granted". It is not: the first production deploy
+-- (2026-09-27, a new Neon project on Postgres 18) failed here with
+-- "permission denied to revoke role neon_superuser — only roles with the ADMIN
+-- option may revoke this role", for a role that had just been created by SQL
+-- and was a member of nothing. Postgres checks the right to revoke BEFORE it
+-- checks whether there is anything to revoke. So revoke only a membership that
+-- exists — and if one does and cannot be revoked, that error is real and
+-- should stop the deploy.
 DO $mise_revoke$
 BEGIN
-  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'neon_superuser') THEN
+  IF EXISTS (
+    SELECT 1
+    FROM pg_auth_members m
+    JOIN pg_roles g ON g.oid = m.roleid
+    JOIN pg_roles u ON u.oid = m.member
+    WHERE g.rolname = 'neon_superuser' AND u.rolname = 'mise_app'
+  ) THEN
     REVOKE neon_superuser FROM mise_app;
   END IF;
 END

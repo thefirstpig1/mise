@@ -57,8 +57,17 @@ primary_region = "sin"
 # Both commands run as the OWNER through DIRECT_URL, because mise_app cannot
 # create a table or a role. That means the owner's credential lives on this
 # machine — an accepted, deliberate widening of the blast radius (Consequence 4).
+#
+# 🔴 NOT `pnpm release`, although that is what it does. The first real deploy
+# (2026-09-27) failed here: the image has corepack's pnpm SHIM but not pnpm
+# itself, so the shim tried to DOWNLOAD pnpm at release time into the home of
+# `nextjs`, which cannot write there (EACCES). Even with a writable home, a
+# release that fetches a package manager from the internet is a deploy that
+# fails when npm's registry does. The image already carries the Prisma CLI
+# (Dockerfile, runner stage), so call it with node — exactly as
+# apply-manual-sql.mjs does. `pnpm release` stays in package.json for a human.
 [deploy]
-  release_command = "pnpm release"
+  release_command = "sh -c 'node node_modules/prisma/build/index.js migrate deploy && node scripts/apply-manual-sql.mjs'"
 
 [env]
   PORT = "3000"

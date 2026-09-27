@@ -14,7 +14,8 @@
 // sprints, which is the evidence that the answer was wrong.
 //
 // Run by hand:              pnpm db:manual
-// Run by Fly, every deploy: release_command = "pnpm release"
+// Run by Fly, every deploy: release_command in fly.toml (the same two steps as
+//                           `pnpm release`, minus pnpm — see the note there)
 //
 // Fly runs the release command in the new image BEFORE the new version goes
 // live, and cancels the deploy on a non-zero exit. That is what makes
