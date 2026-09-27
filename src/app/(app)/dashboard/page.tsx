@@ -149,6 +149,11 @@ async function Analytics({
   const series = chips
     .filter((c) => activeIds.includes(c.id) && revenueDays.some((p) => p.branchId === c.id))
     .map((c) => ({ branchId: c.id, name: c.name, color: c.color }));
+  // Kong (2026-09-28): "ทุกสาขา but only one line" read as a bug. A branch with
+  // no imported sales has nothing to draw — say so by name instead of
+  // silently leaving it out (and never draw it as a flat ฿0 line: not
+  // imported is not "sold nothing").
+  const noSales = chips.filter((c) => activeIds.includes(c.id) && !revenueDays.some((p) => p.branchId === c.id));
 
   // Where the revenue went (Kong, 2026-09-28: the donut cut every label off).
   const qs = `from=${isoDay(period.from)}&to=${isoDay(period.to)}`;
@@ -200,7 +205,15 @@ async function Analytics({
         {see.sales ? (
           <Card className="xl:col-span-3" title="รายรับรายวัน" hint="ยอดขายไม่รวม VAT และ service charge · กดชื่อสาขาเพื่อซ่อน/แสดงเส้น">
             {revenueRows.length ? (
-              <RevenueTrendChart rows={revenueRows} series={series} />
+              <>
+                <RevenueTrendChart rows={revenueRows} series={series} />
+                {noSales.length > 0 ? (
+                  <p className="mt-3 text-xs text-muted-foreground">
+                    ไม่มีเส้นของ {noSales.map((c) => c.name).join(", ")} เพราะยังไม่มียอดขายที่นำเข้าในช่วงนี้ ·{" "}
+                    <a href="/sales/import" className="text-primary underline">นำเข้าไฟล์ยอดขาย</a>
+                  </p>
+                ) : null}
+              </>
             ) : (
               <p className="py-16 text-center text-sm text-muted-foreground">
                 ยังไม่มียอดขายในช่วงนี้ ·{" "}
