@@ -67,6 +67,30 @@ function Sparkle({ x, y, s = 1 }: { x: number; y: number; s?: number }) {
   );
 }
 
+/** The pot, in the kitchen scene's coordinates (x 58–280, y 141–224, bottom
+ *  centre at 166,223). Shared by every drawing that has one, so the loading,
+ *  error and login screens show the same pot rather than three cousins. */
+function Pot() {
+  return (
+    <>
+      <path
+        className="fill-sage/55"
+        transform="translate(6 6)"
+        d="M78 150 C 80 200, 108 222, 166 223 C 226 224, 252 198, 254 152 Z"
+      />
+      <path {...ink} strokeWidth={2.8} d="M78 150 C 80 200, 108 222, 166 223 C 226 224, 252 198, 254 152" />
+      {/* rim, drawn twice — the second pass is the pen going back over it */}
+      <path {...ink} strokeWidth={2.8} d="M68 148 C 118 142, 212 141, 264 147" />
+      <path {...ink} strokeWidth={1.6} strokeOpacity={0.45} d="M71 152 C 120 147, 210 146, 261 151" />
+      {/* handles */}
+      <path {...ink} d="M79 160 C 60 157, 55 172, 76 176" />
+      <path {...ink} d="M253 160 C 272 157, 277 172, 256 176" />
+      {/* a band of hatching across the belly */}
+      <path {...ink} strokeWidth={1.6} strokeOpacity={0.4} d="M104 196 l10 -12 M122 204 l12 -14 M142 208 l12 -14 M162 209 l12 -14 M182 208 l12 -14 M202 204 l11 -13" />
+    </>
+  );
+}
+
 /**
  * The login scene: a pot with steam, the stock notebook, a green chilli, a
  * leaf, a baht coin and loose grains of rice — what the product is about,
@@ -120,21 +144,7 @@ export function KitchenDoodle({ className }: { className?: string }) {
         <path {...ink} strokeOpacity={0.7} d="M166 128 C 157 114, 177 104, 168 88 C 161 77, 172 68, 170 58" />
         <path {...ink} strokeOpacity={0.7} d="M196 132 C 187 120, 205 111, 198 98" />
 
-        {/* ---- the pot ---- */}
-        <path
-          className="fill-sage/55"
-          transform="translate(6 6)"
-          d="M78 150 C 80 200, 108 222, 166 223 C 226 224, 252 198, 254 152 Z"
-        />
-        <path {...ink} strokeWidth={2.8} d="M78 150 C 80 200, 108 222, 166 223 C 226 224, 252 198, 254 152" />
-        {/* rim, drawn twice — the second pass is the pen going back over it */}
-        <path {...ink} strokeWidth={2.8} d="M68 148 C 118 142, 212 141, 264 147" />
-        <path {...ink} strokeWidth={1.6} strokeOpacity={0.45} d="M71 152 C 120 147, 210 146, 261 151" />
-        {/* handles */}
-        <path {...ink} d="M79 160 C 60 157, 55 172, 76 176" />
-        <path {...ink} d="M253 160 C 272 157, 277 172, 256 176" />
-        {/* a band of hatching across the belly */}
-        <path {...ink} strokeWidth={1.6} strokeOpacity={0.4} d="M104 196 l10 -12 M122 204 l12 -14 M142 208 l12 -14 M162 209 l12 -14 M182 208 l12 -14 M202 204 l11 -13" />
+        <Pot />
 
         {/* ---- green chilli ---- */}
         <g transform="translate(8 -16) rotate(14 282 150)">
@@ -210,6 +220,93 @@ export function EnvelopeDoodle({ className }: { className?: string }) {
         <path {...ink} strokeWidth={1.6} strokeOpacity={0.5} d="M36 66 L62 44 M111 64 L84 43" />
       </g>
       <Grain x={72} y={8} r={20} />
+    </svg>
+  );
+}
+
+/**
+ * The pot with its steam rising — for `loading.tsx`. The steam is the only
+ * moving thing, and it stops for a reader who asked their system for less
+ * motion: the words beside it carry the information, the movement never did.
+ */
+export function SteamingPot({ className }: { className?: string }) {
+  return (
+    <svg viewBox="50 40 236 196" className={`text-primary ${className ?? ""}`} aria-hidden="true" focusable="false">
+      <style>{`
+        @keyframes kk-steam {
+          0%   { transform: translateY(8px);   opacity: 0; }
+          35%  { opacity: .75; }
+          100% { transform: translateY(-16px); opacity: 0; }
+        }
+        .kk-steam { animation: kk-steam 2.4s ease-in-out infinite; }
+        @media (prefers-reduced-motion: reduce) {
+          .kk-steam { animation: none; opacity: .7; }
+        }
+      `}</style>
+      <Wobble id="doodle-wobble-steaming" />
+      <g filter="url(#doodle-wobble-steaming)">
+        <path {...ink} className="kk-steam" d="M136 132 C 126 120, 146 110, 137 96 C 129 85, 142 76, 139 66" />
+        <path {...ink} className="kk-steam" style={{ animationDelay: "0.8s" }} d="M166 128 C 157 114, 177 104, 168 88 C 161 77, 172 68, 170 58" />
+        <path {...ink} className="kk-steam" style={{ animationDelay: "1.6s" }} d="M196 132 C 187 120, 205 111, 198 98" />
+        <Pot />
+        <path {...ink} strokeOpacity={0.5} d="M60 230 C 110 226, 170 233, 230 228 S 270 230, 278 228" />
+      </g>
+    </svg>
+  );
+}
+
+/**
+ * The pot knocked over, a puddle spreading and two grains rolling away — for
+ * `error.tsx`. An accident in a kitchen, not a disaster: the page says the
+ * data is safe, and the drawing should not argue with it.
+ */
+export function SpilledPot({ className }: { className?: string }) {
+  return (
+    <svg viewBox="70 96 290 150" className={`text-primary ${className ?? ""}`} aria-hidden="true" focusable="false">
+      <Wobble id="doodle-wobble-spilled" />
+      <g filter="url(#doodle-wobble-spilled)">
+        {/* the puddle, spreading from where the rim tipped */}
+        <path className="fill-sage/45" d="M262 232 C 270 218, 300 214, 322 222 C 346 228, 350 238, 330 240 C 300 244, 272 242, 262 232 Z" />
+        <path {...ink} strokeWidth={1.8} strokeOpacity={0.6} d="M262 232 C 270 218, 300 214, 322 222 C 346 228, 350 238, 330 240" />
+        {/* drips off the rim */}
+        <path {...ink} strokeWidth={2} strokeOpacity={0.7} d="M288 198 C 292 208, 290 214, 294 222 M280 204 C 282 212, 280 218, 284 226" />
+        {/* tilted about its own bottom centre, as if it rocked and went over */}
+        <g transform="rotate(24 166 223)">
+          <Pot />
+        </g>
+        {/* motion ticks — it only just happened */}
+        <path {...ink} strokeWidth={2} strokeOpacity={0.5} d="M96 112 l-10 -8 M110 102 l-4 -12 M84 128 l-12 -2" />
+        <path {...ink} strokeOpacity={0.5} d="M78 240 C 140 236, 220 242, 352 238" />
+      </g>
+      <Grain x={318} y={206} r={60} />
+      <Grain x={340} y={216} r={-30} />
+    </svg>
+  );
+}
+
+/**
+ * A clean plate, a fork and a spoon, and one grain of rice left — for
+ * `not-found.tsx`. Nothing is here, and nothing is broken either.
+ */
+export function EmptyPlate({ className }: { className?: string }) {
+  return (
+    <svg viewBox="26 92 268 116" className={`text-primary ${className ?? ""}`} aria-hidden="true" focusable="false">
+      <Wobble id="doodle-wobble-plate" />
+      <g filter="url(#doodle-wobble-plate)">
+        <ellipse className="fill-wash" cx="165" cy="158" rx="92" ry="34" />
+        <ellipse {...ink} strokeWidth={2.8} cx="160" cy="152" rx="92" ry="34" />
+        <ellipse {...ink} strokeWidth={1.8} strokeOpacity={0.55} cx="160" cy="150" rx="58" ry="19" />
+        {/* a glint on the rim */}
+        <path {...ink} strokeWidth={2} strokeOpacity={0.5} d="M204 130 C 216 133, 226 138, 232 144" />
+        {/* fork */}
+        <path {...ink} d="M44 104 v20 M52 104 v20 M60 104 v20 M44 124 C 44 134, 60 134, 60 124 M52 132 V 196" />
+        {/* spoon */}
+        <ellipse className="fill-sage/50" cx="272" cy="119" rx="10" ry="14" />
+        <ellipse {...ink} cx="268" cy="116" rx="10" ry="14" />
+        <path {...ink} d="M268 130 V 196" />
+      </g>
+      <Grain x={176} y={150} r={70} />
+      <Sparkle x={112} y={112} s={0.7} />
     </svg>
   );
 }

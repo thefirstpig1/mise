@@ -20,7 +20,7 @@
 // reader's.
 // ============================================================
 
-import Logo from "@/components/layout/Logo";
+import { SteamingPot } from "@/components/layout/Doodles";
 
 export default function Loading() {
   return (
@@ -30,14 +30,14 @@ export default function Loading() {
       role="status"
       aria-live="polite"
     >
-      {/* The mark, breathing. No spinner: a spinner is a foreign object on a
-          page whose whole identity is one shape, and this shape is already the
-          thing the reader is waiting for.
+      {/* A pot with its steam rising — the doodle family's own vocabulary
+          (Doodles.tsx), and still no spinner: a spinner is a foreign object
+          here. It replaced the breathing mark in the doodle pass.
 
-          `motion-safe:` because a reader who has asked their system for less
-          motion still gets the mark and the sentence — the information is in
-          the words, and the movement was never carrying any of it. */}
-      <Logo size={56} className="motion-safe:animate-pulse" />
+          The steam stops for a reader who has asked their system for less
+          motion (the SVG carries its own `prefers-reduced-motion` rule) — the
+          information is in the words, and the movement never carried any. */}
+      <SteamingPot className="w-32" />
 
       <p className="text-sm text-muted-foreground">กำลังโหลด…</p>
     </main>

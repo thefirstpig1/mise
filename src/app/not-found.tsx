@@ -15,12 +15,12 @@
 
 import Link from "next/link";
 
-import Logo from "@/components/layout/Logo";
+import { EmptyPlate } from "@/components/layout/Doodles";
 
 export default function NotFound() {
   return (
     <main className="flex min-h-[70vh] flex-col items-center justify-center gap-6 px-5 py-16 text-center">
-      <Logo size={64} />
+      <EmptyPlate className="w-56" />
 
       <div>
         <h1 className="font-display text-2xl font-semibold">ไม่พบหน้านี้</h1>

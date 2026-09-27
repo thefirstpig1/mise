@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { createTenant } from "@/server/tenant-init";
 import { signIn } from "@/lib/auth";
 import Logo from "@/components/layout/Logo";
+import { KitchenDoodle, MarkerUnderline } from "@/components/layout/Doodles";
 
 async function handleSignup(formData: FormData) {
   "use server";
@@ -75,9 +76,17 @@ export default function SignupPage() {
               KitKrua · Restaurant Management
             </div>
           </div>
+          {/* The same scene as /login, so the two doors look like one house.
+              Desktop only: on a phone it would push the form down. */}
+          <KitchenDoodle className="mt-2 hidden w-72 md:block" />
         </div>
         <div className="w-full max-w-lg">
-          <h1 className="mb-2 text-3xl font-bold">สมัครใช้งานคิดครัว</h1>
+          <h1 className="mb-2 text-3xl font-bold">
+            <span className="relative inline-block">
+              <span className="relative z-10">สมัครใช้งานคิดครัว</span>
+              <MarkerUnderline className="absolute -bottom-1 left-0 h-3 w-full" />
+            </span>
+          </h1>
           <p className="mb-8 text-muted-foreground">
             สร้างบัญชี + ตั้งค่าร้านของคุณ
           </p>

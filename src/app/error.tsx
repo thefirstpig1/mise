@@ -40,7 +40,7 @@
 
 import { useEffect } from "react";
 
-import Logo from "@/components/layout/Logo";
+import { SpilledPot } from "@/components/layout/Doodles";
 
 export default function Error({
   error,
@@ -58,7 +58,7 @@ export default function Error({
 
   return (
     <main className="flex min-h-[70vh] flex-col items-center justify-center gap-6 px-5 py-16 text-center">
-      <Logo size={64} />
+      <SpilledPot className="w-56" />
 
       <div>
         <h1 className="font-display text-2xl font-semibold">เกิดข้อผิดพลาด</h1>
