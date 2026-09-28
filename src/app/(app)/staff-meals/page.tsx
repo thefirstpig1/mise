@@ -15,7 +15,7 @@
 
 import { requireTenant } from "@/lib/require-tenant";
 import { computeBangkokToday } from "@/lib/bangkok-date";
-import { prisma } from "@/lib/db";
+import { withTenantContext } from "@/lib/db";
 import { getBranchesLogic } from "@/server/branch";
 import { getProductsLogic } from "@/server/product";
 import { getMenusLogic } from "@/server/menu";
@@ -93,10 +93,14 @@ export default async function StaffMealsPage({
       includeRetired: false,
     }),
     getProductsLogic(tenantId),
-    prisma.tenant.findUniqueOrThrow({
-      where: { id: tenantId },
-      select: { staffMealMaxMenuPrice: true, staffMealDailyQuota: true },
-    }),
+    // Inside the tenant context like every tenant read: since Part 30 RLS is
+    // enforced, and a bare `prisma` read here raised 22P02 on every visit.
+    withTenantContext(tenantId, (tx) =>
+      tx.tenant.findUniqueOrThrow({
+        where: { id: tenantId },
+        select: { staffMealMaxMenuPrice: true, staffMealDailyQuota: true },
+      })
+    ),
   ]);
 
   const defaultBranchId = sp.branch || branches[0]?.id || "";

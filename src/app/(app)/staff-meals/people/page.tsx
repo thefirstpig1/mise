@@ -9,7 +9,7 @@
 // roster that hid them would leave rows pointing at a name nobody can find.
 
 import { requireTenant } from "@/lib/require-tenant";
-import { prisma } from "@/lib/db";
+import { withTenantContext } from "@/lib/db";
 import { getBranchesLogic } from "@/server/branch";
 import { getStaffMembersLogic } from "@/server/staff-meal-read";
 import {
@@ -28,10 +28,13 @@ export default async function StaffPeoplePage() {
   const [branches, members, tenant] = await Promise.all([
     getBranchesLogic(tenantId, reach),
     getStaffMembersLogic(tenantId, { includeInactive: true }),
-    prisma.tenant.findUniqueOrThrow({
-      where: { id: tenantId },
-      select: { staffMealDailyQuota: true },
-    }),
+    // Inside the tenant context (RLS is enforced since Part 30).
+    withTenantContext(tenantId, (tx) =>
+      tx.tenant.findUniqueOrThrow({
+        where: { id: tenantId },
+        select: { staffMealDailyQuota: true },
+      })
+    ),
   ]);
 
   const branchOptions = branches.map((b) => ({ id: b.id, name: b.name }));

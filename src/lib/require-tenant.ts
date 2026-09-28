@@ -170,3 +170,36 @@ export async function requireTenant(
     },
   };
 }
+
+// ============================================================
+// The shop picker's two reads (ADR 0029 Q3, ADR 0030 Q2)
+// ============================================================
+// /choose-shop lists every shop a person belongs to, and records the one they
+// pick. Both questions are cross-tenant BY NATURE — filtered by userId, like
+// the discovery above — so no tenant context can answer them. Since Part 30
+// they ran as plain `prisma` and every visit raised 22P02 (the RLS policy read
+// an empty tenant id), which went unseen only because nobody had two shops yet.
+//
+// They live HERE, beside the discovery query, rather than widening the bypass
+// allowlist: this file is the one door (tests/rls-bypass-guard.test.ts), and
+// both functions take the SESSION's userId, never an id from the browser alone.
+
+/** Every active shop this person belongs to, oldest membership first. */
+export async function listActiveMembershipsForUser(userId: string) {
+  return prismaBypass.tenantMembership.findMany({
+    where: { userId, isActive: true },
+    select: { tenantId: true, role: true, tenant: { select: { name: true } } },
+    orderBy: { createdAt: "asc" },
+  });
+}
+
+/**
+ * Is `tenantId` one of this person's active shops? The posted id is checked
+ * against the session's own memberships before it is written anywhere (rule A9).
+ */
+export async function findActiveMembershipForUser(userId: string, tenantId: string) {
+  return prismaBypass.tenantMembership.findFirst({
+    where: { userId, tenantId, isActive: true },
+    select: { tenantId: true },
+  });
+}

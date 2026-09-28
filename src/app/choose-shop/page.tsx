@@ -17,7 +17,10 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import {
+  findActiveMembershipForUser,
+  listActiveMembershipsForUser,
+} from "@/lib/require-tenant";
 import {
   ACTIVE_TENANT_COOKIE,
   ACTIVE_TENANT_COOKIE_MAX_AGE,
@@ -39,10 +42,9 @@ async function chooseShop(formData: FormData) {
   // is written anywhere. A tenant id from a browser is otherwise an invitation
   // to read somebody else's shop (rule A9) — and this is the one place a
   // tenant id arrives from outside at all.
-  const membership = await prisma.tenantMembership.findFirst({
-    where: { userId: session.user.id, tenantId: wanted, isActive: true },
-    select: { tenantId: true },
-  });
+  // Not a uuid is not a shop — and would reach Postgres as a cast error.
+  if (!/^[0-9a-f-]{36}$/i.test(wanted)) redirect("/choose-shop");
+  const membership = await findActiveMembershipForUser(session.user.id, wanted);
   if (!membership) redirect("/choose-shop");
 
   const jar = await cookies();
@@ -61,15 +63,7 @@ export default async function ChooseShopPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
 
-  const memberships = await prisma.tenantMembership.findMany({
-    where: { userId: session.user.id, isActive: true },
-    select: {
-      tenantId: true,
-      role: true,
-      tenant: { select: { name: true } },
-    },
-    orderBy: { createdAt: "asc" },
-  });
+  const memberships = await listActiveMembershipsForUser(session.user.id);
 
   if (memberships.length === 0) redirect("/signup");
   // Nothing to choose between — going back would be a dead end with one button.
