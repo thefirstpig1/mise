@@ -128,6 +128,26 @@ const config: Config = {
         xl: "1rem",
       },
 
+      /**
+       * Motion (Kong, 2026-09-28: "อนิเมชั่นกราฟ … ไม่มีเลย"). Bars GROW from
+       * their start — scaleX, not width, so it never reflows the row — and a
+       * popup fades its backdrop and lifts its window in. Short and eased-out:
+       * the number is the point, the movement only draws the eye to it.
+       */
+      keyframes: {
+        "grow-x": { from: { transform: "scaleX(0)" }, to: { transform: "scaleX(1)" } },
+        "fade-in": { from: { opacity: "0" }, to: { opacity: "1" } },
+        "pop-in": {
+          from: { opacity: "0", transform: "translateY(10px) scale(0.98)" },
+          to: { opacity: "1", transform: "translateY(0) scale(1)" },
+        },
+      },
+      animation: {
+        "grow-x": "grow-x 0.75s cubic-bezier(0.22, 1, 0.36, 1) both",
+        "fade-in": "fade-in 0.18s ease-out both",
+        "pop-in": "pop-in 0.24s cubic-bezier(0.22, 1, 0.36, 1) both",
+      },
+
       boxShadow: {
         /** One elevation only. A back office does not need a z-axis. */
         card: "0 1px 2px rgb(38 40 17 / .05), 0 12px 28px -22px rgb(38 40 17 / .3)",

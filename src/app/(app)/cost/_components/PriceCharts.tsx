@@ -21,7 +21,8 @@ import {
   YAxis,
   LabelList,
 } from "recharts";
-import { SERIES, clickableBar } from "@/app/(app)/dashboard/_components/Charts";
+import { clickableBar } from "@/app/(app)/dashboard/_components/Charts";
+import { ANIM, ChartGradients, SERIES, cursorFill, grad } from "@/components/charts/chart-theme";
 
 const INK = "#262811";
 const INK_MUTED = "#5A5C31";
@@ -56,9 +57,10 @@ export function PriceChangeChart({ rows }: { rows: ChangeBar[] }) {
           <CartesianGrid stroke={GRID} horizontal={false} />
           <XAxis type="number" tickFormatter={(v) => `${v}%`} {...axis} />
           <YAxis type="category" dataKey="name" width={140} {...axis} axisLine={false} tick={{ fill: INK, fontSize: 12 }} />
+          <ChartGradients />
           <ReferenceLine x={0} stroke={INK_MUTED} />
           <Tooltip
-            cursor={{ fill: "rgb(174 183 132 / 0.14)" }}
+            cursor={cursorFill}
             content={({ active, payload }) => {
               const r = active && payload?.length ? (payload[0].payload as ChangeBar) : null;
               return r ? (
@@ -74,9 +76,9 @@ export function PriceChangeChart({ rows }: { rows: ChangeBar[] }) {
               ) : null;
             }}
           />
-          <Bar dataKey="changePct" radius={4} {...clickableBar((i) => rows[i] && open(rows[i].productId))}>
+          <Bar dataKey="changePct" radius={6} {...clickableBar((i) => rows[i] && open(rows[i].productId))} {...ANIM}>
             {rows.map((r) => (
-              <Cell key={r.productId} fill={r.changePct > 0 ? BAD : GOOD} />
+              <Cell key={r.productId} fill={grad(r.changePct > 0 ? "bad" : "good", "h")} />
             ))}
             <LabelList
               dataKey="changePct"
@@ -99,7 +101,7 @@ export function PriceTrendChart({ rows, suppliers, unit }: { rows: TrendRow[]; s
   return (
     <div className="h-72 w-full">
       <ResponsiveContainer>
-        <LineChart data={rows} margin={{ top: 8, right: 12, bottom: 0, left: 4 }}>
+        <LineChart key={rows.length} data={rows} margin={{ top: 8, right: 12, bottom: 0, left: 4 }}>
           <CartesianGrid stroke={GRID} vertical={false} />
           <XAxis dataKey="day" tickFormatter={dayLabel} minTickGap={16} {...axis} />
           <YAxis tickFormatter={(v) => `฿${v}`} width={56} {...axis} axisLine={false} domain={["auto", "auto"]} />
@@ -127,9 +129,11 @@ export function PriceTrendChart({ rows, suppliers, unit }: { rows: TrendRow[]; s
               dataKey={s.id}
               name={s.name}
               stroke={SERIES[i % SERIES.length]}
-              strokeWidth={2}
-              dot={{ r: 4, strokeWidth: 2, stroke: "#FFFFFF" }}
+              strokeWidth={2.5}
+              dot={{ r: 4.5, strokeWidth: 2, stroke: "#FFFFFF" }}
+              activeDot={{ r: 6.5, strokeWidth: 2.5, stroke: "#FFFFFF" }}
               connectNulls
+              {...ANIM}
             />
           ))}
         </LineChart>

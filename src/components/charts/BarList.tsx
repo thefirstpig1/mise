@@ -33,7 +33,7 @@ export default function BarList({
   groups,
   total,
   emptyText = "ยังไม่มีข้อมูลในช่วงนี้",
-  barClassName = "bg-sage",
+  barClassName = "bg-gradient-to-r from-sage/60 via-sage to-[#9DAA55]",
 }: {
   groups: BarListGroup[];
   /** The 100% every row's share is measured against. */
@@ -62,7 +62,7 @@ export default function BarList({
             ) : null}
             {g.note ? <p className="-mt-1 mb-2 text-xs text-muted-foreground">{g.note}</p> : null}
             <ul className="space-y-1">
-              {g.rows.map((r) => {
+              {g.rows.map((r, ri) => {
                 const pct = (r.value / total) * 100;
                 const body = (
                   <>
@@ -70,8 +70,9 @@ export default function BarList({
                         has to share a line with it and is never truncated. */}
                     <span
                       aria-hidden
-                      className={`absolute inset-y-0 left-0 rounded-md ${barClassName} opacity-45 transition-opacity group-hover:opacity-70`}
-                      style={{ width: `${Math.max(1.5, (r.value / max) * 100)}%` }}
+                      className={`absolute inset-y-0 left-0 origin-left animate-grow-x rounded-md ${barClassName} opacity-50 transition-opacity group-hover:opacity-75`}
+                      // Grows in from the left, one row after another (Kong, 2026-09-28).
+                      style={{ width: `${Math.max(1.5, (r.value / max) * 100)}%`, animationDelay: `${Math.min(ri, 14) * 45}ms` }}
                     />
                     <span className="relative min-w-0 flex-1">
                       <span className="block text-sm font-medium text-foreground">{r.label}</span>

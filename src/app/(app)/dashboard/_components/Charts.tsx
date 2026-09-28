@@ -17,34 +17,45 @@
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
+  Area,
+  AreaChart,
   Bar,
   BarChart,
   CartesianGrid,
   Cell,
   ComposedChart,
+  LabelList,
   Legend,
   Line,
-  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
+import {
+  ANIM,
+  BAD,
+  ChartGradients,
+  ChartTooltip,
+  GOOD,
+  GRID,
+  INK,
+  INK_MUTED,
+  NEUTRAL,
+  axis,
+  cursorFill,
+  grad,
+  solid,
+} from "@/components/charts/chart-theme";
 
 /** Fixed order, never cycled — a series keeps its colour when others hide. */
 // Kong (2026-09-28) rejected the first set as off-brand. This one starts from
 // the brand's own olive and stays earthy — and still passes all six checks
 // of the dataviz validator (re-run on this exact order; the order matters,
 // olive beside clay fails colour-blind separation).
-export const SERIES = ["#5E6B14", "#8A4F9E", "#C0692B", "#008F84", "#A8820A"] as const;
+export { SERIES } from "@/components/charts/chart-theme";
 
-const INK = "#262811";
-const INK_MUTED = "#5A5C31";
-const GRID = "#E9E3C8";
-const GOOD = "#5A7333";
-const BAD = "#A83A22";
-const NEUTRAL = "#8B8D63";
-const BRAND = "#41431B";
+// The look (gradients, motion, tooltip) lives in chart-theme.tsx (Kong, 2026-09-28).
 
 const baht = (n: number) =>
   new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB", maximumFractionDigits: 0 }).format(n);
@@ -53,7 +64,6 @@ const compact = (n: number) =>
 const dayLabel = (iso: string) =>
   new Date(`${iso}T00:00:00Z`).toLocaleDateString("th-TH", { day: "numeric", month: "short", timeZone: "UTC" });
 
-const axis = { stroke: GRID, tick: { fill: INK_MUTED, fontSize: 12 }, tickLine: false } as const;
 
 /**
  * Makes a bar open something when clicked — spread onto a `<Bar>`.
@@ -75,20 +85,7 @@ export function clickableBar(onIndex: (i: number) => void) {
   };
 }
 
-function TooltipBox({ title, rows }: { title: string; rows: { label: string; value: string; color?: string }[] }) {
-  return (
-    <div className="rounded-lg border border-border bg-surface px-3 py-2 text-sm shadow-md">
-      <p className="mb-1 font-medium text-foreground">{title}</p>
-      {rows.map((r) => (
-        <p key={r.label} className="flex items-center gap-2 text-foreground">
-          {r.color ? <span className="h-2 w-2 rounded-full" style={{ backgroundColor: r.color }} /> : null}
-          <span className="text-muted-foreground">{r.label}</span>
-          <span className="ml-auto pl-4 tabular-nums">{r.value}</span>
-        </p>
-      ))}
-    </div>
-  );
-}
+const TooltipBox = ChartTooltip;
 
 // ------------------------------------------------------------
 // 1. Revenue per day, one line per branch
@@ -109,7 +106,15 @@ export function RevenueTrendChart({ rows, series }: { rows: RevenueRow[]; series
   return (
     <div className="h-72 w-full">
       <ResponsiveContainer>
-        <LineChart data={rows} margin={{ top: 8, right: 12, bottom: 0, left: 4 }}>
+        <AreaChart key={rows.length} data={rows} margin={{ top: 8, right: 12, bottom: 0, left: 4 }}>
+          <defs>
+            {series.map((s) => (
+              <linearGradient key={s.branchId} id={`rev-${s.branchId}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={s.color} stopOpacity={0.3} />
+                <stop offset="100%" stopColor={s.color} stopOpacity={0.02} />
+              </linearGradient>
+            ))}
+          </defs>
           <CartesianGrid stroke={GRID} vertical={false} />
           <XAxis dataKey="day" tickFormatter={dayLabel} minTickGap={24} {...axis} />
           <YAxis tickFormatter={compact} width={48} {...axis} axisLine={false} />
@@ -140,19 +145,21 @@ export function RevenueTrendChart({ rows, series }: { rows: RevenueRow[]; series
             />
           ) : null}
           {series.map((s) => (
-            <Line
+            <Area
               key={s.branchId}
               type="monotone"
               dataKey={s.branchId}
               name={s.name}
               stroke={s.color}
-              strokeWidth={2}
+              strokeWidth={2.5}
+              fill={`url(#rev-${s.branchId})`}
               dot={false}
-              activeDot={{ r: 5, stroke: "#FFFFFF", strokeWidth: 2 }}
+              activeDot={{ r: 6, stroke: "#FFFFFF", strokeWidth: 2.5 }}
               hide={hidden.has(s.branchId)}
+              {...ANIM}
             />
           ))}
-        </LineChart>
+        </AreaChart>
       </ResponsiveContainer>
     </div>
   );
@@ -171,30 +178,37 @@ export function PnlWaterfallChart({ data }: { data: WaterfallInput }) {
   // base cannot do that: Recharts stacks negatives from zero separately.)
   const span = (a: number, b: number): [number, number] => [Math.min(a, b), Math.max(a, b)];
   const rows = [
-    { name: "ยอดขาย", range: span(0, revenue), color: BRAND, shown: revenue },
-    { name: "ต้นทุนขาย", range: span(revenue, gross), color: BAD, shown: -cogs },
-    { name: "ค่าใช้จ่าย", range: span(gross, net), color: BAD, shown: -opex },
-    { name: "กำไรสุทธิ", range: span(0, net), color: net >= 0 ? GOOD : BAD, shown: net },
+    { name: "ยอดขาย", range: span(0, revenue), color: grad("olive"), shown: revenue },
+    { name: "ต้นทุนขาย", range: span(revenue, gross), color: grad("bad"), shown: -cogs },
+    { name: "ค่าใช้จ่าย", range: span(gross, net), color: grad("clay"), shown: -opex },
+    { name: "กำไรสุทธิ", range: span(0, net), color: grad(net >= 0 ? "good" : "bad"), shown: net },
   ];
 
   return (
     <div className="h-64 w-full">
       <ResponsiveContainer>
-        <BarChart data={rows} margin={{ top: 8, right: 12, bottom: 0, left: 4 }} barCategoryGap="28%">
+        <BarChart key={`${revenue}-${net}`} data={rows} margin={{ top: 24, right: 12, bottom: 0, left: 4 }} barCategoryGap="28%">
+          <ChartGradients />
           <CartesianGrid stroke={GRID} vertical={false} />
           <XAxis dataKey="name" {...axis} />
           <YAxis tickFormatter={compact} width={48} {...axis} axisLine={false} />
           <Tooltip
-            cursor={{ fill: "rgb(174 183 132 / 0.14)" }}
+            cursor={cursorFill}
             content={({ active, payload }) => {
               const r = active && payload?.length ? (payload[0].payload as (typeof rows)[number]) : null;
               return r ? <TooltipBox title={r.name} rows={[{ label: "จำนวน", value: baht(r.shown) }]} /> : null;
             }}
           />
-          <Bar dataKey="range" radius={4}>
+          <Bar dataKey="range" radius={6} maxBarSize={88} {...ANIM}>
             {rows.map((r) => (
               <Cell key={r.name} fill={r.color} />
             ))}
+            <LabelList
+              dataKey="shown"
+              position="top"
+              formatter={(v: unknown) => compact(Number(v))}
+              style={{ fill: INK, fontSize: 12, fontWeight: 600 }}
+            />
           </Bar>
         </BarChart>
       </ResponsiveContainer>
@@ -239,22 +253,24 @@ export function MonthlyPnlChart({ points, active }: { points: MonthPoint[]; acti
   return (
     <div>
       <div className="mb-2 flex flex-wrap gap-4 text-xs text-muted-foreground">
-        <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: BRAND }} />รายรับ</span>
-        <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: SERIES[2] }} />รายจ่าย (ต้นทุนขาย + ค่าใช้จ่าย)</span>
+        <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: solid("olive") }} />รายรับ</span>
+        <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: solid("clay") }} />รายจ่าย (ต้นทุนขาย + ค่าใช้จ่าย)</span>
         <span className="flex items-center gap-1.5"><span className="h-0.5 w-3.5" style={{ backgroundColor: GOOD }} />กำไรสุทธิ</span>
       </div>
       <div className="h-72 w-full">
         <ResponsiveContainer>
           <ComposedChart
+            key={points.length}
             data={points}
             margin={{ top: 8, right: 12, bottom: 0, left: 4 }}
             barCategoryGap="24%"
           >
+            <ChartGradients />
             <CartesianGrid stroke={GRID} vertical={false} />
             <XAxis dataKey="label" {...axis} />
             <YAxis tickFormatter={compact} width={48} {...axis} axisLine={false} />
             <Tooltip
-              cursor={{ fill: "rgb(174 183 132 / 0.14)" }}
+              cursor={cursorFill}
               content={({ active: a, payload }) => {
                 const pt = a && payload?.length ? (payload[0].payload as MonthPoint) : null;
                 if (!pt) return null;
@@ -274,20 +290,23 @@ export function MonthlyPnlChart({ points, active }: { points: MonthPoint[]; acti
                 );
               }}
             />
-            <Bar dataKey="revenue" radius={[4, 4, 0, 0]} {...clickableBar(onBar)}>
+            <Bar dataKey="revenue" radius={[6, 6, 0, 0]} maxBarSize={44} {...clickableBar(onBar)} {...ANIM}>
               {points.map((p) => (
-                <Cell key={p.key} fill={BRAND} fillOpacity={fade(p.key)} />
+                <Cell key={p.key} fill={grad("olive")} fillOpacity={fade(p.key)} />
               ))}
             </Bar>
-            <Bar dataKey="expenses" radius={[4, 4, 0, 0]} {...clickableBar(onBar)}>
+            <Bar dataKey="expenses" radius={[6, 6, 0, 0]} maxBarSize={44} {...clickableBar(onBar)} {...ANIM}>
               {points.map((p) => (
-                <Cell key={p.key} fill={SERIES[2]} fillOpacity={fade(p.key)} />
+                <Cell key={p.key} fill={grad("clay")} fillOpacity={fade(p.key)} />
               ))}
             </Bar>
             <Line
               dataKey="net"
+              type="monotone"
               stroke={GOOD}
-              strokeWidth={2.5}
+              strokeWidth={3}
+              {...ANIM}
+              animationBegin={400}
               connectNulls={false}
               dot={(props: { cx?: number; cy?: number; payload?: MonthPoint; index?: number }) => {
                 const { cx, cy, payload, index } = props;
@@ -334,18 +353,19 @@ export function DailyBarsChart({ rows, label }: { rows: { day: string; amount: n
   return (
     <div className="h-60 w-full">
       <ResponsiveContainer>
-        <BarChart data={rows} margin={{ top: 8, right: 12, bottom: 0, left: 4 }}>
+        <BarChart key={rows.length} data={rows} margin={{ top: 8, right: 12, bottom: 0, left: 4 }}>
+          <ChartGradients />
           <CartesianGrid stroke={GRID} vertical={false} />
           <XAxis dataKey="day" tickFormatter={dayLabel} minTickGap={16} {...axis} />
           <YAxis tickFormatter={compact} width={48} {...axis} axisLine={false} />
           <Tooltip
-            cursor={{ fill: "rgb(174 183 132 / 0.14)" }}
+            cursor={cursorFill}
             content={({ active, payload }) => {
               const r = active && payload?.length ? (payload[0].payload as { day: string; amount: number }) : null;
               return r ? <TooltipBox title={dayLabel(r.day)} rows={[{ label, value: baht(r.amount) }]} /> : null;
             }}
           />
-          <Bar dataKey="amount" fill={SERIES[0]} radius={[4, 4, 0, 0]} />
+          <Bar dataKey="amount" fill={grad("clay")} radius={[5, 5, 0, 0]} maxBarSize={36} activeBar={{ fill: solid("clay") }} {...ANIM} />
         </BarChart>
       </ResponsiveContainer>
     </div>
@@ -364,12 +384,13 @@ export function TopMenusChart({ rows }: { rows: MenuBar[] }) {
   return (
     <div className="w-full" style={{ height: Math.max(160, rows.length * 34 + 16) }}>
       <ResponsiveContainer>
-        <BarChart data={rows} layout="vertical" margin={{ top: 0, right: 16, bottom: 0, left: 0 }} barCategoryGap={6}>
+        <BarChart key={rows.length} data={rows} layout="vertical" margin={{ top: 0, right: 56, bottom: 0, left: 0 }} barCategoryGap={6}>
+          <ChartGradients />
           <CartesianGrid stroke={GRID} horizontal={false} />
           <XAxis type="number" tickFormatter={compact} {...axis} />
           <YAxis type="category" dataKey="name" width={150} {...axis} axisLine={false} tick={{ fill: INK, fontSize: 12 }} />
           <Tooltip
-            cursor={{ fill: "rgb(174 183 132 / 0.14)" }}
+            cursor={cursorFill}
             content={({ active, payload }) => {
               const r = active && payload?.length ? (payload[0].payload as MenuBar) : null;
               return r ? (
@@ -383,7 +404,18 @@ export function TopMenusChart({ rows }: { rows: MenuBar[] }) {
               ) : null;
             }}
           />
-          <Bar dataKey="net" fill={SERIES[0]} radius={[0, 4, 4, 0]} />
+          <Bar dataKey="net" radius={[0, 6, 6, 0]} {...ANIM}>
+            {/* The best seller is what this chart exists to point at. */}
+            {rows.map((r, i) => (
+              <Cell key={r.name} fill={grad(i === 0 ? "clay" : "olive", "h")} />
+            ))}
+            <LabelList
+              dataKey="net"
+              position="right"
+              formatter={(v: unknown) => compact(Number(v))}
+              style={{ fill: INK_MUTED, fontSize: 12, fontWeight: 500 }}
+            />
+          </Bar>
         </BarChart>
       </ResponsiveContainer>
     </div>

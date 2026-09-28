@@ -14,11 +14,11 @@ import PulsePanel from "./_components/PulsePanel";
 import ActionLink, { RowChevron } from "@/components/ui/ActionLink";
 import DashboardControls, { type BranchChip } from "./_components/DashboardControls";
 import BarList, { type BarListGroup } from "@/components/charts/BarList";
+import { SERIES } from "@/components/charts/chart-theme";
 import {
   MonthlyPnlChart,
   PnlWaterfallChart,
   RevenueTrendChart,
-  SERIES,
   TopMenusChart,
   type MenuBar,
   type RevenueRow,

@@ -11,28 +11,28 @@
 
 import { useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { SERIES, clickableBar } from "@/app/(app)/dashboard/_components/Charts";
+import { Bar, BarChart, CartesianGrid, Cell, LabelList, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { clickableBar } from "@/app/(app)/dashboard/_components/Charts";
+import {
+  ANIM,
+  ChartGradients,
+  ChartTooltip,
+  GRID,
+  INK_MUTED,
+  axis,
+  cursorFill,
+  grad,
+  solid,
+} from "@/components/charts/chart-theme";
 
-const INK_MUTED = "#5A5C31";
-const GRID = "#E9E3C8";
-const axis = { stroke: GRID, tick: { fill: INK_MUTED, fontSize: 12 }, tickLine: false } as const;
+/** Saturday and Sunday — the shape a shop plans its staff around. */
+const WEEKEND = new Set(["เสาร์", "อาทิตย์"]);
 const baht = (n: number) =>
   new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB", maximumFractionDigits: 0 }).format(n);
 const compact = (n: number) => new Intl.NumberFormat("th-TH", { notation: "compact", maximumFractionDigits: 1 }).format(n);
 
 function Box({ title, rows }: { title: string; rows: [string, string][] }) {
-  return (
-    <div className="rounded-lg border border-border bg-surface px-3 py-2 text-sm shadow-md">
-      <p className="mb-1 font-medium">{title}</p>
-      {rows.map(([k, v]) => (
-        <p key={k} className="flex gap-4">
-          <span className="text-muted-foreground">{k}</span>
-          <span className="ml-auto tabular-nums">{v}</span>
-        </p>
-      ))}
-    </div>
-  );
+  return <ChartTooltip title={title} rows={rows.map(([label, value]) => ({ label, value }))} />;
 }
 
 // ------------------------------------------------------------
@@ -49,18 +49,28 @@ export function SalesDailyChart({ rows, activeDay }: { rows: DayBar[]; activeDay
     else q.set("day", day);
     router.push(`/sales?${q.toString()}`, { scroll: false });
   };
+  const average = rows.length ? rows.reduce((t, r) => t + r.net, 0) / rows.length : 0;
   return (
+    <div>
+    <div className="mb-2 flex flex-wrap gap-4 text-xs text-muted-foreground">
+      <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm" style={{ background: solid("olive") }} />จันทร์–ศุกร์</span>
+      <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm" style={{ background: solid("mustard") }} />เสาร์–อาทิตย์</span>
+      <span className="flex items-center gap-1.5"><span className="w-4 border-t-2 border-dashed" style={{ borderColor: solid("clay") }} />เฉลี่ยต่อวัน {baht(average)}</span>
+    </div>
     <div className="h-64 w-full">
       <ResponsiveContainer>
         <BarChart
+          // A new period is a new chart: re-keying replays the grow-in.
+          key={`${rows[0]?.day ?? ""}-${rows.length}`}
           data={rows}
           margin={{ top: 8, right: 12, bottom: 0, left: 4 }}
         >
+          <ChartGradients />
           <CartesianGrid stroke={GRID} vertical={false} />
           <XAxis dataKey="label" minTickGap={16} {...axis} />
           <YAxis tickFormatter={compact} width={48} {...axis} axisLine={false} />
           <Tooltip
-            cursor={{ fill: "rgb(174 183 132 / 0.14)" }}
+            cursor={cursorFill}
             content={({ active, payload }) => {
               const r = active && payload?.length ? (payload[0].payload as DayBar) : null;
               return r ? (
@@ -74,13 +84,27 @@ export function SalesDailyChart({ rows, activeDay }: { rows: DayBar[]; activeDay
               ) : null;
             }}
           />
-          <Bar dataKey="net" radius={[4, 4, 0, 0]} {...clickableBar((i) => rows[i] && open(rows[i].day))}>
+          <Bar
+            dataKey="net"
+            radius={[6, 6, 0, 0]}
+            maxBarSize={28}
+            activeBar={{ fill: grad("clay") }}
+            {...clickableBar((i) => rows[i] && open(rows[i].day))}
+            {...ANIM}
+          >
+            {/* The open day is terracotta; weekends mustard; weekdays olive. */}
             {rows.map((r) => (
-              <Cell key={r.day} fill={SERIES[0]} fillOpacity={activeDay === null || activeDay === r.day ? 1 : 0.35} />
+              <Cell
+                key={r.day}
+                fill={activeDay === r.day ? grad("clay") : WEEKEND.has(r.weekday) ? grad("mustard") : grad("olive")}
+                fillOpacity={activeDay === null || activeDay === r.day ? 1 : 0.4}
+              />
             ))}
           </Bar>
+          <ReferenceLine y={average} stroke={solid("clay")} strokeDasharray="5 4" strokeWidth={1.5} ifOverflow="extendDomain" />
         </BarChart>
       </ResponsiveContainer>
+    </div>
     </div>
   );
 }
@@ -95,12 +119,13 @@ export function WeekdayChart({ rows }: { rows: WeekdayBar[] }) {
   return (
     <div className="h-56 w-full">
       <ResponsiveContainer>
-        <BarChart data={rows} margin={{ top: 8, right: 12, bottom: 0, left: 4 }}>
+        <BarChart key={rows.map((r) => r.average).join()} data={rows} margin={{ top: 24, right: 12, bottom: 0, left: 4 }}>
+          <ChartGradients />
           <CartesianGrid stroke={GRID} vertical={false} />
           <XAxis dataKey="label" {...axis} />
           <YAxis tickFormatter={compact} width={48} {...axis} axisLine={false} />
           <Tooltip
-            cursor={{ fill: "rgb(174 183 132 / 0.14)" }}
+            cursor={cursorFill}
             content={({ active, payload }) => {
               const r = active && payload?.length ? (payload[0].payload as WeekdayBar) : null;
               return r ? (
@@ -108,11 +133,17 @@ export function WeekdayChart({ rows }: { rows: WeekdayBar[] }) {
               ) : null;
             }}
           />
-          <Bar dataKey="average" radius={[4, 4, 0, 0]}>
+          <Bar dataKey="average" radius={[6, 6, 0, 0]} maxBarSize={52} {...ANIM}>
             {/* The best day is the one fact this chart exists to show. */}
             {rows.map((r) => (
-              <Cell key={r.label} fill={SERIES[0]} fillOpacity={r.average === max ? 1 : 0.5} />
+              <Cell key={r.label} fill={r.average === max ? grad("clay") : grad("olive")} fillOpacity={r.average === max ? 1 : 0.8} />
             ))}
+            <LabelList
+              dataKey="average"
+              position="top"
+              formatter={(v: unknown) => compact(Number(v))}
+              style={{ fill: INK_MUTED, fontSize: 11, fontWeight: 500 }}
+            />
           </Bar>
         </BarChart>
       </ResponsiveContainer>
@@ -123,7 +154,7 @@ export function WeekdayChart({ rows }: { rows: WeekdayBar[] }) {
 // ------------------------------------------------------------
 // Menu table — search and sort, the way Kong's sheet did
 // ------------------------------------------------------------
-export type MenuRow = { id: string; name: string; category: string; qty: number; net: number; stub: boolean };
+export type MenuRow = { id: string; name: string; category: string; color?: string | null; qty: number; net: number; stub: boolean };
 
 type SortKey = "name" | "category" | "qty" | "net";
 
@@ -185,7 +216,12 @@ export function MenuTable({ rows, total }: { rows: MenuRow[]; total: number }) {
                   {r.name}
                   {r.stub ? <span className="ml-1 rounded bg-warn-bg px-1 text-xs text-warn">รอตรวจ</span> : null}
                 </td>
-                {showCategory && <td className="px-3 py-2 text-muted-foreground">{r.category}</td>}
+                {showCategory && (
+                  <td className="px-3 py-2 text-muted-foreground">
+                    {r.color ? <span className="mr-1.5 inline-block h-2 w-2 rounded-full align-middle" style={{ background: r.color }} /> : null}
+                    {r.category}
+                  </td>
+                )}
                 <td className="px-3 py-2 text-right">{r.qty.toLocaleString("th-TH")}</td>
                 <td className="px-3 py-2 text-right font-medium">{baht(r.net)}</td>
                 <td className="px-3 py-2 text-right text-muted-foreground">{total > 0 ? ((r.net / total) * 100).toFixed(1) : "0"}%</td>

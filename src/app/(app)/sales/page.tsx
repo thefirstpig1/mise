@@ -29,6 +29,8 @@ import {
   toSalesSummaryView,
 } from "./_components/sales-view";
 import DayDetailModal from "./_components/DayDetailModal";
+import { CategoryShare, type ToneMap } from "./_components/Breakdown";
+import { solid, toneOf } from "@/components/charts/chart-theme";
 import StickyFilters from "./_components/StickyFilters";
 import Link from "next/link";
 import { MenuTable, SalesDailyChart, WeekdayChart } from "./_components/SalesCharts";
@@ -80,7 +82,8 @@ export default async function SalesPage({
   const [branches, categories, summaryRaw, daysRaw] = await Promise.all([
     getBranchesLogic(tenantId, reach),
     getMenuCategoriesLogic(tenantId),
-    getSalesSummaryLogic(tenantId, query),
+    // Every menu: the table lists them all and the category popup needs each one.
+    getSalesSummaryLogic(tenantId, query, { menuLimit: Number.MAX_SAFE_INTEGER }),
     getSalesDaysLogic(tenantId, {
       branchId: query.branchId,
       from: query.from,
@@ -137,6 +140,19 @@ export default async function SalesPage({
     branches.find((b) => b.id === one("branch"))?.name ?? "ทุกสาขา",
     categories.find((c) => c.id === one("category"))?.name ?? "ทุกหมวด",
   ].join(" · ");
+
+  // One colour per category for the whole page, in the period's order, so a
+  // category looks the same in the share list, its popup and the day popup.
+  const catKey = (id: string | null) => id ?? "none";
+  const tones: ToneMap = Object.fromEntries(s.byCategory.map((c, i) => [catKey(c.menuCategoryId), toneOf(i)]));
+  const toBreakdownMenus = (list: typeof s.topMenus) =>
+    list.map((m) => ({
+      id: m.menuId,
+      name: m.name,
+      categoryKey: catKey(m.menuCategoryId),
+      net: Number(m.net),
+      qty: Number(m.qty),
+    }));
 
   // Every menu sold in the period sits in no category: the category views can
   // only say one thing, so say what would make them useful instead.
@@ -320,13 +336,8 @@ export default async function SalesPage({
                 net: Number(c.net),
                 qty: Number(c.qty),
               }))}
-              menus={daySummary.topMenus.map((m) => ({
-                id: m.menuId,
-                name: m.name,
-                categoryKey: m.menuCategoryId ?? "none",
-                net: Number(m.net),
-                qty: Number(m.qty),
-              }))}
+              menus={toBreakdownMenus(daySummary.topMenus)}
+              tones={tones}
               branches={modalBranches}
               canKeyPulse={can("sales:import")}
               closeHref={link({})}
@@ -339,7 +350,7 @@ export default async function SalesPage({
             <section className="rounded-xl border border-border bg-surface p-5">
               <h3 className="text-base font-semibold">วันไหนของสัปดาห์ขายดี</h3>
               <p className="mb-4 mt-0.5 text-xs text-muted-foreground">
-                เฉลี่ยต่อวัน หารด้วยจำนวนวันนั้นที่มีจริงในช่วง — วันที่ขายดีที่สุดเป็นแท่งเข้ม · ใช้วางกะพนักงาน
+                เฉลี่ยต่อวัน หารด้วยจำนวนวันนั้นที่มีจริงในช่วง — วันที่ขายดีที่สุดเป็นแท่งสีส้มอิฐ · ใช้วางกะพนักงาน
               </p>
               <WeekdayChart
                 rows={[1, 2, 3, 4, 5, 6, 0]
@@ -350,21 +361,22 @@ export default async function SalesPage({
             </section>
             <section className="rounded-xl border border-border bg-surface p-5">
               <h3 className="text-base font-semibold">สัดส่วนหมวดเมนู</h3>
-              <p className="mb-4 mt-0.5 text-xs text-muted-foreground">กดหมวดเพื่อดูเฉพาะเมนูในหมวดนั้นทั้งหน้า</p>
+              <p className="mb-4 mt-0.5 text-xs text-muted-foreground">กดหมวดเพื่อดูเมนูในหมวดนั้น</p>
               {noMenuCategories && <UncategorisedHint />}
-              <BarList
+              <CategoryShare
                 total={totalNet}
-                groups={[
-                  {
-                    rows: s.byCategory.map((c) => ({
-                      key: c.menuCategoryId ?? "none",
-                      label: c.name,
-                      detail: `${Number(c.qty).toLocaleString("th-TH")} จาน`,
-                      value: Number(c.net),
-                      href: c.menuCategoryId ? link({ category: c.menuCategoryId }) : undefined,
-                    })),
-                  },
-                ]}
+                tones={tones}
+                periodLabel={filterSummary.split(" · ")[0]}
+                categories={s.byCategory.map((c) => ({
+                  key: catKey(c.menuCategoryId),
+                  label: c.name,
+                  net: Number(c.net),
+                  qty: Number(c.qty),
+                }))}
+                menus={toBreakdownMenus(s.topMenus)}
+                filterHref={Object.fromEntries(
+                  s.byCategory.filter((c) => c.menuCategoryId).map((c) => [c.menuCategoryId!, link({ category: c.menuCategoryId! })])
+                )}
               />
             </section>
           </div>
@@ -372,7 +384,7 @@ export default async function SalesPage({
           <section className="rounded-xl border border-border bg-surface p-5">
             <h3 className="text-base font-semibold">เมนูทำเงินสูงสุด</h3>
             <p className="mb-4 mt-0.5 text-xs text-muted-foreground">
-              {s.topMenus.length} อันดับแรกของช่วงนี้ · ค้นหาได้ · กดหัวคอลัมน์เพื่อเรียงลำดับ
+              ทั้ง {s.topMenus.length} เมนูของช่วงนี้ · ค้นหาได้ · กดหัวคอลัมน์เพื่อเรียงลำดับ
             </p>
             {noMenuCategories && <UncategorisedHint />}
             <MenuTable
@@ -381,6 +393,7 @@ export default async function SalesPage({
                 id: m.menuId,
                 name: m.name,
                 category: m.menuCategoryName ?? "—",
+                color: m.menuCategoryId ? solid(tones[catKey(m.menuCategoryId)] ?? "olive") : null,
                 qty: Number(m.qty),
                 net: Number(m.net),
                 stub: m.isPosStub,
