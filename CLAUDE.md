@@ -108,6 +108,7 @@ For complex / multi-file work, enter Plan mode first: propose the plan, wait for
 - .claude/skills/token-awareness/SKILL.md — context budget monitoring + warn before exhaustion
 - .claude/skills/debug-mantra/SKILL.md — 4-step debug discipline (reproduce → fail path → falsify → ledger)
 - .claude/skills/scrutinize/SKILL.md — outsider review of plans/PRs (intent → trace → verify)
+- **.claude/skills/mise-ui-review/SKILL.md — Kong's standing UI rules + the page-by-page review loop. LOAD BEFORE touching any screen** (whole-row click, no list arrows, ProductPicker not `<select>`, chart theme + motion, popups, per-day comparisons that name their period, "use client" value-import trap, build procedure)
 - .claude/skills/management-talk/SKILL.md — translate eng content for leadership/team/investors
 - CONTEXT.md — Mise domain glossary
 - docs/adr/ — Architecture Decision Records
