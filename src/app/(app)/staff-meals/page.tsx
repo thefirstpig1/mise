@@ -26,7 +26,15 @@ import {
   getZeroPriceSalesWarningLogic,
 } from "@/server/staff-meal-read";
 import { STAFF_MEAL_PRICE_SOURCE_LABELS_TH } from "@/lib/validations/staff-meal";
-import { createStaffMealAction, voidStaffMealAction } from "./actions";
+import {
+  approveStaffMealAction,
+  createStaffMealAction,
+  getTicketBoardAction,
+  rejectStaffMealAction,
+  requestStaffMealAction,
+  voidStaffMealAction,
+} from "./actions";
+import TicketBoard from "./_components/TicketBoard";
 import {
   toStaffMealQuotaView,
   toStaffMealRowView,
@@ -72,6 +80,8 @@ export default async function StaffMealsPage({
   // which is the whole reason that capability exists (ADR 0029 Q7 — the
   // roster picker on the form is part of recording, not of surveillance).
   const seesPeople = can("staff:view");
+  const isApprover = can("staffmeal:approve");
+  const canBackdate = can("settings:write");
   const sp = await searchParams;
 
   const todayIso = computeBangkokToday().toISOString().slice(0, 10);
@@ -98,7 +108,7 @@ export default async function StaffMealsPage({
     withTenantContext(tenantId, (tx) =>
       tx.tenant.findUniqueOrThrow({
         where: { id: tenantId },
-        select: { staffMealMaxMenuPrice: true, staffMealDailyQuota: true },
+        select: { staffMealMaxMenuPrice: true, staffMealDailyQuota: true, staffMealStockSource: true },
       })
     ),
   ]);
@@ -140,21 +150,43 @@ export default async function StaffMealsPage({
     toStaffMealRowView(r, tenant.staffMealMaxMenuPrice)
   );
 
+  const menuOptions = menus.map((m) => ({
+    id: m.id,
+    name: m.name,
+    sku: m.posMenuId ?? "",
+    imageUrl: null,
+    section: m.menuCategory?.name ?? null,
+    group: null,
+    baseUnitName: null,
+  }));
+  const board = await getTicketBoardAction();
+
   return (
     <div className="space-y-6">
+      <TicketBoard
+        branches={branches.map((b) => ({ id: b.id, name: b.name }))}
+        defaultBranchId={defaultBranchId}
+        menus={menuOptions}
+        todayIso={todayIso}
+        canBackdate={canBackdate}
+        initial={board}
+        request={requestStaffMealAction}
+        approve={approveStaffMealAction}
+        reject={rejectStaffMealAction}
+        refresh={getTicketBoardAction}
+      />
+
+      <h2 className="pt-2 text-base font-semibold">
+        {isApprover ? "บันทึกหม้อใหญ่ หรือบันทึกแทนพาร์ทไทม์" : "บันทึกหม้อใหญ่ (ทำกินเองจากของในร้าน)"}
+      </h2>
       <StaffMealEntryForm
         action={createStaffMealAction}
         branches={branches.map((b) => ({ id: b.id, name: b.name }))}
-        members={members.map((m) => ({ id: m.id, name: m.name }))}
-        menus={menus.map((m) => ({
-          id: m.id,
-          name: m.name,
-          sku: m.posMenuId ?? "",
-          imageUrl: null,
-          section: m.menuCategory?.name ?? null,
-          group: null,
-          baseUnitName: null,
-        }))}
+        // On behalf only of people WITHOUT an account (ADR 0035 Q2).
+        members={members.filter((m) => !m.hasAccount).map((m) => ({ id: m.id, name: m.name }))}
+        menus={menuOptions}
+        isApprover={isApprover}
+        canBackdate={canBackdate}
         products={products.filter((p) => p.isActive).map((p) => ({
           id: p.id,
           name: p.name,
@@ -176,7 +208,8 @@ export default async function StaffMealsPage({
             ? null
             : tenant.staffMealMaxMenuPrice.toString()
         }
-        zeroPriceTags={warning.tags.map((t) => ({
+        // Under POS the POS deducts by design; the double-deduction warning is moot.
+        zeroPriceTags={(tenant.staffMealStockSource === "POS" ? [] : warning.tags).map((t) => ({
           discountReason: t.discountReason,
           lines: t.lines,
         }))}
@@ -323,7 +356,14 @@ export default async function StaffMealsPage({
                   {r.priceSource !== "NONE" && (
                     <> · {STAFF_MEAL_PRICE_SOURCE_LABELS_TH[r.priceSource]}</>
                   )}
-                  {r.recordedByName && <> · บันทึกโดย {r.recordedByName}</>}
+                  {r.ticketNo && <> · {r.ticketNo}</>}
+                  {r.onBehalf ? (
+                    <> · บันทึกแทนโดย {r.recordedByAccount}</>
+                  ) : (
+                    r.menuName && r.approvedByName && <> · อนุมัติโดย {r.approvedByName}</>
+                  )}
+                  {!r.onBehalf && !r.menuName && r.recordedByAccount && <> · บันทึกโดย {r.recordedByAccount}</>}
+                  {r.recordedByName && <> ({r.recordedByName})</>}
                 </p>
 
                 {r.overCeiling && (
@@ -339,13 +379,13 @@ export default async function StaffMealsPage({
                     ยกเลิกเมื่อ {r.voidedAtLabel}
                     {r.voidReason && ` — ${r.voidReason}`}
                   </p>
-                ) : (
+                ) : isApprover ? (
                   <VoidStaffMealButton
                     action={voidStaffMealAction}
                     staffMealId={r.id}
                     label={r.menuName ?? "มื้อนี้"}
                   />
-                )}
+                ) : null}
               </li>
             ))}
           </ul>

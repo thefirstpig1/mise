@@ -65,6 +65,10 @@ export default function StaffMealEntryForm({
   maxMenuPrice,
   /** Live zero-price sales on the chosen day — the double-deduction warning. */
   zeroPriceTags,
+  /** Holds staffmeal:approve: may record a menu meal on behalf, and name who ate. */
+  isApprover,
+  /** Holds settings:write: may choose a past date (ADR 0035 Q6). */
+  canBackdate,
 }: {
   action: (
     prev: StaffMealActionState,
@@ -78,13 +82,17 @@ export default function StaffMealEntryForm({
   defaultBranchId: string;
   maxMenuPrice: string | null;
   zeroPriceTags: { discountReason: string | null; lines: number }[];
+  isApprover: boolean;
+  canBackdate: boolean;
 }) {
   const [state, formAction, isPending] = useActionState(action, {
     ok: false,
   } as StaffMealActionState);
 
   const [submitKey, setSubmitKey] = useState(newId);
-  const [mode, setMode] = useState<"MENU" | "POT">("MENU");
+  // A menu meal for yourself is a ticket (TicketBoard); here it only exists as
+  // a head recording ON BEHALF of a part-timer (ADR 0035 Q2).
+  const [mode, setMode] = useState<"MENU" | "POT">("POT");
   const [branchId, setBranchId] = useState(defaultBranchId);
   const [businessDate, setBusinessDate] = useState(todayBangkok);
   const [staffMemberId, setStaffMemberId] = useState("");
@@ -158,10 +166,12 @@ export default function StaffMealEntryForm({
       {/* --- which shape --- */}
       <div className="flex gap-2">
         {(
-          [
-            ["MENU", "สั่งจากเมนู"],
-            ["POT", "ทำกินเองจากของในร้าน"],
-          ] as const
+          (isApprover
+            ? [
+                ["POT", "ทำกินเองจากของในร้าน"],
+                ["MENU", "บันทึกแทนพาร์ทไทม์ (เมนู)"],
+              ]
+            : [["POT", "ทำกินเองจากของในร้าน"]]) as readonly (readonly ["MENU" | "POT", string])[]
         ).map(([value, text]) => (
           <button
             key={value}
@@ -183,19 +193,27 @@ export default function StaffMealEntryForm({
           <label className="label" htmlFor="sm-branch">
             สาขา
           </label>
-          <select
-            id="sm-branch"
-            name="branch_id"
-            value={branchId}
-            onChange={(e) => setBranchId(e.target.value)}
-            className="input w-full"
-          >
-            {branches.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name}
-              </option>
-            ))}
-          </select>
+          {branches.length > 1 ? (
+            <select
+              id="sm-branch"
+              name="branch_id"
+              value={branchId}
+              onChange={(e) => setBranchId(e.target.value)}
+              className="input w-full"
+            >
+              {branches.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
+              ))}
+            </select>
+          ) : (
+            // One branch: nothing to choose (ADR 0035 Q6).
+            <>
+              <input type="hidden" name="branch_id" value={branchId} />
+              <p className="py-2 text-sm">{branches[0]?.name}</p>
+            </>
+          )}
           {err("branchId") && <p className={errorClass}>{err("branchId")}</p>}
         </div>
 
@@ -203,16 +221,24 @@ export default function StaffMealEntryForm({
           <label className="label" htmlFor="sm-date">
             วันที่
           </label>
-          <input
-            id="sm-date"
-            name="business_date"
-            type="date"
-            value={businessDate}
-            min={minBackdate}
-            max={todayBangkok}
-            onChange={(e) => setBusinessDate(e.target.value)}
-            className="input w-full"
-          />
+          {canBackdate ? (
+            <input
+              id="sm-date"
+              name="business_date"
+              type="date"
+              value={businessDate}
+              min={minBackdate}
+              max={todayBangkok}
+              onChange={(e) => setBusinessDate(e.target.value)}
+              className="input w-full"
+            />
+          ) : (
+            // Today, always — the server enforces it too (ADR 0035 Q6).
+            <>
+              <input type="hidden" name="business_date" value={todayBangkok} />
+              <p className="py-2 text-sm">วันนี้</p>
+            </>
+          )}
           {err("businessDate") && (
             <p className={errorClass}>{err("businessDate")}</p>
           )}
@@ -224,7 +250,7 @@ export default function StaffMealEntryForm({
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
               <label className="label" htmlFor="sm-member">
-                ใครกิน
+                พาร์ทไทม์ที่กิน <span className="text-muted-foreground">(คนที่ไม่มีแอคเคาท์)</span>
               </label>
               <select
                 id="sm-member"
@@ -233,7 +259,7 @@ export default function StaffMealEntryForm({
                 onChange={(e) => setStaffMemberId(e.target.value)}
                 className="input w-full"
               >
-                <option value="">— เลือกพนักงาน —</option>
+                <option value="">— เลือกพาร์ทไทม์ —</option>
                 {members.map((m) => (
                   <option key={m.id} value={m.id}>
                     {m.name}
@@ -245,7 +271,7 @@ export default function StaffMealEntryForm({
               )}
               {members.length === 0 && (
                 <p className="mt-1 text-xs text-muted-foreground">
-                  ยังไม่มีรายชื่อพนักงาน —{" "}
+                  ยังไม่มีรายชื่อพาร์ทไทม์ — พนักงานที่มีแอคเคาท์ให้กดขอเบิกเองด้านบน ·{" "}
                   <a className="underline" href="/staff-meals/people">
                     เพิ่มที่นี่
                   </a>
@@ -295,7 +321,9 @@ export default function StaffMealEntryForm({
       ) : (
         <>
           {/* A pot has no single eater. The field is offered, not required —
-              sometimes one person really did take 2 kg of pork home to cook. */}
+              sometimes one person really did take 2 kg of pork home to cook.
+              Only a head may name someone (ADR 0035 Q7). */}
+          {isApprover && (
           <div>
             <label className="label" htmlFor="sm-member-pot">
               ใครกิน <span className="text-muted-foreground">(ไม่ระบุก็ได้ ถ้ากินกันหลายคน)</span>
@@ -315,6 +343,7 @@ export default function StaffMealEntryForm({
               ))}
             </select>
           </div>
+          )}
 
           <div>
             <p className="label">วัตถุดิบที่ใช้</p>
@@ -395,19 +424,8 @@ export default function StaffMealEntryForm({
         </>
       )}
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div>
-          <label className="label" htmlFor="sm-recorded-by">
-            คนบันทึก/คนเสิร์ฟ <span className="text-muted-foreground">(ถ้าไม่ใช่เจ้าของบัญชี)</span>
-          </label>
-          <input
-            id="sm-recorded-by"
-            name="recorded_by_name"
-            type="text"
-            maxLength={100}
-            className="input w-full"
-          />
-        </div>
+      {/* The recorder is the signed-in account — no typed name (ADR 0035). */}
+      <div className="grid gap-3">
         <div>
           <label className="label" htmlFor="sm-notes">
             หมายเหตุ
@@ -418,7 +436,8 @@ export default function StaffMealEntryForm({
             name="notes"
             rows={1}
             maxLength={500}
-            className="input w-full"
+            placeholder="เช่น แกงหม้อใหญ่มื้อเที่ยง"
+            className="input w-full placeholder:text-muted-foreground/60"
           />
         </div>
       </div>
@@ -458,7 +477,7 @@ export default function StaffMealEntryForm({
         disabled={isPending}
         className="btn"
       >
-        {isPending ? "กำลังบันทึก…" : "บันทึกมื้อพนักงาน"}
+        {isPending ? "กำลังบันทึก…" : mode === "MENU" ? "บันทึกแทนและอนุมัติ" : "บันทึกหม้อใหญ่"}
       </button>
     </form>
   );

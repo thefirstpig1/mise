@@ -45,6 +45,10 @@ export type StaffMealRowView = {
   overCeiling: boolean;
   itemCount: number;
   recordedByName: string | null;
+  recordedByAccount: string | null;
+  onBehalf: boolean;
+  approvedByName: string | null;
+  ticketNo: string | null;
   notes: string | null;
   voidedAt: string | null;
   voidedAtLabel: string | null;
@@ -82,6 +86,10 @@ export function toStaffMealRowView(
       row.unitPrice.greaterThan(maxMenuPrice),
     itemCount: row.itemCount,
     recordedByName: row.recordedByName,
+    recordedByAccount: row.recordedByAccount,
+    onBehalf: row.onBehalf,
+    approvedByName: row.approvedByName,
+    ticketNo: row.ticketNo,
     notes: row.notes,
     voidedAt: row.voidedAt === null ? null : row.voidedAt.toISOString(),
     voidedAtLabel: row.voidedAt === null ? null : dateLabel(row.voidedAt),

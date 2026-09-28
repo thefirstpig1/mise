@@ -36,6 +36,8 @@ export type StaffMemberRow = {
   branchName: string;
   dailyQuotaAmount: Prisma.Decimal | null;
   isActive: boolean;
+  /** Signs in with an account — requests their own meals (ADR 0035 Q1/Q2). */
+  hasAccount: boolean;
 };
 
 /**
@@ -64,10 +66,12 @@ export async function getStaffMembersLogic(
         branchId: true,
         dailyQuotaAmount: true,
         isActive: true,
+        userId: true,
         branch: { select: { name: true } },
       },
     });
     return rows.map((r) => ({
+      hasAccount: r.userId !== null,
       id: r.id,
       name: r.name,
       branchId: r.branchId,
@@ -102,6 +106,11 @@ export type StaffMealRow = {
   value: Prisma.Decimal | null;
   itemCount: number;
   recordedByName: string | null;
+  /** The account that recorded it (ADR 0035) — shown as บันทึกแทนโดย when onBehalf. */
+  recordedByAccount: string | null;
+  onBehalf: boolean;
+  approvedByName: string | null;
+  ticketNo: string | null;
   notes: string | null;
   voidedAt: Date | null;
   voidReason: string | null;
@@ -156,6 +165,10 @@ export async function getStaffMealsLogic(
         frozenUnitPrice: true,
         priceSource: true,
         recordedByName: true,
+        onBehalf: true,
+        ticketNo: true,
+        recordedByUser: { select: { name: true, email: true } },
+        approvedByUser: { select: { name: true, email: true } },
         notes: true,
         voidedAt: true,
         voidReason: true,
@@ -200,6 +213,10 @@ export async function getStaffMealsLogic(
         value,
         itemCount: r._count.items,
         recordedByName: r.recordedByName,
+        recordedByAccount: r.recordedByUser.name ?? r.recordedByUser.email ?? null,
+        onBehalf: r.onBehalf,
+        approvedByName: r.approvedByUser ? r.approvedByUser.name ?? r.approvedByUser.email ?? null : null,
+        ticketNo: r.ticketNo,
         notes: r.notes,
         voidedAt: r.voidedAt,
         voidReason: r.voidReason,
@@ -375,6 +392,8 @@ export type StaffMealTicket = {
   staffMemberName: string | null;
   /** The account that asked — or, on behalf, the head who recorded it. */
   requestedByUserId: string;
+  /** The eater's account, when they have one. */
+  eaterUserId: string | null;
   requestedByName: string | null;
   onBehalf: boolean;
   approvedByName: string | null;
@@ -402,7 +421,7 @@ const TICKET_SELECT = {
   voidedAt: true,
   branch: { select: { name: true } },
   menu: { select: { name: true } },
-  staffMember: { select: { name: true } },
+  staffMember: { select: { name: true, userId: true } },
   recordedByUser: { select: { name: true, email: true } },
   approvedByUser: { select: { name: true, email: true } },
 } as const;
@@ -423,6 +442,7 @@ const toTicket = (m: TicketRow): StaffMealTicket => ({
   staffMemberId: m.staffMemberId,
   staffMemberName: m.staffMember?.name ?? null,
   requestedByUserId: m.recordedBy,
+  eaterUserId: m.staffMember?.userId ?? null,
   requestedByName: m.recordedByUser.name ?? m.recordedByUser.email ?? null,
   onBehalf: m.onBehalf,
   approvedByName: m.approvedByUser ? m.approvedByUser.name ?? m.approvedByUser.email ?? null : null,
@@ -462,7 +482,8 @@ export async function getMyStaffMealTicketsLogic(
           tenantId,
           menuId: { not: null },
           requestedAt: { gte: since },
-          OR: [{ recordedBy: userId, onBehalf: false }, { staffMember: { userId } }],
+          // The meals this person EATS — not the ones they recorded for others.
+          staffMember: { userId },
         },
         orderBy: { requestedAt: "desc" },
         take: 20,

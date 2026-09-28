@@ -363,6 +363,8 @@ export type TicketView = {
   rejectedReason: string | null;
   stockPosted: boolean;
   voided: boolean;
+  /** Approver's queue: the viewer asked for / will eat this one — no buttons (Q5). */
+  isOwn?: boolean;
   /** Approver's view only: this person's quota standing today. */
   quota?: { used: string; quota: string | null; over: boolean; unpriced: number } | null;
 };
@@ -494,7 +496,10 @@ export async function getTicketBoardAction(): Promise<TicketBoard> {
   const queue = await getPendingStaffMealTicketsLogic(tenantId, branches.map((b) => b.id));
   const pending = await Promise.all(
     queue.map(async (t) => {
-      const view = toTicketView(t);
+      const view = {
+        ...toTicketView(t),
+        isOwn: t.requestedByUserId === membership.userId || t.eaterUserId === membership.userId,
+      };
       if (!t.staffMemberId) return { ...view, quota: null };
       const q = await getStaffMealQuotaLogic(tenantId, {
         staffMemberId: t.staffMemberId,
