@@ -117,34 +117,16 @@ export const stockCountEntryInputSchema = z.object({
  * it is a row someone opened and abandoned, and letting it save would turn an
  * unfinished sheet into a stock write-off.
  */
-export const saveStockCountLineInputSchema = z
-  .object({
-    stockCountId: z.string().uuid("ใบนับสต๊อกไม่ถูกต้อง"),
-    productId: z.string().uuid("วัตถุดิบไม่ถูกต้อง"),
-    entries: z
-      .array(stockCountEntryInputSchema)
-      .min(1, "ต้องระบุจำนวนอย่างน้อย 1 หน่วย")
-      .max(20, "ระบุได้ไม่เกิน 20 หน่วยต่อรายการ"),
-    /**
-     * Who actually walked and counted, when that is not the account holder (Q2).
-     * Optional: in a one-person shop the FK already says it.
-     */
-    countedByName: z.preprocess(
-      blankToNull,
-      z.string().trim().max(100, "ชื่อผู้นับต้องไม่เกิน 100 ตัวอักษร").nullable()
-    ),
-    notes: z.preprocess(
-      blankToNull,
-      z.string().trim().max(500, "หมายเหตุต้องไม่เกิน 500 ตัวอักษร").nullable()
-    ),
-  })
-  .superRefine((input, ctx) => {
+const countEntriesSchema = z
+  .array(stockCountEntryInputSchema)
+  .min(1, "ต้องระบุจำนวนอย่างน้อย 1 หน่วย")
+  .max(20, "ระบุได้ไม่เกิน 20 หน่วยต่อรายการ")
+  .superRefine((entries, ctx) => {
     const seen = new Set<string>();
-    for (const e of input.entries) {
+    for (const e of entries) {
       if (seen.has(e.productUnitId)) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          path: ["entries"],
           // Two boxes for the same unit is almost always a mis-tap, and silently
           // summing them would hide it inside a number nobody can audit.
           message: "ระบุหน่วยเดียวกันซ้ำไม่ได้ — รวมจำนวนไว้ในช่องเดียว",
@@ -155,7 +137,43 @@ export const saveStockCountLineInputSchema = z
     }
   });
 
+/** What this person saw — "ของเสีย", "เพิ่งหาเจอ", "อยู่ตู้หน้าไลน์". */
+const countNoteSchema = z.preprocess(
+  blankToNull,
+  z.string().trim().max(500, "หมายเหตุต้องไม่เกิน 500 ตัวอักษร").nullable()
+);
+
+/**
+ * ONE person's count of one product (ADR 0034 Q2). Who counted is the account
+ * that confirms it — there is no free-text name any more (Q1).
+ *
+ * `mode` says what the person SAW when they pressed ยืนยัน (Q3):
+ *  - `new` — "nobody has counted this yet". If somebody has by the time it
+ *    arrives, the server refuses rather than overwriting them.
+ *  - `add` — "I found more of it somewhere else": a further contribution,
+ *    summed into the line.
+ */
+export const saveStockCountLineInputSchema = z.object({
+  stockCountId: z.string().uuid("ใบนับสต๊อกไม่ถูกต้อง"),
+  productId: z.string().uuid("วัตถุดิบไม่ถูกต้อง"),
+  mode: z.enum(["new", "add"]).default("new"),
+  entries: countEntriesSchema,
+  notes: countNoteSchema,
+});
+
 export type SaveStockCountLineInput = z.infer<typeof saveStockCountLineInputSchema>;
+
+/** Correct your OWN contribution — nobody edits another person's (ADR 0034 Q3). */
+export const editStockCountContributionInputSchema = z.object({
+  stockCountId: z.string().uuid("ใบนับสต๊อกไม่ถูกต้อง"),
+  contributionId: z.string().uuid("รายการนับไม่ถูกต้อง"),
+  entries: countEntriesSchema,
+  notes: countNoteSchema,
+});
+
+export type EditStockCountContributionInput = z.infer<
+  typeof editStockCountContributionInputSchema
+>;
 
 // ------------------------------------------------------------
 // 3. Closing and voiding
@@ -212,6 +230,5 @@ export const STOCK_COUNT_FIELD_LABELS_TH: Record<string, string> = {
   stockCountId: "ใบนับสต๊อก",
   productId: "วัตถุดิบ",
   entries: "จำนวนที่นับได้",
-  countedByName: "ผู้นับ",
   voidReason: "เหตุผลที่ยกเลิก",
 };

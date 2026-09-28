@@ -25,15 +25,22 @@ import {
 } from "@/lib/validations/stock-movement";
 import {
   closeStockCountInputSchema,
+  editStockCountContributionInputSchema,
   openStockCountInputSchema,
   saveStockCountLineInputSchema,
   voidStockCountInputSchema,
 } from "@/lib/validations/stock-count";
 import {
   closeStockCountLogic,
+  CountLineTakenError,
   CountUnitMismatchError,
+  deleteStockCountContributionLogic,
+  deleteStockCountDraftLogic,
   deleteStockCountLineLogic,
+  editStockCountContributionLogic,
   getStockCountByIdLogic,
+  NotCountHostError,
+  NotYourContributionError,
   getUncountedStockedCountLogic,
   openStockCountLogic,
   saveStockCountLineLogic,
@@ -50,6 +57,7 @@ describe("stock count *Logic (the document that reconciles the ledger)", () => {
   let branchA: string;
   let branchA2: string;
   let userA: string;
+  let userB: string; // a second cook on the same sheet (ADR 0034)
 
   const freshProduct = (tag: string): Promise<ProductWithUnits> =>
     createProductLogic(
@@ -61,6 +69,9 @@ describe("stock count *Logic (the document that reconciles the ledger)", () => {
         additionalUnits: [{ unitName: "กระสอบ", toBaseRatio: 25 }],
       })
     );
+
+  /** userA opens every sheet in this file, so userA is its host (ADR 0034 Q5). */
+  const host = () => ({ userId: userA, canCloseAny: false });
 
   const unitOf = (p: ProductWithUnits, name: string) =>
     p.productUnits.find((u) => u.unitName === name)!.id;
@@ -98,21 +109,22 @@ describe("stock count *Logic (the document that reconciles the ledger)", () => {
     stockCountId: string,
     p: ProductWithUnits,
     entries: { unit: string; qty: number }[],
-    countedByName: string | null = null
+    mode: "new" | "add" = "new",
+    by: string = userA
   ) =>
     saveStockCountLineLogic(
       tenantA,
       saveStockCountLineInputSchema.parse({
         stockCountId,
         productId: p.id,
+        mode,
         entries: entries.map((e) => ({
           productUnitId: unitOf(p, e.unit),
           qtyInUnit: e.qty,
         })),
-        countedByName,
         notes: null,
       }),
-      userA
+      by
     );
 
   const balanceOf = async (p: ProductWithUnits, branchId = branchA) =>
@@ -139,12 +151,17 @@ describe("stock count *Logic (the document that reconciles the ledger)", () => {
         data: { email: `count-${randomUUID()}@example.com`, name: "ผู้นับ" },
       });
       userA = u.id;
+      const u2 = await tx.user.create({
+        data: { email: `count-b-${randomUUID()}@example.com`, name: "ผู้นับคนที่สอง" },
+      });
+      userB = u2.id;
     });
   });
 
   afterAll(async () => {
     await withRlsBypass(async (tx) => {
       await tx.stockCountEntry.deleteMany({ where: { tenantId: tenantA } });
+      await tx.stockCountContribution.deleteMany({ where: { tenantId: tenantA } });
       await tx.stockCountItem.deleteMany({ where: { tenantId: tenantA } });
       await tx.stockCount.deleteMany({ where: { tenantId: tenantA } });
       await tx.stockMovement.deleteMany({ where: { tenantId: tenantA } });
@@ -153,7 +170,7 @@ describe("stock count *Logic (the document that reconciles the ledger)", () => {
       await tx.product.deleteMany({ where: { tenantId: tenantA } });
       await tx.branch.deleteMany({ where: { tenantId: tenantA } });
       await tx.tenant.deleteMany({ where: { id: tenantA } });
-      await tx.user.deleteMany({ where: { id: userA } });
+      await tx.user.deleteMany({ where: { id: { in: [userA, userB] } } });
     });
     await prisma.$disconnect();
   });
@@ -176,12 +193,12 @@ describe("stock count *Logic (the document that reconciles the ledger)", () => {
     await closeStockCountLogic(
       tenantA,
       closeStockCountInputSchema.parse({ id: sheet.id }),
-      userA
+      host()
     );
     await closeStockCountLogic(
       tenantA,
       closeStockCountInputSchema.parse({ id: other.id }),
-      userA
+      host()
     );
   });
 
@@ -193,14 +210,14 @@ describe("stock count *Logic (the document that reconciles the ledger)", () => {
     await closeStockCountLogic(
       tenantA,
       closeStockCountInputSchema.parse({ id: sheet.id }),
-      userA
+      host()
     );
     const next = await openSheet();
     expect(next.id).not.toBe(sheet.id);
     await closeStockCountLogic(
       tenantA,
       closeStockCountInputSchema.parse({ id: next.id }),
-      userA
+      host()
     );
   });
 
@@ -223,7 +240,7 @@ describe("stock count *Logic (the document that reconciles the ledger)", () => {
     await closeStockCountLogic(
       tenantA,
       closeStockCountInputSchema.parse({ id: sheet.id }),
-      userA
+      host()
     );
   });
 
@@ -240,7 +257,7 @@ describe("stock count *Logic (the document that reconciles the ledger)", () => {
     const closed = await closeStockCountLogic(
       tenantA,
       closeStockCountInputSchema.parse({ id: sheet.id }),
-      userA
+      host()
     );
     const item = closed.items[0];
     // Still 100, not 110 — the snapshot is what the counter saw.
@@ -267,7 +284,7 @@ describe("stock count *Logic (the document that reconciles the ledger)", () => {
     const closed = await closeStockCountLogic(
       tenantA,
       closeStockCountInputSchema.parse({ id: sheet.id }),
-      userA
+      host()
     );
     expect(closed.status).toBe("CLOSED");
     expect(closed.closedBy).toBe(userA);
@@ -305,7 +322,7 @@ describe("stock count *Logic (the document that reconciles the ledger)", () => {
     await closeStockCountLogic(
       tenantA,
       closeStockCountInputSchema.parse({ id: sheet.id }),
-      userA
+      host()
     );
 
     expect(await balanceOf(counted)).toBe(0);
@@ -324,7 +341,7 @@ describe("stock count *Logic (the document that reconciles the ledger)", () => {
     await closeStockCountLogic(
       tenantA,
       closeStockCountInputSchema.parse({ id: sheet.id }),
-      userA
+      host()
     );
 
     const movement = await withRlsBypass((tx) =>
@@ -347,7 +364,7 @@ describe("stock count *Logic (the document that reconciles the ledger)", () => {
     await closeStockCountLogic(
       tenantA,
       closeStockCountInputSchema.parse({ id: sheet.id }),
-      userA
+      host()
     );
 
     // A second close is refused by the state machine...
@@ -355,7 +372,7 @@ describe("stock count *Logic (the document that reconciles the ledger)", () => {
       closeStockCountLogic(
         tenantA,
         closeStockCountInputSchema.parse({ id: sheet.id }),
-        userA
+        host()
       )
     ).rejects.toBeInstanceOf(StockCountTransitionError);
     // ...and the balance moved exactly once regardless.
@@ -375,14 +392,14 @@ describe("stock count *Logic (the document that reconciles the ledger)", () => {
     const closed = await closeStockCountLogic(
       tenantA,
       closeStockCountInputSchema.parse({ id: sheet.id }),
-      userA
+      host()
     );
     expect(await balanceOf(p)).toBe(45);
 
     const voided = await voidStockCountLogic(
       tenantA,
       voidStockCountInputSchema.parse({ id: sheet.id, voidReason: "นับซ้ำช่องเดิม" }),
-      userA
+      host()
     );
 
     expect(voided.status).toBe("VOIDED");
@@ -406,7 +423,7 @@ describe("stock count *Logic (the document that reconciles the ledger)", () => {
       voidStockCountLogic(
         tenantA,
         voidStockCountInputSchema.parse({ id: sheet.id, voidReason: "ยังไม่ปิด" }),
-        userA
+        host()
       )
     ).rejects.toBeInstanceOf(StockCountTransitionError);
 
@@ -414,7 +431,7 @@ describe("stock count *Logic (the document that reconciles the ledger)", () => {
     await closeStockCountLogic(
       tenantA,
       closeStockCountInputSchema.parse({ id: sheet.id }),
-      userA
+      host()
     );
 
     await expect(countLine(sheet.id, p, [{ unit: "kg", qty: 9 }])).rejects.toBeInstanceOf(
@@ -422,19 +439,26 @@ describe("stock count *Logic (the document that reconciles the ledger)", () => {
     );
   });
 
-  it("N11: re-counting overwrites the line; a foreign unit is refused", async () => {
+  it("N11: a second 'new' is refused, 'add' sums; a foreign unit is refused (ADR 0034 Q3)", async () => {
     const p = await freshProduct("N11a");
     const other = await freshProduct("N11b");
     await seed(p, 20);
 
     const sheet = await openSheet();
-    await countLine(sheet.id, p, [{ unit: "kg", qty: 15 }], "สมชาย");
-    const second = await countLine(sheet.id, p, [{ unit: "kg", qty: 18 }], "สมหญิง");
+    await countLine(sheet.id, p, [{ unit: "kg", qty: 15 }]);
 
-    // One line, not two — the draft is a working sheet (Q2).
-    expect(second.items.filter((i) => i.productId === p.id)).toHaveLength(1);
-    expect(num(second.items[0].qtyCounted)).toBe(18);
-    expect(second.items[0].countedByName).toBe("สมหญิง");
+    // Someone else also believed it was uncounted — refused, not overwritten.
+    await expect(countLine(sheet.id, p, [{ unit: "kg", qty: 18 }], "new", userB)).rejects.toBeInstanceOf(
+      CountLineTakenError
+    );
+
+    // "Found more in the walk-in": a second contribution, summed.
+    const second = await countLine(sheet.id, p, [{ unit: "kg", qty: 3 }], "add", userB);
+    const line = second.items.filter((i) => i.productId === p.id);
+    expect(line).toHaveLength(1);
+    expect(num(line[0].qtyCounted)).toBe(18);
+    expect(line[0].contributions.map((c) => c.countedBy)).toEqual([userA, userB]);
+    expect(line[0].countedBy).toBe(userB); // the last person to touch it
 
     await expect(
       saveStockCountLineLogic(
@@ -442,22 +466,22 @@ describe("stock count *Logic (the document that reconciles the ledger)", () => {
         saveStockCountLineInputSchema.parse({
           stockCountId: sheet.id,
           productId: p.id,
+          mode: "add",
           entries: [{ productUnitId: unitOf(other, "kg"), qtyInUnit: 1 }],
-          countedByName: null,
           notes: null,
         }),
         userA
       )
     ).rejects.toBeInstanceOf(CountUnitMismatchError);
 
-    // Removing a line means "I put this on the sheet by mistake".
-    const emptied = await deleteStockCountLineLogic(tenantA, sheet.id, second.items[0].id);
+    // Removing a whole line is the host's call, and takes everyone's count with it.
+    const emptied = await deleteStockCountLineLogic(tenantA, sheet.id, line[0].id, host());
     expect(emptied.items).toHaveLength(0);
 
     await closeStockCountLogic(
       tenantA,
       closeStockCountInputSchema.parse({ id: sheet.id }),
-      userA
+      host()
     );
     expect(await balanceOf(p)).toBe(20); // an emptied sheet posts nothing
   });
@@ -478,7 +502,148 @@ describe("stock count *Logic (the document that reconciles the ledger)", () => {
     await closeStockCountLogic(
       tenantA,
       closeStockCountInputSchema.parse({ id: sheet.id }),
+      host()
+    );
+  });
+
+  // ----------------------------------------------------------
+  // N13–N17 — many devices, one sheet (ADR 0034)
+  // ----------------------------------------------------------
+
+  const lineOf = (detail: Awaited<ReturnType<typeof countLine>>, p: ProductWithUnits) =>
+    detail.items.find((i) => i.productId === p.id && i.reversalOfItemId === null)!;
+
+  it("N13: you edit only your own contribution, and the line re-sums (ADR 0034 Q3)", async () => {
+    const p = await freshProduct("N13");
+    const sheet = await openSheet();
+    await countLine(sheet.id, p, [{ unit: "kg", qty: 4 }]);
+    const both = await countLine(sheet.id, p, [{ unit: "kg", qty: 2 }], "add", userB);
+    const [mine, theirs] = lineOf(both, p).contributions;
+
+    await expect(
+      editStockCountContributionLogic(
+        tenantA,
+        editStockCountContributionInputSchema.parse({
+          stockCountId: sheet.id,
+          contributionId: theirs.id,
+          entries: [{ productUnitId: unitOf(p, "kg"), qtyInUnit: 99 }],
+          notes: null,
+        }),
+        userA
+      )
+    ).rejects.toBeInstanceOf(NotYourContributionError);
+
+    const edited = await editStockCountContributionLogic(
+      tenantA,
+      editStockCountContributionInputSchema.parse({
+        stockCountId: sheet.id,
+        contributionId: mine.id,
+        entries: [{ productUnitId: unitOf(p, "กระสอบ"), qtyInUnit: 1 }],
+        notes: "ของเสีย 1 ถุง",
+      }),
       userA
     );
+    const line = lineOf(edited, p);
+    expect(num(line.qtyCounted)).toBe(27); // 1 กระสอบ (25) + 2 kg
+    expect(line.notes).toBe("ของเสีย 1 ถุง");
+
+    await deleteStockCountDraftLogic(tenantA, sheet.id, host());
+  });
+
+  it("N14: taking back the last contribution removes the line; someone else's cannot be taken", async () => {
+    const p = await freshProduct("N14");
+    const sheet = await openSheet();
+    const first = await countLine(sheet.id, p, [{ unit: "kg", qty: 4 }]);
+    const mine = lineOf(first, p).contributions[0];
+
+    await expect(
+      deleteStockCountContributionLogic(tenantA, sheet.id, mine.id, userB)
+    ).rejects.toBeInstanceOf(NotYourContributionError);
+
+    const after = await deleteStockCountContributionLogic(tenantA, sheet.id, mine.id, userA);
+    expect(after.items.filter((i) => i.productId === p.id)).toHaveLength(0);
+
+    await deleteStockCountDraftLogic(tenantA, sheet.id, host());
+  });
+
+  it("N15: two devices confirming at once queue — one 'new' wins, the other is told; 'add's both land", async () => {
+    const p = await freshProduct("N15a");
+    const q = await freshProduct("N15b");
+    const sheet = await openSheet();
+
+    const raced = await Promise.allSettled([
+      countLine(sheet.id, p, [{ unit: "kg", qty: 1 }], "new", userA),
+      countLine(sheet.id, p, [{ unit: "kg", qty: 2 }], "new", userB),
+    ]);
+    const won = raced.filter((r) => r.status === "fulfilled");
+    const lost = raced.filter((r) => r.status === "rejected") as PromiseRejectedResult[];
+    expect(won).toHaveLength(1);
+    expect(lost).toHaveLength(1);
+    // Told in words — not a raw unique-index error from the database.
+    expect(lost[0].reason).toBeInstanceOf(CountLineTakenError);
+
+    await Promise.all([
+      countLine(sheet.id, q, [{ unit: "kg", qty: 1 }], "add", userA),
+      countLine(sheet.id, q, [{ unit: "kg", qty: 2 }], "add", userB),
+    ]);
+    const detail = await getStockCountByIdLogic(tenantA, sheet.id);
+    const line = detail!.items.find((i) => i.productId === q.id)!;
+    expect(num(line.qtyCounted)).toBe(3);
+    expect(line.contributions.map((c) => c.seq)).toEqual([1, 2]);
+
+    await deleteStockCountDraftLogic(tenantA, sheet.id, host());
+  });
+
+  it("N16: only the host or a count:close holder closes, voids, discards, or removes a line (ADR 0034 Q5)", async () => {
+    const p = await freshProduct("N16");
+    await seed(p, 10);
+    const sheet = await openSheet(); // host = userA
+    const saved = await countLine(sheet.id, p, [{ unit: "kg", qty: 7 }], "new", userB);
+    const cook = { userId: userB, canCloseAny: false };
+    const head = { userId: userB, canCloseAny: true };
+
+    await expect(
+      deleteStockCountLineLogic(tenantA, sheet.id, lineOf(saved, p).id, cook)
+    ).rejects.toBeInstanceOf(NotCountHostError);
+    await expect(deleteStockCountDraftLogic(tenantA, sheet.id, cook)).rejects.toBeInstanceOf(
+      NotCountHostError
+    );
+    await expect(
+      closeStockCountLogic(tenantA, closeStockCountInputSchema.parse({ id: sheet.id }), cook)
+    ).rejects.toBeInstanceOf(NotCountHostError);
+
+    // A head of department closes on the host's behalf.
+    await closeStockCountLogic(tenantA, closeStockCountInputSchema.parse({ id: sheet.id }), head);
+    expect(await balanceOf(p)).toBe(7);
+
+    await expect(
+      voidStockCountLogic(
+        tenantA,
+        voidStockCountInputSchema.parse({ id: sheet.id, voidReason: "ทดสอบ" }),
+        cook
+      )
+    ).rejects.toBeInstanceOf(NotCountHostError);
+    await voidStockCountLogic(
+      tenantA,
+      voidStockCountInputSchema.parse({ id: sheet.id, voidReason: "ทดสอบ" }),
+      host()
+    );
+    expect(await balanceOf(p)).toBe(10);
+  });
+
+  it("N17: a later contribution re-takes the expected snapshot, so a delivery in between is not a loss (calc S4)", async () => {
+    const p = await freshProduct("N17");
+    await seed(p, 10);
+    const sheet = await openSheet();
+    await countLine(sheet.id, p, [{ unit: "kg", qty: 4 }]); // walk-in
+    await seed(p, 5); // a delivery lands mid-count
+    const after = await countLine(sheet.id, p, [{ unit: "kg", qty: 11 }], "add", userB); // the line
+
+    const line = lineOf(after, p);
+    expect(num(line.qtyExpected)).toBe(15);
+    expect(num(line.qtyCounted)).toBe(15);
+
+    await closeStockCountLogic(tenantA, closeStockCountInputSchema.parse({ id: sheet.id }), host());
+    expect(await balanceOf(p)).toBe(15); // matched — nothing posted
   });
 });

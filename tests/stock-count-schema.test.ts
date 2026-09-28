@@ -28,7 +28,6 @@ const validLine = {
   stockCountId: UUID,
   productId: UUID2,
   entries: [{ productUnitId: UUID3, qtyInUnit: 2 }],
-  countedByName: null,
   notes: null,
 };
 
@@ -143,15 +142,14 @@ describe("saveStockCountLineInputSchema (Q7)", () => {
     expect(r).not.toHaveProperty("qtyCounted");
   });
 
-  it("S11: keeps the counter's name when given, and blanks it to null", () => {
+  it("S11: a line is 'new' unless it says 'add', and names no counter (ADR 0034 Q1/Q3)", () => {
+    expect(saveStockCountLineInputSchema.parse(validLine).mode).toBe("new");
+    expect(saveStockCountLineInputSchema.parse({ ...validLine, mode: "add" }).mode).toBe("add");
+    expect(saveStockCountLineInputSchema.safeParse({ ...validLine, mode: "overwrite" }).success).toBe(false);
+    // The counter is the account that confirms — a typed name is not even read.
     expect(
-      saveStockCountLineInputSchema.parse({ ...validLine, countedByName: "  น้องเบียร์  " })
-        .countedByName
-    ).toBe("น้องเบียร์");
-    expect(
-      saveStockCountLineInputSchema.parse({ ...validLine, countedByName: "   " })
-        .countedByName
-    ).toBeNull();
+      saveStockCountLineInputSchema.parse({ ...validLine, countedByName: "คนอื่น" })
+    ).not.toHaveProperty("countedByName");
   });
 });
 

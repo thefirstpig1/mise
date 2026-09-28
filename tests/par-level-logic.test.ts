@@ -166,7 +166,6 @@ describe("par level *Logic (knowing before you run out)", () => {
         stockCountId: sheet.id,
         productId: p.id,
         entries: [{ productUnitId: unitOf(p, "kg"), qtyInUnit: qty }],
-        countedByName: null,
         notes: null,
       }),
       userA
@@ -174,7 +173,7 @@ describe("par level *Logic (knowing before you run out)", () => {
     return closeStockCountLogic(
       tenantA,
       closeStockCountInputSchema.parse({ id: sheet.id }),
-      userA
+      { userId: userA, canCloseAny: false }
     );
   };
 
