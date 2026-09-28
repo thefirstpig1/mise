@@ -14,6 +14,7 @@
 import { requireTenant } from "@/lib/require-tenant";
 import { computeBangkokToday } from "@/lib/bangkok-date";
 import { getProductsLogic } from "@/server/product";
+import { getFrequentlyWastedLogic } from "@/server/waste";
 import { getBranchesLogic } from "@/server/branch";
 import { MAX_WASTE_ROWS, getWasteLogsLogic } from "@/server/waste";
 import { getWasteQuerySchema, WASTE_REASON_LABELS_TH, WASTE_REASON_VALUES } from "@/lib/validations/waste";
@@ -81,6 +82,11 @@ export default async function WastePage({
     getProductsLogic(tenantId),
     getBranchesLogic(tenantId, reach),
   ]);
+  // One-tap picks on the form: what each branch this person reaches wastes most.
+  const frequentByBranch = await getFrequentlyWastedLogic(
+    tenantId,
+    branches.map((b) => b.id)
+  );
 
   const month = currentMonthBangkok();
   const fromParam = sp.from || month.from;
@@ -101,13 +107,17 @@ export default async function WastePage({
   const truncated = fetched.length > MAX_WASTE_ROWS;
   const rows = truncated ? fetched.slice(0, MAX_WASTE_ROWS) : fetched;
 
-  // getProductsLogic orders by the category tree (built for the product page);
-  // a picker reads better by name.
+  // Searched by ProductPicker (Kong, 2026-09-28: a <select> of every product
+  // is unusable at 1,000). Inactive products are not wasted any more.
   const productOptions: WasteProductOption[] = products
+    .filter((p) => p.isActive)
     .map((p) => ({
       id: p.id,
       name: p.name,
       sku: p.sku,
+      imageUrl: p.imageUrl,
+      section: p.category?.accountingSection ?? null,
+      group: p.category?.groupName ?? null,
       baseUnitName: p.productUnits.find((u) => u.isBase)?.unitName ?? null,
       units: p.productUnits
         .map((u) => ({ id: u.id, unitName: u.unitName, isBase: u.isBase }))
@@ -149,6 +159,7 @@ export default async function WastePage({
             branches={branchOptions}
             todayBangkok={todayBangkok}
             defaultBranchId={branchOptions[0].id}
+            frequentByBranch={frequentByBranch}
           />
         </section>
       )}
@@ -264,8 +275,12 @@ export default async function WastePage({
                     <span>{label(WASTE_REASON_LABELS_TH, row.reason)}</span>
                     <span>{row.occurredAtLabel}</span>
                     <span>{row.branch.name}</span>
-                    {/* Who actually did it, falling back to the account (Q7). */}
-                    <span>{row.wastedByName ?? row.wastedByAccount}</span>
+                    {/* The account that recorded it is accountable; the name,
+                        when given, is who actually wasted it (Kong, 2026-09-28). */}
+                    <span>
+                      บันทึกโดย {row.wastedByAccount}
+                      {row.wastedByName ? ` · คนที่ทำเสีย ${row.wastedByName}` : ""}
+                    </span>
                     {row.isReversal && (
                       <span className="font-medium">รายการคืนของ</span>
                     )}

@@ -31,12 +31,9 @@ import {
   WASTE_REASON_LABELS_TH,
   WASTE_REASON_VALUES,
 } from "@/lib/validations/waste";
+import ProductPicker, { type PickerProduct } from "@/components/ui/ProductPicker";
 
-export type WasteProductOption = {
-  id: string;
-  name: string;
-  sku: string;
-  baseUnitName: string | null;
+export type WasteProductOption = PickerProduct & {
   units: { id: string; unitName: string; isBase: boolean }[];
 };
 
@@ -61,12 +58,15 @@ export default function WasteEntryForm({
   branches,
   todayBangkok,
   defaultBranchId,
+  frequentByBranch,
 }: {
   action: (prev: WasteActionState, fd: FormData) => Promise<WasteActionState>;
   products: WasteProductOption[];
   branches: WasteBranchOption[];
   todayBangkok: string;
   defaultBranchId: string;
+  /** Per branch, the products wasted most in the last 30 days — one-tap picks. */
+  frequentByBranch: Record<string, string[]>;
 }) {
   const [state, formAction, isPending] = useActionState(action, {
     ok: false,
@@ -143,21 +143,19 @@ export default function WasteEntryForm({
           <label htmlFor="product_id" className="label">
             วัตถุดิบ <span className="text-bad">*</span>
           </label>
-          <select
-            id="product_id"
-            name="product_id"
+          <ProductPicker
+            products={products}
             value={productId}
-            onChange={(e) => setProductId(e.target.value)}
-            className={"input w-full mt-1"}
-            required
-          >
-            <option value="">— เลือกวัตถุดิบ —</option>
-            {products.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name} ({p.sku})
-              </option>
-            ))}
-          </select>
+            onChange={(id) => {
+              setProductId(id);
+              // Picked: the next thing to type is how much.
+              if (id) window.setTimeout(() => qtyRef.current?.focus(), 0);
+            }}
+            name="product_id"
+            inputId="product_id"
+            invalid={!!err("productId")}
+            quick={{ label: "ทิ้งบ่อยที่สาขานี้", ids: frequentByBranch[branchId] ?? [] }}
+          />
           {err("productId") && <p className={errorClass}>{err("productId")}</p>}
         </div>
 
@@ -269,19 +267,20 @@ export default function WasteEntryForm({
 
         <div>
           <label htmlFor="wasted_by_name" className="label">
-            ใครทิ้ง
+            คนที่ทำเสีย (ถ้าไม่ใช่คุณ)
           </label>
           <input
             id="wasted_by_name"
             name="wasted_by_name"
             type="text"
             maxLength={100}
-            placeholder="เช่น เชฟหนึ่ง (ไม่ใส่ก็ได้)"
-            className={"input w-full mt-1"}
+            placeholder="เช่น น้องที่ทำไข่ตก — ไม่ใส่ก็ได้"
+            className={"input w-full mt-1 placeholder:text-muted-foreground/60"}
           />
-          {/* ADR 0015 Q2's rule: the owner holds the only login and the staff do
-              the work, so the account alone would record "the owner threw
-              everything away" — tidy and false. */}
+          {/* Kong (2026-09-28): the account that records is always stored and is
+              accountable. Unlike a count, the person who wasted something is
+              often NOT the one recording it — a junior drops the eggs, the
+              head of kitchen writes it up — so the name stays, and says so. */}
           {err("wastedByName") && <p className={errorClass}>{err("wastedByName")}</p>}
         </div>
 

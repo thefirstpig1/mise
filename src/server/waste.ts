@@ -22,6 +22,7 @@
 import { Prisma } from "@prisma/client";
 import type { PrismaClient, StockMovement, WasteLog } from "@prisma/client";
 import { withTenantContext } from "@/lib/db";
+import { addDays, computeBangkokToday } from "@/lib/bangkok-date";
 import { assertRefBelongsToTenant } from "@/server/product";
 import {
   QtyRoundsToZeroError,
@@ -105,6 +106,51 @@ export type CreateWasteResult = {
 // ------------------------------------------------------------
 // Reads
 // ------------------------------------------------------------
+
+/**
+ * What each branch throws away most, for one-tap picking on the waste form
+ * (Kong, 2026-09-28): the tray of ผักบุ้ง that wilts every day should not need
+ * searching for every day.
+ *
+ * Counts RECORDS, not quantity — "how often" is what makes something worth a
+ * shortcut, and quantities in different units cannot be compared anyway.
+ * Voided records and their reversals do not count: a line keyed by mistake is
+ * not a habit.
+ */
+export async function getFrequentlyWastedLogic(
+  tenantId: string,
+  branchIds: string[],
+  opts: { days?: number; perBranch?: number } = {}
+): Promise<Record<string, string[]>> {
+  if (branchIds.length === 0) return {};
+  const since = addDays(computeBangkokToday(), -(opts.days ?? 30));
+  const perBranch = opts.perBranch ?? 6;
+
+  const groups = await withTenantContext(tenantId, (tx) =>
+    tx.wasteLog.groupBy({
+      by: ["branchId", "productId"],
+      where: {
+        tenantId,
+        branchId: { in: branchIds },
+        occurredAt: { gte: since },
+        reversalOfId: null,
+        voidedAt: null,
+        product: { deletedAt: null, isActive: true },
+      },
+      _count: { _all: true },
+    })
+  );
+
+  const out: Record<string, string[]> = {};
+  for (const b of branchIds) {
+    out[b] = groups
+      .filter((g) => g.branchId === b)
+      .sort((x, y) => y._count._all - x._count._all)
+      .slice(0, perBranch)
+      .map((g) => g.productId);
+  }
+  return out;
+}
 
 /**
  * Hard cap on one page of the list (Part 17 UX pass).
