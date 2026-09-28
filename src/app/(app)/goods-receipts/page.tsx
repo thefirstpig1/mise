@@ -23,6 +23,7 @@ import { toGoodsReceiptListView } from "./_components/goods-receipt-view";
 import StatusBadge from "./_components/StatusBadge";
 
 import EmptyState from "@/components/ui/EmptyState";
+import { RowChevron } from "@/components/ui/ActionLink";
 export default async function GoodsReceiptsPage({
   searchParams,
 }: {
@@ -139,15 +140,21 @@ export default async function GoodsReceiptsPage({
                 <th className="px-3 py-2 text-right font-medium">รายการ</th>
                 <th className="px-3 py-2 font-medium">รับเมื่อ</th>
                 <th className="px-3 py-2 font-medium">สถานะ</th>
+                <th className="px-3 py-2" />
               </tr>
             </thead>
             <tbody>
               {receipts.map((gr) => (
-                <tr key={gr.id} className="border-t border-border">
+                // Kong (2026-09-28): the whole row opens the receipt. A stretched
+                // link (its ::after covers the row) keeps the PO number its own link.
+                <tr
+                  key={gr.id}
+                  className="group relative border-t border-border transition-colors hover:bg-muted/40"
+                >
                   <td className="px-3 py-2">
                     <a
                       href={`/goods-receipts/${gr.id}`}
-                      className="font-medium text-primary hover:underline"
+                      className="font-medium text-primary after:absolute after:inset-0 after:content-['']"
                     >
                       {gr.grNumber}
                     </a>
@@ -167,7 +174,7 @@ export default async function GoodsReceiptsPage({
                     {gr.poNumber ? (
                       <a
                         href={`/purchase-orders/${gr.purchaseOrderId}`}
-                        className="hover:underline"
+                        className="relative z-10 hover:underline"
                       >
                         {gr.poNumber}
                       </a>
@@ -187,6 +194,9 @@ export default async function GoodsReceiptsPage({
                         ต้องตรวจสอบ
                       </span>
                     )}
+                  </td>
+                  <td className="px-3 py-2 text-right">
+                    <RowChevron />
                   </td>
                 </tr>
               ))}

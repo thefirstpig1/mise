@@ -30,6 +30,7 @@
 import { useActionState, useEffect, useId, useMemo, useState } from "react";
 import type { GoodsReceiptActionState } from "../actions";
 import type { ReceivablePurchaseOrderView } from "./goods-receipt-view";
+import ProductPicker, { type PickerProduct } from "@/components/ui/ProductPicker";
 
 export type GrUnitOption = {
   id: string;
@@ -43,6 +44,9 @@ export type GrProductOption = {
   id: string;
   name: string;
   sku: string;
+  imageUrl: string | null;
+  section: string | null;
+  group: string | null;
   baseUnitName: string | null;
   units: GrUnitOption[];
 };
@@ -306,6 +310,28 @@ export default function GoodsReceiptForm({
     [products]
   );
 
+  const pickerProducts: PickerProduct[] = products;
+
+  // An order is picked like a product: grouped by branch, searchable by number
+  // or supplier (the PO number rides in `sku`, so typing "PO-0012" finds it).
+  const poOptions = useMemo<PickerProduct[]>(
+    () =>
+      purchaseOrders.map((o) => ({
+        id: o.id,
+        name: o.supplierName,
+        sku: o.poNumber,
+        imageUrl: null,
+        section: o.branchName,
+        group: null,
+        baseUnitName: null,
+        detail:
+          o.expectedDeliveryLabel && o.expectedDeliveryLabel !== "—"
+            ? `กำหนดส่ง ${o.expectedDeliveryLabel}`
+            : "ยังไม่ระบุวันส่ง",
+      })),
+    [purchaseOrders]
+  );
+
   const setRow = (key: string, patch: Partial<LineRow>) =>
     setRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...patch } : r)));
 
@@ -364,26 +390,25 @@ export default function GoodsReceiptForm({
             <label className="label" htmlFor="po-picker">
               ใบสั่งซื้อ
             </label>
-            <select
-              id="po-picker"
-              className={"input w-full mt-1"}
+            <ProductPicker
+              inputId="po-picker"
+              products={poOptions}
               value={poId}
-              onChange={(e) => {
-                setPoId(e.target.value);
-                if (!e.target.value) {
+              placeholder="พิมพ์เลขใบสั่งซื้อหรือชื่อผู้ขาย — หรือกดเพื่อดูทั้งหมด"
+              onChange={(id) => {
+                setPoId(id);
+                if (!id) {
                   setPo(null);
                   setPoError(null);
                   setRows([newRow()]);
                 }
               }}
-            >
-              <option value="">— ซื้อสด (ไม่มีใบสั่งซื้อ) —</option>
-              {purchaseOrders.map((o) => (
-                <option key={o.id} value={o.id}>
-                  {o.poNumber} · {o.supplierName} · {o.branchName}
-                </option>
-              ))}
-            </select>
+            />
+            {!poId && purchaseOrders.length > 0 && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                ไม่เลือก = ซื้อสด (ไม่มีใบสั่งซื้อ)
+              </p>
+            )}
             {loadingPo && (
               <p className="mt-1 text-xs text-muted-foreground">กำลังดึงรายการที่ค้างรับ…</p>
             )}
@@ -404,19 +429,28 @@ export default function GoodsReceiptForm({
             <label className="label" htmlFor="branch">
               สาขา
             </label>
-            <select
-              id="branch"
-              className={"input w-full mt-1 disabled:bg-muted/50"}
-              value={branchId}
-              disabled={poMode || isEdit}
-              onChange={(e) => setBranchId(e.target.value)}
-            >
-              {branches.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
+            {branches.length === 1 ? (
+              // One branch in reach: nothing to choose, so no control to misread.
+              <p id="branch" className="input mt-1 w-full bg-muted/50">
+                {branches.find((b) => b.id === branchId)?.name ??
+                  purchaseOrders.find((o) => o.id === poId)?.branchName ??
+                  branches[0].name}
+              </p>
+            ) : (
+              <select
+                id="branch"
+                className={"input w-full mt-1 disabled:bg-muted/50"}
+                value={branchId}
+                disabled={poMode || isEdit}
+                onChange={(e) => setBranchId(e.target.value)}
+              >
+                {branches.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name}
+                  </option>
+                ))}
+              </select>
+            )}
             {fieldErrors?.branchId && <p className={errorClass}>{fieldErrors.branchId}</p>}
           </div>
 
@@ -589,25 +623,18 @@ export default function GoodsReceiptForm({
                         </span>
                       </div>
                     ) : (
-                      <select
-                        className={"input w-full mt-1"}
+                      <ProductPicker
+                        products={pickerProducts}
                         value={r.productId}
-                        onChange={(e) => {
-                          const p = productById.get(e.target.value);
+                        onChange={(id) => {
+                          const p = productById.get(id);
                           setRow(r.key, {
-                            productId: e.target.value,
+                            productId: id,
                             // Default to the base unit — the unit stock is counted in.
                             receivedUnitId: p?.units[0]?.id ?? "",
                           });
                         }}
-                      >
-                        <option value="">— เลือกวัตถุดิบ —</option>
-                        {products.map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.name} ({p.sku})
-                          </option>
-                        ))}
-                      </select>
+                      />
                     )}
                   </div>
 
