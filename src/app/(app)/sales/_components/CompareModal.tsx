@@ -18,7 +18,7 @@ import { TONES } from "@/components/charts/chart-theme";
 import { METRIC_LABELS_TH, type CompareSide, type Metric, type PeriodStats } from "@/lib/sales-insight";
 import { getSalesCompareAction, type CompareResult } from "../insight-actions";
 import { ModalShell, baht, fmtMetric, type ToneMap } from "./Breakdown";
-import { MenuLink } from "./insight-context";
+import { useMenuInsight } from "./insight-context";
 
 type MonthOpt = { key: string; label: string; from: string; to: string };
 const WEEKDAY_SHORT = ["อา.", "จ.", "อ.", "พ.", "พฤ.", "ศ.", "ส."];
@@ -350,6 +350,7 @@ function CompareResultViewInner({
     })
     .sort((p, q) => Math.abs(q.a - q.b) - Math.abs(p.a - p.b));
   const maxMenu = Math.max(1e-9, ...menuDiffs.flatMap((m) => [Math.abs(m.a), Math.abs(m.b)]));
+  const insight = useMenuInsight();
   const needle = q.trim().toLowerCase();
   const shownMenus = needle ? menuDiffs.filter((m) => m.name.toLowerCase().includes(needle)) : menuDiffs;
 
@@ -422,16 +423,20 @@ function CompareResultViewInner({
             className="input mb-3 w-full py-1.5 text-sm"
             aria-label="ค้นหาเมนูที่จะเทียบ"
           />
-          <ul className="max-h-96 space-y-2.5 overflow-y-auto pr-1">
+          <ul className="-mx-1 max-h-96 space-y-0.5 overflow-y-auto pr-1">
             {shownMenus.length === 0 && <li className="text-sm text-muted-foreground">ไม่พบเมนูที่ค้นหา</li>}
             {shownMenus.map((m, i) => (
-              <li key={m.id} className="text-sm">
+              <li key={m.id}>
+                <button
+                  type="button"
+                  onClick={() => insight?.open(m.id)}
+                  title="ดู insight ของเมนูนี้"
+                  className="group block w-full rounded-lg px-1 py-1.5 text-left text-sm transition-colors hover:bg-muted"
+                >
                 <div className="mb-1 flex items-baseline justify-between gap-2">
                   <span className="flex min-w-0 items-center gap-1.5">
                     <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: TONES[tones[m.categoryKey] ?? "olive"][0] }} />
-                    <MenuLink id={m.id} className="truncate">
-                      {m.name}
-                    </MenuLink>
+                    <span className="truncate font-medium group-hover:text-primary">{m.name}</span>
                   </span>
                   <span className="shrink-0 tabular-nums">
                     {fmtMetric(by, m.a)} <span className="text-muted-foreground">vs</span> {fmtMetric(by, m.b)} <Diff v={pct(m.a, m.b)} />
@@ -445,6 +450,7 @@ function CompareResultViewInner({
                     <div className="h-1.5 origin-left animate-grow-x rounded-full" style={{ width: `${(Math.abs(m.b) / maxMenu) * 100}%`, background: TONES.teal[0], animationDelay: `${Math.min(i, 10) * 45 + 20}ms` }} />
                   </div>
                 </div>
+                </button>
               </li>
             ))}
           </ul>

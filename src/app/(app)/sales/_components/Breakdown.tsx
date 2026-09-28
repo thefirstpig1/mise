@@ -20,6 +20,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { TONES, toneOf, type Tone } from "@/components/charts/chart-theme";
 import { METRIC_LABELS_TH, baht, fmtMetric, type Metric } from "@/lib/sales-insight";
 import { useMenuInsight } from "./insight-context";
+import { PopupMetricSwitch } from "./MetricSwitch";
 
 export type BreakdownCategory = { key: string; label: string; value: number | null; qty: number };
 export type BreakdownMenu = { id: string; name: string; categoryKey: string; value: number | null; qty: number };
@@ -380,6 +381,9 @@ export function CategoryShare({
                 </>
               )}
             </p>
+            <div className="mt-2">
+              <PopupMetricSwitch />
+            </div>
           </div>
           <BreakdownPanes
             categories={categories}

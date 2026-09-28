@@ -132,11 +132,12 @@ export default function StockLevelsTable({ rows }: { rows: StockLevelRow[] }) {
               </tr>
             ) : (
               visible.map((r) => (
-                <tr key={r.productId} className="border-t border-border">
+                // The whole row opens the product; the value link sits above it.
+                <tr key={r.productId} className="group relative border-t border-border transition-colors hover:bg-muted/50">
                   <td className="px-3 py-2">
                     <a
                       href={`/products/${r.productId}`}
-                      className="font-medium text-primary hover:underline"
+                      className="font-medium text-primary after:absolute after:inset-0 after:content-['']"
                     >
                       {r.name}
                     </a>
@@ -173,7 +174,7 @@ export default function StockLevelsTable({ rows }: { rows: StockLevelRow[] }) {
                     ) : (
                       <a
                         href={`/cost/${r.productId}`}
-                        className="text-primary hover:underline"
+                        className="relative z-10 text-primary hover:underline"
                       >
                         {Number(r.inventoryValue).toLocaleString("th-TH", {
                           minimumFractionDigits: 2,

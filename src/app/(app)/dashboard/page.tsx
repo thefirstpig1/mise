@@ -11,7 +11,7 @@ import { toTransferView } from "@/app/(app)/transfers/_components/transfer-view"
 import { getPulseDashboardLogic } from "@/server/sales-pulse";
 import { toPulseDashboardView } from "@/app/(app)/sales/_components/sales-view";
 import PulsePanel from "./_components/PulsePanel";
-import ActionLink, { RowChevron } from "@/components/ui/ActionLink";
+import ActionLink from "@/components/ui/ActionLink";
 import DashboardControls, { type BranchChip } from "./_components/DashboardControls";
 import BarList, { type BarListGroup } from "@/components/charts/BarList";
 import { SERIES } from "@/components/charts/chart-theme";
@@ -569,7 +569,6 @@ async function WorkQueue({
                     </span>
                     <span className="block text-xs text-muted-foreground">ส่งเมื่อ {t.dispatchedAtLabel}</span>
                   </span>
-                  <RowChevron label="ดูรายละเอียด" />
                 </a>
               </li>
             ))}

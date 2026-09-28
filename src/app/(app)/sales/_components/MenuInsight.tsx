@@ -19,7 +19,8 @@
 // ============================================================
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { InsightContext } from "./insight-context";
+import { InsightContext, type MetricOption } from "./insight-context";
+import { PopupMetricSwitch } from "./MetricSwitch";
 import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis } from "recharts";
 import { ANIM, ChartGradients, ChartTooltip, INK_MUTED, cursorFill, grad } from "@/components/charts/chart-theme";
 import { METRIC_LABELS_TH, WEEK_ORDER, type Metric } from "@/lib/sales-insight";
@@ -39,19 +40,21 @@ export function MenuInsightProvider({
   to,
   branchId,
   by,
+  metricOptions,
   children,
 }: {
   from: string;
   to: string;
   branchId?: string;
   by: Metric;
+  metricOptions: MetricOption[];
   children: ReactNode;
 }) {
   const [menuId, setMenuId] = useState<string | null>(null);
   const open = useCallback((id: string) => setMenuId(id), []);
   const close = useCallback(() => setMenuId(null), []);
   return (
-    <InsightContext.Provider value={{ open }}>
+    <InsightContext.Provider value={{ open, metric: { current: by, options: metricOptions } }}>
       {children}
       {menuId && <MenuInsightModal menuId={menuId} from={from} to={to} branchId={branchId} by={by} onClose={close} />}
     </InsightContext.Provider>
@@ -161,6 +164,9 @@ function InsightBody({ r, by }: { r: Extract<MenuInsightResult, { ok: true }>; b
             <span className="rounded-full bg-muted px-2 py-0.5 font-medium text-foreground">{r.curLabel}</span>{" "}
             เทียบกับ <span className="rounded-full bg-muted px-2 py-0.5 font-medium text-foreground">{r.prevLabel}</span> · {m.days} วันที่มีข้อมูล · ขายดีสุดวัน{WEEKDAY_SHORT[best.weekday]} เฉลี่ย {best.qtyPerDay.toFixed(1)} จาน
           </p>
+          <div className="mt-2">
+            <PopupMetricSwitch />
+          </div>
         </div>
       </div>
 

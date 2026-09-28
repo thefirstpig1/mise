@@ -23,7 +23,6 @@ import { toGoodsReceiptListView } from "./_components/goods-receipt-view";
 import StatusBadge from "./_components/StatusBadge";
 
 import EmptyState from "@/components/ui/EmptyState";
-import { RowChevron } from "@/components/ui/ActionLink";
 export default async function GoodsReceiptsPage({
   searchParams,
 }: {
@@ -140,7 +139,6 @@ export default async function GoodsReceiptsPage({
                 <th className="px-3 py-2 text-right font-medium">รายการ</th>
                 <th className="px-3 py-2 font-medium">รับเมื่อ</th>
                 <th className="px-3 py-2 font-medium">สถานะ</th>
-                <th className="px-3 py-2" />
               </tr>
             </thead>
             <tbody>
@@ -194,9 +192,6 @@ export default async function GoodsReceiptsPage({
                         ต้องตรวจสอบ
                       </span>
                     )}
-                  </td>
-                  <td className="px-3 py-2 text-right">
-                    <RowChevron />
                   </td>
                 </tr>
               ))}

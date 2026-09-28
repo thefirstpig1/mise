@@ -13,7 +13,6 @@
 // component — no JavaScript, every figure is visible without hovering.
 // ============================================================
 
-import { RowChevron } from "@/components/ui/ActionLink";
 
 export type BarListRow = {
   key: string;
@@ -82,19 +81,14 @@ export default function BarList({
                       {pct < 0.1 ? "<0.1" : pct.toFixed(pct < 10 ? 1 : 0)}%
                     </span>
                     <span className="relative w-28 shrink-0 text-right tabular-nums text-sm font-medium">{baht(r.value)}</span>
-                    {/* A row that opens something says so at rest, not on hover (Kong, 2026-09-28). */}
-                    {r.href ? (
-                      <span className="relative">
-                        <RowChevron />
-                      </span>
-                    ) : null}
                   </>
                 );
                 const cls = "group relative flex items-center gap-3 overflow-hidden rounded-md px-3 py-2";
                 return (
                   <li key={r.key}>
                     {r.href ? (
-                      <a href={r.href} className={`${cls} hover:ring-1 hover:ring-border-strong`}>
+                      // Clickable rows need no arrow — the hover and the pointer say it (Kong, 2026-09-28).
+                      <a href={r.href} className={`${cls} cursor-pointer transition-colors hover:bg-muted/70 hover:ring-1 hover:ring-border-strong`}>
                         {body}
                       </a>
                     ) : (

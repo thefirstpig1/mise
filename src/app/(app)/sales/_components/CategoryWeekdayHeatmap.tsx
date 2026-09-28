@@ -19,7 +19,8 @@ import { useMemo, useState } from "react";
 import { TONES } from "@/components/charts/chart-theme";
 import { METRIC_LABELS_TH, type Metric } from "@/lib/sales-insight";
 import { ModalShell, fmtMetric, type ToneMap } from "./Breakdown";
-import { MenuLink } from "./insight-context";
+import { useMenuInsight } from "./insight-context";
+import { PopupMetricSwitch } from "./MetricSwitch";
 
 const WEEKDAY_TH = ["อาทิตย์", "จันทร์", "อังคาร", "พุธ", "พฤหัสบดี", "ศุกร์", "เสาร์"];
 const WEEKDAY_SHORT = ["อา.", "จ.", "อ.", "พ.", "พฤ.", "ศ.", "ส."];
@@ -54,6 +55,7 @@ export default function CategoryWeekdayHeatmap({
   by: Metric;
 }) {
   const [view, setView] = useState<"share" | "perDay">("share");
+  const insight = useMenuInsight();
   const [open, setOpen] = useState<{ cat: string; wd: number } | null>(null);
   const read = (c: HeatCell) => (view === "share" ? c.share : c.perDay);
   // Each ROW is shaded against itself: the question this table answers is
@@ -193,6 +195,9 @@ export default function CategoryWeekdayHeatmap({
               <span className="font-medium text-foreground">{fmtMetric(by, openRow.cells[open.wd].perDay)}</span> ต่อวัน
               {openRow.cells[open.wd].share !== null && <> · {openRow.cells[open.wd].share!.toFixed(1)}% ของทั้งวัน</>}
             </p>
+            <div className="mt-2">
+              <PopupMetricSwitch />
+            </div>
           </div>
           {/* The same category on every weekday — so "is Saturday special?" is one look. */}
           <div className="mb-4 grid grid-cols-7 gap-1 text-center text-xs">
@@ -212,13 +217,19 @@ export default function CategoryWeekdayHeatmap({
                   </button>
                 ))}
           </div>
-          <ul key={`${open.cat}-${open.wd}`} className="space-y-1.5">
+          <ul key={`${open.cat}-${open.wd}`} className="-mx-2 space-y-0.5">
             {openMenus.map((m, i) => {
               const top = Math.max(1e-9, ...openMenus.map((x) => Math.max(0, x.perDay)));
               return (
-                <li key={m.id} className="text-sm">
+                <li key={m.id}>
+                  <button
+                    type="button"
+                    onClick={() => insight?.open(m.id)}
+                    title="ดู insight ของเมนูนี้"
+                    className="group block w-full rounded-lg px-2 py-1.5 text-left text-sm transition-colors hover:bg-muted"
+                  >
                   <div className="flex items-baseline justify-between gap-2">
-                    <MenuLink id={m.id}>{m.name}</MenuLink>
+                    <span className="font-medium group-hover:text-primary">{m.name}</span>
                     <span className="tabular-nums">
                       {fmtMetric(by, m.perDay)} <span className="text-xs text-muted-foreground">/วัน · {m.qtyPerDay.toFixed(1)} จาน</span>
                     </span>
@@ -233,6 +244,7 @@ export default function CategoryWeekdayHeatmap({
                       }}
                     />
                   </div>
+                  </button>
                 </li>
               );
             })}

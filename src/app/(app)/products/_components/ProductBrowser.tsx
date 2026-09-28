@@ -19,7 +19,6 @@ import Link from "next/link";
 import type { ProductView } from "./product-view";
 import EmptyState from "@/components/ui/EmptyState";
 import ProductThumb from "@/components/ui/ProductThumb";
-import { RowChevron } from "@/components/ui/ActionLink";
 
 type View = "grid" | "list";
 type Status = "active" | "inactive" | "all";
@@ -262,7 +261,6 @@ export default function ProductBrowser({ products }: { products: ProductView[] }
                       </p>
                     </div>
                     <span className="hidden text-sm text-muted-foreground sm:block">{unitsLine(p)}</span>
-                    <RowChevron />
                   </Link>
                 </li>
               ))}

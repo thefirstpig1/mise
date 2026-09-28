@@ -326,14 +326,14 @@ export default async function ExpenseListPage({
               </thead>
               <tbody className="divide-y divide-border">
                 {rows.map((r) => (
-                  <tr key={r.id} className="hover:bg-muted/20">
+                  <tr key={r.id} className="group relative transition-colors hover:bg-muted/50">
                     <td className="px-3 py-2 text-sm text-muted-foreground">
                       {dateLabel(r.billDate)}
                     </td>
                     <td className="px-3 py-2">
                       <a
                         href={`/expenses/${r.id}`}
-                        className="font-medium text-primary hover:underline"
+                        className="font-medium text-primary after:absolute after:inset-0 after:content-['']"
                       >
                         {r.supplierName ?? r.billNo ?? "ค่าใช้จ่าย"}
                       </a>

@@ -34,6 +34,7 @@ import {
   type BreakdownMenu,
   type ToneMap,
 } from "./Breakdown";
+import { PopupMetricSwitch } from "./MetricSwitch";
 import type { Metric } from "@/lib/sales-insight";
 
 export type DayModalBranch = {
@@ -101,6 +102,9 @@ export default function DayDetailModal({
             ยอดขาย <span className="font-medium text-foreground tabular-nums">{baht(net)}</span> ·{" "}
             {qty.toLocaleString("th-TH")} จาน · {categories.length} หมวด
           </p>
+          <div className="mt-2">
+            <PopupMetricSwitch />
+          </div>
         </div>
         <div className="flex shrink-0 gap-1">
           <NavArrow href={prevHref} label="วันก่อนหน้า">‹</NavArrow>

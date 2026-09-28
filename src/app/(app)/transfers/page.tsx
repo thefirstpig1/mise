@@ -176,7 +176,7 @@ export default async function TransfersPage({
                   >
                     {t.statusLabel}
                   </span>
-                  <RowChevron label={t.status === "SENT" ? "กดรับ / ดูรายละเอียด" : "ดูรายละเอียด"} />
+                  <RowChevron label={t.status === "SENT" ? "รอรับ" : undefined} />
                 </div>
               </div>
 

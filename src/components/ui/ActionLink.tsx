@@ -47,12 +47,18 @@ export default function ActionLink({
   );
 }
 
-/** The chevron at the end of a row that is itself a link — always visible. */
+/**
+ * What a clickable row says is WAITING on it — "นับต่อ", "กดรับ" — and nothing
+ * else. Kong (2026-09-28): a row in a list that opens something needs no
+ * arrow; the hover highlight and the pointing-hand cursor already say it can
+ * be pressed, and an arrow on every row is clutter. So without a label this
+ * renders nothing, and with one it is a quiet pill with no arrow.
+ */
 export function RowChevron({ label }: { label?: string }) {
+  if (!label) return null;
   return (
-    <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border border-primary-line bg-surface px-2.5 py-1 text-xs font-medium text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+    <span className="inline-flex shrink-0 items-center whitespace-nowrap rounded-full border border-primary-line bg-surface px-2.5 py-0.5 text-xs font-medium text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
       {label}
-      <Arrow />
     </span>
   );
 }

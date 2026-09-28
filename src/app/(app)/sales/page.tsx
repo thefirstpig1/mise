@@ -59,7 +59,6 @@ import MetricSwitch from "./_components/MetricSwitch";
 import Link from "next/link";
 import { MenuTable, SalesDailyChart, WeekdayChart } from "./_components/SalesCharts";
 import BarList from "@/components/charts/BarList";
-import { RowChevron } from "@/components/ui/ActionLink";
 import ActionLink from "@/components/ui/ActionLink";
 import { recentMonths } from "@/app/(app)/dashboard/_components/dashboard-period";
 
@@ -228,6 +227,14 @@ export default async function SalesPage({
   const costPerDish = by === "profit" ? menuCostPerDish(cur, costs) : new Map<string, { cost: number; confidence: string }>();
   const profitStats = by === "profit" ? periodStats(cur, menuMeta, "profit") : null;
   const prevLabel = periodLabelTh(prevRange.from, prevRange.to);
+  // One set of switch options for the page AND every popup on it.
+  const metricOptions = (["net", "qty", "profit"] as Metric[])
+    .filter((m) => m !== "profit" || costAccess !== null)
+    .map((m) => ({
+      key: m,
+      label: m === "net" ? "ยอดขาย ฿" : m === "qty" ? "จำนวนจาน" : "กำไร",
+      href: link({ by: m === "net" ? undefined : m }),
+    }));
 
   // Every menu sold in the period sits in no category: the category views can
   // only say one thing, so say what would make them useful instead.
@@ -353,22 +360,13 @@ export default async function SalesPage({
         </EmptyState>
       ) : (
         <>
-          <MenuInsightProvider from={isoFrom} to={isoTo} branchId={query.branchId} by={by}>
+          <MenuInsightProvider from={isoFrom} to={isoTo} branchId={query.branchId} by={by} metricOptions={metricOptions}>
           <div className="space-y-8">
           {/* ---------- the measure, for the whole page (Kong, 2026-09-28) ---------- */}
           <section className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm text-muted-foreground">ดูจาก</span>
-              <MetricSwitch
-                current={by}
-                options={(["net", "qty", "profit"] as Metric[])
-                  .filter((m) => m !== "profit" || costAccess !== null)
-                  .map((m) => ({
-                    key: m,
-                    label: m === "net" ? "ยอดขาย ฿" : m === "qty" ? "จำนวนจาน" : "กำไร",
-                    href: link({ by: m === "net" ? undefined : m }),
-                  }))}
-              />
+              <MetricSwitch current={by} options={metricOptions} />
             </div>
             <CompareButton months={months} from={isoFrom} to={isoTo} branchId={query.branchId} by={by} tones={tones} canProfit={costAccess !== null} />
           </section>
@@ -565,7 +563,6 @@ export default async function SalesPage({
                     <th className="px-2 py-2 text-right font-medium">รายการ</th>
                     <th className="px-2 py-2 text-right font-medium">ยอดที่คีย์ตอนปิดร้าน</th>
                     <th className="px-2 py-2 text-left font-medium">ที่มา</th>
-                    <th className="px-2 py-2" />
                   </tr>
                 </thead>
                 <tbody>
@@ -628,9 +625,6 @@ export default async function SalesPage({
                             {g.fileNames.length === 1 ? g.fileNames[0] : `${g.fileNames.length} ไฟล์`}
                           </span>
                         )}
-                      </td>
-                      <td className="px-2 py-2 text-right">
-                        <RowChevron />
                       </td>
                     </tr>
                   ))}

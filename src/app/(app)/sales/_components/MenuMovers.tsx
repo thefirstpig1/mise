@@ -40,7 +40,7 @@ export default function MenuMovers({
         <ol className="-mx-2 space-y-0.5">
           {list.map((m, i) => (
             <li key={m.id}>
-              {/* The whole row opens the dish — and says so with a chevron. */}
+              {/* The whole row opens the dish; the hover and the pointer say so. */}
               <button
                 type="button"
                 onClick={() => ctx?.open(m.id)}
@@ -57,12 +57,6 @@ export default function MenuMovers({
                     {m.change >= 0 ? "▲" : "▼"} {Math.abs(m.change).toFixed(1)}%
                   </span>
                 )}
-              </span>
-              <span
-                aria-hidden
-                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-primary-line text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground"
-              >
-                ›
               </span>
               </button>
             </li>

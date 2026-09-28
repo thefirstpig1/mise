@@ -68,11 +68,11 @@ export default async function RecurringExpensePage() {
             </thead>
             <tbody className="divide-y divide-border">
               {templates.map((t) => (
-                <tr key={t.id} className="hover:bg-muted/20">
+                <tr key={t.id} className="group relative transition-colors hover:bg-muted/50">
                   <td className="px-3 py-2">
                     <a
                       href={`/expenses/recurring/${t.id}/edit`}
-                      className="font-medium text-primary hover:underline"
+                      className="font-medium text-primary after:absolute after:inset-0 after:content-['']"
                     >
                       {t.description}
                     </a>

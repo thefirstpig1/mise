@@ -84,14 +84,15 @@ export default function SupplierList({
             </thead>
             <tbody>
               {filtered.map((s) => (
+                // The whole row opens the supplier (stretched link); สั่งซื้อ sits above it.
                 <tr
                   key={s.id}
-                  className="border-b border-border last:border-0 hover:bg-muted/20"
+                  className="group relative border-b border-border transition-colors last:border-0 hover:bg-muted/50"
                 >
                   <td className="px-4 py-2">
                     <Link
                       href={`/suppliers/${s.id}`}
-                      className="font-medium text-primary hover:underline"
+                      className="font-medium text-primary after:absolute after:inset-0 after:content-['']"
                     >
                       {s.nameFull}
                     </Link>
@@ -138,7 +139,7 @@ export default function SupplierList({
                   </td>
                   {canOrder && (
                     <td className="px-4 py-2 text-right">
-                      {s.isActive && <ActionLink href={`/suppliers/${s.id}/order`}>สั่งซื้อ</ActionLink>}
+                      {s.isActive && <ActionLink href={`/suppliers/${s.id}/order`} className="relative z-10">สั่งซื้อ</ActionLink>}
                     </td>
                   )}
                 </tr>

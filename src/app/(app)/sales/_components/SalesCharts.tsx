@@ -31,7 +31,7 @@ import {
 import { METRIC_LABELS_TH, type Metric } from "@/lib/sales-insight";
 import { RECIPE_CONFIDENCE_LABELS_TH } from "@/lib/validations/recipe";
 import { fmtMetric } from "./Breakdown";
-import { MenuLink } from "./insight-context";
+import { useMenuInsight } from "./insight-context";
 
 /** Saturday and Sunday — the shape a shop plans its staff around. */
 const WEEKEND = new Set(["เสาร์", "อาทิตย์"]);
@@ -195,6 +195,7 @@ export function MenuTable({ rows, total, by }: { rows: MenuRow[]; total: number;
   // A column of dashes says nothing; the page says why instead (Kong, 2026-09-28).
   const showCategory = rows.some((r) => r.category !== "—");
   const profit = by === "profit";
+  const insight = useMenuInsight();
   const [q, setQ] = useState("");
   const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "value", dir: "desc" });
   const shown = useMemo(() => {
@@ -255,11 +256,15 @@ export function MenuTable({ rows, total, by }: { rows: MenuRow[]; total: number;
           </thead>
           <tbody className="divide-y divide-border tabular-nums">
             {shown.map((r) => (
-              <tr key={r.id} className="hover:bg-muted">
+              // The whole row opens the dish (Kong, 2026-09-28) — not just its name.
+              <tr
+                key={r.id}
+                onClick={() => insight?.open(r.id)}
+                title="ดู insight ของเมนูนี้"
+                className="group cursor-pointer transition-colors hover:bg-muted"
+              >
                 <td className="px-3 py-2">
-                  <MenuLink id={r.id} className="font-medium">
-                    {r.name}
-                  </MenuLink>
+                  <span className="font-medium group-hover:text-primary">{r.name}</span>
                   {r.stub ? <span className="ml-1 rounded bg-warn-bg px-1 text-xs text-warn">รอตรวจ</span> : null}
                 </td>
                 {showCategory && (
@@ -273,7 +278,13 @@ export function MenuTable({ rows, total, by }: { rows: MenuRow[]; total: number;
                 {profit && (
                   <td className="px-3 py-2 text-right text-muted-foreground">
                     {r.costPerDish === null ? (
-                      <a href={`/recipes/new?menu=${r.id}`} className="text-xs text-primary underline">ยังไม่มีสูตร</a>
+                      <a
+                        href={`/recipes/new?menu=${r.id}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-xs text-primary underline"
+                      >
+                        ยังไม่มีสูตร
+                      </a>
                     ) : (
                       <span title={r.confidence ? `ความมั่นใจ: ${RECIPE_CONFIDENCE_LABELS_TH[r.confidence as keyof typeof RECIPE_CONFIDENCE_LABELS_TH] ?? r.confidence}` : undefined}>
                         {baht(r.costPerDish)}

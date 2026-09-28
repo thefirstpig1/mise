@@ -105,9 +105,10 @@ function MenuRow({
       ? `/recipes/${row.recipeId}`
       : `/recipes/new?menu=${row.targetId}`;
   return (
-    <tr className="border-t border-border">
+    // The whole row opens the recipe (or starts one); no second target in it.
+    <tr className="group relative border-t border-border transition-colors hover:bg-muted/50">
       <td className={td}>
-        <a href={href} className="text-primary hover:underline">
+        <a href={href} className="text-primary after:absolute after:inset-0 after:content-['']">
           {row.name}
         </a>
         {row.isPosStub ? (
