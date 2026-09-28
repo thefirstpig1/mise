@@ -252,10 +252,20 @@ describe("the role table (ADR 0029 Part 28 L2)", () => {
   it("A17 — a dept_head is a cook who can close a count, and sees no money (ADR 0034 Q6)", () => {
     const head = capabilitiesOf("dept_head");
     expect(missingFrom(capabilitiesOf("kitchen_staff"), head)).toEqual([]);
-    expect(missingFrom(head, capabilitiesOf("kitchen_staff"))).toEqual(["count:close"]);
+    expect(missingFrom(head, capabilitiesOf("kitchen_staff")).sort()).toEqual(
+      ["count:close", "staffmeal:approve"]
+    );
     for (const money of ["cost:view", "expense:view", "sales:view"] as const) {
       expect(head.has(money), money).toBe(false);
     }
+  });
+
+  it("A18 — staff-meal tickets are approved by owner, admin, manager, dept_head only (ADR 0035 Q5)", () => {
+    const holders = ALL_ROLES.filter((r) => hasCapability(r, "staffmeal:approve")).sort();
+    expect(holders).toEqual(["admin", "dept_head", "manager", "owner"]);
+    // A cook requests; a cook does not approve — not even someone else's.
+    expect(hasCapability("kitchen_staff", "staffmeal:write")).toBe(true);
+    expect(hasCapability("kitchen_staff", "staffmeal:approve")).toBe(false);
   });
 
   it("A14 — any:member is satisfied by every role and held by none", () => {

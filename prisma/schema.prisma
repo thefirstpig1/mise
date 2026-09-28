@@ -94,11 +94,17 @@ model Tenant {
   /// A ceiling on the SELLING PRICE of a dish a staff meal may be, which is the
   /// question actually asked ("ไม่ให้พนักงานสั่งเมนูแพงๆ") — not a ceiling on
   /// what the ingredients cost, which nobody at the counter can see.
-  staffMealMaxMenuPrice Decimal? @map("staff_meal_max_menu_price") @db.Decimal(15, 2)
+  staffMealMaxMenuPrice Decimal?             @map("staff_meal_max_menu_price") @db.Decimal(15, 2)
   /// Baht per person per day, the default every staff_member inherits unless
   /// its own row overrides. Without the override a shop has to switch the quota
   /// off for everybody because of one head chef.
-  staffMealDailyQuota   Decimal? @map("staff_meal_daily_quota") @db.Decimal(15, 2)
+  staffMealDailyQuota   Decimal?             @map("staff_meal_daily_quota") @db.Decimal(15, 2)
+  /// ADR 0035 Q4 — who deducts stock for a MENU staff-meal ticket. SYSTEM (the
+  /// default, and what every shop did before) = this system, at approval. POS =
+  /// the shop rings staff meals into the POS already, whose import deducts them;
+  /// the ticket is then quota and evidence only. Frozen onto each ticket at
+  /// approval (`staff_meal.stock_posted`). Communal pots always deduct here.
+  staffMealStockSource  StaffMealStockSource @default(SYSTEM) @map("staff_meal_stock_source")
 
   // v1.2 opt-in features
   enableDepartments     Boolean @default(false) @map("enable_departments")
@@ -258,6 +264,8 @@ model User {
   wasteVoided               WasteLog[]               @relation("WasteVoidedBy")
   staffMealsRecorded        StaffMeal[]              @relation("StaffMealRecordedBy")
   staffMealsVoided          StaffMeal[]              @relation("StaffMealVoidedBy")
+  staffMealsApproved        StaffMeal[]              @relation("StaffMealApprovedBy")
+  staffMemberRows           StaffMember[]            @relation("StaffMemberAccount")
   consumptionPosted         SalesConsumptionRun[]    @relation("ConsumptionPostedBy")
   consumptionVoided         SalesConsumptionRun[]    @relation("ConsumptionVoidedBy")
   transfersDispatched       StockTransfer[]          @relation("TfDispatchedBy")
@@ -710,6 +718,24 @@ enum SourceType {
 /// Where the selling price frozen onto a staff meal came from (ADR 0028 Q7,
 /// rule S3). Stored because a number that cannot say where it came from cannot
 /// explain itself, and these three deserve very different amounts of trust.
+/// ADR 0035 Q3 — a menu staff meal is a ticket someone approves. A communal pot,
+/// recorded by the person who cooked it, is born APPROVED.
+enum StaffMealStatus {
+  PENDING
+  APPROVED
+  REJECTED
+
+  @@map("staff_meal_status")
+}
+
+/// ADR 0035 Q4 — see `tenant.staff_meal_stock_source`.
+enum StaffMealStockSource {
+  SYSTEM
+  POS
+
+  @@map("staff_meal_stock_source")
+}
+
 enum StaffMealPriceSource {
   /// Worked out from what the dish actually sold for — `sum(net_amount)/sum(qty)`
   /// over live sales lines. The real answer, and the only one ADR 0025 Q2 calls
@@ -2945,6 +2971,13 @@ model StaffMember {
   /// for everybody because one head chef is allowed more.
   dailyQuotaAmount Decimal? @map("daily_quota_amount") @db.Decimal(15, 2)
 
+  /// ADR 0035 Q1 — the account this person signs in with, when they have one.
+  /// Null for a part-timer without an account, who is recorded ON BEHALF by a
+  /// head (Q2). One live row per account per shop (partial unique in
+  /// prisma/manual/staff_meal_unique.sql). Created for them the first
+  /// time they request a meal, so nobody has to type a roster.
+  userId String? @map("user_id")
+
   /// Still works here. A claim about the FUTURE and nothing else - rule S7,
   /// which is ADR 0027's L1 read one table across: someone who leaves is still
   /// counted IN FULL in any past month and merely labelled, because dropping
@@ -2957,6 +2990,7 @@ model StaffMember {
 
   tenant Tenant      @relation(fields: [tenantId], references: [id])
   branch Branch      @relation(fields: [branchId], references: [id])
+  user   User?       @relation("StaffMemberAccount", fields: [userId], references: [id])
   meals  StaffMeal[]
 
   @@index([tenantId])
@@ -3022,6 +3056,24 @@ model StaffMeal {
   recordedByName String? @map("recorded_by_name")
   notes          String?
 
+  /// --- the ticket (ADR 0035) ---
+  /// PENDING tickets carry NO items and never touch the ledger (Q3).
+  status         StaffMealStatus @default(APPROVED)
+  /// `{BRANCH}-SM-####`, per branch. Null on rows older than tickets.
+  ticketNo       String?         @map("ticket_no")
+  /// When the person actually asked — `business_date` is the day it counts.
+  requestedAt    DateTime        @default(now()) @map("requested_at")
+  /// A head recorded it for someone without an account (Q2); always shown as
+  /// "บันทึกแทนโดย [recorded_by]".
+  onBehalf       Boolean         @default(false) @map("on_behalf")
+  approvedBy     String?         @map("approved_by")
+  approvedAt     DateTime?       @map("approved_at")
+  rejectedReason String?         @map("rejected_reason")
+  /// Did THIS SYSTEM deduct stock for it? Frozen at approval from
+  /// `tenant.staff_meal_stock_source` (Q4), so changing the setting today never
+  /// changes what yesterday's ticket meant.
+  stockPosted    Boolean         @default(true) @map("stock_posted")
+
   /// A void APPENDS reversal items to THIS document and posts the compensating
   /// `CONSUMPTION_REVERSAL`, exactly as a consumption run does. Never an edit,
   /// never a delete: the ledger is append-only (ADR 0011 Q7) and the
@@ -3039,11 +3091,13 @@ model StaffMeal {
   menu           Menu?           @relation(fields: [menuId], references: [id])
   recordedByUser User            @relation("StaffMealRecordedBy", fields: [recordedBy], references: [id])
   voidedByUser   User?           @relation("StaffMealVoidedBy", fields: [voidedBy], references: [id])
+  approvedByUser User?           @relation("StaffMealApprovedBy", fields: [approvedBy], references: [id])
   items          StaffMealItem[]
 
   @@index([tenantId])
   @@index([branchId, businessDate], map: "staff_meal_branch_date_idx")
   @@index([staffMemberId, businessDate], map: "staff_meal_member_date_idx")
+  @@index([branchId, status], map: "staff_meal_branch_status_idx")
   @@map("staff_meal")
 }
 

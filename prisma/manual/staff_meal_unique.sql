@@ -39,3 +39,19 @@ CREATE UNIQUE INDEX IF NOT EXISTS staff_meal_item_reversal_unique
 CREATE UNIQUE INDEX IF NOT EXISTS staff_meal_item_product_unique
   ON staff_meal_item (staff_meal_id, product_id)
   WHERE reversal_of_item_id IS NULL;
+
+-- ONE ROSTER ROW PER ACCOUNT PER SHOP (ADR 0035 Q1).
+-- A staff member who signs in is found by their account; two live rows for one
+-- account would split their quota in half and let a meal land on whichever row
+-- was read first. Part-timers without an account (user_id NULL) are untouched.
+CREATE UNIQUE INDEX IF NOT EXISTS staff_member_user_unique
+  ON staff_member (tenant_id, user_id)
+  WHERE user_id IS NOT NULL AND deleted_at IS NULL;
+
+-- THE TICKET NUMBER, per tenant (ADR 0035 Q3).
+-- It already embeds the branch code ({BRANCH_CODE}-SM-####). The generator takes
+-- the same advisory lock as every other document number (counter-lock.ts); this
+-- index is the backstop. NULL on meals recorded before tickets existed.
+CREATE UNIQUE INDEX IF NOT EXISTS staff_meal_ticket_unique
+  ON staff_meal (tenant_id, ticket_no)
+  WHERE ticket_no IS NOT NULL;

@@ -44,7 +44,7 @@ export type Role =
 /**
  * One named thing a person may do or see.
  *
- * Fourteen of these guard WRITING. Four guard READING, and only four: reads are
+ * Fifteen of these guard WRITING. Four guard READING, and only four: reads are
  * open to every member of the tenant except where the screen shows money that
  * not everyone should see (ADR 0029 Q7). A `stock:view` would be granted to all
  * eight roles — nobody wants to stop a cook seeing what is in the walk-in — and
@@ -77,8 +77,13 @@ export type Capability =
   | "consumption:post"
   /** Recipes, Menu Lab drafts, publishing, merges, menu lifecycle. */
   | "recipe:write"
-  /** Record and void a staff meal, and maintain the roster it picks from. */
+  /** Request your own staff meal, record a communal pot, keep the roster. */
   | "staffmeal:write"
+  /**
+   * Approve or reject someone's staff-meal ticket, and record one ON BEHALF of
+   * a part-timer without an account (ADR 0035 Q2/Q5). Never your own ticket.
+   */
+  | "staffmeal:approve"
   /** Invite people, set their role and their branch reach. */
   | "member:manage"
   /** Tenant settings: VAT registration, gross-profit method, departments. */
@@ -116,6 +121,7 @@ export const ALL_CAPABILITIES = [
   "consumption:post",
   "recipe:write",
   "staffmeal:write",
+  "staffmeal:approve",
   "member:manage",
   "settings:write",
   "cost:view",
@@ -191,6 +197,7 @@ const MANAGER: readonly Capability[] = [
   "consumption:post",
   "recipe:write",
   "staffmeal:write",
+  "staffmeal:approve",
   "member:manage",
   "cost:view",
   "expense:view",
@@ -229,10 +236,11 @@ const KITCHEN_STAFF: readonly Capability[] = [
  * หัวหน้าแผนก — the head chef, the head of the bar, the head baker (Kong,
  * ADR 0034 Q6). Everything a cook does, plus closing a count someone else
  * opened, so a sheet never stays stuck because its host went home. Sees no
- * money, like the cooks they lead. Not bound to one department: a count
+ * money, like the cooks they lead. Approves the kitchen's staff-meal tickets
+ * (ADR 0035 Q5). Not bound to one department: a count
  * belongs to the whole branch (ADR 0015).
  */
-const DEPT_HEAD: readonly Capability[] = [...KITCHEN_STAFF, "count:close"];
+const DEPT_HEAD: readonly Capability[] = [...KITCHEN_STAFF, "count:close", "staffmeal:approve"];
 
 /**
  * Books. Sees every figure and writes only financial ones. `sales:import` is
