@@ -324,6 +324,55 @@ export const createStaffMealInputSchema = z
 export type CreateStaffMealInput = z.infer<typeof createStaffMealInputSchema>;
 
 // ------------------------------------------------------------
+// 2b. Tickets (ADR 0035)
+// ------------------------------------------------------------
+
+/**
+ * A menu staff meal REQUESTED by the person who eats it. There is no
+ * `staffMemberId`: the eater is the account that submits, which is the whole
+ * point (Q1). No items either — the recipe answers what leaves the shelf, and
+ * only at approval.
+ */
+export const requestStaffMealInputSchema = z.object({
+  submitKey: z.string().uuid("คีย์การบันทึกไม่ถูกต้อง"),
+  branchId: z.string().uuid("สาขาไม่ถูกต้อง"),
+  businessDate: z.coerce
+    .date({ required_error: "ต้องระบุวันที่", invalid_type_error: "วันที่ไม่ถูกต้อง" })
+    .refine((d) => d.getTime() < addDays(computeBangkokToday(), 1).getTime(), {
+      message: "วันที่ต้องไม่เป็นอนาคต",
+    })
+    .refine(
+      (d) => d.getTime() >= addDays(computeBangkokToday(), -MAX_BACKDATE_DAYS).getTime(),
+      { message: `ย้อนหลังได้ไม่เกิน ${MAX_BACKDATE_DAYS} วัน` }
+    ),
+  menuId: z.string({ required_error: "ต้องเลือกเมนู" }).uuid("ต้องเลือกเมนู"),
+  servings: z.coerce
+    .number({ invalid_type_error: "จำนวนที่ไม่ถูกต้อง" })
+    .positive("จำนวนที่ต้องมากกว่า 0")
+    .max(QTY_MAX, "จำนวนที่เกินค่าที่ระบบรองรับ")
+    .refine(hasAtMostThreeDecimals, "จำนวนที่ต้องมีทศนิยมไม่เกิน 3 ตำแหน่ง")
+    .default(1),
+  notes: z.preprocess(
+    blankToNull,
+    z.string().trim().max(MAX_STAFF_MEAL_NOTE_LENGTH, "หมายเหตุต้องไม่เกิน 500 ตัวอักษร").nullable()
+  ),
+});
+
+export type RequestStaffMealInput = z.infer<typeof requestStaffMealInputSchema>;
+
+/** Not approving is a decision with a reason, like a void (Q3). */
+export const rejectStaffMealInputSchema = z.object({
+  id: z.string().uuid("ตั๋วไม่ถูกต้อง"),
+  reason: z
+    .string({ required_error: "ต้องระบุเหตุผลที่ไม่อนุมัติ" })
+    .trim()
+    .min(1, "ต้องระบุเหตุผลที่ไม่อนุมัติ")
+    .max(MAX_STAFF_MEAL_NOTE_LENGTH, "เหตุผลต้องไม่เกิน 500 ตัวอักษร"),
+});
+
+export type RejectStaffMealInput = z.infer<typeof rejectStaffMealInputSchema>;
+
+// ------------------------------------------------------------
 // 3. Voiding
 // ------------------------------------------------------------
 

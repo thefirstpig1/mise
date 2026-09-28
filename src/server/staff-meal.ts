@@ -19,10 +19,11 @@
 // ============================================================
 
 import { Prisma } from "@prisma/client";
-import type { PrismaClient, StaffMealPriceSource } from "@prisma/client";
+import type { PrismaClient, StaffMealPriceSource, StaffMealStatus } from "@prisma/client";
 import { createHash } from "node:crypto";
 import { withTenantContext } from "@/lib/db";
 import { assertRefBelongsToTenant } from "@/server/product";
+import { acquireCounterLock } from "@/server/counter-lock";
 import { createStockMovementLogic } from "@/server/stock-movement";
 import { recipelessComponent } from "@/server/consumption";
 import {
@@ -42,6 +43,8 @@ import {
 } from "@/server/stock-movement";
 import type {
   CreateStaffMealInput,
+  RejectStaffMealInput,
+  RequestStaffMealInput,
   CreateStaffMemberInput,
   UpdateStaffMemberInput,
   VoidStaffMealInput,
@@ -115,6 +118,41 @@ export class StaffMealAlreadyVoidedError extends Error {
   constructor(readonly id: string) {
     super(`Staff meal ${id} is already voided`);
     this.name = "StaffMealAlreadyVoidedError";
+  }
+}
+
+/** ADR 0035 Q3 — approving or rejecting a ticket that is no longer waiting. */
+export class StaffMealNotPendingError extends Error {
+  constructor(readonly id: string, readonly status: StaffMealStatus) {
+    super(`Staff meal ${id} is ${status}, not PENDING`);
+    this.name = "StaffMealNotPendingError";
+  }
+}
+
+/** ADR 0035 Q5 — nobody approves the meal they are going to eat. */
+export class StaffMealSelfApprovalError extends Error {
+  constructor(readonly id: string) {
+    super(`Staff meal ${id} cannot be approved by the person who requested it`);
+    this.name = "StaffMealSelfApprovalError";
+  }
+}
+
+/**
+ * ADR 0035 Q2 — recording on someone's behalf is for people WITHOUT an account.
+ * Somebody who can sign in requests their own meal.
+ */
+export class StaffMealOnBehalfNotAllowedError extends Error {
+  constructor(readonly staffMemberId: string) {
+    super(`Staff member ${staffMemberId} has an account and must request their own meal`);
+    this.name = "StaffMealOnBehalfNotAllowedError";
+  }
+}
+
+/** Only an approved meal has anything to void; a pending one is rejected. */
+export class StaffMealNotApprovedError extends Error {
+  constructor(readonly id: string, readonly status: StaffMealStatus) {
+    super(`Staff meal ${id} is ${status}; only an APPROVED meal can be voided`);
+    this.name = "StaffMealNotApprovedError";
   }
 }
 
@@ -324,6 +362,83 @@ export async function resolveStaffMealPriceLogic(
 // Writing
 // ------------------------------------------------------------
 
+/**
+ * `{BRANCH}-SM-####`, per branch — the same generator shape as every other
+ * document number, under the same advisory lock (ADR 0035 Q3).
+ */
+async function generateTicketNo(tx: PrismaClient, tenantId: string, branchId: string) {
+  const branch = await tx.branch.findFirstOrThrow({
+    where: { id: branchId, tenantId },
+    select: { code: true },
+  });
+  await acquireCounterLock(tx, `sm_ticket:${tenantId}:${branch.code}`);
+  const prefix = `${branch.code}-SM-`;
+  const rows = await tx.staffMeal.findMany({
+    where: { tenantId, ticketNo: { startsWith: prefix } },
+    select: { ticketNo: true },
+  });
+  const re = new RegExp(`^${branch.code.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}-SM-(\\d+)$`);
+  let max = 0;
+  for (const { ticketNo } of rows) {
+    const m = ticketNo ? re.exec(ticketNo) : null;
+    if (m) max = Math.max(max, parseInt(m[1], 10));
+  }
+  return `${prefix}${String(max + 1).padStart(4, "0")}`;
+}
+
+/** The shop's answer to "who deducts a menu staff meal" (ADR 0035 Q4). */
+async function stockSourceOf(tx: PrismaClient, tenantId: string) {
+  const t = await tx.tenant.findUniqueOrThrow({
+    where: { id: tenantId },
+    select: { staffMealStockSource: true },
+  });
+  return t.staffMealStockSource;
+}
+
+/**
+ * Write a meal's items and their CONSUMPTION movements — the ONE place a staff
+ * meal reaches the ledger, whether it was a pot recorded just now or a ticket
+ * approved later. Item ids derive from the meal id (see staffMealItemIdFor),
+ * so a replayed approval cannot write a second set.
+ */
+async function postStaffMealLines(
+  tx: PrismaClient,
+  tenantId: string,
+  meal: { id: string; branchId: string; businessDate: Date },
+  lines: StaffMealDemandLine[],
+  typed: { productId: string; inputQty: number; inputUnitId: string }[] | null,
+  createdBy: string
+) {
+  for (const line of lines) {
+    const hand = typed?.find((i) => i.productId === line.productId) ?? null;
+    const item = await tx.staffMealItem.create({
+      data: {
+        id: staffMealItemIdFor(meal.id, line.productId),
+        tenantId,
+        staffMealId: meal.id,
+        productId: line.productId,
+        // Signed here, never typed. The input is a magnitude and the DB
+        // CHECK keeps it that way; stock leaving is negative.
+        qty: line.qty.negated(),
+        inputQty: hand ? new Prisma.Decimal(hand.inputQty) : null,
+        inputUnitId: hand ? hand.inputUnitId : null,
+      },
+    });
+
+    await createStockMovementLogic(tx, {
+      tenantId,
+      productId: line.productId,
+      branchId: meal.branchId,
+      qty: item.qty,
+      type: "CONSUMPTION",
+      sourceType: "STAFF_MEAL",
+      sourceId: item.id,
+      occurredAt: meal.businessDate,
+      createdBy,
+    });
+  }
+}
+
 export type CreateStaffMealResult = {
   id: string;
   itemCount: number;
@@ -334,10 +449,18 @@ export type CreateStaffMealResult = {
   replayed: boolean;
 };
 
+/**
+ * Record a meal that needs no ticket, approved on the spot: a communal POT (the
+ * person who cooked it records it — ADR 0035 Q7), or a menu meal a head records
+ * ON BEHALF of a part-timer with no account (Q2), which is approval by the
+ * person with the authority to give it. Stock follows the shop setting for a
+ * menu meal and is always deducted for a pot.
+ */
 export async function createStaffMealLogic(
   tenantId: string,
   input: CreateStaffMealInput,
-  recordedBy: string
+  recordedBy: string,
+  opts: { onBehalf?: boolean } = {}
 ): Promise<CreateStaffMealResult> {
   return withTenantContext(
     tenantId,
@@ -369,9 +492,13 @@ export async function createStaffMealLogic(
       if (input.staffMemberId !== null) {
         const member = await tx.staffMember.findFirst({
           where: { id: input.staffMemberId, tenantId, deletedAt: null },
-          select: { id: true },
+          select: { id: true, userId: true },
         });
         if (!member) throw new StaffMemberNotFoundError(input.staffMemberId);
+        // Somebody who can sign in asks for their own meal (ADR 0035 Q2).
+        if (opts.onBehalf && member.userId !== null) {
+          throw new StaffMealOnBehalfNotAllowedError(member.id);
+        }
         // `isActive` is NOT checked. Someone who left last week can still have
         // eaten last week, and this document is dated — refusing here would make
         // a backdated correction impossible for exactly the person most likely
@@ -384,14 +511,20 @@ export async function createStaffMealLogic(
       let lines: StaffMealDemandLine[];
       let price: StaffMealPrice = { unitPrice: null, source: "NONE" };
 
+      // A pot always posts; a menu meal posts unless the POS already does (Q4).
+      const posts =
+        input.menuId === null || (await stockSourceOf(tx, tenantId)) === "SYSTEM";
+
       if (input.menuId !== null) {
         await assertRefBelongsToTenant(tx, tenantId, "menu", input.menuId);
-        lines = await explodeStaffMealMenuLogic(tx, tenantId, {
-          menuId: input.menuId,
-          branchId: input.branchId,
-          businessDate: input.businessDate,
-          servings,
-        });
+        lines = posts
+          ? await explodeStaffMealMenuLogic(tx, tenantId, {
+              menuId: input.menuId,
+              branchId: input.branchId,
+              businessDate: input.businessDate,
+              servings,
+            })
+          : [];
         price = await resolveStaffMealPriceLogic(
           tx,
           tenantId,
@@ -434,7 +567,7 @@ export async function createStaffMealLogic(
       // through the form (a recipe with no ingredients is refused at Part 21),
       // but a document with no items would deduct nothing while claiming a meal
       // happened — the exact thing rule N2 exists to prevent.
-      if (lines.length === 0) {
+      if (posts && lines.length === 0) {
         throw new StaffMealRecipeUnresolvableError(
           input.menuId ?? "",
           "recipe explodes to no raw ingredients"
@@ -456,44 +589,26 @@ export async function createStaffMealLogic(
           recordedBy,
           recordedByName: input.recordedByName,
           notes: input.notes,
+          // Born approved: nobody else's say-so is needed (ADR 0035 Q2/Q7).
+          status: "APPROVED",
+          ticketNo: await generateTicketNo(tx, tenantId, input.branchId),
+          onBehalf: opts.onBehalf ?? false,
+          approvedBy: recordedBy,
+          approvedAt: new Date(),
+          stockPosted: posts,
         },
       });
 
       // --- the ledger ----------------------------------------------------
-      for (const line of lines) {
-        const item = await tx.staffMealItem.create({
-          data: {
-            id: staffMealItemIdFor(input.submitKey, line.productId),
-            tenantId,
-            staffMealId: meal.id,
-            productId: line.productId,
-            // Signed here, never typed. The input is a magnitude and the DB
-            // CHECK keeps it that way; stock leaving is negative.
-            qty: line.qty.negated(),
-            inputQty:
-              input.menuId === null
-                ? new Prisma.Decimal(
-                    input.items.find((i) => i.productId === line.productId)!.inputQty
-                  )
-                : null,
-            inputUnitId:
-              input.menuId === null
-                ? input.items.find((i) => i.productId === line.productId)!.inputUnitId
-                : null,
-          },
-        });
-
-        await createStockMovementLogic(tx, {
+      if (posts) {
+        await postStaffMealLines(
+          tx,
           tenantId,
-          productId: line.productId,
-          branchId: input.branchId,
-          qty: item.qty,
-          type: "CONSUMPTION",
-          sourceType: "STAFF_MEAL",
-          sourceId: item.id,
-          occurredAt: input.businessDate,
-          createdBy: recordedBy,
-        });
+          meal,
+          lines,
+          input.menuId === null ? input.items : null,
+          recordedBy
+        );
       }
 
       return {
@@ -537,6 +652,7 @@ export async function voidStaffMealLogic(
           branchId: true,
           businessDate: true,
           voidedAt: true,
+          status: true,
           items: {
             where: { reversalOfItemId: null },
             select: { id: true, productId: true, qty: true },
@@ -545,6 +661,8 @@ export async function voidStaffMealLogic(
       });
       if (!meal) throw new StaffMealNotFoundError(input.id);
       if (meal.voidedAt !== null) throw new StaffMealAlreadyVoidedError(meal.id);
+      // A waiting ticket is rejected, not voided — it took nothing (ADR 0035 Q3).
+      if (meal.status !== "APPROVED") throw new StaffMealNotApprovedError(meal.id, meal.status);
 
       // NOT a bare  — see reversalInstantFor. A meal recorded and
       // corrected on the same day would otherwise be walked in the wrong order
@@ -590,6 +708,209 @@ export async function voidStaffMealLogic(
     },
     POST_TX_OPTIONS
   );
+}
+
+// ------------------------------------------------------------
+// Tickets (ADR 0035)
+// ------------------------------------------------------------
+
+/**
+ * The roster row of the person signing in — created the first time they ask
+ * (Q1), so nobody has to type a roster before staff can eat. One live row per
+ * account per shop (`staff_member_user_unique`).
+ */
+async function staffMemberForAccount(
+  tx: PrismaClient,
+  tenantId: string,
+  userId: string,
+  branchId: string
+): Promise<string> {
+  const existing = await tx.staffMember.findFirst({
+    where: { tenantId, userId, deletedAt: null },
+    select: { id: true },
+  });
+  if (existing) return existing.id;
+  const user = await tx.user.findUniqueOrThrow({
+    where: { id: userId },
+    select: { name: true, email: true },
+  });
+  const created = await tx.staffMember.create({
+    data: { tenantId, branchId, userId, name: user.name ?? user.email ?? "พนักงาน" },
+    select: { id: true },
+  });
+  return created.id;
+}
+
+export type RequestStaffMealResult = {
+  id: string;
+  ticketNo: string;
+  unitPrice: Prisma.Decimal | null;
+  priceSource: StaffMealPriceSource;
+  replayed: boolean;
+};
+
+/**
+ * The eater asks for a dish (ADR 0035 Q1/Q3). The ticket is PENDING, carries no
+ * items and does not touch the ledger. Two things are settled NOW rather than
+ * at approval: the price is frozen (rule S2), and — when this system will
+ * deduct — the recipe is proved explodable, so a broken recipe is the
+ * requester's error message, not the approver's.
+ */
+export async function requestStaffMealLogic(
+  tenantId: string,
+  input: RequestStaffMealInput,
+  userId: string
+): Promise<RequestStaffMealResult> {
+  return withTenantContext(
+    tenantId,
+    async (tx) => {
+      const replay = await tx.staffMeal.findFirst({
+        where: { tenantId, id: input.submitKey },
+        select: { id: true, ticketNo: true, frozenUnitPrice: true, priceSource: true },
+      });
+      if (replay) {
+        return {
+          id: replay.id,
+          ticketNo: replay.ticketNo ?? "",
+          unitPrice: replay.frozenUnitPrice,
+          priceSource: replay.priceSource,
+          replayed: true,
+        };
+      }
+
+      await assertRefBelongsToTenant(tx, tenantId, "branch", input.branchId);
+      await assertRefBelongsToTenant(tx, tenantId, "menu", input.menuId);
+      const servings = new Prisma.Decimal(input.servings);
+
+      if ((await stockSourceOf(tx, tenantId)) === "SYSTEM") {
+        // Thrown away on purpose — only the refusal matters here.
+        await explodeStaffMealMenuLogic(tx, tenantId, {
+          menuId: input.menuId,
+          branchId: input.branchId,
+          businessDate: input.businessDate,
+          servings,
+        });
+      }
+      const price = await resolveStaffMealPriceLogic(tx, tenantId, input.menuId, input.businessDate);
+      const staffMemberId = await staffMemberForAccount(tx, tenantId, userId, input.branchId);
+      const ticketNo = await generateTicketNo(tx, tenantId, input.branchId);
+
+      await tx.staffMeal.create({
+        data: {
+          id: input.submitKey,
+          tenantId,
+          branchId: input.branchId,
+          businessDate: input.businessDate,
+          staffMemberId,
+          menuId: input.menuId,
+          servings,
+          frozenUnitPrice: price.unitPrice,
+          priceSource: price.source,
+          recordedBy: userId,
+          notes: input.notes,
+          status: "PENDING",
+          ticketNo,
+          // Nothing is posted until someone approves.
+          stockPosted: false,
+        },
+      });
+
+      return {
+        id: input.submitKey,
+        ticketNo,
+        unitPrice: price.unitPrice,
+        priceSource: price.source,
+        replayed: false,
+      };
+    },
+    POST_TX_OPTIONS
+  );
+}
+
+/** Lock a ticket and check it is still waiting — the approve/reject guard. */
+async function lockPendingTicket(tx: PrismaClient, tenantId: string, id: string) {
+  await tx.$queryRaw`SELECT id FROM staff_meal WHERE id = ${id}::uuid FOR UPDATE`;
+  const meal = await tx.staffMeal.findFirst({
+    where: { tenantId, id },
+    select: {
+      id: true,
+      branchId: true,
+      businessDate: true,
+      menuId: true,
+      servings: true,
+      status: true,
+      recordedBy: true,
+      staffMember: { select: { userId: true } },
+    },
+  });
+  if (!meal) throw new StaffMealNotFoundError(id);
+  if (meal.status !== "PENDING") throw new StaffMealNotPendingError(meal.id, meal.status);
+  return meal;
+}
+
+/**
+ * Approve a ticket (ADR 0035 Q3/Q4/Q5). Never your own. The shop's stock-source
+ * setting is read NOW and frozen onto the ticket as `stock_posted`; when it is
+ * SYSTEM the recipe AS OF the ticket's day is exploded and posted.
+ */
+export async function approveStaffMealLogic(
+  tenantId: string,
+  id: string,
+  approverUserId: string
+): Promise<{ id: string; stockPosted: boolean; itemCount: number }> {
+  return withTenantContext(
+    tenantId,
+    async (tx) => {
+      const meal = await lockPendingTicket(tx, tenantId, id);
+      if (meal.recordedBy === approverUserId || meal.staffMember?.userId === approverUserId) {
+        throw new StaffMealSelfApprovalError(meal.id);
+      }
+
+      const posts = (await stockSourceOf(tx, tenantId)) === "SYSTEM";
+      let itemCount = 0;
+      if (posts && meal.menuId) {
+        const lines = await explodeStaffMealMenuLogic(tx, tenantId, {
+          menuId: meal.menuId,
+          branchId: meal.branchId,
+          businessDate: meal.businessDate,
+          servings: meal.servings,
+        });
+        await postStaffMealLines(tx, tenantId, meal, lines, null, approverUserId);
+        itemCount = lines.length;
+      }
+
+      await tx.staffMeal.update({
+        where: { id: meal.id },
+        data: { status: "APPROVED", approvedBy: approverUserId, approvedAt: new Date(), stockPosted: posts },
+      });
+      return { id: meal.id, stockPosted: posts, itemCount };
+    },
+    POST_TX_OPTIONS
+  );
+}
+
+/** Not approved, with a reason. Stock never moved, so nothing moves back. */
+export async function rejectStaffMealLogic(
+  tenantId: string,
+  input: RejectStaffMealInput,
+  approverUserId: string
+): Promise<{ id: string }> {
+  return withTenantContext(tenantId, async (tx) => {
+    const meal = await lockPendingTicket(tx, tenantId, input.id);
+    if (meal.recordedBy === approverUserId || meal.staffMember?.userId === approverUserId) {
+      throw new StaffMealSelfApprovalError(meal.id);
+    }
+    await tx.staffMeal.update({
+      where: { id: meal.id },
+      data: {
+        status: "REJECTED",
+        approvedBy: approverUserId,
+        approvedAt: new Date(),
+        rejectedReason: input.reason,
+      },
+    });
+    return { id: meal.id };
+  });
 }
 
 // ------------------------------------------------------------

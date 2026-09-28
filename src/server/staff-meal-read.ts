@@ -140,6 +140,9 @@ export async function getStaffMealsLogic(
             }
           : {}),
         ...(query.includeVoided ? {} : { voidedAt: null }),
+        // The history is what was actually eaten: approved only (ADR 0035 Q3).
+        // Waiting and rejected tickets live in the queue and in "my tickets".
+        status: "APPROVED",
       },
       orderBy: [{ businessDate: "desc" }, { createdAt: "desc" }],
       take: MAX_STAFF_MEAL_ROWS + 1,
@@ -249,6 +252,8 @@ export async function getStaffMealQuotaLogic(
           staffMemberId: params.staffMemberId,
           businessDate: params.businessDate,
           voidedAt: null,
+          // Rule S10: only an approved ticket counts against the quota.
+          status: "APPROVED",
         },
         select: { frozenUnitPrice: true, servings: true },
       }),
@@ -349,4 +354,120 @@ export async function getZeroPriceSalesWarningLogic(
       tags,
     };
   });
+}
+
+// ------------------------------------------------------------
+// Tickets (ADR 0035)
+// ------------------------------------------------------------
+
+export type StaffMealTicket = {
+  id: string;
+  ticketNo: string | null;
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  businessDate: Date;
+  requestedAt: Date;
+  branchId: string;
+  branchName: string;
+  menuName: string | null;
+  servings: Prisma.Decimal;
+  unitPrice: Prisma.Decimal | null;
+  staffMemberId: string | null;
+  staffMemberName: string | null;
+  /** The account that asked — or, on behalf, the head who recorded it. */
+  requestedByUserId: string;
+  requestedByName: string | null;
+  onBehalf: boolean;
+  approvedByName: string | null;
+  approvedAt: Date | null;
+  rejectedReason: string | null;
+  stockPosted: boolean;
+  voided: boolean;
+};
+
+const TICKET_SELECT = {
+  id: true,
+  ticketNo: true,
+  status: true,
+  businessDate: true,
+  requestedAt: true,
+  branchId: true,
+  servings: true,
+  frozenUnitPrice: true,
+  staffMemberId: true,
+  recordedBy: true,
+  onBehalf: true,
+  approvedAt: true,
+  rejectedReason: true,
+  stockPosted: true,
+  voidedAt: true,
+  branch: { select: { name: true } },
+  menu: { select: { name: true } },
+  staffMember: { select: { name: true } },
+  recordedByUser: { select: { name: true, email: true } },
+  approvedByUser: { select: { name: true, email: true } },
+} as const;
+
+type TicketRow = Prisma.StaffMealGetPayload<{ select: typeof TICKET_SELECT }>;
+
+const toTicket = (m: TicketRow): StaffMealTicket => ({
+  id: m.id,
+  ticketNo: m.ticketNo,
+  status: m.status,
+  businessDate: m.businessDate,
+  requestedAt: m.requestedAt,
+  branchId: m.branchId,
+  branchName: m.branch.name,
+  menuName: m.menu?.name ?? null,
+  servings: m.servings,
+  unitPrice: m.frozenUnitPrice,
+  staffMemberId: m.staffMemberId,
+  staffMemberName: m.staffMember?.name ?? null,
+  requestedByUserId: m.recordedBy,
+  requestedByName: m.recordedByUser.name ?? m.recordedByUser.email ?? null,
+  onBehalf: m.onBehalf,
+  approvedByName: m.approvedByUser ? m.approvedByUser.name ?? m.approvedByUser.email ?? null : null,
+  approvedAt: m.approvedAt,
+  rejectedReason: m.rejectedReason,
+  stockPosted: m.stockPosted,
+  voided: m.voidedAt !== null,
+});
+
+/** Every ticket still waiting at these branches, oldest first — the queue. */
+export async function getPendingStaffMealTicketsLogic(
+  tenantId: string,
+  branchIds: string[]
+): Promise<StaffMealTicket[]> {
+  if (branchIds.length === 0) return [];
+  return withTenantContext(tenantId, async (tx) =>
+    (
+      await tx.staffMeal.findMany({
+        where: { tenantId, status: "PENDING", branchId: { in: branchIds } },
+        orderBy: { requestedAt: "asc" },
+        select: TICKET_SELECT,
+      })
+    ).map(toTicket)
+  );
+}
+
+/** What this person asked for from `since` on — the tickets they show. */
+export async function getMyStaffMealTicketsLogic(
+  tenantId: string,
+  userId: string,
+  since: Date
+): Promise<StaffMealTicket[]> {
+  return withTenantContext(tenantId, async (tx) =>
+    (
+      await tx.staffMeal.findMany({
+        where: {
+          tenantId,
+          menuId: { not: null },
+          requestedAt: { gte: since },
+          OR: [{ recordedBy: userId, onBehalf: false }, { staffMember: { userId } }],
+        },
+        orderBy: { requestedAt: "desc" },
+        take: 20,
+        select: TICKET_SELECT,
+      })
+    ).map(toTicket)
+  );
 }
