@@ -128,7 +128,7 @@ By 2026-08-18 **three separate Parts had wanted a photo and none could have one*
 |---|---|---|
 | Goods receipt (Part 13) | the supplier's invoice / delivery note | `schema.prisma:1008` — *"no `invoice_image_url` (no object storage)"* |
 | Expense (Part 16) | the bill, the payment slip | `schema.prisma:1190` — *"NOT built: `bill_image_url` / `slip_image_url` (no object storage)"* |
-| Transfer (Part 18) | the handover, when the driver is **not** a company employee and will therefore never have a login | ADR 0018 Q3 |
+| Transfer (Part 18) | the handover, when the driver is **not** a company employee and will therefore never have a login · **Kong (2026-09-28): a photo at BOTH ends — what was loaded when it is sent, and what arrived when it is received** (the two photos are what settles a "ของมาไม่ครบ" dispute) | ADR 0018 Q3 · Kong 2026-09-28 |
 | Payment (future) | the bank transfer slip — Kong, 2026-08-18: *"เดี๋ยวมันต้องมีสลิปหลักฐานการโอนเงินอะไรต่างๆอีก คิดเผื่อไว้เลย"* | this entry |
 
 The decisive argument for building it once: **the vendor choice determines what the column even holds.** A bucket key, a full URL and a signed path are three different columns, so a `photo_url` added before the decision is a guess that a migration pays for later — in four tables instead of one.
