@@ -26,9 +26,10 @@ import { ANIM, ChartGradients, ChartTooltip, INK_MUTED, cursorFill, grad } from 
 import { METRIC_LABELS_TH, WEEK_ORDER, type Metric } from "@/lib/sales-insight";
 import { RECIPE_CONFIDENCE_HINTS_TH, RECIPE_CONFIDENCE_LABELS_TH } from "@/lib/validations/recipe";
 import { getMenuInsightAction, type MenuInsightResult } from "../insight-actions";
-import { ModalShell, baht, fmtMetric } from "./Breakdown";
+import { ActionError, ModalShell, STALE_TAB_MESSAGE, baht, fmtMetric } from "./Breakdown";
 
 const WEEKDAY_SHORT = ["อา.", "จ.", "อ.", "พ.", "พฤ.", "ศ.", "ส."];
+const STALE: MenuInsightResult = { ok: false, formError: STALE_TAB_MESSAGE, stale: true };
 const CONF_TONE: Record<string, string> = {
   HIGH: "border-good-border bg-good-bg text-good",
   MEDIUM: "border-warn-border bg-warn-bg text-warn",
@@ -80,7 +81,12 @@ function MenuInsightModal({
   useEffect(() => {
     let live = true;
     setRes(null);
-    getMenuInsightAction({ menuId, from, to, branchId, by }).then((r) => live && setRes(r));
+    getMenuInsightAction({ menuId, from, to, branchId, by })
+      // A tab older than the server gets NO answer back — Next resolves the
+      // call with `undefined` rather than throwing ("Failed to find Server
+      // Action"). Both that and a throw mean "refresh", never an error page.
+      .then((r) => live && setRes(r ?? STALE))
+      .catch(() => live && setRes(STALE));
     return () => {
       live = false;
     };
@@ -99,7 +105,7 @@ function MenuInsightModal({
           <div className="h-48 animate-pulse rounded-xl bg-muted" />
         </div>
       ) : !res.ok ? (
-        <p className="py-10 text-center text-sm text-bad">{res.formError}</p>
+        <ActionError message={res.formError} stale={"stale" in res && Boolean(res.stale)} />
       ) : (
         <InsightBody r={res} by={by} />
       )}

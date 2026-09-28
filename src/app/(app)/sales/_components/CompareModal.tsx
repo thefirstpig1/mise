@@ -17,6 +17,7 @@ import { useCallback, useEffect, useState } from "react";
 import { TONES } from "@/components/charts/chart-theme";
 import { METRIC_LABELS_TH, type CompareSide, type Metric, type PeriodStats } from "@/lib/sales-insight";
 import { getSalesCompareAction, type CompareResult } from "../insight-actions";
+import { ActionError, STALE_TAB_MESSAGE } from "./Breakdown";
 import { ModalShell, baht, fmtMetric, type ToneMap } from "./Breakdown";
 import { useMenuInsight } from "./insight-context";
 
@@ -117,7 +118,10 @@ function CompareModal({
         branchId,
         by: m,
       })
-        .then(setRes)
+        // `undefined` = the server no longer has this action (a tab older than
+        // the app) — same answer as a throw: ask for a refresh.
+        .then((r) => setRes(r ?? { ok: false, formError: STALE_TAB_MESSAGE, stale: true }))
+        .catch(() => setRes({ ok: false, formError: STALE_TAB_MESSAGE, stale: true }))
         .finally(() => setBusy(false));
     },
     [branchId, months]
@@ -181,7 +185,7 @@ function CompareModal({
         {res === null ? (
           <div className="h-48 animate-pulse rounded-xl bg-muted" />
         ) : !res.ok ? (
-          <p className="py-8 text-center text-sm text-bad">{res.formError}</p>
+          <ActionError message={res.formError} stale={Boolean(res.stale)} />
         ) : res.a.days === 0 || res.b.days === 0 ? (
           <p className="py-8 text-center text-sm text-muted-foreground">
             {res.a.days === 0 ? `“${la}”` : `“${lb}”`} ไม่มียอดขายในช่วงนั้น — เลือกช่วงอื่น

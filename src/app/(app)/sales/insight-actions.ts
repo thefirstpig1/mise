@@ -26,6 +26,7 @@ import {
 } from "@/lib/sales-insight";
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
+
 const METRIC = new Set<Metric>(["net", "qty", "profit"]);
 const d = (iso: string) => new Date(`${iso}T00:00:00.000Z`);
 const thai = (iso: string) =>
@@ -33,7 +34,7 @@ const thai = (iso: string) =>
 
 export type MenuInsightResult =
   | { ok: true; insight: MenuInsight; canSeeCost: boolean; costAsOf: string; prevLabel: string; curLabel: string }
-  | { ok: false; formError: string };
+  | { ok: false; formError: string; stale?: boolean };
 
 export async function getMenuInsightAction(input: {
   menuId: string;
@@ -82,7 +83,7 @@ export async function getMenuInsightAction(input: {
 // ------------------------------------------------------------
 export type CompareResult =
   | { ok: true; a: PeriodStats; b: PeriodStats; labels: Record<string, string> }
-  | { ok: false; formError: string };
+  | { ok: false; formError: string; stale?: boolean };
 
 export async function getSalesCompareAction(input: {
   a: CompareSide;

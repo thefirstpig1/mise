@@ -97,6 +97,13 @@ you touch, **without being told page by page** — Kong: "อย่าให้�
   or "Attempted to call X() from the server". Shared values live in plain
   modules (`chart-theme.tsx`, `src/lib/sales-insight.ts`). tsc and build pass;
   only loading the page in the affected mode shows it.
+- **A tab older than the server** (every dev restart, every deploy) calls a
+  Server Action id the server no longer has. Next does NOT throw — the call
+  resolves to `undefined`, and `res.ok` crashes the page to the error screen.
+  Every client-side action call must handle `r ?? stale` AND `.catch`, and show
+  `STALE_TAB_MESSAGE` + a refresh button (`ActionError` in `Breakdown.tsx`).
+  Reproduce by loading the page, restarting dev, then clicking — not by a
+  fresh load, which always works.
 - typedRoutes: cast built strings `as Route` for `router.push`/`Link`.
 - Prisma `Decimal` cannot cross to a Client Component — convert to numbers.
 - Every tenant-table read goes through `withTenantContext` (RLS); only
