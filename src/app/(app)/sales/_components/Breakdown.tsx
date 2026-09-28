@@ -119,25 +119,15 @@ export function BreakdownPanes({
     <div className="grid gap-4 md:grid-cols-[1fr_1.3fr]">
       <div className="rounded-xl border border-border bg-muted/30 p-3">
         <p className="text-xs font-medium text-muted-foreground">หมวดเมนู</p>
-        <p className="mb-2 text-[11px] text-muted-foreground">กดหมวดเพื่อดูเมนูในหมวดนั้น</p>
+        <p className="mb-2 text-[11px] text-muted-foreground">กดหมวดเพื่อดูเมนูในหมวดนั้น · กดซ้ำเพื่อดูทุกหมวด</p>
         <div className="flex max-h-80 flex-col gap-1 overflow-y-auto">
-          {categories.length > 1 && (
-            <CatButton
-              active={effective === ALL}
-              onClick={() => setCat(ALL)}
-              label="ทุกหมวด"
-              value={total}
-              share={100}
-              width={100}
-              tone="ink"
-              index={0}
-            />
-          )}
+          {/* No "ทุกหมวด" row (Kong, 2026-09-28): a 100% bar says nothing the
+              title does not. Pressing the chosen category again goes back. */}
           {categories.map((c, i) => (
             <CatButton
               key={c.key}
               active={effective === c.key}
-              onClick={() => setCat(c.key)}
+              onClick={() => setCat(effective === c.key && !only ? ALL : c.key)}
               label={c.label}
               value={c.net}
               share={total > 0 ? (c.net / total) * 100 : 0}
@@ -152,7 +142,12 @@ export function BreakdownPanes({
       <div className="rounded-xl border border-border p-3">
         <p className="mb-2 flex items-center gap-2 text-xs font-medium text-muted-foreground">
           <span className="h-2.5 w-2.5 rounded-full" style={{ background: TONES[menuTone][0] }} />
-          เมนูใน “{catLabel}” · {shown.length} เมนู · {baht(shownTotal)}
+          {effective === ALL ? "ทุกเมนู" : `เมนูใน “${catLabel}”`} · {shown.length} เมนู · {baht(shownTotal)}
+          {effective !== ALL && !only && (
+            <button type="button" onClick={() => setCat(ALL)} className="ml-auto text-primary underline">
+              ดูทุกหมวด
+            </button>
+          )}
         </p>
         {/* Keyed by category so switching replays the grow-in. */}
         <ul key={effective} className="max-h-80 space-y-2 overflow-y-auto pr-1">
