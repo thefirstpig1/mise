@@ -5,6 +5,8 @@
 // stays on the product-centric routes; each row links there to edit.
 import { notFound } from "next/navigation";
 import { requireTenant } from "@/lib/require-tenant";
+import { hasCapability } from "@/lib/permissions/service";
+import ActionLink from "@/components/ui/ActionLink";
 import { getSupplierByIdLogic } from "@/server/supplier";
 import {
   getSupplierMappingsLogic,
@@ -32,7 +34,7 @@ export default async function EditSupplierPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const { tenantId } = await requireTenant("master:write");
+  const { tenantId, role } = await requireTenant("master:write");
 
   const [supplier, mappings] = await Promise.all([
     getSupplierByIdLogic(tenantId, id),
@@ -95,7 +97,12 @@ export default async function EditSupplierPage({
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4">
         <h2 className="text-xl font-bold">แก้ไขซัพพลายเออร์</h2>
-        <DeleteSupplierButton id={supplier.id} cascadeItems={cascadeItems} />
+        <div className="flex items-center gap-3">
+          {supplier.isActive && hasCapability(role, "purchase:write") && (
+            <ActionLink href={`/suppliers/${supplier.id}/order`}>สั่งซื้อ</ActionLink>
+          )}
+          <DeleteSupplierButton id={supplier.id} cascadeItems={cascadeItems} />
+        </div>
       </div>
       <SupplierForm
         action={updateSupplier.bind(null, supplier.id)}

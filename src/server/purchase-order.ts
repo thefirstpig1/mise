@@ -75,8 +75,55 @@ const MAPPING_PRICE_SELECT = {
   supplierItemCode: true,
   branchId: true,
   effectiveFrom: true,
+  effectiveTo: true,
+  createdAt: true,
   orderUnit: { select: { id: true, unitName: true, toBaseRatio: true } },
 } as const;
+
+/** The columns ADR 0009's lookup rule reads — nothing else decides a price. */
+export type PriceCandidate = {
+  branchId: string | null;
+  currentUnitPrice: Prisma.Decimal | null;
+  effectiveFrom: Date;
+  effectiveTo: Date | null;
+  createdAt: Date;
+};
+
+/**
+ * ADR 0009's lookup rule over rows already fetched — the ONE implementation,
+ * shared by the single-product resolver and the supplier catalog, so the order
+ * form and the catalog can never disagree about today's price.
+ *
+ * `rows` must be live mappings (deletedAt IS NULL) of ONE product and ONE
+ * supplier; rows of other branches are ignored here rather than trusted away.
+ * Rules 1–2 and the null-price rule are documented on resolveSupplierPriceLogic.
+ */
+export function pickCurrentPrice<T extends PriceCandidate>(
+  rows: readonly T[],
+  branchId: string,
+  today: Date
+): { row: T & { currentUnitPrice: Prisma.Decimal }; scope: "branch" | "tenant" } | null {
+  const t = today.getTime();
+  const current = rows.filter(
+    (r): r is T & { currentUnitPrice: Prisma.Decimal } =>
+      r.currentUnitPrice !== null &&
+      r.effectiveFrom.getTime() <= t &&
+      (r.effectiveTo === null || r.effectiveTo.getTime() >= t)
+  );
+  // A same-day supersede (ADR 0010's Option ε) resolves to the newer row even
+  // before the older one is closed: effectiveFrom DESC, then createdAt DESC.
+  const newest = (series: typeof current) =>
+    [...series].sort(
+      (a, b) =>
+        b.effectiveFrom.getTime() - a.effectiveFrom.getTime() ||
+        b.createdAt.getTime() - a.createdAt.getTime()
+    )[0];
+
+  const branchRow = newest(current.filter((r) => r.branchId === branchId));
+  if (branchRow) return { row: branchRow, scope: "branch" };
+  const tenantRow = newest(current.filter((r) => r.branchId === null));
+  return tenantRow ? { row: tenantRow, scope: "tenant" } : null;
+}
 
 /**
  * Resolve today's price for one (product, supplier, branch) — ADR 0009's lookup
@@ -112,47 +159,189 @@ export async function resolveSupplierPriceLogic(
   const today = asOf ?? computeBangkokToday();
 
   return withTenantContext(tenantId, async (tx) => {
-    const currentWindow = {
-      tenantId,
-      productId,
-      supplierId,
-      deletedAt: null,
-      currentUnitPrice: { not: null },
-      effectiveFrom: { lte: today },
-      OR: [{ effectiveTo: null }, { effectiveTo: { gte: today } }],
-    } satisfies Prisma.SupplierProductMappingWhereInput;
-
-    // Rule 1 — the branch series first, on its own query. Ordering by
-    // effectiveFrom DESC makes a same-day supersede (ADR 0010's Option ε) resolve
-    // to the newer row even before the older one is closed.
-    const branchRow = await tx.supplierProductMapping.findFirst({
-      where: { ...currentWindow, branchId },
+    // Both series in one round trip; pickCurrentPrice applies the rules.
+    const rows = await tx.supplierProductMapping.findMany({
+      where: {
+        tenantId,
+        productId,
+        supplierId,
+        deletedAt: null,
+        OR: [{ branchId }, { branchId: null }],
+      },
       select: MAPPING_PRICE_SELECT,
-      orderBy: [{ effectiveFrom: "desc" }, { createdAt: "desc" }],
     });
-
-    const row =
-      branchRow ??
-      (await tx.supplierProductMapping.findFirst({
-        where: { ...currentWindow, branchId: null },
-        select: MAPPING_PRICE_SELECT,
-        orderBy: [{ effectiveFrom: "desc" }, { createdAt: "desc" }],
-      }));
-
-    if (!row || row.currentUnitPrice === null) return null;
-
-    return {
-      mappingId: row.id,
-      unitPrice: row.currentUnitPrice,
-      orderUnitId: row.orderUnit?.id ?? null,
-      orderUnitName: row.orderUnit?.unitName ?? null,
-      toBaseRatio: row.orderUnit?.toBaseRatio ?? null,
-      minOrderQty: row.minOrderQty,
-      leadTimeDays: row.leadTimeDays,
-      supplierItemCode: row.supplierItemCode,
-      scope: branchRow ? "branch" : "tenant",
-    };
+    const picked = pickCurrentPrice(rows, branchId, today);
+    return picked ? toResolvedPrice(picked.row, picked.scope) : null;
   });
+}
+
+function toResolvedPrice(
+  row: Prisma.SupplierProductMappingGetPayload<{ select: typeof MAPPING_PRICE_SELECT }> & {
+    currentUnitPrice: Prisma.Decimal;
+  },
+  scope: "branch" | "tenant"
+): ResolvedSupplierPrice {
+  return {
+    mappingId: row.id,
+    unitPrice: row.currentUnitPrice,
+    orderUnitId: row.orderUnit?.id ?? null,
+    orderUnitName: row.orderUnit?.unitName ?? null,
+    toBaseRatio: row.orderUnit?.toBaseRatio ?? null,
+    minOrderQty: row.minOrderQty,
+    leadTimeDays: row.leadTimeDays,
+    supplierItemCode: row.supplierItemCode,
+    scope,
+  };
+}
+
+/** One product a supplier sells, as the order catalog shows it. */
+export type SupplierCatalogItem = {
+  productId: string;
+  name: string;
+  sku: string;
+  /** Category section/group; null = the product has no category. */
+  section: string | null;
+  group: string | null;
+  units: { id: string; unitName: string; toBaseRatio: Prisma.Decimal; isBase: boolean }[];
+  /** Today's price-list price at this branch, or null = no current price-list price. */
+  price: ResolvedSupplierPrice | null;
+  /**
+   * What this supplier last invoiced for it on a confirmed delivery — this
+   * branch's latest if it has one, else the latest at any branch. A PREFILL for
+   * a hand-typed price (ADR 0012 Q5), never a price-list price: a line priced
+   * from it carries no mapping id. null = never received from this supplier.
+   */
+  lastPaid: {
+    unitPrice: Prisma.Decimal;
+    unitId: string;
+    unitName: string;
+    receivedAt: Date;
+    branchId: string;
+    branchName: string;
+  } | null;
+  /** The unit to preselect: the price's, else the last delivery's, else the newest mapping's, else the base unit. */
+  defaultUnitId: string | null;
+};
+
+const CATALOG_PRODUCT_SELECT = {
+  id: true,
+  name: true,
+  sku: true,
+  category: { select: { accountingSection: true, groupName: true, deletedAt: true } },
+  productUnits: { select: { id: true, unitName: true, toBaseRatio: true, isBase: true } },
+} as const;
+
+/**
+ * Everything a supplier carries for one branch, for the order catalog.
+ *
+ * Two records say a supplier carries a product (Kong, 2026-09-28 — a shop that
+ * never set up a price list must still get a catalog):
+ *  1. **Its price list.** A live mapping for this branch or for every branch
+ *     (branchId NULL); a mapping for ANOTHER branch does not put the product in
+ *     this branch's catalog. A closed or blank price keeps the product listed
+ *     with `price: null`.
+ *  2. **What it has delivered.** A line on a CONFIRMED, undeleted receipt from
+ *     this supplier, at any branch — the supplier carries the product whichever
+ *     branch took the delivery. Reversal lines, and lines a reversal undid, are
+ *     not deliveries and are skipped. `lastPaid` prefers this branch's latest
+ *     delivery and falls back to the latest anywhere.
+ *
+ * Two queries for the whole catalog, then pickCurrentPrice per product:
+ * calling resolveSupplierPriceLogic per product would be one transaction per row.
+ */
+export async function getSupplierCatalogLogic(
+  tenantId: string,
+  supplierId: string,
+  branchId: string,
+  asOf?: Date
+): Promise<SupplierCatalogItem[]> {
+  const today = asOf ?? computeBangkokToday();
+
+  const { mappings, deliveries } = await withTenantContext(tenantId, async (tx) => ({
+    mappings: await tx.supplierProductMapping.findMany({
+      where: {
+        tenantId,
+        supplierId,
+        deletedAt: null,
+        product: { deletedAt: null },
+        OR: [{ branchId }, { branchId: null }],
+      },
+      select: { ...MAPPING_PRICE_SELECT, product: { select: CATALOG_PRODUCT_SELECT } },
+    }),
+    deliveries: await tx.goodsReceiptItem.findMany({
+      where: {
+        tenantId,
+        goodsReceipt: { supplierId, status: "CONFIRMED", deletedAt: null },
+        reversalOfItemId: null,
+        reversedBy: { none: {} },
+        qtyReceivedActual: { gt: 0 },
+        product: { deletedAt: null },
+      },
+      select: {
+        unitPriceActual: true,
+        receivedUnitId: true,
+        receivedUnitName: true,
+        goodsReceipt: {
+          select: { receivedAt: true, branchId: true, branch: { select: { name: true } } },
+        },
+        product: { select: CATALOG_PRODUCT_SELECT },
+      },
+      orderBy: [{ goodsReceipt: { receivedAt: "desc" } }, { lineNo: "asc" }],
+    }),
+  }));
+
+  type Product = (typeof mappings)[number]["product"];
+  const byProduct = new Map<
+    string,
+    { product: Product; series: typeof mappings; deliveries: typeof deliveries }
+  >();
+  const entry = (product: Product) => {
+    let e = byProduct.get(product.id);
+    if (!e) byProduct.set(product.id, (e = { product, series: [], deliveries: [] }));
+    return e;
+  };
+  for (const m of mappings) entry(m.product).series.push(m);
+  // Newest first already; pushing keeps that order.
+  for (const d of deliveries) entry(d.product).deliveries.push(d);
+
+  return [...byProduct.values()]
+    .map(({ product: p, series, deliveries: delivered }): SupplierCatalogItem => {
+      const picked = pickCurrentPrice(series, branchId, today);
+      const newest = [...series].sort(
+        (a, b) => b.effectiveFrom.getTime() - a.effectiveFrom.getTime()
+      )[0];
+      const last = delivered.find((d) => d.goodsReceipt.branchId === branchId) ?? delivered[0];
+
+      const units = [...p.productUnits].sort((a, b) => Number(b.isBase) - Number(a.isBase));
+      const isUnitOfProduct = (id: string | undefined): id is string =>
+        id !== undefined && units.some((u) => u.id === id);
+      const unitCandidates = [picked?.row.orderUnit?.id, last?.receivedUnitId, newest?.orderUnit?.id];
+      const category = p.category && p.category.deletedAt === null ? p.category : null;
+
+      return {
+        productId: p.id,
+        name: p.name,
+        sku: p.sku,
+        section: category?.accountingSection ?? null,
+        group: category?.groupName ?? null,
+        units,
+        price: picked ? toResolvedPrice(picked.row, picked.scope) : null,
+        // A unit since removed from the product cannot be ordered in.
+        lastPaid:
+          last && isUnitOfProduct(last.receivedUnitId)
+            ? {
+                unitPrice: last.unitPriceActual,
+                unitId: last.receivedUnitId,
+                unitName: last.receivedUnitName,
+                receivedAt: last.goodsReceipt.receivedAt,
+                branchId: last.goodsReceipt.branchId,
+                branchName: last.goodsReceipt.branch.name,
+              }
+            : null,
+        defaultUnitId: unitCandidates.find(isUnitOfProduct) ?? units[0]?.id ?? null,
+      };
+    })
+    .sort((a, b) => a.name.localeCompare(b.name, "th"));
 }
 
 /**

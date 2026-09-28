@@ -32,6 +32,7 @@ import {
   getOpenOrderQtyForProductLogic,
   getPurchaseOrderByIdLogic,
   getPurchaseOrdersLogic,
+  getSupplierCatalogLogic,
   resolveSupplierPriceLogic,
   suggestSuppliersForProductLogic,
 } from "@/server/purchase-order";
@@ -243,6 +244,12 @@ describe("purchase-order read *Logic (tenant-scoped, app-layer isolation)", () =
   afterAll(async () => {
     const ids = [tenantA, tenantB];
     await withRlsBypass(async (tx) => {
+      // C7–C9 receipts; reversal lines point at their originals, so they go first.
+      await tx.goodsReceiptItem.deleteMany({
+        where: { tenantId: { in: ids }, reversalOfItemId: { not: null } },
+      });
+      await tx.goodsReceiptItem.deleteMany({ where: { tenantId: { in: ids } } });
+      await tx.goodsReceipt.deleteMany({ where: { tenantId: { in: ids } } });
       await tx.purchaseOrderItemAllocation.deleteMany({
         where: { tenantId: { in: ids } },
       });
@@ -536,5 +543,184 @@ describe("purchase-order read *Logic (tenant-scoped, app-layer isolation)", () =
     const open = await getOpenOrderQtyForProductLogic(tenantA, quiet.id, branchA1);
     expect(open.lineCount).toBe(0);
     expect(open.qtyOrderedBase).toBeNull();
+  });
+
+  // ----------------------------------------------------------
+  // C1–C6 — getSupplierCatalogLogic (the supplier's order catalog)
+  // ----------------------------------------------------------
+
+  it("C1: lists what the supplier sells, priced by the branch override at that branch", async () => {
+    const items = await getSupplierCatalogLogic(tenantA, supMain, branchA1);
+    const ids = items.map((i) => i.productId);
+    expect(ids).toContain(prod.id);
+    // prodNoPrice has no mapping with this supplier — not in its catalog
+    expect(ids).not.toContain(prodNoPrice.id);
+    const item = items.find((i) => i.productId === prod.id)!;
+    expect(num(item.price!.unitPrice)).toBe(90);
+    expect(item.price!.scope).toBe("branch");
+    expect(item.defaultUnitId).toBe(prod.productUnits[0].id);
+  });
+
+  it("C2: another branch falls back to the tenant default price", async () => {
+    const items = await getSupplierCatalogLogic(tenantA, supMain, branchA2);
+    const item = items.find((i) => i.productId === prod.id)!;
+    expect(num(item.price!.unitPrice)).toBe(100);
+    expect(item.price!.scope).toBe("tenant");
+  });
+
+  it("C3: a closed price window keeps the product listed, with no price to prefill", async () => {
+    const items = await getSupplierCatalogLogic(tenantA, supExpired, branchA1);
+    const item = items.find((i) => i.productId === prod.id)!;
+    expect(item).toBeDefined();
+    expect(item.price).toBeNull();
+    expect(item.defaultUnitId).toBe(prod.productUnits[0].id);
+  });
+
+  it("C4: a mapping for ANOTHER branch does not put the product in this branch's catalog", async () => {
+    const onlyA1 = await freshProduct(tenantA, "5-only-a1");
+    await mapping(tenantA, {
+      supplierId: supAlt,
+      productId: onlyA1.id,
+      branchId: branchA1,
+      orderUnitId: onlyA1.productUnits[0].id,
+      currentUnitPrice: 70,
+      effectiveFrom: day(-3),
+    });
+    const atA1 = await getSupplierCatalogLogic(tenantA, supAlt, branchA1);
+    const atA2 = await getSupplierCatalogLogic(tenantA, supAlt, branchA2);
+    expect(atA1.map((i) => i.productId)).toContain(onlyA1.id);
+    expect(atA2.map((i) => i.productId)).not.toContain(onlyA1.id);
+  });
+
+  it("C5: another tenant's supplier yields an empty catalog, never its rows", async () => {
+    const items = await getSupplierCatalogLogic(tenantA, supB, branchA1);
+    expect(items).toEqual([]);
+  });
+
+  /** A goods receipt with lines, built directly (the receipt write path is not under test). */
+  let grSeq = 0;
+  const gr = (opts: {
+    supplierId: string;
+    branchId: string;
+    status: "DRAFT" | "CONFIRMED" | "VOIDED";
+    receivedAt: Date;
+    lines: { productId: string; unitId: string; price: number; reverse?: boolean }[];
+  }) =>
+    withRlsBypass(async (tx) => {
+      const doc = await tx.goodsReceipt.create({
+        data: {
+          tenantId: tenantA,
+          branchId: opts.branchId,
+          supplierId: opts.supplierId,
+          grNumber: `CAT-GR-${++grSeq}`,
+          status: opts.status,
+          receivedAt: opts.receivedAt,
+          receivedBy: userA,
+          confirmedAt: opts.status === "DRAFT" ? null : opts.receivedAt,
+          voidedAt: opts.status === "VOIDED" ? opts.receivedAt : null,
+        },
+      });
+      let lineNo = 0;
+      for (const l of opts.lines) {
+        const line = await tx.goodsReceiptItem.create({
+          data: {
+            tenantId: tenantA,
+            goodsReceiptId: doc.id,
+            productId: l.productId,
+            lineNo: ++lineNo,
+            qtyReceivedActual: new Prisma.Decimal(2),
+            receivedUnitId: l.unitId,
+            receivedUnitName: "kg",
+            toBaseRatio: new Prisma.Decimal(1),
+            unitPriceActual: new Prisma.Decimal(l.price),
+            lineTotalActual: new Prisma.Decimal(l.price * 2),
+          },
+        });
+        if (l.reverse) {
+          await tx.goodsReceiptItem.create({
+            data: {
+              tenantId: tenantA,
+              goodsReceiptId: doc.id,
+              productId: l.productId,
+              lineNo: ++lineNo,
+              qtyReceivedActual: new Prisma.Decimal(-2),
+              receivedUnitId: l.unitId,
+              receivedUnitName: "kg",
+              toBaseRatio: new Prisma.Decimal(1),
+              unitPriceActual: new Prisma.Decimal(l.price),
+              lineTotalActual: new Prisma.Decimal(-l.price * 2),
+              reversalOfItemId: line.id,
+            },
+          });
+        }
+      }
+    });
+  const at = (offset: number) => new Date(day(offset).getTime() + 5 * 3600_000);
+
+  it("C7: a product only ever DELIVERED is listed, prefilled with what was last paid on a confirmed receipt", async () => {
+    const sup = await freshSupplier(tenantA, "ผู้ขายไม่มีรายการราคา");
+    const bought = await freshProduct(tenantA, "6-bought");
+    const draftOnly = await freshProduct(tenantA, "7-draft-only");
+    const unit = bought.productUnits[0].id;
+    await gr({ supplierId: sup, branchId: branchA1, status: "CONFIRMED", receivedAt: at(-9), lines: [{ productId: bought.id, unitId: unit, price: 40 }] });
+    await gr({ supplierId: sup, branchId: branchA1, status: "CONFIRMED", receivedAt: at(-5), lines: [{ productId: bought.id, unitId: unit, price: 44 }] });
+    // Newer, but none of these is a delivery that stood:
+    await gr({ supplierId: sup, branchId: branchA1, status: "VOIDED", receivedAt: at(-3), lines: [{ productId: bought.id, unitId: unit, price: 99 }] });
+    await gr({ supplierId: sup, branchId: branchA1, status: "CONFIRMED", receivedAt: at(-2), lines: [{ productId: bought.id, unitId: unit, price: 77, reverse: true }] });
+    await gr({ supplierId: sup, branchId: branchA1, status: "DRAFT", receivedAt: at(-1), lines: [{ productId: draftOnly.id, unitId: draftOnly.productUnits[0].id, price: 10 }] });
+
+    const items = await getSupplierCatalogLogic(tenantA, sup, branchA1);
+    expect(items.map((i) => i.productId)).toEqual([bought.id]);
+    const item = items[0];
+    expect(item.price).toBeNull();
+    expect(num(item.lastPaid!.unitPrice)).toBe(44);
+    expect(item.lastPaid!.unitId).toBe(unit);
+    expect(item.defaultUnitId).toBe(unit);
+  });
+
+  it("C8: this branch's last price beats a newer one paid at another branch", async () => {
+    const sup = await freshSupplier(tenantA, "ผู้ขายสองสาขา");
+    const p = await freshProduct(tenantA, "8-two-branches");
+    const unit = p.productUnits[0].id;
+    await gr({ supplierId: sup, branchId: branchA1, status: "CONFIRMED", receivedAt: at(-6), lines: [{ productId: p.id, unitId: unit, price: 30 }] });
+    await gr({ supplierId: sup, branchId: branchA2, status: "CONFIRMED", receivedAt: at(-1), lines: [{ productId: p.id, unitId: unit, price: 35 }] });
+
+    const atA1 = (await getSupplierCatalogLogic(tenantA, sup, branchA1))[0];
+    expect(num(atA1.lastPaid!.unitPrice)).toBe(30);
+    expect(atA1.lastPaid!.branchId).toBe(branchA1);
+
+    // A branch that never took a delivery still sees the product, at the latest price anywhere.
+    const fresh = await withRlsBypass((tx) =>
+      tx.branch.create({ data: { tenantId: tenantA, name: "A3", code: "A3" } })
+    );
+    const atA3 = (await getSupplierCatalogLogic(tenantA, sup, fresh.id))[0];
+    expect(num(atA3.lastPaid!.unitPrice)).toBe(35);
+    expect(atA3.lastPaid!.branchName).toBe("A2");
+  });
+
+  it("C9: a price-list price and a delivery history for one product make ONE row, and the price list sets the price", async () => {
+    const unit = prod.productUnits[0].id;
+    await gr({ supplierId: supMain, branchId: branchA1, status: "CONFIRMED", receivedAt: at(-1), lines: [{ productId: prod.id, unitId: unit, price: 12 }] });
+    const items = await getSupplierCatalogLogic(tenantA, supMain, branchA1);
+    const rows = items.filter((i) => i.productId === prod.id);
+    expect(rows).toHaveLength(1);
+    expect(num(rows[0].price!.unitPrice)).toBe(90);
+    expect(num(rows[0].lastPaid!.unitPrice)).toBe(12);
+  });
+
+  it("C6: every catalog price agrees with the order form's resolver, to the satang", async () => {
+    for (const [sup, branch] of [
+      [supMain, branchA1],
+      [supMain, branchA2],
+      [supAlt, branchA1],
+      [supExpired, branchA2],
+    ] as const) {
+      const items = await getSupplierCatalogLogic(tenantA, sup, branch);
+      for (const item of items) {
+        const r = await resolveSupplierPriceLogic(tenantA, item.productId, sup, branch);
+        expect(item.price?.mappingId ?? null).toBe(r?.mappingId ?? null);
+        expect(num(item.price?.unitPrice ?? null)).toBe(num(r?.unitPrice ?? null));
+      }
+    }
   });
 });

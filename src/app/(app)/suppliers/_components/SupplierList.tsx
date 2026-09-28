@@ -9,10 +9,13 @@ import Link from "next/link";
 import type { SupplierView } from "./supplier-view";
 
 import EmptyState from "@/components/ui/EmptyState";
+import ActionLink from "@/components/ui/ActionLink";
 export default function SupplierList({
   suppliers,
+  canOrder,
 }: {
   suppliers: SupplierView[];
+  canOrder: boolean;
 }) {
   const [search, setSearch] = useState("");
   const [showInactive, setShowInactive] = useState(false);
@@ -76,6 +79,7 @@ export default function SupplierList({
                 <th className="px-4 py-2 font-medium">ผู้ติดต่อ</th>
                 <th className="px-4 py-2 font-medium">ภาษี</th>
                 <th className="px-4 py-2 font-medium">สถานะ</th>
+                {canOrder && <th className="px-4 py-2" aria-label="สั่งซื้อ" />}
               </tr>
             </thead>
             <tbody>
@@ -132,6 +136,11 @@ export default function SupplierList({
                       </span>
                     )}
                   </td>
+                  {canOrder && (
+                    <td className="px-4 py-2 text-right">
+                      {s.isActive && <ActionLink href={`/suppliers/${s.id}/order`}>สั่งซื้อ</ActionLink>}
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
