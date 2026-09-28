@@ -117,13 +117,15 @@ export default async function SalesPage({
     getBranchesLogic(tenantId, reach),
     getMenuCategoriesLogic(tenantId),
     // Every menu: the table lists them all and the category popup needs each one.
-    getSalesSummaryLogic(tenantId, query, { menuLimit: Number.MAX_SAFE_INTEGER }),
+    getSalesSummaryLogic(tenantId, { ...query, reach }, { menuLimit: Number.MAX_SAFE_INTEGER }),
     getSalesDaysLogic(tenantId, {
+      reach,
       branchId: query.branchId,
       from: query.from,
       to: query.to,
     }),
     getSalesMenuDaysLogic(tenantId, {
+      reach,
       branchId: query.branchId,
       from: asDate(prevRange.from),
       to: asDate(isoTo),

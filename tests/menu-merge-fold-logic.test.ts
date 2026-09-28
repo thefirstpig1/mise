@@ -283,6 +283,7 @@ describe("folding merged menus (ADR 0026 Q5)", () => {
     await mergeOn(spelling.id, dish.id);
 
     const summary = await getSalesSummaryLogic(tenantA, {
+      reach: { allBranches: true, allowedBranchIds: [] },
       branchId: branchA,
       from: day,
       to: day,

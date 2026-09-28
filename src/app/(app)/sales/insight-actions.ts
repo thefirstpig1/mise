@@ -42,7 +42,7 @@ export async function getMenuInsightAction(input: {
   branchId?: string;
   by: Metric;
 }): Promise<MenuInsightResult> {
-  const { tenantId, assertBranch, costAccess } = await requireTenant("sales:view");
+  const { tenantId, assertBranch, costAccess, reach } = await requireTenant("sales:view");
   if (!ISO.test(input.from) || !ISO.test(input.to) || input.from > input.to || !METRIC.has(input.by)) {
     return { ok: false, formError: "ช่วงวันที่ไม่ถูกต้อง" };
   }
@@ -51,6 +51,7 @@ export async function getMenuInsightAction(input: {
 
   const prev = previousRange(input.from, input.to);
   const data = await getSalesMenuDaysLogic(tenantId, {
+    reach,
     branchId: input.branchId || undefined,
     from: d(prev.from),
     to: d(input.to),
@@ -89,7 +90,7 @@ export async function getSalesCompareAction(input: {
   branchId?: string;
   by: Metric;
 }): Promise<CompareResult> {
-  const { tenantId, assertBranch, costAccess } = await requireTenant("sales:view");
+  const { tenantId, assertBranch, costAccess, reach } = await requireTenant("sales:view");
   for (const s of [input.a, input.b]) {
     if (!ISO.test(s.from) || !ISO.test(s.to) || s.from > s.to) return { ok: false, formError: "ช่วงวันที่ไม่ถูกต้อง" };
     if (s.weekdays && s.weekdays.some((w) => !Number.isInteger(w) || w < 0 || w > 6)) {
@@ -102,7 +103,7 @@ export async function getSalesCompareAction(input: {
 
   const from = input.a.from < input.b.from ? input.a.from : input.b.from;
   const to = input.a.to > input.b.to ? input.a.to : input.b.to;
-  const data = await getSalesMenuDaysLogic(tenantId, { branchId: input.branchId || undefined, from: d(from), to: d(to) });
+  const data = await getSalesMenuDaysLogic(tenantId, { reach, branchId: input.branchId || undefined, from: d(from), to: d(to) });
   const menus = new Map<string, MenuMeta>(data.menus.map((m) => [m.id, m]));
   const branchIds = [...new Set(data.rows.map((r) => r.branchId))];
   // One cost date for both sides, so a difference is the SALES moving, not the

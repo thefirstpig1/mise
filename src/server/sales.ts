@@ -22,8 +22,15 @@ import {
   foldRowsByMenu,
   loadMergeFold,
 } from "@/server/menu-merge-fold";
+import type { BranchReach } from "@/lib/permissions/service";
 
 export interface GetSalesQuery {
+  /**
+   * WHOSE sales (rule A5). Required, with no default, so a new caller cannot
+   * forget it: before 2026-09-28 "ทุกสาขา" on /sales summed every branch in
+   * the shop, including ones the reader may not see.
+   */
+  reach: BranchReach;
   branchId?: string;
   from?: Date;
   to?: Date;
@@ -106,11 +113,23 @@ export const TOP_MENU_LIMIT = 25;
 
 const UNCATEGORISED_LABEL = "ยังไม่ระบุหมวด";
 
+/**
+ * The branches a query may touch: the one asked for, or every branch — each
+ * narrowed to the reader's reach. A branch outside the reach matches NOTHING
+ * rather than being trusted, even if a caller forgot to assert it.
+ */
+export function branchWhere(reach: BranchReach, branchId?: string): Prisma.SalesLineWhereInput {
+  if (reach.allBranches) return branchId ? { branchId } : {};
+  const allowed = [...reach.allowedBranchIds];
+  if (branchId) return { branchId: allowed.includes(branchId) ? branchId : { in: [] } };
+  return { branchId: { in: allowed } };
+}
+
 function whereFor(tenantId: string, q: GetSalesQuery): Prisma.SalesLineWhereInput {
   return {
     tenantId,
     ...(q.includeSuperseded ? {} : { supersededAt: null }),
-    ...(q.branchId ? { branchId: q.branchId } : {}),
+    ...branchWhere(q.reach, q.branchId),
     ...(q.from || q.to
       ? {
           businessDate: {
@@ -310,13 +329,13 @@ export interface SalesDayRow {
  */
 export async function getSalesDaysLogic(
   tenantId: string,
-  query: { branchId?: string; from?: Date; to?: Date }
+  query: { reach: BranchReach; branchId?: string; from?: Date; to?: Date }
 ): Promise<SalesDayRow[]> {
   return withTenantContext(tenantId, async (tx) => {
     const days = await tx.salesDay.findMany({
       where: {
         tenantId,
-        ...(query.branchId ? { branchId: query.branchId } : {}),
+        ...(branchWhere(query.reach, query.branchId) as Prisma.SalesDayWhereInput),
         ...(query.from || query.to
           ? {
               businessDate: {
@@ -384,7 +403,7 @@ export interface SalesMenuDaysResult {
  */
 export async function getSalesMenuDaysLogic(
   tenantId: string,
-  query: { branchId?: string; from: Date; to: Date; menuCategoryId?: string }
+  query: { reach: BranchReach; branchId?: string; from: Date; to: Date; menuCategoryId?: string }
 ): Promise<SalesMenuDaysResult> {
   return withTenantContext(
     tenantId,

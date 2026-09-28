@@ -302,7 +302,11 @@ async function topMenus(tenantId: string, period: Period, branchIds: string[]): 
     branchIds.map((branchId) =>
       getSalesSummaryLogic(
         tenantId,
-        getSalesQuerySchema.parse({ branchId, from: isoDay(period.from), to: isoDay(period.to), includeSuperseded: "false" })
+        {
+          ...getSalesQuerySchema.parse({ branchId, from: isoDay(period.from), to: isoDay(period.to), includeSuperseded: "false" }),
+          // `branchIds` is already the reader's reach narrowed by the chips.
+          reach: { allBranches: false, allowedBranchIds: branchIds },
+        }
       )
     )
   );
