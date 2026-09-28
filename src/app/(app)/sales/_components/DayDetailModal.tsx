@@ -34,6 +34,7 @@ import {
   type BreakdownMenu,
   type ToneMap,
 } from "./Breakdown";
+import type { Metric } from "@/lib/sales-insight";
 
 export type DayModalBranch = {
   branchId: string;
@@ -56,6 +57,7 @@ export default function DayDetailModal({
   categories,
   menus,
   tones,
+  by,
   branches,
   canKeyPulse,
   closeHref,
@@ -69,6 +71,7 @@ export default function DayDetailModal({
   categories: BreakdownCategory[];
   menus: BreakdownMenu[];
   tones: ToneMap;
+  by: Metric;
   branches: DayModalBranch[];
   canKeyPulse: boolean;
   closeHref: string;
@@ -115,7 +118,14 @@ export default function DayDetailModal({
       )}
 
       <div className="mt-4">
-        <BreakdownPanes categories={categories} menus={menus} tones={tones} total={net} resetKey={day} />
+        <BreakdownPanes
+          categories={categories}
+          menus={menus}
+          tones={tones}
+          by={by}
+          total={categories.reduce((t, c) => t + (c.value ?? 0), 0)}
+          resetKey={`${day}-${by}`}
+        />
       </div>
     </ModalShell>
   );

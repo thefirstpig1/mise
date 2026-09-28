@@ -44,6 +44,7 @@ export async function getMenuCostMapLogic(
       out.set(costKey(branchId, m.targetId), {
         cost: Number(m.costPerServing),
         confidence: m.confidence ?? "LOW",
+        recipeId: m.recipeId,
       });
     }
   }

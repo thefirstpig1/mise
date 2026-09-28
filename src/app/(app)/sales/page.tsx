@@ -20,14 +20,36 @@
 import { requireTenant } from "@/lib/require-tenant";
 import { computeBangkokToday } from "@/lib/bangkok-date";
 import { getBranchesLogic } from "@/server/branch";
-import { getSalesDaysLogic, getSalesSummaryLogic } from "@/server/sales";
+import { getSalesDaysLogic, getSalesMenuDaysLogic, getSalesSummaryLogic } from "@/server/sales";
+import { getMenuCostMapLogic } from "@/server/sales-insight-read";
+import {
+  METRIC_LABELS_TH,
+  WEEK_ORDER,
+  categoryByWeekday,
+  enrich,
+  fmtMetric,
+  menuCostPerDish,
+  menuMovers,
+  menusOnWeekday,
+  periodStats,
+  previousRange,
+  sumBy,
+  type CostMap,
+  type Metric,
+  type Totals,
+} from "@/lib/sales-insight";
 import { getMenuCategoriesLogic } from "@/server/menu";
 import { getSalesQuerySchema } from "@/lib/validations/sales-import";
 import {
   groupSalesDaysByDate,
   toSalesDayRowView,
   toSalesSummaryView,
+  WEEKDAY_LABELS_TH,
 } from "./_components/sales-view";
+import CategoryWeekdayHeatmap, { type HeatMenus } from "./_components/CategoryWeekdayHeatmap";
+import MenuMovers from "./_components/MenuMovers";
+import CompareButton from "./_components/CompareModal";
+import { MenuInsightProvider } from "./_components/MenuInsight";
 import DayDetailModal from "./_components/DayDetailModal";
 import { CategoryShare, type ToneMap } from "./_components/Breakdown";
 import { solid, toneOf } from "@/components/charts/chart-theme";
@@ -57,7 +79,7 @@ export default async function SalesPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { tenantId, reach, can } = await requireTenant("sales:view");
+  const { tenantId, reach, can, costAccess } = await requireTenant("sales:view");
   const params = await searchParams;
   const one = (k: string) => (Array.isArray(params[k]) ? params[k][0] : params[k]);
 
@@ -79,7 +101,17 @@ export default async function SalesPage({
         includeSuperseded: false,
       };
 
-  const [branches, categories, summaryRaw, daysRaw] = await Promise.all([
+  // The insight layer (Kong, 2026-09-28): one measure for the whole page, and
+  // the previous period of equal length for "what moved" (rule SI3). Profit
+  // is offered only to someone who may see cost (rule A8).
+  const byParam = one("by");
+  const by: Metric = byParam === "qty" ? "qty" : byParam === "profit" && costAccess !== null ? "profit" : "net";
+  const isoFrom = (query.from ?? new Date(`${month.from}T00:00:00.000Z`)).toISOString().slice(0, 10);
+  const isoTo = (query.to ?? new Date(`${month.to}T00:00:00.000Z`)).toISOString().slice(0, 10);
+  const prevRange = previousRange(isoFrom, isoTo);
+  const asDate = (iso: string) => new Date(`${iso}T00:00:00.000Z`);
+
+  const [branches, categories, summaryRaw, daysRaw, menuDays] = await Promise.all([
     getBranchesLogic(tenantId, reach),
     getMenuCategoriesLogic(tenantId),
     // Every menu: the table lists them all and the category popup needs each one.
@@ -89,6 +121,12 @@ export default async function SalesPage({
       from: query.from,
       to: query.to,
     }),
+    getSalesMenuDaysLogic(tenantId, {
+      branchId: query.branchId,
+      from: asDate(prevRange.from),
+      to: asDate(isoTo),
+      menuCategoryId: query.menuCategoryId,
+    }),
   ]);
 
   const s = toSalesSummaryView(summaryRaw);
@@ -97,27 +135,12 @@ export default async function SalesPage({
   // see that day"). Its own summary, the same function, one day wide.
   const dayParam = one("day");
   const dayValid = dayParam && /^\d{4}-\d{2}-\d{2}$/.test(dayParam) ? dayParam : null;
-  const daySummary = dayValid
-    ? toSalesSummaryView(
-        await getSalesSummaryLogic(
-          tenantId,
-          getSalesQuerySchema.parse({
-            branchId: query.branchId,
-            from: dayValid,
-            to: dayValid,
-            menuCategoryId: query.menuCategoryId,
-            includeSuperseded: "false",
-          }),
-          { menuLimit: Number.MAX_SAFE_INTEGER }
-        )
-      )
-    : null;
 
   // Filters as pills — every one a plain link that keeps the others.
   const fromIso = one("from") ?? month.from;
   const toIso = one("to") ?? month.to;
   const link = (next: Record<string, string | undefined>) => {
-    const cur: Record<string, string | undefined> = { branch: one("branch"), from: fromIso, to: toIso, category: one("category"), day: undefined };
+    const cur: Record<string, string | undefined> = { branch: one("branch"), from: fromIso, to: toIso, category: one("category"), by: by === "net" ? undefined : by, day: undefined };
     const q = new URLSearchParams();
     for (const [k, v] of Object.entries({ ...cur, ...next })) if (v) q.set(k, v);
     return `/sales?${q.toString()}`;
@@ -130,7 +153,6 @@ export default async function SalesPage({
   }));
   const pill = (active: boolean) =>
     `rounded-full border px-3 py-1 text-sm transition-colors ${active ? "border-primary bg-primary text-primary-foreground" : "border-border-strong bg-surface hover:bg-muted"}`;
-  const totalNet = Number(s.totals.net);
   // What the one-line filter bar says once the full card has scrolled away.
   const monthPicked = months.find((m) => m.from === fromIso && m.to === toIso);
   const shortDate = (iso: string) =>
@@ -139,20 +161,70 @@ export default async function SalesPage({
     monthPicked ? monthPicked.label : `${shortDate(fromIso)} – ${shortDate(toIso)}`,
     branches.find((b) => b.id === one("branch"))?.name ?? "ทุกสาขา",
     categories.find((c) => c.id === one("category"))?.name ?? "ทุกหมวด",
+    METRIC_LABELS_TH[by],
   ].join(" · ");
 
-  // One colour per category for the whole page, in the period's order, so a
-  // category looks the same in the share list, its popup and the day popup.
   const catKey = (id: string | null) => id ?? "none";
-  const tones: ToneMap = Object.fromEntries(s.byCategory.map((c, i) => [catKey(c.menuCategoryId), toneOf(i)]));
-  const toBreakdownMenus = (list: typeof s.topMenus) =>
-    list.map((m) => ({
-      id: m.menuId,
-      name: m.name,
-      categoryKey: catKey(m.menuCategoryId),
-      net: Number(m.net),
-      qty: Number(m.qty),
+
+  // ---------- one set of rows behind every chart (src/lib/sales-insight.ts) ----------
+  const menuMeta = new Map(menuDays.menus.map((m) => [m.id, m]));
+  const costs: CostMap =
+    by === "profit"
+      ? await getMenuCostMapLogic(tenantId, [...new Set(menuDays.rows.map((r) => r.branchId))], asDate(isoTo), costAccess)
+      : new Map();
+  const allRows = enrich(menuDays.rows, menuMeta, costs);
+  const cur = allRows.filter((r) => r.day >= isoFrom && r.day <= isoTo);
+  const before = allRows.filter((r) => r.day >= prevRange.from && r.day <= prevRange.to);
+  const catName = (k: string) => menuDays.menus.find((m) => m.categoryKey === k)?.categoryName ?? "ยังไม่ระบุหมวด";
+  const byValue = (a: Totals, b: Totals) => (b.value ?? -Infinity) - (a.value ?? -Infinity);
+
+  // One colour per category for the whole page, fixed by SALES order so a
+  // category keeps its colour when the measure changes.
+  const tones: ToneMap = Object.fromEntries(
+    sumBy(cur, (r) => r.categoryKey, "net")
+      .sort((a, b) => b.net - a.net)
+      .map((c, i) => [c.key, toneOf(i)])
+  );
+  const toCats = (t: Totals[]) => t.sort(byValue).map((c) => ({ key: c.key, label: catName(c.key), value: c.value, qty: c.qty }));
+  const toMenus = (t: Totals[]) =>
+    t.map((m) => ({
+      id: m.key,
+      name: menuMeta.get(m.key)?.name ?? "(ไม่พบเมนู)",
+      categoryKey: menuMeta.get(m.key)?.categoryKey ?? "none",
+      value: m.value,
+      qty: m.qty,
     }));
+  const catTotals = toCats(sumBy(cur, (r) => r.categoryKey, by));
+  const menuTotals = sumBy(cur, (r) => r.menuId, by);
+  const totalValue = catTotals.reduce((t, c) => t + (c.value ?? 0), 0);
+
+  const dayLabelOf = (iso: string) =>
+    new Date(`${iso}T00:00:00Z`).toLocaleDateString("th-TH", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" });
+  const dailyRows = sumBy(cur, (r) => r.day, by)
+    .sort((a, b) => (a.key < b.key ? -1 : 1))
+    .map((d) => ({
+      day: d.key,
+      label: dayLabelOf(d.key),
+      weekday: WEEKDAY_LABELS_TH[new Date(`${d.key}T00:00:00Z`).getUTCDay()],
+      value: d.value,
+      net: d.net,
+      qty: d.qty,
+      profit: by === "profit" ? d.value : null,
+    }));
+  const weekdayRows = WEEK_ORDER.map((w) => {
+    const ds = dailyRows.filter((d) => new Date(`${d.day}T00:00:00Z`).getUTCDay() === w && d.value !== null);
+    return { label: WEEKDAY_LABELS_TH[w], average: ds.length ? ds.reduce((t, d) => t + (d.value ?? 0), 0) / ds.length : 0, days: ds.length };
+  }).filter((w) => w.days > 0);
+
+  const heat = categoryByWeekday(cur, menuMeta, by);
+  const menusByCell: HeatMenus = Object.fromEntries(
+    heat.categories.flatMap((c) => WEEK_ORDER.map((w) => [`${c.key}|${w}`, menusOnWeekday(cur, menuMeta, by, c.key, w)]))
+  );
+  const movers = menuMovers(cur, before, menuMeta, by);
+  const costPerDish = by === "profit" ? menuCostPerDish(cur, costs) : new Map<string, { cost: number; confidence: string }>();
+  const profitStats = by === "profit" ? periodStats(cur, menuMeta, "profit") : null;
+  const shortRange = (a: string, b: string) => `${shortDate(a)} – ${shortDate(b)}`;
+  const prevLabel = months.find((m) => m.from === prevRange.from)?.label ?? shortRange(prevRange.from, prevRange.to);
 
   // Every menu sold in the period sits in no category: the category views can
   // only say one thing, so say what would make them useful instead.
@@ -278,6 +350,54 @@ export default async function SalesPage({
         </EmptyState>
       ) : (
         <>
+          <MenuInsightProvider from={isoFrom} to={isoTo} branchId={query.branchId} by={by}>
+          <div className="space-y-8">
+          {/* ---------- the measure, for the whole page (Kong, 2026-09-28) ---------- */}
+          <section className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm text-muted-foreground">ดูจาก</span>
+              <div className="inline-flex rounded-full border border-border-strong bg-surface p-1 shadow-sm">
+                {(["net", "qty", "profit"] as Metric[])
+                  .filter((m) => m !== "profit" || costAccess !== null)
+                  .map((m) => (
+                    <a
+                      key={m}
+                      href={link({ by: m === "net" ? undefined : m })}
+                      className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+                        by === m ? "bg-primary text-primary-foreground shadow" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      }`}
+                    >
+                      {m === "net" ? "ยอดขาย ฿" : m === "qty" ? "จำนวนจาน" : "กำไร"}
+                    </a>
+                  ))}
+              </div>
+            </div>
+            <CompareButton months={months} from={isoFrom} to={isoTo} branchId={query.branchId} by={by} tones={tones} canProfit={costAccess !== null} />
+          </section>
+
+          {profitStats && (
+            <section className="rounded-xl border border-good-border bg-good-bg/60 p-4 text-sm">
+              <p>
+                <span className="font-semibold">กำไรขั้นต้นจากสูตร</span>{" "}
+                <span className="font-display text-lg font-semibold tabular-nums text-good">
+                  {fmtMetric("profit", (profitStats.perDay.profit ?? 0) * profitStats.days)}
+                </span>{" "}
+                · เฉลี่ย {fmtMetric("profit", profitStats.perDay.profit ?? 0)} ต่อวัน
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                กำไร = ยอดขาย (หลังหักส่วนลด ไม่รวม VAT) − จำนวนจาน × ต้นทุนต่อจานจากสูตรอาหาร ณ {shortDate(isoTo)}
+                {profitStats.unknownNetPerDay > 0 && (
+                  <>
+                    {" "}· ยอดขาย {fmtMetric("net", profitStats.unknownNetPerDay * profitStats.days)} มาจากเมนูที่ยังไม่มีสูตร จึงยังไม่นับในกำไร —{" "}
+                    <a href="/menus/coverage" className="text-primary underline">
+                      ดูเมนูที่ยังไม่มีสูตร
+                    </a>
+                  </>
+                )}
+              </p>
+            </section>
+          )}
+
           {/* ---------- totals ---------- */}
           <section className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <Tile label="ยอดขาย (หลังหักส่วนลด)" value={`฿${baht(s.totals.net)}`} note="ไม่รวม VAT และ Service charge" />
@@ -302,104 +422,125 @@ export default async function SalesPage({
             </section>
           )}
 
-          {/* ---------- Part 35 C: the charts Kong's sheet had ---------- */}
+          {/* ---------- by day ---------- */}
           <section className="rounded-xl border border-border bg-surface p-5">
-            <h3 className="text-base font-semibold">ยอดขายรายวัน</h3>
+            <h3 className="text-base font-semibold">{METRIC_LABELS_TH[by]}รายวัน</h3>
             <p className="mb-4 mt-0.5 text-xs text-muted-foreground">กดที่แท่งเพื่อดูรายละเอียดของวันนั้น</p>
-            <SalesDailyChart
-              activeDay={dayValid}
-              rows={s.byDay.map((d) => ({
-                day: d.businessDate.slice(0, 10),
-                label: d.dayLabel,
-                weekday: d.weekdayLabel,
-                net: Number(d.net),
-                qty: Number(d.qty),
-              }))}
-            />
+            <SalesDailyChart activeDay={dayValid} rows={dailyRows} by={by} />
           </section>
 
-          {daySummary && dayValid ? (
-            <DayDetailModal
-              day={dayValid}
-              title={`${new Date(`${dayValid}T00:00:00Z`).toLocaleDateString("th-TH", {
-                weekday: "long",
-                day: "numeric",
-                month: "long",
-                year: "numeric",
-                timeZone: "UTC",
-              })}`}
-              net={Number(daySummary.totals.net)}
-              qty={Number(daySummary.totals.qty)}
-              categories={daySummary.byCategory.map((c) => ({
-                key: c.menuCategoryId ?? "none",
-                label: c.name,
-                net: Number(c.net),
-                qty: Number(c.qty),
-              }))}
-              menus={toBreakdownMenus(daySummary.topMenus)}
-              tones={tones}
-              branches={modalBranches}
-              canKeyPulse={can("sales:import")}
-              closeHref={link({})}
-              prevHref={olderDay ? dayHref(olderDay) : null}
-              nextHref={newerDay ? dayHref(newerDay) : null}
-            />
+          {dayValid ? (
+            (() => {
+              const dayRows = cur.filter((r) => r.day === dayValid);
+              return (
+                <DayDetailModal
+                  day={dayValid}
+                  title={`${new Date(`${dayValid}T00:00:00Z`).toLocaleDateString("th-TH", {
+                    weekday: "long",
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
+                    timeZone: "UTC",
+                  })}`}
+                  net={dayRows.reduce((t, r) => t + r.net, 0)}
+                  qty={dayRows.reduce((t, r) => t + r.qty, 0)}
+                  categories={toCats(sumBy(dayRows, (r) => r.categoryKey, by))}
+                  menus={toMenus(sumBy(dayRows, (r) => r.menuId, by))}
+                  tones={tones}
+                  by={by}
+                  branches={modalBranches}
+                  canKeyPulse={can("sales:import")}
+                  closeHref={link({})}
+                  prevHref={olderDay ? dayHref(olderDay) : null}
+                  nextHref={newerDay ? dayHref(newerDay) : null}
+                />
+              );
+            })()
           ) : null}
 
           <div className="grid gap-6 xl:grid-cols-2">
             <section className="rounded-xl border border-border bg-surface p-5">
               <h3 className="text-base font-semibold">วันไหนของสัปดาห์ขายดี</h3>
               <p className="mb-4 mt-0.5 text-xs text-muted-foreground">
-                เฉลี่ยต่อวัน หารด้วยจำนวนวันนั้นที่มีจริงในช่วง — วันที่ขายดีที่สุดเป็นแท่งสีส้มอิฐ · ใช้วางกะพนักงาน
+                {METRIC_LABELS_TH[by]}เฉลี่ยต่อวัน หารด้วยจำนวนวันนั้นที่มีจริงในช่วง — วันที่ดีที่สุดเป็นแท่งสีส้มอิฐ · ใช้วางกะพนักงาน
               </p>
-              <WeekdayChart
-                rows={[1, 2, 3, 4, 5, 6, 0]
-                  .map((wd) => s.byWeekday.find((w) => w.weekday === wd))
-                  .filter((w): w is NonNullable<typeof w> => Boolean(w))
-                  .map((w) => ({ label: w.weekdayLabel, average: Number(w.averageNet), days: w.dayCount }))}
-              />
+              <WeekdayChart rows={weekdayRows} by={by} />
             </section>
             <section className="rounded-xl border border-border bg-surface p-5">
               <h3 className="text-base font-semibold">สัดส่วนหมวดเมนู</h3>
-              <p className="mb-4 mt-0.5 text-xs text-muted-foreground">กดหมวดเพื่อดูเมนูในหมวดนั้น</p>
+              <p className="mb-4 mt-0.5 text-xs text-muted-foreground">ตาม{METRIC_LABELS_TH[by]} · กดหมวดเพื่อดูเมนูในหมวดนั้น</p>
               {noMenuCategories && <UncategorisedHint />}
               <CategoryShare
-                total={totalNet}
+                total={totalValue}
                 tones={tones}
+                by={by}
                 periodLabel={filterSummary.split(" · ")[0]}
-                categories={s.byCategory.map((c) => ({
-                  key: catKey(c.menuCategoryId),
-                  label: c.name,
-                  net: Number(c.net),
-                  qty: Number(c.qty),
-                }))}
-                menus={toBreakdownMenus(s.topMenus)}
+                categories={catTotals}
+                menus={toMenus(menuTotals)}
                 filterHref={Object.fromEntries(
-                  s.byCategory.filter((c) => c.menuCategoryId).map((c) => [c.menuCategoryId!, link({ category: c.menuCategoryId! })])
+                  catTotals.filter((c) => c.key !== "none").map((c) => [c.key, link({ category: c.key })])
                 )}
               />
             </section>
           </div>
 
+          {/* ---------- question 1: which category sells on which day ---------- */}
+          {!noMenuCategories && (
+            <section className="rounded-xl border border-border bg-surface p-5">
+              <h3 className="text-base font-semibold">หมวดไหนขายดีวันไหน</h3>
+              <p className="mb-4 mt-0.5 text-xs text-muted-foreground">
+                เช่น วันเสาร์ ต้มยำคิดเป็นกี่ % ของทั้งวัน เทียบกับเครื่องดื่มหรือเบียร์ · เฉลี่ยจากจำนวนวันนั้นที่มีข้อมูลจริง
+              </p>
+              <CategoryWeekdayHeatmap
+                rows={heat.categories}
+                weekdays={heat.weekdays}
+                daysPerWeekday={heat.daysPerWeekday}
+                menusByCell={menusByCell}
+                tones={tones}
+                by={by}
+              />
+            </section>
+          )}
+
+          {/* ---------- question 4: what carries the shop, rises, falls ---------- */}
           <section className="rounded-xl border border-border bg-surface p-5">
-            <h3 className="text-base font-semibold">เมนูทำเงินสูงสุด</h3>
+            <h3 className="text-base font-semibold">เมนูที่น่าจับตา</h3>
+            <p className="mb-4 mt-0.5 text-xs text-muted-foreground">ตัวชูโรง · กำลังขึ้น · เฝ้าระวัง — กดชื่อเมนูเพื่อดู insight ของเมนูนั้น</p>
+            <MenuMovers movers={movers} by={by} tones={tones} prevLabel={prevLabel} />
+          </section>
+
+          <section className="rounded-xl border border-border bg-surface p-5">
+            <h3 className="text-base font-semibold">
+              {by === "net" ? "เมนูทำเงินสูงสุด" : by === "qty" ? "เมนูที่ลูกค้าสั่งมากที่สุด" : "เมนูทำกำไร"}
+            </h3>
             <p className="mb-4 mt-0.5 text-xs text-muted-foreground">
-              ทั้ง {s.topMenus.length} เมนูของช่วงนี้ · ค้นหาได้ · กดหัวคอลัมน์เพื่อเรียงลำดับ
+              ทั้ง {menuTotals.length} เมนูของช่วงนี้ · เรียงตาม{METRIC_LABELS_TH[by]} · กดชื่อเมนูเพื่อดู insight · กดหัวคอลัมน์เพื่อเรียงใหม่
             </p>
             {noMenuCategories && <UncategorisedHint />}
             <MenuTable
-              total={totalNet}
-              rows={s.topMenus.map((m) => ({
-                id: m.menuId,
-                name: m.name,
-                category: m.menuCategoryName ?? "—",
-                color: m.menuCategoryId ? solid(tones[catKey(m.menuCategoryId)] ?? "olive") : null,
-                qty: Number(m.qty),
-                net: Number(m.net),
-                stub: m.isPosStub,
-              }))}
+              total={totalValue}
+              by={by}
+              rows={menuTotals.map((m) => {
+                const meta = menuMeta.get(m.key);
+                const c = costPerDish.get(m.key);
+                return {
+                  id: m.key,
+                  name: meta?.name ?? "(ไม่พบเมนู)",
+                  category: meta && meta.categoryKey !== "none" ? meta.categoryName : "—",
+                  color: meta && meta.categoryKey !== "none" ? solid(tones[meta.categoryKey] ?? "olive") : null,
+                  qty: m.qty,
+                  net: m.net,
+                  value: m.value,
+                  costPerDish: c?.cost ?? null,
+                  profitPerDish: c && m.qty > 0 ? m.net / m.qty - c.cost : null,
+                  confidence: c?.confidence ?? null,
+                  stub: meta?.isPosStub ?? false,
+                };
+              })}
             />
           </section>
+          </div>
+          </MenuInsightProvider>
 
           {/* ---------- the days themselves ---------- */}
           {/* Kong (2026-09-28): one row per DATE (branches fold together and come

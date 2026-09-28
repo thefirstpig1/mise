@@ -32,6 +32,15 @@ export type Metric = "net" | "qty" | "profit";
 export const METRICS: Metric[] = ["net", "qty", "profit"];
 export const METRIC_LABELS_TH: Record<Metric, string> = { net: "ยอดขาย", qty: "จำนวน", profit: "กำไร" };
 
+// The formatters live HERE, not beside the popups: those are "use client"
+// modules, and a Server Component calling a function from one gets a client
+// reference instead of the function ("Attempted to call fmtMetric() from the
+// server") — the same trap the dashboard's SERIES fell into.
+export const baht = (v: number) => `฿${v.toLocaleString("th-TH", { maximumFractionDigits: 0 })}`;
+/** A figure in the page's measure; null is profit with no recipe behind it. */
+export const fmtMetric = (by: Metric, v: number | null) =>
+  v === null ? "ไม่มีสูตร" : by === "qty" ? `${v.toLocaleString("th-TH", { maximumFractionDigits: 1 })} จาน` : baht(v);
+
 /** One menu at one branch on one day, as the database groups it. */
 export type MenuDayRow = { day: string; branchId: string; menuId: string; net: number; qty: number };
 
@@ -44,7 +53,7 @@ export type MenuMeta = {
 };
 
 /** Cost per serving from the recipe, keyed `${branchId}:${menuId}`. */
-export type CostMap = Map<string, { cost: number; confidence: string }>;
+export type CostMap = Map<string, { cost: number; confidence: string; recipeId?: string | null }>;
 export const costKey = (branchId: string, menuId: string) => `${branchId}:${menuId}`;
 
 /** A row with everything a view needs. `profit` null = no recipe to cost it. */
@@ -324,6 +333,8 @@ export type MenuInsight = {
   /** Weighted by plates sold at each branch; null when there is no recipe. */
   costPerDish: number | null;
   confidence: string | null;
+  /** A recipe that prices this dish at one of its branches — for a link. */
+  recipeId: string | null;
   profitPerDish: number | null;
   marginPercent: number | null;
   /** 1 = the category's best seller in the chosen measure. */
@@ -354,9 +365,11 @@ export function menuInsight(
   let costQty = 0;
   let costSum = 0;
   let confidence: string | null = null;
+  let recipeId: string | null = null;
   for (const r of mine) {
     const c = costs.get(costKey(r.branchId, r.menuId));
     if (!c) continue;
+    recipeId ??= c.recipeId ?? null;
     costQty += r.qty;
     costSum += r.qty * c.cost;
     // The weakest link speaks for the whole: LOW beats MEDIUM beats HIGH.
@@ -400,6 +413,7 @@ export function menuInsight(
     avgPrice,
     costPerDish,
     confidence,
+    recipeId,
     profitPerDish,
     marginPercent: profitPerDish !== null && avgPrice ? (profitPerDish / avgPrice) * 100 : null,
     rankInCategory: inCat.findIndex((m) => m.id === menuId) + 1,
@@ -457,3 +471,54 @@ const iso = (d: Date) => d.toISOString().slice(0, 10);
 export type CompareSide = { from: string; to: string; weekdays: number[] | null; label: string };
 export const inSide = (r: { day: string; weekday: number }, s: CompareSide) =>
   r.day >= s.from && r.day <= s.to && (s.weekdays === null || s.weekdays.includes(r.weekday));
+
+// ------------------------------------------------------------
+// Totals by any key, in the chosen measure
+// ------------------------------------------------------------
+export type Totals = { key: string; value: number | null; net: number; qty: number; unknownNet: number };
+
+/**
+ * Sum rows by a key. `value` is null only when the measure is profit and NOT
+ * ONE row under the key has a recipe — a partly-costed key keeps the costed
+ * part and reports the rest in `unknownNet` (rule SI2).
+ */
+export function sumBy(rows: Enriched[], keyOf: (r: Enriched) => string, by: Metric): Totals[] {
+  const acc = new Map<string, Acc & { known: boolean }>();
+  for (const r of rows) {
+    const k = keyOf(r);
+    const a = acc.get(k) ?? { ...emptyAcc(), known: false };
+    add(a, r, by);
+    if (valueOf(r, by) !== null) a.known = true;
+    acc.set(k, a);
+  }
+  return [...acc.entries()].map(([key, a]) => ({
+    key,
+    value: a.known ? a.value : null,
+    net: a.net,
+    qty: a.qty,
+    unknownNet: a.unknownNet,
+  }));
+}
+
+/**
+ * Cost per dish for every menu at once, weighted by plates sold at each
+ * branch, with the weakest branch's confidence (rule SI2). A menu absent from
+ * the map has no recipe anywhere it sold.
+ */
+export function menuCostPerDish(rows: Enriched[], costs: CostMap): Map<string, { cost: number; confidence: string }> {
+  const acc = new Map<string, { qty: number; sum: number; confidence: string | null }>();
+  for (const r of rows) {
+    const c = costs.get(costKey(r.branchId, r.menuId));
+    if (!c) continue;
+    const a = acc.get(r.menuId) ?? { qty: 0, sum: 0, confidence: null };
+    a.qty += r.qty;
+    a.sum += r.qty * c.cost;
+    a.confidence = weaker(a.confidence, c.confidence);
+    acc.set(r.menuId, a);
+  }
+  return new Map(
+    [...acc.entries()]
+      .filter(([, a]) => a.qty > 0)
+      .map(([id, a]) => [id, { cost: a.sum / a.qty, confidence: a.confidence ?? "LOW" }])
+  );
+}
