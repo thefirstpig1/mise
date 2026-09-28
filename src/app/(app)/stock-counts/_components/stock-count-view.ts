@@ -29,6 +29,12 @@ const dateOnly = new Intl.DateTimeFormat("th-TH", {
   timeZone: BANGKOK,
   dateStyle: "medium",
 });
+/** "10:32" — a count happens within a day, so the time is what tells lines apart. */
+const timeOnly = new Intl.DateTimeFormat("th-TH", {
+  timeZone: BANGKOK,
+  hour: "2-digit",
+  minute: "2-digit",
+});
 
 /** Quantity for display: up to the ledger's 3 decimals, no trailing zeros. */
 export const formatQty = (value: string): string => {
@@ -53,6 +59,17 @@ export type StockCountEntryView = {
   qtyInUnit: string;
 };
 
+/** ONE person's count of the line (ADR 0034 Q2) — who, when, what they typed, why. */
+export type StockCountContributionView = {
+  id: string;
+  seq: number;
+  countedByUserId: string;
+  countedBy: string | null;
+  countedAtTime: string;
+  note: string | null;
+  entries: StockCountEntryView[];
+};
+
 export type StockCountItemView = {
   id: string;
   lineNo: number;
@@ -68,13 +85,13 @@ export type StockCountItemView = {
   varianceIsShort: boolean;
   varianceIsZero: boolean;
   countedAtLabel: string;
-  /** Who is accountable for the entry (the account), and who walked (the name). */
+  /** The last account to count it (ADR 0034 Q1) — the contributions say who else. */
   countedByUser: string | null;
-  countedByName: string | null;
   notes: string | null;
   /** A compensating line appended by a void — never something a user typed. */
   isReversal: boolean;
   entries: StockCountEntryView[];
+  contributions: StockCountContributionView[];
 };
 
 export type StockCountDetailView = {
@@ -89,6 +106,8 @@ export type StockCountDetailView = {
   showExpected: boolean;
   notes: string | null;
   startedBy: string | null;
+  /** The host (ADR 0034 Q5) — who may close without count:close. */
+  startedByUserId: string;
   closedAtLabel: string | null;
   closedBy: string | null;
   voidedAtLabel: string | null;
@@ -120,7 +139,6 @@ export function toStockCountItemView(
     varianceIsZero: variance.isZero(),
     countedAtLabel: dateTime.format(item.countedAt),
     countedByUser: personName(item.countedByUser),
-    countedByName: item.countedByName,
     notes: item.notes,
     isReversal: item.reversalOfItemId !== null,
     entries: item.entries.map((e) => ({
@@ -128,6 +146,20 @@ export function toStockCountItemView(
       unitId: e.productUnit.id,
       unitName: e.productUnit.unitName,
       qtyInUnit: e.qtyInUnit.toString(),
+    })),
+    contributions: item.contributions.map((c) => ({
+      id: c.id,
+      seq: c.seq,
+      countedByUserId: c.countedBy,
+      countedBy: personName(c.countedByUser),
+      countedAtTime: timeOnly.format(c.countedAt),
+      note: c.note,
+      entries: c.entries.map((e) => ({
+        id: e.id,
+        unitId: e.productUnit.id,
+        unitName: e.productUnit.unitName,
+        qtyInUnit: e.qtyInUnit.toString(),
+      })),
     })),
   };
 }
@@ -156,6 +188,7 @@ export function toStockCountDetailView(count: StockCountDetail): StockCountDetai
     showExpected: count.showExpected,
     notes: count.notes,
     startedBy: personName(count.startedByUser),
+    startedByUserId: count.startedBy,
     closedAtLabel: count.closedAt ? dateTime.format(count.closedAt) : null,
     closedBy: personName(count.closedByUser),
     voidedAtLabel: count.voidedAt ? dateTime.format(count.voidedAt) : null,

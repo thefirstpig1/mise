@@ -4,6 +4,7 @@
 // date it is called, and whether the counter sees the expected figure), and the
 // counting itself happens on the sheet.
 
+import { redirect } from "next/navigation";
 import { requireTenant } from "@/lib/require-tenant";
 import { getBranchesLogic } from "@/server/branch";
 import { getOpenStockCountLogic } from "@/server/stock-count";
@@ -41,6 +42,14 @@ export default async function NewStockCountPage({
     const open = await getOpenStockCountLogic(tenantId, b.id);
     if (open) openByBranch[b.id] = open.id;
   }
+
+  // ADR 0034 Q5 (Kong): a branch already counting is JOINED, not re-opened.
+  // When there is no choice to make — the link named the branch, or this
+  // person reaches only one — go straight to the sheet everyone is using.
+  const target =
+    branches.find((b) => b.id === branchParam)?.id ??
+    (branches.length === 1 ? branches[0].id : undefined);
+  if (target && openByBranch[target]) redirect(`/stock-counts/${openByBranch[target]}`);
 
   // Bangkok today, computed on the SERVER: a device in another timezone would
   // otherwise default the sheet to a date the shop does not think it is.

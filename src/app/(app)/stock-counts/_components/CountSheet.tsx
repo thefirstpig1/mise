@@ -1,131 +1,246 @@
 "use client";
 
-// Sprint 3 Part 15 L5b/L5c — the count sheet.
+// ADR 0034 — the count sheet, counted by many devices at once.
 //
-// Three things this component owns that the layers below deliberately do not:
+// Kong's flow: one host opens the sheet; everyone else opens the app and joins
+// it. Every product is a row with its own ยืนยัน; a confirmed row turns green on
+// EVERY device with the counter's name, so whoever is walking can see at a
+// glance what is left. The host (or an owner / manager / head of department)
+// closes the sheet when the shelves are done.
 //
-//  1. **Blind counting.** When `showExpected` is off, the expected and variance
-//     columns are not rendered at all — not hidden with CSS, not greyed out. The
-//     server still stores the expected figure either way (Q3/Q7), so the switch
-//     costs nothing and reveals nothing.
-//  2. **Successive entry.** A stock take is dozens of lines. Saving a line keeps
-//     the sheet open, clears the entry boxes and returns focus to the product
-//     picker — the same shape /stock/adjust uses for the same reason.
-//  3. **The partial-count warning.** Closing reports how many stocked products
-//     are not on the sheet. It never blocks: a partial count is the normal case
-//     (Q7), and only the person closing knows whether "42 uncounted" means "I
-//     counted the freezer" or "I forgot half the store".
+// What this component owns:
+//  1. **No page reloads while counting.** A row sends its count and the sheet
+//     takes the returned state; the old full re-render cost 1–2 s per press.
+//  2. **Polling** every 5 s while the tab is visible, and at once when it comes
+//     back — how other devices' green reaches this one (Q7).
+//  3. **Blind counting** (ADR 0015 Q7): with `showExpected` off, the expected
+//     and variance figures are not rendered at all.
+//  4. **The partial-count warning** at close. It never blocks — a partial count
+//     is the normal case, and only the person closing knows why.
 
-import { useActionState, useEffect, useMemo, useRef, useState } from "react";
+import { useActionState, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { StockCountActionState } from "../actions";
 import StatusBadge from "./StatusBadge";
+import CountRow, { type CountProduct, type RowSubmit } from "./CountRow";
 import { formatMoney, formatQty } from "./stock-count-view";
 import type { StockCountDetailView } from "./stock-count-view";
+import EmptyState from "@/components/ui/EmptyState";
 
-type ProductOption = {
-  id: string;
-  name: string;
-  sku: string;
-  units: { id: string; unitName: string; isBase: boolean }[];
-};
+const POLL_MS = 5_000;
+const NO_CATEGORY = "ไม่มีหมวด";
+type Show = "all" | "todo" | "done";
 
-type EntryRow = { unitId: string; qty: string };
-
+const chip = (active: boolean, small = false) =>
+  `rounded-full border transition-colors ${small ? "px-2.5 py-0.5 text-xs" : "px-3 py-1 text-sm"} ${
+    active
+      ? "border-primary bg-primary text-primary-foreground"
+      : "border-border-strong bg-surface hover:bg-muted"
+  }`;
 
 export default function CountSheet({
-  detail,
+  initial,
   products,
   costByProduct,
-  uncountedStocked,
-  saveLine,
+  stockedProductIds,
+  currentUserId,
+  canCloseAny,
+  confirmCount,
+  editContribution,
+  deleteContribution,
   removeLine,
+  poll,
   close,
   voidCount,
 }: {
-  detail: StockCountDetailView;
-  products: ProductOption[];
-  /** Cost per base unit, as a string, for valuing a variance (Q4 — computed, not stored). */
+  initial: StockCountDetailView;
+  products: CountProduct[];
+  /** Cost per base unit, as a string, for valuing a variance (ADR 0015 Q4). */
   costByProduct: Record<string, string>;
-  uncountedStocked: number;
-  saveLine: (
-    prev: StockCountActionState,
-    fd: FormData
-  ) => Promise<StockCountActionState>;
+  /** Products holding stock at this branch — for the "not counted" warning at close. */
+  stockedProductIds: string[];
+  currentUserId: string;
+  canCloseAny: boolean;
+  confirmCount: (input: {
+    stockCountId: string;
+    productId: string;
+    mode: "new" | "add";
+    entries: { productUnitId: string; qtyInUnit: string }[];
+    notes: string | null;
+  }) => Promise<StockCountActionState>;
+  editContribution: (input: {
+    stockCountId: string;
+    contributionId: string;
+    entries: { productUnitId: string; qtyInUnit: string }[];
+    notes: string | null;
+  }) => Promise<StockCountActionState>;
+  deleteContribution: (countId: string, contributionId: string) => Promise<StockCountActionState>;
   removeLine: (countId: string, itemId: string) => Promise<StockCountActionState>;
+  poll: (countId: string) => Promise<StockCountDetailView | null>;
   close: (prev: StockCountActionState, fd: FormData) => Promise<StockCountActionState>;
-  voidCount: (
-    prev: StockCountActionState,
-    fd: FormData
-  ) => Promise<StockCountActionState>;
+  voidCount: (prev: StockCountActionState, fd: FormData) => Promise<StockCountActionState>;
 }) {
-  const isDraft = detail.status === "DRAFT";
-
-  const [saveState, saveAction, saving] = useActionState(
-    saveLine,
-    { ok: false } as StockCountActionState
-  );
-  const [closeState, closeAction, closing] = useActionState(
-    close,
-    { ok: false } as StockCountActionState
-  );
-  const [voidState, voidAction, voiding] = useActionState(
-    voidCount,
-    { ok: false } as StockCountActionState
-  );
-
-  const [productId, setProductId] = useState("");
-  const [entries, setEntries] = useState<EntryRow[]>([{ unitId: "", qty: "" }]);
+  const [detail, setDetail] = useState(initial);
+  const [busy, setBusy] = useState<Set<string>>(new Set());
+  const [messages, setMessages] = useState<Record<string, string>>({});
+  const [sheetError, setSheetError] = useState<string | null>(null);
+  const [section, setSection] = useState<string | null>(null);
+  const [group, setGroup] = useState<string | null>(null);
+  const [show, setShow] = useState<Show>("all");
+  const [search, setSearch] = useState("");
   const [confirmClose, setConfirmClose] = useState(false);
   const [voidOpen, setVoidOpen] = useState(false);
-  const productRef = useRef<HTMLSelectElement>(null);
 
-  const product = useMemo(
-    () => products.find((p) => p.id === productId),
-    [products, productId]
-  );
+  const [closeState, closeAction, closing] = useActionState(close, { ok: false } as StockCountActionState);
+  const [voidState, voidAction, voiding] = useActionState(voidCount, { ok: false } as StockCountActionState);
 
-  // Picking a product resets the boxes to its base unit — what stock is counted in.
+  // A close or void returns the new document; adopt it.
   useEffect(() => {
-    const base = product?.units.find((u) => u.isBase) ?? product?.units[0];
-    setEntries([{ unitId: base?.id ?? "", qty: "" }]);
-  }, [product]);
-
-  // Successive entry: a saved line clears the boxes and hands the sheet back.
+    if (closeState.ok && closeState.detail) setDetail(closeState.detail);
+  }, [closeState]);
   useEffect(() => {
-    if (!saveState.ok) return;
-    setProductId("");
-    setEntries([{ unitId: "", qty: "" }]);
-    productRef.current?.focus();
-  }, [saveState]);
+    if (voidState.ok && voidState.detail) setDetail(voidState.detail);
+  }, [voidState]);
 
-  const alreadyCounted = new Set(
-    detail.items.filter((i) => !i.isReversal).map((i) => i.productId)
-  );
+  const isDraft = detail.status === "DRAFT";
+  const isHost = detail.startedByUserId === currentUserId;
+  const canClose = isHost || canCloseAny;
 
-  const varianceValue = (variance: string, pid: string) => {
-    const cost = Number(costByProduct[pid] ?? "0");
-    const v = Number(variance);
-    return Number.isFinite(cost) && Number.isFinite(v) ? v * cost : 0;
+  // ---------- polling (ADR 0034 Q7) ----------
+  const inFlight = useRef(0);
+  const refresh = useCallback(async () => {
+    // A poll that lands after a save would briefly show the older sheet; skip
+    // while this device is itself writing — its own answer is newer.
+    if (inFlight.current > 0) return;
+    const fresh = await poll(detail.id).catch(() => null);
+    if (fresh && inFlight.current === 0) setDetail(fresh);
+  }, [poll, detail.id]);
+
+  useEffect(() => {
+    if (!isDraft) return;
+    const tick = () => {
+      if (document.visibilityState === "visible") void refresh();
+    };
+    const id = window.setInterval(tick, POLL_MS);
+    document.addEventListener("visibilitychange", tick);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", tick);
+    };
+  }, [isDraft, refresh]);
+
+  // ---------- writes ----------
+  const run = async (productId: string, call: () => Promise<StockCountActionState>) => {
+    inFlight.current += 1;
+    setBusy((b) => new Set(b).add(productId));
+    setMessages((m) => {
+      const { [productId]: _drop, ...rest } = m;
+      return rest;
+    });
+    setSheetError(null);
+    try {
+      const res = await call();
+      if (res.detail) setDetail(res.detail);
+      if (!res.ok) {
+        const text =
+          res.formError ??
+          (res.fieldErrors ? Object.values(res.fieldErrors).join(" · ") : "บันทึกไม่สำเร็จ");
+        setMessages((m) => ({ ...m, [productId]: text }));
+      }
+      return res.ok;
+    } catch {
+      setMessages((m) => ({ ...m, [productId]: "เชื่อมต่อไม่ได้ — ลองกดอีกครั้ง" }));
+      return false;
+    } finally {
+      inFlight.current -= 1;
+      setBusy((b) => {
+        const next = new Set(b);
+        next.delete(productId);
+        return next;
+      });
+    }
   };
 
-  const totalVarianceValue = detail.items
-    .filter((i) => !i.isReversal)
-    .reduce((sum, i) => sum + varianceValue(i.variance, i.productId), 0);
+  const submitRow = (productId: string) => (s: RowSubmit) =>
+    run(productId, () =>
+      s.mode === "edit"
+        ? editContribution({
+            stockCountId: detail.id,
+            contributionId: s.contributionId!,
+            entries: s.entries,
+            notes: s.notes,
+          })
+        : confirmCount({
+            stockCountId: detail.id,
+            productId,
+            mode: s.mode,
+            entries: s.entries,
+            notes: s.notes,
+          })
+    );
 
-  const saveErrors = saveState.ok === false ? saveState.fieldErrors : undefined;
-  const saveFormError = saveState.ok === false ? saveState.formError : undefined;
+  // ---------- what is on screen ----------
+  const lineByProduct = useMemo(() => {
+    const m = new Map<string, StockCountDetailView["items"][number]>();
+    for (const i of detail.items) if (!i.isReversal) m.set(i.productId, i);
+    return m;
+  }, [detail.items]);
+
+  // A line whose product was since deleted still has to show.
+  const rows: CountProduct[] = useMemo(() => {
+    const known = new Set(products.map((p) => p.id));
+    const orphans = detail.items
+      .filter((i) => !i.isReversal && !known.has(i.productId))
+      .map((i) => ({
+        id: i.productId,
+        name: i.productName,
+        sku: i.productSku,
+        imageUrl: null,
+        section: null,
+        group: null,
+        units: i.entries.map((e) => ({ id: e.unitId, unitName: e.unitName, isBase: false })),
+      }));
+    // A closed sheet is a record of what was counted, not a list to count from.
+    return isDraft ? [...products, ...orphans] : [...products, ...orphans].filter((p) => lineByProduct.has(p.id));
+  }, [products, detail.items, isDraft, lineByProduct]);
+
+  const sectionOf = (p: CountProduct) => p.section ?? NO_CATEGORY;
+  const sections = useMemo(() => {
+    const s = [...new Set(rows.map(sectionOf))];
+    return [...s.filter((x) => x !== NO_CATEGORY), ...s.filter((x) => x === NO_CATEGORY)];
+  }, [rows]);
+  const groups = useMemo(
+    () =>
+      section && section !== NO_CATEGORY
+        ? [...new Set(rows.filter((p) => sectionOf(p) === section).map((p) => p.group ?? NO_CATEGORY))]
+        : [],
+    [rows, section]
+  );
+
+  const term = search.trim().toLowerCase();
+  const shown = rows.filter((p) => {
+    if (section && sectionOf(p) !== section) return false;
+    if (group && (p.group ?? NO_CATEGORY) !== group) return false;
+    const done = lineByProduct.has(p.id);
+    if (show === "todo" && done) return false;
+    if (show === "done" && !done) return false;
+    return !term || `${p.name} ${p.sku}`.toLowerCase().includes(term);
+  });
+
+  const countedCount = [...lineByProduct.keys()].length;
+  const uncountedStocked = stockedProductIds.filter((id) => !lineByProduct.has(id)).length;
+  const varianceValue = detail.items
+    .filter((i) => !i.isReversal)
+    .reduce((sum, i) => sum + Number(i.variance) * Number(costByProduct[i.productId] ?? 0), 0);
+
   const closeError = closeState.ok === false ? closeState.formError : undefined;
   const voidError = voidState.ok === false ? voidState.formError : undefined;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* --- header --- */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <a
-            href="/stock-counts"
-            className="text-sm text-muted-foreground hover:text-foreground"
-          >
+          <a href="/stock-counts" className="text-sm text-muted-foreground hover:text-foreground">
             ← กลับไปรายการใบนับ
           </a>
           <h2 className="mt-1 flex items-center gap-2 text-xl font-bold">
@@ -134,9 +249,19 @@ export default function CountSheet({
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
             {detail.branchName} · นับวันที่ {detail.countDateLabel}
-            {detail.startedBy && ` · เปิดโดย ${detail.startedBy}`}
+            {detail.startedBy && ` · เจ้าภาพ ${isHost ? "คุณ" : detail.startedBy}`}
+            {!detail.showExpected && " · นับแบบไม่เห็นจำนวนในระบบ"}
           </p>
         </div>
+        {isDraft && (
+          <div className="rounded-xl border border-border bg-surface px-4 py-2 text-right">
+            <p className="text-xs text-muted-foreground">นับแล้ว</p>
+            <p className="text-2xl font-semibold tabular-nums">
+              {countedCount}
+              <span className="text-base font-normal text-muted-foreground"> / {rows.length}</span>
+            </p>
+          </div>
+        )}
       </div>
 
       {detail.status === "VOIDED" && (
@@ -148,370 +273,162 @@ export default function CountSheet({
           </span>
         </div>
       )}
-
       {detail.status === "CLOSED" && (
         <div className="rounded-lg border border-good-border bg-good-bg p-3 text-sm text-good">
           ปิดใบแล้วเมื่อ {detail.closedAtLabel}
           {detail.closedBy && ` โดย ${detail.closedBy}`} — ส่วนต่างถูกบันทึกเข้าคลังเรียบร้อย
         </div>
       )}
+      {isDraft && (
+        <p className="text-sm text-muted-foreground">
+          ใส่จำนวนที่นับได้แล้วกด <strong>ยืนยัน</strong> ท้ายบรรทัด รายการจะเป็นสีเขียวบนทุกเครื่องที่เปิดใบนี้อยู่
+          พร้อมชื่อคนนับ — ของที่ไม่ได้นับ ไม่ต้องใส่
+        </p>
+      )}
+      {sheetError && (
+        <div className="rounded-lg border border-bad-border bg-bad-bg p-3 text-sm text-bad">{sheetError}</div>
+      )}
 
-      {/* --- money summary (computed, never stored — Q4) --- */}
-      {detail.countedLineCount > 0 && (
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div className="rounded-lg border border-border p-4">
-            <p className="text-xs text-muted-foreground">นับแล้ว</p>
-            <p className="mt-1 text-2xl font-semibold tabular-nums">
-              {detail.countedLineCount}{" "}
-              <span className="text-sm font-normal">รายการ</span>
-            </p>
+      {/* --- filters --- */}
+      <div className="space-y-3 rounded-xl border border-border bg-surface p-4">
+        <div className="flex flex-wrap gap-2" role="group" aria-label="หมวดหมู่">
+          <button type="button" className={chip(section === null)} onClick={() => { setSection(null); setGroup(null); }}>
+            ทั้งหมด
+          </button>
+          {sections.map((s) => (
+            <button key={s} type="button" className={chip(section === s)} onClick={() => { setSection(s); setGroup(null); }}>
+              {s}
+            </button>
+          ))}
+        </div>
+        {groups.length > 1 && (
+          <div className="flex flex-wrap gap-1.5 border-t border-border pt-3" role="group" aria-label="หมวดย่อย">
+            <button type="button" className={chip(group === null, true)} onClick={() => setGroup(null)}>
+              ทุกหมวดย่อยใน{section}
+            </button>
+            {groups.map((g) => (
+              <button key={g} type="button" className={chip(group === g, true)} onClick={() => setGroup(g)}>
+                {g}
+              </button>
+            ))}
           </div>
+        )}
+        <div className="flex flex-col gap-3 border-t border-border pt-3 sm:flex-row sm:items-center">
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="ค้นหาชื่อหรือรหัสสินค้า"
+            className="input w-full"
+          />
+          {isDraft && (
+            <div className="flex shrink-0 gap-1.5" role="group" aria-label="สถานะการนับ">
+              {(
+                [
+                  ["all", "ทั้งหมด"],
+                  ["todo", "ยังไม่นับ"],
+                  ["done", "นับแล้ว"],
+                ] as const
+              ).map(([v, label]) => (
+                <button key={v} type="button" className={chip(show === v, true)} onClick={() => setShow(v)}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* --- the rows --- */}
+      {rows.length === 0 ? (
+        <EmptyState art="none">{isDraft ? "ยังไม่มีวัตถุดิบในระบบ" : "ใบนี้ไม่มีรายการที่นับ"}</EmptyState>
+      ) : shown.length === 0 ? (
+        <EmptyState art="none">ไม่พบรายการที่ตรงกับตัวกรอง</EmptyState>
+      ) : (
+        <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface">
+          {shown.map((p) => (
+            <CountRow
+              key={p.id}
+              product={p}
+              item={lineByProduct.get(p.id)}
+              editable={isDraft}
+              showExpected={detail.showExpected}
+              currentUserId={currentUserId}
+              canRemoveLine={canClose}
+              busy={busy.has(p.id)}
+              message={messages[p.id] ?? null}
+              onSubmit={submitRow(p.id)}
+              onDeleteContribution={(cid) => void run(p.id, () => deleteContribution(detail.id, cid))}
+              onRemoveLine={(itemId) => void run(p.id, () => removeLine(detail.id, itemId))}
+            />
+          ))}
+        </ul>
+      )}
+
+      {/* --- summary (money computed, never stored — ADR 0015 Q4) --- */}
+      {detail.showExpected && countedCount > 0 && (
+        <div className="grid gap-3 sm:grid-cols-2">
           <div className="rounded-lg border border-border p-4">
             <p className="text-xs text-muted-foreground">ขาด / เกิน (จำนวน)</p>
             <p className="mt-1 text-lg font-semibold tabular-nums">
-              {/*
-                Short is `bad` and over is `warn`, NOT `good`. A surplus at a
-                count is not a gain — it is evidence the ledger was wrong, and
-                nothing about it is good for the shop. Rule 1 of the theme:
-                the verdict colours mean good-or-bad for the shop, never up or
-                down. Both sides are a discrepancy; one of them is money that
-                already left.
-              */}
+              {/* Over is warn, not good: a surplus is evidence the ledger was wrong. */}
               <span className="text-bad">−{formatQty(detail.totalShortQty)}</span>
               {" / "}
               <span className="text-warn">+{formatQty(detail.totalOverQty)}</span>
             </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              คนละหน่วยกัน — ดูเป็นรายรายการด้านล่าง
-            </p>
+            <p className="mt-1 text-xs text-muted-foreground">คนละหน่วยกัน — ดูเป็นรายรายการด้านบน</p>
           </div>
           <div className="rounded-lg border border-border p-4">
             <p className="text-xs text-muted-foreground">มูลค่าส่วนต่าง (ประมาณ)</p>
-            <p
-              className={`mt-1 text-2xl font-semibold tabular-nums ${totalVarianceValue < 0 ? "text-bad" : ""}`}
-            >
-              {formatMoney(String(totalVarianceValue))}
+            <p className={`mt-1 text-2xl font-semibold tabular-nums ${varianceValue < 0 ? "text-bad" : ""}`}>
+              {formatMoney(String(varianceValue))}
             </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              คิดจากต้นทุนล่าสุด · ตัวเลขจริงดูที่หน้าต้นทุน
-            </p>
+            <p className="mt-1 text-xs text-muted-foreground">คิดจากต้นทุนล่าสุด · ตัวเลขจริงดูที่หน้าต้นทุน</p>
           </div>
         </div>
       )}
 
-      {/* --- add / edit a line --- */}
-      {isDraft && (
-        <form action={saveAction} className="rounded-lg border border-border p-4">
-          <input type="hidden" name="stock_count_id" value={detail.id} />
-          <h3 className="text-sm font-medium">บันทึกจำนวนที่นับได้</h3>
-
-          {saveFormError && (
-            <div className="mt-3 rounded-lg border border-bad-border bg-bad-bg p-3 text-sm text-bad">
-              {saveFormError}
-            </div>
-          )}
-
-          <div className="mt-3 space-y-3">
-            <div>
-              <label htmlFor="product_id" className="label">
-                วัตถุดิบ <span className="text-bad">*</span>
-              </label>
-              <select
-                ref={productRef}
-                id="product_id"
-                name="product_id"
-                value={productId}
-                onChange={(e) => setProductId(e.target.value)}
-                className={"input w-full mt-1"}
-                required
-              >
-                <option value="">— เลือกวัตถุดิบ —</option>
-                {products.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name} ({p.sku}){alreadyCounted.has(p.id) ? " — นับแล้ว" : ""}
-                  </option>
-                ))}
-              </select>
-              {productId && alreadyCounted.has(productId) && (
-                <p className="mt-1 text-xs text-warn">
-                  นับรายการนี้ไปแล้ว — บันทึกอีกครั้งจะเป็นการแก้ตัวเลขเดิม
-                </p>
-              )}
-              {saveErrors?.productId && (
-                <p className="mt-1 text-xs text-bad">{saveErrors.productId}</p>
-              )}
-            </div>
-
-            {product && (
-              <div>
-                <span className="label">
-                  จำนวนที่นับได้ <span className="text-bad">*</span>
-                </span>
-                <p className="mb-1 text-xs text-muted-foreground">
-                  นับได้หลายหน่วยรวมกันได้ เช่น 2 กระสอบ + 3 kg
-                </p>
-                <div className="space-y-2">
-                  {entries.map((row, i) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <input
-                        name="entry_qty"
-                        type="number"
-                        step="0.001"
-                        min="0"
-                        value={row.qty}
-                        onChange={(e) =>
-                          setEntries((rows) =>
-                            rows.map((r, j) =>
-                              j === i ? { ...r, qty: e.target.value } : r
-                            )
-                          )
-                        }
-                        className={"input w-full flex-1"}
-                        placeholder="0"
-                      />
-                      <select
-                        name="entry_unit_id"
-                        value={row.unitId}
-                        onChange={(e) =>
-                          setEntries((rows) =>
-                            rows.map((r, j) =>
-                              j === i ? { ...r, unitId: e.target.value } : r
-                            )
-                          )
-                        }
-                        className={"input w-full w-40"}
-                      >
-                        {product.units.map((u) => (
-                          <option key={u.id} value={u.id}>
-                            {u.unitName}
-                            {u.isBase ? " (หน่วยหลัก)" : ""}
-                          </option>
-                        ))}
-                      </select>
-                      {entries.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setEntries((rows) => rows.filter((_, j) => j !== i))
-                          }
-                          className="text-xs text-muted-foreground hover:text-bad"
-                        >
-                          ลบ
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setEntries((rows) => [...rows, { unitId: "", qty: "" }])}
-                  className="mt-2 text-xs text-primary hover:underline"
-                >
-                  + เพิ่มหน่วย
-                </button>
-                {saveErrors?.entries && (
-                  <p className="mt-1 text-xs text-bad">{saveErrors.entries}</p>
-                )}
-                <p className="mt-1 text-xs text-muted-foreground">
-                  ถ้าไปดูแล้วไม่มีของเลย ให้ใส่ 0 — ระบบจะตัดสต๊อกให้เหลือศูนย์
-                  ส่วนของที่ไม่ได้นับ ไม่ต้องใส่บรรทัด
-                </p>
+      {/* --- close (host, or count:close — ADR 0034 Q5) --- */}
+      {isDraft &&
+        (canClose ? (
+          <form action={closeAction} className="rounded-lg border border-border p-4">
+            <input type="hidden" name="id" value={detail.id} />
+            <h3 className="text-sm font-medium">ปิดใบนับ</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              ปิดแล้วระบบจะบันทึกส่วนต่างเข้าคลังทันที และแก้ใบนี้ไม่ได้อีก — ตรวจให้แน่ใจว่าทุกคนนับเสร็จแล้ว
+            </p>
+            {uncountedStocked > 0 && (
+              <div className="mt-3 rounded-lg border border-warn-border bg-warn-bg p-3 text-sm text-warn">
+                ยังมีวัตถุดิบอีก <strong>{uncountedStocked}</strong> รายการที่มีของอยู่แต่ไม่ได้นับรอบนี้
+                — ของพวกนี้จะไม่ถูกแตะต้อง ปิดใบได้ตามปกติถ้าตั้งใจนับแค่บางส่วน
               </div>
             )}
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div>
-                <label htmlFor="counted_by_name" className="label">
-                  ผู้นับ
-                </label>
-                <input
-                  id="counted_by_name"
-                  name="counted_by_name"
-                  type="text"
-                  maxLength={100}
-                  className={"input w-full mt-1"}
-                  placeholder="ชื่อคนที่เดินนับ (ถ้าไม่ใช่คุณ)"
-                />
-              </div>
-              <div>
-                <label htmlFor="line_notes" className="label">
-                  หมายเหตุ
-                </label>
-                <input
-                  id="line_notes"
-                  name="notes"
-                  type="text"
-                  maxLength={500}
-                  className={"input w-full mt-1"}
-                />
-              </div>
-            </div>
-
+            {closeError && (
+              <div className="mt-3 rounded-lg border border-bad-border bg-bad-bg p-3 text-sm text-bad">{closeError}</div>
+            )}
+            <label className="mt-3 flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={confirmClose} onChange={(e) => setConfirmClose(e.target.checked)} />
+              ตรวจตัวเลขแล้ว ยืนยันปิดใบนับ
+            </label>
             <button
               type="submit"
-              disabled={saving || !productId}
-              className="btn"
+              disabled={closing || !confirmClose || countedCount === 0}
+              className="btn mt-3"
             >
-              {saving ? "กำลังบันทึก…" : "บันทึกรายการ"}
+              {closing ? "กำลังปิด…" : "ปิดใบนับและบันทึกส่วนต่าง"}
             </button>
-          </div>
-        </form>
-      )}
-
-      {/* --- the lines --- */}
-      <div>
-        <h3 className="mb-2 text-sm font-medium">รายการที่นับแล้ว</h3>
-        {detail.items.length === 0 ? (
-          <div className="rounded-lg border border-border bg-muted/30 p-6 text-sm">
-            ยังไม่ได้นับอะไรเลย
-          </div>
+          </form>
         ) : (
-          <div className="overflow-x-auto rounded-lg border border-border">
-            <table className="w-full min-w-[40rem]">
-              <thead className="border-b border-border bg-muted/40 text-left text-xs text-muted-foreground">
-                <tr>
-                  <th className="px-3 py-2 font-medium">วัตถุดิบ</th>
-                  <th className="px-3 py-2 text-right font-medium">นับได้</th>
-                  {detail.showExpected && (
-                    <>
-                      <th className="px-3 py-2 text-right font-medium">ระบบว่ามี</th>
-                      <th className="px-3 py-2 text-right font-medium">ส่วนต่าง</th>
-                      <th className="px-3 py-2 text-right font-medium">มูลค่า</th>
-                    </>
-                  )}
-                  <th className="px-3 py-2 font-medium">ผู้นับ</th>
-                  {isDraft && <th className="px-3 py-2" />}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {detail.items.map((item) => (
-                  <tr
-                    key={item.id}
-                    className={item.isReversal ? "bg-muted/30 text-muted-foreground" : ""}
-                  >
-                    <td className="px-3 py-2 text-sm">
-                      {item.productName}
-                      <span className="ml-2 text-xs text-muted-foreground">
-                        {item.productSku}
-                      </span>
-                      {item.isReversal && (
-                        <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-xs">
-                          กลับรายการ
-                        </span>
-                      )}
-                      {item.entries.length > 0 && (
-                        <span className="mt-0.5 block text-xs text-muted-foreground">
-                          {item.entries
-                            .map((e) => `${formatQty(e.qtyInUnit)} ${e.unitName}`)
-                            .join(" + ")}
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-3 py-2 text-right text-sm tabular-nums">
-                      {formatQty(item.qtyCounted)}
-                      <span className="ml-1 text-xs text-muted-foreground">
-                        {item.baseUnitName}
-                      </span>
-                    </td>
-                    {detail.showExpected && (
-                      <>
-                        <td className="px-3 py-2 text-right text-sm tabular-nums text-muted-foreground">
-                          {formatQty(item.qtyExpected)}
-                        </td>
-                        <td
-                          className={`px-3 py-2 text-right text-sm tabular-nums ${item.varianceIsShort ? "font-medium text-bad" : item.varianceIsZero ? "text-muted-foreground" : "font-medium text-warn"}`}
-                        >
-                          {item.varianceIsZero
-                            ? "ตรง"
-                            : `${item.varianceIsShort ? "" : "+"}${formatQty(item.variance)}`}
-                        </td>
-                        <td className="px-3 py-2 text-right text-sm tabular-nums">
-                          {item.varianceIsZero
-                            ? "—"
-                            : formatMoney(
-                                String(varianceValue(item.variance, item.productId))
-                              )}
-                        </td>
-                      </>
-                    )}
-                    <td className="px-3 py-2 text-xs text-muted-foreground">
-                      {item.countedByName ?? item.countedByUser ?? "—"}
-                      <span className="mt-0.5 block">{item.countedAtLabel}</span>
-                    </td>
-                    {isDraft && (
-                      <td className="px-3 py-2 text-right">
-                        <form
-                          action={async () => {
-                            await removeLine(detail.id, item.id);
-                          }}
-                        >
-                          <button
-                            type="submit"
-                            className="text-xs text-muted-foreground hover:text-bad"
-                          >
-                            เอาออก
-                          </button>
-                        </form>
-                      </td>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* --- close --- */}
-      {isDraft && (
-        <form action={closeAction} className="rounded-lg border border-border p-4">
-          <input type="hidden" name="id" value={detail.id} />
-          <h3 className="text-sm font-medium">ปิดใบนับ</h3>
-          <p className="mt-1 text-sm text-muted-foreground">
-            ปิดแล้วระบบจะบันทึกส่วนต่างเข้าคลังทันที และแก้ใบนี้ไม่ได้อีก
+          <p className="rounded-lg border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
+            เมื่อนับเสร็จ {detail.startedBy ?? "เจ้าภาพ"} (ผู้เปิดใบนับ) หรือผู้จัดการจะเป็นคนปิดใบนับ
           </p>
-
-          {uncountedStocked > 0 && (
-            <div className="mt-3 rounded-lg border border-warn-border bg-warn-bg p-3 text-sm text-warn">
-              ยังมีวัตถุดิบอีก <strong>{uncountedStocked}</strong> รายการที่มีของอยู่แต่ไม่ได้นับรอบนี้
-              — ของพวกนี้จะไม่ถูกแตะต้อง ปิดใบได้ตามปกติถ้าตั้งใจนับแค่บางส่วน
-            </div>
-          )}
-
-          {closeError && (
-            <div className="mt-3 rounded-lg border border-bad-border bg-bad-bg p-3 text-sm text-bad">
-              {closeError}
-            </div>
-          )}
-
-          <label className="mt-3 flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={confirmClose}
-              onChange={(e) => setConfirmClose(e.target.checked)}
-            />
-            ตรวจตัวเลขแล้ว ยืนยันปิดใบนับ
-          </label>
-
-          <button
-            type="submit"
-            disabled={closing || !confirmClose || detail.items.length === 0}
-            className="btn mt-3"
-          >
-            {closing ? "กำลังปิด…" : "ปิดใบนับและบันทึกส่วนต่าง"}
-          </button>
-        </form>
-      )}
+        ))}
 
       {/* --- void --- */}
-      {detail.status === "CLOSED" && (
+      {detail.status === "CLOSED" && canClose && (
         <div className="rounded-lg border border-border p-4">
           {!voidOpen ? (
-            <button
-              type="button"
-              onClick={() => setVoidOpen(true)}
-              className="text-sm text-bad hover:underline"
-            >
+            <button type="button" onClick={() => setVoidOpen(true)} className="text-sm text-bad hover:underline">
               ยกเลิกใบนับนี้
             </button>
           ) : (
@@ -519,13 +436,10 @@ export default function CountSheet({
               <input type="hidden" name="id" value={detail.id} />
               <h3 className="text-sm font-medium">ยกเลิกใบนับ</h3>
               <p className="text-sm text-muted-foreground">
-                ระบบจะเพิ่มรายการกลับรายการเพื่อคืนสต๊อกให้เหมือนก่อนปิดใบ
-                รายการเดิมจะยังอยู่ครบ
+                ระบบจะเพิ่มรายการกลับรายการเพื่อคืนสต๊อกให้เหมือนก่อนปิดใบ รายการเดิมจะยังอยู่ครบ
               </p>
               {voidError && (
-                <div className="rounded-lg border border-bad-border bg-bad-bg p-3 text-sm text-bad">
-                  {voidError}
-                </div>
+                <div className="rounded-lg border border-bad-border bg-bad-bg p-3 text-sm text-bad">{voidError}</div>
               )}
               <div>
                 <label htmlFor="void_reason" className="label">
@@ -537,7 +451,7 @@ export default function CountSheet({
                   type="text"
                   maxLength={500}
                   required
-                  className={"input w-full mt-1"}
+                  className="input mt-1 w-full"
                   placeholder="เช่น นับซ้ำช่องเดิม / ลืมว่ายกของไปสาขาอื่น"
                 />
               </div>
@@ -549,11 +463,7 @@ export default function CountSheet({
                 >
                   {voiding ? "กำลังยกเลิก…" : "ยืนยันยกเลิก"}
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setVoidOpen(false)}
-                  className="rounded-lg border border-border px-4 py-2 text-sm"
-                >
+                <button type="button" onClick={() => setVoidOpen(false)} className="rounded-lg border border-border px-4 py-2 text-sm">
                   ไม่ยกเลิก
                 </button>
               </div>

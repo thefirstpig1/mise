@@ -77,6 +77,23 @@ async function expectDenied(run: () => Promise<unknown>, need: string) {
   expect(decodeURIComponent(target!)).toContain(need);
 }
 
+/**
+ * Opening a count succeeds by REDIRECTING into the new sheet (ADR 0034 Q5 —
+ * the person lands on the sheet they just opened), so success is a redirect
+ * to /stock-counts/<id>, and a refusal is a redirect to /denied.
+ */
+async function expectOpenedSheet(run: () => Promise<unknown>) {
+  let thrown: unknown;
+  try {
+    await run();
+  } catch (e) {
+    thrown = e;
+  }
+  const target = redirectTarget(thrown);
+  expect(target, `expected a redirect into the sheet, got ${String(thrown)}`).not.toBeNull();
+  expect(target).toMatch(/^\/stock-counts\/[0-9a-f-]{36}$/);
+}
+
 describe("the gate, pressed (ADR 0029 Part 28 L6)", () => {
   let tenantA: string;
   let ownerId: string;
@@ -222,8 +239,7 @@ describe("the gate, pressed (ADR 0029 Part 28 L6)", () => {
     expect(meal.ok, JSON.stringify(meal)).toBe(true);
     expect(await movementCount()).toBe(before + 1);
 
-    const count = await openStockCountAction({ ok: false }, countForm(silom));
-    expect(count.ok, JSON.stringify(count)).toBe(true);
+    await expectOpenedSheet(() => openStockCountAction({ ok: false }, countForm(silom)));
   });
 
   it("E1 — a viewer presses record-staff-meal, and the ledger does not move", async () => {
@@ -258,8 +274,7 @@ describe("the gate, pressed (ADR 0029 Part 28 L6)", () => {
     // hired to run would be a broken feature, not a working gate.
     actingAs(managerId);
 
-    const ok = await openStockCountAction({ ok: false }, countForm(asok));
-    expect(ok.ok, JSON.stringify(ok)).toBe(true);
+    await expectOpenedSheet(() => openStockCountAction({ ok: false }, countForm(asok)));
   });
 
   it("E4 — an unauthenticated press reaches /login, not the ledger", async () => {

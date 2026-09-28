@@ -1,21 +1,21 @@
 // Sprint 3 Part 15 L5b/L5c — the count sheet, and the closed document.
+// ADR 0034 (Part 36) — counted by many devices at once.
 //
 // One page for both states, because they are the same document: while DRAFT it
-// is a sheet you type into, and once CLOSED it is the record of what was found.
-// Splitting them would duplicate the line table for no gain.
+// is a sheet everyone counts into, and once CLOSED it is the record of what was
+// found and by whom.
 //
-// Money is SHOWN but not stored (ADR 0015 Q4): the value of each variance is
-// computed here from the cost engine, in ONE batched read for the whole sheet
-// (risk R1 — never one call per product).
+// Everything expensive happens ONCE, here, when the sheet is opened — the
+// product list, the stocked products, and one batched cost read (risk R1).
+// Counting afterwards never re-renders this page (ADR 0034 Q7): each ยืนยัน
+// returns the sheet, and other devices poll for it.
 //
-// `params` / `searchParams` are PROMISES in Next 15 (Part 10 L5a).
+// `params` is a PROMISE in Next 15 (Part 10 L5a).
 
 import { notFound } from "next/navigation";
 import { requireTenant } from "@/lib/require-tenant";
-import {
-  getStockCountByIdLogic,
-  getUncountedStockedCountLogic,
-} from "@/server/stock-count";
+import { hasCapability } from "@/lib/permissions/service";
+import { getStockCountByIdLogic, getStockedProductIdsLogic } from "@/server/stock-count";
 import { getProductsLogic } from "@/server/product";
 import { getProductCostsLogic } from "@/server/stock-cost";
 import { getProductCostsQuerySchema } from "@/lib/validations/stock-cost";
@@ -23,8 +23,11 @@ import { toStockCountDetailView } from "../_components/stock-count-view";
 import CountSheet from "../_components/CountSheet";
 import {
   closeStockCountAction,
+  confirmCountAction,
+  deleteContributionAction,
+  editContributionAction,
+  getCountSheetAction,
   removeStockCountLineAction,
-  saveStockCountLineAction,
   voidStockCountAction,
 } from "../actions";
 
@@ -33,7 +36,7 @@ export default async function StockCountDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { tenantId } = await requireTenant("count:write");
+  const { tenantId, membership, role } = await requireTenant("count:write");
   const { id } = await params;
 
   const count = await getStockCountByIdLogic(tenantId, id);
@@ -41,28 +44,34 @@ export default async function StockCountDetailPage({
 
   const detail = toStockCountDetailView(count);
 
-  // Products available to count. Live only: a soft-deleted product still holding
-  // stock shows on its existing line but should not be added to a new sheet.
-  const products = (await getProductsLogic(tenantId)).map((p) => ({
-    id: p.id,
-    name: p.name,
-    sku: p.sku,
-    units: p.productUnits.map((u) => ({
-      id: u.id,
-      unitName: u.unitName,
-      isBase: u.isBase,
-    })),
-  }));
+  const [allProducts, stockedProductIds] = await Promise.all([
+    getProductsLogic(tenantId),
+    detail.status === "DRAFT" ? getStockedProductIdsLogic(tenantId, detail.branchId) : Promise.resolve([]),
+  ]);
 
-  // One batched cost read for every product on the sheet (R1).
-  const countedIds = detail.items.map((i) => i.productId);
-  const costs = countedIds.length
+  // Live, active products are what a counter can count; a soft-deleted product
+  // already on the sheet is added back by the sheet itself.
+  const products = allProducts
+    .filter((p) => p.isActive)
+    .map((p) => ({
+      id: p.id,
+      name: p.name,
+      sku: p.sku,
+      imageUrl: p.imageUrl,
+      section: p.category?.accountingSection ?? null,
+      group: p.category?.groupName ?? null,
+      units: [...p.productUnits]
+        .sort((a, b) => Number(b.isBase) - Number(a.isBase))
+        .map((u) => ({ id: u.id, unitName: u.unitName, isBase: u.isBase })),
+    }));
+
+  // One batched cost read for everything that can show a variance: what is
+  // stocked here, plus what is already on the sheet (R1 — never one per product).
+  const valued = Array.from(new Set([...stockedProductIds, ...detail.items.map((i) => i.productId)]));
+  const costs = valued.length
     ? await getProductCostsLogic(
         tenantId,
-        getProductCostsQuerySchema.parse({
-          productIds: Array.from(new Set(countedIds)),
-          branchId: detail.branchId,
-        })
+        getProductCostsQuerySchema.parse({ productIds: valued, branchId: detail.branchId })
       )
     : new Map();
   const costByProduct: Record<string, string> = {};
@@ -70,19 +79,19 @@ export default async function StockCountDetailPage({
     costByProduct[productId] = state.costPerBaseUnit.toString();
   }
 
-  const uncounted =
-    detail.status === "DRAFT"
-      ? await getUncountedStockedCountLogic(tenantId, detail.id)
-      : 0;
-
   return (
     <CountSheet
-      detail={detail}
+      initial={detail}
       products={products}
       costByProduct={costByProduct}
-      uncountedStocked={uncounted}
-      saveLine={saveStockCountLineAction}
+      stockedProductIds={stockedProductIds}
+      currentUserId={membership.userId}
+      canCloseAny={hasCapability(role, "count:close")}
+      confirmCount={confirmCountAction}
+      editContribution={editContributionAction}
+      deleteContribution={deleteContributionAction}
       removeLine={removeStockCountLineAction}
+      poll={getCountSheetAction}
       close={closeStockCountAction}
       voidCount={voidStockCountAction}
     />
