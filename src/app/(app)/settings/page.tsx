@@ -35,6 +35,10 @@ export default async function SettingsPage() {
         ? "TREAT_AS_NOT_COOKED"
         : "TREAT_AS_COOKED";
 
+    // ADR 0035 Q4 — who deducts a menu staff meal. A radio for the same reason:
+    // both are how real shops work.
+    const staffMealStock = formData.get("staff_meal_stock_source") === "POS" ? "POS" : "SYSTEM";
+
     await withTenantContext(tenantId, (tx) =>
       tx.tenant.update({
         where: { id: tenantId },
@@ -43,6 +47,7 @@ export default async function SettingsPage() {
           isVatRegistered: isVat,
           grossProfitMethod: gpMethod,
           cancelledSalePolicy: cancelPolicy,
+          staffMealStockSource: staffMealStock,
         },
       })
     );
@@ -51,6 +56,7 @@ export default async function SettingsPage() {
     revalidatePath("/dashboard");
     revalidatePath("/cost");
     revalidatePath("/consumption");
+    revalidatePath("/staff-meals");
   }
 
   return (
@@ -162,6 +168,56 @@ export default async function SettingsPage() {
               ที่แนะนำแบบ “ทำไปแล้ว” เพราะถ้าเดาผิด ความผิดพลาดจะโผล่ตอนนับสต๊อกเป็น
               <strong>ของเกิน</strong> ซึ่งมองเห็นและสืบกลับได้ · ส่วนอีกทางจะโผล่เป็น
               <strong>ของขาด</strong> ซึ่งหน้าตาเหมือนของหายหรือถูกขโมย
+            </p>
+          </div>
+
+          {/* ---------- who deducts a menu staff meal (ADR 0035 Q4) ---------- */}
+          <div className="rounded-lg border border-border bg-surface p-6">
+            <h3 className="mb-1 font-medium">มื้อพนักงาน (เมนูในร้าน) ใครตัดสต๊อก</h3>
+            <p className="mb-4 text-sm text-muted-foreground">
+              พนักงานขอเบิกในระบบ หัวหน้ากดอนุมัติ · คำถามคือร้านคุณคีย์มื้อพนักงานเข้า POS ด้วยหรือเปล่า
+              — ถ้าคีย์ แล้วระบบตัดอีกรอบ สต๊อกจะถูกตัดซ้ำสองครั้ง
+            </p>
+            <div className="space-y-4">
+              <label className="flex items-start gap-3">
+                <input
+                  type="radio"
+                  name="staff_meal_stock_source"
+                  value="SYSTEM"
+                  defaultChecked={tenant.staffMealStockSource === "SYSTEM"}
+                  className="mt-1"
+                />
+                <div>
+                  <p className="font-medium">ระบบตัดสต๊อกให้ ตอนหัวหน้ากดอนุมัติ</p>
+                  <p className="text-sm text-muted-foreground">
+                    <span className="text-xs">
+                      สำหรับร้านที่<strong>ไม่ได้</strong>คีย์มื้อพนักงานเข้า POS · ระบบตัดวัตถุดิบตามสูตรของเมนูนั้น
+                    </span>
+                  </p>
+                </div>
+              </label>
+              <label className="flex items-start gap-3">
+                <input
+                  type="radio"
+                  name="staff_meal_stock_source"
+                  value="POS"
+                  defaultChecked={tenant.staffMealStockSource === "POS"}
+                  className="mt-1"
+                />
+                <div>
+                  <p className="font-medium">POS ตัดแล้ว ระบบไม่ต้องตัด</p>
+                  <p className="text-sm text-muted-foreground">
+                    <span className="text-xs">
+                      สำหรับร้านที่คีย์มื้อพนักงานเข้า POS เป็นยอดขายราคา ฿0 อยู่แล้ว — สต๊อกถูกตัดตอนนำเข้ายอดขาย ·
+                      ตั๋วในระบบใช้คุมโควตาและเป็นหลักฐานว่าใครเบิก ใครอนุมัติ
+                    </span>
+                  </p>
+                </div>
+              </label>
+            </div>
+            <p className="mt-4 text-xs text-muted-foreground">
+              ค่านี้ถูกบันทึกติดไปกับตั๋วแต่ละใบตอนกดอนุมัติ — เปลี่ยนตรงนี้มีผลกับตั๋วใบถัดไป ไม่ย้อนไปแก้ของเก่า ·
+              แบบ “ทำกินเองจากของในร้าน” ระบบตัดเสมอ เพราะไม่มีใน POS
             </p>
           </div>
 

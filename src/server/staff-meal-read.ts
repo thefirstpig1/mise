@@ -471,3 +471,10 @@ export async function getMyStaffMealTicketsLogic(
     ).map(toTicket)
   );
 }
+
+/** Which branch a ticket belongs to — so the action can check reach first. */
+export async function getStaffMealBranchIdLogic(tenantId: string, id: string): Promise<string | null> {
+  return withTenantContext(tenantId, async (tx) =>
+    (await tx.staffMeal.findFirst({ where: { tenantId, id }, select: { branchId: true } }))?.branchId ?? null
+  );
+}

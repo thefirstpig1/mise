@@ -28,13 +28,23 @@
 import { revalidatePath } from "next/cache";
 import type { ZodError } from "zod";
 import { requireTenant } from "@/lib/require-tenant";
+import { computeBangkokToday, addDays } from "@/lib/bangkok-date";
 import {
   createStaffMealInputSchema,
   createStaffMemberInputSchema,
+  rejectStaffMealInputSchema,
+  requestStaffMealInputSchema,
   updateStaffMemberInputSchema,
   voidStaffMealInputSchema,
 } from "@/lib/validations/staff-meal";
 import {
+  approveStaffMealLogic,
+  rejectStaffMealLogic,
+  requestStaffMealLogic,
+  StaffMealNotApprovedError,
+  StaffMealNotPendingError,
+  StaffMealOnBehalfNotAllowedError,
+  StaffMealSelfApprovalError,
   StaffMealAlreadyVoidedError,
   StaffMealComponentNoRecipeError,
   StaffMealNoRecipeError,
@@ -53,6 +63,13 @@ import {
   StockUnitMismatchError,
 } from "@/server/stock-movement";
 import { CrossTenantReferenceError } from "@/server/product";
+import {
+  getMyStaffMealTicketsLogic,
+  getPendingStaffMealTicketsLogic,
+  getStaffMealBranchIdLogic,
+  getStaffMealQuotaLogic,
+  type StaffMealTicket,
+} from "@/server/staff-meal-read";
 
 // --- Thai messages (the user-facing error paths) ---
 const CROSS_TENANT_MESSAGE = "ข้อมูลอ้างอิงไม่อยู่ในระบบของคุณ";
@@ -178,6 +195,22 @@ function toFormError(e: unknown): {
   if (e instanceof StaffMemberNotFoundError) {
     return { fieldErrors: { staffMemberId: MEMBER_NOT_FOUND_MESSAGE } };
   }
+  if (e instanceof StaffMealNotPendingError) {
+    return { formError: "ตั๋วนี้มีคนตัดสินไปแล้ว — รีเฟรชเพื่อดูสถานะล่าสุด" };
+  }
+  if (e instanceof StaffMealSelfApprovalError) {
+    return { formError: "อนุมัติหรือปฏิเสธตั๋วของตัวเองไม่ได้ — ให้หัวหน้าคนอื่นเป็นคนกด" };
+  }
+  if (e instanceof StaffMealOnBehalfNotAllowedError) {
+    return {
+      fieldErrors: {
+        staffMemberId: "พนักงานคนนี้มีแอคเคาท์แล้ว ให้เขากดขอเบิกเองจากเครื่องของเขา",
+      },
+    };
+  }
+  if (e instanceof StaffMealNotApprovedError) {
+    return { formError: "ตั๋วที่ยังไม่ได้อนุมัติยกเลิกไม่ได้ — ให้กดไม่อนุมัติแทน" };
+  }
   throw e; // unexpected → let the error boundary handle it
 }
 
@@ -198,12 +231,30 @@ function revalidateStaffMealViews(): void {
   revalidatePath("/cost");
 }
 
-/** Record one meal. Explodes the recipe and posts to the ledger in one transaction. */
+/**
+ * ADR 0035 Q6 — the date is TODAY unless the account may change settings
+ * (owner / admin). Enforced here, not only by a disabled input: a form value
+ * is whatever the browser sends.
+ */
+const lockedDate = (canBackdate: boolean, posted: FormDataEntryValue | null) =>
+  canBackdate ? posted : computeBangkokToday().toISOString().slice(0, 10);
+
+/**
+ * Record a meal approved on the spot (ADR 0035): a communal POT by whoever
+ * cooked it (Q7), or a MENU meal a head records ON BEHALF of a part-timer
+ * without an account (Q2). Only `staffmeal:approve` may name an eater at all.
+ */
 export async function createStaffMealAction(
   _prevState: StaffMealActionState,
   formData: FormData
 ): Promise<StaffMealActionState> {
-  const { tenantId, membership, assertBranch} = await requireTenant("staffmeal:write");
+  const { tenantId, membership, assertBranch, can } = await requireTenant("staffmeal:write");
+  const isHead = can("staffmeal:approve");
+  const menuPicked = String(formData.get("menu_id") ?? "") !== "";
+  if (menuPicked && !isHead) {
+    // A menu meal for yourself is a ticket; for someone else it is a head's job.
+    return { ok: false, formError: "เมนูในร้านต้องกดขอเบิกด้วยแอคเคาท์ของตัวเอง แล้วให้หัวหน้าอนุมัติ" };
+  }
 
   // Pot lines arrive as three parallel arrays, the shape every multi-line form
   // in this project uses. Zipped here rather than in zod so the schema stays a
@@ -223,8 +274,9 @@ export async function createStaffMealAction(
   const parsed = createStaffMealInputSchema.safeParse({
     submitKey: formData.get("submit_key"),
     branchId: formData.get("branch_id"),
-    businessDate: formData.get("business_date"),
-    staffMemberId: formData.get("staff_member_id"),
+    businessDate: lockedDate(can("settings:write"), formData.get("business_date")),
+    // Naming who ate is the approver's to do (ADR 0035 Q2/Q7).
+    staffMemberId: isHead ? formData.get("staff_member_id") : "",
     menuId: formData.get("menu_id"),
     servings: formData.get("servings") ?? 1,
     items,
@@ -239,11 +291,9 @@ export async function createStaffMealAction(
   assertBranch(parsed.data.branchId);
 
   try {
-    const res = await createStaffMealLogic(
-      tenantId,
-      parsed.data,
-      membership.userId
-    );
+    const res = await createStaffMealLogic(tenantId, parsed.data, membership.userId, {
+      onBehalf: menuPicked,
+    });
     revalidateStaffMealViews();
     return {
       ok: true,
@@ -268,7 +318,7 @@ export async function voidStaffMealAction(
   _prevState: VoidStaffMealActionState,
   formData: FormData
 ): Promise<VoidStaffMealActionState> {
-  const { tenantId, membership } = await requireTenant("staffmeal:write");
+  const { tenantId, membership } = await requireTenant("staffmeal:approve");
 
   const parsed = voidStaffMealInputSchema.safeParse({
     id: formData.get("id"),
@@ -289,6 +339,179 @@ export async function voidStaffMealAction(
   } catch (e) {
     return { ok: false, ...toFormError(e) };
   }
+}
+
+// ------------------------------------------------------------
+// Tickets (ADR 0035)
+// ------------------------------------------------------------
+
+/** A ticket, flattened for the client (Decimals and Dates as strings). */
+export type TicketView = {
+  id: string;
+  ticketNo: string | null;
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  menuName: string | null;
+  servings: string;
+  unitPrice: string | null;
+  branchName: string;
+  eaterName: string | null;
+  requestedByName: string | null;
+  onBehalf: boolean;
+  requestedAtLabel: string;
+  businessDateLabel: string;
+  approvedByName: string | null;
+  rejectedReason: string | null;
+  stockPosted: boolean;
+  voided: boolean;
+  /** Approver's view only: this person's quota standing today. */
+  quota?: { used: string; quota: string | null; over: boolean; unpriced: number } | null;
+};
+
+const timeTh = new Intl.DateTimeFormat("th-TH", {
+  timeZone: "Asia/Bangkok",
+  hour: "2-digit",
+  minute: "2-digit",
+});
+const dateTh = new Intl.DateTimeFormat("th-TH", {
+  timeZone: "Asia/Bangkok",
+  day: "numeric",
+  month: "short",
+  year: "2-digit",
+});
+
+const toTicketView = (t: StaffMealTicket): TicketView => ({
+  id: t.id,
+  ticketNo: t.ticketNo,
+  status: t.status,
+  menuName: t.menuName,
+  servings: t.servings.toString(),
+  unitPrice: t.unitPrice === null ? null : t.unitPrice.toString(),
+  branchName: t.branchName,
+  eaterName: t.staffMemberName,
+  requestedByName: t.requestedByName,
+  onBehalf: t.onBehalf,
+  requestedAtLabel: timeTh.format(t.requestedAt),
+  businessDateLabel: dateTh.format(t.businessDate),
+  approvedByName: t.approvedByName,
+  rejectedReason: t.rejectedReason,
+  stockPosted: t.stockPosted,
+  voided: t.voided,
+});
+
+export type RequestStaffMealActionState =
+  | { ok: true; ticket: TicketView }
+  | { ok: false; formError?: string; fieldErrors?: Record<string, string> };
+
+/** ขอเบิก — the eater, with their own account (ADR 0035 Q1). */
+export async function requestStaffMealAction(
+  _prev: RequestStaffMealActionState,
+  formData: FormData
+): Promise<RequestStaffMealActionState> {
+  const { tenantId, membership, assertBranch, can } = await requireTenant("staffmeal:write");
+
+  const parsed = requestStaffMealInputSchema.safeParse({
+    submitKey: formData.get("submit_key"),
+    branchId: formData.get("branch_id"),
+    businessDate: lockedDate(can("settings:write"), formData.get("business_date")),
+    menuId: formData.get("menu_id"),
+    servings: formData.get("servings") ?? 1,
+    notes: formData.get("notes"),
+  });
+  if (!parsed.success) return { ok: false, fieldErrors: toFieldErrors(parsed.error) };
+  assertBranch(parsed.data.branchId);
+
+  try {
+    const res = await requestStaffMealLogic(tenantId, parsed.data, membership.userId);
+    const mine = await getMyStaffMealTicketsLogic(tenantId, membership.userId, addDays(computeBangkokToday(), -1));
+    const ticket = mine.find((t) => t.id === res.id);
+    revalidatePath("/staff-meals");
+    return ticket ? { ok: true, ticket: toTicketView(ticket) } : { ok: false, formError: NOT_FOUND_MESSAGE };
+  } catch (e) {
+    return { ok: false, ...toFormError(e) };
+  }
+}
+
+export type TicketActionState = { ok: true } | { ok: false; formError?: string };
+
+async function assertTicketInReach(
+  tenantId: string,
+  id: string,
+  assertBranch: (b: string) => void
+) {
+  const branchId = await getStaffMealBranchIdLogic(tenantId, id);
+  if (!branchId) return false;
+  assertBranch(branchId);
+  return true;
+}
+
+/** อนุมัติ — never your own (ADR 0035 Q5). */
+export async function approveStaffMealAction(id: string): Promise<TicketActionState> {
+  const { tenantId, membership, assertBranch } = await requireTenant("staffmeal:approve");
+  if (!(await assertTicketInReach(tenantId, id, assertBranch))) {
+    return { ok: false, formError: NOT_FOUND_MESSAGE };
+  }
+  try {
+    await approveStaffMealLogic(tenantId, id, membership.userId);
+    revalidateStaffMealViews();
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, formError: toFormError(e).formError ?? Object.values(toFormError(e).fieldErrors ?? {})[0] };
+  }
+}
+
+/** ไม่อนุมัติ — with a reason; nothing moves. */
+export async function rejectStaffMealAction(id: string, reason: string): Promise<TicketActionState> {
+  const { tenantId, membership, assertBranch } = await requireTenant("staffmeal:approve");
+  const parsed = rejectStaffMealInputSchema.safeParse({ id, reason });
+  if (!parsed.success) return { ok: false, formError: Object.values(toFieldErrors(parsed.error))[0] };
+  if (!(await assertTicketInReach(tenantId, id, assertBranch))) {
+    return { ok: false, formError: NOT_FOUND_MESSAGE };
+  }
+  try {
+    await rejectStaffMealLogic(tenantId, parsed.data, membership.userId);
+    revalidatePath("/staff-meals");
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, formError: toFormError(e).formError };
+  }
+}
+
+export type TicketBoard = { mine: TicketView[]; pending: TicketView[] | null };
+
+/**
+ * What the page polls (ADR 0035): the viewer's own tickets since yesterday, and
+ * — for an approver — the queue at the branches they reach, each with the
+ * eater's quota standing today.
+ */
+export async function getTicketBoardAction(): Promise<TicketBoard> {
+  const { tenantId, membership, reach, can } = await requireTenant("staffmeal:write");
+  const since = addDays(computeBangkokToday(), -1);
+  const mine = (await getMyStaffMealTicketsLogic(tenantId, membership.userId, since)).map(toTicketView);
+  if (!can("staffmeal:approve")) return { mine, pending: null };
+
+  const { getBranchesLogic } = await import("@/server/branch");
+  const branches = await getBranchesLogic(tenantId, reach);
+  const queue = await getPendingStaffMealTicketsLogic(tenantId, branches.map((b) => b.id));
+  const pending = await Promise.all(
+    queue.map(async (t) => {
+      const view = toTicketView(t);
+      if (!t.staffMemberId) return { ...view, quota: null };
+      const q = await getStaffMealQuotaLogic(tenantId, {
+        staffMemberId: t.staffMemberId,
+        businessDate: t.businessDate,
+      });
+      return {
+        ...view,
+        quota: {
+          used: q.used.toString(),
+          quota: q.quota === null ? null : q.quota.toString(),
+          over: q.over,
+          unpriced: q.unpricedCount,
+        },
+      };
+    })
+  );
+  return { mine, pending };
 }
 
 // ------------------------------------------------------------
