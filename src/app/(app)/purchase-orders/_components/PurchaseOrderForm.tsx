@@ -27,6 +27,7 @@
 import { useActionState, useEffect, useMemo, useState } from "react";
 import type { PurchaseOrderActionState } from "../actions";
 import type { ResolvedPriceView } from "./purchase-order-view";
+import ProductPicker from "@/components/ui/ProductPicker";
 
 export type POUnitOption = {
   id: string;
@@ -40,6 +41,9 @@ export type POProductOption = {
   id: string;
   name: string;
   sku: string;
+  imageUrl: string | null;
+  section: string | null;
+  group: string | null;
   baseUnitName: string | null;
   units: POUnitOption[];
 };
@@ -277,6 +281,15 @@ export default function PurchaseOrderForm({
               </option>
             ))}
           </select>
+          {!isEdit && supplierId && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              หรือ{" "}
+              <a href={`/suppliers/${supplierId}/order`} className="text-primary underline">
+                เลือกจากแคตตาล็อกของผู้ขายรายนี้
+              </a>{" "}
+              — เห็นเฉพาะของที่ผู้ขายมี พร้อมราคาล่าสุด
+            </p>
+          )}
           {isEdit && (
             <p className="mt-1 text-xs text-muted-foreground">
               เปลี่ยนผู้ขายไม่ได้ — ราคาทุกบรรทัดผูกกับผู้ขายรายนี้ ถ้าต้องเปลี่ยนให้สร้างใบใหม่
@@ -289,21 +302,31 @@ export default function PurchaseOrderForm({
           <label htmlFor="branch_id" className="label">
             สาขา <span className="text-bad">*</span>
           </label>
-          <select
-            id="branch_id"
-            name="branch_id"
-            value={branchId}
-            onChange={(e) => setBranchId(e.target.value)}
-            className={"input w-full mt-1"}
-            required
-            disabled={isEdit}
-          >
-            {branches.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name}
-              </option>
-            ))}
-          </select>
+          {branches.length === 1 ? (
+            // One branch in reach: nothing to choose, so no control to misread.
+            <>
+              <input type="hidden" name="branch_id" value={branchId} />
+              <p id="branch_id" className="input mt-1 w-full bg-muted/50">
+                {branches[0].name}
+              </p>
+            </>
+          ) : (
+            <select
+              id="branch_id"
+              name="branch_id"
+              value={branchId}
+              onChange={(e) => setBranchId(e.target.value)}
+              className={"input w-full mt-1"}
+              required
+              disabled={isEdit}
+            >
+              {branches.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
+              ))}
+            </select>
+          )}
           {err("branchId") && <p className={errorClass}>{err("branchId")}</p>}
         </div>
       </div>
@@ -339,19 +362,12 @@ export default function PurchaseOrderForm({
                 <div className="grid gap-3 sm:grid-cols-12">
                   <div className="sm:col-span-5">
                     <label className="label">วัตถุดิบ</label>
-                    <select
+                    <ProductPicker
                       name="line_product_id"
+                      products={products}
                       value={row.productId}
-                      onChange={(e) => onProductChange(row, e.target.value)}
-                      className={"input w-full mt-1"}
-                    >
-                      <option value="">— เลือกวัตถุดิบ —</option>
-                      {products.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name} ({p.sku})
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(id) => onProductChange(row, id)}
+                    />
                   </div>
 
                   <div className="sm:col-span-2">

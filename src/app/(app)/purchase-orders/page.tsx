@@ -23,6 +23,7 @@ import { toPurchaseOrderListView } from "./_components/purchase-order-view";
 import StatusBadge from "./_components/StatusBadge";
 
 import EmptyState from "@/components/ui/EmptyState";
+import { RowChevron } from "@/components/ui/ActionLink";
 const THB = new Intl.NumberFormat("th-TH", {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
@@ -141,15 +142,21 @@ export default async function PurchaseOrdersPage({
                 <th className="px-3 py-2 text-right font-medium">ยอดรวม</th>
                 <th className="px-3 py-2 font-medium">กำหนดรับ</th>
                 <th className="px-3 py-2 font-medium">สถานะ</th>
+                <th className="px-3 py-2" />
               </tr>
             </thead>
             <tbody>
               {orders.map((po) => (
-                <tr key={po.id} className="border-t border-border">
+                // Kong (2026-09-28): the whole row opens the order — its ::after
+                // stretches the number's link across the row.
+                <tr
+                  key={po.id}
+                  className="group relative border-t border-border transition-colors hover:bg-muted/40"
+                >
                   <td className="px-3 py-2">
                     <a
                       href={`/purchase-orders/${po.id}`}
-                      className="font-medium text-primary hover:underline"
+                      className="font-medium text-primary after:absolute after:inset-0 after:content-['']"
                     >
                       {po.poNumber}
                     </a>
@@ -173,6 +180,9 @@ export default async function PurchaseOrdersPage({
                   </td>
                   <td className="px-3 py-2">
                     <StatusBadge status={po.status} />
+                  </td>
+                  <td className="px-3 py-2 text-right">
+                    <RowChevron />
                   </td>
                 </tr>
               ))}
