@@ -50,7 +50,7 @@ export default function ActionLink({
 /** The chevron at the end of a row that is itself a link — always visible. */
 export function RowChevron({ label }: { label?: string }) {
   return (
-    <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-primary-line bg-surface px-2.5 py-1 text-xs font-medium text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+    <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border border-primary-line bg-surface px-2.5 py-1 text-xs font-medium text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
       {label}
       <Arrow />
     </span>

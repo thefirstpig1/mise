@@ -149,7 +149,7 @@ export default async function StockCountListPage({
         <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface">
           <li
             aria-hidden
-            className="hidden grid-cols-[8rem_1fr_9rem_5rem_6rem_2.5rem] gap-3 bg-muted/40 px-4 py-2 text-xs text-muted-foreground sm:grid"
+            className="hidden grid-cols-[8rem_1fr_9rem_5rem_6rem_6rem] gap-3 bg-muted/40 px-4 py-2 text-xs text-muted-foreground sm:grid"
           >
             <span>เลขที่</span>
             <span>สาขา</span>
@@ -162,7 +162,7 @@ export default async function StockCountListPage({
             <li key={r.id}>
               <a
                 href={`/stock-counts/${r.id}`}
-                className={`group grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-1 px-4 py-3 transition-colors hover:bg-muted/40 sm:grid-cols-[8rem_1fr_9rem_5rem_6rem_2.5rem] ${r.status === "DRAFT" ? "bg-warn-bg/40" : ""}`}
+                className={`group grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-1 px-4 py-3 transition-colors hover:bg-muted/40 sm:grid-cols-[8rem_1fr_9rem_5rem_6rem_6rem] ${r.status === "DRAFT" ? "bg-warn-bg/40" : ""}`}
               >
                 <span className="font-medium group-hover:text-primary">{r.scNumber}</span>
                 <span className="text-sm sm:order-none">{r.branchName}</span>
