@@ -27,6 +27,7 @@ import { toTransferView } from "./_components/transfer-view";
 
 
 import EmptyState from "@/components/ui/EmptyState";
+import { RowChevron } from "@/components/ui/ActionLink";
 const STATUS_STYLE: Record<string, string> = {
   SENT: "border-warn-border bg-warn-bg text-warn",
   RECEIVED: "border-good-border bg-good-bg text-good",
@@ -155,27 +156,28 @@ export default async function TransfersPage({
       ) : (
         <ul className="space-y-3">
           {rows.map((t) => (
-            <li
-              key={t.id}
-              className="rounded-lg border border-border bg-surface p-4"
-            >
+            <li key={t.id}>
+              {/* Kong (2026-09-28): the whole card opens the transfer, not only
+                  its number — a number in plain text did not look pressable. */}
+              <a
+                href={`/transfers/${t.id}`}
+                className={`group block rounded-lg border bg-surface p-4 transition hover:border-primary-line hover:shadow-md ${t.status === "SENT" ? "border-warn-border" : "border-border"}`}
+              >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <a
-                    href={`/transfers/${t.id}`}
-                    className="font-medium hover:underline"
-                  >
-                    {t.tfNumber}
-                  </a>
+                  <p className="font-medium group-hover:text-primary">{t.tfNumber}</p>
                   <p className="mt-0.5 text-sm text-muted-foreground">
                     {t.fromBranch.name} → {t.toBranch.name} · {t.dispatchedAtLabel}
                   </p>
                 </div>
-                <span
-                  className={`rounded-full border px-2.5 py-0.5 text-xs ${STATUS_STYLE[t.status] ?? ""}`}
-                >
-                  {t.statusLabel}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`rounded-full border px-2.5 py-0.5 text-xs ${STATUS_STYLE[t.status] ?? ""}`}
+                  >
+                    {t.statusLabel}
+                  </span>
+                  <RowChevron label={t.status === "SENT" ? "กดรับ / ดูรายละเอียด" : "ดูรายละเอียด"} />
+                </div>
               </div>
 
               {/* The hint travels with every row on purpose: "กำลังส่ง" read on
@@ -203,6 +205,7 @@ export default async function TransfersPage({
                   </span>
                 )}
               </p>
+              </a>
             </li>
           ))}
         </ul>

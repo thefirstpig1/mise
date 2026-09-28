@@ -17,6 +17,7 @@
 //     stock has not arrived", and the stock is already in this branch's balance.
 
 import type { TransferView } from "./transfer-view";
+import { RowChevron } from "@/components/ui/ActionLink";
 
 export default function IncomingTransfers({
   transfers,
@@ -65,15 +66,20 @@ export default function IncomingTransfers({
         </p>
       )}
 
-      <ul className="mt-3 space-y-1 text-sm">
+      <ul className="mt-3 space-y-1.5 text-sm">
         {transfers.map((t) => (
           <li key={t.id}>
-            <a href={`/transfers/${t.id}`} className="text-warn hover:underline">
-              {t.tfNumber}
-            </a>{" "}
-            <span className="text-warn">
-              จาก {t.fromBranch.name} · {t.lineCount} รายการ · ส่ง {t.dispatchedAtLabel}
-            </span>
+            {/* The whole row opens the transfer (Kong, 2026-09-28). */}
+            <a
+              href={`/transfers/${t.id}`}
+              className="group flex items-center justify-between gap-3 rounded-lg border border-warn-border bg-surface/60 px-3 py-2 text-warn transition-colors hover:bg-surface"
+            >
+              <span>
+                <span className="font-medium">{t.tfNumber}</span> จาก {t.fromBranch.name} ·{" "}
+                {t.lineCount} รายการ · ส่ง {t.dispatchedAtLabel}
+              </span>
+              <RowChevron label="กดรับ" />
+            </a>
           </li>
         ))}
       </ul>
