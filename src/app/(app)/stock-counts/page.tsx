@@ -22,6 +22,7 @@ import { toTransferView } from "@/app/(app)/transfers/_components/transfer-view"
 import IncomingTransfers from "@/app/(app)/transfers/_components/IncomingTransfers";
 
 import EmptyState from "@/components/ui/EmptyState";
+import { RowChevron } from "@/components/ui/ActionLink";
 export default async function StockCountListPage({
   searchParams,
 }: {
@@ -143,43 +144,43 @@ export default async function StockCountListPage({
           ยังไม่มีใบนับสต๊อก — กด &ldquo;เปิดใบนับใหม่&rdquo; เพื่อเริ่มนับครั้งแรก
         </EmptyState>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-border">
-          <table className="w-full min-w-[34rem]">
-            <thead className="border-b border-border bg-muted/40 text-left text-xs text-muted-foreground">
-              <tr>
-                <th className="px-3 py-2 font-medium">เลขที่</th>
-                <th className="px-3 py-2 font-medium">สาขา</th>
-                <th className="px-3 py-2 font-medium">วันที่นับ</th>
-                <th className="px-3 py-2 text-right font-medium">รายการ</th>
-                <th className="px-3 py-2 font-medium">สถานะ</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {rows.map((r) => (
-                <tr key={r.id} className="hover:bg-muted/20">
-                  <td className="px-3 py-2">
-                    <a
-                      href={`/stock-counts/${r.id}`}
-                      className="font-medium text-primary hover:underline"
-                    >
-                      {r.scNumber}
-                    </a>
-                  </td>
-                  <td className="px-3 py-2 text-sm">{r.branchName}</td>
-                  <td className="px-3 py-2 text-sm text-muted-foreground">
-                    {r.countDateLabel}
-                  </td>
-                  <td className="px-3 py-2 text-right text-sm tabular-nums">
-                    {r.lineCount}
-                  </td>
-                  <td className="px-3 py-2">
-                    <StatusBadge status={r.status} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        // Kong (2026-09-28): the whole row opens the sheet, not just its number —
+        // a number in plain text did not look pressable at all.
+        <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface">
+          <li
+            aria-hidden
+            className="hidden grid-cols-[8rem_1fr_9rem_5rem_6rem_2.5rem] gap-3 bg-muted/40 px-4 py-2 text-xs text-muted-foreground sm:grid"
+          >
+            <span>เลขที่</span>
+            <span>สาขา</span>
+            <span>วันที่นับ</span>
+            <span className="text-right">รายการ</span>
+            <span>สถานะ</span>
+            <span />
+          </li>
+          {rows.map((r) => (
+            <li key={r.id}>
+              <a
+                href={`/stock-counts/${r.id}`}
+                className={`group grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-1 px-4 py-3 transition-colors hover:bg-muted/40 sm:grid-cols-[8rem_1fr_9rem_5rem_6rem_2.5rem] ${r.status === "DRAFT" ? "bg-warn-bg/40" : ""}`}
+              >
+                <span className="font-medium group-hover:text-primary">{r.scNumber}</span>
+                <span className="text-sm sm:order-none">{r.branchName}</span>
+                <span className="text-sm text-muted-foreground">{r.countDateLabel}</span>
+                <span className="text-sm tabular-nums sm:text-right">
+                  {r.lineCount}
+                  <span className="text-muted-foreground sm:hidden"> รายการ</span>
+                </span>
+                <span>
+                  <StatusBadge status={r.status} />
+                </span>
+                <span className="justify-self-end">
+                  <RowChevron label={r.status === "DRAFT" ? "นับต่อ" : undefined} />
+                </span>
+              </a>
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   );

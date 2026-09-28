@@ -226,6 +226,20 @@ export default function CountSheet({
     return !term || `${p.name} ${p.sku}`.toLowerCase().includes(term);
   });
 
+  // Kong (2026-09-28): the list is split by category, so a counter working
+  // the dry store sees the dry store together — with how far through it they are.
+  // Products arrive sorted account → section → group → name, so grouping in
+  // order of first appearance keeps that order.
+  const grouped = useMemo(() => {
+    const m = new Map<string, CountProduct[]>();
+    for (const p of shown) {
+      const key = p.section ? `${p.section} · ${p.group ?? NO_CATEGORY}` : NO_CATEGORY;
+      m.set(key, [...(m.get(key) ?? []), p]);
+    }
+    const entries = [...m.entries()];
+    return [...entries.filter(([k]) => k !== NO_CATEGORY), ...entries.filter(([k]) => k === NO_CATEGORY)];
+  }, [shown]);
+
   const countedCount = [...lineByProduct.keys()].length;
   const uncountedStocked = stockedProductIds.filter((id) => !lineByProduct.has(id)).length;
   const varianceValue = detail.items
@@ -345,8 +359,21 @@ export default function CountSheet({
       ) : shown.length === 0 ? (
         <EmptyState art="none">ไม่พบรายการที่ตรงกับตัวกรอง</EmptyState>
       ) : (
-        <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface">
-          {shown.map((p) => (
+        <div className="space-y-5">
+          {grouped.map(([heading, list]) => {
+            const done = list.filter((p) => lineByProduct.has(p.id)).length;
+            return (
+              <section key={heading} className="space-y-2">
+                <h3 className="flex items-baseline justify-between gap-3 px-1">
+                  <span className="text-sm font-semibold">{heading}</span>
+                  {isDraft && (
+                    <span className={`text-xs tabular-nums ${done === list.length ? "font-medium text-good" : "text-muted-foreground"}`}>
+                      {done === list.length ? "✓ ครบแล้ว" : `นับแล้ว ${done} / ${list.length}`}
+                    </span>
+                  )}
+                </h3>
+                <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface">
+                  {list.map((p) => (
             <CountRow
               key={p.id}
               product={p}
@@ -361,8 +388,12 @@ export default function CountSheet({
               onDeleteContribution={(cid) => void run(p.id, () => deleteContribution(detail.id, cid))}
               onRemoveLine={(itemId) => void run(p.id, () => removeLine(detail.id, itemId))}
             />
-          ))}
-        </ul>
+                  ))}
+                </ul>
+              </section>
+            );
+          })}
+        </div>
       )}
 
       {/* --- summary (money computed, never stored — ADR 0015 Q4) --- */}
