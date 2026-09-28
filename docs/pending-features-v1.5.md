@@ -138,7 +138,7 @@ The decisive argument for building it once: **the vendor choice determines what 
 - **An access rule that RLS cannot provide.** Tenant isolation is enforced in Postgres; a file in a bucket is outside it, so tenant scoping for attachments has to be designed rather than inherited.
 
 ### Open questions (for the grill, when it happens)
-- O31: Which vendor, and does the answer change if the deployment target is not Vercel?
+- ~~O31: Which vendor, and does the answer change if the deployment target is not Vercel?~~ — **ANSWERED (Kong, 2026-09-28): Tigris**, created with `fly storage create` so it is billed on the same Fly invoice as the server and its credentials land in the app's secrets automatically. Also checked: a single-region bucket pins data to Singapore beside the database; no egress fees; S3-compatible, so moving to Cloudflare R2 (the runner-up, cheaper but only an "APAC" location hint) is an `.env` change. Supabase Storage was rejected: its free plan pauses a project after a week idle. Scheduled **after the UI pass**; first use = product photos in the supplier order catalog (`product.image_url` exists but nothing reads or writes it).
 - O32: Does an attachment belong to the **document** or to a **line**? (A delivery note covers a receipt; a photo of one damaged crate does not.)
 - O33: **Is an attachment evidence or a working file?** If it is evidence, it is append-only like the ledger — replacing it is a new attachment plus a superseded marker, never an overwrite. This is the question that decides the table's shape.
 - O34: What happens to attachments when their document is voided or soft-deleted — kept (the evidence is still true), or removed?
