@@ -21,13 +21,13 @@ import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import type { StaffMealActionState } from "@/app/(app)/staff-meals/actions";
 import { MAX_BACKDATE_DAYS } from "@/lib/validations/stock-movement";
 import { STAFF_MEAL_PRICE_SOURCE_LABELS_TH } from "@/lib/validations/staff-meal";
+import ProductPicker, { type PickerProduct } from "@/components/ui/ProductPicker";
 
 export type StaffMealBranchOption = { id: string; name: string };
 export type StaffMealMemberOption = { id: string; name: string };
-export type StaffMealMenuOption = { id: string; name: string };
-export type StaffMealProductOption = {
-  id: string;
-  name: string;
+/** Picked by typing or by browsing grouped by menu category (Kong, 2026-09-28). */
+export type StaffMealMenuOption = PickerProduct;
+export type StaffMealProductOption = PickerProduct & {
   units: { id: string; unitName: string; isBase: boolean }[];
 };
 
@@ -275,20 +275,15 @@ export default function StaffMealEntryForm({
             <label className="label" htmlFor="sm-menu">
               เมนู
             </label>
-            <select
-              id="sm-menu"
-              name="menu_id"
+            <ProductPicker
+              products={menus}
               value={menuId}
-              onChange={(e) => setMenuId(e.target.value)}
-              className="input w-full"
-            >
-              <option value="">— เลือกเมนู —</option>
-              {menus.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name}
-                </option>
-              ))}
-            </select>
+              onChange={setMenuId}
+              name="menu_id"
+              inputId="sm-menu"
+              placeholder="พิมพ์ชื่อเมนู — หรือกดเพื่อดูทั้งหมดตามหมวด"
+              invalid={!!err("menuId")}
+            />
             {err("menuId") && <p className={errorClass}>{err("menuId")}</p>}
             <p className="mt-1 text-xs text-muted-foreground">
               ระบบจะตัดวัตถุดิบตาม<strong>สูตรของวันที่เลือก</strong> และบันทึก
@@ -327,28 +322,24 @@ export default function StaffMealEntryForm({
               {lines.map((l) => {
                 const p = productOf(l.productId);
                 return (
-                  <div key={l.key} className="grid gap-2 sm:grid-cols-[2fr_1fr_1fr_auto]">
-                    <select
-                      name="item_product_id"
+                  <div
+                    key={l.key}
+                    className="grid items-start gap-2 sm:grid-cols-[2fr_1fr_1fr_auto]"
+                  >
+                    {/* Repeated pickers post item_product_id in row order, like
+                        the repeated selects they replace. */}
+                    <ProductPicker
+                      products={products}
                       value={l.productId}
-                      onChange={(e) => {
-                        const next = productOf(e.target.value);
+                      onChange={(id) => {
+                        const next = productOf(id);
                         const base =
                           next?.units.find((u) => u.isBase) ?? next?.units[0];
-                        setLine(l.key, {
-                          productId: e.target.value,
-                          unitId: base?.id ?? "",
-                        });
+                        setLine(l.key, { productId: id, unitId: base?.id ?? "" });
                       }}
-                      className="input w-full"
-                    >
-                      <option value="">— เลือกวัตถุดิบ —</option>
-                      {products.map((prod) => (
-                        <option key={prod.id} value={prod.id}>
-                          {prod.name}
-                        </option>
-                      ))}
-                    </select>
+                      name="item_product_id"
+                      placeholder="พิมพ์ชื่อวัตถุดิบ — หรือกดเพื่อดูตามหมวด"
+                    />
                     <input
                       name="item_input_qty"
                       type="number"

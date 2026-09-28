@@ -146,10 +146,23 @@ export default async function StaffMealsPage({
         action={createStaffMealAction}
         branches={branches.map((b) => ({ id: b.id, name: b.name }))}
         members={members.map((m) => ({ id: m.id, name: m.name }))}
-        menus={menus.map((m) => ({ id: m.id, name: m.name }))}
-        products={products.map((p) => ({
+        menus={menus.map((m) => ({
+          id: m.id,
+          name: m.name,
+          sku: m.posMenuId ?? "",
+          imageUrl: null,
+          section: m.menuCategory?.name ?? null,
+          group: null,
+          baseUnitName: null,
+        }))}
+        products={products.filter((p) => p.isActive).map((p) => ({
           id: p.id,
           name: p.name,
+          sku: p.sku,
+          imageUrl: p.imageUrl,
+          section: p.category?.accountingSection ?? null,
+          group: p.category?.groupName ?? null,
+          baseUnitName: p.productUnits.find((u) => u.isBase)?.unitName ?? null,
           units: p.productUnits.map((u) => ({
             id: u.id,
             unitName: u.unitName,
