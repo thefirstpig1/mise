@@ -362,3 +362,77 @@ export async function getSalesDaysLogic(
     });
   });
 }
+
+// ------------------------------------------------------------
+// Menu × branch × day — the one read behind the sales insights
+// (Kong, 2026-09-28; src/lib/sales-insight.ts does the arithmetic)
+// ------------------------------------------------------------
+
+export interface SalesMenuDaysResult {
+  rows: { day: string; branchId: string; menuId: string; net: number; qty: number }[];
+  menus: { id: string; name: string; categoryKey: string; categoryName: string; isPosStub: boolean }[];
+}
+
+/**
+ * Every menu's sales per branch per day in a range, FOLDED like every other
+ * report (ADR 0026 Q5: reporting folds retroactively and always), so a dish
+ * the POS spells two ways is one dish here too, filed under the canonical
+ * menu's category.
+ *
+ * Plain numbers on the way out: this feeds display analytics, never a stored
+ * figure or a ledger. Money stays Decimal everywhere it is written.
+ */
+export async function getSalesMenuDaysLogic(
+  tenantId: string,
+  query: { branchId?: string; from: Date; to: Date; menuCategoryId?: string }
+): Promise<SalesMenuDaysResult> {
+  return withTenantContext(
+    tenantId,
+    async (tx) => {
+      const grouped = await tx.salesLine.groupBy({
+        by: ["businessDate", "branchId", "menuId"],
+        where: whereFor(tenantId, { ...query, includeSuperseded: false }),
+        _sum: { netAmount: true, qty: true },
+      });
+      const fold = await loadMergeFold(tx, tenantId);
+
+      const acc = new Map<string, SalesMenuDaysResult["rows"][number]>();
+      for (const g of grouped) {
+        const menuId = foldMenuId(fold, g.menuId);
+        const day = g.businessDate.toISOString().slice(0, 10);
+        const key = `${day}|${g.branchId}|${menuId}`;
+        const row = acc.get(key) ?? { day, branchId: g.branchId, menuId, net: 0, qty: 0 };
+        row.net += Number(g._sum.netAmount ?? 0);
+        row.qty += Number(g._sum.qty ?? 0);
+        acc.set(key, row);
+      }
+
+      const menuIds = [...new Set([...acc.values()].map((r) => r.menuId))];
+      const menus =
+        menuIds.length === 0
+          ? []
+          : await tx.menu.findMany({
+              where: { id: { in: menuIds } },
+              select: {
+                id: true,
+                name: true,
+                isPosStub: true,
+                menuCategoryId: true,
+                menuCategory: { select: { name: true } },
+              },
+            });
+
+      return {
+        rows: [...acc.values()],
+        menus: menus.map((m) => ({
+          id: m.id,
+          name: m.name,
+          categoryKey: m.menuCategoryId ?? "none",
+          categoryName: m.menuCategory?.name ?? UNCATEGORISED_LABEL,
+          isPosStub: m.isPosStub,
+        })),
+      };
+    },
+    { timeout: 15_000 }
+  );
+}
