@@ -108,6 +108,7 @@ export type SalesByCategoryView = {
 export type SalesByMenuView = {
   menuId: string;
   name: string;
+  menuCategoryId: string | null;
   menuCategoryName: string | null;
   isPosStub: boolean;
   net: string;
@@ -221,6 +222,7 @@ export function toSalesByMenuView(m: SalesByMenu): SalesByMenuView {
   return {
     menuId: m.menuId,
     name: m.name,
+    menuCategoryId: m.menuCategoryId,
     menuCategoryName: m.menuCategoryName,
     isPosStub: m.isPosStub,
     net: str(m.net),
@@ -230,6 +232,11 @@ export function toSalesByMenuView(m: SalesByMenu): SalesByMenuView {
 
 export type SalesDayRowView = {
   businessDate: string;
+  branchId: string;
+  branchName: string;
+  fileName: string | null;
+  /** "27 ก.ย. 2569 21:31", or null when no file owns the day yet. */
+  importedAtLabel: string | null;
   dayLabel: string;
   weekdayLabel: string;
   net: string;
@@ -246,6 +253,10 @@ export type SalesDayRowView = {
 export function toSalesDayRowView(d: SalesDayRow): SalesDayRowView {
   return {
     businessDate: d.businessDate.toISOString(),
+    branchId: d.branchId,
+    branchName: d.branchName,
+    fileName: d.fileName,
+    importedAtLabel: d.importedAt ? BANGKOK_DATETIME.format(d.importedAt) : null,
     dayLabel: DAY_LABEL.format(d.businessDate),
     weekdayLabel: WEEKDAY_LABELS_TH[d.businessDate.getUTCDay()],
     net: str(d.net),
@@ -266,6 +277,67 @@ export function toSalesDayRowView(d: SalesDayRow): SalesDayRowView {
       isPulseMismatch(d.pulseAmount.toNumber(), d.customerPaid.toNumber()),
     pulseNote: d.pulseNote,
   };
+}
+
+/**
+ * One DATE, however many branches sold on it (Kong, 2026-09-28).
+ *
+ * A `sales_day` is per branch, so "all branches" used to print the same date
+ * twice with nothing saying which row was whose. The table now shows one row
+ * per date and the popup splits it back out by branch.
+ *
+ * The till figure is compared PER BRANCH (each till closes on its own), so the
+ * date's roll-up only prints a keyed total when every branch keyed one — a sum
+ * of some branches set beside a file of all of them would read as a shortfall.
+ */
+export type SalesDateGroupView = {
+  /** yyyy-mm-dd — the `?day=` value. */
+  day: string;
+  dayLabel: string;
+  weekdayLabel: string;
+  net: string;
+  rows: number;
+  branches: SalesDayRowView[];
+  /** Keyed total when EVERY branch keyed one; otherwise null. */
+  pulseAmount: string | null;
+  pulseKeyedCount: number;
+  pulseDifference: string | null;
+  pulseIsMismatch: boolean;
+  /** Distinct files behind the date, for the ที่มา column. */
+  fileNames: string[];
+};
+
+export function groupSalesDaysByDate(rows: SalesDayRowView[]): SalesDateGroupView[] {
+  const byDay = new Map<string, SalesDayRowView[]>();
+  for (const r of rows) {
+    const day = r.businessDate.slice(0, 10);
+    byDay.set(day, [...(byDay.get(day) ?? []), r]);
+  }
+  return [...byDay.entries()]
+    .sort(([a], [b]) => (a < b ? 1 : -1))
+    .map(([day, branches]) => {
+      const sorted = [...branches].sort((a, b) => a.branchName.localeCompare(b.branchName, "th"));
+      const keyed = sorted.filter((b) => b.pulseAmount !== null);
+      const allKeyed = keyed.length === sorted.length;
+      const sum = (xs: (string | null)[]) => xs.reduce((t, x) => t + Number(x ?? 0), 0);
+      const withDiff = sorted.filter((b) => b.pulseDifference !== null);
+      return {
+        day,
+        dayLabel: sorted[0].dayLabel,
+        weekdayLabel: sorted[0].weekdayLabel,
+        net: String(sum(sorted.map((b) => b.net))),
+        rows: sorted.reduce((t, b) => t + b.rows, 0),
+        branches: sorted,
+        pulseAmount: allKeyed ? String(sum(keyed.map((b) => b.pulseAmount))) : null,
+        pulseKeyedCount: keyed.length,
+        pulseDifference:
+          allKeyed && withDiff.length === sorted.length
+            ? String(sum(withDiff.map((b) => b.pulseDifference)))
+            : null,
+        pulseIsMismatch: sorted.some((b) => b.pulseIsMismatch),
+        fileNames: [...new Set(sorted.map((b) => b.fileName).filter((f): f is string => !!f))],
+      };
+    });
 }
 
 // ------------------------------------------------------------

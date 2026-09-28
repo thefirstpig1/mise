@@ -67,6 +67,7 @@ export interface SalesByCategory {
 export interface SalesByMenu {
   menuId: string;
   name: string;
+  menuCategoryId: string | null;
   menuCategoryName: string | null;
   isPosStub: boolean;
   net: Prisma.Decimal;
@@ -124,7 +125,9 @@ function whereFor(tenantId: string, q: GetSalesQuery): Prisma.SalesLineWhereInpu
 
 export async function getSalesSummaryLogic(
   tenantId: string,
-  query: GetSalesQuery
+  query: GetSalesQuery,
+  /** A one-day popup lists every menu of that day, not just the top ones. */
+  opts: { menuLimit?: number } = {}
 ): Promise<SalesSummary> {
   return withTenantContext(
     tenantId,
@@ -225,6 +228,7 @@ export async function getSalesSummaryLogic(
         topMenus.push({
           menuId: row.menuId,
           name: menu?.name ?? "(ไม่พบเมนู)",
+          menuCategoryId: menu?.menuCategoryId ?? null,
           menuCategoryName: menu?.menuCategory?.name ?? null,
           isPosStub: menu?.isPosStub ?? false,
           net,
@@ -264,7 +268,7 @@ export async function getSalesSummaryLogic(
         byDay,
         byWeekday,
         byCategory,
-        topMenus: topMenus.slice(0, TOP_MENU_LIMIT),
+        topMenus: topMenus.slice(0, opts.menuLimit ?? TOP_MENU_LIMIT),
         availability: {
           hasBillIds: withBill > 0,
           hasTimes: withTime > 0,
@@ -279,6 +283,9 @@ export async function getSalesSummaryLogic(
 
 export interface SalesDayRow {
   businessDate: Date;
+  /** A day is per BRANCH — two branches selling on one date are two rows. */
+  branchId: string;
+  branchName: string;
   net: Prisma.Decimal;
   rows: number;
   fileName: string | null;
@@ -319,7 +326,10 @@ export async function getSalesDaysLogic(
             }
           : {}),
       },
-      include: { currentBatch: { select: { fileName: true, uploadedAt: true } } },
+      include: {
+        currentBatch: { select: { fileName: true, uploadedAt: true } },
+        branch: { select: { name: true } },
+      },
       orderBy: { businessDate: "desc" },
       take: 200,
     });
@@ -337,6 +347,8 @@ export async function getSalesDaysLogic(
       const s = byDayId.get(d.id);
       return {
         businessDate: d.businessDate,
+        branchId: d.branchId,
+        branchName: d.branch.name,
         net: s?._sum.netAmount ?? ZERO(),
         rows: s?._count._all ?? 0,
         fileName: d.currentBatch?.fileName ?? null,

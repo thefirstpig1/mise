@@ -24,11 +24,16 @@ import { getSalesDaysLogic, getSalesSummaryLogic } from "@/server/sales";
 import { getMenuCategoriesLogic } from "@/server/menu";
 import { getSalesQuerySchema } from "@/lib/validations/sales-import";
 import {
+  groupSalesDaysByDate,
   toSalesDayRowView,
   toSalesSummaryView,
 } from "./_components/sales-view";
+import DayDetailModal from "./_components/DayDetailModal";
+import StickyFilters from "./_components/StickyFilters";
+import Link from "next/link";
 import { MenuTable, SalesDailyChart, WeekdayChart } from "./_components/SalesCharts";
 import BarList from "@/components/charts/BarList";
+import { RowChevron } from "@/components/ui/ActionLink";
 import ActionLink from "@/components/ui/ActionLink";
 import { recentMonths } from "@/app/(app)/dashboard/_components/dashboard-period";
 
@@ -50,7 +55,7 @@ export default async function SalesPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { tenantId, reach} = await requireTenant("sales:view");
+  const { tenantId, reach, can } = await requireTenant("sales:view");
   const params = await searchParams;
   const one = (k: string) => (Array.isArray(params[k]) ? params[k][0] : params[k]);
 
@@ -99,7 +104,8 @@ export default async function SalesPage({
             to: dayValid,
             menuCategoryId: query.menuCategoryId,
             includeSuperseded: "false",
-          })
+          }),
+          { menuLimit: Number.MAX_SAFE_INTEGER }
         )
       )
     : null;
@@ -108,7 +114,7 @@ export default async function SalesPage({
   const fromIso = one("from") ?? month.from;
   const toIso = one("to") ?? month.to;
   const link = (next: Record<string, string | undefined>) => {
-    const cur: Record<string, string | undefined> = { branch: one("branch"), from: fromIso, to: toIso, category: one("category") };
+    const cur: Record<string, string | undefined> = { branch: one("branch"), from: fromIso, to: toIso, category: one("category"), day: undefined };
     const q = new URLSearchParams();
     for (const [k, v] of Object.entries({ ...cur, ...next })) if (v) q.set(k, v);
     return `/sales?${q.toString()}`;
@@ -122,7 +128,44 @@ export default async function SalesPage({
   const pill = (active: boolean) =>
     `rounded-full border px-3 py-1 text-sm transition-colors ${active ? "border-primary bg-primary text-primary-foreground" : "border-border-strong bg-surface hover:bg-muted"}`;
   const totalNet = Number(s.totals.net);
-  const days = daysRaw.map(toSalesDayRowView);
+  // What the one-line filter bar says once the full card has scrolled away.
+  const monthPicked = months.find((m) => m.from === fromIso && m.to === toIso);
+  const shortDate = (iso: string) =>
+    new Date(`${iso}T00:00:00Z`).toLocaleDateString("th-TH", { day: "numeric", month: "short", timeZone: "UTC" });
+  const filterSummary = [
+    monthPicked ? monthPicked.label : `${shortDate(fromIso)} – ${shortDate(toIso)}`,
+    branches.find((b) => b.id === one("branch"))?.name ?? "ทุกสาขา",
+    categories.find((c) => c.id === one("category"))?.name ?? "ทุกหมวด",
+  ].join(" · ");
+
+  // Every menu sold in the period sits in no category: the category views can
+  // only say one thing, so say what would make them useful instead.
+  const noMenuCategories = s.topMenus.length > 0 && s.topMenus.every((m) => !m.menuCategoryId);
+  const dayGroups = groupSalesDaysByDate(daysRaw.map(toSalesDayRowView));
+  // Several branches fold into one row only when more than one is in view.
+  const multiBranch = !query.branchId && branches.length > 1;
+  const dayHref = (day: string) => link({ day });
+
+  // The popup's neighbours are the dates that HAVE data, newest first.
+  const dayIndex = dayValid ? dayGroups.findIndex((g) => g.day === dayValid) : -1;
+  const openGroup = dayIndex >= 0 ? dayGroups[dayIndex] : null;
+  const olderDay = dayIndex >= 0 ? dayGroups[dayIndex + 1]?.day ?? null : null;
+  const newerDay = dayIndex > 0 ? dayGroups[dayIndex - 1]?.day ?? null : null;
+  const modalBranches = (query.branchId ? branches.filter((b) => b.id === query.branchId) : branches).map((b) => {
+    const r = openGroup?.branches.find((x) => x.branchId === b.id);
+    return {
+      branchId: b.id,
+      name: b.name,
+      // No file = no figure. A pulse-only day is a day WAITING for its file, not ฿0.
+      net: r?.fileName ? Number(r.net) : null,
+      fileName: r?.fileName ?? null,
+      importedAtLabel: r?.importedAtLabel ?? null,
+      pulseAmount: r?.pulseAmount ? Number(r.pulseAmount) : null,
+      pulseDifference: r?.pulseDifference ? Number(r.pulseDifference) : null,
+      pulseIsMismatch: r?.pulseIsMismatch ?? false,
+      pulseNote: r?.pulseNote ?? null,
+    };
+  });
   const empty = s.totals.rows === 0;
 
   return (
@@ -133,7 +176,7 @@ export default async function SalesPage({
       </div>
 
       {/* ---------- filters (Part 35 C: pills, sticky, like Kong's sheet) ---------- */}
-      <section className="sticky top-0 z-20 space-y-3 rounded-xl border border-border bg-surface/95 p-4 shadow-sm backdrop-blur lg:top-2">
+      <StickyFilters summary={filterSummary}>
         <div className="flex flex-wrap items-center gap-2">
           <span className="w-16 shrink-0 text-xs font-medium text-muted-foreground">เดือน</span>
           {months.map((m) => (
@@ -202,7 +245,7 @@ export default async function SalesPage({
         </button>
       </form>
         </details>
-      </section>
+      </StickyFilters>
 
       {empty ? (
         <EmptyState art="none">
@@ -246,7 +289,7 @@ export default async function SalesPage({
           {/* ---------- Part 35 C: the charts Kong's sheet had ---------- */}
           <section className="rounded-xl border border-border bg-surface p-5">
             <h3 className="text-base font-semibold">ยอดขายรายวัน</h3>
-            <p className="mb-4 mt-0.5 text-xs text-muted-foreground">กดที่แท่งเพื่อดูรายละเอียดของวันนั้น · กดซ้ำเพื่อปิด</p>
+            <p className="mb-4 mt-0.5 text-xs text-muted-foreground">กดที่แท่งเพื่อดูรายละเอียดของวันนั้น</p>
             <SalesDailyChart
               activeDay={dayValid}
               rows={s.byDay.map((d) => ({
@@ -259,60 +302,37 @@ export default async function SalesPage({
             />
           </section>
 
-          {daySummary ? (
-            <section id="day" className="rounded-xl border-2 border-primary-line bg-surface p-5">
-              <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
-                <div>
-                  <h3 className="text-base font-semibold">
-                    วันที่{" "}
-                    {new Date(`${dayValid}T00:00:00Z`).toLocaleDateString("th-TH", {
-                      weekday: "long",
-                      day: "numeric",
-                      month: "long",
-                      year: "numeric",
-                      timeZone: "UTC",
-                    })}
-                  </h3>
-                  <p className="text-xs text-muted-foreground">
-                    ยอดขาย ฿{bahtShort(daySummary.totals.net)} · {Number(daySummary.totals.qty).toLocaleString("th-TH")} จาน
-                  </p>
-                </div>
-                <ActionLink href={link({})}>ปิดวันนี้</ActionLink>
-              </div>
-              <div className="grid gap-6 lg:grid-cols-2">
-                <div>
-                  <p className="mb-2 text-sm font-medium">แยกตามหมวดเมนู</p>
-                  <BarList
-                    total={Number(daySummary.totals.net)}
-                    groups={[
-                      {
-                        rows: daySummary.byCategory.map((c) => ({
-                          key: c.menuCategoryId ?? "none",
-                          label: c.name,
-                          value: Number(c.net),
-                        })),
-                      },
-                    ]}
-                  />
-                </div>
-                <div>
-                  <p className="mb-2 text-sm font-medium">เมนูของวันนี้</p>
-                  <BarList
-                    total={Number(daySummary.totals.net)}
-                    groups={[
-                      {
-                        rows: daySummary.topMenus.slice(0, 12).map((m) => ({
-                          key: m.menuId,
-                          label: m.name,
-                          detail: `${Number(m.qty).toLocaleString("th-TH")} จาน`,
-                          value: Number(m.net),
-                        })),
-                      },
-                    ]}
-                  />
-                </div>
-              </div>
-            </section>
+          {daySummary && dayValid ? (
+            <DayDetailModal
+              day={dayValid}
+              title={`${new Date(`${dayValid}T00:00:00Z`).toLocaleDateString("th-TH", {
+                weekday: "long",
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+                timeZone: "UTC",
+              })}`}
+              net={Number(daySummary.totals.net)}
+              qty={Number(daySummary.totals.qty)}
+              categories={daySummary.byCategory.map((c) => ({
+                key: c.menuCategoryId ?? "none",
+                label: c.name,
+                net: Number(c.net),
+                qty: Number(c.qty),
+              }))}
+              menus={daySummary.topMenus.map((m) => ({
+                id: m.menuId,
+                name: m.name,
+                categoryKey: m.menuCategoryId ?? "none",
+                net: Number(m.net),
+                qty: Number(m.qty),
+              }))}
+              branches={modalBranches}
+              canKeyPulse={can("sales:import")}
+              closeHref={link({})}
+              prevHref={olderDay ? dayHref(olderDay) : null}
+              nextHref={newerDay ? dayHref(newerDay) : null}
+            />
           ) : null}
 
           <div className="grid gap-6 xl:grid-cols-2">
@@ -331,6 +351,7 @@ export default async function SalesPage({
             <section className="rounded-xl border border-border bg-surface p-5">
               <h3 className="text-base font-semibold">สัดส่วนหมวดเมนู</h3>
               <p className="mb-4 mt-0.5 text-xs text-muted-foreground">กดหมวดเพื่อดูเฉพาะเมนูในหมวดนั้นทั้งหน้า</p>
+              {noMenuCategories && <UncategorisedHint />}
               <BarList
                 total={totalNet}
                 groups={[
@@ -353,6 +374,7 @@ export default async function SalesPage({
             <p className="mb-4 mt-0.5 text-xs text-muted-foreground">
               {s.topMenus.length} อันดับแรกของช่วงนี้ · ค้นหาได้ · กดหัวคอลัมน์เพื่อเรียงลำดับ
             </p>
+            {noMenuCategories && <UncategorisedHint />}
             <MenuTable
               total={totalNet}
               rows={s.topMenus.map((m) => ({
@@ -367,55 +389,92 @@ export default async function SalesPage({
           </section>
 
           {/* ---------- the days themselves ---------- */}
-          <section>
-            <h3 className="text-sm font-medium">รายวัน</h3>
-            <p className="mt-1 text-xs text-muted-foreground">
-              แต่ละวันมาจากไฟล์ไหน — อัปไฟล์ทับวันเดิมได้ ระบบจะแทนที่ทั้งวัน ·
-              ตัวเลขในวงเล็บคือ <strong>ยอดจากไฟล์ − ยอดที่คีย์ตอนปิดร้าน</strong> (เทียบยอดที่ลูกค้าจ่ายทั้งคู่)
-              ติดลบแปลว่าไฟล์ได้น้อยกว่าที่เครื่องเก็บเงินบอก มักแปลว่า export มาไม่ครบทั้งวัน
+          {/* Kong (2026-09-28): one row per DATE (branches fold together and come
+              apart again in the popup), the whole row opens that day, and the
+              file name stands alone — when it was imported is on hover. */}
+          <section className="rounded-xl border border-border bg-surface p-5">
+            <h3 className="text-base font-semibold">รายวัน</h3>
+            <p className="mb-3 mt-0.5 text-xs text-muted-foreground">
+              กดแถวเพื่อดูรายละเอียดของวันนั้น{multiBranch ? " แยกตามสาขา" : ""} ·
+              ในวงเล็บคือ <strong>ยอดจากไฟล์ − ยอดที่คีย์ตอนปิดร้าน</strong> ติดลบแปลว่าไฟล์ได้น้อยกว่าที่เครื่องเก็บเงินบอก
+              มักแปลว่า export มาไม่ครบทั้งวัน
             </p>
-            <div className="mt-2 overflow-x-auto">
+            <div className="overflow-x-auto">
               <table className="min-w-full text-sm">
                 <thead>
                   <tr className="border-b border-border text-xs text-muted-foreground">
-                    <th className="px-2 py-1 text-left">วันที่</th>
-                    <th className="px-2 py-1 text-right">ยอดขาย</th>
-                    <th className="px-2 py-1 text-right">รายการ</th>
-                    <th className="px-2 py-1 text-right">ยอดที่คีย์ตอนปิดร้าน</th>
-                    <th className="px-2 py-1 text-left">ที่มา</th>
+                    <th className="px-2 py-2 text-left font-medium">วันที่</th>
+                    <th className="px-2 py-2 text-right font-medium">ยอดขาย</th>
+                    <th className="px-2 py-2 text-right font-medium">รายการ</th>
+                    <th className="px-2 py-2 text-right font-medium">ยอดที่คีย์ตอนปิดร้าน</th>
+                    <th className="px-2 py-2 text-left font-medium">ที่มา</th>
+                    <th className="px-2 py-2" />
                   </tr>
                 </thead>
                 <tbody>
-                  {days.map((d) => (
-                    <tr key={d.businessDate} className="border-b border-border/50">
-                      <td className="px-2 py-1">
-                        {d.dayLabel} <span className="text-muted-foreground">({d.weekdayLabel})</span>
-                      </td>
-                      <td className="px-2 py-1 text-right font-medium">฿{bahtShort(d.net)}</td>
-                      <td className="px-2 py-1 text-right text-muted-foreground">{d.rows}</td>
-                      <td className="px-2 py-1 text-right">
-                        {d.pulseAmount === null ? (
-                          <span className="text-muted-foreground">—</span>
-                        ) : (
-                          <>
-                            <span>฿{bahtShort(d.pulseAmount)}</span>
-                            {d.pulseDifference !== null && (
-                              <span
-                                className={`ml-1 text-xs ${d.pulseIsMismatch ? "font-medium text-bad" : "text-muted-foreground"}`}
-                              >
-                                ({Number(d.pulseDifference) >= 0 ? "+" : ""}
-                                {bahtShort(d.pulseDifference)})
-                              </span>
-                            )}
-                          </>
-                        )}
-                        {d.pulseNote && (
-                          <span className="block text-[10px] text-muted-foreground">
-                            “{d.pulseNote}”
+                  {dayGroups.map((g) => (
+                    <tr
+                      key={g.day}
+                      className={`group relative border-b border-border/50 transition-colors hover:bg-muted/40 ${
+                        g.day === dayValid ? "bg-primary/5" : ""
+                      }`}
+                    >
+                      <td className="px-2 py-2">
+                        <Link
+                          href={dayHref(g.day) as never}
+                          scroll={false}
+                          className="after:absolute after:inset-0 after:content-[''] group-hover:text-primary"
+                        >
+                          {g.dayLabel} <span className="text-muted-foreground">({g.weekdayLabel})</span>
+                        </Link>
+                        {multiBranch && (
+                          <span className="ml-2 text-xs text-muted-foreground">
+                            {g.branches.length === 1 ? g.branches[0].branchName : `${g.branches.length} สาขา`}
                           </span>
                         )}
                       </td>
-                      <td className="px-2 py-1 text-xs text-muted-foreground">{d.sourceLabel}</td>
+                      <td className="px-2 py-2 text-right font-medium tabular-nums">
+                        {g.fileNames.length === 0 ? <span className="text-muted-foreground">—</span> : `฿${bahtShort(g.net)}`}
+                      </td>
+                      <td className="px-2 py-2 text-right text-muted-foreground tabular-nums">{g.rows}</td>
+                      <td className="px-2 py-2 text-right tabular-nums">
+                        {g.pulseAmount !== null ? (
+                          <>
+                            <span>฿{bahtShort(g.pulseAmount)}</span>
+                            {g.pulseDifference !== null && (
+                              <span
+                                className={`ml-1 text-xs ${g.pulseIsMismatch ? "font-medium text-bad" : "text-muted-foreground"}`}
+                              >
+                                ({Number(g.pulseDifference) >= 0 ? "+" : ""}
+                                {bahtShort(g.pulseDifference)})
+                              </span>
+                            )}
+                          </>
+                        ) : g.pulseKeyedCount > 0 ? (
+                          <span className={`text-xs ${g.pulseIsMismatch ? "font-medium text-bad" : "text-muted-foreground"}`}>
+                            คีย์ {g.pulseKeyedCount}/{g.branches.length} สาขา
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">ไม่ได้คีย์</span>
+                        )}
+                      </td>
+                      <td className="max-w-[16rem] truncate px-2 py-2 text-xs text-muted-foreground">
+                        {g.fileNames.length === 0 ? (
+                          "ยังไม่มีไฟล์"
+                        ) : (
+                          <span
+                            title={g.branches
+                              .filter((b) => b.fileName)
+                              .map((b) => `${b.branchName}: ${b.fileName} · นำเข้า ${b.importedAtLabel}`)
+                              .join(" / ")}
+                          >
+                            {g.fileNames.length === 1 ? g.fileNames[0] : `${g.fileNames.length} ไฟล์`}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-2 py-2 text-right">
+                        <RowChevron />
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -425,6 +484,18 @@ export default async function SalesPage({
         </>
       )}
     </div>
+  );
+}
+
+function UncategorisedHint() {
+  return (
+    <p className="mb-4 rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+      เมนูยังไม่ได้จัดหมวด จึงแยกยอดตามหมวดไม่ได้ —{" "}
+      <a href="/menus" className="font-medium text-primary underline">
+        จัดหมวดที่หน้าเมนู
+      </a>{" "}
+      แล้วสัดส่วนหมวดกับตารางนี้จะแยกให้เอง
+    </p>
   );
 }
 

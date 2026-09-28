@@ -47,7 +47,7 @@ export function SalesDailyChart({ rows, activeDay }: { rows: DayBar[]; activeDay
     const q = new URLSearchParams(params.toString());
     if (q.get("day") === day) q.delete("day");
     else q.set("day", day);
-    router.push(`/sales?${q.toString()}#day`, { scroll: false });
+    router.push(`/sales?${q.toString()}`, { scroll: false });
   };
   return (
     <div className="h-64 w-full">
@@ -128,6 +128,8 @@ export type MenuRow = { id: string; name: string; category: string; qty: number;
 type SortKey = "name" | "category" | "qty" | "net";
 
 export function MenuTable({ rows, total }: { rows: MenuRow[]; total: number }) {
+  // A column of dashes says nothing; the page says why instead (Kong, 2026-09-28).
+  const showCategory = rows.some((r) => r.category !== "—");
   const [q, setQ] = useState("");
   const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "net", dir: "desc" });
   const shown = useMemo(() => {
@@ -161,7 +163,7 @@ export function MenuTable({ rows, total }: { rows: MenuRow[]; total: number }) {
       <input
         value={q}
         onChange={(e) => setQ(e.target.value)}
-        placeholder="ค้นหาเมนู หรือ หมวด…"
+        placeholder={showCategory ? "ค้นหาเมนู หรือ หมวด…" : "ค้นหาเมนู…"}
         className="input mb-3 w-full"
         aria-label="ค้นหาเมนู"
       />
@@ -170,7 +172,7 @@ export function MenuTable({ rows, total }: { rows: MenuRow[]; total: number }) {
           <thead className="sticky top-0 bg-surface-sunk text-muted-foreground">
             <tr>
               {head("name", "เมนู")}
-              {head("category", "หมวด")}
+              {showCategory && head("category", "หมวด")}
               {head("qty", "จำนวน", true)}
               {head("net", "ยอดขาย", true)}
               <th className="px-3 py-2 text-right font-medium">% ของยอด</th>
@@ -183,7 +185,7 @@ export function MenuTable({ rows, total }: { rows: MenuRow[]; total: number }) {
                   {r.name}
                   {r.stub ? <span className="ml-1 rounded bg-warn-bg px-1 text-xs text-warn">รอตรวจ</span> : null}
                 </td>
-                <td className="px-3 py-2 text-muted-foreground">{r.category}</td>
+                {showCategory && <td className="px-3 py-2 text-muted-foreground">{r.category}</td>}
                 <td className="px-3 py-2 text-right">{r.qty.toLocaleString("th-TH")}</td>
                 <td className="px-3 py-2 text-right font-medium">{baht(r.net)}</td>
                 <td className="px-3 py-2 text-right text-muted-foreground">{total > 0 ? ((r.net / total) * 100).toFixed(1) : "0"}%</td>
@@ -191,7 +193,7 @@ export function MenuTable({ rows, total }: { rows: MenuRow[]; total: number }) {
             ))}
             {shown.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-3 py-8 text-center text-muted-foreground">ไม่พบเมนูที่ค้นหา</td>
+                <td colSpan={showCategory ? 5 : 4} className="px-3 py-8 text-center text-muted-foreground">ไม่พบเมนูที่ค้นหา</td>
               </tr>
             ) : null}
           </tbody>
