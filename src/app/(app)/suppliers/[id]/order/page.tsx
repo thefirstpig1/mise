@@ -51,6 +51,7 @@ export default async function SupplierOrderPage({
     productId: c.productId,
     name: c.name,
     sku: c.sku,
+    imageUrl: c.imageUrl,
     section: c.section,
     group: c.group,
     units: c.units.map((u) => ({ id: u.id, unitName: u.unitName, isBase: u.isBase })),

@@ -19,11 +19,13 @@ import { useActionState, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { PurchaseOrderActionState } from "../../../purchase-orders/actions";
 import EmptyState from "@/components/ui/EmptyState";
+import ProductThumb from "@/components/ui/ProductThumb";
 
 export type CatalogItemView = {
   productId: string;
   name: string;
   sku: string;
+  imageUrl: string | null;
   section: string | null;
   group: string | null;
   units: { id: string; unitName: string; isBase: boolean }[];
@@ -226,6 +228,7 @@ export default function SupplierCatalog({
                       key={item.productId}
                       className={`flex flex-wrap items-center gap-3 px-4 py-3 ${on ? "bg-primary/5" : ""}`}
                     >
+                      <ProductThumb imageUrl={item.imageUrl} name={item.name} className="h-12 w-12" />
                       <div className="min-w-0 flex-1">
                         <p className="font-medium">{item.name}</p>
                         <p className="text-xs text-muted-foreground">
@@ -274,7 +277,7 @@ export default function SupplierCatalog({
                             aria-label={`หน่วยของ ${item.name}`}
                             value={unitOf(item)}
                             onChange={(e) => patch(item, { unitId: e.target.value })}
-                            className="input"
+                            className="input w-44"
                           >
                             {item.units.map((u) => (
                               <option key={u.id} value={u.id}>
@@ -326,7 +329,7 @@ export default function SupplierCatalog({
 
       {/* The order so far — always in reach, however long the catalog is. */}
       <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-surface/95 backdrop-blur lg:left-60">
-        <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-3 px-4 py-3">
+        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-4 py-3">
           <div className="text-sm">
             {chosen.length === 0 ? (
               <span className="text-muted-foreground">ยังไม่ได้เลือกสินค้า</span>

@@ -199,6 +199,7 @@ export type SupplierCatalogItem = {
   productId: string;
   name: string;
   sku: string;
+  imageUrl: string | null;
   /** Category section/group; null = the product has no category. */
   section: string | null;
   group: string | null;
@@ -227,6 +228,7 @@ const CATALOG_PRODUCT_SELECT = {
   id: true,
   name: true,
   sku: true,
+  imageUrl: true,
   category: { select: { accountingSection: true, groupName: true, deletedAt: true } },
   productUnits: { select: { id: true, unitName: true, toBaseRatio: true, isBase: true } },
 } as const;
@@ -322,6 +324,7 @@ export async function getSupplierCatalogLogic(
         productId: p.id,
         name: p.name,
         sku: p.sku,
+        imageUrl: p.imageUrl,
         section: category?.accountingSection ?? null,
         group: category?.groupName ?? null,
         units,

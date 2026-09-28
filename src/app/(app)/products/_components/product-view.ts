@@ -30,6 +30,8 @@ export type ProductView = {
   type: string;
   primaryDimension: string;
   isActive: boolean;
+  /** The product's photo, when Feature 5 lets shops add one; null = the stand-in (ProductThumb). */
+  imageUrl: string | null;
   categoryId: string | null;
   category: {
     account: string;
@@ -68,6 +70,7 @@ export function toProductView(p: ProductWithUnits): ProductView {
     type: p.type,
     primaryDimension: p.primaryDimension,
     isActive: p.isActive,
+    imageUrl: p.imageUrl,
     categoryId: p.categoryId,
     category: p.category
       ? {
