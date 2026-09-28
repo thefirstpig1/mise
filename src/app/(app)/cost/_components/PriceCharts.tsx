@@ -21,7 +21,7 @@ import {
   YAxis,
   LabelList,
 } from "recharts";
-import { SERIES } from "@/app/(app)/dashboard/_components/Charts";
+import { SERIES, clickableBar } from "@/app/(app)/dashboard/_components/Charts";
 
 const INK = "#262811";
 const INK_MUTED = "#5A5C31";
@@ -52,10 +52,6 @@ export function PriceChangeChart({ rows }: { rows: ChangeBar[] }) {
           layout="vertical"
           margin={{ top: 0, right: 56, bottom: 0, left: 0 }}
           barCategoryGap={6}
-          onClick={(e) => {
-            const i = (e as { activeTooltipIndex?: number } | null)?.activeTooltipIndex;
-            if (typeof i === "number" && rows[i]) open(rows[i].productId);
-          }}
         >
           <CartesianGrid stroke={GRID} horizontal={false} />
           <XAxis type="number" tickFormatter={(v) => `${v}%`} {...axis} />
@@ -78,7 +74,7 @@ export function PriceChangeChart({ rows }: { rows: ChangeBar[] }) {
               ) : null;
             }}
           />
-          <Bar dataKey="changePct" radius={4} cursor="pointer">
+          <Bar dataKey="changePct" radius={4} {...clickableBar((i) => rows[i] && open(rows[i].productId))}>
             {rows.map((r) => (
               <Cell key={r.productId} fill={r.changePct > 0 ? BAD : GOOD} />
             ))}

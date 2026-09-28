@@ -55,6 +55,26 @@ const dayLabel = (iso: string) =>
 
 const axis = { stroke: GRID, tick: { fill: INK_MUTED, fontSize: 12 }, tickLine: false } as const;
 
+/**
+ * Makes a bar open something when clicked — spread onto a `<Bar>`.
+ *
+ * The click lives on the BAR, never on the chart. Recharts 3's chart-level
+ * onClick reports `activeTooltipIndex` read from the HOVER state, which is
+ * updated on the next animation frame: a click that arrives before it (or in
+ * a background tab, where frames never run) sees `null`, and in v3 the index
+ * is a string besides, so `typeof i === "number"` never matched at all. A
+ * Bar's own onClick is handed the index of the element actually clicked.
+ * The transparent background makes the whole column height clickable, so a
+ * short bar is as easy to hit as a tall one.
+ */
+export function clickableBar(onIndex: (i: number) => void) {
+  return {
+    cursor: "pointer",
+    background: { fill: "transparent", cursor: "pointer" },
+    onClick: (_: unknown, i: number) => onIndex(i),
+  };
+}
+
 function TooltipBox({ title, rows }: { title: string; rows: { label: string; value: string; color?: string }[] }) {
   return (
     <div className="rounded-lg border border-border bg-surface px-3 py-2 text-sm shadow-md">
@@ -208,6 +228,9 @@ export function MonthlyPnlChart({ points, active }: { points: MonthPoint[]; acti
     q.set("p", key);
     router.push(`/dashboard?${q.toString()}`, { scroll: false });
   };
+  const onBar = (i: number) => {
+    if (points[i]) open(points[i].key);
+  };
   const fade = (key: string) => (active === null || active === key ? 1 : 0.35);
   const prevOf = (i: number) => (i > 0 ? points[i - 1] : null);
   const growth = (cur: number | null, prev: number | null | undefined) =>
@@ -226,11 +249,6 @@ export function MonthlyPnlChart({ points, active }: { points: MonthPoint[]; acti
             data={points}
             margin={{ top: 8, right: 12, bottom: 0, left: 4 }}
             barCategoryGap="24%"
-            onClick={(e) => {
-              const key = (e as { activeLabel?: string } | null)?.activeLabel;
-              const pt = points.find((p) => p.label === key);
-              if (pt) open(pt.key);
-            }}
           >
             <CartesianGrid stroke={GRID} vertical={false} />
             <XAxis dataKey="label" {...axis} />
@@ -256,12 +274,12 @@ export function MonthlyPnlChart({ points, active }: { points: MonthPoint[]; acti
                 );
               }}
             />
-            <Bar dataKey="revenue" radius={[4, 4, 0, 0]} cursor="pointer">
+            <Bar dataKey="revenue" radius={[4, 4, 0, 0]} {...clickableBar(onBar)}>
               {points.map((p) => (
                 <Cell key={p.key} fill={BRAND} fillOpacity={fade(p.key)} />
               ))}
             </Bar>
-            <Bar dataKey="expenses" radius={[4, 4, 0, 0]} cursor="pointer">
+            <Bar dataKey="expenses" radius={[4, 4, 0, 0]} {...clickableBar(onBar)}>
               {points.map((p) => (
                 <Cell key={p.key} fill={SERIES[2]} fillOpacity={fade(p.key)} />
               ))}

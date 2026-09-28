@@ -12,7 +12,7 @@
 import { useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { SERIES } from "@/app/(app)/dashboard/_components/Charts";
+import { SERIES, clickableBar } from "@/app/(app)/dashboard/_components/Charts";
 
 const INK_MUTED = "#5A5C31";
 const GRID = "#E9E3C8";
@@ -55,10 +55,6 @@ export function SalesDailyChart({ rows, activeDay }: { rows: DayBar[]; activeDay
         <BarChart
           data={rows}
           margin={{ top: 8, right: 12, bottom: 0, left: 4 }}
-          onClick={(e) => {
-            const i = (e as { activeTooltipIndex?: number } | null)?.activeTooltipIndex;
-            if (typeof i === "number" && rows[i]) open(rows[i].day);
-          }}
         >
           <CartesianGrid stroke={GRID} vertical={false} />
           <XAxis dataKey="label" minTickGap={16} {...axis} />
@@ -78,7 +74,7 @@ export function SalesDailyChart({ rows, activeDay }: { rows: DayBar[]; activeDay
               ) : null;
             }}
           />
-          <Bar dataKey="net" radius={[4, 4, 0, 0]} cursor="pointer">
+          <Bar dataKey="net" radius={[4, 4, 0, 0]} {...clickableBar((i) => rows[i] && open(rows[i].day))}>
             {rows.map((r) => (
               <Cell key={r.day} fill={SERIES[0]} fillOpacity={activeDay === null || activeDay === r.day ? 1 : 0.35} />
             ))}
