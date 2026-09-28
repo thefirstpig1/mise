@@ -31,6 +31,7 @@ import {
   menuCostPerDish,
   menuMovers,
   menusOnWeekday,
+  periodLabelTh,
   periodStats,
   previousRange,
   sumBy,
@@ -54,6 +55,7 @@ import DayDetailModal from "./_components/DayDetailModal";
 import { CategoryShare, type ToneMap } from "./_components/Breakdown";
 import { solid, toneOf } from "@/components/charts/chart-theme";
 import StickyFilters from "./_components/StickyFilters";
+import MetricSwitch from "./_components/MetricSwitch";
 import Link from "next/link";
 import { MenuTable, SalesDailyChart, WeekdayChart } from "./_components/SalesCharts";
 import BarList from "@/components/charts/BarList";
@@ -223,8 +225,7 @@ export default async function SalesPage({
   const movers = menuMovers(cur, before, menuMeta, by);
   const costPerDish = by === "profit" ? menuCostPerDish(cur, costs) : new Map<string, { cost: number; confidence: string }>();
   const profitStats = by === "profit" ? periodStats(cur, menuMeta, "profit") : null;
-  const shortRange = (a: string, b: string) => `${shortDate(a)} – ${shortDate(b)}`;
-  const prevLabel = months.find((m) => m.from === prevRange.from)?.label ?? shortRange(prevRange.from, prevRange.to);
+  const prevLabel = periodLabelTh(prevRange.from, prevRange.to);
 
   // Every menu sold in the period sits in no category: the category views can
   // only say one thing, so say what would make them useful instead.
@@ -356,21 +357,16 @@ export default async function SalesPage({
           <section className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm text-muted-foreground">ดูจาก</span>
-              <div className="inline-flex rounded-full border border-border-strong bg-surface p-1 shadow-sm">
-                {(["net", "qty", "profit"] as Metric[])
+              <MetricSwitch
+                current={by}
+                options={(["net", "qty", "profit"] as Metric[])
                   .filter((m) => m !== "profit" || costAccess !== null)
-                  .map((m) => (
-                    <a
-                      key={m}
-                      href={link({ by: m === "net" ? undefined : m })}
-                      className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
-                        by === m ? "bg-primary text-primary-foreground shadow" : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                      }`}
-                    >
-                      {m === "net" ? "ยอดขาย ฿" : m === "qty" ? "จำนวนจาน" : "กำไร"}
-                    </a>
-                  ))}
-              </div>
+                  .map((m) => ({
+                    key: m,
+                    label: m === "net" ? "ยอดขาย ฿" : m === "qty" ? "จำนวนจาน" : "กำไร",
+                    href: link({ by: m === "net" ? undefined : m }),
+                  }))}
+              />
             </div>
             <CompareButton months={months} from={isoFrom} to={isoTo} branchId={query.branchId} by={by} tones={tones} canProfit={costAccess !== null} />
           </section>
@@ -505,7 +501,12 @@ export default async function SalesPage({
           {/* ---------- question 4: what carries the shop, rises, falls ---------- */}
           <section className="rounded-xl border border-border bg-surface p-5">
             <h3 className="text-base font-semibold">เมนูที่น่าจับตา</h3>
-            <p className="mb-4 mt-0.5 text-xs text-muted-foreground">ตัวชูโรง · กำลังขึ้น · เฝ้าระวัง — กดชื่อเมนูเพื่อดู insight ของเมนูนั้น</p>
+            <p className="mb-4 mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+              <span className="rounded-full bg-primary px-2.5 py-0.5 font-medium text-primary-foreground">{periodLabelTh(isoFrom, isoTo)}</span>
+              เทียบกับ
+              <span className="rounded-full border border-border-strong px-2.5 py-0.5 font-medium text-foreground">{prevLabel}</span>
+              · เฉลี่ยต่อวัน · กดเมนูเพื่อดู insight
+            </p>
             <MenuMovers movers={movers} by={by} tones={tones} prevLabel={prevLabel} />
           </section>
 

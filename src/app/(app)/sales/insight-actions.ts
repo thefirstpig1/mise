@@ -15,6 +15,7 @@ import {
   enrich,
   inSide,
   menuInsight,
+  periodLabelTh,
   periodStats,
   previousRange,
   type CompareSide,
@@ -31,7 +32,7 @@ const thai = (iso: string) =>
   d(iso).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit", timeZone: "UTC" });
 
 export type MenuInsightResult =
-  | { ok: true; insight: MenuInsight; canSeeCost: boolean; costAsOf: string; prevLabel: string }
+  | { ok: true; insight: MenuInsight; canSeeCost: boolean; costAsOf: string; prevLabel: string; curLabel: string }
   | { ok: false; formError: string };
 
 export async function getMenuInsightAction(input: {
@@ -70,7 +71,8 @@ export async function getMenuInsightAction(input: {
     insight,
     canSeeCost: costAccess !== null,
     costAsOf: thai(input.to),
-    prevLabel: `${thai(prev.from)} – ${thai(prev.to)}`,
+    prevLabel: periodLabelTh(prev.from, prev.to),
+    curLabel: periodLabelTh(input.from, input.to),
   };
 }
 

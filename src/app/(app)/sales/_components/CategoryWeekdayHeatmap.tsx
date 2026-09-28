@@ -24,6 +24,15 @@ import { MenuLink } from "./insight-context";
 const WEEKDAY_TH = ["อาทิตย์", "จันทร์", "อังคาร", "พุธ", "พฤหัสบดี", "ศุกร์", "เสาร์"];
 const WEEKDAY_SHORT = ["อา.", "จ.", "อ.", "พ.", "พฤ.", "ศ.", "ส."];
 
+/**
+ * ONE sequential scale for the whole table (Kong, 2026-09-28: tinting each
+ * row in its category's colour read "like it was made by different vendors").
+ * Light cream to deep olive, the brand's own family; the category's colour
+ * survives only as the dot before its name.
+ */
+const SCALE = ["#F6F3E4", "#E6E8CB", "#CDD4A0", "#A9B566", "#7E8B35", "#56621B"];
+const shade = (t: number) => SCALE[Math.min(SCALE.length - 1, Math.max(0, Math.round(t * (SCALE.length - 1))))];
+
 export type HeatCell = { perDay: number; share: number | null };
 export type HeatRow = { key: string; label: string; cells: Record<number, HeatCell> };
 export type HeatMenus = Record<string, { id: string; name: string; perDay: number; qtyPerDay: number }[]>;
@@ -47,8 +56,17 @@ export default function CategoryWeekdayHeatmap({
   const [view, setView] = useState<"share" | "perDay">("share");
   const [open, setOpen] = useState<{ cat: string; wd: number } | null>(null);
   const read = (c: HeatCell) => (view === "share" ? c.share : c.perDay);
-  const max = useMemo(
-    () => Math.max(1e-9, ...rows.flatMap((r) => weekdays.map((w) => Math.max(0, read(r.cells[w]) ?? 0)))),
+  // Each ROW is shaded against itself: the question this table answers is
+  // "which day is good for THIS category", so the darkest cell in a row is that
+  // category's best day. The numbers carry the comparison between categories.
+  const rowRange = useMemo(
+    () =>
+      new Map(
+        rows.map((r) => {
+          const vs = weekdays.filter((w) => daysPerWeekday[w]).map((w) => read(r.cells[w]) ?? 0);
+          return [r.key, { min: Math.min(...vs), max: Math.max(...vs) }];
+        })
+      ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [rows, weekdays, view]
   );
@@ -79,7 +97,17 @@ export default function CategoryWeekdayHeatmap({
             </button>
           ))}
         </div>
-        <p className="text-xs text-muted-foreground">ช่องเข้ม = มาก · ตัวหนา = วันที่หมวดนั้นทำได้ดีที่สุด · กดช่องเพื่อดูเมนู</p>
+        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+          <span className="flex items-center gap-1">
+            น้อย
+            {SCALE.map((c) => (
+              <span key={c} className="h-3 w-4 rounded-sm" style={{ background: c }} />
+            ))}
+            มาก
+          </span>
+          <span>(เทียบวันอื่นของหมวดเดียวกัน)</span>
+          <span><span style={{ color: "#C0692B" }}>★</span> วันที่ดีที่สุดของหมวด</span>
+        </div>
       </div>
 
       <div className="overflow-x-auto">
@@ -93,43 +121,60 @@ export default function CategoryWeekdayHeatmap({
                   <span className="block text-[10px] font-normal text-muted-foreground">{daysPerWeekday[w]} วัน</span>
                 </th>
               ))}
+              <th className="px-2 py-1 text-right font-medium">ทั้งสัปดาห์</th>
             </tr>
           </thead>
           <tbody key={`${view}-${by}`}>
             {rows.map((r, ri) => {
               const tone = TONES[tones[r.key] ?? "olive"][0];
               const best = weekdays.reduce((a, w) => ((read(r.cells[w]) ?? -1) > (read(r.cells[a]) ?? -1) ? w : a), weekdays[0]);
+              const range = rowRange.get(r.key) ?? { min: 0, max: 0 };
+              // The whole week for this category: share of all days, or per day.
+              const weekDays = weekdays.reduce((t, w) => t + daysPerWeekday[w], 0);
+              const weekPerDay = weekDays ? weekdays.reduce((t, w) => t + r.cells[w].perDay * daysPerWeekday[w], 0) / weekDays : 0;
               return (
                 <tr key={r.key}>
-                  <td className="whitespace-nowrap px-2 py-1">
-                    <span className="mr-1.5 inline-block h-2.5 w-2.5 rounded-full align-middle" style={{ background: tone }} />
+                  <td className="whitespace-nowrap px-2 py-1 font-medium">
+                    <span className="mr-2 inline-block h-2.5 w-2.5 rounded-full align-middle" style={{ background: tone }} />
                     {r.label}
                   </td>
                   {weekdays.map((w, wi) => {
                     const c = r.cells[w];
-                    const v = Math.max(0, read(c) ?? 0);
-                    const depth = v / max;
+                    const v = read(c) ?? 0;
+                    const depth = range.max > range.min ? (v - range.min) / (range.max - range.min) : 0.5;
+                    const dark = depth > 0.6;
                     return (
                       <td key={w} className="p-0">
                         <button
                           type="button"
                           onClick={() => setOpen({ cat: r.key, wd: w })}
                           disabled={!daysPerWeekday[w]}
-                          className="h-11 w-full animate-fade-in rounded-md text-center tabular-nums transition-transform hover:scale-[1.04] hover:shadow disabled:cursor-default disabled:hover:scale-100"
+                          className="relative h-11 w-full animate-fade-in rounded-md text-center text-[13px] font-medium tabular-nums ring-primary/40 transition hover:ring-2 disabled:cursor-default disabled:hover:ring-0"
                           style={{
-                            // The category's own colour, deeper where it is stronger.
-                            background: `color-mix(in srgb, ${tone} ${Math.round(8 + depth * 72)}%, white)`,
-                            color: depth > 0.55 ? "#fff" : undefined,
-                            fontWeight: w === best ? 700 : 400,
+                            background: daysPerWeekday[w] ? shade(depth) : "transparent",
+                            color: dark ? "#FFFFFF" : "#262811",
                             animationDelay: `${(ri * weekdays.length + wi) * 12}ms`,
                           }}
                           title={`${r.label} · วัน${WEEKDAY_TH[w]} · ${c.share === null ? "—" : `${c.share.toFixed(1)}% ของวัน`} · เฉลี่ย ${fmtMetric(by, c.perDay)} ต่อวัน`}
                         >
                           {daysPerWeekday[w] ? text(c) : "·"}
+                          {w === best && daysPerWeekday[w] ? (
+                            <span aria-label="วันที่ดีที่สุด" className={`absolute right-1 top-0.5 text-[10px] ${dark ? "text-white" : "text-[#C0692B]"}`}>
+                              ★
+                            </span>
+                          ) : null}
                         </button>
                       </td>
                     );
                   })}
+                  <td className="whitespace-nowrap px-2 py-1 text-right text-[13px] font-medium tabular-nums text-muted-foreground">
+                    {view === "share" ? "" : fmtMetric(by, weekPerDay)}
+                    {view === "share" && rows.length > 0 && (() => {
+                      const all = weekdays.reduce((t, w) => t + rows.reduce((u, x) => u + x.cells[w].perDay * daysPerWeekday[w], 0), 0);
+                      const mine = weekPerDay * weekDays;
+                      return all ? `${((mine / all) * 100).toFixed(1)}%` : "—";
+                    })()}
+                  </td>
                 </tr>
               );
             })}

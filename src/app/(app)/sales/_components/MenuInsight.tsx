@@ -107,12 +107,15 @@ function MenuInsightModal({
 const change = (cur: number, prev: number | undefined | null) =>
   prev === null || prev === undefined || prev === 0 ? null : ((cur - prev) / prev) * 100;
 
-function Delta({ v }: { v: number | null }) {
-  if (v === null) return <span className="text-xs text-muted-foreground">ไม่มีช่วงก่อนให้เทียบ</span>;
+function Delta({ v, vs }: { v: number | null; vs: string }) {
+  if (v === null) return <span className="text-xs text-muted-foreground">ไม่มียอดของ {vs} ให้เทียบ</span>;
   const up = v >= 0;
   return (
-    <span className={`text-xs font-medium ${up ? "text-good" : "text-bad"}`}>
-      {up ? "▲" : "▼"} {Math.abs(v).toFixed(1)}% จากช่วงก่อน
+    <span className="text-xs">
+      <span className={`font-medium ${up ? "text-good" : "text-bad"}`}>
+        {up ? "▲" : "▼"} {Math.abs(v).toFixed(1)}%
+      </span>{" "}
+      <span className="text-muted-foreground">เทียบ {vs}</span>
     </span>
   );
 }
@@ -155,18 +158,19 @@ function InsightBody({ r, by }: { r: Extract<MenuInsightResult, { ok: true }>; b
             {m.shareOfAll !== null && <> · {m.shareOfAll.toFixed(1)}% ของทั้งร้าน</>}
           </p>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            {m.days} วันที่มีข้อมูล · ขายดีสุดวัน{WEEKDAY_SHORT[best.weekday]} เฉลี่ย {best.qtyPerDay.toFixed(1)} จาน
+            <span className="rounded-full bg-muted px-2 py-0.5 font-medium text-foreground">{r.curLabel}</span>{" "}
+            เทียบกับ <span className="rounded-full bg-muted px-2 py-0.5 font-medium text-foreground">{r.prevLabel}</span> · {m.days} วันที่มีข้อมูล · ขายดีสุดวัน{WEEKDAY_SHORT[best.weekday]} เฉลี่ย {best.qtyPerDay.toFixed(1)} จาน
           </p>
         </div>
       </div>
 
       {/* ---------- sells? ---------- */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Kpi label="ยอดขายต่อวัน" value={baht(m.netPerDay)} sub={<Delta v={change(m.netPerDay, m.prev?.netPerDay)} />} />
+        <Kpi label="ยอดขายต่อวัน" value={baht(m.netPerDay)} sub={<Delta v={change(m.netPerDay, m.prev?.netPerDay)} vs={r.prevLabel} />} />
         <Kpi
           label="จำนวนต่อวัน"
           value={`${m.qtyPerDay.toFixed(1)} จาน`}
-          sub={<Delta v={change(m.qtyPerDay, m.prev?.qtyPerDay)} />}
+          sub={<Delta v={change(m.qtyPerDay, m.prev?.qtyPerDay)} vs={r.prevLabel} />}
         />
         <Kpi label="ยอดขายรวม" value={baht(m.net)} sub={<span className="text-xs text-muted-foreground">{m.qty.toLocaleString("th-TH")} จาน</span>} />
         <Kpi
@@ -295,7 +299,9 @@ function InsightBody({ r, by }: { r: Extract<MenuInsightResult, { ok: true }>; b
           </ul>
         </div>
       </div>
-      <p className="text-xs text-muted-foreground">เทียบกับช่วงก่อน {r.prevLabel} · เฉลี่ยต่อวันที่มีข้อมูล</p>
+      <p className="text-xs text-muted-foreground">
+        ทุก % เทียบ {r.curLabel} กับ {r.prevLabel} แบบเฉลี่ยต่อวันที่มีข้อมูล (สองช่วงยาวไม่เท่ากันก็เทียบได้ตรง)
+      </p>
     </div>
   );
 }

@@ -15,7 +15,14 @@ export function MenuLink({ id, children, className = "" }: { id: string; childre
   const ctx = useMenuInsight();
   if (!ctx) return <span className={className}>{children}</span>;
   return (
-    <button type="button" onClick={() => ctx.open(id)} className={`text-left hover:text-primary hover:underline ${className}`}>
+    // Looks pressable at rest, not only on hover (Kong, 2026-09-28): a dotted
+    // underline, which turns solid and brand-coloured under the pointer.
+    <button
+      type="button"
+      onClick={() => ctx.open(id)}
+      title="ดู insight ของเมนูนี้"
+      className={`text-left underline decoration-border-strong decoration-dotted decoration-1 underline-offset-4 transition-colors hover:text-primary hover:decoration-primary hover:decoration-solid ${className}`}
+    >
       {children}
     </button>
   );

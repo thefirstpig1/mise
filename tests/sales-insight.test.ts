@@ -10,6 +10,7 @@ import {
   menuMovers,
   menusOnWeekday,
   periodStats,
+  periodLabelTh,
   previousRange,
   type CostMap,
   type MenuDayRow,
@@ -131,5 +132,14 @@ describe("previousRange", () => {
   });
   it("any other range: the same number of days just before", () => {
     expect(previousRange("2026-09-10", "2026-09-16")).toEqual({ from: "2026-09-03", to: "2026-09-09" });
+  });
+});
+
+describe("periodLabelTh — every % names what it is compared with", () => {
+  it("a whole month is its name, anything else its dates", () => {
+    expect(periodLabelTh("2026-08-01", "2026-08-31")).toBe("ส.ค. 69");
+    expect(periodLabelTh("2026-09-01", "2026-09-28")).toBe("1–28 ก.ย. 69");
+    expect(periodLabelTh("2026-08-15", "2026-08-15")).toBe("15 ส.ค. 69");
+    expect(periodLabelTh("2026-08-25", "2026-09-03")).toBe("25 ส.ค. 69 – 3 ก.ย. 69");
   });
 });

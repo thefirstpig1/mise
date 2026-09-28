@@ -30,7 +30,7 @@
 
 export type Metric = "net" | "qty" | "profit";
 export const METRICS: Metric[] = ["net", "qty", "profit"];
-export const METRIC_LABELS_TH: Record<Metric, string> = { net: "ยอดขาย", qty: "จำนวน", profit: "กำไร" };
+export const METRIC_LABELS_TH: Record<Metric, string> = { net: "ยอดขาย", qty: "จำนวนจาน", profit: "กำไร" };
 
 // The formatters live HERE, not beside the popups: those are "use client"
 // modules, and a Server Component calling a function from one gets a client
@@ -466,6 +466,24 @@ export function previousRange(from: string, to: string): { from: string; to: str
   return { from: iso(pf), to: iso(pt) };
 }
 const iso = (d: Date) => d.toISOString().slice(0, 10);
+
+/**
+ * A period as a person says it: a whole month is "ส.ค. 69", anything else is
+ * "1–7 ก.ย. 69". Every "▼ 9.9%" on the page names its comparison with this
+ * (Kong, 2026-09-28: "ช่วงก่อนคือช่วงไหน บางคนกดไว้แล้วลืม").
+ */
+export function periodLabelTh(from: string, to: string): string {
+  const f = new Date(`${from}T00:00:00Z`);
+  const t = new Date(`${to}T00:00:00Z`);
+  const monthYear = (d: Date) => d.toLocaleDateString("th-TH", { month: "short", year: "2-digit", timeZone: "UTC" });
+  const lastOfMonth = new Date(Date.UTC(t.getUTCFullYear(), t.getUTCMonth() + 1, 0)).getUTCDate();
+  if (f.getUTCDate() === 1 && t.getUTCDate() === lastOfMonth && f.getUTCMonth() === t.getUTCMonth()) return monthYear(f);
+  if (from === to) return `${f.getUTCDate()} ${monthYear(f)}`;
+  if (f.getUTCMonth() === t.getUTCMonth() && f.getUTCFullYear() === t.getUTCFullYear()) {
+    return `${f.getUTCDate()}–${t.getUTCDate()} ${monthYear(t)}`;
+  }
+  return `${f.getUTCDate()} ${monthYear(f)} – ${t.getUTCDate()} ${monthYear(t)}`;
+}
 
 /** One side of a comparison: a date range, optionally only some weekdays. */
 export type CompareSide = { from: string; to: string; weekdays: number[] | null; label: string };

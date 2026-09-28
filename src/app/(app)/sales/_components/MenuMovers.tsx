@@ -13,7 +13,7 @@
 import { TONES } from "@/components/charts/chart-theme";
 import { METRIC_LABELS_TH, type Metric, type Mover, type Movers } from "@/lib/sales-insight";
 import { fmtMetric, type ToneMap } from "./Breakdown";
-import { MenuLink } from "./insight-context";
+import { MenuLink, useMenuInsight } from "./insight-context";
 
 export default function MenuMovers({
   movers,
@@ -26,6 +26,7 @@ export default function MenuMovers({
   tones: ToneMap;
   prevLabel: string;
 }) {
+  const ctx = useMenuInsight();
   const col = (title: string, hint: string, accent: string, list: Mover[], empty: string, showChange: boolean) => (
     <div className="rounded-xl border border-border bg-surface p-4">
       <div className="mb-3 flex items-center gap-2">
@@ -36,14 +37,19 @@ export default function MenuMovers({
       {list.length === 0 ? (
         <p className="py-4 text-center text-xs text-muted-foreground">{empty}</p>
       ) : (
-        <ol className="space-y-2">
+        <ol className="-mx-2 space-y-0.5">
           {list.map((m, i) => (
-            <li key={m.id} className="flex items-center gap-2 text-sm">
+            <li key={m.id}>
+              {/* The whole row opens the dish — and says so with a chevron. */}
+              <button
+                type="button"
+                onClick={() => ctx?.open(m.id)}
+                title="ดู insight ของเมนูนี้"
+                className="group flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition-colors hover:bg-muted"
+              >
               <span className="w-4 text-right text-xs tabular-nums text-muted-foreground">{i + 1}</span>
               <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: TONES[tones[m.categoryKey] ?? "olive"][0] }} />
-              <MenuLink id={m.id} className="min-w-0 flex-1 truncate">
-                {m.name}
-              </MenuLink>
+              <span className="min-w-0 flex-1 truncate font-medium group-hover:text-primary">{m.name}</span>
               <span className="shrink-0 text-right tabular-nums">
                 <span className="block text-xs">{fmtMetric(by, m.perDay)}/วัน</span>
                 {showChange && m.change !== null && (
@@ -52,6 +58,13 @@ export default function MenuMovers({
                   </span>
                 )}
               </span>
+              <span
+                aria-hidden
+                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-primary-line text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground"
+              >
+                ›
+              </span>
+              </button>
             </li>
           ))}
         </ol>
@@ -64,7 +77,7 @@ export default function MenuMovers({
       <div className="grid gap-4 md:grid-cols-3">
         {col(
           "ตัวชูโรง",
-          `${METRIC_LABELS_TH[by]}ต่อวันสูงสุดในช่วงนี้`,
+          `${METRIC_LABELS_TH[by]}ต่อวันสูงสุด · % เทียบ ${prevLabel}`,
           TONES.clay[0],
           movers.stars,
           "ยังไม่มีข้อมูล",
@@ -72,7 +85,7 @@ export default function MenuMovers({
         )}
         {col(
           "กำลังขึ้น",
-          `โตขึ้นมากที่สุดเทียบช่วงก่อน (ต่อวัน)`,
+          `โตขึ้นมากที่สุด เทียบ ${prevLabel} (ต่อวัน)`,
           TONES.good[0],
           movers.rising,
           "ไม่มีเมนูไหนโตขึ้นเทียบช่วงก่อน",
@@ -80,7 +93,7 @@ export default function MenuMovers({
         )}
         {col(
           "เฝ้าระวัง",
-          `ลดลงมากที่สุดเทียบช่วงก่อน (ต่อวัน)`,
+          `ลดลงมากที่สุด เทียบ ${prevLabel} (ต่อวัน)`,
           TONES.bad[0],
           movers.watch,
           "ไม่มีเมนูไหนลดลง",
@@ -89,7 +102,7 @@ export default function MenuMovers({
       </div>
       {movers.gone.length > 0 && (
         <p className="mt-3 rounded-lg border border-bad-border bg-bad-bg px-3 py-2 text-sm text-bad">
-          ขายช่วงก่อนแต่ช่วงนี้ไม่มีเลย:{" "}
+          ขายได้ใน {prevLabel} แต่ช่วงนี้ไม่มีเลย:{" "}
           {movers.gone.map((m, i) => (
             <span key={m.id}>
               {i > 0 && ", "}
