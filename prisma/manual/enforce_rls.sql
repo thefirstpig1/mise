@@ -202,6 +202,7 @@ ALTER TABLE "stock_adjustment" FORCE ROW LEVEL SECURITY;
 ALTER TABLE "stock_cost_declaration" FORCE ROW LEVEL SECURITY;
 ALTER TABLE "stock_count" FORCE ROW LEVEL SECURITY;
 ALTER TABLE "stock_count_entry" FORCE ROW LEVEL SECURITY;
+ALTER TABLE "stock_count_contribution" FORCE ROW LEVEL SECURITY;
 ALTER TABLE "stock_count_item" FORCE ROW LEVEL SECURITY;
 ALTER TABLE "stock_movement" FORCE ROW LEVEL SECURITY;
 ALTER TABLE "stock_transfer" FORCE ROW LEVEL SECURITY;
@@ -272,6 +273,7 @@ ALTER POLICY tenant_isolation ON "stock_adjustment" USING ((tenant_id = (current
 ALTER POLICY tenant_isolation ON "stock_cost_declaration" USING ((tenant_id = (current_setting('app.current_tenant_id'::text))::uuid));
 ALTER POLICY tenant_isolation ON "stock_count" USING ((tenant_id = (current_setting('app.current_tenant_id'::text))::uuid));
 ALTER POLICY tenant_isolation ON "stock_count_entry" USING ((tenant_id = (current_setting('app.current_tenant_id'::text))::uuid));
+ALTER POLICY tenant_isolation ON "stock_count_contribution" USING ((tenant_id = (current_setting('app.current_tenant_id'::text))::uuid));
 ALTER POLICY tenant_isolation ON "stock_count_item" USING ((tenant_id = (current_setting('app.current_tenant_id'::text))::uuid));
 ALTER POLICY tenant_isolation ON "stock_movement" USING ((tenant_id = (current_setting('app.current_tenant_id'::text))::uuid));
 ALTER POLICY tenant_isolation ON "stock_transfer" USING ((tenant_id = (current_setting('app.current_tenant_id'::text))::uuid));

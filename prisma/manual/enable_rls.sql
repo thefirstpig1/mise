@@ -294,6 +294,12 @@ DROP POLICY IF EXISTS tenant_isolation ON stock_count_entry;
 CREATE POLICY tenant_isolation ON stock_count_entry
 USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
+-- Part 36 (ADR 0034 Q2) — one person's count of one product.
+ALTER TABLE stock_count_contribution ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON stock_count_contribution;
+CREATE POLICY tenant_isolation ON stock_count_contribution
+USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
 -- ============================================================
 -- End Sprint 3 Part 15 RLS
 -- ============================================================

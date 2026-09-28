@@ -125,6 +125,7 @@ model Tenant {
   stockCounts             StockCount[]
   stockCountItems         StockCountItem[]
   stockCountEntries       StockCountEntry[]
+  stockCountContributions StockCountContribution[]
   purchaseOrders          PurchaseOrder[]
   purchaseOrderItems      PurchaseOrderItem[]
   poItemAllocations       PurchaseOrderItemAllocation[]
@@ -236,41 +237,42 @@ model User {
   accounts                  Account[]
   sessions                  Session[]
   memberships               TenantMembership[]
-  membershipRoleChanges     TenantMembership[] @relation("MembershipRoleChangedBy")
+  membershipRoleChanges     TenantMembership[]       @relation("MembershipRoleChangedBy")
   stockMovements            StockMovement[]
   stockAdjustments          StockAdjustment[]
   stockCostDeclarations     StockCostDeclaration[]
-  stockCountsStarted        StockCount[]           @relation("ScStartedBy")
-  stockCountsClosed         StockCount[]           @relation("ScClosedBy")
-  stockCountsVoided         StockCount[]           @relation("ScVoidedBy")
+  stockCountsStarted        StockCount[]             @relation("ScStartedBy")
+  stockCountsClosed         StockCount[]             @relation("ScClosedBy")
+  stockCountsVoided         StockCount[]             @relation("ScVoidedBy")
   stockCountItemsCounted    StockCountItem[]
-  purchaseOrdersMade        PurchaseOrder[]        @relation("PoCreatedBy")
-  purchaseOrdersSent        PurchaseOrder[]        @relation("PoSentBy")
-  purchaseOrdersVoided      PurchaseOrder[]        @relation("PoCancelledBy")
-  purchaseOrdersClosedShort PurchaseOrder[]        @relation("PoClosedShortBy")
-  goodsReceiptsReceived     GoodsReceipt[]         @relation("GrReceivedBy")
-  goodsReceiptsConfirmed    GoodsReceipt[]         @relation("GrConfirmedBy")
-  goodsReceiptsVoided       GoodsReceipt[]         @relation("GrVoidedBy")
+  stockCountContributions   StockCountContribution[] @relation("ScContributionBy")
+  purchaseOrdersMade        PurchaseOrder[]          @relation("PoCreatedBy")
+  purchaseOrdersSent        PurchaseOrder[]          @relation("PoSentBy")
+  purchaseOrdersVoided      PurchaseOrder[]          @relation("PoCancelledBy")
+  purchaseOrdersClosedShort PurchaseOrder[]          @relation("PoClosedShortBy")
+  goodsReceiptsReceived     GoodsReceipt[]           @relation("GrReceivedBy")
+  goodsReceiptsConfirmed    GoodsReceipt[]           @relation("GrConfirmedBy")
+  goodsReceiptsVoided       GoodsReceipt[]           @relation("GrVoidedBy")
   expensesCreated           Expense[]
-  wasteLogged               WasteLog[]             @relation("WasteWastedBy")
-  wasteVoided               WasteLog[]             @relation("WasteVoidedBy")
-  staffMealsRecorded        StaffMeal[]            @relation("StaffMealRecordedBy")
-  staffMealsVoided          StaffMeal[]            @relation("StaffMealVoidedBy")
-  consumptionPosted         SalesConsumptionRun[]  @relation("ConsumptionPostedBy")
-  consumptionVoided         SalesConsumptionRun[]  @relation("ConsumptionVoidedBy")
-  transfersDispatched       StockTransfer[]        @relation("TfDispatchedBy")
+  wasteLogged               WasteLog[]               @relation("WasteWastedBy")
+  wasteVoided               WasteLog[]               @relation("WasteVoidedBy")
+  staffMealsRecorded        StaffMeal[]              @relation("StaffMealRecordedBy")
+  staffMealsVoided          StaffMeal[]              @relation("StaffMealVoidedBy")
+  consumptionPosted         SalesConsumptionRun[]    @relation("ConsumptionPostedBy")
+  consumptionVoided         SalesConsumptionRun[]    @relation("ConsumptionVoidedBy")
+  transfersDispatched       StockTransfer[]          @relation("TfDispatchedBy")
   /// Null on every row until user management ships (ADR 0018 Q3) — a company
   /// driver is a member and will confirm as themselves; a hired outside driver
   /// never will, and `driver_name` is the record for both until then.
-  transfersDriven           StockTransfer[]        @relation("TfDriver")
-  transfersReceived         StockTransfer[]        @relation("TfReceivedBy")
-  transfersVoided           StockTransfer[]        @relation("TfVoidedBy")
-  salesImportsUploaded      SalesImportBatch[]     @relation("SalesImportUploadedBy")
-  menuAliasesConfirmed      MenuAlias[]            @relation("MenuAliasConfirmedBy")
-  menuMergesMade            MenuMerge[]            @relation("MenuMergeMergedBy")
-  menuMergesRevoked         MenuMerge[]            @relation("MenuMergeRevokedBy")
-  salesPulsesRecorded       SalesDay[]             @relation("SalesPulseRecordedBy")
-  recipesCreated            Recipe[]               @relation("RecipeCreatedBy")
+  transfersDriven           StockTransfer[]          @relation("TfDriver")
+  transfersReceived         StockTransfer[]          @relation("TfReceivedBy")
+  transfersVoided           StockTransfer[]          @relation("TfVoidedBy")
+  salesImportsUploaded      SalesImportBatch[]       @relation("SalesImportUploadedBy")
+  menuAliasesConfirmed      MenuAlias[]              @relation("MenuAliasConfirmedBy")
+  menuMergesMade            MenuMerge[]              @relation("MenuMergeMergedBy")
+  menuMergesRevoked         MenuMerge[]              @relation("MenuMergeRevokedBy")
+  salesPulsesRecorded       SalesDay[]               @relation("SalesPulseRecordedBy")
+  recipesCreated            Recipe[]                 @relation("RecipeCreatedBy")
 
   @@map("app_user")
 }
@@ -307,11 +309,11 @@ model TenantMembership {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  tenant          Tenant                     @relation(fields: [tenantId], references: [id])
-  user            User                       @relation(fields: [userId], references: [id])
-  roleChangedByUser User? @relation("MembershipRoleChangedBy", fields: [roleChangedBy], references: [id])
-  branchAccess    UserBranchAccess[]
-  deptAssignments UserDepartmentAssignment[]
+  tenant            Tenant                     @relation(fields: [tenantId], references: [id])
+  user              User                       @relation(fields: [userId], references: [id])
+  roleChangedByUser User?                      @relation("MembershipRoleChangedBy", fields: [roleChangedBy], references: [id])
+  branchAccess      UserBranchAccess[]
+  deptAssignments   UserDepartmentAssignment[]
 
   @@unique([tenantId, userId])
   @@map("tenant_membership")
@@ -999,13 +1001,14 @@ model StockCountItem {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  tenant        Tenant            @relation(fields: [tenantId], references: [id])
-  stockCount    StockCount        @relation(fields: [stockCountId], references: [id])
-  product       Product           @relation(fields: [productId], references: [id])
-  countedByUser User              @relation(fields: [countedBy], references: [id])
-  reversalOf    StockCountItem?   @relation("ScItemReversal", fields: [reversalOfItemId], references: [id])
-  reversals     StockCountItem[]  @relation("ScItemReversal")
+  tenant        Tenant                   @relation(fields: [tenantId], references: [id])
+  stockCount    StockCount               @relation(fields: [stockCountId], references: [id])
+  product       Product                  @relation(fields: [productId], references: [id])
+  countedByUser User                     @relation(fields: [countedBy], references: [id])
+  reversalOf    StockCountItem?          @relation("ScItemReversal", fields: [reversalOfItemId], references: [id])
+  reversals     StockCountItem[]         @relation("ScItemReversal")
   entries       StockCountEntry[]
+  contributions StockCountContribution[]
 
   @@index([tenantId])
   @@index([stockCountId], map: "stock_count_item_count_idx")
@@ -1019,19 +1022,57 @@ model StockCountEntry {
   id               String  @id @default(uuid()) @db.Uuid
   tenantId         String  @map("tenant_id") @db.Uuid
   stockCountItemId String  @map("stock_count_item_id") @db.Uuid
+  /// ADR 0034 Q2 — the one person's count this unit belongs to.
+  contributionId   String  @map("contribution_id") @db.Uuid
   productUnitId    String  @map("product_unit_id") @db.Uuid
   qtyInUnit        Decimal @map("qty_in_unit") @db.Decimal(15, 3)
   displayOrder     Int     @map("display_order")
 
   createdAt DateTime @default(now()) @map("created_at")
 
-  tenant      Tenant         @relation(fields: [tenantId], references: [id])
-  item        StockCountItem @relation(fields: [stockCountItemId], references: [id])
-  productUnit ProductUnit    @relation(fields: [productUnitId], references: [id])
+  tenant       Tenant                 @relation(fields: [tenantId], references: [id])
+  item         StockCountItem         @relation(fields: [stockCountItemId], references: [id])
+  contribution StockCountContribution @relation(fields: [contributionId], references: [id], onDelete: Cascade)
+  productUnit  ProductUnit            @relation(fields: [productUnitId], references: [id])
 
   @@index([tenantId])
   @@index([stockCountItemId], map: "stock_count_entry_item_idx")
+  @@index([contributionId], map: "stock_count_entry_contribution_idx")
   @@map("stock_count_entry")
+}
+
+/// ADR 0034 Q2 — ONE person's count of one product on one sheet, at one moment.
+///
+/// A line (stock_count_item) is the SUM of its contributions: the pork mince in
+/// the walk-in counted by one cook and the tray at the line counted by another
+/// are two contributions, each with its own counter, time and note. Nobody edits
+/// another person's contribution (Q3) — accountability is per person (Q1).
+///
+/// The line keeps qty_counted as the total, so closing, the ledger and
+/// fifo-replay.ts never learn this table exists. Reversal lines have no
+/// contributions: they carry no entries.
+model StockCountContribution {
+  id               String   @id @default(uuid()) @db.Uuid
+  tenantId         String   @map("tenant_id") @db.Uuid
+  stockCountItemId String   @map("stock_count_item_id") @db.Uuid
+  /// 1, 2, 3… within the line, in the order they were confirmed.
+  seq              Int
+  countedBy        String   @map("counted_by")
+  countedAt        DateTime @map("counted_at")
+  /// "ของเสีย", "เพิ่งหาเจอ", "อยู่ตู้หน้าไลน์" — what this person saw.
+  note             String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant        Tenant            @relation(fields: [tenantId], references: [id])
+  item          StockCountItem    @relation(fields: [stockCountItemId], references: [id], onDelete: Cascade)
+  countedByUser User              @relation("ScContributionBy", fields: [countedBy], references: [id])
+  entries       StockCountEntry[]
+
+  @@unique([stockCountItemId, seq], map: "stock_count_contribution_seq_unique")
+  @@index([tenantId])
+  @@map("stock_count_contribution")
 }
 
 // ============================================================

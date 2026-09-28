@@ -44,6 +44,7 @@ export const TENANT_SCOPED_DELETE_ORDER = [
   "StockAdjustment",
   "StockCostDeclaration",
   "StockCountEntry",
+  "StockCountContribution",
   "StockTransferItem",
   "UserBranchAccess",
   "UserDepartmentAssignment",

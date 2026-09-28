@@ -25,7 +25,7 @@
 // ============================================================
 
 /**
- * The seven roles. `role` is a `String` in the schema, deliberately not an
+ * The eight roles. `role` is a `String` in the schema, deliberately not an
  * enum: adding an eighth is a code change reviewed once, with no migration and
  * no deploy ordering, and this union gives the readers more checking than a
  * Postgres enum would (a typo is a compile error where it is written).
@@ -36,16 +36,18 @@ export type Role =
   | "manager"
   | "purchaser"
   | "kitchen_staff"
+  /** หัวหน้าแผนก — head chef, head of bar, head baker (ADR 0034 Q6). */
+  | "dept_head"
   | "accountant"
   | "viewer";
 
 /**
  * One named thing a person may do or see.
  *
- * Thirteen of these guard WRITING. Four guard READING, and only four: reads are
+ * Fourteen of these guard WRITING. Four guard READING, and only four: reads are
  * open to every member of the tenant except where the screen shows money that
  * not everyone should see (ADR 0029 Q7). A `stock:view` would be granted to all
- * seven roles — nobody wants to stop a cook seeing what is in the walk-in — and
+ * eight roles — nobody wants to stop a cook seeing what is in the walk-in — and
  * a switch that is always on is a gate that is always green.
  */
 export type Capability =
@@ -60,8 +62,13 @@ export type Capability =
   | "receive:write"
   /** Adjustments, waste, par levels, inter-branch transfers. */
   | "stock:write"
-  /** Open, fill, close and void a stock count. */
+  /** Open and fill a stock count; close or void one YOU opened. */
   | "count:write"
+  /**
+   * Close or void ANY open count, not only your own (ADR 0034 Q5) — so a sheet
+   * never stays stuck on a whole branch because its host went home.
+   */
+  | "count:close"
   /** Expenses and recurring expense templates. */
   | "expense:write"
   /** Import a POS export, record the daily pulse, configure an integration. */
@@ -103,6 +110,7 @@ export const ALL_CAPABILITIES = [
   "receive:write",
   "stock:write",
   "count:write",
+  "count:close",
   "expense:write",
   "sales:import",
   "consumption:post",
@@ -122,6 +130,7 @@ export const ALL_ROLES = [
   "manager",
   "purchaser",
   "kitchen_staff",
+  "dept_head",
   "accountant",
   "viewer",
 ] as const satisfies readonly Role[];
@@ -176,6 +185,7 @@ const MANAGER: readonly Capability[] = [
   "receive:write",
   "stock:write",
   "count:write",
+  "count:close",
   "expense:write",
   "sales:import",
   "consumption:post",
@@ -216,6 +226,15 @@ const KITCHEN_STAFF: readonly Capability[] = [
 ];
 
 /**
+ * หัวหน้าแผนก — the head chef, the head of the bar, the head baker (Kong,
+ * ADR 0034 Q6). Everything a cook does, plus closing a count someone else
+ * opened, so a sheet never stays stuck because its host went home. Sees no
+ * money, like the cooks they lead. Not bound to one department: a count
+ * belongs to the whole branch (ADR 0015).
+ */
+const DEPT_HEAD: readonly Capability[] = [...KITCHEN_STAFF, "count:close"];
+
+/**
  * Books. Sees every figure and writes only financial ones. `sales:import` is
  * here because loading the POS export is bookkeeping, not kitchen work — but
  * `consumption:post` is not, because posting a day moves the ledger.
@@ -238,6 +257,7 @@ export const ROLE_CAPABILITIES: Readonly<Record<Role, ReadonlySet<Capability>>> 
     manager: new Set(MANAGER),
     purchaser: new Set(PURCHASER),
     kitchen_staff: new Set(KITCHEN_STAFF),
+    dept_head: new Set(DEPT_HEAD),
     accountant: new Set(ACCOUNTANT),
     viewer: new Set(VIEWER),
   };

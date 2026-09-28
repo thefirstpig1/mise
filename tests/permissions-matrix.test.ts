@@ -113,9 +113,10 @@ describe("the role table (ADR 0029 Part 28 L2)", () => {
     // holds, rule 4 would refuse a manager who tries to add the shop's
     // bookkeeper, and the rule would read as a bug rather than a defence.
     const mustBeAbleToCreate: Record<string, readonly Role[]> = {
-      owner: ["admin", "manager", "purchaser", "kitchen_staff", "accountant", "viewer"],
-      admin: ["manager", "purchaser", "kitchen_staff", "accountant", "viewer"],
-      manager: ["purchaser", "kitchen_staff", "accountant", "viewer"],
+      owner: ["admin", "manager", "purchaser", "kitchen_staff", "dept_head", "accountant", "viewer"],
+      admin: ["manager", "purchaser", "kitchen_staff", "dept_head", "accountant", "viewer"],
+      // A manager hires the head chef (ADR 0034 Q6), so must hold count:close.
+      manager: ["purchaser", "kitchen_staff", "dept_head", "accountant", "viewer"],
     };
 
     for (const [granter, targets] of Object.entries(mustBeAbleToCreate)) {
@@ -242,6 +243,20 @@ describe("the role table (ADR 0029 Part 28 L2)", () => {
   });
 
   // ── the sentinel ──────────────────────────────────────────────────────────
+
+  it("A16 — closing someone else's count: owner, admin, manager, dept_head — nobody else (ADR 0034 Q5)", () => {
+    const holders = ALL_ROLES.filter((r) => hasCapability(r, "count:close")).sort();
+    expect(holders).toEqual(["admin", "dept_head", "manager", "owner"]);
+  });
+
+  it("A17 — a dept_head is a cook who can close a count, and sees no money (ADR 0034 Q6)", () => {
+    const head = capabilitiesOf("dept_head");
+    expect(missingFrom(capabilitiesOf("kitchen_staff"), head)).toEqual([]);
+    expect(missingFrom(head, capabilitiesOf("kitchen_staff"))).toEqual(["count:close"]);
+    for (const money of ["cost:view", "expense:view", "sales:view"] as const) {
+      expect(head.has(money), money).toBe(false);
+    }
+  });
 
   it("A14 — any:member is satisfied by every role and held by none", () => {
     for (const role of ALL_ROLES) {
