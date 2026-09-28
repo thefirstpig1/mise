@@ -7,11 +7,11 @@
 import { createContext, useContext, type ReactNode } from "react";
 import type { Metric } from "@/lib/sales-insight";
 
-export type MetricOption = { key: Metric; label: string; href: string };
+export type MetricOption = { key: Metric; label: string };
 export type MenuInsightCtx = {
   open: (menuId: string) => void;
   /** The page's measure and how to change it — so every popup can switch too. */
-  metric: { current: Metric; options: MetricOption[] };
+  metric: { current: Metric; options: MetricOption[]; select: (m: Metric) => void; pending: Metric | null };
 };
 export const InsightContext = createContext<MenuInsightCtx | null>(null);
 export const useMenuInsight = () => useContext(InsightContext);

@@ -41,21 +41,21 @@ export function MenuInsightProvider({
   to,
   branchId,
   by,
-  metricOptions,
+  metric,
   children,
 }: {
   from: string;
   to: string;
   branchId?: string;
   by: Metric;
-  metricOptions: MetricOption[];
+  metric: { options: MetricOption[]; select: (m: Metric) => void; pending: Metric | null };
   children: ReactNode;
 }) {
   const [menuId, setMenuId] = useState<string | null>(null);
   const open = useCallback((id: string) => setMenuId(id), []);
   const close = useCallback(() => setMenuId(null), []);
   return (
-    <InsightContext.Provider value={{ open, metric: { current: by, options: metricOptions } }}>
+    <InsightContext.Provider value={{ open, metric: { current: by, ...metric } }}>
       {children}
       {menuId && <MenuInsightModal menuId={menuId} from={from} to={to} branchId={branchId} by={by} onClose={close} />}
     </InsightContext.Provider>

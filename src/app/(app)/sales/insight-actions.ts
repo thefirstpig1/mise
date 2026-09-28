@@ -11,6 +11,8 @@
 import { requireTenant } from "@/lib/require-tenant";
 import { getSalesMenuDaysLogic } from "@/server/sales";
 import { getMenuCostMapLogic } from "@/server/sales-insight-read";
+import { toneOf } from "@/components/charts/chart-theme";
+import { buildSalesView, tonesFor, type SalesView } from "./_components/sales-views";
 import {
   enrich,
   inSide,
@@ -117,5 +119,52 @@ export async function getSalesCompareAction(input: {
     a: periodStats(rows.filter((r) => inSide(r, input.a)), menus, by),
     b: periodStats(rows.filter((r) => inSide(r, input.b)), menus, by),
     labels: Object.fromEntries(data.menus.map((m) => [m.categoryKey, m.categoryName])),
+  };
+}
+
+// ------------------------------------------------------------
+// The profit view, built in the background (Kong, 2026-09-28: "สับสวิตช์ยังช้า")
+// ------------------------------------------------------------
+export type ProfitViewResult = { ok: true; view: SalesView } | { ok: false; formError: string; stale?: boolean };
+
+/**
+ * /sales ships ยอดขาย and จำนวนจาน ready to switch; profit needs the recipe
+ * cost walk, so the page asks for it here right after it appears, and the
+ * กำไร button is usually ready by the time anyone presses it.
+ *
+ * Same inputs, same builder, same tones as the page (tones are fixed by
+ * sales order, so recomputing them here gives the page's colours).
+ */
+export async function getSalesProfitViewAction(input: {
+  from: string;
+  to: string;
+  branchId?: string;
+  categoryId?: string;
+  day?: string | null;
+}): Promise<ProfitViewResult> {
+  const { tenantId, assertBranch, costAccess, reach } = await requireTenant("sales:view");
+  if (costAccess === null) return { ok: false, formError: "ไม่มีสิทธิ์ดูต้นทุน" };
+  if (!ISO.test(input.from) || !ISO.test(input.to) || input.from > input.to) {
+    return { ok: false, formError: "ช่วงวันที่ไม่ถูกต้อง" };
+  }
+  if (input.branchId) assertBranch(input.branchId);
+  const day = input.day && ISO.test(input.day) ? input.day : null;
+
+  const prev = previousRange(input.from, input.to);
+  const data = await getSalesMenuDaysLogic(tenantId, {
+    reach,
+    branchId: input.branchId || undefined,
+    from: d(prev.from),
+    to: d(input.to),
+    menuCategoryId: input.categoryId || undefined,
+  });
+  const menuMeta = new Map<string, MenuMeta>(data.menus.map((m) => [m.id, m]));
+  const costs = await getMenuCostMapLogic(tenantId, [...new Set(data.rows.map((r) => r.branchId))], d(input.to), costAccess);
+  const rows = enrich(data.rows, menuMeta, costs);
+  const cur = rows.filter((r) => r.day >= input.from && r.day <= input.to);
+  const before = rows.filter((r) => r.day >= prev.from && r.day <= prev.to);
+  return {
+    ok: true,
+    view: buildSalesView({ cur, before, menuMeta, costs, tones: tonesFor(cur, toneOf), day }, "profit"),
   };
 }

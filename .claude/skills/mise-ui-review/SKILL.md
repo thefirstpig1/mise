@@ -87,6 +87,22 @@ you touch, **without being told page by page** — Kong: "อย่าให้�
   price after discount − recipe cost (as of period end), and a cost never
   appears without its confidence. Only people with cost access see profit.
 
+## 5b. Speed (Kong: "ช้ากว่าเฟซบุ้คสมัยก่อน")
+- **Measure before changing anything**: time the page with
+  `fetch(url, {headers: {RSC: "1"}})` from the tab, count `prisma:query` lines
+  in the dev log per load, and time one `select 1` (dev ↔ Neon ≈ 32 ms). A
+  `next start` build was just as slow — dev mode was NOT the cause.
+- Cost is round trips × 32 ms. Each `withTenantContext` = BEGIN + set_config +
+  queries (sequential) + COMMIT. Keep independent reads in PARALLEL
+  transactions; never fold them into one (that serialises them).
+- A view switch must not go to the server: build every cheap measure in one
+  pass (`sales-views.ts`) and switch with state; fetch the expensive one
+  (profit = recipe cost walk) in the background after first paint, keyed by
+  the filters. Keep `?by=` in the URL with `history.replaceState`.
+- `requireTenant` identity is cached per request (layout + page share it).
+- Background tabs throttle timers to ~1 s — measure UI switches with a
+  MutationObserver, not setTimeout polling.
+
 ## 6. Permissions on any read
 - "ทุกสาขา" means every branch **the reader may see**. Sales reads take a
   required `reach` (`branchWhere`); a branch id from the URL is never trusted.

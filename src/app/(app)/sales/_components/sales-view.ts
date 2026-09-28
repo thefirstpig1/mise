@@ -30,6 +30,7 @@ import type {
   SalesByWeekday,
   SalesDayRow,
   SalesSummary,
+  SalesTotals2,
 } from "@/server/sales";
 
 const str = (d: Prisma.Decimal): string => d.toString();
@@ -155,6 +156,26 @@ const percent = (part: Prisma.Decimal, whole: Prisma.Decimal): string => {
   if (whole.isZero()) return "0.0";
   return part.dividedBy(whole).times(100).toFixed(1);
 };
+
+/** The tiles and notices of /sales from the lean totals read. */
+export function toSalesTotalsView(t: SalesTotals2, days: number) {
+  return {
+    totals: {
+      net: str(t.net),
+      discount: str(t.discount),
+      serviceCharge: str(t.serviceCharge),
+      vat: str(t.vat),
+      qty: str(t.qty),
+      rows: t.rows,
+      days,
+      discountPercent: percent(t.discount, t.gross),
+    },
+    availability: {
+      billNotice: t.hasBillIds ? null : NO_BILLS_NOTICE,
+      timeNotice: t.hasTimes ? null : NO_TIMES_NOTICE,
+    },
+  };
+}
 
 export function toSalesSummaryView(s: SalesSummary): SalesSummaryView {
   return {

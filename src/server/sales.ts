@@ -455,3 +455,60 @@ export async function getSalesMenuDaysLogic(
     { timeout: 15_000 }
   );
 }
+
+// ------------------------------------------------------------
+// Just the totals — what /sales still needs besides menu × day rows
+// ------------------------------------------------------------
+
+export interface SalesTotals2 {
+  net: Prisma.Decimal;
+  gross: Prisma.Decimal;
+  discount: Prisma.Decimal;
+  serviceCharge: Prisma.Decimal;
+  vat: Prisma.Decimal;
+  qty: Prisma.Decimal;
+  rows: number;
+  hasBillIds: boolean;
+  hasTimes: boolean;
+}
+
+/**
+ * The money the menu × day rows do not carry (gross, discount, VAT, service
+ * charge) and whether the files hold bills and times (rule P11).
+ *
+ * Why it exists (Kong, 2026-09-28: "โหลดแต่ละหน้าช้า"): /sales used the full
+ * getSalesSummaryLogic for four tiles — ~10 queries in one transaction, each a
+ * 32 ms round trip from Thailand to Neon, on the page's critical path. Its
+ * by-day, by-menu and by-category work now comes from getSalesMenuDaysLogic,
+ * so this asks only for the rest: three queries.
+ */
+export async function getSalesTotalsLogic(tenantId: string, query: GetSalesQuery): Promise<SalesTotals2> {
+  return withTenantContext(tenantId, async (tx) => {
+    const where = whereFor(tenantId, query);
+    const agg = await tx.salesLine.aggregate({
+      where,
+      _sum: {
+        netAmount: true,
+        grossAmount: true,
+        discountAmount: true,
+        serviceChargeAmount: true,
+        vatAmount: true,
+        qty: true,
+      },
+      _count: { _all: true },
+    });
+    const withBill = await tx.salesLine.findFirst({ where: { ...where, posBillId: { not: null } }, select: { id: true } });
+    const withTime = await tx.salesLine.findFirst({ where: { ...where, soldAt: { not: null } }, select: { id: true } });
+    return {
+      net: agg._sum.netAmount ?? ZERO(),
+      gross: agg._sum.grossAmount ?? ZERO(),
+      discount: agg._sum.discountAmount ?? ZERO(),
+      serviceCharge: agg._sum.serviceChargeAmount ?? ZERO(),
+      vat: agg._sum.vatAmount ?? ZERO(),
+      qty: agg._sum.qty ?? ZERO(),
+      rows: agg._count._all,
+      hasBillIds: withBill !== null,
+      hasTimes: withTime !== null,
+    };
+  });
+}

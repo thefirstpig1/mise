@@ -34,6 +34,7 @@
 // convention of calling it before the try block; keep it that way.
 // ============================================================
 
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import { auth } from "./auth";
 import { prismaBypass } from "./db-admin";
@@ -50,6 +51,52 @@ export interface Reach {
 function deny(need: string): never {
   redirect(`/denied?need=${encodeURIComponent(need)}`);
 }
+
+// Layer 1: membership discovery — cross-tenant BY NATURE.
+//
+// THE ONLY ALLOWLISTED USE OF THE RLS-BYPASSING CONNECTION IN THE WHOLE
+// APPLICATION (ADR 0030 Q2). It has to be: the query is keyed on userId
+// because it is the one that DISCOVERS which tenants exist for this
+// person, and a row-security policy that keys on the current tenant has
+// nothing to match against before that answer exists. Under the app role
+// this returns zero rows and every login lands on /signup.
+//
+// It reads memberships for ONE userId and nothing else. Widening it —
+// another table, another filter — widens the only hole in tenant
+// isolation the product has.
+//
+// findMANY since Part 29. Until invitations existed nobody could belong to
+// two shops, and taking the oldest was a guess that could never be wrong. It
+// can be wrong now — an outside bookkeeper does the books for three shops —
+// so the guess is gone (ADR 0029 Q3).
+function findMembershipsFor(userId: string) {
+  return prismaBypass.tenantMembership.findMany({
+    where: { userId, isActive: true },
+    include: {
+      tenant: true,
+      branchAccess: { select: { branchId: true } },
+    },
+    orderBy: { createdAt: "asc" },
+  });
+}
+type MembershipWithReach = Awaited<ReturnType<typeof findMembershipsFor>>[number];
+
+/**
+ * Who is asking and which shops they belong to — ONCE per request.
+ *
+ * Kong (2026-09-28): pages were slow. Every page runs requireTenant twice (the
+ * (app) layout for the sidebar, then the page itself), and each run looked up
+ * the session, the user and the memberships again: six round trips to Neon
+ * where three answer the question. React's `cache` shares the answer within
+ * one request only — never across requests or people — and the capability
+ * check below still runs on every call, for the capability THAT caller names.
+ */
+const loadIdentity = cache(async () => {
+  const session = await auth();
+  if (!session?.user?.id) return { session: null, memberships: [] as MembershipWithReach[] };
+  const memberships = await findMembershipsFor(session.user.id);
+  return { session, memberships };
+});
 
 /**
  * Require an authenticated user, an active tenant membership, and a role that
@@ -71,34 +118,8 @@ export async function requireTenant(
   need: Requirement,
   opts?: { branch?: string | null }
 ) {
-  const session = await auth();
+  const { session, memberships } = await loadIdentity();
   if (!session?.user?.id) redirect("/login");
-
-  // Layer 1: membership discovery — cross-tenant BY NATURE.
-  //
-  // THE ONLY ALLOWLISTED USE OF THE RLS-BYPASSING CONNECTION IN THE WHOLE
-  // APPLICATION (ADR 0030 Q2). It has to be: the query is keyed on userId
-  // because it is the one that DISCOVERS which tenants exist for this
-  // person, and a row-security policy that keys on the current tenant has
-  // nothing to match against before that answer exists. Under the app role
-  // this returns zero rows and every login lands on /signup.
-  //
-  // It reads memberships for ONE userId and nothing else. Widening it —
-  // another table, another filter — widens the only hole in tenant
-  // isolation the product has.
-  //
-  // findMANY since Part 29. Until invitations existed nobody could belong to
-  // two shops, and taking the oldest was a guess that could never be wrong. It
-  // can be wrong now — an outside bookkeeper does the books for three shops —
-  // so the guess is gone (ADR 0029 Q3).
-  const memberships = await prismaBypass.tenantMembership.findMany({
-    where: { userId: session.user.id, isActive: true },
-    include: {
-      tenant: true,
-      branchAccess: { select: { branchId: true } },
-    },
-    orderBy: { createdAt: "asc" },
-  });
 
   if (memberships.length === 0) redirect("/signup");
 
