@@ -9,6 +9,7 @@ import { getTransfersLogic } from "@/server/transfer";
 import { getTransfersQuerySchema } from "@/lib/validations/transfer";
 import { toTransferView } from "@/app/(app)/transfers/_components/transfer-view";
 import { getPulseDashboardLogic } from "@/server/sales-pulse";
+import { getRequestQueueLogic, type RequestQueueRow } from "@/server/purchase-request";
 import { toPulseDashboardView } from "@/app/(app)/sales/_components/sales-view";
 import PulsePanel from "./_components/PulsePanel";
 import ActionLink from "@/components/ui/ActionLink";
@@ -105,7 +106,13 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
       ) : null}
 
       <Suspense fallback={null}>
-        <WorkQueue showPulse={seeSales} tenantId={tenantId} reach={reach} costAccess={costAccess} />
+        <WorkQueue
+          showPulse={seeSales}
+          tenantId={tenantId}
+          reach={reach}
+          costAccess={costAccess}
+          purchaseBranches={can("purchase:approve") ? branches.map((b) => ({ id: b.id, name: b.name })) : []}
+        />
       </Suspense>
     </div>
   );
@@ -492,28 +499,34 @@ async function WorkQueue({
   tenantId,
   reach,
   costAccess,
+  purchaseBranches,
 }: {
   showPulse: boolean;
   tenantId: string;
   reach: Awaited<ReturnType<typeof requireTenant>>["reach"];
   costAccess: Awaited<ReturnType<typeof requireTenant>>["costAccess"];
+  /** Branches whose purchase requests this reader cuts (purchase:approve); empty = none. */
+  purchaseBranches: { id: string; name: string }[];
 }) {
   // Streamed in its own Suspense: the page frame and the figures no longer
   // wait for these two reads before anything appears.
-  const [transfers, pulseRaw] = await Promise.all([
+  const [transfers, pulseRaw, requests] = await Promise.all([
     // Part 18 Q8: any truck still unconfirmed, whatever the chips say.
     getTransfersLogic(tenantId, getTransfersQuerySchema.parse({ status: "SENT", includeReversalLines: "false" })),
     // Part 20a Q4 — "the shop runs blind between imports".
     showPulse ? getPulseDashboardLogic(tenantId, reach) : Promise.resolve(null),
+    // ADR 0036 Q9 — the purchaser learns a kitchen is ready without being told.
+    getRequestQueueLogic(tenantId, purchaseBranches),
   ]);
   const waiting = transfers.map((t) => toTransferView(t, costAccess));
   const pulse = pulseRaw ? toPulseDashboardView(pulseRaw) : null;
   const todayIso = computeBangkokToday().toISOString().slice(0, 10);
 
-  if (!pulse && waiting.length === 0) return null;
+  if (!pulse && waiting.length === 0 && requests.length === 0) return null;
   return (
     <div className="space-y-4">
       <h2 className="text-lg font-semibold">งานที่รออยู่</h2>
+      {requests.length > 0 ? <RequestQueue rows={requests} /> : null}
       {waiting.length > 0 ? (
         // Kong (2026-09-28): this must LEAD somewhere. The heading opens the
         // transfer list filtered to the ones waiting; each document opens its
@@ -549,6 +562,32 @@ async function WorkQueue({
         </div>
       ) : null}
       {pulse ? <PulsePanel dashboard={pulse} todayIso={todayIso} /> : null}
+    </div>
+  );
+}
+
+/** ADR 0036 Q9 — kitchens waiting on the purchaser. Ready ones lead, in green. */
+function RequestQueue({ rows }: { rows: RequestQueueRow[] }) {
+  const sorted = [...rows].sort((a, b) => Number(b.allReady) - Number(a.allReady));
+  return (
+    <div className="rounded-xl border border-border bg-surface p-4">
+      <p className="text-sm font-semibold">ใบขอซื้อรอตัดรอบ</p>
+      <ul className="mt-3 divide-y divide-border overflow-hidden rounded-lg border border-border">
+        {sorted.map((r) => (
+          <li key={r.branchId} className="group relative flex items-center justify-between gap-3 px-3 py-2.5 text-sm hover:bg-muted">
+            <a href={`/purchase-requests/cut?b=${r.branchId}`} className="font-medium after:absolute after:inset-0 after:content-['']">
+              {r.branchName} · {r.waiting} รายการ
+            </a>
+            <span
+              className={`whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs ${
+                r.allReady ? "border-good-border bg-good-bg text-good" : "border-border bg-muted text-muted-foreground"
+              }`}
+            >
+              {r.allReady ? "ทุกแผนกพร้อมแล้ว สั่งได้เลย" : `พร้อม ${r.readyDepartments} จาก ${r.departments} แผนก`}
+            </span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

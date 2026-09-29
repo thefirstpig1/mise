@@ -48,6 +48,7 @@ import {
   type NotifyOutcome,
 } from "@/server/invite-notify";
 import type { Role } from "@/lib/permissions/service";
+import { MembershipNotInTenantError, setHomeDepartmentLogic } from "@/server/home-department";
 import type { ZodError } from "zod";
 
 export type MemberActionState =
@@ -245,4 +246,31 @@ export async function setMemberActiveAction(
   } catch (e) {
     return toFormError(e);
   }
+}
+
+// ------------------------------------------------------------
+// Home department (Part 38, ADR 0036 Q3) — a label, not a grant
+// ------------------------------------------------------------
+
+export async function setHomeDepartmentAction(input: {
+  membershipId: string;
+  departmentId: string | null;
+}): Promise<{ ok: true } | { ok: false; formError: string }> {
+  const { tenantId } = await requireTenant("member:manage");
+  const uuid = /^[0-9a-f-]{36}$/i;
+  if (typeof input?.membershipId !== "string" || !uuid.test(input.membershipId)) {
+    return { ok: false, formError: "ข้อมูลไม่ถูกต้อง" };
+  }
+  if (input.departmentId !== null && (typeof input.departmentId !== "string" || !uuid.test(input.departmentId))) {
+    return { ok: false, formError: "แผนกไม่ถูกต้อง" };
+  }
+  try {
+    await setHomeDepartmentLogic(tenantId, input.membershipId, input.departmentId);
+  } catch (e) {
+    if (e instanceof MembershipNotInTenantError) return { ok: false, formError: "ไม่พบคนนี้ในร้าน" };
+    throw e;
+  }
+  revalidatePath("/settings/members");
+  revalidatePath("/purchase-requests");
+  return { ok: true };
 }

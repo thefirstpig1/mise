@@ -34,6 +34,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
   {
     label: "ซื้อของ",
     items: [
+      { href: "/purchase-requests", label: "ใบขอซื้อ", need: "purchase:request" },
       { href: "/suppliers", label: "ซัพพลายเออร์", need: "any:member" },
       { href: "/purchase-orders", label: "ใบสั่งซื้อ", need: "purchase:write" },
       { href: "/goods-receipts", label: "รับสินค้า", need: "receive:write" },

@@ -80,6 +80,7 @@ export default async function EditPurchaseOrderPage({
             qtyOrdered: l.qtyOrdered,
             unitPrice: l.unitPrice,
             supplierProductMappingId: l.supplierProductMappingId,
+            purchaseRequestLineId: l.purchaseRequestLineId,
             notes: l.notes,
           })),
         }}

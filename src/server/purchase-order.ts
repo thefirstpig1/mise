@@ -1308,3 +1308,21 @@ export async function closePurchaseOrderShortLogic(
     });
   });
 }
+
+/** Every promise a supplier gave for this order, newest first (R7 — history kept). */
+export async function getDeliveryPromisesLogic(tenantId: string, purchaseOrderId: string) {
+  return withTenantContext(tenantId, async (tx) => {
+    const rows = await tx.purchaseOrderDeliveryPromise.findMany({
+      where: { tenantId, purchaseOrderId },
+      orderBy: { setAt: "desc" },
+      select: { id: true, promisedDate: true, note: true, setAt: true, setByUser: { select: { name: true, email: true } } },
+    });
+    return rows.map((r) => ({
+      id: r.id,
+      promisedDate: r.promisedDate.toISOString().slice(0, 10),
+      note: r.note,
+      setAt: r.setAt.toISOString(),
+      setBy: r.setByUser.name ?? r.setByUser.email ?? "",
+    }));
+  });
+}

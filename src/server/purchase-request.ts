@@ -112,8 +112,9 @@ async function departmentsOf(tx: PrismaClient, tenantId: string) {
     where: { id: tenantId },
     select: { enableDepartments: true, defaultVatRatePercent: true },
   });
+  // An inactive department is not asked to say ready (Q3) and takes no new lines.
   const all = await tx.department.findMany({
-    where: { tenantId, deletedAt: null },
+    where: { tenantId, deletedAt: null, isActive: true },
     select: { id: true, name: true, code: true },
     orderBy: { createdAt: "asc" },
   });
@@ -132,7 +133,7 @@ async function homeDepartmentId(tx: PrismaClient, tenantId: string, userId: stri
     where: {
       isPrimary: true,
       membership: { tenantId, userId, isActive: true },
-      department: { deletedAt: null },
+      department: { deletedAt: null, isActive: true },
     },
     select: { departmentId: true },
   });
@@ -1103,5 +1104,58 @@ export async function getCutSheetLogic(tenantId: string, branchId: string, viewe
       }))
       .sort((a, b) => Number(a.supplierId !== null) - Number(b.supplierId !== null));
     return { lines, suppliers: suppliers.map((s) => ({ id: s.id, name: s.nameFull })), readiness: board.readiness };
+  });
+}
+
+// ------------------------------------------------------------
+// The purchaser's queue (Q9) — one light read for the dashboard
+// ------------------------------------------------------------
+
+export type RequestQueueRow = { branchId: string; branchName: string; waiting: number; readyDepartments: number; departments: number; allReady: boolean };
+
+/**
+ * Per branch in reach: how many lines wait to be ordered, and whether every
+ * department has said ready. Deliberately NOT the full board — no statuses of
+ * finished lines, no prices — because it runs on the page everyone opens first.
+ * "Waiting" is the same rule as R1, in the query: no live PO line points at it.
+ */
+export async function getRequestQueueLogic(
+  tenantId: string,
+  branches: readonly { id: string; name: string }[]
+): Promise<RequestQueueRow[]> {
+  if (branches.length === 0) return [];
+  return withTenantContext(tenantId, async (tx) => {
+    const ids = branches.map((b) => b.id);
+    const [waiting, ready, depts] = await Promise.all([
+      tx.purchaseRequestLine.groupBy({
+        by: ["branchId"],
+        where: {
+          tenantId,
+          branchId: { in: ids },
+          deletedAt: null,
+          rejectedAt: null,
+          orderItems: { none: { purchaseOrder: { deletedAt: null, status: { not: "CANCELLED" } } } },
+        },
+        _count: { _all: true },
+      }),
+      tx.purchaseRequestReady.groupBy({ by: ["branchId"], where: { tenantId, branchId: { in: ids } }, _count: { _all: true } }),
+      departmentsOf(tx, tenantId),
+    ]);
+    const w = new Map(waiting.map((r) => [r.branchId, r._count._all]));
+    const rd = new Map(ready.map((r) => [r.branchId, r._count._all]));
+    return branches
+      .map((b) => {
+        const n = w.get(b.id) ?? 0;
+        const readyDepartments = rd.get(b.id) ?? 0;
+        return {
+          branchId: b.id,
+          branchName: b.name,
+          waiting: n,
+          readyDepartments,
+          departments: depts.list.length,
+          allReady: n > 0 && readyDepartments >= depts.list.length,
+        };
+      })
+      .filter((r) => r.waiting > 0);
   });
 }

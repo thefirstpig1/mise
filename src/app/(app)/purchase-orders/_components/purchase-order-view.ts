@@ -67,6 +67,8 @@ export type PurchaseOrderLineView = {
   lineTotal: string;
   /** null = the price was typed by hand, not taken from the price list (Q5). */
   supplierProductMappingId: string | null;
+  /** ADR 0036 R1 — the kitchen request line this came from; carried through edits. */
+  purchaseRequestLineId: string | null;
   notes: string | null;
   allocations: {
     departmentId: string;
@@ -181,6 +183,7 @@ export function toPurchaseOrderDetailView(
       unitPrice: str(l.unitPrice),
       lineTotal: str(l.lineTotal),
       supplierProductMappingId: l.supplierProductMappingId,
+      purchaseRequestLineId: l.purchaseRequestLineId,
       notes: l.notes,
       allocations: l.allocations.map((a) => ({
         departmentId: a.departmentId,

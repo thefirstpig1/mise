@@ -69,6 +69,8 @@ type LineRow = {
   unitPrice: string;
   mappingId: string;
   notes: string;
+  /** ADR 0036 R1 — the kitchen line this row was cut from, kept through edits. */
+  requestLineId: string;
   /** null = not looked up yet; "none" = looked up and there is no price. */
   priceScope: "branch" | "tenant" | "none" | null;
   minOrderQty: string | null;
@@ -87,6 +89,7 @@ export type PurchaseOrderFormInitial = {
     qtyOrdered: string;
     unitPrice: string;
     supplierProductMappingId: string | null;
+    purchaseRequestLineId: string | null;
     notes: string | null;
   }[];
 };
@@ -102,6 +105,7 @@ const newRow = (): LineRow => ({
   unitPrice: "",
   mappingId: "",
   notes: "",
+  requestLineId: "",
   priceScope: null,
   minOrderQty: null,
 });
@@ -169,6 +173,7 @@ export default function PurchaseOrderForm({
           unitPrice: l.unitPrice,
           mappingId: l.supplierProductMappingId ?? "",
           notes: l.notes ?? "",
+          requestLineId: l.purchaseRequestLineId ?? "",
         }))
       : [newRow()]
   );
@@ -519,6 +524,7 @@ export default function PurchaseOrderForm({
 
                 <input type="hidden" name="line_mapping_id" value={row.mappingId} />
                 <input type="hidden" name="line_notes" value={row.notes} />
+                <input type="hidden" name="line_request_line_id" value={row.requestLineId} />
 
                 <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs">
                   <div className="flex flex-wrap items-center gap-2">
@@ -579,21 +585,12 @@ export default function PurchaseOrderForm({
 
       {/* --- terms --- */}
       <div className="grid gap-4 sm:grid-cols-2">
-        <div>
-          <label htmlFor="expected_delivery_date" className="label">
-            กำหนดรับของ
-          </label>
-          <input
-            id="expected_delivery_date"
-            name="expected_delivery_date"
-            type="date"
-            defaultValue={initial?.expectedDeliveryDate ?? ""}
-            className={"input w-full mt-1"}
-          />
-          {err("expectedDeliveryDate") && (
-            <p className={errorClass}>{err("expectedDeliveryDate")}</p>
-          )}
-        </div>
+        {/* No delivery date here (ADR 0036 Q8): a date nobody has agreed with the
+            supplier is a guess the kitchen would plan around. The supplier's
+            promise is recorded on the order after it is sent. */}
+        <p className="self-end text-xs text-muted-foreground">
+          วันส่งของใส่ได้หลังส่งใบ เมื่อผู้ขายยืนยันแล้ว (ที่หน้าใบสั่งซื้อ)
+        </p>
 
         <div>
           <label htmlFor="vat_rate_percent" className="label">

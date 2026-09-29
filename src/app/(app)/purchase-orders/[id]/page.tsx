@@ -14,7 +14,7 @@
 
 import { notFound } from "next/navigation";
 import { requireTenant } from "@/lib/require-tenant";
-import { getPurchaseOrderByIdLogic } from "@/server/purchase-order";
+import { getDeliveryPromisesLogic, getPurchaseOrderByIdLogic } from "@/server/purchase-order";
 import { getGoodsReceiptsForPurchaseOrderLogic } from "@/server/goods-receipt";
 import {
   cancelPurchaseOrderAction,
@@ -28,6 +28,7 @@ import GrStatusBadge from "@/app/(app)/goods-receipts/_components/StatusBadge";
 import { toPurchaseOrderDetailView } from "../_components/purchase-order-view";
 import PurchaseOrderActions from "../_components/PurchaseOrderActions";
 import StatusBadge from "../_components/StatusBadge";
+import DeliveryPromise from "../_components/DeliveryPromise";
 
 const THB = new Intl.NumberFormat("th-TH", {
   minimumFractionDigits: 2,
@@ -51,7 +52,7 @@ export default async function PurchaseOrderDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { tenantId, membership } = await requireTenant("purchase:write");
+  const { tenantId, membership, can } = await requireTenant("purchase:write");
   const { id } = await params;
 
   const order = await getPurchaseOrderByIdLogic(tenantId, id);
@@ -63,9 +64,11 @@ export default async function PurchaseOrderDetailPage({
   // Part 13: the receiving side of the order. VOIDED receipts are shown too —
   // "this arrived and was then reversed" is part of the order's story, and
   // hiding it would make qty_received look unexplained.
-  const receipts = (await getGoodsReceiptsForPurchaseOrderLogic(tenantId, po.id)).map(
-    toGoodsReceiptListView
-  );
+  const [receiptRows, promises] = await Promise.all([
+    getGoodsReceiptsForPurchaseOrderLogic(tenantId, po.id),
+    getDeliveryPromisesLogic(tenantId, po.id),
+  ]);
+  const receipts = receiptRows.map(toGoodsReceiptListView);
   const canReceive =
     po.status === "SENT" ||
     po.status === "PARTIALLY_RECEIVED" ||
@@ -99,6 +102,14 @@ export default async function PurchaseOrderDetailPage({
           ยังเป็นร่าง — ยังไม่ได้ส่งให้ผู้ขาย
         </div>
       )}
+      {/* ADR 0036 Q8 — what the supplier promised, set after the order is out. */}
+      <DeliveryPromise
+        purchaseOrderId={po.id}
+        promises={promises}
+        canSet={can("purchase:approve")}
+        open={po.status === "SENT" || po.status === "PARTIALLY_RECEIVED"}
+      />
+
       {po.status === "CANCELLED" && (
         <div className="rounded-lg border border-bad-border bg-bad-bg p-3 text-sm text-bad">
           ใบสั่งซื้อนี้ถูกยกเลิกเมื่อ {po.cancelledAtLabel}

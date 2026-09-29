@@ -22,6 +22,9 @@ import { getMembersLogic } from "@/server/membership-read";
 import { ALL_ROLES, type Role } from "@/lib/permissions/service";
 import { ROLE_HINTS_TH, ROLE_LABELS_TH } from "@/lib/validations/membership";
 import MemberForms from "./_components/MemberForms";
+import HomeDepartments from "./_components/HomeDepartments";
+import { getHomeDepartmentsLogic } from "@/server/home-department";
+import { getDepartmentsForAdminLogic } from "@/server/department";
 
 const BANGKOK_DATE = new Intl.DateTimeFormat("th-TH", {
   dateStyle: "medium",
@@ -32,11 +35,14 @@ export default async function MembersPage() {
   const { tenantId, reach, role, membership } =
     await requireTenant("member:manage");
 
-  const [members, branches] = await Promise.all([
+  const departmentsOn = membership.tenant.enableDepartments;
+  const [members, branches, homes, departments] = await Promise.all([
     getMembersLogic(tenantId),
     // Rule A5 — you can only offer branches you reach, which is also rule 2
     // expressed as a form rather than as a refusal.
     getBranchesLogic(tenantId, reach),
+    departmentsOn ? getHomeDepartmentsLogic(tenantId) : Promise.resolve([]),
+    departmentsOn ? getDepartmentsForAdminLogic(tenantId) : Promise.resolve([]),
   ]);
 
   const roleOptions = ALL_ROLES.map((r) => ({
@@ -80,6 +86,13 @@ export default async function MembersPage() {
         roleOptions={roleOptions}
         canGrantAllBranches={reach.allBranches}
       />
+
+      {departmentsOn && (
+        <HomeDepartments
+          rows={homes}
+          departments={departments.filter((d) => d.isActive).map((d) => ({ id: d.id, name: d.name }))}
+        />
+      )}
     </div>
   );
 }
