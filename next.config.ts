@@ -67,6 +67,17 @@ const nextConfig: NextConfig = {
   ...(standalone ? { output: "standalone" as const } : {}),
   experimental: {
     typedRoutes: true,
+    /**
+     * Keep a page the browser has just shown for 30 s, so going BACK to it
+     * (or to a filter already opened) is instant instead of another trip to
+     * the server (Kong 2026-09-29: "อยากให้ลื่นไหลทุกหน้า"). Next's default
+     * for dynamic pages is 0 — refetch every time.
+     *
+     * Safe for our own edits: every write action calls revalidatePath, which
+     * clears this cache. What it trades: a figure changed by SOMEONE ELSE can
+     * show up to 30 s late on a page revisited within those 30 s.
+     */
+    staleTimes: { dynamic: 30 },
     serverActions: {
       bodySizeLimit: SERVER_ACTION_BODY_LIMIT,
     },

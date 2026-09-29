@@ -84,6 +84,9 @@ export default function ProductPicker({
   quick,
   placeholder = "พิมพ์ชื่อ รหัส หรือหมวด — หรือกดเพื่อดูทั้งหมด",
   invalid,
+  footer,
+  disabledText,
+  onInputRef,
 }: {
   products: PickerProduct[];
   value: string;
@@ -96,11 +99,20 @@ export default function ProductPicker({
   quick?: { label: string; ids: string[] };
   placeholder?: string;
   invalid?: boolean;
+  /**
+   * A last line in the open list, e.g. "show products this supplier has not
+   * sold before" when the list is narrowed. Shown whether or not anything matched.
+   */
+  footer?: { label: string; onClick: () => void };
+  /** Set = nothing can be chosen yet; the text says why (e.g. "เลือกผู้ขายก่อน"). */
+  disabledText?: string;
+  /** Lets a form focus the search box (e.g. a row it just added). */
+  onInputRef?: (el: HTMLInputElement | null) => void;
 }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
   const listRef = useRef<HTMLUListElement>(null);
   const listId = useId();
 
@@ -160,6 +172,31 @@ export default function ProductPicker({
     );
   }
 
+  if (disabledText) {
+    return (
+      <div className="mt-1">
+        {hidden}
+        <p className="input flex h-11 w-full items-center bg-muted/50 text-sm text-muted-foreground">{disabledText}</p>
+      </div>
+    );
+  }
+
+  const footerRow = footer ? (
+    <li className="border-t border-border">
+      <button
+        type="button"
+        // mousedown, not click: it fires before the input's blur closes the list.
+        onMouseDown={(e) => {
+          e.preventDefault();
+          footer.onClick();
+        }}
+        className="w-full px-3 py-2 text-left text-xs font-medium text-primary hover:bg-muted"
+      >
+        {footer.label}
+      </button>
+    </li>
+  ) : null;
+
   const row = (p: PickerProduct, i: number) => (
     <li
       key={p.id}
@@ -189,7 +226,10 @@ export default function ProductPicker({
     <div className="relative mt-1">
       {hidden}
       <input
-        ref={inputRef}
+        ref={(el) => {
+          inputRef.current = el;
+          onInputRef?.(el);
+        }}
         id={inputId}
         type="search"
         role="combobox"
@@ -266,6 +306,7 @@ export default function ProductPicker({
               ));
             })()
           )}
+          {footerRow}
         </ul>
       )}
 

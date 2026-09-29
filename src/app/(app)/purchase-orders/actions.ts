@@ -38,6 +38,7 @@ import {
   cancelPurchaseOrderLogic,
   createPurchaseOrderLogic,
   deletePurchaseOrderDraftLogic,
+  getSupplierCatalogLogic,
   MappingProvenanceMismatchError,
   OrderUnitMismatchError,
   PurchaseOrderNotEditableError,
@@ -317,6 +318,26 @@ export async function deletePurchaseOrderDraftAction(
  * error, it is the hand-typed-price path (Q5), and the form has to tell those
  * two cases apart to decide whether to show "ไม่มีราคาในระบบ".
  */
+/**
+ * Which products this supplier carries for this branch — the same rule as the
+ * supplier catalog page (price list OR delivered before; getSupplierCatalogLogic).
+ * Kong 2026-09-29: "ไม่อยากให้เกิดเหตุการณ์กดซัพมั่วแล้วสั่งของที่ซัพไม่มี" —
+ * the order form lists these first and asks before offering anything else.
+ */
+export async function getSupplierCarriesAction(query: {
+  supplierId: string;
+  branchId: string;
+}): Promise<{ ok: true; productIds: string[] } | { ok: false; formError: string }> {
+  const { tenantId, assertBranch } = await requireTenant("purchase:write");
+  const { supplierId, branchId } = query;
+  if (typeof supplierId !== "string" || typeof branchId !== "string" || !supplierId || !branchId) {
+    return { ok: false, formError: "ข้อมูลไม่ครบ" };
+  }
+  assertBranch(branchId);
+  const items = await getSupplierCatalogLogic(tenantId, supplierId, branchId);
+  return { ok: true, productIds: items.map((i) => i.productId) };
+}
+
 export async function resolveSupplierPriceAction(query: {
   productId: string;
   supplierId: string;

@@ -26,7 +26,7 @@ import { orStale } from "@/lib/stale-tab";
 //     after. The lock is the whole point of Q4 and finding out afterwards is the
 //     worst time to learn it.
 
-import { useActionState, useEffect, useMemo, useState } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import type { PurchaseOrderActionState } from "../actions";
 import type { ResolvedPriceView } from "./purchase-order-view";
 import ProductPicker from "@/components/ui/ProductPicker";
@@ -123,6 +123,7 @@ export default function PurchaseOrderForm({
   tenantDefaultVatRate,
   initial,
   resolvePrice,
+  supplierCarries,
 }: {
   action: (
     prev: PurchaseOrderActionState,
@@ -142,6 +143,11 @@ export default function PurchaseOrderForm({
   }) => Promise<
     { ok: true; data: ResolvedPriceView | null } | { ok: false; formError: string }
   >;
+  /** Which products the chosen supplier carries at the chosen branch. */
+  supplierCarries?: (query: {
+    supplierId: string;
+    branchId: string;
+  }) => Promise<{ ok: true; productIds: string[] } | { ok: false; formError: string }>;
 }) {
   const [state, formAction, isPending] = useActionState(
     action,
@@ -184,6 +190,50 @@ export default function PurchaseOrderForm({
     );
   }, [supplierId, supplier, vatTouchedFor, tenantDefaultVatRate]);
 
+  // --- what this supplier carries (Kong 2026-09-29: "กดซัพมั่วแล้วสั่งของที่ซัพไม่มี") ---
+  // The picker lists only these by default; anything else is one deliberate
+  // press away (a first order from a new supplier has no history yet — ADR
+  // 0012 Q5 keeps that possible), and such a row says so in plain words.
+  const [carried, setCarried] = useState<{ key: string; ids: Set<string> } | null>(null);
+  const [showAll, setShowAll] = useState(false);
+  const carriedKey = `${supplierId}|${branchId}`;
+  useEffect(() => {
+    setShowAll(false);
+    if (!supplierCarries || !supplierId || !branchId) return;
+    let live = true;
+    void orStale(supplierCarries({ supplierId, branchId })).then((r) => {
+      if (live && r.ok) setCarried({ key: carriedKey, ids: new Set(r.productIds) });
+    });
+    return () => {
+      live = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [carriedKey]);
+  const carriedIds = carried?.key === carriedKey ? carried.ids : null;
+  const noCatalog = carriedIds !== null && carriedIds.size === 0;
+  const pickable = useMemo(
+    () => (carriedIds && !showAll && !noCatalog ? products.filter((p) => carriedIds.has(p.id)) : products),
+    [products, carriedIds, showAll, noCatalog]
+  );
+  const notCarried = (productId: string) => carriedIds !== null && productId !== "" && !carriedIds.has(productId);
+
+  // --- a new row comes into view, centred, with its search box ready ---
+  const [focusKey, setFocusKey] = useState<string | null>(null);
+  const pickerRefs = useRef(new Map<string, HTMLInputElement | null>());
+  useEffect(() => {
+    if (!focusKey) return;
+    const el = document.querySelector(`[data-row="${focusKey}"]`);
+    el?.scrollIntoView({ behavior: "smooth", block: "center" });
+    // After the scroll starts, so the browser does not jump to the input instead.
+    const t = window.setTimeout(() => pickerRefs.current.get(focusKey)?.focus({ preventScroll: true }), 250);
+    return () => window.clearTimeout(t);
+  }, [focusKey]);
+  const addRow = () => {
+    const r = newRow();
+    setRows((rs) => [...rs, r]);
+    setFocusKey(r.key);
+  };
+
   const patch = (key: string, next: Partial<LineRow>) =>
     setRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...next } : r)));
 
@@ -210,6 +260,20 @@ export default function PurchaseOrderForm({
         : {}),
     });
   };
+
+  // Another supplier means other prices: every line already chosen is priced
+  // again from the NEW supplier, rather than keeping the old one's figures.
+  const [pricedFor, setPricedFor] = useState(`${initial?.supplierId ?? ""}|${initial?.branchId ?? ""}`);
+  useEffect(() => {
+    if (!supplierId || carriedKey === pricedFor) return;
+    setPricedFor(carriedKey);
+    for (const r of rows) {
+      if (!r.productId) continue;
+      patch(r.key, { unitPrice: "", mappingId: "", priceScope: null, minOrderQty: null });
+      void autofill(r.key, r.productId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [carriedKey]);
 
   const onProductChange = (row: LineRow, productId: string) => {
     const product = products.find((p) => p.id === productId);
@@ -335,15 +399,27 @@ export default function PurchaseOrderForm({
 
       {/* --- lines --- */}
       <div className="space-y-2">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h3 className="text-sm font-medium">รายการสั่งซื้อ</h3>
-          <button
-            type="button"
-            onClick={() => setRows((rs) => [...rs, newRow()])}
-            className="rounded-lg border border-border px-3 py-1.5 text-xs hover:bg-muted/40"
-          >
-            + เพิ่มรายการ
-          </button>
+          {carriedIds && !noCatalog && (
+            <p className="text-xs text-muted-foreground">
+              {showAll ? (
+                <>
+                  แสดงวัตถุดิบทั้งหมด ·{" "}
+                  <button type="button" onClick={() => setShowAll(false)} className="text-primary underline">
+                    กลับไปแสดงเฉพาะของที่ผู้ขายรายนี้มี ({carriedIds.size} รายการ)
+                  </button>
+                </>
+              ) : (
+                <>แสดงเฉพาะของที่ผู้ขายรายนี้มี {carriedIds.size} รายการ (จากรายการราคาและการส่งของที่ผ่านมา)</>
+              )}
+            </p>
+          )}
+          {noCatalog && (
+            <p className="text-xs text-warn">
+              ผู้ขายรายนี้ยังไม่มีรายการราคาและยังไม่เคยส่งของ จึงแสดงวัตถุดิบทั้งหมด — ตรวจให้แน่ใจว่าผู้ขายมีของที่สั่ง
+            </p>
+          )}
         </div>
         {err("lines") && <p className={errorClass}>{err("lines")}</p>}
 
@@ -359,6 +435,7 @@ export default function PurchaseOrderForm({
             return (
               <div
                 key={row.key}
+                data-row={row.key}
                 className="rounded-lg border border-border p-3 sm:p-4"
               >
                 <div className="grid gap-3 sm:grid-cols-12">
@@ -366,10 +443,28 @@ export default function PurchaseOrderForm({
                     <label className="label">วัตถุดิบ</label>
                     <ProductPicker
                       name="line_product_id"
-                      products={products}
+                      // A chosen product stays shown even if it is outside the narrowed list.
+                      products={row.productId && !pickable.some((p) => p.id === row.productId) ? products : pickable}
                       value={row.productId}
                       onChange={(id) => onProductChange(row, id)}
+                      disabledText={!supplierId ? "เลือกผู้ขายก่อน แล้วจึงเลือกวัตถุดิบ" : undefined}
+                      onInputRef={(el) => {
+                        pickerRefs.current.set(row.key, el);
+                      }}
+                      footer={
+                        carriedIds && !noCatalog && !showAll
+                          ? {
+                              label: "ไม่เจอที่ต้องการ? แสดงวัตถุดิบที่ผู้ขายรายนี้ยังไม่เคยมี",
+                              onClick: () => setShowAll(true),
+                            }
+                          : undefined
+                      }
                     />
+                    {notCarried(row.productId) && (
+                      <p className="mt-1 text-xs text-warn">
+                        ผู้ขายรายนี้ยังไม่เคยมีสินค้านี้ในรายการราคาหรือการส่งของ — ตรวจกับผู้ขายก่อนส่งใบ
+                      </p>
+                    )}
                   </div>
 
                   <div className="sm:col-span-2">
@@ -470,6 +565,16 @@ export default function PurchaseOrderForm({
             );
           })}
         </div>
+        {/* At the END of the list (Kong 2026-09-29): ten lines should not mean
+            scrolling back to the top ten times. The new row scrolls to centre. */}
+        <button
+          type="button"
+          onClick={addRow}
+          disabled={!supplierId}
+          className="w-full rounded-lg border border-dashed border-border-strong py-3 text-sm font-medium text-primary hover:bg-muted/40 disabled:cursor-not-allowed disabled:text-muted-foreground"
+        >
+          + เพิ่มรายการ
+        </button>
       </div>
 
       {/* --- terms --- */}

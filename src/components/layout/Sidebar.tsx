@@ -12,6 +12,8 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
+import Link from "next/link";
+import type { Route } from "next";
 import Logo from "@/components/layout/Logo";
 import { currentNavHref, type NavGroup } from "@/components/layout/nav";
 
@@ -32,8 +34,14 @@ export default function Sidebar({
   const current = currentNavHref(pathname);
   const [open, setOpen] = useState(false);
 
+  // The item pressed lights up at once, before its page has arrived.
+  const [pressed, setPressed] = useState<string | null>(null);
+
   // A tap on a link navigates; the drawer must not stay over the new page.
-  useEffect(() => setOpen(false), [pathname]);
+  useEffect(() => {
+    setOpen(false);
+    setPressed(null);
+  }, [pathname]);
 
   const panel = (
     <nav aria-label="เมนูหลัก" className="flex h-full flex-col">
@@ -55,16 +63,26 @@ export default function Sidebar({
         {groups.map((g) => {
           const link = (item: NavGroup["items"][number], nested: boolean) => {
             const active = item.href === current;
+            // <Link>, not <a> (Kong 2026-09-29: "อยากให้ลื่นไหลทุกหน้า"): a plain
+            // anchor reloaded the whole document — scripts, sidebar and all —
+            // on every press. A Link swaps only the page, keeps this frame,
+            // and fetches the next page's loading state ahead of the press.
             return (
-              <a
-                href={item.href}
+              <Link
+                href={item.href as Route}
                 aria-current={active ? "page" : undefined}
+                // Plain left clicks only — a ctrl/middle click opens a new tab and this page stays.
+                onClick={(e) => {
+                  if (!e.ctrlKey && !e.metaKey && !e.shiftKey && e.button === 0) setPressed(item.href);
+                }}
                 className={`block rounded-md py-1.5 pr-2 transition-colors ${nested ? "pl-3 text-sm" : "px-2 text-[15px] font-semibold"} ${
-                  active ? "bg-primary font-medium text-primary-foreground" : "text-foreground hover:bg-muted"
+                  (pressed ? pressed === item.href : active)
+                    ? "bg-primary font-medium text-primary-foreground"
+                    : "text-foreground hover:bg-muted"
                 }`}
               >
                 {item.label}
-              </a>
+              </Link>
             );
           };
           // A one-item group is just a link; a heading over one line is noise.

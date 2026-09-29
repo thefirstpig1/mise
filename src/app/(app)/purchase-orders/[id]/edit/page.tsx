@@ -10,7 +10,7 @@
 import { notFound } from "next/navigation";
 import { requireTenant } from "@/lib/require-tenant";
 import { getPurchaseOrderByIdLogic } from "@/server/purchase-order";
-import { updatePurchaseOrderAction, resolveSupplierPriceAction } from "../../actions";
+import { updatePurchaseOrderAction, resolveSupplierPriceAction, getSupplierCarriesAction } from "../../actions";
 import PurchaseOrderForm from "../../_components/PurchaseOrderForm";
 import { loadPurchaseOrderFormOptions } from "../../_components/form-options";
 import { toPurchaseOrderDetailView } from "../../_components/purchase-order-view";
@@ -65,6 +65,7 @@ export default async function EditPurchaseOrderPage({
         branches={branches}
         tenantDefaultVatRate={membership.tenant.defaultVatRatePercent.toString()}
         resolvePrice={resolveSupplierPriceAction}
+        supplierCarries={getSupplierCarriesAction}
         initial={{
           id: view.id,
           branchId: view.branch.id,
