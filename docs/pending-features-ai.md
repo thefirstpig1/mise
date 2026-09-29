@@ -194,6 +194,21 @@ They are not exclusive. Deciding needs the feature list in front of both of us, 
 ### One consequence that is already true
 Free sign-up multiplies traffic on `/login`, which is a public email cannon (ADR 0031). **หมุด B's domain + SPF/DKIM moves earlier**, not later, the moment sign-up is free.
 
+### Tiers follow cost — captured 2026-09-29, NOT decided
+Kong: each price tier has a different cost, so each tier's features should match what it costs. The first example: the free tier never uses AI, but it still uses photo storage, so **how long bill photos are kept back could be a tier feature** (higher tiers keep them longer). The 2026-09-29 burn-rate estimate found three costs that grow with use: **AI calls, LINE push messages and stored photos**. Each one needs a cap per tier. For photo retention, the grill must check how long Thai law requires a shop to keep its documents, and decide whether an old photo is deleted or moved to cheaper storage. A shop must be able to export its photos before anything is removed.
+
+### Open calculation logic for outside audit — captured 2026-09-29, do at launch
+Kong: a shop deciding whether to trust คิดครัว will want to know the numbers are exact, so **publish the calculation logic so the shop can give it to an AI (or an accountant) to audit**. Feasible, because the rules already live in one place (`docs/calculation-rules.md` plus the ADRs). What it needs:
+1. **A public "วิธีคำนวณ" page in plain Thai**: each rule, its formula and one worked example, including the rounding rules. Without them an honest recompute differs by satang and reads as a bug. Known case: PR3a (exclusive multi-line receipts for a non-reclaimable shop), which must be fixed or stated first.
+2. **A per-shop "ชุดตรวจสอบ" export**: the raw inputs (receipts, stock movements, counts, sales) plus the figures the system printed, so an auditor checks the shop's own numbers as well as the logic. Tell the auditor to recompute with code or a spreadsheet, not in its head; a model doing arithmetic in prose is the least reliable auditor.
+3. **Published only as calculation, never as security or infrastructure detail.**
+
+**The rule this feature stands on (Kong, 2026-09-29):** *"อันนี้คือโจทย์ที่เราต้องซื่อสัตย์ที่สุด ห้าม prompt ให้เอไอที่ลูกค้าใช้ตรวจสอบเรามาเข้าข้างเราโดยเด็ดขาด หรือถ้าให้ดี prompt ให้พยายามจับผิด … ที่เราต้องการไม่ใช่ให้ลูกค้าหลงเชื่อ แต่ต้องการให้ลูกค้าเชื่อใจแล้วรู้ว่าเรา honest ที่สุด"*
+- **Nothing we publish tries to steer the auditor.** The rules page and the export carry no text aimed at a model: no "this has been verified", no "trust these figures", no hidden instructions. The customer's AI reads our files, so a persuasive sentence inside them is prompt injection against our own customer. A test should fail when the published files contain instruction-like text.
+- **The only prompt we supply is an adversarial one, shown in full and editable.** It tells the auditor to try to break the numbers: recompute every figure independently with code, look for rounding drift, double counting, dates in the wrong period and stock that appears from nowhere, report every mismatch however small, and never assume the system is right. The customer can read it, change it or use their own.
+- **Known limitations are published before anyone finds them**: PR3a's satang drift, a PREPPED count that always reports a gain (no production movements), the periodic method's dependence on a complete count, and every figure printed with its coverage or confidence. An auditor who finds a flaw we already listed learns that we tell the truth. One who finds a flaw we hid learns the opposite.
+- **A discrepancy is a bug report, not a support ticket**: an easy way to send the auditor's finding, and a public log of calculation corrections (what was wrong, since when, which figures moved).
+
 ---
 
 ## Local models — a fixed-cost path, captured 2026-09-22, NOT designed
