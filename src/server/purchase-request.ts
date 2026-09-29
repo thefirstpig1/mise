@@ -1029,3 +1029,79 @@ export async function cutRoundLogic(
     { timeout: 20_000 }
   );
 }
+
+// ------------------------------------------------------------
+// Reads for the actions layer
+// ------------------------------------------------------------
+
+/** The branch a line belongs to — so an action can check reach before anything else (rule A5). */
+export async function getRequestLineBranchLogic(tenantId: string, lineId: string): Promise<string> {
+  return withTenantContext(tenantId, async (tx) => (await loadLine(tx, tenantId, lineId)).branchId);
+}
+
+export type CutSheetLine = {
+  id: string;
+  product: { id: string; name: string; sku: string };
+  units: { id: string; name: string; toBase: number }[];
+  qty: number;
+  unitId: string;
+  department: { id: string; name: string };
+  supplierId: string | null;
+  note: string | null;
+  requestedBy: string;
+  onHandQty: number | null;
+  /** Latest known price per BASE unit per supplier (rule PR2) — the purchaser's view, with money. */
+  prices: SupplierPrice[];
+};
+
+export type CutSheet = {
+  lines: CutSheetLine[];
+  suppliers: { id: string; name: string }[];
+  readiness: Readiness;
+};
+
+/**
+ * Everything the purchaser needs to cut a round: the waiting lines, every
+ * supplier's latest price for each (with money — only called behind
+ * purchase:approve, which every role that has it pairs with cost:view), and
+ * who is ready. Lines with no supplier sort first (Q11).
+ */
+export async function getCutSheetLogic(tenantId: string, branchId: string, viewer: RequestViewer): Promise<CutSheet> {
+  const board = await getRequestBoardLogic(tenantId, branchId, viewer);
+  const waiting = board.lines.filter((l) => l.status.kind === "waiting");
+  return withTenantContext(tenantId, async (tx) => {
+    const productIds = [...new Set(waiting.map((l) => l.product.id))];
+    const [units, prices, suppliers] = await Promise.all([
+      tx.productUnit.findMany({
+        where: { productId: { in: productIds } },
+        select: { id: true, productId: true, unitName: true, toBaseRatio: true, isBase: true },
+      }),
+      supplierPrices(tx, tenantId, branchId, productIds),
+      tx.supplier.findMany({
+        where: { tenantId, deletedAt: null, isActive: true },
+        select: { id: true, nameFull: true },
+        orderBy: { nameFull: "asc" },
+      }),
+    ]);
+    const unitsOf = new Map<string, CutSheetLine["units"]>();
+    for (const u of units.sort((a, b) => Number(b.isBase) - Number(a.isBase))) {
+      unitsOf.set(u.productId, [...(unitsOf.get(u.productId) ?? []), { id: u.id, name: u.unitName, toBase: Number(u.toBaseRatio) }]);
+    }
+    const lines = waiting
+      .map((l) => ({
+        id: l.id,
+        product: { id: l.product.id, name: l.product.name, sku: l.product.sku },
+        units: unitsOf.get(l.product.id) ?? [],
+        qty: l.qty,
+        unitId: l.unit.id,
+        department: l.department,
+        supplierId: l.supplier?.id ?? null,
+        note: l.note,
+        requestedBy: l.requestedBy.name,
+        onHandQty: l.onHandQty,
+        prices: prices.get(l.product.id) ?? [],
+      }))
+      .sort((a, b) => Number(a.supplierId !== null) - Number(b.supplierId !== null));
+    return { lines, suppliers: suppliers.map((s) => ({ id: s.id, name: s.nameFull })), readiness: board.readiness };
+  });
+}

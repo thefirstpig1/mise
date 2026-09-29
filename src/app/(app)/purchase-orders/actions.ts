@@ -29,6 +29,7 @@
 import { revalidatePath } from "next/cache";
 import type { ZodError } from "zod";
 import { requireTenant } from "@/lib/require-tenant";
+import { deliveryPromiseInputSchema } from "@/lib/validations/purchase-request";
 import {
   cancelPurchaseOrderInputSchema,
   purchaseOrderInputSchema,
@@ -38,7 +39,10 @@ import {
   cancelPurchaseOrderLogic,
   createPurchaseOrderLogic,
   deletePurchaseOrderDraftLogic,
+  DeliveryPromiseNotAllowedError,
+  getPurchaseOrderByIdLogic,
   getSupplierCatalogLogic,
+  setDeliveryPromiseLogic,
   MappingProvenanceMismatchError,
   OrderUnitMismatchError,
   PurchaseOrderNotEditableError,
@@ -160,6 +164,7 @@ function linesFromFormData(formData: FormData): Record<string, unknown>[] {
   const prices = formData.getAll("line_unit_price");
   const mappingIds = formData.getAll("line_mapping_id");
   const notes = formData.getAll("line_notes");
+  const requestLineIds = formData.getAll("line_request_line_id");
 
   return productIds
     .map((productId, i) => ({
@@ -169,6 +174,9 @@ function linesFromFormData(formData: FormData): Record<string, unknown>[] {
       unitPrice: prices[i],
       supplierProductMappingId: mappingIds[i] ?? null,
       notes: notes[i] ?? null,
+      // ADR 0036 R1 — carried through every draft edit, or the kitchen's line
+      // would fall back to "รอสั่ง" while it sits in this order.
+      purchaseRequestLineId: requestLineIds[i] ?? null,
     }))
     .filter((l) => String(l.productId ?? "").trim() !== "");
 }
@@ -357,4 +365,34 @@ export async function resolveSupplierPriceAction(query: {
     branchId
   );
   return { ok: true, data: resolved ? toResolvedPriceView(resolved) : null };
+}
+
+// ------------------------------------------------------------
+// The supplier's promised date (ADR 0036 Q8, R7)
+// ------------------------------------------------------------
+
+export type DeliveryPromiseActionState = { ok: true } | { ok: false; formError: string };
+
+/**
+ * The one write a sent order accepts: what the supplier promised. Set by
+ * whoever talks to the supplier (purchase:approve), after the order is out.
+ */
+export async function setDeliveryPromiseAction(raw: unknown): Promise<DeliveryPromiseActionState> {
+  const { tenantId, membership, assertBranch } = await requireTenant("purchase:approve");
+  const parsed = deliveryPromiseInputSchema.safeParse(raw);
+  if (!parsed.success) return { ok: false, formError: "กรุณาเลือกวันที่ผู้ขายนัดส่ง" };
+  const po = await getPurchaseOrderByIdLogic(tenantId, parsed.data.purchaseOrderId);
+  if (!po) return { ok: false, formError: "ไม่พบใบสั่งซื้อนี้" };
+  assertBranch(po.branchId);
+  try {
+    await setDeliveryPromiseLogic(tenantId, parsed.data, membership.userId);
+  } catch (e) {
+    if (e instanceof DeliveryPromiseNotAllowedError) {
+      return { ok: false, formError: "ใส่วันนัดส่งได้หลังส่งใบให้ผู้ขายแล้ว และก่อนรับของครบ" };
+    }
+    throw e;
+  }
+  revalidatePurchaseOrderViews(po.id);
+  revalidatePath("/purchase-requests");
+  return { ok: true };
 }
