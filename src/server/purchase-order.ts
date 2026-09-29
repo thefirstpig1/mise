@@ -722,9 +722,18 @@ type PreparedLine = {
   unitPrice: Prisma.Decimal;
   lineTotal: Prisma.Decimal;
   supplierProductMappingId: string | null;
+  purchaseRequestLineId: string | null;
   notes: string | null;
   allocations: { departmentId: string; qtyAllocated: Prisma.Decimal }[];
 };
+
+/** Thrown when an order line points at a request line of another branch or product (ADR 0036 R1). */
+export class RequestLineMismatchError extends Error {
+  constructor(public readonly requestLineId: string) {
+    super(`Request line "${requestLineId}" is not this product at this branch`);
+    this.name = "RequestLineMismatchError";
+  }
+}
 
 /**
  * Validate one input line and resolve everything it will freeze (Q3).
@@ -739,9 +748,28 @@ async function prepareLine(
   supplierId: string,
   line: PurchaseOrderLineInput,
   lineNo: number,
-  defaultDepartmentId: string
+  defaultDepartmentId: string,
+  branchId: string
 ): Promise<PreparedLine> {
   await assertRefBelongsToTenant(tx, tenantId, "product", line.productId);
+
+  // ADR 0036 R1 — a pointer back to the kitchen's request must be THIS product
+  // at THIS branch; one pointing elsewhere would move somebody else's status.
+  let requestDepartmentId: string | null = null;
+  if (line.purchaseRequestLineId) {
+    const req = await tx.purchaseRequestLine.findFirst({
+      where: {
+        id: line.purchaseRequestLineId,
+        tenantId,
+        branchId,
+        productId: line.productId,
+        deletedAt: null,
+      },
+      select: { departmentId: true },
+    });
+    if (!req) throw new RequestLineMismatchError(line.purchaseRequestLineId);
+    requestDepartmentId = req.departmentId;
+  }
 
   const unit = await tx.productUnit.findFirst({
     where: { id: line.orderUnitId, productId: line.productId },
@@ -773,7 +801,8 @@ async function prepareLine(
         departmentId: a.departmentId,
         qtyAllocated: new Prisma.Decimal(a.qtyAllocated),
       }))
-    : [{ departmentId: defaultDepartmentId, qtyAllocated: qtyOrdered }];
+    : // A line cut from a request goes to the department that asked (ADR 0036 Q3).
+      [{ departmentId: requestDepartmentId ?? defaultDepartmentId, qtyAllocated: qtyOrdered }];
 
   // Q2's invariant, at the layer that writes (see AllocationSumMismatchError).
   const allocated = allocations.reduce((sum, a) => sum.plus(a.qtyAllocated), ZERO);
@@ -798,6 +827,7 @@ async function prepareLine(
     unitPrice,
     lineTotal,
     supplierProductMappingId: line.supplierProductMappingId,
+    purchaseRequestLineId: line.purchaseRequestLineId ?? null,
     notes: line.notes,
     allocations,
   };
@@ -856,7 +886,21 @@ export async function createPurchaseOrderLogic(
   input: PurchaseOrderInput,
   createdBy: string
 ): Promise<PurchaseOrderDetail> {
-  return withTenantContext(tenantId, async (tx) => {
+  return withTenantContext(tenantId, (tx) => createPurchaseOrderTx(tx, tenantId, input, createdBy));
+}
+
+/**
+ * The body of `createPurchaseOrderLogic`, inside a caller's transaction — so
+ * cutting a purchase-request round can raise one draft per supplier and either
+ * all of them exist or none do (ADR 0036 R3).
+ */
+export async function createPurchaseOrderTx(
+  tx: PrismaClient,
+  tenantId: string,
+  input: PurchaseOrderInput,
+  createdBy: string
+): Promise<PurchaseOrderDetail> {
+  {
     await assertRefBelongsToTenant(tx, tenantId, "supplier", input.supplierId);
     await assertRefBelongsToTenant(tx, tenantId, "branch", input.branchId);
 
@@ -869,7 +913,7 @@ export async function createPurchaseOrderLogic(
     const lines: PreparedLine[] = [];
     for (const [i, line] of input.lines.entries()) {
       lines.push(
-        await prepareLine(tx, tenantId, input.supplierId, line, i + 1, defaultDepartmentId)
+        await prepareLine(tx, tenantId, input.supplierId, line, i + 1, defaultDepartmentId, input.branchId)
       );
     }
 
@@ -903,6 +947,7 @@ export async function createPurchaseOrderLogic(
               unitPrice: l.unitPrice,
               lineTotal: l.lineTotal,
               supplierProductMappingId: l.supplierProductMappingId,
+              purchaseRequestLineId: l.purchaseRequestLineId,
               notes: l.notes,
               allocations: {
                 create: l.allocations.map((a) => ({
@@ -919,7 +964,7 @@ export async function createPurchaseOrderLogic(
     } catch (e) {
       rethrowNumberConflict(e, poNumber);
     }
-  });
+  }
 }
 
 /**
@@ -952,7 +997,7 @@ export async function updatePurchaseOrderLogic(
     const lines: PreparedLine[] = [];
     for (const [i, line] of input.lines.entries()) {
       lines.push(
-        await prepareLine(tx, tenantId, existing.supplierId, line, i + 1, defaultDepartmentId)
+        await prepareLine(tx, tenantId, existing.supplierId, line, i + 1, defaultDepartmentId, existing.branchId)
       );
     }
 
@@ -982,6 +1027,7 @@ export async function updatePurchaseOrderLogic(
             unitPrice: l.unitPrice,
             lineTotal: l.lineTotal,
             supplierProductMappingId: l.supplierProductMappingId,
+            purchaseRequestLineId: l.purchaseRequestLineId,
             notes: l.notes,
             allocations: {
               create: l.allocations.map((a) => ({
@@ -1049,12 +1095,21 @@ export async function cancelPurchaseOrderLogic(
   return withTenantContext(tenantId, async (tx) => {
     const existing = await tx.purchaseOrder.findFirst({
       where: { tenantId, id: input.id, deletedAt: null },
-      select: { id: true, status: true },
+      select: { id: true, status: true, poNumber: true },
     });
     if (!existing) throw new PurchaseOrderNotFoundError(input.id);
     if (existing.status !== "DRAFT" && existing.status !== "SENT") {
       throw new PurchaseOrderTransitionError(input.id, existing.status, "CANCELLED");
     }
+
+    // ADR 0036 Q10 — the kitchen's lines go back to "รอสั่ง" by themselves
+    // (their status is read, R1); say WHY on each, so nobody has to ask.
+    await noteLinkedRequestLines(
+      tx,
+      tenantId,
+      input.id,
+      `ใบสั่งซื้อ ${existing.poNumber} ถูกยกเลิก${input.cancelReason ? `: ${input.cancelReason}` : ""} — รายการนี้กลับไปรอสั่ง`
+    );
 
     return tx.purchaseOrder.update({
       where: { id: input.id },
@@ -1083,17 +1138,82 @@ export async function deletePurchaseOrderDraftLogic(
   return withTenantContext(tenantId, async (tx) => {
     const existing = await tx.purchaseOrder.findFirst({
       where: { tenantId, id, deletedAt: null },
-      select: { id: true, status: true },
+      select: { id: true, status: true, poNumber: true },
     });
     if (!existing) throw new PurchaseOrderNotFoundError(id);
     if (existing.status !== "DRAFT") {
       throw new PurchaseOrderNotEditableError(id, existing.status);
     }
 
+    await noteLinkedRequestLines(tx, tenantId, id, `ใบสั่งซื้อร่าง ${existing.poNumber} ถูกลบ — รายการนี้กลับไปรอสั่ง`);
+
     return tx.purchaseOrder.update({
       where: { id },
       data: { deletedAt: new Date() },
     });
+  });
+}
+
+/**
+ * A system message on every request line this order was cut from (ADR 0036
+ * Q4/Q10). The conversation is append-only (R2); `authorId` null = the system.
+ */
+export async function noteLinkedRequestLines(
+  tx: PrismaClient,
+  tenantId: string,
+  purchaseOrderId: string,
+  body: string
+): Promise<void> {
+  const links = await tx.purchaseOrderItem.findMany({
+    where: { tenantId, purchaseOrderId, purchaseRequestLineId: { not: null } },
+    select: { purchaseRequestLineId: true },
+  });
+  const lineIds = [...new Set(links.map((l) => l.purchaseRequestLineId!))];
+  if (lineIds.length === 0) return;
+  await tx.purchaseRequestMessage.createMany({
+    data: lineIds.map((lineId) => ({ tenantId, lineId, authorId: null, body })),
+  });
+}
+
+// ------------------------------------------------------------
+// The supplier's promised date (ADR 0036 Q8, R7)
+// ------------------------------------------------------------
+
+/** Thrown when a promise is set on an order that is not out with a supplier. */
+export class DeliveryPromiseNotAllowedError extends Error {
+  constructor(
+    public readonly id: string,
+    public readonly status: string
+  ) {
+    super(`Purchase order "${id}" is ${status}; a delivery promise needs a SENT order`);
+    this.name = "DeliveryPromiseNotAllowedError";
+  }
+}
+
+/**
+ * Record what the supplier promised. The ONE write a sent order accepts (R7):
+ * the promise is the supplier's answer, not the order's content. Every promise
+ * is kept; `expected_delivery_date` mirrors the newest so its readers (the par
+ * "ตามของ" state, the order list) need not change.
+ */
+export async function setDeliveryPromiseLogic(
+  tenantId: string,
+  input: { purchaseOrderId: string; promisedDate: Date; note: string | null },
+  setBy: string
+): Promise<void> {
+  await withTenantContext(tenantId, async (tx) => {
+    const po = await tx.purchaseOrder.findFirst({
+      where: { tenantId, id: input.purchaseOrderId, deletedAt: null },
+      select: { id: true, status: true },
+    });
+    if (!po) throw new PurchaseOrderNotFoundError(input.purchaseOrderId);
+    if (po.status !== "SENT" && po.status !== "PARTIALLY_RECEIVED") {
+      throw new DeliveryPromiseNotAllowedError(po.id, po.status);
+    }
+    await tx.purchaseOrderDeliveryPromise.create({
+      data: { tenantId, purchaseOrderId: po.id, promisedDate: input.promisedDate, note: input.note, setBy },
+    });
+    await tx.purchaseOrder.update({ where: { id: po.id }, data: { expectedDeliveryDate: input.promisedDate } });
   });
 }
 

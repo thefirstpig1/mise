@@ -133,6 +133,16 @@ export const purchaseOrderLineInputSchema = z
       blankToNull,
       z.string().trim().max(500, "หมายเหตุต้องไม่เกิน 500 ตัวอักษร").nullable()
     ),
+    /**
+     * ADR 0036 R1 — the kitchen request line this order line was cut from.
+     * Carried through every DRAFT edit, because an edit replaces the lines
+     * wholesale and a lost pointer would put the kitchen's line back to "รอสั่ง"
+     * while it sits in an order. Checked against tenant, branch and product in L3.
+     */
+    purchaseRequestLineId: z
+      .preprocess(blankToNull, z.string().uuid("อ้างอิงใบขอซื้อไม่ถูกต้อง").nullable())
+      .optional()
+      .transform((v) => v ?? null),
     allocations: z
       .array(
         z.object({
