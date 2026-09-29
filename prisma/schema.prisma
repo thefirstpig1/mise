@@ -162,6 +162,10 @@ model Tenant {
   staffMembers            StaffMember[]
   staffMeals              StaffMeal[]
   staffMealItems          StaffMealItem[]
+  purchaseRequestLines    PurchaseRequestLine[]
+  purchaseRequestMessages PurchaseRequestMessage[]
+  purchaseRequestReadies  PurchaseRequestReady[]
+  deliveryPromises        PurchaseOrderDeliveryPromise[]
 
   @@map("tenant")
 }
@@ -222,6 +226,8 @@ model Branch {
   salesConsumptionRuns    SalesConsumptionRun[]
   staffMembers            StaffMember[]
   staffMeals              StaffMeal[]
+  purchaseRequestLines    PurchaseRequestLine[]
+  purchaseRequestReadies  PurchaseRequestReady[]
 
   @@index([tenantId])
   @@map("branch")
@@ -281,6 +287,11 @@ model User {
   menuMergesRevoked         MenuMerge[]              @relation("MenuMergeRevokedBy")
   salesPulsesRecorded       SalesDay[]               @relation("SalesPulseRecordedBy")
   recipesCreated            Recipe[]                 @relation("RecipeCreatedBy")
+  purchaseRequestsMade      PurchaseRequestLine[]    @relation("PrLineRequestedBy")
+  purchaseRequestsRejected  PurchaseRequestLine[]    @relation("PrLineRejectedBy")
+  purchaseRequestMessages   PurchaseRequestMessage[] @relation("PrMessageAuthor")
+  purchaseRequestReadies    PurchaseRequestReady[]   @relation("PrReadyBy")
+  deliveryPromisesSet       PurchaseOrderDeliveryPromise[] @relation("PoPromiseSetBy")
 
   @@map("app_user")
 }
@@ -362,6 +373,8 @@ model Department {
   expenseItems      ExpenseItem[]
   /// Part 19 Q16 — which department a menu earns revenue for.
   menus             Menu[]
+  purchaseRequestLines   PurchaseRequestLine[]
+  purchaseRequestReadies PurchaseRequestReady[]
 
   @@unique([tenantId, code])
   @@index([tenantId])
@@ -452,6 +465,7 @@ model Supplier {
   goodsReceipts           GoodsReceipt[]
   expenses                Expense[]
   recurringExpenses       RecurringExpense[]
+  purchaseRequestLines    PurchaseRequestLine[]
 
   @@index([tenantId])
   @@map("supplier")
@@ -523,6 +537,7 @@ model Product {
   usedInRecipes           RecipeIngredient[]
   salesConsumptionItems   SalesConsumptionItem[]
   staffMealItems          StaffMealItem[]
+  purchaseRequestLines    PurchaseRequestLine[]
 
   /// NOTE: per-tenant sku uniqueness is a PARTIAL unique index (WHERE deleted_at
   /// IS NULL) in prisma/manual/product_sku_unique.sql — NOT a Prisma @@unique,
@@ -555,6 +570,7 @@ model ProductUnit {
   stockTransferItems      StockTransferItem[]
   recipeIngredients       RecipeIngredient[]
   staffMealItems          StaffMealItem[]
+  purchaseRequestLines    PurchaseRequestLine[]
 
   @@unique([productId, unitName])
   @@index([productId])
@@ -1184,6 +1200,7 @@ model PurchaseOrder {
   closedShortByUser User?               @relation("PoClosedShortBy", fields: [closedShortBy], references: [id])
   items             PurchaseOrderItem[]
   goodsReceipts     GoodsReceipt[]
+  deliveryPromises  PurchaseOrderDeliveryPromise[]
 
   @@index([tenantId])
   @@index([tenantId, status], map: "purchase_order_tenant_status_idx")
@@ -1223,6 +1240,11 @@ model PurchaseOrderItem {
   /// migration on a table it does not own.
   qtyReceived Decimal @default(0) @map("qty_received") @db.Decimal(15, 3)
 
+  /// ADR 0036 R1 — the kitchen request this line was cut from; null for a PO
+  /// raised directly. One request line may be ordered several times over time
+  /// (its PO cancelled, then ordered again), so the pointer lives HERE.
+  purchaseRequestLineId String? @map("purchase_request_line_id") @db.Uuid
+
   notes String?
 
   createdAt DateTime @default(now()) @map("created_at")
@@ -1235,12 +1257,147 @@ model PurchaseOrderItem {
   supplierProductMapping SupplierProductMapping?       @relation(fields: [supplierProductMappingId], references: [id])
   allocations            PurchaseOrderItemAllocation[]
   goodsReceiptItems      GoodsReceiptItem[]
+  purchaseRequestLine    PurchaseRequestLine?          @relation(fields: [purchaseRequestLineId], references: [id])
 
   @@unique([purchaseOrderId, lineNo], map: "purchase_order_item_line_unique")
   @@index([tenantId])
   @@index([purchaseOrderId], map: "purchase_order_item_parent_idx")
   @@index([productId], map: "purchase_order_item_product_idx")
+  @@index([purchaseRequestLineId], map: "purchase_order_item_request_line_idx")
   @@map("purchase_order_item")
+}
+
+/// ADR 0036 Q8 — the supplier's promised delivery date, the ONE thing that may
+/// change on a sent order (it is the supplier's answer, not the order's
+/// content). Append-only: every promise ever given is kept, so a supplier that
+/// keeps slipping shows it. `purchase_order.expected_delivery_date` mirrors the
+/// latest row, written in the same transaction, so every existing reader (the
+/// par "ตามของ" state, the order list) keeps working untouched.
+model PurchaseOrderDeliveryPromise {
+  id              String   @id @default(uuid()) @db.Uuid
+  tenantId        String   @map("tenant_id") @db.Uuid
+  purchaseOrderId String   @map("purchase_order_id") @db.Uuid
+  promisedDate    DateTime @map("promised_date") @db.Date
+  /// "ผู้ขายรถเสีย", "โทรยืนยันกับพี่ต้อม" — why the date is what it is.
+  note            String?
+  setBy           String   @map("set_by")
+  setAt           DateTime @default(now()) @map("set_at")
+
+  tenant        Tenant        @relation(fields: [tenantId], references: [id])
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  setByUser     User          @relation("PoPromiseSetBy", fields: [setBy], references: [id])
+
+  @@index([tenantId])
+  @@index([purchaseOrderId, setAt], map: "po_delivery_promise_po_idx")
+  @@map("purchase_order_delivery_promise")
+}
+
+// ============================================================
+// PURCHASE REQUEST (Sprint 7 Part 38 — ADR 0036)
+// ============================================================
+// The kitchen's always-open list of what one branch needs. Several people add
+// to it at once; nobody in the kitchen closes or sends it. Each department
+// says "พร้อมแล้ว"; a purchaser CUTS A ROUND into draft POs, one per supplier.
+//
+// There is no header table: a branch has exactly one list, always open, so a
+// header would be a row with nothing to say. A line's STATUS is not stored
+// either (R1) — it is read from the PO lines that point back at it.
+// ============================================================
+
+/// One thing one branch needs, as the kitchen asked for it.
+model PurchaseRequestLine {
+  id           String  @id @default(uuid()) @db.Uuid
+  tenantId     String  @map("tenant_id") @db.Uuid
+  branchId     String  @map("branch_id") @db.Uuid
+  productId    String  @map("product_id") @db.Uuid
+  /// In `unitId` — what the kitchen asked for. The purchaser may change it when
+  /// ordering (ADR 0036 Q4); the PO line records what was actually ordered.
+  qty          Decimal @db.Decimal(15, 3)
+  unitId       String  @map("unit_id") @db.Uuid
+  /// Always set: a shop with departments switched off files everything under
+  /// its "Main" department, the same rule ADR 0012 Q2 applied to PO allocations.
+  departmentId String  @map("department_id") @db.Uuid
+  /// Proposed by the system (Q11) or chosen by the kitchen; null = "ให้จัดซื้อเลือก".
+  supplierId   String? @map("supplier_id") @db.Uuid
+  /// "ที่เหลืออยู่จริง" in the product's BASE unit — what the person standing
+  /// at the shelf saw. Informs the order; NEVER moves stock (ADR 0015 owns that).
+  onHandQty    Decimal? @map("on_hand_qty") @db.Decimal(15, 3)
+  /// The kitchen's remark to the purchaser ("ร้าน B เนื้อไม่สวย"). A purchaser
+  /// who moves this line to another supplier must answer it first (Q4).
+  note         String?
+
+  requestedBy  String   @map("requested_by")
+  requestedAt  DateTime @default(now()) @map("requested_at")
+
+  /// "ไม่สั่ง" (Q4) — never a silent delete. Cleared when the kitchen asks again,
+  /// which reopens THIS line so the conversation stays in one place.
+  rejectedAt   DateTime? @map("rejected_at")
+  rejectedBy   String?   @map("rejected_by")
+  rejectReason String?   @map("reject_reason")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  /// Withdrawn by the kitchen before any round took it. Kept, not destroyed.
+  deletedAt DateTime? @map("deleted_at")
+
+  tenant          Tenant                   @relation(fields: [tenantId], references: [id])
+  branch          Branch                   @relation(fields: [branchId], references: [id])
+  product         Product                  @relation(fields: [productId], references: [id])
+  unit            ProductUnit              @relation(fields: [unitId], references: [id])
+  department      Department               @relation(fields: [departmentId], references: [id])
+  supplier        Supplier?                @relation(fields: [supplierId], references: [id])
+  requestedByUser User                     @relation("PrLineRequestedBy", fields: [requestedBy], references: [id])
+  rejectedByUser  User?                    @relation("PrLineRejectedBy", fields: [rejectedBy], references: [id])
+  messages        PurchaseRequestMessage[]
+  orderItems      PurchaseOrderItem[]
+
+  @@index([tenantId])
+  @@index([branchId, deletedAt], map: "pr_line_branch_idx")
+  @@index([productId], map: "pr_line_product_idx")
+  @@map("purchase_request_line")
+}
+
+/// The per-line conversation between kitchen and purchaser (Q4). APPEND-ONLY
+/// (R2): the app never updates or deletes a row, because it is the record that
+/// settles "the purchaser ignored us" / "the kitchen refused to listen" later.
+/// `authorId` null = written by the system (moved supplier, rejected, PO cancelled).
+model PurchaseRequestMessage {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  lineId    String   @map("line_id") @db.Uuid
+  authorId  String?  @map("author_id")
+  body      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant Tenant              @relation(fields: [tenantId], references: [id])
+  line   PurchaseRequestLine @relation(fields: [lineId], references: [id], onDelete: Cascade)
+  author User?               @relation("PrMessageAuthor", fields: [authorId], references: [id])
+
+  @@index([tenantId])
+  @@index([lineId, createdAt], map: "pr_message_line_idx")
+  @@map("purchase_request_message")
+}
+
+/// "พร้อมแล้ว" (Q3): a department has finished adding for this round. A row
+/// that EXISTS is the signal; adding a line afterwards deletes it, and cutting
+/// a round deletes the branch's rows. State, not history — who was ready when
+/// a round was cut is written into the lines' conversation instead.
+model PurchaseRequestReady {
+  id           String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  branchId     String   @map("branch_id") @db.Uuid
+  departmentId String   @map("department_id") @db.Uuid
+  readyBy      String   @map("ready_by")
+  readyAt      DateTime @default(now()) @map("ready_at")
+
+  tenant      Tenant     @relation(fields: [tenantId], references: [id])
+  branch      Branch     @relation(fields: [branchId], references: [id])
+  department  Department @relation(fields: [departmentId], references: [id])
+  readyByUser User       @relation("PrReadyBy", fields: [readyBy], references: [id])
+
+  @@unique([branchId, departmentId], map: "pr_ready_branch_dept_unique")
+  @@index([tenantId])
+  @@map("purchase_request_ready")
 }
 
 /// Department attribution of a line's quantity (Q2). SUM(qtyAllocated) per line

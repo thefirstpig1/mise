@@ -21,6 +21,7 @@ import Logo from "@/components/layout/Logo";
  */
 const NEED_TH: Record<string, string> = {
   "master:write": "แก้ไขข้อมูลหลัก (ผู้ขาย สินค้า หมวดหมู่ เมนู)",
+  "purchase:request": "ขอซื้อของเข้าใบขอซื้อของสาขา",
   "purchase:write": "สร้างใบสั่งซื้อ",
   "purchase:approve": "ส่งหรือยกเลิกใบสั่งซื้อ",
   "receive:write": "รับของเข้าคลัง",

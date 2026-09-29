@@ -31,6 +31,9 @@ import { PrismaClient, Prisma } from "@prisma/client";
  * quietly for a sprint.
  */
 export const TENANT_SCOPED_DELETE_ORDER = [
+  "PurchaseRequestMessage",
+  "PurchaseRequestReady",
+  "PurchaseOrderDeliveryPromise",
   "ExpenseItem",
   "GoodsReceiptItemAllocation",
   "MenuAlias",
@@ -64,6 +67,8 @@ export const TENANT_SCOPED_DELETE_ORDER = [
   "GoodsReceipt",
   "Menu",
   "PurchaseOrderItem",
+  // After the PO lines that point at it (ADR 0036 R1).
+  "PurchaseRequestLine",
   "RecurringExpense",
   "SalesImportBatch",
   "StockCount",

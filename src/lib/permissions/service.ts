@@ -54,6 +54,11 @@ export type Capability =
   // ── writing ────────────────────────────────────────────────────────────
   /** Suppliers, products, categories, units, supplier-product mappings, menus. */
   | "master:write"
+  /**
+   * Add to the branch's purchase request, mark a department ready, talk on a
+   * line (ADR 0036 Q6). The kitchen's way in — it never raises a PO itself.
+   */
+  | "purchase:request"
   /** Draft a purchase order. */
   | "purchase:write"
   /** Send or cancel one — the step that commits the shop to spending. */
@@ -110,6 +115,7 @@ export type Requirement = Capability | "any:member";
 /** Every capability, in declaration order. Used by the drift tests. */
 export const ALL_CAPABILITIES = [
   "master:write",
+  "purchase:request",
   "purchase:write",
   "purchase:approve",
   "receive:write",
@@ -186,6 +192,7 @@ const ADMIN: readonly Capability[] = ALL_CAPABILITIES;
  */
 const MANAGER: readonly Capability[] = [
   "master:write",
+  "purchase:request",
   "purchase:write",
   "purchase:approve",
   "receive:write",
@@ -212,6 +219,7 @@ const MANAGER: readonly Capability[] = [
  */
 const PURCHASER: readonly Capability[] = [
   "master:write",
+  "purchase:request",
   "purchase:write",
   "purchase:approve",
   "receive:write",
@@ -227,6 +235,7 @@ const PURCHASER: readonly Capability[] = [
  * does not need and PDPA says not to hand out for free.
  */
 const KITCHEN_STAFF: readonly Capability[] = [
+  "purchase:request",
   "stock:write",
   "count:write",
   "staffmeal:write",

@@ -511,3 +511,31 @@ USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 -- ============================================================
 -- End Sprint 5 Part 26 RLS
 -- ============================================================
+
+-- ============================================================
+-- Sprint 7 Part 38 RLS (ADR 0036) — purchase request + delivery promises
+-- ============================================================
+
+ALTER TABLE purchase_request_line ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON purchase_request_line;
+CREATE POLICY tenant_isolation ON purchase_request_line
+USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+ALTER TABLE purchase_request_message ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON purchase_request_message;
+CREATE POLICY tenant_isolation ON purchase_request_message
+USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+ALTER TABLE purchase_request_ready ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON purchase_request_ready;
+CREATE POLICY tenant_isolation ON purchase_request_ready
+USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+ALTER TABLE purchase_order_delivery_promise ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON purchase_order_delivery_promise;
+CREATE POLICY tenant_isolation ON purchase_order_delivery_promise
+USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+-- ============================================================
+-- End Sprint 7 Part 38 RLS
+-- ============================================================
