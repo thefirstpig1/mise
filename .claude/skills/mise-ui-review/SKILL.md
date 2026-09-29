@@ -72,8 +72,11 @@ you touch, **without being told page by page** — Kong: "อย่าให้�
   `src/app/(app)/sales/_components/Breakdown.tsx`. Esc / click outside closes.
 - No 100% "ทุกหมวด" row — the total goes in the title; clicking the selected
   category again returns to all.
-- Any popup that shows figures carries the **measure switch** in its header
-  (`PopupMetricSwitch`) — ยอดขาย read as กำไร is the worst confusion.
+- Any popup that RANKS several items carries the **measure switch** in its
+  header (`PopupMetricSwitch`) — ยอดขาย read as กำไร is the worst confusion.
+  **Exception — a popup about ONE item** (the menu insight popup): no switch.
+  Its sales, plates, cost and profit are all on screen at once, so switching
+  only repeats them (Kong 2026-09-29). It reads in ยอดขาย.
 
 ## 5. Numbers and comparisons (see docs/calculation-rules.md SI1–SI3)
 - Offer **ยอดขาย / จำนวนจาน / กำไร** wherever a ranking is shown — a cheap dish
@@ -102,6 +105,18 @@ you touch, **without being told page by page** — Kong: "อย่าให้�
 - `requireTenant` identity is cached per request (layout + page share it).
 - Background tabs throttle timers to ~1 s — measure UI switches with a
   MutationObserver, not setTimeout polling.
+- **Every press answers at once, even if the figures cannot** (Kong 2026-09-29,
+  dashboard): the pressed chip/bar lights up immediately (local state while
+  `useTransition` is pending) and a "กำลังคำนวณ…" shows. A `router.push`
+  outside a transition, with nothing changing on screen, reads as "stuck".
+- **Don't recompute what a click cannot change.** The dashboard's 6-month chart
+  was 6 full P&Ls rerun on every period click; it now loads itself (Server
+  Action from a client component) once per BRANCH choice. Before adding work
+  to a Server Component page, ask which URL params actually change it.
+- **Reuse what the page already holds.** The menu popup walked every recipe of
+  every branch to price one dish; the profit view had that cost already
+  (`withDishCost`). Cache popup results per key for re-opens.
+- Slow reads belong in their own `<Suspense>` so the frame appears first.
 
 ## 6. Permissions on any read
 - "ทุกสาขา" means every branch **the reader may see**. Sales reads take a
@@ -116,8 +131,11 @@ you touch, **without being told page by page** — Kong: "อย่าให้�
 - **A tab older than the server** (every dev restart, every deploy) calls a
   Server Action id the server no longer has. Next does NOT throw — the call
   resolves to `undefined`, and `res.ok` crashes the page to the error screen.
-  Every client-side action call must handle `r ?? stale` AND `.catch`, and show
-  `STALE_TAB_MESSAGE` + a refresh button (`ActionError` in `Breakdown.tsx`).
+  Wrap every client-side action call: `await orStale(someAction(...))`
+  (`src/lib/stale-tab.ts`) — it returns a normal `{ ok:false, formError, error }`
+  and raises the app-wide `VersionBanner`, which also polls `/api/version` on
+  tab focus. Actions returning a non-`{ok}` shape: `.catch(() => undefined)` +
+  `announceStale()`.
   Reproduce by loading the page, restarting dev, then clicking — not by a
   fresh load, which always works.
 - typedRoutes: cast built strings `as Route` for `router.push`/`Link`.
