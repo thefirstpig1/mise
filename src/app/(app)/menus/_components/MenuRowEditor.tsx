@@ -45,6 +45,7 @@ import {
   RETIRE_NOT_IN_POS_TH,
 } from "@/lib/validations/menu-lifecycle";
 import type { MenuRowView, MenuSuggestionRowView } from "./menu-view";
+import { orStale } from "@/lib/stale-tab";
 import {
   mergedSpellingsLabel,
   type MergeMenuView,
@@ -98,7 +99,7 @@ export default function MenuRowEditor({
   const toggleActive = () => {
     setLifecycle(null);
     startLifecycle(async () => {
-      setLifecycle(await setMenuActiveAction(menu.id, menu.isRetired));
+      setLifecycle(await orStale(setMenuActiveAction(menu.id, menu.isRetired)));
     });
   };
 
@@ -114,7 +115,7 @@ export default function MenuRowEditor({
     }
     setLifecycle(null);
     startLifecycle(async () => {
-      const res = await deleteMenuAction(menu.id, armed);
+      const res = await orStale(deleteMenuAction(menu.id, armed));
       setLifecycle(res);
       if (!res.ok && res.needsAcknowledgement) {
         setRecipeCount(res.needsAcknowledgement.recipeCount);
@@ -124,7 +125,7 @@ export default function MenuRowEditor({
 
   const findSimilar = () => {
     startLooking(async () => {
-      const result = await getMenuSuggestionsAction(menu.posMenuName ?? menu.name);
+      const result = await orStale(getMenuSuggestionsAction(menu.posMenuName ?? menu.name));
       setSuggestions(result.ok ? result.suggestions : []);
     });
   };

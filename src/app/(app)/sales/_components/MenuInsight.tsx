@@ -18,12 +18,12 @@
 // and says so, rather than the layout changing the day photos arrive.
 // ============================================================
 
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { InsightContext, type MetricOption } from "./insight-context";
-import { PopupMetricSwitch } from "./MetricSwitch";
+import type { MenuRow } from "./SalesCharts";
 import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis } from "recharts";
 import { ANIM, ChartGradients, ChartTooltip, INK_MUTED, cursorFill, grad } from "@/components/charts/chart-theme";
-import { METRIC_LABELS_TH, WEEK_ORDER, type Metric } from "@/lib/sales-insight";
+import { METRIC_LABELS_TH, WEEK_ORDER, withDishCost, type DishCost, type Metric } from "@/lib/sales-insight";
 import { RECIPE_CONFIDENCE_HINTS_TH, RECIPE_CONFIDENCE_LABELS_TH } from "@/lib/validations/recipe";
 import { getMenuInsightAction, type MenuInsightResult } from "../insight-actions";
 import { ActionError, ModalShell, STALE_TAB_MESSAGE, baht, fmtMetric } from "./Breakdown";
@@ -42,6 +42,7 @@ export function MenuInsightProvider({
   branchId,
   by,
   metric,
+  costRows,
   children,
 }: {
   from: string;
@@ -49,15 +50,28 @@ export function MenuInsightProvider({
   branchId?: string;
   by: Metric;
   metric: { options: MetricOption[]; select: (m: Metric) => void; pending: Metric | null };
+  /** The profit view's menu table once it has loaded — each dish's cost, already worked out. */
+  costRows: MenuRow[] | undefined;
   children: ReactNode;
 }) {
   const [menuId, setMenuId] = useState<string | null>(null);
   const open = useCallback((id: string) => setMenuId(id), []);
   const close = useCallback(() => setMenuId(null), []);
+  // A dish opened once in this period opens again at once.
+  const cache = useRef(new Map<string, Extract<MenuInsightResult, { ok: true }>>());
+  const row = menuId ? costRows?.find((r) => r.id === menuId) : undefined;
+  // `undefined` = the page does not know this dish's cost yet → the server prices it.
+  const known: DishCost | null | undefined = !row
+    ? undefined
+    : row.costPerDish === null
+      ? null
+      : { cost: row.costPerDish, confidence: row.confidence ?? "LOW", recipeId: row.recipeId ?? null };
   return (
     <InsightContext.Provider value={{ open, metric: { current: by, ...metric } }}>
       {children}
-      {menuId && <MenuInsightModal menuId={menuId} from={from} to={to} branchId={branchId} by={by} onClose={close} />}
+      {menuId && (
+        <MenuInsightModal menuId={menuId} from={from} to={to} branchId={branchId} known={known} cache={cache.current} onClose={close} />
+      )}
     </InsightContext.Provider>
   );
 }
@@ -67,30 +81,46 @@ function MenuInsightModal({
   from,
   to,
   branchId,
-  by,
+  known,
+  cache,
   onClose,
 }: {
   menuId: string;
   from: string;
   to: string;
   branchId?: string;
-  by: Metric;
+  known: DishCost | null | undefined;
+  cache: Map<string, Extract<MenuInsightResult, { ok: true }>>;
   onClose: () => void;
 }) {
-  const [res, setRes] = useState<MenuInsightResult | null>(null);
+  const key = `${menuId}|${from}|${to}|${branchId ?? ""}`;
+  const [res, setRes] = useState<MenuInsightResult | null>(() => cache.get(key) ?? null);
   useEffect(() => {
+    const hit = cache.get(key);
+    if (hit) {
+      setRes(hit);
+      return;
+    }
     let live = true;
     setRes(null);
-    getMenuInsightAction({ menuId, from, to, branchId, by })
+    const withCost = known === undefined;
+    getMenuInsightAction({ menuId, from, to, branchId, withCost })
       // A tab older than the server gets NO answer back — Next resolves the
       // call with `undefined` rather than throwing ("Failed to find Server
       // Action"). Both that and a throw mean "refresh", never an error page.
-      .then((r) => live && setRes(r ?? STALE))
+      .then((r) => {
+        if (!r) return live && setRes(STALE);
+        const done = r.ok && !withCost ? { ...r, insight: withDishCost(r.insight, known ?? null) } : r;
+        if (done.ok) cache.set(key, done);
+        if (live) setRes(done);
+      })
       .catch(() => live && setRes(STALE));
     return () => {
       live = false;
     };
-  }, [menuId, from, to, branchId, by]);
+    // `known` is read once per dish: the cost the page held when it was opened.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
 
   return (
     <ModalShell onClose={onClose} labelledBy="menu-insight-title" wide>
@@ -107,7 +137,7 @@ function MenuInsightModal({
       ) : !res.ok ? (
         <ActionError message={res.formError} stale={"stale" in res && Boolean(res.stale)} />
       ) : (
-        <InsightBody r={res} by={by} />
+        <InsightBody r={res} />
       )}
     </ModalShell>
   );
@@ -139,7 +169,11 @@ function Kpi({ label, value, sub, tone }: { label: string; value: string; sub?: 
   );
 }
 
-function InsightBody({ r, by }: { r: Extract<MenuInsightResult, { ok: true }>; by: Metric }) {
+// One dish is always read in ยอดขาย: its plates, cost and profit are all on
+// the same screen, so a measure switch here only repeated them (Kong, 2026-09-29).
+const by: Metric = "net";
+
+function InsightBody({ r }: { r: Extract<MenuInsightResult, { ok: true }> }) {
   const m = r.insight;
   const noRecipe = m.costPerDish === null;
   const best = m.weekday.reduce((a, b) => (b.qtyPerDay > a.qtyPerDay ? b : a), m.weekday[0]);
@@ -170,9 +204,6 @@ function InsightBody({ r, by }: { r: Extract<MenuInsightResult, { ok: true }>; b
             <span className="rounded-full bg-muted px-2 py-0.5 font-medium text-foreground">{r.curLabel}</span>{" "}
             เทียบกับ <span className="rounded-full bg-muted px-2 py-0.5 font-medium text-foreground">{r.prevLabel}</span> · {m.days} วันที่มีข้อมูล · ขายดีสุดวัน{WEEKDAY_SHORT[best.weekday]} เฉลี่ย {best.qtyPerDay.toFixed(1)} จาน
           </p>
-          <div className="mt-2">
-            <PopupMetricSwitch />
-          </div>
         </div>
       </div>
 

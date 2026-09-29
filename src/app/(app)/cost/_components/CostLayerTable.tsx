@@ -1,5 +1,7 @@
 "use client";
 
+import { orStale } from "@/lib/stale-tab";
+
 // Sprint 2 Part 14 L5b — the layer stack behind one product's cost.
 //
 // This table is the answer to "why is the cost that number?", and it is the only
@@ -54,7 +56,7 @@ export default function CostLayerTable({
     }
     setOpenFor(movementId);
     if (!history[movementId]) {
-      const res = await getCostDeclarationsAction(movementId);
+      const res = await orStale(getCostDeclarationsAction(movementId));
       if (res.ok) setHistory((h) => ({ ...h, [movementId]: res.data }));
     }
   };

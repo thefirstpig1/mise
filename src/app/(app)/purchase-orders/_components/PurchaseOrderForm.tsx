@@ -1,5 +1,7 @@
 "use client";
 
+import { orStale } from "@/lib/stale-tab";
+
 // Sprint 2 Part 11 L5b — the order form (shared by create and edit).
 //
 // Driven by React 19 useActionState. Input `name=` attributes are snake_case to
@@ -188,7 +190,7 @@ export default function PurchaseOrderForm({
   /** Ask the server for today's price and fill the row in (Q5 handles "none"). */
   const autofill = async (key: string, productId: string) => {
     if (!resolvePrice || !productId || !supplierId || !branchId) return;
-    const res = await resolvePrice({ productId, supplierId, branchId });
+    const res = await orStale(resolvePrice({ productId, supplierId, branchId }));
     if (!res.ok) return;
     if (!res.data) {
       patch(key, { priceScope: "none", mappingId: "", minOrderQty: null });

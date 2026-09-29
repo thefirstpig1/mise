@@ -186,6 +186,8 @@ export type MenuRow = {
   costPerDish: number | null;
   profitPerDish: number | null;
   confidence: string | null;
+  /** Profit view only — lets the menu popup reuse this cost instead of re-walking recipes. */
+  recipeId?: string | null;
   stub: boolean;
 };
 

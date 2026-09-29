@@ -38,19 +38,29 @@ export type MenuInsightResult =
   | { ok: true; insight: MenuInsight; canSeeCost: boolean; costAsOf: string; prevLabel: string; curLabel: string }
   | { ok: false; formError: string; stale?: boolean };
 
+/**
+ * One dish's popup. Always in ยอดขาย (Kong, 2026-09-29: one dish needs no
+ * measure switch — its cost, profit and plates are all on the same screen).
+ *
+ * `withCost: false` skips the recipe walk — the slow part, which prices every
+ * menu of every branch — because the page already holds this dish's cost in
+ * its profit view and applies it in the browser (`withDishCost`). Nothing the
+ * browser sends is trusted as a figure: it only chooses whether the server
+ * prices the dish itself.
+ */
 export async function getMenuInsightAction(input: {
   menuId: string;
   from: string;
   to: string;
   branchId?: string;
-  by: Metric;
+  withCost: boolean;
 }): Promise<MenuInsightResult> {
   const { tenantId, assertBranch, costAccess, reach } = await requireTenant("sales:view");
-  if (!ISO.test(input.from) || !ISO.test(input.to) || input.from > input.to || !METRIC.has(input.by)) {
+  if (!ISO.test(input.from) || !ISO.test(input.to) || input.from > input.to) {
     return { ok: false, formError: "ช่วงวันที่ไม่ถูกต้อง" };
   }
   if (input.branchId) assertBranch(input.branchId);
-  const by: Metric = input.by === "profit" && costAccess === null ? "net" : input.by;
+  const by: Metric = "net";
 
   const prev = previousRange(input.from, input.to);
   const data = await getSalesMenuDaysLogic(tenantId, {
@@ -62,8 +72,8 @@ export async function getMenuInsightAction(input: {
   const menus = new Map<string, MenuMeta>(data.menus.map((m) => [m.id, m]));
   if (!menus.has(input.menuId)) return { ok: false, formError: "ไม่พบยอดขายของเมนูนี้ในช่วงนี้" };
 
-  const branchIds = [...new Set(data.rows.map((r) => r.branchId))];
-  const costs = await getMenuCostMapLogic(tenantId, branchIds, d(input.to), costAccess);
+  const branchIds = [...new Set(data.rows.filter((r) => r.menuId === input.menuId).map((r) => r.branchId))];
+  const costs = input.withCost ? await getMenuCostMapLogic(tenantId, branchIds, d(input.to), costAccess) : new Map();
   const rows = enrich(data.rows, menus, costs);
   const cur = rows.filter((r) => r.day >= input.from && r.day <= input.to);
   const before = rows.filter((r) => r.day >= prev.from && r.day <= prev.to);

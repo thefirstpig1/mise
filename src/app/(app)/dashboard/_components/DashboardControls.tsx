@@ -6,7 +6,7 @@
 // nothing to toggle — the server narrows again regardless (rule A5).
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { PERIOD_LABELS_TH, PERIOD_PRESETS, type PeriodChoice } from "./dashboard-period";
 
 export type BranchChip = { id: string; name: string; color: string };
@@ -26,6 +26,11 @@ export default function DashboardControls({
   const router = useRouter();
   const params = useSearchParams();
   const [pending, start] = useTransition();
+  // What was just pressed lights up at once, while the server works out the
+  // figures (Kong, 2026-09-29: a press that shows nothing reads as "stuck").
+  const [asked, setAsked] = useState<{ p?: string; b?: string[] } | null>(null);
+  const shownPreset = pending && asked?.p !== undefined ? asked.p : preset;
+  const shownSelected = pending && asked?.b !== undefined ? asked.b : selected;
 
   function go(next: { p?: string; b?: string[] }) {
     const q = new URLSearchParams(params.toString());
@@ -34,6 +39,7 @@ export default function DashboardControls({
       if (next.b.length === 0 || next.b.length === branches.length) q.delete("b");
       else q.set("b", next.b.join(","));
     }
+    setAsked(next);
     start(() => router.push(`/dashboard?${q.toString()}`, { scroll: false }));
   }
 
@@ -41,29 +47,38 @@ export default function DashboardControls({
   // already on goes BACK to every branch — so "this branch vs the whole shop"
   // is one tap each way. (The first version toggled branches in and out of a
   // set, which could never get you back to the overview in one press.)
-  const current = selected.length === 1 ? selected[0] : null;
+  const current = shownSelected.length === 1 ? shownSelected[0] : null;
   function pick(id: string | null) {
     go({ b: id === null || id === current ? [] : [id] });
   }
 
   return (
-    <div className={`flex flex-wrap items-center gap-x-6 gap-y-3 ${pending ? "opacity-60" : ""}`} aria-busy={pending}>
+    <div className="flex flex-wrap items-center gap-x-6 gap-y-3" aria-busy={pending}>
       <div className="flex flex-wrap items-center gap-1 rounded-lg border border-border bg-surface p-1" role="group" aria-label="ช่วงเวลา">
         {PERIOD_PRESETS.map((p) => (
           <button
             key={p}
             type="button"
             onClick={() => go({ p })}
-            aria-pressed={p === preset}
+            aria-pressed={p === shownPreset}
             className={`rounded-md px-3 py-1.5 text-sm transition-colors ${
-              p === preset ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-muted"
+              p === shownPreset ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-muted"
             }`}
           >
             {PERIOD_LABELS_TH[p]}
           </button>
         ))}
       </div>
-      <span className="text-sm text-muted-foreground">{rangeLabel}</span>
+      <span className="text-sm text-muted-foreground">
+        {pending ? (
+          <span className="inline-flex items-center gap-1.5">
+            <span aria-hidden className="h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+            กำลังคำนวณ…
+          </span>
+        ) : (
+          rangeLabel
+        )}
+      </span>
 
       {branches.length > 1 ? (
         <div className="flex flex-wrap items-center gap-2" role="group" aria-label="สาขา">

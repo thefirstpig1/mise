@@ -1,5 +1,7 @@
 "use client";
 
+import { orStale } from "@/lib/stale-tab";
+
 // Sprint 2 Part 13 L5c — "ปิดรับ" on the purchase-order page (ADR 0013 Q8).
 //
 // Lives in the goods-receipts folder rather than purchase-orders because it is
@@ -33,7 +35,7 @@ export default function CloseShortForm({
   const submit = (formData: FormData) => {
     setError(null);
     startTransition(async () => {
-      const res = await onClose({ ok: false }, formData);
+      const res = await orStale(onClose({ ok: false }, formData));
       if (res.ok) {
         setOpen(false);
         router.refresh();

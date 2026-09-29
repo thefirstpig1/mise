@@ -17,6 +17,7 @@
 
 import { useActionState, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { orStale } from "@/lib/stale-tab";
 import {
   discardDraftAction,
   publishDraftAction,
@@ -132,7 +133,7 @@ export default function DraftControls({
               disabled={discarding}
               onClick={() =>
                 startDiscard(async () => {
-                  const result = await discardDraftAction(recipeId);
+                  const result = await orStale(discardDraftAction(recipeId));
                   if (result.ok) router.push("/menus/lab");
                   else setDiscardError(result.error);
                 })

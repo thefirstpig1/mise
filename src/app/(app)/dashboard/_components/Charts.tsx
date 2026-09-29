@@ -14,8 +14,10 @@
 // rather than series colours, and there is exactly one y-axis per chart.
 // ============================================================
 
-import { useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { getMonthlyTrendAction } from "../actions";
+import { STALE_TAB_MESSAGE, announceStale } from "@/lib/stale-tab";
 import {
   Area,
   AreaChart,
@@ -234,13 +236,19 @@ export type MonthPoint = {
   note: string | null;
 };
 
-export function MonthlyPnlChart({ points, active }: { points: MonthPoint[]; active: string | null }) {
+export function MonthlyPnlChart({ points, active: shown }: { points: MonthPoint[]; active: string | null }) {
   const router = useRouter();
   const params = useSearchParams();
+  const [pending, start] = useTransition();
+  // The clicked month lights up at once; the figures above follow when the
+  // server has them (Kong, 2026-09-29: a click that shows nothing feels broken).
+  const [picked, setPicked] = useState<string | null>(null);
+  const active = pending && picked ? picked : shown;
   const open = (key: string) => {
     const q = new URLSearchParams(params.toString());
     q.set("p", key);
-    router.push(`/dashboard?${q.toString()}`, { scroll: false });
+    setPicked(key);
+    start(() => router.push(`/dashboard?${q.toString()}`, { scroll: false }));
   };
   const onBar = (i: number) => {
     if (points[i]) open(points[i].key);
@@ -339,6 +347,60 @@ export function MonthlyPnlChart({ points, active }: { points: MonthPoint[]; acti
             .join(" · ")}
         </p>
       ) : null}
+    </div>
+  );
+}
+
+/**
+ * The six-month chart, fetched in the browser once per BRANCH choice and kept
+ * across every other click (see dashboard/actions.ts for why). Changing the
+ * period only moves the highlight, so it never waits for six P&Ls again.
+ */
+export function MonthlyTrend({ branchIds, active }: { branchIds: string[]; active: string | null }) {
+  const key = branchIds.join(",");
+  const [got, setGot] = useState<{ key: string; points: MonthPoint[] } | { key: string; error: string; stale: boolean } | null>(
+    null
+  );
+  useEffect(() => {
+    if (got?.key === key) return;
+    let live = true;
+    getMonthlyTrendAction({ branchIds })
+      // `undefined` = a tab older than the server (mise-ui-review §7).
+      .then((r) => {
+        if (!live) return;
+        if (r?.ok) setGot({ key, points: r.points });
+        else {
+          if (!r) announceStale();
+          setGot({ key, error: r?.formError ?? STALE_TAB_MESSAGE, stale: !r });
+        }
+      })
+      .catch(() => {
+        announceStale();
+        if (live) setGot({ key, error: STALE_TAB_MESSAGE, stale: true });
+      });
+    return () => {
+      live = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+
+  if (got && "error" in got) {
+    return (
+      <p className="py-16 text-center text-sm text-muted-foreground">
+        {got.error}{" "}
+        {got.stale ? (
+          <button type="button" onClick={() => window.location.reload()} className="font-medium text-primary underline">
+            รีเฟรชหน้า
+          </button>
+        ) : null}
+      </p>
+    );
+  }
+  // Another branch choice keeps the old chart up, faded, until the new one lands.
+  if (!got) return <div className="h-72 animate-pulse rounded-lg bg-surface-sunk" aria-busy="true" />;
+  return (
+    <div className={got.key === key ? "" : "opacity-50 transition-opacity"} aria-busy={got.key !== key}>
+      <MonthlyPnlChart points={got.points} active={active} />
     </div>
   );
 }

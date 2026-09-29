@@ -1,5 +1,7 @@
 "use client";
 
+import { orStale } from "@/lib/stale-tab";
+
 // ADR 0034 — the count sheet, counted by many devices at once.
 //
 // Kong's flow: one host opens the sheet; everyone else opens the app and joins
@@ -138,7 +140,7 @@ export default function CountSheet({
     });
     setSheetError(null);
     try {
-      const res = await call();
+      const res = await orStale(call());
       if (res.detail) setDetail(res.detail);
       if (!res.ok) {
         const text =

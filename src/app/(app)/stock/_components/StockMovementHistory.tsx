@@ -1,5 +1,7 @@
 "use client";
 
+import { orStale } from "@/lib/stale-tab";
+
 // Sprint 2 Part 10 L5c — the ledger history feed.
 //
 // The first page is rendered on the server (so the list is there without JS and
@@ -67,7 +69,7 @@ export default function StockMovementHistory({
     if (!cursor || loading) return;
     setLoading(true);
     setLoadError(null);
-    const res = await getStockMovementHistoryAction({ ...filter, cursor });
+    const res = await orStale(getStockMovementHistoryAction({ ...filter, cursor }));
     if (res.ok) {
       setRows((prev) => [...prev, ...res.data.rows]);
       setCursor(res.data.nextCursor);

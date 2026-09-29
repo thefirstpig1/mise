@@ -1,5 +1,7 @@
 "use client";
 
+import { orStale } from "@/lib/stale-tab";
+
 // Sprint 5 Part 21 L5c — delete a recipe.
 //
 // It deletes the whole LINE, every version of it, not the version on screen —
@@ -45,7 +47,7 @@ export default function DeleteRecipeButton({ recipeId }: { recipeId: string }) {
     }
     setError(null);
     startTransition(async () => {
-      const res = await deleteRecipeAction(recipeId, armed);
+      const res = await orStale(deleteRecipeAction(recipeId, armed));
       if (res.ok) {
         router.push("/recipes");
         router.refresh();

@@ -1,5 +1,7 @@
 "use client";
 
+import { orStale } from "@/lib/stale-tab";
+
 // Sprint 2 Part 13 L5c — the lifecycle buttons on the detail view.
 //
 // Three irreversible things live here, and each says what actually happens
@@ -68,7 +70,7 @@ export default function GoodsReceiptActions({
     }
     setError(null);
     startTransition(async () => {
-      const res = await onConfirm(id);
+      const res = await orStale(onConfirm(id));
       if (res.ok) {
         setPosted({ balances: res.balances, negative: res.negative });
         router.refresh();
@@ -82,7 +84,7 @@ export default function GoodsReceiptActions({
     if (!window.confirm(`ทิ้งร่าง ${grNumber}?`)) return;
     setError(null);
     startTransition(async () => {
-      const res = await onDiscard(id);
+      const res = await orStale(onDiscard(id));
       if (res.ok) router.push("/goods-receipts");
       else setError(res.formError ?? "ทำรายการไม่สำเร็จ");
     });
@@ -91,7 +93,7 @@ export default function GoodsReceiptActions({
   const submitVoid = (formData: FormData) => {
     setError(null);
     startTransition(async () => {
-      const res = await onVoid({ ok: false }, formData);
+      const res = await orStale(onVoid({ ok: false }, formData));
       if (res.ok) {
         setPosted({ balances: res.balances, negative: res.negative });
         setVoiding(false);

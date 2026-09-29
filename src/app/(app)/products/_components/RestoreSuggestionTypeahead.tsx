@@ -1,5 +1,7 @@
 "use client";
 
+import { announceStale } from "@/lib/stale-tab";
+
 // ============================================================
 // Mise — Restore-on-recreate typeahead (Sprint 1 Part 8.5 L5a; ADR 0010)
 // ============================================================
@@ -99,8 +101,11 @@ export default function RestoreSuggestionTypeahead({
     let ignore = false;
     const timer = setTimeout(() => {
       startTransition(async () => {
-        const res = await searchSoftDeletedProductsAction(term);
-        if (ignore) return;
+        // A tab older than the server gets `undefined` (or a throw): no
+        // suggestions, and the app frame asks for a refresh.
+        const res = await searchSoftDeletedProductsAction(term).catch(() => undefined);
+        if (!res) announceStale();
+        if (ignore || !res) return;
         setResults(res);
         setShowExtended(false);
         setOpen(res.length > 0); // Q1 — no dropdown on empty

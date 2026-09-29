@@ -1,5 +1,7 @@
 "use client";
 
+import { orStale } from "@/lib/stale-tab";
+
 // Sprint 1 Part 6, Step 6.4 — soft-delete control for the edit page.
 // Mirrors src/app/suppliers/_components/DeleteSupplierButton.tsx.
 
@@ -16,7 +18,7 @@ export default function DeleteCategoryButton({ id }: { id: string }) {
     if (!confirm("ต้องการลบหมวดบัญชีนี้?")) return;
     setError(null);
     startTransition(async () => {
-      const res = await deleteCategory(id);
+      const res = await orStale(deleteCategory(id));
       if (res.ok) {
         router.push("/categories");
         router.refresh();

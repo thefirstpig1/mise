@@ -1,5 +1,7 @@
 "use client";
 
+import { orStale } from "@/lib/stale-tab";
+
 // ADR 0035 — staff meal tickets, on one screen for everyone.
 //
 //  - Everyone: ขอเบิกอาหารพนักงาน. The eater is the account pressing the button
@@ -89,7 +91,7 @@ function PendingRow({
   const run = async (call: () => Promise<TicketActionState>) => {
     setBusy(true);
     setError(null);
-    const res = await call().catch(() => ({ ok: false as const, formError: "เชื่อมต่อไม่ได้ ลองใหม่" }));
+    const res = await orStale(call());
     setBusy(false);
     if (!res.ok) setError(res.formError ?? "ทำรายการไม่สำเร็จ");
     else onDone();

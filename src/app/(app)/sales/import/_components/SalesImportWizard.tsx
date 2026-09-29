@@ -1,5 +1,7 @@
 "use client";
 
+import { orStale } from "@/lib/stale-tab";
+
 // Sprint 4 Part 19 L5 — the import screen (ADR 0019 Q5, Q8, Section D.4).
 //
 // Two steps, and the second one is the point of the whole Part: nothing is
@@ -77,7 +79,7 @@ export default function SalesImportWizard({
     fd.set("profileId", profileId);
     setCommitState(null);
     startTransition(async () => {
-      setPreviewState(await previewSalesImportAction(null, fd));
+      setPreviewState(await orStale(previewSalesImportAction(null, fd)));
     });
   };
 
@@ -91,7 +93,7 @@ export default function SalesImportWizard({
     fd.set("acknowledgedNewMenus", String(preview.acknowledgedNewMenus));
     fd.set("acknowledgedNewCategories", String(preview.acknowledgedNewCategories));
     startTransition(async () => {
-      const result = await commitSalesImportAction(null, fd);
+      const result = await orStale(commitSalesImportAction(null, fd));
       setCommitState(result);
       if (result.ok) {
         // A committed batch id can never be reused, and the file has been

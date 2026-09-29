@@ -1,5 +1,7 @@
 "use client";
 
+import { orStale } from "@/lib/stale-tab";
+
 // Sprint 2 Part 11 L5c — the lifecycle buttons on the detail view.
 //
 // Three irreversible things live here, so each asks first — and the confirm text
@@ -52,7 +54,7 @@ export default function PurchaseOrderActions({
   const run = (fn: () => Promise<PurchaseOrderActionState>, after?: () => void) => {
     setError(null);
     startTransition(async () => {
-      const res = await fn();
+      const res = await orStale(fn());
       if (res.ok) {
         after?.();
         router.refresh();

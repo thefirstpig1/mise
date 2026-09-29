@@ -28,6 +28,7 @@ import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { DraftActionState } from "@/app/(app)/menus/lab/actions";
 import { getLabWhatIfAction } from "@/app/(app)/menus/lab/actions";
+import { orStale } from "@/lib/stale-tab";
 import {
   findDeletedMenuByNameAction,
   restoreMenuAction,
@@ -150,7 +151,7 @@ export default function LabForm({
     // that brings a recipe back, so it has to be the dish.
     let live = true;
     const t = setTimeout(async () => {
-      const res = await findDeletedMenuByNameAction(name);
+      const res = await orStale(findDeletedMenuByNameAction(name));
       if (live) setRestorable(res.ok ? res.found : null);
     }, 400);
     return () => {
@@ -217,7 +218,7 @@ export default function LabForm({
     let cancelled = false;
     const timer = setTimeout(async () => {
       setCosting(true);
-      const result = await getLabWhatIfAction(new FormData(form));
+      const result = await orStale(getLabWhatIfAction(new FormData(form)));
       if (cancelled) return;
       setCosting(false);
       if (result.ok) {
@@ -319,7 +320,7 @@ export default function LabForm({
                         onClick={async () => {
                           setRestoring(true);
                           setRestoreError(null);
-                          const res = await restoreMenuAction(restorable.id);
+                          const res = await orStale(restoreMenuAction(restorable.id));
                           setRestoring(false);
                           if (res.ok) {
                             // The dish exists again, so this is no longer the

@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { signOut } from "@/lib/auth";
 import { requireTenant } from "@/lib/require-tenant";
 import Sidebar from "@/components/layout/Sidebar";
+import VersionBanner from "@/components/layout/VersionBanner";
 import { NAV_GROUPS } from "@/components/layout/nav";
 
 // ============================================================
@@ -42,7 +43,10 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           </form>
         }
       />
-      <div className="min-w-0 flex-1">{children}</div>
+      <div className="min-w-0 flex-1">
+        <VersionBanner />
+        {children}
+      </div>
     </div>
   );
 }

@@ -20,6 +20,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react
 import { useSearchParams } from "next/navigation";
 import { METRIC_LABELS_TH, fmtMetric, periodLabelTh, type Metric } from "@/lib/sales-insight";
 import { getSalesProfitViewAction } from "../insight-actions";
+import { announceStale } from "@/lib/stale-tab";
 import type { SalesView } from "./sales-views";
 import MetricSwitch from "./MetricSwitch";
 import CompareButton from "./CompareModal";
@@ -112,9 +113,15 @@ export default function SalesAnalysis({
       // `undefined` = a tab older than the server (see mise-ui-review).
       .then((r) => {
         if (r?.ok) setFetched({ key: k, view: r.view });
-        else setProfitError({ message: r?.formError ?? STALE_TAB_MESSAGE, stale: !r || Boolean(r.stale) });
+        else {
+          if (!r) announceStale();
+          setProfitError({ message: r?.formError ?? STALE_TAB_MESSAGE, stale: !r || Boolean(r.stale) });
+        }
       })
-      .catch(() => setProfitError({ message: STALE_TAB_MESSAGE, stale: true }));
+      .catch(() => {
+        announceStale();
+        setProfitError({ message: STALE_TAB_MESSAGE, stale: true });
+      });
   }, [canProfit, key, range, branchId, categoryId, dayModal?.day]);
 
   // Build the profit view in the background, once per set of filters.
@@ -182,6 +189,7 @@ export default function SalesAnalysis({
       branchId={branchId}
       by={by}
       metric={{ options, select, pending }}
+      costRows={views.profit?.table}
     >
       <div className="space-y-8">
         {/* ---------- the measure, for the whole page (Kong, 2026-09-28) ---------- */}

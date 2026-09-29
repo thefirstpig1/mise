@@ -6,8 +6,10 @@ import {
   categoryByWeekday,
   costKey,
   enrich,
+  menuCostPerDish,
   menuInsight,
   menuMovers,
+  withDishCost,
   menusOnWeekday,
   periodStats,
   periodLabelTh,
@@ -99,6 +101,18 @@ describe("SI2 — profit from the recipe cost; no recipe is null, not zero", () 
     expect(m.avgPrice).toBe(100);
     expect(m.profitPerDish).toBe(55);
     expect(m.confidence).toBe("LOW"); // the weakest branch speaks for the dish
+  });
+  it("the popup priced with the page's cost equals the popup priced on the server", () => {
+    const c2: CostMap = new Map([
+      [costKey("b1", "tomyum"), { cost: 40, confidence: "HIGH", recipeId: "r1" }],
+      [costKey("b2", "tomyum"), { cost: 60, confidence: "LOW", recipeId: "r2" }],
+    ]);
+    const raw = [row("2026-09-05", "tomyum", 300, 3, "b1"), row("2026-09-05", "tomyum", 100, 1, "b2")];
+    const onServer = menuInsight("tomyum", enrich(raw, menus, c2), [], menus, c2, "net")!;
+    const uncosted = menuInsight("tomyum", enrich(raw, menus, noCost), [], menus, noCost, "net")!;
+    const fromPage = withDishCost(uncosted, menuCostPerDish(enrich(raw, menus, c2), c2).get("tomyum")!);
+    expect(fromPage).toEqual(onServer);
+    expect(withDishCost(uncosted, null)).toEqual(uncosted); // no recipe stays uncosted
   });
 });
 

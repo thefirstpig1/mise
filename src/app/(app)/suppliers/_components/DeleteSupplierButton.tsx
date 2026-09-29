@@ -1,5 +1,7 @@
 "use client";
 
+import { orStale } from "@/lib/stale-tab";
+
 // Sprint 1 Part 5, Step 7.4 — soft-delete control for the edit page (Q6).
 // confirm() → deleteSupplier action → back to the list on success.
 //
@@ -36,7 +38,7 @@ export default function DeleteSupplierButton({
   function runDelete(mappingIds: string[]) {
     setError(null);
     startTransition(async () => {
-      const res = await deleteSupplier(id, mappingIds);
+      const res = await orStale(deleteSupplier(id, mappingIds));
       if (res.ok) {
         router.push("/suppliers");
         router.refresh();

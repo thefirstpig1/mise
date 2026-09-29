@@ -21,6 +21,7 @@ import { TONES, toneOf, type Tone } from "@/components/charts/chart-theme";
 import { METRIC_LABELS_TH, baht, fmtMetric, type Metric } from "@/lib/sales-insight";
 import { useMenuInsight } from "./insight-context";
 import { PopupMetricSwitch } from "./MetricSwitch";
+import { STALE_TAB_MESSAGE, announceStale } from "@/lib/stale-tab";
 
 export type BreakdownCategory = { key: string; label: string; value: number | null; qty: number };
 export type BreakdownMenu = { id: string; name: string; categoryKey: string; value: number | null; qty: number };
@@ -33,16 +34,15 @@ const toneFor = (tones: ToneMap, key: string, i: number): Tone => tones[key] ?? 
 const gradientCss = (t: Tone) => `linear-gradient(90deg, ${TONES[t][1]}, ${TONES[t][0]})`;
 const pos = (v: number | null) => Math.max(0, v ?? 0);
 
-/**
- * What a popup says when calling the server THREW rather than answered — most
- * often a tab opened before the app was updated (the server no longer has the
- * action it asks for: "Failed to find Server Action"). Every deploy does this
- * to every open tab, so it is a message with a refresh, never an error page.
- */
-export const STALE_TAB_MESSAGE = "ระบบเพิ่งอัปเดต หน้านี้เปิดค้างไว้จากเวอร์ชันก่อน — กรุณารีเฟรชหน้าแล้วลองอีกครั้ง";
+// A tab older than the server — the words and the banner live in one place (src/lib/stale-tab.ts).
+export { STALE_TAB_MESSAGE };
 
 /** A popup's error — with a refresh button when the tab is older than the server. */
 export function ActionError({ message, stale }: { message: string; stale: boolean }) {
+  // The app-wide banner too, so the rest of the page is not trusted either.
+  useEffect(() => {
+    if (stale) announceStale();
+  }, [stale]);
   return (
     <div className="flex flex-col items-center gap-3 py-10 text-center text-sm">
       <p className={stale ? "text-foreground" : "text-bad"}>{message}</p>

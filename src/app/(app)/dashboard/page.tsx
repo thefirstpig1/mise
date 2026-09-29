@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { requireTenant } from "@/lib/require-tenant";
 import { computeBangkokToday } from "@/lib/bangkok-date";
 import { getBranchesLogic } from "@/server/branch";
-import { getMonthlyPnlLogic, getPnlLogic, getRevenueByDayLogic, type Pnl } from "@/server/pnl";
+import { getPnlLogic, getRevenueByDayLogic, type Pnl } from "@/server/pnl";
 import { getSalesSummaryLogic } from "@/server/sales";
 import { getSalesQuerySchema } from "@/lib/validations/sales-import";
 import { getTransfersLogic } from "@/server/transfer";
@@ -16,14 +16,14 @@ import DashboardControls, { type BranchChip } from "./_components/DashboardContr
 import BarList, { type BarListGroup } from "@/components/charts/BarList";
 import { SERIES } from "@/components/charts/chart-theme";
 import {
-  MonthlyPnlChart,
+  MonthlyTrend,
   PnlWaterfallChart,
   RevenueTrendChart,
   TopMenusChart,
   type MenuBar,
   type RevenueRow,
 } from "./_components/Charts";
-import { isoDay, parseBranchParam, parsePreset, periodFor, recentMonths, type Period } from "./_components/dashboard-period";
+import { isoDay, parseBranchParam, parsePreset, periodFor, type Period } from "./_components/dashboard-period";
 
 // ============================================================
 // Mise — แดชบอร์ด (rewritten in Part 35 L5)
@@ -68,11 +68,6 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
   const selected = parseBranchParam(params.b, branches.map((b) => b.id));
   const activeIds = selected.length ? selected : branches.map((b) => b.id);
 
-  // Part 18 Q8: any truck still unconfirmed, whatever the chips say.
-  const waiting = (
-    await getTransfersLogic(tenantId, getTransfersQuerySchema.parse({ status: "SENT", includeReversalLines: "false" }))
-  ).map((t) => toTransferView(t, costAccess));
-
   return (
     <div className="mx-auto w-full max-w-7xl space-y-6 px-4 py-6 lg:px-8 lg:py-8">
       <div>
@@ -100,14 +95,18 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
             />
           </Suspense>
           {seeSales && seeCost && seeExpense ? (
-            <Suspense key={`m|${activeIds.join(",")}|${period.month ?? ""}`} fallback={<div className="h-96 animate-pulse rounded-xl border border-border bg-surface-sunk" />}>
-              <MonthlyTrend tenantId={tenantId} reach={reach} selected={selected} activeMonth={period.month} />
-            </Suspense>
+            // Fetched by the chart itself, once per branch choice — a period
+            // click only moves its highlight (see dashboard/actions.ts).
+            <Card title="กำไรรายเดือน (6 เดือนล่าสุด)" hint="กดที่เดือนเพื่อดูตัวเลขของเดือนนั้นทั้งหน้า · เดือนปัจจุบันนับถึงวันนี้">
+              <MonthlyTrend branchIds={selected} active={period.month} />
+            </Card>
           ) : null}
         </>
       ) : null}
 
-      <WorkQueue waiting={waiting} showPulse={seeSales} tenantId={tenantId} reach={reach} />
+      <Suspense fallback={null}>
+        <WorkQueue showPulse={seeSales} tenantId={tenantId} reach={reach} costAccess={costAccess} />
+      </Suspense>
     </div>
   );
 }
@@ -257,40 +256,6 @@ async function Analytics({
 
       {pnl.branches.length > 1 && seeNet ? <BranchTable pnl={pnl} /> : null}
     </div>
-  );
-}
-
-// Six months, each a full P&L — its own Suspense so the cards above never
-// wait for it. Needs every money capability: it prints net profit.
-async function MonthlyTrend({
-  tenantId,
-  reach,
-  selected,
-  activeMonth,
-}: {
-  tenantId: string;
-  reach: Awaited<ReturnType<typeof requireTenant>>["reach"];
-  selected: string[];
-  activeMonth: string | null;
-}) {
-  const months = recentMonths(6);
-  const pts = await getMonthlyPnlLogic(tenantId, months, selected, reach);
-  const label = (key: string) =>
-    new Date(`${key}-01T00:00:00Z`).toLocaleDateString("th-TH", { month: "short", year: "2-digit", timeZone: "UTC" });
-  return (
-    <Card title="กำไรรายเดือน (6 เดือนล่าสุด)" hint="กดที่เดือนเพื่อดูตัวเลขของเดือนนั้นทั้งหน้า · เดือนปัจจุบันนับถึงวันนี้">
-      <MonthlyPnlChart
-        active={activeMonth}
-        points={pts.map((p) => ({
-          key: p.key,
-          label: label(p.key),
-          revenue: num(p.revenue),
-          expenses: num(p.expenses),
-          net: num(p.netProfit),
-          note: p.unknownReason === "GROSS_PROFIT_UNKNOWN" ? "ต้นทุนขายยังคำนวณไม่ได้" : null,
-        }))}
-      />
-    </Card>
   );
 }
 
@@ -523,18 +488,26 @@ function AnalyticsSkeleton() {
 // What is waiting on somebody — for everyone, cooks included
 // ------------------------------------------------------------
 async function WorkQueue({
-  waiting,
   showPulse,
   tenantId,
   reach,
+  costAccess,
 }: {
-  waiting: ReturnType<typeof toTransferView>[];
   showPulse: boolean;
   tenantId: string;
   reach: Awaited<ReturnType<typeof requireTenant>>["reach"];
+  costAccess: Awaited<ReturnType<typeof requireTenant>>["costAccess"];
 }) {
-  // Part 20a Q4 — "the shop runs blind between imports".
-  const pulse = showPulse ? toPulseDashboardView(await getPulseDashboardLogic(tenantId, reach)) : null;
+  // Streamed in its own Suspense: the page frame and the figures no longer
+  // wait for these two reads before anything appears.
+  const [transfers, pulseRaw] = await Promise.all([
+    // Part 18 Q8: any truck still unconfirmed, whatever the chips say.
+    getTransfersLogic(tenantId, getTransfersQuerySchema.parse({ status: "SENT", includeReversalLines: "false" })),
+    // Part 20a Q4 — "the shop runs blind between imports".
+    showPulse ? getPulseDashboardLogic(tenantId, reach) : Promise.resolve(null),
+  ]);
+  const waiting = transfers.map((t) => toTransferView(t, costAccess));
+  const pulse = pulseRaw ? toPulseDashboardView(pulseRaw) : null;
   const todayIso = computeBangkokToday().toISOString().slice(0, 10);
 
   if (!pulse && waiting.length === 0) return null;

@@ -1,5 +1,7 @@
 "use client";
 
+import { orStale } from "@/lib/stale-tab";
+
 // Sprint 1 Part 7a — soft-delete control for the edit page.
 // Mirrors src/app/categories/_components/DeleteCategoryButton.tsx.
 //
@@ -38,7 +40,7 @@ export default function DeleteProductButton({
   function runDelete(mappingIds: string[]) {
     setError(null);
     startTransition(async () => {
-      const res = await deleteProduct(id, mappingIds);
+      const res = await orStale(deleteProduct(id, mappingIds));
       if (res.ok) {
         router.push("/products");
         router.refresh();

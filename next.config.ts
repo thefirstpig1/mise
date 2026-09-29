@@ -51,8 +51,19 @@ const standalone = process.env.BUILD_STANDALONE === "1";
  */
 const SERVER_ACTION_BODY_LIMIT = "16mb";
 
+/**
+ * Which build this is — inlined into BOTH the browser bundle and the server
+ * at compile time, so an open tab can ask the server "are you still the build
+ * I came from?" (src/lib/stale-tab.ts, VersionBanner). Kong 2026-09-28: a tab
+ * left open across a deploy calls Server Actions that no longer exist.
+ * A deploy may pin it (e.g. to the git sha); otherwise every build — and every
+ * `pnpm dev` start — gets a new one, which is exactly when old tabs go stale.
+ */
+const BUILD_ID = process.env.MISE_BUILD_ID || String(Date.now());
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  env: { MISE_BUILD_ID: BUILD_ID },
   ...(standalone ? { output: "standalone" as const } : {}),
   experimental: {
     typedRoutes: true,

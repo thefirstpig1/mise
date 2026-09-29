@@ -25,6 +25,7 @@ import {
   periodStats,
   sumBy,
   type CostMap,
+  type DishCost,
   type Enriched,
   type MenuMeta,
   type Metric,
@@ -114,7 +115,7 @@ export function buildSalesView(input: SalesViewInput, by: Metric): SalesView {
     heat.categories.flatMap((c) => WEEK_ORDER.map((w) => [`${c.key}|${w}`, menusOnWeekday(cur, menuMeta, by, c.key, w)]))
   );
 
-  const costPerDish = by === "profit" ? menuCostPerDish(cur, costs) : new Map<string, { cost: number; confidence: string }>();
+  const costPerDish = by === "profit" ? menuCostPerDish(cur, costs) : new Map<string, DishCost>();
   const table: MenuRow[] = menuTotals.map((m) => {
     const meta = menuMeta.get(m.key);
     const c = costPerDish.get(m.key);
@@ -129,6 +130,7 @@ export function buildSalesView(input: SalesViewInput, by: Metric): SalesView {
       costPerDish: c?.cost ?? null,
       profitPerDish: c && m.qty > 0 ? m.net / m.qty - c.cost : null,
       confidence: c?.confidence ?? null,
+      recipeId: c?.recipeId ?? null,
       stub: meta?.isPosStub ?? false,
     };
   });

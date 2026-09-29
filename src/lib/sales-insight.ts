@@ -523,20 +523,43 @@ export function sumBy(rows: Enriched[], keyOf: (r: Enriched) => string, by: Metr
  * branch, with the weakest branch's confidence (rule SI2). A menu absent from
  * the map has no recipe anywhere it sold.
  */
-export function menuCostPerDish(rows: Enriched[], costs: CostMap): Map<string, { cost: number; confidence: string }> {
-  const acc = new Map<string, { qty: number; sum: number; confidence: string | null }>();
+export type DishCost = { cost: number; confidence: string; recipeId: string | null };
+
+export function menuCostPerDish(rows: Enriched[], costs: CostMap): Map<string, DishCost> {
+  const acc = new Map<string, { qty: number; sum: number; confidence: string | null; recipeId: string | null }>();
   for (const r of rows) {
     const c = costs.get(costKey(r.branchId, r.menuId));
     if (!c) continue;
-    const a = acc.get(r.menuId) ?? { qty: 0, sum: 0, confidence: null };
+    const a = acc.get(r.menuId) ?? { qty: 0, sum: 0, confidence: null, recipeId: null };
     a.qty += r.qty;
     a.sum += r.qty * c.cost;
     a.confidence = weaker(a.confidence, c.confidence);
+    a.recipeId ??= c.recipeId ?? null;
     acc.set(r.menuId, a);
   }
   return new Map(
     [...acc.entries()]
       .filter(([, a]) => a.qty > 0)
-      .map(([id, a]) => [id, { cost: a.sum / a.qty, confidence: a.confidence ?? "LOW" }])
+      .map(([id, a]) => [id, { cost: a.sum / a.qty, confidence: a.confidence ?? "LOW", recipeId: a.recipeId }])
   );
+}
+
+/**
+ * A dish's insight priced with a cost the page already holds (Kong,
+ * 2026-09-29: the popup took ~5 s because it walked every recipe of every
+ * branch to price ONE dish). The profit view computed the same weighted cost
+ * over the same rows (`menuCostPerDish`), so this is the same number, not an
+ * approximation. `null` = no recipe: the insight stays uncosted.
+ */
+export function withDishCost(m: MenuInsight, c: DishCost | null): MenuInsight {
+  if (c === null) return m;
+  const profitPerDish = m.avgPrice !== null ? m.avgPrice - c.cost : null;
+  return {
+    ...m,
+    costPerDish: c.cost,
+    confidence: c.confidence,
+    recipeId: c.recipeId,
+    profitPerDish,
+    marginPercent: profitPerDish !== null && m.avgPrice ? (profitPerDish / m.avgPrice) * 100 : null,
+  };
 }
