@@ -98,6 +98,7 @@ For complex / multi-file work, enter Plan mode first: propose the plan, wait for
 - docs/pending-features-v1.5.md — Price Volatility + Menu Lab (Sprint 5-6)
 - docs/pending-features-ai.md — AI inside คิดครัว (P&L narrative, bill OCR, recipe drafts, matching) + freemium direction; captured 2026-09-22, NOT scheduled
 - docs/sprint-progress.md — Current sprint status (LIVE)
+- docs/settings-register.md — every setting a SHOP can change, with its default and effect (Kong 2026-09-29: "อะไรที่ให้ร้านตั้งค่าเองได้ ต้องบอกให้รู้"). **Append a row whenever something is decided to be shop-configurable** — it is the manual's checklist.
 - docs/calculation-rules.md — Calculation Rules Register: every calculation/valuation rule in one table, flagged for whether users must be told. Index only — ADRs win on conflict. **Append a row whenever a calculation rule is decided, not at sprint end.**
 - .claude/skills/ — Task-specific skills (load as needed)
 - .claude/skills/grill-with-docs/SKILL.md — pre-sprint alignment interviews
