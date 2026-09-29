@@ -311,6 +311,11 @@ model TenantMembership {
   /// the branch check no longer names a role at all (rule A2).
   allBranches Boolean @default(false) @map("all_branches")
 
+  /// ADR 0036 Q9 — e-mail this person when every department of a branch they
+  /// cut rounds for says ready. On by default (Kong 2026-09-29: "ส่งหาทุกคน
+  /// โดยไม่ต้องตั้งค่า แต่ตั้งได้"); only matters for purchase:approve holders.
+  notifyPurchaseReady Boolean @default(true) @map("notify_purchase_ready")
+
   /// Who last changed this person's role or reach, and when (ADR 0029 Q14).
   ///
   /// Not a log. A membership is a row that gets UPDATED, and the dispute a
@@ -451,6 +456,10 @@ model Supplier {
   paymentTerms          String?  @map("payment_terms")
   isActive              Boolean  @default(true) @map("is_active")
   isVatRegistered       Boolean  @default(false) @map("is_vat_registered")
+  /// ADR 0036 Q7 — this supplier quotes prices INCLUDING VAT (a Makro shelf
+  /// price), rather than adding VAT at the bottom. The default for its orders
+  /// and receipts; the purchaser may change it per document before sending.
+  pricesIncludeVat      Boolean  @default(false) @map("prices_include_vat")
   defaultVatRatePercent Decimal? @map("default_vat_rate_percent") @db.Decimal(5, 2)
   defaultSubjectToWht   Boolean  @default(false) @map("default_subject_to_wht")
   defaultWhtRatePercent Decimal? @map("default_wht_rate_percent") @db.Decimal(5, 2)
@@ -1164,6 +1173,10 @@ model PurchaseOrder {
   subtotalExclVat Decimal  @default(0) @map("subtotal_excl_vat") @db.Decimal(15, 2)
   /// null = this order carries no VAT (supplier not registered).
   vatRatePercent  Decimal? @map("vat_rate_percent") @db.Decimal(5, 2)
+  /// ADR 0036 Q7 / rule PR3 — the lines were typed as the supplier quotes them,
+  /// VAT included. Every EXISTING money column still means EXCLUDING VAT; the
+  /// quoted figures live in `unit_price_quoted` / `line_total_quoted` only.
+  pricesIncludeVat Boolean @default(false) @map("prices_include_vat")
   vatAmount       Decimal  @default(0) @map("vat_amount") @db.Decimal(15, 2)
   totalAmount     Decimal  @default(0) @map("total_amount") @db.Decimal(15, 2)
 
@@ -1232,6 +1245,10 @@ model PurchaseOrderItem {
   unitPrice     Decimal @map("unit_price") @db.Decimal(15, 4)
   /// round(qtyOrdered × unitPrice, 2) — computed in the app, stored, never re-derived.
   lineTotal     Decimal @map("line_total") @db.Decimal(15, 2)
+  /// Rule PR3 — as the supplier quotes it, VAT INCLUDED; null on an order typed
+  /// excluding VAT. For display and printing only: nothing costs from these.
+  unitPriceQuoted Decimal? @map("unit_price_quoted") @db.Decimal(15, 4)
+  lineTotalQuoted Decimal? @map("line_total_quoted") @db.Decimal(15, 2)
 
   /// Provenance ONLY (Q3). null = the price was typed by hand (Q5).
   supplierProductMappingId String? @map("supplier_product_mapping_id") @db.Uuid
@@ -1480,6 +1497,9 @@ model GoodsReceipt {
   /// for expenses. Null rate = no VAT on this delivery.
   vatRatePercent Decimal? @map("vat_rate_percent") @db.Decimal(5, 2)
   vatAmount      Decimal  @default(0) @map("vat_amount") @db.Decimal(15, 2)
+  /// Rule PR3 — the lines were typed as the supplier's bill shows them, VAT
+  /// included. `line_total_actual` still means EXCLUDING VAT.
+  pricesIncludeVat Boolean @default(false) @map("prices_include_vat")
   /// SNAPSHOT of tenant.is_vat_registered AT RECEIPT TIME — never read live.
   /// A shop that crosses the 1.8M threshold in October must not have the whole
   /// year's stock silently re-valued: it did pay that VAT and nobody refunds it.
@@ -1555,6 +1575,11 @@ model GoodsReceiptItem {
   /// round(qtyReceivedActual × unitPriceActual, 2). variance_qty / variance_price
   /// are NOT stored — they are pure functions of values already on this row.
   lineTotalActual  Decimal @map("line_total_actual") @db.Decimal(15, 2)
+  /// Rule PR3 — as the bill shows it, VAT INCLUDED; null when typed excluding
+  /// VAT. `line_total_quoted` is also what a shop that cannot reclaim VAT paid
+  /// for the layer, to the satang (R6). Negated on a reversal line, like the rest.
+  unitPriceQuoted  Decimal? @map("unit_price_quoted") @db.Decimal(15, 4)
+  lineTotalQuoted  Decimal? @map("line_total_quoted") @db.Decimal(15, 2)
 
   /// Set on a reversal line (Q6): points at the line this one undoes, inside the
   /// SAME document, so the mistake and its correction read side by side.
