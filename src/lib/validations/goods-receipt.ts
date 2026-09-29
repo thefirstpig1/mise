@@ -270,6 +270,12 @@ export const goodsReceiptInputSchema = z.object({
       .refine((n) => Number(n.toFixed(2)) === n, "อัตรา VAT มีทศนิยมได้ไม่เกิน 2 ตำแหน่ง")
       .nullable()
   ),
+  /**
+   * ADR 0036 Q7 / rule PR3 — the prices below were typed as the supplier quotes
+   * them, VAT INCLUDED. The server splits them; every stored money column still
+   * means excluding VAT. A checkbox posts "on"; absent = excluding VAT.
+   */
+  pricesIncludeVat: z.preprocess((v) => v === true || v === "on" || v === "true", z.boolean()).default(false),
   notes: z.preprocess(
     blankToNull,
     z.string().trim().max(1000, "หมายเหตุต้องไม่เกิน 1000 ตัวอักษร").nullable()
@@ -327,6 +333,7 @@ export const GOODS_RECEIPT_FIELD_LABELS_TH: Record<
   purchaseOrderId: "ใบสั่งซื้อ",
   invoiceNo: "เลขที่ใบส่งของ",
   vatRatePercent: "อัตรา VAT",
+  pricesIncludeVat: "ราคารวม VAT",
   receivedAt: "วันเวลาที่รับของ",
   notes: "หมายเหตุ",
   lines: "รายการที่รับ",

@@ -24,6 +24,7 @@ import {
 } from "@prisma/client";
 import { withTenantContext } from "@/lib/db";
 import { assertRefBelongsToTenant } from "@/server/product";
+import { exclUnitPrice, splitQuotedLines } from "@/server/vat-split";
 import { acquireCounterLock } from "@/server/counter-lock";
 import {
   NoDepartmentError,
@@ -178,6 +179,8 @@ export type ReceivableLine = {
   orderUnitName: string;
   toBaseRatio: Prisma.Decimal;
   unitPrice: Prisma.Decimal;
+  /** Rule PR3 — the order's price as the supplier quoted it (VAT included), when it was. */
+  unitPriceQuoted: Prisma.Decimal | null;
   qtyOrdered: Prisma.Decimal;
   qtyReceived: Prisma.Decimal;
   /** `qtyOrdered − qtyReceived`, floored at 0 — an over-received line is not "due". */
@@ -199,6 +202,8 @@ export type ReceivablePurchaseOrder = {
    * came with the delivery — the GR is where actuals are recorded.
    */
   vatRatePercent: Prisma.Decimal | null;
+  /** Rule PR3 — the order was typed VAT-inclusive; the receipt starts the same way. */
+  pricesIncludeVat: boolean;
   lines: ReceivableLine[];
 };
 
@@ -246,6 +251,7 @@ export async function getReceivablePurchaseOrderLogic(
       supplierName: po.supplier.nameFull,
       expectedDeliveryDate: po.expectedDeliveryDate,
       vatRatePercent: po.vatRatePercent,
+      pricesIncludeVat: po.pricesIncludeVat,
       lines: po.items.map((i) => {
         const outstanding = i.qtyOrdered.minus(i.qtyReceived);
         return {
@@ -258,6 +264,7 @@ export async function getReceivablePurchaseOrderLogic(
           orderUnitName: i.orderUnitName,
           toBaseRatio: i.toBaseRatio,
           unitPrice: i.unitPrice,
+          unitPriceQuoted: i.unitPriceQuoted,
           qtyOrdered: i.qtyOrdered,
           qtyReceived: i.qtyReceived,
           // Floor at 0: once a line is over-received it owes nothing, and a
@@ -566,6 +573,9 @@ type PreparedGrLine = {
   toBaseRatio: Prisma.Decimal;
   unitPriceActual: Prisma.Decimal;
   lineTotalActual: Prisma.Decimal;
+  /** Rule PR3 — as the bill shows it, VAT included; null when typed excluding VAT. */
+  unitPriceQuoted: Prisma.Decimal | null;
+  lineTotalQuoted: Prisma.Decimal | null;
   notes: string | null;
   allocations: {
     departmentId: string;
@@ -596,12 +606,16 @@ async function prepareLine(
   purchaseOrderId: string | null,
   line: GoodsReceiptInput["lines"][number],
   lineNo: number,
-  defaultDepartmentId: string
+  defaultDepartmentId: string,
+  /** Rule PR3 — the typed price includes VAT at this rate (null = typed excluding VAT). */
+  inclusiveRate: Prisma.Decimal | null = null
 ): Promise<PreparedGrLine> {
   await assertRefBelongsToTenant(tx, tenantId, "product", line.productId);
 
   const qtyReceivedActual = new Prisma.Decimal(line.qtyReceivedActual);
-  const unitPriceActual = new Prisma.Decimal(line.unitPriceActual);
+  const typedPrice = new Prisma.Decimal(line.unitPriceActual);
+  // Excluding VAT, always — the variance flag below compares like with like.
+  const unitPriceActual = inclusiveRate ? exclUnitPrice(typedPrice, inclusiveRate) : typedPrice;
 
   let receivedUnitName: string;
   let toBaseRatio: Prisma.Decimal;
@@ -718,7 +732,11 @@ async function prepareLine(
     receivedUnitName,
     toBaseRatio,
     unitPriceActual,
+    // For a VAT-inclusive receipt this is replaced by the line's exact share of
+    // the split (applyQuotedGr); until then it is the plain product.
     lineTotalActual: lineTotal(qtyReceivedActual, unitPriceActual),
+    unitPriceQuoted: inclusiveRate ? typedPrice : null,
+    lineTotalQuoted: inclusiveRate ? lineTotal(qtyReceivedActual, typedPrice) : null,
     notes: line.notes,
     allocations,
     isOverReceipt,
@@ -772,6 +790,8 @@ const lineCreateData = (tenantId: string, l: PreparedGrLine) => ({
   toBaseRatio: l.toBaseRatio,
   unitPriceActual: l.unitPriceActual,
   lineTotalActual: l.lineTotalActual,
+  unitPriceQuoted: l.unitPriceQuoted,
+  lineTotalQuoted: l.lineTotalQuoted,
   notes: l.notes,
   allocations: {
     create: l.allocations.map((a) => ({
@@ -794,6 +814,31 @@ const lineCreateData = (tenantId: string, l: PreparedGrLine) => ({
  * Reversal lines carry negated totals, so a voided receipt's VAT nets to zero
  * for free — the same property Part 13 relied on for `line_total_actual`.
  */
+/** The rate a VAT-inclusive receipt splits at, or null when its lines are typed excluding VAT. */
+const inclusiveRateOf = (pricesIncludeVat: boolean, vatRatePercent: Prisma.Decimal | number | null) =>
+  pricesIncludeVat && vatRatePercent !== null && !new Prisma.Decimal(vatRatePercent).isZero()
+    ? new Prisma.Decimal(vatRatePercent)
+    : null;
+
+/**
+ * Rule PR3 — give each VAT-inclusive line its exact excluding-VAT share of the
+ * bill and return the bill's VAT (taken once from the total). For an excluding-
+ * VAT receipt, the VAT is grVatAmount's, as before.
+ */
+function applyQuotedGr(
+  prepared: { lineTotalActual: Prisma.Decimal; lineTotalQuoted: Prisma.Decimal | null }[],
+  inclusiveRate: Prisma.Decimal | null,
+  vatRatePercent: Prisma.Decimal | number | null
+): Prisma.Decimal {
+  if (!inclusiveRate) return grVatAmount(vatRatePercent, prepared.map((l) => l.lineTotalActual));
+  const split = splitQuotedLines(
+    prepared.map((l) => l.lineTotalQuoted ?? l.lineTotalActual),
+    inclusiveRate
+  );
+  prepared.forEach((l, i) => (l.lineTotalActual = split.exclLines[i]));
+  return split.vatAmount;
+}
+
 const grVatAmount = (
   vatRatePercent: Prisma.Decimal | number | null,
   lineTotals: Prisma.Decimal[]
@@ -860,11 +905,18 @@ export async function createGoodsReceiptLogic(
             input.purchaseOrderId,
             line,
             i + 1,
-            defaultDepartmentId
+            defaultDepartmentId,
+            inclusiveRateOf(input.pricesIncludeVat, input.vatRatePercent)
           )
         );
       }
 
+      // Split BEFORE the lines' payload is built, so each line carries its share.
+      const vatAmount = applyQuotedGr(
+        prepared,
+        inclusiveRateOf(input.pricesIncludeVat, input.vatRatePercent),
+        input.vatRatePercent
+      );
       const grNumber = await generateGrNumber(tx, tenantId, branchCode);
 
       try {
@@ -879,10 +931,8 @@ export async function createGoodsReceiptLogic(
             status: "DRAFT",
             invoiceNo: input.invoiceNo,
             vatRatePercent: input.vatRatePercent,
-            vatAmount: grVatAmount(
-              input.vatRatePercent,
-              prepared.map((l) => l.lineTotalActual)
-            ),
+            pricesIncludeVat: inclusiveRateOf(input.pricesIncludeVat, input.vatRatePercent) !== null,
+            vatAmount,
             receivedAt: input.receivedAt,
             receivedBy,
             notes: input.notes,
@@ -955,22 +1005,27 @@ export async function updateGoodsReceiptLogic(
             existing.purchaseOrderId,
             line,
             i + 1,
-            defaultDepartmentId
+            defaultDepartmentId,
+            inclusiveRateOf(input.pricesIncludeVat, input.vatRatePercent)
           )
         );
       }
 
       await tx.goodsReceiptItem.deleteMany({ where: { goodsReceiptId: id } });
+      // Split BEFORE the lines' payload is built, so each line carries its share.
+      const vatAmount = applyQuotedGr(
+        prepared,
+        inclusiveRateOf(input.pricesIncludeVat, input.vatRatePercent),
+        input.vatRatePercent
+      );
 
       return tx.goodsReceipt.update({
         where: { id },
         data: {
           invoiceNo: input.invoiceNo,
           vatRatePercent: input.vatRatePercent,
-          vatAmount: grVatAmount(
-            input.vatRatePercent,
-            prepared.map((l) => l.lineTotalActual)
-          ),
+          pricesIncludeVat: inclusiveRateOf(input.pricesIncludeVat, input.vatRatePercent) !== null,
+          vatAmount,
           receivedAt: input.receivedAt,
           notes: input.notes,
           items: { create: prepared.map((l) => lineCreateData(tenantId, l)) },
@@ -1091,6 +1146,18 @@ export async function confirmGoodsReceiptLogic(
         select: { isVatRegistered: true },
       });
 
+      // Rule PR3: a VAT-inclusive bill's VAT is taken once from its quoted total;
+      // otherwise it is the rate on the excluding-VAT subtotal, as before.
+      const confirmedVat = gr.pricesIncludeVat
+        ? splitQuotedLines(
+            gr.items.map((i) => i.lineTotalQuoted ?? i.lineTotalActual),
+            gr.vatRatePercent
+          ).vatAmount
+        : grVatAmount(
+            gr.vatRatePercent,
+            gr.items.map((i) => i.lineTotalActual)
+          );
+
       const receipt = await tx.goodsReceipt.update({
         where: { id },
         data: {
@@ -1101,10 +1168,7 @@ export async function confirmGoodsReceiptLogic(
           vatReclaimable: tenant?.isVatRegistered ?? false,
           // Re-derived from the lines as they finally stand, so a draft edited
           // after its rate was set cannot confirm with a stale amount.
-          vatAmount: grVatAmount(
-            gr.vatRatePercent,
-            gr.items.map((i) => i.lineTotalActual)
-          ),
+          vatAmount: confirmedVat,
         },
         include: GR_DETAIL_INCLUDE,
       });
@@ -1112,7 +1176,7 @@ export async function confirmGoodsReceiptLogic(
       // Q3.1: the bill is written in THIS transaction. `/cost` reads spend from
       // `expense` alone, so a path where stock arrives and the money does not
       // would understate a branch's spend with nothing on screen to explain it.
-      await createExpenseFromGoodsReceiptTx(tx, tenantId, gr, confirmedBy);
+      await createExpenseFromGoodsReceiptTx(tx, tenantId, { ...gr, vatAmount: confirmedVat }, confirmedBy);
 
       if (gr.purchaseOrderId) {
         await recalcPurchaseOrderReceiptStatus(tx, tenantId, gr.purchaseOrderId);
@@ -1190,6 +1254,8 @@ export async function voidGoodsReceiptLogic(
             toBaseRatio: item.toBaseRatio,
             unitPriceActual: item.unitPriceActual,
             lineTotalActual: item.lineTotalActual.negated(),
+            unitPriceQuoted: item.unitPriceQuoted,
+            lineTotalQuoted: item.lineTotalQuoted?.negated() ?? null,
             reversalOfItemId: item.id,
             notes: input.voidReason,
             allocations: {

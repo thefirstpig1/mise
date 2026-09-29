@@ -1060,6 +1060,11 @@ export type GoodsReceiptForExpense = {
   invoiceNo: string | null;
   receivedAt: Date;
   vatRatePercent: Prisma.Decimal | null;
+  /** Rule PR3 — the receipt was typed as the bill shows it, VAT included. */
+  pricesIncludeVat: boolean;
+  /** The receipt's own VAT, as confirmed. A VAT-inclusive bill's VAT is taken
+   *  once from its quoted total and must be COPIED, never recomputed. */
+  vatAmount: Prisma.Decimal;
   items: {
     productId: string;
     lineNo: number;
@@ -1110,13 +1115,25 @@ export async function createExpenseFromGoodsReceiptTx(
     ? await resolveUncategorisedCategoryId(tx, tenantId)
     : null;
 
-  const amounts = computeExpenseAmounts({
+  const computed = computeExpenseAmounts({
     items: lines.map((l) => ({ lineTotal: l.lineTotalActual })),
     vatRatePercent: gr.vatRatePercent,
     isPriceVatInclusive: false,
     subjectToWht: false,
     whtRatePercent: null,
   });
+  // Rule PR3 / ADR 0036 R6: a VAT-inclusive bill's VAT was taken ONCE from its
+  // quoted total; recomputing it from the excluding-VAT subtotal can miss by a
+  // satang, and the expense must say what the bill says. The lines are already
+  // their exact excluding-VAT shares, so the subtotal is simply their sum.
+  const amounts = gr.pricesIncludeVat
+    ? {
+        ...computed,
+        vatAmount: gr.vatAmount,
+        totalAmount: computed.subtotalExclVat.plus(gr.vatAmount),
+        netPaymentAmount: computed.subtotalExclVat.plus(gr.vatAmount),
+      }
+    : computed;
 
   return tx.expense.create({
     data: {
@@ -1133,7 +1150,7 @@ export async function createExpenseFromGoodsReceiptTx(
       subtotalExclVat: amounts.subtotalExclVat,
       vatRatePercent: gr.vatRatePercent,
       vatAmount: amounts.vatAmount,
-      isPriceVatInclusive: false,
+      isPriceVatInclusive: gr.pricesIncludeVat,
       totalAmount: amounts.totalAmount,
       // Withholding is a decision made at payment, not at delivery — the bill
       // starts without it and the user adds it on the expense (Q3.4).

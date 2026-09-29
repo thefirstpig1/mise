@@ -188,6 +188,8 @@ function rawFromFormData(formData: FormData): Record<string, unknown> {
     supplierId: formData.get("supplier_id"),
     expectedDeliveryDate: formData.get("expected_delivery_date"),
     vatRatePercent: formData.get("vat_rate_percent"),
+    // Rule PR3 — a checkbox: "on" when the typed prices include VAT.
+    pricesIncludeVat: formData.get("prices_include_vat"),
     notes: formData.get("notes"),
     lines: linesFromFormData(formData),
   };

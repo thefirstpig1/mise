@@ -171,3 +171,31 @@ export function invitationEmail(input: {
     html,
   };
 }
+
+/**
+ * ADR 0036 Q9 — every department of a branch has said its purchase request is
+ * ready. Sent ONCE per round, to people who cut rounds for that branch. No
+ * credential: the link opens the cut sheet, which asks them to sign in.
+ */
+export function purchaseReadyEmail(input: { shopName: string; branchName: string; lineCount: number; url: string }): RenderedEmail {
+  const { shopName, branchName, lineCount, url } = input;
+  const text = [
+    `ใบขอซื้อของ ${branchName} พร้อมสั่งแล้ว`,
+    "",
+    `ทุกแผนกกด “พร้อมแล้ว” ครบ มี ${lineCount} รายการรอสั่ง`,
+    "",
+    `เปิดหน้าตัดรอบ: ${url}`,
+    "",
+    `(${shopName} · ปิดการแจ้งเตือนนี้ได้ที่หน้าตัดรอบสั่งซื้อ)`,
+  ].join("\n");
+  const html = shell(
+    [
+      `<p style="margin:0 0 16px">ใบขอซื้อของ <strong>${escapeHtml(branchName)}</strong> พร้อมสั่งแล้ว</p>`,
+      `<p style="margin:0 0 24px;font-size:14px;color:#444">ทุกแผนกกด “พร้อมแล้ว” ครบ มี ${lineCount} รายการรอสั่ง</p>`,
+      button(url, "เปิดหน้าตัดรอบ"),
+      copyableUrl(url),
+      `<p style="font-size:13px;color:#666;margin:0">${escapeHtml(shopName)} · ปิดการแจ้งเตือนนี้ได้ที่หน้าตัดรอบสั่งซื้อ</p>`,
+    ].join("")
+  );
+  return { subject: `ใบขอซื้อ ${branchName} พร้อมสั่งแล้ว (${lineCount} รายการ)`, text, html };
+}

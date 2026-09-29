@@ -46,6 +46,8 @@ import {
   type RequestViewer,
 } from "@/server/purchase-request";
 import { CrossTenantReferenceError } from "@/server/product";
+import { getBranchesLogic } from "@/server/branch";
+import { notifyPurchaseReady, setMyPurchaseNotifyLogic } from "@/server/purchase-ready-notify";
 import { RequestLineMismatchError } from "@/server/purchase-order";
 
 export type RequestActionState = { ok: true } | { ok: false; formError: string; fieldErrors?: Record<string, string> };
@@ -175,6 +177,17 @@ export async function setDepartmentReadyAction(
   try {
     const r = await setDepartmentReadyLogic(t.tenantId, v, parsed.data);
     refresh();
+    // ADR 0036 Q9 — once per round, AFTER the write committed; never fails the press.
+    if (r.becameAllReady) {
+      const branch = (await getBranchesLogic(t.tenantId, t.reach)).find((b) => b.id === parsed.data.branchId);
+      await notifyPurchaseReady({
+        tenantId: t.tenantId,
+        shopName: t.membership.tenant.name,
+        branchId: parsed.data.branchId,
+        branchName: branch?.name ?? "สาขา",
+        lineCount: r.waiting,
+      });
+    }
     return { ok: true, allReady: r.allReady };
   } catch (e) {
     return { ok: false, formError: thai(e) };
@@ -277,4 +290,13 @@ export async function cutRoundAction(raw: unknown): Promise<CutActionState> {
     const lineId = e instanceof KitchenNoteUnansweredError || e instanceof CutLineNotReadyError ? e.lineId : undefined;
     return { ok: false, formError: thai(e), lineId };
   }
+}
+
+/** The purchaser's own switch for the "ready to order" e-mail (Q9 — on by default). */
+export async function setMyPurchaseNotifyAction(raw: unknown): Promise<RequestActionState> {
+  const { t } = await viewer("purchase:approve");
+  const on = (raw as { on?: unknown } | null)?.on;
+  if (typeof on !== "boolean") return { ok: false, formError: "ข้อมูลไม่ถูกต้อง" };
+  await setMyPurchaseNotifyLogic(t.tenantId, t.user.id!, on);
+  return { ok: true };
 }

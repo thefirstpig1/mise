@@ -270,6 +270,8 @@ function rawFromFormData(formData: FormData): Record<string, unknown> {
     // from these lines, which keeps the per-line VAT uplift the cost engine
     // applies identical to the header figure (ADR 0016 Q2).
     vatRatePercent: formData.get("vat_rate_percent"),
+    // Rule PR3 — a checkbox: "on" when the typed prices include VAT.
+    pricesIncludeVat: formData.get("prices_include_vat"),
     receivedAt: formData.get("received_at"),
     notes: formData.get("notes"),
     lines: linesFromFormData(formData),

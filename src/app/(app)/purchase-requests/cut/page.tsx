@@ -11,6 +11,8 @@ import type { Route } from "next";
 import { requireTenant } from "@/lib/require-tenant";
 import { getBranchesLogic } from "@/server/branch";
 import { getCutSheetLogic } from "@/server/purchase-request";
+import { getMyPurchaseNotifyLogic } from "@/server/purchase-ready-notify";
+import NotifyToggle from "../_components/NotifyToggle";
 import EmptyState from "@/components/ui/EmptyState";
 import CutSheet from "../_components/CutSheet";
 
@@ -22,12 +24,15 @@ export default async function CutRoundPage({ searchParams }: { searchParams: Sea
   const branches = await getBranchesLogic(t.tenantId, t.reach);
   if (branches.length === 0) return <EmptyState art="setup">คุณยังไม่ได้รับสิทธิ์ในสาขาใด</EmptyState>;
   const branch = branches.find((b) => b.id === params.b) ?? branches[0];
-  const sheet = await getCutSheetLogic(t.tenantId, branch.id, {
-    userId: t.user.id!,
-    role: t.role,
-    canApprove: true,
-    costAccess: t.costAccess,
-  });
+  const [sheet, notifyOn] = await Promise.all([
+    getCutSheetLogic(t.tenantId, branch.id, {
+      userId: t.user.id!,
+      role: t.role,
+      canApprove: true,
+      costAccess: t.costAccess,
+    }),
+    getMyPurchaseNotifyLogic(t.tenantId, t.user.id!),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -58,6 +63,7 @@ export default async function CutRoundPage({ searchParams }: { searchParams: Sea
           ))}
         </div>
       )}
+      <NotifyToggle initial={notifyOn} />
       <CutSheet sheet={sheet} branchId={branch.id} />
     </div>
   );

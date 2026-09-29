@@ -45,6 +45,7 @@ import {
   type RequestViewer,
 } from "@/server/purchase-request";
 import { sweepOrphanUsers, sweepTestTenants } from "./support/sweep";
+import { purchaseReadyRecipientsLogic, setMyPurchaseNotifyLogic } from "@/server/purchase-ready-notify";
 
 describe("purchase request (ADR 0036)", () => {
   let tenant: string;
@@ -345,6 +346,14 @@ describe("purchase request (ADR 0036)", () => {
     expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
     const links = await withRlsBypass((tx) => tx.purchaseOrderItem.count({ where: { purchaseRequestLineId: id } }));
     expect(links).toBe(1);
+  });
+
+  it("Q9 — the 'ready' e-mail goes to whoever cuts rounds, never to the kitchen, and can be turned off", async () => {
+    const buyerEmail = await withRlsBypass(async (tx) => (await tx.user.findUniqueOrThrow({ where: { id: buyer.userId } })).email);
+    expect(await purchaseReadyRecipientsLogic(tenant, branch)).toEqual([buyerEmail]);
+    await setMyPurchaseNotifyLogic(tenant, buyer.userId, false);
+    expect(await purchaseReadyRecipientsLogic(tenant, branch)).toEqual([]);
+    await setMyPurchaseNotifyLogic(tenant, buyer.userId, true);
   });
 
   it("Q5 — below par shows what to order (par − on hand − on order) and leaves once asked for", async () => {

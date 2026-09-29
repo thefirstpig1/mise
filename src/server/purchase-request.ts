@@ -21,6 +21,7 @@ import type { CostAccess } from "@/lib/permissions/cost-access";
 import { assertRefBelongsToTenant } from "@/server/product";
 import { acquireCounterLock } from "@/server/counter-lock";
 import { createPurchaseOrderTx, pickCurrentPrice } from "@/server/purchase-order";
+import { quotedUnitPrice } from "@/server/vat-split";
 import {
   cheaperElsewhere,
   defaultSupplierId,
@@ -797,7 +798,7 @@ export async function setDepartmentReadyLogic(
   tenantId: string,
   viewer: RequestViewer,
   input: { branchId: string; departmentId: string; ready: boolean }
-): Promise<{ allReady: boolean; becameAllReady: boolean }> {
+): Promise<{ allReady: boolean; becameAllReady: boolean; waiting: number }> {
   const before = await getRequestBoardLogic(tenantId, input.branchId, viewer);
   await withTenantContext(tenantId, async (tx) => {
     await assertRefBelongsToTenant(tx, tenantId, "department", input.departmentId);
@@ -815,7 +816,11 @@ export async function setDepartmentReadyLogic(
     }
   });
   const after = await getRequestBoardLogic(tenantId, input.branchId, viewer);
-  return { allReady: after.readiness.allReady, becameAllReady: after.readiness.allReady && !before.readiness.allReady };
+  return {
+    allReady: after.readiness.allReady,
+    becameAllReady: after.readiness.allReady && !before.readiness.allReady,
+    waiting: after.lines.filter((l) => l.status.kind === "waiting").length,
+  };
 }
 
 /** One message on a line's conversation (R2 — append-only). */
@@ -965,7 +970,7 @@ export async function cutRoundLogic(
 
       const suppliers = await tx.supplier.findMany({
         where: { tenantId, id: { in: [...new Set(input.picks.map((p) => p.supplierId))] }, deletedAt: null },
-        select: { id: true, nameFull: true, isVatRegistered: true, defaultVatRatePercent: true },
+        select: { id: true, nameFull: true, isVatRegistered: true, defaultVatRatePercent: true, pricesIncludeVat: true },
       });
       const supplierById = new Map(suppliers.map((s) => [s.id, s]));
       const units = await tx.productUnit.findMany({
@@ -982,6 +987,9 @@ export async function cutRoundLogic(
         const s = supplierById.get(supplierId);
         if (!s) throw new CutLineNotReadyError(picks[0].lineId, "no_supplier");
         const vat = s.isVatRegistered ? Number(s.defaultVatRatePercent ?? depts.defaultVatRatePercent) : null;
+        // Rule PR3: a supplier that quotes VAT-inclusive gets an order in its own
+        // terms; the cut sheet's prices are excluding VAT, so convert them.
+        const inclusive = s.pricesIncludeVat && vat !== null && vat > 0;
         const po = await createPurchaseOrderTx(
           tx,
           tenantId,
@@ -990,12 +998,15 @@ export async function cutRoundLogic(
             supplierId,
             expectedDeliveryDate: null,
             vatRatePercent: vat,
+            pricesIncludeVat: inclusive,
             notes: null,
             lines: picks.map((p) => ({
               productId: byId.get(p.lineId)!.productId,
               orderUnitId: p.unitId,
               qtyOrdered: p.qty,
-              unitPrice: p.unitPrice,
+              unitPrice: inclusive
+                ? Number(quotedUnitPrice(new Prisma.Decimal(p.unitPrice), vat))
+                : p.unitPrice,
               supplierProductMappingId: p.mappingId,
               purchaseRequestLineId: p.lineId,
               notes: null,

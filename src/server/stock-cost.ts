@@ -66,11 +66,18 @@ const money = (d: Prisma.Decimal) =>
  */
 const layerValueOf = (item: {
   lineTotalActual: Prisma.Decimal;
-  goodsReceipt: { vatRatePercent: Prisma.Decimal | null; vatReclaimable: boolean };
+  lineTotalQuoted: Prisma.Decimal | null;
+  goodsReceipt: { vatRatePercent: Prisma.Decimal | null; vatReclaimable: boolean; pricesIncludeVat: boolean };
 }): Prisma.Decimal => {
   const { vatRatePercent, vatReclaimable } = item.goodsReceipt;
   if (vatReclaimable || vatRatePercent === null || vatRatePercent.isZero()) {
     return item.lineTotalActual;
+  }
+  // Rule PR3 / ADR 0036 R6: a VAT-inclusive line says exactly what was paid for
+  // it, VAT and all — use that, rather than re-adding VAT to its share of the
+  // split and missing by a satang.
+  if (item.goodsReceipt.pricesIncludeVat && item.lineTotalQuoted !== null) {
+    return item.lineTotalQuoted;
   }
   // A reversal line's total is negative, so its uplift is too and a voided
   // receipt still nets to exactly zero.
@@ -229,11 +236,12 @@ async function replayPairs(
         select: {
           id: true,
           lineTotalActual: true,
+          lineTotalQuoted: true,
           reversalOfItemId: true,
           // Part 16 Q2 — the receipt's OWN snapshot of whether this shop could
           // reclaim the VAT it paid, never the tenant's setting read today.
           goodsReceipt: {
-            select: { vatRatePercent: true, vatReclaimable: true },
+            select: { vatRatePercent: true, vatReclaimable: true, pricesIncludeVat: true },
           },
         },
       })
@@ -694,8 +702,9 @@ export async function getBranchCostSummaryLogic(
           select: {
             id: true,
             lineTotalActual: true,
+            lineTotalQuoted: true,
             goodsReceipt: {
-              select: { vatRatePercent: true, vatReclaimable: true },
+              select: { vatRatePercent: true, vatReclaimable: true, pricesIncludeVat: true },
             },
           },
         })

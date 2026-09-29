@@ -221,6 +221,12 @@ export const purchaseOrderInputSchema = z.object({
       .refine(withinDecimals(2), "อัตรา VAT มีทศนิยมได้ไม่เกิน 2 ตำแหน่ง")
       .nullable()
   ),
+  /**
+   * ADR 0036 Q7 / rule PR3 — the prices below were typed as the supplier quotes
+   * them, VAT INCLUDED. The server splits them; every stored money column still
+   * means excluding VAT. A checkbox posts "on"; absent = excluding VAT.
+   */
+  pricesIncludeVat: z.preprocess((v) => v === true || v === "on" || v === "true", z.boolean()).default(false),
   notes: z.preprocess(
     blankToNull,
     z.string().trim().max(1000, "หมายเหตุต้องไม่เกิน 1000 ตัวอักษร").nullable()
@@ -258,6 +264,7 @@ export const PURCHASE_ORDER_FIELD_LABELS_TH: Record<
   supplierId: "ผู้ขาย",
   expectedDeliveryDate: "วันที่คาดว่าจะได้รับ",
   vatRatePercent: "อัตรา VAT",
+  pricesIncludeVat: "ราคารวม VAT",
   notes: "หมายเหตุ",
   lines: "รายการสั่งซื้อ",
 };

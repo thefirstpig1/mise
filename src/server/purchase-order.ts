@@ -25,6 +25,7 @@ import { withTenantContext } from "@/lib/db";
 import { computeBangkokToday } from "@/lib/bangkok-date";
 import { assertRefBelongsToTenant } from "@/server/product";
 import { acquireCounterLock } from "@/server/counter-lock";
+import { exclUnitPrice, splitQuotedLines } from "@/server/vat-split";
 import type {
   CancelPurchaseOrderInput,
   GetPurchaseOrdersQuery,
@@ -725,6 +726,9 @@ type PreparedLine = {
   purchaseRequestLineId: string | null;
   notes: string | null;
   allocations: { departmentId: string; qtyAllocated: Prisma.Decimal }[];
+  /** Rule PR3 — as quoted, VAT included; null when typed excluding VAT. */
+  unitPriceQuoted: Prisma.Decimal | null;
+  lineTotalQuoted: Prisma.Decimal | null;
 };
 
 /** Thrown when an order line points at a request line of another branch or product (ADR 0036 R1). */
@@ -830,6 +834,8 @@ async function prepareLine(
     purchaseRequestLineId: line.purchaseRequestLineId ?? null,
     notes: line.notes,
     allocations,
+    unitPriceQuoted: null,
+    lineTotalQuoted: null,
   };
 }
 
@@ -841,6 +847,32 @@ async function prepareLine(
  * and the total is the exact sum of the two. Rounding VAT per line instead would
  * drift by a satang per line against the supplier's own invoice.
  */
+/**
+ * Rule PR3 — lines typed WITH VAT inside. The typed figures become the quoted
+ * columns; the excluding-VAT columns get their exact share of the split
+ * (splitQuotedLines), so every reader of `unit_price` / `line_total` keeps
+ * reading excluding VAT. Returns the header money, or null when the order is
+ * not VAT-inclusive (or carries no VAT, where quoted and net are the same).
+ */
+function applyQuoted(
+  lines: PreparedLine[],
+  inclusive: boolean,
+  vatRatePercent: Prisma.Decimal | null
+): { subtotalExclVat: Prisma.Decimal; vatAmount: Prisma.Decimal; totalAmount: Prisma.Decimal } | null {
+  if (!inclusive || vatRatePercent === null || vatRatePercent.isZero()) return null;
+  const split = splitQuotedLines(
+    lines.map((l) => l.lineTotal),
+    vatRatePercent
+  );
+  lines.forEach((l, i) => {
+    l.unitPriceQuoted = l.unitPrice;
+    l.lineTotalQuoted = l.lineTotal;
+    l.unitPrice = exclUnitPrice(l.unitPrice, vatRatePercent);
+    l.lineTotal = split.exclLines[i];
+  });
+  return { subtotalExclVat: split.subtotalExclVat, vatAmount: split.vatAmount, totalAmount: split.totalAmount };
+}
+
 function computeTotals(
   lines: PreparedLine[],
   vatRatePercent: Prisma.Decimal | null
@@ -919,7 +951,8 @@ export async function createPurchaseOrderTx(
 
     const vatRatePercent =
       input.vatRatePercent === null ? null : new Prisma.Decimal(input.vatRatePercent);
-    const totals = computeTotals(lines, vatRatePercent);
+    const quoted = applyQuoted(lines, input.pricesIncludeVat, vatRatePercent);
+    const totals = quoted ?? computeTotals(lines, vatRatePercent);
     const poNumber = await generatePoNumber(tx, tenantId, branch.code);
 
     try {
@@ -932,6 +965,7 @@ export async function createPurchaseOrderTx(
           status: "DRAFT",
           expectedDeliveryDate: input.expectedDeliveryDate,
           vatRatePercent,
+          pricesIncludeVat: quoted !== null,
           ...totals,
           notes: input.notes,
           createdBy,
@@ -948,6 +982,8 @@ export async function createPurchaseOrderTx(
               lineTotal: l.lineTotal,
               supplierProductMappingId: l.supplierProductMappingId,
               purchaseRequestLineId: l.purchaseRequestLineId,
+              unitPriceQuoted: l.unitPriceQuoted,
+              lineTotalQuoted: l.lineTotalQuoted,
               notes: l.notes,
               allocations: {
                 create: l.allocations.map((a) => ({
@@ -1003,7 +1039,8 @@ export async function updatePurchaseOrderLogic(
 
     const vatRatePercent =
       input.vatRatePercent === null ? null : new Prisma.Decimal(input.vatRatePercent);
-    const totals = computeTotals(lines, vatRatePercent);
+    const quoted = applyQuoted(lines, input.pricesIncludeVat, vatRatePercent);
+    const totals = quoted ?? computeTotals(lines, vatRatePercent);
 
     // Allocations go with their lines (FK is ON DELETE CASCADE).
     await tx.purchaseOrderItem.deleteMany({ where: { purchaseOrderId: id } });
@@ -1013,6 +1050,7 @@ export async function updatePurchaseOrderLogic(
       data: {
         expectedDeliveryDate: input.expectedDeliveryDate,
         vatRatePercent,
+        pricesIncludeVat: quoted !== null,
         ...totals,
         notes: input.notes,
         items: {
@@ -1028,6 +1066,8 @@ export async function updatePurchaseOrderLogic(
             lineTotal: l.lineTotal,
             supplierProductMappingId: l.supplierProductMappingId,
             purchaseRequestLineId: l.purchaseRequestLineId,
+            unitPriceQuoted: l.unitPriceQuoted,
+            lineTotalQuoted: l.lineTotalQuoted,
             notes: l.notes,
             allocations: {
               create: l.allocations.map((a) => ({
