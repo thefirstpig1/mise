@@ -21,6 +21,8 @@ Two pieces of prior art bind this Part:
 
 ### Q1 — No PR layer in Part 11; `purchase_request` deferred to Sprint 3+
 
+> **Superseded by ADR 0036 Q1 (2026-09-29).** The reason below — one department only — stopped being true in Part 35. The request is now its own document, split into POs per supplier by a purchaser.
+
 The spec's flow is PR → PO → GR, where a PR is a **department's request** that a manager approves (`department_id NOT NULL`, requester needs `can_request_for = true`). That value only exists once a tenant has more than one department. Today `Tenant.enableDepartments` defaults to `false`, and while `/settings` can flip it, **there is no `/departments` route at all** — `tenant-init.ts` creates exactly one department ("Main") and nothing can create a second. A PR layer now would be a form the owner fills in and then approves by themselves. *(Rejected: build PR+PO together per the spec — doubles the Part, adds a second status machine and a many-to-many PR→PO conversion, and pushes GR further out for a workflow no current tenant can exercise.)*
 
 ### Q2 — `purchase_order_item_allocation` ships, but the H.2 trigger pair does not
@@ -37,6 +39,8 @@ The failure this prevents: order *"1 sack × 25 kg"* on the 1st; someone correct
 
 ### Q4 — `DRAFT` is editable; `SENT` locks the document
 
+> **One exception, ADR 0036 Q8 (2026-09-29):** the supplier's promised delivery date is the supplier's answer, not the order's content — it is set after sending, may change, and keeps its history. Nothing else unlocks.
+
 Reachable in Part 11: `DRAFT → SENT` and `→ CANCELLED`. `PARTIALLY_RECEIVED` / `RECEIVED` exist in the enum but are **Part 13's to write** — a GR is what moves them. Amending a sent order means `CANCELLED` + a new PO; a revision/amendment flow is Sprint 3+ if it is ever wanted. This is what lets Part 13 assume a PO line under a GR cannot move beneath it. *(Rejected: editable until the first GR lands — closer to how a Thai SME actually reorders by phone, but it forces Part 13 to reconcile a PO that shifts mid-flight and gives the Q3 snapshot multiple versions.)*
 
 ### Q5 — A product with no current price can still be ordered
@@ -44,6 +48,8 @@ Reachable in Part 11: `DRAFT → SENT` and `→ CANCELLED`. `PARTIALLY_RECEIVED`
 The resolver returns nothing when there is no live mapping covering today; the line then accepts a **hand-typed price**, snapshotted exactly like any other, with `supplier_product_mapping_id = null` recording that it never came from the price list. This matches the product's founding promise — *works even if you haven't set everything up* — and the very first order from a new supplier is precisely the case with no mapping yet. *(Rejected: block until a mapping exists — turns "order something new" into a detour through master data. Also rejected: auto-create a mapping from the typed price — it writes master data from a transaction the user did not ask to be permanent, and would have to invent an `effectiveFrom` inside ADR 0009's append+supersede series.)*
 
 ### Q6 — VAT is snapshotted on the PO; WHT is not captured at all
+
+> **Amended by ADR 0036 Q7 (2026-09-29):** a supplier may quote VAT-inclusive prices. The quoted price is kept in a new column for display and printing; every existing price column still means EXCLUDING VAT (rule PR3).
 
 `subtotal_excl_vat`, `vat_rate_percent`, `vat_amount`, `total_amount` are computed and frozen at send time (same reasoning as Q3 — a supplier's VAT registration can change). `wht_expected_amount` and `net_payment_expected` from spec §5.3 are **not built**: withholding tax attaches to services, rent and professional fees — the seed's only WHT default sits on `OpEx/Professional/Accounting` — so a raw-materials PO would carry two permanently-zero columns. WHT is deducted **at payment**, and there is no payment or expense module until Sprint 3; it lands there, with the accounts that need it. *(Rejected: build the full spec header now.)*
 

@@ -127,6 +127,22 @@ Once per profile. Negligible.
 
 ---
 
+## Feature A8: คาดการณ์การใช้วัตถุดิบ — usage forecast with seasonality (Kong, 2026-09-29)
+
+### Concept
+Kong: *"ควรมีตัวคำนวณที่ reliable ขึ้น อย่าง logic คำนวณแข็ง ๆ จากยอดขายที่ผ่านมาเป็นรายวันหรือรายเดือน หรือรายสัปดาห์ หรือแม้แต่รายปี ว่าช่วงนี้ ๆ ใช้มะนาวเยอะกว่าปกติ"*. Raised during the purchase-request grill: the stock figure lags whenever nobody has imported today's sales, so the order screen shows an ESTIMATE ("ใช้เฉลี่ยวันละ 0.8 กก. → คาดว่าเหลือ ~0.4 กก."). The first version of that estimate is a flat recent average; this feature is what replaces it.
+
+### Split — rules first, a model only on top
+Per "Where AI is the wrong tool" below, the forecast itself is **arithmetic, not a model**: usage per product per day falls out of posted `CONSUMPTION` (Part 22) and receipts/counts; the forecast weighs same-weekday history, the recent trend, and the same weeks last year (festivals, rainy season, school terms). It must be testable and explainable ("สัปดาห์นี้ปีที่แล้วใช้มากกว่าปกติ 40%").
+A model may come in only to DESCRIBE — "มะนาวใช้มากผิดปกติตั้งแต่วันจันทร์ ตรงกับเมนูใหม่ยำวุ้นเส้น" — never to produce the number.
+
+### What must be true first
+- Enough history: a year of posted consumption for the yearly pattern; weeks for the weekday pattern. Show how much history the figure stands on.
+- Days never imported must not read as zero usage (the same rule as SI1: per day WITH data).
+- Every screen that shows it says it is a forecast.
+
+---
+
 ## Where AI is the wrong tool
 
 Rules beat models wherever a rule exists. None of these should use a model call:
