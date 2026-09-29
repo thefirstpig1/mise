@@ -65,6 +65,7 @@ export async function loadGoodsReceiptFormOptions(
       id: s.id,
       nameFull: s.nameFull,
       defaultVatRatePercent: s.defaultVatRatePercent?.toString() ?? null,
+      pricesIncludeVat: s.isVatRegistered && s.pricesIncludeVat,
     })),
 
     branches: branches.map((b) => ({ id: b.id, name: b.name })),

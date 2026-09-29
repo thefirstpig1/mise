@@ -179,8 +179,10 @@ export default async function PurchaseOrderDetailPage({
                 <th className="py-2 pr-2 font-medium">รายการ</th>
                 <th className="py-2 pr-2 text-right font-medium">จำนวน</th>
                 <th className="py-2 pr-2 font-medium">หน่วย</th>
-                <th className="py-2 pr-2 text-right font-medium">ราคา/หน่วย</th>
-                <th className="py-2 text-right font-medium">รวม</th>
+                <th className="py-2 pr-2 text-right font-medium">
+                  ราคา/หน่วย{po.pricesIncludeVat ? " (รวม VAT)" : ""}
+                </th>
+                <th className="py-2 text-right font-medium">รวม{po.pricesIncludeVat ? " (รวม VAT)" : ""}</th>
               </tr>
             </thead>
             <tbody>
@@ -206,9 +208,10 @@ export default async function PurchaseOrderDetailPage({
                   </td>
                   <td className="py-2 pr-2">{l.orderUnitName}</td>
                   <td className="py-2 pr-2 text-right tabular-nums">
-                    {money(l.unitPrice)}
+                    {/* Rule PR3 — printed in the supplier's own terms, so it matches their bill. */}
+                    {money(l.unitPriceQuoted ?? l.unitPrice)}
                   </td>
-                  <td className="py-2 text-right tabular-nums">{money(l.lineTotal)}</td>
+                  <td className="py-2 text-right tabular-nums">{money(l.lineTotalQuoted ?? l.lineTotal)}</td>
                 </tr>
               ))}
             </tbody>
@@ -231,6 +234,9 @@ export default async function PurchaseOrderDetailPage({
               <dt>ยอดรวมทั้งสิ้น</dt>
               <dd className="tabular-nums">{money(po.totalAmount)}</dd>
             </div>
+            {po.pricesIncludeVat && (
+              <p className="pt-1 text-xs text-muted-foreground">ราคาในใบนี้รวม VAT แล้ว · VAT คำนวณจากยอดรวม</p>
+            )}
           </dl>
         </div>
 

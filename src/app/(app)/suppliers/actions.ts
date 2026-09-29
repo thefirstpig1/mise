@@ -78,6 +78,8 @@ function rawFromFormData(formData: FormData): Record<string, unknown> {
     paymentTerms: formData.get("payment_terms"),
     isActive: formData.get("is_active") === "on",
     isVatRegistered: formData.get("is_vat_registered") === "on",
+    // Only meaningful with VAT; a supplier without VAT has no VAT to include.
+    pricesIncludeVat: formData.get("is_vat_registered") === "on" && formData.get("prices_include_vat") === "on",
     defaultVatRatePercent: formData.get("default_vat_rate_percent"),
     defaultSubjectToWht: formData.get("default_subject_to_wht") === "on",
     defaultWhtRatePercent: formData.get("default_wht_rate_percent"),

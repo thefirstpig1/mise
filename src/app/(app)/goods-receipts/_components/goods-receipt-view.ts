@@ -117,6 +117,9 @@ export type GoodsReceiptLineView = {
   qtyBase: string;
   unitPriceActual: string;
   lineTotalActual: string;
+  /** Rule PR3 — as the bill shows it, VAT included; null when typed excluding VAT. */
+  unitPriceQuoted: string | null;
+  lineTotalQuoted: string | null;
   notes: string | null;
   purchaseOrderItemId: string | null;
   /** The ordered side, present only on a PO-based line. */
@@ -157,6 +160,8 @@ export type GoodsReceiptDetailView = {
   invoiceNo: string | null;
   /** VAT on THIS delivery (Part 16, ADR 0016 Q2). null = none was charged. */
   vatRatePercent: string | null;
+  /** Rule PR3 — the lines were typed as the bill shows them, VAT included. */
+  pricesIncludeVat: boolean;
   vatAmount: string;
   /**
    * Whether the shop could reclaim that VAT, SNAPSHOTTED when the receipt was
@@ -191,6 +196,8 @@ export type ReceivableLineView = {
   orderUnitName: string;
   toBaseRatio: string;
   unitPrice: string;
+  /** Rule PR3 — the order's price as quoted, VAT included, when it was. */
+  unitPriceQuoted: string | null;
   qtyOrdered: string;
   qtyReceived: string;
   qtyOutstanding: string;
@@ -207,6 +214,8 @@ export type ReceivablePurchaseOrderView = {
   expectedDeliveryLabel: string;
   /** The order's VAT rate — the receive form's starting point (Part 16). */
   vatRatePercent: string | null;
+  /** Rule PR3 — the order was typed VAT-inclusive; the receipt starts the same way. */
+  pricesIncludeVat: boolean;
   /** False for DRAFT / CANCELLED — the page explains rather than 404s. */
   receivable: boolean;
   lines: ReceivableLineView[];
@@ -266,6 +275,7 @@ export function toGoodsReceiptDetailView(
       : null,
     invoiceNo: gr.invoiceNo,
     vatRatePercent: gr.vatRatePercent?.toString() ?? null,
+    pricesIncludeVat: gr.pricesIncludeVat,
     vatAmount: str(gr.vatAmount),
     vatReclaimable: gr.vatReclaimable,
     receivedAt: iso(gr.receivedAt)!,
@@ -294,6 +304,8 @@ export function toGoodsReceiptDetailView(
       qtyBase: str(l.qtyReceivedActual.mul(l.toBaseRatio)),
       unitPriceActual: str(l.unitPriceActual),
       lineTotalActual: str(l.lineTotalActual),
+      unitPriceQuoted: l.unitPriceQuoted ? str(l.unitPriceQuoted) : null,
+      lineTotalQuoted: l.lineTotalQuoted ? str(l.lineTotalQuoted) : null,
       notes: l.notes,
       purchaseOrderItemId: l.purchaseOrderItemId,
       ordered: l.purchaseOrderItem
@@ -338,6 +350,7 @@ export function toReceivablePurchaseOrderView(
     supplierName: po.supplierName,
     expectedDeliveryLabel: formatBangkokDate(po.expectedDeliveryDate),
     vatRatePercent: po.vatRatePercent?.toString() ?? null,
+    pricesIncludeVat: po.pricesIncludeVat,
     receivable,
     lines: po.lines.map((l) => ({
       purchaseOrderItemId: l.purchaseOrderItemId,
@@ -349,6 +362,7 @@ export function toReceivablePurchaseOrderView(
       orderUnitName: l.orderUnitName,
       toBaseRatio: str(l.toBaseRatio),
       unitPrice: str(l.unitPrice),
+      unitPriceQuoted: l.unitPriceQuoted ? str(l.unitPriceQuoted) : null,
       qtyOrdered: str(l.qtyOrdered),
       qtyReceived: str(l.qtyReceived),
       qtyOutstanding: str(l.qtyOutstanding),

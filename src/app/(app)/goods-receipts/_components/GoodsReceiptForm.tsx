@@ -56,6 +56,8 @@ export type GrSupplierOption = {
   nameFull: string;
   /** The supplier's usual VAT rate — where a standalone receipt starts (Part 16). */
   defaultVatRatePercent: string | null;
+  /** ADR 0036 Q7 — its bills show prices with VAT inside. */
+  pricesIncludeVat: boolean;
 };
 export type GrBranchOption = { id: string; name: string };
 
@@ -95,6 +97,8 @@ export type GoodsReceiptFormInitial = {
   invoiceNo: string;
   /** Blank = this delivery carried no VAT (Part 16). */
   vatRatePercent: string;
+  /** Rule PR3 — the prices were typed as the bill shows them, VAT included. */
+  pricesIncludeVat: boolean;
   /** `datetime-local` value, already shifted to Bangkok by the serializer. */
   receivedAtLocal: string;
   notes: string;
@@ -227,6 +231,13 @@ export default function GoodsReceiptForm({
       ""
   );
   const [vatTouched, setVatTouched] = useState(false);
+  // Rule PR3 — are the prices typed as the bill shows them, VAT included?
+  const [inclusive, setInclusive] = useState(
+    initial?.pricesIncludeVat ??
+      initialPurchaseOrder?.pricesIncludeVat ??
+      suppliers.find((s) => s.id === (initial?.supplierId ?? initialPurchaseOrder?.supplierId))?.pricesIncludeVat ??
+      false
+  );
 
   const linesFromPo = (v: ReceivablePurchaseOrderView): LineRow[] =>
     v.lines.map((l) => ({
@@ -235,7 +246,8 @@ export default function GoodsReceiptForm({
       productId: l.productId,
       receivedUnitId: l.orderUnitId,
       qty: trimQty(l.qtyOutstanding),
-      unitPrice: l.unitPrice,
+      // The order's price in its own terms — as quoted when it was VAT-inclusive.
+      unitPrice: l.unitPriceQuoted ?? l.unitPrice,
       notes: "",
       outstanding: l.qtyOutstanding,
       orderedUnitName: l.orderUnitName,
@@ -293,6 +305,7 @@ export default function GoodsReceiptForm({
         setSupplierId(r.data.supplierId);
         // The order's rate, unless the receiver has already typed one.
         if (!vatTouched) setVatRate(r.data.vatRatePercent ?? "");
+        setInclusive(r.data.pricesIncludeVat);
         if (r.data.receivable) setRows(linesFromPo(r.data));
       })
       .finally(() => {
@@ -471,6 +484,7 @@ export default function GoodsReceiptForm({
                       ?.defaultVatRatePercent ?? ""
                   );
                 }
+                if (!poId) setInclusive(suppliers.find((s) => s.id === e.target.value)?.pricesIncludeVat ?? false);
               }}
             >
               <option value="">— เลือกผู้ขาย —</option>
@@ -552,6 +566,23 @@ export default function GoodsReceiptForm({
             ดึงมาจากใบสั่งซื้อหรือค่าตั้งต้นของผู้ขาย — แก้ให้ตรงกับใบกำกับภาษีที่มากับของได้
             {" · "}ถ้าร้านไม่ได้จด VAT ระบบจะรวม VAT เป็นต้นทุนของ
           </p>
+          {vatRate.trim() !== "" && Number(vatRate) > 0 && (
+            <label className="mt-2 flex items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                name="prices_include_vat"
+                checked={inclusive}
+                onChange={(e) => setInclusive(e.target.checked)}
+                className="mt-1"
+              />
+              <span>
+                ราคาในบิลรวม VAT แล้ว
+                <span className="block text-xs text-muted-foreground">
+                  กรอกราคาตามที่เห็นบนบิลได้เลย ระบบแยก VAT ออกจากยอดรวมเอง
+                </span>
+              </span>
+            </label>
+          )}
           {fieldErrors?.vatRatePercent && (
             <p className={errorClass}>{fieldErrors.vatRatePercent}</p>
           )}
@@ -672,7 +703,9 @@ export default function GoodsReceiptForm({
                   </div>
 
                   <div className="sm:col-span-2">
-                    <label className="text-xs text-muted-foreground">ราคา/หน่วย</label>
+                    <label className="text-xs text-muted-foreground">
+                      ราคา/หน่วย {inclusive && vatRate.trim() !== "" && Number(vatRate) > 0 ? "(รวม VAT)" : "(ไม่รวม VAT)"}
+                    </label>
                     <input
                       name="line_unit_price"
                       type="number"
@@ -741,7 +774,9 @@ export default function GoodsReceiptForm({
         </div>
 
         <div className="flex justify-end border-t border-border pt-3 text-sm">
-          <span className="text-muted-foreground">รวมทั้งใบ&nbsp;</span>
+          <span className="text-muted-foreground">
+            รวมทั้งใบ{inclusive && vatRate.trim() !== "" && Number(vatRate) > 0 ? " (รวม VAT)" : " (ก่อน VAT)"}&nbsp;
+          </span>
           <span className="font-semibold tabular-nums">{fmt(total)} ฿</span>
         </div>
       </section>

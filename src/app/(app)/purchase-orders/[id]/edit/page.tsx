@@ -73,12 +73,14 @@ export default async function EditPurchaseOrderPage({
           // <input type="date"> wants YYYY-MM-DD, not an ISO instant.
           expectedDeliveryDate: view.expectedDeliveryDate?.slice(0, 10) ?? "",
           vatRatePercent: view.vatRatePercent ?? "",
+          pricesIncludeVat: view.pricesIncludeVat,
           notes: view.notes ?? "",
           lines: view.lines.map((l) => ({
             productId: l.productId,
             orderUnitId: l.orderUnitId,
             qtyOrdered: l.qtyOrdered,
-            unitPrice: l.unitPrice,
+            // A VAT-inclusive order is edited in the supplier's own terms (PR3).
+            unitPrice: l.unitPriceQuoted ?? l.unitPrice,
             supplierProductMappingId: l.supplierProductMappingId,
             purchaseRequestLineId: l.purchaseRequestLineId,
             notes: l.notes,

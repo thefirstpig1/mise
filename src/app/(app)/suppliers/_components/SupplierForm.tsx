@@ -188,6 +188,17 @@ export default function SupplierForm({
           <span className="text-sm font-medium">{L.isVatRegistered}</span>
         </label>
         {isVatRegistered && (
+          <label className="flex items-start gap-3">
+            <input type="checkbox" name="prices_include_vat" defaultChecked={initial?.pricesIncludeVat ?? false} className="mt-1" />
+            <span className="text-sm">
+              <span className="font-medium">{L.pricesIncludeVat}</span>
+              <span className="block text-xs text-muted-foreground">
+                เช่น แม็คโคร ป้ายราคา ฿107 คือราคารวม VAT · ใบสั่งซื้อและใบรับของของผู้ขายรายนี้จะเริ่มแบบ “ราคารวม VAT” (แก้รายใบได้)
+              </span>
+            </span>
+          </label>
+        )}
+        {isVatRegistered && (
           <TextField
             name="default_vat_rate_percent"
             label={L.defaultVatRatePercent}

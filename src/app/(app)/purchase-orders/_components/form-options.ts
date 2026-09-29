@@ -61,6 +61,7 @@ export async function loadPurchaseOrderFormOptions(
       id: s.id,
       nameFull: s.nameFull,
       isVatRegistered: s.isVatRegistered,
+      pricesIncludeVat: s.pricesIncludeVat,
       defaultVatRatePercent: s.defaultVatRatePercent?.toString() ?? null,
     })),
 

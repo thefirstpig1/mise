@@ -171,7 +171,7 @@ describe("purchase request (ADR 0036)", () => {
     let r = await setDepartmentReadyLogic(tenant, cook, { branchId: branch, departmentId: deptMain, ready: true });
     expect(r.allReady).toBe(false); // the bar has not said anything yet — Kong's case
     r = await setDepartmentReadyLogic(tenant, barCook, { branchId: branch, departmentId: deptBar, ready: true });
-    expect(r).toEqual({ allReady: true, becameAllReady: true });
+    expect(r).toMatchObject({ allReady: true, becameAllReady: true, waiting: 1 });
     await lineId(barCook, { productId: lime.id, unitId: kg(lime) });
     expect((await board(buyer)).readiness.allReady).toBe(false);
     expect((await board(buyer)).readiness.departments.find((d) => d.id === deptBar)?.ready).toBeNull();
@@ -182,7 +182,10 @@ describe("purchase request (ADR 0036)", () => {
     const id = await lineId(cook);
     const cooks = (await board(cook)).lines.find((l) => l.id === id)!;
     expect(cooks.cheaper).toMatchObject({ supplierName: "ร้าน B", money: null });
-    expect(JSON.stringify(cooks)).not.toMatch(/145|168|290/);
+    // Only the hint can carry money (the line's own fields are quantities and
+    // names). Searched on its own: the whole line holds random UUIDs, and one
+    // containing "168" made this assertion fail by chance.
+    expect(JSON.stringify(cooks.cheaper)).not.toMatch(/145|168|290/);
     const buyers = (await board(buyer)).lines.find((l) => l.id === id)!;
     expect(buyers.cheaper?.money).toEqual({ theirs: 145, ours: 168 });
   });

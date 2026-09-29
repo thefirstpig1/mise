@@ -107,6 +107,7 @@ export default async function EditGoodsReceiptPage({
           purchaseOrderId: gr.purchaseOrder?.id ?? null,
           invoiceNo: gr.invoiceNo ?? "",
           vatRatePercent: gr.vatRatePercent ?? "",
+          pricesIncludeVat: gr.pricesIncludeVat,
           receivedAtLocal: gr.receivedAtLocal,
           notes: gr.notes ?? "",
           lines: gr.lines.map((l) => ({
@@ -116,7 +117,8 @@ export default async function EditGoodsReceiptPage({
             receivedUnitName: l.receivedUnitName,
             toBaseRatio: l.toBaseRatio,
             qtyReceivedActual: l.qtyReceivedActual,
-            unitPriceActual: l.unitPriceActual,
+            // A VAT-inclusive receipt is edited as the bill shows it (PR3).
+            unitPriceActual: l.unitPriceQuoted ?? l.unitPriceActual,
             notes: l.notes,
           })),
         }}

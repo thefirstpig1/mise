@@ -54,6 +54,8 @@ export type POSupplierOption = {
   id: string;
   nameFull: string;
   isVatRegistered: boolean;
+  /** ADR 0036 Q7 — quotes prices with VAT inside; the order's starting point. */
+  pricesIncludeVat: boolean;
   /** STRING or null (Pitfall #20). */
   defaultVatRatePercent: string | null;
 };
@@ -82,6 +84,7 @@ export type PurchaseOrderFormInitial = {
   supplierId: string;
   expectedDeliveryDate: string;
   vatRatePercent: string;
+  pricesIncludeVat: boolean;
   notes: string;
   lines: {
     productId: string;
@@ -163,6 +166,8 @@ export default function PurchaseOrderForm({
   );
   const [supplierId, setSupplierId] = useState(initial?.supplierId ?? "");
   const [vatRate, setVatRate] = useState(initial?.vatRatePercent ?? "");
+  // Rule PR3 — are the prices below typed VAT-inclusive? Follows the supplier.
+  const [inclusive, setInclusive] = useState(initial?.pricesIncludeVat ?? false);
   const [rows, setRows] = useState<LineRow[]>(() =>
     initial?.lines.length
       ? initial.lines.map((l) => ({
@@ -193,6 +198,7 @@ export default function PurchaseOrderForm({
         ? (supplier.defaultVatRatePercent ?? tenantDefaultVatRate)
         : ""
     );
+    setInclusive(supplier.isVatRegistered && supplier.pricesIncludeVat);
   }, [supplierId, supplier, vatTouchedFor, tenantDefaultVatRate]);
 
   // --- what this supplier carries (Kong 2026-09-29: "กดซัพมั่วแล้วสั่งของที่ซัพไม่มี") ---
@@ -251,8 +257,11 @@ export default function PurchaseOrderForm({
       patch(key, { priceScope: "none", mappingId: "", minOrderQty: null });
       return;
     }
+    const listPrice = Number(res.data.unitPrice);
+    const rate = vatRate.trim() === "" ? 0 : Number(vatRate);
     patch(key, {
-      unitPrice: res.data.unitPrice,
+      // The price list is excluding VAT; a VAT-inclusive order shows it with VAT.
+      unitPrice: inclusive && rate > 0 ? String(Math.round(listPrice * (1 + rate / 100) * 10_000) / 10_000) : res.data.unitPrice,
       mappingId: res.data.mappingId,
       priceScope: res.data.scope,
       minOrderQty: res.data.minOrderQty,
@@ -295,10 +304,16 @@ export default function PurchaseOrderForm({
 
   // Display-only preview; the server owns the authoritative numbers.
   const preview = useMemo(() => {
-    const subtotal = rows.reduce((s, r) => s + n(r.qty) * n(r.unitPrice), 0);
-    const vat = vatRate.trim() === "" ? 0 : (subtotal * n(vatRate)) / 100;
-    return { subtotal, vat, total: subtotal + vat };
-  }, [rows, vatRate]);
+    const typed = rows.reduce((s, r) => s + Math.round(n(r.qty) * n(r.unitPrice) * 100) / 100, 0);
+    const rate = vatRate.trim() === "" ? 0 : n(vatRate);
+    if (inclusive && rate > 0) {
+      // Rule PR3 — VAT taken once from the total, as the bill does it.
+      const subtotal = Math.round((typed / (1 + rate / 100)) * 100) / 100;
+      return { subtotal, vat: Math.round((typed - subtotal) * 100) / 100, total: typed };
+    }
+    const vat = Math.round(((typed * rate) / 100) * 100) / 100;
+    return { subtotal: typed, vat, total: typed + vat };
+  }, [rows, vatRate, inclusive]);
 
   const formError = state.ok === false ? state.formError : undefined;
   const fieldErrors = state.ok === false ? state.fieldErrors : undefined;
@@ -507,7 +522,7 @@ export default function PurchaseOrderForm({
                   </div>
 
                   <div className="sm:col-span-3">
-                    <label className="label">ราคา/หน่วย</label>
+                    <label className="label">ราคา/หน่วย {inclusive ? "(รวม VAT)" : "(ไม่รวม VAT)"}</label>
                     <input
                       name="line_unit_price"
                       type="number"
@@ -610,6 +625,23 @@ export default function PurchaseOrderForm({
           <p className="mt-1 text-xs text-muted-foreground">
             เว้นว่าง = ใบนี้ไม่มี VAT
           </p>
+          {vatRate.trim() !== "" && Number(vatRate) > 0 && (
+            <label className="mt-2 flex items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                name="prices_include_vat"
+                checked={inclusive}
+                onChange={(e) => setInclusive(e.target.checked)}
+                className="mt-1"
+              />
+              <span>
+                ราคาที่กรอกรวม VAT แล้ว
+                <span className="block text-xs text-muted-foreground">
+                  ติ๊กเมื่อผู้ขายบอกราคาแบบรวม VAT (เช่น ป้ายแม็คโคร) — ระบบแยก VAT ออกจากยอดรวมให้ ใบที่พิมพ์ตรงกับบิลผู้ขาย
+                </span>
+              </span>
+            </label>
+          )}
           {err("vatRatePercent") && (
             <p className={errorClass}>{err("vatRatePercent")}</p>
           )}

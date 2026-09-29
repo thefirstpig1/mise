@@ -92,6 +92,8 @@ export const supplierInputSchema = z
     paymentTerms: optionalText,
     isActive: z.boolean().default(true),
     isVatRegistered: z.boolean().default(false),
+    /** ADR 0036 Q7 — quotes prices WITH VAT inside; the default for its orders and receipts. */
+    pricesIncludeVat: z.boolean().default(false),
     defaultVatRatePercent: optionalRate,
     defaultSubjectToWht: z.boolean().default(false),
     defaultWhtRatePercent: optionalRate,
@@ -136,6 +138,7 @@ export const SUPPLIER_FIELD_LABELS_TH: Record<keyof SupplierInput, string> = {
   paymentTerms: "เงื่อนไขการชำระเงิน",
   isActive: "สถานะใช้งาน",
   isVatRegistered: "จดทะเบียน VAT",
+  pricesIncludeVat: "ราคาของผู้ขายรายนี้รวม VAT แล้ว",
   defaultVatRatePercent: "อัตรา VAT (%)",
   defaultSubjectToWht: "หัก ณ ที่จ่าย",
   defaultWhtRatePercent: "อัตราหัก ณ ที่จ่าย (%)",

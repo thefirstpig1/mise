@@ -65,6 +65,9 @@ export type PurchaseOrderLineView = {
   toBaseRatio: string;
   unitPrice: string;
   lineTotal: string;
+  /** Rule PR3 — as the supplier quoted it, VAT included; null when typed excluding VAT. */
+  unitPriceQuoted: string | null;
+  lineTotalQuoted: string | null;
   /** null = the price was typed by hand, not taken from the price list (Q5). */
   supplierProductMappingId: string | null;
   /** ADR 0036 R1 — the kitchen request line this came from; carried through edits. */
@@ -95,6 +98,8 @@ export type PurchaseOrderDetailView = {
   expectedDeliveryLabel: string;
   subtotalExclVat: string;
   vatRatePercent: string | null;
+  /** Rule PR3 — the prices on this order are as the supplier quotes them, VAT included. */
+  pricesIncludeVat: boolean;
   vatAmount: string;
   totalAmount: string;
   notes: string | null;
@@ -160,6 +165,7 @@ export function toPurchaseOrderDetailView(
     expectedDeliveryLabel: formatBangkokDate(po.expectedDeliveryDate),
     subtotalExclVat: str(po.subtotalExclVat),
     vatRatePercent: strOrNull(po.vatRatePercent),
+    pricesIncludeVat: po.pricesIncludeVat,
     vatAmount: str(po.vatAmount),
     totalAmount: str(po.totalAmount),
     notes: po.notes,
@@ -182,6 +188,8 @@ export function toPurchaseOrderDetailView(
       toBaseRatio: str(l.toBaseRatio),
       unitPrice: str(l.unitPrice),
       lineTotal: str(l.lineTotal),
+      unitPriceQuoted: strOrNull(l.unitPriceQuoted),
+      lineTotalQuoted: strOrNull(l.lineTotalQuoted),
       supplierProductMappingId: l.supplierProductMappingId,
       purchaseRequestLineId: l.purchaseRequestLineId,
       notes: l.notes,

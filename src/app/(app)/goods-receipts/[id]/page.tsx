@@ -238,6 +238,10 @@ export default async function GoodsReceiptDetailPage({
                   </td>
                   <td className="py-2 pr-2 text-right tabular-nums">
                     {formatMoney(l.unitPriceActual)}
+                    {/* Rule PR3 — the bill's own figure, beside the net one the ledger uses. */}
+                    {l.unitPriceQuoted && (
+                      <div className="text-xs text-muted-foreground">ตามบิล {formatMoney(l.unitPriceQuoted)} (รวม VAT)</div>
+                    )}
                     {l.ordered && Number(l.ordered.variancePrice) !== 0 && (
                       <div className="text-xs text-warn">
                         สั่งที่ {formatMoney(l.ordered.unitPrice)}
