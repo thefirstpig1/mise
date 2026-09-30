@@ -1,161 +1,160 @@
 "use client";
 
-// Sprint 1 Part 6, Step 6.4 — 3-tier tree view (D1):
+// Sprint 1 Part 6, Step 6.4 — the 3-tier category model (D1):
 //   account (COGS/OpEx) → accountingSection → groupName (leaf = Category row).
 // account/section are grouping headers DERIVED from the flat list in the
-// client; only leaves are real records (click → edit page). Expand/collapse +
-// client search live here; the page (Server Component) just loads the rows.
+// client; only leaves are real records (click → edit page).
+//
+// UI run-through (Kong, 2026-09-29): one BOX per account instead of a
+// collapsible tree with counts. There are only two accounts and a shop has a
+// few dozen groups at most, so everything fits on one screen — collapsing
+// hid the list and the counts on the right answered a question nobody asked.
+// Both boxes always show, because which box a group sits in is the whole
+// point of the page (food cost vs running the shop).
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import type { Category } from "@prisma/client";
-import { ACCOUNT_LABELS_TH, type Account } from "@/lib/validations/category";
+import { ACCOUNT_VALUES, type Account } from "@/lib/validations/category";
 
 import EmptyState from "@/components/ui/EmptyState";
-type SectionNode = { section: string; leaves: Category[] };
-type AccountNode = { account: string; total: number; sections: SectionNode[] };
 
-/** Group a (pre-sorted) flat list into account → section → leaves. */
-function buildTree(categories: Category[]): AccountNode[] {
-  const byAccount = new Map<string, Map<string, Category[]>>();
+type SectionNode = { section: string; leaves: Category[] };
+
+/** What each box means to the shop, in the shop's words. */
+const BOX: Record<Account, { title: string; code: string; hint: string }> = {
+  COGS: {
+    title: "ต้นทุนขาย",
+    code: "COGS",
+    hint: "ของที่ซื้อมาทำอาหารและเครื่องดื่ม นับเป็นต้นทุนอาหาร",
+  },
+  OpEx: {
+    title: "ค่าใช้จ่ายดำเนินงาน",
+    code: "OpEx",
+    hint: "ค่าใช้จ่ายในการเปิดร้าน เช่น ค่าเช่า ค่าไฟ ค่าแรง ไม่นับเป็นต้นทุนอาหาร",
+  },
+};
+
+/** Group a (pre-sorted) flat list into section → leaves for one account. */
+function sectionsOf(categories: Category[], account: Account): SectionNode[] {
+  const sections = new Map<string, Category[]>();
   for (const c of categories) {
-    if (!byAccount.has(c.account)) byAccount.set(c.account, new Map());
-    const sections = byAccount.get(c.account)!;
+    if (c.account !== account) continue;
     if (!sections.has(c.accountingSection)) sections.set(c.accountingSection, []);
     sections.get(c.accountingSection)!.push(c);
   }
-  return [...byAccount.entries()].map(([account, sections]) => ({
-    account,
-    total: [...sections.values()].reduce((n, leaves) => n + leaves.length, 0),
-    sections: [...sections.entries()].map(([section, leaves]) => ({
-      section,
-      leaves,
-    })),
-  }));
+  return [...sections.entries()].map(([section, leaves]) => ({ section, leaves }));
 }
 
 export default function CategoryTree({
   categories,
+  canWrite,
 }: {
   categories: Category[];
+  canWrite: boolean;
 }) {
   const [search, setSearch] = useState("");
-  // Track COLLAPSED nodes → default (empty set) = everything expanded.
-  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
-
   const term = search.trim().toLowerCase();
   const searching = term.length > 0;
 
-  const tree = useMemo(() => {
+  const boxes = useMemo(() => {
     const filtered = searching
       ? categories.filter((c) =>
-          [c.account, c.accountingSection, c.groupName]
+          [BOX[c.account as Account]?.title ?? c.account, c.accountingSection, c.groupName]
             .join(" ")
             .toLowerCase()
             .includes(term)
         )
       : categories;
-    return buildTree(filtered);
+    return ACCOUNT_VALUES.map((account) => ({
+      account,
+      sections: sectionsOf(filtered, account),
+    }));
   }, [categories, term, searching]);
 
-  // When searching, force-expand matching branches regardless of collapsed set.
-  const isExpanded = (key: string) => searching || !collapsed.has(key);
-  const toggle = (key: string) =>
-    setCollapsed((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
+  const nothingFound = searching && boxes.every((b) => b.sections.length === 0);
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-4">
         <h2 className="text-xl font-bold">หมวดบัญชี</h2>
-        <Link
-          href="/categories/new"
-          className="btn"
-        >
-          + เพิ่มหมวดบัญชี
-        </Link>
+        {canWrite && (
+          <Link href="/categories/new" className="btn">
+            + เพิ่มหมวดบัญชี
+          </Link>
+        )}
       </div>
-
-      <input
-        type="search"
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        placeholder="ค้นหา บัญชี/หมวด/กลุ่ม"
-        className="input w-full"
-      />
 
       {categories.length === 0 ? (
         <EmptyState art="start">
           ยังไม่มีหมวดบัญชี — กด &quot;เพิ่มหมวดบัญชี&quot; เพื่อเริ่มต้น
         </EmptyState>
-      ) : tree.length === 0 ? (
-        <EmptyState art="none">
-          ไม่พบหมวดบัญชีที่ค้นหา
-        </EmptyState>
       ) : (
-        <div className="divide-y divide-border rounded-lg border border-border">
-          {tree.map((acc) => {
-            const accKey = `acc:${acc.account}`;
-            const accOpen = isExpanded(accKey);
-            return (
-              <div key={acc.account}>
-                <button
-                  type="button"
-                  onClick={() => toggle(accKey)}
-                  className="flex w-full items-center justify-between px-4 py-2 text-left font-semibold hover:bg-muted/40"
-                >
-                  <span>
-                    <span className="inline-block w-4 text-muted-foreground">
-                      {accOpen ? "▾" : "▸"}
-                    </span>
-                    {ACCOUNT_LABELS_TH[acc.account as Account] ?? acc.account}
-                  </span>
-                  <span className="text-xs text-muted-foreground">{acc.total}</span>
-                </button>
+        <>
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="ค้นหาหมวดหรือกลุ่ม"
+            className="input w-full"
+          />
 
-                {accOpen &&
-                  acc.sections.map((sec) => {
-                    const secKey = `sec:${acc.account}/${sec.section}`;
-                    const secOpen = isExpanded(secKey);
-                    return (
-                      <div key={sec.section}>
-                        <button
-                          type="button"
-                          onClick={() => toggle(secKey)}
-                          className="flex w-full items-center justify-between px-4 py-1.5 pl-8 text-left text-sm font-medium hover:bg-muted/40"
-                        >
-                          <span>
-                            <span className="inline-block w-4 text-muted-foreground">
-                              {secOpen ? "▾" : "▸"}
-                            </span>
-                            {sec.section}
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            {sec.leaves.length}
-                          </span>
-                        </button>
+          {nothingFound ? (
+            <EmptyState art="none">ไม่พบหมวดบัญชีที่ค้นหา</EmptyState>
+          ) : (
+            <div className="grid items-start gap-4 md:grid-cols-2">
+              {boxes
+                .filter((b) => !searching || b.sections.length > 0)
+                .map(({ account, sections }) => (
+                  <section
+                    key={account}
+                    className="animate-pop-in rounded-xl border border-border bg-surface p-5 shadow-card"
+                  >
+                    <header className="mb-4 border-b border-border pb-3">
+                      <h3 className="text-lg font-semibold">
+                        {BOX[account].title}{" "}
+                        <span className="text-xs font-normal text-muted-subtle">
+                          {BOX[account].code}
+                        </span>
+                      </h3>
+                      <p className="mt-1 text-sm text-muted-foreground">{BOX[account].hint}</p>
+                    </header>
 
-                        {secOpen &&
-                          sec.leaves.map((leaf) => (
-                            <Link
-                              key={leaf.id}
-                              href={`/categories/${leaf.id}`}
-                              className="block px-4 py-1.5 pl-16 text-sm text-primary hover:bg-muted/20 hover:underline"
-                            >
-                              {leaf.groupName}
-                            </Link>
-                          ))}
+                    {sections.length === 0 ? (
+                      <p className="text-sm text-muted-subtle">ยังไม่มีหมวดในกลุ่มนี้</p>
+                    ) : (
+                      <div className="space-y-4">
+                        {sections.map((sec) => (
+                          <div key={sec.section}>
+                            <h4 className="mb-1 text-xs font-medium uppercase tracking-wider text-muted-subtle">
+                              {sec.section}
+                            </h4>
+                            <ul className="-mx-2">
+                              {sec.leaves.map((leaf) => (
+                                <li key={leaf.id}>
+                                  {/* The edit page is gated on master:write — only a writer gets a link. */}
+                                  {canWrite ? (
+                                    <Link
+                                      href={`/categories/${leaf.id}`}
+                                      className="block rounded px-2 py-1.5 text-sm hover:bg-muted"
+                                    >
+                                      {leaf.groupName}
+                                    </Link>
+                                  ) : (
+                                    <span className="block px-2 py-1.5 text-sm">{leaf.groupName}</span>
+                                  )}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        ))}
                       </div>
-                    );
-                  })}
-              </div>
-            );
-          })}
-        </div>
+                    )}
+                  </section>
+                ))}
+            </div>
+          )}
+        </>
       )}
     </div>
   );

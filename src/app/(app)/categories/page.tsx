@@ -3,11 +3,18 @@
 // account→section→group) and hands them to CategoryTree. Category has no
 // Decimal field, so the rows cross to the client component as-is.
 import { requireTenant } from "@/lib/require-tenant";
+import { hasCapability } from "@/lib/permissions/service";
 import { getCategoriesLogic } from "@/server/category";
 import CategoryTree from "./_components/CategoryTree";
 
 export default async function CategoriesPage() {
-  const { tenantId } = await requireTenant("any:member");
+  const { tenantId, role } = await requireTenant("any:member");
   const categories = await getCategoriesLogic(tenantId);
-  return <CategoryTree categories={categories} />;
+  return (
+    <CategoryTree
+      categories={categories}
+      // /categories/new is gated on master:write; a button nobody can use is noise.
+      canWrite={hasCapability(role, "master:write")}
+    />
+  );
 }

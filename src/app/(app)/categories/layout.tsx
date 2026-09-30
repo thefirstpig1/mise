@@ -6,7 +6,7 @@ import PageFrame from "@/components/layout/PageFrame";
 // Part 35 L4: the header and "← กลับหน้าหลัก" moved into the sidebar.
 export default function CategoriesLayout({ children }: { children: ReactNode }) {
   return (
-    <PageFrame title="หมวดบัญชี" width="3xl">
+    <PageFrame title="หมวดบัญชี" width="4xl">
       {children}
     </PageFrame>
   );

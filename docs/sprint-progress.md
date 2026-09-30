@@ -8,6 +8,21 @@
 
 ---
 
+## รอบปรับหน้าตาทั้งระบบ (UI run-through) 🚧 — ทำให้เสร็จก่อนเรื่องอื่น (Kong 2026-09-29)
+ใช้ skill `mise-ui-review` ทุกหน้า · checklist ย้ายมาจาก handoff 2026-09-30 เพื่อให้ตามไปทุกเครื่อง
+- ✅ รีวิวแล้ว: /dashboard · /sales · /purchase-orders · /goods-receipts · /suppliers (+ /order) · /products (รายการ) · /stock-counts · /transfers · /waste · /cost/prices · /expenses/analysis · /staff-meals · (/stock /expenses /recurring /recipes ได้แค่คลิกทั้งแถว ยังไม่รีวิวเต็ม)
+- ⬜ 1. /categories — กล่องต่อกลุ่ม (ต้นทุนขาย / ค่าใช้จ่ายดำเนินงาน) ไม่มีตัวเลขนับทางขวา
+- ⬜ 2. เมนูและสูตร: /menus · /menus/coverage · /menus/lab (+new, [id]) · /menus/merges · /recipes/[id] · /recipes/new · /recipes/substitute
+- ⬜ 3. ต้นทุน: /cost · /cost/[productId] · /cost/departments · /cost/leaks
+- ⬜ 4. สต๊อก: /stock (เต็ม) · /stock/adjust · /stock/history · /consumption
+- ⬜ 5. นำเข้ายอดขาย: /sales/import · /sales/import/profiles/new
+- ⬜ 6. ใบขอซื้อ: /purchase-requests · /purchase-requests/cut
+- ⬜ 7. ฟอร์มและหน้ารายละเอียด: expenses new/[id]/edit · recurring new/edit · products/[id] + mappings · goods-receipts/[id]/edit · purchase-orders/[id]/edit
+- ⬜ 8. ตั้งค่า: /settings · /settings/branches · /settings/departments · /settings/members
+- ⬜ 9. ภาษาแบบพูดกับลูกค้าทั้งแอป (login/signup ด้วย)
+
+---
+
 ## Sprint 6 — Permissions ✅ COMPLETE (2026-08-30)
 
 _(Sprint 5 — Recipe + CONSUMPTION: ✅ COMPLETE 2026-08-28, Parts 21–27)_
