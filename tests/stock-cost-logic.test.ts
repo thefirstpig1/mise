@@ -40,6 +40,9 @@ import {
   getBranchCostSummaryLogic,
   getProductCostLogic,
   getProductCostsLogic,
+  loadCostMovements,
+  replayLoaded,
+  replayPairsInTx,
 } from "@/server/stock-cost";
 import {
   CostDeclarationTargetError,
@@ -713,5 +716,42 @@ describe("cost read *Logic (FIFO by ledger replay, ADR 0014)", () => {
 
     // Nothing was written by either attempt.
     expect(await getCostDeclarationsLogic(tenantA, movement.id)).toHaveLength(0);
+  });
+
+  it("K16: one fetch cut in memory replays exactly like a fetch cut in SQL, on every day", async () => {
+    // 2026-10-01: /cost and the P&L now fetch the ledger ONCE and cut the
+    // opening replay from it in memory (loadCostMovements + replayLoaded),
+    // instead of fetching it a second time with an earlier `occurred_at` bound.
+    // That is only safe if both cuts pick the same rows. The risky rows are the
+    // ones near a day's edge: a date-only value (a form's Bangkok midnight) and
+    // a real instant on the same business day.
+    const day = (n: number) => new Date(today.getTime() + n * 86_400_000);
+    const p = await freshProduct(tenantA, "K16");
+    await receiveInto(branchA, p, 4, 1000, new Date(day(-6).getTime() + 3 * 3_600_000));
+    await receiveInto(branchA2, p, 2, 1100, new Date(day(-5).getTime() - 3_600_000));
+    await adjust(branchA, p, "ADJUST_GAIN", 5, day(-4));
+    await throwAway(branchA, p, 3, new Date(day(-4).getTime() + 2 * 3_600_000));
+    await receiveInto(branchA, p, 2, 1300, new Date(day(-3).getTime() + 16 * 3_600_000));
+    await adjust(branchA, p, "ADJUST_LOSS", 40, day(-2));
+    await adjust(branchA2, p, "ADJUST_LOSS", 10, new Date(day(-2).getTime() + 18 * 3_600_000));
+    await receiveInto(branchA, p, 1, 1250, new Date(day(-1).getTime() + 5 * 3_600_000));
+    await throwAway(branchA, p, 2, day(0));
+
+    const branches = [branchA, branchA2];
+    const asText = (m: Map<string, unknown>) =>
+      JSON.stringify([...m.entries()].sort(([a], [b]) => a.localeCompare(b)));
+
+    await withTenantContext(tenantA, async (tx) => {
+      const once = await loadCostMovements(tx, tenantA, [p.id], branches, day(0));
+      for (let n = -7; n <= 0; n++) {
+        const inSql = await replayPairsInTx(tx, tenantA, [p.id], branches, day(n));
+        const inMemory = replayLoaded(once, day(n));
+        expect(asText(inMemory), `cut at day ${n}`).toBe(asText(inSql));
+      }
+      // And with no cut at all it is the plain fetch.
+      expect(asText(replayLoaded(once))).toBe(
+        asText(await replayPairsInTx(tx, tenantA, [p.id], branches, day(0)))
+      );
+    }, { timeout: 20_000 });
   });
 });

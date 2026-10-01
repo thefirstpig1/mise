@@ -78,16 +78,6 @@ export default async function WastePage({
   const { tenantId, reach} = await requireTenant("stock:write");
   const sp = await searchParams;
 
-  const [products, branches] = await Promise.all([
-    getProductsLogic(tenantId),
-    getBranchesLogic(tenantId, reach),
-  ]);
-  // One-tap picks on the form: what each branch this person reaches wastes most.
-  const frequentByBranch = await getFrequentlyWastedLogic(
-    tenantId,
-    branches.map((b) => b.id)
-  );
-
   const month = currentMonthBangkok();
   const fromParam = sp.from || month.from;
   const toParam = sp.to || month.to;
@@ -101,9 +91,17 @@ export default async function WastePage({
     to: endOfDay(toParam),
   });
 
-  const fetched = query.success
-    ? (await getWasteLogsLogic(tenantId, query.data)).map(toWasteLogView)
-    : [];
+  // One wave (2026-10-01): the history never needed the branch list, so it no
+  // longer waits behind it; only the one-tap picks do.
+  const branchesP = getBranchesLogic(tenantId, reach);
+  const [products, branches, frequentByBranch, logs] = await Promise.all([
+    getProductsLogic(tenantId),
+    branchesP,
+    // One-tap picks on the form: what each branch this person reaches wastes most.
+    branchesP.then((bs) => getFrequentlyWastedLogic(tenantId, bs.map((b) => b.id))),
+    query.success ? getWasteLogsLogic(tenantId, query.data) : Promise.resolve([]),
+  ]);
+  const fetched = logs.map(toWasteLogView);
   const truncated = fetched.length > MAX_WASTE_ROWS;
   const rows = truncated ? fetched.slice(0, MAX_WASTE_ROWS) : fetched;
 

@@ -4,6 +4,7 @@ import { computeBangkokToday } from "@/lib/bangkok-date";
 import { getBranchesLogic } from "@/server/branch";
 import { getPnlLogic, getRevenueByDayLogic, type Pnl } from "@/server/pnl";
 import { getSalesSummaryLogic } from "@/server/sales";
+import { periodLabelTh } from "@/lib/sales-insight";
 import { getSalesQuerySchema } from "@/lib/validations/sales-import";
 import { getTransfersLogic } from "@/server/transfer";
 import { getTransfersQuerySchema } from "@/lib/validations/transfer";
@@ -139,9 +140,22 @@ async function Analytics({
   see: { sales: boolean; cost: boolean; expense: boolean };
 }) {
   const q = { from: period.from, to: period.to, branchIds: selected };
-  const [pnl, prev, revenueDays, menus] = await Promise.all([
+  // The previous period only feeds the ▲▼ under each KPI, so it is NOT awaited
+  // here: the figures paint first and the comparisons stream in after (Kong,
+  // 2026-10-01: "dashboard โหลดช้าๆ"). It is a whole second P&L — on this
+  // machine ~1.5 s that every KPI used to wait for. A failure only costs the
+  // comparison, never the page.
+  const prevP: Promise<Pnl | null> = getPnlLogic(
+    tenantId,
+    { from: period.prevFrom, to: period.prevTo, branchIds: selected },
+    reach
+  ).catch((e) => {
+    console.error("[dashboard] previous-period P&L failed", e);
+    return null;
+  });
+  const vs = periodLabelTh(isoDay(period.prevFrom), isoDay(period.prevTo));
+  const [pnl, revenueDays, menus] = await Promise.all([
     getPnlLogic(tenantId, q, reach),
-    getPnlLogic(tenantId, { from: period.prevFrom, to: period.prevTo, branchIds: selected }, reach),
     see.sales ? getRevenueByDayLogic(tenantId, q, reach, activeIds) : Promise.resolve([]),
     see.sales ? topMenus(tenantId, period, activeIds) : Promise.resolve([] as MenuBar[]),
   ]);
@@ -211,7 +225,7 @@ async function Analytics({
 
   return (
     <div className="space-y-6">
-      <KpiRow pnl={pnl} prev={prev} see={{ ...see, gross: seeGross, net: seeNet }} />
+      <KpiRow pnl={pnl} prevP={prevP} vs={vs} see={{ ...see, gross: seeGross, net: seeNet }} />
       <UnknownNote pnl={pnl} seeGross={seeGross} />
 
       <div className="grid gap-6 xl:grid-cols-5">
@@ -307,16 +321,16 @@ function Card({ title, hint, className = "", children }: { title: string; hint?:
   );
 }
 
-function Delta({ cur, prev, goodWhenUp }: { cur: number | null; prev: number | null; goodWhenUp: boolean }) {
+function Delta({ cur, prev, goodWhenUp, vs }: { cur: number | null; prev: number | null; goodWhenUp: boolean; vs: string }) {
   if (cur === null || prev === null || prev === 0) {
-    return <span className="text-xs text-muted-subtle">ไม่มีช่วงก่อนหน้าให้เทียบ</span>;
+    return <span className="text-xs text-muted-subtle">ไม่มีตัวเลข {vs} ให้เทียบ</span>;
   }
   const pct = ((cur - prev) / Math.abs(prev)) * 100;
   const up = pct >= 0;
   const good = up === goodWhenUp;
   return (
     <span className={`text-xs font-medium ${good ? "text-good" : "text-bad"}`}>
-      {up ? "▲" : "▼"} {Math.abs(pct).toFixed(1)}% <span className="font-normal text-muted-foreground">จากช่วงก่อนหน้า</span>
+      {up ? "▲" : "▼"} {Math.abs(pct).toFixed(1)}% <span className="font-normal text-muted-foreground">เทียบ {vs}</span>
     </span>
   );
 }
@@ -370,13 +384,46 @@ const marginOf = (part: { toString(): string } | null, whole: { toString(): stri
   return part === null || !w ? null : (Number(part.toString()) / w) * 100;
 };
 
+type PnlPick = (p: Pnl) => number | null;
+
+/** A KPI's ▲▼ — waits for the previous period without holding up the figure above it. */
+function PrevDelta(props: { prevP: Promise<Pnl | null>; cur: number | null; pick: PnlPick; goodWhenUp: boolean; vs: string }) {
+  return (
+    <Suspense fallback={<span className="text-xs text-muted-subtle">กำลังเทียบกับ {props.vs}…</span>}>
+      <PrevDeltaResolved {...props} />
+    </Suspense>
+  );
+}
+
+async function PrevDeltaResolved({ prevP, cur, pick, goodWhenUp, vs }: { prevP: Promise<Pnl | null>; cur: number | null; pick: PnlPick; goodWhenUp: boolean; vs: string }) {
+  const prev = await prevP;
+  if (prev === null) return <span className="text-xs text-muted-subtle">เทียบกับ {vs} ไม่ได้ในตอนนี้</span>;
+  return <Delta cur={cur} prev={pick(prev)} goodWhenUp={goodWhenUp} vs={vs} />;
+}
+
+/** The margin shows at once; its pp change joins it when the previous period arrives. */
+function PrevMargin({ prevP, label, cur, part }: { prevP: Promise<Pnl | null>; label: string; cur: number | null; part: (p: Pnl) => { toString(): string } | null }) {
+  return (
+    <Suspense fallback={<MarginDelta label={label} cur={cur} prev={null} />}>
+      <PrevMarginResolved prevP={prevP} label={label} cur={cur} part={part} />
+    </Suspense>
+  );
+}
+
+async function PrevMarginResolved({ prevP, label, cur, part }: { prevP: Promise<Pnl | null>; label: string; cur: number | null; part: (p: Pnl) => { toString(): string } | null }) {
+  const prev = await prevP;
+  return <MarginDelta label={label} cur={cur} prev={prev === null ? null : marginOf(part(prev), prev.revenue)} />;
+}
+
 function KpiRow({
   pnl,
-  prev,
+  prevP,
+  vs,
   see,
 }: {
   pnl: Pnl;
-  prev: Pnl;
+  prevP: Promise<Pnl | null>;
+  vs: string;
   see: { sales: boolean; cost: boolean; expense: boolean; gross: boolean; net: boolean };
 }) {
   const revenue = num(pnl.revenue);
@@ -390,30 +437,30 @@ function KpiRow({
   return (
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
       {see.sales ? (
-        <Kpi label="ยอดขาย" value={revenue} sub="ไม่รวม VAT และ service charge" delta={<Delta cur={revenue} prev={num(prev.revenue)} goodWhenUp />} />
+        <Kpi label="ยอดขาย" value={revenue} sub="ไม่รวม VAT และ service charge" delta={<PrevDelta prevP={prevP} vs={vs} cur={revenue} pick={(p) => num(p.revenue)} goodWhenUp />} />
       ) : null}
       {see.gross ? (
-        <Kpi label="ต้นทุนขาย" value={cogs} sub={foodCost ?? coverage} delta={<Delta cur={cogs} prev={num(prev.cogs)} goodWhenUp={false} />} />
+        <Kpi label="ต้นทุนขาย" value={cogs} sub={foodCost ?? coverage} delta={<PrevDelta prevP={prevP} vs={vs} cur={cogs} pick={(p) => num(p.cogs)} goodWhenUp={false} />} />
       ) : null}
       {see.gross ? (
         <Kpi
           label="กำไรขั้นต้น"
           value={gross}
           sub={coverage}
-          delta={<Delta cur={gross} prev={num(prev.grossProfit)} goodWhenUp />}
-          extra={<MarginDelta label="อัตรากำไรขั้นต้น" cur={marginOf(pnl.grossProfit, pnl.revenue)} prev={marginOf(prev.grossProfit, prev.revenue)} />}
+          delta={<PrevDelta prevP={prevP} vs={vs} cur={gross} pick={(p) => num(p.grossProfit)} goodWhenUp />}
+          extra={<PrevMargin prevP={prevP} label="อัตรากำไรขั้นต้น" cur={marginOf(pnl.grossProfit, pnl.revenue)} part={(p) => p.grossProfit} />}
         />
       ) : null}
       {see.expense ? (
-        <Kpi label="ค่าใช้จ่ายดำเนินงาน" value={num(pnl.opex)} sub="ค่าเช่า ค่าแรง ค่าน้ำไฟ ฯลฯ" delta={<Delta cur={num(pnl.opex)} prev={num(prev.opex)} goodWhenUp={false} />} />
+        <Kpi label="ค่าใช้จ่ายดำเนินงาน" value={num(pnl.opex)} sub="ค่าเช่า ค่าแรง ค่าน้ำไฟ ฯลฯ" delta={<PrevDelta prevP={prevP} vs={vs} cur={num(pnl.opex)} pick={(p) => num(p.opex)} goodWhenUp={false} />} />
       ) : null}
       {see.net ? (
         <Kpi
           label="กำไรสุทธิ"
           value={net}
           tone={net === null ? undefined : net >= 0 ? "good" : "bad"}
-          delta={<Delta cur={net} prev={num(prev.netProfit)} goodWhenUp />}
-          extra={<MarginDelta label="อัตรากำไรสุทธิ" cur={marginOf(pnl.netProfit, pnl.revenue)} prev={marginOf(prev.netProfit, prev.revenue)} />}
+          delta={<PrevDelta prevP={prevP} vs={vs} cur={net} pick={(p) => num(p.netProfit)} goodWhenUp />}
+          extra={<PrevMargin prevP={prevP} label="อัตรากำไรสุทธิ" cur={marginOf(pnl.netProfit, pnl.revenue)} part={(p) => p.netProfit} />}
         />
       ) : null}
     </div>

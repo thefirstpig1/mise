@@ -89,8 +89,26 @@ export default async function StaffMealsPage({
   const from = sp.from || month.from;
   const to = sp.to || month.to;
 
-  const [branches, members, menus, products, tenant] = await Promise.all([
-    getBranchesLogic(tenantId, reach),
+  // ONE wave of reads (2026-10-01, Kong: pages that were reviewed must not be
+  // slow). This page used to read in three waves — lists, then history and the
+  // warning, then the ticket board — and only the warning ever needed anything
+  // from an earlier wave (which branch the form opens on), so it alone waits
+  // for the branch list.
+  const branchesP = getBranchesLogic(tenantId, reach);
+  // The warning is about the day the FORM is set to, which defaults to today.
+  const warningDay = sp.day || todayIso;
+  const warningP = branchesP.then((bs) => {
+    const branchId = sp.branch || bs[0]?.id || "";
+    return branchId
+      ? getZeroPriceSalesWarningLogic(tenantId, {
+          branchId,
+          businessDate: new Date(`${warningDay}T00:00:00Z`),
+        })
+      : { totalLines: 0, tags: [] };
+  });
+
+  const [branches, members, menus, products, tenant, history, warning, quotaRaw, board] = await Promise.all([
+    branchesP,
     // The PICKER wants people who still work here. The history below asks for
     // everybody, because dropping someone who left would move last month's
     // figure by pressing a button today (rule S7).
@@ -111,13 +129,6 @@ export default async function StaffMealsPage({
         select: { staffMealMaxMenuPrice: true, staffMealDailyQuota: true, staffMealStockSource: true },
       })
     ),
-  ]);
-
-  const defaultBranchId = sp.branch || branches[0]?.id || "";
-  // The warning is about the day the FORM is set to, which defaults to today.
-  const warningDay = sp.day || todayIso;
-
-  const [history, warning] = await Promise.all([
     getStaffMealsLogic(tenantId, {
       branchId: sp.branch || undefined,
       staffMemberId: sp.member || undefined,
@@ -125,26 +136,21 @@ export default async function StaffMealsPage({
       to: new Date(`${to}T00:00:00Z`),
       includeVoided: sp.voided === "true",
     }),
-    defaultBranchId
-      ? getZeroPriceSalesWarningLogic(tenantId, {
-          branchId: defaultBranchId,
-          businessDate: new Date(`${warningDay}T00:00:00Z`),
+    warningP,
+    // Today's quota standing for the person being filtered on, when there is one.
+    // Not fetched at all without `staff:view` — this is the per-person aggregate,
+    // the one read in this Part that is about a human rather than about stock.
+    sp.member && seesPeople
+      ? getStaffMealQuotaLogic(tenantId, {
+          staffMemberId: sp.member,
+          businessDate: new Date(`${todayIso}T00:00:00Z`),
         })
-      : Promise.resolve({ totalLines: 0, tags: [] }),
+      : Promise.resolve(null),
+    getTicketBoardAction(),
   ]);
 
-  // Today's quota standing for the person being filtered on, when there is one.
-  // Not fetched at all without `staff:view` — this is the per-person aggregate,
-  // the one read in this Part that is about a human rather than about stock.
-  const quota =
-    sp.member && seesPeople
-      ? toStaffMealQuotaView(
-          await getStaffMealQuotaLogic(tenantId, {
-            staffMemberId: sp.member,
-            businessDate: new Date(`${todayIso}T00:00:00Z`),
-          })
-        )
-      : null;
+  const defaultBranchId = sp.branch || branches[0]?.id || "";
+  const quota = quotaRaw === null ? null : toStaffMealQuotaView(quotaRaw);
 
   const rows = history.rows.map((r) =>
     toStaffMealRowView(r, tenant.staffMealMaxMenuPrice)
@@ -159,7 +165,6 @@ export default async function StaffMealsPage({
     group: null,
     baseUnitName: null,
   }));
-  const board = await getTicketBoardAction();
 
   return (
     <div className="space-y-6">

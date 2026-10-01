@@ -183,8 +183,28 @@ async function replayPairs(
   branchIds: string[],
   asOf?: Date
 ): Promise<Map<string, ProductCost>> {
-  const result = new Map<string, ProductCost>();
-  if (productIds.length === 0 || branchIds.length === 0) return result;
+  return replayLoaded(await loadCostMovements(tx, tenantId, productIds, branchIds, asOf));
+}
+
+/**
+ * The fetch half of `replayPairs`: every ledger row up to `asOf`, joined to the
+ * money behind it and grouped by (product, branch) in costing order.
+ *
+ * Split from the walk (2026-10-01) so ONE fetch can answer several "as of"
+ * dates. `/cost` and the P&L replay the ledger twice — at the period's end and
+ * the day before it starts — and the second fetch was a strict subset of the
+ * first: the whole ledger history crossed the network twice per figure, which
+ * measured as most of the dashboard's wait on a slow link.
+ */
+export async function loadCostMovements(
+  tx: PrismaClient,
+  tenantId: string,
+  productIds: string[],
+  branchIds: string[],
+  asOf?: Date
+): Promise<Map<string, CostMovement[]>> {
+  const grouped = new Map<string, CostMovement[]>();
+  if (productIds.length === 0 || branchIds.length === 0) return grouped;
 
   const occurredAt = occurredAtFilter(undefined, asOf);
 
@@ -209,7 +229,7 @@ async function replayPairs(
     orderBy: [{ occurredAt: "asc" }, { createdAt: "asc" }, { id: "asc" }],
   });
 
-  if (movements.length === 0) return result;
+  if (movements.length === 0) return grouped;
 
   // Re-ordered by the COSTING instant, not the stored one (see costSortKey). The
   // index already returned a total order; this only moves same-day date-only
@@ -328,7 +348,6 @@ async function replayPairs(
     declarations.map((d) => [d.movementId, d.unitCost])
   );
 
-  const grouped = new Map<string, CostMovement[]>();
   for (const m of movements) {
     const gr = m.sourceType === "GR_LINE" ? grById.get(m.sourceId) : undefined;
     const tf = TRANSFER_SOURCE_TYPES.has(m.sourceType)
@@ -366,13 +385,34 @@ async function replayPairs(
     else grouped.set(key, [row]);
   }
 
-  for (const [key, rows] of grouped) {
+  return grouped;
+}
+
+/**
+ * The walk half: replay what `loadCostMovements` fetched, optionally stopping
+ * at an EARLIER `asOf` than the fetch did.
+ *
+ * Cutting in memory gives the same answer as cutting in SQL, by construction:
+ * the predicate is the ledger's own `occurredAtFilter` bound applied to the same
+ * raw `occurred_at`, filtering keeps the rows' relative order, and every lookup
+ * joined to a row (receipt money, transfer money, declarations, reversal
+ * pointers) is per row, so a subset of rows carries exactly the facts the
+ * smaller fetch would have. `tests/stock-cost-one-fetch.test.ts` pins it.
+ */
+export function replayLoaded(
+  grouped: Map<string, CostMovement[]>,
+  asOf?: Date
+): Map<string, ProductCost> {
+  const bound = asOf ? (occurredAtFilter(undefined, asOf)!.lt as Date).getTime() : null;
+  const result = new Map<string, ProductCost>();
+  for (const [key, all] of grouped) {
+    const rows = bound === null ? all : all.filter((r) => r.occurredAt.getTime() < bound);
+    if (rows.length === 0) continue;
     const [productId, branchId] = key.split("|");
     // openingStack stays empty here; it exists so a snapshot can be handed in
     // without touching the engine (risk R2).
     result.set(key, { productId, branchId, ...replayFifoLayers(rows) });
   }
-
   return result;
 }
 
@@ -599,405 +639,450 @@ export async function getBranchCostSummaryLogic(
 ): Promise<BranchCostSummary[]> {
   const { from, to } = query;
 
-  return withTenantContext(tenantId, async (tx) => {
-    const branches = await tx.branch.findMany({
+  // One set of period bounds for every query and every in-memory filter below,
+  // taken from the ledger's own helper so a Bangkok business day means the same
+  // thing here as it does in a balance read (Decision #60).
+  const periodBounds = occurredAtFilter(from, to) as {
+    gte: Date;
+    lt: Date;
+  };
+
+  const branchesIn = (tx: PrismaClient) =>
+    tx.branch.findMany({
       where: { tenantId, deletedAt: null, ...branchScopeWhere(reach) },
       select: { id: true, name: true, code: true },
       orderBy: { name: "asc" },
     });
-    if (branches.length === 0) return [];
 
-    const products = await tx.product.findMany({
-      where: { tenantId, deletedAt: null },
-      select: { id: true },
-    });
-    const productIds = products.map((p) => p.id);
+  // TWO transactions side by side (2026-10-01, Kong: "dashboard โหลดช้าๆ").
+  // This read was ~25 queries in a row, each a full round trip to Singapore —
+  // 1.7 s of waiting on a slow link for 0.3 s of arithmetic. Half of them never
+  // needed the ledger: revenue, spend, the period's receipts, coverage, the
+  // sales days and the last count depend only on the branch list.
+  //
+  // Splitting the transaction changes no figure: Postgres runs these reads at
+  // READ COMMITTED, where every statement already sees its own snapshot, so the
+  // single transaction never made them agree with each other either.
+  //
+  // Siblings, never nested: a transaction that waits on a second one while it
+  // holds a pooled connection can deadlock a small pool. Each chain reads the
+  // branch list itself for the same reason — one extra round trip, run in
+  // parallel, instead of one chain waiting on the other.
+  const [ledger, period] = await Promise.all([
+    withTenantContext(tenantId, async (tx) => {
+      const branches = await branchesIn(tx);
+      if (branches.length === 0) return null;
 
-    const branchIds = branches.map((b) => b.id);
-    const replayed = await replayPairs(tx, tenantId, productIds, branchIds, to);
+      const products = await tx.product.findMany({
+        where: { tenantId, deletedAt: null },
+        select: { id: true },
+      });
+      const productIds = products.map((p) => p.id);
+      const branchIds = branches.map((b) => b.id);
 
-    // One set of period bounds for every query and every in-memory filter below,
-    // taken from the ledger's own helper so a Bangkok business day means the same
-    // thing here as it does in a balance read (Decision #60).
-    const periodBounds = occurredAtFilter(from, to) as {
-      gte: Date;
-      lt: Date;
-    };
+      const tenantRow = await tx.tenant.findUniqueOrThrow({
+        where: { id: tenantId },
+        select: { grossProfitMethod: true },
+      });
+      const grossProfitMethod = tenantRow.grossProfitMethod;
 
-    // --- revenue (Part 19) ---
-    // Filtered on `business_date`, which is a plain DATE, so no timezone enters
-    // the arithmetic and none is needed: the sales day was settled at import
-    // (ADR 0019 Q15 / rule P15). That is a different filter from the ledger's
-    // Bangkok bounds above ON PURPOSE — a sale belongs to the day the POS said
-    // it did, not to a window computed here.
-    const revenueRows = await tx.salesLine.groupBy({
-      by: ["branchId"],
-      where: {
-        tenantId,
-        supersededAt: null,
-        businessDate: { gte: from, lte: to },
-      },
-      _sum: { netAmount: true },
-    });
-    const revenueByBranch = new Map(
-      revenueRows.map((r) => [r.branchId, r._sum.netAmount ?? ZERO])
-    );
+      // ONE fetch of the ledger serves both replays below — closing here, opening
+      // further down (see loadCostMovements).
+      const costRows = await loadCostMovements(tx, tenantId, productIds, branchIds, to);
+      const replayed = replayLoaded(costRows);
 
-    // Spend comes from EXPENSES since Part 16 — one source of money-out, split
-    // by the account its category sits under (ADR 0016 Q3/Q4). Receipts are in
-    // here too: confirming one writes its own expense, so reading both would
-    // count every delivery twice.
-    //
-    // Filtered on `bill_date`, a DATE column, so the plain period bounds apply —
-    // the Bangkok day-start shift belongs to `occurred_at`, which is an instant.
-    const expenseLines = await tx.expenseItem.findMany({
-      where: {
-        tenantId,
-        expense: {
-          tenantId,
-          deletedAt: null,
-          branchId: { in: branchIds },
-          billDate: { gte: from, lte: to },
-        },
-      },
-      select: {
-        totalPrice: true,
-        category: { select: { account: true } },
-        expense: { select: { branchId: true } },
-      },
-    });
+      const consumptionSourceIds =
+        grossProfitMethod === "RECIPE_CONSUMPTION"
+          ? [...replayed.values()].flatMap((state) =>
+              state.consumptionMoves
+                .filter((c) => c.sourceType === "SALES_CONSUMPTION")
+                .map((c) => c.sourceId)
+            )
+          : [];
 
-    const cogsByBranch = new Map<string, Prisma.Decimal>();
-    const opexByBranch = new Map<string, Prisma.Decimal>();
-    for (const line of expenseLines) {
-      // The 3-tier tree has carried `account` since Sprint 1, so the split is
-      // free. Anything not marked COGS is treated as operating cost: a category
-      // whose account nobody set is an overhead until someone says otherwise.
-      const target = line.category.account === "COGS" ? cogsByBranch : opexByBranch;
-      const branchId = line.expense.branchId;
-      target.set(branchId, (target.get(branchId) ?? ZERO).plus(line.totalPrice));
-    }
-
-    // --- what each branch paid per base unit, per product, in the period ---
-    // Two branches buying the same thing at different prices is money leaking in
-    // plain sight, and it is invisible on any single branch's own screen.
-    // Keyed `${productId}|${branchId}`. Taken from the ledger rather than the
-    // replayed layers, because a layer is END state — what a branch paid during
-    // the period is a different question from what it still holds.
-    const purchaseQty = new Map<string, Prisma.Decimal>();
-    const purchaseValue = new Map<string, Prisma.Decimal>();
-
-    const receiptMovements = await tx.stockMovement.findMany({
-      where: {
-        tenantId,
-        branchId: { in: branchIds },
-        type: { in: ["PO_RECEIVE", "PO_RECEIVE_REVERSAL"] },
-        occurredAt: periodBounds,
-      },
-      select: { productId: true, branchId: true, qty: true, sourceId: true },
-    });
-    const rmItems = receiptMovements.length
-      ? await tx.goodsReceiptItem.findMany({
-          where: { tenantId, id: { in: receiptMovements.map((m) => m.sourceId) } },
-          select: {
-            id: true,
-            lineTotalActual: true,
-            lineTotalQuoted: true,
-            goodsReceipt: {
-              select: { vatRatePercent: true, vatReclaimable: true, pricesIncludeVat: true },
+      const consumptionItems = consumptionSourceIds.length
+        ? await tx.salesConsumptionItem.findMany({
+            where: { tenantId, id: { in: consumptionSourceIds } },
+            select: {
+              id: true,
+              run: {
+                select: { branchId: true, businessDate: true, voidedAt: true },
+              },
             },
-          },
-        })
-      : [];
-    // Valued the same way a layer is (Part 16 Q2): "what this branch paid" has to
-    // mean the same thing here as it does on the shelf, or the excess-spend
-    // comparison drifts from the cost it is meant to explain.
-    const totalById = new Map(rmItems.map((i) => [i.id, layerValueOf(i)]));
-
-    for (const m of receiptMovements) {
-      const key = keyOf(m.productId, m.branchId);
-      purchaseQty.set(key, (purchaseQty.get(key) ?? ZERO).plus(m.qty));
-      purchaseValue.set(
-        key,
-        (purchaseValue.get(key) ?? ZERO).plus(totalById.get(m.sourceId) ?? ZERO)
-      );
-    }
-
-    // Cheapest branch per product, then what everyone else paid above it.
-    const cheapest = new Map<string, Prisma.Decimal>();
-    for (const [key, qty] of purchaseQty) {
-      if (qty.lessThanOrEqualTo(0)) continue;
-      const [productId] = key.split("|");
-      const unit = (purchaseValue.get(key) ?? ZERO).div(qty);
-      const current = cheapest.get(productId);
-      if (!current || unit.lessThan(current)) cheapest.set(productId, unit);
-    }
-
-    const excessByBranch = new Map<string, Prisma.Decimal>();
-    for (const [key, qty] of purchaseQty) {
-      if (qty.lessThanOrEqualTo(0)) continue;
-      const [productId, branchId] = key.split("|");
-      const unit = (purchaseValue.get(key) ?? ZERO).div(qty);
-      const best = cheapest.get(productId);
-      if (!best) continue;
-      const excess = unit.minus(best).mul(qty);
-      if (excess.lessThanOrEqualTo(0)) continue;
-      excessByBranch.set(
-        branchId,
-        (excessByBranch.get(branchId) ?? ZERO).plus(excess)
-      );
-    }
-
-    // --- gross profit inputs (ADR 0019 Q17) ---
-    //
-    // A SECOND replay, stopping the day before the period starts, gives opening
-    // inventory. It reads strictly fewer movements than the closing walk above,
-    // so the page costs well under twice what it did — but it is still the
-    // heaviest query in the system, and the snapshot threshold already written
-    // down in the risk register now applies with more force.
-    const tenantRow = await tx.tenant.findUniqueOrThrow({
-      where: { id: tenantId },
-      select: { grossProfitMethod: true },
-    });
-    const grossProfitMethod = tenantRow.grossProfitMethod;
-
-    // --- what the recipes say was sold (ADR 0022 Q9, rule N10) ---
-    //
-    // Not read off the ledger by movement type. A period can hold a consumption
-    // whose run has since been voided by a re-import, and its reversal is dated
-    // NOW rather than on the sales day — so summing CONSUMPTION movements inside
-    // the period would count a day that no longer stands and never see the row
-    // that took it back.
-    //
-    // Asked of the DOCUMENTS instead: what did the runs that still stand consume?
-    // Voided runs drop out whole, originals and reversals together, so nothing
-    // needs netting. Only fetched under the method that uses it — this is the
-    // heaviest page in the system and a shop counting stock should not pay for it.
-    //
-    // Filtered to SALES_CONSUMPTION deliberately, and this line is load-bearing
-    // (ADR 0028 Consequence 2, rule S5). A staff meal posts the same movement
-    // type, so it arrives in `consumptionMoves` too — and it must NOT be in
-    // cost of goods SOLD, because nobody sold it: its cost belongs on the
-    // labour/welfare side of the accounts.
-    //
-    // Before Part 26 the exclusion happened anyway, by accident: the id was
-    // looked up in `sales_consumption_item`, was not found, and the row was
-    // skipped. Right answer, no rule — and the day somebody widened that query
-    // the staff meals would have walked into COGS with nothing reporting it.
-    const consumptionSourceIds =
-      grossProfitMethod === "RECIPE_CONSUMPTION"
-        ? [...replayed.values()].flatMap((state) =>
-            state.consumptionMoves
-              .filter((c) => c.sourceType === "SALES_CONSUMPTION")
-              .map((c) => c.sourceId)
-          )
+          })
         : [];
 
-    const consumptionItems = consumptionSourceIds.length
-      ? await tx.salesConsumptionItem.findMany({
-          where: { tenantId, id: { in: consumptionSourceIds } },
-          select: {
-            id: true,
-            run: {
-              select: { branchId: true, businessDate: true, voidedAt: true },
-            },
+      return { branches, productIds, grossProfitMethod, costRows, replayed, consumptionItems };
+    }),
+    withTenantContext(tenantId, async (tx) => {
+      const branches = await branchesIn(tx);
+      if (branches.length === 0) return null;
+      const branchIds = branches.map((b) => b.id);
+
+      // --- revenue (Part 19) ---
+      // Filtered on `business_date`, which is a plain DATE, so no timezone enters
+      // the arithmetic and none is needed: the sales day was settled at import
+      // (ADR 0019 Q15 / rule P15). That is a different filter from the ledger's
+      // Bangkok bounds above ON PURPOSE — a sale belongs to the day the POS said
+      // it did, not to a window computed here.
+      const revenueRows = await tx.salesLine.groupBy({
+        by: ["branchId"],
+        where: {
+          tenantId,
+          supersededAt: null,
+          businessDate: { gte: from, lte: to },
+        },
+        _sum: { netAmount: true },
+      });
+
+      // Spend comes from EXPENSES since Part 16 — one source of money-out, split
+      // by the account its category sits under (ADR 0016 Q3/Q4). Receipts are in
+      // here too: confirming one writes its own expense, so reading both would
+      // count every delivery twice.
+      //
+      // Filtered on `bill_date`, a DATE column, so the plain period bounds apply —
+      // the Bangkok day-start shift belongs to `occurred_at`, which is an instant.
+      const expenseLines = await tx.expenseItem.findMany({
+        where: {
+          tenantId,
+          expense: {
+            tenantId,
+            deletedAt: null,
+            branchId: { in: branchIds },
+            billDate: { gte: from, lte: to },
           },
-        })
-      : [];
-    const runByItem = new Map(consumptionItems.map((i) => [i.id, i.run]));
+        },
+        select: {
+          totalPrice: true,
+          category: { select: { account: true } },
+          expense: { select: { branchId: true } },
+        },
+      });
 
-    const consumptionValueByBranch = new Map<string, Prisma.Decimal>();
-    if (grossProfitMethod === "RECIPE_CONSUMPTION") {
-      for (const state of replayed.values()) {
-        for (const move of state.consumptionMoves) {
-          // Same rule as the id gather above, said again at the point of use:
-          // a staff meal is not a sale, and the two loops must not be able to
-          // disagree about that.
-          if (move.sourceType !== "SALES_CONSUMPTION") continue;
-          const run = runByItem.get(move.sourceId);
-          if (run === undefined || run.voidedAt !== null) continue;
-          // The RUN's business date, not the movement's — they agree today, and
-          // pinning to the document keeps them agreeing if a compensating
-          // movement is ever dated differently again.
-          const d = run.businessDate.getTime();
-          if (d < from.getTime() || d > to.getTime()) continue;
-          consumptionValueByBranch.set(
-            run.branchId,
-            (consumptionValueByBranch.get(run.branchId) ?? ZERO).plus(move.value)
-          );
+      const receiptMovements = await tx.stockMovement.findMany({
+        where: {
+          tenantId,
+          branchId: { in: branchIds },
+          type: { in: ["PO_RECEIVE", "PO_RECEIVE_REVERSAL"] },
+          occurredAt: periodBounds,
+        },
+        select: { productId: true, branchId: true, qty: true, sourceId: true },
+      });
+      const rmItems = receiptMovements.length
+        ? await tx.goodsReceiptItem.findMany({
+            where: { tenantId, id: { in: receiptMovements.map((m) => m.sourceId) } },
+            select: {
+              id: true,
+              lineTotalActual: true,
+              lineTotalQuoted: true,
+              goodsReceipt: {
+                select: { vatRatePercent: true, vatReclaimable: true, pricesIncludeVat: true },
+              },
+            },
+          })
+        : [];
+
+      const coverageRuns = await tx.salesConsumptionRun.groupBy({
+        by: ["branchId"],
+        where: {
+          tenantId,
+          voidedAt: null,
+          businessDate: { gte: from, lte: to },
+        },
+        _sum: { coveredNetAmount: true },
+        _count: { _all: true },
+      });
+
+      const salesDayRows = await tx.salesLine.groupBy({
+        by: ["branchId", "businessDate"],
+        where: {
+          tenantId,
+          supersededAt: null,
+          branchId: { in: branchIds },
+          businessDate: { gte: from, lte: to },
+        },
+      });
+
+      const lastCounts = await tx.stockCount.groupBy({
+        by: ["branchId"],
+        where: { tenantId, status: "CLOSED" },
+        _max: { closedAt: true },
+      });
+
+      return { revenueRows, expenseLines, receiptMovements, rmItems, coverageRuns, salesDayRows, lastCounts };
+    }),
+  ]);
+  if (ledger === null || period === null) return [];
+  const { branches, productIds, grossProfitMethod, costRows, replayed, consumptionItems } = ledger;
+  const { revenueRows, expenseLines, receiptMovements, rmItems, coverageRuns, salesDayRows, lastCounts } = period;
+
+  const revenueByBranch = new Map(
+    revenueRows.map((r) => [r.branchId, r._sum.netAmount ?? ZERO])
+  );
+
+  const cogsByBranch = new Map<string, Prisma.Decimal>();
+  const opexByBranch = new Map<string, Prisma.Decimal>();
+  for (const line of expenseLines) {
+    // The 3-tier tree has carried `account` since Sprint 1, so the split is
+    // free. Anything not marked COGS is treated as operating cost: a category
+    // whose account nobody set is an overhead until someone says otherwise.
+    const target = line.category.account === "COGS" ? cogsByBranch : opexByBranch;
+    const branchId = line.expense.branchId;
+    target.set(branchId, (target.get(branchId) ?? ZERO).plus(line.totalPrice));
+  }
+
+  // --- what each branch paid per base unit, per product, in the period ---
+  // Two branches buying the same thing at different prices is money leaking in
+  // plain sight, and it is invisible on any single branch's own screen.
+  // Keyed `${productId}|${branchId}`. Taken from the ledger rather than the
+  // replayed layers, because a layer is END state — what a branch paid during
+  // the period is a different question from what it still holds.
+  const purchaseQty = new Map<string, Prisma.Decimal>();
+  const purchaseValue = new Map<string, Prisma.Decimal>();
+
+  // Valued the same way a layer is (Part 16 Q2): "what this branch paid" has to
+  // mean the same thing here as it does on the shelf, or the excess-spend
+  // comparison drifts from the cost it is meant to explain.
+  const totalById = new Map(rmItems.map((i) => [i.id, layerValueOf(i)]));
+
+  for (const m of receiptMovements) {
+    const key = keyOf(m.productId, m.branchId);
+    purchaseQty.set(key, (purchaseQty.get(key) ?? ZERO).plus(m.qty));
+    purchaseValue.set(
+      key,
+      (purchaseValue.get(key) ?? ZERO).plus(totalById.get(m.sourceId) ?? ZERO)
+    );
+  }
+
+  // Cheapest branch per product, then what everyone else paid above it.
+  const cheapest = new Map<string, Prisma.Decimal>();
+  for (const [key, qty] of purchaseQty) {
+    if (qty.lessThanOrEqualTo(0)) continue;
+    const [productId] = key.split("|");
+    const unit = (purchaseValue.get(key) ?? ZERO).div(qty);
+    const current = cheapest.get(productId);
+    if (!current || unit.lessThan(current)) cheapest.set(productId, unit);
+  }
+
+  const excessByBranch = new Map<string, Prisma.Decimal>();
+  for (const [key, qty] of purchaseQty) {
+    if (qty.lessThanOrEqualTo(0)) continue;
+    const [productId, branchId] = key.split("|");
+    const unit = (purchaseValue.get(key) ?? ZERO).div(qty);
+    const best = cheapest.get(productId);
+    if (!best) continue;
+    const excess = unit.minus(best).mul(qty);
+    if (excess.lessThanOrEqualTo(0)) continue;
+    excessByBranch.set(
+      branchId,
+      (excessByBranch.get(branchId) ?? ZERO).plus(excess)
+    );
+  }
+
+  // --- gross profit inputs (ADR 0019 Q17) ---
+  //
+  // A SECOND replay, stopping the day before the period starts, gives opening
+  // inventory. Since 2026-10-01 it is cut in memory from the SAME ledger fetch
+  // as the closing walk (loadCostMovements / replayLoaded), so it costs no trip
+  // to the database — the ledger used to cross the network twice per figure.
+  // It is still the heaviest computation in the system, and the snapshot
+  // threshold in the risk register still applies.
+
+  // --- what the recipes say was sold (ADR 0022 Q9, rule N10) ---
+  //
+  // Not read off the ledger by movement type. A period can hold a consumption
+  // whose run has since been voided by a re-import, and its reversal is dated
+  // NOW rather than on the sales day — so summing CONSUMPTION movements inside
+  // the period would count a day that no longer stands and never see the row
+  // that took it back.
+  //
+  // Asked of the DOCUMENTS instead: what did the runs that still stand consume?
+  // Voided runs drop out whole, originals and reversals together, so nothing
+  // needs netting. Only fetched under the method that uses it — this is the
+  // heaviest page in the system and a shop counting stock should not pay for it.
+  //
+  // (The ids are gathered and fetched inside the ledger transaction above,
+  // because they come out of the replay; the loop below applies the rule.)
+  //
+  // Filtered to SALES_CONSUMPTION deliberately, and this line is load-bearing
+  // (ADR 0028 Consequence 2, rule S5). A staff meal posts the same movement
+  // type, so it arrives in `consumptionMoves` too — and it must NOT be in
+  // cost of goods SOLD, because nobody sold it: its cost belongs on the
+  // labour/welfare side of the accounts.
+  //
+  // Before Part 26 the exclusion happened anyway, by accident: the id was
+  // looked up in `sales_consumption_item`, was not found, and the row was
+  // skipped. Right answer, no rule — and the day somebody widened that query
+  // the staff meals would have walked into COGS with nothing reporting it.
+  const runByItem = new Map(consumptionItems.map((i) => [i.id, i.run]));
+
+  const consumptionValueByBranch = new Map<string, Prisma.Decimal>();
+  if (grossProfitMethod === "RECIPE_CONSUMPTION") {
+    for (const state of replayed.values()) {
+      for (const move of state.consumptionMoves) {
+        // Same rule as the id gather above, said again at the point of use:
+        // a staff meal is not a sale, and the two loops must not be able to
+        // disagree about that.
+        if (move.sourceType !== "SALES_CONSUMPTION") continue;
+        const run = runByItem.get(move.sourceId);
+        if (run === undefined || run.voidedAt !== null) continue;
+        // The RUN's business date, not the movement's — they agree today, and
+        // pinning to the document keeps them agreeing if a compensating
+        // movement is ever dated differently again.
+        const d = run.businessDate.getTime();
+        if (d < from.getTime() || d > to.getTime()) continue;
+        consumptionValueByBranch.set(
+          run.branchId,
+          (consumptionValueByBranch.get(run.branchId) ?? ZERO).plus(move.value)
+        );
+      }
+    }
+  }
+
+  // Coverage, which every figure computed above has to be read against.
+  const coveredByBranch = new Map(
+    coverageRuns.map((r) => [r.branchId, r._sum.coveredNetAmount ?? ZERO])
+  );
+  const daysPostedByBranch = new Map(
+    coverageRuns.map((r) => [r.branchId, r._count._all])
+  );
+
+  // How many days there were to post in the first place. A branch with three
+  // posted days out of three is complete; three out of thirty is not, and the
+  // difference is invisible from the posted count alone.
+  const salesDaysByBranch = new Map<string, number>();
+  for (const row of salesDayRows) {
+    salesDaysByBranch.set(
+      row.branchId,
+      (salesDaysByBranch.get(row.branchId) ?? 0) + 1
+    );
+  }
+
+  const dayBeforeFrom = new Date(from.getTime() - 86_400_000);
+  const openingReplayed =
+    grossProfitMethod === "PERIODIC_INVENTORY"
+      ? replayLoaded(costRows, dayBeforeFrom)
+      : null;
+
+  // The freshness line beside the figure. A closed count is the only event that
+  // makes closing inventory a measurement rather than a belief.
+  const lastCountByBranch = new Map(
+    lastCounts.map((c) => [c.branchId, c._max.closedAt ?? null])
+  );
+
+  // --- inventory value, waste and data quality, from the replayed states ---
+  const lowerBound = periodBounds.gte.getTime();
+  const upperBound = periodBounds.lt.getTime();
+
+  return branches.map((branch) => {
+    let inventoryValue = ZERO;
+    let wasteValue = ZERO;
+    let varianceValue = ZERO;
+    let negativeStockProducts = 0;
+    let unpricedProducts = 0;
+
+    for (const productId of productIds) {
+      const state = replayed.get(keyOf(productId, branch.id));
+      if (!state) continue;
+
+      inventoryValue = inventoryValue.plus(state.inventoryValue);
+      if (state.negativeStock) negativeStockProducts += 1;
+      if (state.hasUnpricedLayers) unpricedProducts += 1;
+
+      for (const out of state.outflows) {
+        // Part 18: this line is also what keeps a TRANSFER off both columns.
+        // `TRANSFER_OUT` and `TRANSFER_IN_REVERSAL` are outflows in the walk —
+        // they take money out of this branch's pile — but the value did not
+        // leave the BUSINESS, it arrived somewhere else. Counting them here
+        // would report a truck of pork as a loss at the sending branch and
+        // still hold it as inventory at the receiving one (ADR 0018
+        // Consequence 2). Having them be their own movement types is what makes
+        // this a one-line exclusion instead of a source-by-source exception.
+        if (out.type !== "ADJUST_LOSS") continue;
+        // Same costing instant the walk used, so a midnight adjustment falls in
+        // the period its business day belongs to.
+        const t = costSortKey(out.occurredAt);
+        if (t < lowerBound || t >= upperBound) continue;
+        // Split by SOURCE, not by type: waste, a count shortage and a manual
+        // write-off are all ADJUST_LOSS (ADR 0015 Q1, ADR 0017 Q1).
+        //
+        // Part 17 Q4 INVERTED this test. ของเสีย is now the narrow case — a
+        // waste document — and everything else that left without one is
+        // variance. Written as an explicit WASTE_LOG check rather than an
+        // `else`, so a fifth source type lands in variance (where an
+        // undocumented outflow belongs) instead of silently inflating waste.
+        //
+        // Part 18's TRANSFER_SHORTAGE reaches that `else` and belongs there,
+        // deliberately rather than by accident: goods that left one branch and
+        // never reached the other are not food anyone watched go in the bin.
+        // The conversation is with the driver and the branch manager, which is
+        // the same conversation variance already exists to start.
+        if (out.sourceType === "WASTE_LOG") {
+          wasteValue = wasteValue.plus(out.value);
+        } else {
+          varianceValue = varianceValue.plus(out.value);
         }
       }
     }
 
-    // Coverage, which every figure computed above has to be read against.
-    const coverageRuns = await tx.salesConsumptionRun.groupBy({
-      by: ["branchId"],
-      where: {
-        tenantId,
-        voidedAt: null,
-        businessDate: { gte: from, lte: to },
-      },
-      _sum: { coveredNetAmount: true },
-      _count: { _all: true },
-    });
-    const coveredByBranch = new Map(
-      coverageRuns.map((r) => [r.branchId, r._sum.coveredNetAmount ?? ZERO])
-    );
-    const daysPostedByBranch = new Map(
-      coverageRuns.map((r) => [r.branchId, r._count._all])
-    );
-
-    // How many days there were to post in the first place. A branch with three
-    // posted days out of three is complete; three out of thirty is not, and the
-    // difference is invisible from the posted count alone.
-    const salesDayRows = await tx.salesLine.groupBy({
-      by: ["branchId", "businessDate"],
-      where: {
-        tenantId,
-        supersededAt: null,
-        branchId: { in: branchIds },
-        businessDate: { gte: from, lte: to },
-      },
-    });
-    const salesDaysByBranch = new Map<string, number>();
-    for (const row of salesDayRows) {
-      salesDaysByBranch.set(
-        row.branchId,
-        (salesDaysByBranch.get(row.branchId) ?? 0) + 1
-      );
-    }
-
-    const dayBeforeFrom = new Date(from.getTime() - 86_400_000);
-    const openingReplayed =
-      grossProfitMethod === "PERIODIC_INVENTORY"
-        ? await replayPairs(tx, tenantId, productIds, branchIds, dayBeforeFrom)
-        : null;
-
-    // The freshness line beside the figure. A closed count is the only event that
-    // makes closing inventory a measurement rather than a belief.
-    const lastCounts = await tx.stockCount.groupBy({
-      by: ["branchId"],
-      where: { tenantId, status: "CLOSED" },
-      _max: { closedAt: true },
-    });
-    const lastCountByBranch = new Map(
-      lastCounts.map((c) => [c.branchId, c._max.closedAt ?? null])
-    );
-
-    // --- inventory value, waste and data quality, from the replayed states ---
-    const lowerBound = periodBounds.gte.getTime();
-    const upperBound = periodBounds.lt.getTime();
-
-    return branches.map((branch) => {
-      let inventoryValue = ZERO;
-      let wasteValue = ZERO;
-      let varianceValue = ZERO;
-      let negativeStockProducts = 0;
-      let unpricedProducts = 0;
-
+    let openingInventoryValue = ZERO;
+    if (openingReplayed) {
       for (const productId of productIds) {
-        const state = replayed.get(keyOf(productId, branch.id));
-        if (!state) continue;
-
-        inventoryValue = inventoryValue.plus(state.inventoryValue);
-        if (state.negativeStock) negativeStockProducts += 1;
-        if (state.hasUnpricedLayers) unpricedProducts += 1;
-
-        for (const out of state.outflows) {
-          // Part 18: this line is also what keeps a TRANSFER off both columns.
-          // `TRANSFER_OUT` and `TRANSFER_IN_REVERSAL` are outflows in the walk —
-          // they take money out of this branch's pile — but the value did not
-          // leave the BUSINESS, it arrived somewhere else. Counting them here
-          // would report a truck of pork as a loss at the sending branch and
-          // still hold it as inventory at the receiving one (ADR 0018
-          // Consequence 2). Having them be their own movement types is what makes
-          // this a one-line exclusion instead of a source-by-source exception.
-          if (out.type !== "ADJUST_LOSS") continue;
-          // Same costing instant the walk used, so a midnight adjustment falls in
-          // the period its business day belongs to.
-          const t = costSortKey(out.occurredAt);
-          if (t < lowerBound || t >= upperBound) continue;
-          // Split by SOURCE, not by type: waste, a count shortage and a manual
-          // write-off are all ADJUST_LOSS (ADR 0015 Q1, ADR 0017 Q1).
-          //
-          // Part 17 Q4 INVERTED this test. ของเสีย is now the narrow case — a
-          // waste document — and everything else that left without one is
-          // variance. Written as an explicit WASTE_LOG check rather than an
-          // `else`, so a fifth source type lands in variance (where an
-          // undocumented outflow belongs) instead of silently inflating waste.
-          //
-          // Part 18's TRANSFER_SHORTAGE reaches that `else` and belongs there,
-          // deliberately rather than by accident: goods that left one branch and
-          // never reached the other are not food anyone watched go in the bin.
-          // The conversation is with the driver and the branch manager, which is
-          // the same conversation variance already exists to start.
-          if (out.sourceType === "WASTE_LOG") {
-            wasteValue = wasteValue.plus(out.value);
-          } else {
-            varianceValue = varianceValue.plus(out.value);
-          }
-        }
+        const opening = openingReplayed.get(keyOf(productId, branch.id));
+        if (opening) openingInventoryValue = openingInventoryValue.plus(opening.inventoryValue);
       }
+    }
 
-      let openingInventoryValue = ZERO;
-      if (openingReplayed) {
-        for (const productId of productIds) {
-          const opening = openingReplayed.get(keyOf(productId, branch.id));
-          if (opening) openingInventoryValue = openingInventoryValue.plus(opening.inventoryValue);
-        }
-      }
+    const cogsSpend = cogsByBranch.get(branch.id) ?? ZERO;
+    const revenue = revenueByBranch.get(branch.id) ?? null;
 
-      const cogsSpend = cogsByBranch.get(branch.id) ?? ZERO;
-      const revenue = revenueByBranch.get(branch.id) ?? null;
+    // COGS SOLD = opening + purchases − closing. The accounting identity, and
+    // the only gross profit available to a shop with no recipes.
+    const daysPosted = daysPostedByBranch.get(branch.id) ?? 0;
 
-      // COGS SOLD = opening + purchases − closing. The accounting identity, and
-      // the only gross profit available to a shop with no recipes.
-      const daysPosted = daysPostedByBranch.get(branch.id) ?? 0;
+    // Two methods, and the second one arrived in Part 22.
+    //
+    // นับสต๊อก: opening + purchases − closing, the accounting identity, and the
+    //   only gross profit available to a shop with no recipes.
+    // สูตรอาหาร: what the recipes say the sold dishes actually consumed.
+    //
+    // The สูตรอาหาร figure stays NULL until at least one day of the period is
+    // posted, because 0.00 would read as "cost of goods sold was nothing"
+    // rather than "nothing has been posted" (Q9). Once ANY day is posted the
+    // number is shown — with its coverage beside it, never bare — since ADR
+    // 0019 already settled that an imperfect figure is printed with its
+    // freshness attached rather than withheld.
+    const cogsSold =
+      revenue === null
+        ? null
+        : grossProfitMethod === "PERIODIC_INVENTORY"
+          ? openingInventoryValue.plus(cogsSpend).minus(inventoryValue)
+          : daysPosted > 0
+            ? (consumptionValueByBranch.get(branch.id) ?? ZERO)
+            : null;
 
-      // Two methods, and the second one arrived in Part 22.
-      //
-      // นับสต๊อก: opening + purchases − closing, the accounting identity, and the
-      //   only gross profit available to a shop with no recipes.
-      // สูตรอาหาร: what the recipes say the sold dishes actually consumed.
-      //
-      // The สูตรอาหาร figure stays NULL until at least one day of the period is
-      // posted, because 0.00 would read as "cost of goods sold was nothing"
-      // rather than "nothing has been posted" (Q9). Once ANY day is posted the
-      // number is shown — with its coverage beside it, never bare — since ADR
-      // 0019 already settled that an imperfect figure is printed with its
-      // freshness attached rather than withheld.
-      const cogsSold =
-        revenue === null
-          ? null
-          : grossProfitMethod === "PERIODIC_INVENTORY"
-            ? openingInventoryValue.plus(cogsSpend).minus(inventoryValue)
-            : daysPosted > 0
-              ? (consumptionValueByBranch.get(branch.id) ?? ZERO)
-              : null;
-
-      return {
-        branchId: branch.id,
-        branchName: branch.name,
-        branchCode: branch.code,
-        cogsSpend,
-        opexSpend: opexByBranch.get(branch.id) ?? ZERO,
-        inventoryValue,
-        wasteValue,
-        varianceValue,
-        excessSpend: excessByBranch.get(branch.id) ?? ZERO,
-        negativeStockProducts,
-        unpricedProducts,
-        revenue,
-        grossProfit: revenue !== null && cogsSold !== null ? revenue.minus(cogsSold) : null,
-        consumptionCoveredNetAmount: coveredByBranch.get(branch.id) ?? ZERO,
-        consumptionDaysPosted: daysPosted,
-        salesDaysInPeriod: salesDaysByBranch.get(branch.id) ?? 0,
-        grossProfitMethod,
-        cogsSold,
-        openingInventoryValue,
-        lastCountedAt: lastCountByBranch.get(branch.id) ?? null,
-      };
-    });
+    return {
+      branchId: branch.id,
+      branchName: branch.name,
+      branchCode: branch.code,
+      cogsSpend,
+      opexSpend: opexByBranch.get(branch.id) ?? ZERO,
+      inventoryValue,
+      wasteValue,
+      varianceValue,
+      excessSpend: excessByBranch.get(branch.id) ?? ZERO,
+      negativeStockProducts,
+      unpricedProducts,
+      revenue,
+      grossProfit: revenue !== null && cogsSold !== null ? revenue.minus(cogsSold) : null,
+      consumptionCoveredNetAmount: coveredByBranch.get(branch.id) ?? ZERO,
+      consumptionDaysPosted: daysPosted,
+      salesDaysInPeriod: salesDaysByBranch.get(branch.id) ?? 0,
+      grossProfitMethod,
+      cogsSold,
+      openingInventoryValue,
+      lastCountedAt: lastCountByBranch.get(branch.id) ?? null,
+    };
   });
 }
 

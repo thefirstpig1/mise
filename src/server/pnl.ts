@@ -168,15 +168,22 @@ async function opexBySectionFor(
   tenantId: string,
   from: Date,
   to: Date,
-  branchIds: string[]
+  reach: BranchReach
 ): Promise<PnlSection[]> {
-  if (branchIds.length === 0) return [];
+  // The branch filter is the SAME one getBranchCostSummaryLogic applies (live
+  // branches inside the reach), written as a relation filter so this read need
+  // not wait for that one's branch list (2026-10-01: the two now run together).
   const lines = await withTenantContext(tenantId, (tx) =>
     tx.expenseItem.findMany({
       where: {
         tenantId,
         category: { account: { not: "COGS" } },
-        expense: { tenantId, deletedAt: null, branchId: { in: branchIds }, billDate: { gte: from, lte: to } },
+        expense: {
+          tenantId,
+          deletedAt: null,
+          branch: { deletedAt: null, ...branchScopeWhere(reach) },
+          billDate: { gte: from, lte: to },
+        },
       },
       select: { totalPrice: true, category: { select: { accountingSection: true, groupName: true } } },
     })
@@ -254,13 +261,11 @@ export async function getSpendBreakdownLogic(
 
 export async function getPnlLogic(tenantId: string, query: PnlQuery, reach: BranchReach): Promise<Pnl> {
   const scoped = narrowReach(reach, query.branchIds);
-  const rows = await getBranchCostSummaryLogic(tenantId, { from: query.from, to: query.to }, scoped);
-  const sections = await opexBySectionFor(
-    tenantId,
-    query.from,
-    query.to,
-    rows.map((r) => r.branchId)
-  );
+  // Side by side: neither needs the other (2026-10-01, dashboard speed).
+  const [rows, sections] = await Promise.all([
+    getBranchCostSummaryLogic(tenantId, { from: query.from, to: query.to }, scoped),
+    opexBySectionFor(tenantId, query.from, query.to, scoped),
+  ]);
   return consolidate(rows, sections, query.from, query.to);
 }
 

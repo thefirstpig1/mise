@@ -46,8 +46,6 @@ export default async function TransfersPage({
   const { tenantId, reach, costAccess} = await requireTenant("any:member");
   const sp = await searchParams;
 
-  const branches = await getBranchesLogic(tenantId, reach);
-
   const query = getTransfersQuerySchema.safeParse({
     branchId: sp.branch,
     direction: sp.direction,
@@ -55,9 +53,12 @@ export default async function TransfersPage({
     includeReversalLines: "false",
   });
 
-  const fetched = query.success
-    ? (await getTransfersLogic(tenantId, query.data)).map((t) => toTransferView(t, costAccess))
-    : [];
+  // Side by side (2026-10-01): the list never needed the branch list first.
+  const [branches, transfers] = await Promise.all([
+    getBranchesLogic(tenantId, reach),
+    query.success ? getTransfersLogic(tenantId, query.data) : Promise.resolve([]),
+  ]);
+  const fetched = transfers.map((t) => toTransferView(t, costAccess));
   const truncated = fetched.length > MAX_TRANSFER_ROWS;
   const rows = truncated ? fetched.slice(0, MAX_TRANSFER_ROWS) : fetched;
 
