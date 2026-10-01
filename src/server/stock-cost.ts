@@ -619,6 +619,179 @@ export type BranchCostSummary = {
   lastCountedAt: Date | null;
 };
 
+const branchesIn = (tx: PrismaClient, tenantId: string, reach: BranchReach) =>
+  tx.branch.findMany({
+    where: { tenantId, deletedAt: null, ...branchScopeWhere(reach) },
+    select: { id: true, name: true, code: true },
+    orderBy: { name: "asc" },
+  });
+
+/**
+ * The ledger half of a cost summary: the branch list, the products, the
+ * gross-profit method, the whole ledger up to `to` (fetched ONCE), its closing
+ * replay, and the consumption documents that replay points at.
+ *
+ * `to` may be later than a period's end — the monthly trend passes its LAST
+ * month and cuts every earlier month out of the same fetch (replayLoaded).
+ */
+async function loadLedgerChain(tenantId: string, reach: BranchReach, to: Date) {
+  return withTenantContext(tenantId, async (tx) => {
+    const branches = await branchesIn(tx, tenantId, reach);
+    if (branches.length === 0) return null;
+
+    const products = await tx.product.findMany({
+      where: { tenantId, deletedAt: null },
+      select: { id: true },
+    });
+    const productIds = products.map((p) => p.id);
+    const branchIds = branches.map((b) => b.id);
+
+    const tenantRow = await tx.tenant.findUniqueOrThrow({
+      where: { id: tenantId },
+      select: { grossProfitMethod: true },
+    });
+    const grossProfitMethod = tenantRow.grossProfitMethod;
+
+    // ONE fetch of the ledger serves both replays below — closing here, opening
+    // further down (see loadCostMovements).
+    const costRows = await loadCostMovements(tx, tenantId, productIds, branchIds, to);
+    const replayed = replayLoaded(costRows);
+
+    const consumptionSourceIds =
+      grossProfitMethod === "RECIPE_CONSUMPTION"
+        ? [...replayed.values()].flatMap((state) =>
+            state.consumptionMoves
+              .filter((c) => c.sourceType === "SALES_CONSUMPTION")
+              .map((c) => c.sourceId)
+          )
+        : [];
+
+    const consumptionItems = consumptionSourceIds.length
+      ? await tx.salesConsumptionItem.findMany({
+          where: { tenantId, id: { in: consumptionSourceIds } },
+          select: {
+            id: true,
+            run: {
+              select: { branchId: true, businessDate: true, voidedAt: true },
+            },
+          },
+        })
+      : [];
+
+    return { branches, productIds, grossProfitMethod, costRows, replayed, consumptionItems };
+  });
+}
+
+type LedgerChain = NonNullable<Awaited<ReturnType<typeof loadLedgerChain>>>;
+
+/**
+ * The period half: everything a summary needs that never touches the ledger
+ * walk — revenue, spend, the period's receipts, coverage, the sales days and
+ * the last closed count. One per period, so several periods run side by side.
+ */
+async function loadPeriodFacts(tenantId: string, reach: BranchReach, from: Date, to: Date) {
+  const periodBounds = occurredAtFilter(from, to) as { gte: Date; lt: Date };
+  return withTenantContext(tenantId, async (tx) => {
+    const branches = await branchesIn(tx, tenantId, reach);
+    if (branches.length === 0) return null;
+    const branchIds = branches.map((b) => b.id);
+
+    // --- revenue (Part 19) ---
+    // Filtered on `business_date`, which is a plain DATE, so no timezone enters
+    // the arithmetic and none is needed: the sales day was settled at import
+    // (ADR 0019 Q15 / rule P15). That is a different filter from the ledger's
+    // Bangkok bounds above ON PURPOSE — a sale belongs to the day the POS said
+    // it did, not to a window computed here.
+    const revenueRows = await tx.salesLine.groupBy({
+      by: ["branchId"],
+      where: {
+        tenantId,
+        supersededAt: null,
+        businessDate: { gte: from, lte: to },
+      },
+      _sum: { netAmount: true },
+    });
+
+    // Spend comes from EXPENSES since Part 16 — one source of money-out, split
+    // by the account its category sits under (ADR 0016 Q3/Q4). Receipts are in
+    // here too: confirming one writes its own expense, so reading both would
+    // count every delivery twice.
+    //
+    // Filtered on `bill_date`, a DATE column, so the plain period bounds apply —
+    // the Bangkok day-start shift belongs to `occurred_at`, which is an instant.
+    const expenseLines = await tx.expenseItem.findMany({
+      where: {
+        tenantId,
+        expense: {
+          tenantId,
+          deletedAt: null,
+          branchId: { in: branchIds },
+          billDate: { gte: from, lte: to },
+        },
+      },
+      select: {
+        totalPrice: true,
+        category: { select: { account: true } },
+        expense: { select: { branchId: true } },
+      },
+    });
+
+    const receiptMovements = await tx.stockMovement.findMany({
+      where: {
+        tenantId,
+        branchId: { in: branchIds },
+        type: { in: ["PO_RECEIVE", "PO_RECEIVE_REVERSAL"] },
+        occurredAt: periodBounds,
+      },
+      select: { productId: true, branchId: true, qty: true, sourceId: true },
+    });
+    const rmItems = receiptMovements.length
+      ? await tx.goodsReceiptItem.findMany({
+          where: { tenantId, id: { in: receiptMovements.map((m) => m.sourceId) } },
+          select: {
+            id: true,
+            lineTotalActual: true,
+            lineTotalQuoted: true,
+            goodsReceipt: {
+              select: { vatRatePercent: true, vatReclaimable: true, pricesIncludeVat: true },
+            },
+          },
+        })
+      : [];
+
+    const coverageRuns = await tx.salesConsumptionRun.groupBy({
+      by: ["branchId"],
+      where: {
+        tenantId,
+        voidedAt: null,
+        businessDate: { gte: from, lte: to },
+      },
+      _sum: { coveredNetAmount: true },
+      _count: { _all: true },
+    });
+
+    const salesDayRows = await tx.salesLine.groupBy({
+      by: ["branchId", "businessDate"],
+      where: {
+        tenantId,
+        supersededAt: null,
+        branchId: { in: branchIds },
+        businessDate: { gte: from, lte: to },
+      },
+    });
+
+    const lastCounts = await tx.stockCount.groupBy({
+      by: ["branchId"],
+      where: { tenantId, status: "CLOSED" },
+      _max: { closedAt: true },
+    });
+
+    return { revenueRows, expenseLines, receiptMovements, rmItems, coverageRuns, salesDayRows, lastCounts };
+  });
+}
+
+type PeriodFacts = NonNullable<Awaited<ReturnType<typeof loadPeriodFacts>>>;
+
 /**
  * Every branch, side by side, for one period.
  *
@@ -639,21 +812,6 @@ export async function getBranchCostSummaryLogic(
 ): Promise<BranchCostSummary[]> {
   const { from, to } = query;
 
-  // One set of period bounds for every query and every in-memory filter below,
-  // taken from the ledger's own helper so a Bangkok business day means the same
-  // thing here as it does in a balance read (Decision #60).
-  const periodBounds = occurredAtFilter(from, to) as {
-    gte: Date;
-    lt: Date;
-  };
-
-  const branchesIn = (tx: PrismaClient) =>
-    tx.branch.findMany({
-      where: { tenantId, deletedAt: null, ...branchScopeWhere(reach) },
-      select: { id: true, name: true, code: true },
-      orderBy: { name: "asc" },
-    });
-
   // TWO transactions side by side (2026-10-01, Kong: "dashboard โหลดช้าๆ").
   // This read was ~25 queries in a row, each a full round trip to Singapore —
   // 1.7 s of waiting on a slow link for 0.3 s of arithmetic. Half of them never
@@ -669,152 +827,51 @@ export async function getBranchCostSummaryLogic(
   // branch list itself for the same reason — one extra round trip, run in
   // parallel, instead of one chain waiting on the other.
   const [ledger, period] = await Promise.all([
-    withTenantContext(tenantId, async (tx) => {
-      const branches = await branchesIn(tx);
-      if (branches.length === 0) return null;
-
-      const products = await tx.product.findMany({
-        where: { tenantId, deletedAt: null },
-        select: { id: true },
-      });
-      const productIds = products.map((p) => p.id);
-      const branchIds = branches.map((b) => b.id);
-
-      const tenantRow = await tx.tenant.findUniqueOrThrow({
-        where: { id: tenantId },
-        select: { grossProfitMethod: true },
-      });
-      const grossProfitMethod = tenantRow.grossProfitMethod;
-
-      // ONE fetch of the ledger serves both replays below — closing here, opening
-      // further down (see loadCostMovements).
-      const costRows = await loadCostMovements(tx, tenantId, productIds, branchIds, to);
-      const replayed = replayLoaded(costRows);
-
-      const consumptionSourceIds =
-        grossProfitMethod === "RECIPE_CONSUMPTION"
-          ? [...replayed.values()].flatMap((state) =>
-              state.consumptionMoves
-                .filter((c) => c.sourceType === "SALES_CONSUMPTION")
-                .map((c) => c.sourceId)
-            )
-          : [];
-
-      const consumptionItems = consumptionSourceIds.length
-        ? await tx.salesConsumptionItem.findMany({
-            where: { tenantId, id: { in: consumptionSourceIds } },
-            select: {
-              id: true,
-              run: {
-                select: { branchId: true, businessDate: true, voidedAt: true },
-              },
-            },
-          })
-        : [];
-
-      return { branches, productIds, grossProfitMethod, costRows, replayed, consumptionItems };
-    }),
-    withTenantContext(tenantId, async (tx) => {
-      const branches = await branchesIn(tx);
-      if (branches.length === 0) return null;
-      const branchIds = branches.map((b) => b.id);
-
-      // --- revenue (Part 19) ---
-      // Filtered on `business_date`, which is a plain DATE, so no timezone enters
-      // the arithmetic and none is needed: the sales day was settled at import
-      // (ADR 0019 Q15 / rule P15). That is a different filter from the ledger's
-      // Bangkok bounds above ON PURPOSE — a sale belongs to the day the POS said
-      // it did, not to a window computed here.
-      const revenueRows = await tx.salesLine.groupBy({
-        by: ["branchId"],
-        where: {
-          tenantId,
-          supersededAt: null,
-          businessDate: { gte: from, lte: to },
-        },
-        _sum: { netAmount: true },
-      });
-
-      // Spend comes from EXPENSES since Part 16 — one source of money-out, split
-      // by the account its category sits under (ADR 0016 Q3/Q4). Receipts are in
-      // here too: confirming one writes its own expense, so reading both would
-      // count every delivery twice.
-      //
-      // Filtered on `bill_date`, a DATE column, so the plain period bounds apply —
-      // the Bangkok day-start shift belongs to `occurred_at`, which is an instant.
-      const expenseLines = await tx.expenseItem.findMany({
-        where: {
-          tenantId,
-          expense: {
-            tenantId,
-            deletedAt: null,
-            branchId: { in: branchIds },
-            billDate: { gte: from, lte: to },
-          },
-        },
-        select: {
-          totalPrice: true,
-          category: { select: { account: true } },
-          expense: { select: { branchId: true } },
-        },
-      });
-
-      const receiptMovements = await tx.stockMovement.findMany({
-        where: {
-          tenantId,
-          branchId: { in: branchIds },
-          type: { in: ["PO_RECEIVE", "PO_RECEIVE_REVERSAL"] },
-          occurredAt: periodBounds,
-        },
-        select: { productId: true, branchId: true, qty: true, sourceId: true },
-      });
-      const rmItems = receiptMovements.length
-        ? await tx.goodsReceiptItem.findMany({
-            where: { tenantId, id: { in: receiptMovements.map((m) => m.sourceId) } },
-            select: {
-              id: true,
-              lineTotalActual: true,
-              lineTotalQuoted: true,
-              goodsReceipt: {
-                select: { vatRatePercent: true, vatReclaimable: true, pricesIncludeVat: true },
-              },
-            },
-          })
-        : [];
-
-      const coverageRuns = await tx.salesConsumptionRun.groupBy({
-        by: ["branchId"],
-        where: {
-          tenantId,
-          voidedAt: null,
-          businessDate: { gte: from, lte: to },
-        },
-        _sum: { coveredNetAmount: true },
-        _count: { _all: true },
-      });
-
-      const salesDayRows = await tx.salesLine.groupBy({
-        by: ["branchId", "businessDate"],
-        where: {
-          tenantId,
-          supersededAt: null,
-          branchId: { in: branchIds },
-          businessDate: { gte: from, lte: to },
-        },
-      });
-
-      const lastCounts = await tx.stockCount.groupBy({
-        by: ["branchId"],
-        where: { tenantId, status: "CLOSED" },
-        _max: { closedAt: true },
-      });
-
-      return { revenueRows, expenseLines, receiptMovements, rmItems, coverageRuns, salesDayRows, lastCounts };
-    }),
+    loadLedgerChain(tenantId, reach, to),
+    loadPeriodFacts(tenantId, reach, from, to),
   ]);
   if (ledger === null || period === null) return [];
-  const { branches, productIds, grossProfitMethod, costRows, replayed, consumptionItems } = ledger;
+  return assembleCostSummary(ledger, period, from, to, ledger.replayed);
+}
+
+/**
+ * The same summary for SEVERAL periods, answering exactly what calling
+ * getBranchCostSummaryLogic once per period would (pinned by K17) — but with
+ * the ledger fetched once, up to the latest period's end, and each period's
+ * closing and opening cut from it in memory. The dashboard's six-month trend
+ * was six full fetches of the whole ledger history (2026-10-01).
+ */
+export async function getBranchCostSummariesLogic(
+  tenantId: string,
+  periods: readonly GetBranchCostSummaryQuery[],
+  reach: BranchReach
+): Promise<BranchCostSummary[][]> {
+  if (periods.length === 0) return [];
+  const latest = new Date(Math.max(...periods.map((p) => p.to.getTime())));
+  const [ledger, ...facts] = await Promise.all([
+    loadLedgerChain(tenantId, reach, latest),
+    ...periods.map((p) => loadPeriodFacts(tenantId, reach, p.from, p.to)),
+  ]);
+  return periods.map((p, i) => {
+    const period = facts[i] as PeriodFacts | null;
+    if (ledger === null || period === null) return [];
+    return assembleCostSummary(ledger, period, p.from, p.to, replayLoaded(ledger.costRows, p.to));
+  });
+}
+
+/** The arithmetic half — pure, from what the two loaders fetched. */
+function assembleCostSummary(
+  ledger: LedgerChain,
+  period: PeriodFacts,
+  from: Date,
+  to: Date,
+  /** Closing replay for THIS period: the ledger cut at `to`. */
+  replayed: Map<string, ProductCost>
+): BranchCostSummary[] {
+  const { branches, productIds, grossProfitMethod, costRows, consumptionItems } = ledger;
   const { revenueRows, expenseLines, receiptMovements, rmItems, coverageRuns, salesDayRows, lastCounts } = period;
+  const periodBounds = occurredAtFilter(from, to) as { gte: Date; lt: Date };
+
 
   const revenueByBranch = new Map(
     revenueRows.map((r) => [r.branchId, r._sum.netAmount ?? ZERO])

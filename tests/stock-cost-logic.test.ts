@@ -38,6 +38,7 @@ import { createWasteLogic } from "@/server/waste";
 import { createWasteInputSchema } from "@/lib/validations/waste";
 import {
   getBranchCostSummaryLogic,
+  getBranchCostSummariesLogic,
   getProductCostLogic,
   getProductCostsLogic,
   loadCostMovements,
@@ -753,5 +754,43 @@ describe("cost read *Logic (FIFO by ledger replay, ADR 0014)", () => {
         asText(await replayPairsInTx(tx, tenantA, [p.id], branches, day(0)))
       );
     }, { timeout: 20_000 });
-  });
+    // Nine documents through the real write path, then sixteen replays: ~29 s
+    // against Neon from a slow link, which is the whole default budget.
+  }, 90_000);
+
+  it("K17: several periods at once answer exactly what one read per period would — under both methods", async () => {
+    // 2026-10-01: the dashboard's six-month trend fetches the ledger once, up
+    // to the latest month, and cuts each month's closing AND opening from it in
+    // memory. It must print the same numbers as asking month by month.
+    const day = (n: number) => new Date(today.getTime() + n * 86_400_000);
+    const p = await freshProduct(tenantA, "K17");
+    await receiveInto(branchA, p, 4, 1000, new Date(day(-9).getTime() + 3 * 3_600_000));
+    await adjust(branchA, p, "ADJUST_LOSS", 20, day(-7));
+    await receiveInto(branchA2, p, 2, 1100, new Date(day(-6).getTime() - 3_600_000));
+    await throwAway(branchA, p, 3, new Date(day(-4).getTime() + 2 * 3_600_000));
+    await receiveInto(branchA, p, 2, 1300, new Date(day(-2).getTime() + 16 * 3_600_000));
+    await adjust(branchA2, p, "ADJUST_LOSS", 10, day(-1));
+
+    const periods = [
+      { from: day(-10), to: day(-7) },
+      { from: day(-6), to: day(-3) },
+      { from: day(-2), to: day(0) },
+      { from: day(-10), to: day(0) },
+    ];
+    const asText = (v: unknown) => JSON.stringify(v);
+
+    for (const method of ["PERIODIC_INVENTORY", "RECIPE_CONSUMPTION"] as const) {
+      await withRlsBypass((tx) =>
+        tx.tenant.update({ where: { id: tenantA }, data: { grossProfitMethod: method } })
+      );
+      const together = await getBranchCostSummariesLogic(tenantA, periods, EVERY_BRANCH);
+      for (const [i, q] of periods.entries()) {
+        const alone = await getBranchCostSummaryLogic(tenantA, q, EVERY_BRANCH);
+        expect(asText(together[i]), `${method} period ${i}`).toBe(asText(alone));
+      }
+    }
+    await withRlsBypass((tx) =>
+      tx.tenant.update({ where: { id: tenantA }, data: { grossProfitMethod: "PERIODIC_INVENTORY" } })
+    );
+  }, 90_000);
 });

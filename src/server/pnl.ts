@@ -35,7 +35,11 @@
 import { Prisma } from "@prisma/client";
 import { withTenantContext } from "@/lib/db";
 import { branchScopeWhere, type BranchReach } from "@/lib/permissions/service";
-import { getBranchCostSummaryLogic, type BranchCostSummary } from "@/server/stock-cost";
+import {
+  getBranchCostSummariesLogic,
+  getBranchCostSummaryLogic,
+  type BranchCostSummary,
+} from "@/server/stock-cost";
 import type { GrossProfitMethod } from "@prisma/client";
 
 const ZERO = () => new Prisma.Decimal(0);
@@ -341,9 +345,16 @@ export async function getMonthlyPnlLogic(
   branchIds: readonly string[],
   reach: BranchReach
 ): Promise<MonthlyPnlPoint[]> {
-  const all = await Promise.all(
-    months.map((m) => getPnlLogic(tenantId, { from: m.from, to: m.to, branchIds }, reach))
-  );
+  // One ledger fetch for all the months, cut per month in memory, instead of
+  // six full P&Ls each fetching the whole history (2026-10-01). Same figures:
+  // getBranchCostSummariesLogic answers what the single-period read would
+  // (K17), and each month's spend breakdown is its own small read.
+  const scoped = narrowReach(reach, branchIds);
+  const [rowsByMonth, sectionsByMonth] = await Promise.all([
+    getBranchCostSummariesLogic(tenantId, months.map((m) => ({ from: m.from, to: m.to })), scoped),
+    Promise.all(months.map((m) => opexBySectionFor(tenantId, m.from, m.to, scoped))),
+  ]);
+  const all = months.map((m, i) => consolidate(rowsByMonth[i], sectionsByMonth[i], m.from, m.to));
   return all.map((p, i) => ({
     key: months[i].key,
     revenue: p.revenue,
