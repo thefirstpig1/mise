@@ -33,7 +33,12 @@ export interface Period {
   month: string | null;
   from: Date;
   to: Date;
-  /** The same number of days immediately before — what the ↑↓ compares against. */
+  /**
+   * What the ↑↓ compares against. A whole calendar month compares with the whole
+   * month before it (Kong, 2026-10-01: "เทียบกับทั้งเดือนสิ"); this month so far
+   * compares with the same days of last month; a rolling window with the same
+   * number of days immediately before.
+   */
   prevFrom: Date;
   prevTo: Date;
   days: number;
@@ -98,8 +103,20 @@ export function periodFor(preset: PeriodChoice, today: Date = computeBangkokToda
   const days = Math.round((to.getTime() - from.getTime()) / DAY) + 1;
   // "This month so far" compares with the same days of last month, not the
   // whole of it — 27 days against 31 would show every month as a fall.
-  const prevTo = preset === "month" ? utc(y, m - 1, Math.min(today.getUTCDate(), utc(y, m, 0).getUTCDate())) : addDays(from, -1);
-  const prevFrom = preset === "month" ? utc(y, m - 1, 1) : addDays(from, -days);
+  let prevFrom: Date;
+  let prevTo: Date;
+  if (preset === "month") {
+    prevFrom = utc(y, m - 1, 1);
+    prevTo = utc(y, m - 1, Math.min(today.getUTCDate(), utc(y, m, 0).getUTCDate()));
+  } else if (preset === "last-month") {
+    // A finished month against the finished month before it — September
+    // against all of August, not against "the 30 days before September 1".
+    prevFrom = utc(y, m - 2, 1);
+    prevTo = utc(y, m - 1, 0);
+  } else {
+    prevFrom = addDays(from, -days);
+    prevTo = addDays(from, -1);
+  }
   const month = preset === "month" || preset === "last-month" ? monthKey(from) : null;
   return { preset, month, from, to, prevFrom, prevTo, days };
 }
