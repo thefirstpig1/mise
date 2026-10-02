@@ -11,6 +11,10 @@
 import { requireTenant } from "@/lib/require-tenant";
 import { getSalesMenuDaysLogic } from "@/server/sales";
 import { getMenuCostMapLogic } from "@/server/sales-insight-read";
+import { getBranchesLogic } from "@/server/branch";
+import type { CostAccess } from "@/lib/permissions/cost-access";
+import type { BranchReach } from "@/lib/permissions/service";
+import type { CostMap } from "@/lib/sales-insight";
 import { toneOf } from "@/components/charts/chart-theme";
 import { buildSalesView, tonesFor, type SalesView } from "./_components/sales-views";
 import {
@@ -31,6 +35,36 @@ const ISO = /^\d{4}-\d{2}-\d{2}$/;
 
 const METRIC = new Set<Metric>(["net", "qty", "profit"]);
 const d = (iso: string) => new Date(`${iso}T00:00:00.000Z`);
+
+/**
+ * Sales rows and their serving costs, fetched SIDE BY SIDE (2026-10-01).
+ *
+ * The cost map used to wait for the rows, only to learn which branches they
+ * came from. It now starts at once for the branches the reader can see (or the
+ * one branch asked for), and only a branch the rows bring that is not on that
+ * list — a since-deleted branch with old sales — is priced afterwards. Every
+ * row therefore finds exactly the cost it found before; a branch with no rows
+ * only adds keys nothing looks up.
+ */
+async function rowsWithCosts<T extends { rows: { branchId: string }[] }>(
+  tenantId: string,
+  reach: BranchReach,
+  branchId: string | undefined,
+  asOf: Date,
+  cost: CostAccess | null,
+  rowsP: Promise<T>
+): Promise<{ data: T; costs: CostMap }> {
+  if (cost === null) return { data: await rowsP, costs: new Map() };
+  const firstIds = branchId
+    ? Promise.resolve([branchId])
+    : getBranchesLogic(tenantId, reach).then((bs) => bs.map((b) => b.id));
+  const firstP = firstIds.then(async (ids) => ({ ids, map: await getMenuCostMapLogic(tenantId, ids, asOf, cost) }));
+  const [data, first] = await Promise.all([rowsP, firstP]);
+  const missing = [...new Set(data.rows.map((r) => r.branchId))].filter((id) => !first.ids.includes(id));
+  if (missing.length === 0) return { data, costs: first.map };
+  const more = await getMenuCostMapLogic(tenantId, missing, asOf, cost);
+  return { data, costs: new Map([...first.map, ...more]) };
+}
 const thai = (iso: string) =>
   d(iso).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit", timeZone: "UTC" });
 
@@ -116,12 +150,17 @@ export async function getSalesCompareAction(input: {
 
   const from = input.a.from < input.b.from ? input.a.from : input.b.from;
   const to = input.a.to > input.b.to ? input.a.to : input.b.to;
-  const data = await getSalesMenuDaysLogic(tenantId, { reach, branchId: input.branchId || undefined, from: d(from), to: d(to) });
-  const menus = new Map<string, MenuMeta>(data.menus.map((m) => [m.id, m]));
-  const branchIds = [...new Set(data.rows.map((r) => r.branchId))];
   // One cost date for both sides, so a difference is the SALES moving, not the
   // price of pork between two dates (rule SI2).
-  const costs = by === "profit" ? await getMenuCostMapLogic(tenantId, branchIds, d(to), costAccess) : new Map();
+  const { data, costs } = await rowsWithCosts(
+    tenantId,
+    reach,
+    input.branchId || undefined,
+    d(to),
+    by === "profit" ? costAccess : null,
+    getSalesMenuDaysLogic(tenantId, { reach, branchId: input.branchId || undefined, from: d(from), to: d(to) })
+  );
+  const menus = new Map<string, MenuMeta>(data.menus.map((m) => [m.id, m]));
   const rows = enrich(data.rows, menus, costs);
 
   return {
@@ -161,15 +200,21 @@ export async function getSalesProfitViewAction(input: {
   const day = input.day && ISO.test(input.day) ? input.day : null;
 
   const prev = previousRange(input.from, input.to);
-  const data = await getSalesMenuDaysLogic(tenantId, {
+  const { data, costs } = await rowsWithCosts(
+    tenantId,
     reach,
-    branchId: input.branchId || undefined,
-    from: d(prev.from),
-    to: d(input.to),
-    menuCategoryId: input.categoryId || undefined,
-  });
+    input.branchId || undefined,
+    d(input.to),
+    costAccess,
+    getSalesMenuDaysLogic(tenantId, {
+      reach,
+      branchId: input.branchId || undefined,
+      from: d(prev.from),
+      to: d(input.to),
+      menuCategoryId: input.categoryId || undefined,
+    })
+  );
   const menuMeta = new Map<string, MenuMeta>(data.menus.map((m) => [m.id, m]));
-  const costs = await getMenuCostMapLogic(tenantId, [...new Set(data.rows.map((r) => r.branchId))], d(input.to), costAccess);
   const rows = enrich(data.rows, menuMeta, costs);
   const cur = rows.filter((r) => r.day >= input.from && r.day <= input.to);
   const before = rows.filter((r) => r.day >= prev.from && r.day <= prev.to);

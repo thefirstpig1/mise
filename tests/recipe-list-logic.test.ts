@@ -47,6 +47,7 @@ import {
   updateRecipeLogic,
 } from "@/server/recipe";
 import {
+  getMenuServingCostsLogic,
   getRecipeBranchComparisonLogic,
   getRecipeHistoryLogic,
   getRecipeListLogic,
@@ -566,4 +567,46 @@ describe("recipe list reads (ADR 0021 Part 21 L5a)", () => {
   it("L-15 a line id from nowhere is an empty history, not an error", async () => {
     await expect(getRecipeHistoryLogic(tenantA, randomUUID())).resolves.toEqual([]);
   });
+
+  it("L-16 the sales cost map's own read answers exactly what the list does, at every branch and date", async () => {
+    // 2026-10-01: /sales profit stopped going through the recipe LIST and asks
+    // getMenuServingCostsLogic instead — same resolver, same cost engine, one
+    // transaction. Every menu, every branch, a past and a present day: the
+    // recipe chosen, the cost per serving, its confidence and any problem must
+    // be identical, and a menu with no recipe must be absent from both.
+    const owner = costAccessFor("owner");
+    for (const branchId of [branchA, branchB, branchC]) {
+      for (const asOf of [today, addDays(today, -5)]) {
+        const list = await getRecipeListLogic(tenantA, { branchId, missingOnly: false, asOf }, owner);
+        const fromList = new Map(
+          list.menus
+            .filter((m) => m.recipeId !== null)
+            .map((m) => [
+              m.targetId,
+              {
+                recipeId: m.recipeId,
+                costPerServing: m.costPerServing?.toString() ?? null,
+                confidence: m.confidence,
+                problem: m.problem,
+              },
+            ])
+        );
+        const served = await getMenuServingCostsLogic(tenantA, branchId, asOf);
+        const fromServed = new Map(
+          [...served].map(([menuId, c]) => [
+            menuId,
+            {
+              recipeId: c.recipeId,
+              costPerServing: c.costPerServing?.toString() ?? null,
+              confidence: c.confidence,
+              problem: c.problem,
+            },
+          ])
+        );
+        const sorted = (m: Map<string, unknown>) => JSON.stringify([...m].sort(([a], [b]) => a.localeCompare(b)));
+        expect(fromList.size, "the fixture must price something").toBeGreaterThan(0);
+        expect(sorted(fromServed), `branch ${branchId} on ${asOf.toISOString().slice(0, 10)}`).toBe(sorted(fromList));
+      }
+    }
+  }, 120_000);
 });

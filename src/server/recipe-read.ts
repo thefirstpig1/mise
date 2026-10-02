@@ -31,7 +31,7 @@ import type { CostAccess } from "@/lib/permissions/cost-access";
 import { withTenantContext } from "@/lib/db";
 import { computeBangkokToday } from "@/lib/bangkok-date";
 import { resolveRecipeIds, type RecipeTarget } from "@/server/recipe-resolve";
-import { getRecipeCostsLogic, type RecipeCost } from "@/server/recipe-cost";
+import { getRecipeCostsLogic, recipeCostsInTx, type RecipeCost } from "@/server/recipe-cost";
 import type { RecipeWithIngredients } from "@/server/recipe";
 import type {
   PreppedMethod,
@@ -593,6 +593,81 @@ export async function getRecipeListLogic(
       : preppedRows,
     missingCount,
   };
+}
+
+// ------------------------------------------------------------
+// What one serving of every dish costs at one branch (2026-10-01)
+// ------------------------------------------------------------
+
+/** One menu's serving cost, exactly as getRecipeListLogic reports it. */
+export type MenuServingCost = {
+  recipeId: string;
+  costPerServing: Prisma.Decimal | null;
+  confidence: RecipeCost["confidence"] | null;
+  problem: RecipeCost["problem"] | null;
+};
+
+/**
+ * The serving cost of every live menu at one branch on one day — the question
+ * the sales profit view asks, and nothing else.
+ *
+ * It used to be answered through getRecipeListLogic, the read behind the recipe
+ * LIST page: that also fetches prepped products, category names and which
+ * recipe lines are the branch's own, then opens a second transaction to price
+ * them — ~33 round trips per branch, most for things a cost map never shows.
+ * This asks for the same answers through the SAME pieces — resolveRecipeIds
+ * picks the recipe true for this branch on this day (with the merge fallback),
+ * recipeCostsInTx walks it with the one cost engine — in one transaction.
+ * `tests/menu-serving-cost.test.ts` pins that it agrees with the list read.
+ *
+ * No 500-row cap: that cap belongs to a screen somebody scrolls. A cost map that
+ * stopped at the 500th menu by name would leave the rest of a big shop's dishes
+ * without a profit, silently.
+ */
+export async function getMenuServingCostsLogic(
+  tenantId: string,
+  branchId: string,
+  asOf: Date
+): Promise<Map<string, MenuServingCost>> {
+  return withTenantContext(
+    tenantId,
+    async (tx) => {
+      const menus = await tx.menu.findMany({
+        where: { tenantId, deletedAt: null },
+        select: { id: true },
+      });
+      const resolved = await resolveRecipeIds(
+        tx,
+        tenantId,
+        menus.map((m) => ({ kind: "menu" as const, id: m.id })),
+        branchId,
+        asOf
+      );
+      const recipeIds = [...new Set([...resolved.values()].map((r) => r.id))];
+      const costs =
+        recipeIds.length === 0
+          ? new Map<string, RecipeCost>()
+          : await recipeCostsInTx(tx, tenantId, { recipeIds, branchId, asOf });
+
+      const out = new Map<string, MenuServingCost>();
+      for (const m of menus) {
+        const hit = resolved.get(`menu:${m.id}`);
+        if (hit === undefined) continue;
+        const cost = costs.get(hit.id);
+        out.set(m.id, {
+          recipeId: hit.id,
+          costPerServing: cost?.costPerServing ?? null,
+          confidence: cost?.confidence ?? null,
+          problem: cost?.problem ?? null,
+        });
+      }
+      return out;
+    },
+    // A whole recipe graph and its FIFO replay in one transaction: well under a
+    // second next to the database, several on a slow link — never 5 s of work
+    // we would rather throw away.
+    { timeout: 20_000 }
+  );
 }
 
 // ------------------------------------------------------------

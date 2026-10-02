@@ -5,8 +5,9 @@
 // and the cost of one serving of each dish at each branch. All arithmetic is
 // in src/lib/sales-insight.ts, which is tested without a database.
 //
-// THE COST COMES FROM THE RECIPE ENGINE, NOT FROM HERE. `getRecipeListLogic`
-// already prices every menu at a branch on a day, recursively and
+// THE COST COMES FROM THE RECIPE ENGINE, NOT FROM HERE. `getMenuServingCostsLogic`
+// prices every menu at a branch on a day through the same resolver and cost
+// engine as the recipe list (it used to go through that list), recursively and
 // yield-correct, and never lets a cost leave without its confidence (Part 21).
 // A per-dish cost of our own would be the second cost engine ADR 0025 Q4
 // refused. It is priced as of the LAST day of the period (rule SI2) — the
@@ -21,7 +22,7 @@
 
 import type { CostAccess } from "@/lib/permissions/cost-access";
 import { costKey, type CostMap } from "@/lib/sales-insight";
-import { getRecipeListLogic } from "@/server/recipe-read";
+import { getMenuServingCostsLogic } from "@/server/recipe-read";
 
 /** One serving's recipe cost per menu per branch, priced on `asOf`. */
 export async function getMenuCostMapLogic(
@@ -33,18 +34,18 @@ export async function getMenuCostMapLogic(
   const out: CostMap = new Map();
   if (cost === null || branchIds.length === 0) return out;
   // One batched walk per branch — never one per dish (ADR 0014 Consequence 2).
-  const lists = await Promise.all(
-    branchIds.map((branchId) =>
-      getRecipeListLogic(tenantId, { branchId, missingOnly: false, asOf }, cost).then((r) => ({ branchId, r }))
-    )
+  const perBranch = await Promise.all(
+    branchIds.map((branchId) => getMenuServingCostsLogic(tenantId, branchId, asOf).then((m) => ({ branchId, m })))
   );
-  for (const { branchId, r } of lists) {
-    for (const m of r.menus) {
-      if (m.kind !== "menu" || m.costPerServing === null || m.problem !== null) continue;
-      out.set(costKey(branchId, m.targetId), {
-        cost: Number(m.costPerServing),
-        confidence: m.confidence ?? "LOW",
-        recipeId: m.recipeId,
+  for (const { branchId, m } of perBranch) {
+    for (const [menuId, c] of m) {
+      // Same rule as before: a dish is priced only when its walk finished
+      // cleanly — no cost, or a cycle / too-deep graph, means no profit figure.
+      if (c.costPerServing === null || c.problem !== null) continue;
+      out.set(costKey(branchId, menuId), {
+        cost: Number(c.costPerServing),
+        confidence: c.confidence ?? "LOW",
+        recipeId: c.recipeId,
       });
     }
   }

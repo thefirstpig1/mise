@@ -232,130 +232,142 @@ export async function getRecipeCostsLogic(
   tenantId: string,
   query: GetRecipeCostsQuery
 ): Promise<Map<string, RecipeCost>> {
+  return withTenantContext(tenantId, (tx) => recipeCostsInTx(tx, tenantId, query));
+}
+
+/**
+ * The same batch read inside a caller's transaction (2026-10-01). A caller that
+ * has just resolved which recipes apply — the sales cost map — prices them in
+ * the SAME transaction instead of opening a second one. This is the one body;
+ * getRecipeCostsLogic is only its own-transaction wrapper.
+ */
+export async function recipeCostsInTx(
+  tx: PrismaClient,
+  tenantId: string,
+  query: GetRecipeCostsQuery
+): Promise<Map<string, RecipeCost>> {
   const asOf = query.asOf ?? computeBangkokToday();
   const { branchId } = query;
 
-  return withTenantContext(tenantId, async (tx) => {
-    const roots = await tx.recipe.findMany({
-      where: { id: { in: query.recipeIds }, tenantId, deletedAt: null },
-      select: {
-        id: true,
-        lineId: true,
-        menuId: true,
-        outputProductId: true,
-        servings: true,
-        effectiveFrom: true,
-        createdAt: true,
-      },
-    });
-    if (roots.length === 0) return new Map();
-
-    const targets: RecipeTarget[] = roots.map(targetOf);
-    const pinned = new Map<string, ResolvedRecipeRow>(
-      roots.map((r) => [targetKey(targetOf(r)), r])
-    );
-
-    const graph = await loadRecipeGraph(
-      tx,
-      tenantId,
-      targets,
-      branchId,
-      asOf,
-      pinned
-    );
-
-    // The ingredient ROWS of the roots — ids, unit names, the order the person
-    // wrote them in. The graph carries the arithmetic; this carries the writing.
-    const lineRows = await tx.recipeIngredient.findMany({
-      where: { tenantId, recipeId: { in: roots.map((r) => r.id) } },
-      select: {
-        id: true,
-        recipeId: true,
-        productId: true,
-        componentMenuId: true,
-        qty: true,
-        sortOrder: true,
-        product: { select: { name: true } },
-        componentMenu: { select: { name: true } },
-        productUnit: { select: { unitName: true, toBaseRatio: true } },
-      },
-      orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
-    });
-    const linesByRecipe = new Map<string, typeof lineRows>();
-    for (const row of lineRows) {
-      const list = linesByRecipe.get(row.recipeId);
-      if (list === undefined) linesByRecipe.set(row.recipeId, [row]);
-      else list.push(row);
-    }
-
-    // --- walk every root, in memory, off the one graph ---
-    type Walked = {
-      root: (typeof roots)[number];
-      demand: Map<string, Prisma.Decimal> | null;
-      problem: RecipeCost["problem"];
-    };
-    const walked: Walked[] = roots.map((root) => {
-      try {
-        // EXPLODED AT BATCH SCALE, not per serving, and the difference is not
-        // cosmetic. A leaf quantity is rounded to the ledger's 3 dp (Part 22
-        // will post exactly these numbers), so dividing by `servings` first and
-        // multiplying the money back afterwards bakes that rounding into the
-        // batch: 0.25 kg of chilli over 0.25 servings comes back as 0.833 kg and
-        // the pot is out by half a satang for no reason. At batch scale the
-        // walk reproduces the quantities the person actually wrote, and the
-        // per-serving figure is a division of MONEY, which keeps 6 dp.
-        const leaves = explodeToRaw(graph, rootKeyOf(root), root.servings);
-        return {
-          root,
-          demand: new Map(leaves.map((l) => [l.productId, l.qty])),
-          problem: null,
-        };
-      } catch (e) {
-        if (e instanceof RecipeCycleError) return { root, demand: null, problem: "CYCLE" };
-        if (e instanceof RecipeDepthExceededError) {
-          return { root, demand: null, problem: "TOO_DEEP" };
-        }
-        // A missing node is a BUG in the loader, not bad data — it must not be
-        // swallowed into a plausible-looking zero.
-        throw e;
-      }
-    });
-
-    // --- one batched replay for every leaf of every root (Q7) ---
-    const leafProductIds = [
-      ...new Set(walked.flatMap((w) => [...(w.demand?.keys() ?? [])])),
-    ];
-    const costs =
-      leafProductIds.length === 0
-        ? new Map<string, ProductCost>()
-        : await replayPairsInTx(tx, tenantId, leafProductIds, [branchId], asOf);
-
-    // --- names for everything that might have to be NAMED (Q6) ---
-    const names = await loadNames(tx, tenantId, graph, leafProductIds);
-
-    // --- the percentage a production recipe reads as (Q16) ---
-    const dimensions = await loadDimensions(tx, tenantId, roots, linesByRecipe);
-
-    const out = new Map<string, RecipeCost>();
-    for (const w of walked) {
-      out.set(
-        w.root.id,
-        assemble({
-          root: w.root,
-          demand: w.demand,
-          problem: w.problem,
-          graph,
-          costs,
-          names,
-          dimensions,
-          lineRows: linesByRecipe.get(w.root.id) ?? [],
-          branchId,
-          asOf,
-        })
-      );
-    }
-    return out;
+  const roots = await tx.recipe.findMany({
+    where: { id: { in: query.recipeIds }, tenantId, deletedAt: null },
+    select: {
+      id: true,
+      lineId: true,
+      menuId: true,
+      outputProductId: true,
+      servings: true,
+      effectiveFrom: true,
+      createdAt: true,
+    },
   });
+  if (roots.length === 0) return new Map();
+
+  const targets: RecipeTarget[] = roots.map(targetOf);
+  const pinned = new Map<string, ResolvedRecipeRow>(
+    roots.map((r) => [targetKey(targetOf(r)), r])
+  );
+
+  const graph = await loadRecipeGraph(
+    tx,
+    tenantId,
+    targets,
+    branchId,
+    asOf,
+    pinned
+  );
+
+  // The ingredient ROWS of the roots — ids, unit names, the order the person
+  // wrote them in. The graph carries the arithmetic; this carries the writing.
+  const lineRows = await tx.recipeIngredient.findMany({
+    where: { tenantId, recipeId: { in: roots.map((r) => r.id) } },
+    select: {
+      id: true,
+      recipeId: true,
+      productId: true,
+      componentMenuId: true,
+      qty: true,
+      sortOrder: true,
+      product: { select: { name: true } },
+      componentMenu: { select: { name: true } },
+      productUnit: { select: { unitName: true, toBaseRatio: true } },
+    },
+    orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
+  });
+  const linesByRecipe = new Map<string, typeof lineRows>();
+  for (const row of lineRows) {
+    const list = linesByRecipe.get(row.recipeId);
+    if (list === undefined) linesByRecipe.set(row.recipeId, [row]);
+    else list.push(row);
+  }
+
+  // --- walk every root, in memory, off the one graph ---
+  type Walked = {
+    root: (typeof roots)[number];
+    demand: Map<string, Prisma.Decimal> | null;
+    problem: RecipeCost["problem"];
+  };
+  const walked: Walked[] = roots.map((root) => {
+    try {
+      // EXPLODED AT BATCH SCALE, not per serving, and the difference is not
+      // cosmetic. A leaf quantity is rounded to the ledger's 3 dp (Part 22
+      // will post exactly these numbers), so dividing by `servings` first and
+      // multiplying the money back afterwards bakes that rounding into the
+      // batch: 0.25 kg of chilli over 0.25 servings comes back as 0.833 kg and
+      // the pot is out by half a satang for no reason. At batch scale the
+      // walk reproduces the quantities the person actually wrote, and the
+      // per-serving figure is a division of MONEY, which keeps 6 dp.
+      const leaves = explodeToRaw(graph, rootKeyOf(root), root.servings);
+      return {
+        root,
+        demand: new Map(leaves.map((l) => [l.productId, l.qty])),
+        problem: null,
+      };
+    } catch (e) {
+      if (e instanceof RecipeCycleError) return { root, demand: null, problem: "CYCLE" };
+      if (e instanceof RecipeDepthExceededError) {
+        return { root, demand: null, problem: "TOO_DEEP" };
+      }
+      // A missing node is a BUG in the loader, not bad data — it must not be
+      // swallowed into a plausible-looking zero.
+      throw e;
+    }
+  });
+
+  // --- one batched replay for every leaf of every root (Q7) ---
+  const leafProductIds = [
+    ...new Set(walked.flatMap((w) => [...(w.demand?.keys() ?? [])])),
+  ];
+  const costs =
+    leafProductIds.length === 0
+      ? new Map<string, ProductCost>()
+      : await replayPairsInTx(tx, tenantId, leafProductIds, [branchId], asOf);
+
+  // --- names for everything that might have to be NAMED (Q6) ---
+  const names = await loadNames(tx, tenantId, graph, leafProductIds);
+
+  // --- the percentage a production recipe reads as (Q16) ---
+  const dimensions = await loadDimensions(tx, tenantId, roots, linesByRecipe);
+
+  const out = new Map<string, RecipeCost>();
+  for (const w of walked) {
+    out.set(
+      w.root.id,
+      assemble({
+        root: w.root,
+        demand: w.demand,
+        problem: w.problem,
+        graph,
+        costs,
+        names,
+        dimensions,
+        lineRows: linesByRecipe.get(w.root.id) ?? [],
+        branchId,
+        asOf,
+      })
+    );
+  }
+  return out;
 }
 
 /**
