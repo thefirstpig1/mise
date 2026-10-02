@@ -154,6 +154,8 @@ async function Analytics({
     return null;
   });
   const vs = periodLabelTh(isoDay(period.prevFrom), isoDay(period.prevTo));
+  const dayCount = (a: Date, b: Date) => Math.round((b.getTime() - a.getTime()) / 86_400_000) + 1;
+  const days = { cur: dayCount(period.from, period.to), prev: dayCount(period.prevFrom, period.prevTo) };
   const [pnl, revenueDays, menus] = await Promise.all([
     getPnlLogic(tenantId, q, reach),
     see.sales ? getRevenueByDayLogic(tenantId, q, reach, activeIds) : Promise.resolve([]),
@@ -225,7 +227,7 @@ async function Analytics({
 
   return (
     <div className="space-y-6">
-      <KpiRow pnl={pnl} prevP={prevP} vs={vs} see={{ ...see, gross: seeGross, net: seeNet }} />
+      <KpiRow pnl={pnl} prevP={prevP} vs={vs} days={days} see={{ ...see, gross: seeGross, net: seeNet }} />
       <UnknownNote pnl={pnl} seeGross={seeGross} />
 
       <div className="grid gap-6 xl:grid-cols-5">
@@ -387,18 +389,62 @@ const marginOf = (part: { toString(): string } | null, whole: { toString(): stri
 type PnlPick = (p: Pnl) => number | null;
 
 /** A KPI's ▲▼ — waits for the previous period without holding up the figure above it. */
-function PrevDelta(props: { prevP: Promise<Pnl | null>; cur: number | null; pick: PnlPick; goodWhenUp: boolean; vs: string }) {
+/** Calendar days in each of the two periods — what a per-day figure divides by. */
+type DayCounts = { cur: number; prev: number };
+
+/**
+ * "เฉลี่ย ฿X/วัน" beside the total (Kong, 2026-10-01). Two periods of different
+ * lengths — September's 30 days against August's 31 — differ by ~3% from the
+ * calendar alone; the per-day pair shows how much of a % is the calendar.
+ * Calendar days, not days with an import: rent and salaries accrue on every day.
+ */
+function PerDay({ cur, prev, days, vs }: { cur: number | null; prev: number | null | undefined; days: DayCounts; vs: string }) {
+  if (cur === null) return null;
   return (
-    <Suspense fallback={<span className="text-xs text-muted-subtle">กำลังเทียบกับ {props.vs}…</span>}>
+    <span className="mt-0.5 block text-xs leading-snug text-muted-foreground">
+      <span className="block whitespace-nowrap">
+        เฉลี่ย <span className="tabular-nums">{baht(cur / days.cur)}</span>/วัน
+      </span>
+      {prev === undefined || prev === null ? null : (
+        <span className="block whitespace-nowrap">
+          {vs} <span className="tabular-nums">{baht(prev / days.prev)}</span>/วัน
+        </span>
+      )}
+    </span>
+  );
+}
+
+function PrevDelta(props: { prevP: Promise<Pnl | null>; cur: number | null; pick: PnlPick; goodWhenUp: boolean; vs: string; days: DayCounts }) {
+  return (
+    <Suspense
+      fallback={
+        <>
+          <span className="text-xs text-muted-subtle">กำลังเทียบกับ {props.vs}…</span>
+          <PerDay cur={props.cur} prev={undefined} days={props.days} vs={props.vs} />
+        </>
+      }
+    >
       <PrevDeltaResolved {...props} />
     </Suspense>
   );
 }
 
-async function PrevDeltaResolved({ prevP, cur, pick, goodWhenUp, vs }: { prevP: Promise<Pnl | null>; cur: number | null; pick: PnlPick; goodWhenUp: boolean; vs: string }) {
+async function PrevDeltaResolved({ prevP, cur, pick, goodWhenUp, vs, days }: { prevP: Promise<Pnl | null>; cur: number | null; pick: PnlPick; goodWhenUp: boolean; vs: string; days: DayCounts }) {
   const prev = await prevP;
-  if (prev === null) return <span className="text-xs text-muted-subtle">เทียบกับ {vs} ไม่ได้ในตอนนี้</span>;
-  return <Delta cur={cur} prev={pick(prev)} goodWhenUp={goodWhenUp} vs={vs} />;
+  if (prev === null) {
+    return (
+      <>
+        <span className="text-xs text-muted-subtle">เทียบกับ {vs} ไม่ได้ในตอนนี้</span>
+        <PerDay cur={cur} prev={undefined} days={days} vs={vs} />
+      </>
+    );
+  }
+  return (
+    <>
+      <Delta cur={cur} prev={pick(prev)} goodWhenUp={goodWhenUp} vs={vs} />
+      <PerDay cur={cur} prev={pick(prev)} days={days} vs={vs} />
+    </>
+  );
 }
 
 /** The margin shows at once; its pp change joins it when the previous period arrives. */
@@ -419,11 +465,13 @@ function KpiRow({
   pnl,
   prevP,
   vs,
+  days,
   see,
 }: {
   pnl: Pnl;
   prevP: Promise<Pnl | null>;
   vs: string;
+  days: DayCounts;
   see: { sales: boolean; cost: boolean; expense: boolean; gross: boolean; net: boolean };
 }) {
   const revenue = num(pnl.revenue);
@@ -437,29 +485,29 @@ function KpiRow({
   return (
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
       {see.sales ? (
-        <Kpi label="ยอดขาย" value={revenue} sub="ไม่รวม VAT และ service charge" delta={<PrevDelta prevP={prevP} vs={vs} cur={revenue} pick={(p) => num(p.revenue)} goodWhenUp />} />
+        <Kpi label="ยอดขาย" value={revenue} sub="ไม่รวม VAT และ service charge" delta={<PrevDelta prevP={prevP} vs={vs} days={days} cur={revenue} pick={(p) => num(p.revenue)} goodWhenUp />} />
       ) : null}
       {see.gross ? (
-        <Kpi label="ต้นทุนขาย" value={cogs} sub={foodCost ?? coverage} delta={<PrevDelta prevP={prevP} vs={vs} cur={cogs} pick={(p) => num(p.cogs)} goodWhenUp={false} />} />
+        <Kpi label="ต้นทุนขาย" value={cogs} sub={foodCost ?? coverage} delta={<PrevDelta prevP={prevP} vs={vs} days={days} cur={cogs} pick={(p) => num(p.cogs)} goodWhenUp={false} />} />
       ) : null}
       {see.gross ? (
         <Kpi
           label="กำไรขั้นต้น"
           value={gross}
           sub={coverage}
-          delta={<PrevDelta prevP={prevP} vs={vs} cur={gross} pick={(p) => num(p.grossProfit)} goodWhenUp />}
+          delta={<PrevDelta prevP={prevP} vs={vs} days={days} cur={gross} pick={(p) => num(p.grossProfit)} goodWhenUp />}
           extra={<PrevMargin prevP={prevP} label="อัตรากำไรขั้นต้น" cur={marginOf(pnl.grossProfit, pnl.revenue)} part={(p) => p.grossProfit} />}
         />
       ) : null}
       {see.expense ? (
-        <Kpi label="ค่าใช้จ่ายดำเนินงาน" value={num(pnl.opex)} sub="ค่าเช่า ค่าแรง ค่าน้ำไฟ ฯลฯ" delta={<PrevDelta prevP={prevP} vs={vs} cur={num(pnl.opex)} pick={(p) => num(p.opex)} goodWhenUp={false} />} />
+        <Kpi label="ค่าใช้จ่ายดำเนินงาน" value={num(pnl.opex)} sub="ค่าเช่า ค่าแรง ค่าน้ำไฟ ฯลฯ" delta={<PrevDelta prevP={prevP} vs={vs} days={days} cur={num(pnl.opex)} pick={(p) => num(p.opex)} goodWhenUp={false} />} />
       ) : null}
       {see.net ? (
         <Kpi
           label="กำไรสุทธิ"
           value={net}
           tone={net === null ? undefined : net >= 0 ? "good" : "bad"}
-          delta={<PrevDelta prevP={prevP} vs={vs} cur={net} pick={(p) => num(p.netProfit)} goodWhenUp />}
+          delta={<PrevDelta prevP={prevP} vs={vs} days={days} cur={net} pick={(p) => num(p.netProfit)} goodWhenUp />}
           extra={<PrevMargin prevP={prevP} label="อัตรากำไรสุทธิ" cur={marginOf(pnl.netProfit, pnl.revenue)} part={(p) => p.netProfit} />}
         />
       ) : null}
