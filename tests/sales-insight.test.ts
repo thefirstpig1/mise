@@ -4,11 +4,12 @@
 import { describe, expect, it } from "vitest";
 import {
   categoryByWeekday,
+  menuChanges,
+  menuEngineering,
   costKey,
   enrich,
   menuCostPerDish,
   menuInsight,
-  menuMovers,
   withDishCost,
   menusOnWeekday,
   periodStats,
@@ -124,27 +125,23 @@ describe("SI2 — profit from the recipe cost; no recipe is null, not zero", () 
   });
 });
 
-describe("SI3 — movers need volume in BOTH periods", () => {
-  it("1 → 2 plates is not 'rising' ahead of 40 → 48", () => {
+describe("SI3 — a change needs volume in BOTH periods", () => {
+  it("1 → 2 plates is not a +100% change ahead of 40 → 48", () => {
     const prev = enrich([row("2026-08-15", "rare", 10, 0.5), row("2026-08-15", "tomyum", 4000, 40)], menus, noCost);
     const cur = enrich([row("2026-09-05", "rare", 20, 2), row("2026-09-05", "tomyum", 4800, 48)], menus, noCost);
-    const m = menuMovers(cur, prev, menus, "net");
-    expect(m.rising.map((x) => x.id)).toEqual(["tomyum"]);
-    expect(m.rising[0].change).toBeCloseTo(20);
+    const c = menuChanges(cur, prev, menus, "net");
+    expect(c.changed.map((x) => x.id)).toEqual(["tomyum"]);
+    expect(c.changed[0].change).toBeCloseTo(20);
   });
-  it("a collapse to under one plate a day is not a 'mover' either — it is too thin to read", () => {
+  it("a collapse to under one plate a day is not a change either — it is too thin to read", () => {
     const prev = enrich([row("2026-08-15", "rare", 40, 4), row("2026-08-15", "tomyum", 4000, 40)], menus, noCost);
-    const cur = enrich(
-      [row("2026-09-05", "rare", 5, 0.5), row("2026-09-05", "tomyum", 3600, 36)],
-      menus,
-      noCost
-    );
-    expect(menuMovers(cur, prev, menus, "net").watch.map((x) => x.id)).toEqual(["tomyum"]);
+    const cur = enrich([row("2026-09-05", "rare", 5, 0.5), row("2026-09-05", "tomyum", 3600, 36)], menus, noCost);
+    expect(menuChanges(cur, prev, menus, "net").changed.map((x) => x.id)).toEqual(["tomyum"]);
   });
   it("a dish that stopped selling is named, not silently absent", () => {
     const prev = enrich([row("2026-08-15", "beer", 300, 3), row("2026-08-15", "tomyum", 100, 1)], menus, noCost);
     const cur = enrich([row("2026-09-05", "tomyum", 100, 1)], menus, noCost);
-    expect(menuMovers(cur, prev, menus, "net").gone.map((x) => x.id)).toEqual(["beer"]);
+    expect(menuChanges(cur, prev, menus, "net").gone.map((x) => x.id)).toEqual(["beer"]);
   });
 });
 
@@ -163,5 +160,51 @@ describe("periodLabelTh — every % names what it is compared with", () => {
     expect(periodLabelTh("2026-09-01", "2026-09-28")).toBe("1–28 ก.ย. 69");
     expect(periodLabelTh("2026-08-15", "2026-08-15")).toBe("15 ส.ค. 69");
     expect(periodLabelTh("2026-08-25", "2026-09-03")).toBe("25 ส.ค. 69 – 3 ก.ย. 69");
+  });
+});
+
+describe("menuChanges — every dish, per day, biggest change first", () => {
+  // tomyum: 2 days now (300+300), 1 day before (200) → 300/day vs 200/day = +50%
+  // beer:   sold before only → gone
+  const now = enrich([row("2026-09-05", "tomyum", 300, 3), row("2026-09-06", "tomyum", 300, 3)], menus, noCost);
+  const before = enrich([row("2026-08-05", "tomyum", 200, 2), row("2026-08-05", "beer", 100, 2)], menus, noCost);
+  it("compares per day with data, and lists what stopped selling", () => {
+    const c = menuChanges(now, before, menus, "net");
+    expect(c.changed.map((m) => [m.id, Math.round(m.change ?? 0)])).toEqual([["tomyum", 50]]);
+    expect(c.gone.map((m) => m.id)).toEqual(["beer"]);
+    expect(c.fresh).toEqual([]);
+  });
+  it("a dish new this period is fresh, not a +∞% change", () => {
+    const c = menuChanges(before, now, menus, "net");
+    expect(c.fresh.map((m) => m.id)).toEqual(["beer"]);
+    expect(c.changed.every((m) => m.change !== null)).toBe(true);
+  });
+});
+
+describe("menuEngineering — Kasavana & Smith", () => {
+  // 4 dishes, 400 plates → equal share 100, popular from 70 plates.
+  // Profit: a 100×50 + b 150×20 + c 50×80 + d 100×10 = 13,000 over 400 plates = ฿32.5/plate.
+  const rows = [
+    { id: "a", name: "A", qty: 100, net: 10000, profitPerDish: 50 }, // popular, profitable → star
+    { id: "b", name: "B", qty: 150, net: 9000, profitPerDish: 20 }, // popular, below → plowhorse
+    { id: "c", name: "C", qty: 50, net: 6000, profitPerDish: 80 }, // unpopular, profitable → puzzle
+    { id: "d", name: "D", qty: 100, net: 3000, profitPerDish: 10 }, // popular? 100 ≥ 70 yes, below → plowhorse
+    { id: "e", name: "E", qty: 30, net: 900, profitPerDish: null }, // no recipe
+  ];
+  const m = menuEngineering(rows);
+  it("uses 70% of an equal share and the weighted average profit per plate", () => {
+    expect(m.popularAt).toBe(70);
+    expect(m.averageProfitPerDish).toBe(32.5);
+  });
+  it("places each dish in its quadrant", () => {
+    expect(Object.fromEntries(m.items.map((i) => [i.id, i.group]))).toEqual({ a: "star", b: "plowhorse", c: "puzzle", d: "plowhorse" });
+  });
+  it("a dish without a recipe is listed, never placed", () => {
+    expect(m.noRecipe.map((r) => r.id)).toEqual(["e"]);
+    expect(m.items.some((i) => i.id === "e")).toBe(false);
+  });
+  it("low on both is a dog", () => {
+    const g = menuEngineering([...rows, { id: "f", name: "F", qty: 20, net: 400, profitPerDish: 5 }]).items.find((i) => i.id === "f");
+    expect(g?.group).toBe("dog");
   });
 });

@@ -389,7 +389,35 @@ export async function getSalesDaysLogic(
 
 export interface SalesMenuDaysResult {
   rows: { day: string; branchId: string; menuId: string; net: number; qty: number }[];
-  menus: { id: string; name: string; categoryKey: string; categoryName: string; isPosStub: boolean }[];
+  menus: { id: string; name: string; code: string | null; categoryKey: string; categoryName: string; isPosStub: boolean }[];
+}
+
+/**
+ * The menu × day rows for a period AND the period it is compared with.
+ * Adjacent periods (the default: the month before) are one query; a month
+ * picked further back is a second query run beside the first, so the rows in
+ * between are never fetched.
+ */
+export async function getSalesMenuDaysWithComparisonLogic(
+  tenantId: string,
+  query: { reach: BranchReach; branchId?: string; menuCategoryId?: string },
+  cur: { from: Date; to: Date },
+  cmp: { from: Date; to: Date }
+): Promise<SalesMenuDaysResult> {
+  const day = 864e5;
+  const lo = Math.min(cur.from.getTime(), cmp.from.getTime());
+  const hi = Math.max(cur.to.getTime(), cmp.to.getTime());
+  const covered = cur.to.getTime() - cur.from.getTime() + cmp.to.getTime() - cmp.from.getTime() + 2 * day;
+  if (hi - lo + day <= covered) {
+    return getSalesMenuDaysLogic(tenantId, { ...query, from: new Date(lo), to: new Date(hi) });
+  }
+  const [a, b] = await Promise.all([
+    getSalesMenuDaysLogic(tenantId, { ...query, ...cur }),
+    getSalesMenuDaysLogic(tenantId, { ...query, ...cmp }),
+  ]);
+  const menus = new Map(a.menus.map((m) => [m.id, m]));
+  for (const m of b.menus) if (!menus.has(m.id)) menus.set(m.id, m);
+  return { ...a, rows: [...a.rows, ...b.rows], menus: [...menus.values()] };
 }
 
 /**
@@ -435,6 +463,7 @@ export async function getSalesMenuDaysLogic(
               select: {
                 id: true,
                 name: true,
+                posMenuId: true,
                 isPosStub: true,
                 menuCategoryId: true,
                 menuCategory: { select: { name: true } },
@@ -446,6 +475,7 @@ export async function getSalesMenuDaysLogic(
         menus: menus.map((m) => ({
           id: m.id,
           name: m.name,
+          code: m.posMenuId,
           categoryKey: m.menuCategoryId ?? "none",
           categoryName: m.menuCategory?.name ?? UNCATEGORISED_LABEL,
           isPosStub: m.isPosStub,

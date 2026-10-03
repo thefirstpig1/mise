@@ -9,7 +9,7 @@
 // ============================================================
 
 import { requireTenant } from "@/lib/require-tenant";
-import { getSalesMenuDaysLogic } from "@/server/sales";
+import { getSalesMenuDaysLogic, getSalesMenuDaysWithComparisonLogic } from "@/server/sales";
 import { getMenuCostMapLogic } from "@/server/sales-insight-read";
 import { getBranchesLogic } from "@/server/branch";
 import type { CostAccess } from "@/lib/permissions/cost-access";
@@ -23,6 +23,7 @@ import {
   menuInsight,
   periodLabelTh,
   periodStats,
+  comparisonRange,
   previousRange,
   type CompareSide,
   type MenuInsight,
@@ -190,6 +191,9 @@ export async function getSalesProfitViewAction(input: {
   branchId?: string;
   categoryId?: string;
   day?: string | null;
+  /** The comparison the page is showing (Kong, 2026-10-03); absent = previous period. */
+  vsFrom?: string | null;
+  vsTo?: string | null;
 }): Promise<ProfitViewResult> {
   const { tenantId, assertBranch, costAccess, reach } = await requireTenant("sales:view");
   if (costAccess === null) return { ok: false, formError: "ไม่มีสิทธิ์ดูต้นทุน" };
@@ -199,20 +203,19 @@ export async function getSalesProfitViewAction(input: {
   if (input.branchId) assertBranch(input.branchId);
   const day = input.day && ISO.test(input.day) ? input.day : null;
 
-  const prev = previousRange(input.from, input.to);
+  const prev = comparisonRange(input.from, input.to, { from: input.vsFrom, to: input.vsTo });
   const { data, costs } = await rowsWithCosts(
     tenantId,
     reach,
     input.branchId || undefined,
     d(input.to),
     costAccess,
-    getSalesMenuDaysLogic(tenantId, {
-      reach,
-      branchId: input.branchId || undefined,
-      from: d(prev.from),
-      to: d(input.to),
-      menuCategoryId: input.categoryId || undefined,
-    })
+    getSalesMenuDaysWithComparisonLogic(
+      tenantId,
+      { reach, branchId: input.branchId || undefined, menuCategoryId: input.categoryId || undefined },
+      { from: d(input.from), to: d(input.to) },
+      { from: d(prev.from), to: d(prev.to) }
+    )
   );
   const menuMeta = new Map<string, MenuMeta>(data.menus.map((m) => [m.id, m]));
   const rows = enrich(data.rows, menuMeta, costs);

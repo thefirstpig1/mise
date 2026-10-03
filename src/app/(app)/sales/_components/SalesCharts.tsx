@@ -177,7 +177,11 @@ export function WeekdayChart({ rows, by }: { rows: WeekdayBar[]; by: Metric }) {
 export type MenuRow = {
   id: string;
   name: string;
+  /** POS code, for search. */
+  code?: string | null;
   category: string;
+  /** The category's key, for its colour (tones) — "none" when unset. */
+  categoryKey?: string;
   color?: string | null;
   qty: number;
   net: number;

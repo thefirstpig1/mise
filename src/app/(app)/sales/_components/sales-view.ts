@@ -162,6 +162,7 @@ export function toSalesTotalsView(t: SalesTotals2, days: number) {
   return {
     totals: {
       net: str(t.net),
+      gross: str(t.gross),
       discount: str(t.discount),
       serviceCharge: str(t.serviceCharge),
       vat: str(t.vat),

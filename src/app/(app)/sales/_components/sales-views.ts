@@ -20,7 +20,7 @@ import {
   WEEK_ORDER,
   categoryByWeekday,
   menuCostPerDish,
-  menuMovers,
+  menuChanges,
   menusOnWeekday,
   periodStats,
   sumBy,
@@ -29,7 +29,7 @@ import {
   type Enriched,
   type MenuMeta,
   type Metric,
-  type Movers,
+  type MenuChanges,
   type Totals,
 } from "@/lib/sales-insight";
 import type { Tone } from "@/components/charts/chart-theme";
@@ -46,7 +46,8 @@ export type SalesView = {
   menus: BreakdownMenu[];
   total: number;
   heat: { rows: HeatRow[]; weekdays: number[]; daysPerWeekday: Record<number, number>; menusByCell: HeatMenus };
-  movers: Movers;
+  /** Every dish's per-day change against the comparison period (Kong, 2026-10-03). */
+  changes: MenuChanges;
   table: MenuRow[];
   /** Profit only: the period's recipe gross profit and what it could not count. */
   profit: { total: number; perDay: number; unknownNet: number; days: number } | null;
@@ -122,7 +123,9 @@ export function buildSalesView(input: SalesViewInput, by: Metric): SalesView {
     return {
       id: m.key,
       name: meta?.name ?? "(ไม่พบเมนู)",
+      code: meta?.code ?? null,
       category: meta && meta.categoryKey !== "none" ? meta.categoryName : "—",
+      categoryKey: meta?.categoryKey ?? "none",
       color: meta && meta.categoryKey !== "none" ? solid(tones[meta.categoryKey] ?? "olive") : null,
       qty: m.qty,
       net: m.net,
@@ -146,7 +149,7 @@ export function buildSalesView(input: SalesViewInput, by: Metric): SalesView {
     menus: toMenus(menuTotals),
     total,
     heat: { rows: heat.categories, weekdays: heat.weekdays, daysPerWeekday: heat.daysPerWeekday, menusByCell },
-    movers: menuMovers(cur, before, menuMeta, by),
+    changes: menuChanges(cur, before, menuMeta, by),
     table,
     profit: ps
       ? { total: (ps.perDay.profit ?? 0) * ps.days, perDay: ps.perDay.profit ?? 0, unknownNet: ps.unknownNetPerDay * ps.days, days: ps.days }

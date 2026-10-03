@@ -379,9 +379,6 @@ export function CategoryShare({
                   {c.value === null ? "" : `${((c.value / total) * 100).toFixed(1)}%`}
                 </span>
                 <span className="relative w-24 shrink-0 text-right text-sm font-medium tabular-nums">{fmtMetric(by, c.value)}</span>
-                <span className="relative shrink-0 rounded-full border border-primary-line bg-surface px-2 py-0.5 text-xs font-medium text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
-                  ดูเมนู
-                </span>
               </button>
             </li>
           );

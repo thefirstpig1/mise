@@ -28,7 +28,9 @@ import { MenuInsightProvider } from "./MenuInsight";
 import DayDetailModal, { type DayModalBranch } from "./DayDetailModal";
 import { ActionError, CategoryShare, STALE_TAB_MESSAGE, type ToneMap } from "./Breakdown";
 import CategoryWeekdayHeatmap from "./CategoryWeekdayHeatmap";
-import MenuMovers from "./MenuMovers";
+import MenuChanges from "./MenuChanges";
+import MenuEngineering from "./MenuEngineering";
+import ComparePicker, { type CompareOption } from "./ComparePicker";
 import { MenuTable, SalesDailyChart, WeekdayChart } from "./SalesCharts";
 
 type MonthOpt = { key: string; label: string; from: string; to: string };
@@ -63,6 +65,7 @@ export default function SalesAnalysis({
   filterHref,
   between,
   dayModal,
+  compare,
 }: {
   views: Partial<Record<Metric, SalesView>>;
   initialBy: Metric;
@@ -81,6 +84,15 @@ export default function SalesAnalysis({
   filterHref: Record<string, string>;
   /** Server-rendered tiles and notices, placed under the switch. */
   between: ReactNode;
+  /** What the page compares against, and the choices (Kong, 2026-10-03). */
+  compare: {
+    defaultLabel: string;
+    months: CompareOption[];
+    selected: string;
+    custom: { from: string; to: string } | null;
+    vsFrom: string;
+    vsTo: string;
+  };
   dayModal: null | {
     day: string;
     title: string;
@@ -99,7 +111,7 @@ export default function SalesAnalysis({
 
   // The profit view belongs to exactly these filters (and the open day, whose
   // breakdown it carries). A different key is a different view — refetch.
-  const key = `${range.from}|${range.to}|${branchId ?? ""}|${categoryId ?? ""}|${dayModal?.day ?? ""}`;
+  const key = `${range.from}|${range.to}|${branchId ?? ""}|${categoryId ?? ""}|${dayModal?.day ?? ""}|${compare.vsFrom}|${compare.vsTo}`;
   const [fetched, setFetched] = useState<{ key: string; view: SalesView } | null>(null);
   const views: Partial<Record<Metric, SalesView>> = {
     ...initialViews,
@@ -109,7 +121,7 @@ export default function SalesAnalysis({
   const loadProfit = useCallback(() => {
     if (!canProfit) return Promise.resolve();
     const k = key;
-    return getSalesProfitViewAction({ ...range, branchId, categoryId, day: dayModal?.day ?? null })
+    return getSalesProfitViewAction({ ...range, branchId, categoryId, day: dayModal?.day ?? null, vsFrom: compare.vsFrom, vsTo: compare.vsTo })
       // `undefined` = a tab older than the server (see mise-ui-review).
       .then((r) => {
         if (r?.ok) setFetched({ key: k, view: r.view });
@@ -122,7 +134,7 @@ export default function SalesAnalysis({
         announceStale();
         setProfitError({ message: STALE_TAB_MESSAGE, stale: true });
       });
-  }, [canProfit, key, range, branchId, categoryId, dayModal?.day]);
+  }, [canProfit, key, range, branchId, categoryId, dayModal?.day, compare.vsFrom, compare.vsTo]);
 
   // Build the profit view in the background, once per set of filters.
   const haveProfit = Boolean(views.profit);
@@ -296,28 +308,56 @@ export default function SalesAnalysis({
           </section>
         )}
 
-        {/* ---------- question 4: what carries the shop, rises, falls ---------- */}
+        {/* ---------- question 4: what moved (Kong, 2026-10-03: one chart, any comparison) ---------- */}
         <section className="rounded-xl border border-border bg-surface p-5">
           <h3 className="text-base font-semibold">เมนูที่น่าจับตา</h3>
-          <p className="mb-4 mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-            <span className="rounded-full bg-primary px-2.5 py-0.5 font-medium text-primary-foreground">{periodLabelTh(range.from, range.to)}</span>
-            เทียบกับ
-            <span className="rounded-full border border-border-strong px-2.5 py-0.5 font-medium text-foreground">{prevLabel}</span>
-            · เฉลี่ยต่อวัน · กดเมนูเพื่อดู insight
-          </p>
-          <MenuMovers movers={v.movers} by={by} tones={tones} prevLabel={prevLabel} />
+          <div className="mb-4 mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+            <ComparePicker
+              curLabel={periodLabelTh(range.from, range.to)}
+              defaultLabel={compare.defaultLabel}
+              months={compare.months}
+              selected={compare.selected}
+              custom={compare.custom}
+            />
+            <span>· {METRIC_LABELS_TH[by]}เฉลี่ยต่อวัน · กดเมนูเพื่อดู insight</span>
+          </div>
+          <MenuChanges changes={v.changes} by={by} tones={tones} curLabel={periodLabelTh(range.from, range.to)} prevLabel={prevLabel} />
         </section>
 
-        <section className="rounded-xl border border-border bg-surface p-5">
-          <h3 className="text-base font-semibold">
-            {by === "net" ? "เมนูทำเงินสูงสุด" : by === "qty" ? "เมนูที่ลูกค้าสั่งมากที่สุด" : "เมนูทำกำไร"}
-          </h3>
-          <p className="mb-4 mt-0.5 text-xs text-muted-foreground">
-            ทั้ง {v.table.length} เมนูของช่วงนี้ · เรียงตาม{METRIC_LABELS_TH[by]} · กดแถวเพื่อดู insight · กดหัวคอลัมน์เพื่อเรียงใหม่
-          </p>
-          {noMenuCategories && <UncategorisedHint />}
-          <MenuTable total={v.total} by={by} rows={v.table} />
-        </section>
+        {canProfit ? (
+          <section className="rounded-xl border border-border bg-surface p-5">
+            <h3 className="text-base font-semibold">เมนูไหนควรทำอะไร</h3>
+            <p className="mb-4 mt-0.5 text-xs text-muted-foreground">
+              ขายได้กี่จาน × กำไรต่อจาน · กดวงหรือรายชื่อเพื่อดู insight
+            </p>
+            {noMenuCategories && <UncategorisedHint />}
+            <MenuEngineering
+              rows={views.profit?.table ?? null}
+              loading={!views.profit && !profitError}
+              periodLabel={periodShort}
+              asOfLabel={asOfLabel}
+              tones={tones}
+              table={<MenuTable total={v.total} by={by} rows={v.table} />}
+            />
+            {profitError && !views.profit && (
+              <div className="mt-3">
+                <ActionError message={profitError.message} stale={profitError.stale} />
+                <MenuTable total={v.total} by={by} rows={v.table} />
+              </div>
+            )}
+          </section>
+        ) : (
+          <section className="rounded-xl border border-border bg-surface p-5">
+            <h3 className="text-base font-semibold">
+              {by === "net" ? "เมนูทำเงินสูงสุด" : by === "qty" ? "เมนูที่ลูกค้าสั่งมากที่สุด" : "เมนูทำกำไร"}
+            </h3>
+            <p className="mb-4 mt-0.5 text-xs text-muted-foreground">
+              ทั้ง {v.table.length} เมนูของช่วงนี้ · เรียงตาม{METRIC_LABELS_TH[by]} · กดแถวเพื่อดู insight · กดหัวคอลัมน์เพื่อเรียงใหม่
+            </p>
+            {noMenuCategories && <UncategorisedHint />}
+            <MenuTable total={v.total} by={by} rows={v.table} />
+          </section>
+        )}
         {profitError && !pending && by === "profit" && <ActionError message={profitError.message} stale={profitError.stale} />}
       </div>
     </MenuInsightProvider>

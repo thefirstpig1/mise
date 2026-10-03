@@ -8,7 +8,7 @@
 //      weekdays?                                   → periodStats (per DAY)
 //   3. Saturday the 29th against Saturday the 15th → periodStats, two sides
 //   4. Which dishes carry the shop, which are rising, which to watch?
-//                                                  → menuMovers
+//                                                  → menuChanges, menuEngineering
 //
 // Pure arithmetic over one shape of row (menu × branch × day), no database,
 // so every rule here is pinned by a test instead of by a screenshot.
@@ -47,6 +47,8 @@ export type MenuDayRow = { day: string; branchId: string; menuId: string; net: n
 export type MenuMeta = {
   id: string;
   name: string;
+  /** The POS code (`menu.pos_menu_id`) — searchable by its number. */
+  code?: string | null;
   categoryKey: string;
   categoryName: string;
   isPosStub: boolean;
@@ -273,49 +275,96 @@ export type Mover = {
   change: number | null;
 };
 
-export type Movers = { stars: Mover[]; rising: Mover[]; watch: Mover[]; gone: Mover[] };
+// ------------------------------------------------------------
+// Every dish's change, for the one-chart "เมนูที่น่าจับตา" (Kong, 2026-10-03)
+// ------------------------------------------------------------
 
-export function menuMovers(
-  cur: Enriched[],
-  prev: Enriched[],
-  menus: Map<string, MenuMeta>,
-  by: Metric,
-  limit = 5
-): Movers {
+/** A change smaller than this, either way, is ordinary wobble — drawn grey. */
+export const CHANGE_STEADY_BAND = 5;
+
+export type MenuChanges = {
+  /** Sold in both periods (≥ MOVER_MIN_QTY_PER_DAY a day in each), biggest change first. */
+  changed: Mover[];
+  /** Sold last period, nothing this period. */
+  gone: Mover[];
+  /** Selling this period, not last period. */
+  fresh: Mover[];
+};
+
+/**
+ * The per-day comparison (rules SI1, SI3) for EVERY dish — one chart that runs from the
+ * biggest rise to the biggest fall, with ±CHANGE_STEADY_BAND drawn as normal.
+ */
+export function menuChanges(cur: Enriched[], prev: Enriched[], menus: Map<string, MenuMeta>, by: Metric): MenuChanges {
   const a = periodStats(cur, menus, by);
   const b = periodStats(prev, menus, by);
   const prevById = new Map(b.menus.map((m) => [m.id, m]));
-  const list: Mover[] = a.menus
-    .filter((m) => by !== "profit" || cur.some((r) => r.menuId === m.id && r.profit !== null))
-    .map((m) => {
-      const p = prevById.get(m.id);
-      return {
-        id: m.id,
-        name: m.name,
-        categoryKey: m.categoryKey,
-        perDay: m.perDay,
-        prevPerDay: p ? p.perDay : null,
-        qtyPerDay: m.qtyPerDay,
-        change: p && p.perDay > 0 ? ((m.perDay - p.perDay) / p.perDay) * 100 : null,
-      };
-    });
-  const steady = list.filter(
-    (m) =>
-      m.change !== null &&
-      m.qtyPerDay >= MOVER_MIN_QTY_PER_DAY &&
-      (prevById.get(m.id)?.qtyPerDay ?? 0) >= MOVER_MIN_QTY_PER_DAY
-  );
-  const selling = new Set(a.menus.map((m) => m.id));
-  return {
-    stars: list.slice(0, limit),
-    rising: steady.filter((m) => (m.change ?? 0) > 0).sort((x, y) => (y.change ?? 0) - (x.change ?? 0)).slice(0, limit),
-    watch: steady.filter((m) => (m.change ?? 0) < 0).sort((x, y) => (x.change ?? 0) - (y.change ?? 0)).slice(0, limit),
-    // Sold last period, nothing this period — the loudest warning there is.
-    gone: b.menus
-      .filter((m) => !selling.has(m.id) && m.qtyPerDay >= MOVER_MIN_QTY_PER_DAY)
-      .map((m) => ({ id: m.id, name: m.name, categoryKey: m.categoryKey, perDay: 0, prevPerDay: m.perDay, qtyPerDay: 0, change: -100 }))
-      .slice(0, limit),
-  };
+  const nowIds = new Set(a.menus.map((m) => m.id));
+  const known = (rows: Enriched[], id: string) => by !== "profit" || rows.some((r) => r.menuId === id && r.profit !== null);
+  const changed: Mover[] = [];
+  const fresh: Mover[] = [];
+  for (const m of a.menus) {
+    if (!known(cur, m.id)) continue;
+    const p = prevById.get(m.id);
+    const base = { id: m.id, name: m.name, categoryKey: m.categoryKey, perDay: m.perDay, qtyPerDay: m.qtyPerDay };
+    if (!p || p.qtyPerDay === 0) {
+      if (m.qtyPerDay >= MOVER_MIN_QTY_PER_DAY) fresh.push({ ...base, prevPerDay: null, change: null });
+      continue;
+    }
+    if (m.qtyPerDay < MOVER_MIN_QTY_PER_DAY || p.qtyPerDay < MOVER_MIN_QTY_PER_DAY || p.perDay <= 0) continue;
+    changed.push({ ...base, prevPerDay: p.perDay, change: ((m.perDay - p.perDay) / p.perDay) * 100 });
+  }
+  changed.sort((x, y) => Math.abs(y.change ?? 0) - Math.abs(x.change ?? 0));
+  const gone = b.menus
+    .filter((m) => !nowIds.has(m.id) && m.qtyPerDay >= MOVER_MIN_QTY_PER_DAY)
+    .map((m) => ({ id: m.id, name: m.name, categoryKey: m.categoryKey, perDay: 0, prevPerDay: m.perDay, qtyPerDay: 0, change: -100 }));
+  return { changed, gone, fresh: fresh.sort((x, y) => y.perDay - x.perDay) };
+}
+
+// ------------------------------------------------------------
+// Menu engineering (Kasavana & Smith), Kong 2026-10-03
+// ------------------------------------------------------------
+
+export type EngineeringGroup = "star" | "plowhorse" | "puzzle" | "dog";
+
+export type EngineeringInput = { id: string; name: string; qty: number; net: number; profitPerDish: number | null };
+
+export type EngineeringItem = EngineeringInput & { profitPerDish: number; profit: number; group: EngineeringGroup };
+
+export type MenuEngineering = {
+  items: EngineeringItem[];
+  /** Plates at which a dish counts as popular: 70% of an equal share (Kasavana & Smith). */
+  popularAt: number;
+  /** The shop's weighted average profit per plate. */
+  averageProfitPerDish: number;
+  /** Sold, but no recipe cost — cannot be placed. */
+  noRecipe: EngineeringInput[];
+};
+
+/** Below this many costed dishes the matrix says nothing useful. */
+export const ENGINEERING_MIN_ITEMS = 4;
+
+/**
+ * Popularity: a dish is popular when its share of plates is at least 70% of
+ * an equal share (1 / number of dishes) — the textbook rule, which keeps a long
+ * menu from calling half its dishes unpopular. Profitability: at or above the
+ * weighted average profit per plate (total profit ÷ total plates).
+ */
+export function menuEngineering(rows: readonly EngineeringInput[]): MenuEngineering {
+  const sold = rows.filter((r) => r.qty > 0);
+  const costed = sold.filter((r): r is EngineeringInput & { profitPerDish: number } => r.profitPerDish !== null);
+  const noRecipe = sold.filter((r) => r.profitPerDish === null);
+  const plates = costed.reduce((t, r) => t + r.qty, 0);
+  const profit = costed.reduce((t, r) => t + r.profitPerDish * r.qty, 0);
+  const popularAt = costed.length ? (plates / costed.length) * 0.7 : 0;
+  const averageProfitPerDish = plates ? profit / plates : 0;
+  const items = costed.map((r) => {
+    const popular = r.qty >= popularAt;
+    const profitable = r.profitPerDish >= averageProfitPerDish;
+    const group: EngineeringGroup = popular && profitable ? "star" : popular ? "plowhorse" : profitable ? "puzzle" : "dog";
+    return { ...r, profit: r.profitPerDish * r.qty, group };
+  });
+  return { items, popularAt, averageProfitPerDish, noRecipe };
 }
 
 // ------------------------------------------------------------
@@ -469,6 +518,24 @@ export function previousRange(from: string, to: string): { from: string; to: str
   return { from: iso(pf), to: iso(pt) };
 }
 const iso = (d: Date) => d.toISOString().slice(0, 10);
+
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * The period a page compares against (Kong, 2026-10-03: the shop picks which
+ * month to compare with). A valid `vs` range wins; anything else falls back to
+ * previousRange — the same default every comparison on the page had before.
+ */
+export function comparisonRange(
+  from: string,
+  to: string,
+  vs?: { from?: string | null; to?: string | null } | null
+): { from: string; to: string; custom: boolean } {
+  if (vs?.from && vs?.to && ISO_DAY.test(vs.from) && ISO_DAY.test(vs.to) && vs.from <= vs.to) {
+    return { from: vs.from, to: vs.to, custom: true };
+  }
+  return { ...previousRange(from, to), custom: false };
+}
 
 /**
  * A period as a person says it: a whole month is "ส.ค. 69", anything else is

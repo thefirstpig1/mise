@@ -20,13 +20,14 @@
 import { requireTenant } from "@/lib/require-tenant";
 import { computeBangkokToday } from "@/lib/bangkok-date";
 import { getBranchesLogic } from "@/server/branch";
-import { getSalesDaysLogic, getSalesMenuDaysLogic, getSalesTotalsLogic } from "@/server/sales";
+import { getSalesDaysLogic, getSalesMenuDaysWithComparisonLogic, getSalesTotalsLogic } from "@/server/sales";
 import { getMenuCostMapLogic } from "@/server/sales-insight-read";
 import {
   METRIC_LABELS_TH,
+  comparisonRange,
   enrich,
   periodLabelTh,
-  previousRange,
+  periodStats,
   type CostMap,
   type Metric,
 } from "@/lib/sales-insight";
@@ -92,7 +93,16 @@ export default async function SalesPage({
   const by: Metric = byParam === "qty" ? "qty" : byParam === "profit" && costAccess !== null ? "profit" : "net";
   const isoFrom = (query.from ?? new Date(`${month.from}T00:00:00.000Z`)).toISOString().slice(0, 10);
   const isoTo = (query.to ?? new Date(`${month.to}T00:00:00.000Z`)).toISOString().slice(0, 10);
-  const prevRange = previousRange(isoFrom, isoTo);
+  // What the page compares against (Kong, 2026-10-03): `?vs=2026-07` for a
+  // month, `?vsFrom=&vsTo=` for any range, nothing for the period just before.
+  const vsMonth = one("vs");
+  const vsPicked = vsMonth && /^\d{4}-\d{2}$/.test(vsMonth)
+    ? (() => {
+        const [y, m] = vsMonth.split("-").map(Number);
+        return { from: `${vsMonth}-01`, to: new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10) };
+      })()
+    : { from: one("vsFrom"), to: one("vsTo") };
+  const prevRange = comparisonRange(isoFrom, isoTo, vsPicked);
   const asDate = (iso: string) => new Date(`${iso}T00:00:00.000Z`);
 
   const [branches, categories, totalsRaw, daysRaw, menuDays] = await Promise.all([
@@ -108,13 +118,12 @@ export default async function SalesPage({
       from: query.from,
       to: query.to,
     }),
-    getSalesMenuDaysLogic(tenantId, {
-      reach,
-      branchId: query.branchId,
-      from: asDate(prevRange.from),
-      to: asDate(isoTo),
-      menuCategoryId: query.menuCategoryId,
-    }),
+    getSalesMenuDaysWithComparisonLogic(
+      tenantId,
+      { reach, branchId: query.branchId, menuCategoryId: query.menuCategoryId },
+      { from: asDate(isoFrom), to: asDate(isoTo) },
+      { from: asDate(prevRange.from), to: asDate(prevRange.to) }
+    ),
   ]);
 
 
@@ -127,7 +136,19 @@ export default async function SalesPage({
   const fromIso = one("from") ?? month.from;
   const toIso = one("to") ?? month.to;
   const link = (next: Record<string, string | undefined>) => {
-    const cur: Record<string, string | undefined> = { branch: one("branch"), from: fromIso, to: toIso, category: one("category"), by: by === "net" ? undefined : by, day: undefined };
+    const periodChanges = "from" in next || "to" in next;
+    const cur: Record<string, string | undefined> = {
+      branch: one("branch"),
+      from: fromIso,
+      to: toIso,
+      category: one("category"),
+      by: by === "net" ? undefined : by,
+      day: undefined,
+      // A comparison belongs to the period it was picked for.
+      vs: periodChanges ? undefined : one("vs"),
+      vsFrom: periodChanges ? undefined : one("vsFrom"),
+      vsTo: periodChanges ? undefined : one("vsTo"),
+    };
     const q = new URLSearchParams();
     for (const [k, v] of Object.entries({ ...cur, ...next })) if (v) q.set(k, v);
     return `/sales?${q.toString()}`;
@@ -177,6 +198,63 @@ export default async function SalesPage({
     ? [...new Set(cur.map((r) => r.menuId))].filter((id) => menuMeta.get(id)?.isPosStub).length
     : 0;
   const prevLabel = periodLabelTh(prevRange.from, prevRange.to);
+  // The comparison picker's choices: the period just before (default) and the
+  // last twelve months, except the one on screen.
+  const previousRangeOf = comparisonRange(isoFrom, isoTo, null);
+  const compareMonths = recentMonths(12)
+    .map((m) => ({
+      key: m.key,
+      from: m.from.toISOString().slice(0, 10),
+      to: m.to.toISOString().slice(0, 10),
+      label: new Date(`${m.key}-01T00:00:00Z`).toLocaleDateString("th-TH", { month: "short", year: "2-digit", timeZone: "UTC" }),
+    }))
+    // Neither the period itself nor the default (already the first option) twice.
+    .filter((m) => !(m.from === isoFrom && m.to === isoTo) && !(m.from === previousRangeOf.from && m.to === previousRangeOf.to))
+    .reverse();
+  const curLabel = periodLabelTh(isoFrom, isoTo);
+  // Per day WITH DATA on both sides (rule SI1) — September's 26 days against August's 19.
+  const nowStats = periodStats(cur, menuMeta, "net");
+  const prevStats = periodStats(before, menuMeta, "net");
+  const avgPrice = (st: typeof nowStats) => (st.perDay.qty > 0 ? st.perDay.net / st.perDay.qty : null);
+  const kpis: KpiProps[] = [
+    {
+      label: "ยอดขาย",
+      note: "ไม่รวม VAT และ SC",
+      value: `฿${bahtShort(s.totals.net)}`,
+      cur: nowStats.perDay.net,
+      prev: prevStats.days ? prevStats.perDay.net : null,
+      fmt: (n) => `฿${Math.round(n).toLocaleString("th-TH")}/วัน`,
+      perDay: true,
+    },
+    {
+      label: "จำนวนจาน",
+      note: `${s.totals.days} วันที่มีข้อมูล`,
+      value: Number(s.totals.qty).toLocaleString("th-TH"),
+      cur: nowStats.perDay.qty,
+      prev: prevStats.days ? prevStats.perDay.qty : null,
+      fmt: (n) => `${Math.round(n).toLocaleString("th-TH")} จาน/วัน`,
+      perDay: true,
+    },
+    {
+      label: "ราคาเฉลี่ยต่อจาน",
+      note: "ยอดขาย หาร จำนวนจาน",
+      value: avgPrice(nowStats) === null ? "—" : `฿${Math.round(avgPrice(nowStats)!).toLocaleString("th-TH")}`,
+      cur: avgPrice(nowStats),
+      prev: prevStats.days ? avgPrice(prevStats) : null,
+      fmt: (n) => `฿${Math.round(n).toLocaleString("th-TH")}`,
+      perDay: false,
+    },
+  ];
+  const zNet = Number(s.totals.net);
+  const paidTotal = zNet + Number(s.totals.serviceCharge) + Number(s.totals.vat);
+  const zLines = [
+    { op: "", label: "ยอดขายก่อนส่วนลด", value: Number(s.totals.gross) },
+    { op: "−", label: "ส่วนลด", value: Number(s.totals.discount) },
+    { op: "", label: "ยอดขาย", value: zNet, rule: true },
+    { op: "+", label: "Service charge", value: Number(s.totals.serviceCharge) },
+    { op: "+", label: "VAT", value: Number(s.totals.vat) },
+    { op: "", label: "ลูกค้าจ่ายรวม", value: paidTotal, rule: true, double: true },
+  ];
 
   // Every menu sold in the period sits in no category: the category views can
   // only say one thing, so say what would make them useful instead.
@@ -287,6 +365,41 @@ export default async function SalesPage({
         </details>
       </StickyFilters>
 
+      {/* ---------- what the data on this page is (Kong, 2026-10-03) ----------
+          A caveat about EVERYTHING below, so it sits at the top, not after the
+          charts it qualifies. It also carries what the per-day table used to
+          show at a glance — the days whose file disagrees with the total keyed
+          at closing (ADR 0020: a file that covered only part of the day) —
+          because that table is gone and the bars do not show it. */}
+      {!empty && (() => {
+        const mismatch = dayGroups.filter((g) => g.pulseIsMismatch);
+        const keyed = dayGroups.filter((g) => g.pulseAmount !== null || g.pulseKeyedCount > 0).length;
+        const notes = [s.availability.billNotice, s.availability.timeNotice].filter(Boolean);
+        return (
+          <div className="-mt-4 space-y-1 rounded-lg bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+            {notes.length > 0 && <p>ข้อมูลช่วงนี้: {notes.join(" · ")}</p>}
+            {mismatch.length > 0 ? (
+              <p className="font-medium text-bad">
+                ยอดจากไฟล์ไม่ตรงกับยอดที่คีย์ตอนปิดร้าน {mismatch.length} วัน (อาจ export มาไม่ครบทั้งวัน):{" "}
+                {mismatch.map((g, i) => (
+                  <span key={g.day}>
+                    {i > 0 && " · "}
+                    <Link href={dayHref(g.day) as never} scroll={false} className="underline decoration-dotted underline-offset-2 hover:decoration-solid">
+                      {g.dayLabel}
+                    </Link>
+                  </span>
+                ))}
+              </p>
+            ) : (
+              <p>
+                ยอดปิดร้านที่คีย์ไว้ใช้ตรวจว่าไฟล์ครบทั้งวัน: คีย์แล้ว {keyed} จาก {dayGroups.length} วัน
+                {keyed > 0 ? " · ทุกวันที่คีย์ตรงกับไฟล์" : " · กดแท่งในกราฟรายวันเพื่อคีย์"}
+              </p>
+            )}
+          </div>
+        );
+      })()}
+
       {empty ? (
         <EmptyState art="none">
           <p className="font-medium">ยังไม่มียอดขายในช่วงนี้</p>
@@ -318,22 +431,50 @@ export default async function SalesPage({
             filterHref={Object.fromEntries(
               views.net!.categories.filter((c) => c.key !== "none").map((c) => [c.key, link({ category: c.key })])
             )}
+            compare={{
+              defaultLabel: periodLabelTh(previousRangeOf.from, previousRangeOf.to),
+              months: compareMonths,
+              selected: vsMonth && /^\d{4}-\d{2}$/.test(vsMonth) ? vsMonth : prevRange.custom ? "custom" : "",
+              custom: prevRange.custom && !(vsMonth && /^\d{4}-\d{2}$/.test(vsMonth)) ? { from: prevRange.from, to: prevRange.to } : null,
+              vsFrom: prevRange.custom ? prevRange.from : "",
+              vsTo: prevRange.custom ? prevRange.to : "",
+            }}
             between={
               <>
-          {/* ---------- totals ---------- */}
-          <section className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <Tile label="ยอดขาย (หลังหักส่วนลด)" value={`฿${baht(s.totals.net)}`} note="ไม่รวม VAT และ Service charge" />
-            <Tile label="จำนวนที่ขายได้" value={Number(s.totals.qty).toLocaleString("th-TH")} note={`${s.totals.days} วันที่มีข้อมูล`} />
-            <Tile label="ส่วนลดรวม" value={`฿${baht(s.totals.discount)}`} note={`${s.totals.discountPercent}% ของยอดก่อนหัก`} />
-            <Tile label="VAT ขาย" value={`฿${baht(s.totals.vat)}`} note={`Service charge ฿${bahtShort(s.totals.serviceCharge)}`} />
+          {/* ---------- totals (Kong, 2026-10-03) ----------
+              Two jobs, kept apart. The cards answer "better or worse": one big
+              figure, a pill with the per-day change (rule SI1: per day with
+              data, never totals), then the two periods on their own labelled
+              rows so the lines do not read on into each other. The quiet line
+              under them answers "does this match the POS": the Z-report
+              order, folded until asked for, so it never outshouts the cards. */}
+          <section className="grid gap-3 sm:grid-cols-3">
+            {kpis.map((k) => (
+              <Kpi key={k.label} {...k} curLabel={curLabel} prevLabel={prevLabel} />
+            ))}
           </section>
+          <details className="group -mt-5 text-xs text-muted-subtle">
+            <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-1 px-1 marker:hidden">
+              <span>ตรวจกับใบสรุปปิดร้านของ POS</span>
+              <span>
+                ลูกค้าจ่ายรวม <b className="font-medium tabular-nums text-muted-foreground">฿{baht(String(paidTotal))}</b>
+              </span>
+              <span className="underline decoration-dotted underline-offset-2 group-open:hidden">ดูทีละบรรทัด ▾</span>
+              <span className="hidden underline decoration-dotted underline-offset-2 group-open:inline">ซ่อน ▴</span>
+            </summary>
+            <table className="ml-1 mt-2 w-full max-w-md border-l-2 border-wash pl-3 text-xs tabular-nums text-muted-foreground">
+              <tbody>
+                {zLines.map((z) => (
+                  <tr key={z.label} className={`${z.rule ? "border-t border-border-strong font-semibold" : ""} ${z.double ? "border-b-4 border-double border-border-strong" : ""} ${z.value === 0 ? "text-muted-subtle" : ""}`}>
+                    <td className="w-5 py-1 pl-3 text-center text-muted-subtle">{z.op}</td>
+                    <td className="py-1">{z.label}</td>
+                    <td className="py-1 text-right">฿{baht(String(z.value))}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </details>
 
-          {(s.availability.billNotice || s.availability.timeNotice) && (
-            <section className="rounded-lg border border-border bg-surface p-3 text-xs text-muted-foreground">
-              {s.availability.billNotice && <p>{s.availability.billNotice}</p>}
-              {s.availability.timeNotice && <p className="mt-1">{s.availability.timeNotice}</p>}
-            </section>
-          )}
 
           {unidentifiedMenuCount > 0 && (
             <section className="rounded-lg border border-warn/50 bg-warn/5 p-3 text-sm">
@@ -369,107 +510,46 @@ export default async function SalesPage({
             }
           />
 
-          {/* ---------- the days themselves ---------- */}
-          {/* Kong (2026-09-28): one row per DATE (branches fold together and come
-              apart again in the popup), the whole row opens that day, and the
-              file name stands alone — when it was imported is on hover. */}
-          <section className="rounded-xl border border-border bg-surface p-5">
-            <h3 className="text-base font-semibold">รายวัน</h3>
-            <p className="mb-3 mt-0.5 text-xs text-muted-foreground">
-              กดแถวเพื่อดูรายละเอียดของวันนั้น{multiBranch ? " แยกตามสาขา" : ""} ·
-              ในวงเล็บคือ <strong>ยอดจากไฟล์ − ยอดที่คีย์ตอนปิดร้าน</strong> ติดลบแปลว่าไฟล์ได้น้อยกว่าที่เครื่องเก็บเงินบอก
-              มักแปลว่า export มาไม่ครบทั้งวัน
-            </p>
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border text-xs text-muted-foreground">
-                    <th className="px-2 py-2 text-left font-medium">วันที่</th>
-                    <th className="px-2 py-2 text-right font-medium">ยอดขาย</th>
-                    <th className="px-2 py-2 text-right font-medium">รายการ</th>
-                    <th className="px-2 py-2 text-right font-medium">ยอดที่คีย์ตอนปิดร้าน</th>
-                    <th className="px-2 py-2 text-left font-medium">ที่มา</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {dayGroups.map((g) => (
-                    <tr
-                      key={g.day}
-                      className={`group relative border-b border-border/50 transition-colors hover:bg-muted/40 ${
-                        g.day === dayValid ? "bg-primary/5" : ""
-                      }`}
-                    >
-                      <td className="px-2 py-2">
-                        <Link
-                          href={dayHref(g.day) as never}
-                          scroll={false}
-                          className="after:absolute after:inset-0 after:content-[''] group-hover:text-primary"
-                        >
-                          {g.dayLabel} <span className="text-muted-foreground">({g.weekdayLabel})</span>
-                        </Link>
-                        {multiBranch && (
-                          <span className="ml-2 text-xs text-muted-foreground">
-                            {g.branches.length === 1 ? g.branches[0].branchName : `${g.branches.length} สาขา`}
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-2 py-2 text-right font-medium tabular-nums">
-                        {g.fileNames.length === 0 ? <span className="text-muted-foreground">—</span> : `฿${bahtShort(g.net)}`}
-                      </td>
-                      <td className="px-2 py-2 text-right text-muted-foreground tabular-nums">{g.rows}</td>
-                      <td className="px-2 py-2 text-right tabular-nums">
-                        {g.pulseAmount !== null ? (
-                          <>
-                            <span>฿{bahtShort(g.pulseAmount)}</span>
-                            {g.pulseDifference !== null && (
-                              <span
-                                className={`ml-1 text-xs ${g.pulseIsMismatch ? "font-medium text-bad" : "text-muted-foreground"}`}
-                              >
-                                ({Number(g.pulseDifference) >= 0 ? "+" : ""}
-                                {bahtShort(g.pulseDifference)})
-                              </span>
-                            )}
-                          </>
-                        ) : g.pulseKeyedCount > 0 ? (
-                          <span className={`text-xs ${g.pulseIsMismatch ? "font-medium text-bad" : "text-muted-foreground"}`}>
-                            คีย์ {g.pulseKeyedCount}/{g.branches.length} สาขา
-                          </span>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">ไม่ได้คีย์</span>
-                        )}
-                      </td>
-                      <td className="max-w-[16rem] truncate px-2 py-2 text-xs text-muted-foreground">
-                        {g.fileNames.length === 0 ? (
-                          "ยังไม่มีไฟล์"
-                        ) : (
-                          <span
-                            title={g.branches
-                              .filter((b) => b.fileName)
-                              .map((b) => `${b.branchName}: ${b.fileName} · นำเข้า ${b.importedAtLabel}`)
-                              .join(" / ")}
-                          >
-                            {g.fileNames.length === 1 ? g.fileNames[0] : `${g.fileNames.length} ไฟล์`}
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
         </>
       )}
     </div>
   );
 }
 
-function Tile({ label, value, note }: { label: string; value: string; note?: string }) {
+type KpiProps = {
+  label: string;
+  note: string;
+  value: string;
+  cur: number | null;
+  prev: number | null;
+  fmt: (n: number) => string;
+  perDay: boolean;
+};
+
+function Kpi({ label, note, value, cur, prev, fmt, perDay, curLabel, prevLabel }: KpiProps & { curLabel: string; prevLabel: string }) {
+  const change = cur !== null && prev ? (cur - prev) / prev : null;
+  const tone = change === null || Math.abs(change) < 0.005 ? "bg-muted text-muted-foreground" : change > 0 ? "bg-good-bg text-good" : "bg-bad-bg text-bad";
   return (
-    <div className="rounded-lg border border-border bg-surface p-3">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="mt-1 text-lg font-bold">{value}</p>
-      {note && <p className="mt-0.5 text-xs text-muted-foreground">{note}</p>}
+    <div className="grid content-start gap-2 rounded-xl border border-border bg-surface p-4">
+      <p className="flex items-baseline justify-between gap-2 text-sm text-muted-foreground">
+        <span>{label}</span>
+        <span className="text-[11px] text-muted-subtle">{note}</span>
+      </p>
+      <p className="font-display text-2xl font-semibold tabular-nums leading-tight">{value}</p>
+      {change === null ? (
+        <span className="text-xs text-muted-subtle">ไม่มีตัวเลข {prevLabel} ให้เทียบ</span>
+      ) : (
+        <span className={`w-max rounded-full px-2 py-0.5 text-xs font-medium ${tone}`}>
+          {change >= 0 ? "▲" : "▼"} {Math.abs(change * 100).toFixed(1)}%
+          <span className="font-normal opacity-80">{perDay ? " ต่อวัน" : ""}</span>
+        </span>
+      )}
+      <dl className="grid grid-cols-[auto_1fr] gap-x-3 border-t border-border pt-2 text-xs tabular-nums">
+        <dt className="text-muted-subtle">{curLabel}</dt>
+        <dd className="text-right">{cur === null ? "—" : fmt(cur)}</dd>
+        <dt className="text-muted-subtle">{prevLabel}</dt>
+        <dd className="text-right">{prev === null ? "—" : fmt(prev)}</dd>
+      </dl>
     </div>
   );
 }
