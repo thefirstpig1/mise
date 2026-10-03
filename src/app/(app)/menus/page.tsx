@@ -1,71 +1,44 @@
 // Sprint 4 Part 19 L5 — /menus: the dishes, and the queue of ones nobody has
 // looked at yet (ADR 0019 Q8).
 //
-// Server Component. `?stubs=true` filters to the queue, and the import screen
-// links straight into it after a commit that created any — a queue nobody sees
-// is a queue nobody works.
-//
-// The page says what an unidentified dish costs, in concrete terms rather than
-// as a warning symbol: its revenue sits in no category, so it is invisible on
-// the category chart; and with departments on it belongs to no department, so it
-// sits outside the /cost matrix. Both are recoverable at any time, which is why
-// nothing about the import blocked on them.
+// UI run-through 2026-10-02: the page loads EVERY dish once (retired ones
+// included) and MenuBrowser filters in the browser — category, status and search
+// answer at once instead of a form with a "ดู" button that reloaded the page.
+// `?stubs=true` still opens on the รอตรวจ queue, because the import screen links
+// straight into it after a commit that created any — a queue nobody sees is a
+// queue nobody works.
 //
 // `searchParams` is a PROMISE in Next 15 — the plain-object signature
 // type-checks under `pnpm tsc` and fails `pnpm build` (Sprint 0's fix).
 
 import { requireTenant } from "@/lib/require-tenant";
-import {
-  getMenuCategoriesLogic,
-  getMenusLogic,
-  getPosIntegrationsLogic,
-} from "@/server/menu";
-import { getMenusQuerySchema } from "@/lib/validations/sales-import";
+import { getMenuCategoriesLogic, getMenusLogic, getPosIntegrationsLogic } from "@/server/menu";
 import { withTenantContext } from "@/lib/db";
 import { getMenuMergesLogic } from "@/server/menu-merge-read";
+import { getMenuListFactsLogic, MENU_FACT_DAYS } from "@/server/menu-list-facts";
 import { toMenuRowView } from "./_components/menu-view";
-import {
-  groupMergesByWinner,
-  toMenuMergeRowView,
-} from "./_components/menu-merge-view";
-import MenuRowEditor, {
-  type CategoryOption,
-  type DepartmentOption,
-} from "./_components/MenuRowEditor";
-import NewCategoryForm from "./_components/NewCategoryForm";
+import { groupMergesByWinner, toMenuMergeRowView } from "./_components/menu-merge-view";
+import MenuBrowser from "./_components/MenuBrowser";
+import type { MenuFactView } from "./_components/MenuEditPopup";
 
-
-import EmptyState from "@/components/ui/EmptyState";
 export default async function MenusPage({
   searchParams,
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { tenantId, membership } = await requireTenant("any:member");
+  const { tenantId, membership, reach, can } = await requireTenant("any:member");
   const params = await searchParams;
   const one = (k: string) => (Array.isArray(params[k]) ? params[k][0] : params[k]);
-
-  const parsed = getMenusQuerySchema.safeParse({
-    posIntegrationId: one("pos"),
-    menuCategoryId: one("category"),
-    stubsOnly: one("stubs"),
-    includeRetired: one("retired"),
-    search: one("q"),
-  });
-  const query = parsed.success
-    ? parsed.data
-    : {
-        posIntegrationId: undefined,
-        menuCategoryId: undefined,
-        stubsOnly: false,
-        includeRetired: false,
-        search: undefined,
-      };
-
   const departmentsEnabled = membership.tenant.enableDepartments;
 
-  const [menus, categories, integrations, departments, merges] = await Promise.all([
-    getMenusLogic(tenantId, query),
+  const [menus, categories, integrations, departments, merges, facts] = await Promise.all([
+    getMenusLogic(tenantId, {
+      posIntegrationId: undefined,
+      menuCategoryId: undefined,
+      stubsOnly: false,
+      includeRetired: true,
+      search: undefined,
+    }),
     getMenuCategoriesLogic(tenantId),
     getPosIntegrationsLogic(tenantId),
     withTenantContext(tenantId, (tx) =>
@@ -75,138 +48,44 @@ export default async function MenusPage({
       })
     ),
     // NOT a fold. This screen shows both rows — a merge nobody can see is a
-    // merge nobody can undo (Q6) — it only NESTS one under the other.
+    // merge nobody can undo (ADR 0026 Q6) — it only NESTS one under the other.
     getMenuMergesLogic(tenantId, { winningMenuId: undefined, includeRevoked: false }),
+    getMenuListFactsLogic(tenantId, reach),
   ]);
 
   const mergeRows = merges.map(toMenuMergeRowView);
   const spellingsByWinner = groupMergesByWinner(mergeRows);
-  const onScreen = new Set(menus.map((m) => m.id));
+  // Which dish each spelling counts as. MenuBrowser nests a spelling under its
+  // dish ONLY while that dish is on screen under the current filter; otherwise
+  // the spelling stays an ordinary, labelled row — it still collects sales every
+  // day and must never simply disappear (ADR 0026 Q6).
+  const winnerOf: Record<string, { id: string; label: string }> = {};
+  for (const m of mergeRows) winnerOf[m.loser.id] = { id: m.winner.id, label: m.winner.label };
 
-  // A losing row is collapsed under its winner ONLY when the winner is also on
-  // screen. Under a filter or a search that excluded the winner it stays an
-  // ordinary row, labelled — because it is a row that still collects money every
-  // day, and a row like that must never simply disappear.
-  const nestedUnder = new Map<string, string>();
-  for (const m of mergeRows) {
-    if (onScreen.has(m.winner.id)) nestedUnder.set(m.loser.id, m.winner.id);
-  }
-  const winnerLabelOf = new Map(mergeRows.map((m) => [m.loser.id, m.winner.label]));
+  const rows = menus.map((m) => toMenuRowView(m, departmentsEnabled));
 
-  const rows = menus
-    .filter((m) => !nestedUnder.has(m.id))
-    .map((m) => toMenuRowView(m, departmentsEnabled));
-  const stubCount = rows.filter((r) => r.isPosStub).length;
+  const factView: Record<string, MenuFactView> = {};
+  for (const [id, f] of facts.facts) factView[id] = f;
 
-  const categoryOptions: CategoryOption[] = categories.map((c) => ({ id: c.id, name: c.name }));
-  const departmentOptions: DepartmentOption[] = departments.map((d) => ({
-    id: d.id,
-    name: d.name,
-  }));
-  const defaultIntegrationId = integrations[0]?.id ?? null;
+  const spellings: Record<string, ReturnType<typeof toMenuMergeRowView>["loser"][]> = {};
+  for (const [winner, list] of spellingsByWinner) spellings[winner] = list.map((x) => x.loser);
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <h2 className="text-base font-bold">เมนู</h2>
-        <div className="flex items-baseline gap-4">
-          <a href="/menus/merges" className="text-sm text-primary hover:underline">
-            รวมเมนูที่ซ้ำ
-          </a>
-          <a href="/sales" className="text-sm text-primary hover:underline">
-            ดูยอดขาย →
-          </a>
-        </div>
-      </div>
-
-      {stubCount > 0 && !query.stubsOnly && (
-        <div className="rounded-lg border border-warn/50 bg-warn/5 p-3 text-sm">
-          มีเมนูรอตรวจ {stubCount} รายการ —{" "}
-          <a href="/menus?stubs=true" className="text-primary underline">
-            ดูเฉพาะรายการที่ต้องตรวจ
-          </a>
-        </div>
-      )}
-
-      {/* ---------- filters ---------- */}
-      <form className="flex flex-wrap items-end gap-3 rounded-lg border border-border bg-surface p-4">
-        <label className="text-sm">
-          ค้นหา
-          <input name="q" defaultValue={one("q") ?? ""} placeholder="ชื่อหรือรหัสเมนู" className={"input mt-1 block"} />
-        </label>
-        <label className="text-sm">
-          หมวด
-          <select name="category" defaultValue={one("category") ?? ""} className={"input mt-1 block"}>
-            <option value="">ทุกหมวด</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" name="stubs" value="true" defaultChecked={query.stubsOnly} />
-          เฉพาะเมนูรอตรวจ
-        </label>
-        {/* ADR 0027 Q2 — off by default, which is only safe because the
-            contradiction has its own voice: the import preview warns when a
-            retired dish is still in the file, and the row prints its last sale
-            date. Hiding a row that still takes money without either of those
-            would be the thing ADR 0026 spent a Part refusing to do. */}
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            name="retired"
-            value="true"
-            defaultChecked={query.includeRetired}
-          />
-          รวมเมนูที่เลิกขายแล้ว
-        </label>
-        <button type="submit" className="rounded-lg border border-border px-4 py-2 text-sm">
-          ดู
-        </button>
-      </form>
-
-      {/* ---------- new category ---------- */}
-      <details className="rounded-lg border border-border bg-surface p-4">
-        <summary className="cursor-pointer text-sm font-medium">เพิ่มหมวดเมนู</summary>
-        <NewCategoryForm />
-      </details>
-
-      {/* ---------- list ---------- */}
-      {rows.length === 0 ? (
-        <EmptyState art="start">
-          <p className="font-medium">
-            {query.stubsOnly
-              ? "ไม่มีเมนูรอตรวจ"
-              : query.includeRetired
-                ? "ยังไม่มีเมนูในระบบ"
-                : "ไม่มีเมนูที่ยังขายอยู่"}
-          </p>
-          <p className="mt-2 text-muted-foreground">
-            เมนูเกิดขึ้นเองเมื่อนำเข้ายอดขาย — ไม่ต้องพิมพ์รายการเมนูเข้าไปก่อน
-          </p>
-          <a href="/sales/import" className="mt-4 inline-block text-sm text-primary underline">
-            นำเข้ายอดขาย
-          </a>
-        </EmptyState>
-      ) : (
-        <ul className="divide-y divide-border rounded-lg border border-border bg-surface">
-          {rows.map((m) => (
-            <MenuRowEditor
-              key={m.id}
-              menu={m}
-              categories={categoryOptions}
-              departments={departmentOptions}
-              departmentsEnabled={departmentsEnabled}
-              posIntegrationId={defaultIntegrationId}
-              spellings={(spellingsByWinner.get(m.id) ?? []).map((x) => x.loser)}
-              mergedIntoLabel={winnerLabelOf.get(m.id) ?? null}
-            />
-          ))}
-        </ul>
-      )}
-    </div>
+    <MenuBrowser
+      rows={rows}
+      facts={factView}
+      factDays={MENU_FACT_DAYS}
+      spellingsByWinner={spellings}
+      winnerOf={winnerOf}
+      categories={categories.map((c) => ({ id: c.id, name: c.name }))}
+      departments={departments.map((d) => ({ id: d.id, name: d.name }))}
+      departmentsEnabled={departmentsEnabled}
+      posIntegrationId={integrations[0]?.id ?? null}
+      initialStatus={one("stubs") === "true" ? "review" : one("retired") === "true" ? "all" : "selling"}
+      // The actions check the same capabilities; a button nobody can use is noise.
+      canEdit={can("master:write")}
+      canDelete={can("recipe:write")}
+      canRecipe={can("recipe:write")}
+    />
   );
 }

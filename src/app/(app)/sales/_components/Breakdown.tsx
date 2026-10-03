@@ -63,6 +63,7 @@ export function ModalShell({
   labelledBy,
   onKey,
   wide = false,
+  narrow = false,
   children,
 }: {
   onClose: () => void;
@@ -70,6 +71,8 @@ export function ModalShell({
   /** Extra keys (the day popup's ← →). Esc always closes. */
   onKey?: (e: KeyboardEvent) => void;
   wide?: boolean;
+  /** One item's details or a short form — a wide sheet leaves it floating. */
+  narrow?: boolean;
   children: ReactNode;
 }) {
   useEffect(() => {
@@ -97,7 +100,7 @@ export function ModalShell({
       aria-labelledby={labelledBy}
     >
       <div
-        className={`relative w-full ${wide ? "max-w-5xl" : "max-w-4xl"} animate-pop-in rounded-2xl border border-border bg-surface p-4 shadow-2xl sm:p-6`}
+        className={`relative w-full ${wide ? "max-w-5xl" : narrow ? "max-w-2xl" : "max-w-4xl"} animate-pop-in rounded-2xl border border-border bg-surface p-4 shadow-2xl sm:p-6`}
       >
         <button
           type="button"
