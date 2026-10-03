@@ -71,6 +71,14 @@ describe("categoryByWeekday — question 1", () => {
     const soup = categoryByWeekday(rows, menus, "qty").categories.find((c) => c.key === "soup")!;
     expect(soup.cells[6].perDay).toBe(2);
   });
+  it("keeps the categories in SALES order whatever the measure", () => {
+    // ต้มยำ earns more, beer sells more plates: ordering by the measure would
+    // swap the rows when the page switches from ยอดขาย to จำนวนจาน.
+    const mixed = enrich([row("2026-09-05", "tomyum", 400, 2), row("2026-09-05", "beer", 100, 10)], menus, noCost);
+    const order = (by: "net" | "qty") => categoryByWeekday(mixed, menus, by).categories.map((c) => c.key);
+    expect(order("net")).toEqual(order("qty"));
+    expect(order("qty")[0]).toBe("soup");
+  });
   it("lists a cell's menus per such day", () => {
     const list = menusOnWeekday(rows, menus, "net", "soup", 6);
     expect(list).toEqual([{ id: "tomyum", name: "ต้มยำ", perDay: 200, qtyPerDay: 2 }]);

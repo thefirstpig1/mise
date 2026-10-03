@@ -129,10 +129,13 @@ export function categoryByWeekday(
     if (!labels.has(r.categoryKey)) labels.set(r.categoryKey, menus.get(r.menuId)?.categoryName ?? "ยังไม่ระบุหมวด");
   }
   const daysPerWeekday = Object.fromEntries(WEEK_ORDER.map((w) => [w, daysPer[w]?.size ?? 0]));
+  // Rows are ordered by SALES whatever the measure (Kong, 2026-10-03: switching
+  // ยอดขาย → จำนวนจาน moved the rows, so the table no longer matched the
+  // category chips and colours above it, which are ordered by sales too).
   const catTotals = new Map<string, number>();
   for (const [k, acc] of cell) {
     const key = k.split("|")[0];
-    catTotals.set(key, (catTotals.get(key) ?? 0) + acc.value);
+    catTotals.set(key, (catTotals.get(key) ?? 0) + acc.net);
   }
   const categories = [...labels.entries()]
     .sort((a, b) => (catTotals.get(b[0]) ?? 0) - (catTotals.get(a[0]) ?? 0))
