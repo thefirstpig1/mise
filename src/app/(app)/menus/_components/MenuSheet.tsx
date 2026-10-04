@@ -23,12 +23,12 @@
 //     the ticket (ADR 0029 Q12).
 
 import { useActionState, useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { getIngredientOptionsAction, getMenuSheetAction } from "@/app/(app)/menus/manager-actions";
+import { dropPrefetched, menuSheet, ingredientInsight } from "./prefetch";
 import { createRecipeAction, deleteRecipeAction, saveRecipeForBranchAction, updateRecipeAction, type RecipeActionState } from "@/app/(app)/recipes/actions";
 import { confirmMenuAliasAction, getMenuSuggestionsAction, updateMenuAction, type MenuAliasActionState } from "@/app/(app)/menus/actions";
 import { deleteMenuAction, setMenuActiveAction } from "@/app/(app)/menus/lifecycle-actions";
 import { RETIRE_MEANS_TH, RETIRE_NOT_IN_POS_TH } from "@/lib/validations/menu-lifecycle";
-import type { IngredientOption, MenuSheet as SheetData } from "@/server/menu-manager";
+import type { IngredientOption, MenuSheet as SheetData, PriceBook } from "@/server/menu-manager";
 import { rankBySearch, hasQuery, highlightRuns, STRONG_MATCH, type SearchField } from "@/lib/smart-search";
 import { orStale } from "@/lib/stale-tab";
 import type { MergeMenuView } from "./menu-merge-view";
@@ -51,14 +51,22 @@ type Line = {
   unitName: string | null;
   ratio: number;
   notes: string;
-  /** Baht per base unit (per serving for a menu); null = no price known here. */
-  perBase: number | null;
 };
 
 let keySeq = 0;
 const nextKey = () => `n${++keySeq}`;
 const qtyOf = (l: Line) => (Number.isFinite(Number(l.qty)) ? Number(l.qty) : 0);
-const lineCost = (l: Line) => (l.perBase === null ? null : qtyOf(l) * l.ratio * l.perBase);
+/** Baht per base unit (per serving for a menu) at this branch; null = nobody bought it here. */
+const priceOf = (l: Pick<Line, "kind" | "productId" | "componentMenuId">, book: PriceBook | null): number | null =>
+  book === null
+    ? null
+    : l.kind === "menu"
+      ? (book.menus[l.componentMenuId ?? ""]?.costPerServing ?? null)
+      : (book.products[l.productId ?? ""] ?? null);
+const lineCostWith = (l: Line, book: PriceBook | null) => {
+  const p = priceOf(l, book);
+  return p === null ? null : qtyOf(l) * l.ratio * p;
+};
 const signature = (lines: Line[], servings: number) =>
   JSON.stringify([servings, lines.map((l) => [l.productId, l.componentMenuId, qtyOf(l), l.unitId, l.notes.trim()])]);
 
@@ -92,14 +100,19 @@ export default function MenuSheet(props: {
   mergedIntoLabel: string | null;
   costHidden: boolean;
   perm: Perm;
+  /** This branch's prices, loaded once by the list; null while it is coming. */
+  book: PriceBook | null;
+  /** The adder's list, loaded once by the list on first need. */
+  options: IngredientOption[] | null;
+  needOptions: () => void;
   onClose: () => void;
   onSaved: () => void;
   onToast: (msg: string) => void;
 }) {
-  const { menu, branch, branches, today, costHidden, perm, onToast } = props;
+  const { menu, branch, branches, today, costHidden, perm, onToast, book, options } = props;
   const [sheet, setSheet] = useState<SheetData | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [options, setOptions] = useState<IngredientOption[] | null>(null);
+  const lineCost = (l: Line) => lineCostWith(l, book);
 
   // ---- the draft ----
   const [name, setName] = useState(menu.name);
@@ -133,11 +146,10 @@ export default function MenuSheet(props: {
       unitName: l.unitName,
       ratio: l.kind === "menu" ? 1 : l.toBaseRatio,
       notes: l.notes ?? "",
-      perBase: l.cost === null || l.qty <= 0 ? null : l.cost / (l.qty * (l.kind === "menu" ? 1 : l.toBaseRatio)),
     }));
 
-  const load = async () => {
-    const res = await orStale(getMenuSheetAction(menu.id, branch.id));
+  const load = async (fresh = false) => {
+    const res = await menuSheet(menu.id, branch.id, fresh);
     if (!res.ok) return setLoadError("error" in res ? res.error : "เปิดไม่ได้");
     setSheet(res.sheet);
     const ls = toLines(res.sheet);
@@ -149,7 +161,7 @@ export default function MenuSheet(props: {
   };
   useEffect(() => {
     void load();
-    if (perm.recipe) void orStale(getIngredientOptionsAction(branch.id)).then((r) => r.ok && setOptions(r.options));
+    if (perm.recipe) props.needOptions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [menu.id, branch.id]);
 
@@ -178,10 +190,18 @@ export default function MenuSheet(props: {
 
   // ---- numbers ----
   const avg = menu.qty > 0 ? menu.net / menu.qty : null;
-  const known = lines.every((l) => l.perBase !== null);
+  // Prices arrive after the list paints; until then nothing money-shaped is
+  // shown — never ฿0, never "ไม่มีราคา", both of which would be claims.
+  const pricesPending = !costHidden && book === null;
+  const known = lines.every((l) => priceOf(l, book) !== null);
+  const own = book?.menus[menu.id] ?? null;
+  const confidence = own?.confidence ?? null;
+  const unpriced = lines.filter((l) => l.kind === "product" && priceOf(l, book) === null).map((l) => l.label);
   const total = lines.reduce((s, l) => s + (lineCost(l) ?? 0), 0);
-  const perPlate = lines.length === 0 ? null : total / (servings || 1);
-  const basePerPlate = recipe?.costPerServing ?? null;
+  const perPlate = lines.length === 0 || pricesPending ? null : total / (servings || 1);
+  // The walk's own figure for the recipe as saved — the "เดิม" an edit is
+  // compared against. Only while the book and the sheet speak of one recipe.
+  const basePerPlate = recipe !== null && own?.recipeId === recipe.id ? own.costPerServing : null;
   const costChanged = recipeDirty && perPlate !== null && basePerPlate !== null && Math.abs(perPlate - basePerPlate) > 0.004;
 
   const facts = sheet?.facts ?? null;
@@ -232,7 +252,6 @@ export default function MenuSheet(props: {
         unitName: base?.unitName ?? (o.kind === "menu" ? "จาน" : null),
         ratio: base?.toBaseRatio ?? 1,
         notes: "",
-        perBase: o.costPerBase,
       },
     ]);
   };
@@ -296,8 +315,9 @@ export default function MenuSheet(props: {
       }
       const where = !recipeDirty ? "" : target === "all" ? " · ทุกสาขา" : target === "line" ? ` · ${fixedScope?.kind === "line" ? fixedScope.label : ""}` : ` · เฉพาะ${branchName(target)}`;
       onToast(`บันทึกแล้ว${where}${recipeDirty ? ` · มีผลตั้งแต่ ${thDate(eff)}` : ""}`);
+      dropPrefetched();
       props.onSaved();
-      await load();
+      await load(true);
     });
 
   const diffLines = (): string[] => {
@@ -390,8 +410,9 @@ export default function MenuSheet(props: {
           const res = await orStale(deleteRecipeAction(recipe!.id, true));
           if (!res.ok) return setFormError(res.error);
           onToast(`${branch.name}กลับไปใช้สูตรกลางแล้ว`);
+          dropPrefetched();
           props.onSaved();
-          await load();
+          await load(true);
         }),
     });
 
@@ -400,8 +421,9 @@ export default function MenuSheet(props: {
       const res = await orStale(deleteRecipeAction(recipe!.id, ack));
       if (res.ok) {
         onToast("ลบสูตรแล้ว");
+        dropPrefetched();
         props.onSaved();
-        return void (await load());
+        return void (await load(true));
       }
       if (res.needsAcknowledgement)
         return setConfirm({
@@ -518,27 +540,29 @@ export default function MenuSheet(props: {
           {!costHidden && (
             <Tile
               k="ต้นทุนต่อจาน"
-              v={perPlate === null ? "—" : baht(perPlate, 2)}
+              v={pricesPending && lines.length > 0 ? "…" : perPlate === null ? "—" : baht(perPlate, 2)}
               s={
-                perPlate === null
+                pricesPending && lines.length > 0
+                  ? "กำลังคำนวณ…"
+                  : perPlate === null
                   ? "ยังไม่มีสูตร"
                   : costChanged
                     ? `เดิม ${baht(basePerPlate!, 2)}`
                     : !known
                       ? "บางตัวยังไม่มีราคา"
-                      : recipe?.confidence
-                        ? `ความมั่นใจ${confidenceTh(recipe.confidence)} · ${branch.name}`
+                      : confidence
+                        ? `ความมั่นใจ${confidenceTh(confidence)} · ${branch.name}`
                         : branch.name
               }
-              warn={costChanged || (!!recipe?.confidence && recipe.confidence !== "HIGH")}
-              title={recipe?.confidence ? confidenceHintTh(recipe.confidence) : undefined}
+              warn={costChanged || (!!confidence && confidence !== "HIGH")}
+              title={confidence ? confidenceHintTh(confidence) : undefined}
             />
           )}
           {!costHidden && (
             <Tile
               k="ต้นทุน % · กำไรต่อจาน"
-              v={perPlate !== null && avg ? `${((perPlate / avg) * 100).toFixed(1)}%` : "—"}
-              s={perPlate !== null && avg ? `กำไร ${baht(avg - perPlate, 2)}/จาน` : perPlate === null ? "คิดได้เมื่อมีสูตร" : "ยังไม่มียอดขาย"}
+              v={pricesPending && lines.length > 0 ? "…" : perPlate !== null && avg ? `${((perPlate / avg) * 100).toFixed(1)}%` : "—"}
+              s={pricesPending && lines.length > 0 ? "กำลังคำนวณ…" : perPlate !== null && avg ? `กำไร ${baht(avg - perPlate, 2)}/จาน` : perPlate === null ? "คิดได้เมื่อมีสูตร" : "ยังไม่มียอดขาย"}
               warn={costChanged}
             />
           )}
@@ -614,6 +638,7 @@ export default function MenuSheet(props: {
                       <tr
                         key={l.key}
                         className={`${l.kind === "product" ? "cursor-pointer hover:bg-muted/60" : ""} ${changed}`}
+                        onPointerEnter={() => l.kind === "product" && l.productId && void ingredientInsight(l.productId, branch.id)}
                         onClick={(e) => {
                           if (l.kind !== "product" || !l.productId) return;
                           if ((e.target as HTMLElement).closest("input,select,button")) return;
@@ -670,7 +695,11 @@ export default function MenuSheet(props: {
                             unitTh(l.unitName) || (l.kind === "menu" ? "จาน" : "")
                           )}
                         </td>
-                        {!costHidden && <td className="py-1.5 text-right tabular-nums">{c === null ? <span className="text-xs text-warn">ไม่มีราคา</span> : baht(c, 2)}</td>}
+                        {!costHidden && (
+                          <td className="py-1.5 text-right tabular-nums">
+                            {pricesPending ? <span className="inline-block h-3.5 w-12 animate-pulse rounded bg-muted align-middle" /> : c === null ? <span className="text-xs text-warn">ไม่มีราคา</span> : baht(c, 2)}
+                          </td>
+                        )}
                         <td className="py-1.5 text-right">
                           {recipeEditable && (
                             <button type="button" onClick={() => setLines((ls) => ls.filter((x) => x.key !== l.key))} aria-label={`เอา ${l.label} ออก`} className="rounded px-1.5 text-muted-subtle hover:bg-bad-bg hover:text-bad">
@@ -686,7 +715,7 @@ export default function MenuSheet(props: {
             </div>
           )}
 
-          {sheet && recipeEditable && <Adder options={options} exclude={new Set([...lines.map((l) => l.productId ?? l.componentMenuId ?? ""), menu.id])} costHidden={costHidden} onPick={add} />}
+          {sheet && recipeEditable && <Adder options={options} book={book} exclude={new Set([...lines.map((l) => l.productId ?? l.componentMenuId ?? ""), menu.id])} costHidden={costHidden} onPick={add} />}
           {sheet && !perm.recipe && <p className="rounded-lg bg-surface-sunk p-3 text-sm text-muted-foreground"><b className="text-foreground">ดูได้อย่างเดียว</b> ถ้าสูตรไม่ตรงกับที่ทำจริง แจ้งหัวหน้าหรือผู้จัดการสาขา</p>}
 
           {sheet && lines.length > 0 && (
@@ -697,9 +726,9 @@ export default function MenuSheet(props: {
                   <b className="font-display text-sm text-foreground tabular-nums">{baht(perPlate, 2)}</b>
                 </p>
               )}
-              {!costHidden && recipe && recipe.unpriced.length > 0 && (
+              {!costHidden && book && unpriced.length > 0 && (
                 <p className="text-warn">
-                  ยังไม่รู้ต้นทุนของ {recipe.unpriced.join(", ")} ที่{branch.name} — ตัวเลขนี้ต่ำกว่าความจริง ·{" "}
+                  ยังไม่รู้ต้นทุนของ {unpriced.join(", ")} ที่{branch.name} — ตัวเลขนี้ต่ำกว่าความจริง ·{" "}
                   <a href="/cost" className="underline">
                     ระบุต้นทุน
                   </a>
@@ -888,12 +917,13 @@ export default function MenuSheet(props: {
           }
           costHidden={costHidden}
           perm={perm}
+          book={book}
           onClose={() => setIng(null)}
           onToast={onToast}
           onPreppedSaved={() => {
+            dropPrefetched();
             props.onSaved();
-            void load();
-            void orStale(getIngredientOptionsAction(branch.id)).then((r) => r.ok && setOptions(r.options));
+            void load(true);
           }}
         />
       )}
@@ -914,11 +944,13 @@ function Tile({ k, v, s, warn, title }: { k: string; v: string; s: string; warn?
 /** "+ เพิ่มวัตถุดิบ" — the app-wide smart search over products and dishes. */
 function Adder({
   options,
+  book,
   exclude,
   costHidden,
   onPick,
 }: {
   options: IngredientOption[] | null;
+  book: PriceBook | null;
   exclude: Set<string>;
   costHidden: boolean;
   onPick: (o: IngredientOption) => void;
@@ -939,11 +971,13 @@ function Adder({
   ];
   const price = (o: IngredientOption) => {
     if (costHidden) return null;
-    if (o.costPerBase === null) return <small className="text-xs text-muted-subtle">ยังไม่มีราคา</small>;
+    if (book === null) return <small className="text-xs text-muted-subtle">…</small>;
+    const p = priceOf({ kind: o.kind, productId: o.kind === "product" ? o.id : null, componentMenuId: o.kind === "menu" ? o.id : null }, book);
+    if (p === null) return <small className="text-xs text-muted-subtle">ยังไม่มีราคา</small>;
     const base = o.units.find((u) => u.isBase);
     return (
       <small className="text-xs tabular-nums text-muted-subtle">
-        {baht(o.costPerBase, 2)}/{o.kind === "menu" ? "จาน" : unitTh(base?.unitName)}
+        {baht(p, 2)}/{o.kind === "menu" ? "จาน" : unitTh(base?.unitName)}
       </small>
     );
   };

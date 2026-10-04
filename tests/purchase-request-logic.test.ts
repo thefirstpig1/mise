@@ -184,8 +184,11 @@ describe("purchase request (ADR 0036)", () => {
     expect(cooks.cheaper).toMatchObject({ supplierName: "ร้าน B", money: null });
     // Only the hint can carry money (the line's own fields are quantities and
     // names). Searched on its own: the whole line holds random UUIDs, and one
-    // containing "168" made this assertion fail by chance.
-    expect(JSON.stringify(cooks.cheaper)).not.toMatch(/145|168|290/);
+    // containing "168" made this assertion fail by chance — and so did the
+    // hint's OWN supplierId on 2026-10-04, so ids are masked before searching.
+    const noIds = (_k: string, v: unknown) =>
+      typeof v === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v) ? "<id>" : v;
+    expect(JSON.stringify(cooks.cheaper, noIds)).not.toMatch(/145|168|290/);
     const buyers = (await board(buyer)).lines.find((l) => l.id === id)!;
     expect(buyers.cheaper?.money).toEqual({ theirs: 145, ours: 168 });
   });

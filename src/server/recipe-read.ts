@@ -431,6 +431,12 @@ export async function getRecipeListLogic(
     search?: string;
     missingOnly: boolean;
     asOf?: Date;
+    /**
+     * "prepped" skips the menus entirely — /recipes shows only prepped items
+     * since 2026-10-04, and pricing every dish for a page that hides them was
+     * most of its load time.
+     */
+    only?: "prepped";
   },
   /**
    * The ticket from `requireTenant`, or null. This is the read ADR 0021 Q18
@@ -448,7 +454,7 @@ export async function getRecipeListLogic(
 
   const base = await withTenantContext(tenantId, async (tx) => {
     const [menus, prepped] = await Promise.all([
-      tx.menu.findMany({
+      query.only === "prepped" ? Promise.resolve([]) : tx.menu.findMany({
         where: {
           tenantId,
           deletedAt: null,

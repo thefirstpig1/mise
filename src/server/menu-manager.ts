@@ -19,20 +19,143 @@
 // field is null when `cost` is null, and the walk is SKIPPED, not blanked.
 // ============================================================
 
-import { Prisma } from "@prisma/client";
+import { Prisma, type PrismaClient } from "@prisma/client";
 import { withTenantContext } from "@/lib/db";
 import { addDays, computeBangkokToday } from "@/lib/bangkok-date";
 import type { CostAccess } from "@/lib/permissions/cost-access";
-import { resolveRecipeIds } from "@/server/recipe-resolve";
-import { getRecipeCostLogic, type RecipeConfidence } from "@/server/recipe-cost";
-import { getProductCostsLogic } from "@/server/stock-cost";
-import { getRecipeListLogic } from "@/server/recipe-read";
+import { resolveRecipeIds, type RecipeTarget } from "@/server/recipe-resolve";
+import { recipeCostsInTx, type RecipeConfidence } from "@/server/recipe-cost";
+import { replayPairsInTx } from "@/server/stock-cost";
 
 /** The window "used per day" is measured over. */
 export const INGREDIENT_FACT_DAYS = 30;
 
 const num = (d: Prisma.Decimal | null | undefined) => (d == null ? 0 : Number(d));
 const isoDate = (d: Date) => d.toISOString().slice(0, 10);
+
+// ------------------------------------------------------------
+// The price book: every price the screen shows, for one branch, ONCE
+// ------------------------------------------------------------
+// Measured 2026-10-04 (Kong: "หน้าไหนโหลดช้า"): the page priced every recipe
+// before it painted (2.5 s), the sheet walked its recipe again (2.5 s) and the
+// adder priced every recipe a third time (1.9 s). One read now answers all
+// three, in the background after the list is on screen, and the client keeps it
+// per branch — the profit-view pattern from /sales (mise-ui-review §5b).
+//
+// The numbers are the same functions as before, not a copy of them: the recipe
+// walk (`recipeCostsInTx`, ADR 0021) for menus and production recipes, the FIFO
+// replay (`replayPairsInTx`, ADR 0014) for raw products, parent ÷ yield for a
+// parent + yield product — exactly what the walk does one level down.
+
+export type PriceBook = {
+  /** Every menu with a recipe at this branch today. */
+  menus: Record<string, { recipeId: string; own: boolean; costPerServing: number | null; confidence: RecipeConfidence | null }>;
+  /** Baht per BASE unit at this branch; absent = nobody has bought it here. */
+  products: Record<string, number>;
+};
+
+export async function getMenuPriceBookLogic(
+  tenantId: string,
+  branchId: string,
+  cost: CostAccess | null
+): Promise<PriceBook> {
+  if (cost === null) return { menus: {}, products: {} };
+  const today = computeBangkokToday();
+
+  const [walked, fifo] = await Promise.all([
+    withTenantContext(
+      tenantId,
+      async (tx) => {
+        const [menus, prepped] = await Promise.all([
+          tx.menu.findMany({ where: { tenantId, deletedAt: null }, select: { id: true } }),
+          tx.product.findMany({
+            where: { tenantId, deletedAt: null, type: "PREPPED" },
+            select: { id: true, parentProductId: true, yieldPercent: true },
+          }),
+        ]);
+        const targets: RecipeTarget[] = [
+          ...menus.map((m) => ({ kind: "menu" as const, id: m.id })),
+          ...prepped.map((p) => ({ kind: "product" as const, id: p.id })),
+        ];
+        const resolved = await resolveRecipeIds(tx, tenantId, targets, branchId, today);
+        const hits = [...resolved.values()];
+        const lineIds = [...new Set(hits.map((r) => r.lineId))];
+        const [own, costs] = await Promise.all([
+          lineIds.length === 0
+            ? Promise.resolve([] as { lineId: string }[])
+            : tx.recipeBranch.findMany({ where: { tenantId, branchId, lineId: { in: lineIds } }, select: { lineId: true } }),
+          hits.length === 0 ? Promise.resolve(new Map()) : recipeCostsInTx(tx, tenantId, { recipeIds: [...new Set(hits.map((h) => h.id))], branchId, asOf: today }),
+        ]);
+        return { menus, prepped, resolved, own: new Set(own.map((o) => o.lineId)), costs };
+      },
+      { timeout: 20_000 }
+    ),
+    withTenantContext(
+      tenantId,
+      async (tx) => {
+        const products = await tx.product.findMany({ where: { tenantId, deletedAt: null }, select: { id: true } });
+        return replayPairsInTx(tx, tenantId, products.map((p) => p.id), [branchId], today);
+      },
+      { timeout: 20_000 }
+    ),
+  ]);
+
+  const book: PriceBook = { menus: {}, products: {} };
+  for (const [key, row] of walked.resolved) {
+    const c = walked.costs.get(row.id);
+    if (key.startsWith("menu:")) {
+      book.menus[key.slice(5)] = {
+        recipeId: row.id,
+        own: walked.own.has(row.lineId),
+        costPerServing: c?.costPerServing == null ? null : Number(c.costPerServing),
+        confidence: c?.confidence ?? null,
+      };
+    } else if (c?.costPerServing != null) {
+      // A production recipe's servings are its OUTPUT in base units, so its
+      // cost per serving IS its cost per base unit.
+      book.products[key.slice(8)] = Number(c.costPerServing);
+    }
+  }
+  for (const [key, c] of fifo) {
+    const productId = key.split("|")[0];
+    // UNPRICED is "nobody has bought this here", never "free".
+    if (c.costSource !== "UNPRICED" && !(productId in book.products)) book.products[productId] = Number(c.costPerBaseUnit);
+  }
+  for (const p of walked.prepped) {
+    if (p.id in book.products && !walked.resolved.has(`product:${p.id}`)) delete book.products[p.id]; // FIFO of a prepped item is not its price yet
+    if (!(p.id in book.products) && p.parentProductId && p.yieldPercent) {
+      const parent = book.products[p.parentProductId];
+      if (parent !== undefined) book.products[p.id] = parent / (Number(p.yieldPercent) / 100);
+    }
+  }
+  return book;
+}
+
+/**
+ * Which menus have a recipe at this branch today, and whether it is the
+ * branch's own — what the LIST needs before any price: the สูตร column, the
+ * "ยังไม่มีสูตร" chip and the coverage share. One transaction, no walk.
+ */
+export async function getMenuRecipeStatusLogic(
+  tenantId: string,
+  branchId: string
+): Promise<Record<string, { recipeId: string; own: boolean }>> {
+  const today = computeBangkokToday();
+  return withTenantContext(tenantId, async (tx) => {
+    const menus = await tx.menu.findMany({ where: { tenantId, deletedAt: null }, select: { id: true } });
+    const resolved = await resolveRecipeIds(tx, tenantId, menus.map((m) => ({ kind: "menu" as const, id: m.id })), branchId, today);
+    const lineIds = [...new Set([...resolved.values()].map((r) => r.lineId))];
+    const own =
+      lineIds.length === 0
+        ? new Set<string>()
+        : new Set(
+            (await tx.recipeBranch.findMany({ where: { tenantId, branchId, lineId: { in: lineIds } }, select: { lineId: true } })).map((l) => l.lineId)
+          );
+    const out: Record<string, { recipeId: string; own: boolean }> = {};
+    for (const [key, row] of resolved) out[key.slice(5)] = { recipeId: row.id, own: own.has(row.lineId) };
+    return out;
+  });
+}
 
 // ------------------------------------------------------------
 // Stock facts per ingredient
@@ -64,12 +187,22 @@ export async function getIngredientFactsLogic(
   branchId: string,
   productIds: string[]
 ): Promise<IngredientFacts> {
+  if (productIds.length === 0) return { facts: {}, postedThrough: null, postedDays: 0 };
+  return withTenantContext(tenantId, (tx) => ingredientFactsInTx(tx, tenantId, branchId, productIds));
+}
+
+/** The same read inside a caller's transaction — one BEGIN fewer per sheet. */
+export async function ingredientFactsInTx(
+  tx: PrismaClient,
+  tenantId: string,
+  branchId: string,
+  productIds: string[]
+): Promise<IngredientFacts> {
   const ids = [...new Set(productIds)];
   if (ids.length === 0) return { facts: {}, postedThrough: null, postedDays: 0 };
   const to = computeBangkokToday();
   const from = addDays(to, -(INGREDIENT_FACT_DAYS - 1));
-
-  return withTenantContext(tenantId, async (tx) => {
+  {
     const sales = { sourceType: "SALES_CONSUMPTION" as const, type: { in: ["CONSUMPTION", "CONSUMPTION_REVERSAL"] as ("CONSUMPTION" | "CONSUMPTION_REVERSAL")[] } };
     const [units, balances, used, days, pars] = await Promise.all([
       tx.productUnit.findMany({ where: { productId: { in: ids }, isBase: true }, select: { productId: true, unitName: true } }),
@@ -116,7 +249,7 @@ export async function getIngredientFactsLogic(
       };
     }
     return { facts, postedThrough, postedDays };
-  });
+  }
 }
 
 // ------------------------------------------------------------
@@ -137,8 +270,6 @@ export type SheetLine = {
   /** The chosen unit in base units — what turns a cost per base into this line's. */
   toBaseRatio: number;
   notes: string | null;
-  /** Baht for this line in ONE writing of the recipe; null without the ticket. */
-  cost: number | null;
 };
 
 export type MenuSheetRecipe = {
@@ -151,10 +282,6 @@ export type MenuSheetRecipe = {
   notes: string | null;
   effectiveFrom: string;
   lines: SheetLine[];
-  costPerServing: number | null;
-  confidence: RecipeConfidence | null;
-  /** Names of ingredients nobody has bought here — the reason for LOW. */
-  unpriced: string[];
 };
 
 export type MenuSheet = {
@@ -164,10 +291,14 @@ export type MenuSheet = {
   facts: IngredientFacts;
 };
 
+/**
+ * No money here: the client prices the lines from the branch's price book,
+ * which it already holds (getMenuPriceBookLogic) — walking the recipe again on
+ * every open was the 2.5 s the sheet used to take.
+ */
 export async function getMenuSheetLogic(
   tenantId: string,
-  query: { menuId: string; branchId: string },
-  cost: CostAccess | null
+  query: { menuId: string; branchId: string }
 ): Promise<MenuSheet> {
   const today = computeBangkokToday();
   const base = await withTenantContext(tenantId, async (tx) => {
@@ -210,19 +341,19 @@ export async function getMenuSheetLogic(
         orderBy: [{ effectiveFrom: "desc" }, { createdAt: "desc" }],
       }),
     ]);
-    return { recipe, links, versions };
+    const facts = await ingredientFactsInTx(
+      tx,
+      tenantId,
+      query.branchId,
+      recipe.ingredients.flatMap((i) => (i.productId ? [i.productId] : []))
+    );
+    return { recipe, links, versions, facts };
   });
 
   if (base === null) {
     return { recipe: null, history: [], facts: { facts: {}, postedThrough: null, postedDays: 0 } };
   }
-  const { recipe, links, versions } = base;
-  const productIds = recipe.ingredients.flatMap((i) => (i.productId ? [i.productId] : []));
-  const [walk, facts] = await Promise.all([
-    cost === null ? Promise.resolve(null) : getRecipeCostLogic(tenantId, { recipeId: recipe.id, branchId: query.branchId, asOf: today }),
-    getIngredientFactsLogic(tenantId, query.branchId, productIds),
-  ]);
-  const lineCost = new Map((walk?.lines ?? []).map((l) => [l.ingredientId, Number(l.cost)]));
+  const { recipe, links, versions, facts } = base;
 
   return {
     recipe: {
@@ -233,24 +364,7 @@ export async function getMenuSheetLogic(
       servings: Number(recipe.servings),
       notes: recipe.notes,
       effectiveFrom: isoDate(recipe.effectiveFrom),
-      lines: recipe.ingredients.map((i) => ({
-        ingredientId: i.id,
-        kind: i.componentMenuId ? ("menu" as const) : ("product" as const),
-        productId: i.productId,
-        componentMenuId: i.componentMenuId,
-        label: i.product?.name ?? i.componentMenu?.name ?? "—",
-        sku: i.product?.sku ?? null,
-        prepped: i.product?.type === "PREPPED",
-        qty: Number(i.qty),
-        unitId: i.productUnitId,
-        unitName: i.productUnit?.unitName ?? null,
-        toBaseRatio: i.productUnit ? Number(i.productUnit.toBaseRatio) : 1,
-        notes: i.notes,
-        cost: walk === null ? null : (lineCost.get(i.id) ?? 0),
-      })),
-      costPerServing: walk === null ? null : Number(walk.costPerServing),
-      confidence: walk?.confidence ?? null,
-      unpriced: (walk?.unpriced ?? []).map((u) => u.name),
+      lines: recipe.ingredients.map(toSheetLine),
     },
     history: versions.map((v) => ({
       recipeId: v.id,
@@ -261,6 +375,32 @@ export async function getMenuSheetLogic(
     facts,
   };
 }
+
+type IngredientRow = {
+  id: string;
+  productId: string | null;
+  componentMenuId: string | null;
+  qty: Prisma.Decimal;
+  productUnitId: string | null;
+  notes: string | null;
+  product: { name: string; sku: string; type: string } | null;
+  componentMenu: { name: string } | null;
+  productUnit: { unitName: string; toBaseRatio: Prisma.Decimal } | null;
+};
+const toSheetLine = (i: IngredientRow): SheetLine => ({
+  ingredientId: i.id,
+  kind: i.componentMenuId ? "menu" : "product",
+  productId: i.productId,
+  componentMenuId: i.componentMenuId,
+  label: i.product?.name ?? i.componentMenu?.name ?? "—",
+  sku: i.product?.sku ?? null,
+  prepped: i.product?.type === "PREPPED",
+  qty: Number(i.qty),
+  unitId: i.productUnitId,
+  unitName: i.productUnit?.unitName ?? null,
+  toBaseRatio: i.productUnit ? Number(i.productUnit.toBaseRatio) : 1,
+  notes: i.notes,
+});
 
 // ------------------------------------------------------------
 // What can go into a recipe — the adder's list, priced at one branch
@@ -273,21 +413,10 @@ export type IngredientOption = {
   sku: string | null;
   prepped: boolean;
   units: { id: string; unitName: string; toBaseRatio: number; isBase: boolean }[];
-  /** Baht per base unit (per serving for a menu); null without the ticket or a price. */
-  costPerBase: number | null;
 };
 
-/**
- * Every product and every dish that can be an ingredient, with what one base
- * unit costs at this branch. RAW from the FIFO replay; PREPPED and menus from
- * the recipe walk at the same branch — the two sources the walk itself uses, so
- * an estimate built from these agrees with the figure the save will produce.
- */
-export async function getIngredientOptionsLogic(
-  tenantId: string,
-  branchId: string,
-  cost: CostAccess | null
-): Promise<IngredientOption[]> {
+/** Every product and dish that can be an ingredient. Prices come from the price book. */
+export async function getIngredientOptionsLogic(tenantId: string): Promise<IngredientOption[]> {
   const [products, menus] = await withTenantContext(tenantId, (tx) =>
     Promise.all([
       tx.product.findMany({
@@ -297,8 +426,6 @@ export async function getIngredientOptionsLogic(
           name: true,
           sku: true,
           type: true,
-          parentProductId: true,
-          yieldPercent: true,
           productUnits: { select: { id: true, unitName: true, toBaseRatio: true, isBase: true }, orderBy: { displayOrder: "asc" } },
         },
         orderBy: { name: "asc" },
@@ -310,36 +437,6 @@ export async function getIngredientOptionsLogic(
       }),
     ])
   );
-
-  let raw = new Map<string, number>();
-  let walked = new Map<string, number>();
-  if (cost !== null) {
-    const [fifo, list] = await Promise.all([
-      getProductCostsLogic(tenantId, { productIds: products.map((p) => p.id), branchId }),
-      getRecipeListLogic(tenantId, { branchId, missingOnly: false }, cost),
-    ]);
-    // UNPRICED is "nobody has bought this here", not "it is free" — the adder
-    // must say ยังไม่มีราคา rather than ฿0 (mise-ui-review §3).
-    raw = new Map([...fifo].flatMap(([id, c]) => (c.costSource === "UNPRICED" ? [] : [[id, Number(c.costPerBaseUnit)] as const])));
-    walked = new Map(
-      [...list.menus, ...list.prepped].flatMap((r) => (r.costPerServing === null ? [] : [[r.targetId, Number(r.costPerServing)] as const]))
-    );
-  }
-
-  const priceOf = (p: (typeof products)[number]): number | null => {
-    if (cost === null) return null;
-    if (p.type !== "PREPPED") return raw.get(p.id) ?? null;
-    // A prepped product with stock is consumed from that stock first (ADR 0040
-    // Q10, once built); until then the walk prices it through its recipe or its
-    // parent ÷ yield.
-    if (walked.has(p.id)) return walked.get(p.id)!;
-    if (p.parentProductId && p.yieldPercent) {
-      const parent = raw.get(p.parentProductId);
-      return parent == null ? null : parent / (Number(p.yieldPercent) / 100);
-    }
-    return null;
-  };
-
   return [
     ...products.map((p) => ({
       kind: "product" as const,
@@ -348,17 +445,8 @@ export async function getIngredientOptionsLogic(
       sku: p.sku,
       prepped: p.type === "PREPPED",
       units: p.productUnits.map((u) => ({ id: u.id, unitName: u.unitName, toBaseRatio: Number(u.toBaseRatio), isBase: u.isBase })),
-      costPerBase: priceOf(p),
     })),
-    ...menus.map((m) => ({
-      kind: "menu" as const,
-      id: m.id,
-      name: m.name,
-      sku: m.posMenuId,
-      prepped: false,
-      units: [],
-      costPerBase: cost === null ? null : (walked.get(m.id) ?? null),
-    })),
+    ...menus.map((m) => ({ kind: "menu" as const, id: m.id, name: m.name, sku: m.posMenuId, prepped: false, units: [] })),
   ];
 }
 
@@ -369,12 +457,11 @@ export async function getIngredientOptionsLogic(
 export type IngredientInsight = {
   product: { id: string; name: string; sku: string; type: string; baseUnitName: string | null };
   facts: IngredientFacts;
-  costPerBase: number | null;
   /** The last four confirmed receipts at this branch; null without the ticket. */
   receipts: { date: string; supplier: string; packUnit: string; qty: number; price: number; perBase: number }[] | null;
   /** Current recipes that use it, one row per recipe LINE. */
   usedIn: { menuId: string | null; label: string; qty: number; unitName: string | null; isCentral: boolean }[];
-  /** How a PREPPED product is made; null for RAW. */
+  /** How a PREPPED product is made; null for RAW. Priced by the client's price book. */
   made:
     | null
     | { how: "yield"; parentId: string; parentName: string; yieldPercent: number }
@@ -382,67 +469,97 @@ export type IngredientInsight = {
     | { how: "none" };
 };
 
+/**
+ * Everything the stacked sheet shows about one product. The reads do not
+ * depend on each other, so they run side by side (stock facts, the product and
+ * its usage, receipts) — the sheet waited on them one after another before.
+ */
 export async function getIngredientInsightLogic(
   tenantId: string,
   query: { productId: string; branchId: string },
   cost: CostAccess | null
 ): Promise<IngredientInsight | null> {
   const today = computeBangkokToday();
-  const base = await withTenantContext(tenantId, async (tx) => {
-    const product = await tx.product.findFirst({
-      where: { id: query.productId, tenantId, deletedAt: null },
-      select: {
-        id: true,
-        name: true,
-        sku: true,
-        type: true,
-        yieldPercent: true,
-        parentProduct: { select: { id: true, name: true } },
-        productUnits: { where: { isBase: true }, select: { unitName: true } },
-      },
-    });
-    if (product === null) return null;
-
-    const [usage, receipts, produced] = await Promise.all([
-      tx.recipeIngredient.findMany({
-        where: {
-          tenantId,
-          productId: product.id,
-          recipe: { deletedAt: null, supersededAt: null, isDraft: false, effectiveFrom: { lte: today } },
-        },
-        select: {
-          qty: true,
-          productUnit: { select: { unitName: true } },
-          recipe: { select: { lineId: true, effectiveFrom: true, createdAt: true, menuId: true, menu: { select: { name: true } }, outputProduct: { select: { name: true } } } },
-        },
-      }),
-      cost === null
-        ? Promise.resolve([])
-        : tx.goodsReceiptItem.findMany({
-            where: { tenantId, productId: product.id, goodsReceipt: { branchId: query.branchId, status: "CONFIRMED" } },
-            select: {
-              qtyReceivedActual: true,
-              receivedUnitName: true,
-              toBaseRatio: true,
-              unitPriceActual: true,
-              goodsReceipt: { select: { receivedAt: true, supplier: { select: { nameShort: true, nameFull: true } } } },
-            },
-            orderBy: { goodsReceipt: { receivedAt: "desc" } },
-            take: 4,
-          }),
-      product.type === "PREPPED"
-        ? resolveRecipeIds(tx, tenantId, [{ kind: "product", id: product.id }], query.branchId, today)
-        : Promise.resolve(new Map()),
-    ]);
-
-    const links = await tx.recipeBranch.findMany({
-      where: { tenantId, lineId: { in: [...new Set(usage.map((u) => u.recipe.lineId))] } },
-      select: { lineId: true },
-    });
-    return { product, usage, receipts, produced, branchLines: new Set(links.map((l) => l.lineId)) };
-  });
+  const [base, facts] = await Promise.all([
+    withTenantContext(tenantId, async (tx) => {
+      const [product, usage, receipts, produced] = await Promise.all([
+        tx.product.findFirst({
+          where: { id: query.productId, tenantId, deletedAt: null },
+          select: {
+            id: true,
+            name: true,
+            sku: true,
+            type: true,
+            yieldPercent: true,
+            parentProduct: { select: { id: true, name: true } },
+            productUnits: { where: { isBase: true }, select: { unitName: true } },
+          },
+        }),
+        tx.recipeIngredient.findMany({
+          where: {
+            tenantId,
+            productId: query.productId,
+            recipe: { deletedAt: null, supersededAt: null, isDraft: false, effectiveFrom: { lte: today } },
+          },
+          select: {
+            qty: true,
+            productUnit: { select: { unitName: true } },
+            recipe: { select: { lineId: true, effectiveFrom: true, createdAt: true, menuId: true, menu: { select: { name: true } }, outputProduct: { select: { name: true } } } },
+          },
+        }),
+        cost === null
+          ? Promise.resolve([])
+          : tx.goodsReceiptItem.findMany({
+              where: { tenantId, productId: query.productId, goodsReceipt: { branchId: query.branchId, status: "CONFIRMED" } },
+              select: {
+                qtyReceivedActual: true,
+                receivedUnitName: true,
+                toBaseRatio: true,
+                unitPriceActual: true,
+                goodsReceipt: { select: { receivedAt: true, supplier: { select: { nameShort: true, nameFull: true } } } },
+              },
+              orderBy: { goodsReceipt: { receivedAt: "desc" } },
+              take: 4,
+            }),
+        resolveRecipeIds(tx, tenantId, [{ kind: "product", id: query.productId }], query.branchId, today),
+      ]);
+      if (product === null) return null;
+      const hit = produced.get(`product:${product.id}`);
+      const [links, recipe] = await Promise.all([
+        tx.recipeBranch.findMany({
+          where: { tenantId, lineId: { in: [...new Set(usage.map((u) => u.recipe.lineId))] } },
+          select: { lineId: true },
+        }),
+        hit === undefined
+          ? Promise.resolve(null)
+          : tx.recipe.findFirst({
+              where: { id: hit.id, tenantId },
+              select: {
+                id: true,
+                servings: true,
+                ingredients: {
+                  orderBy: { sortOrder: "asc" },
+                  select: {
+                    id: true,
+                    productId: true,
+                    componentMenuId: true,
+                    qty: true,
+                    productUnitId: true,
+                    notes: true,
+                    product: { select: { name: true, sku: true, type: true } },
+                    componentMenu: { select: { name: true } },
+                    productUnit: { select: { unitName: true, toBaseRatio: true } },
+                  },
+                },
+              },
+            }),
+      ]);
+      return { product, usage, receipts, recipe, branchLines: new Set(links.map((l) => l.lineId)) };
+    }),
+    getIngredientFactsLogic(tenantId, query.branchId, [query.productId]),
+  ]);
   if (base === null) return null;
-  const { product, usage, receipts, produced, branchLines } = base;
+  const { product, usage, receipts, recipe, branchLines } = base;
 
   // One row per LINE: only the newest version at or before today still governs.
   const newest = new Map<string, (typeof usage)[number]>();
@@ -453,40 +570,17 @@ export async function getIngredientInsightLogic(
     }
   }
 
-  const producedHit = produced.get(`product:${product.id}`);
-  const [facts, fifo, producedSheet] = await Promise.all([
-    getIngredientFactsLogic(tenantId, query.branchId, [product.id]),
-    cost === null ? Promise.resolve(null) : getProductCostsLogic(tenantId, { productIds: [product.id], branchId: query.branchId }),
-    producedHit === undefined ? Promise.resolve(null) : productionSheet(tenantId, producedHit.id, query.branchId, cost),
-  ]);
-
   let made: IngredientInsight["made"] = null;
   if (product.type === "PREPPED") {
-    if (producedSheet) made = producedSheet;
+    if (recipe) made = { how: "recipe", recipeId: recipe.id, servings: Number(recipe.servings), lines: recipe.ingredients.map(toSheetLine) };
     else if (product.parentProduct && product.yieldPercent)
       made = { how: "yield", parentId: product.parentProduct.id, parentName: product.parentProduct.name, yieldPercent: Number(product.yieldPercent) };
     else made = { how: "none" };
   }
 
-  let costPerBase: number | null = null;
-  if (cost !== null) {
-    if (product.type !== "PREPPED") {
-      const c = fifo!.get(product.id)!;
-      costPerBase = c.costSource === "UNPRICED" ? null : Number(c.costPerBaseUnit);
-    }
-    else if (made?.how === "recipe") {
-      const total = made.lines.reduce((s, l) => s + (l.cost ?? 0), 0);
-      costPerBase = made.servings > 0 ? total / made.servings : null;
-    } else if (made?.how === "yield") {
-      const parent = await getProductCostsLogic(tenantId, { productIds: [made.parentId], branchId: query.branchId });
-      costPerBase = Number(parent.get(made.parentId)!.costPerBaseUnit) / (made.yieldPercent / 100);
-    }
-  }
-
   return {
     product: { id: product.id, name: product.name, sku: product.sku, type: product.type, baseUnitName: product.productUnits[0]?.unitName ?? null },
     facts,
-    costPerBase,
     receipts:
       cost === null
         ? null
@@ -508,59 +602,5 @@ export async function getIngredientInsightLogic(
       }))
       .sort((a, b) => a.label.localeCompare(b.label, "th")),
     made,
-  };
-}
-
-async function productionSheet(
-  tenantId: string,
-  recipeId: string,
-  branchId: string,
-  cost: CostAccess | null
-): Promise<IngredientInsight["made"]> {
-  const [recipe, walk] = await Promise.all([
-    withTenantContext(tenantId, (tx) =>
-      tx.recipe.findFirstOrThrow({
-        where: { id: recipeId, tenantId },
-        select: {
-          servings: true,
-          ingredients: {
-            orderBy: { sortOrder: "asc" },
-            select: {
-              id: true,
-              productId: true,
-              componentMenuId: true,
-              qty: true,
-              productUnitId: true,
-              notes: true,
-              product: { select: { name: true, sku: true, type: true } },
-              componentMenu: { select: { name: true } },
-              productUnit: { select: { unitName: true, toBaseRatio: true } },
-            },
-          },
-        },
-      })
-    ),
-    cost === null ? Promise.resolve(null) : getRecipeCostLogic(tenantId, { recipeId, branchId, asOf: computeBangkokToday() }),
-  ]);
-  const lineCost = new Map((walk?.lines ?? []).map((l) => [l.ingredientId, Number(l.cost)]));
-  return {
-    how: "recipe",
-    recipeId,
-    servings: Number(recipe.servings),
-    lines: recipe.ingredients.map((i) => ({
-      ingredientId: i.id,
-      kind: i.componentMenuId ? ("menu" as const) : ("product" as const),
-      productId: i.productId,
-      componentMenuId: i.componentMenuId,
-      label: i.product?.name ?? i.componentMenu?.name ?? "—",
-      sku: i.product?.sku ?? null,
-      prepped: i.product?.type === "PREPPED",
-      qty: Number(i.qty),
-      unitId: i.productUnitId,
-      unitName: i.productUnit?.unitName ?? null,
-      toBaseRatio: i.productUnit ? Number(i.productUnit.toBaseRatio) : 1,
-      notes: i.notes,
-      cost: walk === null ? null : (lineCost.get(i.id) ?? 0),
-    })),
   };
 }

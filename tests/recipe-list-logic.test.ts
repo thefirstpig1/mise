@@ -52,6 +52,7 @@ import {
   getRecipeHistoryLogic,
   getRecipeListLogic,
 } from "@/server/recipe-read";
+import { getMenuPriceBookLogic, getMenuRecipeStatusLogic } from "@/server/menu-manager";
 
 describe("recipe list reads (ADR 0021 Part 21 L5a)", () => {
   let tenantA: string;
@@ -609,4 +610,41 @@ describe("recipe list reads (ADR 0021 Part 21 L5a)", () => {
       }
     }
   }, 120_000);
+
+  it("L-17 the menu screen's price book says what the list says — menu costs, own lines, prepped prices", async () => {
+    // 2026-10-04 (Kong: "หน้าไหนโหลดช้า"): /menus stopped pricing through the
+    // recipe LIST on every load and asks one price book per branch after it
+    // paints. Same resolver, same walk, same FIFO — so the same numbers, and
+    // the recipe-status read the list paints with names the same recipes.
+    const owner = costAccessFor("owner");
+    for (const branchId of [branchA, branchB, branchC]) {
+      const list = await getRecipeListLogic(tenantA, { branchId, missingOnly: false }, owner);
+      const [book, status] = await Promise.all([
+        getMenuPriceBookLogic(tenantA, branchId, owner),
+        getMenuRecipeStatusLogic(tenantA, branchId),
+      ]);
+      for (const m of list.menus) {
+        if (m.recipeId === null) {
+          expect(book.menus[m.targetId]).toBeUndefined();
+          expect(status[m.targetId]).toBeUndefined();
+          continue;
+        }
+        expect(book.menus[m.targetId]).toEqual({
+          recipeId: m.recipeId,
+          own: m.isBranchOwn,
+          costPerServing: m.costPerServing === null ? null : Number(m.costPerServing),
+          confidence: m.confidence,
+        });
+        expect(status[m.targetId]).toEqual({ recipeId: m.recipeId, own: m.isBranchOwn });
+      }
+      // A production recipe's cost per serving is its price per base unit.
+      for (const p of list.prepped) {
+        if (p.recipeId !== null && p.costPerServing !== null) {
+          expect(book.products[p.targetId]).toBeCloseTo(Number(p.costPerServing), 6);
+        }
+      }
+    }
+    // Without the ticket there are no prices at all — not zeros.
+    expect(await getMenuPriceBookLogic(tenantA, branchA, null)).toEqual({ menus: {}, products: {} });
+  });
 });

@@ -25,7 +25,7 @@ import { getMenuMergesLogic } from "@/server/menu-merge-read";
 import { getMenuListFactsLogic, MENU_FACT_DAYS } from "@/server/menu-list-facts";
 import { getBranchesLogic } from "@/server/branch";
 import { freshestCostBranch } from "@/server/menu-lab-read";
-import { getRecipeListLogic } from "@/server/recipe-read";
+import { getMenuRecipeStatusLogic } from "@/server/menu-manager";
 import { computeBangkokToday } from "@/lib/bangkok-date";
 import { solid, toneOf } from "@/components/charts/chart-theme";
 import { toMenuRowView } from "./_components/menu-view";
@@ -42,13 +42,15 @@ export default async function MenusPage({
   const one = (k: string) => (Array.isArray(params[k]) ? params[k][0] : params[k]);
   const departmentsEnabled = membership.tenant.enableDepartments;
 
-  const branches = await getBranchesLogic(tenantId, reach);
+  // Both at once: the fallback branch does not depend on the list.
   const asked = one("branch");
-  const branch =
-    branches.find((b) => b.id === asked) ??
-    (branches.length > 0 ? await freshestCostBranch(tenantId, reach) : null);
+  const [branches, freshest] = await Promise.all([
+    getBranchesLogic(tenantId, reach),
+    freshestCostBranch(tenantId, reach).catch(() => null),
+  ]);
+  const branch = branches.find((b) => b.id === asked) ?? freshest;
 
-  const [menus, categories, integrations, departments, merges, facts, recipeList] = await Promise.all([
+  const [menus, categories, integrations, departments, merges, facts, recipeStatus] = await Promise.all([
     getMenusLogic(tenantId, {
       posIntegrationId: undefined,
       menuCategoryId: undefined,
@@ -68,9 +70,10 @@ export default async function MenusPage({
     // merge nobody can undo (ADR 0026 Q6) — it only NESTS one under the other.
     getMenuMergesLogic(tenantId, { winningMenuId: undefined, includeRevoked: false }),
     getMenuListFactsLogic(tenantId, reach),
-    branch === null
-      ? Promise.resolve(null)
-      : getRecipeListLogic(tenantId, { branchId: branch.id, missingOnly: false }, costAccess),
+    // Which dishes have a recipe here — no prices. Prices (the slow part: the
+    // recipe walk and the FIFO replay) load AFTER the list paints, once per
+    // branch, through getPriceBookAction (Kong 2026-10-04, "หน้าไหนโหลดช้า").
+    branch === null ? Promise.resolve({} as Record<string, { recipeId: string; own: boolean }>) : getMenuRecipeStatusLogic(tenantId, branch.id),
   ]);
 
   const mergeRows = merges.map(toMenuMergeRowView);
@@ -85,21 +88,18 @@ export default async function MenusPage({
   const toneByCategory = new Map(
     [...categories].sort((a, b) => a.name.localeCompare(b.name, "th")).map((c, i) => [c.id, solid(toneOf(i))])
   );
-  const recipeByMenu = new Map((recipeList?.menus ?? []).map((r) => [r.targetId, r]));
 
   const rows: ManagerRow[] = menus.map((m) => {
     const view = toMenuRowView(m, departmentsEnabled);
     const f = facts.facts.get(m.id);
-    const r = recipeByMenu.get(m.id);
+    const r = recipeStatus[m.id];
     return {
       ...view,
       qty: f?.qty ?? 0,
       net: f?.net ?? 0,
       hasDraft: f?.hasDraft ?? false,
       recipeId: r?.recipeId ?? null,
-      recipeOwn: r?.isBranchOwn ?? false,
-      costPerServing: r?.costPerServing == null ? null : Number(r.costPerServing),
-      confidence: r?.confidence ?? null,
+      recipeOwn: r?.own ?? false,
       tone: (m.menuCategoryId && toneByCategory.get(m.menuCategoryId)) || "#AEB784",
     };
   });

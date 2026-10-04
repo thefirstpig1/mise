@@ -9,7 +9,7 @@
 // away, merged spellings nested under their dish (ADR 0026 Q6), + เพิ่มหมวด,
 // sort by name or by what sells.
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
 import { rankBySearch, hasQuery, highlightRuns, STRONG_MATCH, type SearchField } from "@/lib/smart-search";
@@ -22,7 +22,9 @@ import EmptyState from "@/components/ui/EmptyState";
 import ActionLink from "@/components/ui/ActionLink";
 import MenuSheet from "./MenuSheet";
 import { Portal } from "./sheet-parts";
+import { ingredientOptions, menuSheet, priceBook } from "./prefetch";
 import { baht, confidenceTh } from "./manager-format";
+import type { IngredientOption, PriceBook } from "@/server/menu-manager";
 
 export type ManagerRow = MenuRowView & {
   qty: number;
@@ -32,8 +34,6 @@ export type ManagerRow = MenuRowView & {
   recipeId: string | null;
   /** That recipe is the branch's own, not central. */
   recipeOwn: boolean;
-  costPerServing: number | null;
-  confidence: string | null;
   tone: string;
 };
 
@@ -101,6 +101,38 @@ export default function MenuManager(props: {
   );
   const [addingCategory, setAddingCategory] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const hoverTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  // Prices load AFTER the list has painted, once per branch, and are kept —
+  // switching back to a branch already seen costs nothing (mise-ui-review §5b).
+  const [books, setBooks] = useState<Record<string, PriceBook>>({});
+  const [bookTick, setBookTick] = useState(0);
+  const book = branch ? (books[branch.id] ?? null) : null;
+  const branchId = branch?.id ?? null;
+  const haveBook = branchId !== null && branchId in books;
+  // Keyed by branch, so a late answer for a branch no longer on screen is
+  // simply kept for when it comes back — no "is this still current" flag, which
+  // React's dev double-run of effects turned into a dropped answer.
+  const asking = useRef(new Set<string>());
+  useEffect(() => {
+    if (costHidden || branchId === null || haveBook || asking.current.has(branchId)) return;
+    asking.current.add(branchId);
+    void priceBook(branchId).then((r) => {
+      asking.current.delete(branchId);
+      if (r.ok) setBooks((b) => ({ ...b, [branchId]: r.book }));
+    });
+  }, [branchId, haveBook, costHidden, bookTick]);
+  const pricesLoading = !costHidden && branch !== null && book === null;
+  const costOf = (id: string) => book?.menus[id] ?? null;
+
+  // The adder's list: one fetch the first time any sheet needs it.
+  const [options, setOptions] = useState<IngredientOption[] | null>(null);
+  const optionsAsked = useRef(false);
+  const needOptions = () => {
+    if (optionsAsked.current || !perm.recipe) return;
+    optionsAsked.current = true;
+    void ingredientOptions().then((r) => (r.ok ? setOptions(r.options) : (optionsAsked.current = false)));
+  };
   useEffect(() => {
     if (!toast) return;
     const t = setTimeout(() => setToast(null), 3200);
@@ -126,8 +158,8 @@ export default function MenuManager(props: {
   const stats = useMemo(() => {
     const total = selling.reduce((s, r) => s + r.net, 0);
     const covered = selling.filter((r) => r.recipeId !== null).reduce((s, r) => s + r.net, 0);
-    const costed = selling.filter((r) => r.costPerServing !== null && r.qty > 0);
-    const cost = costed.reduce((s, r) => s + r.costPerServing! * r.qty, 0);
+    const costed = selling.filter((r) => costOf(r.id)?.costPerServing != null && r.qty > 0);
+    const cost = costed.reduce((s, r) => s + costOf(r.id)!.costPerServing! * r.qty, 0);
     const netCosted = costed.reduce((s, r) => s + r.net, 0);
     return {
       total,
@@ -136,7 +168,8 @@ export default function MenuManager(props: {
       foodCost: netCosted > 0 ? (cost / netCosted) * 100 : null,
       costedCount: costed.length,
     };
-  }, [selling]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selling, book]);
 
   const byStatus = rows.filter((r) =>
     status === "every"
@@ -270,7 +303,9 @@ export default function MenuManager(props: {
             {!costHidden && (
               <div className="rounded-xl border border-border bg-surface p-3">
                 <p className="text-xs text-muted-subtle">ต้นทุนวัตถุดิบ เทียบยอดขาย</p>
-                <p className="font-display text-2xl font-semibold tabular-nums">{stats.foodCost === null ? "—" : `${stats.foodCost.toFixed(1)}%`}</p>
+                <p className="font-display text-2xl font-semibold tabular-nums">
+                  {pricesLoading ? <span className="inline-block h-7 w-20 animate-pulse rounded bg-muted align-middle" /> : stats.foodCost === null ? "—" : `${stats.foodCost.toFixed(1)}%`}
+                </p>
                 <p className="text-xs text-muted-foreground">
                   คิดจาก {stats.costedCount} เมนูที่มีสูตร{branch ? ` · ${branch.name}` : ""}
                 </p>
@@ -354,7 +389,8 @@ export default function MenuManager(props: {
                     const weak = searching && r.score < STRONG_MATCH;
                     const firstWeak = weak && (i === 0 || visible[i - 1].score >= STRONG_MATCH);
                     const avg = m.qty > 0 ? m.net / m.qty : null;
-                    const pct = avg && m.costPerServing !== null ? (m.costPerServing / avg) * 100 : null;
+                    const mc = costOf(m.id);
+                    const pct = avg && mc?.costPerServing != null ? (mc.costPerServing / avg) * 100 : null;
                     const spellings = spellingsByWinner[m.id] ?? [];
                     const mark = (text: string | null, f: number) =>
                       text === null ? null : searching && r.field === f ? <Marked text={text} marks={r.marks} /> : text;
@@ -369,6 +405,13 @@ export default function MenuManager(props: {
                       <tr
                         key={m.id}
                         onClick={() => setOpenId(m.id)}
+                        // Start the sheet's read once the pointer RESTS on a row
+                        // (not on every row it crosses); the click finds it ready.
+                        onPointerEnter={() => {
+                          clearTimeout(hoverTimer.current);
+                          hoverTimer.current = setTimeout(() => branch && void menuSheet(m.id, branch.id), 150);
+                        }}
+                        onPointerLeave={() => clearTimeout(hoverTimer.current)}
                         className={`cursor-pointer align-top transition-colors hover:bg-muted/50 ${openId === m.id ? "bg-highlight" : ""} ${weak ? "opacity-45" : ""}`}
                       >
                         <td className="px-4 py-2.5">
@@ -400,13 +443,15 @@ export default function MenuManager(props: {
                         <td className="px-4 py-2.5 text-right tabular-nums">{avg === null ? "—" : baht(avg)}</td>
                         {!costHidden && (
                           <td className="px-4 py-2.5 text-right tabular-nums">
-                            {m.costPerServing === null ? (
+                            {pricesLoading && m.recipeId ? (
+                              <span className="inline-block h-4 w-14 animate-pulse rounded bg-muted align-middle" />
+                            ) : mc?.costPerServing == null ? (
                               <span className="text-muted-subtle">—</span>
                             ) : (
                               <>
-                                {baht(m.costPerServing, 2)}
-                                {m.confidence && m.confidence !== "HIGH" && (
-                                  <span className="block text-xs text-warn">ความมั่นใจ{confidenceTh(m.confidence)}</span>
+                                {baht(mc.costPerServing, 2)}
+                                {mc.confidence && mc.confidence !== "HIGH" && (
+                                  <span className="block text-xs text-warn">ความมั่นใจ{confidenceTh(mc.confidence)}</span>
                                 )}
                               </>
                             )}
@@ -414,8 +459,10 @@ export default function MenuManager(props: {
                         )}
                         {!costHidden && (
                           <td className="px-4 py-2.5 tabular-nums">
-                            {pct === null ? (
-                              <span className="text-muted-subtle">{m.recipeId ? "ยังไม่มียอดขาย" : "ไม่มีสูตร"}</span>
+                            {pricesLoading && m.recipeId ? (
+                              <span className="inline-block h-4 w-20 animate-pulse rounded bg-muted align-middle" />
+                            ) : pct === null ? (
+                              <span className="text-muted-subtle">{!m.recipeId ? "ไม่มีสูตร" : m.qty === 0 ? "ยังไม่มียอดขาย" : "—"}</span>
                             ) : (
                               <span className="inline-flex items-center gap-2">
                                 <i className="inline-block h-1.5 rounded-full bg-border-strong" style={{ width: Math.min(pct, 80) * 0.9 }} />
@@ -459,8 +506,17 @@ export default function MenuManager(props: {
           mergedIntoLabel={mergedIntoLabel(opened.id)}
           costHidden={costHidden}
           perm={perm}
+          book={book}
+          options={options}
+          needOptions={needOptions}
           onClose={() => setOpenId(null)}
-          onSaved={() => router.refresh()}
+          onSaved={() => {
+            // A saved recipe moves its own price and every set that uses it.
+            router.refresh();
+            // A central recipe moves every branch's prices, so every book goes.
+            setBooks({});
+            setBookTick((t) => t + 1);
+          }}
           onToast={setToast}
         />
       )}

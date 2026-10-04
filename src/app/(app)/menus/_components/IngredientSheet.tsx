@@ -13,9 +13,10 @@
 // the same second look as a dish's recipe (ConfirmDialog).
 
 import { useEffect, useState, useTransition } from "react";
-import { getIngredientInsightAction, setPreppedYieldAction } from "@/app/(app)/menus/manager-actions";
+import { setPreppedYieldAction } from "@/app/(app)/menus/manager-actions";
+import { dropPrefetched, ingredientInsight } from "./prefetch";
 import { updateRecipeAction } from "@/app/(app)/recipes/actions";
-import type { IngredientInsight, SheetLine } from "@/server/menu-manager";
+import type { IngredientInsight, PriceBook, SheetLine } from "@/server/menu-manager";
 import { orStale } from "@/lib/stale-tab";
 import { baht, newSubmitKey, qtyFmt, thDate, unitTh } from "./manager-format";
 import { ConfirmDialog, type ConfirmSpec, PhotoSlot, Sheet } from "./sheet-parts";
@@ -30,6 +31,7 @@ export default function IngredientSheet({
   inThisDish,
   costHidden,
   perm,
+  book,
   onClose,
   onToast,
   onPreppedSaved,
@@ -40,6 +42,8 @@ export default function IngredientSheet({
   inThisDish: InThisDish | null;
   costHidden: boolean;
   perm: Perm;
+  /** The branch's prices, held by the list — no second walk here. */
+  book: PriceBook | null;
   onClose: () => void;
   onToast: (msg: string) => void;
   onPreppedSaved: () => void;
@@ -52,8 +56,8 @@ export default function IngredientSheet({
   const [confirm, setConfirm] = useState<ConfirmSpec | null>(null);
   const [saving, startSaving] = useTransition();
 
-  const load = () =>
-    orStale(getIngredientInsightAction(productId, branch.id)).then((res) => {
+  const load = (fresh = false) =>
+    ingredientInsight(productId, branch.id, fresh).then((res) => {
       if (!res.ok) return setError("error" in res ? res.error : "เปิดไม่ได้");
       setData(res.insight);
       const m = res.insight.made;
@@ -70,24 +74,30 @@ export default function IngredientSheet({
   const baseUnit = data?.product.baseUnitName ?? null;
   const fact = data?.facts.facts[productId] ?? null;
 
-  // Live cost while editing a production recipe: each line keeps its cost per
-  // chosen unit, so changing a quantity scales its own line only.
-  const perUnit = (l: SheetLine, orig?: SheetLine) => (orig && orig.cost !== null && orig.qty > 0 ? orig.cost / orig.qty : null);
-  const recipeLines = made?.how === "recipe" ? made.lines : [];
-  const draftTotal = lines?.reduce((s, l) => {
-    const o = recipeLines.find((x) => x.ingredientId === l.ingredientId);
-    const u = perUnit(l, o);
-    return s + (u === null ? 0 : u * l.qty);
-  }, 0);
-  const baseTotal = recipeLines.reduce((s, l) => s + (l.cost ?? 0), 0);
+  // Prices come from the branch's price book: a line costs qty × its unit in
+  // base units × the price per base unit — what the recipe walk does one level
+  // down, from the same FIFO and walk figures.
+  const price = (l: Pick<SheetLine, "kind" | "productId" | "componentMenuId">) =>
+    book === null ? null : l.kind === "menu" ? (book.menus[l.componentMenuId ?? ""]?.costPerServing ?? null) : (book.products[l.productId ?? ""] ?? null);
+  const lineCost = (l: SheetLine) => {
+    const p = price(l);
+    return p === null ? null : l.qty * l.toBaseRatio * p;
+  };
+  const total = (ls: SheetLine[]) => ls.reduce((s, l) => s + (lineCost(l) ?? 0), 0);
   const servings = made?.how === "recipe" ? made.servings : 1;
-  const draftCost =
+  const parentPrice = made?.how === "yield" ? (book?.products[made.parentId] ?? null) : null;
+  const baseCost =
     made?.how === "recipe"
-      ? (draftTotal ?? 0) / servings
-      : made?.how === "yield" && data?.costPerBase != null && Number(yieldPct) > 0
-        ? (data.costPerBase * made.yieldPercent) / Number(yieldPct)
-        : data?.costPerBase ?? null;
-  const baseCost = made?.how === "recipe" ? baseTotal / servings : data?.costPerBase ?? null;
+      ? total(made.lines) / servings
+      : made?.how === "yield"
+        ? parentPrice === null ? null : parentPrice / (made.yieldPercent / 100)
+        : (book?.products[productId] ?? null);
+  const draftCost =
+    made?.how === "recipe" && lines
+      ? total(lines) / servings
+      : made?.how === "yield"
+        ? parentPrice === null || !(Number(yieldPct) > 0) ? null : parentPrice / (Number(yieldPct) / 100)
+        : baseCost;
 
   const dirty =
     made?.how === "recipe"
@@ -153,8 +163,9 @@ export default function IngredientSheet({
         }
       }
       onToast(`บันทึกสูตรของ${data.product.name}แล้ว${!costHidden && draftCost !== null ? ` · ต้นทุนใหม่ ${baht(draftCost, 2)}/${unitTh(baseUnit)}` : ""}`);
+      dropPrefetched();
       onPreppedSaved();
-      await load();
+      await load(true);
     });
 
   const receipts = data?.receipts ?? null;
@@ -200,8 +211,8 @@ export default function IngredientSheet({
               {!costHidden && (
                 <Tile
                   k={`ต้นทุนต่อ${unitTh(baseUnit)}`}
-                  v={draftCost === null ? "—" : baht(draftCost, 2)}
-                  s={dirty && baseCost !== null ? `เดิม ${baht(baseCost, 2)}` : data.product.type === "PREPPED" ? "คิดจากวัตถุดิบที่ใช้ทำ" : "FIFO · " + branch.name}
+                  v={book === null ? "…" : draftCost === null ? "—" : baht(draftCost, 2)}
+                  s={book === null ? "กำลังคำนวณ…" : dirty && baseCost !== null ? `เดิม ${baht(baseCost, 2)}` : data.product.type === "PREPPED" ? "คิดจากวัตถุดิบที่ใช้ทำ" : "FIFO · " + branch.name}
                   warn={dirty}
                 />
               )}
@@ -226,7 +237,7 @@ export default function IngredientSheet({
                   <tbody className="divide-y divide-border">
                     {lines.map((l, i) => {
                       const o = made.lines.find((x) => x.ingredientId === l.ingredientId);
-                      const u = perUnit(l, o);
+                      const c = lineCost(l);
                       return (
                         <tr key={l.ingredientId} className={o && o.qty !== l.qty ? "bg-warn-bg" : ""}>
                           <td className="py-1.5">{l.label}</td>
@@ -249,7 +260,7 @@ export default function IngredientSheet({
                             )}
                           </td>
                           <td className="py-1.5 pl-2">{unitTh(l.unitName)}</td>
-                          {!costHidden && <td className="py-1.5 text-right tabular-nums">{u === null ? "—" : baht(u * l.qty, 2)}</td>}
+                          {!costHidden && <td className="py-1.5 text-right tabular-nums">{book === null ? "…" : c === null ? "—" : baht(c, 2)}</td>}
                           <td className="py-1.5 text-right">
                             {editable && lines.length > 1 && (
                               <button type="button" onClick={() => setLines((ls) => ls!.filter((_, j) => j !== i))} aria-label={`เอา ${l.label} ออก`} className="rounded px-1.5 text-muted-subtle hover:bg-bad-bg hover:text-bad">
@@ -281,9 +292,9 @@ export default function IngredientSheet({
                   )}
                   %
                 </p>
-                {!costHidden && draftCost !== null && data.costPerBase !== null && (
+                {!costHidden && draftCost !== null && parentPrice !== null && (
                   <p className="text-xs text-muted-foreground">
-                    ต้นทุน = ราคา{made.parentName} {baht((data.costPerBase * made.yieldPercent) / 100, 2)} ÷ {yieldPct || made.yieldPercent}% = <b className="text-foreground">{baht(draftCost, 2)}</b>
+                    ต้นทุน = ราคา{made.parentName} {baht(parentPrice, 2)} ÷ {yieldPct || made.yieldPercent}% = <b className="text-foreground">{baht(draftCost, 2)}</b>
                   </p>
                 )}
               </section>

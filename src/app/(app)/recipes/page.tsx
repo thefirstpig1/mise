@@ -179,6 +179,7 @@ export default async function RecipesPage({
       branchId,
       search: query.search,
       missingOnly: query.missingOnly,
+      only: "prepped",
     },
     costAccess
   );

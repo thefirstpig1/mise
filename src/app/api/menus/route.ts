@@ -1,0 +1,61 @@
+// ============================================================
+// Mise — the reads behind "จัดการเมนู", as GET (Kong 2026-10-04, "โหลดช้า")
+// ============================================================
+// These were Server Actions. Next.js runs Server Actions ONE AT A TIME through
+// the router's queue — they are built for writes — so the price book (2 s), the
+// sheet and the adder's list waited on each other, and a URL change while one
+// was queued (the sheet writes `?menu=` into the address) dropped the price
+// book's answer altogether: the sheet sat on "กำลังคำนวณ…" for ever.
+//
+// A GET route handler is an ordinary request: the browser runs them side by
+// side and nothing in the router can lose one. Writes stay Server Actions.
+//
+// Same gates as before: membership for every read, the branch asserted against
+// the reader's reach (rule A5), money only with the cost ticket (ADR 0029 Q12),
+// the adder's list only for someone who can write a recipe.
+// ============================================================
+
+import { requireTenant } from "@/lib/require-tenant";
+import {
+  getIngredientInsightLogic,
+  getIngredientOptionsLogic,
+  getMenuPriceBookLogic,
+  getMenuSheetLogic,
+} from "@/server/menu-manager";
+
+export const dynamic = "force-dynamic";
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const json = (body: unknown, status = 200) =>
+  Response.json(body, { status, headers: { "Cache-Control": "no-store" } });
+
+export async function GET(req: Request) {
+  const url = new URL(req.url);
+  const what = url.searchParams.get("what");
+  const branchId = url.searchParams.get("branch") ?? "";
+
+  if (what === "options") {
+    const { tenantId } = await requireTenant("recipe:write");
+    return json({ ok: true, options: await getIngredientOptionsLogic(tenantId) });
+  }
+
+  const { tenantId, costAccess, assertBranch } = await requireTenant("any:member");
+  if (!UUID.test(branchId)) return json({ ok: false, error: "สาขาไม่ถูกต้อง" }, 400);
+  assertBranch(branchId);
+
+  if (what === "book") {
+    return json({ ok: true, book: await getMenuPriceBookLogic(tenantId, branchId, costAccess) });
+  }
+  if (what === "sheet") {
+    const menuId = url.searchParams.get("menu") ?? "";
+    if (!UUID.test(menuId)) return json({ ok: false, error: "ไม่พบเมนูนี้" }, 400);
+    return json({ ok: true, sheet: await getMenuSheetLogic(tenantId, { menuId, branchId }) });
+  }
+  if (what === "ingredient") {
+    const productId = url.searchParams.get("product") ?? "";
+    if (!UUID.test(productId)) return json({ ok: false, error: "ไม่พบวัตถุดิบนี้" }, 400);
+    const insight = await getIngredientInsightLogic(tenantId, { productId, branchId }, costAccess);
+    return insight === null ? json({ ok: false, error: "ไม่พบวัตถุดิบนี้" }, 404) : json({ ok: true, insight });
+  }
+  return json({ ok: false, error: "unknown read" }, 400);
+}
