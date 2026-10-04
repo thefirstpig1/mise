@@ -1,10 +1,8 @@
-// Sprint 5 Part 21 L5b — /recipes: every dish, and whether anybody wrote it down.
-//
-// THE AXIS IS THE MENU, NOT THE RECIPE. A list of the recipes that exist is a
-// list that cannot show what is missing, and what is missing is the work: a shop
-// starting out has forty dishes and three recipes, and the useful screen is the
-// one with thirty-seven visible empty rows. `?missing=true` narrows to exactly
-// that queue.
+// /recipes — since 2026-10-04 the PREPPED half only: a dish's recipe is edited
+// on "จัดการเมนู" (/menus), which took this page's menu axis along with
+// /menus/coverage (Kong). What remains is the list of things the shop makes —
+// น้ำซุป, ซอส, กุ้งแกะ — until the products screen gets its prepped filter in
+// the UI run-through, which is where Kong decided they belong (ADR 0040 grill).
 //
 // A cost is as many numbers as there are branches (rule R4), so the branch picker
 // is not a convenience — the figures in the column are meaningless without it,
@@ -185,15 +183,18 @@ export default async function RecipesPage({
     costAccess
   );
 
-  const menus = result.menus.map(toRecipeListRowView);
   const prepped = result.prepped.map(toRecipeListRowView);
 
   return (
     <div className="space-y-8">
       <div>
-        <h2 className="text-xl font-bold">สูตรอาหาร</h2>
+        <h2 className="text-xl font-bold">สูตรของแปรรูป</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          ทุกเมนูที่ขาย พร้อมบอกว่ามีสูตรแล้วหรือยัง และหนึ่งจานใช้ต้นทุนเท่าไร
+          ของที่ร้านทำเอง เช่น น้ำซุป ซอส กุ้งแกะ — สูตรของเมนูย้ายไปอยู่ที่{" "}
+          <a href="/menus" className="text-primary underline">
+            จัดการเมนู
+          </a>{" "}
+          แล้ว (หน้านี้จะรวมเข้ากับหน้าวัตถุดิบเมื่อรีวิวถึงหน้านั้น)
         </p>
         <p className="mt-1 text-xs text-muted-foreground">
           ต้นทุนด้านล่างเป็นราคาของ <strong>{branchName}</strong> ณ วันที่{" "}
@@ -214,19 +215,9 @@ export default async function RecipesPage({
           type="search"
           name="q"
           defaultValue={query.search ?? ""}
-          placeholder="ค้นหาชื่อเมนู"
+          placeholder="ค้นหาชื่อของแปรรูป"
           className="input"
         />
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            name="missing"
-            value="true"
-            defaultChecked={query.missingOnly}
-            className="h-4 w-4"
-          />
-          แสดงเฉพาะที่ยังไม่มีสูตร ({result.missingCount})
-        </label>
         <button
           type="submit"
           className="rounded-lg border border-border px-3 py-2 text-sm hover:bg-muted"
@@ -234,59 +225,6 @@ export default async function RecipesPage({
           กรอง
         </button>
       </form>
-
-      <section className="space-y-3">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h3 className="text-lg font-semibold">เมนู</h3>
-          <p className="text-sm text-muted-foreground">
-            {menus.length} รายการ ·{" "}
-            <a href="/recipes/substitute" className="text-primary hover:underline">
-              เปลี่ยนวัตถุดิบหลายสูตรพร้อมกัน
-            </a>{" "}
-            ·{" "}
-            <a href="/menus" className="text-primary hover:underline">
-              จัดการชื่อและหมวดของเมนู
-            </a>{" "}
-            ·{" "}
-            {/* The lab is where a recipe is TRIED; this page is where one is
-                written down for real. Linking them is what stops somebody
-                editing a live recipe to answer a what-if. */}
-            <a href="/menus/lab" className="text-primary hover:underline">
-              ทดลองสูตรก่อนใช้จริง
-            </a>
-          </p>
-        </div>
-
-        {menus.length === 0 ? (
-          <div className="rounded-lg border border-border bg-muted/30 p-6 text-sm">
-            {query.missingOnly
-              ? "ทุกเมนูมีสูตรครบแล้ว"
-              : "ยังไม่มีเมนูในระบบ — เมนูเกิดจากการนำเข้ายอดขาย หรือเพิ่มเองที่หน้าเมนู"}
-          </div>
-        ) : (
-          <div className="overflow-x-auto rounded-xl border border-border bg-surface">
-            <table className="w-full min-w-[36rem]">
-              <thead className="bg-muted/40">
-                <tr>
-                  <th className={th}>เมนู</th>
-                  <th className={th}>หมวด</th>
-                  <th className={th}>สูตร</th>
-                  <th className={thNum}>ต้นทุน/จาน (บาท)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {menus.map((row) => (
-                  <MenuRow
-                    key={row.targetId}
-                    row={row}
-                    costHidden={result.costHidden}
-                  />
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
 
       <section className="space-y-3">
         <div className="flex flex-wrap items-baseline justify-between gap-2">

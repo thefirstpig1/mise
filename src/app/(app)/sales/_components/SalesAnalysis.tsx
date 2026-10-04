@@ -235,7 +235,7 @@ export default function SalesAnalysis({
               {v.profit.unknownNet > 0 && (
                 <>
                   {" "}· ยอดขาย {fmtMetric("net", v.profit.unknownNet)} มาจากเมนูที่ยังไม่มีสูตร จึงยังไม่นับในกำไร —{" "}
-                  <a href="/menus/coverage" className="text-primary underline">
+                  <a href="/menus?filter=none" className="text-primary underline">
                     ดูเมนูที่ยังไม่มีสูตร
                   </a>
                 </>

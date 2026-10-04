@@ -112,7 +112,8 @@ describe("the sidebar menu (ADR 0029 Part 28 L5, moved in Part 35 L4)", () => {
     const hrefs = cook.map((c) => c.href);
     expect(hrefs).toContain("/stock");
     expect(hrefs).toContain("/staff-meals");
-    expect(hrefs).toContain("/recipes");
+    // The cook reads recipes on "จัดการเมนู" since 2026-10-04 (no money shown).
+    expect(hrefs).toContain("/menus");
     // And the money is not.
     expect(hrefs).not.toContain("/cost");
     expect(hrefs).not.toContain("/expenses");

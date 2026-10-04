@@ -33,6 +33,8 @@ export default async function NewRecipePage({
   const sp = await searchParams;
 
   if (!sp.menu && !sp.product) notFound();
+  // A dish's recipe is written on "จัดการเมนู" since 2026-10-04.
+  if (sp.menu) redirect(`/menus?menu=${encodeURIComponent(sp.menu)}`);
 
   const target = await withTenantContext(tenantId, async (tx) => {
     if (sp.menu) {

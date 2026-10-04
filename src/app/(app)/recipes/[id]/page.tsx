@@ -13,7 +13,7 @@
 // `params` and `searchParams` are PROMISES in Next 15 — the plain-object
 // signature type-checks under `pnpm tsc` and fails `pnpm build`.
 
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { requireTenant } from "@/lib/require-tenant";
 import { computeBangkokToday } from "@/lib/bangkok-date";
 import { getBranchesLogic } from "@/server/branch";
@@ -66,6 +66,9 @@ export default async function RecipePage({
   ]);
   if (recipe === null) notFound();
   if (branches.length === 0) notFound();
+  // A dish's recipe is edited on "จัดการเมนู" since 2026-10-04; old links land
+  // on its sheet. A production recipe (a prepped product's) still opens here.
+  if (recipe.menuId !== null) redirect(`/menus?menu=${recipe.menuId}`);
 
   // A branch recipe is priced at one of ITS OWN branches by default; a central
   // one at the first branch. Either way the figure carries the branch name.
@@ -80,7 +83,7 @@ export default async function RecipePage({
   const asOf = computeBangkokToday();
   const target =
     recipe.targetKind === "menu"
-      ? ({ kind: "menu", id: recipe.menuId as string } as const)
+      ? ({ kind: "menu", id: String(recipe.menuId) } as const)
       : ({ kind: "product", id: recipe.outputProductId as string } as const);
 
   const [cost, history, comparison, products, menus] = await Promise.all([

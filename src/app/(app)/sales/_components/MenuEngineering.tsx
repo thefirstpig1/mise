@@ -114,7 +114,7 @@ export default function MenuEngineering({
       <div className="space-y-3">
         <p className="rounded-xl border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
           ต้องมีเมนูที่มีสูตรอย่างน้อย {ENGINEERING_MIN_ITEMS} เมนูจึงจะจัดกลุ่มได้ (ตอนนี้ {model.items.length} เมนู) —{" "}
-          <a href="/menus/coverage" className="font-medium text-primary underline">
+          <a href="/menus?filter=none" className="font-medium text-primary underline">
             ดูเมนูที่ยังไม่มีสูตร
           </a>
         </p>
@@ -231,7 +231,7 @@ export default function MenuEngineering({
           {model.noRecipe.length > 0 && (
             <p className="border-t border-border pt-2 text-xs text-muted-foreground">
               ยังไม่มีสูตร {model.noRecipe.length} เมนู จึงคิดกำไรไม่ได้: {model.noRecipe.map((r) => r.name).join(" · ")} ·{" "}
-              <a href="/menus/coverage" className="font-medium text-primary underline">
+              <a href="/menus?filter=none" className="font-medium text-primary underline">
                 เขียนสูตร
               </a>
             </p>

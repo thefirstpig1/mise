@@ -613,7 +613,7 @@ export async function getLabWhatIfLogic(
  * name: every ingredient will read UNPRICED, which is the honest state of a
  * dish nobody has bought anything for, and the confidence badge says so.
  */
-async function freshestCostBranch(
+export async function freshestCostBranch(
   tenantId: string,
   reach: BranchReach
 ): Promise<{ id: string; name: string }> {

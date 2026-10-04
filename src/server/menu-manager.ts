@@ -40,6 +40,7 @@ const isoDate = (d: Date) => d.toISOString().slice(0, 10);
 
 export type IngredientFact = {
   productId: string;
+  baseUnitName: string | null;
   /** The ledger balance at this branch, in the product's base unit. */
   onHand: number;
   /** Average taken by sales per POSTED day; null when no day was posted. */
@@ -70,7 +71,8 @@ export async function getIngredientFactsLogic(
 
   return withTenantContext(tenantId, async (tx) => {
     const sales = { sourceType: "SALES_CONSUMPTION" as const, type: { in: ["CONSUMPTION", "CONSUMPTION_REVERSAL"] as ("CONSUMPTION" | "CONSUMPTION_REVERSAL")[] } };
-    const [balances, used, days, pars] = await Promise.all([
+    const [units, balances, used, days, pars] = await Promise.all([
+      tx.productUnit.findMany({ where: { productId: { in: ids }, isBase: true }, select: { productId: true, unitName: true } }),
       tx.stockMovement.groupBy({
         by: ["productId"],
         where: { tenantId, branchId, productId: { in: ids } },
@@ -105,6 +107,7 @@ export async function getIngredientFactsLogic(
       const par = parRow ? num(parRow.parQty) : null;
       facts[id] = {
         productId: id,
+        baseUnitName: units.find((u) => u.productId === id)?.unitName ?? null,
         onHand,
         usedPerDay,
         daysLeft: usedPerDay ? Math.max(0, Math.floor(onHand / usedPerDay)) : null,
@@ -315,7 +318,9 @@ export async function getIngredientOptionsLogic(
       getProductCostsLogic(tenantId, { productIds: products.map((p) => p.id), branchId }),
       getRecipeListLogic(tenantId, { branchId, missingOnly: false }, cost),
     ]);
-    raw = new Map([...fifo].map(([id, c]) => [id, Number(c.costPerBaseUnit)]));
+    // UNPRICED is "nobody has bought this here", not "it is free" — the adder
+    // must say ยังไม่มีราคา rather than ฿0 (mise-ui-review §3).
+    raw = new Map([...fifo].flatMap(([id, c]) => (c.costSource === "UNPRICED" ? [] : [[id, Number(c.costPerBaseUnit)] as const])));
     walked = new Map(
       [...list.menus, ...list.prepped].flatMap((r) => (r.costPerServing === null ? [] : [[r.targetId, Number(r.costPerServing)] as const]))
     );
@@ -465,7 +470,10 @@ export async function getIngredientInsightLogic(
 
   let costPerBase: number | null = null;
   if (cost !== null) {
-    if (product.type !== "PREPPED") costPerBase = Number(fifo!.get(product.id)!.costPerBaseUnit);
+    if (product.type !== "PREPPED") {
+      const c = fifo!.get(product.id)!;
+      costPerBase = c.costSource === "UNPRICED" ? null : Number(c.costPerBaseUnit);
+    }
     else if (made?.how === "recipe") {
       const total = made.lines.reduce((s, l) => s + (l.cost ?? 0), 0);
       costPerBase = made.servings > 0 ? total / made.servings : null;

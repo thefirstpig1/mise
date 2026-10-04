@@ -55,10 +55,8 @@ export const NAV_GROUPS: readonly NavGroup[] = [
     label: "ขายและเมนู",
     items: [
       { href: "/sales", label: "ยอดขาย", need: "sales:view" },
-      { href: "/menus", label: "เมนู", need: "any:member" },
-      { href: "/recipes", label: "สูตรอาหาร", need: "any:member" },
+      { href: "/menus", label: "จัดการเมนู", need: "any:member" },
       { href: "/menus/lab", label: "ทดลองเมนู", need: "recipe:write" },
-      { href: "/menus/coverage", label: "เมนูที่ยังไม่มีสูตร", need: "sales:view" },
       { href: "/consumption", label: "ตัดสต๊อกตามยอดขาย", need: "consumption:post" },
     ],
   },

@@ -137,6 +137,7 @@ const config: Config = {
       keyframes: {
         "grow-x": { from: { transform: "scaleX(0)" }, to: { transform: "scaleX(1)" } },
         "fade-in": { from: { opacity: "0" }, to: { opacity: "1" } },
+        "slide-in-right": { from: { transform: "translateX(100%)" }, to: { transform: "translateX(0)" } },
         "pop-in": {
           from: { opacity: "0", transform: "translateY(10px) scale(0.98)" },
           to: { opacity: "1", transform: "translateY(0) scale(1)" },
@@ -145,6 +146,7 @@ const config: Config = {
       animation: {
         "grow-x": "grow-x 0.75s cubic-bezier(0.22, 1, 0.36, 1) both",
         "fade-in": "fade-in 0.18s ease-out both",
+        "slide-in-right": "slide-in-right 0.26s cubic-bezier(0.22, 1, 0.36, 1) both",
         "pop-in": "pop-in 0.24s cubic-bezier(0.22, 1, 0.36, 1) both",
       },
 
