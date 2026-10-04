@@ -39,9 +39,12 @@ import {
   RecipeSupersededError,
   RecipeTargetImmutableError,
   RecipeUnitMismatchError,
+  RecipeBranchOwnsLineError,
   copyRecipeToBranchesLogic,
   createRecipeLogic,
   deleteRecipeLogic,
+  recipeLineBranchIdsLogic,
+  saveRecipeForBranchLogic,
   updateRecipeLogic,
 } from "@/server/recipe";
 import {
@@ -927,5 +930,89 @@ describe("recipe write *Logic (ADR 0021 Part 21 L3a)", () => {
         userA
       )
     ).rejects.toBeInstanceOf(RecipeCycleError);
+  });
+
+  // ------------------------------------------------------------
+  // Save for one branch (Kong 2026-10-04 — "not all or nothing")
+  // ------------------------------------------------------------
+
+  it("R-28 an edit saved for ONE branch serves it from that date; before it, the branch still followed central", async () => {
+    const menu = await makeMenu(tenantA, "กะเพราเฉพาะสาขา");
+    const yesterday = addDays(today, -1);
+    const central = await createRecipeLogic(
+      tenantA,
+      recipeInput({ menuId: menu.id, effectiveFrom: addDays(today, -5), ingredients: [ing(pork, 0.12)] }),
+      userA
+    );
+    expect(await recipeLineBranchIdsLogic(tenantA, central.id)).toEqual([]);
+
+    const own = await saveRecipeForBranchLogic(
+      tenantA,
+      { branchId: branchAsoke, recipe: recipeInput({ menuId: menu.id, effectiveFrom: yesterday, ingredients: [ing(pork, 0.15)] }) },
+      userA
+    );
+    expect(own.lineId).not.toBe(central.lineId);
+    expect(await recipeLineBranchIdsLogic(tenantA, own.id)).toEqual([branchAsoke]);
+
+    expect((await resolveFor(menu.id, branchAsoke, yesterday))?.id).toBe(own.id);
+    expect((await resolveFor(menu.id, branchAsoke, addDays(today, -2)))?.id).toBe(central.id);
+    // The other branch never noticed.
+    expect((await resolveFor(menu.id, branchCentral))?.id).toBe(central.id);
+  });
+
+  it("R-29 a branch that owns its line alone is told to EDIT it, so its history is kept", async () => {
+    const menu = await makeMenu(tenantA, "ข้าวผัดสาขา");
+    await createRecipeLogic(tenantA, recipeInput({ menuId: menu.id, ingredients: [ing(pork, 0.1)] }), userA);
+    const own = await saveRecipeForBranchLogic(
+      tenantA,
+      { branchId: branchAsoke, recipe: recipeInput({ menuId: menu.id, ingredients: [ing(pork, 0.11)] }) },
+      userA
+    );
+    await expect(
+      saveRecipeForBranchLogic(
+        tenantA,
+        { branchId: branchAsoke, recipe: recipeInput({ menuId: menu.id, ingredients: [ing(pork, 0.13)] }) },
+        userA
+      )
+    ).rejects.toBeInstanceOf(RecipeBranchOwnsLineError);
+    expect((await resolveFor(menu.id, branchAsoke))?.id).toBe(own.id);
+  });
+
+  it("R-30 a branch sharing a branch line with another LEAVES it; the other keeps it", async () => {
+    const menu = await makeMenu(tenantA, "ต้มยำสองสาขา");
+    const central = await createRecipeLogic(tenantA, recipeInput({ menuId: menu.id, ingredients: [ing(pork, 0.1)] }), userA);
+    const shared = await copyRecipeToBranchesLogic(
+      tenantA,
+      copyRecipeToBranchesInputSchema.parse({ submitKey: randomUUID(), sourceRecipeId: central.id, branchIds: [branchAsoke, branchCentral] }),
+      userA
+    );
+    const own = await saveRecipeForBranchLogic(
+      tenantA,
+      { branchId: branchAsoke, recipe: recipeInput({ menuId: menu.id, ingredients: [ing(pork, 0.2)] }) },
+      userA
+    );
+    expect((await resolveFor(menu.id, branchAsoke))?.id).toBe(own.id);
+    expect((await resolveFor(menu.id, branchCentral))?.id).toBe(shared.id);
+    expect(await recipeLineBranchIdsLogic(tenantA, shared.id)).toEqual([branchCentral]);
+  });
+
+  it("R-31 saving for one branch is idempotent by submitKey", async () => {
+    const menu = await makeMenu(tenantA, "ส้มตำสาขา");
+    await createRecipeLogic(tenantA, recipeInput({ menuId: menu.id, ingredients: [ing(basil, 0.01)] }), userA);
+    const input = recipeInput({ menuId: menu.id, ingredients: [ing(basil, 0.02)] });
+    const a = await saveRecipeForBranchLogic(tenantA, { branchId: branchAsoke, recipe: input }, userA);
+    const b = await saveRecipeForBranchLogic(tenantA, { branchId: branchAsoke, recipe: input }, userA);
+    expect(b.id).toBe(a.id);
+  });
+
+  it("R-32 refuses a branch belonging to another tenant", async () => {
+    const menu = await makeMenu(tenantA, "แกงสาขาอื่น");
+    await expect(
+      saveRecipeForBranchLogic(
+        tenantA,
+        { branchId: branchB, recipe: recipeInput({ menuId: menu.id, ingredients: [ing(pork, 0.1)] }) },
+        userA
+      )
+    ).rejects.toBeInstanceOf(CrossTenantReferenceError);
   });
 });

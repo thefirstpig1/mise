@@ -233,7 +233,9 @@ export async function mergeMenusAction(
   _prevState: MenuMergeActionState,
   formData: FormData
 ): Promise<MenuMergeActionState> {
-  const { tenantId, membership } = await requireTenant("master:write");
+  const { tenantId, membership, assertShared } = await requireTenant("master:write");
+  // What every branch shares (Kong 2026-10-04): needs reach over every branch.
+  assertShared();
 
   const parsed = mergeMenusInputSchema.safeParse({
     submitKey: formData.get("submit_key"),
@@ -267,7 +269,9 @@ export async function revokeMergeAction(
   _prevState: MenuMergeActionState,
   formData: FormData
 ): Promise<MenuMergeActionState> {
-  const { tenantId, membership } = await requireTenant("master:write");
+  const { tenantId, membership, assertShared } = await requireTenant("master:write");
+  // What every branch shares (Kong 2026-10-04): needs reach over every branch.
+  assertShared();
 
   const parsed = revokeMergeInputSchema.safeParse({
     mergeId: formData.get("merge_id"),

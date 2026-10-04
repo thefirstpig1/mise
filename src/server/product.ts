@@ -724,6 +724,31 @@ export async function getProductParentOptionsLogic(
  * slice). The product row is matched FIRST; only if it matched do we touch the
  * base unit. Blank sku on update KEEPS the existing sku (never nulls it).
  */
+/**
+ * Change ONLY the yield of a PREPPED product made from a parent (กุ้งแกะ from
+ * กุ้งขาว at 60%) — the edit the menu sheet offers (Kong 2026-10-04).
+ *
+ * A narrow write on purpose: the full product form carries type, units and
+ * density, and sending them back from a sheet that never showed them would
+ * overwrite what somebody else just changed. Refuses anything that is not a
+ * parent + yield product — a production recipe has no yield to edit (ADR 0021
+ * Q1), and a RAW product has nothing to divide by.
+ */
+export async function setPreppedYieldLogic(
+  tenantId: string,
+  productId: string,
+  yieldPercent: number
+): Promise<boolean> {
+  if (!(yieldPercent >= 0.01 && yieldPercent <= 999.99)) return false;
+  return withTenantContext(tenantId, async (tx) => {
+    const { count } = await tx.product.updateMany({
+      where: { id: productId, tenantId, deletedAt: null, type: "PREPPED", parentProductId: { not: null } },
+      data: { yieldPercent: new Prisma.Decimal(yieldPercent.toFixed(2)) },
+    });
+    return count > 0;
+  });
+}
+
 export async function updateProductLogic(
   tenantId: string,
   id: string,

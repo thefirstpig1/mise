@@ -316,7 +316,9 @@ export async function publishDraftAction(
   _prevState: DraftActionState,
   formData: FormData
 ): Promise<DraftActionState> {
-  const { tenantId } = await requireTenant("recipe:write");
+  const { tenantId, assertShared } = await requireTenant("recipe:write");
+  // What every branch shares (Kong 2026-10-04): needs reach over every branch.
+  assertShared();
 
   const parsed = publishDraftInputSchema.safeParse({
     recipeId: formData.get("recipe_id"),

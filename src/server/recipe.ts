@@ -267,10 +267,11 @@ export async function liveLinesFor(
 /**
  * Write the first version of a new CENTRAL recipe line.
  *
- * There is no "create a branch recipe" path, and that is Q8 rather than an
- * omission: a branch recipe comes into being by pressing copy, which is the act
- * of that branch declaring independence. Offering a second door would let a
- * branch line appear without anyone having made that declaration.
+ * A branch recipe does not come from here. It comes into being by a branch
+ * declaring independence (Q8) — pressing copy, or, since 2026-10-04, saving an
+ * edit with "ใช้กับ: เฉพาะสาขา X" through `saveRecipeForBranchLogic`, whose
+ * confirmation names exactly that ("…จะไม่ตามสูตรกลางอีก"). Either way somebody
+ * made the declaration; nothing here makes it for them.
  *
  * IDEMPOTENT by `submitKey`, used as the row's id — the pattern Part 13.5
  * established. A double POST, a back-then-resubmit or a network retry resolves
@@ -510,6 +511,39 @@ export async function updateRecipeLogic(
 }
 
 // ------------------------------------------------------------
+// Whose recipe is this (Kong 2026-10-04 — the gate on every write)
+// ------------------------------------------------------------
+
+/**
+ * The branches a recipe line belongs to, or `[]` when it is CENTRAL — a line
+ * with no `recipe_branch` rows is by definition the one every branch without
+ * its own follows (Q8).
+ *
+ * Read by the actions, not decided by them: editing or deleting a central line
+ * lands on every branch and needs `canEditShared`; a branch's own line needs
+ * reach over EACH branch it serves — a line can serve several (copyRecipe…
+ * writes one line for all the branches it was copied to). Before this, nothing
+ * checked the second at all: a manager of one branch could edit another's.
+ */
+export async function recipeLineBranchIdsLogic(
+  tenantId: string,
+  recipeId: string
+): Promise<string[]> {
+  return withTenantContext(tenantId, async (tx) => {
+    const recipe = await tx.recipe.findFirst({
+      where: { id: recipeId, tenantId, deletedAt: null },
+      select: { lineId: true },
+    });
+    if (recipe === null) throw new RecipeNotFoundError(recipeId);
+    const links = await tx.recipeBranch.findMany({
+      where: { tenantId, lineId: recipe.lineId },
+      select: { branchId: true },
+    });
+    return [...new Set(links.map((l) => l.branchId))];
+  });
+}
+
+// ------------------------------------------------------------
 // Delete
 // ------------------------------------------------------------
 
@@ -694,6 +728,104 @@ export async function copyRecipeToBranchesLogic(
       await assertRecipeGraphValid(tx, tenantId, target, copy.effectiveFrom);
 
       return copy;
+    },
+    { timeout: RECIPE_WRITE_TIMEOUT_MS }
+  );
+}
+
+// ------------------------------------------------------------
+// Save an edit for ONE branch (Kong 2026-10-04 — "not all or nothing")
+// ------------------------------------------------------------
+
+/**
+ * The branch already keeps a line of its own that serves nobody else. Saving
+ * for that branch is then an ordinary edit of that line — `updateRecipeLogic` —
+ * which keeps its history; starting a fresh line would orphan it.
+ */
+export class RecipeBranchOwnsLineError extends Error {
+  constructor(public readonly recipeId: string) {
+    super(`This branch already owns recipe line of "${recipeId}" — edit it instead`);
+    this.name = "RecipeBranchOwnsLineError";
+  }
+}
+
+/**
+ * Save an edited recipe as THIS branch's own, from its effective date onward.
+ *
+ * The screen's "ใช้กับ: เฉพาะสาขา X". Equivalent to copy-to-branch followed by
+ * the edit, done as one write so the branch never has a moment of following a
+ * copy nobody meant — and DATED by the edit rather than by today, because
+ * "สาขาอารีย์ has cooked this with 150 g since the 1st" is a fact about the
+ * past that the person is declaring. Resolution handles the rest: before that
+ * date the branch has no version of its own and falls back to whatever it
+ * followed (`recipe-resolve.ts` filters `effectiveFrom <= asOf` first).
+ *
+ * If the branch was one of several sharing a branch line, it LEAVES that line
+ * (its link is removed); the others keep it. A branch that owns a line alone
+ * is refused — that is an edit, and `updateRecipeLogic` keeps its history.
+ */
+export async function saveRecipeForBranchLogic(
+  tenantId: string,
+  input: { branchId: string; recipe: RecipeInput },
+  createdBy: string
+): Promise<RecipeWithIngredients> {
+  const { branchId, recipe: rec } = input;
+  return withTenantContext(
+    tenantId,
+    async (tx) => {
+      const replay = await tx.recipe.findFirst({
+        where: { tenantId, id: rec.submitKey },
+        include: { ingredients: true },
+      });
+      if (replay !== null) return replay;
+
+      await assertRefBelongsToTenant(tx, tenantId, "branch", branchId);
+      await assertWriteRefsValid(tx, tenantId, rec);
+
+      const target = targetOf(rec);
+      const lines = await liveLinesFor(tx, tenantId, target);
+      const lineIds = [...new Set(lines.map((l) => l.lineId))];
+      const mine = await tx.recipeBranch.findMany({
+        where: { tenantId, branchId, lineId: { in: lineIds } },
+        select: { id: true, lineId: true },
+      });
+      for (const link of mine) {
+        const others = await tx.recipeBranch.count({
+          where: { tenantId, lineId: link.lineId, branchId: { not: branchId } },
+        });
+        if (others === 0) {
+          const head = lines.find((l) => l.lineId === link.lineId);
+          throw new RecipeBranchOwnsLineError(head?.id ?? link.lineId);
+        }
+      }
+      if (mine.length > 0) {
+        await tx.recipeBranch.deleteMany({ where: { id: { in: mine.map((l) => l.id) } } });
+      }
+
+      const lineId = randomUUID();
+      const recipe = await tx.recipe.create({
+        data: {
+          id: rec.submitKey,
+          tenantId,
+          lineId,
+          menuId: rec.menuId,
+          outputProductId: rec.outputProductId,
+          servings: new Prisma.Decimal(rec.servings),
+          effectiveFrom: rec.effectiveFrom,
+          notes: rec.notes,
+          createdBy,
+          ingredients: { create: ingredientRowsFor(tenantId, rec) },
+        },
+        include: { ingredients: true },
+      });
+      await tx.recipeBranch.create({
+        data: { tenantId, lineId, branchId, recipeId: recipe.id, createdBy },
+      });
+
+      // The resolution changed for this branch only — and a cycle can exist in
+      // its graph and nowhere else, exactly as for a copy.
+      await assertRecipeGraphValid(tx, tenantId, target, rec.effectiveFrom);
+      return recipe;
     },
     { timeout: RECIPE_WRITE_TIMEOUT_MS }
   );

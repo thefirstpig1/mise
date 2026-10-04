@@ -38,7 +38,7 @@ import { cache } from "react";
 import { redirect } from "next/navigation";
 import { auth } from "./auth";
 import { prismaBypass } from "./db-admin";
-import { canAccessBranch, hasCapability, type Requirement } from "./permissions/service";
+import { canAccessBranch, canEditShared, hasCapability, type Requirement } from "./permissions/service";
 import { costAccessFor, type CostAccess } from "./permissions/cost-access";
 import { pickActiveTenant, readActiveTenantCookie } from "./active-tenant";
 
@@ -189,6 +189,18 @@ export async function requireTenant(
     assertBranch(branchId: string): void {
       if (!canAccessBranch(reach, branchId)) deny("branch");
     },
+
+    /**
+     * Refuse unless this person may change what every branch shares — the
+     * central recipe, a production recipe, a dish's name (`canEditShared`).
+     * Call it in the action alongside the capability gate; the screen locking
+     * the field is tidiness, not security (rule A7).
+     */
+    assertShared(): void {
+      if (!canEditShared(reach)) deny("all-branches");
+    },
+    /** For the screen: whether to offer shared edits at all. */
+    canEditShared: canEditShared(reach),
   };
 }
 

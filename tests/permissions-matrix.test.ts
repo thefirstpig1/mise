@@ -23,6 +23,7 @@ import {
   ROLE_CAPABILITIES,
   capabilitiesOf,
   canAccessBranch,
+  canEditShared,
   hasCapability,
   narrowBranches,
   type Capability,
@@ -190,6 +191,16 @@ describe("the role table (ADR 0029 Part 28 L2)", () => {
     const areaManager = { allBranches: true, allowedBranchIds: [] };
     expect(canAccessBranch(areaManager, silom)).toBe(true);
     expect(canAccessBranch(areaManager, "a-branch-that-opens-tomorrow")).toBe(true);
+  });
+
+  it("shared edits (central recipe, menu name) follow REACH, not role — Kong 2026-10-04", () => {
+    // An owner who narrowed themself to one branch, a manager of one branch:
+    // neither may change what every branch shares.
+    const narrowOwner = { allBranches: false, allowedBranchIds: ["b-asok"], role: "owner" } as unknown as Parameters<typeof canEditShared>[0];
+    expect(canEditShared(narrowOwner)).toBe(false);
+    expect(canEditShared({ allBranches: false, allowedBranchIds: ["b-asok", "b-silom"] })).toBe(false);
+    // An area manager — a manager with every branch — may, with no role named.
+    expect(canEditShared({ allBranches: true, allowedBranchIds: [] })).toBe(true);
   });
 
   it("A13 — the branch list you see is the branch list you may act on", () => {

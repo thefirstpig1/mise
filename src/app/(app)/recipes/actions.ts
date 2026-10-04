@@ -49,6 +49,9 @@ import {
   SubstitutionTouchesBranchRecipesError,
   copyRecipeToBranchesLogic,
   createRecipeLogic,
+  RecipeBranchOwnsLineError,
+  recipeLineBranchIdsLogic,
+  saveRecipeForBranchLogic,
   deleteRecipeLogic,
   substituteIngredientLogic,
   updateRecipeLogic,
@@ -295,6 +298,25 @@ function rawRecipeFromFormData(formData: FormData): Record<string, unknown> {
 }
 
 // ------------------------------------------------------------
+// Whose recipe (Kong 2026-10-04)
+// ------------------------------------------------------------
+
+/**
+ * A central line lands on every branch: shared reach. A branch's own line lands
+ * on the branches it serves: reach over EACH of them. Throws (redirects to
+ * /denied) rather than returning, like every other gate here.
+ */
+async function assertLineScope(
+  scope: { assertShared: () => void; assertBranch: (id: string) => void },
+  tenantId: string,
+  recipeId: string
+): Promise<void> {
+  const branchIds = await recipeLineBranchIdsLogic(tenantId, recipeId);
+  if (branchIds.length === 0) scope.assertShared();
+  else for (const id of branchIds) scope.assertBranch(id);
+}
+
+// ------------------------------------------------------------
 // Actions
 // ------------------------------------------------------------
 
@@ -303,7 +325,9 @@ export async function createRecipeAction(
   _prevState: RecipeActionState,
   formData: FormData
 ): Promise<RecipeActionState> {
-  const { tenantId, membership } = await requireTenant("recipe:write");
+  const { tenantId, membership, assertShared } = await requireTenant("recipe:write");
+  // A new line with no branch links is CENTRAL — every branch follows it.
+  assertShared();
 
   const parsed = recipeInputSchema.safeParse(rawRecipeFromFormData(formData));
   if (!parsed.success) {
@@ -333,7 +357,14 @@ export async function updateRecipeAction(
   _prevState: RecipeActionState,
   formData: FormData
 ): Promise<RecipeActionState> {
-  const { tenantId, membership } = await requireTenant("recipe:write");
+  const scope = await requireTenant("recipe:write");
+  const { tenantId, membership } = scope;
+  try {
+    await assertLineScope(scope, tenantId, recipeId);
+  } catch (e) {
+    if (e instanceof RecipeNotFoundError) return { ok: false, formError: NOT_FOUND_MESSAGE };
+    throw e;
+  }
 
   const parsed = recipeInputSchema.safeParse(rawRecipeFromFormData(formData));
   if (!parsed.success) {
@@ -355,6 +386,40 @@ export async function updateRecipeAction(
 }
 
 /**
+ * Save an edit as ONE branch's own recipe from its effective date ("ใช้กับ:
+ * เฉพาะสาขา X"). Needs reach over that branch only — this is how a manager of
+ * one branch changes what their kitchen cooks without touching the others.
+ */
+export async function saveRecipeForBranchAction(
+  branchId: string,
+  _prevState: RecipeActionState,
+  formData: FormData
+): Promise<RecipeActionState> {
+  const { tenantId, membership, assertBranch } = await requireTenant("recipe:write");
+  assertBranch(branchId);
+
+  const parsed = recipeInputSchema.safeParse(rawRecipeFromFormData(formData));
+  if (!parsed.success) {
+    return { ok: false, fieldErrors: toFieldErrors(parsed.error) };
+  }
+
+  try {
+    const recipe = await saveRecipeForBranchLogic(
+      tenantId,
+      { branchId, recipe: parsed.data },
+      membership.userId
+    );
+    revalidateRecipeViews(recipe.id);
+    return { ok: true, recipe: toRecipeView(recipe) };
+  } catch (e) {
+    if (e instanceof RecipeBranchOwnsLineError) {
+      return { ok: false, formError: "สาขานี้มีสูตรของตัวเองอยู่แล้ว — รบกวนรีเฟรชแล้วแก้สูตรของสาขา" };
+    }
+    return { ok: false, ...toFormError(e) };
+  }
+}
+
+/**
  * Soft-delete the whole LINE — every version of it (see deleteRecipeLogic).
  *
  * Refuses ONCE where menus merged into this one borrow the recipe, naming them
@@ -367,11 +432,18 @@ export async function deleteRecipeAction(
   recipeId: string,
   acknowledgeMergedMenus = false
 ): Promise<DeleteRecipeActionState> {
-  const { tenantId } = await requireTenant("recipe:write");
+  const scope = await requireTenant("recipe:write");
+  const { tenantId } = scope;
 
   const parsed = deleteRecipeInputSchema.safeParse({ recipeId });
   if (!parsed.success) {
     return { ok: false, error: "รหัสสูตรไม่ถูกต้อง" };
+  }
+  try {
+    await assertLineScope(scope, tenantId, parsed.data.recipeId);
+  } catch (e) {
+    if (e instanceof RecipeNotFoundError) return { ok: false, error: NOT_FOUND_MESSAGE };
+    throw e;
   }
 
   try {
@@ -444,7 +516,9 @@ export async function substituteIngredientAction(
   _prevState: SubstitutionActionState,
   formData: FormData
 ): Promise<SubstitutionActionState> {
-  const { tenantId, membership } = await requireTenant("recipe:write");
+  const { tenantId, membership, assertShared } = await requireTenant("recipe:write");
+  // It rewrites recipes across the shop, central ones included.
+  assertShared();
 
   const recipeIds = formData.getAll("target_recipe_id");
   const quantities = formData.getAll("target_qty");

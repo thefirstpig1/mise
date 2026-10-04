@@ -116,7 +116,9 @@ export async function updateMenuAction(
   _prev: MenuActionState | null,
   formData: FormData
 ): Promise<MenuActionState> {
-  const { tenantId } = await requireTenant("master:write");
+  const { tenantId, assertShared } = await requireTenant("master:write");
+  // What every branch shares (Kong 2026-10-04): needs reach over every branch.
+  assertShared();
 
   const parsed = updateMenuInputSchema.safeParse({
     menuId: formData.get("menuId"),
@@ -139,7 +141,9 @@ export async function createMenuCategoryAction(
   _prev: MenuCategoryActionState | null,
   formData: FormData
 ): Promise<MenuCategoryActionState> {
-  const { tenantId } = await requireTenant("master:write");
+  const { tenantId, assertShared } = await requireTenant("master:write");
+  // What every branch shares (Kong 2026-10-04): needs reach over every branch.
+  assertShared();
 
   const parsed = menuCategoryInputSchema.safeParse({
     name: formData.get("name"),
@@ -169,7 +173,9 @@ export async function confirmMenuAliasAction(
   _prev: MenuAliasActionState | null,
   formData: FormData
 ): Promise<MenuAliasActionState> {
-  const { tenantId, user } = await requireTenant("master:write");
+  const { tenantId, user, assertShared } = await requireTenant("master:write");
+  // What every branch shares (Kong 2026-10-04): needs reach over every branch.
+  assertShared();
 
   const parsed = resolveMenuAliasInputSchema.safeParse({
     posIntegrationId: formData.get("posIntegrationId"),

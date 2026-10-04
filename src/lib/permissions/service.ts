@@ -322,6 +322,22 @@ export function canAccessBranch(user: BranchReach, branchId: string): boolean {
 }
 
 /**
+ * May this person change something EVERY branch uses — the central recipe, a
+ * prepped product's production recipe, a dish's name or category (Kong,
+ * 2026-10-04)?
+ *
+ * Asked of reach, not of role, on purpose. The capability (`recipe:write`,
+ * `master:write`) still answers WHAT; this answers WHERE, and a change that
+ * lands on every branch needs reach over every branch. An owner, head office
+ * and an area manager pass because each carries `allBranches`; a manager of
+ * one branch edits a recipe FOR THAT BRANCH instead. No role is named, so
+ * moving a manager to every branch is the whole of making them an area manager.
+ */
+export function canEditShared(user: BranchReach): boolean {
+  return user.allBranches;
+}
+
+/**
  * The `where` fragment that narrows a branch query to a person's reach.
  *
  * Rule A5 is enforced at the SET of branches rather than inside every read that

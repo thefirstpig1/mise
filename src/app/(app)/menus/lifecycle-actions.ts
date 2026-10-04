@@ -123,7 +123,9 @@ export async function setMenuActiveAction(
   menuId: string,
   isActive: boolean
 ): Promise<MenuLifecycleActionState> {
-  const { tenantId } = await requireTenant("master:write");
+  const { tenantId, assertShared } = await requireTenant("master:write");
+  // What every branch shares (Kong 2026-10-04): needs reach over every branch.
+  assertShared();
 
   const parsed = setMenuActiveInputSchema.safeParse({ menuId, isActive });
   if (!parsed.success) return { ok: false, error: "เมนูไม่ถูกต้อง" };
@@ -152,7 +154,9 @@ export async function deleteMenuAction(
   menuId: string,
   acknowledgeRecipe = false
 ): Promise<MenuLifecycleActionState> {
-  const { tenantId } = await requireTenant("recipe:write");
+  const { tenantId, assertShared } = await requireTenant("recipe:write");
+  // What every branch shares (Kong 2026-10-04): needs reach over every branch.
+  assertShared();
 
   const parsed = deleteMenuInputSchema.safeParse({ menuId, acknowledgeRecipe });
   if (!parsed.success) return { ok: false, error: "เมนูไม่ถูกต้อง" };
@@ -182,7 +186,9 @@ export async function deleteMenuAction(
 export async function restoreMenuAction(
   menuId: string
 ): Promise<MenuLifecycleActionState> {
-  const { tenantId } = await requireTenant("recipe:write");
+  const { tenantId, assertShared } = await requireTenant("recipe:write");
+  // What every branch shares (Kong 2026-10-04): needs reach over every branch.
+  assertShared();
 
   const parsed = restoreMenuInputSchema.safeParse({ menuId });
   if (!parsed.success) return { ok: false, error: "เมนูไม่ถูกต้อง" };

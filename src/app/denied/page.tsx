@@ -39,6 +39,7 @@ const NEED_TH: Record<string, string> = {
   "sales:view": "ดูยอดขาย",
   "staff:view": "ดูประวัติมื้อพนักงานรายคน",
   branch: "เข้าถึงสาขานี้",
+  "all-branches": "แก้สิ่งที่ทุกสาขาใช้ร่วมกัน (สูตรกลาง สูตรของแปรรูป ชื่อและหมวดเมนู) — ต้องดูแลทุกสาขา",
 };
 
 export default async function DeniedPage({
