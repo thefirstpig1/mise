@@ -1,105 +1,79 @@
-// Sprint 5 Part 24 L5b — /menus/lab: what am I in the middle of?
+// /menus/lab — "ทดลองเมนู" (Kong 2026-10-04, mockup approved): every draft in
+// one table with what it costs a plate, the price being considered and the
+// food-cost % between them; the whole row opens a sheet where the draft is
+// written, priced and published without leaving the list.
 //
-// Server Component. The list carries no cost figure and that is deliberate
-// (L5a): costing N drafts is N graph walks against a FIFO replay, and a list is
-// not where a price gets weighed. One dish at a time, on its own page, with the
-// branch named beside the number.
+// Still its own page, not a filter on "จัดการเมนู" (Kong: "แยกไว้เลย"): a
+// draft is true on no day and must never be mistaken for the recipe that cuts
+// stock (ADR 0025).
 //
-// Two warnings live on the row rather than behind the click, because both change
-// what somebody is about to do: a draft that would take over a live recipe, and
-// a dish that already sells — where the SOLD price is the price and ราคาที่ตั้งใจ
-// is only a comparison (Q2).
+// Figures while typing come from the branch's price book (the same book
+// "จัดการเมนู" uses); after each save the engine costs the saved draft
+// (`/api/menus?what=lab`) and that figure, with its confidence, is the one
+// shown — the book never becomes a second cost engine (ADR 0025 Q4).
+//
+// `searchParams` is a PROMISE in Next 15.
 
 import { requireTenant } from "@/lib/require-tenant";
-import { getDraftsLogic } from "@/server/menu-lab-read";
-import { toDraftRowView } from "../_components/menu-lab-view";
-import { PLANNED_PRICE_LABEL_TH } from "@/lib/validations/menu-lab";
+import { withTenantContext } from "@/lib/db";
+import { getBranchesLogic } from "@/server/branch";
+import { freshestCostBranch } from "@/server/menu-lab-read";
+import { getLabDraftsLogic } from "@/server/menu-manager";
+import { getMenuListFactsLogic, MENU_FACT_DAYS } from "@/server/menu-list-facts";
+import { getMenuCategoriesLogic } from "@/server/menu";
+import { computeBangkokToday } from "@/lib/bangkok-date";
+import LabManager, { type LabMenu } from "./_components/LabManager";
 
-import EmptyState from "@/components/ui/EmptyState";
-export default async function MenuLabPage() {
-  const { tenantId } = await requireTenant("recipe:write");
-  const drafts = (await getDraftsLogic(tenantId)).map(toDraftRowView);
+export default async function MenuLabPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const { tenantId, reach, costAccess, canEditShared } = await requireTenant("recipe:write");
+  const params = await searchParams;
+  const one = (k: string) => (Array.isArray(params[k]) ? params[k][0] : params[k]);
+
+  const [branches, freshest, drafts, facts, categories, menus] = await Promise.all([
+    getBranchesLogic(tenantId, reach),
+    freshestCostBranch(tenantId, reach).catch(() => null),
+    getLabDraftsLogic(tenantId),
+    getMenuListFactsLogic(tenantId, reach),
+    getMenuCategoriesLogic(tenantId),
+    withTenantContext(tenantId, (tx) =>
+      tx.menu.findMany({
+        where: { tenantId, deletedAt: null, isActive: true },
+        select: { id: true, name: true, posMenuId: true, menuCategory: { select: { name: true } } },
+        orderBy: { name: "asc" },
+      })
+    ),
+  ]);
+
+  const menuRows: LabMenu[] = menus.map((m) => {
+    const f = facts.facts.get(m.id);
+    return {
+      id: m.id,
+      name: m.name,
+      posCode: m.posMenuId,
+      category: m.menuCategory?.name ?? null,
+      qty: f?.qty ?? 0,
+      net: f?.net ?? 0,
+      hasRecipe: (f?.recipeId ?? null) !== null,
+    };
+  });
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-bold">ทดลองเมนู</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            ลองคิดสูตรและราคาก่อนขายจริง — ร่างที่นี่ยังไม่ตัดสต๊อก
-            และยังไม่ถูกใช้คิดต้นทุนขาย จนกว่าจะกดเผยแพร่
-          </p>
-        </div>
-        <a
-          href="/menus/lab/new"
-          className="btn shrink-0"
-        >
-          + ร่างสูตรใหม่
-        </a>
-      </div>
-
-      <div className="flex flex-wrap gap-3 text-sm">
-        <a href="/menus/coverage" className="text-primary underline">
-          เมนูไหนยังไม่มีสูตร →
-        </a>
-        <a href="/recipes" className="text-muted-foreground underline">
-          สูตรที่ใช้งานจริง →
-        </a>
-      </div>
-
-      {drafts.length === 0 ? (
-        <EmptyState art="start">
-          <p className="text-sm text-muted-foreground">
-            ยังไม่มีร่างสูตร — กด “ร่างสูตรใหม่” เพื่อลองคิดต้นทุนของจานที่ยังไม่ได้ขาย
-          </p>
-        </EmptyState>
-      ) : (
-        <ul className="space-y-3">
-          {drafts.map((d) => (
-            <li
-              key={d.recipeId}
-              className="rounded-xl border border-border bg-surface p-4"
-            >
-              <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <a
-                  href={`/menus/lab/${d.recipeId}`}
-                  className="text-base font-semibold hover:underline"
-                >
-                  {d.menuName}
-                </a>
-                <span className="text-xs text-muted-foreground">
-                  แก้ล่าสุด {d.updatedAtLabel}
-                </span>
-              </div>
-
-              <p className="mt-1 text-xs text-muted-foreground">
-                วัตถุดิบ {d.ingredientCount} รายการ · ทำได้ครั้งละ {d.servings} จาน
-                {d.plannedPrice !== null
-                  ? ` · ${PLANNED_PRICE_LABEL_TH} ${d.plannedPrice} บาท`
-                  : ""}
-              </p>
-
-              <div className="mt-2 flex flex-wrap gap-2">
-                {d.menuIsMise ? (
-                  <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
-                    เมนูใหม่ที่สร้างจากหน้านี้ ยังไม่มีในระบบขาย
-                  </span>
-                ) : null}
-                {d.liveRecipeId !== null ? (
-                  <span className="rounded-full bg-warn-bg px-2 py-0.5 text-[11px] text-warn">
-                    เผยแพร่แล้วจะใช้แทนสูตรเดิมของเมนูนี้
-                  </span>
-                ) : null}
-                {d.hasSales ? (
-                  <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
-                    เมนูนี้มียอดขายแล้ว — ราคาที่ใช้จริงคือราคาที่ขายได้
-                  </span>
-                ) : null}
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
+    <LabManager
+      drafts={drafts}
+      menus={menuRows}
+      factDays={MENU_FACT_DAYS}
+      categories={categories.map((c) => ({ id: c.id, name: c.name }))}
+      branches={branches.map((b) => ({ id: b.id, name: b.name }))}
+      defaultBranchId={freshest?.id ?? branches[0]?.id ?? null}
+      today={computeBangkokToday().toISOString().slice(0, 10)}
+      costHidden={costAccess === null}
+      canPublish={canEditShared}
+      openDraftId={one("draft") ?? null}
+      openNew={one("new") === "1"}
+    />
   );
 }

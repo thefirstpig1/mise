@@ -5,6 +5,7 @@
 // recipe or yield changes what the next open must show.
 
 import type { IngredientInsight, IngredientOption, MenuSheet, PriceBook, StandardUnit } from "@/server/menu-manager";
+import type { RecipeConfidence } from "@/server/recipe-cost";
 
 type Res<K extends string, T> = ({ ok: true } & { [P in K]: T }) | { ok: false; error: string };
 
@@ -26,6 +27,11 @@ export const ingredientOptions = async (): Promise<{ ok: true; options: Ingredie
   const r = (await read<"options", IngredientOption[]>({ what: "options" })) as { ok: true; options: IngredientOption[]; standards?: StandardUnit[] } | { ok: false; error: string };
   return r.ok ? { ok: true, options: r.options, standards: r.standards ?? [] } : r;
 };
+
+export type LabCost = { costPerServing: number; confidence: RecipeConfidence; unpriced: string[] } | null;
+export const labDraftCost = (recipeId: string, branchId: string) => read<"cost", LabCost>({ what: "lab", recipe: recipeId, branch: branchId });
+export type DeletedMenu = { id: string; name: string; recipeCount: number } | null;
+export const deletedMenuNamed = (name: string) => read<"found", DeletedMenu>({ what: "deleted-menu", name });
 
 type SheetRes = Res<"sheet", MenuSheet>;
 type InsightRes = Res<"insight", IngredientInsight>;

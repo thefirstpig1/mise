@@ -17,9 +17,11 @@
 
 import { requireTenant } from "@/lib/require-tenant";
 import { guardRead } from "@/lib/read-api";
+import { findDeletedMenuByNameLogic } from "@/server/menu-lifecycle";
 import {
   getIngredientInsightLogic,
   getIngredientOptionsLogic,
+  getLabDraftCostLogic,
   getMenuPriceBookLogic,
   getMenuSheetLogic,
 } from "@/server/menu-manager";
@@ -42,6 +44,24 @@ async function read(req: Request): Promise<Response> {
   if (what === "options") {
     const { tenantId } = await requireTenant("recipe:write");
     return json({ ok: true, ...(await getIngredientOptionsLogic(tenantId)) });
+  }
+
+  if (what === "deleted-menu") {
+    // ทดลองเมนู: is there a deleted dish by exactly this name to bring back?
+    const { tenantId } = await requireTenant("master:write");
+    const name = (url.searchParams.get("name") ?? "").trim();
+    return json({ ok: true, found: name === "" ? null : await findDeletedMenuByNameLogic(tenantId, name) });
+  }
+
+  if (what === "lab") {
+    // A saved draft, costed by the engine — the figure the lab trusts.
+    const { tenantId, costAccess, reach, assertBranch } = await requireTenant("recipe:write");
+    const recipeId = url.searchParams.get("recipe") ?? "";
+    if (!UUID.test(branchId) || !UUID.test(recipeId)) return json({ ok: false, error: "คำขอไม่ถูกต้อง" }, 400);
+    assertBranch(branchId);
+    if (costAccess === null) return json({ ok: true, cost: null });
+    const cost = await getLabDraftCostLogic(tenantId, { recipeId, branchId }, reach);
+    return cost === null ? json({ ok: false, error: "ไม่พบร่างนี้" }, 404) : json({ ok: true, cost });
   }
 
   const { tenantId, costAccess, assertBranch } = await requireTenant("any:member");

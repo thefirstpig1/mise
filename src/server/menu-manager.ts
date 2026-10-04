@@ -26,6 +26,9 @@ import type { CostAccess } from "@/lib/permissions/cost-access";
 import { resolveRecipeIds, type RecipeTarget } from "@/server/recipe-resolve";
 import { recipeCostsInTx, type RecipeConfidence } from "@/server/recipe-cost";
 import { replayPairsInTx } from "@/server/stock-cost";
+import { getDraftsLogic, getLabWhatIfLogic } from "@/server/menu-lab-read";
+import type { LabWhatIfQuery } from "@/lib/validations/menu-lab";
+import type { BranchReach } from "@/lib/permissions/service";
 
 /** The window "used per day" is measured over. */
 export const INGREDIENT_FACT_DAYS = 30;
@@ -317,17 +320,7 @@ export async function getMenuSheetLogic(
           effectiveFrom: true,
           ingredients: {
             orderBy: { sortOrder: "asc" },
-            select: {
-              id: true,
-              productId: true,
-              componentMenuId: true,
-              qty: true,
-              productUnitId: true,
-              notes: true,
-              product: { select: { name: true, sku: true, type: true } },
-              componentMenu: { select: { name: true } },
-              productUnit: { select: { unitName: true, toBaseRatio: true } },
-            },
+            select: INGREDIENT_SELECT,
           },
         },
       }),
@@ -375,6 +368,18 @@ export async function getMenuSheetLogic(
     facts,
   };
 }
+
+const INGREDIENT_SELECT = {
+  id: true,
+  productId: true,
+  componentMenuId: true,
+  qty: true,
+  productUnitId: true,
+  notes: true,
+  product: { select: { name: true, sku: true, type: true } },
+  componentMenu: { select: { name: true } },
+  productUnit: { select: { unitName: true, toBaseRatio: true } },
+} as const;
 
 type IngredientRow = {
   id: string;
@@ -622,5 +627,110 @@ export async function getIngredientInsightLogic(
       }))
       .sort((a, b) => a.label.localeCompare(b.label, "th")),
     made,
+  };
+}
+
+// ------------------------------------------------------------
+// ทดลองเมนู — drafts with their lines (Kong 2026-10-04)
+// ------------------------------------------------------------
+// The lab list prices every draft from the branch's price book in the browser,
+// the same book "จัดการเมนู" uses, so it needs the LINES, not just a count.
+// A draft is still costed by the engine (ADR 0025 Q4) — the lab asks
+// `what=lab` after each save and shows that figure with its confidence; the
+// book only answers while somebody types.
+
+export type LabDraft = {
+  recipeId: string;
+  menuId: string;
+  menuName: string;
+  posCode: string | null;
+  /** The lab made this menu — no POS knows it yet. */
+  menuIsMise: boolean;
+  menuCategoryId: string | null;
+  servings: number;
+  plannedPrice: number | null;
+  notes: string | null;
+  updatedAt: string;
+  /** Publishing takes over this live central recipe. */
+  liveRecipeId: string | null;
+  hasSales: boolean;
+  lines: SheetLine[];
+};
+
+export async function getLabDraftsLogic(tenantId: string): Promise<LabDraft[]> {
+  const [rows, detail] = await Promise.all([
+    getDraftsLogic(tenantId),
+    withTenantContext(tenantId, (tx) =>
+      tx.recipe.findMany({
+        where: { tenantId, isDraft: true, deletedAt: null },
+        select: {
+          id: true,
+          notes: true,
+          menu: { select: { posMenuId: true, menuCategoryId: true } },
+          ingredients: { orderBy: { sortOrder: "asc" }, select: INGREDIENT_SELECT },
+        },
+      })
+    ),
+  ]);
+  const byId = new Map(detail.map((d) => [d.id, d]));
+  return rows.map((r) => {
+    const d = byId.get(r.recipeId);
+    return {
+      recipeId: r.recipeId,
+      menuId: r.menuId,
+      menuName: r.menuName,
+      posCode: d?.menu?.posMenuId ?? null,
+      menuIsMise: r.menuIsMise,
+      menuCategoryId: d?.menu?.menuCategoryId ?? null,
+      servings: Number(r.servings),
+      plannedPrice: r.plannedPrice === null ? null : Number(r.plannedPrice),
+      notes: d?.notes ?? null,
+      updatedAt: r.updatedAt.toISOString(),
+      liveRecipeId: r.liveRecipeId,
+      hasSales: r.hasSales,
+      lines: (d?.ingredients ?? []).map(toSheetLine),
+    };
+  });
+}
+
+/** A saved draft, costed by the engine at one branch — the figure the lab trusts. */
+export async function getLabDraftCostLogic(
+  tenantId: string,
+  query: { recipeId: string; branchId: string },
+  reach: BranchReach
+): Promise<{ costPerServing: number; confidence: RecipeConfidence; unpriced: string[] } | null> {
+  const draft = await withTenantContext(tenantId, (tx) =>
+    tx.recipe.findFirst({
+      where: { id: query.recipeId, tenantId, isDraft: true, deletedAt: null },
+      select: {
+        servings: true,
+        ingredients: {
+          orderBy: { sortOrder: "asc" },
+          select: { productId: true, componentMenuId: true, qty: true, productUnitId: true, sortOrder: true },
+        },
+      },
+    })
+  );
+  if (draft === null) return null;
+  const res = await getLabWhatIfLogic(
+    tenantId,
+    {
+      branchId: query.branchId,
+      servings: Number(draft.servings),
+      plannedPrice: null,
+      ingredients: draft.ingredients.map((i) => ({
+        productId: i.productId,
+        componentMenuId: i.componentMenuId,
+        qty: Number(i.qty),
+        productUnitId: i.productUnitId,
+        sortOrder: i.sortOrder,
+      })),
+    } as LabWhatIfQuery,
+    reach
+  );
+  return {
+    costPerServing: Number(res.cost.costPerServing),
+    confidence: res.cost.confidence,
+    unpriced: res.cost.unpriced.map((u) => u.name),
   };
 }

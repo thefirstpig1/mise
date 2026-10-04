@@ -24,7 +24,7 @@ import MenuSheet from "./MenuSheet";
 import { Portal } from "./sheet-parts";
 import { ingredientOptions, menuSheet, priceBook } from "./prefetch";
 import { baht, confidenceTh } from "./manager-format";
-import type { IngredientOption, PriceBook } from "@/server/menu-manager";
+import type { IngredientOption, PriceBook, StandardUnit } from "@/server/menu-manager";
 
 export type ManagerRow = MenuRowView & {
   qty: number;
@@ -127,11 +127,16 @@ export default function MenuManager(props: {
 
   // The adder's list: one fetch the first time any sheet needs it.
   const [options, setOptions] = useState<IngredientOption[] | null>(null);
+  const [standards, setStandards] = useState<StandardUnit[]>([]);
   const optionsAsked = useRef(false);
   const needOptions = () => {
     if (optionsAsked.current || !perm.recipe) return;
     optionsAsked.current = true;
-    void ingredientOptions().then((r) => (r.ok ? setOptions(r.options) : (optionsAsked.current = false)));
+    void ingredientOptions().then((r) => {
+      if (!r.ok) return void (optionsAsked.current = false);
+      setOptions(r.options);
+      setStandards(r.standards);
+    });
   };
   useEffect(() => {
     if (!toast) return;
@@ -508,6 +513,7 @@ export default function MenuManager(props: {
           perm={perm}
           book={book}
           options={options}
+          standards={standards}
           needOptions={needOptions}
           onClose={() => setOpenId(null)}
           onSaved={() => {

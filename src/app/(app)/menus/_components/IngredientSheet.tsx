@@ -16,7 +16,8 @@ import { useEffect, useState, useTransition } from "react";
 import { setPreppedYieldAction } from "@/app/(app)/menus/manager-actions";
 import { dropPrefetched, ingredientInsight } from "./prefetch";
 import { updateRecipeAction } from "@/app/(app)/recipes/actions";
-import type { IngredientInsight, PriceBook, SheetLine } from "@/server/menu-manager";
+import type { IngredientInsight, IngredientOption, PriceBook, SheetLine, StandardUnit } from "@/server/menu-manager";
+import { Adder, appendLines, lineCost as lineCostOf, lineFrom, materializeUnits, nextKey, qtyOf, RecipeTable, signature, type Line } from "./recipe-editor";
 import { orStale } from "@/lib/stale-tab";
 import { baht, newSubmitKey, qtyFmt, thDate, unitTh } from "./manager-format";
 import { ConfirmDialog, type ConfirmSpec, PhotoSlot, Sheet } from "./sheet-parts";
@@ -35,6 +36,8 @@ export default function IngredientSheet({
   onClose,
   onToast,
   onPreppedSaved,
+  options,
+  standards,
 }: {
   productId: string;
   branch: Option;
@@ -47,21 +50,42 @@ export default function IngredientSheet({
   onClose: () => void;
   onToast: (msg: string) => void;
   onPreppedSaved: () => void;
+  /** The adder's list and the standard measures, held by the list. */
+  options: IngredientOption[] | null;
+  standards: StandardUnit[];
 }) {
   const [data, setData] = useState<IngredientInsight | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [lines, setLines] = useState<SheetLine[] | null>(null);
+  const [lines, setLinesRaw] = useState<Line[] | null>(null);
+  const [baseLines, setBaseLines] = useState<Line[]>([]);
+  const setLines = (f: (ls: Line[]) => Line[]) => setLinesRaw((ls) => (ls === null ? ls : f(ls)));
   const [yieldPct, setYieldPct] = useState<string>("");
   const [eff, setEff] = useState(today);
   const [confirm, setConfirm] = useState<ConfirmSpec | null>(null);
   const [saving, startSaving] = useTransition();
 
+  const toLine = (l: SheetLine): Line => ({
+    key: nextKey(),
+    kind: l.kind,
+    productId: l.productId,
+    componentMenuId: l.componentMenuId,
+    label: l.label,
+    sku: l.sku,
+    prepped: l.prepped,
+    qty: String(l.qty),
+    unitId: l.unitId,
+    unitName: l.unitName,
+    ratio: l.kind === "menu" ? 1 : l.toBaseRatio,
+    notes: l.notes ?? "",
+  });
   const load = (fresh = false) =>
     ingredientInsight(productId, branch.id, fresh).then((res) => {
       if (!res.ok) return setError("error" in res ? res.error : "เปิดไม่ได้");
       setData(res.insight);
       const m = res.insight.made;
-      setLines(m?.how === "recipe" ? m.lines.map((l) => ({ ...l })) : null);
+      const ls = m?.how === "recipe" ? m.lines.map(toLine) : null;
+      setLinesRaw(ls);
+      setBaseLines(ls ?? []);
       setYieldPct(m?.how === "yield" ? String(m.yieldPercent) : "");
     });
   useEffect(() => {
@@ -84,6 +108,7 @@ export default function IngredientSheet({
     return p === null ? null : l.qty * l.toBaseRatio * p;
   };
   const total = (ls: SheetLine[]) => ls.reduce((s, l) => s + (lineCost(l) ?? 0), 0);
+  const draftTotal = (ls: Line[]) => ls.reduce((s, l) => s + (lineCostOf(l, book) ?? 0), 0);
   const servings = made?.how === "recipe" ? made.servings : 1;
   const parentPrice = made?.how === "yield" ? (book?.products[made.parentId] ?? null) : null;
   const baseCost =
@@ -94,14 +119,14 @@ export default function IngredientSheet({
         : (book?.products[productId] ?? null);
   const draftCost =
     made?.how === "recipe" && lines
-      ? total(lines) / servings
+      ? draftTotal(lines) / servings
       : made?.how === "yield"
         ? parentPrice === null || !(Number(yieldPct) > 0) ? null : parentPrice / (Number(yieldPct) / 100)
         : baseCost;
 
   const dirty =
     made?.how === "recipe"
-      ? JSON.stringify(lines?.map((l) => [l.ingredientId, l.qty])) !== JSON.stringify(made.lines.map((l) => [l.ingredientId, l.qty]))
+      ? signature(lines ?? [], 1) !== signature(baseLines, 1)
       : made?.how === "yield"
         ? Number(yieldPct) !== made.yieldPercent
         : false;
@@ -118,10 +143,11 @@ export default function IngredientSheet({
       made.how === "yield"
         ? [`ผลผลิตจาก${made.parentName} ${made.yieldPercent}% → ${yieldPct}%`]
         : (lines ?? []).flatMap((l) => {
-            const o = made.how === "recipe" ? made.lines.find((x) => x.ingredientId === l.ingredientId) : undefined;
-            return o && o.qty !== l.qty ? [`${l.label} ${o.qty} → ${l.qty} ${unitTh(l.unitName)}`] : [];
+            const o = baseLines.find((x) => x.productId === l.productId);
+            if (!o) return [`เพิ่ม ${l.label} ${l.qty} ${unitTh(l.unitName)}`];
+            return qtyOf(o) !== qtyOf(l) || o.unitName !== l.unitName ? [`${l.label} ${o.qty} ${unitTh(o.unitName)} → ${l.qty} ${unitTh(l.unitName)}`] : [];
           });
-    const removed = made.how === "recipe" ? made.lines.filter((o) => !(lines ?? []).some((l) => l.ingredientId === o.ingredientId)).map((o) => `เอาออก ${o.label}`) : [];
+    const removed = baseLines.filter((o) => !(lines ?? []).some((l) => l.productId === o.productId)).map((o) => `เอาออก ${o.label}`);
     setConfirm({
       title: `ใช้สูตรใหม่ของ${data.product.name}?`,
       lines: [...diff, ...removed],
@@ -149,13 +175,9 @@ export default function IngredientSheet({
         fd.set("servings", String(made.servings));
         fd.set("effective_from", eff);
         fd.set("notes", "");
-        for (const l of lines ?? []) {
-          fd.append("ingredient_product_id", l.productId ?? "");
-          fd.append("ingredient_component_menu_id", l.componentMenuId ?? "");
-          fd.append("ingredient_qty", String(l.qty));
-          fd.append("ingredient_product_unit_id", l.unitId ?? "");
-          fd.append("ingredient_notes", l.notes ?? "");
-        }
+        const m = await materializeUnits(lines ?? []);
+        if (!m.ok) return onToast(m.error);
+        appendLines(fd, m.lines);
         const res = await orStale(updateRecipeAction(made.recipeId, { ok: false }, fd));
         if (!res.ok) {
           const msg = "formError" in res && res.formError ? res.formError : Object.values(("fieldErrors" in res && res.fieldErrors) || {})[0];
@@ -224,55 +246,29 @@ export default function IngredientSheet({
                   <h4 className="font-semibold">สูตรผลิต</h4>
                   <span className="text-xs text-muted-foreground">ทำครั้งละ {qtyFmt(made.servings, baseUnit)} · ใช้ร่วมกันทุกสาขา</span>
                 </div>
-                <table className="w-full text-sm">
-                  <thead className="text-left text-xs text-muted-foreground">
-                    <tr>
-                      <th className="py-1 font-medium">วัตถุดิบ</th>
-                      <th className="py-1 text-right font-medium">ปริมาณ</th>
-                      <th className="py-1 pl-2 font-medium">หน่วย</th>
-                      {!costHidden && <th className="py-1 text-right font-medium">ต้นทุน</th>}
-                      <th />
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {lines.map((l, i) => {
-                      const o = made.lines.find((x) => x.ingredientId === l.ingredientId);
-                      const c = lineCost(l);
-                      return (
-                        <tr key={l.ingredientId} className={o && o.qty !== l.qty ? "bg-warn-bg" : ""}>
-                          <td className="py-1.5">{l.label}</td>
-                          <td className="py-1.5 text-right">
-                            {editable ? (
-                              <input
-                                type="number"
-                                step="any"
-                                min="0"
-                                value={l.qty}
-                                onChange={(e) => {
-                                  const v = Number(e.target.value);
-                                  setLines((ls) => ls!.map((x, j) => (j === i ? { ...x, qty: Number.isFinite(v) ? v : x.qty } : x)));
-                                }}
-                                className="input w-20 py-0.5 text-right tabular-nums"
-                                aria-label={`ปริมาณ ${l.label}`}
-                              />
-                            ) : (
-                              <span className="tabular-nums">{l.qty}</span>
-                            )}
-                          </td>
-                          <td className="py-1.5 pl-2">{unitTh(l.unitName)}</td>
-                          {!costHidden && <td className="py-1.5 text-right tabular-nums">{book === null ? "…" : c === null ? "—" : baht(c, 2)}</td>}
-                          <td className="py-1.5 text-right">
-                            {editable && lines.length > 1 && (
-                              <button type="button" onClick={() => setLines((ls) => ls!.filter((_, j) => j !== i))} aria-label={`เอา ${l.label} ออก`} className="rounded px-1.5 text-muted-subtle hover:bg-bad-bg hover:text-bad">
-                                ×
-                              </button>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                <RecipeTable
+                  lines={lines}
+                  setLines={setLines}
+                  baseLines={baseLines}
+                  book={book}
+                  options={options}
+                  standards={standards}
+                  editable={editable}
+                  costHidden={costHidden}
+                  showNotes={false}
+                  canDefineUnit={perm.recipeShared}
+                  onToast={onToast}
+                />
+                {editable && (
+                  <Adder
+                    options={options}
+                    book={book}
+                    exclude={new Set([...lines.map((l) => l.productId ?? ""), productId])}
+                    costHidden={costHidden}
+                    menus={false}
+                    onPick={(o) => setLines((ls) => [...ls, lineFrom(o, standards)])}
+                  />
+                )}
                 {!editable && <p className="text-xs text-muted-foreground">สูตรของแปรรูปใช้ร่วมกันทุกสาขา แก้ได้เฉพาะเจ้าของร้าน ส่วนกลาง และผู้ดูแลทุกสาขา</p>}
               </section>
             )}

@@ -22,7 +22,8 @@ export function Portal({ children }: { children: ReactNode }) {
 }
 
 const layers: string[] = [];
-function useTopLayer(onClose: () => void) {
+/** Esc closes this layer only while it is the top one. */
+export function useTopLayer(onClose: () => void) {
   const id = useId();
   const close = useRef(onClose);
   close.current = onClose;

@@ -4,7 +4,7 @@
 import { RECIPE_CONFIDENCE_HINTS_TH, RECIPE_CONFIDENCE_LABELS_TH, type RecipeConfidence } from "@/lib/validations/recipe";
 
 export const baht = (v: number, digits = 0) =>
-  `฿${v.toLocaleString("th-TH", { minimumFractionDigits: digits, maximumFractionDigits: digits })}`;
+  `${v < 0 ? "−" : ""}฿${Math.abs(v).toLocaleString("th-TH", { minimumFractionDigits: digits, maximumFractionDigits: digits })}`;
 
 export const confidenceTh = (c: string) => RECIPE_CONFIDENCE_LABELS_TH[c as RecipeConfidence] ?? c;
 export const confidenceHintTh = (c: string) => RECIPE_CONFIDENCE_HINTS_TH[c as RecipeConfidence] ?? "";

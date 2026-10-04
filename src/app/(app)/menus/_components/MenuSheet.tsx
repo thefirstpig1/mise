@@ -28,8 +28,8 @@ import { createRecipeAction, deleteRecipeAction, saveRecipeForBranchAction, upda
 import { confirmMenuAliasAction, getMenuSuggestionsAction, updateMenuAction, type MenuAliasActionState } from "@/app/(app)/menus/actions";
 import { deleteMenuAction, setMenuActiveAction } from "@/app/(app)/menus/lifecycle-actions";
 import { RETIRE_MEANS_TH, RETIRE_NOT_IN_POS_TH } from "@/lib/validations/menu-lifecycle";
-import type { IngredientOption, MenuSheet as SheetData, PriceBook } from "@/server/menu-manager";
-import { rankBySearch, hasQuery, highlightRuns, STRONG_MATCH, type SearchField } from "@/lib/smart-search";
+import type { IngredientOption, MenuSheet as SheetData, PriceBook, StandardUnit } from "@/server/menu-manager";
+import { Adder, appendLines, lineCost as lineCostWith, lineFrom, materializeUnits, nextKey, priceOf, qtyOf, RecipeTable, signature, type Line } from "./recipe-editor";
 import { orStale } from "@/lib/stale-tab";
 import type { MergeMenuView } from "./menu-merge-view";
 import type { MenuSuggestionRowView } from "./menu-view";
@@ -37,54 +37,6 @@ import type { ManagerRow, Option, Perm } from "./MenuManager";
 import { baht, confidenceHintTh, confidenceTh, newSubmitKey, qtyFmt, thDate, unitTh } from "./manager-format";
 import { ConfirmDialog, type ConfirmSpec, PhotoSlot, Sheet } from "./sheet-parts";
 import IngredientSheet from "./IngredientSheet";
-
-type Line = {
-  key: string;
-  kind: "product" | "menu";
-  productId: string | null;
-  componentMenuId: string | null;
-  label: string;
-  sku: string | null;
-  prepped: boolean;
-  qty: string;
-  unitId: string | null;
-  unitName: string | null;
-  ratio: number;
-  notes: string;
-};
-
-let keySeq = 0;
-const nextKey = () => `n${++keySeq}`;
-const qtyOf = (l: Line) => (Number.isFinite(Number(l.qty)) ? Number(l.qty) : 0);
-/** Baht per base unit (per serving for a menu) at this branch; null = nobody bought it here. */
-const priceOf = (l: Pick<Line, "kind" | "productId" | "componentMenuId">, book: PriceBook | null): number | null =>
-  book === null
-    ? null
-    : l.kind === "menu"
-      ? (book.menus[l.componentMenuId ?? ""]?.costPerServing ?? null)
-      : (book.products[l.productId ?? ""] ?? null);
-const lineCostWith = (l: Line, book: PriceBook | null) => {
-  const p = priceOf(l, book);
-  return p === null ? null : qtyOf(l) * l.ratio * p;
-};
-const signature = (lines: Line[], servings: number) =>
-  JSON.stringify([servings, lines.map((l) => [l.productId, l.componentMenuId, qtyOf(l), l.unitId, l.notes.trim()])]);
-
-function Marked({ text, marks }: { text: string; marks: readonly number[] }) {
-  return (
-    <>
-      {highlightRuns(text, marks).map((r, i) =>
-        r.hit ? (
-          <mark key={i} className="rounded-sm bg-highlight px-px text-inherit">
-            {r.text}
-          </mark>
-        ) : (
-          <span key={i}>{r.text}</span>
-        )
-      )}
-    </>
-  );
-}
 
 export default function MenuSheet(props: {
   menu: ManagerRow;
@@ -104,6 +56,7 @@ export default function MenuSheet(props: {
   book: PriceBook | null;
   /** The adder's list, loaded once by the list on first need. */
   options: IngredientOption[] | null;
+  standards: StandardUnit[];
   needOptions: () => void;
   onClose: () => void;
   onSaved: () => void;
@@ -234,27 +187,7 @@ export default function MenuSheet(props: {
   }, [lines, facts, servings]);
 
   // ---- editing ----
-  const setLine = (key: string, patch: Partial<Line>) => setLines((ls) => ls.map((l) => (l.key === key ? { ...l, ...patch } : l)));
-  const add = (o: IngredientOption) => {
-    const base = o.units.find((u) => u.isBase) ?? o.units[0];
-    setLines((ls) => [
-      ...ls,
-      {
-        key: nextKey(),
-        kind: o.kind,
-        productId: o.kind === "product" ? o.id : null,
-        componentMenuId: o.kind === "menu" ? o.id : null,
-        label: o.name,
-        sku: o.sku,
-        prepped: o.prepped,
-        qty: "",
-        unitId: base?.id ?? null,
-        unitName: base?.unitName ?? (o.kind === "menu" ? "จาน" : null),
-        ratio: base?.toBaseRatio ?? 1,
-        notes: "",
-      },
-    ]);
-  };
+  const add = (o: IngredientOption) => setLines((ls) => [...ls, lineFrom(o, props.standards)]);
 
   const close = () => {
     if (dirty.length) onToast(`ปิดแล้ว · ไม่ได้บันทึก ${dirty.join(" · ")}`);
@@ -262,7 +195,7 @@ export default function MenuSheet(props: {
   };
 
   // ---- saving ----
-  const recipeForm = () => {
+  const recipeForm = (ls: Line[]) => {
     const fd = new FormData();
     fd.set("submit_key", newSubmitKey());
     fd.set("menu_id", menu.id);
@@ -270,13 +203,7 @@ export default function MenuSheet(props: {
     fd.set("servings", String(servings));
     fd.set("effective_from", eff);
     fd.set("notes", notes);
-    for (const l of lines) {
-      fd.append("ingredient_product_id", l.productId ?? "");
-      fd.append("ingredient_component_menu_id", l.componentMenuId ?? "");
-      fd.append("ingredient_qty", l.qty);
-      fd.append("ingredient_product_unit_id", l.unitId ?? "");
-      fd.append("ingredient_notes", l.notes);
-    }
+    appendLines(fd, ls);
     return fd;
   };
   const errorOf = (res: RecipeActionState | { ok: false; formError?: string; fieldErrors?: Record<string, string> }) =>
@@ -301,7 +228,10 @@ export default function MenuSheet(props: {
         if (!res.ok) return setFormError(res.error);
       }
       if (recipeDirty) {
-        const fd = recipeForm();
+        // A standard measure picked for the first time becomes the product's unit now.
+        const m = await materializeUnits(lines);
+        if (!m.ok) return setFormError(m.error);
+        const fd = recipeForm(m.lines);
         const res =
           target === "all"
             ? recipe === null
@@ -326,7 +256,7 @@ export default function MenuSheet(props: {
     for (const l of lines) {
       const o = before.get(l.productId ?? l.componentMenuId);
       if (!o) out.push(`เพิ่ม ${l.label} ${l.qty || "?"} ${unitTh(l.unitName)}`);
-      else if (qtyOf(o) !== qtyOf(l) || o.unitId !== l.unitId) out.push(`${l.label} ${o.qty} ${unitTh(o.unitName)} → ${l.qty} ${unitTh(l.unitName)}`);
+      else if (qtyOf(o) !== qtyOf(l) || o.unitName !== l.unitName) out.push(`${l.label} ${o.qty} ${unitTh(o.unitName)} → ${l.qty} ${unitTh(l.unitName)}`);
     }
     for (const o of baseLines) if (!lines.some((l) => (l.productId ?? l.componentMenuId) === (o.productId ?? o.componentMenuId))) out.push(`เอาออก ${o.label}`);
     if (servings !== (recipe?.servings ?? 1)) out.push(`สูตรนี้ทำได้ ${recipe?.servings ?? 1} → ${servings} จาน`);
@@ -617,102 +547,22 @@ export default function MenuSheet(props: {
           )}
 
           {sheet && lines.length > 0 && (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="text-left text-xs text-muted-foreground">
-                  <tr>
-                    <th className="py-1 font-medium">วัตถุดิบ</th>
-                    <th className="py-1 text-right font-medium">ปริมาณ</th>
-                    <th className="py-1 pl-2 font-medium">หน่วย</th>
-                    {!costHidden && <th className="py-1 text-right font-medium">ต้นทุน</th>}
-                    <th />
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {lines.map((l) => {
-                    const o = baseLines.find((b) => (b.productId ?? b.componentMenuId) === (l.productId ?? l.componentMenuId));
-                    const changed = !o ? "bg-good-bg" : qtyOf(o) !== qtyOf(l) || o.unitId !== l.unitId ? "bg-warn-bg" : "";
-                    const units = options?.find((x) => x.kind === "product" && x.id === l.productId)?.units ?? [];
-                    const c = lineCost(l);
-                    return (
-                      <tr
-                        key={l.key}
-                        className={`${l.kind === "product" ? "cursor-pointer hover:bg-muted/60" : ""} ${changed}`}
-                        onPointerEnter={() => l.kind === "product" && l.productId && void ingredientInsight(l.productId, branch.id)}
-                        onClick={(e) => {
-                          if (l.kind !== "product" || !l.productId) return;
-                          if ((e.target as HTMLElement).closest("input,select,button")) return;
-                          setIng(l.productId);
-                        }}
-                      >
-                        <td className="py-1.5 pr-2">
-                          <span>{l.label}</span>
-                          {l.prepped && <span className="ml-1.5 rounded border border-warn-border bg-warn-bg px-1 text-[10px] text-warn">ของแปรรูป</span>}
-                          {l.kind === "menu" && <span className="ml-1.5 rounded border border-border px-1 text-[10px] text-muted-foreground">เมนู</span>}
-                          <span className="block text-[11px] text-muted-subtle">{stockLine(l)}</span>
-                          {!costHidden && c !== null && total > 0 && (
-                            <span className="mt-0.5 block h-1 rounded-full bg-border-strong/60" style={{ width: `${Math.max(2, (c / total) * 100)}%` }} />
-                          )}
-                          {showNotes && recipeEditable && (
-                            <input value={l.notes} onChange={(e) => setLine(l.key, { notes: e.target.value })} placeholder="หมายเหตุของบรรทัดนี้" className="input mt-1 w-full py-0.5 text-xs" aria-label={`หมายเหตุ ${l.label}`} />
-                          )}
-                          {!showNotes && l.notes && <span className="block text-[11px] italic text-muted-foreground">{l.notes}</span>}
-                        </td>
-                        <td className="py-1.5 text-right">
-                          {recipeEditable ? (
-                            <input
-                              type="number"
-                              step="any"
-                              min="0"
-                              value={l.qty}
-                              autoFocus={l.qty === "" && !o}
-                              onChange={(e) => setLine(l.key, { qty: e.target.value })}
-                              className="input w-20 py-0.5 text-right tabular-nums"
-                              aria-label={`ปริมาณ ${l.label}`}
-                            />
-                          ) : (
-                            <span className="tabular-nums">{l.qty}</span>
-                          )}
-                        </td>
-                        <td className="py-1.5 pl-2">
-                          {recipeEditable && units.length > 1 ? (
-                            <select
-                              value={l.unitId ?? ""}
-                              onChange={(e) => {
-                                const u = units.find((x) => x.id === e.target.value)!;
-                                setLine(l.key, { unitId: u.id, unitName: u.unitName, ratio: u.toBaseRatio });
-                              }}
-                              className="rounded border border-border bg-surface px-1 py-0.5 text-sm"
-                              aria-label={`หน่วย ${l.label}`}
-                            >
-                              {units.map((u) => (
-                                <option key={u.id} value={u.id}>
-                                  {unitTh(u.unitName)}
-                                </option>
-                              ))}
-                            </select>
-                          ) : (
-                            unitTh(l.unitName) || (l.kind === "menu" ? "จาน" : "")
-                          )}
-                        </td>
-                        {!costHidden && (
-                          <td className="py-1.5 text-right tabular-nums">
-                            {pricesPending ? <span className="inline-block h-3.5 w-12 animate-pulse rounded bg-muted align-middle" /> : c === null ? <span className="text-xs text-warn">ไม่มีราคา</span> : baht(c, 2)}
-                          </td>
-                        )}
-                        <td className="py-1.5 text-right">
-                          {recipeEditable && (
-                            <button type="button" onClick={() => setLines((ls) => ls.filter((x) => x.key !== l.key))} aria-label={`เอา ${l.label} ออก`} className="rounded px-1.5 text-muted-subtle hover:bg-bad-bg hover:text-bad">
-                              ×
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <RecipeTable
+              lines={lines}
+              setLines={setLines}
+              baseLines={baseLines}
+              book={book}
+              options={options}
+              standards={props.standards}
+              editable={recipeEditable}
+              costHidden={costHidden}
+              showNotes={showNotes}
+              canDefineUnit={perm.recipeShared}
+              stockLine={stockLine}
+              onOpen={setIng}
+              onHover={(id) => void ingredientInsight(id, branch.id)}
+              onToast={onToast}
+            />
           )}
 
           {sheet && recipeEditable && <Adder options={options} book={book} exclude={new Set([...lines.map((l) => l.productId ?? l.componentMenuId ?? ""), menu.id])} costHidden={costHidden} onPick={add} />}
@@ -918,6 +768,8 @@ export default function MenuSheet(props: {
           costHidden={costHidden}
           perm={perm}
           book={book}
+          options={options}
+          standards={props.standards}
           onClose={() => setIng(null)}
           onToast={onToast}
           onPreppedSaved={() => {
@@ -937,115 +789,6 @@ function Tile({ k, v, s, warn, title }: { k: string; v: string; s: string; warn?
       <p className="text-[11px] text-muted-subtle">{k}</p>
       <p className={`font-display text-lg font-semibold tabular-nums transition-colors ${warn ? "text-warn" : ""}`}>{v}</p>
       <p className="text-[11px] text-muted-foreground">{s}</p>
-    </div>
-  );
-}
-
-/** "+ เพิ่มวัตถุดิบ" — the app-wide smart search over products and dishes. */
-function Adder({
-  options,
-  book,
-  exclude,
-  costHidden,
-  onPick,
-}: {
-  options: IngredientOption[] | null;
-  book: PriceBook | null;
-  exclude: Set<string>;
-  costHidden: boolean;
-  onPick: (o: IngredientOption) => void;
-}) {
-  const [q, setQ] = useState("");
-  const [open, setOpen] = useState(false);
-  const box = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const off = (e: MouseEvent) => box.current && !box.current.contains(e.target as Node) && setOpen(false);
-    document.addEventListener("mousedown", off);
-    return () => document.removeEventListener("mousedown", off);
-  }, []);
-
-  const items = (options ?? []).filter((o) => !exclude.has(o.id));
-  const fields: SearchField<IngredientOption>[] = [
-    { get: (o) => o.name, kind: "name" },
-    { get: (o) => o.sku, kind: "code" },
-  ];
-  const price = (o: IngredientOption) => {
-    if (costHidden) return null;
-    if (book === null) return <small className="text-xs text-muted-subtle">…</small>;
-    const p = priceOf({ kind: o.kind, productId: o.kind === "product" ? o.id : null, componentMenuId: o.kind === "menu" ? o.id : null }, book);
-    if (p === null) return <small className="text-xs text-muted-subtle">ยังไม่มีราคา</small>;
-    const base = o.units.find((u) => u.isBase);
-    return (
-      <small className="text-xs tabular-nums text-muted-subtle">
-        {baht(p, 2)}/{o.kind === "menu" ? "จาน" : unitTh(base?.unitName)}
-      </small>
-    );
-  };
-  const row = (o: IngredientOption, marks: { field: number | null; marks: number[] }, weak = false) => (
-    <button
-      key={`${o.kind}-${o.id}`}
-      type="button"
-      onClick={() => {
-        onPick(o);
-        setQ("");
-        setOpen(false);
-      }}
-      className={`flex w-full items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-left text-sm hover:bg-muted ${weak ? "opacity-45" : ""}`}
-    >
-      <span className="min-w-0">
-        {marks.field === 0 ? <Marked text={o.name} marks={marks.marks} /> : o.name}{" "}
-        {o.sku && <small className="text-xs tabular-nums text-muted-subtle">{marks.field === 1 ? <Marked text={o.sku} marks={marks.marks} /> : o.sku}</small>}
-        {o.prepped && <span className="ml-1 rounded border border-warn-border bg-warn-bg px-1 text-[10px] text-warn">ของแปรรูป</span>}
-      </span>
-      {price(o)}
-    </button>
-  );
-
-  let list: React.ReactNode;
-  if (options === null) list = <p className="px-2 py-2 text-xs text-muted-subtle">กำลังโหลดรายการ…</p>;
-  else if (!hasQuery(q)) {
-    const plain = { field: null, marks: [] as number[] };
-    const prepped = items.filter((o) => o.kind === "product" && o.prepped);
-    const raw = items.filter((o) => o.kind === "product" && !o.prepped).sort((a, b) => a.name.localeCompare(b.name, "th"));
-    const menus = items.filter((o) => o.kind === "menu");
-    list = (
-      <>
-        {prepped.length > 0 && <p className="px-2 pt-1 font-display text-[11px] text-muted-subtle">ของแปรรูป</p>}
-        {prepped.map((o) => row(o, plain))}
-        <p className="px-2 pt-1 font-display text-[11px] text-muted-subtle">วัตถุดิบ</p>
-        {raw.map((o) => row(o, plain))}
-        {menus.length > 0 && <p className="px-2 pt-1 font-display text-[11px] text-muted-subtle">เมนู (สำหรับเซ็ต)</p>}
-        {menus.map((o) => row(o, plain))}
-      </>
-    );
-  } else {
-    const ranked = rankBySearch(items, q, fields);
-    const strong = ranked.filter((r) => r.score >= STRONG_MATCH);
-    const rest = ranked.filter((r) => r.score < STRONG_MATCH);
-    list = (
-      <>
-        {strong.length === 0 && <p className="px-2 py-1 text-xs text-muted-subtle">ไม่มีที่ตรงกับ “{q}” · ถ้าเป็นวัตถุดิบใหม่ เพิ่มที่หน้าวัตถุดิบ</p>}
-        {strong.map((r) => row(r.item, r))}
-        {rest.length > 0 && <p className="px-2 pt-1 font-display text-[11px] text-muted-subtle">รายการอื่น</p>}
-        {rest.map((r) => row(r.item, r, true))}
-      </>
-    );
-  }
-
-  return (
-    <div className="relative" ref={box}>
-      <input
-        value={q}
-        onChange={(e) => {
-          setQ(e.target.value);
-          setOpen(true);
-        }}
-        onFocus={() => setOpen(true)}
-        placeholder="+ เพิ่มวัตถุดิบ พิมพ์ชื่อหรือรหัส"
-        aria-label="เพิ่มวัตถุดิบ"
-        className="w-full rounded-lg border border-dashed border-border-strong bg-surface-sunk px-3 py-1.5 text-sm focus:border-solid focus:bg-surface focus:outline-none focus:ring-2 focus:ring-primary"
-      />
-      {open && <div className="absolute inset-x-0 top-full z-10 mt-1 max-h-72 overflow-y-auto rounded-xl border border-border bg-surface p-1 shadow-card">{list}</div>}
     </div>
   );
 }
