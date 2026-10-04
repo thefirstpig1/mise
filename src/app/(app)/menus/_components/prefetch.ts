@@ -4,7 +4,7 @@
 // "หน้าไหนโหลดช้า"). Anything that WRITES drops the cache, because a saved
 // recipe or yield changes what the next open must show.
 
-import type { IngredientInsight, IngredientOption, MenuSheet, PriceBook } from "@/server/menu-manager";
+import type { IngredientInsight, IngredientOption, MenuSheet, PriceBook, StandardUnit } from "@/server/menu-manager";
 
 type Res<K extends string, T> = ({ ok: true } & { [P in K]: T }) | { ok: false; error: string };
 
@@ -22,7 +22,10 @@ async function read<K extends string, T>(params: Record<string, string>): Promis
 }
 
 export const priceBook = (branchId: string) => read<"book", PriceBook>({ what: "book", branch: branchId });
-export const ingredientOptions = () => read<"options", IngredientOption[]>({ what: "options" });
+export const ingredientOptions = async (): Promise<{ ok: true; options: IngredientOption[]; standards: StandardUnit[] } | { ok: false; error: string }> => {
+  const r = (await read<"options", IngredientOption[]>({ what: "options" })) as { ok: true; options: IngredientOption[]; standards?: StandardUnit[] } | { ok: false; error: string };
+  return r.ok ? { ok: true, options: r.options, standards: r.standards ?? [] } : r;
+};
 
 type SheetRes = Res<"sheet", MenuSheet>;
 type InsightRes = Res<"insight", IngredientInsight>;

@@ -724,6 +724,80 @@ export async function getProductParentOptionsLogic(
  * slice). The product row is matched FIRST; only if it matched do we touch the
  * base unit. Blank sku on update KEEPS the existing sku (never nulls it).
  */
+export class UnitNeedsRatioError extends Error {
+  constructor(public readonly unitName: string) {
+    super(`Unit "${unitName}" is not a standard measure of this product — it needs a ratio`);
+    this.name = "UnitNeedsRatioError";
+  }
+}
+
+/**
+ * Give a product the unit a recipe line asks for, and say what it is in base
+ * units (Kong 2026-10-04: "สูตรใช้กรัม บางที pinch บางทีนับเป็นใบ").
+ *
+ * Two kinds, and only one is guessed:
+ *  - a STANDARD measure of the product's own dimension (กรัม for a product kept
+ *    in กก., ช้อนโต๊ะ for one kept in ลิตร) converts by itself through
+ *    `unit_template.to_si_ratio` — no setup, the ratio is arithmetic;
+ *  - anything else (a leaf counted as ใบ but stocked by weight, a spoon of
+ *    SUGAR, the shop's own ทัพพี) is the shop's to weigh, so it is refused
+ *    without `toBaseRatio` rather than invented.
+ *
+ * Idempotent by name (`@@unique([productId, unitName])`): an existing unit is
+ * returned as it is, ratio untouched — changing what a unit means is the
+ * product form's job, where it can be seen to move every recipe using it.
+ * `source` follows the product form's convention: "system" for a template
+ * name, "custom" otherwise.
+ */
+export async function ensureProductUnitLogic(
+  tenantId: string,
+  input: { productId: string; unitName: string; toBaseRatio?: number | null }
+): Promise<{ id: string; unitName: string; toBaseRatio: number }> {
+  const name = input.unitName.trim();
+  return withTenantContext(tenantId, async (tx) => {
+    const product = await tx.product.findFirst({
+      where: { id: input.productId, tenantId, deletedAt: null },
+      select: { id: true, primaryDimension: true, productUnits: { select: { id: true, unitName: true, toBaseRatio: true, isBase: true } } },
+    });
+    if (product === null) throw new CrossTenantReferenceError("product", input.productId);
+    const have = product.productUnits.find((u) => u.unitName === name);
+    if (have) return { id: have.id, unitName: have.unitName, toBaseRatio: Number(have.toBaseRatio) };
+
+    const base = product.productUnits.find((u) => u.isBase);
+    const [target, baseTpl] = await Promise.all([
+      tx.unitTemplate.findFirst({ where: { unitName: name } }),
+      base ? tx.unitTemplate.findFirst({ where: { unitName: base.unitName } }) : Promise.resolve(null),
+    ]);
+    let ratio: number | null = null;
+    if (
+      target?.toSiRatio != null &&
+      baseTpl?.toSiRatio != null &&
+      target.unitDimension === product.primaryDimension &&
+      baseTpl.unitDimension === product.primaryDimension
+    ) {
+      ratio = Number(target.toSiRatio) / Number(baseTpl.toSiRatio);
+    } else if (input.toBaseRatio != null && input.toBaseRatio > 0) {
+      ratio = input.toBaseRatio;
+    }
+    if (ratio === null || !Number.isFinite(ratio) || ratio <= 0) throw new UnitNeedsRatioError(name);
+
+    const created = await tx.productUnit.create({
+      data: {
+        productId: product.id,
+        unitName: name,
+        unitDimension: product.primaryDimension,
+        toBaseRatio: new Prisma.Decimal(ratio.toFixed(6)),
+        isBase: false,
+        isDefaultBuyUnit: false,
+        source: target ? "system" : "custom",
+        displayOrder: product.productUnits.length + 1,
+      },
+      select: { id: true, unitName: true, toBaseRatio: true },
+    });
+    return { id: created.id, unitName: created.unitName, toBaseRatio: Number(created.toBaseRatio) };
+  });
+}
+
 /**
  * Change ONLY the yield of a PREPPED product made from a parent (กุ้งแกะ from
  * กุ้งขาว at 60%) — the edit the menu sheet offers (Kong 2026-10-04).

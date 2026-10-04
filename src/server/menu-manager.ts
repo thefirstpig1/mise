@@ -412,12 +412,19 @@ export type IngredientOption = {
   name: string;
   sku: string | null;
   prepped: boolean;
+  /** WEIGHT | VOLUME | COUNT — which standard measures apply without setup. */
+  dimension: string;
   units: { id: string; unitName: string; toBaseRatio: number; isBase: boolean }[];
 };
 
+/** A standard measure (unit_template, Thai names only): what one is in grams or ml. */
+export type StandardUnit = { unitName: string; dimension: string; si: number };
+
 /** Every product and dish that can be an ingredient. Prices come from the price book. */
-export async function getIngredientOptionsLogic(tenantId: string): Promise<IngredientOption[]> {
-  const [products, menus] = await withTenantContext(tenantId, (tx) =>
+export async function getIngredientOptionsLogic(
+  tenantId: string
+): Promise<{ options: IngredientOption[]; standards: StandardUnit[] }> {
+  const [products, menus, templates] = await withTenantContext(tenantId, (tx) =>
     Promise.all([
       tx.product.findMany({
         where: { tenantId, deletedAt: null, isActive: true },
@@ -426,6 +433,7 @@ export async function getIngredientOptionsLogic(tenantId: string): Promise<Ingre
           name: true,
           sku: true,
           type: true,
+          primaryDimension: true,
           productUnits: { select: { id: true, unitName: true, toBaseRatio: true, isBase: true }, orderBy: { displayOrder: "asc" } },
         },
         orderBy: { name: "asc" },
@@ -435,19 +443,31 @@ export async function getIngredientOptionsLogic(tenantId: string): Promise<Ingre
         select: { id: true, name: true, posMenuId: true },
         orderBy: { name: "asc" },
       }),
+      // Global reference data, not tenant-scoped. English spellings (g, kg) are
+      // the same sizes as the Thai ones and would only double the list.
+      tx.unitTemplate.findMany({
+        where: { toSiRatio: { not: null }, displayOrderEn: null },
+        select: { unitName: true, unitDimension: true, toSiRatio: true },
+        orderBy: [{ unitDimension: "asc" }, { displayOrderTh: "asc" }],
+      }),
     ])
   );
-  return [
+  const options: IngredientOption[] = [
     ...products.map((p) => ({
       kind: "product" as const,
       id: p.id,
       name: p.name,
       sku: p.sku,
       prepped: p.type === "PREPPED",
+      dimension: p.primaryDimension,
       units: p.productUnits.map((u) => ({ id: u.id, unitName: u.unitName, toBaseRatio: Number(u.toBaseRatio), isBase: u.isBase })),
     })),
-    ...menus.map((m) => ({ kind: "menu" as const, id: m.id, name: m.name, sku: m.posMenuId, prepped: false, units: [] })),
+    ...menus.map((m) => ({ kind: "menu" as const, id: m.id, name: m.name, sku: m.posMenuId, prepped: false, dimension: "COUNT", units: [] })),
   ];
+  return {
+    options,
+    standards: templates.map((t) => ({ unitName: t.unitName, dimension: t.unitDimension, si: Number(t.toSiRatio) })),
+  };
 }
 
 // ------------------------------------------------------------

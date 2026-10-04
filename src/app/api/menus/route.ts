@@ -41,7 +41,7 @@ async function read(req: Request): Promise<Response> {
 
   if (what === "options") {
     const { tenantId } = await requireTenant("recipe:write");
-    return json({ ok: true, options: await getIngredientOptionsLogic(tenantId) });
+    return json({ ok: true, ...(await getIngredientOptionsLogic(tenantId)) });
   }
 
   const { tenantId, costAccess, assertBranch } = await requireTenant("any:member");

@@ -8,7 +8,7 @@
 -- it a single ROW — and two tables here are not tenant data at all. They are
 -- global reference data that every shop reads and no shop owns:
 --
---     unit_template            g · kg · ขีด · ml · l · ชิ้น · ฟอง · ลูก · ใบ · แพ็ค · ถุง
+--     unit_template            g · kg · ขีด · ml · l · ช้อนชา · ช้อนโต๊ะ · ถ้วยตวง · หยิบมือ · ชิ้น · ฟอง · ลูก · ใบ · แพ็ค · ถุง
 --     liquid_density_template  น้ำเปล่า · นมสด · เบียร์ · น้ำมัน · น้ำเชื่อม
 --
 -- 🔴 WITHOUT THEM THE FIRST SHOP CANNOT ADD A PRODUCT. `tenant-init.ts` seeds
@@ -87,8 +87,18 @@ VALUES
   -- VOLUME — millilitres
   (gen_random_uuid(), 'มล.',    'VOLUME',    1.0,  1, NULL),
   (gen_random_uuid(), 'ลิตร',   'VOLUME', 1000.0,  2, NULL),
-  (gen_random_uuid(), 'ml',    'VOLUME',    1.0,  3,    1),
-  (gen_random_uuid(), 'l',     'VOLUME', 1000.0,  4,    2),
+  -- Kitchen measures (Kong 2026-10-04): a recipe is written in spoons, not
+  -- litres. Thai/metric sizes — ช้อนชา 5 ml, ช้อนโต๊ะ 15 ml, ถ้วยตวง 240 ml —
+  -- and หยิบมือ as the cookbook pinch, 1/16 ช้อนชา ≈ 0.3 ml. A spoon of a
+  -- WEIGHED product (sugar) is not this: it needs the shop to weigh it once,
+  -- as a product-specific unit. ทัพพี is deliberately absent — a rice ladle and
+  -- a soup ladle differ, so each shop sets its own (the recipe editor asks).
+  (gen_random_uuid(), 'ช้อนชา',  'VOLUME',    5.0,  3, NULL),
+  (gen_random_uuid(), 'ช้อนโต๊ะ', 'VOLUME',   15.0,  4, NULL),
+  (gen_random_uuid(), 'ถ้วยตวง', 'VOLUME',  240.0,  5, NULL),
+  (gen_random_uuid(), 'หยิบมือ', 'VOLUME',    0.3,  6, NULL),
+  (gen_random_uuid(), 'ml',    'VOLUME',    1.0,  7,    1),
+  (gen_random_uuid(), 'l',     'VOLUME', 1000.0,  8,    2),
   -- COUNT — no ratio, deliberately
   (gen_random_uuid(), 'ชิ้น',   'COUNT',   NULL,  1, NULL),
   (gen_random_uuid(), 'ฟอง',   'COUNT',   NULL,  2, NULL),
