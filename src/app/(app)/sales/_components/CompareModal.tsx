@@ -16,7 +16,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { TONES } from "@/components/charts/chart-theme";
 import { METRIC_LABELS_TH, type CompareSide, type Metric, type PeriodStats } from "@/lib/sales-insight";
-import { getSalesCompareAction, type CompareResult } from "../insight-actions";
+import type { CompareResult } from "../insight-reads";
+import { readApi } from "@/lib/read-api";
 import { ActionError, STALE_TAB_MESSAGE } from "./Breakdown";
 import { ModalShell, baht, fmtMetric, type ToneMap } from "./Breakdown";
 import { useMenuInsight } from "./insight-context";
@@ -112,7 +113,7 @@ function CompareModal({
   const run = useCallback(
     (sa: typeof a, sb: typeof b, m: Metric) => {
       setBusy(true);
-      getSalesCompareAction({
+      readApi<CompareResult>("/api/sales", "compare", {
         a: { ...sa, label: labelOf(sa, months) },
         b: { ...sb, label: labelOf(sb, months) },
         branchId,

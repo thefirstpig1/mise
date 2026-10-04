@@ -130,8 +130,12 @@ touch it. Each one was a measured second on a real page.
   `requireTenant` + `assertBranch` gates, `Cache-Control: no-store`) and a tiny
   client `read()` helper that treats a redirect/HTML answer as "refresh"
   (`menus/_components/prefetch.ts`). GET reads run side by side for real.
-  Existing reads still on Server Actions (sales profit view, menu insight
-  popup, dashboard 6-month chart) move over when their page is next touched.
+  Helpers: `readApi()` / `readInput()` / `guardRead()` in `src/lib/read-api.ts`
+  (a redirect or HTML answer becomes `{ ok:false }`; malformed input a 400, never
+  a 500; a redirect to /login or /denied passes through). Moved 2026-10-04:
+  /sales profit view, menu insight, compare (`/api/sales`), dashboard trend
+  (`/api/dashboard`), /menus (`/api/menus`). The rest still on actions are
+  listed in docs/sprint-progress.md — move each when its page is reviewed.
 - **Never block first paint on the expensive part.** Paint the list from cheap
   reads; load the costly one (a FIFO replay, a recipe walk) after paint. Money
   that has not arrived shows a pulse bar or "…"/"กำลังคำนวณ…" — NEVER ฿0, never

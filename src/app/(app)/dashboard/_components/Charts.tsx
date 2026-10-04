@@ -16,7 +16,8 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { getMonthlyTrendAction } from "../actions";
+import type { MonthlyTrendResult } from "../trend-read";
+import { readApi } from "@/lib/read-api";
 import { STALE_TAB_MESSAGE, announceStale } from "@/lib/stale-tab";
 import {
   Area,
@@ -353,7 +354,7 @@ export function MonthlyPnlChart({ points, active: shown }: { points: MonthPoint[
 
 /**
  * The six-month chart, fetched in the browser once per BRANCH choice and kept
- * across every other click (see dashboard/actions.ts for why). Changing the
+ * across every other click (see dashboard/trend-read.ts for why). Changing the
  * period only moves the highlight, so it never waits for six P&Ls again.
  */
 export function MonthlyTrend({ branchIds, active }: { branchIds: string[]; active: string | null }) {
@@ -364,7 +365,7 @@ export function MonthlyTrend({ branchIds, active }: { branchIds: string[]; activ
   useEffect(() => {
     if (got?.key === key) return;
     let live = true;
-    getMonthlyTrendAction({ branchIds })
+    readApi<MonthlyTrendResult>("/api/dashboard", "trend", { branchIds })
       // `undefined` = a tab older than the server (mise-ui-review §7).
       .then((r) => {
         if (!live) return;

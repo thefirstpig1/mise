@@ -98,7 +98,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
           </Suspense>
           {seeSales && seeCost && seeExpense ? (
             // Fetched by the chart itself, once per branch choice — a period
-            // click only moves its highlight (see dashboard/actions.ts).
+            // click only moves its highlight (see dashboard/trend-read.ts).
             <Card title="กำไรรายเดือน (6 เดือนล่าสุด)" hint="กดที่เดือนเพื่อดูตัวเลขของเดือนนั้นทั้งหน้า · เดือนปัจจุบันนับถึงวันนี้">
               <MonthlyTrend branchIds={selected} active={period.month} />
             </Card>

@@ -9,7 +9,7 @@
 //
 //  - ยอดขาย and จำนวนจาน arrive with the page.
 //  - กำไร is built in the background right after the page appears
-//    (getSalesProfitViewAction) and kept for the life of the page; pressing it
+//    (readSalesProfitView) and kept for the life of the page; pressing it
 //    early just shows a spinner on the pill until it lands.
 //  - The URL keeps `?by=` (history.replaceState) so the view stays linkable,
 //    and every /sales link on the page carries the CURRENT measure when
@@ -19,7 +19,8 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
 import { METRIC_LABELS_TH, fmtMetric, periodLabelTh, type Metric } from "@/lib/sales-insight";
-import { getSalesProfitViewAction } from "../insight-actions";
+import type { ProfitViewResult } from "../insight-reads";
+import { readApi } from "@/lib/read-api";
 import { announceStale } from "@/lib/stale-tab";
 import type { SalesView } from "./sales-views";
 import MetricSwitch from "./MetricSwitch";
@@ -121,7 +122,7 @@ export default function SalesAnalysis({
   const loadProfit = useCallback(() => {
     if (!canProfit) return Promise.resolve();
     const k = key;
-    return getSalesProfitViewAction({ ...range, branchId, categoryId, day: dayModal?.day ?? null, vsFrom: compare.vsFrom, vsTo: compare.vsTo })
+    return readApi<ProfitViewResult>("/api/sales", "profit", { ...range, branchId, categoryId, day: dayModal?.day ?? null, vsFrom: compare.vsFrom, vsTo: compare.vsTo })
       // `undefined` = a tab older than the server (see mise-ui-review).
       .then((r) => {
         if (r?.ok) setFetched({ key: k, view: r.view });

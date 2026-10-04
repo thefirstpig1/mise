@@ -1,11 +1,13 @@
-"use server";
-
 // ============================================================
-// Mise — sales insight Server Actions (Kong, 2026-09-28)
+// Mise — sales insight reads (Kong, 2026-09-28)
 // ============================================================
 // Thin glue: requireTenant → validate → read → src/lib/sales-insight.ts. The
 // popups ask for exactly one thing each, when opened, rather than the page
 // shipping every dish's history to the browser up front.
+//
+// Served by GET /api/sales since 2026-10-04, no longer as Server Actions:
+// Next queues actions one at a time and can drop an answer on a URL change
+// (mise-ui-review §5c). The browser calls them through insight-client.ts.
 // ============================================================
 
 import { requireTenant } from "@/lib/require-tenant";
@@ -83,7 +85,7 @@ export type MenuInsightResult =
  * browser sends is trusted as a figure: it only chooses whether the server
  * prices the dish itself.
  */
-export async function getMenuInsightAction(input: {
+export async function readMenuInsight(input: {
   menuId: string;
   from: string;
   to: string;
@@ -132,7 +134,7 @@ export type CompareResult =
   | { ok: true; a: PeriodStats; b: PeriodStats; labels: Record<string, string> }
   | { ok: false; formError: string; stale?: boolean };
 
-export async function getSalesCompareAction(input: {
+export async function readSalesCompare(input: {
   a: CompareSide;
   b: CompareSide;
   branchId?: string;
@@ -185,7 +187,7 @@ export type ProfitViewResult = { ok: true; view: SalesView } | { ok: false; form
  * Same inputs, same builder, same tones as the page (tones are fixed by
  * sales order, so recomputing them here gives the page's colours).
  */
-export async function getSalesProfitViewAction(input: {
+export async function readSalesProfitView(input: {
   from: string;
   to: string;
   branchId?: string;

@@ -16,6 +16,7 @@
 // ============================================================
 
 import { requireTenant } from "@/lib/require-tenant";
+import { guardRead } from "@/lib/read-api";
 import {
   getIngredientInsightLogic,
   getIngredientOptionsLogic,
@@ -29,7 +30,11 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const json = (body: unknown, status = 200) =>
   Response.json(body, { status, headers: { "Cache-Control": "no-store" } });
 
-export async function GET(req: Request) {
+export function GET(req: Request) {
+  return guardRead(() => read(req));
+}
+
+async function read(req: Request): Promise<Response> {
   const url = new URL(req.url);
   const what = url.searchParams.get("what");
   const branchId = url.searchParams.get("branch") ?? "";

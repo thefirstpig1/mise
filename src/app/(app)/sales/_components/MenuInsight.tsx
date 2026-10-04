@@ -25,7 +25,8 @@ import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis } from "rechar
 import { ANIM, ChartGradients, ChartTooltip, INK_MUTED, cursorFill, grad } from "@/components/charts/chart-theme";
 import { METRIC_LABELS_TH, WEEK_ORDER, withDishCost, type DishCost, type Metric } from "@/lib/sales-insight";
 import { RECIPE_CONFIDENCE_HINTS_TH, RECIPE_CONFIDENCE_LABELS_TH } from "@/lib/validations/recipe";
-import { getMenuInsightAction, type MenuInsightResult } from "../insight-actions";
+import type { MenuInsightResult } from "../insight-reads";
+import { readApi } from "@/lib/read-api";
 import { ActionError, ModalShell, STALE_TAB_MESSAGE, baht, fmtMetric } from "./Breakdown";
 
 const WEEKDAY_SHORT = ["อา.", "จ.", "อ.", "พ.", "พฤ.", "ศ.", "ส."];
@@ -104,7 +105,7 @@ function MenuInsightModal({
     let live = true;
     setRes(null);
     const withCost = known === undefined;
-    getMenuInsightAction({ menuId, from, to, branchId, withCost })
+    readApi<MenuInsightResult>("/api/sales", "insight", { menuId, from, to, branchId, withCost })
       // A tab older than the server gets NO answer back — Next resolves the
       // call with `undefined` rather than throwing ("Failed to find Server
       // Action"). Both that and a throw mean "refresh", never an error page.

@@ -8,7 +8,7 @@
 // builds both views in one pass and the browser switches between them
 // instantly. Profit needs the recipe cost walk (the slow part, ~1–2 s), so its
 // view is built in the background after the page appears (see
-// getSalesProfitViewAction) and is usually ready before anyone presses กำไร.
+// readSalesProfitView) and is usually ready before anyone presses กำไร.
 //
 // Server-only in practice (it is handed Prisma-free inputs), but a plain module
 // — never "use client" — so a Server Component can call it (see the
