@@ -17,8 +17,8 @@
 //    80  the code's NUMBER (no leading zeros) 22 → P-0022, 2 → A02
 //    75  the code starts with it              A0 → A01, A02 …
 //  50–60 the code contains it                 02 → A02
-//  30–50 its letters in order, close together ขผม → ข้าวผัดหมู   (3+ letters)
-//  20–45 spelled nearly the same              กระเพรา → กะเพรา   (bigram Dice > 0.6)
+//  30–50 its letters in order, close together ขผม → ข้าวผัดหมู   (3+ consonants)
+//  20–45 spelled nearly the same              กระเพรา → กะเพรา   (Dice > 0.6, 5+ letters)
 //  20–35 the category                         ทะเล → กุ้งขาว
 //     0  no match — stays, below the line, in its original order
 //
@@ -69,6 +69,10 @@ export type Ranked<T> = TextMatch & {
 export const STRONG_MATCH = 20;
 
 const NO_MATCH: TextMatch = { score: 0, why: null, marks: [] };
+/** Letters (tone marks dropped) before a query is long enough to be a misspelling. */
+const TYPO_MIN_LENGTH = 5;
+/** Only consonants, Latin letters and digits — how people type an abbreviation. */
+const ABBREVIATION = /^[ก-ฮa-z0-9]+$/;
 const TONE_MARKS = /[่-์]/; // ่ ้ ๊ ๋ ์
 const IGNORED = /[\s\-_.()/]/;
 
@@ -184,12 +188,16 @@ export function scoreText(query: string, text: string, kind: SearchFieldKind): T
 
   // An abbreviation needs 3+ letters sitting close together — "ไก" must not find
   // ผัดไทยกุ้งสด through ไ…ก.
-  const order = q.length >= 3 ? inOrder(q, t.s) : null;
+  // And it is typed in consonants (ขผม): once vowels and tone marks count as
+  // letters, ก…ุ…้…ง is "in order" inside ผักบุ้ง.
+  const order = q.length >= 3 && ABBREVIATION.test(q) ? inOrder(q, t.s) : null;
   const orderSpan = order ? order[order.length - 1] - order[0] + 1 : Infinity;
   const abbrev = order && orderSpan <= q.length * 3 ? Math.round(30 + 20 * (q.length / orderSpan)) : 0;
   // A typo must share most of its letter pairs: กระเพรา→กะเพรา (0.73) passes,
-  // กระเพรา→กระเทียม (0.55) does not.
-  const near = nearSpelling(lq, lt.s);
+  // กระเพรา→กระเทียม (0.55) does not. And the word must be long enough to HAVE
+  // a typo: a short one differs from another real word by a single letter —
+  // กุ้ง and the บุ้ง in ผักบุ้ง share two of three pairs (0.67).
+  const near = lq.length >= TYPO_MIN_LENGTH ? nearSpelling(lq, lt.s) : 0;
   const typo = near > 0.6 ? Math.round(20 + 25 * near) : 0;
 
   if (abbrev > 0 && abbrev >= typo) return { score: abbrev, why: "ตัวอักษรเรียงตามลำดับ", marks: order!.map((j) => t.at[j]) };

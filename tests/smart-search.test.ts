@@ -74,6 +74,10 @@ describe("smart search — the rule table", () => {
     expect(top(MENUS, "กระเพรา")).toEqual(["กะเพราหมูสับไข่ดาว", "กะเพรากุ้ง"]);
     expect(top(PRODUCTS, "กระเพรา")).toEqual(["ใบกะเพรา"]); // not กระเทียม
   });
+  it("a short word is not 'nearly' another word one letter away (Kong's demo: กุ้ง → ผักบุ้ง)", () => {
+    const veg: Item[] = [...PRODUCTS, { name: "ผักบุ้ง", code: "P-0019", cat: "ผักและผลไม้" }];
+    expect(top(veg, "กุ้ง")).toEqual(["กุ้งขาว"]);
+  });
   it("matches the category, below any name match", () => {
     expect(top(PRODUCTS, "ทะเล")).toEqual(["กุ้งขาว", "ปลากะพง"]);
     expect(scoreText("ทะเล", "อาหารทะเล", "category").score).toBeLessThan(scoreText("ทะเล", "ทะเลเผา", "name").score);
