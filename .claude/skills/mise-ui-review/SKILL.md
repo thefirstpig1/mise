@@ -110,13 +110,53 @@ you touch, **without being told page by page** — Kong: "อย่าให้�
   `useTransition` is pending) and a "กำลังคำนวณ…" shows. A `router.push`
   outside a transition, with nothing changing on screen, reads as "stuck".
 - **Don't recompute what a click cannot change.** The dashboard's 6-month chart
-  was 6 full P&Ls rerun on every period click; it now loads itself (Server
-  Action from a client component) once per BRANCH choice. Before adding work
-  to a Server Component page, ask which URL params actually change it.
+  was 6 full P&Ls rerun on every period click; it now loads itself (from a
+  client component) once per BRANCH choice. Before adding work to a Server
+  Component page, ask which URL params actually change it.
 - **Reuse what the page already holds.** The menu popup walked every recipe of
   every branch to price one dish; the profit view had that cost already
   (`withDishCost`). Cache popup results per key for re-opens.
 - Slow reads belong in their own `<Suspense>` so the frame appears first.
+
+### 5c. Speed rules from /menus (Kong 2026-10-04: "จะได้ไม่ต้องคอยแก้ทุกรอบ")
+Apply these to EVERY new screen from the start, and to an old one whenever you
+touch it. Each one was a measured second on a real page.
+- **Reads a client component makes after paint go through a GET route handler,
+  NOT a Server Action.** Server Actions are for writes. Next runs them one at a
+  time through the router's queue, so three reads fired together wait on each
+  other — and a URL change (`history.replaceState`, `router.push`) while one is
+  queued DROPS its answer with no error: /menus sat on "กำลังคำนวณ…" for ever.
+  Pattern: `src/app/api/<area>/route.ts` (`GET`, `?what=…`, the same
+  `requireTenant` + `assertBranch` gates, `Cache-Control: no-store`) and a tiny
+  client `read()` helper that treats a redirect/HTML answer as "refresh"
+  (`menus/_components/prefetch.ts`). GET reads run side by side for real.
+  Existing reads still on Server Actions (sales profit view, menu insight
+  popup, dashboard 6-month chart) move over when their page is next touched.
+- **Never block first paint on the expensive part.** Paint the list from cheap
+  reads; load the costly one (a FIFO replay, a recipe walk) after paint. Money
+  that has not arrived shows a pulse bar or "…"/"กำลังคำนวณ…" — NEVER ฿0, never
+  "ไม่มีราคา", which are claims about the data.
+- **Compute an expensive thing ONCE per key and share it.** /menus priced every
+  recipe three times (page, sheet, adder). One "price book" per branch, kept
+  in client state keyed by branch, now feeds the table, the sheet, the adder and
+  the stacked sheet. After any WRITE, drop it (a central recipe moves every
+  branch's prices) and refetch.
+- **Run what does not depend on each other in parallel** — including the
+  awaits BEFORE a `Promise.all` (`branches` then `freshest` was two round trips
+  for no reason). **Fold what does depend** into the SAME transaction
+  (`ingredientFactsInTx`): a second `withTenantContext` is ~4 extra round trips.
+- **Don't compute what the screen hides.** /recipes priced every dish while
+  showing only prepped items; a flag (`only: "prepped"`) skipped it.
+- **Start a popup/sheet's read on hover-intent** (pointer rests 150 ms on the
+  row), cache the promise per key, and let the click reuse it. Drop the cache
+  after a write. Hovering across a list must not fire a read per row.
+- **Pin a new fast read to the old slow one with a test, and watch it go red**
+  (nudge a number 1 %). Run the WHOLE file when you do: `-t "one test"` skips
+  the tests that create the data, and the assertion passes on an empty loop.
+- **Measuring:** time each `*Logic` with a throwaway `tsx` probe from the repo
+  root (repeat twice; the first call pays connection warm-up); in the browser
+  read `performance.getEntriesByType("resource")` for real request durations.
+  A hidden tab throttles timers, so UI timings taken there are wrong.
 
 ## 6. Permissions on any read
 - "ทุกสาขา" means every branch **the reader may see**. Sales reads take a
@@ -138,6 +178,13 @@ you touch, **without being told page by page** — Kong: "อย่าให้�
   `announceStale()`.
   Reproduce by loading the page, restarting dev, then clicking — not by a
   fresh load, which always works.
+- **A NEW Server Action is unknown to a running dev server** until it restarts:
+  the dev log says `Failed to find Server Action`, and `orStale` turns it into
+  a silent `ok:false`. Restart dev after adding an action, before testing.
+- **`position: fixed` inside the page frame is fixed to the FRAME** (it animates
+  in with a transform), so a sheet or toast starts below the top or lands
+  off-screen. Render overlays through a portal into `<body>` (`Portal` in
+  `menus/_components/sheet-parts.tsx`).
 - typedRoutes: cast built strings `as Route` for `router.push`/`Link`.
 - Prisma `Decimal` cannot cross to a Client Component — convert to numbers.
 - Every tenant-table read goes through `withTenantContext` (RLS); only
