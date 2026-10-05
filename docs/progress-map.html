@@ -1,0 +1,292 @@
+<title>KitKrua Progress Map</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Prompt:wght@500;600;700&family=Noto+Sans+Thai:wght@400;500;600&display=swap">
+<style>
+/* Layout: one root, branches as a wrapping grid of cards wired to it; Kong's notes and the
+   user-communication audit below, as checklists. Data lives in the DATA block at the bottom —
+   edit that, republish, same URL. Palette = the app's own (Part 33): cream, wheat, sage, olive. */
+:root{
+  --bg:#F8F3E1; --surface:#FFFDF6; --line:#E3DBBB; --ink:#2E3013; --muted:#6B6C4E; --olive:#41431B; --sage:#AEB784;
+  --done:#5E7A2E; --done-bg:#E6EDCF; --doing:#9A6A12; --doing-bg:#F6E7C2; --todo:#6B6C4E; --todo-bg:#EEE9D6;
+  --wait:#A4492F; --wait-bg:#F4DCCF; --bar:#D9D1AE;
+  --display:"Prompt","Noto Sans Thai",system-ui,sans-serif; --body:"Noto Sans Thai","Prompt",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#1C1D10; --surface:#25271A; --line:#3A3C25; --ink:#EEEAD6; --muted:#B4B394; --olive:#D9DDB0; --sage:#AEB784;
+  --done:#B7CF7C; --done-bg:#2F3A1C; --doing:#E8BE62; --doing-bg:#3B3018; --todo:#B4B394; --todo-bg:#2E301F;
+  --wait:#EC9C80; --wait-bg:#41261C; --bar:#3A3C25; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#1C1D10; --surface:#25271A; --line:#3A3C25; --ink:#EEEAD6; --muted:#B4B394; --olive:#D9DDB0; --sage:#AEB784;
+  --done:#B7CF7C; --done-bg:#2F3A1C; --doing:#E8BE62; --doing-bg:#3B3018; --todo:#B4B394; --todo-bg:#2E301F;
+  --wait:#EC9C80; --wait-bg:#41261C; --bar:#3A3C25; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.6;padding-inline:16px;padding-block:24px 48px}
+.wrap{max-width:1180px;margin:0 auto;display:grid;gap:28px}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;line-height:1.25}
+h1{font-size:1.9rem;font-weight:700;color:var(--olive)}
+h2{font-size:1.25rem;font-weight:600}
+h3{font-size:1rem;font-weight:600}
+p{margin:0}
+.muted{color:var(--muted)}
+.num{font-variant-numeric:tabular-nums}
+header{display:grid;gap:10px}
+.sub{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:.88rem;color:var(--muted)}
+.legend,.filters{display:flex;flex-wrap:wrap;gap:8px}
+.chip{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:2px 10px;font-size:.8rem;font-weight:500;white-space:nowrap}
+.s-done{background:var(--done-bg);color:var(--done)} .s-doing{background:var(--doing-bg);color:var(--doing)}
+.s-todo{background:var(--todo-bg);color:var(--todo)} .s-wait{background:var(--wait-bg);color:var(--wait)}
+.dot{width:8px;height:8px;border-radius:50%;background:currentColor}
+.filters button{font:inherit;font-size:.85rem;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:4px 12px;cursor:pointer}
+.filters button[aria-pressed="true"]{background:var(--olive);color:var(--bg);border-color:var(--olive)}
+.filters button:focus-visible,summary:focus-visible{outline:2px solid var(--sage);outline-offset:2px}
+.totals{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+.total{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 14px}
+.total b{font-family:var(--display);font-size:1.5rem;display:block}
+/* the map */
+.map{display:grid;gap:0}
+.root{justify-self:center;background:var(--olive);color:var(--bg);font-family:var(--display);font-weight:600;border-radius:14px;padding:10px 22px;text-align:center}
+.root small{display:block;font-family:var(--body);font-weight:400;opacity:.8}
+.trunk{justify-self:center;width:2px;height:22px;background:var(--line)}
+.branches{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;border-top:2px solid var(--line);padding-top:18px;position:relative}
+.branch{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;display:grid;gap:10px;align-content:start;position:relative;min-width:0}
+.branch::before{content:"";position:absolute;top:-19px;left:50%;width:2px;height:18px;background:var(--line)}
+.bhead{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.bar{height:6px;border-radius:999px;background:var(--bar);overflow:hidden;display:flex}
+.bar span{display:block;height:100%}
+.bar .b-done{background:var(--done)} .bar .b-doing{background:var(--doing)} .bar .b-wait{background:var(--wait)}
+ul{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+li.item{display:grid;grid-template-columns:auto 1fr;gap:8px;align-items:start;font-size:.9rem}
+li.item .mark{margin-top:7px;width:9px;height:9px;border-radius:50%}
+.m-done{background:var(--done)} .m-doing{background:var(--doing)} .m-todo{border:1.5px solid var(--todo)} .m-wait{background:var(--wait)}
+li.item .t{min-width:0}
+li.item .d{display:block;font-size:.8rem;color:var(--muted)}
+li.item[hidden]{display:none}
+details{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;gap:12px;align-items:baseline}
+summary::-webkit-details-marker{display:none}
+summary h2::before{content:"▸ ";color:var(--muted)}
+details[open] summary h2::before{content:"▾ "}
+.notes{margin-top:12px}
+.tablebox{overflow-x:auto;margin-top:12px}
+table{border-collapse:collapse;width:100%;min-width:640px;font-size:.88rem}
+th,td{text-align:left;vertical-align:top;padding:8px 10px;border-bottom:1px solid var(--line)}
+th{font-family:var(--display);font-weight:600;font-size:.8rem;color:var(--muted)}
+.channels{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-top:12px}
+.channel{border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:.88rem;display:grid;gap:4px}
+.callout{border-left:3px solid var(--wait);background:var(--wait-bg);border-radius:0 10px 10px 0;padding:10px 14px;font-size:.9rem;margin-top:12px}
+@media (prefers-reduced-motion:no-preference){.bar span{transition:width .4s ease}}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>คิดครัว — แผนที่ความคืบหน้า</h1>
+    <div class="sub"><span id="updated"></span><span>ที่มา: CLAUDE.md · docs/sprint-progress.md · ADR · แชตกับ Kong</span></div>
+    <div class="legend" aria-label="ความหมายของสี">
+      <span class="chip s-done"><span class="dot"></span>เสร็จแล้ว</span>
+      <span class="chip s-doing"><span class="dot"></span>กำลังทำ / รอ Kong รีวิว</span>
+      <span class="chip s-todo"><span class="dot"></span>ยังไม่ทำ</span>
+      <span class="chip s-wait"><span class="dot"></span>ติดอยู่ / รอตัดสินใจ</span>
+    </div>
+  </header>
+
+  <section class="totals" id="totals" aria-label="สรุป"></section>
+
+  <div class="filters" role="group" aria-label="กรองตามสถานะ" id="filters">
+    <button id="f-all" data-f="all" aria-pressed="true">ทั้งหมด</button>
+    <button id="f-done" data-f="done" aria-pressed="false">เสร็จแล้ว</button>
+    <button id="f-doing" data-f="doing" aria-pressed="false">กำลังทำ</button>
+    <button id="f-todo" data-f="todo" aria-pressed="false">ยังไม่ทำ</button>
+    <button id="f-wait" data-f="wait" aria-pressed="false">ติดอยู่</button>
+  </div>
+
+  <section class="map" aria-label="แผนที่งาน">
+    <div class="root">คิดครัว (KitKrua)<small>ระบบหลังร้านสำหรับร้านอาหาร SME ไทย</small></div>
+    <div class="trunk"></div>
+    <div class="branches" id="branches"></div>
+  </section>
+
+  <details open id="notes-box">
+    <summary><h2>โน้ตของ Kong — ถึงไหนแล้ว</h2><span class="muted num" id="notes-count"></span></summary>
+    <div class="tablebox"><table id="notes"><thead><tr><th>วันที่</th><th>สิ่งที่ Kong บอก</th><th>สถานะ</th><th>ตอนนี้</th></tr></thead><tbody></tbody></table></div>
+  </details>
+
+  <details open id="comm-box">
+    <summary><h2>สื่อสารกับผู้ใช้ — เรื่องที่ต้องบอก และบอกทางไหน</h2><span class="muted num" id="comm-count"></span></summary>
+    <p class="muted" style="margin-top:10px">แต่ละเรื่องต้องไปถึงผู้ใช้ทางใดทางหนึ่งหรือหลายทางจากหกช่องทางนี้</p>
+    <div class="channels" id="channels"></div>
+    <div class="callout" id="comm-gap"></div>
+    <div class="tablebox"><table id="comm"><thead><tr><th>ระบบ</th><th>สิ่งที่ผู้ใช้ต้องรู้</th><th>บอกทางไหน</th><th>สถานะ</th></tr></thead><tbody></tbody></table></div>
+  </details>
+</div>
+
+<script>
+// ============================================================
+// DATA — the only part to edit. s: done | doing | todo | wait
+// ============================================================
+const UPDATED = "5 ต.ค. 69";
+
+const BRANCHES = [
+  { t: "รากฐาน", note: "Sprint 0–1", items: [
+    { s: "done", t: "ล็อกอินด้วยลิงก์ทางอีเมล · ร้าน · สาขา · แผนก" },
+    { s: "done", t: "แยกข้อมูลแต่ละร้าน (RLS) บังคับใช้จริง", d: "Part 30 · 52 ตาราง" },
+    { s: "done", t: "สินค้า/วัตถุดิบ หลายหน่วย · ผู้ขาย · หมวด" },
+  ]},
+  { t: "ซื้อของ สต๊อก และต้นทุน", note: "Sprint 2–3", items: [
+    { s: "done", t: "สมุดบัญชีสต๊อก (ledger) · ใบสั่งซื้อ · รับสินค้า" },
+    { s: "done", t: "ต้นทุน FIFO คิดใหม่ทุกครั้ง ไม่เก็บ" },
+    { s: "done", t: "นับสต๊อก (หลายเครื่องพร้อมกัน)", d: "Part 15 + 36" },
+    { s: "done", t: "ค่าใช้จ่าย VAT/WHT · ของเสีย · จุดสั่งซื้อขั้นต่ำ · โอนระหว่างสาขา" },
+    { s: "done", t: "ใบขอซื้อ · ราคารวม VAT", d: "Part 38–39" },
+    { s: "todo", t: "ตีกลับ/คืนของ และเจ้าหนี้", d: "ADR 0037 · ต้องรอระบบเก็บรูป + ADR 0038" },
+  ]},
+  { t: "ยอดขาย", note: "Sprint 4", items: [
+    { s: "done", t: "นำเข้าไฟล์ POS · ยอดต่อวัน (pulse)" },
+    { s: "done", t: "หน้ายอดขาย insight · Menu engineering", d: "รีวิวรอบสองแล้ว 3 ต.ค." },
+    { s: "wait", t: "รับยอดทางอีเมล (Part 20b)", d: "ต้องเลือกผู้ให้บริการอีเมลขาเข้า" },
+  ]},
+  { t: "สูตร เมนู และการตัดสต๊อก", note: "Sprint 5 + ต.ค.", items: [
+    { s: "done", t: "สูตรอาหาร · ต้นทุนสูตร · ตัดสต๊อกตามยอดขาย" },
+    { s: "done", t: "รวมเมนู · เลิกขาย/ลบเมนู · มื้อพนักงาน" },
+    { s: "doing", t: "หน้าจัดการเมนู (รวม 3 หน้าเป็นหน้าเดียว)", d: "ลงหน้าจริงแล้ว รอ Kong รีวิว" },
+    { s: "doing", t: "หน้าทดลองเมนู + ตัวช่วยตั้งราคา", d: "ลงหน้าจริงแล้ว รอ Kong รีวิว" },
+    { s: "done", t: "หน่วยในสูตร (กรัม ช้อน ทัพพี ตั้งเอง)", d: "4 ต.ค." },
+    { s: "done", t: "ร่างจากครัว: เสนอ → รับรอง → นำไปใช้จริง", d: "ADR 0041 · 5 ต.ค." },
+    { s: "done", t: "กันลบหน่วยที่สูตร/เอกสารใช้อยู่", d: "บั๊ก · 5 ต.ค." },
+    { s: "todo", t: "บันทึกการผลิตของแปรรูป + สูตรตัดแต่ง", d: "ADR 0040 grill เสร็จ · ต้องมี migration" },
+  ]},
+  { t: "สิทธิ์ ทีม และอีเมล", note: "Sprint 6–7", items: [
+    { s: "done", t: "สิทธิ์แบบ capability · เชิญคนเข้าร้าน" },
+    { s: "done", t: "แก้ของที่ใช้ทุกสาขา = คนดูแลทุกสาขาเท่านั้น", d: "4 ต.ค." },
+    { s: "done", t: "อีเมลขาออก (ลิงก์ล็อกอิน · คำเชิญ)" },
+    { s: "todo", t: "สิทธิ์ที่ร้านปรับเอง", d: "ADR 0038 · มี migration" },
+  ]},
+  { t: "ภาพรวมและการเงิน", note: "Sprint 7", items: [
+    { s: "done", t: "กำไรสุทธิ (P&L) · แดชบอร์ด · แถบเมนูข้าง", d: "Part 35" },
+    { s: "done", t: "ต้นทุน/รายได้ตามแผนก · ของหายไปไหน", d: "Part 32" },
+    { s: "todo", t: "แดชบอร์ดและหน้ายอดขายแบบเต็มจอ (มืออาชีพ)", d: "โน้ต 5 ต.ค. · ทำ mockup ก่อน" },
+    { s: "wait", t: "แผนกหลายชั้น + เป้าต้นทุนต่อกลุ่ม", d: "รอ grill (2 ต.ค.)" },
+    { s: "wait", t: "สต๊อกตามแผนก ระดับ 3", d: "ADR 0039 ทิศทางเท่านั้น ต้อง grill" },
+  ]},
+  { t: "รอบปรับหน้าจอทีละหน้า", note: "ทำให้เสร็จก่อนฟีเจอร์ใหม่", items: [
+    { s: "done", t: "แดชบอร์ด · ยอดขาย · ใบสั่งซื้อ · รับสินค้า · ผู้ขาย" },
+    { s: "done", t: "สินค้า (รายการ) · นับสต๊อก · โอน · ของเสีย · ราคาวัตถุดิบ · วิเคราะห์รายจ่าย · มื้อพนักงาน · หมวดบัญชี" },
+    { s: "doing", t: "เมนูและสูตร", d: "จัดการเมนู + ทดลองเมนูรอรีวิว · เหลือหน้ารวมเมนู · สูตรของแปรรูป" },
+    { s: "todo", t: "สินค้า/วัตถุดิบ (หน้ารายละเอียด + ของแปรรูป)", d: "แนะนำเป็นหน้าถัดไป" },
+    { s: "todo", t: "ต้นทุน · ต้นทุนตามแผนก · ของหายไปไหน" },
+    { s: "todo", t: "สต๊อกเต็ม · ปรับสต๊อก · ประวัติ · ตัดสต๊อกตามยอดขาย", d: "รวมโน้ต: ย้ายปุ่มตัดสต๊อกเข้าหน้าสต๊อก" },
+    { s: "todo", t: "นำเข้ายอดขาย · ใบขอซื้อ · ฟอร์มต่าง ๆ · ตั้งค่า" },
+    { s: "todo", t: "ภาษาแบบพูดกับลูกค้าทั้งแอป" },
+  ]},
+  { t: "ขึ้นระบบจริง", note: "Part 34", items: [
+    { s: "done", t: "Docker · Fly สิงคโปร์ · Neon โปรดักชันแยกโปรเจกต์" },
+    { s: "done", t: "rate limit · หน้า loading/error · migration อัตโนมัติตอน deploy" },
+    { s: "doing", t: "สำรองฐานข้อมูลทุกคืน (GitHub Action)", d: "เขียนแล้ว · ต้องเช็กว่าใส่ secret แล้ว" },
+    { s: "todo", t: "ซื้อโดเมน + SPF/DKIM (อีเมลไม่เข้าสแปม)", d: "ก่อนร้านแรก" },
+    { s: "todo", t: "ระบบเก็บ error (error tracking)", d: "ก่อนร้านแรก" },
+  ]},
+  { t: "คู่มือและการสื่อสาร", note: "ดูตารางด้านล่าง", items: [
+    { s: "done", t: "ทะเบียนกฎการคำนวณ 199 ข้อ (มีป้ายว่าต้องบอกผู้ใช้ไหม)" },
+    { s: "done", t: "ทะเบียนค่าที่ร้านตั้งเอง 25 รายการ" },
+    { s: "doing", t: "คู่มือผู้ใช้ (หัวข้อ)", d: "เริ่ม 4 ต.ค. · ยังไม่ได้ดึงเรื่องเก่าเข้ามาครบ" },
+    { s: "todo", t: "ตรวจว่าเรื่อง 🔴 83 ข้อ อธิบายบนจอแล้วกี่ข้อ" },
+    { s: "todo", t: "ชุดบรีฟก่อนร้านเริ่มใช้ (onboarding)" },
+  ]},
+  { t: "อนาคต / รอของอย่างอื่น", note: "ยังไม่จัดคิว", items: [
+    { s: "wait", t: "รูปสินค้า เมนู หลักฐานการโอน", d: "รอระบบเก็บไฟล์ (Tigris)" },
+    { s: "wait", t: "บันทึกโปรโมชั่น (ก่อน/ระหว่าง/หลัง)", d: "ต้องมีตารางใหม่ ต้องถามก่อน" },
+    { s: "todo", t: "AI ในคิดครัว (เล่า P&L · อ่านบิล · ร่างสูตร)", d: "จดไว้ ยังไม่จัดคิว" },
+    { s: "todo", t: "ราคาวัตถุดิบผันผวน (v1.5)" },
+  ]},
+];
+
+const NOTES = [
+  { d: "5 ต.ค.", t: "แผนภาพความคืบหน้า อัปเดตไปพร้อมงาน", s: "done", now: "หน้านี้ · อัปเดตทุกครั้งที่ปิดงานหรือมีงานเพิ่ม" },
+  { d: "5 ต.ค.", t: "หน้าตัดสต๊อกตามยอดขาย → เป็นปุ่มในหน้าสต๊อก", s: "todo", now: "จะเสนอตอนรีวิวหน้าสต๊อก" },
+  { d: "5 ต.ค.", t: "แดชบอร์ด/ยอดขายแนวตั้งแคบ → แบบมืออาชีพ", s: "todo", now: "ศึกษาตัวอย่างแล้วทำ mockup ก่อน" },
+  { d: "5 ต.ค.", t: "ข้าว: ซื้อข้าวสาร เสิร์ฟข้าวสุก ต้องแม่น", s: "done", now: "ข้าวสวย = ของแปรรูป 250% · สูตร 8 เมนูเปลี่ยนแล้ว · อยู่ในคู่มือ (บรีฟก่อนใช้)" },
+  { d: "5 ต.ค.", t: "พนักงานครัวร่าง ผู้จัดการรับรอง area manager นำไปใช้", s: "done", now: "ADR 0041 · คำว่า \"เสนอ\" และ \"นำไปใช้จริง\"" },
+  { d: "4 ต.ค.", t: "ทุกเรื่องที่ผู้ใช้ต้องรู้ ต้องอยู่ในคู่มือ", s: "doing", now: "มีไฟล์คู่มือแล้ว 10 หัวข้อ · เรื่องเก่ายังไม่ได้ดึงเข้ามาครบ (ดูตารางล่าง)" },
+  { d: "4 ต.ค.", t: "นับสต๊อกได้หลายหน่วย (5 แพ็ค + 7 ขวด) และให้เห็นง่าย", s: "todo", now: "ระบบนับหลายหน่วยได้อยู่แล้ว · ยังไม่ได้ทำให้เห็นง่าย/ตั้งลำดับหน่วยได้" },
+  { d: "4 ต.ค.", t: "เลือกหน่วยในสูตรเอง + ทัพพี", s: "done", now: "ใช้ได้ทั้งจัดการเมนู ทดลองเมนู สูตรผลิต" },
+  { d: "4 ต.ค.", t: "ปรับหน้าทดลองเมนูตามมาตรฐาน", s: "doing", now: "ลงหน้าจริงแล้ว รอ Kong รีวิว" },
+  { d: "4 ต.ค.", t: "รวมหน้าเมนูกับสูตรเป็น \"จัดการเมนู\" + แผงขวา", s: "doing", now: "ลงหน้าจริงแล้ว รอ Kong รีวิว" },
+  { d: "4 ต.ค.", t: "แก้สูตรสาขาเดียวได้ · area manager แก้ทุกสาขาได้", s: "done", now: "" },
+  { d: "4 ต.ค.", t: "บันทึกการผลิตของแปรรูป + ต้นทุนแยกส่วน", s: "todo", now: "grill เสร็จ (ADR 0040) · ทำหลังรอบปรับหน้าจอ · ต้องขออนุมัติ migration" },
+  { d: "4 ต.ค.", t: "หน้าที่ทำไปแล้วโหลดช้า ทำให้เร็วขึ้น", s: "done", now: "จัดการเมนู 2.4–3.6 → 0.7–1.0 วินาที · กฎความเร็วอยู่ใน skill" },
+  { d: "3 ต.ค.", t: "ปุ่ม ? ของ Menu engineering ห้ามระบุชื่อตายตัว", s: "done", now: "" },
+  { d: "2 ต.ค.", t: "แผนกหลายชั้น + เป้าต้นทุนต่อยอดขาย", s: "wait", now: "รอ grill" },
+  { d: "ก.ย.", t: "รูปสินค้า/เมนู", s: "wait", now: "รอระบบเก็บไฟล์" },
+  { d: "ก.ย.", t: "บันทึกโปรโมชั่น", s: "wait", now: "ต้องมีตารางใหม่ ต้องถามก่อนสร้าง" },
+];
+
+const CHANNELS = [
+  { t: "บนจอ", d: "ข้อความใต้ตัวเลข ป้ายสถานะ \"—\" แทน ฿0 ชื่อสาขาข้างต้นทุน" },
+  { t: "ปุ่ม ? / บทเรียน", d: "อธิบายตัวเลขยาก ๆ ตรงจุด (มีแล้วที่ Menu engineering)" },
+  { t: "กล่องยืนยัน", d: "ก่อนทำสิ่งที่กระทบทุกสาขาหรือย้อนไม่ได้: เปลี่ยนอะไร เงินเท่าไร มีผลวันไหน" },
+  { t: "คู่มือผู้ใช้", d: "docs/user-manual-topics.md → คู่มือจริงวันเปิดตัว" },
+  { t: "บรีฟก่อนเริ่มใช้", d: "เรื่องที่ตั้งผิดตั้งแต่วันแรกแล้วตัวเลขเพี้ยนทุกวัน" },
+  { t: "อีเมล", d: "ลิงก์ล็อกอิน · คำเชิญ · ใบขอซื้อพร้อมสั่ง" },
+];
+
+// in: อยู่ในคู่มือแล้ว · noted: จดในทะเบียนแล้ว ยังไม่เข้าคู่มือ · s: done|doing|todo
+const COMM = [
+  { sys: "เวลาตัดวันของสาขา ★", know: "ตั้งผิด = ยอดขายตกไปอีกวัน · แก้แล้วข้อมูลเก่าไม่ขยับ", via: "บรีฟ · คู่มือ · บนจอ", s: "todo", st: "จดแล้ว (P24) ยังไม่เข้าคู่มือ" },
+  { sys: "วิธีคิดกำไรขั้นต้น ★", know: "นับสต๊อก vs สูตรอาหาร · ทำไมสองร้านคิดไม่เหมือนกัน · เชื่อได้แค่เท่าที่นับ", via: "บรีฟ · ตั้งค่าร้าน · คู่มือ", s: "doing", st: "คู่มือมีบรรทัดเดียว · รายละเอียดอยู่ใน P25/P26" },
+  { sys: "นำเข้ายอดขาย", know: "ยอดขาย = หลังส่วนลด ไม่รวม VAT/SC · ไฟล์ถูกปฏิเสธทั้งไฟล์เพราะอะไร · อัปทับแล้วเกิดอะไร", via: "บนจอ · คู่มือ", s: "doing", st: "บนจอมีแล้ว · คู่มือมีแค่ความหมายของยอดขาย" },
+  { sys: "พัลส์ (ยอดลูกค้าจ่ายต่อวัน) ★", know: "ไม่เท่ารายได้ · ทำไมแก้ไม่ได้หลังมีไฟล์ · เกณฑ์เตือน 1%/฿100", via: "บนจอ · คู่มือ", s: "todo", st: "จดแล้ว (P27–P29) ยังไม่เข้าคู่มือ" },
+  { sys: "บิลยกเลิก · มื้อพนักงานใน POS ★", know: "ตัดสต๊อกหรือไม่ เลือกให้ตรงร้าน ไม่งั้นตัดซ้ำ/ไม่ตัด", via: "บรีฟ · ตั้งค่าร้าน · คู่มือ", s: "todo", st: "อยู่ในทะเบียนค่าที่ตั้งเอง ยังไม่เข้าคู่มือ" },
+  { sys: "ต้นทุน FIFO", know: "ทำไมไม่เท่าราคาที่เพิ่งซื้อ · ทำไมแต่ละสาขาไม่เท่ากัน · ร้านไม่จด VAT ต้นทุนรวม VAT", via: "บนจอ (ตัวเลขนี้มาจากไหน) · คู่มือ", s: "todo", st: "จดแล้ว (C2 C8 C10 V1) ยังไม่เข้าคู่มือ" },
+  { sys: "นับสต๊อก", know: "นับหลายหน่วยได้ · ใบปิดตา · ส่วนต่างตีราคาด้วยอะไร · ของแปรรูปนับแล้วขึ้นเกินเสมอ (ตอนนี้)", via: "บนจอ · คู่มือ", s: "doing", st: "คู่มือมี 4 ข้อ · ยังไม่มีเรื่องตีราคาส่วนต่าง (C5/C6)" },
+  { sys: "ของเสีย vs ส่วนต่าง · par", know: "ต่างกันยังไง · ยอดคงเหลือเชื่อได้แค่บางช่วง", via: "บนจอ · คู่มือ", s: "todo", st: "จดแล้ว (W1 W2 W4)" },
+  { sys: "โอนระหว่างสาขา", know: "ของบนรถนับเป็นของปลายทางแล้ว · โอนไม่สร้างค่าใช้จ่าย", via: "บนจอ · คู่มือ", s: "todo", st: "จดแล้ว (T1)" },
+  { sys: "สูตร หน่วย ข้าว", know: "หน่วยตวง/ทัพพี · ของพองตอนปรุงทำเป็นของแปรรูป · สูตรสาขาเดียว", via: "บรีฟ (ข้าว) · กล่องยืนยัน · คู่มือ", s: "done", st: "อยู่ในคู่มือแล้ว" },
+  { sys: "ทดลองเมนู · ร่างจากครัว", know: "ร่างไม่ตัดสต๊อก · ตัวช่วยราคา · ใครเสนอ/รับรอง/นำไปใช้", via: "บนจอ · กล่องยืนยัน · คู่มือ", s: "done", st: "อยู่ในคู่มือแล้ว" },
+  { sys: "รวมเมนู · เลิกขาย/ลบเมนู", know: "รวมแล้วเมนูเก่ายังมียอดเข้า · รายงานเก่าเปลี่ยนแต่สต๊อกไม่เปลี่ยน · ทำไมลบไม่ได้", via: "บนจอ · คู่มือ", s: "todo", st: "จดแล้ว (G1–G3 G7 L1–L4)" },
+  { sys: "สิทธิ์และสาขา", know: "ใครแก้อะไรได้ · ทุกสาขา vs สาขาเดียว · คนที่ไม่เห็นต้นทุน", via: "บนจอ · คู่มือ", s: "done", st: "อยู่ในคู่มือแล้ว" },
+  { sys: "ยอดขาย/แดชบอร์ด", know: "เทียบต่อวันไม่ใช่ยอดรวม · ทุก % บอกว่าเทียบกับอะไร · Menu engineering", via: "บนจอ · ปุ่ม ? · คู่มือ", s: "doing", st: "บนจอและปุ่ม ? มีแล้ว · คู่มือมีบางส่วน" },
+  { sys: "ของแปรรูป (เมื่อสร้าง ADR 0040)", know: "ระบบตัดแทน · นับเกินเป็นการผลิต · % มูลค่าสูตรตัดแต่ง", via: "บนจอ · คู่มือ · บรีฟ", s: "todo", st: "ร่างไว้ในคู่มือแล้ว รอสร้างระบบ" },
+];
+
+// ============================================================
+// render
+// ============================================================
+const LABEL = { done: "เสร็จแล้ว", doing: "กำลังทำ", todo: "ยังไม่ทำ", wait: "ติดอยู่" };
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+document.getElementById("updated").textContent = "อัปเดตล่าสุด " + UPDATED;
+
+const all = BRANCHES.flatMap((b) => b.items);
+const count = (arr, s) => arr.filter((i) => i.s === s).length;
+$("#totals").innerHTML = ["done", "doing", "todo", "wait"].map((s) =>
+  `<div class="total"><span class="chip s-${s}"><span class="dot"></span>${LABEL[s]}</span><b class="num">${count(all, s)}</b><span class="muted">จาก ${all.length} งาน</span></div>`).join("");
+
+$("#branches").innerHTML = BRANCHES.map((b) => {
+  const n = b.items.length, pct = (s) => (count(b.items, s) / n) * 100;
+  return `<article class="branch">
+    <div class="bhead"><h3>${esc(b.t)}</h3><span class="muted num" style="font-size:.8rem">${count(b.items, "done")}/${n}</span></div>
+    <p class="muted" style="font-size:.8rem;margin-top:-6px">${esc(b.note)}</p>
+    <div class="bar" aria-hidden="true"><span class="b-done" style="width:${pct("done")}%"></span><span class="b-doing" style="width:${pct("doing")}%"></span><span class="b-wait" style="width:${pct("wait")}%"></span></div>
+    <ul>${b.items.map((i) => `<li class="item" data-s="${i.s}"><span class="mark m-${i.s}" title="${LABEL[i.s]}"></span><span class="t">${esc(i.t)}${i.d ? `<span class="d">${esc(i.d)}</span>` : ""}</span></li>`).join("")}</ul>
+  </article>`;
+}).join("");
+
+$("#notes tbody").innerHTML = NOTES.map((n) =>
+  `<tr data-s="${n.s}"><td class="num" style="white-space:nowrap">${esc(n.d)}</td><td>${esc(n.t)}</td><td><span class="chip s-${n.s}"><span class="dot"></span>${LABEL[n.s]}</span></td><td class="muted">${esc(n.now)}</td></tr>`).join("");
+$("#notes-count").textContent = `เสร็จ ${count(NOTES, "done")} จาก ${NOTES.length}`;
+
+$("#channels").innerHTML = CHANNELS.map((c) => `<div class="channel"><b>${esc(c.t)}</b><span class="muted">${esc(c.d)}</span></div>`).join("");
+$("#comm tbody").innerHTML = COMM.map((c) =>
+  `<tr data-s="${c.s}"><td><b>${esc(c.sys)}</b></td><td>${esc(c.know)}</td><td class="muted">${esc(c.via)}</td><td><span class="chip s-${c.s}"><span class="dot"></span>${c.s === "done" ? "อยู่ในคู่มือ" : c.s === "doing" ? "บางส่วน" : "ยังไม่เข้าคู่มือ"}</span><span class="d muted" style="display:block;font-size:.8rem">${esc(c.st)}</span></td></tr>`).join("");
+$("#comm-count").textContent = `อยู่ในคู่มือครบ ${count(COMM, "done")} จาก ${COMM.length} ระบบ`;
+$("#comm-gap").innerHTML = "<b>สรุปตรง ๆ:</b> เรื่องที่ต้องบอกผู้ใช้ <b>ถูกจดไว้ครบ</b> ในทะเบียนกฎการคำนวณ (🔴 ต้องอธิบาย 83 ข้อ · ★ ร้านตั้งเองแล้วตั้งผิดได้ 13 ข้อ) และทะเบียนค่าที่ร้านตั้งเอง 25 รายการ แต่ <b>คู่มือผู้ใช้เพิ่งเริ่ม 4 ต.ค.</b> จึงมีแค่เรื่องที่ทำหลังจากนั้น เรื่องจาก Sprint 2–5 ยังไม่ได้ดึงเข้ามา และยังไม่เคยตรวจว่า 83 ข้อนั้นอธิบายบนจอแล้วกี่ข้อ";
+
+// filter (remembered per viewer when storage allows)
+function apply(f) {
+  document.querySelectorAll("#filters button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.f === f)));
+  document.querySelectorAll("li.item, #notes tbody tr").forEach((el) => { el.hidden = f !== "all" && el.dataset.s !== f; });
+  try { localStorage.setItem("kk-progress-filter", f); } catch (e) {}
+}
+$("#filters").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) apply(b.dataset.f); });
+let saved = "all"; try { saved = localStorage.getItem("kk-progress-filter") || "all"; } catch (e) {}
+apply(["all", "done", "doing", "todo", "wait"].includes(saved) ? saved : "all");
+</script>
