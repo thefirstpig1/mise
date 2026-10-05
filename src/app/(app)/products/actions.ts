@@ -36,6 +36,7 @@ import {
   ProductDepthExceededError,
   LiquidDensityTemplateNotFoundError,
   ProductUnitReferencedByMappingError,
+  ProductUnitInUseError,
 } from "@/server/product";
 // Part 21 (ADR 0021 Q13): `Product.type` became load-bearing, so the product
 // form and its delete control can now be refused by the recipe guards. Without
@@ -110,6 +111,21 @@ function buildHasChildrenMessage(childNames: string[]): string {
  */
 function buildUnitReferencedMessage(mappingIds: string[]): string {
   return `ลบหน่วยไม่ได้ — มี ${mappingIds.length} รายการราคาซัพพลายเออร์ใช้หน่วยนี้อยู่`;
+}
+
+/**
+ * Kong 2026-10-05: removing (or renaming) a unit that recipes or documents were
+ * written in would make "2 ทัพพี" read as "2 กก." — refuse, and say who uses it
+ * and what to do instead.
+ */
+function buildUnitInUseMessage(e: { unitName: string; recipeNames: string[]; documents: { label: string; count: number }[] }): string {
+  const parts: string[] = [];
+  if (e.recipeNames.length > 0) {
+    const shown = e.recipeNames.slice(0, 3).join(", ");
+    parts.push(`สูตรของ ${shown}${e.recipeNames.length > 3 ? ` และอีก ${e.recipeNames.length - 3} รายการ` : ""}`);
+  }
+  for (const d of e.documents) parts.push(`${d.label} ${d.count.toLocaleString("th-TH")} รายการ`);
+  return `ลบหรือเปลี่ยนชื่อหน่วย “${e.unitName}” ไม่ได้ — ${parts.join(" · ")} ใช้หน่วยนี้อยู่ ถ้าลบไป ตัวเลขเหล่านั้นจะถูกอ่านเป็นหน่วยหลักและผิดทันที · ถ้าขนาดเปลี่ยน ให้แก้ตัวเลขแทนการลบ`;
 }
 
 /**
@@ -243,6 +259,9 @@ function toFormError(e: unknown): ProductActionState {
       ok: false,
       fieldErrors: { liquidDensityTemplateId: INVALID_DENSITY_TEMPLATE_MESSAGE },
     };
+  }
+  if (e instanceof ProductUnitInUseError) {
+    return { ok: false, formError: buildUnitInUseMessage(e) };
   }
   if (e instanceof ProductUnitReferencedByMappingError) {
     // L4 (Q5ii): removing a unit still used as a live mapping's orderUnit — form-level.

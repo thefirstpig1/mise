@@ -148,6 +148,29 @@ export class ProductHasChildrenError extends Error {
  * nulls the ref on those historical rows. Mirror of ProductHasChildrenError; the
  * action layer (L4) maps this to a Thai message citing the blocked unit + count.
  */
+/**
+ * A unit that a recipe or a document was written in cannot be removed (or
+ * renamed — the form renames by delete + create). Kong 2026-10-05.
+ *
+ * Recipe lines, staff-meal items and expense lines hold their unit with ON
+ * DELETE SET NULL, so removing it did not fail — it SILENTLY re-read "2 ทัพพี"
+ * as "2 กก." in cost and in the ledger, past days included. The other
+ * documents hold it with RESTRICT and failed as a raw database error. Both are
+ * refused here, naming what uses the unit, before anything is deleted.
+ */
+export class ProductUnitInUseError extends Error {
+  constructor(
+    public readonly unitName: string,
+    /** Dishes / prepped items whose recipe (any version, drafts too) uses it. */
+    public readonly recipeNames: string[],
+    /** Thai document names that recorded quantities in it, with counts. */
+    public readonly documents: { label: string; count: number }[]
+  ) {
+    super(`Cannot remove unit "${unitName}": used by ${recipeNames.length} recipe(s) and ${documents.length} document type(s)`);
+    this.name = "ProductUnitInUseError";
+  }
+}
+
 export class ProductUnitReferencedByMappingError extends Error {
   constructor(
     public readonly unitName: string,
@@ -953,6 +976,11 @@ export async function updateProductLogic(
             blocking.map((m) => m.id)
           );
         }
+        await assertUnitsNotInUse(
+          tx,
+          toDelete,
+          (uid) => existing.find((u) => u.id === uid)?.unitName ?? "(unknown)"
+        );
         await tx.productUnit.deleteMany({ where: { id: { in: toDelete } } });
       }
 
@@ -1091,3 +1119,46 @@ export async function deleteProductLogic(
 
 // Re-export for callers that want the bare row type without relations.
 export type { Product };
+
+/**
+ * Refuse removing a unit anything was written in (`ProductUnitInUseError`).
+ * Every version counts, superseded and draft included: a past day is costed
+ * against the recipe true then (ADR 0021 Q4), so its unit must keep meaning
+ * what it meant.
+ */
+async function assertUnitsNotInUse(
+  tx: PrismaClient,
+  unitIds: string[],
+  nameOf: (unitId: string) => string
+): Promise<void> {
+  if (unitIds.length === 0) return;
+  for (const uid of unitIds) {
+    const inList = [uid];
+    const [recipeRows, counts] = await Promise.all([
+      tx.recipeIngredient.findMany({
+        where: { productUnitId: { in: inList }, recipe: { deletedAt: null } },
+        select: { recipe: { select: { menu: { select: { name: true } }, outputProduct: { select: { name: true } } } } },
+      }),
+      Promise.all([
+        tx.stockCountEntry.count({ where: { productUnitId: { in: inList } } }).then((n) => ({ label: "รายการนับสต๊อก", count: n })),
+        tx.goodsReceiptItem.count({ where: { receivedUnitId: { in: inList } } }).then((n) => ({ label: "รายการรับสินค้า", count: n })),
+        tx.purchaseOrderItem.count({ where: { orderUnitId: { in: inList } } }).then((n) => ({ label: "รายการในใบสั่งซื้อ", count: n })),
+        tx.purchaseRequestLine.count({ where: { unitId: { in: inList } } }).then((n) => ({ label: "รายการในใบขอซื้อ", count: n })),
+        tx.wasteLog.count({ where: { inputUnitId: { in: inList } } }).then((n) => ({ label: "รายการของเสีย", count: n })),
+        tx.stockAdjustment.count({ where: { inputUnitId: { in: inList } } }).then((n) => ({ label: "รายการปรับสต๊อก", count: n })),
+        tx.stockTransferItem.count({ where: { inputUnitId: { in: inList } } }).then((n) => ({ label: "รายการโอนของ", count: n })),
+        tx.staffMealItem.count({ where: { inputUnitId: { in: inList } } }).then((n) => ({ label: "รายการมื้อพนักงาน", count: n })),
+        tx.expenseItem.count({ where: { productUnitId: { in: inList } } }).then((n) => ({ label: "รายการค่าใช้จ่าย", count: n })),
+        tx.parLevel.count({ where: { inputUnitId: { in: inList } } }).then((n) => ({ label: "จุดสั่งซื้อขั้นต่ำ", count: n })),
+        tx.stockCostDeclaration.count({ where: { inputUnitId: { in: inList } } }).then((n) => ({ label: "การแจ้งต้นทุนสต๊อก", count: n })),
+      ]),
+    ]);
+    const recipeNames = [
+      ...new Set(recipeRows.map((r) => r.recipe.menu?.name ?? r.recipe.outputProduct?.name ?? "—")),
+    ].sort((a, b) => a.localeCompare(b, "th"));
+    const documents = counts.filter((c) => c.count > 0);
+    if (recipeNames.length > 0 || documents.length > 0) {
+      throw new ProductUnitInUseError(nameOf(uid), recipeNames, documents);
+    }
+  }
+}
