@@ -114,6 +114,8 @@ describe("the sidebar menu (ADR 0029 Part 28 L5, moved in Part 35 L4)", () => {
     expect(hrefs).toContain("/staff-meals");
     // The cook reads recipes on "จัดการเมนู" since 2026-10-04 (no money shown).
     expect(hrefs).toContain("/menus");
+    // ADR 0041: a cook drafts in the lab (no money there either).
+    expect(hrefs).toContain("/menus/lab");
     // And the money is not.
     expect(hrefs).not.toContain("/cost");
     expect(hrefs).not.toContain("/expenses");

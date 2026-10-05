@@ -46,12 +46,17 @@ import {
   publishDraftInputSchema,
 } from "@/lib/validations/menu-lab";
 import {
+  CannotEndorseOwnDraftError,
   DraftReplacesLiveRecipeError,
   MenuCategoryNotFoundError,
   NotADraftError,
+  NotYourDraftError,
+  applyDraftToBranchLogic,
   createDraftLogic,
   discardDraftLogic,
+  endorseDraftLogic,
   publishDraftLogic,
+  submitDraftLogic,
   updateDraftLogic,
 } from "@/server/menu-lab";
 import { NoBranchForCostError, getLabWhatIfLogic } from "@/server/menu-lab-read";
@@ -88,19 +93,19 @@ const CATEGORY_NOT_FOUND_MESSAGE = "ไม่พบหมวดนี้ — ร
  * published in another window and this one still shows the draft's buttons.
  */
 const NOT_A_DRAFT_MESSAGE =
-  "สูตรนี้ถูกเผยแพร่ไปแล้ว จึงแก้หรือลบจากหน้าทดลองเมนูไม่ได้ — รบกวนรีเฟรชแล้วแก้ที่หน้าสูตรอาหาร";
+  "สูตรนี้ถูกนำไปใช้จริงแล้ว จึงแก้หรือลบจากหน้าทดลองเมนูไม่ได้ — รบกวนรีเฟรชแล้วแก้ที่หน้าจัดการเมนู";
 
 /** The target cannot move — see `updateDraftLogic`'s own comment. */
 const TARGET_IMMUTABLE_MESSAGE =
   "เปลี่ยนไม่ได้ว่าสูตรที่ร่างไว้นี้เป็นของเมนูไหน — ถ้าคิดถึงเมนูอื่น ให้เริ่มร่างใหม่";
 
 const ALREADY_EXISTS_MESSAGE =
-  "มีสูตรกลางของรายการนี้อยู่แล้ว — เผยแพร่ร่างนี้เพื่อใช้แทนสูตรเดิม";
+  "มีสูตรกลางของรายการนี้อยู่แล้ว — นำร่างนี้ไปใช้จริงเพื่อแทนสูตรเดิม";
 
 const CYCLE_MESSAGE =
-  "เผยแพร่ไม่ได้ — สูตรจะวนกลับมาหาตัวเอง (เมนูหนึ่งกลายเป็นส่วนประกอบของตัวเอง)";
+  "นำไปใช้จริงไม่ได้ — สูตรจะวนกลับมาหาตัวเอง (เมนูหนึ่งกลายเป็นส่วนประกอบของตัวเอง)";
 const DEPTH_MESSAGE =
-  "เผยแพร่ไม่ได้ — สูตรจะซ้อนกันเกิน 5 ชั้น ลองลดชั้นของส่วนประกอบลง";
+  "นำไปใช้จริงไม่ได้ — สูตรจะซ้อนกันเกิน 5 ชั้น ลองลดชั้นของส่วนประกอบลง";
 const METHOD_MISSING_MESSAGE =
   "มีของแปรรูปในสูตรที่ยังไม่ได้ระบุเปอร์เซ็นต์ผลผลิต จึงคำนวณต่อไม่ได้";
 
@@ -111,6 +116,10 @@ const METHOD_MISSING_MESSAGE =
  */
 const NO_BRANCH_MESSAGE =
   "ยังไม่มีสาขาในระบบ จึงคำนวณต้นทุนไม่ได้ — เพิ่มสาขาก่อนแล้วลองใหม่";
+
+/** ADR 0041 — a cook edits only the drafts they wrote. */
+const NOT_YOUR_DRAFT_MESSAGE = "ร่างนี้เป็นของคนอื่น — แก้ได้เฉพาะคนร่างและหัวหน้า";
+const OWN_ENDORSE_MESSAGE = "รับรองร่างของตัวเองไม่ได้ — นำไปใช้จริงได้เลยถ้ามีสิทธิ์";
 
 // ------------------------------------------------------------
 // Action state
@@ -185,7 +194,7 @@ function toFormError(e: unknown): {
   if (e instanceof DraftReplacesLiveRecipeError) {
     return {
       formError:
-        "เมนูนี้มีสูตรกลางใช้งานอยู่แล้ว — เผยแพร่ร่างนี้จะใช้สูตรใหม่ตั้งแต่วันนี้ ส่วนยอดของวันก่อนหน้ายังคิดด้วยสูตรเดิม",
+        "เมนูนี้มีสูตรกลางใช้งานอยู่แล้ว — นำร่างนี้ไปใช้จริงจะใช้สูตรใหม่ตั้งแต่วันนี้ ส่วนยอดของวันก่อนหน้ายังคิดด้วยสูตรเดิม",
       needsAcknowledgement: { liveRecipeId: e.liveRecipeId },
     };
   }
@@ -197,6 +206,8 @@ function toFormError(e: unknown): {
   if (e instanceof NoBranchForCostError) {
     return { formError: NO_BRANCH_MESSAGE };
   }
+  if (e instanceof NotYourDraftError) return { formError: NOT_YOUR_DRAFT_MESSAGE };
+  if (e instanceof CannotEndorseOwnDraftError) return { formError: OWN_ENDORSE_MESSAGE };
   throw e; // unexpected → let the error boundary handle it
 }
 
@@ -258,7 +269,7 @@ export async function createDraftAction(
   _prevState: DraftActionState,
   formData: FormData
 ): Promise<DraftActionState> {
-  const { tenantId, membership } = await requireTenant("recipe:write");
+  const { tenantId, membership } = await requireTenant("recipe:draft");
 
   const parsed = draftRecipeInputSchema.safeParse(rawDraftFromFormData(formData));
   if (!parsed.success) {
@@ -284,7 +295,7 @@ export async function updateDraftAction(
   _prevState: DraftActionState,
   formData: FormData
 ): Promise<DraftActionState> {
-  const { tenantId, membership } = await requireTenant("recipe:write");
+  const { tenantId, membership, can } = await requireTenant("recipe:draft");
 
   const parsed = draftRecipeInputSchema.safeParse(rawDraftFromFormData(formData));
   if (!parsed.success) {
@@ -296,7 +307,8 @@ export async function updateDraftAction(
       tenantId,
       recipeId,
       parsed.data,
-      membership.userId
+      membership.userId,
+      { userId: membership.userId, ownOnly: !can("recipe:write") }
     );
     revalidateLabViews(draft.id);
     return { ok: true, draft: toDraftView(draft) };
@@ -346,7 +358,7 @@ export async function publishDraftAction(
 export async function discardDraftAction(
   recipeId: string
 ): Promise<DiscardDraftActionState> {
-  const { tenantId } = await requireTenant("recipe:write");
+  const { tenantId, membership, can } = await requireTenant("recipe:draft");
 
   const parsed = discardDraftInputSchema.safeParse({ recipeId });
   if (!parsed.success) {
@@ -354,7 +366,7 @@ export async function discardDraftAction(
   }
 
   try {
-    await discardDraftLogic(tenantId, parsed.data);
+    await discardDraftLogic(tenantId, parsed.data, { userId: membership.userId, ownOnly: !can("recipe:write") });
     revalidateLabViews();
     return { ok: true };
   } catch (e) {
@@ -363,6 +375,9 @@ export async function discardDraftAction(
     }
     if (e instanceof NotADraftError) {
       return { ok: false, error: NOT_A_DRAFT_MESSAGE };
+    }
+    if (e instanceof NotYourDraftError) {
+      return { ok: false, error: NOT_YOUR_DRAFT_MESSAGE };
     }
     throw e;
   }
@@ -401,5 +416,70 @@ export async function getLabWhatIfAction(
     return { ok: true, whatIf: toLabWhatIfView(whatIf) };
   } catch (e) {
     return { ok: false, ...toFormError(e) };
+  }
+}
+
+// ------------------------------------------------------------
+// ADR 0041 — propose, endorse, apply at one branch
+// ------------------------------------------------------------
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export type DraftStepState = { ok: true } | { ok: false; error: string };
+
+function stepError(e: unknown): DraftStepState {
+  if (e instanceof RecipeNotFoundError) return { ok: false, error: NOT_FOUND_MESSAGE };
+  if (e instanceof NotADraftError) return { ok: false, error: NOT_A_DRAFT_MESSAGE };
+  if (e instanceof NotYourDraftError) return { ok: false, error: NOT_YOUR_DRAFT_MESSAGE };
+  if (e instanceof CannotEndorseOwnDraftError) return { ok: false, error: OWN_ENDORSE_MESSAGE };
+  const mapped = toFormError(e);
+  return { ok: false, error: mapped.formError ?? Object.values(mapped.fieldErrors ?? {})[0] ?? "ทำรายการไม่ได้" };
+}
+
+/** เสนอ — the author hands the draft to whoever endorses or applies it. */
+export async function submitDraftAction(recipeId: string): Promise<DraftStepState> {
+  const { tenantId, membership, can } = await requireTenant("recipe:draft");
+  if (!UUID.test(recipeId)) return { ok: false, error: "รหัสสูตรไม่ถูกต้อง" };
+  try {
+    await submitDraftLogic(tenantId, recipeId, { userId: membership.userId, ownOnly: !can("recipe:write") });
+    revalidateLabViews(recipeId);
+    return { ok: true };
+  } catch (e) {
+    return stepError(e);
+  }
+}
+
+/** รับรอง — a manager's credit on someone else's draft. */
+export async function endorseDraftAction(recipeId: string): Promise<DraftStepState> {
+  const { tenantId, membership } = await requireTenant("recipe:write");
+  if (!UUID.test(recipeId)) return { ok: false, error: "รหัสสูตรไม่ถูกต้อง" };
+  try {
+    await endorseDraftLogic(tenantId, recipeId, membership.userId);
+    revalidateLabViews(recipeId);
+    return { ok: true };
+  } catch (e) {
+    return stepError(e);
+  }
+}
+
+/**
+ * นำไปใช้จริงเฉพาะสาขานี้ — a branch manager's way to apply a draft: the branch
+ * gets its own recipe from today; central and the other branches do not move.
+ */
+export async function applyDraftToBranchAction(input: {
+  recipeId: string;
+  branchId: string;
+  submitKey: string;
+}): Promise<DraftStepState & { menuId?: string | null }> {
+  const { tenantId, membership, assertBranch } = await requireTenant("recipe:write");
+  if (!UUID.test(input.recipeId) || !UUID.test(input.branchId) || !UUID.test(input.submitKey)) {
+    return { ok: false, error: "คำขอไม่ถูกต้อง" };
+  }
+  assertBranch(input.branchId);
+  try {
+    const res = await applyDraftToBranchLogic(tenantId, input, membership.userId);
+    revalidateLabViews();
+    return { ok: true, menuId: res.menuId };
+  } catch (e) {
+    return stepError(e);
   }
 }

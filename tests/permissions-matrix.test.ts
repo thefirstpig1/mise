@@ -83,6 +83,16 @@ describe("the role table (ADR 0029 Part 28 L2)", () => {
     expect(hasCapability("kitchen_staff", "sales:view")).toBe(false);
   });
 
+  it("A5b — ADR 0041: a cook drafts a recipe but never writes a live one", () => {
+    expect(hasCapability("kitchen_staff", "recipe:draft")).toBe(true);
+    expect(hasCapability("kitchen_staff", "recipe:write")).toBe(false);
+    // Everyone who writes recipes also drafts them — the lab is one door.
+    for (const role of ["owner", "admin", "manager"]) {
+      expect(hasCapability(role, "recipe:write")).toBe(true);
+      expect(hasCapability(role, "recipe:draft")).toBe(true);
+    }
+  });
+
   it("A6 — a purchaser sees cost but not the shop's overheads or revenue", () => {
     expect(hasCapability("purchaser", "cost:view")).toBe(true);
     expect(hasCapability("purchaser", "expense:view")).toBe(false);

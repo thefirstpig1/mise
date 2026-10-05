@@ -287,6 +287,7 @@ model User {
   menuMergesRevoked         MenuMerge[]              @relation("MenuMergeRevokedBy")
   salesPulsesRecorded       SalesDay[]               @relation("SalesPulseRecordedBy")
   recipesCreated            Recipe[]                 @relation("RecipeCreatedBy")
+  recipesEndorsed           Recipe[]                 @relation("RecipeEndorsedBy")
   purchaseRequestsMade      PurchaseRequestLine[]    @relation("PrLineRequestedBy")
   purchaseRequestsRejected  PurchaseRequestLine[]    @relation("PrLineRejectedBy")
   purchaseRequestMessages   PurchaseRequestMessage[] @relation("PrMessageAuthor")
@@ -2776,6 +2777,13 @@ enum SalesPulseSource {
 ///   live rows (deletedAt IS NULL, supersededAt IS NULL) of the line that serves
 ///   that branch, with effectiveFrom <= D, ordered by (effectiveFrom DESC,
 ///   createdAt DESC), LIMIT 1.
+/// ADR 0041 — a Menu Lab draft's way to the kitchen.
+enum RecipeDraftStatus {
+  DRAFT
+  SUBMITTED
+  ENDORSED
+}
+
 model Recipe {
   id       String @id @default(uuid()) @db.Uuid
   tenantId String @map("tenant_id") @db.Uuid
@@ -2847,13 +2855,27 @@ model Recipe {
 
   notes String?
 
+  /// ADR 0041 (Kong 2026-10-05): where a DRAFT is on its way to the kitchen.
+  /// DRAFT → SUBMITTED (เสนอ, by whoever wrote it) → ENDORSED (รับรอง, by a
+  /// manager). NULL on every recipe that is not a draft. Only a person allowed
+  /// to apply it decides it goes live — endorsing is a stamp, not a gate:
+  /// someone with reach over every branch may apply a draft nobody endorsed.
+  draftStatus RecipeDraftStatus? @map("draft_status")
+  /// Who endorsed it and when. Cleared when the draft's content changes,
+  /// because an endorsement vouches for the recipe the endorser read.
+  endorsedBy String?   @map("endorsed_by")
+  endorsedAt DateTime? @map("endorsed_at")
+
+  /// The person who WROTE it. For a draft this no longer moves to whoever
+  /// edited last (ADR 0041): "ร่างโดย" is credit, and the editor is not the author.
   createdBy String    @map("created_by")
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
 
-  tenant        Tenant             @relation(fields: [tenantId], references: [id])
-  menu          Menu?              @relation(fields: [menuId], references: [id])
+  tenant         Tenant             @relation(fields: [tenantId], references: [id])
+  endorsedByUser User?              @relation("RecipeEndorsedBy", fields: [endorsedBy], references: [id])
+  menu           Menu?              @relation(fields: [menuId], references: [id])
   outputProduct Product?           @relation("RecipeOutputProduct", fields: [outputProductId], references: [id])
   supersededBy  Recipe?            @relation("RecipeSupersede", fields: [supersededById], references: [id])
   supersedes    Recipe[]           @relation("RecipeSupersede")

@@ -43,7 +43,10 @@ import { assertRefBelongsToTenant } from "@/server/product";
 import { assertRecipeGraphValid } from "@/server/recipe-guards";
 import {
   RECIPE_WRITE_TIMEOUT_MS,
+  RecipeBranchOwnsLineError,
   RecipeNotFoundError,
+  saveRecipeForBranchLogic,
+  updateRecipeLogic,
   RecipeTargetImmutableError,
   assertWriteRefsValid,
   ingredientRowsFor,
@@ -99,6 +102,32 @@ export class MenuCategoryNotFoundError extends Error {
     super(`Menu category "${id}" does not belong to this tenant`);
     this.name = "MenuCategoryNotFoundError";
   }
+}
+
+/**
+ * ADR 0041: someone who may only DRAFT (a cook) touches only the drafts they
+ * wrote. A manager edits anyone's — that is half of endorsing one.
+ */
+export class NotYourDraftError extends Error {
+  constructor(public readonly recipeId: string) {
+    super(`Draft "${recipeId}" was written by someone else`);
+    this.name = "NotYourDraftError";
+  }
+}
+
+/** ADR 0041: an endorsement is someone else's word for your recipe, never your own. */
+export class CannotEndorseOwnDraftError extends Error {
+  constructor(public readonly recipeId: string) {
+    super(`Draft "${recipeId}" cannot be endorsed by its author`);
+    this.name = "CannotEndorseOwnDraftError";
+  }
+}
+
+/** Who is acting on a draft, and whether they may only touch their own. */
+export type DraftActor = { userId: string; ownOnly: boolean };
+
+function assertMayTouch(draft: { id: string; createdBy: string }, actor: DraftActor): void {
+  if (actor.ownOnly && draft.createdBy !== actor.userId) throw new NotYourDraftError(draft.id);
 }
 
 // ------------------------------------------------------------
@@ -208,6 +237,7 @@ export async function createDraftLogic(
           servings: new Prisma.Decimal(input.servings),
           effectiveFrom: computeBangkokToday(),
           isDraft: true,
+          draftStatus: "DRAFT",
           plannedPrice:
             input.plannedPrice === null
               ? null
@@ -235,13 +265,16 @@ export async function updateDraftLogic(
   tenantId: string,
   recipeId: string,
   input: DraftRecipeInput,
-  updatedBy: string
+  updatedBy: string,
+  /** ADR 0041 — omitted by callers that predate it: a writer, touching any draft. */
+  actor: DraftActor = { userId: updatedBy, ownOnly: false }
 ): Promise<RecipeWithIngredients> {
   return withTenantContext(
     tenantId,
     async (tx) => {
       const draft = await loadDraft(tx, tenantId, recipeId);
       if (!draft.isDraft) throw new NotADraftError(recipeId);
+      assertMayTouch(draft, actor);
 
       if (input.newMenuName !== null || input.menuId !== draft.menuId) {
         throw new RecipeTargetImmutableError(recipeId);
@@ -267,7 +300,12 @@ export async function updateDraftLogic(
               ? null
               : new Prisma.Decimal(input.plannedPrice),
           notes: input.notes,
-          createdBy: updatedBy,
+          // ADR 0041: `createdBy` stays the AUTHOR ("ร่างโดย" is credit). An
+          // endorsement vouches for the recipe its endorser read, so a change
+          // by anyone else sends the draft back to waiting for one.
+          ...(draft.draftStatus === "ENDORSED" && draft.endorsedBy !== updatedBy
+            ? { draftStatus: "SUBMITTED" as const, endorsedBy: null, endorsedAt: null }
+            : {}),
           ingredients: { create: ingredientRowsFor(tenantId, input) },
         },
         include: DRAFT_INCLUDE,
@@ -344,6 +382,7 @@ export async function publishDraftLogic(
         where: { id: draft.id },
         data: {
           isDraft: false,
+          draftStatus: null,
           effectiveFrom: today,
           ...(existing === null ? {} : { lineId: existing.lineId }),
         },
@@ -382,11 +421,13 @@ export async function publishDraftLogic(
  */
 export async function discardDraftLogic(
   tenantId: string,
-  input: DiscardDraftInput
+  input: DiscardDraftInput,
+  actor?: DraftActor
 ): Promise<{ id: string }> {
   return withTenantContext(tenantId, async (tx) => {
     const draft = await loadDraft(tx, tenantId, input.recipeId);
     if (!draft.isDraft) throw new NotADraftError(input.recipeId);
+    if (actor) assertMayTouch(draft, actor);
 
     await tx.recipe.update({
       where: { id: draft.id },
@@ -394,4 +435,94 @@ export async function discardDraftLogic(
     });
     return { id: draft.id };
   });
+}
+
+// ------------------------------------------------------------
+// Propose, endorse, apply at one branch (ADR 0041)
+// ------------------------------------------------------------
+
+/**
+ * เสนอ — the author says "this is ready to look at". Idempotent: a draft that is
+ * already waiting, or already endorsed, stays where it is.
+ */
+export async function submitDraftLogic(
+  tenantId: string,
+  recipeId: string,
+  actor: DraftActor
+): Promise<{ id: string; draftStatus: string }> {
+  return withTenantContext(tenantId, async (tx) => {
+    const draft = await loadDraft(tx, tenantId, recipeId);
+    if (!draft.isDraft) throw new NotADraftError(recipeId);
+    assertMayTouch(draft, actor);
+    if (draft.draftStatus !== null && draft.draftStatus !== "DRAFT") return { id: draft.id, draftStatus: draft.draftStatus };
+    const row = await tx.recipe.update({ where: { id: draft.id }, data: { draftStatus: "SUBMITTED" }, select: { id: true, draftStatus: true } });
+    return { id: row.id, draftStatus: row.draftStatus ?? "SUBMITTED" };
+  });
+}
+
+/**
+ * รับรอง — a manager's word that the recipe is right, kept as credit on the
+ * draft. A stamp, not a gate: applying never requires it (Kong 2026-10-05 —
+ * a shop with no branch manager must not be stuck).
+ */
+export async function endorseDraftLogic(
+  tenantId: string,
+  recipeId: string,
+  endorsedBy: string
+): Promise<{ id: string; endorsedAt: Date }> {
+  return withTenantContext(tenantId, async (tx) => {
+    const draft = await loadDraft(tx, tenantId, recipeId);
+    if (!draft.isDraft) throw new NotADraftError(recipeId);
+    if (draft.createdBy === endorsedBy) throw new CannotEndorseOwnDraftError(recipeId);
+    const endorsedAt = new Date();
+    await tx.recipe.update({ where: { id: draft.id }, data: { draftStatus: "ENDORSED", endorsedBy, endorsedAt } });
+    return { id: draft.id, endorsedAt };
+  });
+}
+
+/**
+ * นำไปใช้จริงเฉพาะสาขานี้ — what a manager of ONE branch may do with a draft: it
+ * becomes that branch's own recipe from today, exactly as "เฉพาะสาขานี้" on the
+ * menu screen (`saveRecipeForBranchLogic`), and the draft is gone. Central and
+ * every other branch are untouched.
+ *
+ * Two transactions, saved first: if the second fails the draft is still there
+ * and pressing again finds the branch recipe by its `submitKey` and only
+ * discards. The other order could lose the draft with nothing applied.
+ */
+export async function applyDraftToBranchLogic(
+  tenantId: string,
+  input: { recipeId: string; branchId: string; submitKey: string },
+  userId: string
+): Promise<{ recipeId: string; menuId: string | null }> {
+  const draft = await withTenantContext(tenantId, (tx) => loadDraft(tx, tenantId, input.recipeId));
+  if (!draft.isDraft) throw new NotADraftError(input.recipeId);
+  const rec = {
+    submitKey: input.submitKey,
+    menuId: draft.menuId,
+    outputProductId: draft.outputProductId,
+    servings: Number(draft.servings),
+    effectiveFrom: computeBangkokToday(),
+    notes: draft.notes,
+    ingredients: draft.ingredients.map((i) => ({
+      productId: i.productId,
+      componentMenuId: i.componentMenuId,
+      qty: Number(i.qty),
+      productUnitId: i.productUnitId,
+      sortOrder: i.sortOrder,
+      notes: i.notes,
+    })),
+  };
+  let applied: RecipeWithIngredients;
+  try {
+    applied = await saveRecipeForBranchLogic(tenantId, { branchId: input.branchId, recipe: rec }, userId);
+  } catch (e) {
+    // The branch already keeps a line of its own: this is an edit of it.
+    if (!(e instanceof RecipeBranchOwnsLineError)) throw e;
+    applied = await updateRecipeLogic(tenantId, e.recipeId, rec, userId);
+  }
+  await withTenantContext(tenantId, (tx) =>
+    tx.recipe.update({ where: { id: draft.id }, data: { deletedAt: new Date() } })
+  );
+  return { recipeId: applied.id, menuId: draft.menuId };
 }

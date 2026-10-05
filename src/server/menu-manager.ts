@@ -655,7 +655,17 @@ export type LabDraft = {
   liveRecipeId: string | null;
   hasSales: boolean;
   lines: SheetLine[];
+  /** ADR 0041 — DRAFT · SUBMITTED (เสนอแล้ว รอรับรอง) · ENDORSED (รับรองแล้ว). */
+  draftStatus: "DRAFT" | "SUBMITTED" | "ENDORSED";
+  authorId: string;
+  authorName: string;
+  endorsedByName: string | null;
+  endorsedAt: string | null;
 };
+
+/** The name a person goes by on screen: their name, else the part of the address before @. */
+const personName = (u: { name: string | null; email: string | null } | null) =>
+  u === null ? "—" : (u.name?.trim() || u.email?.split("@")[0] || "—");
 
 export async function getLabDraftsLogic(tenantId: string): Promise<LabDraft[]> {
   const [rows, detail] = await Promise.all([
@@ -666,6 +676,11 @@ export async function getLabDraftsLogic(tenantId: string): Promise<LabDraft[]> {
         select: {
           id: true,
           notes: true,
+          createdBy: true,
+          draftStatus: true,
+          endorsedAt: true,
+          createdByUser: { select: { name: true, email: true } },
+          endorsedByUser: { select: { name: true, email: true } },
           menu: { select: { posMenuId: true, menuCategoryId: true } },
           ingredients: { orderBy: { sortOrder: "asc" }, select: INGREDIENT_SELECT },
         },
@@ -689,6 +704,11 @@ export async function getLabDraftsLogic(tenantId: string): Promise<LabDraft[]> {
       liveRecipeId: r.liveRecipeId,
       hasSales: r.hasSales,
       lines: (d?.ingredients ?? []).map(toSheetLine),
+      draftStatus: (d?.draftStatus ?? "DRAFT") as LabDraft["draftStatus"],
+      authorId: d?.createdBy ?? "",
+      authorName: personName(d?.createdByUser ?? null),
+      endorsedByName: d?.endorsedByUser ? personName(d.endorsedByUser) : null,
+      endorsedAt: d?.endorsedAt ? d.endorsedAt.toISOString() : null,
     };
   });
 }

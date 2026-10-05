@@ -42,7 +42,8 @@ async function read(req: Request): Promise<Response> {
   const branchId = url.searchParams.get("branch") ?? "";
 
   if (what === "options") {
-    const { tenantId } = await requireTenant("recipe:write");
+    // Anyone who writes a recipe — a cook drafting one included (ADR 0041).
+    const { tenantId } = await requireTenant("recipe:draft");
     return json({ ok: true, ...(await getIngredientOptionsLogic(tenantId)) });
   }
 
@@ -55,7 +56,7 @@ async function read(req: Request): Promise<Response> {
 
   if (what === "lab") {
     // A saved draft, costed by the engine — the figure the lab trusts.
-    const { tenantId, costAccess, reach, assertBranch } = await requireTenant("recipe:write");
+    const { tenantId, costAccess, reach, assertBranch } = await requireTenant("recipe:draft");
     const recipeId = url.searchParams.get("recipe") ?? "";
     if (!UUID.test(branchId) || !UUID.test(recipeId)) return json({ ok: false, error: "คำขอไม่ถูกต้อง" }, 400);
     assertBranch(branchId);

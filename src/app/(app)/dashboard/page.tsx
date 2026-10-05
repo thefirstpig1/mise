@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { requireTenant } from "@/lib/require-tenant";
+import { withTenantContext } from "@/lib/db";
 import { computeBangkokToday } from "@/lib/bangkok-date";
 import { getBranchesLogic } from "@/server/branch";
 import { getPnlLogic, getRevenueByDayLogic, type Pnl } from "@/server/pnl";
@@ -55,7 +56,7 @@ const dateTh = (d: Date) =>
   d.toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 
 export default async function DashboardPage({ searchParams }: { searchParams: SearchParams }) {
-  const { membership, tenantId, reach, costAccess, can } = await requireTenant("any:member");
+  const { membership, tenantId, reach, costAccess, can, canEditShared } = await requireTenant("any:member");
   const params = await searchParams;
 
   const seeSales = can("sales:view");
@@ -76,6 +77,12 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
         <h1 className="text-2xl font-bold">ภาพรวม</h1>
         <p className="mt-1 text-sm text-muted-foreground">{membership.tenant.name}</p>
       </div>
+
+      {can("recipe:write") && (
+        <Suspense fallback={null}>
+          <DraftsWaiting tenantId={tenantId} userId={membership.userId} shared={canEditShared} />
+        </Suspense>
+      )}
 
       {seeMoney ? (
         <>
@@ -684,5 +691,30 @@ function RequestQueue({ rows }: { rows: RequestQueueRow[] }) {
         ))}
       </ul>
     </div>
+  );
+}
+
+/**
+ * ADR 0041 — recipe drafts this person can move forward: one a cook proposed
+ * (to endorse or apply), and for whoever applies to every branch, one a
+ * manager already endorsed. Nothing when there is nothing to do.
+ */
+async function DraftsWaiting({ tenantId, userId, shared }: { tenantId: string; userId: string; shared: boolean }) {
+  const n = await withTenantContext(tenantId, (tx) =>
+    tx.recipe.count({
+      where: {
+        tenantId,
+        isDraft: true,
+        deletedAt: null,
+        createdBy: { not: userId },
+        draftStatus: { in: shared ? ["SUBMITTED", "ENDORSED"] : ["SUBMITTED"] },
+      },
+    })
+  );
+  if (n === 0) return null;
+  return (
+    <a href="/menus/lab" className="block rounded-xl border border-warn-border bg-warn-bg px-4 py-3 text-sm hover:brightness-[0.98]">
+      มีร่างสูตรรอคุณ <b className="tabular-nums">{n}</b> รายการ ในทดลองเมนู — ตรวจแล้วรับรองหรือนำไปใช้จริง
+    </a>
   );
 }

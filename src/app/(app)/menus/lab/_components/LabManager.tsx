@@ -49,7 +49,11 @@ export default function LabManager(props: {
   defaultBranchId: string | null;
   today: string;
   costHidden: boolean;
+  /** Applies a draft to every branch (recipe:write + reach over all of them). */
   canPublish: boolean;
+  /** Endorses, edits anyone's draft, applies at a branch in reach (ADR 0041). */
+  canWrite: boolean;
+  viewerId: string;
   openDraftId: string | null;
   openNew: boolean;
 }) {
@@ -122,6 +126,8 @@ export default function LabManager(props: {
     setAddress(null, false);
   };
 
+  const waiting = drafts.filter((d) => waitsFor(d, props)).length;
+
   const openRow = open?.id ? (drafts.find((d) => d.recipeId === open.id) ?? null) : null;
 
   return (
@@ -129,7 +135,7 @@ export default function LabManager(props: {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-xl font-bold">ทดลองเมนู</h2>
-          <p className="mt-1 text-sm text-muted-foreground">ลองคิดสูตรและราคาก่อนขายจริง ร่างที่นี่ยังไม่ตัดสต๊อกและยังไม่ถูกใช้คิดต้นทุนขาย จนกว่าจะกดเผยแพร่</p>
+          <p className="mt-1 text-sm text-muted-foreground">ลองคิดสูตรและราคาก่อนขายจริง ร่างที่นี่ยังไม่ตัดสต๊อกและยังไม่ถูกใช้คิดต้นทุนขาย จนกว่าจะกด “นำไปใช้จริง”</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <button type="button" onClick={() => openDraft(null)} className="btn whitespace-nowrap">
@@ -143,6 +149,12 @@ export default function LabManager(props: {
           </a>
         </div>
       </div>
+
+      {waiting > 0 && (
+        <p className="rounded-xl border border-warn-border bg-warn-bg px-3 py-2 text-sm">
+          มีร่างสูตรรอคุณ <b className="tabular-nums">{waiting}</b> รายการ — {props.canPublish ? "รับรองหรือนำไปใช้จริง" : "ตรวจแล้วรับรอง หรือนำไปใช้จริงที่สาขาของคุณ"}
+        </p>
+      )}
 
       {drafts.length === 0 ? (
         <EmptyState art="start">
@@ -169,8 +181,11 @@ export default function LabManager(props: {
                   <tr key={d.recipeId} className="cursor-pointer hover:bg-muted/50" onClick={() => openDraft(d.recipeId)}>
                     <td className="px-3 py-2.5">
                       <span className="font-medium">{d.menuName}</span>{" "}
-                      <span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] ${isNew ? "bg-good-bg text-good" : "bg-warn-bg text-warn"}`}>{isNew ? "เมนูใหม่" : "แก้สูตรเมนูที่ขายอยู่"}</span>
+                      <span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] ${isNew ? "bg-good-bg text-good" : "bg-warn-bg text-warn"}`}>{isNew ? "เมนูใหม่" : "แก้สูตรเมนูที่ขายอยู่"}</span>{" "}
+                      <StatusChip status={d.draftStatus} />
                       <span className="block text-xs text-muted-subtle">
+                        ร่างโดย {d.authorId === props.viewerId ? "คุณ" : d.authorName}
+                        {d.endorsedByName ? ` · รับรองโดย ${d.endorsedByName}` : ""} ·{" "}
                         {d.lines.length} วัตถุดิบ · ทำครั้งละ {d.servings.toLocaleString("th-TH")} จาน
                         {d.liveRecipeId && !costHidden && listBook?.menus[d.menuId] ? ` · สูตรที่ใช้อยู่ ${baht(listBook.menus[d.menuId].costPerServing ?? 0, 2)}/จาน` : ""}
                       </span>
@@ -213,6 +228,8 @@ export default function LabManager(props: {
           today={props.today}
           costHidden={costHidden}
           canPublish={props.canPublish}
+          canWrite={props.canWrite}
+          viewerId={props.viewerId}
           books={books}
           needBook={needBook}
           options={options}
@@ -246,4 +263,26 @@ export default function LabManager(props: {
       )}
     </div>
   );
+}
+
+/** ADR 0041 — where a draft is on its way to the kitchen. */
+export const STATUS_TH: Record<LabDraft["draftStatus"], string> = { DRAFT: "ร่าง", SUBMITTED: "รอรับรอง", ENDORSED: "รับรองแล้ว" };
+
+export function StatusChip({ status }: { status: LabDraft["draftStatus"] }) {
+  if (status === "DRAFT") return null;
+  return (
+    <span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] ${status === "ENDORSED" ? "bg-good-bg text-good" : "border border-warn-border text-warn"}`}>
+      {STATUS_TH[status]}
+    </span>
+  );
+}
+
+/**
+ * A draft waits for this viewer when they can move it forward: a manager for
+ * a proposed draft someone else wrote; whoever applies to every branch also
+ * for an endorsed one.
+ */
+export function waitsFor(d: LabDraft, v: { canWrite: boolean; canPublish: boolean; viewerId: string }): boolean {
+  if (!v.canWrite || d.authorId === v.viewerId) return false;
+  return d.draftStatus === "SUBMITTED" || (d.draftStatus === "ENDORSED" && v.canPublish);
 }

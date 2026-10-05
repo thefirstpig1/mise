@@ -14,6 +14,8 @@
 //       line, and leaves yesterday costed by yesterday's recipe
 //   D7  the lab's doors refuse a published recipe
 //   D8  publishing re-checks the references the draft was saved with
+//   W1–W7  ADR 0041 — a cook drafts and proposes, a manager endorses and may
+//          apply at one branch; an endorsement vouches for what was read
 // ============================================================
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
@@ -35,11 +37,16 @@ import {
   createRecipeLogic,
 } from "@/server/recipe";
 import {
+  CannotEndorseOwnDraftError,
   DraftReplacesLiveRecipeError,
   NotADraftError,
+  NotYourDraftError,
+  applyDraftToBranchLogic,
   createDraftLogic,
   discardDraftLogic,
+  endorseDraftLogic,
   publishDraftLogic,
+  submitDraftLogic,
   updateDraftLogic,
 } from "@/server/menu-lab";
 import { resolveRecipeIds } from "@/server/recipe-resolve";
@@ -48,6 +55,9 @@ describe("Menu Lab writes (ADR 0025)", () => {
   let tenantA: string;
   let branchA: string;
   let userA: string;
+  /** ADR 0041 — a cook (drafts only) and a branch manager. */
+  let cook: string;
+  let manager: string;
   let categoryA: string;
   let flour: ProductWithUnits;
   let sugar: ProductWithUnits;
@@ -126,6 +136,8 @@ describe("Menu Lab writes (ADR 0025)", () => {
         data: { email: `lab-${randomUUID()}@example.com`, name: "เจ้าของร้าน" },
       });
       userA = u.id;
+      cook = (await tx.user.create({ data: { email: `lab-cook-${randomUUID()}@example.com`, name: "พ่อครัว" } })).id;
+      manager = (await tx.user.create({ data: { email: `lab-mgr-${randomUUID()}@example.com`, name: "ผู้จัดการ" } })).id;
       const c = await tx.menuCategory.create({
         data: { tenantId: t.id, name: `ของหวาน-${randomUUID().slice(0, 4)}` },
         select: { id: true },
@@ -174,7 +186,7 @@ describe("Menu Lab writes (ADR 0025)", () => {
       await tx.product.deleteMany({ where: { tenantId: tenantA } });
       await tx.branch.deleteMany({ where: { tenantId: tenantA } });
       await tx.tenant.deleteMany({ where: { id: tenantA } });
-      await tx.user.deleteMany({ where: { id: userA } });
+      await tx.user.deleteMany({ where: { id: { in: [userA, cook, manager] } } });
     });
     await prisma.$disconnect();
   }, 120_000);
@@ -513,5 +525,103 @@ describe("Menu Lab writes (ADR 0025)", () => {
       tx.menu.findUnique({ where: { id: menuId } })
     );
     expect(menu).not.toBeNull();
+  });
+
+  // ----------------------------------------------------------
+  // ADR 0041 — propose, endorse, apply at one branch
+  // ----------------------------------------------------------
+
+  const asCook = () => ({ userId: cook, ownOnly: true });
+  const statusOf = (id: string) =>
+    withRlsBypass((tx) => tx.recipe.findUniqueOrThrow({ where: { id }, select: { draftStatus: true, endorsedBy: true, endorsedAt: true, createdBy: true, deletedAt: true } }));
+
+  it("W1: a new draft starts as DRAFT, and an edit keeps its AUTHOR", async () => {
+    const menu = await makeMenu("W1");
+    const draft = await createDraftLogic(tenantA, draftInput({ menuId: menu.id }), cook);
+    expect((await statusOf(draft.id)).draftStatus).toBe("DRAFT");
+
+    // A manager edits the cook's draft: "ร่างโดย" is credit and stays the cook's.
+    await updateDraftLogic(tenantA, draft.id, draftInput({ menuId: menu.id, ingredients: [ing(flour, 7)] }), manager);
+    expect((await statusOf(draft.id)).createdBy).toBe(cook);
+  });
+
+  it("W2: someone who may only draft touches only their own drafts", async () => {
+    const menu = await makeMenu("W2");
+    const mine = await createDraftLogic(tenantA, draftInput({ menuId: menu.id }), userA);
+    await expect(updateDraftLogic(tenantA, mine.id, draftInput({ menuId: menu.id }), cook, asCook())).rejects.toBeInstanceOf(NotYourDraftError);
+    await expect(discardDraftLogic(tenantA, { recipeId: mine.id }, asCook())).rejects.toBeInstanceOf(NotYourDraftError);
+    await expect(submitDraftLogic(tenantA, mine.id, asCook())).rejects.toBeInstanceOf(NotYourDraftError);
+
+    const own = await createDraftLogic(tenantA, draftInput({ menuId: menu.id }), cook);
+    await updateDraftLogic(tenantA, own.id, draftInput({ menuId: menu.id, ingredients: [ing(flour, 2)] }), cook, asCook());
+  });
+
+  it("W3: เสนอ moves DRAFT → SUBMITTED, and pressing again changes nothing", async () => {
+    const menu = await makeMenu("W3");
+    const draft = await createDraftLogic(tenantA, draftInput({ menuId: menu.id }), cook);
+    expect((await submitDraftLogic(tenantA, draft.id, asCook())).draftStatus).toBe("SUBMITTED");
+    expect((await submitDraftLogic(tenantA, draft.id, asCook())).draftStatus).toBe("SUBMITTED");
+  });
+
+  it("W4: รับรอง stamps the endorser — never the author", async () => {
+    const menu = await makeMenu("W4");
+    const draft = await createDraftLogic(tenantA, draftInput({ menuId: menu.id }), cook);
+    await submitDraftLogic(tenantA, draft.id, asCook());
+
+    await expect(endorseDraftLogic(tenantA, draft.id, cook)).rejects.toBeInstanceOf(CannotEndorseOwnDraftError);
+    await endorseDraftLogic(tenantA, draft.id, manager);
+    const row = await statusOf(draft.id);
+    expect(row.draftStatus).toBe("ENDORSED");
+    expect(row.endorsedBy).toBe(manager);
+    expect(row.endorsedAt).not.toBeNull();
+  });
+
+  it("W5: an endorsement vouches for what was read — someone else's edit takes it back", async () => {
+    const menu = await makeMenu("W5");
+    const draft = await createDraftLogic(tenantA, draftInput({ menuId: menu.id }), cook);
+    await submitDraftLogic(tenantA, draft.id, asCook());
+    await endorseDraftLogic(tenantA, draft.id, manager);
+
+    // The endorser's own touch-up keeps the stamp…
+    await updateDraftLogic(tenantA, draft.id, draftInput({ menuId: menu.id, ingredients: [ing(flour, 6)] }), manager);
+    expect((await statusOf(draft.id)).draftStatus).toBe("ENDORSED");
+
+    // …the cook changing it after the fact sends it back to waiting.
+    await updateDraftLogic(tenantA, draft.id, draftInput({ menuId: menu.id, ingredients: [ing(flour, 9)] }), cook, asCook());
+    const row = await statusOf(draft.id);
+    expect(row.draftStatus).toBe("SUBMITTED");
+    expect(row.endorsedBy).toBeNull();
+    expect(row.endorsedAt).toBeNull();
+  });
+
+  it("W6: applying at one branch gives THAT branch its own recipe from today and ends the draft", async () => {
+    const menu = await makeMenu("W6");
+    await publishReal(menu.id, 3, LONG_AGO); // central, followed by every branch
+    const draft = await createDraftLogic(tenantA, draftInput({ menuId: menu.id, ingredients: [ing(flour, 8)] }), cook);
+
+    const res = await applyDraftToBranchLogic(tenantA, { recipeId: draft.id, branchId: branchA, submitKey: randomUUID() }, manager);
+    expect(res.menuId).toBe(menu.id);
+    expect((await statusOf(draft.id)).deletedAt).not.toBeNull();
+
+    const resolved = (await resolveOn(menu.id, today)).get(`menu:${menu.id}`)!;
+    expect(resolved.id).toBe(res.recipeId);
+    const lines = await withRlsBypass((tx) => tx.recipeIngredient.findMany({ where: { recipeId: res.recipeId }, select: { qty: true } }));
+    expect(lines.map((l) => Number(l.qty))).toEqual([8]);
+    // Yesterday the branch still followed central.
+    expect((await resolveOn(menu.id, YESTERDAY)).get(`menu:${menu.id}`)!.id).not.toBe(res.recipeId);
+  });
+
+  it("W7: applying again at a branch that already owns its line edits that line", async () => {
+    const menu = await makeMenu("W7");
+    await publishReal(menu.id, 3, LONG_AGO);
+    const first = await createDraftLogic(tenantA, draftInput({ menuId: menu.id, ingredients: [ing(flour, 4)] }), cook);
+    const a = await applyDraftToBranchLogic(tenantA, { recipeId: first.id, branchId: branchA, submitKey: randomUUID() }, manager);
+    const second = await createDraftLogic(tenantA, draftInput({ menuId: menu.id, ingredients: [ing(flour, 5)] }), cook);
+    const b = await applyDraftToBranchLogic(tenantA, { recipeId: second.id, branchId: branchA, submitKey: randomUUID() }, manager);
+
+    const today5 = (await resolveOn(menu.id, today)).get(`menu:${menu.id}`)!;
+    expect(today5.id).toBe(b.recipeId);
+    const lineOf = (id: string) => withRlsBypass((tx) => tx.recipe.findUniqueOrThrow({ where: { id }, select: { lineId: true } }));
+    expect((await lineOf(b.recipeId)).lineId).toBe((await lineOf(a.recipeId)).lineId);
   });
 });

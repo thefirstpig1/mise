@@ -45,7 +45,9 @@ export async function ensureRecipeUnitAction(input: {
   unitName: string;
   toBaseRatio?: number | null;
 }): Promise<{ ok: true; unit: { id: string; unitName: string; toBaseRatio: number } } | { ok: false; error: string }> {
-  const { tenantId, assertShared } = await requireTenant("recipe:write");
+  // A standard measure is a fact about sizes, so anyone writing a recipe — a
+  // cook's draft included — may add one; a shop-defined size needs shared reach.
+  const { tenantId, assertShared } = await requireTenant("recipe:draft");
   const name = typeof input.unitName === "string" ? input.unitName.trim() : "";
   if (!UUID.test(input.productId) || name === "" || name.length > 40) return { ok: false, error: "ชื่อหน่วยไม่ถูกต้อง" };
   if (input.toBaseRatio != null) {

@@ -16,7 +16,7 @@
 // draft and the button says who can publish.
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { createDraftAction, discardDraftAction, publishDraftAction, updateDraftAction, type DraftActionState } from "@/app/(app)/menus/lab/actions";
+import { applyDraftToBranchAction, createDraftAction, discardDraftAction, endorseDraftAction, publishDraftAction, submitDraftAction, updateDraftAction, type DraftActionState } from "@/app/(app)/menus/lab/actions";
 import { restoreMenuAction } from "@/app/(app)/menus/lifecycle-actions";
 import type { IngredientOption, LabDraft, PriceBook, SheetLine, StandardUnit } from "@/server/menu-manager";
 import { rankBySearch, hasQuery, STRONG_MATCH, type SearchField } from "@/lib/smart-search";
@@ -25,7 +25,7 @@ import { deletedMenuNamed, labDraftCost, menuSheet, type DeletedMenu, type LabCo
 import { Adder, appendLines, lineCost, lineFrom, materializeUnits, nextKey, qtyOf, RecipeTable, signature, type Line } from "../../_components/recipe-editor";
 import { baht, confidenceHintTh, confidenceTh, newSubmitKey, thDate, unitTh } from "../../_components/manager-format";
 import { ConfirmDialog, type ConfirmSpec, PhotoSlot, Sheet } from "../../_components/sheet-parts";
-import type { LabMenu, Option } from "./LabManager";
+import { STATUS_TH, type LabMenu, type Option } from "./LabManager";
 
 const DEFAULT_TARGET = 30;
 const targetKey = (id: string) => `mise.lab.target.${id}`;
@@ -64,6 +64,8 @@ export default function LabSheet(props: {
   today: string;
   costHidden: boolean;
   canPublish: boolean;
+  canWrite: boolean;
+  viewerId: string;
   books: Record<string, PriceBook>;
   needBook: (branchId: string | null) => void;
   options: IngredientOption[] | null;
@@ -148,6 +150,14 @@ export default function LabSheet(props: {
   const targetReady = kind === "new" ? name.trim() !== "" || menuId !== null : menuId !== null;
   const linesReady = lines.length > 0 && lines.every((l) => qtyOf(l) > 0);
   const branchName = props.branches.find((b) => b.id === branchId)?.name ?? "";
+
+  // ADR 0041 — who wrote it, where it is, and what THIS person may do with it.
+  const [status, setStatus] = useState<LabDraft["draftStatus"]>(d0?.draftStatus ?? "DRAFT");
+  const [endorsedBy, setEndorsedBy] = useState<string | null>(d0?.endorsedByName ?? null);
+  const isAuthor = !d0 || d0.authorId === props.viewerId;
+  const canEdit = props.canWrite || isAuthor;
+  const canEndorse = props.canWrite && !!savedId && !isAuthor && status !== "ENDORSED";
+  const canApplyHere = props.canWrite && !props.canPublish && !!branchId;
 
   const [confirm, setConfirm] = useState<ConfirmSpec | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
@@ -247,7 +257,7 @@ export default function LabSheet(props: {
     setFormError(null);
     if (!targetReady || !linesReady) return void save();
     const replacing = live !== null;
-    const title = replacing ? `ใช้สูตรใหม่ของ${menu?.name ?? name}กับทุกสาขา?` : `เผยแพร่ “${menu?.name ?? name}”?`;
+    const title = replacing ? `ใช้สูตรใหม่ของ${menu?.name ?? name}กับทุกสาขา?` : `นำ “${menu?.name ?? name}” ไปใช้จริง?`;
     const money =
       costHidden || perPlate === null
         ? null
@@ -261,7 +271,7 @@ export default function LabSheet(props: {
       who: replacing
         ? `ทุกสาขาที่ใช้สูตรกลาง · มีผลตั้งแต่ ${thDate(props.today)} · วันก่อนหน้ายังคิดด้วยสูตรเดิม · สาขาที่มีสูตรของตัวเองไม่เปลี่ยน`
         : `มีผลตั้งแต่ ${thDate(props.today)} · เมนูจะเริ่มตัดสต๊อกเมื่อมียอดขายจากไฟล์ POS`,
-      go: replacing ? "ใช้กับทุกสาขา" : "เผยแพร่",
+      go: replacing ? "ใช้กับทุกสาขา" : "นำไปใช้จริง",
       onGo: () =>
         start(async () => {
           const id = dirty || !savedId ? await save() : savedId;
@@ -273,8 +283,55 @@ export default function LabSheet(props: {
           const res = await orStale(publishDraftAction({ ok: false }, fd));
           const err = errorOf(res);
           if (err || !res.ok) return setFormError(err);
-          onToast(`เผยแพร่แล้ว · ${menu?.name ?? name} ใช้สูตรนี้ตั้งแต่ ${thDate(props.today)}`);
+          onToast(`นำไปใช้จริงแล้ว · ${menu?.name ?? name} ใช้สูตรนี้ตั้งแต่ ${thDate(props.today)}`);
           props.onPublished(res.draft.menuId ?? menuId ?? "");
+        }),
+    });
+  };
+
+  /** Save what is on screen first, so what is proposed or endorsed is what was read. */
+  const savedFirst = async () => (dirty || !savedId ? await save() : savedId);
+
+  const propose = () =>
+    start(async () => {
+      const id = await savedFirst();
+      if (!id) return;
+      const res = await orStale(submitDraftAction(id));
+      if (!res.ok) return setFormError("error" in res ? res.error : "ทำรายการไม่ได้");
+      setStatus("SUBMITTED");
+      onToast("เสนอแล้ว · หัวหน้าจะเห็นร่างนี้ในรายการที่รอ");
+      props.onSaved(id);
+    });
+
+  const endorse = () =>
+    start(async () => {
+      const id = await savedFirst();
+      if (!id) return;
+      const res = await orStale(endorseDraftAction(id));
+      if (!res.ok) return setFormError("error" in res ? res.error : "ทำรายการไม่ได้");
+      setStatus("ENDORSED");
+      setEndorsedBy("คุณ");
+      onToast("รับรองแล้ว · ชื่อของคุณอยู่บนร่างนี้");
+      props.onSaved(id);
+    });
+
+  const askApplyHere = () => {
+    setFormError(null);
+    if (!targetReady || !linesReady || !branchId) return void save();
+    setConfirm({
+      title: `ใช้สูตรนี้ที่${branchName}?`,
+      lines: lines.map((l) => `${l.label} ${l.qty} ${unitTh(l.unitName)}`),
+      money: costHidden || perPlate === null ? null : `ต้นทุนต่อจาน ${baht(perPlate, 2)} · ${branchName}`,
+      who: `เฉพาะ${branchName} · มีผลตั้งแต่ ${thDate(props.today)} · สาขานี้จะไม่ตามสูตรกลางอีกจนกว่าจะกลับไปใช้สูตรกลางที่หน้าจัดการเมนู · สาขาอื่นไม่เปลี่ยน`,
+      go: `ใช้ที่${branchName}`,
+      onGo: () =>
+        start(async () => {
+          const id = await savedFirst();
+          if (!id) return;
+          const res = await orStale(applyDraftToBranchAction({ recipeId: id, branchId, submitKey: newSubmitKey() }));
+          if (!res.ok) return setFormError("error" in res ? res.error : "ทำรายการไม่ได้");
+          onToast(`นำไปใช้จริงที่${branchName}แล้ว · ตั้งแต่ ${thDate(props.today)}`);
+          props.onPublished(res.menuId ?? menuId ?? "");
         }),
     });
   };
@@ -299,6 +356,8 @@ export default function LabSheet(props: {
         <div className="min-w-0 flex-1 space-y-2">
           <p id="lab-title" className="text-xs text-muted-subtle">
             {savedId ? "ร่างสูตร" : "ร่างสูตรใหม่"}
+            {d0 && ` · ร่างโดย ${isAuthor ? "คุณ" : d0.authorName}`}
+            {status !== "DRAFT" && ` · ${status === "ENDORSED" && endorsedBy ? `รับรองโดย ${endorsedBy}` : STATUS_TH[status]}`}
           </p>
           {!savedId && (
             <div role="group" aria-label="ร่างนี้คือ" className="inline-flex rounded-full border border-border-strong p-0.5 text-sm">
@@ -323,7 +382,7 @@ export default function LabSheet(props: {
               <h3 className="text-lg font-semibold">{menu?.name ?? name}</h3>
               <p className="text-xs text-muted-foreground">
                 {menu?.posCode && <span className="badge mr-1.5">{menu.posCode}</span>}
-                {kind === "new" ? "เมนูใหม่ · ยังไม่มีการขายจนกว่าจะเผยแพร่ · เปลี่ยนชื่อได้ที่ จัดการเมนู" : live ? "เผยแพร่แล้วจะใช้แทนสูตรกลางเดิมตั้งแต่วันที่เผยแพร่" : "เมนูนี้ยังไม่มีสูตรกลาง"}
+                {kind === "new" ? "เมนูใหม่ · ยังไม่มีการขายจนกว่าจะนำไปใช้จริง · เปลี่ยนชื่อได้ที่ จัดการเมนู" : live ? "นำไปใช้จริงแล้วจะแทนสูตรกลางเดิมตั้งแต่วันนั้น" : "เมนูนี้ยังไม่มีสูตรกลาง"}
               </p>
             </div>
           ) : kind === "new" ? (
@@ -338,7 +397,7 @@ export default function LabSheet(props: {
                     </option>
                   ))}
                 </select>
-                <span>สร้างเมนูให้ตอนบันทึก ยังไม่มีการขายจนกว่าจะเผยแพร่</span>
+                <span>สร้างเมนูให้ตอนบันทึก ยังไม่มีการขายจนกว่าจะนำไปใช้จริง</span>
               </div>
               {restorable && (
                 <div className="rounded-lg border border-border bg-surface-sunk p-2 text-xs">
@@ -387,7 +446,7 @@ export default function LabSheet(props: {
             </Tile>
           )}
           <Tile k="ราคาที่ตั้งใจ">
-            <input type="number" min="0" step="1" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="เช่น 129" aria-label="ราคาที่ตั้งใจ" className="input mt-0.5 w-full py-0.5 font-display text-lg font-semibold tabular-nums" />
+            <input type="number" min="0" step="1" value={price} disabled={!canEdit} onChange={(e) => setPrice(e.target.value)} placeholder="เช่น 129" aria-label="ราคาที่ตั้งใจ" className="input mt-0.5 w-full py-0.5 font-display text-lg font-semibold tabular-nums" />
             <p className="text-[11px] text-muted-foreground">ราคาที่กำลังคิด ไม่ใช่ราคาขาย</p>
           </Tile>
           {!costHidden && (
@@ -462,7 +521,7 @@ export default function LabSheet(props: {
             <h4 className="font-semibold">สูตร</h4>
             <span className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
               ทำได้
-              <input type="number" min="1" step="any" value={servings} onChange={(e) => setServings(Math.max(0.001, Number(e.target.value) || 1))} aria-label="ทำได้กี่จาน" className="input w-14 py-0.5 text-right tabular-nums" />
+              <input type="number" min="1" step="any" value={servings} disabled={!canEdit} onChange={(e) => setServings(Math.max(0.001, Number(e.target.value) || 1))} aria-label="ทำได้กี่จาน" className="input w-14 py-0.5 text-right tabular-nums" />
               จาน
               {!costHidden && props.branches.length > 1 && (
                 <>
@@ -491,20 +550,24 @@ export default function LabSheet(props: {
               book={book}
               options={options}
               standards={props.standards}
-              editable
+              editable={canEdit}
               costHidden={costHidden}
               showNotes={false}
               canDefineUnit={props.canPublish}
               onToast={onToast}
             />
           )}
-          <Adder
-            options={options}
-            book={book}
-            exclude={new Set([...lines.map((l) => l.productId ?? l.componentMenuId ?? ""), menuId ?? ""])}
-            costHidden={costHidden}
-            onPick={(o) => setLines((ls) => [...ls, lineFrom(o, props.standards)])}
-          />
+          {canEdit ? (
+            <Adder
+              options={options}
+              book={book}
+              exclude={new Set([...lines.map((l) => l.productId ?? l.componentMenuId ?? ""), menuId ?? ""])}
+              costHidden={costHidden}
+              onPick={(o) => setLines((ls) => [...ls, lineFrom(o, props.standards)])}
+            />
+          ) : (
+            <p className="text-xs text-muted-foreground">ร่างของ{d0?.authorName} — ดูได้อย่างเดียว แก้ได้เฉพาะคนร่างและหัวหน้า</p>
+          )}
           {!costHidden && missing > 0 && !pricesPending && (
             <p className="text-xs text-warn">ยังไม่มีราคาที่{branchName}: {lines.filter((l) => lineCost(l, book) === null).map((l) => l.label).join(", ")} · ต้นทุนจริงจะสูงกว่านี้</p>
           )}
@@ -515,19 +578,38 @@ export default function LabSheet(props: {
         <span className="text-xs text-muted-foreground">
           {formError ? <span className="text-bad">{formError}</span> : dirty ? "มีการแก้ที่ยังไม่บันทึก" : savedId ? "บันทึกร่างแล้ว · ยังไม่ตัดสต๊อก" : ""}
         </span>
-        <span className="flex flex-wrap gap-2">
-          <button type="button" onClick={askDiscard} disabled={busy} className="rounded-full border border-border-strong px-4 py-1.5 text-sm text-bad hover:bg-bad-bg">
-            ทิ้งร่าง
-          </button>
-          <button type="button" onClick={doSave} disabled={busy || (!dirty && !!savedId)} className="rounded-full border border-border-strong px-4 py-1.5 text-sm hover:bg-muted disabled:opacity-50">
-            {busy ? "กำลังบันทึก…" : "บันทึกร่าง"}
-          </button>
+        <span className="flex flex-wrap justify-end gap-2">
+          {canEdit && (
+            <>
+              <button type="button" onClick={askDiscard} disabled={busy} className="rounded-full border border-border-strong px-4 py-1.5 text-sm text-bad hover:bg-bad-bg">
+                ทิ้งร่าง
+              </button>
+              <button type="button" onClick={doSave} disabled={busy || (!dirty && !!savedId)} className="rounded-full border border-border-strong px-4 py-1.5 text-sm hover:bg-muted disabled:opacity-50">
+                {busy ? "กำลังบันทึก…" : "บันทึกร่าง"}
+              </button>
+            </>
+          )}
+          {canEndorse && (
+            <button type="button" onClick={endorse} disabled={busy || !targetReady || !linesReady} className="rounded-full border border-border-strong px-4 py-1.5 text-sm hover:bg-muted disabled:opacity-50">
+              รับรอง
+            </button>
+          )}
           {props.canPublish ? (
             <button type="button" onClick={askPublish} disabled={busy || !targetReady || !linesReady} className="btn disabled:opacity-50">
-              เผยแพร่…
+              นำไปใช้จริง…
+            </button>
+          ) : canApplyHere ? (
+            <button type="button" onClick={askApplyHere} disabled={busy || !targetReady || !linesReady} className="btn disabled:opacity-50">
+              นำไปใช้จริงที่{branchName}…
+            </button>
+          ) : status === "DRAFT" ? (
+            <button type="button" onClick={propose} disabled={busy || !targetReady || !linesReady} className="btn disabled:opacity-50">
+              เสนอสูตรนี้
             </button>
           ) : (
-            <span className="max-w-[16rem] self-center text-[11px] text-muted-foreground">เผยแพร่ได้เฉพาะเจ้าของร้าน ส่วนกลาง และผู้ดูแลทุกสาขา · บันทึกร่างไว้ให้เขากดได้</span>
+            <span className="max-w-[16rem] self-center text-[11px] text-muted-foreground">
+              {status === "ENDORSED" ? "รับรองแล้ว · รอผู้ดูแลทุกสาขานำไปใช้จริง" : "เสนอแล้ว · หัวหน้าจะเห็นร่างนี้ในรายการที่รอ"}
+            </span>
           )}
         </span>
       </div>

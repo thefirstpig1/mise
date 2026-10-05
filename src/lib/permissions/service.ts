@@ -80,7 +80,13 @@ export type Capability =
   | "sales:import"
   /** Post (and void) a day's consumption from sales. */
   | "consumption:post"
-  /** Recipes, Menu Lab drafts, publishing, merges, menu lifecycle. */
+  /**
+   * Write and propose a Menu Lab draft — nothing that cuts stock or moves a
+   * cost (ADR 0041). A cook holds this without `recipe:write`; such a person
+   * edits only the drafts they wrote.
+   */
+  | "recipe:draft"
+  /** Recipes, endorsing and applying drafts, merges, menu lifecycle. */
   | "recipe:write"
   /** Request your own staff meal, record a communal pot, keep the roster. */
   | "staffmeal:write"
@@ -125,6 +131,7 @@ export const ALL_CAPABILITIES = [
   "expense:write",
   "sales:import",
   "consumption:post",
+  "recipe:draft",
   "recipe:write",
   "staffmeal:write",
   "staffmeal:approve",
@@ -202,6 +209,7 @@ const MANAGER: readonly Capability[] = [
   "expense:write",
   "sales:import",
   "consumption:post",
+  "recipe:draft",
   "recipe:write",
   "staffmeal:write",
   "staffmeal:approve",
@@ -239,6 +247,9 @@ const KITCHEN_STAFF: readonly Capability[] = [
   "stock:write",
   "count:write",
   "staffmeal:write",
+  // Kong 2026-10-05: a cook may draft and propose a recipe; a manager
+  // endorses it and someone allowed applies it (ADR 0041).
+  "recipe:draft",
 ];
 
 /**

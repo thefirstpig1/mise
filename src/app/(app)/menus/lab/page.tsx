@@ -29,7 +29,8 @@ export default async function MenuLabPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { tenantId, reach, costAccess, canEditShared } = await requireTenant("recipe:write");
+  // A cook drafts too (ADR 0041); what they may do with a draft is decided per button.
+  const { tenantId, membership, reach, costAccess, can, canEditShared } = await requireTenant("recipe:draft");
   const params = await searchParams;
   const one = (k: string) => (Array.isArray(params[k]) ? params[k][0] : params[k]);
 
@@ -71,7 +72,9 @@ export default async function MenuLabPage({
       defaultBranchId={freshest?.id ?? branches[0]?.id ?? null}
       today={computeBangkokToday().toISOString().slice(0, 10)}
       costHidden={costAccess === null}
-      canPublish={canEditShared}
+      canPublish={can("recipe:write") && canEditShared}
+      canWrite={can("recipe:write")}
+      viewerId={membership.userId}
       openDraftId={one("draft") ?? null}
       openNew={one("new") === "1"}
     />
