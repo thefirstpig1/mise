@@ -15,6 +15,31 @@ import { z } from "zod";
 const blankToNull = (v: unknown) =>
   v === undefined || v === null || (typeof v === "string" && v.trim() === "") ? null : v;
 
+/**
+ * The branch's sales-day cut-off as "HH:MM" (Kong 2026-10-20, rule P24 ★):
+ * sales stamped before this time belong to the PREVIOUS day. 05:00 is the
+ * default — a shop open 17:00–02:00 keeps its whole night on one day.
+ * Limited to 00:00–12:00: a cut-off in the afternoon would move a lunch
+ * service onto yesterday, which is never what a shop means.
+ */
+export const DEFAULT_SALES_DAY_CUTOFF_MINUTES = 300;
+export const salesDayCutoffSchema = z.preprocess(
+  (v) => (v === undefined || v === null || v === "" ? undefined : v),
+  z
+    .string()
+    .regex(/^([01]?\d|2[0-3]):[0-5]\d$/, "เวลาตัดวันต้องเป็นรูปแบบ ชม.:นาที เช่น 05:00")
+    .transform((s) => {
+      const [h, m] = s.split(":").map(Number);
+      return h * 60 + m;
+    })
+    .refine((min) => min <= 12 * 60, "เวลาตัดวันต้องอยู่ระหว่าง 00:00 ถึง 12:00")
+    .optional()
+);
+
+/** "05:00" from 300 — for the form's default value. */
+export const cutoffToHHMM = (minutes: number) =>
+  `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
+
 export const branchInputSchema = z.object({
   name: z
     .string({ required_error: "ต้องระบุชื่อสาขา" })
@@ -37,6 +62,8 @@ export const branchInputSchema = z.object({
     blankToNull,
     z.string().trim().max(500, "ที่อยู่ต้องไม่เกิน 500 ตัวอักษร").nullable()
   ),
+  /** Minutes after midnight; absent = keep (update) or the default (create). */
+  salesDayCutoffMinutes: salesDayCutoffSchema,
 });
 export type BranchInput = z.infer<typeof branchInputSchema>;
 
@@ -56,4 +83,5 @@ export const BRANCH_FIELD_LABELS_TH: Record<string, string> = {
   name: "ชื่อสาขา",
   code: "รหัสสาขา",
   address: "ที่อยู่",
+  salesDayCutoffMinutes: "เวลาตัดวัน",
 };

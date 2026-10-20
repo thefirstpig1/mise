@@ -9,7 +9,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { prismaBypass } from "@/lib/db-admin";
 import { sweepTestTenants } from "./support/sweep";
-import { branchInputSchema, updateBranchInputSchema } from "@/lib/validations/branch";
+import { branchInputSchema, cutoffToHHMM, salesDayCutoffSchema, updateBranchInputSchema } from "@/lib/validations/branch";
 import {
   departmentInputSchema,
   setDepartmentActiveInputSchema,
@@ -70,6 +70,28 @@ describe("branch input", () => {
   });
 });
 
+describe("sales-day cut-off input (rule P24, Kong 2026-10-20)", () => {
+  it("reads HH:MM as minutes after midnight, and back", () => {
+    expect(salesDayCutoffSchema.parse("05:00")).toBe(300);
+    expect(salesDayCutoffSchema.parse("2:30")).toBe(150);
+    expect(salesDayCutoffSchema.parse("00:00")).toBe(0);
+    expect(cutoffToHHMM(300)).toBe("05:00");
+    expect(cutoffToHHMM(150)).toBe("02:30");
+  });
+
+  it("a blank field means 'not given', never midnight", () => {
+    expect(salesDayCutoffSchema.parse("")).toBeUndefined();
+    expect(salesDayCutoffSchema.parse(null)).toBeUndefined();
+  });
+
+  it("refuses an afternoon cut-off and anything that is not a time", () => {
+    expect(salesDayCutoffSchema.safeParse("12:30").success).toBe(false);
+    expect(salesDayCutoffSchema.safeParse("17:00").success).toBe(false);
+    expect(salesDayCutoffSchema.safeParse("5").success).toBe(false);
+    expect(salesDayCutoffSchema.safeParse("25:00").success).toBe(false);
+  });
+});
+
 describe("createBranchLogic", () => {
   it("creates a branch the admin list then shows", async () => {
     const b = await createBranchLogic(tenantA, branchInputSchema.parse({ name: "สาขาลาดพร้าว", code: "LPR", address: "ลาดพร้าว 71" }));
@@ -82,6 +104,13 @@ describe("createBranchLogic", () => {
     await expect(
       createBranchLogic(tenantA, branchInputSchema.parse({ name: "ซ้ำ", code: "lpr", address: null }))
     ).rejects.toBeInstanceOf(BranchCodeTakenError);
+  });
+
+  it("a new branch takes the 05:00 default, or the cut-off it was given", async () => {
+    const plain = await createBranchLogic(tenantA, branchInputSchema.parse({ name: "สาขาตี 5", code: "CUT1", address: null }));
+    expect(plain.salesDayCutoffMinutes).toBe(300);
+    const late = await createBranchLogic(tenantA, branchInputSchema.parse({ name: "สาขาตี 3", code: "CUT3", address: null, salesDayCutoffMinutes: "03:00" }));
+    expect(late.salesDayCutoffMinutes).toBe(180);
   });
 
   it("the same code in ANOTHER shop is fine", async () => {
@@ -107,6 +136,14 @@ describe("updateBranchLogic", () => {
     );
     expect(after.name).toBe("สาขาลาดพร้าว 71");
     expect(after.code).toBe("LPR");
+  });
+
+  it("changes the cut-off, and an edit that leaves it out keeps it", async () => {
+    const [, lpr] = await getAllBranchesForAdminLogic(tenantA, ALL);
+    const set = await updateBranchLogic(tenantA, updateBranchInputSchema.parse({ id: lpr.id, name: lpr.name, address: null, salesDayCutoffMinutes: "04:30" }));
+    expect(set.salesDayCutoffMinutes).toBe(270);
+    const kept = await updateBranchLogic(tenantA, updateBranchInputSchema.parse({ id: lpr.id, name: lpr.name, address: null }));
+    expect(kept.salesDayCutoffMinutes).toBe(270);
   });
 
   it("cannot reach another shop's branch", async () => {

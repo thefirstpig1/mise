@@ -1,5 +1,6 @@
 import { requireTenant } from "@/lib/require-tenant";
 import { getAllBranchesForAdminLogic } from "@/server/branch";
+import { cutoffToHHMM } from "@/lib/validations/branch";
 import { AddBranchForm, BranchList, type BranchRowView } from "./_components/BranchForms";
 
 // Part 35 L1 — the screen that did not exist: a shop could never add its
@@ -12,6 +13,7 @@ export default async function BranchesPage() {
     name: b.name,
     code: b.code,
     address: b.address,
+    salesDayCutoff: cutoffToHHMM(b.salesDayCutoffMinutes),
   }));
 
   return (

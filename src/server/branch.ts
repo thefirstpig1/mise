@@ -76,7 +76,14 @@ export async function createBranchLogic(tenantId: string, input: BranchInput): P
       });
       if (taken) throw new BranchCodeTakenError(input.code);
       return tx.branch.create({
-        data: { tenantId, name: input.name, code: input.code, address: input.address, isActive: true },
+        data: {
+          tenantId,
+          name: input.name,
+          code: input.code,
+          address: input.address,
+          isActive: true,
+          ...(input.salesDayCutoffMinutes === undefined ? {} : { salesDayCutoffMinutes: input.salesDayCutoffMinutes }),
+        },
       });
     });
   } catch (e) {
@@ -92,7 +99,13 @@ export async function updateBranchLogic(tenantId: string, input: UpdateBranchInp
   return withTenantContext(tenantId, async (tx) => {
     const { count } = await tx.branch.updateMany({
       where: { id: input.id, tenantId, deletedAt: null },
-      data: { name: input.name, address: input.address },
+      data: {
+        name: input.name,
+        address: input.address,
+        // Applies from the NEXT import only: business_date is stored, so days
+        // already imported keep the day they were given (rule P24).
+        ...(input.salesDayCutoffMinutes === undefined ? {} : { salesDayCutoffMinutes: input.salesDayCutoffMinutes }),
+      },
     });
     if (count === 0) throw new BranchNotFoundError(input.id);
     return tx.branch.findFirstOrThrow({ where: { id: input.id, tenantId } });

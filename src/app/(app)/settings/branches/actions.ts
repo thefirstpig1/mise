@@ -61,6 +61,7 @@ export async function createBranchAction(
     name: formData.get("name"),
     code: formData.get("code"),
     address: formData.get("address"),
+    salesDayCutoffMinutes: formData.get("sales_day_cutoff"),
   });
   if (!parsed.success) return { ok: false, fieldErrors: toFieldErrors(parsed.error, BRANCH_FIELD_LABELS_TH) };
   try {
@@ -81,6 +82,7 @@ export async function updateBranchAction(
     id: formData.get("id"),
     name: formData.get("name"),
     address: formData.get("address"),
+    salesDayCutoffMinutes: formData.get("sales_day_cutoff"),
   });
   if (!parsed.success) return { ok: false, fieldErrors: toFieldErrors(parsed.error, BRANCH_FIELD_LABELS_TH) };
   try {

@@ -19,6 +19,8 @@ export interface CreateTenantInput {
   vatRegistrationNo?: string;
   firstBranchName?: string;
   firstBranchCode?: string;
+  /** Minutes after midnight; the column default (05:00) when absent. */
+  firstBranchSalesDayCutoffMinutes?: number;
 }
 
 /**
@@ -83,6 +85,7 @@ export async function createTenant(input: CreateTenantInput) {
         name: input.firstBranchName ?? "สาขาหลัก",
         code: input.firstBranchCode ?? "MAIN",
         isActive: true,
+        ...(input.firstBranchSalesDayCutoffMinutes === undefined ? {} : { salesDayCutoffMinutes: input.firstBranchSalesDayCutoffMinutes }),
       },
     });
 

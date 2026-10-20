@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { createTenant } from "@/server/tenant-init";
+import { salesDayCutoffSchema } from "@/lib/validations/branch";
 import { auth, signIn, signOut } from "@/lib/auth";
 import Logo from "@/components/layout/Logo";
 import { KitchenDoodle, MarkerUnderline } from "@/components/layout/Doodles";
@@ -22,6 +23,10 @@ async function handleSignup(formData: FormData) {
   const tenantName = formData.get("tenant_name") as string;
   const branchName = formData.get("branch_name") as string;
   const isVatRegistered = formData.get("is_vat_registered") === "on";
+  // Rule P24 ★ — asked at setup, because a shop open past midnight whose day
+  // splits at the wrong hour gets every night's sales on two days.
+  const cutoff = salesDayCutoffSchema.safeParse(formData.get("sales_day_cutoff"));
+  const firstBranchSalesDayCutoffMinutes = cutoff.success ? cutoff.data : undefined;
 
   if (!email || !tenantName) {
     throw new Error("กรุณากรอกข้อมูลให้ครบ");
@@ -40,6 +45,7 @@ async function handleSignup(formData: FormData) {
     tenantName,
     isVatRegistered,
     firstBranchName: branchName || "สาขาหลัก",
+    firstBranchSalesDayCutoffMinutes,
   });
 
   if (signedInEmail) redirect("/dashboard");
@@ -181,6 +187,23 @@ export default async function SignupPage() {
                     defaultValue="สาขาหลัก"
                     className="w-full rounded-lg border border-border bg-background px-4 py-2"
                   />
+                </div>
+                <div>
+                  <label htmlFor="sales_day_cutoff" className="mb-1 label">
+                    เวลาตัดวันขาย
+                  </label>
+                  <input
+                    id="sales_day_cutoff"
+                    name="sales_day_cutoff"
+                    type="time"
+                    min="00:00"
+                    max="12:00"
+                    defaultValue="05:00"
+                    className="w-36 rounded-lg border border-border bg-background px-4 py-2 tabular-nums"
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    ร้านที่ปิดหลังเที่ยงคืน: บิลก่อนเวลานี้นับเป็นยอดของวันก่อน · ร้านเปิด 17:00–02:00 ใช้ 05:00 ได้เลย · แก้ภายหลังได้ที่ ตั้งค่า → สาขา
+                  </p>
                 </div>
                 <div className="flex items-start gap-2 pt-2">
                   <input

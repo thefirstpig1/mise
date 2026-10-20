@@ -15,7 +15,28 @@ export type BranchRowView = {
   name: string;
   code: string;
   address: string | null;
+  /** "05:00" */
+  salesDayCutoff: string;
 };
+
+/**
+ * The sales-day cut-off, with what it does said where it is set (rule P24 ★):
+ * a cook closing at 02:00 must never see that night split across two days.
+ */
+export function CutoffField({ id, defaultValue, error }: { id: string; defaultValue: string; error?: string }) {
+  return (
+    <div>
+      <label htmlFor={id} className="label mb-1">เวลาตัดวันขาย</label>
+      <input id={id} name="sales_day_cutoff" type="time" min="00:00" max="12:00" defaultValue={defaultValue} required className="input w-36 tabular-nums" />
+      {error ? <p className="mt-1 text-xs text-bad">{error}</p> : null}
+      <p className="mt-1 text-xs text-muted-foreground">
+        บิลก่อนเวลานี้นับเป็นยอดของวันก่อน · เช่น ร้านเปิด 17:00–02:00 ตั้ง 05:00 บิลตีหนึ่งของวันที่ 6 จะนับเป็นยอดวันที่ 5
+        <br />
+        ใช้กับไฟล์ POS ที่มีเวลาขายแต่ไม่บอกวันขาย (ไฟล์ที่บอกวันมาแล้วใช้วันตามไฟล์) · แก้แล้วมีผลกับการนำเข้าครั้งถัดไป ถ้าจะแก้วันเก่าให้นำเข้าวันนั้นใหม่
+      </p>
+    </div>
+  );
+}
 
 const IDLE: SettingsActionState = { ok: false };
 
@@ -60,6 +81,9 @@ export function AddBranchForm() {
           <input id="new-address" name="address" className="input w-full" />
           <FieldError state={state} name="address" />
         </div>
+        <div className="sm:col-span-2">
+          <CutoffField id="new-cutoff" defaultValue="05:00" error={!state.ok ? state.fieldErrors?.salesDayCutoffMinutes : undefined} />
+        </div>
       </div>
       <p className="mt-3 text-xs text-muted-foreground">
         รหัสสาขาจะอยู่หน้าเลขเอกสารทุกใบ เช่น LPR-PO-0001 และเปลี่ยนภายหลังไม่ได้
@@ -87,6 +111,9 @@ function EditBranch({ row, onDone }: { row: BranchRowView; onDone: () => void })
       <div>
         <label className="label mb-1" htmlFor={`address-${row.id}`}>ที่อยู่</label>
         <input id={`address-${row.id}`} name="address" defaultValue={row.address ?? ""} className="input w-full" />
+      </div>
+      <div className="sm:col-span-2">
+        <CutoffField id={`cutoff-${row.id}`} defaultValue={row.salesDayCutoff} error={!state.ok ? state.fieldErrors?.salesDayCutoffMinutes : undefined} />
       </div>
       <div className="flex items-center gap-3 sm:col-span-2">
         <button type="submit" className="btn" disabled={pending}>
@@ -116,6 +143,7 @@ export function BranchList({ rows }: { rows: BranchRowView[] }) {
                 </span>
               </p>
               {r.address ? <p className="truncate text-sm text-muted-foreground">{r.address}</p> : null}
+              <p className="text-xs text-muted-foreground">ตัดวันขายเวลา <span className="tabular-nums">{r.salesDayCutoff}</span> น.</p>
             </div>
             <button
               type="button"
