@@ -11,7 +11,8 @@
 import { withTenantContext } from "@/lib/db";
 import { addDays, computeBangkokToday } from "@/lib/bangkok-date";
 import type { CostAccess } from "@/lib/permissions/cost-access";
-import { parAlertOf, type ParAlert } from "@/lib/par-alert";
+import { parAlertOf, parStateOf, type ParAlert, type ParStateKind } from "@/lib/par-alert";
+import { coverKey, parCoverInTx, type CoverDoc } from "@/server/par-coverage";
 import { ingredientFactsInTx } from "@/server/menu-manager";
 
 export type ProductListFact = {
@@ -20,6 +21,8 @@ export type ProductListFact = {
   daysLeft: number | null;
   par: number | null;
   alert: ParAlert;
+  /** Rule PAR-3 — what was done about it; null = nothing to say. */
+  state: { kind: ParStateKind; coming: number; lateDays: number; requestLateDays: number; docs: CoverDoc[] } | null;
 };
 
 export type ProductListFacts = {
@@ -70,11 +73,23 @@ export async function getProductListFactsLogic(
         select: { productId: true, recipe: { select: { lineId: true } } },
       }),
     ]);
-    const facts0 = await ingredientFactsInTx(tx, tenantId, branchId, products.map((p) => p.id));
+    const [facts0, cover] = await Promise.all([
+      ingredientFactsInTx(tx, tenantId, branchId, products.map((p) => p.id)),
+      parCoverInTx(tx, tenantId, [branchId]),
+    ]);
 
     const facts: Record<string, ProductListFact> = {};
     for (const [id, f] of Object.entries(facts0.facts)) {
-      facts[id] = { onHand: f.onHand, usedPerDay: f.usedPerDay, daysLeft: f.daysLeft, par: f.par, alert: parAlertOf(f, tenant.parWarningDays) };
+      const c = cover.get(coverKey(id, branchId)) ?? null;
+      const s = parStateOf(f, tenant.parWarningDays, c);
+      facts[id] = {
+        onHand: f.onHand,
+        usedPerDay: f.usedPerDay,
+        daysLeft: f.daysLeft,
+        par: f.par,
+        alert: parAlertOf(f, tenant.parWarningDays),
+        state: s && { ...s, lateDays: c?.lateDays ?? 0, requestLateDays: c?.requestLateDays ?? 0, docs: c?.docs ?? [] },
+      };
     }
     const last: ProductListFacts["last"] = {};
     for (const r of receipts) {
@@ -157,5 +172,143 @@ export async function getProductSheetFormLogic(tenantId: string, productId: stri
         .sort((a, b) => a.label.localeCompare(b.label, "th")),
       lockedUnitIds: [...locked],
     };
+  });
+}
+
+// ------------------------------------------------------------
+// The documents behind one product's par state (rule PAR-3 popup)
+// ------------------------------------------------------------
+// Every sent order still owing it, and the branch's open purchase requests —
+// each with ALL its lines, so the popup can highlight this product and, as a
+// second, quieter highlight, any other line that is below or near par.
+
+export type ParDocLine = {
+  productId: string;
+  name: string;
+  qty: number;
+  unitName: string;
+  /** Still owed / asked, in the product's base unit. */
+  base: number;
+  baseUnitName: string | null;
+  onHand: number;
+  par: number | null;
+  tone: "red" | "yellow" | null;
+};
+export type ParDoc = {
+  kind: "PO" | "PR";
+  id: string;
+  number: string;
+  supplier: string | null;
+  /** Sent (PO) or first asked (PR), yyyy-mm-dd. */
+  date: string;
+  expected: string | null;
+  /** Days late; 0 = not late. `assumed` = no promised date, counted from sending. */
+  lateDays: number;
+  assumed: boolean;
+  requestedBy: string | null;
+  lines: ParDocLine[];
+};
+
+export async function getParDocsLogic(
+  tenantId: string,
+  query: { productId: string; branchId: string }
+): Promise<ParDoc[]> {
+  const today = computeBangkokToday();
+  return withTenantContext(tenantId, async (tx) => {
+    const [tenant, orders, requests] = await Promise.all([
+      tx.tenant.findUniqueOrThrow({ where: { id: tenantId }, select: { parWarningDays: true } }),
+      tx.purchaseOrder.findMany({
+        where: {
+          tenantId,
+          branchId: query.branchId,
+          status: { in: ["SENT", "PARTIALLY_RECEIVED"] },
+          deletedAt: null,
+          items: { some: { productId: query.productId } },
+        },
+        select: {
+          id: true,
+          poNumber: true,
+          sentAt: true,
+          expectedDeliveryDate: true,
+          supplier: { select: { nameShort: true, nameFull: true } },
+          items: { select: { productId: true, qtyOrdered: true, qtyReceived: true, orderUnitName: true, toBaseRatio: true, product: { select: { name: true } } } },
+        },
+        orderBy: { sentAt: "asc" },
+      }),
+      tx.purchaseRequestLine.findMany({
+        where: {
+          tenantId,
+          branchId: query.branchId,
+          deletedAt: null,
+          rejectedAt: null,
+          orderItems: { none: { purchaseOrder: { status: { in: ["SENT", "PARTIALLY_RECEIVED", "RECEIVED"] } } } },
+        },
+        select: {
+          productId: true,
+          qty: true,
+          requestedAt: true,
+          unit: { select: { unitName: true, toBaseRatio: true } },
+          product: { select: { name: true } },
+          requestedByUser: { select: { name: true, email: true } },
+          supplier: { select: { nameShort: true, nameFull: true } },
+        },
+        orderBy: { requestedAt: "asc" },
+      }),
+    ]);
+    const askedHere = requests.some((r) => r.productId === query.productId);
+    const ids = [...new Set([...orders.flatMap((o) => o.items.map((i) => i.productId)), ...(askedHere ? requests.map((r) => r.productId) : [])])];
+    const { facts } = await ingredientFactsInTx(tx, tenantId, query.branchId, ids);
+    const lineOf = (productId: string, name: string, qty: number, unitName: string, base: number): ParDocLine => {
+      const f = facts[productId];
+      const a = f ? parAlertOf(f, tenant.parWarningDays) : null;
+      return {
+        productId,
+        name,
+        qty,
+        unitName,
+        base,
+        baseUnitName: f?.baseUnitName ?? null,
+        onHand: f?.onHand ?? 0,
+        par: f?.par ?? null,
+        tone: a?.level === "LOW" ? "red" : a?.level === "NEAR" ? "yellow" : null,
+      };
+    };
+    const docs: ParDoc[] = orders.map((o) => {
+      const due = o.expectedDeliveryDate ?? (o.sentAt ? addDays(o.sentAt, 3) : null);
+      const late = due ? Math.max(0, Math.floor((today.getTime() - due.getTime()) / 86_400_000)) : 0;
+      return {
+        kind: "PO",
+        id: o.id,
+        number: o.poNumber,
+        supplier: o.supplier.nameShort ?? o.supplier.nameFull,
+        date: o.sentAt ? isoDate(o.sentAt) : "",
+        expected: o.expectedDeliveryDate ? isoDate(o.expectedDeliveryDate) : null,
+        lateDays: late,
+        assumed: o.expectedDeliveryDate === null,
+        requestedBy: null,
+        lines: o.items
+          .map((i) => {
+            const owed = Number(i.qtyOrdered) - Number(i.qtyReceived);
+            return lineOf(i.productId, i.product.name, owed, i.orderUnitName, owed * Number(i.toBaseRatio));
+          })
+          .filter((l) => l.qty > 0),
+      };
+    });
+    if (askedHere) {
+      const mine = requests.find((r) => r.productId === query.productId)!;
+      docs.push({
+        kind: "PR",
+        id: query.branchId,
+        number: "ใบขอซื้อ",
+        supplier: mine.supplier ? (mine.supplier.nameShort ?? mine.supplier.nameFull) : null,
+        date: isoDate(mine.requestedAt),
+        expected: null,
+        lateDays: 0,
+        assumed: false,
+        requestedBy: mine.requestedByUser.name?.trim() || mine.requestedByUser.email?.split("@")[0] || null,
+        lines: requests.map((r) => lineOf(r.productId, r.product.name, Number(r.qty), r.unit.unitName, Number(r.qty) * Number(r.unit.toBaseRatio))),
+      });
+    }
+    return docs;
   });
 }

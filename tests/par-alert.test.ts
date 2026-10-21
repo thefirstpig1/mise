@@ -35,3 +35,39 @@ describe("parAlertOf", () => {
     expect(parAlertOf({ onHand: 49, par: 50, usedPerDay: null }, 0)).toEqual({ level: "LOW" });
   });
 });
+
+import { parStateOf } from "@/lib/par-alert";
+
+describe("parStateOf — rule PAR-3: count what still needs a hand", () => {
+  const cover = (o: Partial<{ ordered: number; requested: number; lateDays: number; requestLateDays: number }>) => ({ ordered: 0, requested: 0, lateDays: 0, requestLateDays: 0, ...o });
+  const low = { onHand: 159, par: 200, usedPerDay: 5 };
+
+  it("below par with nothing on its way needs ordering", () => {
+    expect(parStateOf(low, 3, null)?.kind).toBe("need");
+  });
+  it("a sent order that covers it clears the red", () => {
+    expect(parStateOf(low, 3, cover({ ordered: 50 }))).toEqual({ kind: "ordered", coming: 50 });
+  });
+  it("a purchase request that covers it clears the red too", () => {
+    expect(parStateOf(low, 3, cover({ requested: 41 }))?.kind).toBe("requested");
+  });
+  it("ordered but not enough to reach par comes back red", () => {
+    expect(parStateOf({ onHand: 43.6, par: 60, usedPerDay: 1 }, 3, cover({ ordered: 10 }))?.kind).toBe("short");
+  });
+  it("an order past its date comes back red, even if it would cover", () => {
+    expect(parStateOf(low, 3, cover({ ordered: 50, lateDays: 4 }))?.kind).toBe("overdue");
+  });
+  it("a request nobody ordered for too long comes back red", () => {
+    expect(parStateOf(low, 3, cover({ requested: 50, requestLateDays: 2 }))?.kind).toBe("stale-request");
+    // ...but not once an order is out for it
+    expect(parStateOf(low, 3, cover({ requested: 50, ordered: 50, requestLateDays: 2 }))?.kind).toBe("ordered");
+  });
+  it("near par: yellow until something is on its way", () => {
+    const near = { onHand: 163.3, par: 160, usedPerDay: 2.17 };
+    expect(parStateOf(near, 3, null)?.kind).toBe("near");
+    expect(parStateOf(near, 3, cover({ ordered: 10 }))?.kind).toBe("near-covered");
+  });
+  it("fine stock has no state, whatever is on order", () => {
+    expect(parStateOf({ onHand: 880, par: 450, usedPerDay: 24.6 }, 3, cover({ ordered: 100 }))).toBeNull();
+  });
+});

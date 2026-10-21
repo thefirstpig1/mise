@@ -29,7 +29,8 @@ import { replayPairsInTx } from "@/server/stock-cost";
 import { getDraftsLogic, getLabWhatIfLogic } from "@/server/menu-lab-read";
 import type { LabWhatIfQuery } from "@/lib/validations/menu-lab";
 import type { BranchReach } from "@/lib/permissions/service";
-import { parAlertOf } from "@/lib/par-alert";
+import { PAR_RED, parStateOf } from "@/lib/par-alert";
+import { coverKey, parCoverInTx } from "@/server/par-coverage";
 
 /** The window "used per day" is measured over. */
 export const INGREDIENT_FACT_DAYS = 30;
@@ -784,12 +785,14 @@ export async function getParAlertCountsLogic(
     for (const p of pars) byBranch.set(p.branchId, [...(byBranch.get(p.branchId) ?? []), p.productId]);
     let low = 0;
     let near = 0;
+    // Rule PAR-3: only what still needs a hand counts.
+    const cover = await parCoverInTx(tx, tenantId, [...byBranch.keys()], [...new Set(pars.map((p) => p.productId))]);
     for (const [branchId, ids] of byBranch) {
       const { facts } = await ingredientFactsInTx(tx, tenantId, branchId, ids);
       for (const f of Object.values(facts)) {
-        const a = parAlertOf(f, tenant.parWarningDays);
-        if (a?.level === "LOW") low++;
-        else if (a?.level === "NEAR") near++;
+        const s = parStateOf(f, tenant.parWarningDays, cover.get(coverKey(f.productId, branchId)) ?? null);
+        if (s && PAR_RED.has(s.kind)) low++;
+        else if (s?.kind === "near") near++;
       }
     }
     return { low, near };

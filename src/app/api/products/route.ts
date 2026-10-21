@@ -9,7 +9,7 @@
 
 import { requireTenant } from "@/lib/require-tenant";
 import { guardRead } from "@/lib/read-api";
-import { getProductListFactsLogic, getProductSheetFormLogic } from "@/server/product-list";
+import { getParDocsLogic, getProductListFactsLogic, getProductSheetFormLogic } from "@/server/product-list";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +32,14 @@ export function GET(req: Request) {
       if (!UUID.test(id)) return json({ ok: false, error: "ไม่พบสินค้านี้" }, 400);
       const form = await getProductSheetFormLogic(tenantId, id);
       return form === null ? json({ ok: false, error: "ไม่พบสินค้านี้" }, 404) : json({ ok: true, form });
+    }
+    if (what === "docs") {
+      // The orders and requests behind one product's par state (rule PAR-3).
+      const branchId = url.searchParams.get("branch") ?? "";
+      const productId = url.searchParams.get("product") ?? "";
+      if (!UUID.test(branchId) || !UUID.test(productId)) return json({ ok: false, error: "คำขอไม่ถูกต้อง" }, 400);
+      assertBranch(branchId);
+      return json({ ok: true, docs: await getParDocsLogic(tenantId, { productId, branchId }) });
     }
     return json({ ok: false, error: "unknown read" }, 400);
   });

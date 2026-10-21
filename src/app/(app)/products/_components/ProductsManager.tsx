@@ -26,6 +26,8 @@ import { rankBySearch, hasQuery, STRONG_MATCH, type SearchField } from "@/lib/sm
 import EmptyState from "@/components/ui/EmptyState";
 import ProductThumb from "@/components/ui/ProductThumb";
 import ProductSheet from "./ProductSheet";
+import ParDocsPopup from "./ParDocsPopup";
+import { PAR_RED } from "@/lib/par-alert";
 
 type Status = "active" | "raw" | "prepped" | "low" | "near" | "inactive" | "all";
 type View = "table" | "cards";
@@ -154,8 +156,11 @@ export default function ProductsManager(props: {
   // ---- filtering ----
   const factOf = (p: ProductView) => list?.facts[p.id] ?? null;
   const active = products.filter((p) => p.isActive);
-  const lowCount = list ? active.filter((p) => factOf(p)?.alert?.level === "LOW").length : 0;
-  const nearCount = list ? active.filter((p) => factOf(p)?.alert?.level === "NEAR").length : 0;
+  // Rule PAR-3: the counts are what still needs a hand.
+  const kindOf = (p: ProductView) => factOf(p)?.state?.kind ?? null;
+  const lowCount = list ? active.filter((p) => { const k = kindOf(p); return k !== null && PAR_RED.has(k); }).length : 0;
+  const nearCount = list ? active.filter((p) => kindOf(p) === "near").length : 0;
+  const [docsFor, setDocsFor] = useState<ProductView | null>(null);
   const byStatus = products.filter((p) => {
     const a = factOf(p)?.alert?.level;
     switch (status) {
@@ -168,7 +173,7 @@ export default function ProductsManager(props: {
       case "low":
         return p.isActive && a === "LOW";
       case "near":
-        return p.isActive && a === "NEAR";
+        return p.isActive && (kindOf(p) === "near" || kindOf(p) === "near-covered");
       case "inactive":
         return !p.isActive;
       default:
@@ -199,6 +204,10 @@ export default function ProductsManager(props: {
   const alertLine = (p: ProductView) => {
     const f = factOf(p);
     if (!f?.alert || f.par === null) return null;
+    const k = f.state?.kind;
+    if (k === "ordered" || k === "requested" || k === "near-covered") {
+      return <span className="block text-xs text-muted-subtle">ขั้นต่ำ {qtyFmt(f.par, p.baseUnitName)} · กำลังมา {qtyFmt(f.state!.coming, p.baseUnitName)}</span>;
+    }
     if (f.alert.level === "LOW") return <span className="block text-xs text-bad">ขั้นต่ำ {qtyFmt(f.par, p.baseUnitName)}</span>;
     const d = f.alert.daysToPar;
     return (
@@ -207,11 +216,43 @@ export default function ProductsManager(props: {
       </span>
     );
   };
+  // One chip per row saying what was done about it; the ones with › open the documents.
   const alertBadge = (p: ProductView) => {
-    const a = factOf(p)?.alert?.level;
-    if (a === "LOW") return <span className="ml-1.5 whitespace-nowrap rounded-full bg-bad-bg px-2 py-0.5 text-[11px] text-bad">ต่ำกว่าขั้นต่ำ</span>;
-    if (a === "NEAR") return <span className="ml-1.5 whitespace-nowrap rounded-full border border-warn-border bg-warn-bg px-2 py-0.5 text-[11px] text-warn">ใกล้ขั้นต่ำ</span>;
-    return null;
+    const st = factOf(p)?.state;
+    if (!st) return null;
+    const docsBtn = (tone: "red" | "neutral", label: string) => (
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          setDocsFor(p);
+        }}
+        className={`ml-1.5 inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px] hover:underline ${
+          tone === "red" ? "border-bad-border bg-bad-bg text-bad" : "border-border-strong bg-primary-soft text-muted-foreground"
+        }`}
+        title="ดูใบที่เกี่ยวข้อง"
+      >
+        {label} <span aria-hidden>›</span>
+      </button>
+    );
+    switch (st.kind) {
+      case "need":
+        return <span className="ml-1.5 whitespace-nowrap rounded-full bg-bad-bg px-2 py-0.5 text-[11px] text-bad">ต่ำกว่าขั้นต่ำ · ยังไม่ได้สั่ง</span>;
+      case "near":
+        return <span className="ml-1.5 whitespace-nowrap rounded-full border border-warn-border bg-warn-bg px-2 py-0.5 text-[11px] text-warn">ใกล้ขั้นต่ำ</span>;
+      case "short":
+        return docsBtn("red", "สั่งแล้วแต่ยังไม่พอ");
+      case "overdue":
+        return docsBtn("red", `ตามของ · เลยนัด ${st.lateDays} วัน`);
+      case "stale-request":
+        return docsBtn("red", `ขอซื้อไว้ ${st.requestLateDays + 3} วัน ยังไม่มีใครสั่ง`);
+      case "ordered":
+        return docsBtn("neutral", "สั่งแล้ว รอของ");
+      case "requested":
+        return docsBtn("neutral", "ขอซื้อแล้ว รอสั่ง");
+      case "near-covered":
+        return docsBtn("neutral", "ใกล้ขั้นต่ำ · สั่งแล้ว");
+    }
   };
   const stockCell = (p: ProductView) => {
     if (list === null) return pulse;
@@ -389,13 +430,16 @@ export default function ProductsManager(props: {
             <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3.5">
               {rows.map(({ p, weak }) => {
                 const f = factOf(p);
-                const a = f?.alert?.level;
+                const k = f?.state?.kind ?? null;
+                const a = k !== null && PAR_RED.has(k) ? "LOW" : k === "near" ? "NEAR" : null;
                 return (
-                  <button
+                  <div
                     key={p.id}
-                    type="button"
+                    role="button"
+                    tabIndex={0}
                     onClick={() => open(p.id)}
-                    className={`flex flex-col overflow-hidden rounded-2xl border border-border bg-surface text-left transition hover:-translate-y-px hover:shadow-card ${weak ? "opacity-50" : ""}`}
+                    onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), open(p.id))}
+                    className={`flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-border bg-surface text-left transition hover:-translate-y-px hover:shadow-card ${weak ? "opacity-50" : ""}`}
                   >
                     <div className="relative w-full border-b border-border">
                       <ProductThumb imageUrl={p.imageUrl} name={p.name} className="aspect-[4/3] w-full" />
@@ -418,8 +462,7 @@ export default function ProductsManager(props: {
                       <span className="text-xs text-muted-subtle">
                         {p.sku} · {p.category?.groupName ?? NO_CATEGORY}
                       </span>
-                      {a === "LOW" && f?.par != null && <span className="text-xs font-medium text-bad">ต่ำกว่าขั้นต่ำ ({qtyFmt(f.par, p.baseUnitName)})</span>}
-                      {a === "NEAR" && f?.par != null && <span className="text-xs font-medium text-warn">ใกล้ขั้นต่ำ ({qtyFmt(f.par, p.baseUnitName)})</span>}
+                      {k && <span className="-ml-1.5">{alertBadge(p)}</span>}
                       {!costHidden && (
                         <span className="mt-1 flex flex-wrap justify-between gap-x-2 text-xs">
                           <span className="text-muted-subtle">ต้นทุน</span>
@@ -433,7 +476,7 @@ export default function ProductsManager(props: {
                         </span>
                       </span>
                     </div>
-                  </button>
+                  </div>
                 );
               })}
             </div>
@@ -481,6 +524,20 @@ export default function ProductsManager(props: {
             setAddress(null);
             router.refresh();
           }}
+        />
+      )}
+
+      {docsFor && factOf(docsFor)?.state && factOf(docsFor)?.par != null && (
+        <ParDocsPopup
+          productId={docsFor.id}
+          productName={docsFor.name}
+          branchId={branchId}
+          branchName={branchName}
+          state={factOf(docsFor)!.state!}
+          onHand={factOf(docsFor)!.onHand}
+          par={factOf(docsFor)!.par!}
+          baseUnitName={docsFor.baseUnitName}
+          onClose={() => setDocsFor(null)}
         />
       )}
 
