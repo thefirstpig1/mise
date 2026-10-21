@@ -24,6 +24,9 @@ import { useRouter } from "next/navigation";
 import type { PurchaseOrderActionState } from "../../../purchase-orders/actions";
 import EmptyState from "@/components/ui/EmptyState";
 import ProductThumb from "@/components/ui/ProductThumb";
+import QtyStepper from "@/components/ui/QtyStepper";
+import SelectChip from "@/components/ui/SelectChip";
+import { MoneyInput } from "@/components/ui/NumberField";
 import NewPackSize, { NEW_PACK_SIZE, containerGuess, packInUse, useAddedUnits } from "@/components/ui/NewPackSize";
 
 export type CatalogItemView = {
@@ -120,10 +123,6 @@ export default function SupplierCatalog({
   const patch = (item: CatalogItemView, next: Partial<Pick>) =>
     setPicks((p) => ({ ...p, [item.productId]: { ...(p[item.productId] ?? fresh(item)), ...next } }));
   const setQty = (item: CatalogItemView, qty: string) => patch(item, { qty });
-  const step = (item: CatalogItemView, by: number) => {
-    const next = Math.max(0, num(pickOf(item).qty || "0") + by);
-    setQty(item, next === 0 ? "" : String(next));
-  };
 
   const sections = useMemo(() => {
     const s = new Set(items.map((i) => i.section ?? NO_CATEGORY));
@@ -231,63 +230,24 @@ export default function SupplierCatalog({
 
                       {!item.price && (
                         <div className="flex items-center gap-2">
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            inputMode="decimal"
-                            placeholder="ราคา/หน่วย"
+                          <MoneyInput
+                            placeholder="ราคา"
                             aria-label={`ราคาต่อหน่วยของ ${item.name}`}
                             value={pick.price}
                             onChange={(e) => patch(item, { price: e.target.value })}
-                            className="input w-28"
+                            boxClassName="w-32"
                           />
-                          <select
-                            aria-label={`หน่วยของ ${item.name}`}
+                          <SelectChip
                             value={unitOf(item)}
-                            onChange={(e) => (e.target.value === NEW_PACK_SIZE ? setSizeFor(item) : patch(item, { unitId: e.target.value }))}
-                            className="input w-44"
-                          >
-                            {item.units.map((u) => (
-                              <option key={u.id} value={u.id}>
-                                {u.unitName}
-                              </option>
-                            ))}
-                            <option value={NEW_PACK_SIZE}>+ ขนาดใหม่…</option>
-                          </select>
+                            onChange={(v) => (v === NEW_PACK_SIZE ? setSizeFor(item) : patch(item, { unitId: v }))}
+                            options={[...item.units.map((u) => ({ value: u.id, label: u.unitName })), { value: NEW_PACK_SIZE, label: "+ ขนาดใหม่…" }]}
+                            className="w-48"
+                            selectProps={{ "aria-label": `หน่วยของ ${item.name}` }}
+                          />
                         </div>
                       )}
 
-                      <div className="flex items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() => step(item, -1)}
-                          disabled={!on}
-                          aria-label={`ลดจำนวน ${item.name}`}
-                          className="h-9 w-9 rounded-lg border border-border-strong text-lg hover:bg-muted disabled:opacity-40"
-                        >
-                          −
-                        </button>
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.001"
-                          inputMode="decimal"
-                          aria-label={`จำนวน ${item.name}`}
-                          value={qty}
-                          placeholder="0"
-                          onChange={(e) => setQty(item, e.target.value)}
-                          className="input w-20 text-center tabular-nums"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => step(item, 1)}
-                          aria-label={`เพิ่มจำนวน ${item.name}`}
-                          className="h-9 w-9 rounded-lg border border-border-strong text-lg hover:bg-muted"
-                        >
-                          +
-                        </button>
-                      </div>
+                      <QtyStepper value={qty} onChange={(v) => setQty(item, v)} label={`จำนวน ${item.name}`} inputProps={{ placeholder: "0" }} />
                     </li>
                   );
   };

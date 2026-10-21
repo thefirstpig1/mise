@@ -14,6 +14,9 @@
 // ============================================================
 
 import { useMemo, useState } from "react";
+import QtyStepper from "@/components/ui/QtyStepper";
+import SelectChip from "@/components/ui/SelectChip";
+import { MoneyInput } from "@/components/ui/NumberField";
 import Link from "next/link";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
@@ -208,22 +211,18 @@ export default function CutSheet({ sheet, branchId }: { sheet: Sheet; branchId: 
                     </td>
                     <td className="px-3 py-3">
                       <div className="flex gap-2">
-                        <input type="number" min="0" step="0.001" value={row.qty} onChange={(e) => patch(l.id, { qty: e.target.value })} className="input w-24" />
-                        <select
+                        <QtyStepper value={row.qty} onChange={(qty) => patch(l.id, { qty })} label={`จำนวน ${l.product.name}`} />
+                        <SelectChip
                           value={row.unitId}
-                          onChange={(e) => patch(l.id, { unitId: e.target.value, unitPrice: priceFor(l, row.supplierId, e.target.value) || row.unitPrice })}
-                          className="input w-28"
-                        >
-                          {l.units.map((u) => (
-                            <option key={u.id} value={u.id}>
-                              {u.name}
-                            </option>
-                          ))}
-                        </select>
+                          onChange={(v) => patch(l.id, { unitId: v, unitPrice: priceFor(l, row.supplierId, v) || row.unitPrice })}
+                          options={l.units.map((u) => ({ value: u.id, label: u.name }))}
+                          className="w-36"
+                          selectProps={{ "aria-label": `หน่วย ${l.product.name}` }}
+                        />
                       </div>
                     </td>
                     <td className="px-3 py-3">
-                      <input type="number" min="0" step="0.0001" value={row.unitPrice} onChange={(e) => patch(l.id, { unitPrice: e.target.value })} className="input w-28" />
+                      <MoneyInput value={row.unitPrice} onChange={(e) => patch(l.id, { unitPrice: e.target.value })} aria-label={`ราคาต่อหน่วย ${l.product.name}`} boxClassName="w-32" />
                     </td>
                     <td className="px-3 py-3 text-right">
                       <button type="button" onClick={() => reject(l)} className="whitespace-nowrap text-xs text-bad hover:underline">

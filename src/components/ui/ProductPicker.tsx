@@ -23,6 +23,7 @@
 // ============================================================
 
 import { useId, useMemo, useRef, useState } from "react";
+import Marquee from "./Marquee";
 import ProductThumb from "./ProductThumb";
 
 export type PickerProduct = {
@@ -153,12 +154,13 @@ export default function ProductPicker({
         <div className="flex items-center gap-3 rounded-lg border border-border-strong bg-surface p-2 pr-3">
           <ProductThumb imageUrl={selected.imageUrl} name={selected.name} className="h-11 w-11" />
           <div className="min-w-0 flex-1">
-            <p className="truncate font-medium">{selected.name}</p>
-            <p className="truncate text-xs text-muted-foreground">
+            {/* Cut with "…", and slides on hover to show the rest (Kong 2026-10-22). */}
+            <Marquee className="font-medium">{selected.name}</Marquee>
+            <Marquee className="text-xs text-muted-foreground">
               {[selected.sku || null, selected.group ?? selected.section, selected.detail ?? selected.baseUnitName]
                 .filter(Boolean)
                 .join(" · ")}
-            </p>
+            </Marquee>
           </div>
           <button
             type="button"
@@ -213,7 +215,7 @@ export default function ProductPicker({
     >
       <ProductThumb imageUrl={p.imageUrl} name={p.name} className="h-9 w-9" />
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium">{p.name}</p>
+        <Marquee className="text-sm font-medium">{p.name}</Marquee>
         <p className="truncate text-xs text-muted-foreground">
           {[typing ? headingOf(p) : null, p.detail ?? p.baseUnitName].filter(Boolean).join(" · ") || " "}
         </p>

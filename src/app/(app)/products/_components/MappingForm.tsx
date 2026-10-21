@@ -21,6 +21,7 @@
 // to id+label plain shapes by the page (drops Supplier/ProductUnit Decimals).
 
 import { useActionState, useEffect, useState } from "react";
+import { MeasureInput, MoneyInput } from "@/components/ui/NumberField";
 import { useRouter } from "next/navigation";
 import type { MappingActionState } from "@/app/(app)/supplier-product-mappings/actions";
 import type { MappingView } from "./mapping-view";
@@ -300,19 +301,15 @@ export default function MappingForm({
               htmlFor="current_unit_price"
               className="mb-1 label"
             >
-              ราคา/หน่วย (บาท)
+              ราคา/หน่วย
             </label>
-            <input
+            <MoneyInput
               id="current_unit_price"
               name="current_unit_price"
-              type="number"
               value={unitPrice}
               onChange={(e) => setUnitPrice(e.target.value)}
-              step="0.01"
-              min="0"
-              inputMode="decimal"
-              placeholder="เช่น 25.00"
-              className="input w-full"
+              placeholder="25.00"
+              boxClassName="w-36"
             />
             {showHighPriceHint && (
               <p className="mt-1 text-xs text-warn">
@@ -330,16 +327,14 @@ export default function MappingForm({
             >
               ปริมาณขั้นต่ำ
             </label>
-            <input
+            <MeasureInput
               id="min_order_qty"
               name="min_order_qty"
-              type="number"
+              unit="หน่วยสั่ง"
               defaultValue={initial?.minOrderQty ?? ""}
-              step="any"
               min="0"
-              inputMode="decimal"
-              placeholder="เช่น 1"
-              className="input w-full"
+              placeholder="1"
+              boxClassName="w-40"
             />
             {err("minOrderQty") && (
               <p className="mt-1 text-sm text-bad">{err("minOrderQty")}</p>
@@ -350,20 +345,20 @@ export default function MappingForm({
               htmlFor="lead_time_days"
               className="mb-1 label"
             >
-              Lead time (วัน)
+              ส่งของภายใน
             </label>
-            <input
+            <MeasureInput
               id="lead_time_days"
               name="lead_time_days"
-              type="number"
+              unit="วัน"
               value={leadTime}
               onChange={(e) => setLeadTime(e.target.value)}
               step="1"
               min="0"
               max="365"
               inputMode="numeric"
-              placeholder="เช่น 3"
-              className="input w-full"
+              placeholder="3"
+              boxClassName="w-32"
             />
             {showLongLeadHint && (
               <p className="mt-1 text-xs text-warn">

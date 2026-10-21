@@ -10,6 +10,8 @@ import { orStale } from "@/lib/stale-tab";
 import { composePackName, guessContainer, packRatio, sizeUnitsFor } from "@/lib/pack-unit";
 import { unitTh } from "@/app/(app)/menus/_components/manager-format";
 import { Portal, useTopLayer } from "@/app/(app)/menus/_components/sheet-parts";
+import SelectChip from "./SelectChip";
+import { MeasureInput, MoneyInput } from "./NumberField";
 
 /** The option value a unit `<select>` uses for "+ ขนาดใหม่…". */
 export const NEW_PACK_SIZE = "__new_pack_size";
@@ -119,16 +121,17 @@ export default function NewPackSize({
           <div className="flex flex-wrap items-center gap-2 text-sm">
             <input value={box} onChange={(e) => setBox(e.target.value)} placeholder="ถุง" aria-label="ภาชนะ" className="input w-24" />
             <span className="text-xs text-muted-foreground">บรรจุ</span>
-            <input autoFocus value={size} onChange={(e) => setSize(e.target.value)} inputMode="decimal" aria-label="ขนาด" className="input w-20 text-right tabular-nums" />
+            <MeasureInput autoFocus value={size} onChange={(e) => setSize(e.target.value)} unit="" aria-label="ขนาด" boxClassName="w-24" />
             {units.length > 1 ? (
-              <select value={sizeUnit} onChange={(e) => setSizeUnit(e.target.value)} aria-label="หน่วยของขนาด" className={`input ${sizeUnit ? "" : "border-warn-border text-muted-foreground"}`}>
-                {!sizeUnit && <option value="">หน่วย</option>}
-                {units.map((u) => (
-                  <option key={u} value={u}>
-                    {u}
-                  </option>
-                ))}
-              </select>
+              <SelectChip
+                value={sizeUnit}
+                onChange={setSizeUnit}
+                placeholder="หน่วย"
+                tone={sizeUnit ? "default" : "warn"}
+                options={units.map((u) => ({ value: u, label: u }))}
+                className="w-24"
+                selectProps={{ "aria-label": "หน่วยของขนาด" }}
+              />
             ) : (
               unitTh(baseUnitName)
             )}
@@ -149,7 +152,7 @@ export default function NewPackSize({
               {regular && (
                 <label className="flex items-center gap-2 text-sm">
                   ราคาต่อ{name ? ` ${name}` : "หน่วยใหม่"} (ไม่รวม VAT)
-                  <input value={price} onChange={(e) => setPrice(e.target.value)} inputMode="decimal" aria-label="ราคาขนาดใหม่" className="input w-24 text-right tabular-nums" />
+                  <MoneyInput value={price} onChange={(e) => setPrice(e.target.value)} aria-label="ราคาขนาดใหม่" boxClassName="w-32" />
                 </label>
               )}
             </div>

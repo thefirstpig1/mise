@@ -17,6 +17,7 @@ import { unitTh } from "@/app/(app)/menus/_components/manager-format";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import QtyStepper from "@/components/ui/QtyStepper";
+import { MeasureInput } from "@/components/ui/NumberField";
 import ProductPicker from "@/components/ui/ProductPicker";
 import { orStale } from "@/lib/stale-tab";
 import { ModalShell } from "@/app/(app)/sales/_components/Breakdown";
@@ -524,8 +525,8 @@ function AddLine({
           </select>
         </div>
         <div className={board.departmentsEnabled ? "sm:col-span-4" : "sm:col-span-6"}>
-          <label className="label">ที่เหลืออยู่จริง {baseName && `(${baseName})`} — ไม่บังคับ</label>
-          <input type="number" min="0" step="0.001" value={onHand} onChange={(e) => setOnHand(e.target.value)} className="input mt-1 w-full" />
+          <label className="label">ที่เหลืออยู่จริง — ไม่บังคับ</label>
+          <MeasureInput unit={baseName || " "} min="0" value={onHand} onChange={(e) => setOnHand(e.target.value)} aria-label="ที่เหลืออยู่จริง" boxClassName="mt-1 w-36" />
         </div>
         <div className="sm:col-span-12">
           <label className="label">หมายเหตุถึงจัดซื้อ — ไม่บังคับ</label>
@@ -777,8 +778,8 @@ function EditLine({
           </select>
         </label>
         <label className="text-sm">
-          ที่เหลืออยู่จริง ({line.product.baseUnitName ?? ""})
-          <input type="number" min="0" step="0.001" value={onHand} onChange={(e) => setOnHand(e.target.value)} className="input mt-1 w-full" />
+          ที่เหลืออยู่จริง
+          <MeasureInput unit={unitTh(line.product.baseUnitName) || " "} min="0" value={onHand} onChange={(e) => setOnHand(e.target.value)} aria-label="ที่เหลืออยู่จริง" boxClassName="mt-1 w-36" />
         </label>
         <label className="text-sm sm:col-span-2">
           หมายเหตุถึงจัดซื้อ

@@ -30,6 +30,9 @@ import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import type { PurchaseOrderActionState } from "../actions";
 import type { ResolvedPriceView } from "./purchase-order-view";
 import ProductPicker from "@/components/ui/ProductPicker";
+import QtyStepper from "@/components/ui/QtyStepper";
+import SelectChip from "@/components/ui/SelectChip";
+import { MeasureInput, MoneyInput } from "@/components/ui/NumberField";
 import NewPackSize, { NEW_PACK_SIZE, containerGuess, packInUse, useAddedUnits } from "@/components/ui/NewPackSize";
 
 export type POUnitOption = {
@@ -120,6 +123,11 @@ const n = (s: string) => {
 };
 
 /** Display-only money formatting for the preview. */
+/** One column template for the header and every line (Kong 2026-10-22). */
+const LINE_GRID = "sm:grid-cols-[minmax(0,1fr)_8rem_12.5rem_8.5rem_6.5rem_1.75rem]";
+const LINE_GRID_MOBILE = "grid-cols-[8rem_minmax(0,1fr)_auto] [grid-template-areas:'p_p_x'_'q_u_u'_'pr_t_t']";
+const nf = (v: number) => v.toLocaleString("th-TH", { maximumFractionDigits: 3 });
+
 const fmt = (v: number) =>
   v.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -447,7 +455,19 @@ export default function PurchaseOrderForm({
         </div>
         {err("lines") && <p className={errorClass}>{err("lines")}</p>}
 
-        <div className="space-y-3">
+        {/* Kong 2026-10-22 (mockup https://claude.ai/artifact/BPFBfCpLAWvqFq5SpYcKTd):
+            one line = one row, and every column a FIXED width shared with the
+            header, so capsules, units, prices and totals line up down the
+            order however long a name is. On a phone the row folds in three. */}
+        <div className="rounded-xl border border-border bg-surface px-3 sm:px-4">
+          <div className={`hidden gap-3 pb-1 pt-3 text-xs text-muted-subtle sm:grid ${LINE_GRID}`}>
+            <span>วัตถุดิบ</span>
+            <span className="text-center">จำนวน</span>
+            <span>หน่วย</span>
+            <span className="text-right">ราคา/หน่วย {inclusive ? "(รวม VAT)" : "(ไม่รวม VAT)"}</span>
+            <span className="text-right">รวม</span>
+            <span />
+          </div>
           {rows.map((row, i) => {
             const product = products.find((p) => p.id === row.productId);
             const lineTotal = n(row.qty) * n(row.unitPrice);
@@ -455,35 +475,33 @@ export default function PurchaseOrderForm({
               row.minOrderQty !== null &&
               row.qty.trim() !== "" &&
               n(row.qty) < n(row.minOrderQty);
+            const unit = product?.units.find((u) => u.id === row.orderUnitId);
+            const ratio = unit ? n(unit.toBaseRatio) : 0;
+            const base = product?.baseUnitName ?? product?.units.find((u) => u.isBase)?.unitName ?? "";
 
             return (
-              <div
-                key={row.key}
-                data-row={row.key}
-                className="rounded-lg border border-border p-3 sm:p-4"
-              >
-                <div className="grid gap-3 sm:grid-cols-12">
-                  <div className="sm:col-span-5">
-                    <label className="label">วัตถุดิบ</label>
-                    <ProductPicker
-                      name="line_product_id"
-                      // A chosen product stays shown even if it is outside the narrowed list.
-                      products={row.productId && !pickable.some((p) => p.id === row.productId) ? products : pickable}
-                      value={row.productId}
-                      onChange={(id) => onProductChange(row, id)}
-                      disabledText={!supplierId ? "เลือกผู้ขายก่อน แล้วจึงเลือกวัตถุดิบ" : undefined}
-                      onInputRef={(el) => {
-                        pickerRefs.current.set(row.key, el);
-                      }}
-                      footer={
-                        carriedIds && !noCatalog && !showAll
-                          ? {
-                              label: "ไม่เจอที่ต้องการ? แสดงวัตถุดิบที่ผู้ขายรายนี้ยังไม่เคยมี",
-                              onClick: () => setShowAll(true),
-                            }
-                          : undefined
-                      }
-                    />
+              <div key={row.key} data-row={row.key} className="border-b border-border py-3 last:border-b-0">
+                <div className={`grid items-center gap-x-3 gap-y-2 ${LINE_GRID_MOBILE} sm:[grid-template-areas:'p_q_u_pr_t_x'] ${LINE_GRID}`}>
+                  <div className="min-w-0 [grid-area:p]">
+                <ProductPicker
+                  name="line_product_id"
+                  // A chosen product stays shown even if it is outside the narrowed list.
+                  products={row.productId && !pickable.some((p) => p.id === row.productId) ? products : pickable}
+                  value={row.productId}
+                  onChange={(id) => onProductChange(row, id)}
+                  disabledText={!supplierId ? "เลือกผู้ขายก่อน แล้วจึงเลือกวัตถุดิบ" : undefined}
+                  onInputRef={(el) => {
+                    pickerRefs.current.set(row.key, el);
+                  }}
+                  footer={
+                    carriedIds && !noCatalog && !showAll
+                      ? {
+                          label: "ไม่เจอที่ต้องการ? แสดงวัตถุดิบที่ผู้ขายรายนี้ยังไม่เคยมี",
+                          onClick: () => setShowAll(true),
+                        }
+                      : undefined
+                  }
+                />
                     {notCarried(row.productId) && (
                       <p className="mt-1 text-xs text-warn">
                         ผู้ขายรายนี้ยังไม่เคยมีสินค้านี้ในรายการราคาหรือการส่งของ — ตรวจกับผู้ขายก่อนส่งใบ
@@ -491,56 +509,64 @@ export default function PurchaseOrderForm({
                     )}
                   </div>
 
-                  <div className="sm:col-span-2">
-                    <label className="label">จำนวน</label>
-                    <input
-                      name="line_qty"
-                      type="number"
-                      step="0.001"
-                      min="0"
+                  <div className="flex flex-col items-center [grid-area:q]">
+                    <QtyStepper
                       value={row.qty}
-                      onChange={(e) => patch(row.key, { qty: e.target.value })}
-                      className={"input w-full mt-1"}
+                      onChange={(qty) => patch(row.key, { qty })}
+                      label={`จำนวน ${product?.name ?? `รายการที่ ${i + 1}`}`}
+                      tone={belowMin ? "warn" : "default"}
+                      inputProps={{ name: "line_qty" }}
                     />
+                    <span className="mt-1 min-h-[1rem] text-xs text-muted-subtle">
+                      {ratio > 0 && ratio !== 1 && n(row.qty) > 0 ? `= ${nf(n(row.qty) * ratio)} ${base}` : ""}
+                    </span>
                   </div>
 
-                  <div className="sm:col-span-2">
-                    <label className="label">หน่วย</label>
-                    <select
-                      name="line_order_unit_id"
+                  <div className="min-w-0 [grid-area:u]">
+                    <SelectChip
                       value={row.orderUnitId}
-                      onChange={(e) =>
-                        e.target.value === NEW_PACK_SIZE
+                      onChange={(v) =>
+                        v === NEW_PACK_SIZE
                           ? setSizeFor({ rowKey: row.key, productId: row.productId })
-                          : patch(row.key, { orderUnitId: e.target.value })
+                          : patch(row.key, { orderUnitId: v })
                       }
-                      className={"input w-full mt-1"}
-                      disabled={!product}
-                    >
-                      {!product && <option value="">—</option>}
-                      {product?.units.map((u) => (
-                        <option key={u.id} value={u.id}>
-                          {u.unitName}
-                          {u.isBase ? " (หน่วยหลัก)" : ""}
-                        </option>
-                      ))}
-                      {product && <option value={NEW_PACK_SIZE}>+ ขนาดใหม่…</option>}
-                    </select>
+                      placeholder="หน่วย"
+                      options={[
+                        ...(product?.units.map((u) => ({ value: u.id, label: u.unitName })) ?? []),
+                        ...(product ? [{ value: NEW_PACK_SIZE, label: "+ ขนาดใหม่…" }] : []),
+                      ]}
+                      // Never disabled: a disabled field is not posted, and the line arrays must stay aligned.
+                      selectProps={{ name: "line_order_unit_id", "aria-label": "หน่วย" }}
+                    />
                   </div>
 
-                  <div className="sm:col-span-3">
-                    <label className="label">ราคา/หน่วย {inclusive ? "(รวม VAT)" : "(ไม่รวม VAT)"}</label>
-                    <input
+                  <div className="flex flex-col items-end [grid-area:pr]">
+                    <MoneyInput
                       name="line_unit_price"
-                      type="number"
-                      step="0.0001"
-                      min="0"
                       value={row.unitPrice}
-                      onChange={(e) =>
-                        patch(row.key, { unitPrice: e.target.value })
-                      }
-                      className={"input w-full mt-1"}
+                      onChange={(e) => patch(row.key, { unitPrice: e.target.value })}
+                      aria-label={`ราคาต่อหน่วย ${inclusive ? "รวม VAT" : "ไม่รวม VAT"}`}
+                      boxClassName="w-full"
                     />
+                    <span className="mt-1 min-h-[1rem] text-xs text-muted-subtle">
+                      {ratio > 0 && ratio !== 1 && n(row.unitPrice) > 0 ? `฿${fmt(n(row.unitPrice) / ratio)}/${base}` : ""}
+                    </span>
+                  </div>
+
+                  <div className="flex h-9 items-center justify-end font-display tabular-nums [grid-area:t]">฿{fmt(lineTotal)}</div>
+
+                  <div className="flex h-9 items-center justify-end [grid-area:x]">
+                    {rows.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => setRows((rs) => rs.filter((r) => r.key !== row.key))}
+                        aria-label={`ลบรายการที่ ${i + 1}`}
+                        title={`ลบรายการที่ ${i + 1}`}
+                        className="grid h-7 w-7 place-items-center rounded-lg text-muted-subtle hover:bg-bad-bg hover:text-bad"
+                      >
+                        ×
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -548,8 +574,8 @@ export default function PurchaseOrderForm({
                 <input type="hidden" name="line_notes" value={row.notes} />
                 <input type="hidden" name="line_request_line_id" value={row.requestLineId} />
 
-                <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs">
-                  <div className="flex flex-wrap items-center gap-2">
+                {(row.priceScope || belowMin) && (
+                  <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
                     {row.priceScope === "branch" && (
                       <span className="rounded-full border border-border-strong bg-muted px-2 py-0.5 text-muted-foreground">
                         ราคาเฉพาะสาขานี้
@@ -565,30 +591,9 @@ export default function PurchaseOrderForm({
                         ไม่มีราคาในระบบ — กรอกเอง
                       </span>
                     )}
-                    {belowMin && (
-                      <span className="text-warn">
-                        ผู้ขายกำหนดขั้นต่ำ {row.minOrderQty}
-                      </span>
-                    )}
+                    {belowMin && <span className="text-warn">ผู้ขายกำหนดขั้นต่ำ {row.minOrderQty}</span>}
                   </div>
-
-                  <div className="flex items-center gap-3">
-                    <span className="tabular-nums text-muted-foreground">
-                      รวม {fmt(lineTotal)} บาท
-                    </span>
-                    {rows.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setRows((rs) => rs.filter((r) => r.key !== row.key))
-                        }
-                        className="text-bad hover:underline"
-                      >
-                        ลบรายการที่ {i + 1}
-                      </button>
-                    )}
-                  </div>
-                </div>
+                )}
               </div>
             );
           })}
@@ -616,18 +621,18 @@ export default function PurchaseOrderForm({
 
         <div>
           <label htmlFor="vat_rate_percent" className="label">
-            VAT (%)
+            VAT
           </label>
-          <input
+          <MeasureInput
             id="vat_rate_percent"
             name="vat_rate_percent"
-            type="number"
-            step="0.01"
+            unit="%"
             min="0"
             max="100"
+            placeholder="ไม่มี"
             value={vatRate}
             onChange={(e) => setVatRate(e.target.value)}
-            className={"input w-full mt-1"}
+            boxClassName="mt-1 w-28"
           />
           <p className="mt-1 text-xs text-muted-foreground">
             เว้นว่าง = ใบนี้ไม่มี VAT

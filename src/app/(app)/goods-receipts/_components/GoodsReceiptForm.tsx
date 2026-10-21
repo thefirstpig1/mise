@@ -31,6 +31,10 @@ import { useActionState, useEffect, useId, useMemo, useState } from "react";
 import type { GoodsReceiptActionState } from "../actions";
 import type { ReceivablePurchaseOrderView } from "./goods-receipt-view";
 import ProductPicker, { type PickerProduct } from "@/components/ui/ProductPicker";
+import QtyStepper from "@/components/ui/QtyStepper";
+import SelectChip from "@/components/ui/SelectChip";
+import Marquee from "@/components/ui/Marquee";
+import { MeasureInput, MoneyInput } from "@/components/ui/NumberField";
 import NewPackSize, { NEW_PACK_SIZE, containerGuess, packInUse, useAddedUnits } from "@/components/ui/NewPackSize";
 
 export type GrUnitOption = {
@@ -139,6 +143,10 @@ const n = (s: string) => {
 
 const fmt = (v: number) =>
   v.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+/** One column template for the header and every line (Kong 2026-10-22) — the purchase order's. */
+const LINE_GRID = "sm:grid-cols-[minmax(0,1fr)_8rem_12.5rem_8.5rem_6.5rem_1.75rem]";
+const LINE_GRID_MOBILE = "grid-cols-[8rem_minmax(0,1fr)_auto] [grid-template-areas:'p_p_x'_'q_u_u'_'pr_t_t']";
 
 /** Trim trailing zeros so "4.000" reads as "4". */
 const trimQty = (s: string) => (s.includes(".") ? s.replace(/\.?0+$/, "") : s);
@@ -553,19 +561,21 @@ export default function GoodsReceiptForm({
 
         <div>
           <label className="label" htmlFor="vat_rate_percent">
-            อัตรา VAT (%)
+            อัตรา VAT <span className="font-normal text-muted-subtle">(เว้นว่าง = ใบนี้ไม่มี VAT)</span>
           </label>
-          <input
+          <MeasureInput
             id="vat_rate_percent"
             name="vat_rate_percent"
-            inputMode="decimal"
+            unit="%"
+            min="0"
+            max="100"
+            placeholder="ไม่มี"
             value={vatRate}
             onChange={(e) => {
               setVatRate(e.target.value);
               setVatTouched(true);
             }}
-            className={"input w-full mt-1"}
-            placeholder="เว้นว่าง = ใบนี้ไม่มี VAT"
+            boxClassName="mt-1 w-28"
           />
           <p className="mt-1 text-xs text-muted-foreground">
             ดึงมาจากใบสั่งซื้อหรือค่าตั้งต้นของผู้ขาย — แก้ให้ตรงกับใบกำกับภาษีที่มากับของได้
@@ -628,34 +638,42 @@ export default function GoodsReceiptForm({
           <p className="text-sm text-muted-foreground">ยังไม่มีรายการ</p>
         )}
 
-        <div className="space-y-3">
+        {/* Kong 2026-10-22 (mockup https://claude.ai/artifact/BPFBfCpLAWvqFq5SpYcKTd):
+            the same one-row line as the purchase order, every column a fixed
+            width shared with the header. "รับจริง" turns yellow when less than
+            what is still owed arrived. */}
+        <div className="rounded-xl border border-border bg-surface px-3 sm:px-4">
+          <div className={`hidden gap-3 pb-1 pt-3 text-xs text-muted-subtle sm:grid ${LINE_GRID}`}>
+            <span>วัตถุดิบ</span>
+            <span className="text-center">รับจริง</span>
+            <span>หน่วย</span>
+            <span className="text-right">
+              ราคา/หน่วย {inclusive && vatRate.trim() !== "" && Number(vatRate) > 0 ? "(รวม VAT)" : "(ไม่รวม VAT)"}
+            </span>
+            <span className="text-right">รวม</span>
+            <span />
+          </div>
           {rows.map((r) => {
             const product = productById.get(r.productId);
             const over = isOver(r);
             const base = baseQtyOf(r);
+            const short = r.outstanding !== null && r.qty.trim() !== "" && n(r.qty) < n(r.outstanding);
+            // The unit's name today (Kong 2026-10-21 renamed กก. → kg); the PO keeps what it printed.
+            const unitName = product?.units.find((u) => u.id === r.receivedUnitId)?.unitName ?? r.orderedUnitName;
             return (
-              <div
-                key={r.key}
-                className={`space-y-2 rounded-lg border p-3 ${
-                  over ? "border-warn-border bg-warn-bg/50" : "border-border"
-                }`}
-              >
+              <div key={r.key} className={`-mx-3 border-b border-border px-3 py-3 last:border-b-0 sm:-mx-4 sm:px-4 ${over ? "bg-warn-bg/50" : ""}`}>
                 <input type="hidden" name="line_po_item_id" value={r.purchaseOrderItemId} />
                 <input type="hidden" name="line_product_id" value={r.productId} />
-                <input
-                  type="hidden"
-                  name="line_received_unit_id"
-                  value={r.receivedUnitId}
-                />
+                <input type="hidden" name="line_received_unit_id" value={r.receivedUnitId} />
 
-                <div className="grid gap-2 sm:grid-cols-12">
-                  <div className="sm:col-span-5">
-                    <label className="text-xs text-muted-foreground">วัตถุดิบ</label>
+                <div className={`grid items-center gap-x-3 gap-y-2 ${LINE_GRID_MOBILE} sm:[grid-template-areas:'p_q_u_pr_t_x'] ${LINE_GRID}`}>
+                  <div className="min-w-0 [grid-area:p]">
                     {r.purchaseOrderItemId ? (
-                      <div className="mt-1 text-sm font-medium">
-                        {product?.name ?? "—"}
-                        <span className="ml-1 text-xs text-muted-foreground">
+                      <div className="min-w-0">
+                        <Marquee className="text-sm font-medium">{product?.name ?? "—"}</Marquee>
+                        <span className="text-xs text-muted-subtle">
                           {product?.sku}
+                          {r.outstanding !== null && ` · ค้างรับ ${trimQty(r.outstanding)} ${unitName}`}
                         </span>
                       </div>
                     ) : (
@@ -674,96 +692,90 @@ export default function GoodsReceiptForm({
                     )}
                   </div>
 
-                  <div className="sm:col-span-2">
-                    <label className="text-xs text-muted-foreground">หน่วย</label>
+                  <div className="flex flex-col items-center [grid-area:q]">
+                    <QtyStepper
+                      value={r.qty}
+                      onChange={(qty) => setRow(r.key, { qty })}
+                      label={`จำนวนที่รับ ${product?.name ?? ""}`}
+                      tone={short || over ? "warn" : "default"}
+                      inputProps={{ name: "line_qty" }}
+                    />
+                    <span className="mt-1 min-h-[1rem] text-xs text-muted-subtle">
+                      {base.unitName && n(r.qty) > 0 && base.unitName !== unitName ? `= ${base.qty.toLocaleString("th-TH")} ${base.unitName}` : ""}
+                    </span>
+                  </div>
+
+                  <div className="min-w-0 [grid-area:u]">
                     {r.purchaseOrderItemId ? (
-                      <div className="mt-1 text-sm">{r.orderedUnitName}</div>
+                      <Marquee className="text-sm">{unitName}</Marquee>
                     ) : (
-                      <select
-                        className={"input w-full mt-1"}
+                      <SelectChip
                         value={r.receivedUnitId}
-                        onChange={(e) =>
-                          e.target.value === NEW_PACK_SIZE
+                        onChange={(v) =>
+                          v === NEW_PACK_SIZE
                             ? setSizeFor({ rowKey: r.key, productId: r.productId })
-                            : setRow(r.key, { receivedUnitId: e.target.value })
+                            : setRow(r.key, { receivedUnitId: v })
                         }
-                        disabled={!product}
-                      >
-                        {(product?.units ?? []).map((u) => (
-                          <option key={u.id} value={u.id}>
-                            {u.unitName}
-                          </option>
-                        ))}
-                        {product && <option value={NEW_PACK_SIZE}>+ ขนาดใหม่…</option>}
-                      </select>
+                        placeholder="หน่วย"
+                        options={[
+                          ...(product?.units.map((u) => ({ value: u.id, label: u.unitName })) ?? []),
+                          ...(product ? [{ value: NEW_PACK_SIZE, label: "+ ขนาดใหม่…" }] : []),
+                        ]}
+                        selectProps={{ disabled: !product, "aria-label": "หน่วย" }}
+                      />
                     )}
                   </div>
 
-                  <div className="sm:col-span-2">
-                    <label className="text-xs text-muted-foreground">จำนวนที่รับ</label>
-                    <input
-                      name="line_qty"
-                      type="number"
-                      step="0.001"
-                      min="0"
-                      value={r.qty}
-                      onChange={(e) => setRow(r.key, { qty: e.target.value })}
-                      className={"input w-full mt-1 text-right"}
-                    />
-                  </div>
-
-                  <div className="sm:col-span-2">
-                    <label className="text-xs text-muted-foreground">
-                      ราคา/หน่วย {inclusive && vatRate.trim() !== "" && Number(vatRate) > 0 ? "(รวม VAT)" : "(ไม่รวม VAT)"}
-                    </label>
-                    <input
+                  <div className="flex flex-col items-end [grid-area:pr]">
+                    <MoneyInput
                       name="line_unit_price"
-                      type="number"
-                      step="0.0001"
-                      min="0"
                       value={r.unitPrice}
                       onChange={(e) => setRow(r.key, { unitPrice: e.target.value })}
-                      className={"input w-full mt-1 text-right"}
+                      aria-label="ราคาต่อหน่วย"
+                      tone={r.orderedUnitPrice !== null && n(r.unitPrice) !== n(r.orderedUnitPrice) ? "warn" : "default"}
+                      boxClassName="w-full"
                     />
+                    <span className="mt-1 min-h-[1rem] text-xs text-muted-subtle">
+                      {base.unitName && n(r.qty) > 0 && base.qty > 0 && n(r.unitPrice) > 0 && base.unitName !== unitName
+                        ? `฿${fmt((n(r.qty) * n(r.unitPrice)) / base.qty)}/${base.unitName}`
+                        : ""}
+                    </span>
                   </div>
 
-                  <div className="flex items-end sm:col-span-1">
+                  <div className="flex h-9 items-center justify-end font-display tabular-nums [grid-area:t]">฿{fmt(n(r.qty) * n(r.unitPrice))}</div>
+
+                  <div className="flex h-9 items-center justify-end [grid-area:x]">
                     {!poMode && (
                       <button
                         type="button"
-                        onClick={() =>
-                          setRows((rs) => rs.filter((x) => x.key !== r.key))
-                        }
-                        className="w-full rounded-lg border border-border px-2 py-2 text-xs text-muted-foreground"
+                        onClick={() => setRows((rs) => rs.filter((x) => x.key !== r.key))}
+                        aria-label="ลบรายการ"
+                        title="ลบรายการ"
+                        className="grid h-7 w-7 place-items-center rounded-lg text-muted-subtle hover:bg-bad-bg hover:text-bad"
                       >
-                        ลบ
+                        ×
                       </button>
                     )}
                   </div>
                 </div>
 
-                <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                  {r.outstanding !== null && (
-                    <span>ค้างรับ {trimQty(r.outstanding)} {r.orderedUnitName}</span>
-                  )}
-                  {r.orderedUnitPrice !== null &&
-                    n(r.unitPrice) !== n(r.orderedUnitPrice) && (
-                      <span className="text-warn">
-                        ราคาต่างจากใบสั่งซื้อ ({r.orderedUnitPrice})
+                {(short || (r.orderedUnitPrice !== null && n(r.unitPrice) !== n(r.orderedUnitPrice))) && (
+                  <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-warn">
+                    {short && (
+                      <span>
+                        รับไม่ครบ ขาด {trimQty(String(Math.round((n(r.outstanding!) - n(r.qty)) * 1000) / 1000))} {unitName}
                       </span>
                     )}
-                  {base.unitName && n(r.qty) > 0 && (
-                    <span>
-                      = {base.qty.toLocaleString("th-TH")} {base.unitName} เข้าคลัง
-                    </span>
-                  )}
-                  <span>รวม {fmt(n(r.qty) * n(r.unitPrice))} ฿</span>
-                </div>
+                    {r.orderedUnitPrice !== null && n(r.unitPrice) !== n(r.orderedUnitPrice) && (
+                      <span>ราคาต่างจากใบสั่งซื้อ (฿{r.orderedUnitPrice})</span>
+                    )}
+                  </div>
+                )}
 
                 {/* The note is only required when over-receiving, so it only
                     appears then — an always-on field would be ignored. */}
                 {over ? (
-                  <div>
+                  <div className="mt-2">
                     <label className="text-xs font-medium text-warn">
                       รับเกินที่ค้างอยู่ — ระบุเหตุผล (จำเป็น)
                     </label>
@@ -787,7 +799,7 @@ export default function GoodsReceiptForm({
           <span className="text-muted-foreground">
             รวมทั้งใบ{inclusive && vatRate.trim() !== "" && Number(vatRate) > 0 ? " (รวม VAT)" : " (ก่อน VAT)"}&nbsp;
           </span>
-          <span className="font-semibold tabular-nums">{fmt(total)} ฿</span>
+          <span className="font-semibold tabular-nums">฿{fmt(total)}</span>
         </div>
       </section>
 

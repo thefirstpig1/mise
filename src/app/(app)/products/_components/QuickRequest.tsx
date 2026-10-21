@@ -10,6 +10,7 @@ import { addRequestLineAction } from "@/app/(app)/purchase-requests/actions";
 import type { ProductSheetForm } from "@/server/product-list";
 import { orStale } from "@/lib/stale-tab";
 import QtyStepper from "@/components/ui/QtyStepper";
+import SelectChip from "@/components/ui/SelectChip";
 import { qtyFmt, unitTh } from "@/app/(app)/menus/_components/manager-format";
 import { Portal, useTopLayer } from "@/app/(app)/menus/_components/sheet-parts";
 
@@ -97,13 +98,14 @@ export default function QuickRequest({
             จำนวน
             <span className="flex flex-wrap items-center gap-2">
               <QtyStepper value={qty} onChange={setQty} label="จำนวน" inputClassName="text-foreground" inputProps={{ autoFocus: true }} />
-              <select value={unitId} onChange={(e) => setUnitId(e.target.value)} className="input py-1 text-sm text-foreground" aria-label="หน่วย">
-                {(units ?? (suggest ? [{ id: suggest.unitId, unitName: suggest.unitName }] : [])).map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {unitTh(u.unitName)}
-                  </option>
-                ))}
-              </select>
+              <SelectChip
+                value={unitId}
+                onChange={setUnitId}
+                placeholder="หน่วย"
+                options={(units ?? (suggest ? [{ id: suggest.unitId, unitName: suggest.unitName }] : [])).map((u) => ({ value: u.id, label: unitTh(u.unitName) }))}
+                className="w-40 text-foreground"
+                selectProps={{ "aria-label": "หน่วย" }}
+              />
             </span>
           </div>
           <label className="grid gap-1 text-xs text-muted-foreground">

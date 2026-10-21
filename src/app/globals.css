@@ -46,6 +46,35 @@
     -moz-appearance: textfield;
     appearance: textfield;
   }
+
+  /* Kong 2026-10-22: text that does not fit is cut with "…" and slides on
+     hover to show the rest (Marquee.tsx sets --mq-x / --mq-t only when the
+     text overflows, so text that fits never moves). */
+  .marquee {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .marquee > span {
+    display: inline;
+  }
+  .marquee.is-running {
+    text-overflow: clip;
+  }
+  .marquee.is-running > span {
+    display: inline-block;
+    animation: marquee var(--mq-t, 3s) ease-in-out 0.25s infinite alternate;
+  }
+  @keyframes marquee {
+    0%, 12% { transform: translateX(0); }
+    88%, 100% { transform: translateX(var(--mq-x, 0)); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .marquee.is-running { text-overflow: ellipsis; }
+    .marquee.is-running > span { animation: none; display: inline; }
+  }
 }
 
 /* ============================================================
