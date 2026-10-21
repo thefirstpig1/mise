@@ -32,7 +32,7 @@ describe("ensureProductUnitLogic", () => {
   });
 
   it("a standard measure of the product's own dimension converts by itself", async () => {
-    expect(await ensureProductUnitLogic(tenant, { productId: pork.id, unitName: "กรัม" })).toMatchObject({ unitName: "กรัม", toBaseRatio: 0.001 });
+    expect(await ensureProductUnitLogic(tenant, { productId: pork.id, unitName: "g" })).toMatchObject({ unitName: "g", toBaseRatio: 0.001 });
     expect(await ensureProductUnitLogic(tenant, { productId: fishSauce.id, unitName: "ช้อนโต๊ะ" })).toMatchObject({ toBaseRatio: 0.015 });
     expect(await ensureProductUnitLogic(tenant, { productId: fishSauce.id, unitName: "หยิบมือ" })).toMatchObject({ toBaseRatio: 0.0003 });
   });

@@ -450,10 +450,10 @@ export async function getIngredientOptionsLogic(
         select: { id: true, name: true, posMenuId: true },
         orderBy: { name: "asc" },
       }),
-      // Global reference data, not tenant-scoped. English spellings (g, kg) are
-      // the same sizes as the Thai ones and would only double the list.
+      // Global reference data, not tenant-scoped. One name per size since
+      // 2026-10-21 (g kg ml l; the Thai metric spellings were removed).
       tx.unitTemplate.findMany({
-        where: { toSiRatio: { not: null }, displayOrderEn: null },
+        where: { toSiRatio: { not: null } },
         select: { unitName: true, unitDimension: true, toSiRatio: true },
         orderBy: [{ unitDimension: "asc" }, { displayOrderTh: "asc" }],
       }),

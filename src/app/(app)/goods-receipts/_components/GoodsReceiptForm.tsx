@@ -31,6 +31,7 @@ import { useActionState, useEffect, useId, useMemo, useState } from "react";
 import type { GoodsReceiptActionState } from "../actions";
 import type { ReceivablePurchaseOrderView } from "./goods-receipt-view";
 import ProductPicker, { type PickerProduct } from "@/components/ui/ProductPicker";
+import NewPackSize, { NEW_PACK_SIZE, containerGuess, useAddedUnits } from "@/components/ui/NewPackSize";
 
 export type GrUnitOption = {
   id: string;
@@ -144,7 +145,7 @@ const trimQty = (s: string) => (s.includes(".") ? s.replace(/\.?0+$/, "") : s);
 
 export default function GoodsReceiptForm({
   action,
-  products,
+  products: productsIn,
   suppliers,
   branches,
   purchaseOrders,
@@ -188,6 +189,10 @@ export default function GoodsReceiptForm({
   // guarantee it exists for disappears. In edit mode the receipt already has an
   // id, so the key is that id and the create path is unreachable anyway.
   const submitKeyFallback = useId();
+  // "+ ขนาดใหม่…" (Kong 2026-10-21): a size that arrived for the first time is
+  // added here, at the door, and is selectable at once.
+  const [products, addUnit] = useAddedUnits(productsIn);
+  const [sizeFor, setSizeFor] = useState<{ rowKey: string; productId: string } | null>(null);
   const [submitKey] = useState(
     () =>
       initial?.id ??
@@ -677,7 +682,11 @@ export default function GoodsReceiptForm({
                       <select
                         className={"input w-full mt-1"}
                         value={r.receivedUnitId}
-                        onChange={(e) => setRow(r.key, { receivedUnitId: e.target.value })}
+                        onChange={(e) =>
+                          e.target.value === NEW_PACK_SIZE
+                            ? setSizeFor({ rowKey: r.key, productId: r.productId })
+                            : setRow(r.key, { receivedUnitId: e.target.value })
+                        }
                         disabled={!product}
                       >
                         {(product?.units ?? []).map((u) => (
@@ -685,6 +694,7 @@ export default function GoodsReceiptForm({
                             {u.unitName}
                           </option>
                         ))}
+                        {product && <option value={NEW_PACK_SIZE}>+ ขนาดใหม่…</option>}
                       </select>
                     )}
                   </div>
@@ -809,6 +819,26 @@ export default function GoodsReceiptForm({
           ยกเลิก
         </a>
       </div>
+      {sizeFor &&
+        (() => {
+          const p = productById.get(sizeFor.productId);
+          const r = rows.find((x) => x.key === sizeFor.rowKey);
+          if (!p || !r) return null;
+          return (
+            <NewPackSize
+              productId={p.id}
+              productName={p.name}
+              baseUnitName={p.units.find((u) => u.isBase)?.unitName ?? p.baseUnitName ?? ""}
+              guessBox={containerGuess(p.units, r.receivedUnitId)}
+              onClose={() => setSizeFor(null)}
+              onDone={(u) => {
+                addUnit(p.id, u);
+                setRow(r.key, { receivedUnitId: u.id });
+                setSizeFor(null);
+              }}
+            />
+          );
+        })()}
     </form>
   );
 }

@@ -31,6 +31,21 @@
   .tabular-nums {
     @apply font-display;
   }
+
+  /* Kong 2026-10-21: no spin arrows inside a number box — they are tiny and
+     read as dated. Where stepping makes sense the screen puts large − / +
+     buttons OUTSIDE the box (QtyStepper). One rule here so every field, and
+     every field written tomorrow, is right by default. Select-on-focus and
+     the scroll-wheel guard live in NumberFieldBehaviour.tsx. */
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
 }
 
 /* ============================================================

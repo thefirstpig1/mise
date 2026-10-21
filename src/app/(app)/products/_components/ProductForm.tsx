@@ -519,7 +519,7 @@ export default function ProductForm({
           <div>
             <h3 className="text-sm font-medium">ความหนาแน่น (ของเหลว)</h3>
             <p className="mt-1 text-xs text-muted-foreground">
-              ใช้แปลงหน่วยข้ามน้ำหนัก↔ปริมาตร (เช่น น้ำมัน 1 ลิตร = กี่กรัม) —
+              ใช้แปลงหน่วยข้ามน้ำหนัก↔ปริมาตร (เช่น น้ำมัน 1 l = กี่ g) —
               ระบุหรือเว้นว่างก็ได้
             </p>
           </div>

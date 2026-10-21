@@ -15,6 +15,7 @@
 
 import { useState } from "react";
 import ProductThumb from "@/components/ui/ProductThumb";
+import QtyStepper from "@/components/ui/QtyStepper";
 import { formatQty } from "./stock-count-view";
 import type { StockCountItemView } from "./stock-count-view";
 
@@ -93,23 +94,21 @@ function EntryEditor({
       <div className="space-y-1.5">
         {entries.map((row, i) => (
           <div key={i} className="flex items-center gap-1.5">
-            <input
-              type="number"
-              inputMode="decimal"
-              min="0"
-              step="0.001"
+            <QtyStepper
               value={row.qty}
-              placeholder="0"
-              autoFocus={autoFocus && i === 0}
-              aria-label={`จำนวน ${product.name}`}
-              onChange={(e) => setEntry(i, { qty: e.target.value })}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  submit(e.currentTarget);
-                }
+              onChange={(qty) => setEntry(i, { qty })}
+              label={`จำนวน ${product.name}`}
+              inputClassName="h-10 text-base"
+              inputProps={{
+                placeholder: "0",
+                autoFocus: autoFocus && i === 0,
+                onKeyDown: (e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    submit(e.currentTarget);
+                  }
+                },
               }}
-              className="input h-10 w-24 text-right text-base tabular-nums"
             />
             <select
               value={row.unitId}
@@ -141,7 +140,7 @@ function EntryEditor({
             onClick={() => setEntries((rows) => [...rows, { unitId: unusedUnit.id, qty: "" }])}
             className="text-xs text-primary hover:underline"
           >
-            + หน่วย (เช่น 2 กระสอบ + 3 กก.)
+            + หน่วย (เช่น 2 กระสอบ + 3 kg)
           </button>
         )}
       </div>

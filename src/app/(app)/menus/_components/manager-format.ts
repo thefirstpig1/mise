@@ -9,8 +9,13 @@ export const baht = (v: number, digits = 0) =>
 export const confidenceTh = (c: string) => RECIPE_CONFIDENCE_LABELS_TH[c as RecipeConfidence] ?? c;
 export const confidenceHintTh = (c: string) => RECIPE_CONFIDENCE_HINTS_TH[c as RecipeConfidence] ?? "";
 
-/** Base unit names as stored (kg, l, g, ml) read as Thai on screen. */
-const UNIT_TH: Record<string, string> = { kg: "กก.", g: "กรัม", l: "ลิตร", ml: "มล.", pcs: "ชิ้น" };
+/**
+ * Kong 2026-10-21: one name per unit — metric sizes are written g · kg · ml · l
+ * on every screen; everything else is Thai. A unit still stored under an old
+ * Thai metric spelling reads in English too, so two products never show the
+ * same size two ways. (The name `unitTh` predates the decision.)
+ */
+const UNIT_TH: Record<string, string> = { "กก.": "kg", "กรัม": "g", "ลิตร": "l", "มล.": "ml", pcs: "ชิ้น" };
 export const unitTh = (u: string | null | undefined) => (u ? (UNIT_TH[u] ?? u) : "");
 
 export const qtyFmt = (v: number, unit?: string | null) =>

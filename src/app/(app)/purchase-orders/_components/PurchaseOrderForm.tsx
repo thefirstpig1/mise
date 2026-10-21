@@ -30,6 +30,7 @@ import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import type { PurchaseOrderActionState } from "../actions";
 import type { ResolvedPriceView } from "./purchase-order-view";
 import ProductPicker from "@/components/ui/ProductPicker";
+import NewPackSize, { NEW_PACK_SIZE, containerGuess, useAddedUnits } from "@/components/ui/NewPackSize";
 
 export type POUnitOption = {
   id: string;
@@ -124,7 +125,7 @@ const fmt = (v: number) =>
 
 export default function PurchaseOrderForm({
   action,
-  products,
+  products: productsIn,
   suppliers,
   branches,
   tenantDefaultVatRate,
@@ -160,6 +161,9 @@ export default function PurchaseOrderForm({
     action,
     { ok: false } as PurchaseOrderActionState
   );
+  // "+ ขนาดใหม่…" (Kong 2026-10-21): sizes added here are selectable at once.
+  const [products, addUnit] = useAddedUnits(productsIn);
+  const [sizeFor, setSizeFor] = useState<{ rowKey: string; productId: string } | null>(null);
 
   const [branchId, setBranchId] = useState(
     initial?.branchId ?? branches[0]?.id ?? ""
@@ -506,7 +510,9 @@ export default function PurchaseOrderForm({
                       name="line_order_unit_id"
                       value={row.orderUnitId}
                       onChange={(e) =>
-                        patch(row.key, { orderUnitId: e.target.value })
+                        e.target.value === NEW_PACK_SIZE
+                          ? setSizeFor({ rowKey: row.key, productId: row.productId })
+                          : patch(row.key, { orderUnitId: e.target.value })
                       }
                       className={"input w-full mt-1"}
                       disabled={!product}
@@ -518,6 +524,7 @@ export default function PurchaseOrderForm({
                           {u.isBase ? " (หน่วยหลัก)" : ""}
                         </option>
                       ))}
+                      {product && <option value={NEW_PACK_SIZE}>+ ขนาดใหม่…</option>}
                     </select>
                   </div>
 
@@ -695,6 +702,27 @@ export default function PurchaseOrderForm({
           ยกเลิก
         </a>
       </div>
+      {sizeFor &&
+        (() => {
+          const p = products.find((x) => x.id === sizeFor.productId);
+          const r = rows.find((x) => x.key === sizeFor.rowKey);
+          if (!p || !r) return null;
+          return (
+            <NewPackSize
+              productId={p.id}
+              productName={p.name}
+              baseUnitName={p.units.find((u) => u.isBase)?.unitName ?? p.baseUnitName ?? ""}
+              guessBox={containerGuess(p.units, r.orderUnitId)}
+              onClose={() => setSizeFor(null)}
+              onDone={(u) => {
+                addUnit(p.id, u);
+                // A price typed for the old size is not this size's price.
+                patch(r.key, { orderUnitId: u.id, unitPrice: "", mappingId: "", priceScope: null, minOrderQty: null });
+                setSizeFor(null);
+              }}
+            />
+          );
+        })()}
     </form>
   );
 }

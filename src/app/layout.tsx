@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Prompt, Noto_Sans_Thai, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
+import NumberFieldBehaviour from "@/components/NumberFieldBehaviour";
 
 // ============================================================
 // Mise — type (Part 33, theme)
@@ -68,6 +69,7 @@ export default function RootLayout({
       className={`${sans.variable} ${display.variable} ${mono.variable}`}
     >
       <body className="min-h-screen bg-background font-sans antialiased">
+        <NumberFieldBehaviour />
         {children}
       </body>
     </html>

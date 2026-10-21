@@ -9,6 +9,7 @@ import { useEffect, useState } from "react";
 import { addRequestLineAction } from "@/app/(app)/purchase-requests/actions";
 import type { ProductSheetForm } from "@/server/product-list";
 import { orStale } from "@/lib/stale-tab";
+import QtyStepper from "@/components/ui/QtyStepper";
 import { qtyFmt, unitTh } from "@/app/(app)/menus/_components/manager-format";
 import { Portal, useTopLayer } from "@/app/(app)/menus/_components/sheet-parts";
 
@@ -92,10 +93,10 @@ export default function QuickRequest({
               {suggest ? " · จำนวนแนะนำเติมไว้แล้ว แก้ได้" : ""}
             </p>
           </div>
-          <label className="grid gap-1 text-xs text-muted-foreground">
+          <div className="grid gap-1 text-xs text-muted-foreground">
             จำนวน
-            <span className="flex items-center gap-2">
-              <input autoFocus type="number" min="0" step="any" value={qty} onChange={(e) => setQty(e.target.value)} className="input w-24 py-1 text-right tabular-nums text-foreground" aria-label="จำนวน" />
+            <span className="flex flex-wrap items-center gap-2">
+              <QtyStepper value={qty} onChange={setQty} label="จำนวน" inputClassName="text-foreground" inputProps={{ autoFocus: true }} />
               <select value={unitId} onChange={(e) => setUnitId(e.target.value)} className="input py-1 text-sm text-foreground" aria-label="หน่วย">
                 {(units ?? (suggest ? [{ id: suggest.unitId, unitName: suggest.unitName }] : [])).map((u) => (
                   <option key={u.id} value={u.id}>
@@ -104,7 +105,7 @@ export default function QuickRequest({
                 ))}
               </select>
             </span>
-          </label>
+          </div>
           <label className="grid gap-1 text-xs text-muted-foreground">
             ผู้ขาย
             <select value={supplier} onChange={(e) => setSupplier(e.target.value as "auto" | "")} className="input py-1 text-sm text-foreground">

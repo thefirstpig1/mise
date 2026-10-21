@@ -16,6 +16,7 @@
 import { unitTh } from "@/app/(app)/menus/_components/manager-format";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import QtyStepper from "@/components/ui/QtyStepper";
 import ProductPicker from "@/components/ui/ProductPicker";
 import { orStale } from "@/lib/stale-tab";
 import { ModalShell } from "@/app/(app)/sales/_components/Breakdown";
@@ -484,7 +485,7 @@ function AddLine({
         </div>
         <div className="sm:col-span-3">
           <label className="label">จำนวน</label>
-          <input type="number" min="0" step="0.001" value={qty} onChange={(e) => setQty(e.target.value)} className="input mt-1 w-full" />
+          <QtyStepper value={qty} onChange={setQty} label="จำนวน" className="mt-1" />
         </div>
         <div className="sm:col-span-3">
           <label className="label">หน่วย</label>
@@ -737,10 +738,11 @@ function EditLine({
         แก้ไข · {line.product.name}
       </h3>
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
-        <label className="text-sm">
+        {/* A div, not a label: clicking a label's text would press its − button. */}
+        <div className="text-sm">
           จำนวน
-          <input type="number" min="0" step="0.001" value={qty} onChange={(e) => setQty(e.target.value)} className="input mt-1 w-full" />
-        </label>
+          <QtyStepper value={qty} onChange={setQty} label="จำนวน" className="mt-1 flex" />
+        </div>
         <label className="text-sm">
           หน่วย
           <select value={unitId} onChange={(e) => setUnitId(e.target.value)} className="input mt-1 w-full">

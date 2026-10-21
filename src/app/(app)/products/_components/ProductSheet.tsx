@@ -23,8 +23,15 @@ import { orStale } from "@/lib/stale-tab";
 import { unitTh } from "@/app/(app)/menus/_components/manager-format";
 import { ConfirmDialog, type ConfirmSpec } from "@/app/(app)/menus/_components/sheet-parts";
 import type { ProductView } from "./product-view";
+import { composePackName, packRatio, partsOf, sizeUnitsFor } from "@/lib/pack-unit";
 
-type UnitRow = { key: string; id: string | null; unitName: string; ratio: string; buy: boolean };
+/**
+ * Kong 2026-10-21: a pack unit is typed as container + size + size unit and
+ * the name is written for it ("ถุง" 500 g → "ถุง 500 g", 0.5 of a kg-counted
+ * product). `custom` rows keep a hand-written name and a typed ratio, for what
+ * a container and a size cannot say; a unit already used (🔒) keeps its name.
+ */
+type UnitRow = { key: string; id: string | null; unitName: string; box: string; size: string; sizeUnit: string; custom: boolean; ratio: string; buy: boolean };
 type ParRow = { id: string | null; qty: string; unitId: string };
 let seq = 0;
 
@@ -78,7 +85,20 @@ export default function ProductSheet({
   const base = useMemo(() => {
     const units: UnitRow[] = (form?.units ?? [])
       .filter((u) => !u.isBase)
-      .map((u) => ({ key: `u${++seq}`, id: u.id, unitName: u.unitName, ratio: String(u.toBaseRatio), buy: u.isDefaultBuyUnit }));
+      .map((u) => {
+        const parts = partsOf(u.unitName, u.toBaseRatio, product.baseUnitName ?? "");
+        return {
+          key: `u${++seq}`,
+          id: u.id,
+          unitName: u.unitName,
+          box: parts?.box ?? "",
+          size: parts?.size ?? "",
+          sizeUnit: parts?.sizeUnit ?? sizeUnitsFor(product.baseUnitName ?? "")[0] ?? "",
+          custom: parts === null,
+          ratio: String(u.toBaseRatio),
+          buy: u.isDefaultBuyUnit,
+        };
+      });
     const pars: Record<string, ParRow> = {};
     const baseUnitId = form?.units.find((u) => u.isBase)?.id ?? "";
     for (const b of branches) {
@@ -100,7 +120,11 @@ export default function ProductSheet({
 
   const baseUnit = product.baseUnitName ?? "";
   const locked = new Set(form?.lockedUnitIds ?? []);
-  const sig = (u: UnitRow[]) => JSON.stringify(u.map((x) => [x.unitName.trim(), Number(x.ratio), x.buy]));
+  // A unit something was written in keeps its name (🔒) — only its size moves.
+  const typed = (u: UnitRow) => u.custom || (u.id !== null && locked.has(u.id));
+  const rowName = (u: UnitRow) => (typed(u) ? u.unitName.trim() : composePackName(u.box, u.size, u.sizeUnit));
+  const rowRatio = (u: UnitRow) => (typed(u) ? u.ratio : String(packRatio(u.size, u.sizeUnit, baseUnit) ?? ""));
+  const sig = (u: UnitRow[]) => JSON.stringify(u.map((x) => [rowName(x), Number(rowRatio(x)), x.buy]));
   const infoDirty =
     form !== null &&
     (draft.name.trim() !== base.name || draft.nameEn.trim() !== base.nameEn || draft.categoryId !== base.categoryId || draft.active !== base.active || sig(draft.units) !== sig(base.units));
@@ -113,14 +137,14 @@ export default function ProductSheet({
   // A unit whose SIZE changes moves every recipe written in it (Part 21 Q17).
   const resized = draft.units.filter((u) => {
     const o = base.units.find((x) => x.id !== null && x.id === u.id);
-    return o && Number(o.ratio) !== Number(u.ratio);
+    return o && Number(rowRatio(o)) !== Number(rowRatio(u));
   });
   // Only a unit something was WRITTEN in moves anything — the lock set says which.
   const resizedInUse = resized.filter((u) => u.id !== null && locked.has(u.id));
   const confirm =
     resizedInUse.length > 0
       ? {
-          lines: resizedInUse.map((u) => `${u.unitName}: ${base.units.find((x) => x.id === u.id)?.ratio} → ${u.ratio} ${unitTh(baseUnit)}`),
+          lines: resizedInUse.map((u) => `${rowName(u)}: ${base.units.find((x) => x.id === u.id)?.ratio} → ${rowRatio(u)} ${unitTh(baseUnit)}`),
           who: "หน่วยนี้มีสูตรหรือเอกสารใช้อยู่ · ทุกตัวเลขที่บันทึกด้วยหน่วยนี้ (สูตร การนับ การรับของ) จะคิดด้วยขนาดใหม่ · ทุกสาขา",
         }
       : null;
@@ -136,10 +160,11 @@ export default function ProductSheet({
       fd.set("category_id", draft.categoryId);
       if (draft.active) fd.set("is_active", "on");
       for (const u of draft.units) {
-        fd.append("additional_unit_name", u.unitName);
-        fd.append("additional_unit_ratio", u.ratio);
+        fd.append("additional_unit_name", rowName(u));
+        fd.append("additional_unit_ratio", rowRatio(u));
       }
-      fd.set("default_buy_unit_name", draft.units.find((u) => u.buy && u.unitName.trim())?.unitName.trim() ?? baseUnit);
+      const buyRow = draft.units.find((u) => u.buy && rowName(u));
+      fd.set("default_buy_unit_name", buyRow ? rowName(buyRow) : baseUnit);
       fd.set("type", product.type);
       fd.set("parent_product_id", product.parentProductId ?? "");
       fd.set("yield_percent", product.yieldPercent ?? "");
@@ -272,27 +297,79 @@ export default function ProductSheet({
               <h5 className="text-sm font-semibold">หน่วยซื้อและหน่วยนับเพิ่ม</h5>
               <span className="text-xs text-muted-foreground">นับสต๊อกเป็น {unitTh(baseUnit)} · ใช้ตอนสั่งซื้อ รับของ และนับหลายหน่วย</span>
             </div>
-            {draft.units.length === 0 && <p className="text-xs text-muted-foreground">ยังไม่มี · เช่น กระสอบ 15 กก. แพ็ค 12 ขวด</p>}
+            {draft.units.length === 0 && (
+              <p className="text-xs text-muted-foreground">ยังไม่มี · พิมพ์แค่ภาชนะกับขนาด เช่น ถุง 500 g → ระบบเขียนชื่อให้เอง</p>
+            )}
             {draft.units.map((u) => {
               const isLocked = u.id !== null && locked.has(u.id);
+              const shown = rowName(u);
               return (
                 <div key={u.key} className="flex flex-wrap items-center gap-1.5 text-sm">
-                  <input
-                    value={u.unitName}
-                    disabled={!canEditInfo || isLocked}
-                    onChange={(e) => setUnit(u.key, { unitName: e.target.value })}
-                    placeholder="ชื่อหน่วย"
-                    className="input w-40 py-0.5"
-                    aria-label="ชื่อหน่วย"
-                    title={isLocked ? "ใช้ในสูตรหรือเอกสารแล้ว เปลี่ยนชื่อไม่ได้ แก้ตัวเลขได้" : undefined}
-                  />
-                  =
-                  <input type="number" step="any" min="0" value={u.ratio} disabled={!canEditInfo} onChange={(e) => setUnit(u.key, { ratio: e.target.value })} className="input w-24 py-0.5 text-right tabular-nums" aria-label={`${u.unitName} เท่ากับ`} />
-                  {unitTh(baseUnit)}
+                  {u.custom || isLocked ? (
+                    <input
+                      value={u.unitName}
+                      disabled={!canEditInfo || isLocked}
+                      onChange={(e) => setUnit(u.key, { unitName: e.target.value })}
+                      placeholder="ชื่อหน่วย"
+                      className="input w-44 py-0.5"
+                      aria-label="ชื่อหน่วย"
+                      title={isLocked ? "ใช้ในสูตรหรือเอกสารแล้ว เปลี่ยนชื่อไม่ได้ แก้ตัวเลขได้" : undefined}
+                    />
+                  ) : (
+                    <>
+                      <input
+                        value={u.box}
+                        disabled={!canEditInfo}
+                        onChange={(e) => setUnit(u.key, { box: e.target.value })}
+                        placeholder="กระสอบ"
+                        className="input w-24 py-0.5"
+                        aria-label="ภาชนะ"
+                      />
+                      <span className="text-xs text-muted-foreground">บรรจุ</span>
+                    </>
+                  )}
+                  {u.custom || isLocked ? (
+                    <>
+                      =
+                      <input type="number" step="any" min="0" value={u.ratio} disabled={!canEditInfo} onChange={(e) => setUnit(u.key, { ratio: e.target.value })} className="input w-20 py-0.5 text-right tabular-nums" aria-label={`${shown || "หน่วยนี้"} เท่ากับ`} />
+                      {unitTh(baseUnit)}
+                    </>
+                  ) : (
+                    <>
+                      <input type="number" step="any" min="0" value={u.size} disabled={!canEditInfo} onChange={(e) => setUnit(u.key, { size: e.target.value })} className="input w-20 py-0.5 text-right tabular-nums" aria-label="ขนาด" />
+                      {sizeUnitsFor(baseUnit).length > 1 ? (
+                        <select value={u.sizeUnit} disabled={!canEditInfo} onChange={(e) => setUnit(u.key, { sizeUnit: e.target.value })} className="input py-0.5" aria-label="หน่วยของขนาด">
+                          {sizeUnitsFor(baseUnit).map((x) => (
+                            <option key={x} value={x}>
+                              {x}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        unitTh(baseUnit)
+                      )}
+                    </>
+                  )}
                   <label className="ml-2 flex items-center gap-1 text-xs text-muted-foreground">
                     <input type="radio" name="buy" checked={u.buy} disabled={!canEditInfo} onChange={() => setDraft((d) => ({ ...d, units: d.units.map((x) => ({ ...x, buy: x.key === u.key })) }))} />
                     ซื้อหลัก
                   </label>
+                  {canEditInfo && !isLocked && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setUnit(
+                          u.key,
+                          u.custom
+                            ? { custom: false, box: u.unitName.trim().split(/\s+/)[0] ?? "", size: u.ratio, sizeUnit: sizeUnitsFor(baseUnit).includes(unitTh(baseUnit)) ? unitTh(baseUnit) : sizeUnitsFor(baseUnit)[0] ?? "" }
+                            : { custom: true, unitName: shown, ratio: rowRatio(u) }
+                        )
+                      }
+                      className="text-xs text-primary underline"
+                    >
+                      {u.custom ? "ใช้ชื่ออัตโนมัติ" : "ตั้งชื่อเอง"}
+                    </button>
+                  )}
                   {canEditInfo &&
                     (isLocked ? (
                       <span className="text-xs text-muted-subtle" title="ใช้ในสูตรหรือเอกสารแล้ว ลบไม่ได้ แก้ตัวเลขได้">
@@ -303,11 +380,17 @@ export default function ProductSheet({
                         ×
                       </button>
                     ))}
+                  {!u.custom && !isLocked && (
+                    <p className="basis-full text-xs text-muted-foreground">
+                      จะแสดงเป็น <span className="font-medium text-foreground">{shown || "…"}</span>
+                      {shown && rowRatio(u) && unitTh(baseUnit) !== u.sizeUnit && <span> · = {Number(rowRatio(u))} {unitTh(baseUnit)}</span>}
+                    </p>
+                  )}
                 </div>
               );
             })}
             {canEditInfo && (
-              <button type="button" onClick={() => setDraft((d) => ({ ...d, units: [...d.units, { key: `u${++seq}`, id: null, unitName: "", ratio: "", buy: false }] }))} className="justify-self-start rounded-full border border-border-strong px-3 py-0.5 text-xs hover:bg-muted">
+              <button type="button" onClick={() => setDraft((d) => ({ ...d, units: [...d.units, { key: `u${++seq}`, id: null, unitName: "", box: "", size: "", sizeUnit: unitTh(baseUnit), custom: false, ratio: "", buy: false }] }))} className="justify-self-start rounded-full border border-border-strong px-3 py-0.5 text-xs hover:bg-muted">
                 + เพิ่มหน่วย
               </button>
             )}

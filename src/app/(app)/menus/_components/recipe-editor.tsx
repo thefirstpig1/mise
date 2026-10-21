@@ -73,9 +73,10 @@ const remember = (productId: string, u: { id: string; unitName: string; toBaseRa
 
 type UnitChoice = { id: string | null; unitName: string; ratio: number; standard: boolean };
 
-// Products created before the Thai spellings (Part 35) keep "kg" / "l" — the
-// same sizes under another label — so a standard is matched by its Thai name.
-const ALIAS: Record<string, string> = { kg: "กก.", g: "กรัม", l: "ลิตร", ml: "มล." };
+// Kong 2026-10-21: metric sizes are written g · kg · ml · l. A unit a shop
+// still holds under the old Thai spelling (unit_names_en.sql skips a row
+// whose English name already exists) matches the same standard.
+const ALIAS: Record<string, string> = { "กก.": "kg", "กรัม": "g", "ลิตร": "l", "มล.": "ml" };
 const canon = (n: string) => ALIAS[n] ?? n;
 
 /** The base unit's size in the standard's terms (g or ml), or null when it is not a standard. */
@@ -108,7 +109,7 @@ export function unitChoices(opt: IngredientOption | undefined, standards: Standa
 /** A new line's unit: grams for something weighed, ml for a liquid, else its base. */
 export function defaultUnit(o: IngredientOption, standards: StandardUnit[]): UnitChoice | null {
   const choices = unitChoices(o, standards);
-  const pick = o.dimension === "WEIGHT" ? "กรัม" : o.dimension === "VOLUME" ? "มล." : null;
+  const pick = o.dimension === "WEIGHT" ? "g" : o.dimension === "VOLUME" ? "ml" : null;
   const base = o.units.find((u) => u.isBase);
   return choices.find((c) => canon(c.unitName) === pick) ?? (base ? { id: base.id, unitName: base.unitName, ratio: 1, standard: false } : null);
 }
@@ -336,7 +337,7 @@ function NewUnitDialog({
   // Asked in grams or millilitres — what a kitchen scale or a measuring jug
   // shows — and turned into the product's base unit here.
   const base = option.units.find((u) => u.isBase)?.unitName ?? "";
-  const ref = option.dimension === "WEIGHT" ? "กรัม" : option.dimension === "VOLUME" ? "มล." : base;
+  const ref = option.dimension === "WEIGHT" ? "g" : option.dimension === "VOLUME" ? "ml" : base;
   const refSi = standards.find((s) => s.unitName === ref)?.si ?? null;
   const bs = standards.find((s) => s.unitName === canon(base))?.si ?? null;
   const toBase = (v: number) => (refSi !== null && bs !== null && ref !== canon(base) ? (v * refSi) / bs : v);

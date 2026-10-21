@@ -68,6 +68,10 @@ export const MANUAL_SQL_ORDER = [
   // same reason: it writes rows, depends on no index or policy, and must run
   // before enforce_rls changes who is allowed to write them.
   "category_names_th.sql",
+  // 2026-10-21: renames product units copied from the Thai metric spellings
+  // (กก. → kg …) that system_reference_seed.sql no longer offers. Same group,
+  // same reason as the line above.
+  "unit_names_en.sql",
 
   // --- 3. the policies ----------------------------------------------------
   "enable_rls.sql",

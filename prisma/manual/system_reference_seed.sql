@@ -65,6 +65,9 @@
 -- and ถุง have no English ordering to give — they are NULL there rather than
 -- translated into something no kitchen says.
 --
+-- (2026-10-21: the Thai METRIC spellings below were later removed again — see
+-- the DELETE after the insert. ขวด, กระป๋อง and the other Thai count units stay.)
+--
 -- Part 35 (2026-09-27): THAI NAMES ADDED, NOT SWAPPED IN. Seeding a demo shop
 -- found that a beer could only be counted in "ชิ้น" and every weight had to be
 -- typed as "kg" — there was no ขวด, no กระป๋อง, no กก. Renaming 'kg' to 'กก.'
@@ -79,14 +82,12 @@
 INSERT INTO unit_template (id, unit_name, unit_dimension, to_si_ratio, display_order_th, display_order_en)
 VALUES
   -- WEIGHT — grams
-  (gen_random_uuid(), 'กรัม',   'WEIGHT',    1.0,  1, NULL),
-  (gen_random_uuid(), 'กก.',    'WEIGHT', 1000.0,  2, NULL),
+  (gen_random_uuid(), 'g',     'WEIGHT',    1.0,  1,    1),
+  (gen_random_uuid(), 'kg',    'WEIGHT', 1000.0,  2,    2),
   (gen_random_uuid(), 'ขีด',    'WEIGHT',  100.0,  3, NULL),
-  (gen_random_uuid(), 'g',     'WEIGHT',    1.0,  4,    1),
-  (gen_random_uuid(), 'kg',    'WEIGHT', 1000.0,  5,    2),
   -- VOLUME — millilitres
-  (gen_random_uuid(), 'มล.',    'VOLUME',    1.0,  1, NULL),
-  (gen_random_uuid(), 'ลิตร',   'VOLUME', 1000.0,  2, NULL),
+  (gen_random_uuid(), 'ml',    'VOLUME',    1.0,  1,    1),
+  (gen_random_uuid(), 'l',     'VOLUME', 1000.0,  2,    2),
   -- Kitchen measures (Kong 2026-10-04): a recipe is written in spoons, not
   -- litres. Thai/metric sizes — ช้อนชา 5 ml, ช้อนโต๊ะ 15 ml, ถ้วยตวง 240 ml —
   -- and หยิบมือ as the cookbook pinch, 1/16 ช้อนชา ≈ 0.3 ml. A spoon of a
@@ -97,8 +98,6 @@ VALUES
   (gen_random_uuid(), 'ช้อนโต๊ะ', 'VOLUME',   15.0,  4, NULL),
   (gen_random_uuid(), 'ถ้วยตวง', 'VOLUME',  240.0,  5, NULL),
   (gen_random_uuid(), 'หยิบมือ', 'VOLUME',    0.3,  6, NULL),
-  (gen_random_uuid(), 'ml',    'VOLUME',    1.0,  7,    1),
-  (gen_random_uuid(), 'l',     'VOLUME', 1000.0,  8,    2),
   -- COUNT — no ratio, deliberately
   (gen_random_uuid(), 'ชิ้น',   'COUNT',   NULL,  1, NULL),
   (gen_random_uuid(), 'ฟอง',   'COUNT',   NULL,  2, NULL),
@@ -119,6 +118,15 @@ ON CONFLICT (unit_name) DO UPDATE SET
   to_si_ratio      = EXCLUDED.to_si_ratio,
   display_order_th = EXCLUDED.display_order_th,
   display_order_en = EXCLUDED.display_order_en;
+
+-- Kong 2026-10-21: ONE NAME PER UNIT. Metric sizes are written g · kg · ml · l
+-- (quick to type, read the same in both languages); everything without an
+-- international short form stays Thai. The Thai spellings of the four metric
+-- sizes that Part 35 added are therefore removed, so nobody can create the
+-- same size under a second name again. Nothing references unit_template by FK
+-- — a product copies the NAME into product_unit — so the delete orphans
+-- nothing; unit_names_en.sql renames the product_unit rows that copied them.
+DELETE FROM unit_template WHERE unit_name IN ('กรัม', 'กก.', 'มล.', 'ลิตร');
 
 
 -- ============================================================

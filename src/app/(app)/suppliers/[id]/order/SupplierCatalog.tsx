@@ -24,6 +24,8 @@ import { useRouter } from "next/navigation";
 import type { PurchaseOrderActionState } from "../../../purchase-orders/actions";
 import EmptyState from "@/components/ui/EmptyState";
 import ProductThumb from "@/components/ui/ProductThumb";
+import NewPackSize, { NEW_PACK_SIZE, useAddedUnits } from "@/components/ui/NewPackSize";
+import { guessContainer } from "@/lib/pack-unit";
 
 export type CatalogItemView = {
   productId: string;
@@ -73,7 +75,7 @@ export default function SupplierCatalog({
   branches,
   branchId,
   vatRate,
-  items,
+  items: itemsIn,
   action,
 }: {
   supplier: { id: string; nameFull: string };
@@ -84,6 +86,8 @@ export default function SupplierCatalog({
   action: (prev: PurchaseOrderActionState, fd: FormData) => Promise<PurchaseOrderActionState>;
 }) {
   const router = useRouter();
+  // A size added on this page is selectable at once, before the refresh lands.
+  const [items, addUnit] = useAddedUnits(itemsIn.map((i) => ({ ...i, id: i.productId })));
   const [state, formAction, isPending] = useActionState(action, { ok: false } as PurchaseOrderActionState);
   // Suggested lines start filled in (and ticked).
   const [picks, setPicks] = useState<Record<string, Pick>>(() =>
@@ -96,6 +100,13 @@ export default function SupplierCatalog({
   const suggested = items.filter((i) => i.suggest);
   const [section, setSection] = useState(ALL);
   const [search, setSearch] = useState("");
+  // "+ ขนาดใหม่…" (Kong 2026-10-21) — which row's popover is open.
+  const [sizeFor, setSizeFor] = useState<CatalogItemView | null>(null);
+  // The container of the size in use ("ถุง 250 g" → ถุง), else of any pack size.
+  const guessFor = (item: CatalogItemView) => {
+    const cur = item.units.find((u) => u.id === unitOf(item));
+    return guessContainer(cur && !cur.isBase ? cur.unitName : item.units.find((u) => !u.isBase)?.unitName);
+  };
 
   // A saved draft opens straight away — reviewing and sending happen there.
   useEffect(() => {
@@ -202,6 +213,9 @@ export default function SupplierCatalog({
                               </span>{" "}
                               / {item.price.orderUnitName ?? "หน่วย"}
                               {item.price.scope === "branch" && " (ราคาเฉพาะสาขานี้)"}
+                              <button type="button" onClick={() => setSizeFor(item)} className="ml-2 text-primary underline">
+                                + ขนาดใหม่
+                              </button>
                             </>
                           ) : item.lastPaid ? (
                             <>
@@ -237,7 +251,7 @@ export default function SupplierCatalog({
                           <select
                             aria-label={`หน่วยของ ${item.name}`}
                             value={unitOf(item)}
-                            onChange={(e) => patch(item, { unitId: e.target.value })}
+                            onChange={(e) => (e.target.value === NEW_PACK_SIZE ? setSizeFor(item) : patch(item, { unitId: e.target.value }))}
                             className="input w-44"
                           >
                             {item.units.map((u) => (
@@ -245,6 +259,7 @@ export default function SupplierCatalog({
                                 {u.unitName}
                               </option>
                             ))}
+                            <option value={NEW_PACK_SIZE}>+ ขนาดใหม่…</option>
                           </select>
                         </div>
                       )}
@@ -282,6 +297,25 @@ export default function SupplierCatalog({
                     </li>
                   );
   };
+
+  const sizePopover = sizeFor && (
+    <NewPackSize
+      productId={sizeFor.productId}
+      productName={sizeFor.name}
+      baseUnitName={sizeFor.units.find((u) => u.isBase)?.unitName ?? ""}
+      guessBox={guessFor(sizeFor)}
+      // A price-list row orders in ITS unit, so a new size there has to become it.
+      mapping={sizeFor.price ? { id: sizeFor.price.mappingId, supplierName: supplier.nameFull, required: true } : null}
+      onClose={() => setSizeFor(null)}
+      onDone={(u) => {
+        // The old price was for the old size; the price list (if any) now has the new one.
+        addUnit(sizeFor.productId, u);
+        patch(sizeFor, { unitId: u.id, price: u.unitPrice ?? "" });
+        setSizeFor(null);
+        router.refresh();
+      }}
+    />
+  );
 
   const formError = state.ok === false ? state.formError : undefined;
   const fieldErrors = state.ok === false && state.fieldErrors ? Object.values(state.fieldErrors) : [];
@@ -419,6 +453,7 @@ export default function SupplierCatalog({
           </button>
         </div>
       </div>
+      {sizePopover}
     </form>
   );
 }

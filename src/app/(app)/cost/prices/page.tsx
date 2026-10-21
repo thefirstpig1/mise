@@ -76,7 +76,7 @@ export default async function PricesPage({ searchParams }: { searchParams: SP })
       <div>
         <h1 className="text-2xl font-bold">ราคาวัตถุดิบขึ้นลง</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          จากใบรับของที่ยืนยันแล้ว · ราคาต่อหน่วยพื้นฐาน (เช่น ต่อ กก.) ไม่รวม VAT จึงเทียบกันได้แม้ซื้อคนละขนาดบรรจุ ·
+          จากใบรับของที่ยืนยันแล้ว · ราคาต่อหน่วยพื้นฐาน (เช่น ต่อ kg) ไม่รวม VAT จึงเทียบกันได้แม้ซื้อคนละขนาดบรรจุ ·
           เทียบราคาครั้งแรกกับครั้งล่าสุดในช่วงที่เลือก
         </p>
       </div>
