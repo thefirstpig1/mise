@@ -20,6 +20,7 @@
 // ============================================================
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { MeasureInput, MoneyInput } from "@/components/ui/NumberField";
 import { rankBySearch, hasQuery, highlightRuns, STRONG_MATCH, type SearchField } from "@/lib/smart-search";
 import { orStale } from "@/lib/stale-tab";
 import { ensureRecipeUnitAction } from "@/app/(app)/menus/manager-actions";
@@ -220,15 +221,15 @@ export function RecipeTable({
                   </td>
                   <td className="py-1.5 text-right align-top">
                     {editable ? (
-                      <input
-                        type="number"
-                        step="any"
+                      <MeasureInput
+                        size="sm"
+                        unit=""
                         min="0"
                         value={l.qty}
                         autoFocus={l.qty === "" && !o}
                         onChange={(e) => setLine(l.key, { qty: e.target.value })}
-                        className="input w-20 py-0.5 text-right tabular-nums"
                         aria-label={`ปริมาณ ${l.label}`}
+                        boxClassName="ml-auto w-24"
                       />
                     ) : (
                       <span className="tabular-nums">{l.qty}</span>
@@ -249,7 +250,7 @@ export function RecipeTable({
                           const ch = choices.find((x) => x.unitName === v);
                           if (ch) changeUnit(l, ch);
                         }}
-                        className="max-w-[9.5rem] rounded border border-border bg-surface px-1 py-0.5 text-sm"
+                        className="w-[9.5rem] rounded border border-border bg-surface px-1 py-0.5 text-sm"
                         aria-label={`หน่วย ${l.label}`}
                       >
                         {choices.some((x) => x.standard) && (
@@ -364,7 +365,7 @@ function NewUnitDialog({
           1
           <input autoFocus={!preset} value={name} onChange={(e) => setName(e.target.value)} placeholder="เช่น ใบ, เม็ด, ทัพพี" className="input w-36 py-1" aria-label="ชื่อหน่วย" />
           =
-          <input autoFocus={!!preset} type="number" step="any" min="0" value={value} onChange={(e) => setValue(e.target.value)} placeholder="0.3" className="input w-24 py-1 text-right tabular-nums" aria-label="เท่ากับ" />
+          <MeasureInput autoFocus={!!preset} unit="" min="0" value={value} onChange={(e) => setValue(e.target.value)} placeholder="0.3" aria-label="เท่ากับ" boxClassName="w-28" />
           {unitTh(ref)}
         </div>
         {error && <p className="text-sm text-bad">{error}</p>}

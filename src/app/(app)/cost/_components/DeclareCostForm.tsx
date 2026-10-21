@@ -11,6 +11,7 @@
 // would both slow them down and lose the number they actually meant.
 
 import { useActionState, useEffect, useState } from "react";
+import { MeasureInput, MoneyInput } from "@/components/ui/NumberField";
 import { declareCostAction, type CostActionState } from "../actions";
 import type { CostDeclarationView } from "./cost-view";
 
@@ -67,20 +68,11 @@ export default function DeclareCostForm({
         )}
 
         <div className="flex flex-wrap items-end gap-3">
-          <div className="min-w-[9rem] flex-1">
+          <div>
             <label htmlFor={`unit_cost-${movementId}`} className="label">
-              ต้นทุน (บาท) <span className="text-bad">*</span>
+              ต้นทุน <span className="text-bad">*</span>
             </label>
-            <input
-              id={`unit_cost-${movementId}`}
-              name="unit_cost"
-              type="number"
-              step="0.0001"
-              min="0"
-              required
-              className={"input w-full mt-1"}
-              placeholder="เช่น 4500"
-            />
+            <MoneyInput id={`unit_cost-${movementId}`} name="unit_cost" required placeholder="4500" boxClassName="mt-1 w-36" />
             {fieldErrors?.unitCost && (
               <p className="mt-1 text-xs text-bad">{fieldErrors.unitCost}</p>
             )}

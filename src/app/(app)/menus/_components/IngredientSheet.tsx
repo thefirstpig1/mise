@@ -17,6 +17,7 @@
 // the product's own details — and one บันทึก saves all of it.
 
 import { useEffect, useState, useTransition, type ReactNode } from "react";
+import { MeasureInput, MoneyInput } from "@/components/ui/NumberField";
 import { setPreppedYieldAction } from "@/app/(app)/menus/manager-actions";
 import { dropPrefetched, ingredientInsight } from "./prefetch";
 import { updateRecipeAction } from "@/app/(app)/recipes/actions";
@@ -326,11 +327,10 @@ export default function IngredientSheet({
                 <p className="flex flex-wrap items-center gap-2 text-sm">
                   {made.parentName} 1 {unitTh(baseUnit)} ได้{data.product.name}
                   {editable ? (
-                    <input type="number" step="any" min="0.01" value={yieldPct} onChange={(e) => setYieldPct(e.target.value)} className="input w-20 py-0.5 text-right tabular-nums" aria-label="% ผลผลิต" />
+                    <MeasureInput size="sm" unit="%" min="0.01" value={yieldPct} onChange={(e) => setYieldPct(e.target.value)} aria-label="% ผลผลิต" boxClassName="w-24" />
                   ) : (
-                    <b className="tabular-nums">{made.yieldPercent}</b>
+                    <b className="tabular-nums">{made.yieldPercent}%</b>
                   )}
-                  %
                 </p>
                 {!costHidden && draftCost !== null && parentPrice !== null && (
                   <p className="text-xs text-muted-foreground">

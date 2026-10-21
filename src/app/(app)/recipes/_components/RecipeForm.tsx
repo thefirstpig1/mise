@@ -24,6 +24,8 @@
 //     picker that offers a change the server refuses is a lie on screen.
 
 import { useActionState, useMemo, useState } from "react";
+import QtyStepper from "@/components/ui/QtyStepper";
+import { MeasureInput, MoneyInput } from "@/components/ui/NumberField";
 import { useRouter } from "next/navigation";
 import type { RecipeActionState } from "@/app/(app)/recipes/actions";
 import type { RecipeView } from "@/app/(app)/recipes/_components/recipe-view";
@@ -182,13 +184,13 @@ export default function RecipeForm({
           <label className="label" htmlFor="servings">
             {target.kind === "menu" ? "สูตรนี้ทำได้กี่จาน" : "สูตรนี้ได้ของกี่หน่วย"}
           </label>
-          <input
-            id="servings"
-            name="servings"
+          <QtyStepper
             value={servings}
-            onChange={(e) => setServings(e.target.value)}
-            inputMode="decimal"
-            className={"input w-full mt-1"}
+            onChange={setServings}
+            min={0}
+            label={target.kind === "menu" ? "สูตรนี้ทำได้กี่จาน" : "สูตรนี้ได้ของกี่หน่วย"}
+            className="mt-1"
+            inputProps={{ id: "servings", name: "servings" }}
           />
           <p className="mt-1 text-xs text-muted-foreground">
             ใส่ตามที่ทำจริง — ผัดทีละ 4 จานก็ใส่ 4 ระบบจะหารให้เอง
@@ -308,14 +310,14 @@ export default function RecipeForm({
                     </>
                   )}
 
-                  <input
+                  <MeasureInput
                     name="ingredient_qty"
+                    unit=""
                     value={line.qty}
                     onChange={(e) => setLine(line.key, { qty: e.target.value })}
-                    inputMode="decimal"
                     placeholder="จำนวน"
-                    className={"input w-full sm:col-span-2"}
                     aria-label="จำนวน"
+                    boxClassName="w-full sm:col-span-2"
                   />
 
                   {line.kind === "product" ? (

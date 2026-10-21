@@ -19,6 +19,7 @@
 //    toggle. >300 fires a non-blocking soft hint (cooked rice etc.).
 
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
+import { MeasureInput, MoneyInput } from "@/components/ui/NumberField";
 import { useRouter } from "next/navigation";
 import type { ProductActionState } from "@/app/(app)/products/actions";
 import {
@@ -413,19 +414,17 @@ export default function ProductForm({
                 <span className="text-bad"> *</span>
               </label>
               <div className="flex items-center gap-2">
-                <input
+                <MeasureInput
                   id="yield_percent"
                   name="yield_percent"
-                  type="number"
+                  unit="%"
                   value={yieldPercent}
                   onChange={(e) => setYieldPercent(e.target.value)}
-                  step="0.01"
                   min="0.01"
                   max="999.99"
-                  placeholder="เช่น 80.00"
-                  className={"input w-full max-w-[10rem]"}
+                  placeholder="80"
+                  boxClassName="w-32"
                 />
-                <span className="text-sm text-muted-foreground">%</span>
               </div>
               <p className="mt-1 text-xs text-muted-foreground">
                 สินค้าแม่ 100 หน่วย ได้สินค้านี้กี่หน่วย (เช่น เนื้อหั่นแล้ว
@@ -588,19 +587,16 @@ export default function ProductForm({
             {densityMode === "custom" && (
               <div className="pl-6">
                 <div className="flex items-center gap-2">
-                  <input
+                  <MeasureInput
                     id="density_g_per_ml_override"
                     name="density_g_per_ml_override"
-                    type="number"
+                    unit="g/ml"
                     value={densityOverride}
                     onChange={(e) => setDensityOverride(e.target.value)}
-                    step="0.001"
                     min="0"
-                    inputMode="decimal"
                     placeholder="1.030"
-                    className={"input w-full max-w-[10rem]"}
+                    boxClassName="w-36"
                   />
-                  <span className="text-sm text-muted-foreground">g/ml</span>
                 </div>
                 {showDensityHint && (
                   <p className="mt-1 text-xs text-warn">
@@ -680,15 +676,14 @@ export default function ProductForm({
                 placeholder="ชื่อหน่วย เช่น กระสอบ"
                 className="input w-full"
               />
-              <input
-                type="number"
+              <MeasureInput
                 name="additional_unit_ratio"
+                unit={baseUnit || "หน่วยหลัก"}
                 value={row.toBaseRatio}
                 onChange={(e) => patchRow(row.id, { toBaseRatio: e.target.value })}
-                step="any"
                 min="0"
-                placeholder={`= กี่ ${baseUnit || "หน่วยพื้นฐาน"}`}
-                className={"input w-full max-w-[10rem]"}
+                placeholder="0"
+                boxClassName="w-36 shrink-0"
               />
               <label className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
                 <input

@@ -24,6 +24,7 @@
 // write rather than a replay of the first.
 
 import { useActionState, useState } from "react";
+import { MeasureInput, MoneyInput } from "@/components/ui/NumberField";
 import type { SubstitutionActionState } from "@/app/(app)/recipes/actions";
 import type { SubstitutionPlanRowView } from "@/app/(app)/recipes/_components/recipe-view";
 
@@ -165,19 +166,17 @@ export default function SubstitutionForm({
                   value={r.recipeId}
                   disabled={!s.checked}
                 />
-                <input
+                <MeasureInput
+                  size="sm"
+                  unit=""
                   name="target_qty"
                   value={s.qty}
                   onChange={(e) => patch(r.recipeId, { qty: e.target.value })}
                   disabled={!s.checked}
-                  inputMode="decimal"
                   placeholder={r.carryQty === null ? "ต้องกรอกใหม่" : "จำนวน"}
                   aria-label={`จำนวนใหม่สำหรับ ${r.label}`}
-                  className={`$"input px-2 py-1" w-28 ${
-                    r.carryQty === null && s.checked && s.qty === ""
-                      ? "border-warn-border bg-warn-bg"
-                      : ""
-                  }`}
+                  tone={r.carryQty === null && s.checked && s.qty === "" ? "warn" : "default"}
+                  boxClassName="w-32"
                 />
 
                 {toProductId !== null ? (

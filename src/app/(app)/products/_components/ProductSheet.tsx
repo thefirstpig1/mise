@@ -13,6 +13,9 @@
 // on the full form, linked from here.
 
 import { useEffect, useMemo, useState } from "react";
+import QtyStepper from "@/components/ui/QtyStepper";
+import SelectChip from "@/components/ui/SelectChip";
+import { MeasureInput, MoneyInput } from "@/components/ui/NumberField";
 import { updateProduct, deleteProduct } from "@/app/(app)/products/actions";
 import { setParLevelAction, deleteParLevelAction } from "@/app/(app)/stock/par-level-actions";
 import IngredientSheet, { type SheetExtra } from "@/app/(app)/menus/_components/IngredientSheet";
@@ -246,28 +249,21 @@ export default function ProductSheet({
               <div key={b.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
                 <span>{b.name}</span>
                 <span className="flex items-center gap-1.5">
-                  <input
-                    type="number"
-                    step="any"
-                    min="0"
+                  <QtyStepper
+                    size="sm"
                     value={draft.pars[b.id]?.qty ?? ""}
-                    placeholder="ไม่ตั้ง"
-                    onChange={(e) => setDraft((d) => ({ ...d, pars: { ...d.pars, [b.id]: { ...d.pars[b.id], qty: e.target.value } } }))}
-                    className="input w-24 py-0.5 text-right tabular-nums"
-                    aria-label={`ขั้นต่ำ ${b.name}`}
+                    onChange={(qty) => setDraft((d) => ({ ...d, pars: { ...d.pars, [b.id]: { ...d.pars[b.id], qty } } }))}
+                    label={`ขั้นต่ำ ${b.name}`}
+                    inputProps={{ placeholder: "ไม่ตั้ง" }}
                   />
-                  <select
+                  <SelectChip
+                    size="sm"
                     value={draft.pars[b.id]?.unitId ?? ""}
-                    onChange={(e) => setDraft((d) => ({ ...d, pars: { ...d.pars, [b.id]: { ...d.pars[b.id], unitId: e.target.value } } }))}
-                    className="rounded border border-border bg-surface px-1 py-0.5 text-sm"
-                    aria-label={`หน่วยขั้นต่ำ ${b.name}`}
-                  >
-                    {unitOptions.map((u) => (
-                      <option key={u.id} value={u.id}>
-                        {unitTh(u.unitName)}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(v) => setDraft((d) => ({ ...d, pars: { ...d.pars, [b.id]: { ...d.pars[b.id], unitId: v } } }))}
+                    options={unitOptions.map((u) => ({ value: u.id, label: unitTh(u.unitName) }))}
+                    className="w-32"
+                    selectProps={{ "aria-label": `หน่วยขั้นต่ำ ${b.name}` }}
+                  />
                 </span>
               </div>
             ))
@@ -341,21 +337,22 @@ export default function ProductSheet({
                   {u.custom || isLocked ? (
                     <>
                       =
-                      <input type="number" step="any" min="0" value={u.ratio} disabled={!canEditInfo} onChange={(e) => setUnit(u.key, { ratio: e.target.value })} className="input w-20 py-0.5 text-right tabular-nums" aria-label={`${shown || "หน่วยนี้"} เท่ากับ`} />
-                      {unitTh(baseUnit)}
+                      <MeasureInput size="sm" unit={unitTh(baseUnit)} min="0" value={u.ratio} disabled={!canEditInfo} onChange={(e) => setUnit(u.key, { ratio: e.target.value })} aria-label={`${shown || "หน่วยนี้"} เท่ากับ`} boxClassName="w-28" />
                     </>
                   ) : (
                     <>
-                      <input type="number" step="any" min="0" value={u.size} disabled={!canEditInfo} onChange={(e) => setUnit(u.key, { size: e.target.value })} className="input w-20 py-0.5 text-right tabular-nums" aria-label="ขนาด" />
+                      <MeasureInput size="sm" unit="" min="0" value={u.size} disabled={!canEditInfo} onChange={(e) => setUnit(u.key, { size: e.target.value })} aria-label="ขนาด" boxClassName="w-24" />
                       {sizeUnitsFor(baseUnit).length > 1 ? (
-                        <select value={u.sizeUnit} disabled={!canEditInfo} onChange={(e) => setUnit(u.key, { sizeUnit: e.target.value })} className={`input py-0.5 ${u.sizeUnit ? "" : "border-warn-border text-muted-foreground"}`} aria-label="หน่วยของขนาด">
-                          {!u.sizeUnit && <option value="">หน่วย</option>}
-                          {sizeUnitsFor(baseUnit).map((x) => (
-                            <option key={x} value={x}>
-                              {x}
-                            </option>
-                          ))}
-                        </select>
+                        <SelectChip
+                          size="sm"
+                          value={u.sizeUnit}
+                          onChange={(v) => setUnit(u.key, { sizeUnit: v })}
+                          placeholder="หน่วย"
+                          tone={u.sizeUnit ? "default" : "warn"}
+                          options={sizeUnitsFor(baseUnit).map((x) => ({ value: x, label: x }))}
+                          className="w-24"
+                          selectProps={{ disabled: !canEditInfo, "aria-label": "หน่วยของขนาด" }}
+                        />
                       ) : (
                         unitTh(baseUnit)
                       )}

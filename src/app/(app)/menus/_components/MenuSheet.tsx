@@ -23,6 +23,7 @@
 //     the ticket (ADR 0029 Q12).
 
 import { useActionState, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import QtyStepper from "@/components/ui/QtyStepper";
 import { dropPrefetched, menuSheet, ingredientInsight } from "./prefetch";
 import { createRecipeAction, deleteRecipeAction, saveRecipeForBranchAction, updateRecipeAction, type RecipeActionState } from "@/app/(app)/recipes/actions";
 import { confirmMenuAliasAction, getMenuSuggestionsAction, updateMenuAction, type MenuAliasActionState } from "@/app/(app)/menus/actions";
@@ -509,14 +510,13 @@ export default function MenuSheet(props: {
                 {recipeEditable && sheet ? (
                   <>
                     ทำได้{" "}
-                    <input
-                      type="number"
-                      min="1"
-                      step="any"
-                      value={servings}
-                      onChange={(e) => setServings(Math.max(0, Number(e.target.value) || 0))}
-                      className="w-12 rounded border border-border bg-surface px-1 text-right tabular-nums"
-                      aria-label="สูตรนี้ทำได้กี่จาน"
+                    <QtyStepper
+                      size="sm"
+                      min={1}
+                      value={String(servings)}
+                      onChange={(v) => setServings(Math.max(0, Number(v) || 0))}
+                      label="สูตรนี้ทำได้กี่จาน"
+                      className="align-middle"
                     />{" "}
                     จาน
                   </>

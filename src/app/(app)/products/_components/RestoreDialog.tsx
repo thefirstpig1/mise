@@ -30,6 +30,7 @@
 // ============================================================
 
 import { useActionState, useEffect, useState } from "react";
+import { MeasureInput, MoneyInput } from "@/components/ui/NumberField";
 import {
   restoreProductAction,
   getOrphanMappingsForProductAction,
@@ -240,36 +241,15 @@ export default function RestoreDialog({
                       <div className="grid grid-cols-3 gap-2">
                         <label className="text-xs text-muted-foreground">
                           ราคา/หน่วย
-                          <input
-                            name="mapping_price"
-                            type="number"
-                            step="any"
-                            min="0"
-                            defaultValue={row.currentUnitPrice ?? ""}
-                            className="mt-0.5 w-full rounded-lg border border-border bg-background px-2 py-1.5 text-sm"
-                          />
+                          <MoneyInput size="sm" name="mapping_price" defaultValue={row.currentUnitPrice ?? ""} boxClassName="mt-0.5 w-full" />
                         </label>
                         <label className="text-xs text-muted-foreground">
                           ขั้นต่ำ
-                          <input
-                            name="mapping_min_qty"
-                            type="number"
-                            step="any"
-                            min="0"
-                            defaultValue={row.minOrderQty ?? ""}
-                            className="mt-0.5 w-full rounded-lg border border-border bg-background px-2 py-1.5 text-sm"
-                          />
+                          <MeasureInput size="sm" unit="" name="mapping_min_qty" min="0" defaultValue={row.minOrderQty ?? ""} boxClassName="mt-0.5 w-full" />
                         </label>
                         <label className="text-xs text-muted-foreground">
-                          Lead time (วัน)
-                          <input
-                            name="mapping_lead_time"
-                            type="number"
-                            step="1"
-                            min="0"
-                            defaultValue={row.leadTimeDays ?? ""}
-                            className="mt-0.5 w-full rounded-lg border border-border bg-background px-2 py-1.5 text-sm"
-                          />
+                          ส่งของภายใน
+                          <MeasureInput size="sm" unit="วัน" name="mapping_lead_time" step="1" min="0" inputMode="numeric" defaultValue={row.leadTimeDays ?? ""} boxClassName="mt-0.5 w-full" />
                         </label>
                       </div>
                     ) : (

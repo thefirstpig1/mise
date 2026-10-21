@@ -16,6 +16,8 @@
 // draft and the button says who can publish.
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import QtyStepper from "@/components/ui/QtyStepper";
+import { MeasureInput, MoneyInput } from "@/components/ui/NumberField";
 import { applyDraftToBranchAction, createDraftAction, discardDraftAction, endorseDraftAction, publishDraftAction, submitDraftAction, updateDraftAction, type DraftActionState } from "@/app/(app)/menus/lab/actions";
 import { restoreMenuAction } from "@/app/(app)/menus/lifecycle-actions";
 import type { IngredientOption, LabDraft, PriceBook, SheetLine, StandardUnit } from "@/server/menu-manager";
@@ -446,7 +448,7 @@ export default function LabSheet(props: {
             </Tile>
           )}
           <Tile k="ราคาที่ตั้งใจ">
-            <input type="number" min="0" step="1" value={price} disabled={!canEdit} onChange={(e) => setPrice(e.target.value)} placeholder="เช่น 129" aria-label="ราคาที่ตั้งใจ" className="input mt-0.5 w-full py-0.5 font-display text-lg font-semibold tabular-nums" />
+            <MoneyInput value={price} disabled={!canEdit} onChange={(e) => setPrice(e.target.value)} placeholder="129" aria-label="ราคาที่ตั้งใจ" boxClassName="mt-0.5 w-full" className="text-lg font-semibold" />
             <p className="text-[11px] text-muted-foreground">ราคาที่กำลังคิด ไม่ใช่ราคาขาย</p>
           </Tile>
           {!costHidden && (
@@ -466,16 +468,17 @@ export default function LabSheet(props: {
         {!costHidden && suggested !== null && (
           <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-surface-sunk px-3 py-2 text-sm">
             ถ้าอยากให้ต้นทุนเป็น
-            <input
-              type="number"
+            <MeasureInput
+              size="sm"
+              unit="%"
               min="5"
               max="90"
               value={target}
               onChange={(e) => setTargetKept(Math.max(5, Math.min(90, Number(e.target.value) || DEFAULT_TARGET)))}
               aria-label="เป้าต้นทุน %"
-              className="input w-16 py-0.5 text-right tabular-nums"
+              boxClassName="w-20"
             />
-            % ของราคา ควรตั้งราคา <b className="tabular-nums">{baht(suggested)}</b>
+            ของราคา ควรตั้งราคา <b className="tabular-nums">{baht(suggested)}</b>
             <button type="button" onClick={() => setPrice(String(suggested))} className="rounded-full border border-border-strong bg-surface px-3 py-0.5 text-sm hover:bg-muted">
               ใช้ราคานี้
             </button>
@@ -521,7 +524,7 @@ export default function LabSheet(props: {
             <h4 className="font-semibold">สูตร</h4>
             <span className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
               ทำได้
-              <input type="number" min="1" step="any" value={servings} disabled={!canEdit} onChange={(e) => setServings(Math.max(0.001, Number(e.target.value) || 1))} aria-label="ทำได้กี่จาน" className="input w-14 py-0.5 text-right tabular-nums" />
+              <QtyStepper size="sm" min={1} value={String(servings)} onChange={(v) => setServings(Math.max(0.001, Number(v) || 1))} label="ทำได้กี่จาน" inputProps={{ disabled: !canEdit }} />
               จาน
               {!costHidden && props.branches.length > 1 && (
                 <>
