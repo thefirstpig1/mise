@@ -23,130 +23,148 @@ h1,h2,h3{font-family:var(--display);margin:0}
 .wrap{max-width:980px;margin:0 auto;display:grid;gap:26px}
 .sub{color:var(--subtle);font-size:.8rem}
 .screen{display:grid;gap:10px}
-.wrap{max-width:1040px;margin:0 auto;display:grid;gap:26px}
-.frame{background:var(--surface);border:1px solid var(--strong);border-radius:18px;padding:16px;display:grid;gap:12px;box-shadow:0 10px 30px rgb(0 0 0/.05)}
-.input{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:7px 10px;min-width:0;width:100%}
-.input:focus{outline:2px solid var(--primary);outline-offset:1px}
-.num{font-variant-numeric:tabular-nums;text-align:right}
-.label{font-size:.78rem;color:var(--muted-fg);display:block;margin-bottom:4px}
-.line{border:1px solid var(--border);border-radius:12px;padding:12px 14px;display:grid;gap:8px;background:var(--surface)}
-.g{display:grid;gap:12px;align-items:end}
-.cur{grid-template-columns:5fr 2fr 2fr 3fr}
-.a{grid-template-columns:4fr 3fr 2fr 3fr}
-.b{grid-template-columns:5fr 4fr 3fr}
-@media (max-width:720px){.cur,.a,.b{grid-template-columns:1fr}}
-.foot{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;font-size:.75rem;color:var(--muted-fg)}
-.chip{border:1px solid var(--border);background:var(--muted);border-radius:999px;padding:1px 9px}
-.qty{display:flex;align-items:center;gap:6px}
-.qty button{flex:none;width:38px;height:38px;border-radius:10px;border:1px solid var(--strong);background:var(--surface);font:inherit;font-size:1.15rem;cursor:pointer;color:var(--fg)}
-.qty button:hover{background:var(--muted)}
-.qty button:disabled{opacity:.4;cursor:default}
-.qty input{text-align:center;flex:1;min-width:3.5rem}
-.qu{display:flex;gap:6px;align-items:center}
-.qu select{flex:1;min-width:0}
-.spin{width:100%}
-.pick{display:flex;align-items:center;gap:8px}
-.thumb{width:34px;height:34px;border-radius:8px;background:var(--sunk);flex:none}
+.screen-h{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:baseline}
+.frame{background:var(--surface);border:1px solid var(--strong);border-radius:18px;padding:6px 16px;box-shadow:0 10px 30px rgb(0 0 0/.05)}
 .rec{background:var(--good-bg);color:var(--good);border-radius:999px;padding:1px 10px;font-size:.75rem;font-weight:600}
 .note{background:var(--sunk);border-radius:12px;padding:10px 12px;font-size:.82rem;color:var(--muted-fg)}
 .note b{color:var(--fg)}
-.phone{max-width:380px;border:1px solid var(--strong);border-radius:22px;padding:12px;background:var(--bg)}
+.refs{font-size:.8rem;color:var(--muted-fg)} .refs a{color:var(--primary)}
+
+/* one order line, cart-style: everything on one row on desktop */
+.row{display:grid;grid-template-columns:minmax(0,1fr) auto auto auto 110px 28px;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid var(--border)}
+.row:last-child{border-bottom:0}
+.prod{display:flex;align-items:center;gap:10px;min-width:0}
+.thumb{width:40px;height:40px;border-radius:10px;background:var(--sunk);flex:none}
+.pname{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.psub{font-size:.75rem;color:var(--subtle)}
+.total{text-align:right;font-family:var(--display);font-variant-numeric:tabular-nums}
+.x{width:28px;height:28px;border-radius:8px;border:0;background:none;color:var(--subtle);cursor:pointer;font-size:1rem}
+.x:hover{background:var(--bad-bg);color:var(--bad)}
+.hint{font-size:.72rem;color:var(--subtle);text-align:center;margin-top:3px;height:1em}
+
+/* C1 — capsule (Apple HIG / Shopify): one control, three parts */
+.cap{display:inline-flex;align-items:center;height:36px;border:1px solid var(--strong);border-radius:999px;background:var(--surface);overflow:hidden}
+.cap button{width:36px;height:100%;border:0;background:none;font-size:1.1rem;color:var(--fg);cursor:pointer}
+.cap button:hover{background:var(--muted)}
+.cap button:disabled{color:var(--strong);cursor:default;background:none}
+.cap input{width:3.2rem;height:100%;border:0;border-inline:1px solid var(--border);background:none;text-align:center;font:inherit;font-family:var(--display);font-size:.95rem;color:var(--fg);font-variant-numeric:tabular-nums}
+.cap input:focus{outline:none;background:var(--primary-soft)}
+
+/* C2 — Airbnb: round buttons, the number stands alone */
+.air{display:inline-flex;align-items:center;gap:8px}
+.air button{width:32px;height:32px;border-radius:50%;border:1px solid var(--strong);background:var(--surface);font-size:1rem;color:var(--fg);cursor:pointer}
+.air button:hover{border-color:var(--fg)}
+.air button:disabled{opacity:.35;cursor:default}
+.air input{width:2.6rem;border:0;border-bottom:1px dashed transparent;background:none;text-align:center;font:inherit;font-family:var(--display);font-size:1.05rem;color:var(--fg);font-variant-numeric:tabular-nums;padding:2px 0}
+.air input:hover{border-bottom-color:var(--strong)}
+.air input:focus{outline:none;border-bottom:2px solid var(--primary)}
+
+/* unit as a quiet chip-select, price as a short field with ฿ inside */
+.unit{appearance:none;border:1px solid var(--border);background:var(--sunk);border-radius:999px;padding:6px 26px 6px 12px;font:inherit;font-size:.85rem;color:var(--fg);cursor:pointer;background-image:linear-gradient(45deg,transparent 50%,var(--muted-fg) 50%),linear-gradient(135deg,var(--muted-fg) 50%,transparent 50%);background-position:calc(100% - 14px) 52%,calc(100% - 9px) 52%;background-size:5px 5px;background-repeat:no-repeat}
+.price{display:inline-flex;align-items:center;height:36px;border:1px solid var(--border);border-radius:10px;background:var(--bg);padding:0 10px;gap:4px;width:118px}
+.price span{color:var(--subtle);font-size:.85rem}
+.price input{border:0;background:none;width:100%;text-align:right;font:inherit;font-family:var(--display);font-variant-numeric:tabular-nums;color:var(--fg)}
+.price input:focus{outline:none}
+.price:focus-within{border-color:var(--primary)}
+.per{font-size:.72rem;color:var(--subtle);margin-top:3px;text-align:right}
+.head{display:grid;grid-template-columns:minmax(0,1fr) auto auto auto 110px 28px;gap:14px;font-size:.72rem;color:var(--subtle);padding:10px 0 2px;font-family:var(--display)}
+
+@media (max-width:760px){
+  .head{display:none}
+  .row{grid-template-columns:auto 1fr auto;grid-template-areas:"p p x" "q u u" "pr pr t";row-gap:10px}
+  .row .prod{grid-area:p}.row .x{grid-area:x}.row .qcell{grid-area:q}.row .ucell{grid-area:u}.row .prcell{grid-area:pr}.row .total{grid-area:t}
+}
 </style>
 
-<div class="wrap">
+<div class="wrap" style="max-width:1000px">
   <div>
-    <h1 style="font-size:1.35rem">ใบสั่งซื้อ: ปุ่ม − + ที่ช่องจำนวน</h1>
-    <p class="sub">หนึ่งบรรทัดของใบสั่งซื้อ (หน้า สร้าง/แก้ใบสั่งซื้อ) · ลองกด − + และคลิกช่องตัวเลขได้ · ราคารวมคิดให้จริง</p>
+    <h1 style="font-size:1.35rem">ใบสั่งซื้อ / ใบรับของ: ช่องจำนวนแบบใหม่ (รอบ 2)</h1>
+    <p class="sub">เลิกใช้กล่องยาว ๆ · ปุ่มกับตัวเลขเป็นชิ้นเดียวขนาดพอดีตัว · หนึ่งรายการ = หนึ่งแถว แบบตะกร้าสินค้า · ลองกด − + คลิกตัวเลข เปลี่ยนหน่วยได้</p>
   </div>
 
   <section class="screen">
-    <div class="screen-h"><h2 style="font-size:1.1rem">ตอนนี้</h2><span class="sub">จำนวนเป็นช่องพิมพ์อย่างเดียว</span></div>
+    <div class="screen-h"><h2 style="font-size:1.1rem">C1 — แคปซูล</h2><span class="rec">แนะนำ</span><span class="sub">แบบ Apple / Shopify: − ตัวเลข + อยู่ในแคปซูลเดียว</span></div>
     <div class="frame">
-      <div class="line" data-line>
-        <div class="g cur">
-          <div><span class="label">วัตถุดิบ</span><div class="input pick"><span class="thumb"></span>น้ำตาลทราย</div></div>
-          <div><span class="label">จำนวน</span><input class="input num spin" data-qty value="2" inputmode="decimal"></div>
-          <div><span class="label">หน่วย</span><select class="input" data-unit><option data-r="10">กระสอบ 10 kg</option><option data-r="1">kg</option></select></div>
-          <div><span class="label">ราคา/หน่วย (ไม่รวม VAT)</span><input class="input num" data-price value="276.06" inputmode="decimal"></div>
-        </div>
-        <div class="foot"><span class="chip">ราคากลางจากรายการราคา</span><span>รวม <b data-total></b> บาท</span></div>
-      </div>
+      <div class="head"><span>วัตถุดิบ</span><span>จำนวน</span><span>หน่วย</span><span style="text-align:right">ราคา/หน่วย</span><span style="text-align:right">รวม</span><span></span></div>
+      <div id="c1"></div>
     </div>
   </section>
 
   <section class="screen">
-    <div class="screen-h"><h2 style="font-size:1.1rem">แบบ A — ขยายช่องจำนวน ใส่ − + ในคอลัมน์เดิม</h2></div>
+    <div class="screen-h"><h2 style="font-size:1.1rem">C2 — ปุ่มกลมแยก</h2><span class="sub">แบบ Airbnb (จำนวนแขก): ตัวเลขยืนเดี่ยว ไม่มีกรอบ คลิกเพื่อพิมพ์</span></div>
     <div class="frame">
-      <div class="line" data-line>
-        <div class="g a">
-          <div><span class="label">วัตถุดิบ</span><div class="input pick"><span class="thumb"></span>น้ำตาลทราย</div></div>
-          <div><span class="label">จำนวน</span><div class="qty"><button type="button" data-d="-1">−</button><input class="input num" data-qty value="2" inputmode="decimal"><button type="button" data-d="1">+</button></div></div>
-          <div><span class="label">หน่วย</span><select class="input" data-unit><option data-r="10">กระสอบ 10 kg</option><option data-r="1">kg</option></select></div>
-          <div><span class="label">ราคา/หน่วย (ไม่รวม VAT)</span><input class="input num" data-price value="276.06" inputmode="decimal"></div>
-        </div>
-        <div class="foot"><span class="chip">ราคากลางจากรายการราคา</span><span>รวม <b data-total></b> บาท</span></div>
-      </div>
-      <p class="sub">ช่องวัตถุดิบแคบลง (ชื่อยาว ๆ จะถูกตัด) · จำนวนกับหน่วยยังแยกกันสองช่อง</p>
+      <div class="head"><span>วัตถุดิบ</span><span>จำนวน</span><span>หน่วย</span><span style="text-align:right">ราคา/หน่วย</span><span style="text-align:right">รวม</span><span></span></div>
+      <div id="c2"></div>
     </div>
   </section>
 
   <section class="screen">
-    <div class="screen-h"><h2 style="font-size:1.1rem">แบบ B — จำนวน + หน่วย อยู่ช่องเดียวกัน</h2><span class="rec">แนะนำ</span></div>
+    <div class="screen-h"><h2 style="font-size:1.1rem">ใบรับของ — ใช้ C1 แบบเดียวกัน</h2><span class="sub">ช่อง “รับจริง” บอกว่าสั่งไว้เท่าไร ถ้ารับไม่ครบขึ้นสีเหลือง</span></div>
     <div class="frame">
-      <div class="line" data-line>
-        <div class="g b">
-          <div><span class="label">วัตถุดิบ</span><div class="input pick"><span class="thumb"></span>น้ำตาลทราย</div></div>
-          <div><span class="label">จำนวน</span>
-            <div class="qu"><div class="qty"><button type="button" data-d="-1">−</button><input class="input num" data-qty value="2" inputmode="decimal" style="width:4.2rem;flex:none"><button type="button" data-d="1">+</button></div>
-            <select class="input" data-unit><option data-r="10">กระสอบ 10 kg</option><option data-r="1">kg</option><option>+ ขนาดใหม่…</option></select></div>
-            <span class="sub" data-base style="display:block;margin-top:4px"></span>
-          </div>
-          <div><span class="label">ราคา/หน่วย (ไม่รวม VAT)</span><input class="input num" data-price value="276.06" inputmode="decimal"></div>
-        </div>
-        <div class="foot"><span class="chip">ราคากลางจากรายการราคา</span><span>รวม <b data-total></b> บาท</span></div>
-      </div>
-      <div class="note">
-        อ่านเป็นประโยคเดียว: <b>− 2 + กระสอบ 10 kg</b> · ใต้ช่องบอกว่ารวมเป็นกี่ kg (= 20 kg) ช่วยจับเลขผิดหน่วย ·
-        ช่องวัตถุดิบกว้างเท่าเดิม · ใช้แบบเดียวกันในใบรับของ (ช่อง “จำนวนที่รับ”) ได้เลย
-      </div>
+      <div class="head"><span>วัตถุดิบ</span><span>รับจริง</span><span>หน่วย</span><span style="text-align:right">ราคาตามบิล</span><span style="text-align:right">รวม</span><span></span></div>
+      <div id="gr"></div>
     </div>
   </section>
 
-  <section class="screen">
-    <div class="screen-h"><h2 style="font-size:1.1rem">แบบ B บนมือถือ</h2><span class="sub">ช่องเรียงลงมา ปุ่มใหญ่กดง่าย</span></div>
-    <div class="phone">
-      <div class="line" data-line>
-        <div><span class="label">วัตถุดิบ</span><div class="input pick"><span class="thumb"></span>น้ำตาลทราย</div></div>
-        <div><span class="label">จำนวน</span>
-          <div class="qu"><div class="qty"><button type="button" data-d="-1">−</button><input class="input num" data-qty value="2" inputmode="decimal" style="width:4.2rem;flex:none"><button type="button" data-d="1">+</button></div>
-          <select class="input" data-unit><option data-r="10">กระสอบ 10 kg</option><option data-r="1">kg</option></select></div>
-          <span class="sub" data-base style="display:block;margin-top:4px"></span>
-        </div>
-        <div><span class="label">ราคา/หน่วย (ไม่รวม VAT)</span><input class="input num" data-price value="276.06" inputmode="decimal"></div>
-        <div class="foot"><span></span><span>รวม <b data-total></b> บาท</span></div>
-      </div>
-    </div>
-  </section>
+  <div class="note">
+    <b>เปลี่ยนอะไรจากรอบแรก</b> · ไม่มีกล่องตัวเลขยาวเต็มคอลัมน์อีก — ช่องกว้างเท่าตัวเลข (3–4 หลัก) ·
+    หน่วยเป็นชิปเล็ก ๆ ข้างจำนวน อ่านต่อกันว่า <b>2 · กระสอบ 10 kg</b> · ราคามี ฿ อยู่ในช่องและสั้นลง ·
+    ใต้จำนวนบอกว่ารวมกี่ kg (จับเลขผิดหน่วย) · บนมือถือแถวพับเป็น 3 บรรทัด (ย่อหน้าต่างดูได้)
+  </div>
+  <p class="refs">อ้างอิง:
+    <a href="https://developer-rno.apple.com/design/human-interface-guidelines/components/all-components">Apple HIG — Stepper</a> ·
+    <a href="https://shopify.dev/docs/api/customer-account-ui-extensions/2025-07/ui-components/forms/stepper">Shopify Stepper</a> ·
+    <a href="https://www.nngroup.com/articles/input-steppers/">NN/g — Input steppers</a> ·
+    <a href="https://mobbin.com/explore/web/ui-elements/stepper">Mobbin — web steppers</a>
+  </p>
 </div>
 
 <script>
+const LINES = [
+  { name: "น้ำตาลทราย", sub: "P-0012 · ราคากลางจากรายการราคา", qty: 2, units: [["กระสอบ 10 kg", 10], ["kg", 1]], price: 276.06, base: "kg" },
+  { name: "กะทิ", sub: "P-0013 · จ่ายล่าสุด 24 ก.ย. 69", qty: 1, units: [["ลัง 24 กล่อง (6 l)", 6], ["l", 1]], price: 553.46, base: "l" },
+  { name: "ไข่ไก่", sub: "P-0014", qty: 3, units: [["แผง 30 ฟอง", 30], ["ฟอง", 1]], price: 130.45, base: "ฟอง" },
+];
 const fmt = (v) => v.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-document.querySelectorAll("[data-line]").forEach((line) => {
-  const q = line.querySelector("[data-qty]"), p = line.querySelector("[data-price]"), u = line.querySelector("[data-unit]");
-  const t = line.querySelector("[data-total]"), b = line.querySelector("[data-base]");
-  const minus = line.querySelector('[data-d="-1"]');
-  const upd = () => {
-    const n = Number(q.value) || 0;
-    t.textContent = fmt(n * (Number(p.value) || 0));
-    const r = Number(u.selectedOptions[0]?.dataset.r);
-    if (b) b.textContent = r && r !== 1 ? `= ${(n * r).toLocaleString("th-TH")} kg` : "";
-    if (minus) minus.disabled = n <= 0;
-  };
-  line.querySelectorAll("[data-d]").forEach((btn) => btn.addEventListener("click", () => {
-    q.value = Math.max(0, (Number(q.value) || 0) + Number(btn.dataset.d)); upd();
-  }));
-  [q, p].forEach((i) => { i.addEventListener("input", upd); i.addEventListener("focus", () => i.select()); });
-  u.addEventListener("change", upd);
-  upd();
-});
+const nf = (v) => v.toLocaleString("th-TH", { maximumFractionDigits: 3 });
+
+function build(host, kind, gr) {
+  const el = document.getElementById(host);
+  LINES.forEach((l) => {
+    const r = document.createElement("div"); r.className = "row";
+    const ordered = gr ? l.qty : null;
+    const stepper = kind === "air"
+      ? `<span class="air"><button type="button" data-d="-1" aria-label="ลด">−</button><input inputmode="decimal" value="${l.qty}" aria-label="จำนวน"><button type="button" data-d="1" aria-label="เพิ่ม">+</button></span>`
+      : `<span class="cap"><button type="button" data-d="-1" aria-label="ลด">−</button><input inputmode="decimal" value="${l.qty}" aria-label="จำนวน"><button type="button" data-d="1" aria-label="เพิ่ม">+</button></span>`;
+    r.innerHTML = `
+      <div class="prod"><span class="thumb"></span><div style="min-width:0"><div class="pname">${l.name}</div><div class="psub">${gr ? `สั่งไว้ ${l.qty} ${l.units[0][0]}` : l.sub}</div></div></div>
+      <div class="qcell">${stepper}<div class="hint" data-hint></div></div>
+      <div class="ucell"><select class="unit">${l.units.map(([n, k]) => `<option data-r="${k}">${n}</option>`).join("")}<option>+ ขนาดใหม่…</option></select></div>
+      <div class="prcell"><label class="price"><span>฿</span><input inputmode="decimal" value="${l.price}" aria-label="ราคาต่อหน่วย"></label><div class="per" data-per></div></div>
+      <div class="total" data-total></div>
+      <button class="x" type="button" aria-label="ลบรายการ">×</button>`;
+    const q = r.querySelector("[aria-label=จำนวน]"), p = r.querySelector("[aria-label=ราคาต่อหน่วย]"), u = r.querySelector("select");
+    const minus = r.querySelector('[data-d="-1"]');
+    const upd = () => {
+      const n = Number(q.value) || 0, k = Number(u.selectedOptions[0]?.dataset.r) || 0, price = Number(p.value) || 0;
+      r.querySelector("[data-total]").textContent = "฿" + fmt(n * price);
+      r.querySelector("[data-hint]").textContent = k > 1 && n ? `= ${nf(n * k)} ${l.base}` : "";
+      r.querySelector("[data-per]").textContent = k > 1 && price ? `฿${fmt(price / k)}/${l.base}` : "";
+      minus.disabled = n <= 0;
+      if (gr) {
+        const short = n < ordered;
+        r.querySelector(".cap").style.borderColor = short ? "var(--warn-border)" : "";
+        r.querySelector(".cap").style.background = short ? "var(--warn-bg)" : "";
+        r.querySelector(".psub").textContent = short ? `สั่งไว้ ${ordered} · ขาด ${nf(ordered - n)}` : `สั่งไว้ ${ordered} ${l.units[0][0]}`;
+      }
+    };
+    r.querySelectorAll("[data-d]").forEach((b) => b.addEventListener("click", () => { q.value = Math.max(0, (Number(q.value) || 0) + Number(b.dataset.d)); upd(); }));
+    [q, p].forEach((i) => { i.addEventListener("input", upd); i.addEventListener("focus", () => i.select()); });
+    u.addEventListener("change", upd);
+    el.appendChild(r); upd();
+  });
+}
+build("c1", "cap", false);
+build("c2", "air", false);
+build("gr", "cap", true);
 </script>
