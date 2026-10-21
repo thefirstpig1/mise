@@ -87,6 +87,12 @@ model Tenant {
   /// ingredients — and both are common. The shop knows; we do not.
   cancelledSalePolicy CancelledSalePolicy @default(TREAT_AS_COOKED) @map("cancelled_sale_policy")
 
+  /// "ใกล้ขั้นต่ำ" (Kong 2026-10-21, rule PAR-2): warn this many days BEFORE a
+  /// product reaches its par at the rate it is really used. A shop whose
+  /// supplier delivers in a week needs to hear sooner than one buying daily at
+  /// the market, so the shop sets it. 0 = no early warning, only below-par.
+  parWarningDays Int @default(3) @map("par_warning_days")
+
   /// The two staff-meal controls (ADR 0028 Q9). Both nullable, and null means
   /// NOT CHECKED rather than zero — a shop with no policy must not read as a
   /// shop whose staff may eat nothing.

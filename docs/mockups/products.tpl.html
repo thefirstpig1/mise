@@ -1,0 +1,468 @@
+<title>สินค้า/วัตถุดิบ คิดครัว</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Prompt:wght@500;600;700&family=Noto+Sans+Thai:wght@400;500;600&display=swap">
+<style>
+/* Mockup of the real screen: same tokens as the app (tailwind.config.ts, Part 33).
+   Layout: the app frame (sidebar stub) + a dense table that opens a right-hand sheet. */
+:root{
+  --bg:#FDFBF3; --fg:#262811; --surface:#FFFFFF; --sunk:#F8F3E1; --wash:#E3DBBB;
+  --primary:#41431B; --primary-fg:#F8F3E1; --primary-soft:#EFEDD7;
+  --muted:#F3EFDF; --muted-fg:#5A5C31; --subtle:#8B8D63; --border:#E9E3C8; --strong:#D2CBA4;
+  --good:#5A7333; --good-bg:#EEF2DD; --bad:#A83A22; --bad-bg:#F9E5DF; --warn:#A87C1C; --warn-bg:#F8EFD6; --warn-border:#E2CE97;
+  --hl:rgb(174 183 132 / .26);
+  --display:"Prompt","Noto Sans Thai",system-ui,sans-serif; --body:"Noto Sans Thai","Prompt",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#1B1C10; --fg:#EEEAD6; --surface:#24261A; --sunk:#2A2C1E; --wash:#3A3C25; --primary:#D9DDB0; --primary-fg:#1B1C10; --primary-soft:#33361F;
+  --muted:#2E301F; --muted-fg:#C9C8A6; --subtle:#9C9B7C; --border:#36381F; --strong:#4A4C30;
+  --good:#B7CF7C; --good-bg:#2F3A1C; --bad:#EC9C80; --bad-bg:#41261C; --warn:#E8BE62; --warn-bg:#3B3018; --warn-border:#5A4A22; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#1B1C10; --fg:#EEEAD6; --surface:#24261A; --sunk:#2A2C1E; --wash:#3A3C25; --primary:#D9DDB0; --primary-fg:#1B1C10; --primary-soft:#33361F;
+  --muted:#2E301F; --muted-fg:#C9C8A6; --subtle:#9C9B7C; --border:#36381F; --strong:#4A4C30;
+  --good:#B7CF7C; --good-bg:#2F3A1C; --bad:#EC9C80; --bad-bg:#41261C; --warn:#E8BE62; --warn-bg:#3B3018; --warn-border:#5A4A22; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:14px;line-height:1.55;margin:0}
+h1,h2,h3,h4{font-family:var(--display);margin:0;text-wrap:balance}
+.num{font-variant-numeric:tabular-nums}
+.sub{color:var(--subtle);font-size:.78rem}
+.muted{color:var(--muted-fg)}
+.tag{display:inline-block;background:var(--warn-bg);color:var(--warn);border:1px solid var(--warn-border);border-radius:999px;padding:2px 10px;font-size:.75rem;margin-bottom:10px}
+.app{display:grid;grid-template-columns:220px minmax(0,1fr);min-height:100vh}
+.side{background:var(--surface);border-right:1px solid var(--border);padding:18px 16px;display:grid;align-content:start;gap:4px;font-size:.88rem}
+.side b{font-family:var(--display);margin-top:10px}
+.side span{padding:4px 10px;border-radius:8px;color:var(--muted-fg)}
+.side span.on{background:var(--primary);color:var(--primary-fg)}
+main{padding:24px 16px 60px;min-width:0}
+.wrap{max-width:1180px;margin:0 auto;display:grid;gap:14px}
+.top{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.top h1{font-size:1.5rem}
+.btn{background:var(--primary);color:var(--primary-fg);border:0;border-radius:999px;padding:7px 16px;font:inherit;font-weight:500;cursor:pointer}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.ghost{background:var(--surface);color:var(--fg);border:1px solid var(--strong);border-radius:999px;padding:6px 14px;font:inherit;cursor:pointer}
+.ghost.bad{color:var(--bad)}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:12px 14px;display:grid;gap:10px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.chip{border:1px solid var(--strong);background:var(--surface);color:var(--fg);border-radius:999px;padding:3px 12px;font:inherit;font-size:.85rem;cursor:pointer;white-space:nowrap}
+.chip.on{background:var(--primary);border-color:var(--primary);color:var(--primary-fg)}
+.chip.small{font-size:.78rem;padding:2px 10px}
+input,select{font:inherit;color:var(--fg);background:var(--sunk);border:1px solid var(--border);border-radius:10px;padding:6px 10px}
+input:focus,select:focus,button:focus-visible{outline:2px solid #AEB784;outline-offset:1px}
+.search{flex:1;min-width:200px}
+.tablebox{background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:760px}
+th{font-family:var(--display);font-weight:500;font-size:.75rem;color:var(--subtle);text-align:left;padding:10px 12px;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:9px 12px;border-bottom:1px solid var(--border);vertical-align:top}
+tr.rowlink{cursor:pointer}
+tr.rowlink:hover td{background:var(--hl)}
+.r{text-align:right}
+.thumb{width:38px;height:38px;border-radius:10px;background:var(--sunk);border:1px dashed var(--strong);display:grid;place-items:center;color:var(--subtle);font-size:.62rem;flex:none}
+.pname{display:flex;gap:10px;align-items:flex-start}
+.badge{display:inline-block;border-radius:999px;padding:0 8px;font-size:.7rem;margin-left:6px;white-space:nowrap}
+.b-prep{background:var(--warn-bg);color:var(--warn);border:1px solid var(--warn-border)}
+.b-off{background:var(--muted);color:var(--muted-fg)}
+.b-low{background:var(--bad-bg);color:var(--bad)}
+.pulse{display:inline-block;width:56px;height:12px;border-radius:6px;background:var(--muted);animation:p 1.2s ease-in-out infinite}
+@keyframes p{50%{opacity:.45}}
+@media (prefers-reduced-motion:reduce){.pulse{animation:none}}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden;display:flex;flex-direction:column;cursor:pointer;transition:box-shadow .15s,transform .15s}
+.card:hover{box-shadow:0 6px 18px rgb(0 0 0 / .1);transform:translateY(-1px)}
+.card .pic{position:relative;aspect-ratio:4/3;background:var(--sunk);display:grid;place-items:center;color:var(--subtle);border-bottom:1px solid var(--border)}
+.card .pic svg{width:44px;height:44px;opacity:.55}
+.card .pic .corner{position:absolute;top:8px;left:8px;display:flex;gap:4px;flex-wrap:wrap}
+.card .pic .stock{position:absolute;right:8px;bottom:8px;max-width:calc(100% - 16px);white-space:nowrap;background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:1px 9px;font-size:.78rem}
+.card .pic .stock.low{background:var(--bad);color:#fff;border-color:var(--bad)}
+.card .body{padding:10px 12px 12px;display:grid;gap:2px}
+.card .body b{font-weight:600;font-size:.95rem}
+.card .line{display:flex;flex-wrap:wrap;justify-content:space-between;gap:2px 6px;font-size:.8rem;margin-top:4px}
+.card .line span:last-child{margin-left:auto;text-align:right}
+.card .body{min-width:0}
+/* sheet */
+.scrim{position:fixed;inset:0;background:rgb(0 0 0 / .25);opacity:0;pointer-events:none;transition:opacity .2s}
+.scrim.on{opacity:1;pointer-events:auto}
+.sheet{position:fixed;top:0;right:0;bottom:0;width:min(720px,100%);background:var(--bg);box-shadow:-20px 0 40px rgb(0 0 0 / .18);transform:translateX(100%);transition:transform .25s ease;display:flex;flex-direction:column;z-index:5}
+.sheet.on{transform:none}
+.sh-head{display:flex;gap:14px;align-items:flex-start;padding:16px 20px;background:var(--surface);border-bottom:1px solid var(--border)}
+.photo{width:72px;height:72px;border-radius:14px;border:1.5px dashed var(--strong);background:var(--sunk);display:grid;place-items:center;text-align:center;font-size:.65rem;color:var(--subtle);flex:none}
+.sh-head .idf{flex:1;min-width:0;display:grid;gap:6px}
+.sh-head input.name{font-family:var(--display);font-size:1.15rem;font-weight:600;background:transparent;border:1px solid transparent;padding:2px 6px;margin-left:-6px;width:100%}
+.sh-head input.name:hover,.sh-head input.name:focus{border-color:var(--border);background:var(--sunk)}
+.x{border:0;background:transparent;font-size:1.7rem;line-height:1;color:var(--muted-fg);cursor:pointer;border-radius:8px;padding:0 8px}
+.sh-body{flex:1;overflow-y:auto;padding:16px 20px;display:grid;gap:14px;align-content:start}
+.tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+@media (max-width:560px){.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}.app{grid-template-columns:1fr}.side{display:none}}
+.tile{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:9px 11px}
+.tile .k{font-size:.7rem;color:var(--subtle)}
+.tile .v{font-family:var(--display);font-size:1.12rem;font-weight:600}
+.tile .s{font-size:.7rem;color:var(--muted-fg)}
+.sec{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:12px 14px;display:grid;gap:8px}
+.sec-h{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
+.sec h4{font-size:.95rem}
+.mini{width:100%;border-collapse:collapse;min-width:0}
+.mini td,.mini th{padding:5px 4px;border-bottom:1px solid var(--border);font-size:.85rem}
+.mini tr:last-child td{border-bottom:0}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+@media (max-width:560px){.grid2{grid-template-columns:1fr}}
+label.f{display:grid;gap:3px;font-size:.8rem;color:var(--muted-fg)}
+label.f input,label.f select{width:100%}
+.unitrow{display:grid;grid-template-columns:minmax(0,1.4fr) auto minmax(0,1fr) auto auto;gap:6px;align-items:center;font-size:.85rem}
+.lock{font-size:.72rem;color:var(--subtle)}
+.sh-foot{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;padding:12px 20px;border-top:1px solid var(--border);background:var(--surface)}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:var(--primary);color:var(--primary-fg);border-radius:999px;padding:8px 18px;opacity:0;transition:.2s;z-index:9;pointer-events:none;max-width:calc(100% - 32px)}
+.toast.on{opacity:1;transform:translateX(-50%)}
+.cfm-scrim{position:fixed;inset:0;background:rgb(0 0 0 / .35);display:none;place-items:center;padding:16px;z-index:8}
+.cfm-scrim.on{display:grid}
+.cfm{background:var(--surface);border-radius:18px;padding:18px;max-width:380px;width:100%;display:grid;gap:10px}
+.cfm ul{margin:0;padding-left:18px}
+.cfm .btns{display:flex;justify-content:flex-end;gap:8px}
+.notes{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:14px 18px}
+.notes ol{margin:8px 0 0;padding-left:20px;display:grid;gap:4px}
+.link{color:var(--primary);text-decoration:underline dotted;cursor:pointer}
+.navitem,.chip{position:relative}
+.badges{position:absolute;top:-7px;right:-7px;display:flex;gap:2px;pointer-events:none}
+.dotn{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 5px;border-radius:999px;font-size:.68rem;font-weight:700;line-height:1;font-variant-numeric:tabular-nums;border:2px solid var(--surface);box-shadow:0 1px 3px rgb(0 0 0 / .25);animation:pop .35s cubic-bezier(.3,1.6,.5,1)}
+@keyframes pop{from{transform:scale(0)}to{transform:scale(1)}}
+@media (prefers-reduced-motion:reduce){.dotn{animation:none}}
+.legend .dotn{position:static;animation:none;box-shadow:none}
+.dotn.red{background:#E5484D;color:#fff}
+.dotn.yellow{background:#F5C542;color:#3A2E05}
+.side span{overflow:visible}
+.side .badges{padding:0;border-radius:0}
+.side .dotn{padding:0 5px;border-radius:999px}
+.side .dotn.red{color:#fff}
+.side .dotn.yellow{color:#3A2E05}
+.b-near{background:#FFF3C4;color:#7A5B00;border:1px solid #F0D27A}
+.card .pic .stock.near{background:#F5C542;color:#3A2E05;border-color:#F5C542}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:.78rem;color:var(--muted-fg);align-items:center}
+.empty{background:var(--sunk);border:1.5px dashed var(--strong);border-radius:12px;padding:10px 12px;color:var(--muted-fg);font-size:.85rem}
+</style>
+
+<div class="app">
+  <nav class="side" aria-label="เมนู (ตัวอย่าง)">
+    <h3 style="font-size:1.05rem">คิดครัว</h3><span class="sub">ครัวคุณแม่ (ร้านตัวอย่าง)</span>
+    <b>สต๊อก</b><span class="on navitem" id="nav-products">สินค้า/วัตถุดิบ</span><span>สต๊อกคงเหลือ</span><span>นับสต๊อก</span><span>ของเสีย</span>
+    <b>ขายและเมนู</b><span>จัดการเมนู</span><span>ทดลองเมนู</span>
+  </nav>
+  <main>
+    <div class="wrap">
+      <span class="tag">MOCKUP · หน้าสินค้า/วัตถุดิบ ฉบับใหม่ · ข้อมูลจริงของร้านตัวอย่าง · ขั้นต่ำ 8 รายการเป็นค่าตัวอย่าง (ร้านตัวอย่างยังไม่ได้ตั้ง) · ยังไม่บันทึกจริง</span>
+      <div class="top">
+        <div><h1>สินค้า/วัตถุดิบ</h1><p class="muted" style="margin:2px 0 0" id="summary"></p></div>
+        <div class="row">
+          <label class="sub" for="branch">คงเหลือและต้นทุนของ</label>
+          <select id="branch"></select>
+          <button class="btn" type="button" id="new">+ เพิ่มสินค้า</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="row" id="status" role="group" aria-label="ตัวกรอง"></div>
+        <div class="row" id="sections" role="group" aria-label="หมวด"></div>
+        <div class="row">
+          <input id="q" class="search" placeholder="ค้นหาชื่อหรือรหัส เช่น กุ้ง, 07, ขาวหอม" aria-label="ค้นหาสินค้า" autocomplete="off">
+          <div class="row" role="group" aria-label="มุมมอง">
+            <button class="chip small on" type="button" data-view="table">ตาราง</button>
+            <button class="chip small" type="button" data-view="cards">การ์ด</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="legend"><span><span class="dotn red">N</span> ต่ำกว่าขั้นต่ำแล้ว</span><span><span class="dotn yellow">N</span> ใกล้ขั้นต่ำ: จะต่ำกว่าขั้นต่ำภายใน 3 วันตามที่ใช้จริง (ถ้ายังไม่รู้อัตราการใช้: เหลือไม่ถึง 20% เหนือขั้นต่ำ) · ร้านตั้งจำนวนวันเองได้ที่ ตั้งค่าร้าน (ค่าเริ่มต้น 3)</span><span>ตัวเลขบนเมนูซ้ายนับทุกสาขาที่คุณดูแล</span></div>
+      <div id="list"></div>
+      <p class="sub" id="foot"></p>
+
+      <section class="notes">
+        <h2 style="font-size:1rem">สิ่งที่เปลี่ยนจากหน้าเดิม (สำหรับคุณ Kong ตรวจ)</h2>
+        <ol id="fixlist"></ol>
+      </section>
+    </div>
+  </main>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<aside class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="รายละเอียดสินค้า"></aside>
+<div class="cfm-scrim" id="cfm"><div class="cfm" role="alertdialog" aria-modal="true" aria-labelledby="cfm-t"><h3 id="cfm-t" style="font-size:1rem"></h3><div id="cfm-b"></div><div class="btns"><button class="ghost" type="button" id="cfm-back">กลับไปแก้</button><button class="btn" type="button" id="cfm-go"></button></div></div></div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+const D = /*DATA*/null;
+const $ = (s, r = document) => r.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const UNIT_TH = { kg: "กก.", g: "กรัม", l: "ลิตร", ml: "มล.", pcs: "ชิ้น" };
+const uTh = (u) => UNIT_TH[u] ?? u ?? "";
+const baht = (v, d = 0) => (v < 0 ? "−" : "") + "฿" + Math.abs(v).toLocaleString("th-TH", { minimumFractionDigits: d, maximumFractionDigits: d });
+const qf = (v) => v.toLocaleString("th-TH", { maximumFractionDigits: v < 10 ? 2 : v < 100 ? 1 : 0 });
+const thDate = (iso) => iso ? new Date(iso + "T00:00:00Z").toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit", timeZone: "UTC" }) : "";
+const base = (p) => p.units.find((u) => u.isBase)?.name;
+const buyUnit = (p) => p.units.find((u) => u.buy && !u.isBase);
+const fold = (s) => String(s ?? "").toLowerCase().replace(/[\s\-]/g, "");
+
+// Freshest branch by last receipt — the app's own rule (ADR 0025)
+let branchId = D.branches.find((b) => b.name.includes("อารีย์"))?.id ?? D.branches[0].id;
+let status = "active", section = null, query = "", view = "table";
+
+function pb() { return D.perBranch[branchId]; }
+function factOf(p) { return pb().facts[p.id] ?? null; }
+// ใกล้ขั้นต่ำ (proposal): still at/above par, but at the real usage rate it drops below
+// within NEAR_DAYS; with no usage rate yet, within 20% above par.
+const NEAR_DAYS = 3;
+function nearOf(f) {
+  if (!f || f.par == null || f.belowPar) return null;
+  if (f.usedPerDay) { const d = (f.onHand - f.par) / f.usedPerDay; return d <= NEAR_DAYS ? { days: Math.max(0, Math.floor(d)) } : null; }
+  return f.onHand <= f.par * 1.2 ? { days: null } : null;
+}
+function countsAll() {
+  let low = 0, near = 0;
+  for (const b of D.branches) for (const p of D.products) { if (!p.isActive) continue; const f = D.perBranch[b.id].facts[p.id]; if (f?.belowPar) low++; else if (nearOf(f)) near++; }
+  return { low, near };
+}
+function insOf(p) { return pb().insights[p.id] ?? { receipts: [], usedIn: [], made: null }; }
+function costOf(p) { const c = pb().cost[p.id]; return c == null ? null : c; }
+
+function match(p) {
+  if (!query) return true;
+  const q = fold(query), name = fold(p.name), sku = fold(p.sku);
+  if (name.includes(q) || sku.includes(q)) return true;
+  if (/^\d+$/.test(q) && sku.replace(/\D/g, "").endsWith(q.padStart(2, "0"))) return true; // 07 → P-0007
+  const cons = (s) => s.replace(/[ะาิีึืุูเแโใไำั็่้๊๋์ ]/g, "");
+  return cons(name).includes(cons(q)) && q.length >= 2; // ขาวหอม → ข้าวหอม
+}
+
+function rows() {
+  return D.products
+    .filter((p) => (status === "active" ? p.isActive : status === "inactive" ? !p.isActive : status === "prepped" ? p.type === "PREPPED" && p.isActive : status === "raw" ? p.type === "RAW" && p.isActive : status === "low" ? factOf(p)?.belowPar : status === "near" ? !!nearOf(factOf(p)) : true))
+    .filter((p) => !section || (p.category?.section ?? "ไม่มีหมวด") === section)
+    .filter(match)
+    .sort((a, b) => a.name.localeCompare(b.name, "th"));
+}
+
+function stockCell(p) {
+  const f = factOf(p), u = uTh(base(p));
+  if (!f) return '<span class="sub">—</span>';
+  if (p.type === "PREPPED") return `<span class="sub">ยังไม่มีการบันทึกการผลิต</span>`;
+  const left = f.daysLeft != null ? `<span class="sub" style="display:block">พออีก ${f.daysLeft} วัน</span>` : "";
+  const nr = nearOf(f);
+  const low = f.belowPar ? `<span class="sub" style="display:block;color:var(--bad)">ขั้นต่ำ ${qf(f.par)} ${esc(u)}</span>` : nr ? `<span class="sub" style="display:block;color:#7A5B00">${nr.days != null ? (nr.days === 0 ? "ถึงขั้นต่ำวันนี้" : `ถึงขั้นต่ำในอีก ~${nr.days} วัน`) : "เหลือไม่ถึง 20% เหนือขั้นต่ำ"} (${qf(f.par)} ${esc(u)})</span>` : "";
+  return `<span class="num">${qf(f.onHand)} ${esc(u)}</span>${low}${left}`;
+}
+function costCell(p) { const c = costOf(p); return c == null ? '<span class="sub">ยังไม่เคยซื้อที่สาขานี้</span>' : `<span class="num">${baht(c, 2)}</span><span class="sub">/${esc(uTh(base(p)))}</span>`; }
+function lastCell(p) {
+  const r = (insOf(p).receipts ?? [])[0];
+  if (!r) return p.type === "PREPPED" ? '<span class="sub">ทำเอง</span>' : '<span class="sub">—</span>';
+  return `<span class="num">${baht(r.price, 2)}</span><span class="sub">/${esc(uTh(r.packUnit))}</span><span class="sub" style="display:block">${esc(r.supplier)} · ${thDate(r.date)}</span>`;
+}
+function usedCell(p) { const n = new Set(insOf(p).usedIn.map((u) => u.label)).size; return n ? `<span class="num">${n}</span> <span class="sub">เมนู</span>` : '<span class="sub">—</span>'; }
+function badges(p) { return (p.type === "PREPPED" ? '<span class="badge b-prep">ของแปรรูป</span>' : "") + (!p.isActive ? '<span class="badge b-off">ปิดใช้งาน</span>' : "") + (factOf(p)?.belowPar ? '<span class="badge b-low">ต่ำกว่าขั้นต่ำ</span>' : nearOf(factOf(p)) ? '<span class="badge b-near">ใกล้ขั้นต่ำ</span>' : ""); }
+
+function render() {
+  const list = rows();
+  const all = D.products.filter((p) => p.isActive);
+  $("#summary").textContent = `${all.length} รายการที่ใช้งาน · ของแปรรูป ${all.filter((p) => p.type === "PREPPED").length} · ต่ำกว่าขั้นต่ำ ${all.filter((p) => factOf(p)?.belowPar).length} · ใกล้ขั้นต่ำ ${all.filter((p) => nearOf(factOf(p))).length}`;
+  const lowHere = all.filter((p) => factOf(p)?.belowPar).length, nearHere = all.filter((p) => nearOf(factOf(p))).length;
+  const STATUS = [["active", "ที่ใช้งานอยู่"], ["raw", "วัตถุดิบ"], ["prepped", "ของแปรรูป"], ["low", "ต่ำกว่าขั้นต่ำ", lowHere, "red"], ["near", "ใกล้ขั้นต่ำ", nearHere, "yellow"], ["inactive", "ปิดใช้งาน"], ["all", "ทั้งหมด"]];
+  $("#status").innerHTML = STATUS.map(([k, l, n, c]) => `<button type="button" class="chip ${status === k ? "on" : ""}" data-status="${k}">${l}${n ? `<span class="badges"><span class="dotn ${c}">${n}</span></span>` : ""}</button>`).join("");
+  const ca = countsAll();
+  $("#nav-products").innerHTML = `สินค้า/วัตถุดิบ<span class="badges">${ca.near ? `<span class="dotn yellow" title="ใกล้ขั้นต่ำ ${ca.near} รายการ (ทุกสาขา)">${ca.near}</span>` : ""}${ca.low ? `<span class="dotn red" title="ต่ำกว่าขั้นต่ำ ${ca.low} รายการ (ทุกสาขา)">${ca.low}</span>` : ""}</span>`;
+  const secs = [...new Set(D.products.map((p) => p.category?.section ?? "ไม่มีหมวด"))].sort((a, b) => a.localeCompare(b, "th"));
+  $("#sections").innerHTML = `<button type="button" class="chip small ${!section ? "on" : ""}" data-section="">ทุกหมวด</button>` + secs.map((s) => `<button type="button" class="chip small ${section === s ? "on" : ""}" data-section="${esc(s)}">${esc(s)}</button>`).join("");
+  if (list.length === 0) { $("#list").innerHTML = `<div class="empty">ไม่พบสินค้าที่ตรงกับ “${esc(query)}” · ลองพิมพ์รหัส หรือเปลี่ยนตัวกรอง</div>`; }
+  else if (view === "table") {
+    $("#list").innerHTML = `<div class="tablebox"><table><thead><tr><th>สินค้า</th><th class="r">คงเหลือ</th><th class="r">ต้นทุนต่อหน่วย</th><th class="r">ซื้อล่าสุด</th><th class="r">ใช้ใน</th></tr></thead><tbody>${list.map((p) => `
+      <tr class="rowlink" data-open="${p.id}"><td><div class="pname"><div class="thumb">รูป</div><div><b style="font-weight:500">${esc(p.name)}</b>${badges(p)}<span class="sub" style="display:block">${esc(p.sku)} · ${esc(p.category?.group ?? "ไม่มีหมวด")}${buyUnit(p) ? " · ซื้อเป็น " + esc(buyUnit(p).name) : ""}</span></div></div></td>
+      <td class="r">${stockCell(p)}</td><td class="r">${costCell(p)}</td><td class="r">${lastCell(p)}</td><td class="r">${usedCell(p)}</td></tr>`).join("")}</tbody></table></div>`;
+  } else {
+    const BOX = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 9-4V7"/><path d="M12 11v10"/></svg>';
+    $("#list").innerHTML = `<div class="cards">${list.map((p) => {
+      const f = factOf(p), c = costOf(p), u = uTh(base(p));
+      const stock = p.type === "PREPPED" ? "" : f ? `<span class="stock num ${f.belowPar ? "low" : nearOf(f) ? "near" : ""}">เหลือ ${qf(f.onHand)} ${esc(u)}</span>` : "";
+      return `<div class="card" data-open="${p.id}">
+        <div class="pic">${BOX}<span class="corner">${(p.type === "PREPPED" ? '<span class="badge b-prep" style="margin:0">ของแปรรูป</span>' : "") + (!p.isActive ? '<span class="badge b-off" style="margin:0">ปิดใช้งาน</span>' : "")}</span>${stock}</div>
+        <div class="body"><b>${esc(p.name)}</b><span class="sub">${esc(p.sku)} · ${esc(p.category?.group ?? "ไม่มีหมวด")}</span>${f?.belowPar ? `<span class="sub" style="color:var(--bad);font-weight:500">ต่ำกว่าขั้นต่ำ (${qf(f.par)} ${esc(u)})</span>` : nearOf(f) ? `<span class="sub" style="color:#7A5B00;font-weight:500">ใกล้ขั้นต่ำ (${qf(f.par)} ${esc(u)})</span>` : ""}
+          <div class="line"><span class="sub">ต้นทุน</span><span class="num">${c == null ? "—" : baht(c, 2) + "/" + esc(u)}</span></div>
+          <div class="line"><span class="sub">${p.type === "PREPPED" ? "ทำเอง" : f?.daysLeft != null ? "พออีก" : "ใช้ใน"}</span><span class="num">${p.type === "PREPPED" ? (insOf(p).made?.how === "yield" ? "จาก " + esc(insOf(p).made.parentName) : "สูตรผลิต") : f?.daysLeft != null ? f.daysLeft + " วัน" : new Set(insOf(p).usedIn.map((x) => x.label)).size + " เมนู"}</span></div>
+        </div></div>`;
+    }).join("")}</div>`;
+  }
+  const bn = D.branches.find((b) => b.id === branchId).name;
+  $("#foot").textContent = `แสดง ${list.length} รายการ · คงเหลือและต้นทุนของ${bn} · ตัดสต๊อกตามยอดขายถึง ${pb().postedThrough ? thDate(pb().postedThrough) : "— (ยังไม่เคยตัด)"} · คลิกตรงไหนของแถวก็เปิดได้`;
+}
+
+// ---------------- sheet ----------------
+let cur = null, base0 = null, draft = null;
+const clone = (o) => JSON.parse(JSON.stringify(o));
+const dirty = () => JSON.stringify(draft) !== JSON.stringify(base0);
+const DIM_UNITS = { WEIGHT: ["กรัม", "ขีด", "กก."], VOLUME: ["มล.", "ลิตร"], COUNT: ["ชิ้น", "ฟอง", "ลูก", "ใบ", "ขวด", "กระป๋อง", "กล่อง", "แพ็ค", "ถุง"] };
+const cogsGroups = () => [...new Map(D.categories.filter((c) => c.account.includes("COGS")).map((c) => [c.groupName, c])).values()];
+
+function openSheet(id) {
+  cur = D.products.find((p) => p.id === id);
+  const parent = cur.parentId ? D.products.find((p) => p.id === cur.parentId) : null;
+  base0 = {
+    name: cur.name, nameEn: "", group: cur.category?.group ?? "", active: cur.isActive, type: cur.type,
+    baseUnit: uTh(base(cur)), units: cur.units.filter((u) => !u.isBase).map((u) => ({ name: u.name, ratio: u.ratio, buy: u.buy })),
+    yieldPct: cur.yieldPercent, parentName: parent?.name ?? null,
+    par: Object.fromEntries(D.branches.map((b) => [b.id, D.perBranch[b.id].facts[cur.id]?.par ?? ""])),
+  };
+  draft = clone(base0);
+  renderSheet();
+  $("#sheet").classList.add("on"); $("#scrim").classList.add("on");
+}
+function closeSheet() {
+  if (dirty()) toast(`ปิดแล้ว · ไม่ได้บันทึกการแก้ไขของ${cur.name}`);
+  $("#sheet").classList.remove("on"); $("#scrim").classList.remove("on"); cur = null;
+}
+
+function tiles() {
+  const f = factOf(cur), u = uTh(base(cur)), c = costOf(cur);
+  const prepped = cur.type === "PREPPED";
+  return `<div class="tiles">
+    <div class="tile"><div class="k">คงเหลือ</div><div class="v num">${prepped ? "—" : f ? qf(f.onHand) : "—"}</div><div class="s">${prepped ? "ยังไม่มีการบันทึกการผลิต" : esc(u) + " · ตัดสต๊อกถึง " + (pb().postedThrough ? thDate(pb().postedThrough) : "—")}</div></div>
+    <div class="tile"><div class="k">ใช้ต่อวัน</div><div class="v num">${f?.usedPerDay != null ? qf(f.usedPerDay) : "—"}</div><div class="s">${f?.usedPerDay != null ? esc(u) + " · เฉลี่ย " + pb().postedDays + " วันที่ตัดแล้ว" : "ยังไม่มีวันที่ตัดสต๊อก"}</div></div>
+    <div class="tile"><div class="k">พออีก</div><div class="v num">${f?.daysLeft != null ? f.daysLeft + " วัน" : "—"}</div><div class="s">${f?.belowPar ? '<span style="color:var(--bad)">ต่ำกว่าขั้นต่ำ</span>' : nearOf(f) ? '<span style="color:#7A5B00">ใกล้ขั้นต่ำ ' + qf(f.par) + " " + esc(u) + "</span>" : f?.par != null ? "ขั้นต่ำ " + qf(f.par) + " " + esc(u) : "ยังไม่ตั้งขั้นต่ำ"}</div></div>
+    <div class="tile"><div class="k">ต้นทุนต่อ${esc(u)}</div><div class="v num">${c == null ? "—" : baht(c, 2)}</div><div class="s">${c == null ? "ยังไม่เคยซื้อที่สาขานี้" : prepped ? "คิดจากวัตถุดิบที่ใช้ทำ" : "FIFO · ล็อตที่จะใช้ต่อไป"}</div></div>
+  </div>`;
+}
+function receiptsSec() {
+  if (cur.type === "PREPPED") return "";
+  const r = insOf(cur).receipts ?? [];
+  const maps = D.mappings.filter((m) => m.productId === cur.id);
+  const trend = r.length >= 2 ? ((r[0].perBase - r[r.length - 1].perBase) / r[r.length - 1].perBase) * 100 : null;
+  return `<section class="sec"><div class="sec-h"><h4>ซื้อเข้าล่าสุด</h4>${trend != null ? `<span class="sub">${trend >= 0 ? "▲" : "▼"} ${Math.abs(trend).toFixed(1)}% เทียบ ${thDate(r[r.length - 1].date)}</span>` : ""}</div>
+    ${r.length ? `<table class="mini"><tbody>${r.map((x) => `<tr><td class="num">${thDate(x.date)}</td><td>${esc(x.supplier)}</td><td class="num">${x.qty} × ${esc(uTh(x.packUnit))}</td><td class="r num">${baht(x.price, 2)}<span class="sub"> · ${baht(x.perBase, 2)}/${esc(uTh(base(cur)))}</span></td></tr>`).join("")}</tbody></table>` : `<div class="empty">ยังไม่มีใบรับของของสินค้านี้ที่${esc(D.branches.find((b) => b.id === branchId).name)}</div>`}
+    <div class="sec-h" style="margin-top:4px"><h4 style="font-size:.88rem">รายการราคาของผู้ขาย</h4><button class="ghost" type="button" data-toast="เปิดฟอร์มเพิ่มรายการราคา (ซ้อนในแผง)" style="padding:2px 10px;font-size:.8rem">+ เพิ่มรายการราคา</button></div>
+    ${maps.length ? maps.map((m) => `<div class="row" style="justify-content:space-between"><span>${esc(m.supplier)}</span><span class="num">${m.price != null ? baht(m.price, 2) : "—"}/${esc(m.unit ?? "")}</span></div>`).join("") : `<p class="sub" style="margin:0">ยังไม่มี · ตอนสั่งซื้อระบบใช้ราคาที่จ่ายครั้งล่าสุดด้านบนแทน</p>`}</section>`;
+}
+function usedSec() {
+  const u = insOf(cur).usedIn;
+  return `<section class="sec"><div class="sec-h"><h4>ใช้ในเมนู</h4><span class="sub">${u.length ? new Set(u.map((x) => x.label)).size + " เมนู · กดเพื่อเปิดในจัดการเมนู" : ""}</span></div>
+    ${u.length ? `<table class="mini"><tbody>${u.map((x) => `<tr><td><span class="link" data-toast="ไปที่ จัดการเมนู → ${esc(x.label)}">${esc(x.label)}</span>${x.isCentral ? "" : ' <span class="badge b-off">สูตรสาขา</span>'}</td><td class="r num">${qf(x.qty)} ${esc(uTh(x.unitName))}</td></tr>`).join("")}</tbody></table>` : `<div class="empty">ยังไม่มีเมนูไหนใช้</div>`}</section>`;
+}
+function madeSec() {
+  if (cur.type !== "PREPPED") return "";
+  const m = insOf(cur).made;
+  if (m?.how === "yield") return `<section class="sec"><div class="sec-h"><h4>ทำจาก</h4><span class="sub">ของตัวเดียว + % ผลผลิต · ใช้ร่วมทุกสาขา</span></div>
+    <p class="row" style="margin:0">${esc(m.parentName)} 1 ${esc(uTh(base(cur)))} ได้${esc(cur.name)} <input id="yield" class="num" type="number" step="any" min="1" max="999" value="${draft.yieldPct}" style="width:80px;text-align:right" aria-label="% ผลผลิต"> %</p>
+    <p class="sub" style="margin:0">ข้าวสวย 250% = ข้าวสาร 1 กก. หุงได้ 2.5 กก. · สูตรเมนูใส่น้ำหนักข้าวสุกตอนเสิร์ฟ ระบบตัดข้าวสารให้</p></section>`;
+  if (m?.how === "recipe") return `<section class="sec"><div class="sec-h"><h4>สูตรผลิต</h4><span class="sub">ทำครั้งละ ${qf(m.servings)} ${esc(uTh(base(cur)))} · ใช้ร่วมทุกสาขา</span></div>
+    <table class="mini"><tbody>${m.lines.map((l) => `<tr><td>${esc(l.label)}</td><td class="r"><input class="num" type="number" step="any" value="${l.qty}" style="width:70px;text-align:right" aria-label="ปริมาณ ${esc(l.label)}"></td><td>${esc(uTh(l.unitName))}</td></tr>`).join("")}</tbody></table>
+    <p class="sub" style="margin:0">ตารางสูตรเดียวกับหน้าจัดการเมนู (เลือกหน่วยได้ เพิ่มวัตถุดิบได้)</p></section>`;
+  return `<section class="sec"><h4>ทำจาก</h4><div class="empty">ยังไม่ได้บอกว่าทำจากอะไร · ต้นทุนและการตัดสต๊อกของเมนูที่ใช้จะยังไม่ครบ <span class="link" data-toast="เลือก: ของตัวเดียว + % ผลผลิต หรือ สูตรผลิต">เพิ่มวิธีทำ</span></div></section>`;
+}
+function parSec() {
+  return `<section class="sec"><div class="sec-h"><h4>ขั้นต่ำที่ควรมี</h4><span class="sub">ต่ำกว่านี้ขึ้นเตือน และใช้เสนอจำนวนในใบขอซื้อ</span></div>
+    ${D.branches.map((b) => `<div class="row" style="justify-content:space-between"><span>${esc(b.name)}</span><span class="row"><input class="num" type="number" step="any" min="0" data-par="${b.id}" value="${draft.par[b.id]}" placeholder="ไม่ตั้ง" style="width:90px;text-align:right" aria-label="ขั้นต่ำ ${esc(b.name)}"><select aria-label="หน่วยขั้นต่ำ"><option>${esc(uTh(base(cur)))}</option>${draft.units.map((u) => `<option>${esc(u.name)}</option>`).join("")}</select></span></div>`).join("")}</section>`;
+}
+function infoSec() {
+  const used = new Set(insOf(cur).usedIn.map((x) => x.label)).size;
+  const dimUnits = DIM_UNITS[cur.dimension] ?? [];
+  return `<section class="sec"><div class="sec-h"><h4>ข้อมูลสินค้า</h4><span class="sub">รหัส ${esc(cur.sku)} (เปลี่ยนไม่ได้)</span></div>
+    <div class="grid2">
+      <label class="f">ชื่อภาษาอังกฤษ (ไม่บังคับ)<input id="nameEn" value="${esc(draft.nameEn)}" placeholder="เช่น Jasmine rice"></label>
+      <label class="f">หมวด<select id="group"><option value="">— ไม่ระบุ —</option>${cogsGroups().map((c) => `<option ${c.groupName === draft.group ? "selected" : ""}>${esc(c.groupName)}</option>`).join("")}</select></label>
+      <label class="f">ประเภท<select id="type"><option value="RAW" ${draft.type === "RAW" ? "selected" : ""}>วัตถุดิบ (ซื้อมาใช้)</option><option value="PREPPED" ${draft.type === "PREPPED" ? "selected" : ""}>ของแปรรูป (ร้านทำเอง)</option></select></label>
+      <label class="f">หน่วยที่นับสต๊อก<select id="baseUnit">${dimUnits.map((u) => `<option ${u === draft.baseUnit ? "selected" : ""}>${u}</option>`).join("")}</select></label>
+    </div>
+    <div class="sec-h" style="margin-top:4px"><h4 style="font-size:.88rem">หน่วยซื้อและหน่วยนับเพิ่ม</h4><span class="sub">ใช้ตอนสั่งซื้อ รับของ และนับหลายหน่วย</span></div>
+    ${draft.units.length ? draft.units.map((u, i) => `<div class="unitrow"><input value="${esc(u.name)}" data-uname="${i}" aria-label="ชื่อหน่วย"><span>=</span><span class="row" style="gap:4px"><input class="num" type="number" step="any" value="${u.ratio}" data-uratio="${i}" style="width:80px;text-align:right" aria-label="เท่ากับ"> ${esc(draft.baseUnit)}</span><label class="sub"><input type="radio" name="buy" data-ubuy="${i}" ${u.buy ? "checked" : ""}> ซื้อหลัก</label>${used && u.name ? `<span class="lock" title="ใช้ในเอกสารหรือสูตรแล้ว ลบไม่ได้ แก้ตัวเลขได้">🔒</span>` : `<button class="ghost bad" type="button" data-urm="${i}" style="padding:0 8px">ลบ</button>`}</div>`).join("") : `<p class="sub" style="margin:0">ยังไม่มี · เช่น กระสอบ 15 กก. แพ็ค 12 ขวด</p>`}
+    <button class="ghost" type="button" id="addunit" style="justify-self:start;padding:2px 12px;font-size:.82rem">+ เพิ่มหน่วย</button>
+    ${cur.dimension === "VOLUME" ? `<label class="f" style="max-width:260px">ความหนาแน่น (ของเหลว 1 ลิตร = กี่ กก.)<input type="number" step="any" placeholder="ไม่ระบุ"></label>` : ""}
+    <label class="sub row"><input type="checkbox" id="active" ${draft.active ? "checked" : ""}> ใช้งานอยู่ (ปิดแล้วไม่ขึ้นในตัวเลือกตอนสั่งซื้อ/รับของ ข้อมูลเก่ายังอยู่)</label></section>`;
+}
+function renderSheet() {
+  $("#sheet").innerHTML = `<div class="sh-head"><div class="photo">รูปสินค้า<br>เร็ว ๆ นี้</div><div class="idf">
+      <div><span class="badge ${cur.type === "PREPPED" ? "b-prep" : "b-off"}" style="margin:0">${cur.type === "PREPPED" ? "ของแปรรูป" : "วัตถุดิบ"}</span> <span class="sub">${esc(cur.sku)} · ${esc(cur.category?.section ?? "ไม่มีหมวด")} › ${esc(cur.category?.group ?? "—")}</span></div>
+      <input class="name" id="pname" value="${esc(draft.name)}" aria-label="ชื่อสินค้า">
+      <span class="sub">นับสต๊อกเป็น ${esc(draft.baseUnit)}${buyUnit(cur) ? " · ซื้อเป็น " + esc(buyUnit(cur).name) : ""} · ตัวเลขด้านล่างของ${esc(D.branches.find((b) => b.id === branchId).name)}</span></div>
+      <button class="x" type="button" id="close" aria-label="ปิด">×</button></div>
+    <div class="sh-body">${tiles()}${madeSec()}${receiptsSec()}${usedSec()}${parSec()}${infoSec()}</div>
+    <div class="sh-foot"><button class="ghost bad" type="button" id="del">ลบสินค้า</button><span class="row"><span class="sub" id="state"></span><button class="btn" type="button" id="save">บันทึก</button></span></div>`;
+  state();
+}
+function state() { $("#state").textContent = dirty() ? "มีการแก้ที่ยังไม่บันทึก" : ""; $("#save").disabled = !dirty(); }
+
+let goFn = null;
+function confirmBox(title, lines, note, go, fn) {
+  $("#cfm-t").textContent = title;
+  $("#cfm-b").innerHTML = (lines.length ? `<ul>${lines.slice(0, 3).map((l) => `<li>${esc(l)}</li>`).join("")}${lines.length > 3 ? `<li class="sub">และอีก ${lines.length - 3} รายการ</li>` : ""}</ul>` : "") + `<p class="sub" style="margin:6px 0 0">${esc(note)}</p>`;
+  $("#cfm-go").textContent = go; goFn = fn; $("#cfm").classList.add("on"); setTimeout(() => $("#cfm-back").focus(), 30);
+}
+function toast(m) { const t = $("#toast"); t.textContent = m; t.classList.add("on"); clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove("on"), 2800); }
+
+function save() {
+  const changes = [];
+  if (draft.name !== base0.name) changes.push(`ชื่อ ${base0.name} → ${draft.name}`);
+  draft.units.forEach((u, i) => { const o = base0.units[i]; if (o && o.ratio != u.ratio) changes.push(`${u.name}: ${o.ratio} → ${u.ratio} ${draft.baseUnit}`); });
+  if (draft.yieldPct !== base0.yieldPct) changes.push(`ผลผลิต ${base0.yieldPct}% → ${draft.yieldPct}%`);
+  D.branches.forEach((b) => { if (String(draft.par[b.id]) !== String(base0.par[b.id])) changes.push(`ขั้นต่ำ${b.name}: ${base0.par[b.id] || "ไม่ตั้ง"} → ${draft.par[b.id] || "ไม่ตั้ง"}`); });
+  const used = new Set(insOf(cur).usedIn.map((x) => x.label)).size;
+  const affects = draft.yieldPct !== base0.yieldPct || draft.units.some((u, i) => base0.units[i] && base0.units[i].ratio != u.ratio);
+  const done = () => { base0 = clone(draft); state(); toast(`บันทึก${draft.name}แล้ว`); };
+  if (affects && used) confirmBox(`ใช้ค่าใหม่ของ${draft.name}?`, changes, `ต้นทุนและการตัดสต๊อกของ ${used} เมนูที่ใช้จะเปลี่ยนตาม · ทุกสาขา · มีผลตั้งแต่วันนี้`, `บันทึก · ${used} เมนู`, done);
+  else done();
+}
+
+document.addEventListener("click", (e) => {
+  const t = e.target.closest("[data-open],[data-status],[data-section],[data-view],[data-toast],#close,#scrim,#save,#del,#new,#addunit,[data-urm],#cfm-back,#cfm-go");
+  if (!t) return;
+  if (t.dataset.open) openSheet(t.dataset.open);
+  else if (t.dataset.status) { status = t.dataset.status; render(); }
+  else if (t.dataset.section !== undefined) { section = t.dataset.section || null; render(); }
+  else if (t.dataset.view) { view = t.dataset.view; document.querySelectorAll("[data-view]").forEach((b) => b.classList.toggle("on", b.dataset.view === view)); render(); }
+  else if (t.dataset.toast) toast(t.dataset.toast);
+  else if (t.id === "close" || t.id === "scrim") closeSheet();
+  else if (t.id === "save") save();
+  else if (t.id === "new") toast("เปิดแผงว่างสำหรับสินค้าใหม่ (ช่องเดียวกับ “ข้อมูลสินค้า”)");
+  else if (t.id === "del") { const used = new Set(insOf(cur).usedIn.map((x) => x.label)).size; used ? confirmBox(`ลบ${cur.name}ไม่ได้`, [...new Set(insOf(cur).usedIn.map((x) => x.label))], "สินค้านี้อยู่ในสูตร ให้เอาออกจากสูตรก่อน หรือ “ปิดใช้งาน” แทน (ข้อมูลเก่ายังอยู่)", "ปิดใช้งานแทน", () => { draft.active = false; renderSheet(); }) : confirmBox(`ลบ${cur.name}?`, [], "รายการราคาของผู้ขายจะถูกลบด้วย · กู้คืนได้ด้วยการเพิ่มชื่อเดิม", "ลบสินค้า", () => { closeSheet(); toast("ลบแล้ว"); }); }
+  else if (t.id === "addunit") { draft.units.push({ name: "", ratio: "", buy: false }); renderSheet(); }
+  else if (t.dataset.urm !== undefined) { draft.units.splice(+t.dataset.urm, 1); renderSheet(); }
+  else if (t.id === "cfm-back") $("#cfm").classList.remove("on");
+  else if (t.id === "cfm-go") { $("#cfm").classList.remove("on"); goFn && goFn(); }
+});
+document.addEventListener("input", (e) => {
+  const t = e.target;
+  if (t.id === "q") { query = t.value; render(); return; }
+  if (!draft) return;
+  if (t.id === "pname") draft.name = t.value;
+  else if (t.id === "nameEn") draft.nameEn = t.value;
+  else if (t.id === "yield") draft.yieldPct = Number(t.value);
+  else if (t.dataset.par) draft.par[t.dataset.par] = t.value;
+  else if (t.dataset.uname !== undefined) draft.units[+t.dataset.uname].name = t.value;
+  else if (t.dataset.uratio !== undefined) draft.units[+t.dataset.uratio].ratio = t.value === "" ? "" : Number(t.value);
+  else return;
+  state();
+});
+document.addEventListener("change", (e) => {
+  const t = e.target;
+  if (t.id === "branch") { branchId = t.value; render(); if (cur) renderSheet(); return; }
+  if (!draft) return;
+  if (t.id === "group") draft.group = t.value;
+  else if (t.id === "type") draft.type = t.value;
+  else if (t.id === "baseUnit") draft.baseUnit = t.value;
+  else if (t.id === "active") draft.active = t.checked;
+  else if (t.dataset.ubuy !== undefined) draft.units.forEach((u, i) => (u.buy = i === +t.dataset.ubuy));
+  else return;
+  state();
+});
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") { if ($("#cfm").classList.contains("on")) $("#cfm").classList.remove("on"); else if (cur) closeSheet(); } });
+
+$("#branch").innerHTML = D.branches.map((b) => `<option value="${b.id}" ${b.id === branchId ? "selected" : ""}>${esc(b.name)}</option>`).join("");
+const FIXES = [
+  ["การ์ดรูปว่างใหญ่ เห็น 8 ชิ้นต่อจอ ไม่มีตัวเลข", "ตารางแน่นเป็นค่าเริ่มต้น มีคงเหลือ · พออีกกี่วัน · ต้นทุนต่อหน่วย · ซื้อล่าสุด · ใช้ในกี่เมนู"],
+  ["(รอบ 2) การ์ดรูปเล็กเกือบเท่าตาราง", "การ์ดรูปใหญ่ 4:3 ไว้หาด้วยตา · ยอดคงเหลืออยู่มุมรูป เป็นสีแดงเมื่อต่ำกว่าขั้นต่ำ · ป้ายของแปรรูป/ต่ำกว่าขั้นต่ำอยู่มุมบน"],
+  ["(รอบ 3–4) ไม่มีอะไรบอกว่ามีของต่ำกว่าขั้นต่ำ ถ้าไม่เข้ามาดูเอง", "ตัวเลขแจ้งเตือนลอยทับมุมขวาบนของเมนู “สินค้า/วัตถุดิบ” (ทุกคนเห็น นับทุกสาขาที่ดูแล) และของตัวกรอง · แดง = ต่ำกว่าแล้ว · เหลือง = ใกล้"],
+  ["(รอบ 3) ไม่รู้ล่วงหน้าว่ากำลังจะหมด", "สถานะใหม่ “ใกล้ขั้นต่ำ” สีเหลือง: จะต่ำกว่าขั้นต่ำภายใน 3 วันตามการใช้จริง (หรือเหลือไม่ถึง 20% เหนือขั้นต่ำถ้ายังไม่รู้อัตราการใช้) · บอก “ถึงขั้นต่ำในอีก ~2 วัน”"],
+  ["ต่ำกว่าขั้นต่ำไม่เด่น", "ป้ายแดงในตารางและการ์ด · บรรทัด “ขั้นต่ำ N” ใต้ยอดคงเหลือ · ตัวกรอง “ต่ำกว่าขั้นต่ำ” · สรุปจำนวนบนหัวหน้า"],
+  ["หน่วย kg, l ภาษาอังกฤษ", "กก. ลิตร ทุกที่"],
+  ["ค้นหาแบบตรงตัว", "smart search กลาง (หน้าจริง): พิมพ์ 07 เจอ P-0007 · พิมพ์แต่พยัญชนะได้ · พิมพ์ผิดเล็กน้อยได้"],
+  ["ไม่มีตัวกรองของแปรรูป (หน้า /recipes ยังค้าง)", "ตัวกรอง วัตถุดิบ / ของแปรรูป / ต่ำกว่าขั้นต่ำ / ปิดใช้งาน · /recipes พาไปตัวกรองของแปรรูป"],
+  ["คลิกแล้วเข้าฟอร์มแก้ไขยาวทันที", "เปิดแผงด้านขวา: ตัวเลขก่อน (คงเหลือ ใช้ต่อวัน พออีกกี่วัน ต้นทุน) แล้วค่อยเป็นข้อมูลที่แก้ได้ · × ปิดโดยไม่บันทึก"],
+  ["ฟอร์มเรียงตามโครงสร้างระบบ", "ลำดับ: ทำจาก (ของแปรรูป) → ซื้อเข้าล่าสุด → ใช้ในเมนู → ขั้นต่ำ → ข้อมูลสินค้า"],
+  ["ตัวเลือกหน่วยซ้ำ กรัม/กก./g/kg", "เหลือเฉพาะภาษาไทยของมิติที่เลือก"],
+  ["หมวดมีค่าเช่า ค่าไฟ ปน", "เฉพาะหมวดต้นทุนขาย"],
+  ["ประวัติราคา “ยังไม่มี” ทั้งที่ซื้อจริงหลายครั้ง", "ซื้อเข้าล่าสุด 4 ครั้งจากใบรับของจริง พร้อม % เปลี่ยน · รายการราคาของผู้ขายอยู่ใต้"],
+  ["ของแปรรูปแก้สูตรผลิตที่หน้านี้ไม่ได้", "ส่วน “ทำจาก”: % ผลผลิต หรือสูตรผลิต แก้ได้ในแผง"],
+  ["หน่วยที่สูตรใช้ลบแล้วสูตรเพี้ยน (แก้แล้ว 5 ต.ค.)", "หน่วยที่ใช้แล้วมี 🔒 ลบไม่ได้ แก้ตัวเลขได้ · เปลี่ยนขนาดหน่วยหรือ % ผลผลิต ถามยืนยันพร้อมบอกจำนวนเมนูที่กระทบ"],
+  ["ลบสินค้าที่อยู่ในสูตร = error", "บอกชื่อเมนูที่ใช้ และเสนอ “ปิดใช้งาน” แทน"],
+];
+$("#fixlist").innerHTML = FIXES.map(([a, b]) => `<li><b>เดิม:</b> ${esc(a)} → <b>ใหม่:</b> ${esc(b)}</li>`).join("");
+render();
+</script>

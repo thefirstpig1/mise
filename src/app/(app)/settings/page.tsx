@@ -39,6 +39,11 @@ export default async function SettingsPage() {
     // both are how real shops work.
     const staffMealStock = formData.get("staff_meal_stock_source") === "POS" ? "POS" : "SYSTEM";
 
+    // Rule PAR-2 (Kong 2026-10-21): how many days ahead "ใกล้ขั้นต่ำ" warns.
+    // A whole number 0–30; anything else keeps what the shop had.
+    const rawWarn = Number(formData.get("par_warning_days"));
+    const parWarningDays = Number.isInteger(rawWarn) && rawWarn >= 0 && rawWarn <= 30 ? rawWarn : undefined;
+
     await withTenantContext(tenantId, (tx) =>
       tx.tenant.update({
         where: { id: tenantId },
@@ -48,6 +53,7 @@ export default async function SettingsPage() {
           grossProfitMethod: gpMethod,
           cancelledSalePolicy: cancelPolicy,
           staffMealStockSource: staffMealStock,
+          ...(parWarningDays === undefined ? {} : { parWarningDays }),
         },
       })
     );
@@ -57,6 +63,7 @@ export default async function SettingsPage() {
     revalidatePath("/cost");
     revalidatePath("/consumption");
     revalidatePath("/staff-meals");
+    revalidatePath("/products");
   }
 
   return (
@@ -274,6 +281,31 @@ export default async function SettingsPage() {
                 </div>
               </label>
             </div>
+          </div>
+
+          <div className="rounded-lg border border-border bg-surface p-6">
+            <h3 className="mb-1 font-medium">เตือนของใกล้หมด</h3>
+            <p className="mb-3 text-sm text-muted-foreground">
+              ของที่ตั้งขั้นต่ำไว้ ระบบขึ้นตัวเลข<span className="font-medium text-bad">สีแดง</span>บนเมนู “สินค้า/วัตถุดิบ” เมื่อต่ำกว่าขั้นต่ำ และ
+              <span className="font-medium text-warn">สีเหลือง</span>เมื่อใกล้ขั้นต่ำ
+            </p>
+            <label className="flex flex-wrap items-center gap-2 text-sm">
+              เตือนล่วงหน้า
+              <input
+                type="number"
+                name="par_warning_days"
+                min={0}
+                max={30}
+                step={1}
+                defaultValue={tenant.parWarningDays}
+                className="input w-20 text-right tabular-nums"
+              />
+              วัน ก่อนถึงขั้นต่ำ
+            </label>
+            <p className="mt-2 text-xs text-muted-foreground">
+              คิดจากปริมาณที่ใช้จริงต่อวัน (จากการตัดสต๊อกตามยอดขาย) · ของที่ยังไม่รู้อัตราการใช้ เตือนเมื่อเหลือไม่ถึง 20% เหนือขั้นต่ำ ·
+              ผู้ขายส่งของช้า ตั้งให้มากกว่าจำนวนวันที่รอของ · ใส่ 0 = เตือนเฉพาะเมื่อต่ำกว่าขั้นต่ำแล้ว
+            </p>
           </div>
 
           <button
