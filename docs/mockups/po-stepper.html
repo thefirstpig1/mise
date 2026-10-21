@@ -1,3 +1,4 @@
+<meta charset="utf-8">
 <title>ปุ่มจำนวนใบสั่งซื้อ คิดครัว</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Prompt:wght@500;600;700&family=Noto+Sans+Thai:wght@400;500;600&display=swap">
 <style>
@@ -31,27 +32,31 @@ h1,h2,h3{font-family:var(--display);margin:0}
 .refs{font-size:.8rem;color:var(--muted-fg)} .refs a{color:var(--primary)}
 
 /* one order line, cart-style: everything on one row on desktop */
-.row{display:grid;grid-template-columns:minmax(0,1fr) auto auto auto 110px 28px;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid var(--border)}
+:root{--cols:minmax(0,1fr) 128px 200px 132px 104px 28px}
+.row{display:grid;grid-template-columns:var(--cols);align-items:start;gap:14px;padding:12px 0;border-bottom:1px solid var(--border)}
+.row>*{min-height:36px;display:flex;flex-direction:column;justify-content:flex-start}
+.row .prod{flex-direction:row;align-items:center}
+.row .total,.row .x{justify-content:center;height:36px}
 .row:last-child{border-bottom:0}
 .prod{display:flex;align-items:center;gap:10px;min-width:0}
 .thumb{width:40px;height:40px;border-radius:10px;background:var(--sunk);flex:none}
-.pname{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pname{font-weight:600;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .psub{font-size:.75rem;color:var(--subtle)}
 .total{text-align:right;font-family:var(--display);font-variant-numeric:tabular-nums}
 .x{width:28px;height:28px;border-radius:8px;border:0;background:none;color:var(--subtle);cursor:pointer;font-size:1rem}
 .x:hover{background:var(--bad-bg);color:var(--bad)}
-.hint{font-size:.72rem;color:var(--subtle);text-align:center;margin-top:3px;height:1em}
+.hint{font-size:.72rem;color:var(--subtle);text-align:center;margin-top:4px;min-height:1.1em}
 
 /* C1 — capsule (Apple HIG / Shopify): one control, three parts */
-.cap{display:inline-flex;align-items:center;height:36px;border:1px solid var(--strong);border-radius:999px;background:var(--surface);overflow:hidden}
+.cap{display:inline-flex;align-items:center;align-self:center;height:36px;width:128px;border:1px solid var(--strong);border-radius:999px;background:var(--surface);overflow:hidden}
 .cap button{width:36px;height:100%;border:0;background:none;font-size:1.1rem;color:var(--fg);cursor:pointer}
 .cap button:hover{background:var(--muted)}
 .cap button:disabled{color:var(--strong);cursor:default;background:none}
-.cap input{width:3.2rem;height:100%;border:0;border-inline:1px solid var(--border);background:none;text-align:center;font:inherit;font-family:var(--display);font-size:.95rem;color:var(--fg);font-variant-numeric:tabular-nums}
+.cap input{flex:1;min-width:0;height:100%;border:0;border-inline:1px solid var(--border);background:none;text-align:center;font:inherit;font-family:var(--display);font-size:.95rem;color:var(--fg);font-variant-numeric:tabular-nums}
 .cap input:focus{outline:none;background:var(--primary-soft)}
 
 /* C2 — Airbnb: round buttons, the number stands alone */
-.air{display:inline-flex;align-items:center;gap:8px}
+.air{display:inline-flex;align-items:center;justify-content:space-between;width:128px;height:36px;align-self:center}
 .air button{width:32px;height:32px;border-radius:50%;border:1px solid var(--strong);background:var(--surface);font-size:1rem;color:var(--fg);cursor:pointer}
 .air button:hover{border-color:var(--fg)}
 .air button:disabled{opacity:.35;cursor:default}
@@ -60,26 +65,39 @@ h1,h2,h3{font-family:var(--display);margin:0}
 .air input:focus{outline:none;border-bottom:2px solid var(--primary)}
 
 /* unit as a quiet chip-select, price as a short field with ฿ inside */
-.unit{appearance:none;border:1px solid var(--border);background:var(--sunk);border-radius:999px;padding:6px 26px 6px 12px;font:inherit;font-size:.85rem;color:var(--fg);cursor:pointer;background-image:linear-gradient(45deg,transparent 50%,var(--muted-fg) 50%),linear-gradient(135deg,var(--muted-fg) 50%,transparent 50%);background-position:calc(100% - 14px) 52%,calc(100% - 9px) 52%;background-size:5px 5px;background-repeat:no-repeat}
-.price{display:inline-flex;align-items:center;height:36px;border:1px solid var(--border);border-radius:10px;background:var(--bg);padding:0 10px;gap:4px;width:118px}
+.unit{width:100%;height:36px;appearance:none;border:1px solid var(--border);background:var(--sunk);border-radius:999px;padding:6px 26px 6px 12px;font:inherit;font-size:.85rem;color:var(--fg);cursor:pointer;background-image:linear-gradient(45deg,transparent 50%,var(--muted-fg) 50%),linear-gradient(135deg,var(--muted-fg) 50%,transparent 50%);background-position:calc(100% - 14px) 52%,calc(100% - 9px) 52%;background-size:5px 5px;background-repeat:no-repeat}
+.price{display:flex;align-items:center;height:36px;border:1px solid var(--border);border-radius:10px;background:var(--bg);padding:0 10px;gap:4px;width:100%}
 .price span{color:var(--subtle);font-size:.85rem}
 .price input{border:0;background:none;width:100%;text-align:right;font:inherit;font-family:var(--display);font-variant-numeric:tabular-nums;color:var(--fg)}
 .price input:focus{outline:none}
 .price:focus-within{border-color:var(--primary)}
-.per{font-size:.72rem;color:var(--subtle);margin-top:3px;text-align:right}
-.head{display:grid;grid-template-columns:minmax(0,1fr) auto auto auto 110px 28px;gap:14px;font-size:.72rem;color:var(--subtle);padding:10px 0 2px;font-family:var(--display)}
+.per{font-size:.72rem;color:var(--subtle);margin-top:4px;text-align:right;min-height:1.1em}
+.head{display:grid;grid-template-columns:var(--cols);gap:14px;font-size:.72rem;color:var(--subtle);padding:10px 0 2px;font-family:var(--display)}
+.head span:nth-child(2){text-align:center}
 
 @media (max-width:760px){
   .head{display:none}
-  .row{grid-template-columns:auto 1fr auto;grid-template-areas:"p p x" "q u u" "pr pr t";row-gap:10px}
+  .row{grid-template-columns:128px 1fr 28px;grid-template-areas:"p p x" "q u u" "pr pr t";row-gap:10px}
   .row .prod{grid-area:p}.row .x{grid-area:x}.row .qcell{grid-area:q}.row .ucell{grid-area:u}.row .prcell{grid-area:pr}.row .total{grid-area:t}
 }
+.fam{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}
+.fbox{border:1px solid var(--border);border-radius:14px;padding:12px 14px;display:grid;gap:8px;align-content:start;background:var(--surface)}
+.fbox h3{font-size:.92rem}
+.old{width:100%;height:36px;border:1px solid var(--border);border-radius:8px;background:var(--bg);padding:0 8px;font:inherit;color:var(--fg)}
+.lbl{font-size:.72rem;color:var(--subtle)}
+.suf{display:flex;align-items:center;height:36px;border:1px solid var(--border);border-radius:10px;background:var(--bg);padding:0 10px;gap:6px;width:132px}
+.suf input{border:0;background:none;width:100%;text-align:right;font:inherit;font-family:var(--display);font-variant-numeric:tabular-nums;color:var(--fg)}
+.suf input:focus{outline:none}.suf:focus-within{border-color:var(--primary)}
+.suf span{color:var(--subtle);font-size:.85rem;white-space:nowrap}
+.inv{width:100%;border-collapse:collapse;font-size:.84rem}
+.inv td,.inv th{padding:7px 8px;border-bottom:1px solid var(--border);text-align:left;vertical-align:top}
+.inv th{font-family:var(--display);font-weight:500;color:var(--subtle);font-size:.74rem}
 </style>
 
 <div class="wrap" style="max-width:1000px">
   <div>
-    <h1 style="font-size:1.35rem">ใบสั่งซื้อ / ใบรับของ: ช่องจำนวนแบบใหม่ (รอบ 2)</h1>
-    <p class="sub">เลิกใช้กล่องยาว ๆ · ปุ่มกับตัวเลขเป็นชิ้นเดียวขนาดพอดีตัว · หนึ่งรายการ = หนึ่งแถว แบบตะกร้าสินค้า · ลองกด − + คลิกตัวเลข เปลี่ยนหน่วยได้</p>
+    <h1 style="font-size:1.35rem">ใบสั่งซื้อ / ใบรับของ: ช่องจำนวนแบบใหม่ (รอบ 3)</h1>
+    <p class="sub">รอบ 3: ทุกแถวใช้คอลัมน์ความกว้างเดียวกัน — แคปซูล หน่วย ราคา รวม ตรงกันทุกแถวและตรงกับหัวตาราง ไม่ว่าชื่อสินค้าหรือข้อความใต้ชื่อจะยาวเท่าไร · ลองกด − + คลิกตัวเลข เปลี่ยนหน่วยได้</p>
   </div>
 
   <section class="screen">
@@ -106,8 +124,49 @@ h1,h2,h3{font-family:var(--display);margin:0}
     </div>
   </section>
 
+
+  <section class="screen">
+    <div class="screen-h"><h2 style="font-size:1.1rem">ช่องตัวเลขทั้งแอป: 3 แบบ ใช้ซ้ำทุกหน้า</h2><span class="sub">ตอนนี้มีช่องตัวเลข ~85 ช่องใน 36 ไฟล์ เป็นกล่องยาวเหมือนกันหมด</span></div>
+    <div class="frame" style="padding:16px">
+      <div class="fam">
+        <div class="fbox">
+          <h3>1. จำนวนของ → แคปซูล</h3>
+          <span class="lbl">ตอนนี้</span><input class="old" value="2">
+          <span class="lbl">ใหม่</span><span class="cap" data-solo><button type="button" data-d="-1">−</button><input inputmode="decimal" value="2"><button type="button" data-d="1">+</button></span>
+          <span class="sub">สั่ง รับ ขอซื้อ นับ ของเสีย โอน มื้อพนักงาน ขั้นต่ำ</span>
+        </div>
+        <div class="fbox">
+          <h3>2. เงิน → ฿ อยู่ในช่อง ชิดขวา</h3>
+          <span class="lbl">ตอนนี้</span><input class="old" value="1250.5">
+          <span class="lbl">ใหม่</span><label class="price" style="width:150px"><span>฿</span><input inputmode="decimal" value="1,250.50"></label>
+          <span class="sub">ราคา ค่าใช้จ่าย ยอดขายรายวัน ราคาเมนู ต้นทุนที่ประกาศ</span>
+        </div>
+        <div class="fbox">
+          <h3>3. ขนาด / % / วัน → หน่วยอยู่ท้ายช่อง</h3>
+          <span class="lbl">ตอนนี้</span><input class="old" value="60">
+          <span class="lbl">ใหม่</span>
+          <div style="display:flex;gap:8px;flex-wrap:wrap"><label class="suf"><input inputmode="decimal" value="60"><span>%</span></label><label class="suf" style="width:110px"><input inputmode="decimal" value="3"><span>วัน</span></label><label class="suf"><input inputmode="decimal" value="0.25"><span>kg</span></label></div>
+          <span class="sub">% ผลผลิต VAT ภาษีหัก ณ ที่จ่าย · วันเตือน · ขนาดหน่วย ปริมาณในสูตร</span>
+        </div>
+      </div>
+      <p class="sub" style="margin-top:10px">ทั้ง 3 แบบ: สูง 36px เท่ากัน · ตัวเลขใช้ฟอนต์ตัวเลข ชิดขวา (แคปซูลอยู่กลาง) · คลิกแล้วเลือกทั้งหมด · ไม่มีลูกศรในกล่อง</p>
+    </div>
+  </section>
+
+  <section class="screen">
+    <div class="screen-h"><h2 style="font-size:1.1rem">แผนลงหน้าจริง (4 รอบ ตรวจและ push ทีละรอบ)</h2></div>
+    <div class="frame" style="padding:8px 16px">
+      <table class="inv">
+        <tr><th>รอบ</th><th>หน้า</th><th>ช่อง</th></tr>
+        <tr><td>1 ซื้อของ</td><td>ใบสั่งซื้อ (แถวเดียวแบบนี้) · ใบรับของ (แถวเดียวแบบนี้) · สั่งของจากผู้ขาย · ใบขอซื้อ + ตัดรอบ · ป๊อปอัปขอซื้อ · ราคาผู้ขาย</td><td>~25</td></tr>
+        <tr><td>2 สต๊อก</td><td>นับสต๊อก · ปรับสต๊อก · ของเสีย · โอนของ (ส่ง/รับ) · มื้อพนักงาน · ขั้นต่ำ</td><td>~13</td></tr>
+        <tr><td>3 สินค้า เมนู สูตร</td><td>แผงสินค้า + ฟอร์มสินค้า · กู้คืนสินค้า · แผงเมนู · ทดลองเมนู · สูตร + แทนวัตถุดิบ · ประกาศต้นทุน</td><td>~25</td></tr>
+        <tr><td>4 เงินและตั้งค่า</td><td>ค่าใช้จ่าย + ค่าใช้จ่ายประจำ · ยอดรายวัน (แดชบอร์ด/ยอดขาย) · ตั้งค่าร้าน · ผู้ขาย · พนักงาน · ตัวกรองกราฟ</td><td>~20</td></tr>
+      </table>
+    </div>
+  </section>
   <div class="note">
-    <b>เปลี่ยนอะไรจากรอบแรก</b> · ไม่มีกล่องตัวเลขยาวเต็มคอลัมน์อีก — ช่องกว้างเท่าตัวเลข (3–4 หลัก) ·
+    <b>เปลี่ยนอะไรจากรอบก่อน</b> · รอบ 3: คอลัมน์ความกว้างคงที่ ทุกแถวตรงกัน · · ไม่มีกล่องตัวเลขยาวเต็มคอลัมน์อีก — ช่องกว้างเท่าตัวเลข (3–4 หลัก) ·
     หน่วยเป็นชิปเล็ก ๆ ข้างจำนวน อ่านต่อกันว่า <b>2 · กระสอบ 10 kg</b> · ราคามี ฿ อยู่ในช่องและสั้นลง ·
     ใต้จำนวนบอกว่ารวมกี่ kg (จับเลขผิดหน่วย) · บนมือถือแถวพับเป็น 3 บรรทัด (ย่อหน้าต่างดูได้)
   </div>
@@ -167,4 +226,9 @@ function build(host, kind, gr) {
 build("c1", "cap", false);
 build("c2", "air", false);
 build("gr", "cap", true);
+document.querySelectorAll("[data-solo]").forEach((c) => {
+  const i = c.querySelector("input");
+  c.querySelectorAll("[data-d]").forEach((b) => b.addEventListener("click", () => { i.value = Math.max(0, (Number(i.value) || 0) + Number(b.dataset.d)); }));
+});
+document.querySelectorAll("input").forEach((i) => i.addEventListener("focus", () => i.select()));
 </script>
