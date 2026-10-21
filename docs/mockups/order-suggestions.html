@@ -1,0 +1,257 @@
+<title>คำแนะนำการสั่งของ คิดครัว</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Prompt:wght@500;600;700&family=Noto+Sans+Thai:wght@400;500;600&display=swap">
+<style>
+/* Mockup of three screens in the app's own tokens (tailwind.config.ts, Part 33).
+   Layout: three framed "screens" stacked, each with what changes called out. */
+:root{
+  --bg:#FDFBF3; --fg:#262811; --surface:#FFFFFF; --sunk:#F8F3E1; --primary:#41431B; --primary-fg:#F8F3E1; --primary-soft:#EFEDD7;
+  --muted:#F3EFDF; --muted-fg:#5A5C31; --subtle:#8B8D63; --border:#E9E3C8; --strong:#D2CBA4;
+  --good:#5A7333; --bad:#A83A22; --bad-bg:#F9E5DF; --bad-border:#E9B7A7; --warn:#A87C1C; --warn-bg:#F8EFD6; --warn-border:#E2CE97;
+  --red:#E5484D; --yellow:#F5C542; --hl:rgb(174 183 132 / .26);
+  --display:"Prompt","Noto Sans Thai",system-ui,sans-serif; --body:"Noto Sans Thai","Prompt",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#1B1C10; --fg:#EEEAD6; --surface:#24261A; --sunk:#2A2C1E; --primary:#D9DDB0; --primary-fg:#1B1C10; --primary-soft:#33361F;
+  --muted:#2E301F; --muted-fg:#C9C8A6; --subtle:#9C9B7C; --border:#36381F; --strong:#4A4C30;
+  --good:#B7CF7C; --bad:#EC9C80; --bad-bg:#41261C; --bad-border:#6A3A2C; --warn:#E8BE62; --warn-bg:#3B3018; --warn-border:#5A4A22; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#1B1C10; --fg:#EEEAD6; --surface:#24261A; --sunk:#2A2C1E; --primary:#D9DDB0; --primary-fg:#1B1C10; --primary-soft:#33361F;
+  --muted:#2E301F; --muted-fg:#C9C8A6; --subtle:#9C9B7C; --border:#36381F; --strong:#4A4C30;
+  --good:#B7CF7C; --bad:#EC9C80; --bad-bg:#41261C; --bad-border:#6A3A2C; --warn:#E8BE62; --warn-bg:#3B3018; --warn-border:#5A4A22; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:14px;line-height:1.55;margin:0;padding-inline:16px;padding-block:24px 60px}
+h1,h2,h3,h4{font-family:var(--display);margin:0;text-wrap:balance}
+.num{font-variant-numeric:tabular-nums}
+.sub{color:var(--subtle);font-size:.78rem}
+.muted{color:var(--muted-fg)}
+.wrap{max-width:1100px;margin:0 auto;display:grid;gap:26px}
+.tag{display:inline-block;background:var(--warn-bg);color:var(--warn);border:1px solid var(--warn-border);border-radius:999px;padding:2px 10px;font-size:.75rem}
+.screen{display:grid;gap:10px}
+.screen-h{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 14px}
+.screen-h h2{font-size:1.15rem}
+.frame{background:var(--bg);border:1px solid var(--strong);border-radius:18px;overflow:hidden;box-shadow:0 10px 30px rgb(0 0 0 / .06)}
+.bar{display:flex;gap:6px;align-items:center;padding:8px 12px;background:var(--sunk);border-bottom:1px solid var(--border);font-size:.75rem;color:var(--subtle)}
+.bar i{width:9px;height:9px;border-radius:50%;background:var(--strong);display:inline-block}
+.inner{padding:16px;display:grid;gap:12px}
+.cols{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:14px;align-items:start}
+@media (max-width:760px){.cols{grid-template-columns:1fr}}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:12px 14px;display:grid;gap:8px;min-width:0}
+.card h3{font-size:.98rem}
+table{border-collapse:collapse;width:100%}
+th{font-family:var(--display);font-weight:500;font-size:.72rem;color:var(--subtle);text-align:left;padding:6px 8px;border-bottom:1px solid var(--border)}
+td{padding:8px;border-bottom:1px solid var(--border);vertical-align:top}
+tr:last-child td{border-bottom:0}
+.r{text-align:right}
+.tablebox{overflow-x:auto}
+.btn{background:var(--primary);color:var(--primary-fg);border:0;border-radius:999px;padding:6px 14px;font:inherit;font-weight:500;cursor:pointer}
+.ghost{background:var(--surface);color:var(--fg);border:1px solid var(--strong);border-radius:999px;padding:4px 12px;font:inherit;font-size:.85rem;cursor:pointer}
+.sugg{display:grid;gap:6px}
+.sitem{border:1px solid var(--border);border-radius:12px;padding:9px 10px;display:grid;gap:2px;cursor:pointer;background:var(--surface);text-align:left;font:inherit;color:inherit;transition:.15s}
+.sitem:hover{border-color:var(--primary);background:var(--hl)}
+.sitem.red{box-shadow:inset 3px 0 0 var(--red)}
+.sitem.yellow{box-shadow:inset 3px 0 0 var(--yellow)}
+.sitem.done{opacity:.45;pointer-events:none}
+.add{color:var(--primary);font-weight:600;font-size:.82rem}
+.grp{font-family:var(--display);font-size:.78rem;display:flex;align-items:center;gap:6px;margin-top:4px}
+.dot{width:8px;height:8px;border-radius:50%}
+.badge{display:inline-block;border-radius:999px;padding:0 8px;font-size:.7rem;margin-left:6px;white-space:nowrap}
+.b-low{background:var(--bad-bg);color:var(--bad)}
+.b-near{background:var(--warn-bg);color:var(--warn);border:1px solid var(--warn-border)}
+.new{animation:flash 1.2s ease}
+@keyframes flash{from{background:rgb(174 183 132 / .5)}}
+input.q{width:64px;text-align:right;font:inherit;border:1px solid var(--border);border-radius:8px;padding:3px 6px;background:var(--sunk);color:var(--fg)}
+.suggrow td{background:linear-gradient(90deg,rgb(174 183 132 / .16),transparent 80%)}
+.hint{font-size:.72rem;color:var(--muted-fg)}
+.why{border-left:3px solid var(--strong);padding:6px 10px;background:var(--sunk);border-radius:0 10px 10px 0;font-size:.85rem}
+.notes{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:14px 18px}
+.notes ol{margin:8px 0 0;padding-left:20px;display:grid;gap:5px}
+.modal-scrim{position:fixed;inset:0;background:rgb(0 0 0 / .32);display:none;place-items:center;padding:16px;z-index:5}
+.modal-scrim.on{display:grid}
+.modal{background:var(--surface);border-radius:18px;padding:18px;max-width:420px;width:100%;display:grid;gap:10px;box-shadow:0 24px 60px rgb(0 0 0 / .25)}
+.field{display:grid;gap:3px;font-size:.8rem;color:var(--muted-fg)}
+.field input,.field select{font:inherit;color:var(--fg);background:var(--sunk);border:1px solid var(--border);border-radius:10px;padding:6px 10px}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:var(--primary);color:var(--primary-fg);border-radius:999px;padding:8px 18px;opacity:0;transition:.2s;z-index:9;pointer-events:none;max-width:calc(100% - 32px)}
+.toast.on{opacity:1;transform:translateX(-50%)}
+button:focus-visible,input:focus-visible{outline:2px solid #AEB784;outline-offset:1px}
+</style>
+
+<div class="wrap">
+  <div style="display:grid;gap:6px">
+    <span class="tag" style="justify-self:start">MOCKUP · คำแนะนำการสั่งของที่ต่ำ/ใกล้ขั้นต่ำ · สาขาอารีย์ · ตัวเลขคงเหลือ ราคา และผู้ขายจากร้านตัวอย่าง · ขั้นต่ำบางรายการเป็นค่าตัวอย่าง</span>
+    <h1 style="font-size:1.5rem">ให้ระบบแนะนำว่าควรสั่งอะไร เท่าไร</h1>
+    <p class="muted" style="margin:0">สามจุดที่เสนอ คลิกลองได้ทุกปุ่ม (ไม่บันทึกจริง)</p>
+  </div>
+
+  <!-- ===== 1 ===== -->
+  <section class="screen">
+    <div class="screen-h"><h2>จุดที่ 1 · หน้าใบขอซื้อ: แผงแนะนำเพิ่มของใกล้ขั้นต่ำ</h2><span class="sub">ครัวใช้ · เดิมมีแค่ “ต่ำกว่า par”</span></div>
+    <div class="frame"><div class="bar"><i></i><i></i><i></i> ใบขอซื้อ · สาขาอารีย์</div>
+      <div class="inner cols">
+        <div class="card"><h3>รายการที่ขอ <span class="sub" id="reqcount"></span></h3>
+          <div class="tablebox"><table><thead><tr><th>สินค้า</th><th class="r">จำนวน</th><th>แผนก</th><th>ขอโดย</th></tr></thead><tbody id="reqrows"></tbody></table></div>
+        </div>
+        <aside class="card"><h3>แนะนำให้ขอ</h3>
+          <p class="sub" style="margin:0">ยอดคงเหลือหักยอดขายถึง 24 ก.ย. 69 · ของที่ขอแล้วจะหายจากตรงนี้</p>
+          <div class="sugg" id="sugg1"></div>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 2 ===== -->
+  <section class="screen">
+    <div class="screen-h"><h2>จุดที่ 2 · หน้าสั่งของจากผู้ขาย: ของที่ควรสั่งขึ้นบนสุด</h2><span class="sub">จัดซื้อใช้ · ตัวอย่างผู้ขาย แม็คโคร</span></div>
+    <div class="frame"><div class="bar"><i></i><i></i><i></i> ซัพพลายเออร์ › แม็คโคร › สั่งของ · สาขาอารีย์</div>
+      <div class="inner">
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:baseline"><h3>ของจากแม็คโครที่ควรสั่ง</h3><span class="sub">เติมจำนวนแนะนำไว้แล้ว แก้ได้ · ติ๊กออกถ้าไม่สั่ง</span></div>
+          <div class="tablebox"><table><thead><tr><th></th><th>สินค้า</th><th class="r">มี / ขั้นต่ำ</th><th class="r">สั่ง</th><th>หน่วย</th><th class="r">ราคาล่าสุด</th><th class="r">รวม</th></tr></thead><tbody id="catsugg"></tbody></table></div>
+        </div>
+        <div class="card">
+          <h3>รายการอื่นของแม็คโคร</h3>
+          <div class="tablebox"><table><thead><tr><th>สินค้า</th><th class="r">มี</th><th class="r">สั่ง</th><th>หน่วย</th><th class="r">ราคาล่าสุด</th><th class="r">รวม</th></tr></thead><tbody id="catrest"></tbody></table></div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:10px;align-items:center;flex-wrap:wrap"><span class="num" id="cattotal"></span><button class="btn" type="button" data-toast="สร้างร่างใบสั่งซื้อ ARI-PO-… (ยังไม่ส่ง)">สร้างร่างใบสั่งซื้อ</button></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 3 ===== -->
+  <section class="screen">
+    <div class="screen-h"><h2>จุดที่ 3 · หน้าสินค้า: ปุ่ม “ขอซื้อ” ที่ป้ายต่ำกว่าขั้นต่ำ</h2><span class="sub">ทุกคน · กดแล้วเพิ่มเข้าใบขอซื้อโดยไม่ต้องออกจากหน้า</span></div>
+    <div class="frame"><div class="bar"><i></i><i></i><i></i> สินค้า/วัตถุดิบ · สาขาอารีย์</div>
+      <div class="inner"><div class="card"><div class="tablebox"><table><thead><tr><th>สินค้า</th><th class="r">คงเหลือ</th><th class="r">ซื้อล่าสุด</th></tr></thead><tbody id="prodrows"></tbody></table></div></div></div>
+    </div>
+  </section>
+
+  <section class="notes">
+    <h2 style="font-size:1rem">จำนวนที่แนะนำคิดยังไง (สำหรับคุณ Kong ตรวจ)</h2>
+    <ol>
+      <li><b>ต่ำกว่าขั้นต่ำ:</b> ขั้นต่ำ − มี − ที่สั่ง/ขอไว้แล้ว แล้ว<b>ปัดขึ้นเป็นหน่วยที่ซื้อ</b> (กฎเดิม PR1) · เช่น กุ้งขาว 200 − 158.6 = 41.4 กก. → <b>21 กล่อง 2 กก.</b></li>
+      <li><b>ใกล้ขั้นต่ำ (ใหม่ — ขออนุมัติ):</b> สั่งให้พอใช้จน<b>ถึงวันที่ระบบเริ่มเตือน</b>โดยไม่ต่ำกว่าขั้นต่ำ = ขั้นต่ำ + ใช้ต่อวัน × จำนวนวันที่เตือนล่วงหน้า − มี − ที่สั่งไว้ แล้วปัดขึ้น · เช่น น้ำตาลทราย 160 + 2.17 × 3 − 163.3 = 3.2 กก. → <b>1 กระสอบ 10 กก.</b></li>
+      <li>เป็น<b>ค่าเริ่มต้นที่แก้ได้เสมอ</b> · คนที่ไม่เห็นต้นทุนเห็นจำนวนแต่ไม่เห็นราคา</li>
+      <li>จุดที่ 2 แสดงเฉพาะของที่ซื้อจากผู้ขายรายนี้ (รายการราคา + เคยรับของ ตามที่ตกลงไว้) · ของต่ำ/ใกล้ขั้นต่ำที่ซื้อจากรายอื่น เช่น กุ้งขาว (มหาชัย) จะขึ้นในหน้าของรายนั้น</li>
+      <li>ของที่ขอ/สั่งไปแล้วไม่ถูกแนะนำซ้ำ (ใช้ข้อมูลเดียวกับตัวเลขแจ้งเตือน PAR-3)</li>
+    </ol>
+  </section>
+</div>
+
+<div class="modal-scrim" id="m"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="m-t">
+  <h3 id="m-t" style="font-size:1rem"></h3>
+  <p class="sub" id="m-sub" style="margin:0"></p>
+  <label class="field">จำนวน<span style="display:flex;gap:6px;align-items:center"><input id="m-q" class="num" type="number" min="0" step="any" style="width:90px;text-align:right"> <span id="m-u"></span></span></label>
+  <label class="field">ผู้ขาย<select id="m-s"></select></label>
+  <label class="field">หมายเหตุ (ไม่บังคับ)<input placeholder="เช่น ใช้หมดเร็วช่วงนี้"></label>
+  <div style="display:flex;justify-content:flex-end;gap:8px"><button class="ghost" type="button" id="m-x">ยกเลิก</button><button class="btn" type="button" id="m-go">เพิ่มเข้าใบขอซื้อ</button></div>
+</div></div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const baht = (v, d = 0) => "฿" + v.toLocaleString("th-TH", { minimumFractionDigits: d, maximumFractionDigits: d });
+const qf = (v) => v.toLocaleString("th-TH", { maximumFractionDigits: v < 10 ? 2 : 1 });
+const WARN_DAYS = 3;
+// Real on hand / usage / last price at สาขาอารีย์ (demo shop); pars marked * are examples.
+const P = [
+  { n: "กุ้งขาว", sku: "P-0005", base: "กก.", onHand: 158.6, use: 5.48, par: 200, ex: true, sup: "มหาชัย", pack: "กล่อง 2 กก.", ratio: 2, price: 671.33 },
+  { n: "กระเทียม", sku: "P-0017", base: "กก.", onHand: 43.6, use: 1.11, par: 60, ex: true, sup: "ป้าศรี", pack: "กก.", ratio: 1, price: 97.39 },
+  { n: "ซอสหอยนางรม", sku: "P-0011", base: "ลิตร", onHand: 42.7, use: 0.76, par: 50, ex: true, sup: "แม็คโคร", pack: "แกลลอน 5 ลิตร", ratio: 5, price: 342.17 },
+  { n: "อกไก่", sku: "P-0003", base: "กก.", onHand: 73.9, use: 1.36, par: 80, ex: true, sup: "ลุงชัย", pack: "ถุง 5 กก.", ratio: 5, price: 438.67 },
+  { n: "น้ำตาลทราย", sku: "P-0012", base: "กก.", onHand: 163.3, use: 2.17, par: 160, ex: true, sup: "แม็คโคร", pack: "กระสอบ 10 กก.", ratio: 10, price: 276.06 },
+  { n: "กะทิ", sku: "P-0013", base: "ลิตร", onHand: 121, use: 2.13, par: 116, ex: true, sup: "แม็คโคร", pack: "ลัง 24 กล่อง (6 ลิตร)", ratio: 6, price: 553.46 },
+  { n: "ข้าวหอมมะลิ", sku: "P-0007", base: "กก.", onHand: 880.3, use: 24.6, par: 450, ex: true, sup: "แม็คโคร", pack: "กระสอบ 15 กก.", ratio: 15, price: 690.28 },
+  { n: "น้ำปลา", sku: "P-0010", base: "ลิตร", onHand: 133.6, use: 1.79, par: null, sup: "แม็คโคร", pack: "ลัง 12 ขวด (8.4 ลิตร)", ratio: 8.4, price: 367.95 },
+  { n: "น้ำมันพืช", sku: "P-0009", base: "ลิตร", onHand: 255, use: 4.82, par: 20, sup: "แม็คโคร", pack: "ปี๊บ 13.75 ลิตร", ratio: 13.75, price: 616.51 },
+  { n: "เส้นจันท์", sku: "P-0008", base: "กก.", onHand: 171.8, use: 2.12, par: null, sup: "แม็คโคร", pack: "ลัง 10 กก.", ratio: 10, price: 501.73 },
+  { n: "ไข่ไก่", sku: "P-0014", base: "ฟอง", onHand: 3500, use: 111.33, par: 180, sup: "แม็คโคร", pack: "แผง 30 ฟอง", ratio: 30, price: 130.45 },
+];
+const level = (p) => (p.par == null ? null : p.onHand < p.par ? "LOW" : (p.onHand - p.par) / p.use <= WARN_DAYS ? "NEAR" : null);
+function suggest(p) {
+  const need = level(p) === "LOW" ? p.par - p.onHand : level(p) === "NEAR" ? p.par + p.use * WARN_DAYS - p.onHand : 0;
+  return need > 0 ? Math.ceil(need / p.ratio - 1e-9) : 0;
+}
+let requested = [
+  { n: "มะนาว", q: 2, u: "ถุง 50 ลูก", dept: "ครัว", by: "พ่อครัวเอก" },
+  { n: "ใบกะเพรา", q: 3, u: "กก.", dept: "ครัว", by: "พ่อครัวเอก" },
+];
+
+// ---- 1 ----
+function render1() {
+  $("#reqrows").innerHTML = requested.map((r, i) => `<tr class="${r.fresh ? "new" : ""}"><td>${esc(r.n)}</td><td class="r num">${r.q} ${esc(r.u)}</td><td>${esc(r.dept)}</td><td class="sub">${esc(r.by)}</td></tr>`).join("");
+  $("#reqcount").textContent = `· ${requested.length} รายการ`;
+  requested.forEach((r) => (r.fresh = false));
+  const asked = new Set(requested.map((r) => r.n));
+  const group = (lv, title, cls, color) => {
+    const items = P.filter((p) => level(p) === lv && !asked.has(p.n) && suggest(p) > 0);
+    if (!items.length) return "";
+    return `<div class="grp"><span class="dot" style="background:${color}"></span>${title} <span class="sub">${items.length}</span></div>` +
+      items.map((p) => `<button type="button" class="sitem ${cls}" data-ask="${esc(p.n)}"><span><b style="font-weight:500">${esc(p.n)}</b>${p.ex ? '<span class="sub"> · ขั้นต่ำตัวอย่าง</span>' : ""}</span>
+        <span class="sub">มี ${qf(p.onHand)} / ขั้นต่ำ ${qf(p.par)} ${esc(p.base)}${lv === "NEAR" ? ` · ถึงขั้นต่ำใน ~${Math.floor((p.onHand - p.par) / p.use)} วัน` : ""}</span>
+        <span class="add">+ ขอ ${suggest(p)} ${esc(p.pack)}</span></button>`).join("");
+  };
+  $("#sugg1").innerHTML = group("LOW", "ต่ำกว่าขั้นต่ำ", "red", "var(--red)") + group("NEAR", "ใกล้ขั้นต่ำ (ใหม่)", "yellow", "var(--yellow)") || '<p class="sub">ไม่มีของที่ต้องขอ</p>';
+}
+
+// ---- 2 ----
+const cat = P.filter((p) => p.sup === "แม็คโคร");
+const qty = Object.fromEntries(cat.map((p) => [p.n, suggest(p)]));
+const on = Object.fromEntries(cat.map((p) => [p.n, suggest(p) > 0]));
+function render2() {
+  const sug = cat.filter((p) => level(p) && suggest(p) > 0), rest = cat.filter((p) => !sug.includes(p));
+  const row = (p, withCheck) => {
+    const lv = level(p), q = qty[p.n] ?? 0;
+    return `<tr class="${withCheck ? "suggrow" : ""}">${withCheck ? `<td><input type="checkbox" data-on="${esc(p.n)}" ${on[p.n] ? "checked" : ""} aria-label="สั่ง ${esc(p.n)}"></td>` : ""}
+      <td>${esc(p.n)}${lv === "LOW" ? '<span class="badge b-low">ต่ำกว่าขั้นต่ำ</span>' : lv === "NEAR" ? '<span class="badge b-near">ใกล้ขั้นต่ำ</span>' : ""}${withCheck ? `<span class="hint" style="display:block">แนะนำ ${suggest(p)} ${esc(p.pack)}</span>` : ""}</td>
+      <td class="r num">${withCheck ? `${qf(p.onHand)} / ${qf(p.par)}` : qf(p.onHand)} <span class="sub">${esc(p.base)}</span></td>
+      <td class="r"><input class="q num" type="number" min="0" data-q="${esc(p.n)}" value="${q}" aria-label="จำนวน ${esc(p.n)}"></td>
+      <td class="sub">${esc(p.pack)}</td><td class="r num">${baht(p.price, 2)}</td><td class="r num">${q && (!withCheck || on[p.n]) ? baht(q * p.price, 2) : "—"}</td></tr>`;
+  };
+  $("#catsugg").innerHTML = sug.map((p) => row(p, true)).join("");
+  $("#catrest").innerHTML = rest.map((p) => row(p, false)).join("");
+  const total = cat.reduce((s, p) => s + ((sug.includes(p) ? on[p.n] : true) ? (qty[p.n] || 0) * p.price : 0), 0);
+  $("#cattotal").innerHTML = `รวม <b>${baht(total, 2)}</b> <span class="sub">ไม่รวม VAT</span>`;
+}
+
+// ---- 3 ----
+function render3() {
+  const asked = new Set(requested.map((r) => r.n));
+  $("#prodrows").innerHTML = P.filter((p) => ["กุ้งขาว", "อกไก่", "น้ำตาลทราย", "ข้าวหอมมะลิ"].includes(p.n)).map((p) => {
+    const lv = level(p);
+    const chip = asked.has(p.n) ? '<span class="badge" style="background:var(--primary-soft);color:var(--muted-fg);border:1px solid var(--strong)">ขอซื้อแล้ว รอสั่ง ›</span>'
+      : lv === "LOW" ? `<span class="badge b-low">ต่ำกว่าขั้นต่ำ · ยังไม่ได้สั่ง</span><button class="ghost" type="button" data-open="${esc(p.n)}" style="margin-left:6px;padding:1px 10px;font-size:.75rem">+ ขอซื้อ</button>`
+      : lv === "NEAR" ? `<span class="badge b-near">ใกล้ขั้นต่ำ</span><button class="ghost" type="button" data-open="${esc(p.n)}" style="margin-left:6px;padding:1px 10px;font-size:.75rem">+ ขอซื้อ</button>` : "";
+    return `<tr><td><b style="font-weight:500">${esc(p.n)}</b>${chip}<span class="sub" style="display:block">${esc(p.sku)}</span></td><td class="r num">${qf(p.onHand)} ${esc(p.base)}${lv ? `<span class="sub" style="display:block;color:${lv === "LOW" ? "var(--bad)" : "var(--warn)"}">ขั้นต่ำ ${qf(p.par)}</span>` : ""}</td><td class="r num">${baht(p.price, 2)}<span class="sub">/${esc(p.pack)}</span><span class="sub" style="display:block">${esc(p.sup)}</span></td></tr>`;
+  }).join("");
+}
+function renderAll() { render1(); render2(); render3(); }
+
+function ask(name, q, from) {
+  const p = P.find((x) => x.n === name);
+  requested.push({ n: p.n, q, u: p.pack, dept: "ครัว", by: "คุณ", fresh: true });
+  renderAll();
+  toast(`เพิ่ม ${p.n} ${q} ${p.pack} เข้าใบขอซื้อแล้ว${from === 3 ? " · ป้ายในหน้าสินค้าเปลี่ยนเป็น “ขอซื้อแล้ว รอสั่ง”" : ""}`);
+}
+let modalFor = null;
+document.addEventListener("click", (e) => {
+  const t = e.target.closest("[data-ask],[data-open],[data-toast],#m-x,#m-go,#m");
+  if (!t) return;
+  if (t.dataset.ask) ask(t.dataset.ask, suggest(P.find((x) => x.n === t.dataset.ask)), 1);
+  else if (t.dataset.open) {
+    const p = P.find((x) => x.n === t.dataset.open); modalFor = p;
+    $("#m-t").textContent = `ขอซื้อ ${p.n}`;
+    $("#m-sub").textContent = `มี ${qf(p.onHand)} / ขั้นต่ำ ${qf(p.par)} ${p.base} · จำนวนแนะนำเติมไว้แล้ว`;
+    $("#m-q").value = suggest(p); $("#m-u").textContent = p.pack;
+    $("#m-s").innerHTML = `<option>${esc(p.sup)} (ซื้อล่าสุด)</option><option>ให้จัดซื้อเลือก</option>`;
+    $("#m").classList.add("on"); setTimeout(() => $("#m-q").focus(), 30);
+  }
+  else if (t.dataset.toast) toast(t.dataset.toast);
+  else if (t.id === "m-x" || (t.id === "m" && e.target.id === "m")) $("#m").classList.remove("on");
+  else if (t.id === "m-go") { $("#m").classList.remove("on"); ask(modalFor.n, Number($("#m-q").value) || 0, 3); }
+});
+document.addEventListener("input", (e) => { const t = e.target; if (t.dataset.q) { qty[t.dataset.q] = Number(t.value) || 0; render2(); const n = document.querySelector(`[data-q="${CSS.escape(t.dataset.q)}"]`); n.focus(); try { n.setSelectionRange(99, 99); } catch {} } });
+document.addEventListener("change", (e) => { const t = e.target; if (t.dataset.on) { on[t.dataset.on] = t.checked; render2(); } });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") $("#m").classList.remove("on"); });
+function toast(m) { const t = $("#toast"); t.textContent = m; t.classList.add("on"); clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove("on"), 3000); }
+renderAll();
+</script>
