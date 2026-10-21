@@ -17,6 +17,31 @@ import type { Route } from "next";
 import Logo from "@/components/layout/Logo";
 import { currentNavHref, type NavGroup } from "@/components/layout/nav";
 
+type Badge = { low: number; near: number };
+
+/**
+ * A LINE-style count over the item's top-right corner (Kong 2026-10-21):
+ * red = below par, yellow = near par. Counts only — everyone sees them.
+ */
+function Badges({ b }: { b: Badge | undefined }) {
+  if (!b || (b.low === 0 && b.near === 0)) return null;
+  const dot = "inline-grid h-[18px] min-w-[18px] place-items-center rounded-full border-2 border-surface px-1 text-[11px] font-bold leading-none tabular-nums shadow-sm animate-pop-in";
+  return (
+    <span className="pointer-events-none absolute -right-2 -top-2 z-10 flex gap-0.5">
+      {b.near > 0 ? (
+        <span className={`${dot} bg-[#F5C542] text-[#3A2E05]`} title={`ใกล้ขั้นต่ำ ${b.near} รายการ`}>
+          {b.near > 99 ? "99+" : b.near}
+        </span>
+      ) : null}
+      {b.low > 0 ? (
+        <span className={`${dot} bg-[#E5484D] text-white`} title={`ต่ำกว่าขั้นต่ำ ${b.low} รายการ`}>
+          {b.low > 99 ? "99+" : b.low}
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
 export default function Sidebar({
   groups,
   shopName,
@@ -42,6 +67,28 @@ export default function Sidebar({
     setOpen(false);
     setPressed(null);
   }, [pathname]);
+
+  // Notification badges, read after paint over GET (mise-ui-review §5c) and
+  // again on each page change and when the tab comes back — a count from this
+  // morning is the one thing a badge must not show.
+  const [badges, setBadges] = useState<Record<string, Badge>>({});
+  useEffect(() => {
+    let live = true;
+    const load = () =>
+      fetch("/api/nav", { cache: "no-store" })
+        .then((r) => (r.ok && r.headers.get("content-type")?.includes("json") ? r.json() : null))
+        .then((j) => live && j?.ok && setBadges(j.badges))
+        .catch(() => undefined);
+    void load();
+    const onFocus = () => document.visibilityState === "visible" && void load();
+    document.addEventListener("visibilitychange", onFocus);
+    return () => {
+      live = false;
+      document.removeEventListener("visibilitychange", onFocus);
+    };
+  }, [pathname]);
+  const anyLow = Object.values(badges).some((b) => b.low > 0);
+  const anyNear = Object.values(badges).some((b) => b.near > 0);
 
   const panel = (
     <nav aria-label="เมนูหลัก" className="flex h-full flex-col">
@@ -75,13 +122,14 @@ export default function Sidebar({
                 onClick={(e) => {
                   if (!e.ctrlKey && !e.metaKey && !e.shiftKey && e.button === 0) setPressed(item.href);
                 }}
-                className={`block rounded-md py-1.5 pr-2 transition-colors ${nested ? "pl-3 text-sm" : "px-2 text-[15px] font-semibold"} ${
+                className={`relative block rounded-md py-1.5 pr-2 transition-colors ${nested ? "pl-3 text-sm" : "px-2 text-[15px] font-semibold"} ${
                   (pressed ? pressed === item.href : active)
                     ? "bg-primary font-medium text-primary-foreground"
                     : "text-foreground hover:bg-muted"
                 }`}
               >
                 {item.label}
+                <Badges b={badges[item.href]} />
               </Link>
             );
           };
@@ -129,8 +177,14 @@ export default function Sidebar({
           onClick={() => setOpen(true)}
           aria-label="เปิดเมนู"
           aria-expanded={open}
-          className="rounded-md p-1.5 hover:bg-muted"
+          className="relative rounded-md p-1.5 hover:bg-muted"
         >
+          {anyLow || anyNear ? (
+            <span
+              aria-hidden
+              className={`absolute right-0.5 top-0.5 h-2.5 w-2.5 rounded-full border-2 border-surface ${anyLow ? "bg-[#E5484D]" : "bg-[#F5C542]"}`}
+            />
+          ) : null}
           <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M4 6h16M4 12h16M4 18h16" strokeLinecap="round" />
           </svg>

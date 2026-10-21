@@ -29,6 +29,7 @@ import { replayPairsInTx } from "@/server/stock-cost";
 import { getDraftsLogic, getLabWhatIfLogic } from "@/server/menu-lab-read";
 import type { LabWhatIfQuery } from "@/lib/validations/menu-lab";
 import type { BranchReach } from "@/lib/permissions/service";
+import { parAlertOf } from "@/lib/par-alert";
 
 /** The window "used per day" is measured over. */
 export const INGREDIENT_FACT_DAYS = 30;
@@ -753,4 +754,44 @@ export async function getLabDraftCostLogic(
     confidence: res.cost.confidence,
     unpriced: res.cost.unpriced.map((u) => u.name),
   };
+}
+
+// ------------------------------------------------------------
+// Sidebar badges: how many products are below / near par (Kong 2026-10-21)
+// ------------------------------------------------------------
+// Counted per product × branch over the branches the reader can see — a
+// product short at two branches is two things to act on. Only pairs that
+// HAVE a par are read, so the cost is the shop's par list, not its catalogue.
+
+export async function getParAlertCountsLogic(
+  tenantId: string,
+  reach: BranchReach
+): Promise<{ low: number; near: number }> {
+  return withTenantContext(tenantId, async (tx) => {
+    const [pars, tenant] = await Promise.all([
+      tx.parLevel.findMany({
+        where: {
+          tenantId,
+          deletedAt: null,
+          product: { deletedAt: null, isActive: true },
+          ...(reach.allBranches ? {} : { branchId: { in: [...reach.allowedBranchIds] } }),
+        },
+        select: { branchId: true, productId: true },
+      }),
+      tx.tenant.findUniqueOrThrow({ where: { id: tenantId }, select: { parWarningDays: true } }),
+    ]);
+    const byBranch = new Map<string, string[]>();
+    for (const p of pars) byBranch.set(p.branchId, [...(byBranch.get(p.branchId) ?? []), p.productId]);
+    let low = 0;
+    let near = 0;
+    for (const [branchId, ids] of byBranch) {
+      const { facts } = await ingredientFactsInTx(tx, tenantId, branchId, ids);
+      for (const f of Object.values(facts)) {
+        const a = parAlertOf(f, tenant.parWarningDays);
+        if (a?.level === "LOW") low++;
+        else if (a?.level === "NEAR") near++;
+      }
+    }
+    return { low, near };
+  });
 }
