@@ -88,7 +88,7 @@ button:focus-visible,input:focus-visible{outline:2px solid #AEB784;outline-offse
     <div class="frame"><div class="bar"><i></i><i></i><i></i> ใบขอซื้อ · สาขาอารีย์</div>
       <div class="inner cols">
         <div class="card"><h3>รายการที่ขอ <span class="sub" id="reqcount"></span></h3>
-          <div class="tablebox"><table><thead><tr><th>สินค้า</th><th class="r">จำนวน</th><th>แผนก</th><th>ขอโดย</th></tr></thead><tbody id="reqrows"></tbody></table></div>
+          <div class="tablebox"><table><thead><tr><th>สินค้า</th><th class="r">จำนวน</th><th>หน่วย</th><th>แผนก</th><th>ขอโดย</th><th></th></tr></thead><tbody id="reqrows"></tbody></table></div>
         </div>
         <aside class="card"><h3>แนะนำให้ขอ</h3>
           <p class="sub" style="margin:0">ยอดคงเหลือหักยอดขายถึง 24 ก.ย. 69 · ของที่ขอแล้วจะหายจากตรงนี้</p>
@@ -132,6 +132,7 @@ button:focus-visible,input:focus-visible{outline:2px solid #AEB784;outline-offse
       <li>เป็น<b>ค่าเริ่มต้นที่แก้ได้เสมอ</b> · คนที่ไม่เห็นต้นทุนเห็นจำนวนแต่ไม่เห็นราคา</li>
       <li>จุดที่ 2 แสดงเฉพาะของที่ซื้อจากผู้ขายรายนี้ (รายการราคา + เคยรับของ ตามที่ตกลงไว้) · ของต่ำ/ใกล้ขั้นต่ำที่ซื้อจากรายอื่น เช่น กุ้งขาว (มหาชัย) จะขึ้นในหน้าของรายนั้น</li>
       <li>ของที่ขอ/สั่งไปแล้วไม่ถูกแนะนำซ้ำ (ใช้ข้อมูลเดียวกับตัวเลขแจ้งเตือน PAR-3)</li>
+      <li>(รอบ 2) <b>บรรทัดในใบขอซื้อแก้ได้ทุกบรรทัด</b>: จำนวน หน่วย และ × ลบ · บรรทัดที่มาจากคำแนะนำบอก “แนะนำ N · ปรับแล้ว” เมื่อแก้ · ลบแล้วสินค้ากลับไปอยู่ในแผงแนะนำ</li>
     </ol>
   </section>
 </div>
@@ -178,7 +179,16 @@ let requested = [
 
 // ---- 1 ----
 function render1() {
-  $("#reqrows").innerHTML = requested.map((r, i) => `<tr class="${r.fresh ? "new" : ""}"><td>${esc(r.n)}</td><td class="r num">${r.q} ${esc(r.u)}</td><td>${esc(r.dept)}</td><td class="sub">${esc(r.by)}</td></tr>`).join("");
+  // Every line stays editable — the suggestion is only where it starts.
+  $("#reqrows").innerHTML = requested.map((r, i) => {
+    const p = P.find((x) => x.n === r.n);
+    const units = p ? [p.pack, ...(p.pack !== p.base ? [p.base] : [])] : [r.u];
+    return `<tr class="${r.fresh ? "new" : ""}"><td>${esc(r.n)}${r.sug != null ? `<span class="hint" style="display:block">แนะนำ ${r.sug} ${esc(r.sugU)}${r.q != r.sug || r.u !== r.sugU ? " · ปรับแล้ว" : ""}</span>` : ""}</td>
+      <td class="r"><input class="q num" type="number" min="0" step="any" value="${r.q}" data-rq="${i}" aria-label="จำนวน ${esc(r.n)}"></td>
+      <td><select data-ru="${i}" aria-label="หน่วย ${esc(r.n)}" style="font:inherit;border:1px solid var(--border);border-radius:8px;padding:2px 6px;background:var(--sunk);color:var(--fg)">${units.map((u) => `<option ${u === r.u ? "selected" : ""}>${esc(u)}</option>`).join("")}</select></td>
+      <td>${esc(r.dept)}</td><td class="sub">${esc(r.by)}</td>
+      <td class="r"><button type="button" class="ghost" data-rm="${i}" aria-label="ลบ ${esc(r.n)}" style="padding:0 9px;color:var(--bad)">×</button></td></tr>`;
+  }).join("");
   $("#reqcount").textContent = `· ${requested.length} รายการ`;
   requested.forEach((r) => (r.fresh = false));
   const asked = new Set(requested.map((r) => r.n));
@@ -228,12 +238,14 @@ function renderAll() { render1(); render2(); render3(); }
 
 function ask(name, q, from) {
   const p = P.find((x) => x.n === name);
-  requested.push({ n: p.n, q, u: p.pack, dept: "ครัว", by: "คุณ", fresh: true });
+  requested.push({ n: p.n, q, u: p.pack, dept: "ครัว", by: "คุณ", fresh: true, sug: suggest(p), sugU: p.pack });
   renderAll();
   toast(`เพิ่ม ${p.n} ${q} ${p.pack} เข้าใบขอซื้อแล้ว${from === 3 ? " · ป้ายในหน้าสินค้าเปลี่ยนเป็น “ขอซื้อแล้ว รอสั่ง”" : ""}`);
 }
 let modalFor = null;
 document.addEventListener("click", (e) => {
+  const rm = e.target.closest("[data-rm]");
+  if (rm) { const r = requested.splice(+rm.dataset.rm, 1)[0]; renderAll(); toast(`เอา ${r.n} ออกแล้ว${P.some((p) => p.n === r.n && level(p)) ? " · กลับไปอยู่ในแผงแนะนำ" : ""}`); return; }
   const t = e.target.closest("[data-ask],[data-open],[data-toast],#m-x,#m-go,#m");
   if (!t) return;
   if (t.dataset.ask) ask(t.dataset.ask, suggest(P.find((x) => x.n === t.dataset.ask)), 1);
@@ -249,8 +261,8 @@ document.addEventListener("click", (e) => {
   else if (t.id === "m-x" || (t.id === "m" && e.target.id === "m")) $("#m").classList.remove("on");
   else if (t.id === "m-go") { $("#m").classList.remove("on"); ask(modalFor.n, Number($("#m-q").value) || 0, 3); }
 });
-document.addEventListener("input", (e) => { const t = e.target; if (t.dataset.q) { qty[t.dataset.q] = Number(t.value) || 0; render2(); const n = document.querySelector(`[data-q="${CSS.escape(t.dataset.q)}"]`); n.focus(); try { n.setSelectionRange(99, 99); } catch {} } });
-document.addEventListener("change", (e) => { const t = e.target; if (t.dataset.on) { on[t.dataset.on] = t.checked; render2(); } });
+document.addEventListener("input", (e) => { const t = e.target; if (t.dataset.rq !== undefined) { requested[+t.dataset.rq].q = t.value === "" ? "" : Number(t.value); const hint = t.closest("tr").querySelector(".hint"); const r = requested[+t.dataset.rq]; if (hint) hint.textContent = `แนะนำ ${r.sug} ${r.sugU}${r.q != r.sug || r.u !== r.sugU ? " · ปรับแล้ว" : ""}`; return; } if (t.dataset.q) { qty[t.dataset.q] = Number(t.value) || 0; render2(); const n = document.querySelector(`[data-q="${CSS.escape(t.dataset.q)}"]`); n.focus(); try { n.setSelectionRange(99, 99); } catch {} } });
+document.addEventListener("change", (e) => { const t = e.target; if (t.dataset.ru !== undefined) { requested[+t.dataset.ru].u = t.value; render1(); return; } if (t.dataset.on) { on[t.dataset.on] = t.checked; render2(); } });
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") $("#m").classList.remove("on"); });
 function toast(m) { const t = $("#toast"); t.textContent = m; t.classList.add("on"); clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove("on"), 3000); }
 renderAll();
