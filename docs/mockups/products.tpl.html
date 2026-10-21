@@ -117,6 +117,30 @@ label.f input,label.f select{width:100%}
 .notes{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:14px 18px}
 .notes ol{margin:8px 0 0;padding-left:20px;display:grid;gap:4px}
 .link{color:var(--primary);text-decoration:underline dotted;cursor:pointer}
+.ostat{display:inline-flex;align-items:center;gap:4px;border-radius:999px;padding:1px 9px;font-size:.72rem;margin-left:6px;white-space:nowrap;font:inherit;font-size:.72rem;cursor:pointer;border:1px solid transparent;line-height:1.6}
+.ostat:hover{filter:brightness(.96);text-decoration:underline}
+.ostat.neutral{background:var(--primary-soft);color:var(--muted-fg);border-color:var(--strong)}
+.ostat.red{background:var(--bad-bg);color:var(--bad);border-color:#E9B7A7}
+.ostat .chev{opacity:.7}
+.pop-scrim{position:fixed;inset:0;background:rgb(0 0 0 / .32);display:none;place-items:center;padding:16px;z-index:9;animation:fade .15s}
+.pop-scrim.on{display:grid}
+@keyframes fade{from{opacity:0}}
+.pop{background:var(--surface);border-radius:20px;max-width:560px;width:100%;max-height:calc(100vh - 32px);overflow:auto;box-shadow:0 24px 60px rgb(0 0 0 / .25);animation:popin .22s cubic-bezier(.22,1,.36,1)}
+@keyframes popin{from{transform:translateY(8px) scale(.98);opacity:0}}
+.pop-h{padding:16px 18px 10px;display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.doc{margin:0 14px 14px;border:1px solid var(--border);border-radius:16px;overflow:hidden}
+.doc-h{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px 12px;padding:10px 14px;background:var(--sunk);border-bottom:1px solid var(--border)}
+.doc-h b{font-family:var(--display)}
+.dline{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;padding:9px 14px;border-bottom:1px solid var(--border);position:relative}
+.dline:last-child{border-bottom:0}
+.dline.primary{background:linear-gradient(90deg,rgb(174 183 132 / .38),rgb(174 183 132 / .12));box-shadow:inset 4px 0 0 #6E7A3A}
+.dline.primary .nm{font-weight:600}
+.dline.primary::after{content:"รายการนี้";position:absolute;right:12px;top:-9px;background:#6E7A3A;color:#fff;font-size:.65rem;padding:1px 8px;border-radius:999px}
+.dline.second.red{background:linear-gradient(90deg,rgb(229 72 77 / .10),transparent 70%);box-shadow:inset 3px 0 0 rgb(229 72 77 / .55)}
+.dline.second.yellow{background:linear-gradient(90deg,rgb(245 197 66 / .16),transparent 70%);box-shadow:inset 3px 0 0 rgb(245 197 66 / .8)}
+.dline .after{font-size:.72rem;color:var(--muted-fg)}
+.pill-ok{color:var(--good)} .pill-bad{color:var(--bad)}
+.example{font-size:.68rem;background:var(--warn-bg);color:var(--warn);border-radius:999px;padding:0 7px}
 .navitem,.chip{position:relative}
 .badges{position:absolute;top:-7px;right:-7px;display:flex;gap:2px;pointer-events:none}
 .dotn{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 5px;border-radius:999px;font-size:.68rem;font-weight:700;line-height:1;font-variant-numeric:tabular-nums;border:2px solid var(--surface);box-shadow:0 1px 3px rgb(0 0 0 / .25);animation:pop .35s cubic-bezier(.3,1.6,.5,1)}
@@ -144,7 +168,7 @@ label.f input,label.f select{width:100%}
   </nav>
   <main>
     <div class="wrap">
-      <span class="tag">MOCKUP · หน้าสินค้า/วัตถุดิบ ฉบับใหม่ · ข้อมูลจริงของร้านตัวอย่าง · ขั้นต่ำ 8 รายการเป็นค่าตัวอย่าง (ร้านตัวอย่างยังไม่ได้ตั้ง) · ยังไม่บันทึกจริง</span>
+      <span class="tag">MOCKUP · หน้าสินค้า/วัตถุดิบ ฉบับใหม่ · ข้อมูลจริงของร้านตัวอย่าง · ขั้นต่ำบางรายการและใบ ARI-PO-0017 กับใบขอซื้อ 21 ต.ค. เป็นตัวอย่าง · ARI-PO-0015 และ LPR-PO-0002 เป็นใบจริงที่เลยนัดแล้ว · ยังไม่บันทึกจริง</span>
       <div class="top">
         <div><h1>สินค้า/วัตถุดิบ</h1><p class="muted" style="margin:2px 0 0" id="summary"></p></div>
         <div class="row">
@@ -181,6 +205,7 @@ label.f input,label.f select{width:100%}
 <div class="scrim" id="scrim"></div>
 <aside class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="รายละเอียดสินค้า"></aside>
 <div class="cfm-scrim" id="cfm"><div class="cfm" role="alertdialog" aria-modal="true" aria-labelledby="cfm-t"><h3 id="cfm-t" style="font-size:1rem"></h3><div id="cfm-b"></div><div class="btns"><button class="ghost" type="button" id="cfm-back">กลับไปแก้</button><button class="btn" type="button" id="cfm-go"></button></div></div></div>
+<div class="pop-scrim" id="pop"><div class="pop" role="dialog" aria-modal="true" aria-labelledby="pop-t" id="pop-in"></div></div>
 <div class="toast" id="toast" role="status"></div>
 
 <script>
@@ -210,9 +235,39 @@ function nearOf(f) {
   if (f.usedPerDay) { const d = (f.onHand - f.par) / f.usedPerDay; return d <= NEAR_DAYS ? { days: Math.max(0, Math.floor(d)) } : null; }
   return f.onHand <= f.par * 1.2 ? { days: null } : null;
 }
+// ---- what someone already did about it (proposal, Kong 2026-10-21) ----
+// A badge counts what still needs a hand; it drops when someone acts and comes
+// back when the action goes wrong. A purchase request or a SENT order counts as
+// acting; a draft order does not. Late = past the promised date, or 3 days after
+// sending when no date was given.
+const LATE_DAYS_NO_DATE = 3;
+const dayMs = 86400000;
+const daysBetween = (a, b) => Math.round((Date.parse(b) - Date.parse(a)) / dayMs);
+function docsFor(pid, bid) { return D.docs.filter((x) => x.branch === bid && x.lines.some((l) => l.p === pid)); }
+function lateOf(doc) {
+  if (doc.kind !== "PO") return null;
+  const due = doc.expected ?? new Date(Date.parse(doc.sent) + LATE_DAYS_NO_DATE * dayMs).toISOString().slice(0, 10);
+  const late = daysBetween(due, D.today);
+  return late > 0 ? { late, due, assumed: !doc.expected } : null;
+}
+/** need | short | overdue | ordered | requested | near | near-covered | null */
+function stateOf(p, bid = branchId) {
+  const f = D.perBranch[bid].facts[p.id];
+  if (!f || f.par == null || !p.isActive) return { kind: null, docs: [] };
+  const docs = docsFor(p.id, bid);
+  const coming = docs.reduce((s, x) => s + x.lines.filter((l) => l.p === p.id).reduce((a, l) => a + l.base, 0), 0);
+  const below = f.belowPar, near = !below && nearOf(f);
+  if (!below && !near) return { kind: null, docs };
+  if (docs.length === 0) return { kind: below ? "need" : "near", docs };
+  if (docs.some(lateOf)) return { kind: "overdue", docs, coming };
+  if (f.onHand + coming < f.par) return { kind: "short", docs, coming };
+  if (!below) return { kind: "near-covered", docs, coming };
+  return { kind: docs.every((x) => x.kind === "PR") ? "requested" : "ordered", docs, coming };
+}
+const RED = new Set(["need", "short", "overdue"]);
 function countsAll() {
   let low = 0, near = 0;
-  for (const b of D.branches) for (const p of D.products) { if (!p.isActive) continue; const f = D.perBranch[b.id].facts[p.id]; if (f?.belowPar) low++; else if (nearOf(f)) near++; }
+  for (const b of D.branches) for (const p of D.products) { const k = stateOf(p, b.id).kind; if (RED.has(k)) low++; else if (k === "near") near++; }
   return { low, near };
 }
 function insOf(p) { return pb().insights[p.id] ?? { receipts: [], usedIn: [], made: null }; }
@@ -229,7 +284,7 @@ function match(p) {
 
 function rows() {
   return D.products
-    .filter((p) => (status === "active" ? p.isActive : status === "inactive" ? !p.isActive : status === "prepped" ? p.type === "PREPPED" && p.isActive : status === "raw" ? p.type === "RAW" && p.isActive : status === "low" ? factOf(p)?.belowPar : status === "near" ? !!nearOf(factOf(p)) : true))
+    .filter((p) => (status === "active" ? p.isActive : status === "inactive" ? !p.isActive : status === "prepped" ? p.type === "PREPPED" && p.isActive : status === "raw" ? p.type === "RAW" && p.isActive : status === "low" ? !!factOf(p)?.belowPar && p.isActive : status === "near" ? ["near", "near-covered"].includes(stateOf(p).kind) : true))
     .filter((p) => !section || (p.category?.section ?? "ไม่มีหมวด") === section)
     .filter(match)
     .sort((a, b) => a.name.localeCompare(b.name, "th"));
@@ -240,7 +295,8 @@ function stockCell(p) {
   if (!f) return '<span class="sub">—</span>';
   if (p.type === "PREPPED") return `<span class="sub">ยังไม่มีการบันทึกการผลิต</span>`;
   const left = f.daysLeft != null ? `<span class="sub" style="display:block">พออีก ${f.daysLeft} วัน</span>` : "";
-  const nr = nearOf(f);
+  const nr = nearOf(f), k = stateOf(p).kind;
+  if (["ordered", "requested", "near-covered"].includes(k)) return `<span class="num">${qf(f.onHand)} ${esc(u)}</span><span class="sub" style="display:block">ขั้นต่ำ ${qf(f.par)} · กำลังมา ${qf(stateOf(p).coming)} ${esc(u)}</span>${left}`;
   const low = f.belowPar ? `<span class="sub" style="display:block;color:var(--bad)">ขั้นต่ำ ${qf(f.par)} ${esc(u)}</span>` : nr ? `<span class="sub" style="display:block;color:#7A5B00">${nr.days != null ? (nr.days === 0 ? "ถึงขั้นต่ำวันนี้" : `ถึงขั้นต่ำในอีก ~${nr.days} วัน`) : "เหลือไม่ถึง 20% เหนือขั้นต่ำ"} (${qf(f.par)} ${esc(u)})</span>` : "";
   return `<span class="num">${qf(f.onHand)} ${esc(u)}</span>${low}${left}`;
 }
@@ -251,13 +307,27 @@ function lastCell(p) {
   return `<span class="num">${baht(r.price, 2)}</span><span class="sub">/${esc(uTh(r.packUnit))}</span><span class="sub" style="display:block">${esc(r.supplier)} · ${thDate(r.date)}</span>`;
 }
 function usedCell(p) { const n = new Set(insOf(p).usedIn.map((u) => u.label)).size; return n ? `<span class="num">${n}</span> <span class="sub">เมนู</span>` : '<span class="sub">—</span>'; }
-function badges(p) { return (p.type === "PREPPED" ? '<span class="badge b-prep">ของแปรรูป</span>' : "") + (!p.isActive ? '<span class="badge b-off">ปิดใช้งาน</span>' : "") + (factOf(p)?.belowPar ? '<span class="badge b-low">ต่ำกว่าขั้นต่ำ</span>' : nearOf(factOf(p)) ? '<span class="badge b-near">ใกล้ขั้นต่ำ</span>' : ""); }
+function stateChip(p) {
+  const s = stateOf(p);
+  const btn = (cls, label) => `<button type="button" class="ostat ${cls}" data-docs="${p.id}" title="ดูใบที่เกี่ยวข้อง">${label} <span class="chev">›</span></button>`;
+  switch (s.kind) {
+    case "need": return '<span class="badge b-low">ต่ำกว่าขั้นต่ำ · ยังไม่ได้สั่ง</span>';
+    case "near": return '<span class="badge b-near">ใกล้ขั้นต่ำ</span>';
+    case "short": return btn("red", "สั่งแล้วแต่ยังไม่พอ");
+    case "overdue": { const l = s.docs.map(lateOf).find(Boolean); return btn("red", `ตามของ · เลยนัด ${l.late} วัน`); }
+    case "ordered": return btn("neutral", "สั่งแล้ว รอของ");
+    case "requested": return btn("neutral", "ขอซื้อแล้ว รอสั่ง");
+    case "near-covered": return btn("neutral", "ใกล้ขั้นต่ำ · สั่งแล้ว");
+    default: return "";
+  }
+}
+function badges(p) { return (p.type === "PREPPED" ? '<span class="badge b-prep">ของแปรรูป</span>' : "") + (!p.isActive ? '<span class="badge b-off">ปิดใช้งาน</span>' : "") + stateChip(p); }
 
 function render() {
   const list = rows();
   const all = D.products.filter((p) => p.isActive);
-  $("#summary").textContent = `${all.length} รายการที่ใช้งาน · ของแปรรูป ${all.filter((p) => p.type === "PREPPED").length} · ต่ำกว่าขั้นต่ำ ${all.filter((p) => factOf(p)?.belowPar).length} · ใกล้ขั้นต่ำ ${all.filter((p) => nearOf(factOf(p))).length}`;
-  const lowHere = all.filter((p) => factOf(p)?.belowPar).length, nearHere = all.filter((p) => nearOf(factOf(p))).length;
+  $("#summary").textContent = `${all.length} รายการที่ใช้งาน · ของแปรรูป ${all.filter((p) => p.type === "PREPPED").length} · ต่ำกว่าขั้นต่ำ ${all.filter((p) => factOf(p)?.belowPar).length} (ยังต้องจัดการ ${all.filter((p) => RED.has(stateOf(p).kind)).length}) · ใกล้ขั้นต่ำ ${all.filter((p) => ["near", "near-covered"].includes(stateOf(p).kind)).length}`;
+  const lowHere = all.filter((p) => RED.has(stateOf(p).kind)).length, nearHere = all.filter((p) => stateOf(p).kind === "near").length;
   const STATUS = [["active", "ที่ใช้งานอยู่"], ["raw", "วัตถุดิบ"], ["prepped", "ของแปรรูป"], ["low", "ต่ำกว่าขั้นต่ำ", lowHere, "red"], ["near", "ใกล้ขั้นต่ำ", nearHere, "yellow"], ["inactive", "ปิดใช้งาน"], ["all", "ทั้งหมด"]];
   $("#status").innerHTML = STATUS.map(([k, l, n, c]) => `<button type="button" class="chip ${status === k ? "on" : ""}" data-status="${k}">${l}${n ? `<span class="badges"><span class="dotn ${c}">${n}</span></span>` : ""}</button>`).join("");
   const ca = countsAll();
@@ -273,10 +343,10 @@ function render() {
     const BOX = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 9-4V7"/><path d="M12 11v10"/></svg>';
     $("#list").innerHTML = `<div class="cards">${list.map((p) => {
       const f = factOf(p), c = costOf(p), u = uTh(base(p));
-      const stock = p.type === "PREPPED" ? "" : f ? `<span class="stock num ${f.belowPar ? "low" : nearOf(f) ? "near" : ""}">เหลือ ${qf(f.onHand)} ${esc(u)}</span>` : "";
+      const stock = p.type === "PREPPED" ? "" : f ? `<span class="stock num ${RED.has(stateOf(p).kind) ? "low" : stateOf(p).kind === "near" ? "near" : ""}">เหลือ ${qf(f.onHand)} ${esc(u)}</span>` : "";
       return `<div class="card" data-open="${p.id}">
         <div class="pic">${BOX}<span class="corner">${(p.type === "PREPPED" ? '<span class="badge b-prep" style="margin:0">ของแปรรูป</span>' : "") + (!p.isActive ? '<span class="badge b-off" style="margin:0">ปิดใช้งาน</span>' : "")}</span>${stock}</div>
-        <div class="body"><b>${esc(p.name)}</b><span class="sub">${esc(p.sku)} · ${esc(p.category?.group ?? "ไม่มีหมวด")}</span>${f?.belowPar ? `<span class="sub" style="color:var(--bad);font-weight:500">ต่ำกว่าขั้นต่ำ (${qf(f.par)} ${esc(u)})</span>` : nearOf(f) ? `<span class="sub" style="color:#7A5B00;font-weight:500">ใกล้ขั้นต่ำ (${qf(f.par)} ${esc(u)})</span>` : ""}
+        <div class="body"><b>${esc(p.name)}</b><span class="sub">${esc(p.sku)} · ${esc(p.category?.group ?? "ไม่มีหมวด")}</span>${stateChip(p) ? `<span style="margin-left:-6px">${stateChip(p)}</span>` : ""}
           <div class="line"><span class="sub">ต้นทุน</span><span class="num">${c == null ? "—" : baht(c, 2) + "/" + esc(u)}</span></div>
           <div class="line"><span class="sub">${p.type === "PREPPED" ? "ทำเอง" : f?.daysLeft != null ? "พออีก" : "ใช้ใน"}</span><span class="num">${p.type === "PREPPED" ? (insOf(p).made?.how === "yield" ? "จาก " + esc(insOf(p).made.parentName) : "สูตรผลิต") : f?.daysLeft != null ? f.daysLeft + " วัน" : new Set(insOf(p).usedIn.map((x) => x.label)).size + " เมนู"}</span></div>
         </div></div>`;
@@ -379,6 +449,39 @@ function renderSheet() {
 }
 function state() { $("#state").textContent = dirty() ? "มีการแก้ที่ยังไม่บันทึก" : ""; $("#save").disabled = !dirty(); }
 
+// ---- the documents behind a product's state ----
+function openDocs(pid) {
+  const p = D.products.find((x) => x.id === pid), s = stateOf(p), f = factOf(p), u = uTh(base(p));
+  const bn = D.branches.find((b) => b.id === branchId).name;
+  const head = {
+    short: `สั่งไว้ ${qf(s.coming)} ${esc(u)} · รวมกับที่มี ${qf(f.onHand)} แล้ว<b class="pill-bad"> ยังไม่ถึงขั้นต่ำ ${qf(f.par)}</b> — สั่งเพิ่มอีกอย่างน้อย ${qf(f.par - f.onHand - s.coming)} ${esc(u)}`,
+    overdue: `ใบสั่งซื้อ<b class="pill-bad">เลยวันนัดส่งแล้ว</b> — โทรตามผู้ขาย หรือรับของถ้ามาแล้วแต่ยังไม่ได้บันทึก`,
+    ordered: `สั่งไว้ ${qf(s.coming)} ${esc(u)} · พอมาถึงจะมี ${qf(f.onHand + s.coming)} ${esc(u)} <b class="pill-ok">เกินขั้นต่ำ ${qf(f.par)}</b> · เลขแดงจึงไม่นับรายการนี้`,
+    requested: `ครัวขอซื้อแล้ว รอจัดซื้อสั่ง · เลขแดงจึงไม่นับรายการนี้ · ถ้าไม่มีใครสั่งภายในเวลา จะกลับมาเป็นสีแดง`,
+    "near-covered": `ใกล้ขั้นต่ำ แต่สั่งไว้แล้ว ${qf(s.coming)} ${esc(u)} · เลขเหลืองจึงไม่นับรายการนี้`,
+  }[s.kind] ?? "";
+  const docHtml = s.docs.map((doc) => {
+    const late = lateOf(doc);
+    const status = doc.kind === "PR" ? "ขอซื้อแล้ว · รอจัดซื้อสั่ง" : late ? `เลยนัด ${late.late} วัน${late.assumed ? " (ไม่ได้ใส่วันนัด · นับ 3 วันจากวันส่ง)" : ""}` : `นัดส่ง ${thDate(doc.expected)}`;
+    const lines = doc.lines.map((l) => {
+      const lp = D.products.find((x) => x.id === l.p), lk = stateOf(lp).kind;
+      const tone = RED.has(lk) || ["ordered", "requested", "short", "overdue"].includes(lk) ? "red" : lk === "near" || lk === "near-covered" ? "yellow" : null;
+      const cls = l.p === pid ? "primary" : tone ? `second ${tone}` : "";
+      const lf = factOf(lp), lu = uTh(base(lp));
+      const tag = l.p !== pid && tone ? `<span class="badge ${tone === "red" ? "b-low" : "b-near"}" style="margin-left:6px">${tone === "red" ? "ต่ำกว่าขั้นต่ำ" : "ใกล้ขั้นต่ำ"}</span>` : "";
+      const after = lf && lf.par != null ? `<span class="after">มี ${qf(lf.onHand)} → มาถึงแล้วจะมี ${qf(lf.onHand + l.base)} ${esc(lu)} · ขั้นต่ำ ${qf(lf.par)}</span>` : `<span class="after">มี ${lf ? qf(lf.onHand) : "—"} ${esc(lu)}</span>`;
+      return `<div class="dline ${cls}"><span class="nm">${esc(lp.name)}${tag}</span><span class="num">${l.qty} × ${esc(uTh(l.unit))}</span>${after}</div>`;
+    }).join("");
+    return `<section class="doc"><div class="doc-h"><span><b>${esc(doc.id)}</b> ${doc.example ? '<span class="example">ตัวอย่าง</span>' : ""}<span class="sub" style="display:block">${esc(doc.supplier)}${doc.by ? " · ขอโดย " + esc(doc.by) : ""} · ${doc.kind === "PR" ? "ขอเมื่อ" : "ส่งเมื่อ"} ${thDate(doc.sent)}</span></span>
+      <span class="${late ? "pill-bad" : ""}" style="font-size:.82rem;align-self:center">${status}</span></div>${lines}
+      <div class="row" style="justify-content:flex-end;padding:8px 12px;gap:6px">${late ? '<button class="ghost" type="button" data-toast="เปิดหน้ารับสินค้าของใบนี้">รับของ</button>' : ""}<button class="ghost" type="button" data-toast="เปิด${doc.kind === "PR" ? "ใบขอซื้อ" : "ใบสั่งซื้อ"} ${esc(doc.id)}">เปิด${doc.kind === "PR" ? "ใบขอซื้อ" : "ใบสั่งซื้อ"}</button></div></section>`;
+  }).join("");
+  $("#pop-in").innerHTML = `<div class="pop-h"><div><h3 id="pop-t" style="font-size:1.05rem">${esc(p.name)} · ${esc(bn)}</h3><p class="sub" style="margin:2px 0 0;font-size:.85rem">${head}</p></div><button class="x" type="button" id="pop-x" aria-label="ปิด">×</button></div>${docHtml}
+    <p class="sub" style="padding:0 18px 14px;margin:0">ไฮไลท์เขียว = รายการนี้ · แถบแดง/เหลืองจาง = สินค้าอื่นในใบเดียวกันที่ต่ำกว่า/ใกล้ขั้นต่ำ (ดูเฉย ๆ)</p>`;
+  $("#pop").classList.add("on");
+  setTimeout(() => $("#pop-x").focus(), 30);
+}
+
 let goFn = null;
 function confirmBox(title, lines, note, go, fn) {
   $("#cfm-t").textContent = title;
@@ -401,6 +504,9 @@ function save() {
 }
 
 document.addEventListener("click", (e) => {
+  const dz = e.target.closest("[data-docs]");
+  if (dz) { e.stopPropagation(); openDocs(dz.dataset.docs); return; }
+  if (e.target.id === "pop" || e.target.closest("#pop-x")) { $("#pop").classList.remove("on"); return; }
   const t = e.target.closest("[data-open],[data-status],[data-section],[data-view],[data-toast],#close,#scrim,#save,#del,#new,#addunit,[data-urm],#cfm-back,#cfm-go");
   if (!t) return;
   if (t.dataset.open) openSheet(t.dataset.open);
@@ -442,11 +548,13 @@ document.addEventListener("change", (e) => {
   else return;
   state();
 });
-document.addEventListener("keydown", (e) => { if (e.key === "Escape") { if ($("#cfm").classList.contains("on")) $("#cfm").classList.remove("on"); else if (cur) closeSheet(); } });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") { if ($("#pop").classList.contains("on")) $("#pop").classList.remove("on"); else if ($("#cfm").classList.contains("on")) $("#cfm").classList.remove("on"); else if (cur) closeSheet(); } });
 
 $("#branch").innerHTML = D.branches.map((b) => `<option value="${b.id}" ${b.id === branchId ? "selected" : ""}>${esc(b.name)}</option>`).join("");
 const FIXES = [
   ["การ์ดรูปว่างใหญ่ เห็น 8 ชิ้นต่อจอ ไม่มีตัวเลข", "ตารางแน่นเป็นค่าเริ่มต้น มีคงเหลือ · พออีกกี่วัน · ต้นทุนต่อหน่วย · ซื้อล่าสุด · ใช้ในกี่เมนู"],
+  ["(รอบ 5) แจ้งเตือนค้างทั้งที่สั่งของไปแล้ว", "เลขแดงนับเฉพาะที่ยังต้องมีคนลงมือ: ยังไม่ได้สั่ง · สั่งแล้วแต่ไม่พอ · เลยนัดส่ง · ส่งใบขอซื้อหรือใบสั่งซื้อแล้วหายจากเลขแดง กลายเป็นป้ายสีกลาง “สั่งแล้ว รอของ ›” · ไม่ใส่วันนัด = เลยนัดเมื่อผ่าน 3 วันจากวันส่ง · ใบสั่งซื้อฉบับร่างไม่นับ"],
+  ["(รอบ 5) ไม่รู้ว่าสั่งไปกับใบไหน", "กดป้าย ›: ป๊อปอัปใบที่เกี่ยวข้อง ไฮไลท์เขียวที่สินค้านี้ · สินค้าแดง/เหลืองอื่นในใบเดียวกันมีแถบจาง ๆ ให้เห็น · บอกว่ามาถึงแล้วจะมีเท่าไร · ปุ่มเปิดใบ/รับของ"],
   ["(รอบ 2) การ์ดรูปเล็กเกือบเท่าตาราง", "การ์ดรูปใหญ่ 4:3 ไว้หาด้วยตา · ยอดคงเหลืออยู่มุมรูป เป็นสีแดงเมื่อต่ำกว่าขั้นต่ำ · ป้ายของแปรรูป/ต่ำกว่าขั้นต่ำอยู่มุมบน"],
   ["(รอบ 3–4) ไม่มีอะไรบอกว่ามีของต่ำกว่าขั้นต่ำ ถ้าไม่เข้ามาดูเอง", "ตัวเลขแจ้งเตือนลอยทับมุมขวาบนของเมนู “สินค้า/วัตถุดิบ” (ทุกคนเห็น นับทุกสาขาที่ดูแล) และของตัวกรอง · แดง = ต่ำกว่าแล้ว · เหลือง = ใกล้"],
   ["(รอบ 3) ไม่รู้ล่วงหน้าว่ากำลังจะหมด", "สถานะใหม่ “ใกล้ขั้นต่ำ” สีเหลือง: จะต่ำกว่าขั้นต่ำภายใน 3 วันตามการใช้จริง (หรือเหลือไม่ถึง 20% เหนือขั้นต่ำถ้ายังไม่รู้อัตราการใช้) · บอก “ถึงขั้นต่ำในอีก ~2 วัน”"],
