@@ -1,0 +1,152 @@
+<title>ปุ่มจำนวนใบสั่งซื้อ คิดครัว</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Prompt:wght@500;600;700&family=Noto+Sans+Thai:wght@400;500;600&display=swap">
+<style>
+/* Mockup: one spelling per unit (metric in English, the rest in Thai) and a
+   pack-unit row that composes its own name. App tokens (tailwind.config.ts). */
+:root{
+  --bg:#FDFBF3; --fg:#262811; --surface:#FFFFFF; --sunk:#F8F3E1; --primary:#41431B; --primary-fg:#F8F3E1; --primary-soft:#EFEDD7;
+  --muted:#F3EFDF; --muted-fg:#5A5C31; --subtle:#8B8D63; --border:#E9E3C8; --strong:#D2CBA4;
+  --good:#5A7333; --good-bg:#EEF2E0; --bad:#A83A22; --bad-bg:#F9E5DF; --warn:#A87C1C; --warn-bg:#F8EFD6; --warn-border:#E2CE97;
+  --display:"Prompt","Noto Sans Thai",system-ui,sans-serif; --body:"Noto Sans Thai","Prompt",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#1B1C10; --fg:#EEEAD6; --surface:#24261A; --sunk:#2A2C1E; --primary:#D9DDB0; --primary-fg:#1B1C10; --primary-soft:#33361F;
+  --muted:#2E301F; --muted-fg:#C9C8A6; --subtle:#9C9B7C; --border:#36381F; --strong:#4A4C30;
+  --good:#B7CF7C; --good-bg:#2B3320; --bad:#EC9C80; --bad-bg:#41261C; --warn:#E8BE62; --warn-bg:#3B3018; --warn-border:#5A4A22; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#1B1C10; --fg:#EEEAD6; --surface:#24261A; --sunk:#2A2C1E; --primary:#D9DDB0; --primary-fg:#1B1C10; --primary-soft:#33361F;
+  --muted:#2E301F; --muted-fg:#C9C8A6; --subtle:#9C9B7C; --border:#36381F; --strong:#4A4C30;
+  --good:#B7CF7C; --good-bg:#2B3320; --bad:#EC9C80; --bad-bg:#41261C; --warn:#E8BE62; --warn-bg:#3B3018; --warn-border:#5A4A22; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:14px;line-height:1.55;margin:0;padding:24px 16px 60px}
+h1,h2,h3{font-family:var(--display);margin:0}
+.wrap{max-width:980px;margin:0 auto;display:grid;gap:26px}
+.sub{color:var(--subtle);font-size:.8rem}
+.screen{display:grid;gap:10px}
+.wrap{max-width:1040px;margin:0 auto;display:grid;gap:26px}
+.frame{background:var(--surface);border:1px solid var(--strong);border-radius:18px;padding:16px;display:grid;gap:12px;box-shadow:0 10px 30px rgb(0 0 0/.05)}
+.input{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:7px 10px;min-width:0;width:100%}
+.input:focus{outline:2px solid var(--primary);outline-offset:1px}
+.num{font-variant-numeric:tabular-nums;text-align:right}
+.label{font-size:.78rem;color:var(--muted-fg);display:block;margin-bottom:4px}
+.line{border:1px solid var(--border);border-radius:12px;padding:12px 14px;display:grid;gap:8px;background:var(--surface)}
+.g{display:grid;gap:12px;align-items:end}
+.cur{grid-template-columns:5fr 2fr 2fr 3fr}
+.a{grid-template-columns:4fr 3fr 2fr 3fr}
+.b{grid-template-columns:5fr 4fr 3fr}
+@media (max-width:720px){.cur,.a,.b{grid-template-columns:1fr}}
+.foot{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;font-size:.75rem;color:var(--muted-fg)}
+.chip{border:1px solid var(--border);background:var(--muted);border-radius:999px;padding:1px 9px}
+.qty{display:flex;align-items:center;gap:6px}
+.qty button{flex:none;width:38px;height:38px;border-radius:10px;border:1px solid var(--strong);background:var(--surface);font:inherit;font-size:1.15rem;cursor:pointer;color:var(--fg)}
+.qty button:hover{background:var(--muted)}
+.qty button:disabled{opacity:.4;cursor:default}
+.qty input{text-align:center;flex:1;min-width:3.5rem}
+.qu{display:flex;gap:6px;align-items:center}
+.qu select{flex:1;min-width:0}
+.spin{width:100%}
+.pick{display:flex;align-items:center;gap:8px}
+.thumb{width:34px;height:34px;border-radius:8px;background:var(--sunk);flex:none}
+.rec{background:var(--good-bg);color:var(--good);border-radius:999px;padding:1px 10px;font-size:.75rem;font-weight:600}
+.note{background:var(--sunk);border-radius:12px;padding:10px 12px;font-size:.82rem;color:var(--muted-fg)}
+.note b{color:var(--fg)}
+.phone{max-width:380px;border:1px solid var(--strong);border-radius:22px;padding:12px;background:var(--bg)}
+</style>
+
+<div class="wrap">
+  <div>
+    <h1 style="font-size:1.35rem">ใบสั่งซื้อ: ปุ่ม − + ที่ช่องจำนวน</h1>
+    <p class="sub">หนึ่งบรรทัดของใบสั่งซื้อ (หน้า สร้าง/แก้ใบสั่งซื้อ) · ลองกด − + และคลิกช่องตัวเลขได้ · ราคารวมคิดให้จริง</p>
+  </div>
+
+  <section class="screen">
+    <div class="screen-h"><h2 style="font-size:1.1rem">ตอนนี้</h2><span class="sub">จำนวนเป็นช่องพิมพ์อย่างเดียว</span></div>
+    <div class="frame">
+      <div class="line" data-line>
+        <div class="g cur">
+          <div><span class="label">วัตถุดิบ</span><div class="input pick"><span class="thumb"></span>น้ำตาลทราย</div></div>
+          <div><span class="label">จำนวน</span><input class="input num spin" data-qty value="2" inputmode="decimal"></div>
+          <div><span class="label">หน่วย</span><select class="input" data-unit><option data-r="10">กระสอบ 10 kg</option><option data-r="1">kg</option></select></div>
+          <div><span class="label">ราคา/หน่วย (ไม่รวม VAT)</span><input class="input num" data-price value="276.06" inputmode="decimal"></div>
+        </div>
+        <div class="foot"><span class="chip">ราคากลางจากรายการราคา</span><span>รวม <b data-total></b> บาท</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="screen">
+    <div class="screen-h"><h2 style="font-size:1.1rem">แบบ A — ขยายช่องจำนวน ใส่ − + ในคอลัมน์เดิม</h2></div>
+    <div class="frame">
+      <div class="line" data-line>
+        <div class="g a">
+          <div><span class="label">วัตถุดิบ</span><div class="input pick"><span class="thumb"></span>น้ำตาลทราย</div></div>
+          <div><span class="label">จำนวน</span><div class="qty"><button type="button" data-d="-1">−</button><input class="input num" data-qty value="2" inputmode="decimal"><button type="button" data-d="1">+</button></div></div>
+          <div><span class="label">หน่วย</span><select class="input" data-unit><option data-r="10">กระสอบ 10 kg</option><option data-r="1">kg</option></select></div>
+          <div><span class="label">ราคา/หน่วย (ไม่รวม VAT)</span><input class="input num" data-price value="276.06" inputmode="decimal"></div>
+        </div>
+        <div class="foot"><span class="chip">ราคากลางจากรายการราคา</span><span>รวม <b data-total></b> บาท</span></div>
+      </div>
+      <p class="sub">ช่องวัตถุดิบแคบลง (ชื่อยาว ๆ จะถูกตัด) · จำนวนกับหน่วยยังแยกกันสองช่อง</p>
+    </div>
+  </section>
+
+  <section class="screen">
+    <div class="screen-h"><h2 style="font-size:1.1rem">แบบ B — จำนวน + หน่วย อยู่ช่องเดียวกัน</h2><span class="rec">แนะนำ</span></div>
+    <div class="frame">
+      <div class="line" data-line>
+        <div class="g b">
+          <div><span class="label">วัตถุดิบ</span><div class="input pick"><span class="thumb"></span>น้ำตาลทราย</div></div>
+          <div><span class="label">จำนวน</span>
+            <div class="qu"><div class="qty"><button type="button" data-d="-1">−</button><input class="input num" data-qty value="2" inputmode="decimal" style="width:4.2rem;flex:none"><button type="button" data-d="1">+</button></div>
+            <select class="input" data-unit><option data-r="10">กระสอบ 10 kg</option><option data-r="1">kg</option><option>+ ขนาดใหม่…</option></select></div>
+            <span class="sub" data-base style="display:block;margin-top:4px"></span>
+          </div>
+          <div><span class="label">ราคา/หน่วย (ไม่รวม VAT)</span><input class="input num" data-price value="276.06" inputmode="decimal"></div>
+        </div>
+        <div class="foot"><span class="chip">ราคากลางจากรายการราคา</span><span>รวม <b data-total></b> บาท</span></div>
+      </div>
+      <div class="note">
+        อ่านเป็นประโยคเดียว: <b>− 2 + กระสอบ 10 kg</b> · ใต้ช่องบอกว่ารวมเป็นกี่ kg (= 20 kg) ช่วยจับเลขผิดหน่วย ·
+        ช่องวัตถุดิบกว้างเท่าเดิม · ใช้แบบเดียวกันในใบรับของ (ช่อง “จำนวนที่รับ”) ได้เลย
+      </div>
+    </div>
+  </section>
+
+  <section class="screen">
+    <div class="screen-h"><h2 style="font-size:1.1rem">แบบ B บนมือถือ</h2><span class="sub">ช่องเรียงลงมา ปุ่มใหญ่กดง่าย</span></div>
+    <div class="phone">
+      <div class="line" data-line>
+        <div><span class="label">วัตถุดิบ</span><div class="input pick"><span class="thumb"></span>น้ำตาลทราย</div></div>
+        <div><span class="label">จำนวน</span>
+          <div class="qu"><div class="qty"><button type="button" data-d="-1">−</button><input class="input num" data-qty value="2" inputmode="decimal" style="width:4.2rem;flex:none"><button type="button" data-d="1">+</button></div>
+          <select class="input" data-unit><option data-r="10">กระสอบ 10 kg</option><option data-r="1">kg</option></select></div>
+          <span class="sub" data-base style="display:block;margin-top:4px"></span>
+        </div>
+        <div><span class="label">ราคา/หน่วย (ไม่รวม VAT)</span><input class="input num" data-price value="276.06" inputmode="decimal"></div>
+        <div class="foot"><span></span><span>รวม <b data-total></b> บาท</span></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+const fmt = (v) => v.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+document.querySelectorAll("[data-line]").forEach((line) => {
+  const q = line.querySelector("[data-qty]"), p = line.querySelector("[data-price]"), u = line.querySelector("[data-unit]");
+  const t = line.querySelector("[data-total]"), b = line.querySelector("[data-base]");
+  const minus = line.querySelector('[data-d="-1"]');
+  const upd = () => {
+    const n = Number(q.value) || 0;
+    t.textContent = fmt(n * (Number(p.value) || 0));
+    const r = Number(u.selectedOptions[0]?.dataset.r);
+    if (b) b.textContent = r && r !== 1 ? `= ${(n * r).toLocaleString("th-TH")} kg` : "";
+    if (minus) minus.disabled = n <= 0;
+  };
+  line.querySelectorAll("[data-d]").forEach((btn) => btn.addEventListener("click", () => {
+    q.value = Math.max(0, (Number(q.value) || 0) + Number(btn.dataset.d)); upd();
+  }));
+  [q, p].forEach((i) => { i.addEventListener("input", upd); i.addEventListener("focus", () => i.select()); });
+  u.addEventListener("change", upd);
+  upd();
+});
+</script>
