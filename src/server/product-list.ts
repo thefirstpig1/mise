@@ -64,6 +64,9 @@ export async function getProductListFactsLogic(
             select: {
               productId: true,
               receivedUnitName: true,
+              // The unit's name TODAY: this is a price label, not the receipt
+              // (Kong 2026-10-21 renamed กก. → kg; the receipt keeps what it printed).
+              receivedUnit: { select: { unitName: true } },
               unitPriceActual: true,
               goodsReceipt: { select: { receivedAt: true, supplier: { select: { nameShort: true, nameFull: true } } } },
             },
@@ -106,7 +109,7 @@ export async function getProductListFactsLogic(
       last[r.productId] = {
         date: isoDate(r.goodsReceipt.receivedAt),
         supplier: r.goodsReceipt.supplier.nameShort ?? r.goodsReceipt.supplier.nameFull,
-        packUnit: r.receivedUnitName,
+        packUnit: r.receivedUnit?.unitName ?? r.receivedUnitName,
         price: Number(r.unitPriceActual),
       };
     }

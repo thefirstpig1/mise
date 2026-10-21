@@ -30,7 +30,7 @@ import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import type { PurchaseOrderActionState } from "../actions";
 import type { ResolvedPriceView } from "./purchase-order-view";
 import ProductPicker from "@/components/ui/ProductPicker";
-import NewPackSize, { NEW_PACK_SIZE, containerGuess, useAddedUnits } from "@/components/ui/NewPackSize";
+import NewPackSize, { NEW_PACK_SIZE, containerGuess, packInUse, useAddedUnits } from "@/components/ui/NewPackSize";
 
 export type POUnitOption = {
   id: string;
@@ -713,6 +713,7 @@ export default function PurchaseOrderForm({
               productName={p.name}
               baseUnitName={p.units.find((u) => u.isBase)?.unitName ?? p.baseUnitName ?? ""}
               guessBox={containerGuess(p.units, r.orderUnitId)}
+              guessUnit={packInUse(p.units, r.orderUnitId)}
               onClose={() => setSizeFor(null)}
               onDone={(u) => {
                 addUnit(p.id, u);

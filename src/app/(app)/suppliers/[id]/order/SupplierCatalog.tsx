@@ -24,8 +24,7 @@ import { useRouter } from "next/navigation";
 import type { PurchaseOrderActionState } from "../../../purchase-orders/actions";
 import EmptyState from "@/components/ui/EmptyState";
 import ProductThumb from "@/components/ui/ProductThumb";
-import NewPackSize, { NEW_PACK_SIZE, useAddedUnits } from "@/components/ui/NewPackSize";
-import { guessContainer } from "@/lib/pack-unit";
+import NewPackSize, { NEW_PACK_SIZE, containerGuess, packInUse, useAddedUnits } from "@/components/ui/NewPackSize";
 
 export type CatalogItemView = {
   productId: string;
@@ -102,11 +101,6 @@ export default function SupplierCatalog({
   const [search, setSearch] = useState("");
   // "+ ขนาดใหม่…" (Kong 2026-10-21) — which row's popover is open.
   const [sizeFor, setSizeFor] = useState<CatalogItemView | null>(null);
-  // The container of the size in use ("ถุง 250 g" → ถุง), else of any pack size.
-  const guessFor = (item: CatalogItemView) => {
-    const cur = item.units.find((u) => u.id === unitOf(item));
-    return guessContainer(cur && !cur.isBase ? cur.unitName : item.units.find((u) => !u.isBase)?.unitName);
-  };
 
   // A saved draft opens straight away — reviewing and sending happen there.
   useEffect(() => {
@@ -303,7 +297,8 @@ export default function SupplierCatalog({
       productId={sizeFor.productId}
       productName={sizeFor.name}
       baseUnitName={sizeFor.units.find((u) => u.isBase)?.unitName ?? ""}
-      guessBox={guessFor(sizeFor)}
+      guessBox={containerGuess(sizeFor.units, unitOf(sizeFor))}
+      guessUnit={packInUse(sizeFor.units, unitOf(sizeFor))}
       // A price-list row orders in ITS unit, so a new size there has to become it.
       mapping={sizeFor.price ? { id: sizeFor.price.mappingId, supplierName: supplier.nameFull, required: true } : null}
       onClose={() => setSizeFor(null)}

@@ -26,6 +26,8 @@ describe("pack unit names", () => {
     expect(composePackName(" กระสอบ ", "10", "kg")).toBe("กระสอบ 10 kg");
     expect(composePackName("ถุง", "", "g")).toBe("");
     expect(composePackName("", "5", "kg")).toBe("");
+    // g or kg is never assumed.
+    expect(composePackName("ถุง", "500", "")).toBe("");
   });
 
   it("reads a composed name back only when its size agrees with the stored ratio", () => {

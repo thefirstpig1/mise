@@ -284,6 +284,7 @@ export async function getSupplierCatalogLogic(
         unitPriceActual: true,
         receivedUnitId: true,
         receivedUnitName: true,
+        receivedUnit: { select: { unitName: true } }, // today's name — a price label, not the receipt
         goodsReceipt: {
           select: { receivedAt: true, branchId: true, branch: { select: { name: true } } },
         },
@@ -336,7 +337,7 @@ export async function getSupplierCatalogLogic(
             ? {
                 unitPrice: last.unitPriceActual,
                 unitId: last.receivedUnitId,
-                unitName: last.receivedUnitName,
+                unitName: last.receivedUnit?.unitName ?? last.receivedUnitName,
                 receivedAt: last.goodsReceipt.receivedAt,
                 branchId: last.goodsReceipt.branchId,
                 branchName: last.goodsReceipt.branch.name,

@@ -31,7 +31,7 @@ import { useActionState, useEffect, useId, useMemo, useState } from "react";
 import type { GoodsReceiptActionState } from "../actions";
 import type { ReceivablePurchaseOrderView } from "./goods-receipt-view";
 import ProductPicker, { type PickerProduct } from "@/components/ui/ProductPicker";
-import NewPackSize, { NEW_PACK_SIZE, containerGuess, useAddedUnits } from "@/components/ui/NewPackSize";
+import NewPackSize, { NEW_PACK_SIZE, containerGuess, packInUse, useAddedUnits } from "@/components/ui/NewPackSize";
 
 export type GrUnitOption = {
   id: string;
@@ -830,6 +830,7 @@ export default function GoodsReceiptForm({
               productName={p.name}
               baseUnitName={p.units.find((u) => u.isBase)?.unitName ?? p.baseUnitName ?? ""}
               guessBox={containerGuess(p.units, r.receivedUnitId)}
+              guessUnit={packInUse(p.units, r.receivedUnitId)}
               onClose={() => setSizeFor(null)}
               onDone={(u) => {
                 addUnit(p.id, u);

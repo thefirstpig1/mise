@@ -42,8 +42,13 @@ export function useAddedUnits<P extends { id: string; units: FormUnit[] }>(produ
 
 /** The container a new size starts from: the pack in use, else any pack the product has. */
 export function containerGuess(units: { id: string; unitName: string; isBase: boolean }[], currentUnitId: string): string {
+  return guessContainer(packInUse(units, currentUnitId));
+}
+
+/** The pack in use, else any pack the product has — what a new size is guessed from. */
+export function packInUse(units: { id: string; unitName: string; isBase: boolean }[], currentUnitId: string): string | undefined {
   const cur = units.find((u) => u.id === currentUnitId);
-  return guessContainer(cur && !cur.isBase ? cur.unitName : units.find((u) => !u.isBase)?.unitName);
+  return cur && !cur.isBase ? cur.unitName : units.find((u) => !u.isBase)?.unitName;
 }
 
 export default function NewPackSize({
@@ -51,6 +56,7 @@ export default function NewPackSize({
   productName,
   baseUnitName,
   guessBox,
+  guessUnit,
   mapping,
   onDone,
   onClose,
@@ -59,6 +65,8 @@ export default function NewPackSize({
   productName: string;
   baseUnitName: string;
   guessBox: string;
+  /** The pack in use ("ถุง 250 g") — its g/kg is the only one ever pre-chosen. */
+  guessUnit?: string | null;
   /**
    * A supplier price-list row the new size may replace as the regular order
    * unit. `required`: the screen orders in the price list's unit, so a new
@@ -72,8 +80,10 @@ export default function NewPackSize({
   const [box, setBox] = useState(guessBox);
   const [size, setSize] = useState("");
   const units = sizeUnitsFor(baseUnitName);
-  // A 500 g bag is written in g even for a product counted in kg.
-  const [sizeUnit, setSizeUnit] = useState(units.includes("g") ? "g" : units.includes("ml") ? "ml" : units[0] ?? "");
+  // g or kg is never guessed ("500" is grams to a person, kilos to a form) —
+  // except from the pack in use: after "ถุง 250 g" the new one is in g too.
+  const inUse = (guessUnit ?? "").trim().split(/\s+/).pop() ?? "";
+  const [sizeUnit, setSizeUnit] = useState(units.length === 1 ? units[0] : units.includes(inUse) ? inUse : "");
   const ratio = packRatio(size, sizeUnit, baseUnitName);
   const [regular, setRegular] = useState(Boolean(mapping));
   const [price, setPrice] = useState("");
@@ -111,7 +121,8 @@ export default function NewPackSize({
             <span className="text-xs text-muted-foreground">บรรจุ</span>
             <input autoFocus value={size} onChange={(e) => setSize(e.target.value)} inputMode="decimal" aria-label="ขนาด" className="input w-20 text-right tabular-nums" />
             {units.length > 1 ? (
-              <select value={sizeUnit} onChange={(e) => setSizeUnit(e.target.value)} aria-label="หน่วยของขนาด" className="input">
+              <select value={sizeUnit} onChange={(e) => setSizeUnit(e.target.value)} aria-label="หน่วยของขนาด" className={`input ${sizeUnit ? "" : "border-warn-border text-muted-foreground"}`}>
+                {!sizeUnit && <option value="">หน่วย</option>}
                 {units.map((u) => (
                   <option key={u} value={u}>
                     {u}
@@ -148,7 +159,7 @@ export default function NewPackSize({
             <button type="button" onClick={onClose} className="rounded-full border border-border-strong px-4 py-1.5 text-sm hover:bg-muted">
               ยกเลิก
             </button>
-            <button type="button" onClick={save} disabled={busy || !name || (needPrice && !(Number(price) >= 0 && price.trim() !== ""))} className="btn">
+            <button type="button" onClick={save} disabled={busy || !name || ratio === null || (needPrice && !(Number(price) >= 0 && price.trim() !== ""))} className="btn">
               {busy ? "กำลังบันทึก…" : "เพิ่มและเลือก"}
             </button>
           </div>

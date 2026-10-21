@@ -121,6 +121,9 @@ export default function ProductSheet({
   const baseUnit = product.baseUnitName ?? "";
   const locked = new Set(form?.lockedUnitIds ?? []);
   // A unit something was written in keeps its name (🔒) — only its size moves.
+  // No default between g and kg: "500" means 500 g to one person and 500 kg to
+  // the form. A counted product has only its own unit, so that one is given.
+  const newSizeUnit = sizeUnitsFor(baseUnit).length > 1 ? "" : sizeUnitsFor(baseUnit)[0] ?? "";
   const typed = (u: UnitRow) => u.custom || (u.id !== null && locked.has(u.id));
   const rowName = (u: UnitRow) => (typed(u) ? u.unitName.trim() : composePackName(u.box, u.size, u.sizeUnit));
   const rowRatio = (u: UnitRow) => (typed(u) ? u.ratio : String(packRatio(u.size, u.sizeUnit, baseUnit) ?? ""));
@@ -150,6 +153,13 @@ export default function ProductSheet({
       : null;
 
   const save = async (): Promise<boolean> => {
+    // A pack row started but not finished would be dropped by the server
+    // without a word — say which part is missing instead.
+    const half = draft.units.find((u) => !typed(u) && (u.box.trim() || u.size.trim()) && !rowName(u));
+    if (half) {
+      onToast(!half.box.trim() ? "ใส่ชื่อภาชนะของหน่วยที่เพิ่ม เช่น ถุง กระสอบ" : !half.size.trim() ? "ใส่ขนาดของหน่วยที่เพิ่ม" : `เลือกว่าขนาดเป็น ${sizeUnitsFor(baseUnit).join(" หรือ ")}`);
+      return false;
+    }
     if (infoDirty) {
       const fd = new FormData();
       fd.set("sku", product.sku);
@@ -338,7 +348,8 @@ export default function ProductSheet({
                     <>
                       <input type="number" step="any" min="0" value={u.size} disabled={!canEditInfo} onChange={(e) => setUnit(u.key, { size: e.target.value })} className="input w-20 py-0.5 text-right tabular-nums" aria-label="ขนาด" />
                       {sizeUnitsFor(baseUnit).length > 1 ? (
-                        <select value={u.sizeUnit} disabled={!canEditInfo} onChange={(e) => setUnit(u.key, { sizeUnit: e.target.value })} className="input py-0.5" aria-label="หน่วยของขนาด">
+                        <select value={u.sizeUnit} disabled={!canEditInfo} onChange={(e) => setUnit(u.key, { sizeUnit: e.target.value })} className={`input py-0.5 ${u.sizeUnit ? "" : "border-warn-border text-muted-foreground"}`} aria-label="หน่วยของขนาด">
+                          {!u.sizeUnit && <option value="">หน่วย</option>}
                           {sizeUnitsFor(baseUnit).map((x) => (
                             <option key={x} value={x}>
                               {x}
@@ -390,7 +401,7 @@ export default function ProductSheet({
               );
             })}
             {canEditInfo && (
-              <button type="button" onClick={() => setDraft((d) => ({ ...d, units: [...d.units, { key: `u${++seq}`, id: null, unitName: "", box: "", size: "", sizeUnit: unitTh(baseUnit), custom: false, ratio: "", buy: false }] }))} className="justify-self-start rounded-full border border-border-strong px-3 py-0.5 text-xs hover:bg-muted">
+              <button type="button" onClick={() => setDraft((d) => ({ ...d, units: [...d.units, { key: `u${++seq}`, id: null, unitName: "", box: "", size: "", sizeUnit: newSizeUnit, custom: false, ratio: "", buy: false }] }))} className="justify-self-start rounded-full border border-border-strong px-3 py-0.5 text-xs hover:bg-muted">
                 + เพิ่มหน่วย
               </button>
             )}

@@ -541,6 +541,7 @@ export async function getIngredientInsightLogic(
               select: {
                 qtyReceivedActual: true,
                 receivedUnitName: true,
+                receivedUnit: { select: { unitName: true } }, // today's name — see product-list.ts
                 toBaseRatio: true,
                 unitPriceActual: true,
                 goodsReceipt: { select: { receivedAt: true, supplier: { select: { nameShort: true, nameFull: true } } } },
@@ -614,7 +615,7 @@ export async function getIngredientInsightLogic(
         : receipts.map((r) => ({
             date: isoDate(r.goodsReceipt.receivedAt),
             supplier: r.goodsReceipt.supplier.nameShort ?? r.goodsReceipt.supplier.nameFull,
-            packUnit: r.receivedUnitName,
+            packUnit: r.receivedUnit?.unitName ?? r.receivedUnitName,
             qty: Number(r.qtyReceivedActual),
             price: Number(r.unitPriceActual),
             perBase: Number(r.unitPriceActual) / Number(r.toBaseRatio),

@@ -38,7 +38,7 @@ export function packRatio(size: string | number, sizeUnit: string, baseUnitName:
 export function composePackName(box: string, size: string | number, sizeUnit: string): string {
   const b = box.trim();
   const n = Number(size);
-  return b && String(size).trim() !== "" && Number.isFinite(n) && n > 0 ? `${b} ${n} ${canon(sizeUnit)}` : "";
+  return b && sizeUnit.trim() && String(size).trim() !== "" && Number.isFinite(n) && n > 0 ? `${b} ${n} ${canon(sizeUnit)}` : "";
 }
 
 /**
