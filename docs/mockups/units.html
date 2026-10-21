@@ -50,6 +50,15 @@ table{border-collapse:collapse;width:100%;font-size:.85rem}
 td,th{padding:6px 8px;border-bottom:1px solid var(--border);text-align:left}
 th{font-family:var(--display);font-weight:500;color:var(--subtle);font-size:.75rem}
 .from{color:var(--bad)}.to{color:var(--good);font-weight:600}
+.pop{border:1px solid var(--strong);border-radius:14px;background:var(--surface);padding:12px;display:grid;gap:8px;box-shadow:0 12px 30px rgb(0 0 0/.12);max-width:340px}
+.ln{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--border)}
+select.input{padding-right:22px}
+.qty{display:inline-flex;align-items:center;gap:6px}
+.qty button{width:34px;height:34px;border-radius:10px;border:1px solid var(--strong);background:var(--surface);font:inherit;font-size:1.1rem;cursor:pointer;color:var(--fg)}
+.qty button:active{background:var(--muted)}
+.qty input{width:4.5rem;height:34px;text-align:center}
+.old input{width:5rem}
+.badge2{font-size:.7rem;background:var(--good-bg);color:var(--good);border-radius:999px;padding:0 8px}
 </style>
 
 <div class="wrap">
@@ -125,6 +134,58 @@ th{font-family:var(--display);font-weight:500;color:var(--subtle);font-size:.75r
       <p class="sub">สูตรและเอกสารอ้างหน่วยด้วยรหัส ไม่ใช่ชื่อ — เปลี่ยนชื่อแล้วตัวเลขทุกตัวเหมือนเดิม · ถ้าร้านมีทั้ง "กก." และ "kg" ในสินค้าเดียวกัน ระบบจะข้ามแถวนั้นและรายงาน (ไม่รวมเอง)</p>
     </div>
   </section>
+  <!-- 5 -->
+  <section class="screen">
+    <div class="screen-h"><h2 style="font-size:1.1rem">5. สถานการณ์: เมล็ดกาแฟ A เคยซื้อถุง 250 g รอบนี้ซื้อถุง 500 g</h2><span class="tag">เพิ่มขนาดตรงที่สั่งเลย</span></div>
+    <div class="frame">
+      <p class="sub">หน้าสั่งของจากผู้ขาย (หรือใบสั่งซื้อ / รับของ) · เปิดช่องหน่วยแล้วเลือกบรรทัดล่างสุด</p>
+      <div class="ln">
+        <b>เมล็ดกาแฟ A</b> <span class="sub">จ่ายล่าสุด ฿320 / ถุง 250 g</span>
+        <span style="flex:1"></span>
+        <select class="input" id="sizeSel">
+          <option>ถุง 250 g</option>
+          <option>g</option>
+          <option value="new">+ ขนาดใหม่…</option>
+        </select>
+        <span class="qty"><button type="button">−</button><input class="input num" value="2" inputmode="decimal"><button type="button">+</button></span>
+      </div>
+      <div class="pop" id="pop" hidden>
+        <b style="font-family:var(--display)">ขนาดใหม่ของ เมล็ดกาแฟ A</b>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          <input class="input" style="width:6rem" value="ถุง" aria-label="ภาชนะ"> <span class="sub">บรรจุ</span>
+          <input class="input num" style="width:5rem" id="newSize" value="500" inputmode="decimal"> g
+        </div>
+        <div class="sub">จะแสดงเป็น <b id="newName" style="color:var(--fg)">ถุง 500 g</b> · ภาชนะเติมจากขนาดที่ใช้อยู่ ไม่ต้องพิมพ์ใหม่</div>
+        <label class="sub"><input type="checkbox" checked> ใช้ขนาดนี้เป็นหน่วยสั่งประจำของผู้ขายนี้</label>
+        <div style="display:flex;justify-content:flex-end;gap:6px"><button class="pill" id="cancel">ยกเลิก</button><button class="pill" id="ok" style="background:var(--primary);color:var(--primary-fg);border-color:var(--primary)">เพิ่มและเลือก</button></div>
+      </div>
+      <div class="note">
+        <b>ตอนนี้ต้องไป 2–3 ที่:</b> แผงสินค้า (เพิ่มหน่วย ถุง 500 g) → ราคาของผู้ขาย (เปลี่ยนหน่วยสั่ง) → กลับมาหน้าสั่ง แล้วเลือกหน่วยใหม่<br>
+        <b>หลังเปลี่ยน:</b> ทำจบในหน้าสั่ง · ต้นทุน ขั้นต่ำ สูตร ไม่ต้องแก้อะไร เพราะทุกอย่างคิดเป็น g อยู่แล้ว · ใบเก่าที่ซื้อถุง 250 g ยังเป็นถุง 250 g · ราคาต่อ g เทียบกันได้ทันที (฿1.28/g กับของใหม่)<br>
+        ⚠️ คนที่ไม่มีสิทธิ์แก้ข้อมูลสินค้า จะไม่เห็น “+ ขนาดใหม่…” — ต้องให้ผู้ดูแลเพิ่ม (หรือจะให้จัดซื้อเพิ่มขนาดได้ด้วย ต้องตัดสิน)
+      </div>
+    </div>
+  </section>
+
+  <!-- 6 -->
+  <section class="screen">
+    <div class="screen-h"><h2 style="font-size:1.1rem">6. ช่องตัวเลขทุกช่อง</h2><span class="tag">ทั้งแอป 53 ช่อง</span></div>
+    <div class="frame">
+      <div class="cols">
+        <div class="box old">
+          <h3>ตอนนี้</h3>
+          <input class="input num" type="number" value="12">
+          <p class="sub">ลูกศรเล็กในกล่อง · คลิกแล้วต้องลบเลขเดิมเอง</p>
+        </div>
+        <div class="box">
+          <h3>หลังเปลี่ยน <span class="badge2">ลองคลิกช่อง</span></h3>
+          <span class="qty"><button type="button" data-d="-1">−</button><input class="input num" id="q" value="12" inputmode="decimal"><button type="button" data-d="1">+</button></span>
+          <p class="sub">คลิกแล้วเลขเดิมถูกเลือกทั้งหมด พิมพ์ทับได้เลย · ไม่มีลูกศรในกล่อง · ปุ่ม − + อยู่นอกกล่อง กดง่ายบนมือถือ · มือถือขึ้นแป้นตัวเลข</p>
+        </div>
+      </div>
+      <p class="sub">ปุ่ม − + ใส่เฉพาะช่องที่เป็น “จำนวนชิ้น/แพ็ค” (สั่งของ ขอซื้อ นับ) · ช่องราคา น้ำหนัก ขนาด เป็นช่องพิมพ์อย่างเดียว เพราะกดทีละ 1 ไม่มีความหมาย</p>
+    </div>
+  </section>
 </div>
 
 <script>
@@ -164,4 +225,11 @@ function render(){
 }
 document.getElementById("add").addEventListener("click", () => { rows.push({ box: "", size: "", buy: false }); render(); el.querySelector(".row:last-of-type input")?.focus(); });
 render();
+const sel=document.getElementById("sizeSel"), pop=document.getElementById("pop");
+sel.addEventListener("change",()=>{ if(sel.value==="new") pop.hidden=false; });
+document.getElementById("cancel").onclick=()=>{pop.hidden=true; sel.selectedIndex=0;};
+document.getElementById("newSize").addEventListener("input",e=>document.getElementById("newName").textContent=`ถุง ${e.target.value||"…"} g`);
+document.getElementById("ok").onclick=()=>{ const o=document.createElement("option"); o.textContent=document.getElementById("newName").textContent; sel.insertBefore(o, sel.options[0]); sel.selectedIndex=0; pop.hidden=true; };
+document.querySelectorAll(".qty input").forEach(i=>i.addEventListener("focus",()=>i.select()));
+document.querySelectorAll(".qty button").forEach(b=>b.addEventListener("click",()=>{ const i=b.parentElement.querySelector("input"); const d=b.dataset.d?Number(b.dataset.d):(b.textContent==="+"?1:-1); i.value=Math.max(0,(Number(i.value)||0)+d); }));
 </script>
