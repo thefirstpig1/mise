@@ -1,0 +1,167 @@
+<title>หน่วยแบบใหม่ คิดครัว</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Prompt:wght@500;600;700&family=Noto+Sans+Thai:wght@400;500;600&display=swap">
+<style>
+/* Mockup: one spelling per unit (metric in English, the rest in Thai) and a
+   pack-unit row that composes its own name. App tokens (tailwind.config.ts). */
+:root{
+  --bg:#FDFBF3; --fg:#262811; --surface:#FFFFFF; --sunk:#F8F3E1; --primary:#41431B; --primary-fg:#F8F3E1; --primary-soft:#EFEDD7;
+  --muted:#F3EFDF; --muted-fg:#5A5C31; --subtle:#8B8D63; --border:#E9E3C8; --strong:#D2CBA4;
+  --good:#5A7333; --good-bg:#EEF2E0; --bad:#A83A22; --bad-bg:#F9E5DF; --warn:#A87C1C; --warn-bg:#F8EFD6; --warn-border:#E2CE97;
+  --display:"Prompt","Noto Sans Thai",system-ui,sans-serif; --body:"Noto Sans Thai","Prompt",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#1B1C10; --fg:#EEEAD6; --surface:#24261A; --sunk:#2A2C1E; --primary:#D9DDB0; --primary-fg:#1B1C10; --primary-soft:#33361F;
+  --muted:#2E301F; --muted-fg:#C9C8A6; --subtle:#9C9B7C; --border:#36381F; --strong:#4A4C30;
+  --good:#B7CF7C; --good-bg:#2B3320; --bad:#EC9C80; --bad-bg:#41261C; --warn:#E8BE62; --warn-bg:#3B3018; --warn-border:#5A4A22; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#1B1C10; --fg:#EEEAD6; --surface:#24261A; --sunk:#2A2C1E; --primary:#D9DDB0; --primary-fg:#1B1C10; --primary-soft:#33361F;
+  --muted:#2E301F; --muted-fg:#C9C8A6; --subtle:#9C9B7C; --border:#36381F; --strong:#4A4C30;
+  --good:#B7CF7C; --good-bg:#2B3320; --bad:#EC9C80; --bad-bg:#41261C; --warn:#E8BE62; --warn-bg:#3B3018; --warn-border:#5A4A22; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:14px;line-height:1.55;margin:0;padding:24px 16px 60px}
+h1,h2,h3{font-family:var(--display);margin:0}
+.wrap{max-width:980px;margin:0 auto;display:grid;gap:26px}
+.sub{color:var(--subtle);font-size:.8rem}
+.tag{display:inline-block;background:var(--warn-bg);color:var(--warn);border:1px solid var(--warn-border);border-radius:999px;padding:1px 10px;font-size:.75rem}
+.screen{display:grid;gap:10px}
+.screen-h{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:baseline}
+.frame{background:var(--surface);border:1px solid var(--strong);border-radius:18px;padding:16px;display:grid;gap:12px;box-shadow:0 10px 30px rgb(0 0 0/.05)}
+.input{font:inherit;color:var(--fg);background:var(--surface);border:1px solid var(--strong);border-radius:8px;padding:4px 8px;min-width:0}
+.input:focus{outline:2px solid var(--primary);outline-offset:1px}
+.num{font-variant-numeric:tabular-nums;text-align:right}
+.row{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:8px 0;border-bottom:1px solid var(--border)}
+.row:last-of-type{border-bottom:0}
+.lock{font-size:.75rem;color:var(--subtle)}
+.preview{font-size:.78rem;color:var(--muted-fg);width:100%;padding-left:2px}
+.preview b{color:var(--fg);font-weight:600}
+.pill{border:1px solid var(--strong);background:var(--surface);border-radius:999px;padding:2px 12px;font:inherit;font-size:.8rem;cursor:pointer;color:var(--fg)}
+.link{color:var(--primary);font-size:.78rem;text-decoration:underline;cursor:pointer;background:none;border:0;font-family:inherit;padding:0}
+.note{background:var(--sunk);border-radius:12px;padding:10px 12px;font-size:.82rem;color:var(--muted-fg)}
+.note b{color:var(--fg)}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:720px){.cols{grid-template-columns:1fr}}
+.box{border:1px solid var(--border);border-radius:12px;padding:10px 12px;display:grid;gap:6px;align-content:start}
+.box h3{font-size:.9rem}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--strong);border-radius:8px;padding:1px 9px;font-size:.85rem;background:var(--surface)}
+.chip.gone{text-decoration:line-through;color:var(--bad);background:var(--bad-bg);border-color:transparent}
+.chip.en{background:var(--good-bg);border-color:transparent;color:var(--good);font-weight:600}
+table{border-collapse:collapse;width:100%;font-size:.85rem}
+td,th{padding:6px 8px;border-bottom:1px solid var(--border);text-align:left}
+th{font-family:var(--display);font-weight:500;color:var(--subtle);font-size:.75rem}
+.from{color:var(--bad)}.to{color:var(--good);font-weight:600}
+</style>
+
+<div class="wrap">
+  <div>
+    <h1 style="font-size:1.35rem">หน่วย: หนึ่งหน่วย หนึ่งชื่อ</h1>
+    <p class="sub">หน่วยชั่ง/ตวงเป็นอังกฤษ (g kg ml l) · หน่วยอื่นเป็นไทย · ชื่อหน่วยแพ็คระบบต่อให้เอง</p>
+  </div>
+
+  <!-- 1 -->
+  <section class="screen">
+    <div class="screen-h"><h2 style="font-size:1.1rem">1. แผงสินค้า · หน่วยซื้อและหน่วยนับเพิ่ม</h2><span class="tag">เปลี่ยน</span></div>
+    <div class="frame">
+      <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;align-items:baseline">
+        <h3 style="font-size:.95rem">หน่วยซื้อและหน่วยนับเพิ่ม</h3>
+        <span class="sub">นับสต๊อกเป็น kg · ใช้ตอนสั่งซื้อ รับของ และนับหลายหน่วย</span>
+      </div>
+
+      <div id="rows"></div>
+      <button class="pill" id="add" style="justify-self:start">+ เพิ่มหน่วย</button>
+
+      <div class="note">
+        พิมพ์แค่ <b>ภาชนะ</b> (กระสอบ แพ็ค ลัง) กับ <b>ขนาด</b> แล้วระบบต่อหน่วยหลักให้เอง: <b>กระสอบ 10 kg</b> — ไม่มีใครต้องพิมพ์ "กิโลกรัม" อีก<br>
+        ของที่ต้องบอกมากกว่านั้น (ลังที่มี 24 กล่อง) กด <b>“ตั้งชื่อเอง”</b> · หน่วยที่ใช้ในสูตรหรือเอกสารแล้ว 🔒 ชื่อเดิมคงไว้ แก้ได้แค่ขนาด
+      </div>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section class="screen">
+    <div class="screen-h"><h2 style="font-size:1.1rem">2. ตัวเลือกหน่วยหลัก (ตอนสร้างสินค้าใหม่)</h2><span class="tag">ตัดตัวซ้ำ</span></div>
+    <div class="frame">
+      <div class="cols">
+        <div class="box">
+          <h3>ชั่ง / ตวง → อังกฤษ</h3>
+          <div class="chips"><span class="chip en">g</span><span class="chip en">kg</span><span class="chip en">ml</span><span class="chip en">l</span></div>
+          <div class="chips"><span class="chip gone">กรัม</span><span class="chip gone">กก.</span><span class="chip gone">มล.</span><span class="chip gone">ลิตร</span></div>
+          <p class="sub">ตัวไทยที่ซ้ำเอาออก ไม่ให้มีสองชื่อของหน่วยเดียวกัน</p>
+        </div>
+        <div class="box">
+          <h3>หน่วยอื่น → ไทยเหมือนเดิม</h3>
+          <div class="chips"><span class="chip">ขีด</span><span class="chip">ช้อนชา</span><span class="chip">ช้อนโต๊ะ</span><span class="chip">ถ้วยตวง</span><span class="chip">หยิบมือ</span></div>
+          <div class="chips"><span class="chip">ชิ้น</span><span class="chip">ฟอง</span><span class="chip">ลูก</span><span class="chip">ใบ</span><span class="chip">แพ็ค</span><span class="chip">ถุง</span></div>
+          <p class="sub">ไม่มีตัวย่อสากลที่คนครัวใช้ · ไม่ใส่ mg</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section class="screen">
+    <div class="screen-h"><h2 style="font-size:1.1rem">3. ทุกหน้าเขียนเหมือนกัน</h2><span class="tag">เลิกแปลงตอนแสดง</span></div>
+    <div class="frame">
+      <table>
+        <tr><th>หน้า</th><th>ตอนนี้</th><th>หลังเปลี่ยน</th></tr>
+        <tr><td>สินค้า / ใบขอซื้อ</td><td class="from">มี 163 กก. / ขั้นต่ำ 160 กก.</td><td class="to">มี 163 kg / ขั้นต่ำ 160 kg</td></tr>
+        <tr><td>นับสต๊อก (ช่องหน่วย)</td><td class="from">kg · l (ดิบ ไม่ตรงหน้าอื่น)</td><td class="to">kg · l</td></tr>
+        <tr><td>สั่งของจากผู้ขาย</td><td class="from">กระสอบ 10 กก.</td><td class="to">กระสอบ 10 kg</td></tr>
+        <tr><td>สูตร</td><td class="from">ข้าวสวย 0.25 กก.</td><td class="to">ข้าวสวย 0.25 kg</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section class="screen">
+    <div class="screen-h"><h2 style="font-size:1.1rem">4. ข้อมูลเดิมที่จะเปลี่ยนชื่อ (ร้านตัวอย่าง)</h2><span class="tag">รอบ deploy · ตัวเลขไม่เปลี่ยน</span></div>
+    <div class="frame">
+      <table>
+        <tr><th>ชื่อเดิม</th><th>ชื่อใหม่</th><th>จำนวน</th></tr>
+        <tr><td class="from">กก. (หน่วยหลัก)</td><td class="to">kg</td><td>1 สินค้า</td></tr>
+        <tr><td class="from">กรัม (หน่วยเพิ่ม)</td><td class="to">g</td><td>4</td></tr>
+        <tr><td class="from">กระสอบ 10 กก. · ถุง 5 กก. · แกลลอน 5 ลิตร …</td><td class="to">กระสอบ 10 kg · ถุง 5 kg · แกลลอน 5 l …</td><td>ทุกชื่อแพ็คที่มี กก./กรัม/ลิตร/มล.</td></tr>
+      </table>
+      <p class="sub">สูตรและเอกสารอ้างหน่วยด้วยรหัส ไม่ใช่ชื่อ — เปลี่ยนชื่อแล้วตัวเลขทุกตัวเหมือนเดิม · ถ้าร้านมีทั้ง "กก." และ "kg" ในสินค้าเดียวกัน ระบบจะข้ามแถวนั้นและรายงาน (ไม่รวมเอง)</p>
+    </div>
+  </section>
+</div>
+
+<script>
+const BASE = "kg";
+const rows = [
+  { box: "กระสอบ", size: "10", buy: true },
+  { box: "ถุง", size: "1", buy: false, locked: true },
+  { custom: true, name: "ลัง 24 กล่อง (6 l)", size: "6", buy: false },
+];
+const el = document.getElementById("rows");
+function nameOf(r){ return r.custom ? (r.name || "—") : `${r.box || "…"} ${r.size || "…"} ${BASE}`; }
+function render(){
+  el.innerHTML = "";
+  rows.forEach((r, i) => {
+    const d = document.createElement("div"); d.className = "row";
+    if (r.custom) {
+      d.innerHTML = `<input class="input" style="width:12rem" value="${r.name}" aria-label="ชื่อหน่วย" data-k="name"> =
+        <input class="input num" style="width:5rem" type="number" value="${r.size}" data-k="size"> ${BASE}
+        <label class="sub" style="margin-left:6px"><input type="radio" name="buy" ${r.buy?"checked":""} data-buy> ซื้อหลัก</label>
+        <button class="link" data-auto>ใช้ชื่ออัตโนมัติ</button>`;
+    } else {
+      d.innerHTML = `<input class="input" style="width:7rem" value="${r.box}" placeholder="กระสอบ" aria-label="ภาชนะ" data-k="box" ${r.locked?"disabled":""}>
+        <span class="sub">บรรจุ</span>
+        <input class="input num" style="width:5rem" type="number" value="${r.size}" data-k="size"> ${BASE}
+        <label class="sub" style="margin-left:6px"><input type="radio" name="buy" ${r.buy?"checked":""} data-buy> ซื้อหลัก</label>
+        ${r.locked ? `<span class="lock" title="ใช้ในสูตรหรือเอกสารแล้ว">🔒</span>` : `<button class="link" data-custom>ตั้งชื่อเอง</button>`}`;
+    }
+    const p = document.createElement("div"); p.className = "preview";
+    p.innerHTML = `จะแสดงเป็น <b>${nameOf(r)}</b>`;
+    d.appendChild(p);
+    d.querySelectorAll("[data-k]").forEach(inp => inp.addEventListener("input", e => { r[inp.dataset.k] = e.target.value; p.innerHTML = `จะแสดงเป็น <b>${nameOf(r)}</b>`; }));
+    d.querySelector("[data-buy]").addEventListener("change", () => rows.forEach((x, j) => x.buy = j === i));
+    d.querySelector("[data-custom]")?.addEventListener("click", () => { r.custom = true; r.name = nameOf(r); render(); });
+    d.querySelector("[data-auto]")?.addEventListener("click", () => { r.custom = false; r.box = (r.name || "").split(" ")[0]; render(); });
+    el.appendChild(d);
+  });
+}
+document.getElementById("add").addEventListener("click", () => { rows.push({ box: "", size: "", buy: false }); render(); el.querySelector(".row:last-of-type input")?.focus(); });
+render();
+</script>
