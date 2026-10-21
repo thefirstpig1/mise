@@ -25,6 +25,11 @@ export type CountProduct = {
   imageUrl: string | null;
   section: string | null;
   group: string | null;
+  /**
+   * A PREPPED product (ADR 0021 Q11): nothing raises its balance until
+   * production is recorded, so its "expected" and its variance mean nothing.
+   */
+  prepped?: boolean;
   units: { id: string; unitName: string; isBase: boolean }[];
 };
 
@@ -235,6 +240,11 @@ export default function CountRow({
         <div className="min-w-[10rem] flex-1">
           <p className="flex flex-wrap items-center gap-2 font-medium">
             {product.name}
+            {product.prepped && (
+              <span className="whitespace-nowrap rounded-full border border-warn-border bg-warn-bg px-2 py-0.5 text-[11px] font-normal text-warn">
+                ของแปรรูป
+              </span>
+            )}
             {counted && (
               <span className="rounded-full bg-good px-2 py-0.5 text-xs font-medium text-white">
                 ✓ นับแล้ว
@@ -259,7 +269,7 @@ export default function CountRow({
                     ระบบว่ามี {formatQty(item.qtyExpected)} ·{" "}
                     <span
                       className={
-                        item.varianceIsZero
+                        item.varianceIsZero || product.prepped
                           ? ""
                           : item.varianceIsShort
                             ? "font-medium text-bad"
@@ -273,6 +283,11 @@ export default function CountRow({
                   </span>
                 )}
               </p>
+              {showExpected && product.prepped && !item.varianceIsZero && (
+                <p className="text-xs text-warn">
+                  ส่วนต่างนี้ไม่ได้แปลว่าของหายหรือเกิน — ระบบยังไม่ได้บันทึกการผลิตของแปรรูป
+                </p>
+              )}
               <ul className="space-y-0.5 text-xs text-muted-foreground">
                 {item.contributions.map((c) => {
                   const mine = c.countedByUserId === currentUserId;

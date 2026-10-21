@@ -199,6 +199,7 @@ export default function CountSheet({
         imageUrl: null,
         section: null,
         group: null,
+        prepped: false,
         units: i.entries.map((e) => ({ id: e.unitId, unitName: e.unitName, isBase: false })),
       }));
     // A closed sheet is a record of what was counted, not a list to count from.
@@ -243,6 +244,9 @@ export default function CountSheet({
   }, [shown]);
 
   const countedCount = [...lineByProduct.keys()].length;
+  // ADR 0021 Q11 — say it on screen until production is recorded.
+  const preppedRows = rows.filter((p) => p.prepped);
+  const preppedCounted = preppedRows.filter((p) => lineByProduct.has(p.id)).length;
   const uncountedStocked = stockedProductIds.filter((id) => !lineByProduct.has(id)).length;
   const varianceValue = detail.items
     .filter((i) => !i.isReversal)
@@ -300,6 +304,17 @@ export default function CountSheet({
           ใส่จำนวนที่นับได้แล้วกด <strong>ยืนยัน</strong> ท้ายบรรทัด รายการจะเป็นสีเขียวบนทุกเครื่องที่เปิดใบนี้อยู่
           พร้อมชื่อคนนับ — ของที่ไม่ได้นับ ไม่ต้องใส่
         </p>
+      )}
+      {preppedRows.length > 0 && (isDraft || preppedCounted > 0) && (
+        <div className="rounded-lg border border-warn-border bg-warn-bg p-3 text-sm text-warn">
+          <p className="font-medium">
+            {isDraft ? "ของแปรรูป (ป้ายเหลือง) นับได้ แต่ส่วนต่างยังเชื่อไม่ได้" : `ใบนี้มีของแปรรูป ${preppedCounted} รายการ — ส่วนต่างของรายการเหล่านั้นเชื่อไม่ได้`}
+          </p>
+          <p className="mt-1 text-xs">
+            ระบบยังไม่มีบันทึกการผลิต ยอดของแปรรูปในระบบจึงไม่เพิ่มตอนทำ และไม่ลดตอนขาย (ขายแล้วระบบตัดวัตถุดิบดิบตามสูตรแทน)
+            ยอดจะเปลี่ยนตอนนับ (และตอนลงของเสียหรือโอนของ) — <strong>นับครั้งแรกจึงขึ้นว่าเกินเสมอ</strong> และครั้งต่อ ๆ ไปส่วนต่างก็ไม่ได้แปลว่าของหายหรือเกิน
+          </p>
+        </div>
       )}
       {sheetError && (
         <div className="rounded-lg border border-bad-border bg-bad-bg p-3 text-sm text-bad">{sheetError}</div>
@@ -409,7 +424,10 @@ export default function CountSheet({
               {" / "}
               <span className="text-warn">+{formatQty(detail.totalOverQty)}</span>
             </p>
-            <p className="mt-1 text-xs text-muted-foreground">คนละหน่วยกัน — ดูเป็นรายรายการด้านบน</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              คนละหน่วยกัน — ดูเป็นรายรายการด้านบน
+              {preppedCounted > 0 && ` · รวมของแปรรูป ${preppedCounted} รายการ ซึ่งส่วนต่างยังเชื่อไม่ได้`}
+            </p>
           </div>
           <div className="rounded-lg border border-border p-4">
             <p className="text-xs text-muted-foreground">มูลค่าส่วนต่าง (ประมาณ)</p>

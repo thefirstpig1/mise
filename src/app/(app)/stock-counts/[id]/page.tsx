@@ -60,6 +60,7 @@ export default async function StockCountDetailPage({
       imageUrl: p.imageUrl,
       section: p.category?.accountingSection ?? null,
       group: p.category?.groupName ?? null,
+      prepped: p.type === "PREPPED",
       units: [...p.productUnits]
         .sort((a, b) => Number(b.isBase) - Number(a.isBase))
         .map((u) => ({ id: u.id, unitName: u.unitName, isBase: u.isBase })),
