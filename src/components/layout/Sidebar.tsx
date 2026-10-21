@@ -19,6 +19,9 @@ import { currentNavHref, type NavGroup } from "@/components/layout/nav";
 
 type Badge = { low: number; near: number };
 
+/** Fire after a write that may change a sidebar count: `window.dispatchEvent(new Event(NAV_BADGES_EVENT))`. */
+const NAV_BADGES_EVENT = "kitkrua:nav-badges";
+
 /**
  * A LINE-style count over the item's top-right corner (Kong 2026-10-21):
  * red = below par, yellow = near par. Counts only — everyone sees them.
@@ -81,10 +84,14 @@ export default function Sidebar({
         .catch(() => undefined);
     void load();
     const onFocus = () => document.visibilityState === "visible" && void load();
+    // A save that moves a count (a par, a receipt) says so without a page change.
+    const onChange = () => void load();
     document.addEventListener("visibilitychange", onFocus);
+    window.addEventListener(NAV_BADGES_EVENT, onChange);
     return () => {
       live = false;
       document.removeEventListener("visibilitychange", onFocus);
+      window.removeEventListener(NAV_BADGES_EVENT, onChange);
     };
   }, [pathname]);
   const anyLow = Object.values(badges).some((b) => b.low > 0);

@@ -11,8 +11,12 @@
 // A prepped item's recipe is shared by every branch, so editing it needs the
 // shared reach (`perm.recipeShared` / `perm.yield`); its save is its own, with
 // the same second look as a dish's recipe (ConfirmDialog).
+//
+// The products screen opens the SAME sheet as its main panel (Kong
+// 2026-10-21): `extra` adds what only that screen edits — par per branch and
+// the product's own details — and one บันทึก saves all of it.
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState, useTransition, type ReactNode } from "react";
 import { setPreppedYieldAction } from "@/app/(app)/menus/manager-actions";
 import { dropPrefetched, ingredientInsight } from "./prefetch";
 import { updateRecipeAction } from "@/app/(app)/recipes/actions";
@@ -22,6 +26,20 @@ import { orStale } from "@/lib/stale-tab";
 import { baht, newSubmitKey, qtyFmt, thDate, unitTh } from "./manager-format";
 import { ConfirmDialog, type ConfirmSpec, PhotoSlot, Sheet } from "./sheet-parts";
 import type { Option, Perm } from "./MenuManager";
+
+/** What the products screen adds to the sheet (page mode). */
+export type SheetExtra = {
+  /** Replaces the plain name heading (an editable name). */
+  title?: ReactNode;
+  sections: ReactNode;
+  /** Names of what changed, for the footer and the toast; empty = nothing. */
+  dirty: string[];
+  /** Lines for the second look when the change moves recipes; null = save straight away. */
+  confirm: { lines: string[]; who: string } | null;
+  /** Saves its part; false = stop (it already said why). */
+  save: () => Promise<boolean>;
+  footerLeft?: ReactNode;
+};
 
 export type InThisDish = { dishName: string; qty: number; unitName: string | null; toBaseRatio: number; cost: number | null; dishCost: number | null; servings: number };
 
@@ -38,6 +56,8 @@ export default function IngredientSheet({
   onPreppedSaved,
   options,
   standards,
+  stacked = true,
+  extra,
 }: {
   productId: string;
   branch: Option;
@@ -53,6 +73,9 @@ export default function IngredientSheet({
   /** The adder's list and the standard measures, held by the list. */
   options: IngredientOption[] | null;
   standards: StandardUnit[];
+  /** false = the products screen's main panel, not stacked over a dish. */
+  stacked?: boolean;
+  extra?: SheetExtra;
 }) {
   const [data, setData] = useState<IngredientInsight | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -124,20 +147,31 @@ export default function IngredientSheet({
         ? parentPrice === null || !(Number(yieldPct) > 0) ? null : parentPrice / (Number(yieldPct) / 100)
         : baseCost;
 
-  const dirty =
+  const madeDirty =
     made?.how === "recipe"
       ? signature(lines ?? [], 1) !== signature(baseLines, 1)
       : made?.how === "yield"
         ? Number(yieldPct) !== made.yieldPercent
         : false;
+  const dirtyParts = [...(madeDirty ? [made?.how === "yield" ? "% ผลผลิต" : "สูตรผลิต"] : []), ...(extra?.dirty ?? [])];
+  const dirty = dirtyParts.length > 0;
 
   const close = () => {
-    if (dirty && data) onToast(`ปิดแล้ว · ไม่ได้บันทึกการแก้สูตรของ${data.product.name}`);
+    if (dirty && data) onToast(`ปิดแล้ว · ไม่ได้บันทึก${dirtyParts.join(" · ")}ของ${data.product.name}`);
     onClose();
   };
 
   const askSave = () => {
-    if (!data || !made) return;
+    if (!data) return;
+    if (!madeDirty || !made) {
+      // Only the products screen's own part changed.
+      if (!extra) return;
+      if (extra.confirm) {
+        setConfirm({ title: `บันทึก${data.product.name}?`, lines: extra.confirm.lines, money: null, who: extra.confirm.who, go: "บันทึก", onGo: save });
+        return;
+      }
+      return save();
+    }
     const uses = data.usedIn.length;
     const diff: string[] =
       made.how === "yield"
@@ -150,7 +184,7 @@ export default function IngredientSheet({
     const removed = baseLines.filter((o) => !(lines ?? []).some((l) => l.productId === o.productId)).map((o) => `เอาออก ${o.label}`);
     setConfirm({
       title: `ใช้สูตรใหม่ของ${data.product.name}?`,
-      lines: [...diff, ...removed],
+      lines: [...diff, ...removed, ...(extra?.confirm?.lines ?? [])],
       money:
         costHidden || draftCost === null || baseCost === null
           ? null
@@ -163,7 +197,17 @@ export default function IngredientSheet({
 
   const save = () =>
     startSaving(async () => {
-      if (!data || !made) return;
+      if (!data) return;
+      if (extra && extra.dirty.length > 0) {
+        if (!(await extra.save())) return;
+      }
+      if (!madeDirty || !made) {
+        onToast(`บันทึก${data.product.name}แล้ว`);
+        dropPrefetched();
+        onPreppedSaved();
+        await load(true);
+        return;
+      }
       if (made.how === "yield") {
         const res = await orStale(setPreppedYieldAction(productId, Number(yieldPct)));
         if (!res.ok) return onToast("error" in res ? res.error : "บันทึกไม่ได้");
@@ -197,12 +241,12 @@ export default function IngredientSheet({
       : null;
 
   return (
-    <Sheet stacked onClose={close} labelledBy="ing-title">
+    <Sheet stacked={stacked} onClose={close} labelledBy="ing-title">
       <div className="flex items-start gap-3 border-b border-border bg-surface px-5 py-4">
         <PhotoSlot size={64} label="รูป" />
         <div className="min-w-0 flex-1">
           <span className="badge">{data?.product.type === "PREPPED" ? "ของแปรรูป" : "วัตถุดิบ"}{data ? ` · ${data.product.sku}` : ""}</span>
-          <h3 id="ing-title" className="mt-1 text-lg font-semibold">{data?.product.name ?? "กำลังโหลด…"}</h3>
+          {extra?.title ?? <h3 id="ing-title" className="mt-1 text-lg font-semibold">{data?.product.name ?? "กำลังโหลด…"}</h3>}
           <p className="text-xs text-muted-foreground">นับสต๊อกเป็น {unitTh(baseUnit) || "—"} · {branch.name}</p>
         </div>
         <button type="button" onClick={close} aria-label="ปิด" className="rounded-lg px-2 text-2xl leading-none text-muted-foreground hover:bg-muted">
@@ -226,7 +270,7 @@ export default function IngredientSheet({
                     k="พอใช้อีก"
                     v={fact?.daysLeft == null ? "—" : `~${fact.daysLeft} วัน`}
                     s={fact?.par != null ? `ขั้นต่ำ ${qtyFmt(fact.par, baseUnit)}${fact.belowPar ? " · ต่ำกว่าแล้ว" : ""}` : "ยังไม่ได้ตั้งขั้นต่ำ"}
-                    warn={fact?.belowPar}
+                    bad={fact?.belowPar}
                   />
                 </>
               )}
@@ -383,10 +427,14 @@ export default function IngredientSheet({
               <p className="text-xs text-muted-foreground">⚠️ ระบบยังไม่มีการบันทึกการผลิต นับสต๊อกของแปรรูปเมื่อไรจะขึ้นเป็นของเกินเสมอ</p>
             )}
 
+            {extra?.sections}
+
             <div className="flex flex-wrap gap-2">
-              <a href={`/products/${productId}`} className="rounded-full border border-border-strong px-3 py-1 text-sm hover:bg-muted">
-                ดูทั้งหมดในหน้าวัตถุดิบ
-              </a>
+              {stacked && (
+                <a href={`/products?product=${productId}`} className="rounded-full border border-border-strong px-3 py-1 text-sm hover:bg-muted">
+                  เปิดในหน้าสินค้า/วัตถุดิบ
+                </a>
+              )}
               <a href="/purchase-requests" className="rounded-full border border-border-strong px-3 py-1 text-sm hover:bg-muted">
                 ขอซื้อเพิ่ม
               </a>
@@ -395,10 +443,13 @@ export default function IngredientSheet({
         )}
       </div>
 
-      {data && editable && (
+      {data && (editable || extra) && (
         <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border bg-surface px-5 py-3 text-sm">
-          <span className="flex flex-wrap items-center gap-1 text-muted-foreground">
-            {dirty ? (
+          {extra?.footerLeft}
+          <span className="flex flex-1 flex-wrap items-center justify-end gap-1 text-muted-foreground">
+            {extra && !madeDirty ? (
+              dirty ? `มีการแก้ที่ยังไม่บันทึก: ${dirtyParts.join(" · ")}` : "ยังไม่มีอะไรเปลี่ยน"
+            ) : dirty ? (
               <>
                 {!costHidden && baseCost !== null && draftCost !== null ? `ต้นทุนเปลี่ยน ${baht(baseCost, 2)} → ${baht(draftCost, 2)} · ` : ""}
                 {data.usedIn.length ? `กระทบ ${data.usedIn.length} เมนู · ` : ""}
@@ -413,7 +464,7 @@ export default function IngredientSheet({
             )}
           </span>
           <button type="button" disabled={!dirty || saving} onClick={askSave} className="btn">
-            {saving ? "กำลังบันทึก…" : made?.how === "yield" ? "บันทึก % ผลผลิต" : "บันทึกสูตรผลิต"}
+            {saving ? "กำลังบันทึก…" : extra ? "บันทึก" : made?.how === "yield" ? "บันทึก % ผลผลิต" : "บันทึกสูตรผลิต"}
           </button>
         </div>
       )}
@@ -423,11 +474,11 @@ export default function IngredientSheet({
   );
 }
 
-function Tile({ k, v, s, warn }: { k: string; v: string; s: string; warn?: boolean }) {
+function Tile({ k, v, s, warn, bad }: { k: string; v: string; s: string; warn?: boolean; bad?: boolean }) {
   return (
     <div className="min-w-0 rounded-xl border border-border bg-surface p-2.5">
       <p className="text-[11px] text-muted-subtle">{k}</p>
-      <p className={`font-display text-lg font-semibold tabular-nums ${warn ? "text-warn" : ""}`}>{v}</p>
+      <p className={`font-display text-lg font-semibold tabular-nums ${bad ? "text-bad" : warn ? "text-warn" : ""}`}>{v}</p>
       <p className="text-[11px] text-muted-foreground">{s}</p>
     </div>
   );
