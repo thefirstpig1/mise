@@ -12,6 +12,8 @@
 // one that lands early.
 
 import { useActionState, useEffect, useState } from "react";
+import { MeasureInput, MoneyInput } from "@/components/ui/NumberField";
+import QtyStepper from "@/components/ui/QtyStepper";
 import { useRouter } from "next/navigation";
 import type { RecurringExpenseActionState } from "../actions";
 import type { CategoryOption } from "./ExpenseForm";
@@ -146,12 +148,11 @@ export default function RecurringExpenseForm({
           <label htmlFor="default_amount" className="label">
             ยอดตั้งต้น <span className="text-bad">*</span>
           </label>
-          <input
+          <MoneyInput
             id="default_amount"
             name="default_amount"
-            inputMode="decimal"
             defaultValue={existing?.defaultAmount ?? ""}
-            className={"input w-full mt-1 text-right tabular-nums"}
+            boxClassName="mt-1 w-40"
             required
           />
           <p className="mt-1 text-xs text-muted-foreground">
@@ -166,15 +167,12 @@ export default function RecurringExpenseForm({
           <label htmlFor="day_of_month" className="label">
             ครบกำหนดวันที่ <span className="text-bad">*</span>
           </label>
-          <input
-            id="day_of_month"
-            name="day_of_month"
-            type="number"
+          <QtyStepper
+            defaultValue={String(existing?.dayOfMonth ?? 5)}
             min={1}
-            max={28}
-            defaultValue={existing?.dayOfMonth ?? 5}
-            className={"input w-full mt-1"}
-            required
+            label="ครบกำหนดวันที่"
+            className="mt-1"
+            inputProps={{ id: "day_of_month", name: "day_of_month", max: 28, required: true }}
           />
           <p className="mt-1 text-xs text-muted-foreground">
             ได้ถึงวันที่ 28 เท่านั้น — วันที่ 29-31 จะข้ามเดือนกุมภาพันธ์
@@ -219,15 +217,15 @@ export default function RecurringExpenseForm({
 
         <div>
           <label htmlFor="vat_rate_percent" className="label">
-            อัตรา VAT (%)
+            อัตรา VAT <span className="font-normal text-muted-subtle">(เว้นว่าง = ไม่มี VAT)</span>
           </label>
-          <input
+          <MeasureInput
             id="vat_rate_percent"
             name="vat_rate_percent"
-            inputMode="decimal"
-            placeholder="เว้นว่าง = ไม่มี VAT"
+            unit="%"
+            placeholder="ไม่มี"
             defaultValue={existing?.vatRatePercent ?? ""}
-            className={"input w-full mt-1"}
+            boxClassName="mt-1 w-28"
           />
           <label className="mt-2 flex items-center gap-2 text-sm">
             <input
@@ -251,12 +249,13 @@ export default function RecurringExpenseForm({
           </label>
           {subjectToWht ? (
             <>
-              <input
+              <MeasureInput
                 name="wht_rate_percent"
-                inputMode="decimal"
-                placeholder="อัตรา % (เช่น 5 สำหรับค่าเช่า)"
+                unit="%"
+                placeholder="5"
                 defaultValue={existing?.whtRatePercent ?? ""}
-                className={"input w-full mt-2"}
+                aria-label="อัตราภาษีหัก ณ ที่จ่าย (ค่าเช่ามัก 5%)"
+                boxClassName="mt-2 w-28"
               />
               {err("whtRatePercent") && (
                 <p className="mt-1 text-xs text-bad">{err("whtRatePercent")}</p>

@@ -19,6 +19,7 @@
 // ============================================================
 
 import { useActionState, useCallback, useEffect, useState } from "react";
+import { MeasureInput, MoneyInput } from "@/components/ui/NumberField";
 import Link from "next/link";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
@@ -201,13 +202,7 @@ function BranchCard({ day, branch: b, canKeyPulse }: { day: string; branch: DayM
               <input type="hidden" name="businessDate" value={day} />
               <label className="flex-1">
                 <span className="text-muted-foreground">ยอดที่ลูกค้าจ่ายทั้งวัน (รวม VAT และ SC)</span>
-                <input
-                  name="amount"
-                  inputMode="decimal"
-                  defaultValue={b.pulseAmount ?? ""}
-                  className="input mt-1 w-full"
-                  autoFocus
-                />
+                <MoneyInput name="amount" defaultValue={b.pulseAmount ?? ""} boxClassName="mt-1 w-40" autoFocus />
               </label>
               <label className="w-full">
                 <span className="text-muted-foreground">หมายเหตุ (ไม่บังคับ)</span>

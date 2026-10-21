@@ -18,6 +18,7 @@
 //     was never going to be saved.
 
 import { useActionState, useEffect, useState } from "react";
+import { MeasureInput, MoneyInput } from "@/components/ui/NumberField";
 import { useRouter } from "next/navigation";
 import type { ExpenseActionState } from "../actions";
 import type { ExpenseDetailView } from "./expense-view";
@@ -398,12 +399,12 @@ export default function ExpenseForm({
 
               <div className="sm:col-span-1">
                 <label className={"label text-xs"}>จำนวน</label>
-                <input
+                <MeasureInput
                   name="item_qty"
-                  inputMode="decimal"
+                  unit=""
                   value={line.qty}
                   onChange={(e) => updateLine(line.key, { qty: e.target.value })}
-                  className={"input w-full disabled:bg-muted/50 disabled:text-muted-foreground mt-1"}
+                  boxClassName="mt-1 w-full"
                   disabled={locked}
                 />
                 {locked && <input type="hidden" name="item_qty" value={line.qty} />}
@@ -411,12 +412,11 @@ export default function ExpenseForm({
 
               <div className="sm:col-span-1">
                 <label className={"label text-xs"}>ราคา/หน่วย</label>
-                <input
+                <MoneyInput
                   name="item_unit_price"
-                  inputMode="decimal"
                   value={line.unitPrice}
                   onChange={(e) => updateLine(line.key, { unitPrice: e.target.value })}
-                  className={"input w-full disabled:bg-muted/50 disabled:text-muted-foreground mt-1"}
+                  boxClassName="mt-1 w-full"
                   disabled={locked}
                 />
                 {locked && (
@@ -428,12 +428,11 @@ export default function ExpenseForm({
                 <label className={"label text-xs"}>
                   จำนวนเงิน <span className="text-bad">*</span>
                 </label>
-                <input
+                <MoneyInput
                   name="item_line_total"
-                  inputMode="decimal"
                   value={line.lineTotal}
                   onChange={(e) => updateLine(line.key, { lineTotal: e.target.value })}
-                  className={"input w-full disabled:bg-muted/50 disabled:text-muted-foreground mt-1 text-right tabular-nums"}
+                  boxClassName="mt-1 w-full"
                   disabled={locked}
                   required
                 />
@@ -479,16 +478,16 @@ export default function ExpenseForm({
       <section className="grid gap-4 rounded-lg border border-border p-4 sm:grid-cols-2">
         <div>
           <label htmlFor="vat_rate_percent" className="label">
-            อัตรา VAT (%)
+            อัตรา VAT <span className="font-normal text-muted-subtle">(เว้นว่าง = บิลนี้ไม่มี VAT)</span>
           </label>
-          <input
+          <MeasureInput
             id="vat_rate_percent"
             name="vat_rate_percent"
-            inputMode="decimal"
-            placeholder="เว้นว่าง = บิลนี้ไม่มี VAT"
+            unit="%"
+            placeholder="ไม่มี"
             value={vatRate}
             onChange={(e) => setVatRate(e.target.value)}
-            className={"input w-full disabled:bg-muted/50 disabled:text-muted-foreground mt-1"}
+            boxClassName="mt-1 w-28"
             disabled={locked}
           />
           {locked && (
@@ -524,13 +523,14 @@ export default function ExpenseForm({
           </label>
           {subjectToWht && (
             <div className="mt-2 space-y-2">
-              <input
+              <MeasureInput
                 name="wht_rate_percent"
-                inputMode="decimal"
-                placeholder="อัตรา % (เช่น 3)"
+                unit="%"
+                placeholder="3"
                 value={whtRate}
                 onChange={(e) => setWhtRate(e.target.value)}
-                className="input w-full disabled:bg-muted/50 disabled:text-muted-foreground"
+                aria-label="อัตราภาษีหัก ณ ที่จ่าย"
+                boxClassName="w-28"
               />
               {err("whtRatePercent") && (
                 <p className="text-xs text-bad">{err("whtRatePercent")}</p>

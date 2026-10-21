@@ -6,6 +6,7 @@
 // src/app/suppliers/actions.ts; fieldErrors keys are camelCase schema names.
 
 import { useActionState, useEffect, useState } from "react";
+import { MeasureInput, MoneyInput } from "@/components/ui/NumberField";
 import { useRouter } from "next/navigation";
 import type { SupplierActionState } from "@/app/(app)/suppliers/actions";
 import { SUPPLIER_FIELD_LABELS_TH } from "@/lib/validations/supplier";
@@ -199,14 +200,13 @@ export default function SupplierForm({
           </label>
         )}
         {isVatRegistered && (
-          <TextField
-            name="default_vat_rate_percent"
-            label={L.defaultVatRatePercent}
-            type="number"
-            step="0.01"
-            defaultValue={initial?.defaultVatRatePercent ?? ""}
-            error={err("defaultVatRatePercent")}
-          />
+          <div>
+            <label htmlFor="default_vat_rate_percent" className="mb-1 label">
+              {L.defaultVatRatePercent}
+            </label>
+            <MeasureInput id="default_vat_rate_percent" name="default_vat_rate_percent" unit="%" defaultValue={initial?.defaultVatRatePercent ?? ""} boxClassName="w-28" />
+            {err("defaultVatRatePercent") && <p className="mt-1 text-sm text-bad">{err("defaultVatRatePercent")}</p>}
+          </div>
         )}
         <label className="flex items-center gap-3">
           <input
@@ -218,14 +218,13 @@ export default function SupplierForm({
           <span className="text-sm font-medium">{L.defaultSubjectToWht}</span>
         </label>
         {subjectToWht && (
-          <TextField
-            name="default_wht_rate_percent"
-            label={L.defaultWhtRatePercent}
-            type="number"
-            step="0.01"
-            defaultValue={initial?.defaultWhtRatePercent ?? ""}
-            error={err("defaultWhtRatePercent")}
-          />
+          <div>
+            <label htmlFor="default_wht_rate_percent" className="mb-1 label">
+              {L.defaultWhtRatePercent}
+            </label>
+            <MeasureInput id="default_wht_rate_percent" name="default_wht_rate_percent" unit="%" defaultValue={initial?.defaultWhtRatePercent ?? ""} boxClassName="w-28" />
+            {err("defaultWhtRatePercent") && <p className="mt-1 text-sm text-bad">{err("defaultWhtRatePercent")}</p>}
+          </div>
         )}
       </section>
 

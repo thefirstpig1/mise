@@ -1,4 +1,5 @@
 import { withTenantContext } from "@/lib/db";
+import { MeasureInput, MoneyInput } from "@/components/ui/NumberField";
 import {
   CANCELLED_SALE_POLICY_HINTS_TH,
   CANCELLED_SALE_POLICY_LABELS_TH,
@@ -291,16 +292,18 @@ export default async function SettingsPage() {
             </p>
             <label className="flex flex-wrap items-center gap-2 text-sm">
               เตือนล่วงหน้า
-              <input
-                type="number"
+              <MeasureInput
                 name="par_warning_days"
+                unit="วัน"
                 min={0}
                 max={30}
                 step={1}
+                inputMode="numeric"
                 defaultValue={tenant.parWarningDays}
-                className="input w-20 text-right tabular-nums"
+                aria-label="เตือนล่วงหน้ากี่วัน"
+                boxClassName="w-28"
               />
-              วัน ก่อนถึงขั้นต่ำ
+              ก่อนถึงขั้นต่ำ
             </label>
             <p className="mt-2 text-xs text-muted-foreground">
               คิดจากปริมาณที่ใช้จริงต่อวัน (จากการตัดสต๊อกตามยอดขาย) · ของที่ยังไม่รู้อัตราการใช้ เตือนเมื่อเหลือไม่ถึง 20% เหนือขั้นต่ำ ·

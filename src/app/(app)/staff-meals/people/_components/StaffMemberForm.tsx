@@ -13,6 +13,7 @@
 // figure by pressing a button today (rule S7, ADR 0027's L1 one table across).
 
 import { useActionState, useEffect, useRef } from "react";
+import { MeasureInput, MoneyInput } from "@/components/ui/NumberField";
 import type { StaffMemberActionState } from "@/app/(app)/staff-meals/actions";
 
 
@@ -92,17 +93,9 @@ export function CreateStaffMemberForm({
         </div>
         <div>
           <label className="label" htmlFor="new-quota">
-            โควตา/วัน (บาท)
+            โควตา/วัน
           </label>
-          <input
-            id="new-quota"
-            name="daily_quota_amount"
-            type="number"
-            step="0.01"
-            min="0"
-            placeholder={tenantQuota ?? "ไม่มีโควตา"}
-            className="input w-full"
-          />
+          <MoneyInput id="new-quota" name="daily_quota_amount" placeholder={tenantQuota ?? "ไม่มีโควตา"} boxClassName="w-full" />
           {fieldErrors?.dailyQuotaAmount && (
             <p className="mt-1 text-xs text-bad">
               {fieldErrors.dailyQuotaAmount}
@@ -184,16 +177,7 @@ export function EditStaffMemberRow({
           </option>
         ))}
       </select>
-      <input
-        name="daily_quota_amount"
-        type="number"
-        step="0.01"
-        min="0"
-        defaultValue={member.dailyQuotaAmount ?? ""}
-        placeholder="ตามร้าน"
-        className="input w-full"
-        aria-label="โควตาต่อวัน"
-      />
+      <MoneyInput name="daily_quota_amount" defaultValue={member.dailyQuotaAmount ?? ""} placeholder="ตามร้าน" aria-label="โควตาต่อวัน" boxClassName="w-full" />
       <label className="flex items-center gap-2 text-sm">
         <input
           type="checkbox"

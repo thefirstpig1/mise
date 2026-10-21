@@ -22,6 +22,7 @@
 // same question leaves neither answering it best.
 
 import { useActionState, useState } from "react";
+import { MeasureInput, MoneyInput } from "@/components/ui/NumberField";
 import {
   recordSalesPulseAction,
   type RecordPulseActionState,
@@ -88,7 +89,7 @@ export default function PulsePanel({
                 <form action={action} className="mt-1 space-y-2">
                   <input type="hidden" name="branchId" value={b.branchId} />
                   <input type="hidden" name="businessDate" value={todayIso} />
-                  <input name="amount" inputMode="decimal" placeholder="ยอดที่ลูกค้าจ่ายวันนี้ (บาท)" className="input w-full" autoFocus />
+                  <MoneyInput name="amount" placeholder="ยอดที่ลูกค้าจ่ายวันนี้" aria-label="ยอดที่ลูกค้าจ่ายวันนี้" boxClassName="w-full" autoFocus />
                   <input name="note" placeholder="หมายเหตุ (ไม่บังคับ)" className="input w-full" />
                   <div className="flex items-center gap-2">
                     <button type="submit" disabled={pending} className="btn">
