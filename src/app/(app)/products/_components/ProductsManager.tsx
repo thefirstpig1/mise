@@ -27,6 +27,7 @@ import EmptyState from "@/components/ui/EmptyState";
 import ProductThumb from "@/components/ui/ProductThumb";
 import ProductSheet from "./ProductSheet";
 import ParDocsPopup from "./ParDocsPopup";
+import QuickRequest from "./QuickRequest";
 import { PAR_RED } from "@/lib/par-alert";
 
 type Status = "active" | "raw" | "prepped" | "low" | "near" | "inactive" | "all";
@@ -74,6 +75,8 @@ export default function ProductsManager(props: {
   perm: Perm;
   canEditInfo: boolean;
   canEditPar: boolean;
+  /** May add to the purchase request (purchase:request). */
+  canRequest: boolean;
   initialProductId: string | null;
   initialStatus: Status;
 }) {
@@ -161,6 +164,21 @@ export default function ProductsManager(props: {
   const lowCount = list ? active.filter((p) => { const k = kindOf(p); return k !== null && PAR_RED.has(k); }).length : 0;
   const nearCount = list ? active.filter((p) => kindOf(p) === "near").length : 0;
   const [docsFor, setDocsFor] = useState<ProductView | null>(null);
+  const [requestFor, setRequestFor] = useState<ProductView | null>(null);
+  // "+ ขอซื้อ" beside a red or yellow that nobody has acted on yet (PAR-4).
+  const askBtn = (p: ProductView) =>
+    props.canRequest ? (
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          setRequestFor(p);
+        }}
+        className="ml-1.5 whitespace-nowrap rounded-full border border-border-strong bg-surface px-2 py-0.5 text-[11px] font-medium hover:bg-muted"
+      >
+        + ขอซื้อ
+      </button>
+    ) : null;
   const byStatus = products.filter((p) => {
     const a = factOf(p)?.alert?.level;
     switch (status) {
@@ -237,9 +255,19 @@ export default function ProductsManager(props: {
     );
     switch (st.kind) {
       case "need":
-        return <span className="ml-1.5 whitespace-nowrap rounded-full bg-bad-bg px-2 py-0.5 text-[11px] text-bad">ต่ำกว่าขั้นต่ำ · ยังไม่ได้สั่ง</span>;
+        return (
+          <>
+            <span className="ml-1.5 whitespace-nowrap rounded-full bg-bad-bg px-2 py-0.5 text-[11px] text-bad">ต่ำกว่าขั้นต่ำ · ยังไม่ได้สั่ง</span>
+            {askBtn(p)}
+          </>
+        );
       case "near":
-        return <span className="ml-1.5 whitespace-nowrap rounded-full border border-warn-border bg-warn-bg px-2 py-0.5 text-[11px] text-warn">ใกล้ขั้นต่ำ</span>;
+        return (
+          <>
+            <span className="ml-1.5 whitespace-nowrap rounded-full border border-warn-border bg-warn-bg px-2 py-0.5 text-[11px] text-warn">ใกล้ขั้นต่ำ</span>
+            {askBtn(p)}
+          </>
+        );
       case "short":
         return docsBtn("red", "สั่งแล้วแต่ยังไม่พอ");
       case "overdue":
@@ -538,6 +566,26 @@ export default function ProductsManager(props: {
           par={factOf(docsFor)!.par!}
           baseUnitName={docsFor.baseUnitName}
           onClose={() => setDocsFor(null)}
+        />
+      )}
+
+      {requestFor && (
+        <QuickRequest
+          productId={requestFor.id}
+          productName={requestFor.name}
+          branchId={branchId}
+          branchName={branchName}
+          suggest={factOf(requestFor)?.suggest ?? null}
+          onHand={factOf(requestFor)?.onHand ?? 0}
+          par={factOf(requestFor)?.par ?? null}
+          baseUnitName={requestFor.baseUnitName}
+          onClose={() => setRequestFor(null)}
+          onDone={(msg) => {
+            setRequestFor(null);
+            setToast(msg);
+            load(branchId, true);
+            window.dispatchEvent(new Event("kitkrua:nav-badges"));
+          }}
         />
       )}
 

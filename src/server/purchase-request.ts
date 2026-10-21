@@ -19,6 +19,8 @@ import { withTenantContext } from "@/lib/db";
 import { addDays, computeBangkokToday } from "@/lib/bangkok-date";
 import type { CostAccess } from "@/lib/permissions/cost-access";
 import { assertRefBelongsToTenant } from "@/server/product";
+import { ingredientFactsInTx } from "@/server/menu-manager";
+import { suggestOrderQty } from "@/lib/par-alert";
 import { acquireCounterLock } from "@/server/counter-lock";
 import { createPurchaseOrderTx, pickCurrentPrice } from "@/server/purchase-order";
 import { quotedUnitPrice } from "@/server/vat-split";
@@ -421,6 +423,10 @@ export type BoardLine = {
 
 export type ParSuggestion = {
   product: { id: string; name: string; sku: string; baseUnitName: string | null };
+  /** Kong 2026-10-21 (rule PAR-4): below par, or near it within the shop's warning days. */
+  level: "LOW" | "NEAR";
+  /** Days until it reaches par at the real usage rate; null without a rate or when already below. */
+  daysToPar: number | null;
   parBase: number;
   onHandBase: number;
   onOrderBase: number;
@@ -601,12 +607,11 @@ async function belowParFor(
   if (candidates.length === 0) return [];
   const ids = candidates.map((p) => p.productId);
 
-  const [balances, open] = await Promise.all([
-    tx.stockMovement.groupBy({
-      by: ["productId"],
-      where: { tenantId, branchId, productId: { in: ids } },
-      _sum: { qty: true },
-    }),
+  // The same on-hand and usage rate as the products screen and the sidebar badge
+  // (ingredientFactsInTx), so "near" here means what yellow means there.
+  const [facts, tenant, open] = await Promise.all([
+    ingredientFactsInTx(tx, tenantId, branchId, ids).then((r) => r.facts),
+    tx.tenant.findUniqueOrThrow({ where: { id: tenantId }, select: { parWarningDays: true } }),
     tx.purchaseOrderItem.findMany({
       where: {
         tenantId,
@@ -616,7 +621,6 @@ async function belowParFor(
       select: { productId: true, qtyOrdered: true, qtyReceived: true, toBaseRatio: true },
     }),
   ]);
-  const onHand = new Map(balances.map((b) => [b.productId, Number(b._sum.qty ?? 0)]));
   const onOrder = new Map<string, number>();
   for (const o of open) {
     const owed = Number(o.qtyOrdered.minus(o.qtyReceived).times(o.toBaseRatio));
@@ -630,13 +634,18 @@ async function belowParFor(
     const buy = units.find((u) => u.isDefaultBuyUnit) ?? base;
     if (!buy) continue;
     const parBase = Number(p.parQty);
-    const onHandBase = onHand.get(p.productId) ?? 0;
+    const f = facts[p.productId];
+    const onHandBase = f?.onHand ?? 0;
     const onOrderBase = onOrder.get(p.productId) ?? 0;
     const toBase = Number(buy.toBaseRatio);
-    const suggestedQty = suggestedOrderQty({ par: parBase, systemOnHand: onHandBase, typedOnHand: null, onOrder: onOrderBase, unitToBase: toBase });
-    if (suggestedQty === null) continue;
+    const s = suggestOrderQty({ onHand: onHandBase, par: parBase, usedPerDay: f?.usedPerDay ?? null }, tenant.parWarningDays, onOrderBase, toBase);
+    if (s === null) continue;
+    const suggestedQty = s.qty;
+    const daysToPar = s.level === "NEAR" && f?.usedPerDay ? Math.max(0, Math.floor((onHandBase - parBase) / f.usedPerDay)) : null;
     out.push({
       product: { id: p.product.id, name: p.product.name, sku: p.product.sku, baseUnitName: base?.unitName ?? null },
+      level: s.level,
+      daysToPar,
       parBase,
       onHandBase,
       onOrderBase,
@@ -644,7 +653,8 @@ async function belowParFor(
       unit: { id: buy.id, name: buy.unitName, toBase },
     });
   }
-  return out.sort((a, b) => a.product.name.localeCompare(b.product.name, "th"));
+  // Below par first, then near; by name within each.
+  return out.sort((a, b) => (a.level === b.level ? a.product.name.localeCompare(b.product.name, "th") : a.level === "LOW" ? -1 : 1));
 }
 
 // ------------------------------------------------------------

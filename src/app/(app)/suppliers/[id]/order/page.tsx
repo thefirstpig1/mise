@@ -16,6 +16,7 @@ import { requireTenant } from "@/lib/require-tenant";
 import { getSupplierByIdLogic } from "@/server/supplier";
 import { getBranchesLogic } from "@/server/branch";
 import { getSupplierCatalogLogic } from "@/server/purchase-order";
+import { getOrderSuggestionsLogic } from "@/server/product-list";
 import { createPurchaseOrderAction } from "../../../purchase-orders/actions";
 import SupplierCatalog, { type CatalogItemView } from "./SupplierCatalog";
 import EmptyState from "@/components/ui/EmptyState";
@@ -46,6 +47,14 @@ export default async function SupplierOrderPage({
   // to the first one rather than being trusted.
   const branchId = branches.some((b) => b.id === branch) ? branch! : branches[0].id;
   const catalog = await getSupplierCatalogLogic(tenantId, supplier.id, branchId);
+  // Rule PAR-4 (Kong 2026-10-21): what this branch is low or near on, in the
+  // unit each line will be ordered in — the same unit the row starts on.
+  const orderUnitOf = (c: (typeof catalog)[number]) => c.price?.orderUnitId ?? c.lastPaid?.unitId ?? c.defaultUnitId;
+  const suggestions = await getOrderSuggestionsLogic(
+    tenantId,
+    branchId,
+    catalog.map((c) => ({ productId: c.productId, unitToBase: Number(c.units.find((u) => u.id === orderUnitOf(c))?.toBaseRatio ?? 0) }))
+  );
 
   const items: CatalogItemView[] = catalog.map((c) => ({
     productId: c.productId,
@@ -81,6 +90,7 @@ export default async function SupplierOrderPage({
           otherBranchName: c.lastPaid.branchId === branchId ? null : c.lastPaid.branchName,
         }
       : null,
+    suggest: suggestions[c.productId] ?? null,
   }));
 
   // Same VAT prefill as the order form (ADR 0012 Q6): a supplier that is not

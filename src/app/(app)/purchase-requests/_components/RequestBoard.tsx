@@ -13,6 +13,7 @@
 // server again every 30 s while it is on screen.
 // ============================================================
 
+import { unitTh } from "@/app/(app)/menus/_components/manager-format";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import ProductPicker from "@/components/ui/ProductPicker";
@@ -585,37 +586,56 @@ function AddLine({
 // Q5 — below par, beside the list
 // ------------------------------------------------------------
 function BelowPar({ board, onPick }: { board: Board; onPick: (s: ParSuggestion) => void }) {
+  // Kong 2026-10-21 (rules PAR-1/PAR-2/PAR-4): below par, then near par — the
+  // same red and yellow as the products screen and the sidebar badge.
+  const groups = [
+    { level: "LOW" as const, title: "ต่ำกว่าขั้นต่ำ", bar: "shadow-[inset_3px_0_0_#E5484D]", dot: "bg-[#E5484D]" },
+    { level: "NEAR" as const, title: "ใกล้ขั้นต่ำ", bar: "shadow-[inset_3px_0_0_#F5C542]", dot: "bg-[#F5C542]" },
+  ];
   return (
     <aside className="h-fit rounded-xl border border-border bg-surface p-4 xl:sticky xl:top-4">
-      <h2 className="text-base font-semibold">ต่ำกว่า par</h2>
+      <h2 className="text-base font-semibold">แนะนำให้ขอ</h2>
       <p className="mt-0.5 text-xs text-muted-foreground">
         {board.stockAsOfSalesDay
           ? `ยอดคงเหลือหักยอดขายถึงวันที่ ${thaiDate(board.stockAsOfSalesDay)} — ของที่ขายหลังจากนั้นยังไม่ถูกหัก`
           : "ยังไม่มียอดขายที่ตัดสต๊อก — ยอดคงเหลือยังไม่หักของที่ขายไป"}
       </p>
       {board.belowPar.length === 0 ? (
-        <p className="mt-4 text-sm text-muted-foreground">ไม่มีของต่ำกว่า par ที่ยังไม่ได้ขอ</p>
+        <p className="mt-4 text-sm text-muted-foreground">ไม่มีของต่ำหรือใกล้ขั้นต่ำที่ยังไม่ได้ขอ</p>
       ) : (
-        <ul className="mt-3 space-y-2">
-          {board.belowPar.map((s) => (
-            <li key={s.product.id}>
-              <button
-                type="button"
-                onClick={() => onPick(s)}
-                className="w-full rounded-lg border border-border p-2.5 text-left text-sm hover:border-primary hover:bg-muted/40"
-              >
-                <span className="font-medium">{s.product.name}</span>
-                <span className="mt-0.5 block text-xs text-muted-foreground">
-                  มี {qtyText(s.onHandBase)} / par {qtyText(s.parBase)} {s.product.baseUnitName ?? ""}
-                  {s.onOrderBase > 0 ? ` · กำลังมา ${qtyText(s.onOrderBase)}` : ""}
-                </span>
-                <span className="mt-1 block text-xs font-medium text-primary">
-                  + ขอ {qtyText(s.suggestedQty ?? 0)} {s.unit.name}
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
+        groups.map((g) => {
+          const items = board.belowPar.filter((s) => s.level === g.level);
+          if (items.length === 0) return null;
+          return (
+            <div key={g.level} className="mt-3">
+              <p className="mb-1.5 flex items-center gap-1.5 font-display text-xs font-medium">
+                <span className={`h-2 w-2 rounded-full ${g.dot}`} />
+                {g.title} <span className="text-muted-subtle">{items.length}</span>
+              </p>
+              <ul className="space-y-2">
+                {items.map((s) => (
+                  <li key={s.product.id}>
+                    <button
+                      type="button"
+                      onClick={() => onPick(s)}
+                      className={`w-full rounded-lg border border-border p-2.5 text-left text-sm hover:border-primary hover:bg-muted/40 ${g.bar}`}
+                    >
+                      <span className="font-medium">{s.product.name}</span>
+                      <span className="mt-0.5 block text-xs text-muted-foreground">
+                        มี {qtyText(s.onHandBase)} / ขั้นต่ำ {qtyText(s.parBase)} {unitTh(s.product.baseUnitName)}
+                        {s.onOrderBase > 0 ? ` · กำลังมา ${qtyText(s.onOrderBase)}` : ""}
+                        {s.level === "NEAR" && s.daysToPar !== null ? ` · ถึงขั้นต่ำใน ~${s.daysToPar} วัน` : ""}
+                      </span>
+                      <span className="mt-1 block text-xs font-medium text-primary">
+                        + ขอ {qtyText(s.suggestedQty ?? 0)} {s.unit.name}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          );
+        })
       )}
     </aside>
   );

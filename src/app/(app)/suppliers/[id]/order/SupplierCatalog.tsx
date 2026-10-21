@@ -14,6 +14,10 @@
 //    the hand-typed path (ADR 0012 Q5), recorded with no mapping id. When the
 //    supplier has delivered it before, the box starts at what was last paid,
 //    in the unit it came in, and says so.
+//
+// Kong 2026-10-21 (rule PAR-4): what this branch is below or near par on, from
+// this supplier, sits on top already filled with the suggested quantity —
+// untick it or change the number; it is only where the order starts.
 
 import { useActionState, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -46,6 +50,8 @@ export type CatalogItemView = {
     receivedOn: string;
     otherBranchName: string | null;
   } | null;
+  /** PAR-4 suggestion, in the unit the row starts on; null = nothing to suggest. */
+  suggest: { level: "LOW" | "NEAR"; qty: number; onHand: number; par: number; baseUnitName: string | null; daysToPar: number | null } | null;
 };
 
 type Pick = { qty: string; unitId: string; price: string };
@@ -79,7 +85,15 @@ export default function SupplierCatalog({
 }) {
   const router = useRouter();
   const [state, formAction, isPending] = useActionState(action, { ok: false } as PurchaseOrderActionState);
-  const [picks, setPicks] = useState<Record<string, Pick>>({});
+  // Suggested lines start filled in (and ticked).
+  const [picks, setPicks] = useState<Record<string, Pick>>(() =>
+    Object.fromEntries(
+      items
+        .filter((i) => i.suggest)
+        .map((i) => [i.productId, { qty: String(i.suggest!.qty), unitId: i.price?.orderUnitId ?? i.lastPaid?.unitId ?? i.defaultUnitId ?? "", price: i.price?.unitPrice ?? i.lastPaid?.unitPrice ?? "" }])
+    )
+  );
+  const suggested = items.filter((i) => i.suggest);
   const [section, setSection] = useState(ALL);
   const [search, setSearch] = useState("");
 
@@ -114,6 +128,7 @@ export default function SupplierCatalog({
   const term = search.trim().toLowerCase();
   const shown = items.filter(
     (i) =>
+      !i.suggest &&
       (section === ALL || (i.section ?? NO_CATEGORY) === section) &&
       (!term || `${i.name} ${i.sku}`.toLowerCase().includes(term))
   );
@@ -134,90 +149,9 @@ export default function SupplierCatalog({
   const missingPrice = chosen.filter((i) => priceOf(i).trim() === "");
   const subtotal = chosen.reduce((s, i) => s + num(pickOf(i).qty) * num(priceOf(i)), 0);
 
-  const formError = state.ok === false ? state.formError : undefined;
-  const fieldErrors = state.ok === false && state.fieldErrors ? Object.values(state.fieldErrors) : [];
 
-  return (
-    <form action={formAction} className="space-y-5 pb-28">
-      <input type="hidden" name="supplier_id" value={supplier.id} />
-      <input type="hidden" name="branch_id" value={branchId} />
-      <input type="hidden" name="vat_rate_percent" value={vatRate} />
-      {chosen.map((i) => {
-        const pick = pickOf(i);
-        return (
-          <span key={i.productId} hidden>
-            <input type="hidden" name="line_product_id" value={i.productId} />
-            <input type="hidden" name="line_order_unit_id" value={unitOf(i)} />
-            <input type="hidden" name="line_qty" value={pick.qty} />
-            <input type="hidden" name="line_unit_price" value={priceOf(i)} />
-            <input type="hidden" name="line_mapping_id" value={i.price?.mappingId ?? ""} />
-            <input type="hidden" name="line_notes" value="" />
-          </span>
-        );
-      })}
-
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h2 className="text-xl font-bold">สั่งซื้อจาก {supplier.nameFull}</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            เลือกจำนวนสินค้าที่ต้องการ แล้วกดสร้างใบสั่งซื้อ ระบบจะบันทึกเป็นร่างให้ตรวจก่อนส่ง
-          </p>
-        </div>
-        {branches.length > 1 && (
-          <label className="text-sm">
-            <span className="label">สั่งให้สาขา</span>
-            <select
-              value={branchId}
-              onChange={(e) => router.push(`/suppliers/${supplier.id}/order?branch=${e.target.value}`)}
-              className="input mt-1"
-            >
-              {branches.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
-      </div>
-
-      {items.length === 0 ? (
-        <EmptyState art="setup">
-          ยังไม่มีสินค้าจากผู้ขายรายนี้ — รายการจะขึ้นเองเมื่อรับของจากผู้ขายรายนี้ครั้งแรก
-          หรือบันทึกราคาจากผู้ขายได้ที่หน้า{" "}
-          <a href="/products" className="text-primary hover:underline">
-            วัตถุดิบ
-          </a>
-        </EmptyState>
-      ) : (
-        <>
-          <div className="space-y-3">
-            <div className="flex flex-wrap gap-2">
-              <button type="button" className={chip(section === ALL)} onClick={() => setSection(ALL)}>
-                ทั้งหมด ({items.length})
-              </button>
-              {sections.map((s) => (
-                <button key={s} type="button" className={chip(section === s)} onClick={() => setSection(s)}>
-                  {s}
-                </button>
-              ))}
-            </div>
-            <input
-              type="search"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="ค้นหาชื่อหรือรหัสสินค้า"
-              className="input w-full"
-            />
-          </div>
-
-          {groups.length === 0 && <EmptyState art="none">ไม่พบสินค้าที่ค้นหา</EmptyState>}
-
-          {groups.map(([heading, list]) => (
-            <section key={heading} className="space-y-2">
-              <h3 className="text-sm font-semibold text-muted-foreground">{heading}</h3>
-              <ul className="divide-y divide-border rounded-xl border border-border bg-surface">
-                {list.map((item) => {
+  const qtyText = (v: number) => v.toLocaleString("th-TH", { maximumFractionDigits: v < 10 ? 2 : 1 });
+  const row = (item: CatalogItemView, isSuggested = false) => {
                   const pick = pickOf(item);
                   const qty = pick.qty;
                   const on = num(qty) > 0;
@@ -228,9 +162,36 @@ export default function SupplierCatalog({
                       key={item.productId}
                       className={`flex flex-wrap items-center gap-3 px-4 py-3 ${on ? "bg-primary/5" : ""}`}
                     >
+                      {isSuggested && (
+                        <input
+                          type="checkbox"
+                          checked={on}
+                          onChange={(e) => setQty(item, e.target.checked ? String(item.suggest!.qty) : "")}
+                          aria-label={`สั่ง ${item.name}`}
+                          className="h-4 w-4"
+                        />
+                      )}
                       <ProductThumb imageUrl={item.imageUrl} name={item.name} className="h-12 w-12" />
                       <div className="min-w-0 flex-1">
-                        <p className="font-medium">{item.name}</p>
+                        <p className="font-medium">
+                          {item.name}
+                          {item.suggest && (
+                            <span
+                              className={`ml-1.5 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] ${
+                                item.suggest.level === "LOW" ? "bg-bad-bg text-bad" : "border border-warn-border bg-warn-bg text-warn"
+                              }`}
+                            >
+                              {item.suggest.level === "LOW" ? "ต่ำกว่าขั้นต่ำ" : "ใกล้ขั้นต่ำ"}
+                            </span>
+                          )}
+                        </p>
+                        {item.suggest && (
+                          <p className="text-xs text-muted-foreground">
+                            มี {qtyText(item.suggest.onHand)} / ขั้นต่ำ {qtyText(item.suggest.par)} {item.suggest.baseUnitName ?? ""}
+                            {item.suggest.daysToPar !== null ? ` · ถึงขั้นต่ำใน ~${item.suggest.daysToPar} วัน` : ""} ·{" "}
+                            <span className="font-medium text-primary">แนะนำ {item.suggest.qty}</span>
+                          </p>
+                        )}
                         <p className="text-xs text-muted-foreground">
                           {item.sku}
                           {item.price ? (
@@ -320,7 +281,104 @@ export default function SupplierCatalog({
                       </div>
                     </li>
                   );
-                })}
+  };
+
+  const formError = state.ok === false ? state.formError : undefined;
+  const fieldErrors = state.ok === false && state.fieldErrors ? Object.values(state.fieldErrors) : [];
+
+  return (
+    <form action={formAction} className="space-y-5 pb-28">
+      <input type="hidden" name="supplier_id" value={supplier.id} />
+      <input type="hidden" name="branch_id" value={branchId} />
+      <input type="hidden" name="vat_rate_percent" value={vatRate} />
+      {chosen.map((i) => {
+        const pick = pickOf(i);
+        return (
+          <span key={i.productId} hidden>
+            <input type="hidden" name="line_product_id" value={i.productId} />
+            <input type="hidden" name="line_order_unit_id" value={unitOf(i)} />
+            <input type="hidden" name="line_qty" value={pick.qty} />
+            <input type="hidden" name="line_unit_price" value={priceOf(i)} />
+            <input type="hidden" name="line_mapping_id" value={i.price?.mappingId ?? ""} />
+            <input type="hidden" name="line_notes" value="" />
+          </span>
+        );
+      })}
+
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-bold">สั่งซื้อจาก {supplier.nameFull}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            เลือกจำนวนสินค้าที่ต้องการ แล้วกดสร้างใบสั่งซื้อ ระบบจะบันทึกเป็นร่างให้ตรวจก่อนส่ง
+          </p>
+        </div>
+        {branches.length > 1 && (
+          <label className="text-sm">
+            <span className="label">สั่งให้สาขา</span>
+            <select
+              value={branchId}
+              onChange={(e) => router.push(`/suppliers/${supplier.id}/order?branch=${e.target.value}`)}
+              className="input mt-1"
+            >
+              {branches.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+      </div>
+
+      {items.length === 0 ? (
+        <EmptyState art="setup">
+          ยังไม่มีสินค้าจากผู้ขายรายนี้ — รายการจะขึ้นเองเมื่อรับของจากผู้ขายรายนี้ครั้งแรก
+          หรือบันทึกราคาจากผู้ขายได้ที่หน้า{" "}
+          <a href="/products" className="text-primary hover:underline">
+            วัตถุดิบ
+          </a>
+        </EmptyState>
+      ) : (
+        <>
+          <div className="space-y-3">
+            <div className="flex flex-wrap gap-2">
+              <button type="button" className={chip(section === ALL)} onClick={() => setSection(ALL)}>
+                ทั้งหมด ({items.length})
+              </button>
+              {sections.map((s) => (
+                <button key={s} type="button" className={chip(section === s)} onClick={() => setSection(s)}>
+                  {s}
+                </button>
+              ))}
+            </div>
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="ค้นหาชื่อหรือรหัสสินค้า"
+              className="input w-full"
+            />
+          </div>
+
+          {suggested.length > 0 && (
+            <section className="space-y-2">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <h3 className="text-base font-semibold">ของจาก{supplier.nameFull}ที่ควรสั่ง</h3>
+                <span className="text-xs text-muted-foreground">เติมจำนวนแนะนำไว้แล้ว แก้ได้ · ติ๊กออกถ้าไม่สั่ง</span>
+              </div>
+              <ul className="divide-y divide-border rounded-xl border border-primary-line bg-surface shadow-[inset_3px_0_0_#AEB784]">
+                {suggested.map((item) => row(item, true))}
+              </ul>
+            </section>
+          )}
+
+          {groups.length === 0 && suggested.length === 0 && <EmptyState art="none">ไม่พบสินค้าที่ค้นหา</EmptyState>}
+
+          {groups.map(([heading, list]) => (
+            <section key={heading} className="space-y-2">
+              <h3 className="text-sm font-semibold text-muted-foreground">{heading}</h3>
+              <ul className="divide-y divide-border rounded-xl border border-border bg-surface">
+                {list.map((item) => row(item))}
               </ul>
             </section>
           ))}

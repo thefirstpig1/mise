@@ -77,3 +77,32 @@ export function parStateOf(
 
 /** Red on the badge: below par and nobody has done enough about it. */
 export const PAR_RED: ReadonlySet<ParStateKind> = new Set(["need", "short", "overdue", "stale-request"]);
+
+// ------------------------------------------------------------
+// Rule PAR-4 (Kong 2026-10-21): how much to suggest ordering.
+// ------------------------------------------------------------
+// Below par: back to par (PR1). Near par: enough to stay at par through the
+// shop's warning window — par + usage × warningDays — or, with no usage rate,
+// back above the 20% band. Minus what is already on its way; rounded UP to
+// whole units of the unit being ordered; nothing when that comes to ≤ 0.
+
+export function suggestOrderQty(
+  f: { onHand: number; par: number | null; usedPerDay: number | null },
+  warningDays: number,
+  onOrderBase: number,
+  unitToBase: number
+): { level: "LOW" | "NEAR"; qty: number } | null {
+  const alert = parAlertOf(f, warningDays);
+  if (alert === null || f.par === null || !(unitToBase > 0)) return null;
+  const target =
+    alert.level === "LOW"
+      ? f.par
+      : f.usedPerDay && f.usedPerDay > 0
+        ? f.par + f.usedPerDay * warningDays
+        : f.par * (1 + NEAR_PAR_FALLBACK_SHARE);
+  const shortBase = target - f.onHand - onOrderBase;
+  if (!(shortBase > 0)) return null;
+  // Guard floating dust: 2.0000000001 packs must not become 3.
+  const qty = Math.ceil(shortBase / unitToBase - 1e-9);
+  return qty > 0 ? { level: alert.level, qty } : null;
+}

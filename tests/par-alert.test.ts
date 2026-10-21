@@ -71,3 +71,27 @@ describe("parStateOf — rule PAR-3: count what still needs a hand", () => {
     expect(parStateOf({ onHand: 880, par: 450, usedPerDay: 24.6 }, 3, cover({ ordered: 100 }))).toBeNull();
   });
 });
+
+import { suggestOrderQty } from "@/lib/par-alert";
+
+describe("suggestOrderQty — rule PAR-4", () => {
+  it("below par: back to par, rounded up to the pack (PR1)", () => {
+    // กุ้งขาว 200 − 158.6 = 41.4 kg → 21 boxes of 2 kg
+    expect(suggestOrderQty({ onHand: 158.6, par: 200, usedPerDay: 5.48 }, 3, 0, 2)).toEqual({ level: "LOW", qty: 21 });
+  });
+  it("near par: enough to stay at par through the warning window", () => {
+    // น้ำตาลทราย 160 + 2.17 × 3 − 163.3 = 3.2 kg → 1 sack of 10 kg
+    expect(suggestOrderQty({ onHand: 163.3, par: 160, usedPerDay: 2.17 }, 3, 0, 10)).toEqual({ level: "NEAR", qty: 1 });
+  });
+  it("what is already coming is taken off", () => {
+    expect(suggestOrderQty({ onHand: 158.6, par: 200, usedPerDay: 5.48 }, 3, 40, 2)).toEqual({ level: "LOW", qty: 1 });
+    expect(suggestOrderQty({ onHand: 158.6, par: 200, usedPerDay: 5.48 }, 3, 50, 2)).toBeNull();
+  });
+  it("no par, or not low or near, suggests nothing", () => {
+    expect(suggestOrderQty({ onHand: 1, par: null, usedPerDay: 5 }, 3, 0, 1)).toBeNull();
+    expect(suggestOrderQty({ onHand: 880, par: 450, usedPerDay: 24.6 }, 3, 0, 15)).toBeNull();
+  });
+  it("2.0000000001 packs is 2, not 3", () => {
+    expect(suggestOrderQty({ onHand: 0, par: 10.0000000001, usedPerDay: null }, 3, 0, 5)).toEqual({ level: "LOW", qty: 2 });
+  });
+});

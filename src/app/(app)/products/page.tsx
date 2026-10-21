@@ -49,6 +49,7 @@ export default async function ProductsPage({
       }}
       canEditInfo={can("master:write")}
       canEditPar={can("stock:write")}
+      canRequest={can("purchase:request")}
       initialProductId={one("product") ?? null}
       initialStatus={(STATUSES as readonly string[]).includes(filter ?? "") ? (filter as Status) : "active"}
     />

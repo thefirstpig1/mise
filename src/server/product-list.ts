@@ -11,7 +11,7 @@
 import { withTenantContext } from "@/lib/db";
 import { addDays, computeBangkokToday } from "@/lib/bangkok-date";
 import type { CostAccess } from "@/lib/permissions/cost-access";
-import { parAlertOf, parStateOf, type ParAlert, type ParStateKind } from "@/lib/par-alert";
+import { parAlertOf, parStateOf, suggestOrderQty, type ParAlert, type ParStateKind } from "@/lib/par-alert";
 import { coverKey, parCoverInTx, type CoverDoc } from "@/server/par-coverage";
 import { ingredientFactsInTx } from "@/server/menu-manager";
 
@@ -23,6 +23,8 @@ export type ProductListFact = {
   alert: ParAlert;
   /** Rule PAR-3 — what was done about it; null = nothing to say. */
   state: { kind: ParStateKind; coming: number; lateDays: number; requestLateDays: number; docs: CoverDoc[] } | null;
+  /** Rule PAR-4 — what to ask for, in the product's buy unit; null = nothing to suggest. */
+  suggest: { qty: number; unitId: string; unitName: string } | null;
 };
 
 export type ProductListFacts = {
@@ -47,7 +49,10 @@ export async function getProductListFactsLogic(
   const today = computeBangkokToday();
   return withTenantContext(tenantId, async (tx) => {
     const [products, tenant, receipts, usage] = await Promise.all([
-      tx.product.findMany({ where: { tenantId, deletedAt: null }, select: { id: true } }),
+      tx.product.findMany({
+        where: { tenantId, deletedAt: null },
+        select: { id: true, productUnits: { where: { OR: [{ isBase: true }, { isDefaultBuyUnit: true }] }, select: { id: true, unitName: true, toBaseRatio: true, isBase: true, isDefaultBuyUnit: true } } },
+      }),
       tx.tenant.findUniqueOrThrow({ where: { id: tenantId }, select: { parWarningDays: true } }),
       cost === null
         ? Promise.resolve([])
@@ -82,6 +87,9 @@ export async function getProductListFactsLogic(
     for (const [id, f] of Object.entries(facts0.facts)) {
       const c = cover.get(coverKey(id, branchId)) ?? null;
       const s = parStateOf(f, tenant.parWarningDays, c);
+      const units = products.find((p) => p.id === id)?.productUnits ?? [];
+      const buy = units.find((u) => u.isDefaultBuyUnit) ?? units.find((u) => u.isBase);
+      const sug = buy ? suggestOrderQty(f, tenant.parWarningDays, (c?.ordered ?? 0) + (c?.requested ?? 0), Number(buy.toBaseRatio)) : null;
       facts[id] = {
         onHand: f.onHand,
         usedPerDay: f.usedPerDay,
@@ -89,6 +97,7 @@ export async function getProductListFactsLogic(
         par: f.par,
         alert: parAlertOf(f, tenant.parWarningDays),
         state: s && { ...s, lateDays: c?.lateDays ?? 0, requestLateDays: c?.requestLateDays ?? 0, docs: c?.docs ?? [] },
+        suggest: sug && buy ? { qty: sug.qty, unitId: buy.id, unitName: buy.unitName } : null,
       };
     }
     const last: ProductListFacts["last"] = {};
@@ -310,5 +319,56 @@ export async function getParDocsLogic(
       });
     }
     return docs;
+  });
+}
+
+// ------------------------------------------------------------
+// Rule PAR-4 suggestions for a list of products, each in the unit it will be
+// ordered in (the supplier order page, Kong 2026-10-21)
+// ------------------------------------------------------------
+// "Already on its way" here is SENT orders only: a purchase request is exactly
+// what the purchaser on this page is about to fulfil, so it must not cancel
+// the suggestion out.
+
+export type OrderSuggestion = {
+  level: "LOW" | "NEAR";
+  /** In the unit given for the product. */
+  qty: number;
+  onHand: number;
+  par: number;
+  baseUnitName: string | null;
+  /** Near only, with a usage rate. */
+  daysToPar: number | null;
+};
+
+export async function getOrderSuggestionsLogic(
+  tenantId: string,
+  branchId: string,
+  items: { productId: string; unitToBase: number }[]
+): Promise<Record<string, OrderSuggestion>> {
+  if (items.length === 0) return {};
+  return withTenantContext(tenantId, async (tx) => {
+    const ids = items.map((i) => i.productId);
+    const [tenant, factsRes, cover] = await Promise.all([
+      tx.tenant.findUniqueOrThrow({ where: { id: tenantId }, select: { parWarningDays: true } }),
+      ingredientFactsInTx(tx, tenantId, branchId, ids),
+      parCoverInTx(tx, tenantId, [branchId], ids),
+    ]);
+    const out: Record<string, OrderSuggestion> = {};
+    for (const i of items) {
+      const f = factsRes.facts[i.productId];
+      if (!f || f.par === null) continue;
+      const s = suggestOrderQty(f, tenant.parWarningDays, cover.get(coverKey(i.productId, branchId))?.ordered ?? 0, i.unitToBase);
+      if (!s) continue;
+      out[i.productId] = {
+        level: s.level,
+        qty: s.qty,
+        onHand: f.onHand,
+        par: f.par,
+        baseUnitName: f.baseUnitName,
+        daysToPar: s.level === "NEAR" && f.usedPerDay ? Math.max(0, Math.floor((f.onHand - f.par) / f.usedPerDay)) : null,
+      };
+    }
+    return out;
   });
 }
