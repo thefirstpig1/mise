@@ -25,6 +25,7 @@
 // offered a date the server rejects (Decision #60).
 
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
+import QtyStepper from "@/components/ui/QtyStepper";
 import type { WasteActionState } from "@/app/(app)/waste/actions";
 import { MAX_BACKDATE_DAYS } from "@/lib/validations/stock-movement";
 import {
@@ -163,17 +164,13 @@ export default function WasteEntryForm({
           <label htmlFor="input_qty" className="label">
             จำนวนที่ทิ้ง <span className="text-bad">*</span>
           </label>
-          <input
-            ref={qtyRef}
-            id="input_qty"
-            name="input_qty"
-            type="number"
-            step="0.001"
-            min="0"
+          <QtyStepper
+            inputRef={qtyRef}
             value={qty}
-            onChange={(e) => setQty(e.target.value)}
-            className={"input w-full mt-1"}
-            required
+            onChange={setQty}
+            label="จำนวนที่ทิ้ง"
+            className="mt-1"
+            inputProps={{ id: "input_qty", name: "input_qty", required: true }}
           />
           {err("inputQty") && <p className={errorClass}>{err("inputQty")}</p>}
         </div>

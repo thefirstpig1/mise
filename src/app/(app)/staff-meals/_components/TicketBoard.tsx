@@ -1,6 +1,7 @@
 "use client";
 
 import { orStale } from "@/lib/stale-tab";
+import QtyStepper from "@/components/ui/QtyStepper";
 
 // ADR 0035 — staff meal tickets, on one screen for everyone.
 //
@@ -308,7 +309,7 @@ export default function TicketBoard({
               <label className="label" htmlFor="ticket-servings">
                 จำนวนที่
               </label>
-              <input id="ticket-servings" name="servings" type="number" min="1" step="1" defaultValue={1} className="input mt-1 w-full" />
+              <QtyStepper defaultValue="1" min={1} label="จำนวนที่" className="mt-1" inputProps={{ id: "ticket-servings", name: "servings" }} />
             </div>
             <div>
               <label className="label" htmlFor="ticket-notes">

@@ -20,6 +20,7 @@
 //     at; this one changes another branch's stock.
 
 import { useActionState, useMemo, useState } from "react";
+import QtyStepper from "@/components/ui/QtyStepper";
 import type { DispatchTransferActionState } from "@/app/(app)/transfers/actions";
 import { MAX_BACKDATE_DAYS } from "@/lib/validations/stock-movement";
 
@@ -264,16 +265,11 @@ export default function TransferDispatchForm({
                   ))}
                 </select>
 
-                <input
-                  name="line_qty_sent"
-                  type="number"
-                  step="0.001"
-                  min="0"
+                <QtyStepper
                   value={l.qty}
-                  onChange={(e) => setLine(l.key, { qty: e.target.value })}
-                  required
-                  placeholder="จำนวน"
-                  className="input w-full"
+                  onChange={(qty) => setLine(l.key, { qty })}
+                  label={`จำนวนที่ส่ง ${product?.name ?? ""}`}
+                  inputProps={{ name: "line_qty_sent", required: true, placeholder: "0" }}
                 />
 
                 <select

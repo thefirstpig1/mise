@@ -19,6 +19,7 @@
 //     figure discovered next month by counting.
 
 import { useActionState, useState } from "react";
+import QtyStepper from "@/components/ui/QtyStepper";
 import type { TransferActionState } from "@/app/(app)/transfers/actions";
 import type { TransferLineView } from "./transfer-view";
 
@@ -77,18 +78,12 @@ export default function ReceiveTransferForm({
                   <span className="mb-1 block text-muted-foreground">
                     นับได้จริง ({l.inputUnitName})
                   </span>
-                  <input
-                    name="line_qty_received"
-                    type="number"
-                    step="0.001"
-                    min="0"
-                    max={l.qtySent}
-                    required
+                  <QtyStepper
                     value={counts[l.id] ?? ""}
-                    onChange={(e) =>
-                      setCounts((c) => ({ ...c, [l.id]: e.target.value }))
-                    }
-                    className="input w-full"
+                    onChange={(v) => setCounts((c) => ({ ...c, [l.id]: v }))}
+                    label={`นับได้จริง ${l.product.name}`}
+                    tone={missing !== null && missing > 0 ? "warn" : "default"}
+                    inputProps={{ name: "line_qty_received", required: true, max: l.qtySent }}
                   />
                 </label>
               </div>

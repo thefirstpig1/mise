@@ -17,6 +17,7 @@ export default function SelectChip({
   placeholder = "เลือก",
   className = "",
   tone = "default",
+  size = "md",
   selectProps,
 }: {
   value: string;
@@ -26,6 +27,7 @@ export default function SelectChip({
   className?: string;
   /** "warn" = nothing chosen yet and something must be. */
   tone?: "default" | "warn";
+  size?: "sm" | "md";
   selectProps?: Omit<SelectHTMLAttributes<HTMLSelectElement>, "value" | "onChange">;
 }) {
   const m = useMarquee();
@@ -34,7 +36,7 @@ export default function SelectChip({
     <span
       onMouseEnter={m.start}
       onMouseLeave={m.stop}
-      className={`relative flex h-9 min-w-0 items-center rounded-full border pl-3 pr-7 text-sm transition-colors focus-within:border-primary ${
+      className={`relative flex ${size === "sm" ? "h-8" : "h-9"} min-w-0 items-center rounded-full border pl-3 pr-7 text-sm transition-colors focus-within:border-primary ${
         tone === "warn" ? "border-warn-border bg-warn-bg text-warn" : "border-border bg-surface-sunk hover:border-border-strong"
       } ${selectProps?.disabled ? "opacity-60" : ""} ${className}`}
     >

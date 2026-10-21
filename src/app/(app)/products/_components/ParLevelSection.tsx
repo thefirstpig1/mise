@@ -16,6 +16,7 @@
 // an error on ทองหล่อ appear under อารีย์.
 
 import { useActionState } from "react";
+import QtyStepper from "@/components/ui/QtyStepper";
 import type { ParLevelActionState } from "@/app/(app)/stock/par-level-actions";
 
 export type ParUnitOption = { id: string; unitName: string; isBase: boolean };
@@ -72,15 +73,10 @@ function BranchParForm({
         <form action={setFormAction} className="flex flex-wrap items-end gap-2">
           <input type="hidden" name="product_id" value={productId} />
           <input type="hidden" name="branch_id" value={row.branchId} />
-          <input
-            name="input_qty"
-            type="number"
-            step="0.001"
-            min="0"
+          <QtyStepper
             defaultValue={row.inputQty ?? ""}
-            placeholder="ขั้นต่ำ"
-            className={"input w-28"}
-            required
+            label={`ขั้นต่ำ ${row.branchName}`}
+            inputProps={{ name: "input_qty", required: true, placeholder: "0" }}
           />
           <select
             name="input_unit_id"

@@ -18,6 +18,7 @@
 // anybody is looking at this screen.
 
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
+import QtyStepper from "@/components/ui/QtyStepper";
 import type { StaffMealActionState } from "@/app/(app)/staff-meals/actions";
 import { MAX_BACKDATE_DAYS } from "@/lib/validations/stock-movement";
 import { STAFF_MEAL_PRICE_SOURCE_LABELS_TH } from "@/lib/validations/staff-meal";
@@ -283,15 +284,12 @@ export default function StaffMealEntryForm({
               <label className="label" htmlFor="sm-servings">
                 จำนวนที่
               </label>
-              <input
-                id="sm-servings"
-                name="servings"
-                type="number"
-                step="0.001"
-                min="0.001"
+              <QtyStepper
                 value={servings}
-                onChange={(e) => setServings(e.target.value)}
-                className="input w-full"
+                onChange={setServings}
+                label="จำนวนที่"
+                className="mt-1"
+                inputProps={{ id: "sm-servings", name: "servings" }}
               />
               {err("servings") && <p className={errorClass}>{err("servings")}</p>}
             </div>
@@ -369,15 +367,11 @@ export default function StaffMealEntryForm({
                       name="item_product_id"
                       placeholder="พิมพ์ชื่อวัตถุดิบ — หรือกดเพื่อดูตามหมวด"
                     />
-                    <input
-                      name="item_input_qty"
-                      type="number"
-                      step="0.001"
-                      min="0"
+                    <QtyStepper
                       value={l.qty}
-                      onChange={(e) => setLine(l.key, { qty: e.target.value })}
-                      placeholder="จำนวน"
-                      className="input w-full"
+                      onChange={(qty) => setLine(l.key, { qty })}
+                      label="จำนวน"
+                      inputProps={{ name: "item_input_qty", placeholder: "0" }}
                     />
                     <select
                       name="item_input_unit_id"

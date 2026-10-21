@@ -9,13 +9,15 @@
 // Typing still works, and the number selects itself on focus
 // (NumberFieldBehaviour), so the buttons are a shortcut, never the only way.
 
-import type { InputHTMLAttributes } from "react";
+import { useState, type InputHTMLAttributes, type Ref } from "react";
 
 const trim = (n: number) => String(Math.round(n * 1000) / 1000);
 
 export default function QtyStepper({
-  value,
+  value: controlled,
+  defaultValue,
   onChange,
+  inputRef,
   step = 1,
   min = 0,
   label,
@@ -25,8 +27,11 @@ export default function QtyStepper({
   inputClassName = "",
   inputProps,
 }: {
-  value: string;
-  onChange: (next: string) => void;
+  /** Controlled — or leave it out and pass `defaultValue` for a form that posts by name. */
+  value?: string;
+  defaultValue?: string;
+  onChange?: (next: string) => void;
+  inputRef?: Ref<HTMLInputElement>;
   step?: number;
   min?: number;
   /** What is being counted — read out by screen readers on all three controls. */
@@ -38,12 +43,18 @@ export default function QtyStepper({
   inputClassName?: string;
   inputProps?: Omit<InputHTMLAttributes<HTMLInputElement>, "value" | "onChange" | "type">;
 }) {
+  const [own, setOwn] = useState(defaultValue ?? "");
+  const value = controlled ?? own;
+  const set = (v: string) => {
+    if (controlled === undefined) setOwn(v);
+    onChange?.(v);
+  };
   const n = Number(value);
   const cur = Number.isFinite(n) && value.trim() !== "" ? n : 0;
   const disabled = Boolean(inputProps?.disabled);
   const by = (d: number) => {
     const next = Math.max(min, cur + d);
-    onChange(next === 0 && min === 0 && d < 0 ? "" : trim(next));
+    set(next === 0 && min === 0 && d < 0 ? "" : trim(next));
   };
   const btn = `${size === "sm" ? "w-8" : "w-9"} h-full shrink-0 text-lg leading-none text-foreground transition-colors hover:bg-muted disabled:cursor-default disabled:text-border-strong disabled:hover:bg-transparent`;
   return (
@@ -62,7 +73,8 @@ export default function QtyStepper({
         inputMode="decimal"
         aria-label={label}
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => set(e.target.value)}
+        ref={inputRef}
         {...inputProps}
         className={`w-0 min-w-0 flex-1 border-x border-border bg-transparent text-center font-display tabular-nums text-foreground placeholder:text-muted-subtle focus:bg-primary-soft focus:outline-none ${inputClassName}`}
       />

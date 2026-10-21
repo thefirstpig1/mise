@@ -31,6 +31,8 @@
 // device in another timezone would otherwise offer a date the server rejects.
 
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
+import QtyStepper from "@/components/ui/QtyStepper";
+import { MoneyInput } from "@/components/ui/NumberField";
 import type { StockAdjustmentActionState } from "@/app/(app)/stock/actions";
 import {
   ADJUSTMENT_REASON_FORM_VALUES,
@@ -367,17 +369,13 @@ export default function StockAdjustForm({
           <label htmlFor="input_qty" className="label">
             จำนวน <span className="text-bad">*</span>
           </label>
-          <input
-            ref={qtyRef}
-            id="input_qty"
-            name="input_qty"
-            type="number"
-            step="0.001"
-            min="0"
+          <QtyStepper
+            inputRef={qtyRef}
             value={qty}
-            onChange={(e) => setQty(e.target.value)}
-            className={"input w-full mt-1"}
-            required
+            onChange={setQty}
+            label="จำนวน"
+            className="mt-1"
+            inputProps={{ id: "input_qty", name: "input_qty", required: true }}
           />
           {err("inputQty") && <p className={errorClass}>{err("inputQty")}</p>}
         </div>
@@ -540,19 +538,16 @@ export default function StockAdjustForm({
           ) : (
             <div className="mt-2 space-y-2">
               <div className="flex flex-wrap items-end gap-2">
-                <div className="min-w-[8rem] flex-1">
+                <div>
                   <label htmlFor="cost_unit_cost" className="label">
-                    ต้นทุน (บาท)
+                    ต้นทุน
                   </label>
-                  <input
+                  <MoneyInput
                     ref={costRef}
                     id="cost_unit_cost"
                     name="cost_unit_cost"
-                    type="number"
-                    step="0.0001"
-                    min="0"
-                    className={"input w-full mt-1"}
-                    placeholder="เช่น 4500"
+                    placeholder="4500"
+                    boxClassName="mt-1 w-36"
                   />
                 </div>
                 <div className="min-w-[7rem]">
