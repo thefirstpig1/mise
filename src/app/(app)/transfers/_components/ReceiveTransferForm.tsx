@@ -120,14 +120,14 @@ export default function ReceiveTransferForm({
           name="received_by_name"
           type="text"
           maxLength={100}
-          className={`mt-1 $"input w-full"`}
+          className="input mt-1 w-full"
           placeholder="ชื่อคนที่นับของ"
         />
       </label>
 
       <label className="label">
         หมายเหตุ
-        <input name="notes" type="text" maxLength={500} className={`mt-1 $"input w-full"`} />
+        <input name="notes" type="text" maxLength={500} className="input mt-1 w-full" />
       </label>
 
       {formError && (

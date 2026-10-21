@@ -64,6 +64,9 @@ export default async function NewTransferPage({
       id: p.id,
       name: p.name,
       sku: p.sku,
+      imageUrl: p.imageUrl,
+      section: p.category?.accountingSection ?? null,
+      group: p.category?.groupName ?? null,
       baseUnitName: p.productUnits.find((u) => u.isBase)?.unitName ?? null,
       units: p.productUnits
         .map((u) => ({ id: u.id, unitName: u.unitName, isBase: u.isBase }))

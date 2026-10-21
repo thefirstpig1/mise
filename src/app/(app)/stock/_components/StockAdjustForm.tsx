@@ -32,6 +32,8 @@
 
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import QtyStepper from "@/components/ui/QtyStepper";
+import SelectChip from "@/components/ui/SelectChip";
+import ProductPicker, { type PickerProduct } from "@/components/ui/ProductPicker";
 import { MoneyInput } from "@/components/ui/NumberField";
 import type { StockAdjustmentActionState } from "@/app/(app)/stock/actions";
 import {
@@ -52,11 +54,8 @@ export type ProductUnitOption = {
   isBase: boolean;
 };
 
-export type StockProductOption = {
-  id: string;
-  name: string;
-  sku: string;
-  baseUnitName: string | null;
+/** Searched with ProductPicker (Kong 2026-10-22: never a <select> of every product). */
+export type StockProductOption = PickerProduct & {
   units: ProductUnitOption[];
 };
 
@@ -279,21 +278,18 @@ export default function StockAdjustForm({
         <label htmlFor="product_id" className="label">
           วัตถุดิบ <span className="text-bad">*</span>
         </label>
-        <select
-          id="product_id"
-          name="product_id"
+        <ProductPicker
+          products={products}
           value={productId}
-          onChange={(e) => setProductId(e.target.value)}
-          className={"input w-full mt-1"}
-          required
-        >
-          <option value="">— เลือกวัตถุดิบ —</option>
-          {products.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name} ({p.sku})
-            </option>
-          ))}
-        </select>
+          onChange={(id) => {
+            setProductId(id);
+            // Picked: the next thing to type is how much.
+            if (id) window.setTimeout(() => qtyRef.current?.focus(), 0);
+          }}
+          name="product_id"
+          inputId="product_id"
+          invalid={!!err("productId")}
+        />
         {err("productId") && <p className={errorClass}>{err("productId")}</p>}
       </div>
 
@@ -301,20 +297,28 @@ export default function StockAdjustForm({
         <label htmlFor="branch_id" className="label">
           สาขา <span className="text-bad">*</span>
         </label>
-        <select
-          id="branch_id"
-          name="branch_id"
-          value={branchId}
-          onChange={(e) => setBranchId(e.target.value)}
-          className={"input w-full mt-1"}
-          required
-        >
-          {branches.map((b) => (
-            <option key={b.id} value={b.id}>
-              {b.name}
-            </option>
-          ))}
-        </select>
+        {/* One branch in reach is a fact, not a choice. */}
+        {branches.length === 1 ? (
+          <>
+            <input type="hidden" id="branch_id" name="branch_id" value={branchId} />
+            <p className="mt-1 text-sm">{branches[0].name}</p>
+          </>
+        ) : (
+          <select
+            id="branch_id"
+            name="branch_id"
+            value={branchId}
+            onChange={(e) => setBranchId(e.target.value)}
+            className={"input w-full mt-1"}
+            required
+          >
+            {branches.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
+          </select>
+        )}
         {err("branchId") && <p className={errorClass}>{err("branchId")}</p>}
       </div>
 
@@ -384,23 +388,14 @@ export default function StockAdjustForm({
           <label htmlFor="input_unit_id" className="label">
             หน่วย <span className="text-bad">*</span>
           </label>
-          <select
-            id="input_unit_id"
-            name="input_unit_id"
+          <SelectChip
             value={unitId}
-            onChange={(e) => setUnitId(e.target.value)}
-            className={"input w-full mt-1"}
-            required
-            disabled={!product}
-          >
-            {!product && <option value="">— เลือกวัตถุดิบก่อน —</option>}
-            {product?.units.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.unitName}
-                {u.isBase ? " (หน่วยหลัก)" : ""}
-              </option>
-            ))}
-          </select>
+            onChange={setUnitId}
+            placeholder={product ? "หน่วย" : "เลือกวัตถุดิบก่อน"}
+            options={(product?.units ?? []).map((u) => ({ value: u.id, label: u.isBase ? `${u.unitName} (หน่วยหลัก)` : u.unitName }))}
+            className="mt-1 w-56"
+            selectProps={{ id: "input_unit_id", name: "input_unit_id", required: true, disabled: !product }}
+          />
           {err("inputUnitId") && <p className={errorClass}>{err("inputUnitId")}</p>}
         </div>
       </div>
@@ -554,20 +549,14 @@ export default function StockAdjustForm({
                   <label htmlFor="cost_unit_id" className="label">
                     ต่อหน่วย
                   </label>
-                  <select
-                    id="cost_unit_id"
-                    name="cost_unit_id"
+                  <SelectChip
                     value={costUnitId}
-                    onChange={(e) => setCostUnitId(e.target.value)}
-                    className={"input w-full mt-1"}
-                  >
-                    {(product?.units ?? []).map((u) => (
-                      <option key={u.id} value={u.id}>
-                        {u.unitName}
-                        {u.isBase ? " (หน่วยหลัก)" : ""}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={setCostUnitId}
+                    placeholder="หน่วย"
+                    options={(product?.units ?? []).map((u) => ({ value: u.id, label: u.isBase ? `${u.unitName} (หน่วยหลัก)` : u.unitName }))}
+                    className="mt-1 w-48"
+                    selectProps={{ id: "cost_unit_id", name: "cost_unit_id" }}
+                  />
                 </div>
               </div>
               <div>

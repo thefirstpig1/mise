@@ -21,14 +21,13 @@
 
 import { useActionState, useMemo, useState } from "react";
 import QtyStepper from "@/components/ui/QtyStepper";
+import SelectChip from "@/components/ui/SelectChip";
+import ProductPicker, { type PickerProduct } from "@/components/ui/ProductPicker";
 import type { DispatchTransferActionState } from "@/app/(app)/transfers/actions";
 import { MAX_BACKDATE_DAYS } from "@/lib/validations/stock-movement";
 
-export type TransferProductOption = {
-  id: string;
-  name: string;
-  sku: string;
-  baseUnitName: string | null;
+/** Searched with ProductPicker (Kong 2026-10-22: never a <select> of every product). */
+export type TransferProductOption = PickerProduct & {
   units: { id: string; unitName: string; isBase: boolean }[];
 };
 
@@ -135,7 +134,7 @@ export default function TransferDispatchForm({
                 );
               }
             }}
-            className={`mt-1 $"input w-full"`}
+            className="input mt-1 w-full"
           >
             {branches.map((b) => (
               <option key={b.id} value={b.id}>
@@ -150,18 +149,26 @@ export default function TransferDispatchForm({
 
         <label className="label">
           สาขาปลายทาง
-          <select
-            name="to_branch_id"
-            value={toBranchId}
-            onChange={(e) => setToBranchId(e.target.value)}
-            className={`mt-1 $"input w-full"`}
-          >
-            {destinations.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name}
-              </option>
-            ))}
-          </select>
+          {/* One possible destination is a fact, not a choice. */}
+          {destinations.length === 1 ? (
+            <>
+              <input type="hidden" name="to_branch_id" value={destinations[0].id} />
+              <span className="mt-1 flex h-10 items-center text-base font-normal text-foreground">{destinations[0].name}</span>
+            </>
+          ) : (
+            <select
+              name="to_branch_id"
+              value={toBranchId}
+              onChange={(e) => setToBranchId(e.target.value)}
+              className="input mt-1 w-full"
+            >
+              {destinations.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
+              ))}
+            </select>
+          )}
           {fieldErrors.toBranchId && (
             <p className="mt-1 text-xs text-bad">{fieldErrors.toBranchId}</p>
           )}
@@ -174,7 +181,7 @@ export default function TransferDispatchForm({
             name="dispatched_at"
             defaultValue={nowBangkok}
             required
-            className={`mt-1 $"input w-full"`}
+            className="input mt-1 w-full"
           />
           <span className="mt-1 block text-xs text-muted-foreground">
             ย้อนหลังได้ไม่เกิน {MAX_BACKDATE_DAYS} วัน
@@ -190,7 +197,7 @@ export default function TransferDispatchForm({
             name="dispatched_by_name"
             type="text"
             maxLength={100}
-            className={`mt-1 $"input w-full"`}
+            className="input mt-1 w-full"
             placeholder="ชื่อคนที่ยกของขึ้นรถ"
           />
         </label>
@@ -209,7 +216,7 @@ export default function TransferDispatchForm({
               name="driver_name"
               type="text"
               maxLength={100}
-              className={`mt-1 $"input w-full"`}
+              className="input mt-1 w-full"
             />
             {fieldErrors.driverName && (
               <p className="mt-1 text-xs text-bad">{fieldErrors.driverName}</p>
@@ -241,29 +248,21 @@ export default function TransferDispatchForm({
           {lines.map((l) => {
             const product = productById.get(l.productId);
             return (
-              <div key={l.key} className="grid gap-2 sm:grid-cols-[2fr_1fr_1fr_auto]">
-                <select
+              <div key={l.key} className="grid items-center gap-2 sm:grid-cols-[minmax(0,1fr)_8rem_11rem_1.75rem]">
+                <ProductPicker
                   name="line_product_id"
+                  products={products}
                   value={l.productId}
-                  onChange={(e) => {
-                    const p = productById.get(e.target.value);
+                  onChange={(id) => {
+                    const p = productById.get(id);
                     setLine(l.key, {
-                      productId: e.target.value,
+                      productId: id,
                       // Default to the base unit, which is the unit stock is
                       // kept in and the one a storeman thinks in.
                       unitId: p?.units.find((u) => u.isBase)?.id ?? "",
                     });
                   }}
-                  required
-                  className="input w-full"
-                >
-                  <option value="">เลือกวัตถุดิบ</option>
-                  {products.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
+                />
 
                 <QtyStepper
                   value={l.qty}
@@ -272,19 +271,13 @@ export default function TransferDispatchForm({
                   inputProps={{ name: "line_qty_sent", required: true, placeholder: "0" }}
                 />
 
-                <select
-                  name="line_unit_id"
+                <SelectChip
                   value={l.unitId}
-                  onChange={(e) => setLine(l.key, { unitId: e.target.value })}
-                  required
-                  className="input w-full"
-                >
-                  {(product?.units ?? []).map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.unitName}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(unitId) => setLine(l.key, { unitId })}
+                  placeholder="หน่วย"
+                  options={(product?.units ?? []).map((u) => ({ value: u.id, label: u.unitName }))}
+                  selectProps={{ name: "line_unit_id", required: true, "aria-label": `หน่วย ${product?.name ?? ""}` }}
+                />
 
                 {/* Every line needs its notes field present, or the parallel
                     arrays the action reads would fall out of step. */}
@@ -298,9 +291,11 @@ export default function TransferDispatchForm({
                     )
                   }
                   disabled={lines.length === 1}
-                  className="rounded-lg border border-border px-3 text-sm text-muted-foreground hover:bg-muted/40 disabled:opacity-40"
+                  aria-label="ลบรายการ"
+                  title="ลบรายการ"
+                  className="grid h-7 w-7 place-items-center rounded-lg text-muted-subtle hover:bg-bad-bg hover:text-bad disabled:opacity-30 disabled:hover:bg-transparent"
                 >
-                  ลบ
+                  ×
                 </button>
               </div>
             );
@@ -318,7 +313,7 @@ export default function TransferDispatchForm({
 
       <label className="label">
         หมายเหตุ
-        <input name="notes" type="text" maxLength={500} className={`mt-1 $"input w-full"`} />
+        <input name="notes" type="text" maxLength={500} className="input mt-1 w-full" />
       </label>
 
       {formError && (
