@@ -27,6 +27,7 @@ import { ensureRecipeUnitAction } from "@/app/(app)/menus/manager-actions";
 import type { IngredientOption, PriceBook, StandardUnit } from "@/server/menu-manager";
 import { baht, qtyFmt, unitTh } from "./manager-format";
 import { Portal, useTopLayer } from "./sheet-parts";
+import { NEUTRAL, TONES } from "@/components/charts/chart-theme";
 
 export type Line = {
   key: string;
@@ -549,4 +550,44 @@ export function appendLines(fd: FormData, lines: Line[]) {
     fd.append("ingredient_product_unit_id", l.unitId ?? "");
     fd.append("ingredient_notes", l.notes);
   }
+}
+
+/**
+ * Where a plate's money goes, as one bar (Kong 2026-10-22, lab mockup ข้อ 8;
+ * ref: Galley's per-ingredient plate cost). The dearest ingredient is clay —
+ * the one thing the bar points at — the rest olive, lightest last. Callers
+ * pass it only when EVERY line has a price: a share of a total that is missing
+ * an ingredient is a share of the wrong number (rule RC-LB).
+ */
+const MIX_TONES = [TONES.olive[0], TONES.olive[1], TONES.sage[0], TONES.sage[1], NEUTRAL];
+export function CostMix({ items, named = 3, size = "md" }: { items: { label: string; cost: number }[]; named?: number; size?: "sm" | "md" }) {
+  const total = items.reduce((s, i) => s + i.cost, 0);
+  if (items.length === 0 || total <= 0) return null;
+  const sorted = [...items].sort((a, b) => b.cost - a.cost);
+  const colour = (i: number) => (i === 0 ? TONES.clay[0] : MIX_TONES[Math.min(i - 1, MIX_TONES.length - 1)]);
+  const pct = (c: number) => (c / total) * 100;
+  return (
+    <div className="space-y-1.5" aria-label="ต้นทุนแยกตามวัตถุดิบ">
+      <div className={`flex overflow-hidden rounded-full bg-muted ${size === "sm" ? "h-2" : "h-3"}`}>
+        {sorted.map((i, n) => (
+          <span
+            key={i.label}
+            title={`${i.label} ${baht(i.cost, 2)} · ${Math.round(pct(i.cost))}%`}
+            className="block h-full origin-left animate-grow-x"
+            style={{ width: `${pct(i.cost)}%`, background: colour(n), animationDelay: `${n * 40}ms`, boxShadow: n > 0 ? "inset 2px 0 0 #FFFFFF" : undefined }}
+          />
+        ))}
+      </div>
+      <p className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground">
+        {sorted.slice(0, named).map((i, n) => (
+          <span key={i.label} className="whitespace-nowrap">
+            <i className="mr-1 inline-block h-2 w-2 rounded-sm align-middle" style={{ background: colour(n) }} />
+            {i.label} {n === 0 && size === "md" ? `${baht(i.cost, 2)} · ` : ""}
+            {Math.round(pct(i.cost))}%
+          </span>
+        ))}
+        {sorted.length > named && <span>+ อีก {sorted.length - named} ตัว</span>}
+      </p>
+    </div>
+  );
 }

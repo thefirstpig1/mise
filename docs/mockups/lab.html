@@ -1,0 +1,397 @@
+<title>ทดลองเมนู · เก่า–ใหม่</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Prompt:wght@500;600;700&family=Noto+Sans+Thai:wght@400;500;600&display=swap">
+<style>
+/* Mockup v2: ทดลองเมนู — list, saved draft, new draft, and /menus' cards,
+   flipped between "now" and "proposed". Every empty area now carries a real
+   figure or a next step (refs: Galley plate costing, SaaS empty-state guides).
+   App tokens (tailwind.config.ts); chart colours from chart-theme.tsx. */
+:root{
+  --bg:#FDFBF3; --fg:#262811; --surface:#FFFFFF; --sunk:#F8F3E1; --primary:#41431B; --primary-fg:#F8F3E1; --primary-soft:#EFEDD7;
+  --muted:#F3EFDF; --muted-fg:#5A5C31; --subtle:#8B8D63; --border:#E9E3C8; --strong:#D2CBA4;
+  --good:#5A7333; --good-bg:#EEF2E0; --bad:#A83A22; --bad-bg:#F9E5DF; --warn:#A87C1C; --warn-bg:#F8EFD6; --warn-border:#E2CE97;
+  --display:"Prompt","Noto Sans Thai",system-ui,sans-serif; --body:"Noto Sans Thai","Prompt",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#1B1C10; --fg:#EEEAD6; --surface:#24261A; --sunk:#2A2C1E; --primary:#D9DDB0; --primary-fg:#1B1C10; --primary-soft:#33361F;
+  --muted:#2E301F; --muted-fg:#C9C8A6; --subtle:#9C9B7C; --border:#36381F; --strong:#4A4C30;
+  --good:#B7CF7C; --good-bg:#2B3320; --bad:#EC9C80; --bad-bg:#41261C; --warn:#E8BE62; --warn-bg:#3B3018; --warn-border:#5A4A22; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#1B1C10; --fg:#EEEAD6; --surface:#24261A; --sunk:#2A2C1E; --primary:#D9DDB0; --primary-fg:#1B1C10; --primary-soft:#33361F;
+  --muted:#2E301F; --muted-fg:#C9C8A6; --subtle:#9C9B7C; --border:#36381F; --strong:#4A4C30;
+  --good:#B7CF7C; --good-bg:#2B3320; --bad:#EC9C80; --bad-bg:#41261C; --warn:#E8BE62; --warn-bg:#3B3018; --warn-border:#5A4A22; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:14px;line-height:1.55;margin:0;padding-inline:16px;padding-block:20px 60px}
+h1,h2,h3,h4{font-family:var(--display);margin:0}
+p{margin:0}
+.wrap{max-width:1320px;margin:0 auto;display:grid;gap:14px}
+.top{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;justify-content:space-between}
+.seg{display:inline-flex;border:1px solid var(--strong);border-radius:999px;padding:3px;background:var(--surface);gap:2px}
+.seg button{font:inherit;font-size:.85rem;border:0;background:none;color:var(--fg);border-radius:999px;padding:4px 14px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--primary);color:var(--primary-fg)}
+.seg button:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.sub{color:var(--subtle);font-size:.8rem}
+.scroller{overflow-x:auto;border-radius:16px;border:1px solid var(--strong);box-shadow:0 10px 30px rgb(0 0 0/.06)}
+.screen{min-width:1120px;display:grid;grid-template-columns:1fr 760px;background:var(--bg);position:relative;height:880px;overflow:hidden}
+/* page behind */
+.page{padding:22px 26px;display:grid;gap:12px;align-content:start;opacity:.55}
+.page h2{font-size:1.35rem}
+.chip{border:1px solid var(--strong);background:var(--surface);color:var(--fg);border-radius:999px;padding:3px 12px;font:inherit;font-size:.8rem;cursor:pointer;white-space:nowrap}
+.chip.on{background:var(--primary);color:var(--primary-fg);border-color:var(--primary)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.tbl{border:1px solid var(--border);border-radius:12px;background:var(--surface);overflow:hidden}
+table{border-collapse:collapse;width:100%;font-size:.84rem}
+th{background:var(--sunk);color:var(--muted-fg);font-weight:500;font-size:.74rem;text-align:left;padding:8px 10px}
+td{padding:8px 10px;border-top:1px solid var(--border);vertical-align:top}
+.r{text-align:right}
+.num{font-variant-numeric:tabular-nums}
+.dot{display:inline-block;width:7px;height:7px;border-radius:9px;margin-right:6px;vertical-align:middle}
+.code{color:var(--subtle);font-size:.74rem;margin-left:4px}
+.cat{display:block;font-size:.7rem;color:var(--subtle);padding-left:13px}
+.dim{color:var(--subtle)}
+.pbar{display:inline-block;height:5px;border-radius:9px;background:var(--strong);vertical-align:middle;margin-right:6px}
+.write{color:var(--primary);font-size:.78rem;border:1px dashed var(--strong);border-radius:999px;padding:1px 10px;white-space:nowrap}
+tr.sel td{background:var(--muted)}
+/* sheet */
+.sheet{background:var(--bg);border-left:1px solid var(--strong);box-shadow:-12px 0 30px rgb(0 0 0/.08);display:grid;grid-template-rows:auto 1fr auto;min-height:0}
+.shead{display:flex;gap:14px;padding:16px 20px;border-bottom:1px solid var(--border);background:var(--surface);align-items:flex-start}
+.x{margin-left:auto;font-size:1.5rem;line-height:1;color:var(--muted-fg)}
+.ph{border:1.5px dashed var(--strong);background:var(--warn-bg);border-radius:12px;display:grid;place-items:center;align-content:center;text-align:center;color:var(--subtle);font-size:.62rem;flex:none}
+.ph svg{width:20px;height:20px}
+.ph.small{width:64px;height:64px}
+.ph.big{width:200px;aspect-ratio:4/3;font-size:.75rem;border-radius:14px}
+.ph.big svg{width:30px;height:30px}
+.hname{font-family:var(--display);font-weight:600;font-size:1.25rem}
+.sel{border:1px solid var(--border);border-radius:999px;background:var(--surface);padding:3px 24px 3px 10px;font:inherit;font-size:.82rem;color:var(--fg)}
+.badge{display:inline-block;border-radius:999px;background:var(--muted);color:var(--muted-fg);padding:2px 10px;font-size:.75rem;white-space:nowrap}
+.badge.warn{background:var(--warn-bg);color:var(--warn)}
+.field{display:grid;gap:2px}
+.field>span{font-size:.7rem;color:var(--subtle);padding-left:10px}
+.fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.fields .sel{width:100%}
+.sbody{overflow-y:auto;padding:16px 20px;display:grid;gap:14px;align-content:start}
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.tile{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:9px 11px}
+.tile .k{font-size:.68rem;color:var(--subtle)} .tile .v{font-family:var(--display);font-weight:600;font-size:1.1rem} .tile .s{font-size:.68rem;color:var(--muted-fg)}
+.sec{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;display:grid;gap:8px}
+.sec h4{font-size:.95rem}
+.sec.warnbg{background:var(--warn-bg);border-color:var(--warn-border)}
+.ing{display:grid;grid-template-columns:1fr 92px 120px 80px 14px;gap:10px;align-items:start;padding:8px 0;border-bottom:1px solid var(--border);font-size:.86rem}
+.ing .s{display:block;font-size:.7rem;color:var(--subtle)}
+.ing .bar{display:block;height:3px;border-radius:9px;background:var(--strong);margin-top:4px}
+.qty{border:1px solid var(--strong);border-radius:8px;background:var(--warn-bg);padding:4px 8px;text-align:right;font:inherit;width:100%}
+.unit{border:1px solid var(--strong);border-radius:8px;background:var(--surface);padding:4px 8px;font:inherit;width:100%}
+.cost{text-align:right}
+.cost small{display:block;font-size:.7rem;color:var(--subtle)}
+.add{border:1.5px dashed var(--strong);border-radius:10px;padding:6px 12px;color:var(--subtle);background:var(--warn-bg);font-size:.84rem}
+.btns{display:flex;flex-wrap:wrap;gap:6px}
+.b{border:1px solid var(--strong);border-radius:999px;padding:3px 12px;font-size:.82rem;background:var(--surface)}
+.b.red{border-color:var(--bad);color:var(--bad)}
+.small{font-size:.75rem;color:var(--muted-fg)}
+.dl{color:var(--primary);text-decoration:underline dotted;text-underline-offset:3px;font-size:.84rem}
+.warnbox{background:var(--warn-bg);border:1px solid var(--warn-border);border-radius:10px;padding:8px 12px;font-size:.8rem}
+.sfoot{display:flex;justify-content:space-between;align-items:center;padding:12px 20px;border-top:1px solid var(--border);background:var(--surface)}
+.save{background:var(--subtle);color:var(--primary-fg);border-radius:10px;padding:6px 16px;font-size:.9rem}
+/* number markers on what changed */
+.mk{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--warn);color:#fff;font-size:.7rem;font-weight:700;font-style:normal;font-family:var(--display);vertical-align:middle;margin:0 4px;flex:none}
+.hide-mk .mk{display:none}
+/* now/new switching */
+.v-now [data-v="new"],.v-new [data-v="now"]{display:none!important}
+.v-new .mk-now,.v-now .mk{display:none}
+.legend{display:grid;gap:6px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 16px}
+.legend li{font-size:.88rem}
+.legend ol{margin:0;padding-left:0;list-style:none;display:grid;gap:6px}
+.legend .mk{display:inline-grid!important}
+</style>
+<style>
+:root{--clay:#C0692B;--clay2:#E8A76F;--olive:#5E6B14;--olive2:#AEB784}
+.screen.auto{height:auto;min-height:0}
+.pagefull{padding:24px 28px;display:grid;gap:16px;align-content:start}
+.pbtn{border-radius:999px;padding:5px 14px;font-size:.82rem;border:1px solid var(--strong);background:var(--surface);white-space:nowrap}
+.pbtn.dark{background:var(--primary);color:var(--primary-fg);border-color:var(--primary)}
+.pbtn.ghost{border-style:dashed;color:var(--primary)}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 16px;display:grid;gap:2px}
+.kpi .k{font-size:.74rem;color:var(--subtle)} .kpi .v{font-family:var(--display);font-weight:600;font-size:1.7rem;line-height:1.2}
+.kpi .s{font-size:.76rem;color:var(--muted-fg)}
+.h3{font-family:var(--display);font-weight:600;font-size:1rem;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.dcard{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:14px 16px;display:grid;grid-template-columns:112px minmax(0,1fr) 220px;gap:16px;align-items:center;cursor:pointer;transition:border-color .15s,box-shadow .15s}
+.dcard:hover{border-color:var(--strong);box-shadow:0 6px 18px rgb(0 0 0/.06)}
+.thumb{aspect-ratio:4/3;border-radius:12px;border:1.5px dashed var(--strong);background:var(--warn-bg);display:grid;place-items:center;color:var(--subtle);font-size:.62rem;text-align:center}
+.thumb svg,.ph svg{width:22px;height:22px}
+.dname{font-family:var(--display);font-weight:600;font-size:1.1rem}
+.stack{display:flex;height:10px;border-radius:99px;overflow:hidden;background:var(--muted)}
+.stack span{display:block;height:100%;transform-origin:left;animation:grow .7s cubic-bezier(.2,.8,.2,1) both}
+.stack span+span{border-left:2px solid var(--surface)}
+.legend2{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:.72rem;color:var(--muted-fg)}
+.legend2 i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:4px;vertical-align:middle}
+.gauge{display:grid;gap:4px}
+.gauge .bar{position:relative;height:8px;border-radius:99px;background:var(--muted)}
+.gauge .fill{position:absolute;inset:0 auto 0 0;border-radius:99px;background:linear-gradient(90deg,var(--olive2),var(--olive));animation:grow .7s cubic-bezier(.2,.8,.2,1) both;transform-origin:left}
+.gauge .target{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--clay)}
+.gauge .lbl{display:flex;justify-content:space-between;font-size:.72rem;color:var(--muted-fg)}
+.steps{display:flex;align-items:center;gap:0;font-size:.72rem;color:var(--subtle)}
+.steps .st{display:flex;align-items:center;gap:5px;white-space:nowrap}
+.steps .dot2{width:9px;height:9px;border-radius:50%;border:1.5px solid var(--strong);background:var(--surface)}
+.steps .st.done .dot2{background:var(--primary);border-color:var(--primary)}
+.steps .st.cur{color:var(--fg);font-weight:600}
+.steps .st.cur .dot2{background:var(--clay);border-color:var(--clay);box-shadow:0 0 0 3px rgb(192 105 43/.18)}
+.steps .ln{flex:1;min-width:14px;height:1.5px;background:var(--strong);margin:0 6px}
+.sugs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.sug{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:12px 14px;display:grid;gap:8px}
+.sug .top{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.sbar{height:6px;border-radius:99px;background:var(--muted);overflow:hidden}
+.sbar span{display:block;height:100%;background:linear-gradient(90deg,var(--olive2),var(--olive));animation:grow .7s both;transform-origin:left}
+.flow{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.fstep{border-radius:12px;padding:10px 12px;background:var(--sunk);font-size:.78rem;color:var(--muted-fg);display:grid;gap:2px}
+.fstep b{color:var(--fg);font-family:var(--display);font-weight:600;font-size:.86rem}
+.fstep .n{font-family:var(--display);color:var(--clay);font-weight:700}
+/* sheet extras */
+.shead2{display:grid;grid-template-columns:200px minmax(0,1fr);gap:16px;padding:16px 20px;border-bottom:1px solid var(--border);background:var(--surface);position:relative}
+.ph.big2{width:200px;aspect-ratio:4/3;border-radius:14px;border:1.5px dashed var(--strong);background:var(--warn-bg);display:grid;place-items:center;align-content:center;color:var(--subtle);font-size:.75rem;text-align:center}
+.meta{display:grid;gap:6px;align-content:start;min-width:0}
+.x2{position:absolute;right:14px;top:10px;font-size:1.5rem;color:var(--muted-fg)}
+.ladder{display:grid;gap:6px}
+.lrow{display:grid;grid-template-columns:62px minmax(0,1fr) 54px 92px;gap:10px;align-items:center;font-size:.84rem;padding:5px 8px;border-radius:10px}
+.lrow.pick{background:var(--warn-bg);outline:1.5px solid var(--clay2)}
+.lrow .p{font-family:var(--display);font-weight:600}
+.lrow .bar{position:relative;height:8px;border-radius:99px;background:var(--muted)}
+.lrow .fill{position:absolute;inset:0 auto 0 0;border-radius:99px;background:linear-gradient(90deg,var(--olive2),var(--olive));animation:grow .6s both;transform-origin:left}
+.lrow.pick .fill{background:linear-gradient(90deg,var(--clay2),var(--clay))}
+.lrow .target{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--clay)}
+.checklist{display:grid;gap:8px}
+.ck{display:flex;gap:10px;align-items:flex-start;font-size:.86rem;padding:10px 12px;border-radius:12px;background:var(--surface);border:1px solid var(--border)}
+.ck .box{flex:none;width:20px;height:20px;border-radius:50%;border:1.5px solid var(--strong);display:grid;place-items:center;font-size:.7rem;color:var(--primary-fg)}
+.ck.done .box{background:var(--primary);border-color:var(--primary)}
+.ck .t{display:grid;gap:1px} .ck .t span{font-size:.74rem;color:var(--subtle)}
+.seg2{display:inline-flex;border:1px solid var(--strong);border-radius:999px;padding:2px;gap:2px;background:var(--surface);font-size:.8rem;width:max-content}
+.seg2 span{padding:2px 10px;border-radius:999px}
+.seg2 span.on{background:var(--primary);color:var(--primary-fg)}
+.nameinput{border:1px solid var(--strong);border-radius:10px;background:var(--warn-bg);padding:7px 12px;font-size:1rem;color:var(--subtle)}
+@keyframes grow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@media (prefers-reduced-motion:reduce){.stack span,.gauge .fill,.sbar span,.lrow .fill{animation:none}}
+</style>
+
+<div class="wrap v-new" id="root">
+  <div class="top">
+    <div><h1 style="font-size:1.2rem">ทดลองเมนู · เก่า–ใหม่ (รอบ 2)</h1>
+      <p class="sub">หน้าจอเดียวกัน สลับดูของเดิมกับที่เสนอ · ตัวเลขจากร้านตัวอย่าง (สาขาอารีย์)</p></div>
+    <div class="chips">
+      <div class="seg" role="group" aria-label="แบบไหน"><button id="b-now" aria-pressed="false">ตอนนี้</button><button id="b-new" aria-pressed="true">ที่เสนอ</button></div>
+      <div class="seg" role="group" aria-label="หน้าจอ"><button data-scene="list" aria-pressed="true">หน้ารายการ</button><button data-scene="draft" aria-pressed="false">ร่างที่บันทึกแล้ว</button><button data-scene="fresh" aria-pressed="false">ร่างใหม่</button><button data-scene="cards" aria-pressed="false">การ์ดจัดการเมนู</button></div>
+      <div class="seg" role="group"><button id="b-mk" aria-pressed="true">เลขกำกับ</button></div>
+    </div>
+  </div>
+
+  <div class="scroller">
+  <!-- ===== LIST ===== -->
+  <div class="screen auto" id="sc-list" style="grid-template-columns:1fr">
+    <div class="pagefull" data-v="now">
+      <div><h2 style="font-size:1.35rem">ทดลองเมนู</h2><p class="small" style="font-size:.86rem">ลองคิดสูตรและราคาก่อนขายจริง ร่างที่นี่ยังไม่ตัดสต๊อกและยังไม่ถูกใช้คิดต้นทุนขาย จนกว่าจะกด “นำไปใช้จริง”</p></div>
+      <div class="row"><span class="pbtn dark">+ ร่างสูตรใหม่</span><span class="pbtn">เมนูที่ยังไม่มีสูตร</span><span class="pbtn">จัดการเมนู</span></div>
+      <div class="tbl"><table><thead><tr><th>ร่าง</th><th class="r">ต้นทุนต่อจาน</th><th class="r">ราคาที่ตั้งใจ</th><th class="r">ต้นทุน % ของราคา</th><th class="r">แก้ล่าสุด</th></tr></thead>
+        <tbody><tr><td>erwe <span class="badge" style="background:var(--good-bg);color:var(--good)">เมนูใหม่</span><span class="cat" style="padding-left:0">ร่างโดย คุณ · 5 วัตถุดิบ · ทำครั้งละ 1 จาน</span></td><td class="r num">฿64.40</td><td class="r num">฿215</td><td class="r num">30.0%</td><td class="r dim">5 ต.ค. 69</td></tr></tbody></table></div>
+      <p class="sub">ต้นทุนคิดจากราคาวัตถุดิบที่สาขาอารีย์ ณ วันนี้ · เปิดร่างเพื่อเปลี่ยนสาขาที่ใช้คิด</p>
+      <div style="height:260px"></div>
+    </div>
+
+    <div class="pagefull" data-v="new">
+      <div class="row" style="justify-content:space-between;align-items:flex-end">
+        <div><h2 style="font-size:1.35rem">ทดลองเมนู</h2><p class="small" style="font-size:.86rem">ลองคิดสูตรและราคาก่อนขายจริง ร่างยังไม่ตัดสต๊อก จนกว่าจะกด “นำไปใช้จริง”</p></div>
+        <div class="row"><span class="pbtn">จัดการเมนู</span><span class="pbtn dark">+ ร่างสูตรใหม่</span></div>
+      </div>
+      <div class="kpis">
+        <div class="kpi"><span class="k">ร่างที่กำลังคิด</span><span class="v num">1</span><span class="s">ของคุณ 1 · รอรับรอง 0 · รับรองแล้ว 0</span></div>
+        <div class="kpi"><span class="k">รอคุณลงมือ</span><span class="v num">0</span><span class="s">ไม่มีร่างที่รอคุณรับรองหรือนำไปใช้</span></div>
+        <div class="kpi"><span class="k">ขายอยู่แต่ยังไม่มีสูตร <i class="mk">7</i></span><span class="v num">3 เมนู</span><span class="s">ขายไป ฿7,246 ใน 30 วัน ที่ยังคิดต้นทุนไม่ได้</span></div>
+      </div>
+
+      <div class="h3"><span>ร่างที่กำลังคิด</span><span class="sub">ต้นทุนคิดที่สาขาอารีย์ ณ วันนี้</span></div>
+      <div class="dcard" id="openDraft" title="กดเพื่อเปิดร่าง">
+        <div class="thumb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="6" width="18" height="14" rx="3"/><circle cx="12" cy="13" r="3.5"/><path d="M8 6l1.5-2h5L16 6"/></svg><span>รูปเมนู</span></div>
+        <div style="display:grid;gap:8px;min-width:0">
+          <div class="row" style="gap:8px"><span class="dname">erwe</span><span class="badge" style="background:var(--good-bg);color:var(--good)">เมนูใหม่</span><span class="sub">ร่างโดย คุณ · แก้ล่าสุด 5 ต.ค. 69</span></div>
+          <div class="stack" aria-label="ต้นทุนแยกตามวัตถุดิบ"><span style="width:88%;background:var(--clay)"></span><span style="width:7%;background:var(--olive)"></span><span style="width:2%;background:var(--olive2)"></span><span style="width:2%;background:#C9CCA2"></span><span style="width:1%;background:#DCDDBF"></span></div>
+          <div class="legend2"><span><i style="background:var(--clay)"></i>กุ้งแกะ 88%</span><span><i style="background:var(--olive)"></i>ไข่ไก่ 7%</span><span><i style="background:var(--olive2)"></i>กระเทียม 2%</span><span>+ อีก 2 ตัว</span> <i class="mk">8</i></div>
+          <div class="steps"><span class="st cur"><span class="dot2"></span>ร่าง</span><span class="ln"></span><span class="st"><span class="dot2"></span>ส่งให้รับรอง</span><span class="ln"></span><span class="st"><span class="dot2"></span>รับรองแล้ว</span><span class="ln"></span><span class="st"><span class="dot2"></span>นำไปใช้จริง</span></div>
+        </div>
+        <div class="gauge">
+          <div class="row" style="justify-content:space-between"><span class="sub">ต้นทุน ฿64.40 · ราคา ฿215</span><b class="num" style="font-family:var(--display)">30.0%</b></div>
+          <div class="bar"><div class="fill" style="width:60%"></div><div class="target" style="left:60%"></div></div>
+          <div class="lbl"><span>0%</span><span style="color:var(--clay)">เป้า 30%</span><span>50%</span></div>
+          <span class="sub">กำไร ฿150.60/จาน</span>
+        </div>
+      </div>
+
+      <div class="h3"><span>เริ่มจากเมนูที่ขายอยู่แต่ยังไม่มีสูตร</span><span class="sub">เรียงตามยอดขาย 30 วัน · เขียนตัวบนสุดก่อนคุ้มที่สุด</span></div>
+      <div class="sugs">
+        <div class="sug"><div class="top"><b>ไก่ผัดเม็ดมะม่วง</b><span class="sub">A14</span></div><div class="sbar"><span style="width:100%"></span></div><div class="row" style="justify-content:space-between"><span class="small">28 จาน · ฿2,772</span><span class="pbtn ghost">+ ร่างสูตร</span></div></div>
+        <div class="sug"><div class="top"><b>ข้าวซอยไก่</b><span class="sub">A15</span></div><div class="sbar"><span style="width:99.5%"></span></div><div class="row" style="justify-content:space-between"><span class="small">31 จาน · ฿2,759</span><span class="pbtn ghost">+ ร่างสูตร</span></div></div>
+        <div class="sug"><div class="top"><b>น้ำมะนาวโซดา</b><span class="sub">B06</span></div><div class="sbar"><span style="width:62%"></span></div><div class="row" style="justify-content:space-between"><span class="small">35 แก้ว · ฿1,715</span><span class="pbtn ghost">+ ร่างสูตร</span></div></div>
+      </div>
+
+      <div class="h3"><span>ร่างหนึ่งเดินทางอย่างไร</span><span class="sub">ใครกดอะไรได้ ขึ้นกับสิทธิ์ของแต่ละคน</span></div>
+      <div class="flow">
+        <div class="fstep"><span class="n">1</span><b>ร่าง</b>ใส่วัตถุดิบ ลองราคา บันทึกได้เรื่อย ๆ ยังไม่ตัดสต๊อก</div>
+        <div class="fstep"><span class="n">2</span><b>ส่งให้รับรอง</b>คนครัวส่งให้ผู้จัดการดู</div>
+        <div class="fstep"><span class="n">3</span><b>รับรองแล้ว</b>ผู้จัดการเห็นด้วย รอคนที่ดูแลทุกสาขา</div>
+        <div class="fstep"><span class="n">4</span><b>นำไปใช้จริง</b>สูตรเริ่มตัดสต๊อกและคิดต้นทุนขายตั้งแต่วันที่เลือก</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SAVED DRAFT ===== -->
+  <div class="screen" id="sc-draft">
+    <div class="page"><h2>ทดลองเมนู</h2><div class="tbl" style="padding:30px;color:var(--subtle)">(หน้ารายการอยู่ด้านหลัง)</div></div>
+    <aside class="sheet">
+      <div class="shead" data-v="now">
+        <div class="ph small"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="6" width="18" height="14" rx="3"/><circle cx="12" cy="13" r="3.5"/><path d="M8 6l1.5-2h5L16 6"/></svg>รูปเมนู<br>เร็ว ๆ นี้</div>
+        <div style="display:grid;gap:4px;min-width:0;flex:1"><span class="sub">ร่างสูตร · ร่างโดย คุณ</span><span class="hname">erwe</span><span class="small">เมนูใหม่ · ยังไม่มีการขายจนกว่าจะนำไปใช้จริง · เปลี่ยนชื่อได้ที่ จัดการเมนู</span></div>
+        <span class="x">×</span>
+      </div>
+      <div class="shead2" data-v="new">
+        <div class="ph big2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="6" width="18" height="14" rx="3"/><circle cx="12" cy="13" r="3.5"/><path d="M8 6l1.5-2h5L16 6"/></svg>รูปเมนู<br>เร็ว ๆ นี้ <i class="mk">1</i></div>
+        <div class="meta">
+          <span class="sub">ร่างสูตร · ร่างโดย คุณ · แก้ล่าสุด 5 ต.ค. 69</span>
+          <span class="hname" style="font-size:1.35rem">erwe</span>
+          <span class="small">เมนูใหม่ · ยังไม่มีการขายจนกว่าจะนำไปใช้จริง</span>
+          <span><span class="dl">เปลี่ยนชื่อ หมวด หรือแผนก ที่หน้าจัดการเมนู ›</span><i class="mk">3</i></span>
+          <div class="steps" style="margin-top:6px"><span class="st cur"><span class="dot2"></span>ร่าง</span><span class="ln"></span><span class="st"><span class="dot2"></span>ส่งให้รับรอง</span><span class="ln"></span><span class="st"><span class="dot2"></span>รับรองแล้ว</span><span class="ln"></span><span class="st"><span class="dot2"></span>นำไปใช้จริง</span></div>
+        </div>
+        <span class="x2">×</span>
+      </div>
+      <div class="sbody">
+        <div class="tiles">
+          <div class="tile"><div class="k">ต้นทุนต่อจาน</div><div class="v num">฿64.40</div><div class="s">ความมั่นใจเชื่อถือได้ · สาขาอารีย์</div></div>
+          <div class="tile"><div class="k">ราคาที่ตั้งใจ</div><div class="v num">฿215</div><div class="s">ราคาที่กำลังคิด ไม่ใช่ราคาขาย</div></div>
+          <div class="tile"><div class="k">ต้นทุน % ของราคา</div><div class="v num">30.0%</div><div class="s">เป้าที่ตั้งไว้ 30%</div></div>
+          <div class="tile"><div class="k">กำไรต่อจาน</div><div class="v num">฿150.60</div><div class="s">ราคา − ต้นทุนวัตถุดิบ</div></div>
+        </div>
+        <div class="helper" data-v="now" style="background:var(--good-bg);border:1px solid var(--border);border-radius:12px;padding:10px 14px;font-size:.84rem">ถ้าอยากให้ต้นทุนเป็น <b>30 %</b> ของราคา ควรตั้งราคา <b>฿215</b> <span class="pbtn" style="padding:1px 10px">ใช้ราคานี้</span><br><span class="small">ราคา = ต้นทุน ÷ เป้า % · ร้านอาหารทั่วไปตั้งเป้าที่ 28–35% · เป้านี้จำไว้ต่อร่าง</span></div>
+        <section class="sec" data-v="new">
+          <div class="h3"><span>ลองราคา <i class="mk">9</i></span><span class="small">เป้าต้นทุน <span class="badge">30 %</span> → ควรตั้ง <b>฿215</b> · กดแถวเพื่อใช้ราคานั้น</span></div>
+          <div class="ladder" id="ladder"></div>
+          <span class="sub">ราคา = ต้นทุน ÷ เป้า % · ร้านอาหารทั่วไปตั้งเป้าที่ 28–35% · ราคาลงท้ายด้วย 9 ใกล้ราคาที่ควรตั้ง</span>
+        </section>
+        <section class="sec">
+          <div class="h3"><span>สูตร</span><span class="small">ทำได้ <span class="badge">− 1 +</span> จาน · ต้นทุนคิดที่ สาขาอารีย์ (รับของล่าสุด)</span></div>
+          <div data-v="new" style="display:grid;gap:6px"><div class="stack" style="height:12px"><span style="width:88%;background:var(--clay)"></span><span style="width:7%;background:var(--olive)"></span><span style="width:2%;background:var(--olive2)"></span><span style="width:2%;background:#C9CCA2"></span><span style="width:1%;background:#DCDDBF"></span></div>
+            <div class="legend2"><span><i style="background:var(--clay)"></i>กุ้งแกะ ฿56.96 · 88%</span><span><i style="background:var(--olive)"></i>ไข่ไก่ 7%</span><span><i style="background:var(--olive2)"></i>กระเทียม 2%</span><span><i style="background:#C9CCA2"></i>ซอสหอยนางรม 2%</span><span><i style="background:#DCDDBF"></i>น้ำปลา 1%</span> <i class="mk">8</i></div></div>
+          <div id="ing"></div>
+          <div class="add">+ เพิ่มวัตถุดิบ พิมพ์ชื่อหรือรหัส</div>
+        </section>
+      </div>
+      <div class="sfoot"><span class="small" style="font-size:.85rem">บันทึกร่างแล้ว · ยังไม่ตัดสต๊อก</span><div class="row"><span class="pbtn" style="color:var(--bad);border-color:var(--bad)">ทิ้งร่าง</span><span class="pbtn" style="color:var(--subtle)">บันทึกร่าง</span><span class="pbtn dark">นำไปใช้จริง…</span></div></div>
+    </aside>
+  </div>
+
+  <!-- ===== NEW DRAFT ===== -->
+  <div class="screen" id="sc-fresh">
+    <div class="page"><h2>ทดลองเมนู</h2><div class="tbl" style="padding:30px;color:var(--subtle)">(หน้ารายการอยู่ด้านหลัง)</div></div>
+    <aside class="sheet">
+      <div class="shead" data-v="now">
+        <div class="ph small"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="6" width="18" height="14" rx="3"/><circle cx="12" cy="13" r="3.5"/><path d="M8 6l1.5-2h5L16 6"/></svg>รูปเมนู<br>เร็ว ๆ นี้</div>
+        <div style="display:grid;gap:8px;min-width:0;flex:1"><span class="sub">ร่างสูตรใหม่</span><span class="seg2"><span class="on">เมนูใหม่</span><span>แก้สูตรเมนูที่ขายอยู่</span></span>
+          <div class="nameinput">ชื่อเมนูใหม่ เช่น ข้าวผัดปูไข่เค็ม</div>
+          <div class="chips"><select class="sel"><option>— หมวด (ไม่บังคับ) —</option></select><span class="small">สร้างเมนูให้ตอนบันทึก ยังไม่มีการขายจนกว่าจะนำไปใช้จริง</span></div></div>
+        <span class="x">×</span>
+      </div>
+      <div class="shead2" data-v="new">
+        <div class="ph big2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="6" width="18" height="14" rx="3"/><circle cx="12" cy="13" r="3.5"/><path d="M8 6l1.5-2h5L16 6"/></svg>รูปเมนู<br>เร็ว ๆ นี้ <i class="mk">1</i></div>
+        <div class="meta" style="gap:10px">
+          <span class="sub">ร่างสูตรใหม่</span>
+          <span class="seg2"><span class="on">เมนูใหม่</span><span>แก้สูตรเมนูที่ขายอยู่</span></span>
+          <label class="field"><span>ชื่อเมนู <i class="mk">2</i></span><div class="nameinput">เช่น ข้าวผัดปูไข่เค็ม</div></label>
+          <label class="field" style="max-width:260px"><span>หมวด (ไม่บังคับ)</span><select class="sel" style="width:100%"><option>— ไม่ระบุหมวด —</option></select></label>
+        </div>
+        <span class="x2">×</span>
+      </div>
+      <div class="sbody">
+        <div class="tiles">
+          <div class="tile"><div class="k">ต้นทุนต่อจาน</div><div class="v">—</div><div class="s">ใส่วัตถุดิบเพื่อดูต้นทุน</div></div>
+          <div class="tile"><div class="k">ราคาที่ตั้งใจ</div><div class="v dim">129</div><div class="s">ราคาที่กำลังคิด ไม่ใช่ราคาขาย</div></div>
+          <div class="tile"><div class="k">ต้นทุน % ของราคา</div><div class="v">—</div><div class="s">ใส่วัตถุดิบและราคา</div></div>
+          <div class="tile"><div class="k">กำไรต่อจาน</div><div class="v">—</div><div class="s">ราคา − ต้นทุนวัตถุดิบ</div></div>
+        </div>
+        <section class="sec"><div class="h3"><span>สูตร</span><span class="small">ทำได้ <span class="badge">− 1 +</span> จาน · ต้นทุนคิดที่ สาขาอารีย์ (รับของล่าสุด)</span></div>
+          <div class="add" style="background:var(--warn-bg)"><b style="color:var(--fg)">ยังไม่มีวัตถุดิบ</b> · พิมพ์ชื่อหรือรหัสในช่องด้านล่าง ต้นทุนจะขึ้นทันที</div>
+          <div class="add">+ เพิ่มวัตถุดิบ พิมพ์ชื่อหรือรหัส</div></section>
+        <div class="checklist" data-v="new">
+          <div class="h3"><span>ก่อนนำไปใช้จริง <i class="mk">10</i></span><span class="sub">ขั้นที่เสร็จแล้วติ๊กเอง</span></div>
+          <div class="ck"><span class="box"></span><span class="t">ตั้งชื่อเมนู<span>ชื่อนี้คือชื่อที่จะเห็นในหน้าจัดการเมนู</span></span></div>
+          <div class="ck"><span class="box"></span><span class="t">ใส่วัตถุดิบอย่างน้อยหนึ่งตัว<span>เริ่มจากวัตถุดิบหลักก่อนก็ได้ ต้นทุนขึ้นทันที</span></span></div>
+          <div class="ck"><span class="box"></span><span class="t">ลองราคาที่ตั้งใจ<span>ดูต้นทุน % เทียบเป้า 30% ของร้าน</span></span></div>
+          <div class="ck"><span class="box"></span><span class="t">บันทึกร่าง แล้วนำไปใช้จริงเมื่อพร้อม<span>ก่อนนำไปใช้จริง ร่างไม่ตัดสต๊อก</span></span></div>
+        </div>
+      </div>
+      <div class="sfoot"><span></span><div class="row"><span class="pbtn" data-v="now" style="color:var(--bad);border-color:var(--bad)">ทิ้งร่าง</span><span class="pbtn" data-v="new">ยกเลิก <i class="mk">4</i></span><span class="pbtn">บันทึกร่าง</span><span class="pbtn" style="background:var(--subtle);color:var(--primary-fg);border-color:var(--subtle)">นำไปใช้จริง…</span></div></div>
+    </aside>
+  </div>
+
+  <!-- ===== /menus CARDS ===== -->
+  <div class="screen auto" id="sc-cards" style="grid-template-columns:1fr">
+    <div class="pagefull">
+      <h2 style="font-size:1.35rem">จัดการเมนู</h2>
+      <div class="kpis">
+        <div class="kpi"><span class="k">เมนูที่ขายอยู่</span>
+          <span class="v num" data-v="now">22</span><span class="s" data-v="now">4 เมนูยังไม่มีสูตร</span>
+          <span class="v num" data-v="new">21 <i class="mk">6</i></span><span class="s" data-v="new">3 เมนูยังไม่มีสูตร · <span style="color:var(--clay)">1 เมนูกำลังทดลอง</span></span></div>
+        <div class="kpi"><span class="k">มีสูตรแล้ว คิดเป็นยอดขาย 30 วัน</span><span class="v num">92%</span><span class="s">฿7,246 ยังคิดต้นทุนไม่ได้ (ที่สาขาอารีย์)</span></div>
+        <div class="kpi"><span class="k">ต้นทุนวัตถุดิบ เทียบยอดขาย</span><span class="v num">40.5%</span><span class="s">คิดจาก 18 เมนูที่มีสูตร · สาขาอารีย์</span></div>
+      </div>
+      <div class="chips" data-v="now"><span class="chip on">ขายอยู่ 22</span><span class="chip">ยังไม่มีสูตร 4</span><span class="chip">รอตรวจ 0</span><span class="chip">เลิกขายแล้ว 0</span><span class="chip">ทั้งหมด 22</span></div>
+      <div class="chips" data-v="new"><span class="chip on">ขายอยู่ 21</span><span class="chip">ยังไม่มีสูตร 3</span><span class="chip">กำลังทดลอง 1</span><span class="chip">รอตรวจ 0</span><span class="chip">เลิกขายแล้ว 0</span><span class="chip">ทั้งหมด 22</span></div>
+      <div class="tbl"><table><thead><tr><th>เมนู</th><th class="r">ขาย 30 วัน</th><th class="r">ราคาเฉลี่ย</th><th class="r">ต้นทุนต่อจาน</th><th>ต้นทุน %</th><th>สูตร</th></tr></thead>
+        <tbody><tr><td><span class="dot" style="background:#B49A3A"></span>erwe<span class="cat">อาหารจานเดียว</span></td><td class="r dim">—</td><td class="r dim">—</td><td class="r dim">—</td><td class="dim">—</td>
+          <td><span style="color:var(--warn)" data-v="now">มีร่าง</span><span data-v="new" class="write">กำลังทดลอง</span></td></tr></tbody></table></div>
+    </div>
+  </div>
+  </div>
+
+  <div class="legend">
+    <h3 style="font-size:1rem">เลขบนหน้าจอ (โหมด “ที่เสนอ”)</h3>
+    <ol>
+      <li><i class="mk">1</i>รูปเมนูกรอบ 4:3 กว้าง 200px เหมือนหน้าต่างเมนูในหน้าจัดการเมนู</li>
+      <li><i class="mk">2</i>ร่างใหม่: ช่องชื่อเมนูและช่องหมวดมีชื่อกำกับเหนือช่อง</li>
+      <li><i class="mk">3</i>“เปลี่ยนชื่อได้ที่ จัดการเมนู” เป็นลิงก์ที่เปิดเมนูนี้ตรง ๆ</li>
+      <li><i class="mk">4</i>ร่างใหม่ที่ยังไม่เคยบันทึก: “ทิ้งร่าง” สีแดง → “ยกเลิก” ธรรมดา</li>
+      <li><i class="mk">5</i>ความเร็ว (มองไม่เห็นในภาพ): ราคาวัตถุดิบเริ่มโหลดพร้อมตอนเปิดหน้า</li>
+      <li><i class="mk">6</i>เมนูที่มีแค่ร่างและยังไม่เคยขาย แยกเป็น “กำลังทดลอง”</li>
+      <li><i class="mk">7</i><b>ใหม่</b> หน้ารายการ: สามตัวเลขสรุปบนสุด (ร่างที่กำลังคิด · รอคุณลงมือ · ขายอยู่แต่ยังไม่มีสูตร) และร่างแต่ละอันเป็นการ์ดมีรูป</li>
+      <li><i class="mk">8</i><b>ใหม่</b> แถบต้นทุนแยกตามวัตถุดิบ ตัวที่แพงที่สุดเป็นสีดิน (เห็นทันทีว่ากุ้งแกะคือ 88% ของจาน)</li>
+      <li><i class="mk">9</i><b>ใหม่</b> “ลองราคา” แทนกล่องคำนวณเดิม: ราคาใกล้เคียง 5 ราคา แต่ละราคาบอกต้นทุน % และกำไรต่อจาน เส้นสีดินคือเป้า กดแถวเพื่อใช้ราคานั้น</li>
+      <li><i class="mk">10</i><b>ใหม่</b> ร่างใหม่: พื้นที่ว่างใต้สูตรเป็นรายการ 4 ขั้นก่อนนำไปใช้จริง ติ๊กเองเมื่อทำเสร็จ</li>
+    </ol>
+    <p class="sub">หน้ารายการ: “เริ่มจากเมนูที่ขายอยู่แต่ยังไม่มีสูตร” ใช้ยอดจริง 30 วัน และปุ่ม “+ ร่างสูตร” เปิดร่างแบบ “แก้สูตรเมนูที่ขายอยู่” ที่มีอยู่แล้ว · ขั้นตอน 4 ขั้นมาจาก ADR 0041 (ร่าง → รอรับรอง → รับรองแล้ว → นำไปใช้จริง)</p>
+    <p class="sub">อ้างอิง: <a href="https://www.galleysolutions.com/recipe-food-costing-software-for-foodservice">Galley — ต้นทุนต่อจานแยกรายวัตถุดิบ + food cost % + margin ข้างกัน</a> · <a href="https://apps.apple.com/app/id6756592070">KitchenCost — ใส่เป้า % แล้วได้ราคาที่ควรตั้ง</a> · <a href="https://www.candu.ai/blog/how-to-create-empty-states-that-are-full-of-value">Candu — พื้นที่ว่างควรบอกขั้นต่อไป ไม่ใช่ปล่อยว่าง</a></p>
+  </div>
+</div>
+
+<script>
+const ING=[["กุ้งแกะ","100","g","= 0.1 kg",56.96,true],["กระเทียม","15","g","= 0.015 kg",1.36,false],["ไข่ไก่","1","ฟอง","",4.41,false],["ซอสหอยนางรม","1","ช้อนโต๊ะ","= 0.015 l",1.01,false],["น้ำปลา","1","ช้อนโต๊ะ","= 0.015 l",0.65,false]];
+const COST=64.40, TARGET=30;
+const $=s=>document.querySelector(s), root=$("#root");
+const f2=n=>n.toLocaleString("th-TH",{minimumFractionDigits:2,maximumFractionDigits:2});
+let pick=215;
+function ladder(){
+  const prices=[189,199,209,215,229];
+  $("#ladder").innerHTML=`<div class="lrow sub" style="font-size:.7rem;padding:0 8px"><span>ราคา</span><span>ต้นทุน % (เส้น = เป้า ${TARGET}%)</span><span class="r">%</span><span class="r">กำไร/จาน</span></div>`+prices.map(p=>{const pct=COST/p*100;return `<div class="lrow ${p===pick?"pick":""}" data-p="${p}" style="cursor:pointer"><span class="p num">฿${p}${p===215?' <span class="sub">ควรตั้ง</span>':""}</span><span class="bar"><span class="fill" style="width:${pct*2}%"></span><span class="target" style="left:${TARGET*2}%"></span></span><span class="r num">${pct.toFixed(1)}%</span><span class="r num">฿${f2(p-COST)}</span></div>`}).join("");
+  document.querySelectorAll(".lrow[data-p]").forEach(r=>r.onclick=()=>{pick=+r.dataset.p;ladder();});
+}
+const tot=ING.reduce((s,x)=>s+x[4],0);
+$("#ing").innerHTML=`<div class="ing sub" style="font-size:.72rem;border:0;padding:0"><span>วัตถุดิบ</span><span class="r">ปริมาณ</span><span>หน่วย</span><span class="r">ต้นทุน</span><span></span></div>`+ING.map((x,i)=>`<div class="ing"><span>${x[0]}${x[5]?' <span class="badge warn">ของแปรรูป</span>':""}</span><input class="qty num" value="${x[1]}" aria-label="ปริมาณ"><span><select class="unit" aria-label="หน่วย"><option>${x[2]}</option></select><span class="s">${x[3]}</span></span><span class="cost num">฿${f2(x[4])}<small>${Math.round(x[4]/tot*100)}%${i===0?" ของจาน":""}</small></span><span class="dim">×</span></div>`).join("");
+ladder();
+let scene="list";
+function draw(){["list","draft","fresh","cards"].forEach(s=>$("#sc-"+s).style.display=s===scene?"":"none");}
+function mode(v){root.classList.toggle("v-new",v==="new");root.classList.toggle("v-now",v==="now");$("#b-now").setAttribute("aria-pressed",v==="now");$("#b-new").setAttribute("aria-pressed",v==="new");}
+$("#b-now").onclick=()=>mode("now"); $("#b-new").onclick=()=>mode("new");
+document.querySelectorAll("[data-scene]").forEach(b=>b.onclick=()=>{scene=b.dataset.scene;document.querySelectorAll("[data-scene]").forEach(x=>x.setAttribute("aria-pressed",x===b));draw();});
+$("#b-mk").onclick=e=>{const on=root.classList.toggle("hide-mk");e.target.setAttribute("aria-pressed",!on);};
+draw();
+// Like the real page: the whole card opens the sheet; "+ ร่างสูตร" opens a new one.
+const go=sc=>{scene=sc;document.querySelectorAll("[data-scene]").forEach(x=>x.setAttribute("aria-pressed",x.dataset.scene===sc));draw();window.scrollTo({top:0,behavior:"smooth"});};
+$("#openDraft").onclick=()=>go("draft");
+document.querySelectorAll(".sug,.pbtn.dark").forEach(b=>{b.style.cursor="pointer";b.onclick=e=>{e.stopPropagation();go("fresh");};});
+document.querySelectorAll(".x,.x2").forEach(x=>{x.style.cursor="pointer";x.onclick=()=>go("list");});
+</script>

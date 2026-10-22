@@ -30,7 +30,7 @@ import { confirmMenuAliasAction, getMenuSuggestionsAction, updateMenuAction, typ
 import { deleteMenuAction, setMenuActiveAction } from "@/app/(app)/menus/lifecycle-actions";
 import { RETIRE_MEANS_TH, RETIRE_NOT_IN_POS_TH } from "@/lib/validations/menu-lifecycle";
 import type { IngredientOption, MenuSheet as SheetData, PriceBook, StandardUnit } from "@/server/menu-manager";
-import { Adder, appendLines, lineCost as lineCostWith, lineFrom, materializeUnits, nextKey, priceOf, qtyOf, RecipeTable, signature, type Line } from "./recipe-editor";
+import { Adder, appendLines, CostMix, lineCost as lineCostWith, lineFrom, materializeUnits, nextKey, priceOf, qtyOf, RecipeTable, signature, type Line } from "./recipe-editor";
 import { orStale } from "@/lib/stale-tab";
 import type { MergeMenuView } from "./menu-merge-view";
 import type { MenuSuggestionRowView } from "./menu-view";
@@ -576,6 +576,10 @@ export default function MenuSheet(props: {
             </div>
           )}
 
+          {/* Where the plate's money goes — the lab shows the same bar (Kong 2026-10-22). */}
+          {sheet && !costHidden && book && lines.length > 0 && lines.every((l) => priceOf(l, book) !== null) && (
+            <CostMix items={lines.map((l) => ({ label: l.label, cost: lineCost(l) ?? 0 }))} />
+          )}
           {sheet && lines.length > 0 && (
             <RecipeTable
               lines={lines}

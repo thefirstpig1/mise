@@ -24,14 +24,14 @@ import type { IngredientOption, LabDraft, PriceBook, SheetLine, StandardUnit } f
 import { rankBySearch, hasQuery, STRONG_MATCH, type SearchField } from "@/lib/smart-search";
 import { orStale } from "@/lib/stale-tab";
 import { deletedMenuNamed, labDraftCost, menuSheet, type DeletedMenu, type LabCost } from "../../_components/prefetch";
-import { Adder, appendLines, lineCost, lineFrom, materializeUnits, nextKey, qtyOf, RecipeTable, signature, type Line } from "../../_components/recipe-editor";
+import { Adder, appendLines, CostMix, lineCost, lineFrom, materializeUnits, nextKey, qtyOf, RecipeTable, signature, type Line } from "../../_components/recipe-editor";
 import { atLeastTh, baht, confidenceHintTh, confidenceTh, newSubmitKey, thDate, unitTh } from "../../_components/manager-format";
 import { ConfirmDialog, type ConfirmSpec, PhotoSlot, Sheet } from "../../_components/sheet-parts";
-import { STATUS_TH, type LabMenu, type Option } from "./LabManager";
+import { DraftSteps, STATUS_TH, type LabMenu, type Option } from "./LabManager";
 
 const DEFAULT_TARGET = 30;
 const targetKey = (id: string) => `mise.lab.target.${id}`;
-const readTarget = (id: string | null) => {
+export const readTarget = (id: string | null) => {
   if (!id) return DEFAULT_TARGET;
   try {
     const v = Number(window.localStorage.getItem(targetKey(id)));
@@ -58,6 +58,8 @@ const toLine = (l: SheetLine): Line => ({
 
 export default function LabSheet(props: {
   draft: LabDraft | null;
+  /** A new draft that reworks this dish ("เริ่มจากเมนูที่ขายอยู่แต่ยังไม่มีสูตร"). */
+  startMenuId?: string | null;
   menus: LabMenu[];
   factDays: number;
   categories: Option[];
@@ -83,10 +85,10 @@ export default function LabSheet(props: {
 
   // ---- what the draft is ----
   const [savedId, setSavedId] = useState<string | null>(d0?.recipeId ?? null);
-  const [kind, setKind] = useState<"new" | "edit">(d0 ? (d0.menuIsMise && !d0.hasSales ? "new" : "edit") : "new");
+  const [kind, setKind] = useState<"new" | "edit">(d0 ? (d0.menuIsMise && !d0.hasSales ? "new" : "edit") : props.startMenuId ? "edit" : "new");
   const [name, setName] = useState(d0?.menuName ?? "");
   const [categoryId, setCategoryId] = useState(d0?.menuCategoryId ?? "");
-  const [menuId, setMenuId] = useState<string | null>(d0?.menuId ?? null);
+  const [menuId, setMenuId] = useState<string | null>(d0?.menuId ?? props.startMenuId ?? null);
   const [extraMenu, setExtraMenu] = useState<LabMenu | null>(null);
   const menu = props.menus.find((m) => m.id === menuId) ?? (extraMenu?.id === menuId ? extraMenu : null);
 
@@ -145,6 +147,20 @@ export default function LabSheet(props: {
   const perPlate = book === null || lines.length === 0 ? null : lines.reduce((s, l) => s + (lineCost(l, book) ?? 0), 0) / (servings || 1);
   const pct = perPlate !== null && priceN && missing === 0 ? (perPlate / priceN) * 100 : null;
   const suggested = perPlate !== null && missing === 0 && perPlate > 0 ? Math.ceil(perPlate / (target / 100)) : null;
+  // "ลองราคา" (Kong 2026-10-22): the suggested price and the prices ending in 9
+  // around it — three below, one above — plus the price being considered.
+  // Each row is the same division as the tiles (cost ÷ price); nothing new.
+  const ladder = (() => {
+    if (suggested === null) return [] as number[];
+    const at = new Set<number>([suggested]);
+    const below = Math.floor((suggested - 10) / 10) * 10 + 9;
+    for (let i = 0; i < 3; i++) if (below - 10 * i > 0 && below - 10 * i < suggested) at.add(below - 10 * i);
+    let above = Math.floor(suggested / 10) * 10 + 9;
+    if (above <= suggested) above += 10;
+    at.add(above);
+    if (priceN) at.add(priceN);
+    return [...at].sort((a, b) => a - b);
+  })();
   const liveCost = menuId && book ? (book.menus[menuId]?.costPerServing ?? null) : null;
   const avg = menu && menu.qty > 0 ? menu.net / menu.qty : null;
   const sameAsSaved = signature(lines, servings) === signature(saved.lines, saved.servings) && (priceN ?? null) === (saved.price ?? null);
@@ -353,13 +369,16 @@ export default function LabSheet(props: {
 
   return (
     <Sheet onClose={close} labelledBy="lab-title">
-      <div className="flex items-start gap-3 border-b border-border bg-surface px-5 py-4">
-        <PhotoSlot size={72} label="รูปเมนู" />
-        <div className="min-w-0 flex-1 space-y-2">
+      {/* Kong 2026-10-22 (mockup PiWpnuu2kXAGAL9yCDNYtw): the same header as the
+          menu sheet — a 4:3 photo, the name beside it, every choice NAMED. */}
+      <div className="relative flex flex-col gap-4 border-b border-border bg-surface px-5 py-4 sm:flex-row sm:items-start">
+        <PhotoSlot label="รูปเมนู" className="aspect-[4/3] w-full sm:w-[200px]" />
+        <div className="min-w-0 flex-1 space-y-2.5 pr-8">
           <p id="lab-title" className="text-xs text-muted-subtle">
             {savedId ? "ร่างสูตร" : "ร่างสูตรใหม่"}
             {d0 && ` · ร่างโดย ${isAuthor ? "คุณ" : d0.authorName}`}
             {status !== "DRAFT" && ` · ${status === "ENDORSED" && endorsedBy ? `รับรองโดย ${endorsedBy}` : STATUS_TH[status]}`}
+            {d0 && ` · แก้ล่าสุด ${thDate(d0.updatedAt.slice(0, 10))}`}
           </p>
           {!savedId && (
             <div role="group" aria-label="ร่างนี้คือ" className="inline-flex rounded-full border border-border-strong p-0.5 text-sm">
@@ -380,27 +399,36 @@ export default function LabSheet(props: {
             </div>
           )}
           {savedId || menuId ? (
-            <div>
-              <h3 className="text-lg font-semibold">{menu?.name ?? name}</h3>
+            <div className="space-y-1">
+              <h3 className="font-display text-xl font-semibold">{menu?.name ?? name}</h3>
               <p className="text-xs text-muted-foreground">
-                {menu?.posCode && <span className="badge mr-1.5">{menu.posCode}</span>}
-                {kind === "new" ? "เมนูใหม่ · ยังไม่มีการขายจนกว่าจะนำไปใช้จริง · เปลี่ยนชื่อได้ที่ จัดการเมนู" : live ? "นำไปใช้จริงแล้วจะแทนสูตรกลางเดิมตั้งแต่วันนั้น" : "เมนูนี้ยังไม่มีสูตรกลาง"}
+                {menu?.posCode && <span className="mr-1.5 tabular-nums">รหัส POS {menu.posCode} ·</span>}
+                {kind === "new" ? "เมนูใหม่ · ยังไม่มีการขายจนกว่าจะนำไปใช้จริง" : live ? "นำไปใช้จริงแล้วจะแทนสูตรกลางเดิมตั้งแต่วันนั้น" : "เมนูนี้ยังไม่มีสูตรกลาง"}
               </p>
+              {menuId && (
+                <a href={`/menus?menu=${menuId}`} className="inline-block text-xs text-primary underline decoration-dotted underline-offset-4 hover:decoration-solid">
+                  {kind === "new" ? "เปลี่ยนชื่อ หมวด หรือแผนก ที่หน้าจัดการเมนู ›" : "เปิดเมนูนี้ในหน้าจัดการเมนู ›"}
+                </a>
+              )}
             </div>
           ) : kind === "new" ? (
-            <div className="space-y-1.5">
-              <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="ชื่อเมนูใหม่ เช่น ข้าวผัดปูไข่เค็ม" aria-label="ชื่อเมนูใหม่" className="input w-full text-base font-semibold" />
-              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} aria-label="หมวด" className="rounded-full border border-border bg-surface px-2 py-0.5 text-xs">
-                  <option value="">— หมวด (ไม่บังคับ) —</option>
+            <div className="space-y-2">
+              <label className="grid gap-0.5">
+                <span className="pl-2.5 text-[11px] text-muted-subtle">ชื่อเมนู</span>
+                <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="เช่น ข้าวผัดปูไข่เค็ม" className="input w-full text-base font-semibold" />
+              </label>
+              <label className="grid max-w-xs gap-0.5">
+                <span className="pl-2.5 text-[11px] text-muted-subtle">หมวด (ไม่บังคับ)</span>
+                <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className="w-full rounded-full border border-border bg-surface px-2.5 py-1 text-sm">
+                  <option value="">— ไม่ระบุหมวด —</option>
                   {props.categories.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name}
                     </option>
                   ))}
                 </select>
-                <span>สร้างเมนูให้ตอนบันทึก ยังไม่มีการขายจนกว่าจะนำไปใช้จริง</span>
-              </div>
+              </label>
+              <p className="text-xs text-muted-foreground">สร้างเมนูให้ตอนบันทึก ยังไม่มีการขายจนกว่าจะนำไปใช้จริง</p>
               {restorable && (
                 <div className="rounded-lg border border-border bg-surface-sunk p-2 text-xs">
                   มีเมนูชื่อนี้ที่ถูกลบไปแล้ว{restorable.recipeCount > 0 ? ` (สูตร ${restorable.recipeCount} รายการ)` : ""} · กู้คืนเมนูเดิมแทนการสร้างเมนูใหม่ซ้ำ
@@ -425,8 +453,9 @@ export default function LabSheet(props: {
               }}
             />
           )}
+          {savedId && <DraftSteps status={status} />}
         </div>
-        <button type="button" onClick={close} aria-label="ปิด" className="rounded-lg px-2 text-2xl leading-none text-muted-foreground hover:bg-muted">
+        <button type="button" onClick={close} aria-label="ปิด" className="absolute right-3 top-3 rounded-lg px-2 text-2xl leading-none text-muted-foreground hover:bg-muted">
           ×
         </button>
       </div>
@@ -465,25 +494,63 @@ export default function LabSheet(props: {
           )}
         </div>
 
-        {!costHidden && suggested !== null && (
-          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-surface-sunk px-3 py-2 text-sm">
-            ถ้าอยากให้ต้นทุนเป็น
-            <MeasureInput
-              size="sm"
-              unit="%"
-              min="5"
-              max="90"
-              value={target}
-              onChange={(e) => setTargetKept(Math.max(5, Math.min(90, Number(e.target.value) || DEFAULT_TARGET)))}
-              aria-label="เป้าต้นทุน %"
-              boxClassName="w-20"
-            />
-            ของราคา ควรตั้งราคา <b className="tabular-nums">{baht(suggested)}</b>
-            <button type="button" onClick={() => setPrice(String(suggested))} className="rounded-full border border-border-strong bg-surface px-3 py-0.5 text-sm hover:bg-muted">
-              ใช้ราคานี้
-            </button>
-            <span className="basis-full text-xs text-muted-foreground">ราคา = ต้นทุน ÷ เป้า % · ร้านอาหารทั่วไปตั้งเป้าที่ 28–35% · เป้านี้จำไว้ต่อร่าง</span>
-          </div>
+        {!costHidden && suggested !== null && perPlate !== null && (
+          <section className="space-y-2 rounded-xl border border-border bg-surface p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h4 className="font-semibold">ลองราคา</h4>
+              <span className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                เป้าต้นทุน
+                <MeasureInput
+                  size="sm"
+                  unit="%"
+                  min="5"
+                  max="90"
+                  value={target}
+                  onChange={(e) => setTargetKept(Math.max(5, Math.min(90, Number(e.target.value) || DEFAULT_TARGET)))}
+                  aria-label="เป้าต้นทุน %"
+                  boxClassName="w-20"
+                />
+                → ควรตั้ง <b className="tabular-nums text-foreground">{baht(suggested)}</b>
+                {canEdit && " · กดแถวเพื่อใช้ราคานั้น"}
+              </span>
+            </div>
+            <div className="grid gap-1">
+              <div className="grid grid-cols-[88px_minmax(0,1fr)_56px_96px] gap-3 px-2 text-[11px] text-muted-subtle">
+                <span>ราคา</span>
+                <span>ต้นทุน % · เส้น = เป้า {target}%</span>
+                <span className="text-right">%</span>
+                <span className="text-right">กำไร/จาน</span>
+              </div>
+              {ladder.map((p, n) => {
+                const at = (perPlate / p) * 100;
+                const chosen = p === priceN;
+                return (
+                  <button
+                    key={p}
+                    type="button"
+                    disabled={!canEdit}
+                    onClick={() => setPrice(String(p))}
+                    className={`grid grid-cols-[88px_minmax(0,1fr)_56px_96px] items-center gap-3 rounded-lg px-2 py-1.5 text-left text-sm tabular-nums transition-colors ${chosen ? "bg-warn-bg ring-1 ring-warn-border" : "hover:bg-muted/60"}`}
+                  >
+                    <span className="font-display font-semibold">
+                      {baht(p)}
+                      {p === suggested && <span className="ml-1 text-[10px] font-normal text-muted-subtle">ควรตั้ง</span>}
+                    </span>
+                    <span className="relative h-2 rounded-full bg-muted">
+                      <span
+                        className="absolute inset-y-0 left-0 origin-left animate-grow-x rounded-full"
+                        style={{ width: `${Math.min(100, at * 2)}%`, background: chosen ? "linear-gradient(90deg,#E8A76F,#C0692B)" : "linear-gradient(90deg,#9DAA55,#5E6B14)", animationDelay: `${n * 40}ms` }}
+                      />
+                      <span className="absolute -inset-y-1 w-0.5 rounded bg-[#C0692B]" style={{ left: `${Math.min(100, target * 2)}%` }} />
+                    </span>
+                    <span className={`text-right ${at > target + 0.05 ? "text-warn" : ""}`}>{at.toFixed(1)}%</span>
+                    <span className="text-right">{baht(p - perPlate, 2)}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-xs text-muted-foreground">ราคา = ต้นทุน ÷ เป้า % · ร้านอาหารทั่วไปตั้งเป้าที่ 28–35% · ราคาลงท้ายด้วย 9 รอบราคาที่ควรตั้ง · เป้านี้จำไว้ต่อร่าง</p>
+          </section>
         )}
 
         {!costHidden && kind === "edit" && menu && live && (
@@ -546,6 +613,8 @@ export default function LabSheet(props: {
               <b className="text-foreground">ยังไม่มีวัตถุดิบ</b> · พิมพ์ชื่อหรือรหัสในช่องด้านล่าง ต้นทุนจะขึ้นทันที
             </div>
           ) : (
+            <>
+            {!costHidden && book && missing === 0 && <CostMix items={lines.map((l) => ({ label: l.label, cost: lineCost(l, book) ?? 0 }))} />}
             <RecipeTable
               lines={lines}
               setLines={setLines}
@@ -559,6 +628,7 @@ export default function LabSheet(props: {
               canDefineUnit={props.canPublish}
               onToast={onToast}
             />
+            </>
           )}
           {canEdit ? (
             <Adder
@@ -575,6 +645,30 @@ export default function LabSheet(props: {
             <p className="text-xs text-warn">ยังไม่มีราคาที่{branchName}: {lines.filter((l) => lineCost(l, book) === null).map((l) => l.label).join(", ")} · ต้นทุนจริงจะสูงกว่านี้</p>
           )}
         </section>
+
+        {/* Kong 2026-10-22: what is left before a new draft can go live — ticked
+            by what is already on the sheet, so the empty space says what next. */}
+        {!savedId && canEdit && (
+          <section className="space-y-2">
+            <h4 className="font-semibold">ก่อนนำไปใช้จริง</h4>
+            {[
+              { done: targetReady, t: kind === "new" ? "ตั้งชื่อเมนู" : "เลือกเมนูที่จะแก้สูตร", s: kind === "new" ? "ชื่อนี้คือชื่อที่จะเห็นในหน้าจัดการเมนู" : "ค้นจากชื่อหรือรหัส POS" },
+              { done: lines.length > 0 && linesReady, t: "ใส่วัตถุดิบอย่างน้อยหนึ่งตัว", s: "เริ่มจากวัตถุดิบหลักก่อนก็ได้ ต้นทุนขึ้นทันที" },
+              { done: priceN !== null, t: "ลองราคาที่ตั้งใจ", s: costHidden ? "ราคาที่คิดไว้สำหรับจานนี้" : `ดูต้นทุน % เทียบเป้า ${target}%` },
+              { done: false, t: "บันทึกร่าง แล้วนำไปใช้จริงเมื่อพร้อม", s: "ก่อนนำไปใช้จริง ร่างไม่ตัดสต๊อก" },
+            ].map((c) => (
+              <div key={c.t} className="flex items-start gap-3 rounded-xl border border-border bg-surface px-3 py-2.5 text-sm">
+                <span className={`mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full border-[1.5px] text-[11px] transition-colors ${c.done ? "border-primary bg-primary text-primary-foreground" : "border-border-strong"}`} aria-hidden>
+                  {c.done ? "✓" : ""}
+                </span>
+                <span className={c.done ? "text-muted-foreground line-through decoration-border-strong" : ""}>
+                  {c.t}
+                  <span className="block text-xs text-muted-subtle no-underline">{c.s}</span>
+                </span>
+              </div>
+            ))}
+          </section>
+        )}
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border bg-surface px-5 py-3">
@@ -584,9 +678,16 @@ export default function LabSheet(props: {
         <span className="flex flex-wrap justify-end gap-2">
           {canEdit && (
             <>
-              <button type="button" onClick={askDiscard} disabled={busy} className="rounded-full border border-border-strong px-4 py-1.5 text-sm text-bad hover:bg-bad-bg">
-                ทิ้งร่าง
-              </button>
+              {savedId ? (
+                <button type="button" onClick={askDiscard} disabled={busy} className="rounded-full border border-border-strong px-4 py-1.5 text-sm text-bad hover:bg-bad-bg">
+                  ทิ้งร่าง
+                </button>
+              ) : (
+                // Nothing saved yet, so nothing to throw away — a plain way out.
+                <button type="button" onClick={close} disabled={busy} className="rounded-full border border-border-strong px-4 py-1.5 text-sm hover:bg-muted">
+                  ยกเลิก
+                </button>
+              )}
               <button type="button" onClick={doSave} disabled={busy || (!dirty && !!savedId)} className="rounded-full border border-border-strong px-4 py-1.5 text-sm hover:bg-muted disabled:opacity-50">
                 {busy ? "กำลังบันทึก…" : "บันทึกร่าง"}
               </button>

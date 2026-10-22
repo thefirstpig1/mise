@@ -18,7 +18,7 @@ import { requireTenant } from "@/lib/require-tenant";
 import { withTenantContext } from "@/lib/db";
 import { getBranchesLogic } from "@/server/branch";
 import { freshestCostBranch } from "@/server/menu-lab-read";
-import { getLabDraftsLogic } from "@/server/menu-manager";
+import { getLabDraftsLogic, getMenuPriceBookLogic } from "@/server/menu-manager";
 import { getMenuListFactsLogic, MENU_FACT_DAYS } from "@/server/menu-list-facts";
 import { getMenuCategoriesLogic } from "@/server/menu";
 import { computeBangkokToday } from "@/lib/bangkok-date";
@@ -49,6 +49,14 @@ export default async function MenuLabPage({
     ),
   ]);
 
+  // Started here and NOT awaited (Kong 2026-10-22, the /menus pattern): the
+  // drafts' costs used to wait for the page to paint and hydrate first.
+  const bookBranch = freshest?.id ?? branches[0]?.id ?? null;
+  const initialBook =
+    bookBranch !== null && costAccess !== null
+      ? { branchId: bookBranch, book: getMenuPriceBookLogic(tenantId, bookBranch, costAccess).catch(() => null) }
+      : null;
+
   const menuRows: LabMenu[] = menus.map((m) => {
     const f = facts.facts.get(m.id);
     return {
@@ -69,7 +77,8 @@ export default async function MenuLabPage({
       factDays={MENU_FACT_DAYS}
       categories={categories.map((c) => ({ id: c.id, name: c.name }))}
       branches={branches.map((b) => ({ id: b.id, name: b.name }))}
-      defaultBranchId={freshest?.id ?? branches[0]?.id ?? null}
+      defaultBranchId={bookBranch}
+      initialBook={initialBook}
       today={computeBangkokToday().toISOString().slice(0, 10)}
       costHidden={costAccess === null}
       canPublish={can("recipe:write") && canEditShared}

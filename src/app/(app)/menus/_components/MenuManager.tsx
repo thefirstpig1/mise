@@ -40,12 +40,13 @@ export type ManagerRow = MenuRowView & {
 export type Perm = { editMenu: boolean; deleteMenu: boolean; recipe: boolean; recipeShared: boolean; yield: boolean };
 export type Option = { id: string; name: string };
 
-type Status = "all" | "none" | "review" | "retired" | "every";
+type Status = "all" | "none" | "trial" | "review" | "retired" | "every";
 type Sort = "sold" | "name" | "cost";
 const NO_CATEGORY = "ไม่มีหมวด";
 const STATUS: { key: Status; label: string }[] = [
   { key: "all", label: "ขายอยู่" },
   { key: "none", label: "ยังไม่มีสูตร" },
+  { key: "trial", label: "กำลังทดลอง" },
   { key: "review", label: "รอตรวจ" },
   { key: "retired", label: "เลิกขายแล้ว" },
   { key: "every", label: "ทั้งหมด" },
@@ -180,7 +181,12 @@ export default function MenuManager(props: {
     }
   }, [openId]);
 
-  const selling = rows.filter((r) => !r.isRetired);
+  // Kong 2026-10-22: a dish that exists only as a lab draft — made in the lab
+  // (no POS code), no recipe, nothing sold — is not on sale yet, so it is
+  // "กำลังทดลอง", counted apart from ขายอยู่ and ยังไม่มีสูตร until it is published.
+  const isTrial = (r: ManagerRow) => !r.isRetired && r.recipeId === null && r.hasDraft && !r.posMenuCode && r.qty === 0;
+  const trial = rows.filter(isTrial);
+  const selling = rows.filter((r) => !r.isRetired && !isTrial(r));
   const noRecipe = selling.filter((r) => r.recipeId === null);
   const stubCount = selling.filter((r) => r.isPosStub).length;
 
@@ -210,9 +216,11 @@ export default function MenuManager(props: {
         ? r.isRetired
         : status === "review"
           ? r.isPosStub && !r.isRetired
-          : status === "none"
-            ? !r.isRetired && r.recipeId === null
-            : !r.isRetired
+          : status === "trial"
+            ? isTrial(r)
+            : status === "none"
+              ? !r.isRetired && r.recipeId === null && !isTrial(r)
+              : !r.isRetired && !isTrial(r)
   );
   const categoryChips = useMemo(() => {
     const seen = new Map<string, string>();
@@ -264,7 +272,7 @@ export default function MenuManager(props: {
     });
 
   const count = (s: Status) =>
-    s === "all" ? selling.length : s === "none" ? noRecipe.length : s === "review" ? stubCount : s === "retired" ? rows.length - selling.length : rows.length;
+    s === "all" ? selling.length : s === "none" ? noRecipe.length : s === "trial" ? trial.length : s === "review" ? stubCount : s === "retired" ? rows.filter((r) => r.isRetired).length : rows.length;
 
   return (
     <div className="space-y-5">
@@ -328,7 +336,17 @@ export default function MenuManager(props: {
             <div className="rounded-xl border border-border bg-surface p-3">
               <p className="text-xs text-muted-subtle">เมนูที่ขายอยู่</p>
               <p className="font-display text-2xl font-semibold tabular-nums">{selling.length}</p>
-              <p className="text-xs text-muted-foreground">{noRecipe.length} เมนูยังไม่มีสูตร</p>
+              <p className="text-xs text-muted-foreground">
+                {noRecipe.length} เมนูยังไม่มีสูตร
+                {trial.length > 0 && (
+                  <>
+                    {" · "}
+                    <button type="button" onClick={() => setStatus("trial")} className="text-primary underline decoration-dotted underline-offset-4 hover:decoration-solid">
+                      {trial.length} เมนูกำลังทดลอง
+                    </button>
+                  </>
+                )}
+              </p>
             </div>
             <div className="rounded-xl border border-border bg-surface p-3">
               <p className="text-xs text-muted-subtle">มีสูตรแล้ว คิดเป็นยอดขาย {factDays} วัน</p>
@@ -387,7 +405,7 @@ export default function MenuManager(props: {
               </div>
             </div>
             <div className="flex flex-wrap gap-2" role="group" aria-label="สถานะ">
-              {STATUS.map((s) => (
+              {STATUS.filter((s) => s.key !== "trial" || trial.length > 0 || status === "trial").map((s) => (
                 <button key={s.key} type="button" className={chip(status === s.key)} onClick={() => setStatus(s.key)}>
                   {s.label}
                   <span className="ml-1 tabular-nums opacity-70">{count(s.key)}</span>
@@ -528,7 +546,11 @@ export default function MenuManager(props: {
                           {m.recipeId ? (
                             <span className="whitespace-nowrap text-good">{m.recipeOwn ? "สูตรของสาขา" : "มีสูตร"}</span>
                           ) : m.hasDraft ? (
-                            <span className="whitespace-nowrap text-warn">มีร่าง</span>
+                            isTrial(m) ? (
+                              <span className="whitespace-nowrap rounded-full border border-dashed border-border-strong px-2.5 py-0.5 text-xs text-primary">กำลังทดลอง</span>
+                            ) : (
+                              <span className="whitespace-nowrap text-warn">มีร่าง</span>
+                            )
                           ) : (
                             // The row opens the sheet, where the recipe is written — this only says so.
                             <span className="whitespace-nowrap rounded-full border border-dashed border-border-strong px-2.5 py-0.5 text-xs text-primary group-hover:border-primary">
