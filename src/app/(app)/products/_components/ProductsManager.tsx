@@ -70,6 +70,8 @@ export default function ProductsManager(props: {
   products: ProductView[];
   branches: Option[];
   defaultBranchId: string | null;
+  /** The default branch's figures and price book, started by the server with the page. */
+  initial: { branchId: string; list: Promise<ProductListFacts | null>; book: Promise<PriceBook | null> } | null;
   today: string;
   costHidden: boolean;
   perm: Perm;
@@ -116,11 +118,24 @@ export default function ProductsManager(props: {
   const [lists, setLists] = useState<Record<string, ProductListFacts>>({});
   const [books, setBooks] = useState<Record<string, PriceBook>>({});
   const asked = useRef(new Set<string>());
+  const usedInitial = useRef(false);
   const load = (id: string, fresh = false) => {
     if (!id || (!fresh && asked.current.has(id))) return;
     asked.current.add(id);
-    void readList(id).then((l) => (l ? setLists((x) => ({ ...x, [id]: l })) : asked.current.delete(id)));
-    if (!costHidden) void priceBook(id).then((r) => r.ok && setBooks((x) => ({ ...x, [id]: r.book })));
+    const listFromApi = () => void readList(id).then((l) => (l ? setLists((x) => ({ ...x, [id]: l })) : asked.current.delete(id)));
+    const bookFromApi = () => {
+      if (!costHidden) void priceBook(id).then((r) => r.ok && setBooks((x) => ({ ...x, [id]: r.book })));
+    };
+    // The server started this branch's reads with the page; a refresh after a save asks afresh.
+    const first = props.initial;
+    if (!fresh && first && first.branchId === id && !usedInitial.current) {
+      usedInitial.current = true;
+      void first.list.then((l) => (l ? setLists((x) => ({ ...x, [id]: l })) : listFromApi()));
+      if (!costHidden) void first.book.then((b) => (b ? setBooks((x) => ({ ...x, [id]: b })) : bookFromApi()));
+      return;
+    }
+    listFromApi();
+    bookFromApi();
   };
   useEffect(() => load(branchId), [branchId]); // eslint-disable-line react-hooks/exhaustive-deps
   const list = lists[branchId] ?? null;

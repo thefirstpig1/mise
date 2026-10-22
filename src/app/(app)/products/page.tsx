@@ -1,13 +1,16 @@
 // /products — สินค้า/วัตถุดิบ (Kong 2026-10-21, mockup
 // https://claude.ai/artifact/AJiZcD1N3HUJAz6wkkVeSf): a table (or big-picture
 // cards) with what a shop actually looks things up for, and a sheet where the
-// product is edited. The page loads the catalogue only; the branch's figures
-// load after paint (ProductsManager).
+// product is edited. The page awaits the catalogue only; the branch's figures
+// and price book are STARTED here and stream in (Kong 2026-10-22, the /menus
+// pattern) — they used to begin only after the page had painted.
 //
 // `searchParams` is a PROMISE in Next 15.
 
 import { requireTenant } from "@/lib/require-tenant";
 import { getProductsLogic } from "@/server/product";
+import { getProductListFactsLogic } from "@/server/product-list";
+import { getMenuPriceBookLogic } from "@/server/menu-manager";
 import { getBranchesLogic } from "@/server/branch";
 import { freshestCostBranch } from "@/server/menu-lab-read";
 import { computeBangkokToday } from "@/lib/bangkok-date";
@@ -32,12 +35,22 @@ export default async function ProductsPage({
     freshestCostBranch(tenantId, reach).catch(() => null),
   ]);
   const filter = one("filter");
+  const branchId = freshest?.id ?? branches[0]?.id ?? null;
+  const initial =
+    branchId === null
+      ? null
+      : {
+          branchId,
+          list: getProductListFactsLogic(tenantId, branchId, costAccess).catch(() => null),
+          book: costAccess === null ? Promise.resolve(null) : getMenuPriceBookLogic(tenantId, branchId, costAccess).catch(() => null),
+        };
 
   return (
     <ProductsManager
       products={products.map(toProductView)}
       branches={branches.map((b) => ({ id: b.id, name: b.name }))}
-      defaultBranchId={freshest?.id ?? branches[0]?.id ?? null}
+      defaultBranchId={branchId}
+      initial={initial}
       today={computeBangkokToday().toISOString().slice(0, 10)}
       costHidden={costAccess === null}
       perm={{

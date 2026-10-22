@@ -8,7 +8,7 @@
 import { useEffect, useState } from "react";
 import type { ParDoc } from "@/server/product-list";
 import type { ParStateKind } from "@/lib/par-alert";
-import { qtyFmt, thDate, unitTh } from "@/app/(app)/menus/_components/manager-format";
+import { packQtyTh, qtyFmt, thDate } from "@/app/(app)/menus/_components/manager-format";
 import { Portal, useTopLayer } from "@/app/(app)/menus/_components/sheet-parts";
 
 export default function ParDocsPopup({
@@ -139,7 +139,7 @@ export default function ParDocsPopup({
                       )}
                     </span>
                     <span className="text-right tabular-nums">
-                      {l.qty.toLocaleString("th-TH", { maximumFractionDigits: 3 })} × {unitTh(l.unitName)}
+                      {packQtyTh(l.qty, l.unitName)}
                     </span>
                     <span className="col-span-2 text-xs text-muted-foreground">
                       มี {qtyFmt(l.onHand, l.baseUnitName)}

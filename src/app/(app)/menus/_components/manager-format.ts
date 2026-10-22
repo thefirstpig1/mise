@@ -41,3 +41,13 @@ export function newSubmitKey(): string {
 
 
 export { atLeastTh, atMostTh } from "@/lib/cost-bound";
+
+/**
+ * A count of purchase units (Kong 2026-10-22): "5 kg", but "5 × ถุง 500 g" —
+ * the × only where the unit carries its own size, or "5 × kg" reads as a sum.
+ */
+export const packQtyTh = (qty: number, unit: string) => {
+  const u = unitTh(unit);
+  const q = qty.toLocaleString("th-TH", { maximumFractionDigits: 3 });
+  return /\d/.test(u) ? `${q} × ${u}` : `${q} ${u}`;
+};

@@ -24,9 +24,12 @@ import { updateRecipeAction } from "@/app/(app)/recipes/actions";
 import type { IngredientInsight, IngredientOption, PriceBook, SheetLine, StandardUnit } from "@/server/menu-manager";
 import { Adder, appendLines, lineCost as lineCostOf, lineFrom, materializeUnits, nextKey, qtyOf, RecipeTable, signature, type Line } from "./recipe-editor";
 import { orStale } from "@/lib/stale-tab";
-import { baht, newSubmitKey, qtyFmt, thDate, unitTh } from "./manager-format";
+import { baht, newSubmitKey, qtyFmt, thDate, unitTh, packQtyTh } from "./manager-format";
 import { ConfirmDialog, type ConfirmSpec, PhotoSlot, Sheet } from "./sheet-parts";
 import type { Option, Perm } from "./MenuManager";
+
+/** A daily rate from fewer posted days than this is said to be thin (Kong 2026-10-22). */
+const FEW_DAYS = 7;
 
 /** What the products screen adds to the sheet (page mode). */
 export type SheetExtra = {
@@ -243,14 +246,15 @@ export default function IngredientSheet({
 
   return (
     <Sheet stacked={stacked} onClose={close} labelledBy="ing-title">
-      <div className="flex items-start gap-3 border-b border-border bg-surface px-5 py-4">
-        <PhotoSlot size={64} label="รูป" />
-        <div className="min-w-0 flex-1">
+      {/* Kong 2026-10-22: the 4:3 photo of the menu and lab sheets. */}
+      <div className="relative flex flex-col gap-4 border-b border-border bg-surface px-5 py-4 sm:flex-row sm:items-start">
+        <PhotoSlot label="รูปสินค้า" className="aspect-[4/3] w-full sm:w-[200px]" />
+        <div className="min-w-0 flex-1 pr-8">
           <span className="badge">{data?.product.type === "PREPPED" ? "ของแปรรูป" : "วัตถุดิบ"}{data ? ` · ${data.product.sku}` : ""}</span>
           {extra?.title ?? <h3 id="ing-title" className="mt-1 text-lg font-semibold">{data?.product.name ?? "กำลังโหลด…"}</h3>}
           <p className="text-xs text-muted-foreground">นับสต๊อกเป็น {unitTh(baseUnit) || "—"} · {branch.name}</p>
         </div>
-        <button type="button" onClick={close} aria-label="ปิด" className="rounded-lg px-2 text-2xl leading-none text-muted-foreground hover:bg-muted">
+        <button type="button" onClick={close} aria-label="ปิด" className="absolute right-3 top-3 rounded-lg px-2 text-2xl leading-none text-muted-foreground hover:bg-muted">
           ×
         </button>
       </div>
@@ -266,11 +270,13 @@ export default function IngredientSheet({
               ) : (
                 <>
                   <Tile k="คงเหลือ" v={fact ? qtyFmt(fact.onHand, baseUnit) : "—"} s={data.facts.postedThrough ? `ตามระบบ · ตัดสต๊อกถึง ${thDate(data.facts.postedThrough, false)}` : "ยังไม่มีการตัดสต๊อกตามยอดขาย"} />
-                  <Tile k="ใช้เฉลี่ยต่อวัน" v={fact?.usedPerDay ? qtyFmt(fact.usedPerDay, baseUnit) : "—"} s={`จากยอดขาย ${data.facts.postedDays} วันที่ตัดสต๊อกแล้ว`} />
+                  <Tile k="ใช้เฉลี่ยต่อวัน" v={fact?.usedPerDay ? qtyFmt(fact.usedPerDay, baseUnit) : "—"} s={`จากยอดขาย ${data.facts.postedDays} วันที่ตัดสต๊อกแล้ว${data.facts.postedDays > 0 && data.facts.postedDays < FEW_DAYS ? " · ยังน้อย เชื่อได้ไม่มาก" : ""}`}
+                    warn={data.facts.postedDays > 0 && data.facts.postedDays < FEW_DAYS}
+                  />
                   <Tile
                     k="พอใช้อีก"
                     v={fact?.daysLeft == null ? "—" : `~${fact.daysLeft} วัน`}
-                    s={fact?.par != null ? `ขั้นต่ำ ${qtyFmt(fact.par, baseUnit)}${fact.belowPar ? " · ต่ำกว่าแล้ว" : ""}` : "ยังไม่ได้ตั้งขั้นต่ำ"}
+                    s={`${fact?.par != null ? `ขั้นต่ำ ${qtyFmt(fact.par, baseUnit)}${fact.belowPar ? " · ต่ำกว่าแล้ว" : ""}` : "ยังไม่ได้ตั้งขั้นต่ำ"}${data.facts.postedDays > 0 && data.facts.postedDays < FEW_DAYS ? ` · อิงแค่ ${data.facts.postedDays} วัน` : ""}`}
                     bad={fact?.belowPar}
                   />
                 </>
@@ -284,6 +290,15 @@ export default function IngredientSheet({
                 />
               )}
             </div>
+
+            {/* Beside the figures that are its reason (Kong 2026-10-22), not alone at the foot. */}
+            {data.product.type !== "PREPPED" && (
+              <div className="-mt-2 flex justify-end">
+                <a href="/purchase-requests" className="whitespace-nowrap rounded-full border border-dashed border-border-strong px-3 py-1 text-xs text-primary hover:border-primary">
+                  + ขอซื้อเพิ่ม
+                </a>
+              </div>
+            )}
 
             {made?.how === "recipe" && lines && (
               <section className="space-y-2 rounded-xl border border-border bg-surface p-4">
@@ -388,7 +403,7 @@ export default function IngredientSheet({
                         <tr key={i}>
                           <td className="py-1.5">{thDate(r.date, false)}</td>
                           <td className="py-1.5">{r.supplier}</td>
-                          <td className="py-1.5">{r.qty.toLocaleString("th-TH")} × {r.packUnit}</td>
+                          <td className="py-1.5">{packQtyTh(r.qty, r.packUnit)}</td>
                           <td className="py-1.5 text-right">{baht(r.price, 2)}</td>
                           <td className="py-1.5 text-right">{baht(r.perBase, 2)}</td>
                         </tr>
@@ -435,9 +450,6 @@ export default function IngredientSheet({
                   เปิดในหน้าสินค้า/วัตถุดิบ
                 </a>
               )}
-              <a href="/purchase-requests" className="rounded-full border border-border-strong px-3 py-1 text-sm hover:bg-muted">
-                ขอซื้อเพิ่ม
-              </a>
             </div>
           </>
         )}

@@ -1,0 +1,318 @@
+<title>เพิ่มสินค้า · เก่า–ใหม่</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Prompt:wght@500;600;700&family=Noto+Sans+Thai:wght@400;500;600&display=swap">
+<style>
+/* Mockup: "+ เพิ่มสินค้า" — the old full-page form vs the products sheet,
+   flipped in place. App tokens (tailwind.config.ts). Layout: page left, sheet right. */
+:root{
+  --bg:#FDFBF3; --fg:#262811; --surface:#FFFFFF; --sunk:#F8F3E1; --primary:#41431B; --primary-fg:#F8F3E1; --primary-soft:#EFEDD7;
+  --muted:#F3EFDF; --muted-fg:#5A5C31; --subtle:#8B8D63; --border:#E9E3C8; --strong:#D2CBA4;
+  --good:#5A7333; --good-bg:#EEF2E0; --bad:#A83A22; --bad-bg:#F9E5DF; --warn:#A87C1C; --warn-bg:#F8EFD6; --warn-border:#E2CE97;
+  --display:"Prompt","Noto Sans Thai",system-ui,sans-serif; --body:"Noto Sans Thai","Prompt",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#1B1C10; --fg:#EEEAD6; --surface:#24261A; --sunk:#2A2C1E; --primary:#D9DDB0; --primary-fg:#1B1C10; --primary-soft:#33361F;
+  --muted:#2E301F; --muted-fg:#C9C8A6; --subtle:#9C9B7C; --border:#36381F; --strong:#4A4C30;
+  --good:#B7CF7C; --good-bg:#2B3320; --bad:#EC9C80; --bad-bg:#41261C; --warn:#E8BE62; --warn-bg:#3B3018; --warn-border:#5A4A22; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#1B1C10; --fg:#EEEAD6; --surface:#24261A; --sunk:#2A2C1E; --primary:#D9DDB0; --primary-fg:#1B1C10; --primary-soft:#33361F;
+  --muted:#2E301F; --muted-fg:#C9C8A6; --subtle:#9C9B7C; --border:#36381F; --strong:#4A4C30;
+  --good:#B7CF7C; --good-bg:#2B3320; --bad:#EC9C80; --bad-bg:#41261C; --warn:#E8BE62; --warn-bg:#3B3018; --warn-border:#5A4A22; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:14px;line-height:1.55;margin:0;padding-inline:16px;padding-block:20px 60px}
+h1,h2,h3,h4{font-family:var(--display);margin:0}
+p{margin:0}
+.wrap{max-width:1320px;margin:0 auto;display:grid;gap:14px}
+.top{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;justify-content:space-between}
+.seg{display:inline-flex;border:1px solid var(--strong);border-radius:999px;padding:3px;background:var(--surface);gap:2px}
+.seg button{font:inherit;font-size:.85rem;border:0;background:none;color:var(--fg);border-radius:999px;padding:4px 14px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--primary);color:var(--primary-fg)}
+.seg button:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.sub{color:var(--subtle);font-size:.8rem}
+.scroller{overflow-x:auto;border-radius:16px;border:1px solid var(--strong);box-shadow:0 10px 30px rgb(0 0 0/.06)}
+.screen{min-width:1120px;display:grid;grid-template-columns:1fr 760px;background:var(--bg);position:relative;height:880px;overflow:hidden}
+/* page behind */
+.page{padding:22px 26px;display:grid;gap:12px;align-content:start;opacity:.55}
+.page h2{font-size:1.35rem}
+.chip{border:1px solid var(--strong);background:var(--surface);color:var(--fg);border-radius:999px;padding:3px 12px;font:inherit;font-size:.8rem;cursor:pointer;white-space:nowrap}
+.chip.on{background:var(--primary);color:var(--primary-fg);border-color:var(--primary)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.tbl{border:1px solid var(--border);border-radius:12px;background:var(--surface);overflow:hidden}
+table{border-collapse:collapse;width:100%;font-size:.84rem}
+th{background:var(--sunk);color:var(--muted-fg);font-weight:500;font-size:.74rem;text-align:left;padding:8px 10px}
+td{padding:8px 10px;border-top:1px solid var(--border);vertical-align:top}
+.r{text-align:right}
+.num{font-variant-numeric:tabular-nums}
+.dot{display:inline-block;width:7px;height:7px;border-radius:9px;margin-right:6px;vertical-align:middle}
+.code{color:var(--subtle);font-size:.74rem;margin-left:4px}
+.cat{display:block;font-size:.7rem;color:var(--subtle);padding-left:13px}
+.dim{color:var(--subtle)}
+.pbar{display:inline-block;height:5px;border-radius:9px;background:var(--strong);vertical-align:middle;margin-right:6px}
+.write{color:var(--primary);font-size:.78rem;border:1px dashed var(--strong);border-radius:999px;padding:1px 10px;white-space:nowrap}
+tr.sel td{background:var(--muted)}
+/* sheet */
+.sheet{background:var(--bg);border-left:1px solid var(--strong);box-shadow:-12px 0 30px rgb(0 0 0/.08);display:grid;grid-template-rows:auto 1fr auto;min-height:0}
+.shead{display:flex;gap:14px;padding:16px 20px;border-bottom:1px solid var(--border);background:var(--surface);align-items:flex-start}
+.x{margin-left:auto;font-size:1.5rem;line-height:1;color:var(--muted-fg)}
+.ph{border:1.5px dashed var(--strong);background:var(--warn-bg);border-radius:12px;display:grid;place-items:center;align-content:center;text-align:center;color:var(--subtle);font-size:.62rem;flex:none}
+.ph svg{width:20px;height:20px}
+.ph.small{width:64px;height:64px}
+.ph.big{width:200px;aspect-ratio:4/3;font-size:.75rem;border-radius:14px}
+.ph.big svg{width:30px;height:30px}
+.hname{font-family:var(--display);font-weight:600;font-size:1.25rem}
+.sel{border:1px solid var(--border);border-radius:999px;background:var(--surface);padding:3px 24px 3px 10px;font:inherit;font-size:.82rem;color:var(--fg)}
+.badge{display:inline-block;border-radius:999px;background:var(--muted);color:var(--muted-fg);padding:2px 10px;font-size:.75rem;white-space:nowrap}
+.badge.warn{background:var(--warn-bg);color:var(--warn)}
+.field{display:grid;gap:2px}
+.field>span{font-size:.7rem;color:var(--subtle);padding-left:10px}
+.fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.fields .sel{width:100%}
+.sbody{overflow-y:auto;padding:16px 20px;display:grid;gap:14px;align-content:start}
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.tile{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:9px 11px}
+.tile .k{font-size:.68rem;color:var(--subtle)} .tile .v{font-family:var(--display);font-weight:600;font-size:1.1rem} .tile .s{font-size:.68rem;color:var(--muted-fg)}
+.sec{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;display:grid;gap:8px}
+.sec h4{font-size:.95rem}
+.sec.warnbg{background:var(--warn-bg);border-color:var(--warn-border)}
+.ing{display:grid;grid-template-columns:1fr 92px 120px 80px 14px;gap:10px;align-items:start;padding:8px 0;border-bottom:1px solid var(--border);font-size:.86rem}
+.ing .s{display:block;font-size:.7rem;color:var(--subtle)}
+.ing .bar{display:block;height:3px;border-radius:9px;background:var(--strong);margin-top:4px}
+.qty{border:1px solid var(--strong);border-radius:8px;background:var(--warn-bg);padding:4px 8px;text-align:right;font:inherit;width:100%}
+.unit{border:1px solid var(--strong);border-radius:8px;background:var(--surface);padding:4px 8px;font:inherit;width:100%}
+.cost{text-align:right}
+.cost small{display:block;font-size:.7rem;color:var(--subtle)}
+.add{border:1.5px dashed var(--strong);border-radius:10px;padding:6px 12px;color:var(--subtle);background:var(--warn-bg);font-size:.84rem}
+.btns{display:flex;flex-wrap:wrap;gap:6px}
+.b{border:1px solid var(--strong);border-radius:999px;padding:3px 12px;font-size:.82rem;background:var(--surface)}
+.b.red{border-color:var(--bad);color:var(--bad)}
+.small{font-size:.75rem;color:var(--muted-fg)}
+.dl{color:var(--primary);text-decoration:underline dotted;text-underline-offset:3px;font-size:.84rem}
+.warnbox{background:var(--warn-bg);border:1px solid var(--warn-border);border-radius:10px;padding:8px 12px;font-size:.8rem}
+.sfoot{display:flex;justify-content:space-between;align-items:center;padding:12px 20px;border-top:1px solid var(--border);background:var(--surface)}
+.save{background:var(--subtle);color:var(--primary-fg);border-radius:10px;padding:6px 16px;font-size:.9rem}
+/* number markers on what changed */
+.mk{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--warn);color:#fff;font-size:.7rem;font-weight:700;font-style:normal;font-family:var(--display);vertical-align:middle;margin:0 4px;flex:none}
+.hide-mk .mk{display:none}
+/* now/new switching */
+.v-now [data-v="new"],.v-new [data-v="now"]{display:none!important}
+.v-new .mk-now,.v-now .mk{display:none}
+.legend{display:grid;gap:6px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 16px}
+.legend li{font-size:.88rem}
+.legend ol{margin:0;padding-left:0;list-style:none;display:grid;gap:6px}
+.legend .mk{display:inline-grid!important}
+</style><style>
+:root{--clay:#C0692B;--clay2:#E8A76F;--olive:#5E6B14;--olive2:#AEB784}
+.screen.auto{height:auto;min-height:0}
+.pagefull{padding:24px 28px;display:grid;gap:16px;align-content:start}
+.pbtn{border-radius:999px;padding:5px 14px;font-size:.82rem;border:1px solid var(--strong);background:var(--surface);white-space:nowrap}
+.pbtn.dark{background:var(--primary);color:var(--primary-fg);border-color:var(--primary)}
+.pbtn.ghost{border-style:dashed;color:var(--primary)}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 16px;display:grid;gap:2px}
+.kpi .k{font-size:.74rem;color:var(--subtle)} .kpi .v{font-family:var(--display);font-weight:600;font-size:1.7rem;line-height:1.2}
+.kpi .s{font-size:.76rem;color:var(--muted-fg)}
+.h3{font-family:var(--display);font-weight:600;font-size:1rem;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.dcard{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:14px 16px;display:grid;grid-template-columns:112px minmax(0,1fr) 220px;gap:16px;align-items:center;cursor:pointer;transition:border-color .15s,box-shadow .15s}
+.dcard:hover{border-color:var(--strong);box-shadow:0 6px 18px rgb(0 0 0/.06)}
+.thumb{aspect-ratio:4/3;border-radius:12px;border:1.5px dashed var(--strong);background:var(--warn-bg);display:grid;place-items:center;color:var(--subtle);font-size:.62rem;text-align:center}
+.thumb svg,.ph svg{width:22px;height:22px}
+.dname{font-family:var(--display);font-weight:600;font-size:1.1rem}
+.stack{display:flex;height:10px;border-radius:99px;overflow:hidden;background:var(--muted)}
+.stack span{display:block;height:100%;transform-origin:left;animation:grow .7s cubic-bezier(.2,.8,.2,1) both}
+.stack span+span{border-left:2px solid var(--surface)}
+.legend2{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:.72rem;color:var(--muted-fg)}
+.legend2 i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:4px;vertical-align:middle}
+.gauge{display:grid;gap:4px}
+.gauge .bar{position:relative;height:8px;border-radius:99px;background:var(--muted)}
+.gauge .fill{position:absolute;inset:0 auto 0 0;border-radius:99px;background:linear-gradient(90deg,var(--olive2),var(--olive));animation:grow .7s cubic-bezier(.2,.8,.2,1) both;transform-origin:left}
+.gauge .target{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--clay)}
+.gauge .lbl{display:flex;justify-content:space-between;font-size:.72rem;color:var(--muted-fg)}
+.steps{display:flex;align-items:center;gap:0;font-size:.72rem;color:var(--subtle)}
+.steps .st{display:flex;align-items:center;gap:5px;white-space:nowrap}
+.steps .dot2{width:9px;height:9px;border-radius:50%;border:1.5px solid var(--strong);background:var(--surface)}
+.steps .st.done .dot2{background:var(--primary);border-color:var(--primary)}
+.steps .st.cur{color:var(--fg);font-weight:600}
+.steps .st.cur .dot2{background:var(--clay);border-color:var(--clay);box-shadow:0 0 0 3px rgb(192 105 43/.18)}
+.steps .ln{flex:1;min-width:14px;height:1.5px;background:var(--strong);margin:0 6px}
+.sugs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.sug{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:12px 14px;display:grid;gap:8px}
+.sug .top{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.sbar{height:6px;border-radius:99px;background:var(--muted);overflow:hidden}
+.sbar span{display:block;height:100%;background:linear-gradient(90deg,var(--olive2),var(--olive));animation:grow .7s both;transform-origin:left}
+.flow{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.fstep{border-radius:12px;padding:10px 12px;background:var(--sunk);font-size:.78rem;color:var(--muted-fg);display:grid;gap:2px}
+.fstep b{color:var(--fg);font-family:var(--display);font-weight:600;font-size:.86rem}
+.fstep .n{font-family:var(--display);color:var(--clay);font-weight:700}
+/* sheet extras */
+.shead2{display:grid;grid-template-columns:200px minmax(0,1fr);gap:16px;padding:16px 20px;border-bottom:1px solid var(--border);background:var(--surface);position:relative}
+.ph.big2{width:200px;aspect-ratio:4/3;border-radius:14px;border:1.5px dashed var(--strong);background:var(--warn-bg);display:grid;place-items:center;align-content:center;color:var(--subtle);font-size:.75rem;text-align:center}
+.meta{display:grid;gap:6px;align-content:start;min-width:0}
+.x2{position:absolute;right:14px;top:10px;font-size:1.5rem;color:var(--muted-fg)}
+.ladder{display:grid;gap:6px}
+.lrow{display:grid;grid-template-columns:62px minmax(0,1fr) 54px 92px;gap:10px;align-items:center;font-size:.84rem;padding:5px 8px;border-radius:10px}
+.lrow.pick{background:var(--warn-bg);outline:1.5px solid var(--clay2)}
+.lrow .p{font-family:var(--display);font-weight:600}
+.lrow .bar{position:relative;height:8px;border-radius:99px;background:var(--muted)}
+.lrow .fill{position:absolute;inset:0 auto 0 0;border-radius:99px;background:linear-gradient(90deg,var(--olive2),var(--olive));animation:grow .6s both;transform-origin:left}
+.lrow.pick .fill{background:linear-gradient(90deg,var(--clay2),var(--clay))}
+.lrow .target{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--clay)}
+.checklist{display:grid;gap:8px}
+.ck{display:flex;gap:10px;align-items:flex-start;font-size:.86rem;padding:10px 12px;border-radius:12px;background:var(--surface);border:1px solid var(--border)}
+.ck .box{flex:none;width:20px;height:20px;border-radius:50%;border:1.5px solid var(--strong);display:grid;place-items:center;font-size:.7rem;color:var(--primary-fg)}
+.ck.done .box{background:var(--primary);border-color:var(--primary)}
+.ck .t{display:grid;gap:1px} .ck .t span{font-size:.74rem;color:var(--subtle)}
+.seg2{display:inline-flex;border:1px solid var(--strong);border-radius:999px;padding:2px;gap:2px;background:var(--surface);font-size:.8rem;width:max-content}
+.seg2 span{padding:2px 10px;border-radius:999px}
+.seg2 span.on{background:var(--primary);color:var(--primary-fg)}
+.nameinput{border:1px solid var(--strong);border-radius:10px;background:var(--warn-bg);padding:7px 12px;font-size:1rem;color:var(--subtle)}
+@keyframes grow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@media (prefers-reduced-motion:reduce){.stack span,.gauge .fill,.sbar span,.lrow .fill{animation:none}}
+</style>
+<style>
+.oldpage{padding:22px 26px;display:grid;gap:14px;max-width:760px;margin:0 auto}
+.obox{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px 20px;display:grid;gap:10px}
+.olabel{font-family:var(--display);font-weight:600;font-size:.9rem}
+.olabel b{color:var(--bad)}
+.oin{border:1px solid var(--strong);border-radius:10px;background:var(--warn-bg);padding:9px 12px;color:var(--subtle);font-size:.9rem}
+.osel{border:1px solid var(--strong);border-radius:10px;background:var(--warn-bg);padding:9px 12px;font-size:.9rem;display:flex;justify-content:space-between}
+.choice{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.cc{border:1.5px solid var(--border);border-radius:14px;padding:12px 14px;display:grid;gap:3px;cursor:pointer;background:var(--surface);transition:border-color .15s}
+.cc b{font-family:var(--display);font-size:.95rem}
+.cc span{font-size:.76rem;color:var(--muted-fg)}
+.cc.on{border-color:var(--primary);box-shadow:inset 0 0 0 1px var(--primary);background:var(--primary-soft)}
+.uchips{display:flex;flex-wrap:wrap;gap:6px}
+.uc{border:1px solid var(--strong);border-radius:999px;padding:4px 14px;font-size:.86rem;background:var(--surface);cursor:pointer}
+.uc.on{background:var(--primary);color:var(--primary-fg);border-color:var(--primary)}
+.ugroup{display:grid;gap:4px}
+.ugroup .gl{font-size:.7rem;color:var(--subtle)}
+.packrow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:.86rem}
+.mini{border:1px solid var(--strong);border-radius:8px;background:var(--warn-bg);padding:4px 10px;min-width:70px}
+.preview{border:1px dashed var(--strong);border-radius:12px;padding:10px 12px;display:grid;gap:4px;background:var(--sunk);font-size:.82rem}
+.preview b{font-family:var(--display)}
+.hint{font-size:.74rem;color:var(--subtle)}
+.restore{background:var(--warn-bg);border:1px solid var(--warn-border);border-radius:10px;padding:8px 12px;font-size:.8rem}
+.ckline{display:flex;gap:8px;align-items:center;font-size:.86rem}
+</style>
+
+<div class="wrap v-new" id="root">
+  <div class="top">
+    <div><h1 style="font-size:1.2rem">เพิ่มสินค้า · เก่า–ใหม่</h1>
+      <p class="sub">กด “+ เพิ่มสินค้า” แล้วเห็นอะไร · ลองกดเลือกประเภทและหน่วยในแบบใหม่ได้</p></div>
+    <div class="chips">
+      <div class="seg" role="group" aria-label="แบบไหน"><button id="b-now" aria-pressed="false">ตอนนี้</button><button id="b-new" aria-pressed="true">ที่เสนอ</button></div>
+      <div class="seg" role="group"><button id="b-mk" aria-pressed="true">เลขกำกับ</button></div>
+    </div>
+  </div>
+
+  <div class="scroller">
+  <!-- ===== NOW: a page of its own ===== -->
+  <div class="screen auto" data-v="now" style="grid-template-columns:1fr">
+    <div class="oldpage">
+      <span class="sub">สินค้า/วัตถุดิบ</span>
+      <h2 style="font-size:1.35rem">เพิ่มสินค้า</h2>
+      <div class="obox">
+        <span class="olabel">ชื่อสินค้า <b>*</b></span><div class="oin">เช่น หมูสามชั้น, น้ำมันพืช</div>
+        <span class="olabel">ชื่อ (อังกฤษ)</span><div class="oin">เช่น Pork belly</div>
+        <span class="olabel">รหัสสินค้า</span><div class="oin">เว้นว่างเพื่อสร้างอัตโนมัติ (เช่น P-0001)</div><span class="hint">เว้นว่างไว้ ระบบจะสร้างรหัสให้อัตโนมัติ</span>
+      </div>
+      <div class="obox"><span class="olabel">ประเภทสินค้า <b>*</b></span><div class="ckline">◉ วัตถุดิบ &nbsp; ○ ของแปรรูป</div><span class="hint">ซื้อมาใช้ตามนั้น (ไม่ได้ผลิตจากสินค้าตัวอื่น)</span></div>
+      <div class="obox">
+        <span class="olabel">หน่วยวัดหลัก <b>*</b></span><div class="osel"><span>— เลือกหน่วยวัดหลัก —</span><span>⌄</span></div>
+        <span class="olabel">หน่วยพื้นฐาน <b>*</b></span><div class="osel"><span class="dim">เลือกหน่วยวัดหลักก่อน</span><span>⌄</span></div>
+      </div>
+      <div class="obox"><span class="olabel">ความหนาแน่น (ของเหลว)</span><div class="ckline">○ ไม่ระบุ ○ เลือกจากรายการ ○ ระบุเอง</div></div>
+      <div class="obox"><span class="olabel">หน่วยเพิ่มเติม</span><div class="ckline">○ ซื้อเป็นหน่วยหลัก</div><div class="row"><div class="oin" style="flex:1">ชื่อหน่วย</div><div class="oin" style="width:120px">อัตราส่วน</div></div><span class="pbtn" style="justify-self:start">+ เพิ่มหน่วย</span></div>
+      <div class="obox"><span class="olabel">หมวดหมู่</span><div class="osel"><span>— ไม่ระบุ —</span><span>⌄</span></div><div class="ckline">☑ ใช้งานอยู่</div></div>
+      <div class="row" style="justify-content:flex-end"><span class="pbtn">ยกเลิก</span><span class="pbtn dark">บันทึก</span></div>
+      <p class="sub">ออกจากหน้ารายการ เลื่อนยาว 7 กล่อง · หน่วยเลือกสองชั้น (หน่วยวัดหลัก → หน่วยพื้นฐาน) · ความหนาแน่นขึ้นทุกครั้งแม้ไม่ใช่ของเหลว</p>
+    </div>
+  </div>
+
+  <!-- ===== NEW: the products sheet ===== -->
+  <div class="screen" data-v="new" style="height:auto;min-height:900px">
+    <div class="page"><h2>สินค้า/วัตถุดิบ</h2><div class="tbl" style="padding:30px;color:var(--subtle)">(หน้ารายการอยู่ด้านหลัง ไม่ต้องออกจากหน้า) <i class="mk">1</i></div></div>
+    <aside class="sheet">
+      <div class="shead2">
+        <div class="ph big2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="6" width="18" height="14" rx="3"/><circle cx="12" cy="13" r="3.5"/><path d="M8 6l1.5-2h5L16 6"/></svg>รูปสินค้า<br>เร็ว ๆ นี้</div>
+        <div class="meta" style="gap:10px">
+          <span class="sub">สินค้าใหม่ · จะได้รหัส <b class="num">P-0032</b> อัตโนมัติ · <span class="dl">ตั้งรหัสเอง</span></span>
+          <label class="field"><span>ชื่อสินค้า <i class="mk">2</i></span><div class="nameinput" id="nm" style="color:var(--fg)">กระเทียม</div></label>
+          <label class="field"><span>ชื่อภาษาอังกฤษ (ไม่บังคับ)</span><div class="nameinput" style="font-size:.88rem;padding:5px 12px">เช่น Garlic</div></label>
+          <div class="restore" id="restore"><span class="sub">(ตัวอย่าง · ขึ้นเฉพาะเมื่อชื่อตรงกับสินค้าที่ลบไปแล้ว)</span><br>เคยมีสินค้าชื่อ “กระเทียม” ที่ลบไปแล้ว · <span class="dl">กู้คืนตัวเดิม</span> แทนการสร้างซ้ำ</div>
+        </div>
+        <span class="x2">×</span>
+      </div>
+      <div class="sbody">
+        <section class="sec">
+          <div class="h3"><span>เป็นของแบบไหน <i class="mk">3</i></span></div>
+          <div class="choice">
+            <div class="cc on" data-type="raw"><b>วัตถุดิบ</b><span>ซื้อมาใช้เลย เช่น กระเทียม น้ำปลา กล่องข้าว</span></div>
+            <div class="cc" data-type="prep"><b>ของแปรรูป</b><span>ทำเองจากของอื่น เช่น ข้าวสวย กุ้งแกะ น้ำจิ้ม</span></div>
+          </div>
+          <div id="prepbox" hidden class="ugroup" style="gap:8px">
+            <span class="small">ทำจากอะไร · ตั้งต่อได้ในแผงหลังบันทึก</span>
+            <div class="row"><span class="pbtn on" style="background:var(--primary);color:var(--primary-fg)">ของตัวเดียว + % ที่ได้</span><span class="pbtn">สูตรผลิต (หลายอย่าง)</span></div>
+            <div class="row small">ทำจาก <span class="mini">กุ้งขาว ⌄</span> 1 kg ได้ <span class="mini num">40 %</span></div>
+          </div>
+        </section>
+
+        <section class="sec">
+          <div class="h3"><span>นับสต๊อกเป็น <i class="mk">4</i></span><span class="small">หน่วยที่นับ · ต้นทุนคิดต่อหน่วยนี้</span></div>
+          <div class="ugroup"><span class="gl">ชั่ง</span><div class="uchips"><span class="uc on" data-u="kg">kg</span><span class="uc" data-u="g">g</span></div></div>
+          <div class="ugroup"><span class="gl">ตวง</span><div class="uchips"><span class="uc" data-u="l">l</span><span class="uc" data-u="ml">ml</span></div></div>
+          <div class="ugroup"><span class="gl">นับเป็นชิ้น</span><div class="uchips"><span class="uc" data-u="ชิ้น">ชิ้น</span><span class="uc" data-u="ลูก">ลูก</span><span class="uc" data-u="ฟอง">ฟอง</span><span class="uc" data-u="ขวด">ขวด</span><span class="uc" data-u="ใบ">ใบ</span><span class="uc" data-u="แพ็ค">แพ็ค</span><span class="uc" style="border-style:dashed;color:var(--primary)">+ อื่น ๆ</span></div></div>
+          <div id="density" hidden class="ugroup" style="gap:6px;border-top:1px solid var(--border);padding-top:8px">
+            <span class="small">ของเหลวนี้ 1 ml หนักกี่ g? <span class="sub">(ไม่บังคับ · ใช้เมื่อสูตรเขียนเป็นกรัม)</span></span>
+            <div class="row"><select class="sel"><option>ไม่ระบุ</option><option>น้ำปลา ~1.2 g</option><option>น้ำมันพืช ~0.92 g</option></select><span class="sub">หรือ</span><span class="mini num">1.0 g</span></div>
+          </div>
+        </section>
+
+        <section class="sec">
+          <div class="h3"><span>ซื้อมาเป็น <i class="mk">5</i></span><span class="small">ใช้ตอนสั่งซื้อ รับของ และนับ</span></div>
+          <div class="packrow"><span class="mini">ถุง</span><span class="mini num">500</span><span class="mini">g ⌄</span><span class="sub">= <b id="eq">0.5 kg</b></span><label class="ckline" style="margin-left:auto"><span class="dot" style="background:var(--primary)"></span>ซื้อหลัก</label></div>
+          <div class="packrow"><span class="mini">กระสอบ</span><span class="mini num">10</span><span class="mini">kg ⌄</span><span class="sub">= <b>10 kg</b></span><label class="ckline" style="margin-left:auto"><span class="dot" style="background:var(--strong)"></span>ซื้อหลัก</label></div>
+          <div class="row"><span class="pbtn">+ เพิ่มขนาด</span><span class="sub">หรือ ซื้อเป็น kg ตรง ๆ ไม่ต้องเพิ่ม</span></div>
+        </section>
+
+        <section class="sec">
+          <label class="field" style="max-width:320px"><span>หมวด</span><select class="sel" style="width:100%"><option>อาหาร › ผักและผลไม้</option></select></label>
+          <div class="preview" id="preview"><span class="sub">จะเห็นในใบสั่งซื้อและใบรับของแบบนี้ <i class="mk">6</i></span><span><b>กระเทียม</b> · ถุง 500 g <span class="sub">(= 0.5 kg)</span> · P-0032</span><span class="sub">นับสต๊อกเป็น kg · ต้นทุนคิดต่อ kg</span></div>
+        </section>
+      </div>
+      <div class="sfoot"><span class="small">ยังไม่ได้บันทึก</span><div class="row"><span class="pbtn">ยกเลิก</span><span class="pbtn">บันทึกแล้วเพิ่มอีก <i class="mk">7</i></span><span class="pbtn dark">บันทึกสินค้า</span></div></div>
+    </aside>
+  </div>
+  </div>
+
+  <div class="legend">
+    <h3 style="font-size:1rem">เลขบนหน้าจอ (โหมด “ที่เสนอ”)</h3>
+    <ol>
+      <li><i class="mk">1</i>เปิดเป็นแผงข้างเหมือนแผงแก้สินค้า ไม่ต้องออกจากหน้ารายการ · บันทึกแล้วแผงกลายเป็นแผงของสินค้านั้นทันที (ตั้งขั้นต่ำ สูตรผลิต ฯลฯ ต่อได้)</li>
+      <li><i class="mk">2</i>หัวแผงแบบเดียวกับหน้าเมนูและหน้าทดลองเมนู: รูป 4:3 · ชื่อเป็นช่องใหญ่ · รหัสสร้างให้อัตโนมัติ บอกเลขที่จะได้ (ตั้งเองได้) · ถ้าชื่อตรงกับสินค้าที่ปิดหรือลบไป เสนอใช้ตัวเดิม (มีอยู่แล้ว)</li>
+      <li><i class="mk">3</i>ประเภทเป็นการ์ดสองใบพร้อมตัวอย่าง แทนปุ่มกลม · ของแปรรูปเปิดช่อง “ทำจาก” ทันที (ลองกด)</li>
+      <li><i class="mk">4</i>หน่วยเลือกครั้งเดียวเป็นชิป จัดกลุ่ม ชั่ง / ตวง / นับเป็นชิ้น แทนสองช่องเลือก (หน่วยวัดหลัก → หน่วยพื้นฐาน) · ความหนาแน่นขึ้นเฉพาะเมื่อเลือก l หรือ ml (ลองกด)</li>
+      <li><i class="mk">5</i>หน่วยซื้อใช้ตัวประกอบหน่วยแพ็คแบบเดียวกับแผงแก้สินค้า: ภาชนะ + ขนาด + หน่วย → “ถุง 500 g” · บอกว่าเท่ากับกี่ kg · เลือกซื้อหลัก</li>
+      <li><i class="mk">6</i>ตัวอย่างว่าสินค้านี้จะขึ้นในใบสั่งซื้อและใบรับของอย่างไร เปลี่ยนตามที่เลือก</li>
+      <li><i class="mk">7</i><b>ใหม่</b> “บันทึกแล้วเพิ่มอีก” สำหรับตอนตั้งร้านครั้งแรกที่ต้องใส่สินค้าทีละหลายสิบตัว</li>
+    </ol>
+    <p class="sub">ช่องครบเท่าฟอร์มเดิม: ชื่อ ชื่ออังกฤษ รหัส ประเภท (ทำจาก + %) หน่วย ความหนาแน่น หน่วยซื้อ หมวด · “ใช้งานอยู่” เป็นค่าเริ่มต้น ปิดได้ภายหลังในแผงสินค้า · หน้า /products/new เดิมจะพาเข้าแผงนี้</p>
+  </div>
+</div>
+
+<script>
+const $=s=>document.querySelector(s), root=$("#root");
+let unit="kg";
+function preview(){
+  const pack = unit==="kg"||unit==="g" ? "ถุง 500 g" : unit==="l"||unit==="ml" ? "ขวด 700 ml" : "ลัง 30 "+unit;
+  const eq = unit==="kg" ? "0.5 kg" : unit==="g" ? "500 g" : unit==="l" ? "0.7 l" : unit==="ml" ? "700 ml" : "30 "+unit;
+  $("#preview").innerHTML=`<span class="sub">จะเห็นในใบสั่งซื้อและใบรับของแบบนี้ <i class="mk">6</i></span><span><b>${$("#nm").textContent}</b> · ${pack} <span class="sub">(= ${eq})</span> · P-0032</span><span class="sub">นับสต๊อกเป็น ${unit} · ต้นทุนคิดต่อ ${unit}</span>`;
+  $("#density").hidden = !(unit==="l"||unit==="ml");
+}
+document.querySelectorAll(".uc[data-u]").forEach(c=>c.onclick=()=>{unit=c.dataset.u;document.querySelectorAll(".uc[data-u]").forEach(x=>x.classList.toggle("on",x===c));preview();});
+document.querySelectorAll(".cc").forEach(c=>c.onclick=()=>{document.querySelectorAll(".cc").forEach(x=>x.classList.toggle("on",x===c));$("#prepbox").hidden=c.dataset.type!=="prep";});
+function mode(v){root.classList.toggle("v-new",v==="new");root.classList.toggle("v-now",v==="now");$("#b-now").setAttribute("aria-pressed",v==="now");$("#b-new").setAttribute("aria-pressed",v==="new");}
+$("#b-now").onclick=()=>mode("now"); $("#b-new").onclick=()=>mode("new");
+$("#b-mk").onclick=e=>{const on=root.classList.toggle("hide-mk");e.target.setAttribute("aria-pressed",!on);};
+preview();
+</script>
