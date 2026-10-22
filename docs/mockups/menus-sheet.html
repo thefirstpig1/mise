@@ -1,0 +1,227 @@
+<title>เมนู · กลุ่ม 3–4</title>
+<style>
+/* Mockup: /menus groups 3-4 (sheet clarity, table). Before/after pairs on the app's own tokens (tailwind.config.ts). */
+:root{
+  --bg:#FDFBF3; --fg:#262811; --surface:#FFFFFF; --sunk:#F8F3E1; --primary:#41431B; --primary-fg:#F8F3E1; --primary-soft:#EFEDD7;
+  --muted:#F3EFDF; --muted-fg:#5A5C31; --subtle:#8B8D63; --border:#E9E3C8; --strong:#D2CBA4;
+  --good:#5A7333; --good-bg:#EEF2E0; --bad:#A83A22; --bad-bg:#F9E5DF; --warn:#A87C1C; --warn-bg:#F8EFD6; --warn-border:#E2CE97;
+  --display:"Prompt","Noto Sans Thai",system-ui,sans-serif; --body:"Noto Sans Thai","Prompt",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#1B1C10; --fg:#EEEAD6; --surface:#24261A; --sunk:#2A2C1E; --primary:#D9DDB0; --primary-fg:#1B1C10; --primary-soft:#33361F;
+  --muted:#2E301F; --muted-fg:#C9C8A6; --subtle:#9C9B7C; --border:#36381F; --strong:#4A4C30;
+  --good:#B7CF7C; --good-bg:#2B3320; --bad:#EC9C80; --bad-bg:#41261C; --warn:#E8BE62; --warn-bg:#3B3018; --warn-border:#5A4A22; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#1B1C10; --fg:#EEEAD6; --surface:#24261A; --sunk:#2A2C1E; --primary:#D9DDB0; --primary-fg:#1B1C10; --primary-soft:#33361F;
+  --muted:#2E301F; --muted-fg:#C9C8A6; --subtle:#9C9B7C; --border:#36381F; --strong:#4A4C30;
+  --good:#B7CF7C; --good-bg:#2B3320; --bad:#EC9C80; --bad-bg:#41261C; --warn:#E8BE62; --warn-bg:#3B3018; --warn-border:#5A4A22; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:14px;line-height:1.55;margin:0;padding:24px 16px 60px}
+h1,h2,h3{font-family:var(--display);margin:0}
+.wrap{max-width:980px;margin:0 auto;display:grid;gap:26px}
+.sub{color:var(--subtle);font-size:.8rem}
+.tag{display:inline-block;background:var(--warn-bg);color:var(--warn);border:1px solid var(--warn-border);border-radius:999px;padding:1px 10px;font-size:.75rem}
+.screen{display:grid;gap:10px}
+.screen-h{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:baseline}
+.frame{background:var(--surface);border:1px solid var(--strong);border-radius:18px;padding:16px;display:grid;gap:12px;box-shadow:0 10px 30px rgb(0 0 0/.05)}
+.input{font:inherit;color:var(--fg);background:var(--surface);border:1px solid var(--strong);border-radius:8px;padding:4px 8px;min-width:0}
+.input:focus{outline:2px solid var(--primary);outline-offset:1px}
+.num{font-variant-numeric:tabular-nums;text-align:right}
+.row{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:8px 0;border-bottom:1px solid var(--border)}
+.row:last-of-type{border-bottom:0}
+.lock{font-size:.75rem;color:var(--subtle)}
+.preview{font-size:.78rem;color:var(--muted-fg);width:100%;padding-left:2px}
+.preview b{color:var(--fg);font-weight:600}
+.pill{border:1px solid var(--strong);background:var(--surface);border-radius:999px;padding:2px 12px;font:inherit;font-size:.8rem;cursor:pointer;color:var(--fg)}
+.link{color:var(--primary);font-size:.78rem;text-decoration:underline;cursor:pointer;background:none;border:0;font-family:inherit;padding:0}
+.note{background:var(--sunk);border-radius:12px;padding:10px 12px;font-size:.82rem;color:var(--muted-fg)}
+.note b{color:var(--fg)}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:720px){.cols{grid-template-columns:1fr}}
+.box{border:1px solid var(--border);border-radius:12px;padding:10px 12px;display:grid;gap:6px;align-content:start}
+.box h3{font-size:.9rem}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--strong);border-radius:8px;padding:1px 9px;font-size:.85rem;background:var(--surface)}
+.chip.gone{text-decoration:line-through;color:var(--bad);background:var(--bad-bg);border-color:transparent}
+.chip.en{background:var(--good-bg);border-color:transparent;color:var(--good);font-weight:600}
+table{border-collapse:collapse;width:100%;font-size:.85rem}
+td,th{padding:6px 8px;border-bottom:1px solid var(--border);text-align:left}
+th{font-family:var(--display);font-weight:500;color:var(--subtle);font-size:.75rem}
+.from{color:var(--bad)}.to{color:var(--good);font-weight:600}
+.pop{border:1px solid var(--strong);border-radius:14px;background:var(--surface);padding:12px;display:grid;gap:8px;box-shadow:0 12px 30px rgb(0 0 0/.12);max-width:340px}
+.ln{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--border)}
+select.input{padding-right:22px}
+.qty{display:inline-flex;align-items:center;gap:6px}
+.qty button{width:34px;height:34px;border-radius:10px;border:1px solid var(--strong);background:var(--surface);font:inherit;font-size:1.1rem;cursor:pointer;color:var(--fg)}
+.qty button:active{background:var(--muted)}
+.qty input{width:4.5rem;height:34px;text-align:center}
+.old input{width:5rem}
+.badge2{font-size:.7rem;background:var(--good-bg);color:var(--good);border-radius:999px;padding:0 8px}
+</style>
+<style>
+.ba{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:760px){.ba{grid-template-columns:1fr}}
+.side{display:grid;gap:8px;align-content:start;min-width:0}
+.lbl{font-size:.72rem;font-family:var(--display);letter-spacing:.04em;color:var(--subtle)}
+.lbl.now{color:var(--bad)} .lbl.new{color:var(--good)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px;display:grid;gap:8px;min-width:0}
+.hdr{display:flex;gap:10px;align-items:flex-start}
+.photo{width:56px;height:56px;border-radius:12px;border:1.5px dashed var(--strong);background:var(--warn-bg);display:grid;place-items:center;font-size:.6rem;color:var(--subtle);flex:none;text-align:center}
+.hname{font-family:var(--display);font-weight:600;font-size:1.05rem}
+.selrow{display:flex;flex-wrap:wrap;gap:6px;align-items:flex-end}
+.sel{border:1px solid var(--border);border-radius:999px;background:var(--surface);padding:2px 22px 2px 10px;font:inherit;font-size:.8rem;color:var(--fg)}
+.field{display:grid;gap:1px}
+.field span{font-size:.66rem;color:var(--subtle);padding-left:8px}
+.badge{display:inline-block;border-radius:999px;background:var(--muted);color:var(--muted-fg);padding:1px 9px;font-size:.75rem;white-space:nowrap}
+.sec{border:1px solid var(--border);border-radius:12px;padding:10px 12px;display:grid;gap:6px}
+.sec h4{margin:0;font-family:var(--display);font-size:.9rem}
+.btns{display:flex;flex-wrap:wrap;gap:6px}
+.b{border:1px solid var(--strong);border-radius:999px;padding:2px 12px;font-size:.8rem;background:var(--surface);color:var(--fg)}
+.b.red{border-color:var(--bad);color:var(--bad)}
+.small{font-size:.74rem;color:var(--muted-fg)}
+.dl{color:var(--primary);text-decoration:underline dotted;text-underline-offset:3px;font-size:.8rem}
+.warnbox{background:var(--warn-bg);border:1px solid var(--warn-border);border-radius:10px;padding:8px 10px;font-size:.78rem;color:var(--fg)}
+.ing{display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:6px 0;border-bottom:1px solid var(--border);font-size:.85rem}
+.ing:last-child{border-bottom:0}
+.ing .s{font-size:.7rem;color:var(--subtle)}
+.bar{height:3px;border-radius:9px;background:var(--strong);grid-column:1}
+.share{font-size:.7rem;color:var(--subtle);text-align:right}
+.tbl{overflow-x:auto;border:1px solid var(--border);border-radius:12px;background:var(--surface)}
+.tbl table{min-width:560px}
+.tbl th{background:var(--sunk)}
+.tbl td.r,.tbl th.r{text-align:right}
+.dot{display:inline-block;width:7px;height:7px;border-radius:9px;margin-right:6px;vertical-align:middle}
+.code{color:var(--subtle);font-size:.75rem;margin-left:4px}
+.cat{display:block;font-size:.72rem;color:var(--subtle);padding-left:13px}
+.pbar{display:inline-block;height:5px;border-radius:9px;background:var(--strong);vertical-align:middle;margin-right:6px}
+.write{color:var(--primary);font-size:.8rem;border:1px dashed var(--strong);border-radius:999px;padding:1px 10px;white-space:nowrap}
+.dim{color:var(--subtle)}
+.chipbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:.82rem}
+.chipbtn{border:1px solid var(--strong);background:var(--surface);color:var(--fg);border-radius:999px;padding:3px 12px;font:inherit;font-size:.8rem;cursor:pointer}
+.chipbtn.on{background:var(--primary);color:var(--primary-fg);border-color:var(--primary)}
+.chipbtn:focus-visible,.sel:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+</style>
+
+<div class="wrap">
+  <div>
+    <h1 style="font-size:1.35rem">จัดการเมนู · กลุ่ม 3–4</h1>
+    <p class="sub">ซ้าย = ตอนนี้ · ขวา = ที่เสนอ · ตัวอย่างใช้ “ปลากะพงนึ่งมะนาว” ของร้านตัวอย่าง</p>
+  </div>
+
+  <!-- 4 -->
+  <section class="screen">
+    <div class="screen-h"><h2 style="font-size:1.1rem">4. ช่องเลือกบนหัวมีชื่อกำกับ</h2><span class="tag">หน้าต่างเมนู</span></div>
+    <div class="ba">
+      <div class="side"><span class="lbl now">ตอนนี้</span>
+        <div class="card"><div class="hdr"><div class="photo">รูปเมนู<br>เร็ว ๆ นี้</div><div style="display:grid;gap:6px">
+          <div class="hname">ปลากะพงนึ่งมะนาว</div>
+          <div class="selrow"><span class="badge">รหัส POS A10</span><select class="sel" aria-label="หมวด"><option>กับข้าว</option></select><select class="sel" aria-label="แผนก"><option>ครัว</option></select><select class="sel" aria-label="สถานะ"><option>ขายอยู่</option></select></div>
+        </div></div><p class="small">สามช่องหน้าตาเหมือนกัน ต้องเดาว่าช่องไหนคือหมวด แผนก หรือสถานะ</p></div>
+      </div>
+      <div class="side"><span class="lbl new">ที่เสนอ</span>
+        <div class="card"><div class="hdr"><div class="photo">รูปเมนู<br>เร็ว ๆ นี้</div><div style="display:grid;gap:6px">
+          <div class="hname">ปลากะพงนึ่งมะนาว <span class="code">A10</span></div>
+          <div class="selrow">
+            <label class="field"><span>หมวด</span><select class="sel" id="m4cat"><option>กับข้าว</option><option>อาหารจานเดียว</option></select></label>
+            <label class="field"><span>แผนกที่รับรายได้</span><select class="sel" id="m4dep"><option>ครัว</option><option>บาร์</option></select></label>
+            <label class="field"><span>สถานะ</span><select class="sel" id="m4st"><option value="s">ขายอยู่</option><option value="r">เลิกขายแล้ว</option></select></label>
+          </div>
+        </div></div>
+        <div class="warnbox" id="m5note" hidden><b>เลิกขายมีผลกับอนาคตเท่านั้น</b> ยอดขายเก่า ต้นทุนเก่า และรายงานย้อนหลังไม่เปลี่ยน · ถ้า POS ยังส่งเมนูนี้มา ยอดขายจะยังเข้าและยังตัดสต๊อกตามปกติ ต้องเลิกขายใน POS ด้วย · กดบันทึกเพื่อยืนยัน</div>
+        <p class="small">ชื่อเล็ก ๆ เหนือแต่ละช่อง · รหัส POS ย้ายไปต่อท้ายชื่อเมนู · <b>ลองเปลี่ยนสถานะเป็น “เลิกขายแล้ว”</b> (ข้อ 5)</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 + 6 -->
+  <section class="screen">
+    <div class="screen-h"><h2 style="font-size:1.1rem">5–6. คำอธิบายเลิกขาย และกล่อง “ชื่อนี้เป็นเมนูเดิม”</h2><span class="tag">ท้ายหน้าต่างเมนู</span></div>
+    <div class="ba">
+      <div class="side"><span class="lbl now">ตอนนี้ (ทุกเมนู)</span>
+        <div class="sec"><h4>ชื่อนี้เป็นเมนูเดิมที่มีอยู่แล้วหรือเปล่า</h4><p class="small">ระบบจะจำว่า “ปลากะพงนึ่งมะนาว” หมายถึงเมนูที่เลือก — มีผลกับไฟล์ที่นำเข้าครั้งถัดไป</p><span class="dl">หาเมนูใกล้เคียง</span></div>
+        <div class="sec"><h4>อื่น ๆ</h4><div class="btns"><span class="b">รวมกับเมนูที่ซ้ำ</span><span class="b red">ลบสูตร</span><span class="b red">ลบเมนู</span></div>
+          <p class="small">เลิกขายมีผลกับอนาคตเท่านั้น — ยอดขายเก่า ต้นทุนเก่า… (แต่ปุ่มเลิกขายอยู่บนหัว)</p></div>
+      </div>
+      <div class="side"><span class="lbl new">ที่เสนอ · เมนูที่ขายมาแล้ว</span>
+        <div class="sec"><h4>อื่น ๆ</h4><div class="btns"><span class="b">รวมกับเมนูที่ซ้ำ</span><span class="b red">ลบสูตร</span><span class="b red">ลบเมนู</span></div>
+          <p class="small">ชื่อในไฟล์ POS เป็นอีกชื่อของเมนูที่มีอยู่แล้ว? <span class="dl">จับคู่ชื่อ</span></p></div>
+        <span class="lbl new">ที่เสนอ · เมนูใหม่จากไฟล์ (รอตรวจ)</span>
+        <div class="sec" style="border-color:var(--warn-border);background:var(--warn-bg)"><h4>เมนูนี้เพิ่งมาจากไฟล์ เป็นเมนูเดิมที่มีอยู่แล้วหรือเปล่า</h4><p class="small">ถ้าใช่ ระบบจะจำชื่อนี้ไว้ ไฟล์ครั้งต่อไปจะลงที่เมนูเดิม ยอดขายที่บันทึกไปแล้วอยู่ที่เมนูนี้</p><span class="dl">หาเมนูใกล้เคียง</span></div>
+        <p class="small">กล่องใหญ่ขึ้นเฉพาะเมนูที่ “รอตรวจ” · เมนูอื่นเหลือเป็นลิงก์บรรทัดเดียวใน “อื่น ๆ” · คำอธิบายเลิกขายย้ายไปขึ้นตรงช่องสถานะ (ข้อ 5)</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 -->
+  <section class="screen">
+    <div class="screen-h"><h2 style="font-size:1.1rem">7. แถบใต้วัตถุดิบบอกว่าคืออะไร</h2><span class="tag">สูตร</span></div>
+    <div class="ba">
+      <div class="side"><span class="lbl now">ตอนนี้</span>
+        <div class="card" style="gap:0">
+          <div class="ing"><span>ปลากะพง<br><span class="s">คงเหลือ 79.5 kg · พอ ~33 วัน</span></span><span class="num">฿170.39</span><span class="bar" style="width:93%"></span></div>
+          <div class="ing"><span>มะนาว<br><span class="s">คงเหลือ 1,708 ลูก · พอ ~37 วัน</span></span><span class="num">฿8.60</span><span class="bar" style="width:5%"></span></div>
+          <div class="ing"><span>กระเทียม<br><span class="s">คงเหลือ 43.6 kg · พอ ~40 วัน</span></span><span class="num">฿1.82</span><span class="bar" style="width:2%"></span></div>
+        </div><p class="small">แถบไม่มีคำอธิบาย อ่านเป็นสต๊อกก็ได้</p>
+      </div>
+      <div class="side"><span class="lbl new">ที่เสนอ</span>
+        <div class="card" style="gap:0">
+          <div class="ing"><span>ปลากะพง<br><span class="s">คงเหลือ 79.5 kg · พอ ~33 วัน</span></span><span class="num">฿170.39<br><span class="share">93% ของจาน</span></span></div>
+          <div class="ing"><span>มะนาว<br><span class="s">คงเหลือ 1,708 ลูก · พอ ~37 วัน</span></span><span class="num">฿8.60<br><span class="share">5%</span></span></div>
+          <div class="ing"><span>กระเทียม<br><span class="s">คงเหลือ 43.6 kg · พอ ~40 วัน</span></span><span class="num">฿1.82<br><span class="share">1%</span></span></div>
+        </div><p class="small">เอาแถบออก ใส่ % ใต้ต้นทุน · แถวแรกเขียนเต็ม “ของจาน” แถวต่อไปเหลือแค่ตัวเลข</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8 + 9 -->
+  <section class="screen">
+    <div class="screen-h"><h2 style="font-size:1.1rem">8–9. ตาราง: ไม่พูดซ้ำ และเรียงตามต้นทุน % ได้</h2><span class="tag">ตารางเมนู</span></div>
+    <div class="frame">
+      <div class="chipbar"><span class="dim">เรียงตาม</span>
+        <button class="chipbtn on" data-sort="sold" id="s-sold">ขายดี</button>
+        <button class="chipbtn" data-sort="cost" id="s-cost">ต้นทุน % สูงก่อน</button>
+        <button class="chipbtn" data-sort="name" id="s-name">ชื่อ</button>
+      </div>
+      <div class="tbl"><table>
+        <thead><tr><th>เมนู</th><th class="r">ขาย 30 วัน</th><th class="r">ราคาเฉลี่ย</th><th class="r">ต้นทุนต่อจาน</th><th>ต้นทุน % ของราคา</th><th>สูตร</th></tr></thead>
+        <tbody id="rows89"></tbody>
+      </table></div>
+      <div class="note">
+        <b>ข้อ 8:</b> เมนูที่ยังไม่มีสูตร ช่องต้นทุนเหลือ “—” ช่องสูตรเป็นปุ่ม <b>+ เขียนสูตร</b> (กดแล้วเปิดหน้าต่างเมนูที่ส่วนสูตร) · ตอนนี้ขึ้น “ไม่มีสูตร” กับ “ยังไม่มี” ซ้ำกันสองช่อง<br>
+        <b>ข้อ 9:</b> เพิ่มปุ่ม “ต้นทุน % สูงก่อน” · เมนูไม่มีสูตรไปอยู่ท้ายสุด · <b>ยังไม่ใส่สีเตือน</b> เพราะเกณฑ์ “สูง” ของแต่ละร้านไม่เท่ากัน (เบียร์ 70% เป็นปกติ)
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+const rows=[
+ ["กะเพราหมูสับไข่ดาว","A01","อาหารจานเดียว","#B49A3A",149,10281,69,29.26],
+ ["ผัดไทยกุ้งสด","A05","อาหารจานเดียว","#B49A3A",76,7220,95,41.80],
+ ["ปลากะพงนึ่งมะนาว","A10","กับข้าว","#5F6B2A",15,4335,289,183.37],
+ ["เบียร์สิงห์","B04","เบียร์และน้ำอัดลม","#8A5A9A",44,4180,95,68.93],
+ ["ส้มตำไทย","A08","ต้ม ยำ ส้มตำ","#3E7E73",81,4779,59,9.63],
+ ["ไก่ผัดเม็ดมะม่วง","A14","กับข้าว","#5F6B2A",28,2772,99,null],
+ ["ข้าวซอยไก่","A15","อาหารจานเดียว","#B49A3A",31,2759,89,null],
+ ["โค้ก","B03","เบียร์และน้ำอัดลม","#8A5A9A",90,2250,25,13.53],
+];
+const fmt=n=>n.toLocaleString("th-TH",{maximumFractionDigits:2,minimumFractionDigits:n%1?2:0});
+function draw(sort){
+  const r=[...rows];
+  if(sort==="sold") r.sort((a,b)=>b[5]-a[5]);
+  if(sort==="name") r.sort((a,b)=>a[0].localeCompare(b[0],"th"));
+  if(sort==="cost") r.sort((a,b)=>(b[7]===null?-1:b[7]/b[6])-(a[7]===null?-1:a[7]/a[6]));
+  document.getElementById("rows89").innerHTML=r.map(x=>{
+    const pct=x[7]===null?null:x[7]/x[6]*100;
+    return `<tr><td><span class="dot" style="background:${x[3]}"></span>${x[0]}<span class="code">${x[1]}</span><span class="cat">${x[2]}</span></td>
+    <td class="r num">${x[4]} จาน<br><span class="dim" style="font-size:.75rem">฿${fmt(x[5])}</span></td>
+    <td class="r num">฿${x[6]}</td>
+    <td class="r num">${x[7]===null?'<span class="dim">—</span>':'฿'+fmt(x[7])}</td>
+    <td class="num">${pct===null?'<span class="dim">—</span>':`<span class="pbar" style="width:${Math.round(pct*0.9)}px"></span>${pct.toFixed(1)}%`}</td>
+    <td>${x[7]===null?'<span class="write">+ เขียนสูตร</span>':'<span class="dim">มีสูตร</span>'}</td></tr>`}).join("");
+}
+document.querySelectorAll("[data-sort]").forEach(b=>b.addEventListener("click",()=>{
+  document.querySelectorAll("[data-sort]").forEach(x=>x.classList.toggle("on",x===b)); draw(b.dataset.sort);}));
+draw("sold");
+document.getElementById("m4st").addEventListener("change",e=>{document.getElementById("m5note").hidden=e.target.value!=="r"});
+</script>

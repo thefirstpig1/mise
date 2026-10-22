@@ -312,7 +312,8 @@ export default function MenuManager(props: {
                   {pricesLoading ? <span className="inline-block h-7 w-20 animate-pulse rounded bg-muted align-middle" /> : stats.foodCost === null ? "—" : `${stats.foodCost.toFixed(1)}%`}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  คิดจาก {stats.costedCount} เมนูที่มีสูตร{branch ? ` · ${branch.name}` : ""}
+                  {/* costedCount is 0 until the price book lands — a claim, so wait */}
+                  {pricesLoading ? "กำลังคำนวณ…" : `คิดจาก ${stats.costedCount} เมนูที่มีสูตร`}{branch ? ` · ${branch.name}` : ""}
                 </p>
               </div>
             )}

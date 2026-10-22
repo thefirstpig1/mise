@@ -157,6 +157,10 @@ export default function MenuSheet(props: {
   // compared against. Only while the book and the sheet speak of one recipe.
   const basePerPlate = recipe !== null && own?.recipeId === recipe.id ? own.costPerServing : null;
   const costChanged = recipeDirty && perPlate !== null && basePerPlate !== null && Math.abs(perPlate - basePerPlate) > 0.004;
+  // Until the sheet arrives `lines` is empty, which reads exactly like "no
+  // recipe" — so a dish that HAS one said ยังไม่มีสูตร for a second. Waiting
+  // on either the recipe or the prices shows "…", never a claim.
+  const costWaiting = (sheet === null && !loadError) || (pricesPending && lines.length > 0);
 
   const facts = sheet?.facts ?? null;
   const stockLine = (l: Line) => {
@@ -471,9 +475,9 @@ export default function MenuSheet(props: {
           {!costHidden && (
             <Tile
               k="ต้นทุนต่อจาน"
-              v={pricesPending && lines.length > 0 ? "…" : perPlate === null ? "—" : baht(perPlate, 2)}
+              v={costWaiting ? "…" : perPlate === null ? "—" : baht(perPlate, 2)}
               s={
-                pricesPending && lines.length > 0
+                costWaiting
                   ? "กำลังคำนวณ…"
                   : perPlate === null
                   ? "ยังไม่มีสูตร"
@@ -492,8 +496,8 @@ export default function MenuSheet(props: {
           {!costHidden && (
             <Tile
               k="ต้นทุน % · กำไรต่อจาน"
-              v={pricesPending && lines.length > 0 ? "…" : perPlate !== null && avg ? `${((perPlate / avg) * 100).toFixed(1)}%` : "—"}
-              s={pricesPending && lines.length > 0 ? "กำลังคำนวณ…" : perPlate !== null && avg ? `กำไร ${baht(avg - perPlate, 2)}/จาน` : perPlate === null ? "คิดได้เมื่อมีสูตร" : "ยังไม่มียอดขาย"}
+              v={costWaiting ? "…" : perPlate !== null && avg ? `${((perPlate / avg) * 100).toFixed(1)}%` : "—"}
+              s={costWaiting ? "กำลังคำนวณ…" : perPlate !== null && avg ? `กำไร ${baht(avg - perPlate, 2)}/จาน` : perPlate === null ? "คิดได้เมื่อมีสูตร" : "ยังไม่มียอดขาย"}
               warn={costChanged}
             />
           )}
