@@ -235,6 +235,21 @@ export async function getRecipeCostsLogic(
   return withTenantContext(tenantId, (tx) => recipeCostsInTx(tx, tenantId, query));
 }
 
+/** A replay the caller ran, completed with any leaf it did not cover. */
+async function withMissingReplayed(
+  tx: PrismaClient,
+  tenantId: string,
+  replayed: Map<string, ProductCost>,
+  leafProductIds: string[],
+  branchId: string,
+  asOf: Date
+): Promise<Map<string, ProductCost>> {
+  const missing = leafProductIds.filter((id) => !replayed.has(costKeyOf(id, branchId)));
+  if (missing.length === 0) return replayed;
+  const extra = await replayPairsInTx(tx, tenantId, missing, [branchId], asOf);
+  return new Map([...replayed, ...extra]);
+}
+
 /**
  * The same batch read inside a caller's transaction (2026-10-01). A caller that
  * has just resolved which recipes apply — the sales cost map — prices them in
@@ -244,7 +259,15 @@ export async function getRecipeCostsLogic(
 export async function recipeCostsInTx(
   tx: PrismaClient,
   tenantId: string,
-  query: GetRecipeCostsQuery
+  query: GetRecipeCostsQuery,
+  /**
+   * The FIFO replay a caller has ALREADY run for this branch and day, by
+   * `replayPairsInTx` — the same function the walk would call, with the same
+   * branch and `asOf` (Kong 2026-10-22, the price book replayed every product
+   * twice). Only leaves it lacks are replayed here. It is a promise so the
+   * walk can load its graph while the replay is still running.
+   */
+  opts?: { replayed?: Promise<Map<string, ProductCost>> }
 ): Promise<Map<string, RecipeCost>> {
   const asOf = query.asOf ?? computeBangkokToday();
   const { branchId } = query;
@@ -341,7 +364,9 @@ export async function recipeCostsInTx(
   const costs =
     leafProductIds.length === 0
       ? new Map<string, ProductCost>()
-      : await replayPairsInTx(tx, tenantId, leafProductIds, [branchId], asOf);
+      : opts?.replayed
+        ? await withMissingReplayed(tx, tenantId, await opts.replayed, leafProductIds, branchId, asOf)
+        : await replayPairsInTx(tx, tenantId, leafProductIds, [branchId], asOf);
 
   // --- names for everything that might have to be NAMED (Q6) ---
   const names = await loadNames(tx, tenantId, graph, leafProductIds);

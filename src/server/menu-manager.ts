@@ -67,43 +67,53 @@ export async function getMenuPriceBookLogic(
   if (cost === null) return { menus: {}, products: {} };
   const today = computeBangkokToday();
 
-  const [walked, fifo] = await Promise.all([
-    withTenantContext(
-      tenantId,
-      async (tx) => {
-        const [menus, prepped] = await Promise.all([
-          tx.menu.findMany({ where: { tenantId, deletedAt: null }, select: { id: true } }),
-          tx.product.findMany({
-            where: { tenantId, deletedAt: null, type: "PREPPED" },
-            select: { id: true, parentProductId: true, yieldPercent: true },
-          }),
-        ]);
-        const targets: RecipeTarget[] = [
-          ...menus.map((m) => ({ kind: "menu" as const, id: m.id })),
-          ...prepped.map((p) => ({ kind: "product" as const, id: p.id })),
-        ];
-        const resolved = await resolveRecipeIds(tx, tenantId, targets, branchId, today);
-        const hits = [...resolved.values()];
-        const lineIds = [...new Set(hits.map((r) => r.lineId))];
-        const [own, costs] = await Promise.all([
-          lineIds.length === 0
-            ? Promise.resolve([] as { lineId: string }[])
-            : tx.recipeBranch.findMany({ where: { tenantId, branchId, lineId: { in: lineIds } }, select: { lineId: true } }),
-          hits.length === 0 ? Promise.resolve(new Map()) : recipeCostsInTx(tx, tenantId, { recipeIds: [...new Set(hits.map((h) => h.id))], branchId, asOf: today }),
-        ]);
-        return { menus, prepped, resolved, own: new Set(own.map((o) => o.lineId)), costs };
-      },
-      { timeout: 20_000 }
-    ),
-    withTenantContext(
-      tenantId,
-      async (tx) => {
-        const products = await tx.product.findMany({ where: { tenantId, deletedAt: null }, select: { id: true } });
-        return replayPairsInTx(tx, tenantId, products.map((p) => p.id), [branchId], today);
-      },
-      { timeout: 20_000 }
-    ),
-  ]);
+  // The FIFO replay of every product runs ONCE and feeds both halves: the
+  // per-product prices below and the recipe walk's leaves (Kong 2026-10-22 —
+  // the walk used to replay its leaves a second time, on its critical path).
+  // It is STARTED FIRST, before the walk's transaction, and that order is
+  // load-bearing: the walk holds its connection while it waits for this one,
+  // so this one must already be holding (or first in line for) its own —
+  // otherwise a busy pool could fill with walks all waiting on replays.
+  const fifo = withTenantContext(
+    tenantId,
+    async (tx) => {
+      const products = await tx.product.findMany({ where: { tenantId, deletedAt: null }, select: { id: true } });
+      return replayPairsInTx(tx, tenantId, products.map((p) => p.id), [branchId], today);
+    },
+    { timeout: 20_000 }
+  );
+  // Awaited below; this only stops a failed walk leaving it unobserved.
+  void fifo.catch(() => undefined);
+  const walked = await withTenantContext(
+    tenantId,
+    async (tx) => {
+      const [menus, prepped] = await Promise.all([
+        tx.menu.findMany({ where: { tenantId, deletedAt: null }, select: { id: true } }),
+        tx.product.findMany({
+          where: { tenantId, deletedAt: null, type: "PREPPED" },
+          select: { id: true, parentProductId: true, yieldPercent: true },
+        }),
+      ]);
+      const targets: RecipeTarget[] = [
+        ...menus.map((m) => ({ kind: "menu" as const, id: m.id })),
+        ...prepped.map((p) => ({ kind: "product" as const, id: p.id })),
+      ];
+      const resolved = await resolveRecipeIds(tx, tenantId, targets, branchId, today);
+      const hits = [...resolved.values()];
+      const lineIds = [...new Set(hits.map((r) => r.lineId))];
+      const [own, costs] = await Promise.all([
+        lineIds.length === 0
+          ? Promise.resolve([] as { lineId: string }[])
+          : tx.recipeBranch.findMany({ where: { tenantId, branchId, lineId: { in: lineIds } }, select: { lineId: true } }),
+        hits.length === 0
+          ? Promise.resolve(new Map())
+          : recipeCostsInTx(tx, tenantId, { recipeIds: [...new Set(hits.map((h) => h.id))], branchId, asOf: today }, { replayed: fifo }),
+      ]);
+      return { menus, prepped, resolved, own: new Set(own.map((o) => o.lineId)), costs };
+    },
+    { timeout: 20_000 }
+  );
+  const replayed = await fifo;
 
   const book: PriceBook = { menus: {}, products: {} };
   for (const [key, row] of walked.resolved) {
@@ -121,7 +131,7 @@ export async function getMenuPriceBookLogic(
       book.products[key.slice(8)] = Number(c.costPerServing);
     }
   }
-  for (const [key, c] of fifo) {
+  for (const [key, c] of replayed) {
     const productId = key.split("|")[0];
     // UNPRICED is "nobody has bought this here", never "free".
     if (c.costSource !== "UNPRICED" && !(productId in book.products)) book.products[productId] = Number(c.costPerBaseUnit);
