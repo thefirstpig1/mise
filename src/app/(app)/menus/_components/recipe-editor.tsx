@@ -168,6 +168,7 @@ export function RecipeTable({
   const [defining, setDefining] = useState<{ key: string; o: IngredientOption; preset?: string } | null>(null);
   const pricesPending = !costHidden && book === null;
   const total = lines.reduce((s, l) => s + (lineCost(l, book) ?? 0), 0);
+  const allPriced = lines.every((l) => lineCost(l, book) !== null);
   const setLine = (key: string, patch: Partial<Line>) => setLines((ls) => ls.map((l) => (l.key === key ? { ...l, ...patch } : l)));
   const optionOf = (l: Line) => options?.find((x) => x.kind === "product" && x.id === l.productId);
 
@@ -192,6 +193,8 @@ export function RecipeTable({
           </thead>
           <tbody className="divide-y divide-border">
             {lines.map((l, idx) => {
+              // A share of a total that is missing an ingredient is a share of
+              // the wrong number — น้ำปลา read "100%" of a dish with no fish.
               const o = baseLines.find((b) => (b.productId ?? b.componentMenuId) === (l.productId ?? l.componentMenuId));
               const changed = !o ? "bg-good-bg" : qtyOf(o) !== qtyOf(l) || o.unitName !== l.unitName ? "bg-warn-bg" : "";
               const choices = unitChoices(optionOf(l), standards);
@@ -282,7 +285,7 @@ export function RecipeTable({
                     <td className="py-1.5 text-right align-top tabular-nums">
                       {pricesPending ? <span className="inline-block h-3.5 w-12 animate-pulse rounded bg-muted align-middle" /> : c === null ? <span className="text-xs text-warn">ไม่มีราคา</span> : baht(c, 2)}
                       {/* Share of the dish, said in words — the bar it replaced (Kong 2026-10-22) read as stock. */}
-                      {!pricesPending && c !== null && total > 0 && (
+                      {!pricesPending && c !== null && total > 0 && allPriced && (
                         <span className="block text-[11px] text-muted-subtle">
                           {Math.round((c / total) * 100)}%{idx === 0 ? " ของจาน" : ""}
                         </span>
