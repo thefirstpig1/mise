@@ -25,7 +25,7 @@ import { rankBySearch, hasQuery, STRONG_MATCH, type SearchField } from "@/lib/sm
 import { orStale } from "@/lib/stale-tab";
 import { deletedMenuNamed, labDraftCost, menuSheet, type DeletedMenu, type LabCost } from "../../_components/prefetch";
 import { Adder, appendLines, lineCost, lineFrom, materializeUnits, nextKey, qtyOf, RecipeTable, signature, type Line } from "../../_components/recipe-editor";
-import { baht, confidenceHintTh, confidenceTh, newSubmitKey, thDate, unitTh } from "../../_components/manager-format";
+import { atLeastTh, baht, confidenceHintTh, confidenceTh, newSubmitKey, thDate, unitTh } from "../../_components/manager-format";
 import { ConfirmDialog, type ConfirmSpec, PhotoSlot, Sheet } from "../../_components/sheet-parts";
 import { STATUS_TH, type LabMenu, type Option } from "./LabManager";
 
@@ -435,7 +435,7 @@ export default function LabSheet(props: {
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {!costHidden && (
             <Tile k="ต้นทุนต่อจาน" title={verified ? confidenceHintTh(verified.confidence) : undefined}>
-              <p className="font-display text-lg font-semibold tabular-nums">{pricesPending && lines.length ? "…" : perPlate === null ? "—" : baht(perPlate, 2)}</p>
+              <p className="font-display text-lg font-semibold tabular-nums">{pricesPending && lines.length ? "…" : perPlate === null ? "—" : atLeastTh(missing > 0 || (sameAsSaved && verified?.confidence === "LOW"), baht(perPlate, 2))}</p>
               <p className="text-[11px] text-muted-foreground">
                 {lines.length === 0
                   ? "ใส่วัตถุดิบเพื่อดูต้นทุน"

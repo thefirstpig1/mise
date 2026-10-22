@@ -33,6 +33,7 @@ import type { MenuRow } from "./SalesCharts";
 import type { ToneMap } from "./Breakdown";
 import { ModalShell } from "./Breakdown";
 import { useMenuInsight } from "./insight-context";
+import { atMostTh, isUnderstated } from "@/lib/cost-bound";
 
 const G: Record<EngineeringGroup, { name: string; sym: string; colour: string; short: string; todo: string }> = {
   star: { name: "ดาวเด่น", sym: "★", colour: "#5A7333", short: "ขายดี · กำไรดี", todo: "รักษาคุณภาพ วางตำแหน่งเด่นในเมนู" },
@@ -216,12 +217,12 @@ export default function MenuEngineering({
                         </span>
                       )}
                       <span className="block text-[11px] text-muted-subtle">
-                        {it.qty.toLocaleString("th-TH")} จาน · กำไร {baht(it.profitPerDish)}/จาน
+                        {it.qty.toLocaleString("th-TH")} จาน · กำไร {atMostTh(isUnderstated(it.confidence), baht(it.profitPerDish))}/จาน
                         {it.confidence && it.confidence !== "HIGH" ? <span className="text-warn"> · ต้นทุน{confidenceTh(it.confidence)}</span> : null}
                       </span>
                     </span>
                     <span className="text-right text-[11px] tabular-nums text-muted-subtle">
-                      <b className="block text-xs font-medium text-foreground">{baht(it.profit)}</b>กำไรรวม
+                      <b className="block text-xs font-medium text-foreground">{atMostTh(isUnderstated(it.confidence), baht(it.profit))}</b>กำไรรวม
                     </span>
                   </button>
                 </div>
@@ -441,9 +442,9 @@ function TipCard({ item, x, y }: { item: Row; x: number; y: number }) {
         <dt className="text-muted-subtle">ความมั่นใจของต้นทุน</dt>
         <dd className={`text-right ${item.confidence && item.confidence !== "HIGH" ? "text-warn" : ""}`}>{item.confidence ? confidenceTh(item.confidence) : "—"}</dd>
         <dt className="text-muted-subtle">กำไรต่อจาน</dt>
-        <dd className="text-right">{baht(item.profitPerDish)}</dd>
+        <dd className="text-right">{atMostTh(isUnderstated(item.confidence), baht(item.profitPerDish))}</dd>
         <dt className="text-muted-subtle">กำไรรวม</dt>
-        <dd className="text-right">{baht(item.profit)}</dd>
+        <dd className="text-right">{atMostTh(isUnderstated(item.confidence), baht(item.profit))}</dd>
       </dl>
       <p className="mt-1.5 border-t border-border pt-1.5 text-muted-foreground">{g.todo} · กดเพื่อดู insight</p>
     </div>

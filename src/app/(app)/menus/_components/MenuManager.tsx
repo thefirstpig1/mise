@@ -23,7 +23,7 @@ import ActionLink from "@/components/ui/ActionLink";
 import MenuSheet from "./MenuSheet";
 import { Portal } from "./sheet-parts";
 import { ingredientOptions, menuSheet, priceBook } from "./prefetch";
-import { baht, confidenceTh } from "./manager-format";
+import { atLeastTh, baht, confidenceTh } from "./manager-format";
 import type { IngredientOption, PriceBook, StandardUnit } from "@/server/menu-manager";
 
 export type ManagerRow = MenuRowView & {
@@ -190,12 +190,15 @@ export default function MenuManager(props: {
     const costed = selling.filter((r) => costOf(r.id)?.costPerServing != null && r.qty > 0);
     const cost = costed.reduce((s, r) => s + costOf(r.id)!.costPerServing! * r.qty, 0);
     const netCosted = costed.reduce((s, r) => s + r.net, 0);
+    // Any understated dish makes the whole figure a floor (rule RC-LB).
+    const lowCount = costed.filter((r) => costOf(r.id)!.confidence === "LOW").length;
     return {
       total,
       covered,
       coverage: total > 0 ? (covered / total) * 100 : null,
       foodCost: netCosted > 0 ? (cost / netCosted) * 100 : null,
       costedCount: costed.length,
+      lowCount,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selling, book]);
@@ -343,12 +346,17 @@ export default function MenuManager(props: {
               <div className="rounded-xl border border-border bg-surface p-3">
                 <p className="text-xs text-muted-subtle">ต้นทุนวัตถุดิบ เทียบยอดขาย</p>
                 <p className="font-display text-2xl font-semibold tabular-nums">
-                  {pricesLoading ? <span className="inline-block h-7 w-20 animate-pulse rounded bg-muted align-middle" /> : stats.foodCost === null ? "—" : `${stats.foodCost.toFixed(1)}%`}
+                  {pricesLoading ? <span className="inline-block h-7 w-20 animate-pulse rounded bg-muted align-middle" /> : stats.foodCost === null ? "—" : atLeastTh(stats.lowCount > 0, `${stats.foodCost.toFixed(1)}%`)}
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {/* costedCount is 0 until the price book lands — a claim, so wait */}
                   {pricesLoading ? "กำลังคำนวณ…" : `คิดจาก ${stats.costedCount} เมนูที่มีสูตร`}{branch ? ` · ${branch.name}` : ""}
                 </p>
+                {!pricesLoading && stats.lowCount > 0 && (
+                  <p className="text-xs text-warn">
+                    {stats.lowCount} จาก {stats.costedCount} เมนูยังไม่รู้ราคาวัตถุดิบบางตัว{branch ? `ที่${branch.name}` : ""} — ต้นทุนจริงสูงกว่านี้
+                  </p>
+                )}
               </div>
             )}
           </div>
@@ -494,7 +502,7 @@ export default function MenuManager(props: {
                               <span className="text-muted-subtle">—</span>
                             ) : (
                               <>
-                                {baht(mc.costPerServing, 2)}
+                                {atLeastTh(mc.confidence === "LOW", baht(mc.costPerServing, 2))}
                                 {mc.confidence && mc.confidence !== "HIGH" && (
                                   <span className="block text-xs text-warn">ความมั่นใจ{confidenceTh(mc.confidence)}</span>
                                 )}
@@ -511,7 +519,7 @@ export default function MenuManager(props: {
                             ) : (
                               <span className="inline-flex items-center gap-2">
                                 <i className="inline-block h-1.5 rounded-full bg-border-strong" style={{ width: Math.min(pct, 80) * 0.9 }} />
-                                {pct.toFixed(1)}%
+                                {atLeastTh(mc?.confidence === "LOW", `${pct.toFixed(1)}%`)}
                               </span>
                             )}
                           </td>

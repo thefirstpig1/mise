@@ -35,7 +35,7 @@ import { orStale } from "@/lib/stale-tab";
 import type { MergeMenuView } from "./menu-merge-view";
 import type { MenuSuggestionRowView } from "./menu-view";
 import type { ManagerRow, Option, Perm } from "./MenuManager";
-import { baht, confidenceHintTh, confidenceTh, newSubmitKey, qtyFmt, thDate, unitTh } from "./manager-format";
+import { atLeastTh, atMostTh, baht, confidenceHintTh, confidenceTh, newSubmitKey, qtyFmt, thDate, unitTh } from "./manager-format";
 import { ConfirmDialog, type ConfirmSpec, PhotoSlot, Sheet } from "./sheet-parts";
 import IngredientSheet from "./IngredientSheet";
 
@@ -162,6 +162,9 @@ export default function MenuSheet(props: {
   // Until the sheet arrives `lines` is empty, which reads exactly like "no
   // recipe" — so a dish that HAS one said ยังไม่มีสูตร for a second. Waiting
   // on either the recipe or the prices shows "…", never a claim.
+  // Rule RC-LB: a missing price (live, as edited) or a saved LOW recipe makes
+  // the cost a floor and the profit a ceiling.
+  const understated = !known || confidence === "LOW";
   const costWaiting = (sheet === null && !loadError) || (pricesPending && lines.length > 0);
 
   const facts = sheet?.facts ?? null;
@@ -498,7 +501,7 @@ export default function MenuSheet(props: {
           {!costHidden && (
             <Tile
               k="ต้นทุนต่อจาน"
-              v={costWaiting ? "…" : perPlate === null ? "—" : baht(perPlate, 2)}
+              v={costWaiting ? "…" : perPlate === null ? "—" : atLeastTh(understated, baht(perPlate, 2))}
               s={
                 costWaiting
                   ? "กำลังคำนวณ…"
@@ -519,9 +522,9 @@ export default function MenuSheet(props: {
           {!costHidden && (
             <Tile
               k="ต้นทุน % · กำไรต่อจาน"
-              v={costWaiting ? "…" : perPlate !== null && avg ? `${((perPlate / avg) * 100).toFixed(1)}%` : "—"}
-              s={costWaiting ? "กำลังคำนวณ…" : perPlate !== null && avg ? `กำไร ${baht(avg - perPlate, 2)}/จาน` : perPlate === null ? "คิดได้เมื่อมีสูตร" : "ยังไม่มียอดขาย"}
-              warn={costChanged}
+              v={costWaiting ? "…" : perPlate !== null && avg ? atLeastTh(understated, `${((perPlate / avg) * 100).toFixed(1)}%`) : "—"}
+              s={costWaiting ? "กำลังคำนวณ…" : perPlate !== null && avg ? `กำไร ${atMostTh(understated, baht(avg - perPlate, 2))}/จาน` : perPlate === null ? "คิดได้เมื่อมีสูตร" : "ยังไม่มียอดขาย"}
+              warn={costChanged || (perPlate !== null && understated)}
             />
           )}
         </div>

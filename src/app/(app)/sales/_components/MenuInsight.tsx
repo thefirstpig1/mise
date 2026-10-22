@@ -28,6 +28,7 @@ import { RECIPE_CONFIDENCE_HINTS_TH, RECIPE_CONFIDENCE_LABELS_TH } from "@/lib/v
 import type { MenuInsightResult } from "../insight-reads";
 import { readApi } from "@/lib/read-api";
 import { ActionError, ModalShell, STALE_TAB_MESSAGE, baht, fmtMetric } from "./Breakdown";
+import { atLeastTh, atMostTh, isUnderstated } from "@/lib/cost-bound";
 
 const WEEKDAY_SHORT = ["อา.", "จ.", "อ.", "พ.", "พฤ.", "ศ.", "ส."];
 const STALE: MenuInsightResult = { ok: false, formError: STALE_TAB_MESSAGE, stale: true };
@@ -177,6 +178,8 @@ const by: Metric = "net";
 function InsightBody({ r }: { r: Extract<MenuInsightResult, { ok: true }> }) {
   const m = r.insight;
   const noRecipe = m.costPerDish === null;
+  // Rule RC-LB: an unpriced ingredient makes the cost a floor, the profit a ceiling.
+  const low = isUnderstated(m.confidence);
   const best = m.weekday.reduce((a, b) => (b.qtyPerDay > a.qtyPerDay ? b : a), m.weekday[0]);
   const dailyMax = Math.max(...m.daily.map((d) => d.value ?? 0));
 
@@ -239,7 +242,7 @@ function InsightBody({ r }: { r: Extract<MenuInsightResult, { ok: true }> }) {
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 <Kpi
                   label="ต้นทุนต่อจาน (COGS)"
-                  value={baht(m.costPerDish!)}
+                  value={atLeastTh(low, baht(m.costPerDish!))}
                   sub={
                     m.confidence && (
                       <span
@@ -253,21 +256,21 @@ function InsightBody({ r }: { r: Extract<MenuInsightResult, { ok: true }> }) {
                 />
                 <Kpi
                   label="กำไรต่อจาน"
-                  value={m.profitPerDish === null ? "—" : baht(m.profitPerDish)}
+                  value={m.profitPerDish === null ? "—" : atMostTh(low, baht(m.profitPerDish))}
                   tone={m.profitPerDish !== null && m.profitPerDish < 0 ? "text-bad" : "text-good"}
                 />
                 <Kpi
                   label="อัตรากำไรขั้นต้น"
-                  value={m.marginPercent === null ? "—" : `${m.marginPercent.toFixed(1)}%`}
+                  value={m.marginPercent === null ? "—" : atMostTh(low, `${m.marginPercent.toFixed(1)}%`)}
                   sub={
                     m.marginPercent !== null && (
-                      <span className="text-xs text-muted-foreground">food cost {(100 - m.marginPercent).toFixed(1)}%</span>
+                      <span className="text-xs text-muted-foreground">food cost {atLeastTh(low, `${(100 - m.marginPercent).toFixed(1)}%`)}</span>
                     )
                   }
                 />
                 <Kpi
                   label="กำไรรวมในช่วงนี้"
-                  value={m.profitPerDish === null ? "—" : baht(m.profitPerDish * m.qty)}
+                  value={m.profitPerDish === null ? "—" : atMostTh(low, baht(m.profitPerDish * m.qty))}
                   sub={<span className="text-xs text-muted-foreground">{m.qty.toLocaleString("th-TH")} จาน × กำไรต่อจาน</span>}
                 />
               </div>

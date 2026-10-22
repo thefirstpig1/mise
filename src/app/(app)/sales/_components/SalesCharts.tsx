@@ -32,6 +32,7 @@ import { METRIC_LABELS_TH, type Metric } from "@/lib/sales-insight";
 import { RECIPE_CONFIDENCE_LABELS_TH } from "@/lib/validations/recipe";
 import { fmtMetric } from "./Breakdown";
 import { useMenuInsight } from "./insight-context";
+import { atLeastTh, atMostTh, isUnderstated } from "@/lib/cost-bound";
 
 /** Saturday and Sunday — the shape a shop plans its staff around. */
 const WEEKEND = new Set(["เสาร์", "อาทิตย์"]);
@@ -293,7 +294,7 @@ export function MenuTable({ rows, total, by }: { rows: MenuRow[]; total: number;
                       </a>
                     ) : (
                       <span title={r.confidence ? `ความมั่นใจ: ${RECIPE_CONFIDENCE_LABELS_TH[r.confidence as keyof typeof RECIPE_CONFIDENCE_LABELS_TH] ?? r.confidence}` : undefined}>
-                        {baht(r.costPerDish)}
+                        {atLeastTh(isUnderstated(r.confidence), baht(r.costPerDish))}
                         {r.confidence && r.confidence !== "HIGH" ? <span className="ml-0.5 text-warn">*</span> : null}
                       </span>
                     )}
@@ -301,11 +302,11 @@ export function MenuTable({ rows, total, by }: { rows: MenuRow[]; total: number;
                 )}
                 {profit && (
                   <td className={`px-3 py-2 text-right ${r.profitPerDish !== null && r.profitPerDish < 0 ? "text-bad" : ""}`}>
-                    {r.profitPerDish === null ? "—" : baht(r.profitPerDish)}
+                    {r.profitPerDish === null ? "—" : atMostTh(isUnderstated(r.confidence), baht(r.profitPerDish))}
                   </td>
                 )}
                 {profit && (
-                  <td className="px-3 py-2 text-right font-medium">{r.value === null ? "—" : baht(r.value)}</td>
+                  <td className="px-3 py-2 text-right font-medium">{r.value === null ? "—" : atMostTh(isUnderstated(r.confidence), baht(r.value))}</td>
                 )}
                 <td className="px-3 py-2 text-right text-muted-foreground">
                   {total > 0 && r.value !== null ? `${((r.value / total) * 100).toFixed(1)}%` : "—"}
