@@ -10,17 +10,19 @@
 // not security (rule A7): every page still refuses on its own.
 // ============================================================
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import type { Route } from "next";
 import Logo from "@/components/layout/Logo";
 import { currentNavHref, type NavGroup } from "@/components/layout/nav";
+import { NAV_BADGES_EVENT } from "@/lib/nav-badges";
 
 type Badge = { low: number; near: number };
 
-/** Fire after a write that may change a sidebar count: `window.dispatchEvent(new Event(NAV_BADGES_EVENT))`. */
-const NAV_BADGES_EVENT = "kitkrua:nav-badges";
+
+/** A page change re-reads the badges only when the last answer is older than this (Kong 2026-10-22: 1 minute). */
+const BADGE_FRESH_MS = 60_000;
 
 /**
  * A LINE-style count over the item's top-right corner (Kong 2026-10-21):
@@ -72,17 +74,39 @@ export default function Sidebar({
   }, [pathname]);
 
   // Notification badges, read after paint over GET (mise-ui-review §5c) and
-  // again on each page change and when the tab comes back — a count from this
-  // morning is the one thing a badge must not show.
+  // again when the tab comes back or a save moves a count — a count from this
+  // morning is the one thing a badge must not show. A page change re-reads
+  // only an answer older than BADGE_FRESH_MS (Kong 2026-10-22: the count cost
+  // ~1 s of database work on EVERY page change, competing with the page's own
+  // reads, while it almost never moves between two clicks).
   const [badges, setBadges] = useState<Record<string, Badge>>({});
+  const badgesAt = useRef(0);
+  const submitted = useRef(false);
+  useEffect(() => {
+    const onSubmit = () => {
+      submitted.current = true;
+    };
+    document.addEventListener("submit", onSubmit, true);
+    return () => document.removeEventListener("submit", onSubmit, true);
+  }, []);
   useEffect(() => {
     let live = true;
     const load = () =>
       fetch("/api/nav", { cache: "no-store" })
         .then((r) => (r.ok && r.headers.get("content-type")?.includes("json") ? r.json() : null))
-        .then((j) => live && j?.ok && setBadges(j.badges))
+        .then((j) => {
+          if (live && j?.ok) {
+            badgesAt.current = Date.now();
+            setBadges(j.badges);
+          }
+        })
         .catch(() => undefined);
-    void load();
+    // A form submitted on the page we just left may have moved a count (most
+    // forms post through useActionState, not orStale, so they fire nothing).
+    if (submitted.current || Date.now() - badgesAt.current > BADGE_FRESH_MS) {
+      submitted.current = false;
+      void load();
+    }
     const onFocus = () => document.visibilityState === "visible" && void load();
     // A save that moves a count (a par, a receipt) says so without a page change.
     const onChange = () => void load();

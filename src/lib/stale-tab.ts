@@ -16,6 +16,7 @@
 // A plain module, never "use client": both Server and Client Components import it.
 // ============================================================
 
+import { refreshNavBadges } from "@/lib/nav-badges";
 export const STALE_TAB_MESSAGE = "ระบบเพิ่งอัปเดต หน้านี้เปิดค้างไว้จากเวอร์ชันก่อน — กรุณารีเฟรชหน้าแล้วลองอีกครั้ง";
 
 /** The build this bundle was compiled from (next.config `env`). */
@@ -46,7 +47,11 @@ export function onStaleAnnounced(fn: () => void): () => void {
 export async function orStale<T extends { ok: boolean }>(call: Promise<T>): Promise<T> {
   try {
     const r = await call;
-    if (r !== undefined && r !== null) return r;
+    if (r !== undefined && r !== null) {
+      // An action is a write: whatever it saved may move a sidebar count.
+      if (r.ok) refreshNavBadges();
+      return r;
+    }
   } catch (e) {
     // A redirect/notFound thrown by the action is navigation, not staleness.
     if (isNextNavigation(e)) throw e;
