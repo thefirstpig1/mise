@@ -19,7 +19,7 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import QtyStepper from "@/components/ui/QtyStepper";
 import { MeasureInput, MoneyInput } from "@/components/ui/NumberField";
 import { applyDraftToBranchAction, createDraftAction, discardDraftAction, endorseDraftAction, publishDraftAction, submitDraftAction, updateDraftAction, type DraftActionState } from "@/app/(app)/menus/lab/actions";
-import { restoreMenuAction } from "@/app/(app)/menus/lifecycle-actions";
+import { deleteMenuAction, restoreMenuAction } from "@/app/(app)/menus/lifecycle-actions";
 import type { IngredientOption, LabDraft, PriceBook, SheetLine, StandardUnit } from "@/server/menu-manager";
 import { rankBySearch, hasQuery, STRONG_MATCH, type SearchField } from "@/lib/smart-search";
 import { orStale } from "@/lib/stale-tab";
@@ -240,21 +240,41 @@ export default function LabSheet(props: {
       if (await save()) onToast("บันทึกร่างแล้ว · ยังไม่ตัดสต๊อก");
     });
 
+  const discard = (alsoMenu: boolean) =>
+    start(async () => {
+      if (!savedId) return;
+      const res = await orStale(discardDraftAction(savedId));
+      if (!res.ok) return setFormError(res.error);
+      if (!alsoMenu || !menuId) {
+        onToast("ทิ้งร่างแล้ว");
+        return props.onGone();
+      }
+      // Never forced: a dish that already has a recipe of its own, or any other
+      // reason ADR 0027 Q4 refuses, keeps the dish and says so.
+      const del = await orStale(deleteMenuAction(menuId, false));
+      onToast(del.ok ? `ทิ้งร่างและลบ “${menu?.name ?? name}” แล้ว` : `ทิ้งร่างแล้ว · ยังไม่ได้ลบเมนู: ${del.error} — ลบได้ที่หน้าจัดการเมนู`);
+      props.onGone();
+    });
+
   const askDiscard = () => {
     if (!savedId) return props.onClose();
+    // Kong 2026-10-22: a NEW dish's draft made the dish too, and discarding
+    // the draft alone left that name behind in จัดการเมนู as a menu "on sale"
+    // with no recipe. Whoever may delete a dish is offered to take it as well.
+    const offerDelete = kind === "new" && props.canPublish && !!menuId;
     setConfirm({
       title: `ทิ้งร่าง “${menu?.name ?? name}”?`,
       lines: [],
       money: null,
-      who: kind === "new" ? "สิ่งที่พิมพ์ไว้จะหายไป ชื่อเมนูที่สร้างไว้ยังอยู่ในจัดการเมนู" : "สิ่งที่พิมพ์ไว้จะหายไป สูตรที่ใช้อยู่ไม่ได้รับผลกระทบ",
-      go: "ทิ้งร่าง",
-      onGo: () =>
-        start(async () => {
-          const res = await orStale(discardDraftAction(savedId));
-          if (!res.ok) return setFormError(res.error);
-          onToast("ทิ้งร่างแล้ว");
-          props.onGone();
-        }),
+      who:
+        kind !== "new"
+          ? "สิ่งที่พิมพ์ไว้จะหายไป สูตรที่ใช้อยู่ไม่ได้รับผลกระทบ"
+          : offerDelete
+            ? "สิ่งที่พิมพ์ไว้จะหายไป · ชื่อเมนูนี้ถูกสร้างตอนร่าง ถ้าไม่ใช้แล้วให้ลบไปด้วย ไม่งั้นจะค้างอยู่ในหน้าจัดการเมนู"
+            : "สิ่งที่พิมพ์ไว้จะหายไป · ชื่อเมนูที่สร้างตอนร่างยังอยู่ในหน้าจัดการเมนู ให้เจ้าของร้านหรือผู้ดูแลทุกสาขาลบให้",
+      go: offerDelete ? "ทิ้งร่างและลบเมนู" : "ทิ้งร่าง",
+      onGo: () => discard(offerDelete),
+      alt: offerDelete ? { label: "ทิ้งแค่ร่าง", onGo: () => discard(false) } : undefined,
     });
   };
 

@@ -118,6 +118,8 @@ export type ConfirmSpec = {
   who: string;
   go: string;
   onGo: () => void;
+  /** A second, lesser way through (e.g. "ทิ้งแค่ร่าง" beside "ทิ้งร่างและลบเมนู"). */
+  alt?: { label: string; onGo: () => void };
 };
 
 export function ConfirmDialog({ spec, onClose }: { spec: ConfirmSpec; onClose: () => void }) {
@@ -152,6 +154,18 @@ export function ConfirmDialog({ spec, onClose }: { spec: ConfirmSpec; onClose: (
           <button ref={back} autoFocus type="button" onClick={onClose} className="rounded-full border border-border-strong px-4 py-1.5 text-sm hover:bg-muted">
             กลับไปแก้
           </button>
+          {spec.alt && (
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                spec.alt!.onGo();
+              }}
+              className="rounded-full border border-border-strong px-4 py-1.5 text-sm hover:bg-muted"
+            >
+              {spec.alt.label}
+            </button>
+          )}
           <button
             type="button"
             onClick={() => {

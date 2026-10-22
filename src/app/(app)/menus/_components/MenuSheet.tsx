@@ -28,7 +28,7 @@ import { dropPrefetched, menuSheet, ingredientInsight } from "./prefetch";
 import { createRecipeAction, deleteRecipeAction, saveRecipeForBranchAction, updateRecipeAction, type RecipeActionState } from "@/app/(app)/recipes/actions";
 import { confirmMenuAliasAction, getMenuSuggestionsAction, updateMenuAction, type MenuAliasActionState } from "@/app/(app)/menus/actions";
 import { deleteMenuAction, setMenuActiveAction } from "@/app/(app)/menus/lifecycle-actions";
-import { RETIRE_MEANS_TH, RETIRE_NOT_IN_POS_TH } from "@/lib/validations/menu-lifecycle";
+import { DELETE_MEANS_TH, RETIRE_MEANS_TH, RETIRE_NOT_IN_POS_TH } from "@/lib/validations/menu-lifecycle";
 import type { IngredientOption, MenuSheet as SheetData, PriceBook, StandardUnit } from "@/server/menu-manager";
 import { Adder, appendLines, CostMix, lineCost as lineCostWith, lineFrom, materializeUnits, nextKey, priceOf, qtyOf, RecipeTable, signature, type Line } from "./recipe-editor";
 import { orStale } from "@/lib/stale-tab";
@@ -392,7 +392,7 @@ export default function MenuSheet(props: {
           title: `ลบ “${menu.name}” พร้อมสูตร?`,
           lines: [`เมนูนี้มีสูตรของตัวเอง ${res.needsAcknowledgement.recipeCount} รายการ ซึ่งจะถูกลบไปด้วย`],
           money: null,
-          who: `${RETIRE_MEANS_TH} · ${RETIRE_NOT_IN_POS_TH}`,
+          who: DELETE_MEANS_TH,
           go: `ลบพร้อมสูตร ${res.needsAcknowledgement.recipeCount} รายการ`,
           onGo: () => removeMenu(true),
         });
@@ -719,7 +719,7 @@ export default function MenuSheet(props: {
                       title: `ลบ “${menu.name}” ออกจากระบบ?`,
                       lines: [],
                       money: null,
-                      who: `${RETIRE_MEANS_TH} · ${RETIRE_NOT_IN_POS_TH}`,
+                      who: DELETE_MEANS_TH,
                       go: "ลบเมนู",
                       onGo: () => removeMenu(false),
                     })

@@ -122,6 +122,16 @@ export const RETIRE_NOT_IN_POS_TH =
 export const RETIRED_STILL_SELLING_TH =
   "ไฟล์นี้มียอดขายของเมนูที่ทำเครื่องหมายเลิกขายไว้";
 
+/**
+ * Q4/Q6 — what ลบ does, said in its confirm (Kong 2026-10-22). Only a menu with
+ * no POS code and no sale can be deleted at all, so the retire sentences —
+ * "the POS will keep sending it" — never apply here and must not be shown.
+ */
+// The confirm opens BEFORE the server checks, so it states the rule, not a
+// claim about this menu — the server refuses a menu that breaks it, by name.
+export const DELETE_MEANS_TH =
+  "ลบได้เฉพาะเมนูที่ยังไม่เคยขายและไม่ได้มาจาก POS (ระบบตรวจให้ก่อนลบ) รายงานและสต๊อกจึงไม่เปลี่ยน · ถ้าพิมพ์ชื่อนี้ในหน้าทดลองเมนูอีก ระบบจะเสนอให้กู้คืน · เมนูที่ขายแล้วให้ใช้ “เลิกขาย” แทน";
+
 /** L4 — why the delete button is not offered, and what to press instead. */
 export const DELETE_BLOCKED_USE_RETIRE_TH =
   "เมนูนี้ลบไม่ได้ ใช้ “เลิกขาย” แทน";
