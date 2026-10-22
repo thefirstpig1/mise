@@ -83,6 +83,8 @@ export default function MenuManager(props: {
   posIntegrationId: string | null;
   branches: Option[];
   branch: Option | null;
+  /** The server's price book for `branch`, still computing when the page arrives. */
+  initialBook: { branchId: string; book: Promise<PriceBook | null> } | null;
   today: string;
   initialStatus: Status;
   initialMenuId: string | null;
@@ -103,10 +105,16 @@ export default function MenuManager(props: {
   const [toast, setToast] = useState<string | null>(null);
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
-  // Prices load AFTER the list has painted, once per branch, and are kept —
-  // switching back to a branch already seen costs nothing (mise-ui-review §5b).
+  // Prices come once per branch and are kept — switching back to a branch
+  // already seen costs nothing (mise-ui-review §5b). The server STARTS the
+  // book with the page (`initialBook`, Kong 2026-10-22); /api/menus is the
+  // fallback when that promise is missing, used up or failed.
   const [books, setBooks] = useState<Record<string, PriceBook>>({});
   const [bookTick, setBookTick] = useState(0);
+  const usedServerBooks = useRef(new WeakSet<Promise<PriceBook | null>>());
+  // After a save the page refreshes and the server starts a fresh book; asking
+  // /api/menus as well would compute it twice.
+  const awaitingServerBook = useRef(false);
   const book = branch ? (books[branch.id] ?? null) : null;
   const branchId = branch?.id ?? null;
   const haveBook = branchId !== null && branchId in books;
@@ -114,14 +122,30 @@ export default function MenuManager(props: {
   // simply kept for when it comes back — no "is this still current" flag, which
   // React's dev double-run of effects turned into a dropped answer.
   const asking = useRef(new Set<string>());
+  const serverBook = props.initialBook;
   useEffect(() => {
     if (costHidden || branchId === null || haveBook || asking.current.has(branchId)) return;
-    asking.current.add(branchId);
-    void priceBook(branchId).then((r) => {
-      asking.current.delete(branchId);
-      if (r.ok) setBooks((b) => ({ ...b, [branchId]: r.book }));
-    });
-  }, [branchId, haveBook, costHidden, bookTick]);
+    const fromApi = () => {
+      asking.current.add(branchId);
+      void priceBook(branchId).then((r) => {
+        asking.current.delete(branchId);
+        if (r.ok) setBooks((b) => ({ ...b, [branchId]: r.book }));
+      });
+    };
+    if (serverBook && serverBook.branchId === branchId && !usedServerBooks.current.has(serverBook.book)) {
+      usedServerBooks.current.add(serverBook.book);
+      awaitingServerBook.current = false;
+      asking.current.add(branchId);
+      void serverBook.book.then((b) => {
+        asking.current.delete(branchId);
+        if (b) setBooks((all) => ({ ...all, [branchId]: b }));
+        else fromApi();
+      });
+      return;
+    }
+    if (awaitingServerBook.current) return;
+    fromApi();
+  }, [branchId, haveBook, costHidden, bookTick, serverBook]);
   const pricesLoading = !costHidden && branch !== null && book === null;
   const costOf = (id: string) => book?.menus[id] ?? null;
 
@@ -538,7 +562,9 @@ export default function MenuManager(props: {
           onSaved={() => {
             // A saved recipe moves its own price and every set that uses it.
             router.refresh();
-            // A central recipe moves every branch's prices, so every book goes.
+            // A central recipe moves every branch's prices, so every book goes;
+            // the refresh brings this branch's new one from the server.
+            awaitingServerBook.current = true;
             setBooks({});
             setBookTick((t) => t + 1);
           }}

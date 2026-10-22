@@ -25,7 +25,7 @@ import { getMenuMergesLogic } from "@/server/menu-merge-read";
 import { getMenuListFactsLogic, MENU_FACT_DAYS } from "@/server/menu-list-facts";
 import { getBranchesLogic } from "@/server/branch";
 import { freshestCostBranch } from "@/server/menu-lab-read";
-import { getMenuRecipeStatusLogic } from "@/server/menu-manager";
+import { getMenuPriceBookLogic, getMenuRecipeStatusLogic } from "@/server/menu-manager";
 import { computeBangkokToday } from "@/lib/bangkok-date";
 import { solid, toneOf } from "@/components/charts/chart-theme";
 import { toMenuRowView } from "./_components/menu-view";
@@ -50,6 +50,16 @@ export default async function MenusPage({
   ]);
   const branch = branches.find((b) => b.id === asked) ?? freshest;
 
+  // The price book STARTS here and is NOT awaited (Kong 2026-10-22, "วัดเรื่อง
+  // ความเร็ว"): it used to begin only after the list had painted and hydrated,
+  // so the cost columns arrived ~3.5 s after the table. Now it runs beside the
+  // list's reads and streams to the client as a promise; the table still paints
+  // first. A failure resolves to null and the client asks /api/menus itself.
+  const initialBook =
+    branch !== null && costAccess !== null
+      ? { branchId: branch.id, book: getMenuPriceBookLogic(tenantId, branch.id, costAccess).catch(() => null) }
+      : null;
+
   const [menus, categories, integrations, departments, merges, facts, recipeStatus] = await Promise.all([
     getMenusLogic(tenantId, {
       posIntegrationId: undefined,
@@ -71,8 +81,7 @@ export default async function MenusPage({
     getMenuMergesLogic(tenantId, { winningMenuId: undefined, includeRevoked: false }),
     getMenuListFactsLogic(tenantId, reach),
     // Which dishes have a recipe here — no prices. Prices (the slow part: the
-    // recipe walk and the FIFO replay) load AFTER the list paints, once per
-    // branch, through getPriceBookAction (Kong 2026-10-04, "หน้าไหนโหลดช้า").
+    // recipe walk and the FIFO replay) are `initialBook` above, streamed.
     branch === null ? Promise.resolve({} as Record<string, { recipeId: string; own: boolean }>) : getMenuRecipeStatusLogic(tenantId, branch.id),
   ]);
 
@@ -116,6 +125,7 @@ export default async function MenusPage({
       posIntegrationId={integrations[0]?.id ?? null}
       branches={branches.map((b) => ({ id: b.id, name: b.name }))}
       branch={branch}
+      initialBook={initialBook}
       today={computeBangkokToday().toISOString().slice(0, 10)}
       initialStatus={one("stubs") === "true" ? "review" : one("retired") === "true" ? "retired" : one("filter") === "none" ? "none" : "all"}
       initialMenuId={one("menu") ?? null}
