@@ -30,6 +30,13 @@ type PackRow = { key: number; box: string; size: string; sizeUnit: string; custo
 type Density = "none" | "template" | "custom";
 let seq = 0;
 
+/**
+ * Kitchen measures are for WRITING recipes, never for counting stock (Kong
+ * 2026-10-22): nobody counts fish sauce in pinches. They stay unit templates —
+ * the recipe editor uses them — and are only left out of this choice.
+ */
+const RECIPE_ONLY_UNITS = new Set(["ช้อนชา", "ช้อนโต๊ะ", "ถ้วยตวง", "หยิบมือ"]);
+
 const DIMENSIONS: { key: string; label: string }[] = [
   { key: "WEIGHT", label: "ชั่ง" },
   { key: "VOLUME", label: "ตวง" },
@@ -255,7 +262,7 @@ export default function NewProductSheet({
           {!form && !loadError && <div className="h-20 animate-pulse rounded-lg bg-muted" />}
           {form &&
             DIMENSIONS.map((g) => {
-              const us = form.units.filter((u) => u.unitDimension === g.key);
+              const us = form.units.filter((u) => u.unitDimension === g.key && !RECIPE_ONLY_UNITS.has(u.unitName));
               if (us.length === 0) return null;
               return (
                 <div key={g.key} className="space-y-1">
