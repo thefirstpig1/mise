@@ -244,6 +244,9 @@ export default function IngredientSheet({
       ? ((receipts[0].perBase - receipts[receipts.length - 1].perBase) / receipts[receipts.length - 1].perBase) * 100
       : null;
 
+  // Warn about a thin rate only where there IS a rate (Kong 2026-10-22).
+  const thinRate = !!data && !!fact?.usedPerDay && data.facts.postedDays > 0 && data.facts.postedDays < FEW_DAYS;
+
   return (
     <Sheet stacked={stacked} onClose={close} labelledBy="ing-title">
       {/* Kong 2026-10-22: the 4:3 photo of the menu and lab sheets. */}
@@ -270,13 +273,13 @@ export default function IngredientSheet({
               ) : (
                 <>
                   <Tile k="คงเหลือ" v={fact ? qtyFmt(fact.onHand, baseUnit) : "—"} s={data.facts.postedThrough ? `ตามระบบ · ตัดสต๊อกถึง ${thDate(data.facts.postedThrough, false)}` : "ยังไม่มีการตัดสต๊อกตามยอดขาย"} />
-                  <Tile k="ใช้เฉลี่ยต่อวัน" v={fact?.usedPerDay ? qtyFmt(fact.usedPerDay, baseUnit) : "—"} s={`จากยอดขาย ${data.facts.postedDays} วันที่ตัดสต๊อกแล้ว${data.facts.postedDays > 0 && data.facts.postedDays < FEW_DAYS ? " · ยังน้อย เชื่อได้ไม่มาก" : ""}`}
-                    warn={data.facts.postedDays > 0 && data.facts.postedDays < FEW_DAYS}
+                  <Tile k="ใช้เฉลี่ยต่อวัน" v={fact?.usedPerDay ? qtyFmt(fact.usedPerDay, baseUnit) : "—"} s={`จากยอดขาย ${data.facts.postedDays} วันที่ตัดสต๊อกแล้ว${thinRate ? " · ยังน้อย เชื่อได้ไม่มาก" : ""}`}
+                    warn={thinRate}
                   />
                   <Tile
                     k="พอใช้อีก"
                     v={fact?.daysLeft == null ? "—" : `~${fact.daysLeft} วัน`}
-                    s={`${fact?.par != null ? `ขั้นต่ำ ${qtyFmt(fact.par, baseUnit)}${fact.belowPar ? " · ต่ำกว่าแล้ว" : ""}` : "ยังไม่ได้ตั้งขั้นต่ำ"}${data.facts.postedDays > 0 && data.facts.postedDays < FEW_DAYS ? ` · อิงแค่ ${data.facts.postedDays} วัน` : ""}`}
+                    s={`${fact?.par != null ? `ขั้นต่ำ ${qtyFmt(fact.par, baseUnit)}${fact.belowPar ? " · ต่ำกว่าแล้ว" : ""}` : "ยังไม่ได้ตั้งขั้นต่ำ"}${thinRate && fact?.daysLeft != null ? ` · อิงแค่ ${data.facts.postedDays} วัน` : ""}`}
                     bad={fact?.belowPar}
                   />
                 </>

@@ -14,6 +14,7 @@ import type { CostAccess } from "@/lib/permissions/cost-access";
 import { parAlertOf, parStateOf, suggestOrderQty, type ParAlert, type ParStateKind } from "@/lib/par-alert";
 import { coverKey, parCoverInTx, type CoverDoc } from "@/server/par-coverage";
 import { ingredientFactsInTx } from "@/server/menu-manager";
+import { getLiquidDensityTemplates, getUnitTemplates } from "@/server/product";
 
 export type ProductListFact = {
   onHand: number;
@@ -374,4 +375,47 @@ export async function getOrderSuggestionsLogic(
     }
     return out;
   });
+}
+
+// ------------------------------------------------------------
+// The "+ เพิ่มสินค้า" sheet's choices (Kong 2026-10-22, mockup 9KoNNnZYeQSyA1dVNEfKcr)
+// ------------------------------------------------------------
+// The same lists the old /products/new page loaded, in one read, plus the code
+// a new product will most likely get. `nextSku` is a PREVIEW: the create takes
+// the counter lock and may land one higher if two people add at once — the
+// sheet shows the real code the moment it saves.
+
+export type NewProductForm = {
+  units: { unitName: string; unitDimension: string }[];
+  categories: { id: string; label: string }[];
+  densities: { id: string; name: string; gPerMl: string }[];
+  nextSku: string;
+};
+
+export async function getNewProductFormLogic(tenantId: string): Promise<NewProductForm> {
+  const [units, densities, tenantSide] = await Promise.all([
+    getUnitTemplates(),
+    getLiquidDensityTemplates(),
+    withTenantContext(tenantId, async (tx) => {
+      const [categories, skus] = await Promise.all([
+        tx.category.findMany({ where: { tenantId, deletedAt: null }, select: { id: true, account: true, accountingSection: true, groupName: true } }),
+        tx.product.findMany({ where: { tenantId, sku: { startsWith: "P-" } }, select: { sku: true } }),
+      ]);
+      return { categories, skus };
+    }),
+  ]);
+  let max = 0;
+  for (const { sku } of tenantSide.skus) {
+    const m = /^P-(\d+)$/.exec(sku);
+    if (m) max = Math.max(max, parseInt(m[1], 10));
+  }
+  return {
+    units,
+    categories: tenantSide.categories
+      .filter((c) => c.account.includes("COGS"))
+      .map((c) => ({ id: c.id, label: `${c.accountingSection} › ${c.groupName}` }))
+      .sort((a, b) => a.label.localeCompare(b.label, "th")),
+    densities: densities.map((d) => ({ id: d.id, name: d.name, gPerMl: d.gPerMl })),
+    nextSku: `P-${String(max + 1).padStart(4, "0")}`,
+  };
 }

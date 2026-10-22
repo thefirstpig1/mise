@@ -1,46 +1,10 @@
-// Sprint 1 Part 7a — create a product.
-// Loads unit templates (base-unit dropdown), the tenant's categories
-// (classification dropdown), and (7c) all live products of the tenant for the
-// PREPPED parent picker. The action resolves tenantId itself.
+// /products/new — "+ เพิ่มสินค้า" is a sheet over the list now (Kong 2026-10-22,
+// mockup 9KoNNnZYeQSyA1dVNEfKcr). The address stays so old links and bookmarks
+// still land on it.
+import { redirect } from "next/navigation";
 import { requireTenant } from "@/lib/require-tenant";
-import {
-  getUnitTemplates,
-  getProductParentOptionsLogic,
-  getLiquidDensityTemplates,
-} from "@/server/product";
-import { getCategoriesLogic } from "@/server/category";
-import { createProduct } from "../actions";
-import ProductForm from "../_components/ProductForm";
 
 export default async function NewProductPage() {
-  const { tenantId } = await requireTenant("master:write");
-  const [units, categories, parentOptions, densityTemplates] =
-    await Promise.all([
-      getUnitTemplates(),
-      getCategoriesLogic(tenantId),
-      getProductParentOptionsLogic(tenantId),
-      getLiquidDensityTemplates(),
-    ]);
-
-  const categoryOptions = categories.map((c) => ({
-    id: c.id,
-    account: c.account,
-    accountingSection: c.accountingSection,
-    groupName: c.groupName,
-  }));
-
-  return (
-    <div className="space-y-6">
-      <h2 className="text-xl font-bold">เพิ่มสินค้า</h2>
-      <ProductForm
-        action={createProduct}
-        units={units}
-        categories={categoryOptions}
-        parentOptions={parentOptions}
-        availableTemplates={densityTemplates}
-        submitLabel="บันทึก"
-        showRestoreSuggestion
-      />
-    </div>
-  );
+  await requireTenant("master:write");
+  redirect("/products?new=1");
 }

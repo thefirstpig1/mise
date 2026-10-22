@@ -13,7 +13,6 @@
 // on the filter chips as a LINE-style count, on the row, on the card's picture.
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { ProductView } from "./product-view";
 import type { ProductListFacts } from "@/server/product-list";
@@ -26,6 +25,7 @@ import { rankBySearch, hasQuery, STRONG_MATCH, type SearchField } from "@/lib/sm
 import EmptyState from "@/components/ui/EmptyState";
 import ProductThumb from "@/components/ui/ProductThumb";
 import ProductSheet from "./ProductSheet";
+import NewProductSheet from "./NewProductSheet";
 import ParDocsPopup from "./ParDocsPopup";
 import QuickRequest from "./QuickRequest";
 import { PAR_RED } from "@/lib/par-alert";
@@ -80,6 +80,8 @@ export default function ProductsManager(props: {
   /** May add to the purchase request (purchase:request). */
   canRequest: boolean;
   initialProductId: string | null;
+  /** `?new=1` — the old /products/new address lands here (Kong 2026-10-22). */
+  initialNew: boolean;
   initialStatus: Status;
 }) {
   const { products, branches, costHidden } = props;
@@ -90,6 +92,7 @@ export default function ProductsManager(props: {
   const [view, setView] = useState<View>("table");
   const [branchId, setBranchId] = useState(props.defaultBranchId ?? branches[0]?.id ?? "");
   const [openId, setOpenId] = useState<string | null>(props.initialProductId);
+  const [adding, setAdding] = useState(props.initialNew && props.canEditInfo);
   const [toast, setToast] = useState<string | null>(null);
   useEffect(() => {
     if (!toast) return;
@@ -386,9 +389,9 @@ export default function ProductsManager(props: {
             </label>
           )}
           {props.canEditInfo && (
-            <Link href="/products/new" className="btn">
+            <button type="button" onClick={() => (setOpenId(null), setAdding(true))} className="btn">
               + เพิ่มสินค้า
-            </Link>
+            </button>
           )}
         </div>
       </div>
@@ -566,6 +569,33 @@ export default function ProductsManager(props: {
             setOpenId(null);
             setAddress(null);
             router.refresh();
+          }}
+        />
+      )}
+
+      {adding && (
+        <NewProductSheet
+          products={products}
+          onToast={setToast}
+          onClose={() => {
+            setAdding(false);
+            if (props.initialNew) window.history.replaceState(null, "", "/products");
+          }}
+          onCreated={(id, again) => {
+            router.refresh();
+            if (again) return;
+            // Hand over to the product's own sheet (pars, production recipe…);
+            // it appears as soon as the refreshed list carries the new row.
+            setAdding(false);
+            const url = new URL(window.location.href);
+            url.searchParams.delete("new");
+            window.history.replaceState(null, "", url);
+            open(id);
+          }}
+          onRestored={(id) => {
+            setAdding(false);
+            router.refresh();
+            open(id);
           }}
         />
       )}

@@ -3,13 +3,14 @@
 // ============================================================
 // what=list&branch=  the per-branch figures beside every product
 // what=sheet&id=     the editable part of one product's sheet
+// what=newform       the "+ เพิ่มสินค้า" sheet's choices (master:write)
 // Same gates as the pages: membership to read, the branch asserted against
 // reach (rule A5), receipts' money only with the cost ticket.
 // ============================================================
 
 import { requireTenant } from "@/lib/require-tenant";
 import { guardRead } from "@/lib/read-api";
-import { getParDocsLogic, getProductListFactsLogic, getProductSheetFormLogic } from "@/server/product-list";
+import { getNewProductFormLogic, getParDocsLogic, getProductListFactsLogic, getProductSheetFormLogic } from "@/server/product-list";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +21,10 @@ export function GET(req: Request) {
   return guardRead(async () => {
     const url = new URL(req.url);
     const what = url.searchParams.get("what");
+    if (what === "newform") {
+      const { tenantId } = await requireTenant("master:write");
+      return json({ ok: true, form: await getNewProductFormLogic(tenantId) });
+    }
     const { tenantId, costAccess, assertBranch } = await requireTenant("any:member");
     if (what === "list") {
       const branchId = url.searchParams.get("branch") ?? "";
