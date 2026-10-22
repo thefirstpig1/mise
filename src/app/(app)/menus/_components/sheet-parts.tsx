@@ -82,15 +82,16 @@ export function Sheet({
   );
 }
 
-export function PhotoSlot({ size, label }: { size: number; label: string }) {
+/** A square of `size` px, or — given `className` — whatever box that sets (the menu sheet's 4:3). */
+export function PhotoSlot({ size, label, className }: { size?: number; label: string; className?: string }) {
   return (
     <div
-      className="grid shrink-0 place-items-center rounded-xl border-[1.5px] border-dashed border-border-strong bg-surface-sunk text-center text-[10px] leading-tight text-muted-subtle"
-      style={{ width: size, height: size }}
+      className={`grid shrink-0 place-items-center rounded-xl border-[1.5px] border-dashed border-border-strong bg-surface-sunk text-center leading-tight text-muted-subtle ${className ? `text-xs ${className}` : "text-[10px]"}`}
+      style={className ? undefined : { width: size, height: size }}
       title="รูปเพิ่มได้เร็ว ๆ นี้"
     >
       <span>
-        <svg width="22" height="18" viewBox="0 0 26 22" fill="none" stroke="currentColor" strokeWidth="1.6" className="mx-auto mb-0.5" aria-hidden>
+        <svg width={className ? 32 : 22} height={className ? 27 : 18} viewBox="0 0 26 22" fill="none" stroke="currentColor" strokeWidth="1.6" className="mx-auto mb-0.5" aria-hidden>
           <rect x="1" y="4" width="24" height="17" rx="3" />
           <circle cx="13" cy="12.5" r="4.5" />
           <path d="M8 4l2-3h6l2 3" />

@@ -66,6 +66,7 @@ export default function MenuSheet(props: {
   const { menu, branch, branches, today, costHidden, perm, onToast, book, options } = props;
   const [sheet, setSheet] = useState<SheetData | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [aliasOpen, setAliasOpen] = useState(false);
   const lineCost = (l: Line) => lineCostWith(l, book);
 
   // ---- the draft ----
@@ -120,6 +121,7 @@ export default function MenuSheet(props: {
   }, [menu.id, branch.id]);
 
   const recipe = sheet?.recipe ?? null;
+  const canAlias = perm.editMenu && !!props.posIntegrationId && !!menu.posMenuName;
   const isOwnLine = recipe !== null && recipe.branchIds.length > 0;
   const recipeEditable = perm.recipe && (perm.recipeShared || true); // a manager edits FOR their branch
   // Where a save lands. A branch's own line is edited as itself; a central (or
@@ -402,27 +404,37 @@ export default function MenuSheet(props: {
 
   return (
     <Sheet onClose={close} labelledBy="menu-sheet-title">
-      <div className="flex items-start gap-3 border-b border-border bg-surface px-5 py-4">
-        <PhotoSlot size={84} label="รูปเมนู" />
-        <div className="min-w-0 flex-1 space-y-1.5">
-          {perm.editMenu ? (
-            <input
-              id="menu-sheet-title"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              aria-label="ชื่อเมนู"
-              className="-ml-1.5 w-full rounded-lg border border-transparent bg-transparent px-1.5 py-0.5 font-display text-xl font-semibold hover:border-border focus:border-border-strong focus:bg-surface focus:outline-none"
-            />
-          ) : (
-            <h3 id="menu-sheet-title" className="font-display text-xl font-semibold">
-              {menu.name}
-            </h3>
-          )}
-          <div className="flex flex-wrap items-center gap-1.5 text-xs">
-            {menu.posMenuCode && <span className="rounded-full border border-border bg-surface-sunk px-2 py-0.5 tabular-nums" title="มาจากไฟล์ POS แก้ที่นี่ไม่ได้">รหัส POS {menu.posMenuCode}</span>}
+      {/* Kong 2026-10-22: a bigger photo (4:3, like the product cards), the
+          name and the three choices beside it, each choice NAMED — three
+          identical pills left people guessing which was หมวด / แผนก / สถานะ. */}
+      <div className="relative flex flex-col gap-4 border-b border-border bg-surface px-5 py-4 sm:flex-row sm:items-start">
+        <PhotoSlot label="รูปเมนู" className="aspect-[4/3] w-full sm:w-[200px]" />
+        <div className="min-w-0 flex-1 space-y-2.5 pr-8">
+          <div>
             {perm.editMenu ? (
-              <>
-                <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} aria-label="หมวดเมนู" className="rounded-full border border-border bg-surface px-2 py-0.5">
+              <input
+                id="menu-sheet-title"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                aria-label="ชื่อเมนู"
+                className="-ml-1.5 w-full rounded-lg border border-transparent bg-transparent px-1.5 py-0.5 font-display text-xl font-semibold hover:border-border focus:border-border-strong focus:bg-surface focus:outline-none"
+              />
+            ) : (
+              <h3 id="menu-sheet-title" className="font-display text-xl font-semibold">
+                {menu.name}
+              </h3>
+            )}
+            <p className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+              {menu.posMenuCode && <span className="tabular-nums" title="มาจากไฟล์ POS แก้ที่นี่ไม่ได้">รหัส POS {menu.posMenuCode}</span>}
+              {menu.isPosStub && <span className="badge">รอตรวจ</span>}
+            </p>
+            {menu.posName && <p className="text-xs text-muted-foreground">{menu.posName}</p>}
+          </div>
+          {perm.editMenu ? (
+            <div className={`grid gap-2 text-sm ${props.departmentsEnabled ? "grid-cols-1 sm:grid-cols-3" : "grid-cols-1 sm:grid-cols-2"}`}>
+              <label className="grid gap-0.5">
+                <span className="pl-2.5 text-[11px] text-muted-subtle">หมวด</span>
+                <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className="w-full rounded-full border border-border bg-surface px-2.5 py-1">
                   <option value="">— ไม่ระบุหมวด —</option>
                   {props.categories.map((c) => (
                     <option key={c.id} value={c.id}>
@@ -430,31 +442,42 @@ export default function MenuSheet(props: {
                     </option>
                   ))}
                 </select>
-                {props.departmentsEnabled && (
-                  <select value={departmentId} onChange={(e) => setDepartmentId(e.target.value)} aria-label="แผนกที่รับรายได้" className="rounded-full border border-border bg-surface px-2 py-0.5">
-                    <option value="">— แผนกที่รับรายได้ —</option>
+              </label>
+              {props.departmentsEnabled && (
+                <label className="grid gap-0.5">
+                  <span className="pl-2.5 text-[11px] text-muted-subtle">แผนกที่รับรายได้</span>
+                  <select value={departmentId} onChange={(e) => setDepartmentId(e.target.value)} className="w-full rounded-full border border-border bg-surface px-2.5 py-1">
+                    <option value="">— ไม่ระบุแผนก —</option>
                     {props.departments.map((d) => (
                       <option key={d.id} value={d.id}>
                         {d.name}
                       </option>
                     ))}
                   </select>
-                )}
-                <select value={retired ? "retired" : "selling"} onChange={(e) => setRetired(e.target.value === "retired")} aria-label="สถานะ" className="rounded-full border border-border bg-surface px-2 py-0.5">
+                </label>
+              )}
+              <label className="grid gap-0.5">
+                <span className="pl-2.5 text-[11px] text-muted-subtle">สถานะ</span>
+                <select value={retired ? "retired" : "selling"} onChange={(e) => setRetired(e.target.value === "retired")} className="w-full rounded-full border border-border bg-surface px-2.5 py-1">
                   <option value="selling">ขายอยู่</option>
                   <option value="retired">เลิกขายแล้ว</option>
                 </select>
-              </>
-            ) : (
-              <span className="text-muted-foreground">
-                {menu.menuCategoryName ?? "ไม่มีหมวด"} · {menu.isRetired ? "เลิกขายแล้ว" : "ขายอยู่"}
-              </span>
-            )}
-            {menu.isPosStub && <span className="badge">รอตรวจ</span>}
-          </div>
-          {menu.posName && <p className="text-xs text-muted-foreground">{menu.posName}</p>}
+              </label>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              {menu.menuCategoryName ?? "ไม่มีหมวด"} · {menu.isRetired ? "เลิกขายแล้ว" : "ขายอยู่"}
+            </p>
+          )}
+          {/* What retiring means is said where it is chosen, not at the foot
+              of the sheet beside buttons that do something else. */}
+          {retired && !menu.isRetired && (
+            <p className="animate-fade-in rounded-lg border border-warn-border bg-warn-bg px-3 py-2 text-xs">
+              <b>{RETIRE_MEANS_TH}</b> · {RETIRE_NOT_IN_POS_TH}
+            </p>
+          )}
         </div>
-        <button type="button" onClick={close} aria-label="ปิด" className="rounded-lg px-2 text-2xl leading-none text-muted-foreground hover:bg-muted">
+        <button type="button" onClick={close} aria-label="ปิด" className="absolute right-3 top-3 rounded-lg px-2 text-2xl leading-none text-muted-foreground hover:bg-muted">
           ×
         </button>
       </div>
@@ -643,7 +666,11 @@ export default function MenuSheet(props: {
           </section>
         )}
 
-        {perm.editMenu && props.posIntegrationId && menu.posMenuName && <AliasBlock menu={menu} posIntegrationId={props.posIntegrationId} />}
+        {/* Kong 2026-10-22: the big "is this a dish we already have" box is
+            for a menu that just arrived from a file (รอตรวจ). On a dish that
+            has sold for months it read like a question about THIS menu, so
+            there it is one line under อื่น ๆ that opens the same box. */}
+        {canAlias && (menu.isPosStub || aliasOpen) && <AliasBlock menu={menu} posIntegrationId={props.posIntegrationId!} fresh={menu.isPosStub} />}
 
         {(perm.editMenu || perm.deleteMenu || isOwnLine) && (
           <section className="space-y-2 rounded-xl border border-border bg-surface p-4">
@@ -696,9 +723,14 @@ export default function MenuSheet(props: {
                 </button>
               )}
             </div>
-            <p className="text-xs text-muted-foreground">
-              {RETIRE_MEANS_TH} · {RETIRE_NOT_IN_POS_TH}
-            </p>
+            {canAlias && !menu.isPosStub && !aliasOpen && (
+              <p className="text-xs text-muted-foreground">
+                ชื่อในไฟล์ POS เป็นอีกชื่อของเมนูที่มีอยู่แล้ว?{" "}
+                <button type="button" onClick={() => setAliasOpen(true)} className="text-primary underline decoration-dotted underline-offset-4 hover:decoration-solid">
+                  จับคู่ชื่อ
+                </button>
+              </p>
+            )}
           </section>
         )}
       </div>
@@ -798,13 +830,13 @@ function Tile({ k, v, s, warn, title }: { k: string; v: string; s: string; warn?
 }
 
 /** ADR 0019 Q8 — "this name from the file is a dish we already have". */
-function AliasBlock({ menu, posIntegrationId }: { menu: ManagerRow; posIntegrationId: string }) {
+function AliasBlock({ menu, posIntegrationId, fresh }: { menu: ManagerRow; posIntegrationId: string; fresh: boolean }) {
   const [state, action, saving] = useActionState<MenuAliasActionState | null, FormData>(confirmMenuAliasAction, null);
   const [suggestions, setSuggestions] = useState<MenuSuggestionRowView[] | null>(null);
   const [looking, startLooking] = useTransition();
   return (
-    <section className="rounded-xl border border-border bg-surface p-4">
-      <p className="text-sm font-medium">ชื่อนี้เป็นเมนูเดิมที่มีอยู่แล้วหรือเปล่า</p>
+    <section className={`rounded-xl border p-4 ${fresh ? "border-warn-border bg-warn-bg" : "border-border bg-surface"}`}>
+      <p className="text-sm font-medium">{fresh ? "เมนูนี้เพิ่งมาจากไฟล์ เป็นเมนูเดิมที่มีอยู่แล้วหรือเปล่า" : "ชื่อนี้เป็นเมนูเดิมที่มีอยู่แล้วหรือเปล่า"}</p>
       <p className="mt-0.5 text-xs text-muted-foreground">
         ระบบจะจำว่า “{menu.posMenuName}” หมายถึงเมนูที่เลือก — <strong>มีผลกับไฟล์ที่นำเข้าครั้งถัดไป</strong> ยอดขายที่บันทึกไปแล้วยังอยู่ที่เมนูนี้
       </p>

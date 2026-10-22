@@ -7,7 +7,7 @@
 //
 // Kept from the old /menus: the รอตรวจ banner and queue, retired dishes one tap
 // away, merged spellings nested under their dish (ADR 0026 Q6), + เพิ่มหมวด,
-// sort by name or by what sells.
+// sort by name, by what sells, or by food cost % (Kong 2026-10-22).
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { Route } from "next";
@@ -41,7 +41,7 @@ export type Perm = { editMenu: boolean; deleteMenu: boolean; recipe: boolean; re
 export type Option = { id: string; name: string };
 
 type Status = "all" | "none" | "review" | "retired" | "every";
-type Sort = "sold" | "name";
+type Sort = "sold" | "name" | "cost";
 const NO_CATEGORY = "ไม่มีหมวด";
 const STATUS: { key: Status; label: string }[] = [
   { key: "all", label: "ขายอยู่" },
@@ -193,13 +193,23 @@ export default function MenuManager(props: {
     return [...seen].sort(([a], [b]) => (a === NO_CATEGORY ? 1 : b === NO_CATEGORY ? -1 : a.localeCompare(b, "th")));
   }, [byStatus]);
 
+  // Food cost as a share of the price actually sold at; null = cannot say
+  // (no recipe, no sale, or prices still on their way).
+  const costPctOf = (r: ManagerRow): number | null => {
+    const c = costOf(r.id)?.costPerServing;
+    return r.qty > 0 && c != null ? (c / (r.net / r.qty)) * 100 : null;
+  };
   const filtered = byStatus
     .filter((r) => category === null || (r.menuCategoryName ?? NO_CATEGORY) === category)
-    .sort((a, b) =>
-      sort === "name" && status !== "none"
-        ? a.name.localeCompare(b.name, "th")
-        : b.net - a.net || a.name.localeCompare(b.name, "th")
-    );
+    .sort((a, b) => {
+      if (sort === "name" && status !== "none") return a.name.localeCompare(b.name, "th");
+      // Kong 2026-10-22: highest food cost first; what cannot be costed goes last.
+      if (sort === "cost" && !costHidden) {
+        const pa = costPctOf(a), pb = costPctOf(b);
+        if (pa !== pb) return pb === null ? -1 : pa === null ? 1 : pb - pa;
+      }
+      return b.net - a.net || a.name.localeCompare(b.name, "th");
+    });
 
   const fields: SearchField<ManagerRow>[] = [
     { get: (r) => r.name, kind: "name" },
@@ -334,6 +344,11 @@ export default function MenuManager(props: {
                 <button type="button" className={chip(sort === "sold")} onClick={() => setSort("sold")}>
                   ขายดี
                 </button>
+                {!costHidden && (
+                  <button type="button" className={chip(sort === "cost")} onClick={() => setSort("cost")}>
+                    ต้นทุน % สูงก่อน
+                  </button>
+                )}
                 <button type="button" className={chip(sort === "name")} onClick={() => setSort("name")}>
                   ชื่อ
                 </button>
@@ -418,7 +433,7 @@ export default function MenuManager(props: {
                           hoverTimer.current = setTimeout(() => branch && void menuSheet(m.id, branch.id), 150);
                         }}
                         onPointerLeave={() => clearTimeout(hoverTimer.current)}
-                        className={`cursor-pointer align-top transition-colors hover:bg-muted/50 ${openId === m.id ? "bg-highlight" : ""} ${weak ? "opacity-45" : ""}`}
+                        className={`group cursor-pointer align-top transition-colors hover:bg-muted/50 ${openId === m.id ? "bg-highlight" : ""} ${weak ? "opacity-45" : ""}`}
                       >
                         <td className="px-4 py-2.5">
                           <span className="mr-2 inline-block h-2 w-2 rounded-full align-middle" style={{ background: m.tone }} />
@@ -468,7 +483,7 @@ export default function MenuManager(props: {
                             {pricesLoading && m.recipeId ? (
                               <span className="inline-block h-4 w-20 animate-pulse rounded bg-muted align-middle" />
                             ) : pct === null ? (
-                              <span className="text-muted-subtle">{!m.recipeId ? "ไม่มีสูตร" : m.qty === 0 ? "ยังไม่มียอดขาย" : "—"}</span>
+                              <span className="text-muted-subtle">{m.recipeId && m.qty === 0 ? "ยังไม่มียอดขาย" : "—"}</span>
                             ) : (
                               <span className="inline-flex items-center gap-2">
                                 <i className="inline-block h-1.5 rounded-full bg-border-strong" style={{ width: Math.min(pct, 80) * 0.9 }} />
@@ -483,7 +498,10 @@ export default function MenuManager(props: {
                           ) : m.hasDraft ? (
                             <span className="whitespace-nowrap text-warn">มีร่าง</span>
                           ) : (
-                            <span className="whitespace-nowrap text-warn">ยังไม่มี</span>
+                            // The row opens the sheet, where the recipe is written — this only says so.
+                            <span className="whitespace-nowrap rounded-full border border-dashed border-border-strong px-2.5 py-0.5 text-xs text-primary group-hover:border-primary">
+                              + เขียนสูตร
+                            </span>
                           )}
                         </td>
                       </tr>,

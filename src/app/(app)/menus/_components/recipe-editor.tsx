@@ -191,7 +191,7 @@ export function RecipeTable({
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {lines.map((l) => {
+            {lines.map((l, idx) => {
               const o = baseLines.find((b) => (b.productId ?? b.componentMenuId) === (l.productId ?? l.componentMenuId));
               const changed = !o ? "bg-good-bg" : qtyOf(o) !== qtyOf(l) || o.unitName !== l.unitName ? "bg-warn-bg" : "";
               const choices = unitChoices(optionOf(l), standards);
@@ -213,7 +213,6 @@ export function RecipeTable({
                     {l.prepped && <span className="ml-1.5 rounded border border-warn-border bg-warn-bg px-1 text-[10px] text-warn">ของแปรรูป</span>}
                     {l.kind === "menu" && <span className="ml-1.5 rounded border border-border px-1 text-[10px] text-muted-foreground">เมนู</span>}
                     {stockLine && <span className="block text-[11px] text-muted-subtle">{stockLine(l)}</span>}
-                    {!costHidden && c !== null && total > 0 && <span className="mt-0.5 block h-1 rounded-full bg-border-strong/60" style={{ width: `${Math.max(2, (c / total) * 100)}%` }} />}
                     {showNotes && editable && (
                       <input value={l.notes} onChange={(e) => setLine(l.key, { notes: e.target.value })} placeholder="หมายเหตุของบรรทัดนี้" className="input mt-1 w-full py-0.5 text-xs" aria-label={`หมายเหตุ ${l.label}`} />
                     )}
@@ -282,6 +281,12 @@ export function RecipeTable({
                   {!costHidden && (
                     <td className="py-1.5 text-right align-top tabular-nums">
                       {pricesPending ? <span className="inline-block h-3.5 w-12 animate-pulse rounded bg-muted align-middle" /> : c === null ? <span className="text-xs text-warn">ไม่มีราคา</span> : baht(c, 2)}
+                      {/* Share of the dish, said in words — the bar it replaced (Kong 2026-10-22) read as stock. */}
+                      {!pricesPending && c !== null && total > 0 && (
+                        <span className="block text-[11px] text-muted-subtle">
+                          {Math.round((c / total) * 100)}%{idx === 0 ? " ของจาน" : ""}
+                        </span>
+                      )}
                     </td>
                   )}
                   <td className="py-1.5 text-right align-top">
