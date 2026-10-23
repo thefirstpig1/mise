@@ -1,0 +1,532 @@
+<title>ต้นทุน · เก่า–ใหม่</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Prompt:wght@500;600;700&family=Noto+Sans+Thai:wght@400;500;600&display=swap">
+<style>
+/* Mockup: /cost (ต้นทุน) — old vs new in place. Real figures of the demo shop,
+   22 Sep – 22 Oct 2026. App tokens (tailwind.config.ts); chart colours from chart-theme.tsx. */
+:root{
+  --bg:#FDFBF3; --fg:#262811; --surface:#FFFFFF; --sunk:#F8F3E1; --primary:#41431B; --primary-fg:#F8F3E1; --primary-soft:#EFEDD7;
+  --muted:#F3EFDF; --muted-fg:#5A5C31; --subtle:#8B8D63; --border:#E9E3C8; --strong:#D2CBA4;
+  --good:#5A7333; --good-bg:#EEF2E0; --bad:#A83A22; --bad-bg:#F9E5DF; --warn:#A87C1C; --warn-bg:#F8EFD6; --warn-border:#E2CE97;
+  --display:"Prompt","Noto Sans Thai",system-ui,sans-serif; --body:"Noto Sans Thai","Prompt",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#1B1C10; --fg:#EEEAD6; --surface:#24261A; --sunk:#2A2C1E; --primary:#D9DDB0; --primary-fg:#1B1C10; --primary-soft:#33361F;
+  --muted:#2E301F; --muted-fg:#C9C8A6; --subtle:#9C9B7C; --border:#36381F; --strong:#4A4C30;
+  --good:#B7CF7C; --good-bg:#2B3320; --bad:#EC9C80; --bad-bg:#41261C; --warn:#E8BE62; --warn-bg:#3B3018; --warn-border:#5A4A22; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#1B1C10; --fg:#EEEAD6; --surface:#24261A; --sunk:#2A2C1E; --primary:#D9DDB0; --primary-fg:#1B1C10; --primary-soft:#33361F;
+  --muted:#2E301F; --muted-fg:#C9C8A6; --subtle:#9C9B7C; --border:#36381F; --strong:#4A4C30;
+  --good:#B7CF7C; --good-bg:#2B3320; --bad:#EC9C80; --bad-bg:#41261C; --warn:#E8BE62; --warn-bg:#3B3018; --warn-border:#5A4A22; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:14px;line-height:1.55;margin:0;padding-inline:16px;padding-block:20px 60px}
+h1,h2,h3,h4{font-family:var(--display);margin:0}
+p{margin:0}
+.wrap{max-width:1320px;margin:0 auto;display:grid;gap:14px}
+.top{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;justify-content:space-between}
+.seg{display:inline-flex;border:1px solid var(--strong);border-radius:999px;padding:3px;background:var(--surface);gap:2px}
+.seg button{font:inherit;font-size:.85rem;border:0;background:none;color:var(--fg);border-radius:999px;padding:4px 14px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--primary);color:var(--primary-fg)}
+.seg button:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.sub{color:var(--subtle);font-size:.8rem}
+.scroller{overflow-x:auto;border-radius:16px;border:1px solid var(--strong);box-shadow:0 10px 30px rgb(0 0 0/.06)}
+.screen{min-width:1120px;display:grid;grid-template-columns:1fr 760px;background:var(--bg);position:relative;height:880px;overflow:hidden}
+/* page behind */
+.page{padding:22px 26px;display:grid;gap:12px;align-content:start;opacity:.55}
+.page h2{font-size:1.35rem}
+.chip{border:1px solid var(--strong);background:var(--surface);color:var(--fg);border-radius:999px;padding:3px 12px;font:inherit;font-size:.8rem;cursor:pointer;white-space:nowrap}
+.chip.on{background:var(--primary);color:var(--primary-fg);border-color:var(--primary)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.tbl{border:1px solid var(--border);border-radius:12px;background:var(--surface);overflow:hidden}
+table{border-collapse:collapse;width:100%;font-size:.84rem}
+th{background:var(--sunk);color:var(--muted-fg);font-weight:500;font-size:.74rem;text-align:left;padding:8px 10px}
+td{padding:8px 10px;border-top:1px solid var(--border);vertical-align:top}
+.r{text-align:right}
+.num{font-variant-numeric:tabular-nums}
+.dot{display:inline-block;width:7px;height:7px;border-radius:9px;margin-right:6px;vertical-align:middle}
+.code{color:var(--subtle);font-size:.74rem;margin-left:4px}
+.cat{display:block;font-size:.7rem;color:var(--subtle);padding-left:13px}
+.dim{color:var(--subtle)}
+.pbar{display:inline-block;height:5px;border-radius:9px;background:var(--strong);vertical-align:middle;margin-right:6px}
+.write{color:var(--primary);font-size:.78rem;border:1px dashed var(--strong);border-radius:999px;padding:1px 10px;white-space:nowrap}
+tr.sel td{background:var(--muted)}
+/* sheet */
+.sheet{background:var(--bg);border-left:1px solid var(--strong);box-shadow:-12px 0 30px rgb(0 0 0/.08);display:grid;grid-template-rows:auto 1fr auto;min-height:0}
+.shead{display:flex;gap:14px;padding:16px 20px;border-bottom:1px solid var(--border);background:var(--surface);align-items:flex-start}
+.x{margin-left:auto;font-size:1.5rem;line-height:1;color:var(--muted-fg)}
+.ph{border:1.5px dashed var(--strong);background:var(--warn-bg);border-radius:12px;display:grid;place-items:center;align-content:center;text-align:center;color:var(--subtle);font-size:.62rem;flex:none}
+.ph svg{width:20px;height:20px}
+.ph.small{width:64px;height:64px}
+.ph.big{width:200px;aspect-ratio:4/3;font-size:.75rem;border-radius:14px}
+.ph.big svg{width:30px;height:30px}
+.hname{font-family:var(--display);font-weight:600;font-size:1.25rem}
+.sel{border:1px solid var(--border);border-radius:999px;background:var(--surface);padding:3px 24px 3px 10px;font:inherit;font-size:.82rem;color:var(--fg)}
+.badge{display:inline-block;border-radius:999px;background:var(--muted);color:var(--muted-fg);padding:2px 10px;font-size:.75rem;white-space:nowrap}
+.badge.warn{background:var(--warn-bg);color:var(--warn)}
+.field{display:grid;gap:2px}
+.field>span{font-size:.7rem;color:var(--subtle);padding-left:10px}
+.fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.fields .sel{width:100%}
+.sbody{overflow-y:auto;padding:16px 20px;display:grid;gap:14px;align-content:start}
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.tile{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:9px 11px}
+.tile .k{font-size:.68rem;color:var(--subtle)} .tile .v{font-family:var(--display);font-weight:600;font-size:1.1rem} .tile .s{font-size:.68rem;color:var(--muted-fg)}
+.sec{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;display:grid;gap:8px}
+.sec h4{font-size:.95rem}
+.sec.warnbg{background:var(--warn-bg);border-color:var(--warn-border)}
+.ing{display:grid;grid-template-columns:1fr 92px 120px 80px 14px;gap:10px;align-items:start;padding:8px 0;border-bottom:1px solid var(--border);font-size:.86rem}
+.ing .s{display:block;font-size:.7rem;color:var(--subtle)}
+.ing .bar{display:block;height:3px;border-radius:9px;background:var(--strong);margin-top:4px}
+.qty{border:1px solid var(--strong);border-radius:8px;background:var(--warn-bg);padding:4px 8px;text-align:right;font:inherit;width:100%}
+.unit{border:1px solid var(--strong);border-radius:8px;background:var(--surface);padding:4px 8px;font:inherit;width:100%}
+.cost{text-align:right}
+.cost small{display:block;font-size:.7rem;color:var(--subtle)}
+.add{border:1.5px dashed var(--strong);border-radius:10px;padding:6px 12px;color:var(--subtle);background:var(--warn-bg);font-size:.84rem}
+.btns{display:flex;flex-wrap:wrap;gap:6px}
+.b{border:1px solid var(--strong);border-radius:999px;padding:3px 12px;font-size:.82rem;background:var(--surface)}
+.b.red{border-color:var(--bad);color:var(--bad)}
+.small{font-size:.75rem;color:var(--muted-fg)}
+.dl{color:var(--primary);text-decoration:underline dotted;text-underline-offset:3px;font-size:.84rem}
+.warnbox{background:var(--warn-bg);border:1px solid var(--warn-border);border-radius:10px;padding:8px 12px;font-size:.8rem}
+.sfoot{display:flex;justify-content:space-between;align-items:center;padding:12px 20px;border-top:1px solid var(--border);background:var(--surface)}
+.save{background:var(--subtle);color:var(--primary-fg);border-radius:10px;padding:6px 16px;font-size:.9rem}
+/* number markers on what changed */
+.mk{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--warn);color:#fff;font-size:.7rem;font-weight:700;font-style:normal;font-family:var(--display);vertical-align:middle;margin:0 4px;flex:none}
+.hide-mk .mk{display:none}
+/* now/new switching */
+.v-now [data-v="new"],.v-new [data-v="now"]{display:none!important}
+.v-new .mk-now,.v-now .mk{display:none}
+.legend{display:grid;gap:6px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 16px}
+.legend li{font-size:.88rem}
+.legend ol{margin:0;padding-left:0;list-style:none;display:grid;gap:6px}
+.legend .mk{display:inline-grid!important}
+</style><style>
+:root{--clay:#C0692B;--clay2:#E8A76F;--olive:#5E6B14;--olive2:#AEB784}
+.screen.auto{height:auto;min-height:0}
+.pagefull{padding:24px 28px;display:grid;gap:16px;align-content:start}
+.pbtn{border-radius:999px;padding:5px 14px;font-size:.82rem;border:1px solid var(--strong);background:var(--surface);white-space:nowrap}
+.pbtn.dark{background:var(--primary);color:var(--primary-fg);border-color:var(--primary)}
+.pbtn.ghost{border-style:dashed;color:var(--primary)}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 16px;display:grid;gap:2px}
+.kpi .k{font-size:.74rem;color:var(--subtle)} .kpi .v{font-family:var(--display);font-weight:600;font-size:1.7rem;line-height:1.2}
+.kpi .s{font-size:.76rem;color:var(--muted-fg)}
+.h3{font-family:var(--display);font-weight:600;font-size:1rem;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.dcard{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:14px 16px;display:grid;grid-template-columns:112px minmax(0,1fr) 220px;gap:16px;align-items:center;cursor:pointer;transition:border-color .15s,box-shadow .15s}
+.dcard:hover{border-color:var(--strong);box-shadow:0 6px 18px rgb(0 0 0/.06)}
+.thumb{aspect-ratio:4/3;border-radius:12px;border:1.5px dashed var(--strong);background:var(--warn-bg);display:grid;place-items:center;color:var(--subtle);font-size:.62rem;text-align:center}
+.thumb svg,.ph svg{width:22px;height:22px}
+.dname{font-family:var(--display);font-weight:600;font-size:1.1rem}
+.stack{display:flex;height:10px;border-radius:99px;overflow:hidden;background:var(--muted)}
+.stack span{display:block;height:100%;transform-origin:left;animation:grow .7s cubic-bezier(.2,.8,.2,1) both}
+.stack span+span{border-left:2px solid var(--surface)}
+.legend2{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:.72rem;color:var(--muted-fg)}
+.legend2 i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:4px;vertical-align:middle}
+.gauge{display:grid;gap:4px}
+.gauge .bar{position:relative;height:8px;border-radius:99px;background:var(--muted)}
+.gauge .fill{position:absolute;inset:0 auto 0 0;border-radius:99px;background:linear-gradient(90deg,var(--olive2),var(--olive));animation:grow .7s cubic-bezier(.2,.8,.2,1) both;transform-origin:left}
+.gauge .target{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--clay)}
+.gauge .lbl{display:flex;justify-content:space-between;font-size:.72rem;color:var(--muted-fg)}
+.steps{display:flex;align-items:center;gap:0;font-size:.72rem;color:var(--subtle)}
+.steps .st{display:flex;align-items:center;gap:5px;white-space:nowrap}
+.steps .dot2{width:9px;height:9px;border-radius:50%;border:1.5px solid var(--strong);background:var(--surface)}
+.steps .st.done .dot2{background:var(--primary);border-color:var(--primary)}
+.steps .st.cur{color:var(--fg);font-weight:600}
+.steps .st.cur .dot2{background:var(--clay);border-color:var(--clay);box-shadow:0 0 0 3px rgb(192 105 43/.18)}
+.steps .ln{flex:1;min-width:14px;height:1.5px;background:var(--strong);margin:0 6px}
+.sugs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.sug{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:12px 14px;display:grid;gap:8px}
+.sug .top{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.sbar{height:6px;border-radius:99px;background:var(--muted);overflow:hidden}
+.sbar span{display:block;height:100%;background:linear-gradient(90deg,var(--olive2),var(--olive));animation:grow .7s both;transform-origin:left}
+.flow{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.fstep{border-radius:12px;padding:10px 12px;background:var(--sunk);font-size:.78rem;color:var(--muted-fg);display:grid;gap:2px}
+.fstep b{color:var(--fg);font-family:var(--display);font-weight:600;font-size:.86rem}
+.fstep .n{font-family:var(--display);color:var(--clay);font-weight:700}
+/* sheet extras */
+.shead2{display:grid;grid-template-columns:200px minmax(0,1fr);gap:16px;padding:16px 20px;border-bottom:1px solid var(--border);background:var(--surface);position:relative}
+.ph.big2{width:200px;aspect-ratio:4/3;border-radius:14px;border:1.5px dashed var(--strong);background:var(--warn-bg);display:grid;place-items:center;align-content:center;color:var(--subtle);font-size:.75rem;text-align:center}
+.meta{display:grid;gap:6px;align-content:start;min-width:0}
+.x2{position:absolute;right:14px;top:10px;font-size:1.5rem;color:var(--muted-fg)}
+.ladder{display:grid;gap:6px}
+.lrow{display:grid;grid-template-columns:62px minmax(0,1fr) 54px 92px;gap:10px;align-items:center;font-size:.84rem;padding:5px 8px;border-radius:10px}
+.lrow.pick{background:var(--warn-bg);outline:1.5px solid var(--clay2)}
+.lrow .p{font-family:var(--display);font-weight:600}
+.lrow .bar{position:relative;height:8px;border-radius:99px;background:var(--muted)}
+.lrow .fill{position:absolute;inset:0 auto 0 0;border-radius:99px;background:linear-gradient(90deg,var(--olive2),var(--olive));animation:grow .6s both;transform-origin:left}
+.lrow.pick .fill{background:linear-gradient(90deg,var(--clay2),var(--clay))}
+.lrow .target{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--clay)}
+.checklist{display:grid;gap:8px}
+.ck{display:flex;gap:10px;align-items:flex-start;font-size:.86rem;padding:10px 12px;border-radius:12px;background:var(--surface);border:1px solid var(--border)}
+.ck .box{flex:none;width:20px;height:20px;border-radius:50%;border:1.5px solid var(--strong);display:grid;place-items:center;font-size:.7rem;color:var(--primary-fg)}
+.ck.done .box{background:var(--primary);border-color:var(--primary)}
+.ck .t{display:grid;gap:1px} .ck .t span{font-size:.74rem;color:var(--subtle)}
+.seg2{display:inline-flex;border:1px solid var(--strong);border-radius:999px;padding:2px;gap:2px;background:var(--surface);font-size:.8rem;width:max-content}
+.seg2 span{padding:2px 10px;border-radius:999px}
+.seg2 span.on{background:var(--primary);color:var(--primary-fg)}
+.nameinput{border:1px solid var(--strong);border-radius:10px;background:var(--warn-bg);padding:7px 12px;font-size:1rem;color:var(--subtle)}
+@keyframes grow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@media (prefers-reduced-motion:reduce){.stack span,.gauge .fill,.sbar span,.lrow .fill{animation:none}}
+</style>
+<style>
+.costpage{padding:22px 26px;display:grid;gap:14px;align-content:start}
+.dates{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+.dbox{display:grid;gap:3px;font-size:.8rem}
+.dbox span{font-family:var(--display);font-weight:600}
+.din{border:1px solid var(--strong);border-radius:10px;background:var(--surface);padding:8px 12px;min-width:150px}
+.ctab{width:100%;border-collapse:collapse;font-size:.86rem;background:var(--surface)}
+.ctab th{background:var(--sunk);font-size:.74rem;color:var(--muted-fg);font-weight:500;padding:9px 10px;text-align:right;white-space:nowrap}
+.ctab th:first-child,.ctab td:first-child{text-align:left}
+.ctab td{padding:10px;border-top:1px solid var(--border);text-align:right;vertical-align:top}
+.ctab tr.tot td{background:var(--sunk);font-weight:600}
+.ctab .red{color:var(--bad)}
+.wrapt{border:1px solid var(--border);border-radius:14px;overflow:hidden}
+.prose{font-size:.8rem;color:var(--muted-fg);display:grid;gap:8px}
+.prose b{color:var(--fg)}
+.q{display:inline-grid;place-items:center;width:15px;height:15px;border-radius:50%;border:1px solid var(--strong);font-size:.62rem;color:var(--muted-fg);margin-left:4px;cursor:pointer;vertical-align:middle;background:var(--surface)}
+.tip{position:absolute;z-index:5;max-width:280px;background:var(--fg);color:var(--bg);font-size:.76rem;line-height:1.5;padding:9px 11px;border-radius:10px;box-shadow:0 10px 24px rgb(0 0 0/.2);text-align:left;font-weight:400;white-space:normal}
+.kp{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.kp .kpi .v{font-size:1.45rem}
+.warnv{color:var(--warn)}
+.cov{display:inline-flex;align-items:center;gap:6px;font-size:.72rem;color:var(--warn)}
+.cov .bar{width:64px;height:5px;border-radius:9px;background:var(--muted);overflow:hidden;display:inline-block}
+.cov .bar i{display:block;height:100%;background:var(--warn)}
+.clickcell{cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px}
+.clickcell:hover{text-decoration-style:solid}
+tr.rowc{cursor:pointer} tr.rowc:hover td{background:rgb(174 183 132 / .12)}
+.chartbox{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 16px;display:grid;gap:10px}
+.hbar{display:grid;grid-template-columns:110px minmax(0,1fr) 110px;gap:10px;align-items:center;font-size:.82rem}
+.hbar .track{position:relative;height:22px;border-radius:7px;background:var(--muted);overflow:hidden;display:flex}
+.hbar .track span{height:100%;transform-origin:left;animation:grow .7s cubic-bezier(.2,.8,.2,1) both}
+.hbar .rev{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--fg)}
+.lg{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:.74rem;color:var(--muted-fg)}
+.lg i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:4px;vertical-align:middle}
+.modal{position:absolute;inset:0;background:rgb(0 0 0/.35);display:grid;place-items:center;z-index:6}
+.mbox{background:var(--surface);border-radius:18px;width:min(680px,92%);max-height:88%;overflow:auto;box-shadow:0 20px 50px rgb(0 0 0/.25);padding:18px 20px;display:grid;gap:12px;animation:pop .2s ease both}
+@keyframes pop{from{transform:scale(.97);opacity:0}to{transform:none;opacity:1}}
+.mt{width:100%;border-collapse:collapse;font-size:.84rem}
+.mt th{font-size:.72rem;color:var(--subtle);font-weight:500;text-align:right;padding:6px 8px}
+.mt th:first-child,.mt td:first-child{text-align:left}
+.mt td{padding:7px 8px;border-top:1px solid var(--border);text-align:right}
+.lbar{display:inline-block;height:6px;border-radius:9px;background:linear-gradient(90deg,#E8A76F,#C0692B);vertical-align:middle;margin-right:6px}
+</style>
+
+
+<style>
+.sticky{position:sticky;top:0;z-index:4;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;background:color-mix(in srgb,var(--surface) 92%,transparent);backdrop-filter:blur(6px);border:1px solid var(--border);border-radius:14px;padding:8px 14px;font-size:.86rem;box-shadow:0 6px 18px rgb(0 0 0/.05)}
+.tabs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+.tab{all:unset;cursor:pointer;display:grid;gap:3px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:12px 14px 8px;position:relative;transition:transform .15s,box-shadow .15s,border-color .15s}
+.tab:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgb(0 0 0/.07)}
+.tab:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.tab.on{border-color:var(--primary);box-shadow:inset 0 -3px 0 #C0692B,0 8px 20px rgb(0 0 0/.06)}
+.tab.glow{border-color:#C0692B}
+.tab .tk{font-size:.74rem;color:var(--subtle)}
+.tab .tv{font-family:var(--display);font-weight:600;font-size:1.3rem;font-variant-numeric:tabular-nums;line-height:1.25}
+.tab .tv.muted{color:var(--subtle);font-size:1rem}
+.tab .ts{font-size:.72rem;color:var(--muted-fg);min-height:2.2em}
+.grid2{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:12px}
+@media (max-width:900px){.grid2{grid-template-columns:1fr}.tabs{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.chip.peek{border-color:#C0692B}
+.tip .tr{display:flex;gap:10px;justify-content:space-between;align-items:center;margin-top:4px}
+.tip .tr i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px}
+.tip .tr em{font-style:normal;font-size:.72rem}
+.tip{min-width:220px}
+#bench .brow{cursor:pointer;transition:background .12s}
+#bench .brow:hover td{background:rgb(174 183 132 / .14)}
+#bench .brow.cur td:first-child{box-shadow:inset 3px 0 0 #C0692B;font-weight:600}
+.gapcard{display:grid;gap:2px;margin-top:10px;padding:12px 14px;border-radius:12px;background:linear-gradient(135deg,var(--warn-bg),var(--surface));border:1px solid var(--warn-border)}
+[hidden]{display:none!important}
+.gapcard b{font-family:var(--display);font-size:1.25rem;color:#C0692B}
+@keyframes rise{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+@keyframes pop{from{transform:scale(0)}to{transform:scale(1)}}
+@keyframes grow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+.lbar{transform-origin:left}
+@media (prefers-reduced-motion:reduce){.mbar,.cnt circle,.lbar{animation:none!important}}
+</style>
+<div class="wrap v-new" id="root">
+  <div class="top">
+    <div><h1 style="font-size:1.2rem">ต้นทุน · เก่า–ใหม่ (รอบ 4)</h1>
+      <p class="sub">ข้อมูลจริงของร้านตัวอย่าง (ส.ค.–ก.ย. 69) · กด “ตัวอย่าง 6 เดือน” ในแถบกำลังดู เพื่อเห็นตอนมีครบสองสาขา</p></div>
+    <div class="chips">
+      <div class="seg" role="group" aria-label="แบบไหน"><button id="b-now" aria-pressed="false">ตอนนี้</button><button id="b-new" aria-pressed="true">ที่เสนอ</button></div>
+      <div class="seg" role="group"><button id="b-mk" aria-pressed="true">เลขกำกับ</button></div>
+    </div>
+  </div>
+
+  <div class="scroller"><div class="screen auto" style="grid-template-columns:1fr;position:relative;overflow:visible" id="scr">
+  <!-- ===== NOW ===== -->
+  <div class="costpage" data-v="now">
+    <span class="sub">ต้นทุน</span>
+    <div><h2 style="font-size:1.3rem">ภาพรวมทั้งธุรกิจ</h2><p class="small" style="font-size:.86rem">เปรียบเทียบทุกสาขาในช่วงเวลาเดียวกัน — สาขาไหนใช้เงินไปกับอะไร และรั่วตรงไหน</p></div>
+    <div class="dates"><label class="dbox"><span>ตั้งแต่</span><div class="din">22/09/2026 📅</div></label><label class="dbox"><span>ถึง</span><div class="din">22/10/2026 📅</div></label><span class="pbtn dark">ดูช่วงนี้</span></div>
+    <div class="wrapt"><table class="ctab">
+      <thead><tr><th>สาขา</th><th>ต้นทุนวัตถุดิบ</th><th>ค่าใช้จ่ายอื่น</th><th>ของเสีย<br>(ทิ้ง)</th><th>ส่วนต่าง/<br>ปรับปรุง</th><th>จ่ายแพง<br>กว่าที่ถูกสุด</th><th>รายได้</th><th>กำไรขั้นต้น</th></tr></thead>
+      <tbody>
+        <tr><td><b>สาขาลาดพร้าว</b> <span class="sub">LPR</span><br><span style="color:var(--warn);font-size:.75rem">ยังไม่ทราบต้นทุน 3 รายการ</span></td><td>0.00</td><td>0.00</td><td class="dim">0.00</td><td class="red">16.75</td><td>0.00</td><td class="dim">—</td><td>—<br><span class="sub">ยังไม่มียอดขายนำเข้าในช่วงนี้</span></td></tr>
+        <tr><td><b>สาขาอารีย์</b> <span class="sub">ARI</span></td><td>40,696.69</td><td>3,500.00</td><td class="red">49.04</td><td class="red">15,164.14</td><td>0.00</td><td><b>114,514.00</b></td><td><b>89,523.07</b><br><span class="sub" style="font-size:.66rem">คิดจากสูตรอาหาร — ตัดสต๊อกแล้ว 3 จาก 5 วันที่มียอดขาย · ครอบคลุม 50.4% ของยอดขายในช่วงนี้ · วันที่เหลือยังไม่ถูกนับเป็นต้นทุน ตัวเลขจึงดูดีเกินจริง</span></td></tr>
+        <tr class="tot"><td>รวมทั้งธุรกิจ</td><td>40,696.69</td><td>3,500.00</td><td>49.04</td><td>15,180.89</td><td>0.00</td><td>114,514.00</td><td>89,523.07</td></tr>
+      </tbody></table></div>
+    <div class="sec"><div class="row" style="justify-content:space-between"><b>ทุนจมในสต๊อก</b><b class="num">317,620.61 ฿</b></div><span class="small">มูลค่าของที่ยังอยู่ในสต๊อก ณ วันสิ้นงวด — ไม่ใช่เงินที่จ่ายออกไปในงวดนี้ จึงไม่นำไปรวมกับคอลัมน์ด้านบน</span><div class="row small" style="justify-content:space-between"><span>สาขาลาดพร้าว 1,918.40</span><span>สาขาอารีย์ 315,702.21</span></div></div>
+    <div class="prose">
+      <p><b>ของเสีย (ทิ้ง)</b> คือของที่มีคนบันทึกไว้ว่าทิ้ง พร้อมวันที่และสาเหตุ — คุยกับครัวเรื่องการสั่งและการเก็บรักษา · <b>ส่วนต่าง/ปรับปรุง</b> คือของที่หายไปโดยไม่มีใครบันทึก ไม่ว่าจะเจอตอนนับสต๊อกหรือปรับด้วยมือ — คุยกับผู้จัดการสาขาเรื่องการรับของ การคีย์ข้อมูล หรือของหาย</p>
+      <p>รายการปรับสต๊อกที่เคยเลือกเหตุผล “ของเสีย” ก่อนหน้านี้ จะอยู่ในช่องส่วนต่าง/ปรับปรุง เพราะไม่มีเอกสารของเสียกำกับ — ตั้งแต่นี้ไป ให้บันทึกที่หน้า ของเสีย</p>
+      <p><b>รายได้</b> มาจากไฟล์ยอดขายที่นำเข้า — สาขาที่ยังไม่มีไฟล์จะขึ้น “—” ซึ่งแปลว่า ยังวัดไม่ได้ ไม่ใช่ขายไม่ได้ · เป็นยอดหลังหักส่วนลด ไม่รวม VAT และไม่รวม Service charge</p>
+      <p><b>กำไรขั้นต้น</b> = รายได้ − ต้นทุนของที่ขายไป ซึ่งไม่ใช่ช่อง “ต้นทุนวัตถุดิบ” ทางซ้าย … วิธีคิดเลือกได้ต่อร้านที่ ตั้งค่าร้าน — นับสต๊อก หรือ สูตรอาหาร …</p>
+      <p style="background:var(--warn-bg);border:1px solid var(--warn-border);border-radius:10px;padding:8px 12px;color:var(--warn)">บางสาขามีสต๊อกติดลบหรือของที่ยังไม่ทราบต้นทุน — ตัวเลขต้นทุนของสาขานั้นจะแม่นขึ้นเมื่อคีย์ใบรับของครบ</p>
+    </div>
+  </div>
+
+  <!-- ===== NEW (v4) ===== -->
+  <div class="costpage" data-v="new" id="newpage">
+    <div class="sticky" id="sticky"><span>กำลังดู <b id="stView"></b></span><span class="row"><span class="seg" role="group" aria-label="ข้อมูล"><button id="d-real" aria-pressed="true">ข้อมูลจริง</button><button id="d-demo" aria-pressed="false">ตัวอย่าง 6 เดือน</button></span></span></div>
+    <div class="restore" id="demoNote" hidden><b>ตัวเลขสมมติ</b> เพื่อดูหน้าตาตอนร้านใช้มาหลายเดือนและมีครบสองสาขา · ส.ค. และ ก.ย. ของสาขาอารีย์เป็นของจริง นอกนั้นแต่งขึ้น</div>
+
+    <div class="sec" style="padding:10px 14px;gap:8px">
+      <div class="row"><span class="small" style="width:44px">เดือน</span><span id="periodChips" class="row"></span></div>
+      <div class="row"><span class="small" style="width:44px">สาขา</span><span id="branchChips" class="row"></span> <i class="mk">1</i></div>
+    </div>
+
+    <!-- KPI cards are the chart's tabs -->
+    <div class="tabs" id="tabs" role="tablist"></div>
+
+    <div class="chartbox" id="trendbox" style="position:relative">
+      <div class="row" style="justify-content:space-between;align-items:baseline">
+        <div class="h3" style="display:block"><span id="chartTitle"></span></div>
+        <span class="sub" id="chartHint"></span>
+      </div>
+      <div id="chart" style="position:relative"></div>
+      <div class="lg" id="chartLegend"></div>
+    </div>
+
+    <div class="grid2">
+      <div class="chartbox" id="benchbox">
+        <div class="h3"><span>เทียบสาขา · <span id="benchMonth"></span> <i class="mk">5</i></span><span class="sub">ชี้แถวเพื่อดูในกราฟ</span></div>
+        <div id="bench"></div>
+        <div id="gap"></div>
+      </div>
+      <div class="chartbox">
+        <div class="h3"><span>ของที่หาย ต้องตามต่อ <i class="mk">6</i></span><span class="sub" id="followSub"></span></div>
+        <div id="follow"></div>
+      </div>
+    </div>
+
+    <div class="wrapt" style="position:relative" id="tablebox"><table class="ctab">
+      <thead><tr><th>สาขา</th>
+        <th>ซื้อวัตถุดิบ<span class="q" data-tip="ของที่รับเข้าในช่วงนี้ตามใบรับของ · ไม่ใช่ต้นทุนของที่ขายไป เดือนที่ตุนของจะสูงกว่าปกติ">?</span></th>
+        <th>ค่าใช้จ่ายอื่น<span class="q" data-tip="ค่าใช้จ่ายที่ไม่ใช่วัตถุดิบ ที่บันทึกในหน้าค่าใช้จ่าย">?</span></th>
+        <th>ทิ้ง<span class="q" data-tip="ของที่มีคนบันทึกไว้ว่าทิ้ง พร้อมวันที่และสาเหตุ">?</span></th>
+        <th>ของหาย<span class="q" data-tip="ของที่หายโดยไม่มีใครบันทึก รู้ได้ตอนนับสต๊อกเท่านั้น · เดือนที่ไม่ได้นับขึ้น ‘ยังไม่ได้นับ’ · กดตัวเลขเพื่อดูว่าอะไรหาย">?</span></th>
+        <th>รายได้<span class="q" data-tip="จากไฟล์ยอดขาย · หลังหักส่วนลด ไม่รวม VAT และ Service charge">?</span></th>
+        <th>กำไรขั้นต้น<span class="q" data-tip="รายได้ − ต้นทุนของที่ขายไป · วันที่ยังไม่ได้ตัดสต๊อกยังไม่มีต้นทุน กำไรจึงเป็นเพดาน (ไม่เกิน)">?</span></th></tr></thead>
+      <tbody id="tbody"></tbody></table></div>
+  </div>
+
+  <div class="modal" id="modal" hidden><div class="mbox" id="mbox"></div></div>
+  </div></div>
+
+  <div class="legend">
+    <h3 style="font-size:1rem">ลองเล่น (โหมด “ที่เสนอ”)</h3>
+    <ol>
+      <li><i class="mk">1</i><b>ชิปสาขากดได้จริง</b> · “ทุกสาขา” = แท่งคู่เทียบกัน · เลือกสาขาเดียว = ทั้งหน้าเป็นของสาขานั้น และอีกสาขาเป็นเส้นประจาง ๆ ไว้เทียบ</li>
+      <li><i class="mk">2</i><b>การ์ดตัวเลขคือแท็บของกราฟ</b> กดการ์ดแล้วกราฟเปลี่ยนเป็นตัวนั้น · ตัวเลขนับขึ้นเมื่อเปลี่ยนเดือน · มีแท่งเล็กย้อนหลังในการ์ด</li>
+      <li><i class="mk">3</i><b>ชี้คอลัมน์เดือน</b> = แถบไฮไลต์ + กล่องบอกทั้งสองสาขาพร้อมลูกศรเทียบเดือนก่อน + ชิปเดือนด้านบนสว่างตาม · <b>กด</b> = ทั้งหน้าเปลี่ยนเป็นเดือนนั้น</li>
+      <li><i class="mk">4</i><b>ของหาย</b> (กดการ์ด “ของหาย”) ไม่ใช่ค่าเฉลี่ยต่อวันแล้ว เป็น<b>จุดของการนับสต๊อกแต่ละครั้ง</b>ตามวันที่นับจริง ขนาดจุด = มูลค่า · ชี้ = เทียบการนับครั้งก่อน · กด = ป๊อปอัปรายการที่หายจากการนับครั้งนั้น · เดือนที่ไม่ได้นับเป็นลายเส้น</li>
+      <li><i class="mk">5</i><b>ตารางเทียบสาขา</b> ชี้แถวไหน กราฟด้านบนแสดงตัวชี้วัดนั้นทันที (การ์ดเรืองตาม) · กดแถว = เลือกตัวนั้น · ★ = สาขาที่ดีกว่า · ช่องว่างเป็นเงินนับขึ้น</li>
+      <li><i class="mk">6</i><b>ของที่ต้องตามต่อ</b> เทียบการนับครั้งนี้กับครั้งก่อน ป้าย ใหม่ / แย่ลง / ดีขึ้น / แก้แล้ว</li>
+    </ol>
+    <p class="sub">ไอเดียจาก: หน้ายอดขายของเรา (กล่องข้อมูล แถบกำลังดู การไฮไลต์แท่ง) · การ์ดที่เป็นแท็บของกราฟ · การชี้แล้วไฮไลต์หลายส่วนพร้อมกัน (linked highlighting) · Esc ปิดป๊อปอัป</p>
+  </div>
+</div>
+
+<script>
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)], root=$("#root");
+const f0=n=>Math.round(n).toLocaleString("th-TH");
+const f2=n=>n.toLocaleString("th-TH",{minimumFractionDigits:2,maximumFractionDigits:2});
+const BR={ARI:{name:"สาขาอารีย์",c1:"#5E6B14",c2:"#9DAA55"},LPR:{name:"สาขาลาดพร้าว",c1:"#8A4F9E",c2:"#C39AD1"}};
+// ---------- data ----------
+const REAL={months:["ส.ค. 69","ก.ย. 69"],cal:[31,30],
+ ARI:[{days:19,rev:481509,sold:194637.72,cov:.928,posted:"19/19",waste:79.71,leak:null,buy:365984.01,opex:172330.03,gp:286871.28,excess:0},
+      {days:26,rev:615380,sold:230287.61,cov:.849,posted:"24/26",waste:206.71,leak:15164.14,buy:390645.36,opex:77450.74,gp:385092.39,excess:0}],
+ LPR:[{days:0,rev:null,waste:0,leak:null,buy:0,opex:0,excess:0,posted:"—"},{days:0,rev:null,waste:0,leak:16.75,buy:0,opex:0,excess:0,posted:"—"}],
+ counts:[{b:"ARI",m:1,day:24,label:"24 ก.ย. 69",v:15164.14,items:[["กุ้งขาว","−27.981 kg",9453.77],["เบียร์สิงห์ 620 มล.","−59 ขวด",4071.48],["ข้าวหอมมะลิ","−7.791 kg",372.22],["หมูสามชั้น","−1.282 kg",244.86],["เส้นจันท์","−2.952 kg",146.96],["ไข่ไก่","−33 ฟอง",145.39]]},
+         {b:"LPR",m:1,day:28,label:"28 ก.ย. 69",v:16.75,items:[["ไข่ไก่","ตัดจำหน่าย",16.75]]}]};
+const DEMO={months:["พ.ค. 69","มิ.ย. 69","ก.ค. 69","ส.ค. 69","ก.ย. 69","ต.ค. 69"],cal:[31,30,31,31,30,22],
+ ARI:[{days:31,rev:690200,sold:289900,cov:.97,posted:"31/31",waste:410,leak:29800,buy:402000,opex:151000,gp:400300,excess:.6,demo:1},
+      {days:30,rev:661500,sold:271200,cov:.97,posted:"30/30",waste:380,leak:24100,buy:388000,opex:149000,gp:390300,excess:.5,demo:1},
+      {days:31,rev:702000,sold:283600,cov:.98,posted:"31/31",waste:520,leak:null,buy:415000,opex:150500,gp:418400,excess:.7,demo:1},
+      null,null,
+      {days:22,rev:528000,sold:189000,cov:.95,posted:"21/22",waste:140,leak:7400,buy:301000,opex:118000,gp:339000,excess:.4,demo:1}],
+ LPR:[{days:31,rev:452000,sold:199000,cov:.96,posted:"30/31",waste:1460,leak:21500,buy:268000,opex:98000,gp:253000,excess:2.1,demo:1},
+      {days:30,rev:438500,sold:193800,cov:.95,posted:"28/30",waste:1320,leak:19900,buy:259000,opex:96500,gp:244700,excess:1.9,demo:1},
+      {days:31,rev:461000,sold:202800,cov:.96,posted:"30/31",waste:1550,leak:null,buy:276000,opex:99000,gp:258200,excess:2.4,demo:1},
+      {days:31,rev:455000,sold:198400,cov:.95,posted:"29/31",waste:1380,leak:18800,buy:270000,opex:97000,gp:256600,excess:2.0,demo:1},
+      {days:30,rev:446000,sold:193600,cov:.94,posted:"28/30",waste:1290,leak:17400,buy:262000,opex:95500,gp:252400,excess:1.7,demo:1},
+      {days:22,rev:330000,sold:141900,cov:.95,posted:"21/22",waste:880,leak:12900,buy:191000,opex:70000,gp:188100,excess:1.6,demo:1}],
+ counts:[{b:"ARI",m:0,day:31,label:"31 พ.ค. 69*",v:29800,items:[["กุ้งขาว","−31 kg",11200],["เบียร์สิงห์ 620 มล.","−22 ขวด",1500]]},{b:"ARI",m:1,day:30,label:"30 มิ.ย. 69*",v:24100,items:[["กุ้งขาว","−27 kg",9800],["เบียร์สิงห์ 620 มล.","−28 ขวด",1900]]},
+         null,null,
+         {b:"ARI",m:5,day:20,label:"20 ต.ค. 69*",v:7400,items:[["กุ้งขาว","−9.2 kg",3120],["เบียร์สิงห์ 620 มล.","−43 ขวด",2950],["ปลากะพง","−3 kg",640]]},
+         {b:"LPR",m:0,day:31,label:"31 พ.ค. 69*",v:21500,items:[["หมูสามชั้น","−18 kg",5100]]},{b:"LPR",m:1,day:30,label:"30 มิ.ย. 69*",v:19900,items:[["หมูสามชั้น","−16 kg",4600]]},
+         {b:"LPR",m:3,day:31,label:"31 ส.ค. 69*",v:18800,items:[["หมูสามชั้น","−15 kg",4300]]},{b:"LPR",m:4,day:28,label:"28 ก.ย. 69*",v:17400,items:[["หมูสามชั้น","−14 kg",4000]]},{b:"LPR",m:5,day:20,label:"20 ต.ค. 69*",v:12900,items:[["หมูสามชั้น","−9 kg",2600],["น้ำมันพืช","−6 l",420]]}].filter(Boolean)};
+DEMO.ARI[3]=REAL.ARI[0]; DEMO.ARI[4]=REAL.ARI[1]; DEMO.counts.push({...REAL.counts[0],m:4}); // the real 24 Sep count sits in month 4 of the 6-month view
+let D=REAL, sel=1, branch="ALL", metric="food", preview=null;
+// ---------- metrics ----------
+const sumOf=(m,k)=>["ARI","LPR"].filter(b=>branch==="ALL"||branch===b).map(b=>D[b][m]).filter(Boolean);
+function agg(m,b){ const rows=b?[D[b][m]].filter(Boolean):sumOf(m); const withRev=rows.filter(r=>r.rev!=null);
+  const s=k=>rows.reduce((a,r)=>a+(r[k]||0),0), sr=k=>withRev.reduce((a,r)=>a+(r[k]||0),0);
+  const leakKnown=rows.some(r=>r.leak!=null);
+  return {rev:withRev.length?sr("rev"):null, sold:withRev.length?sr("sold"):null, gp:withRev.length?sr("gp"):null, days:Math.max(0,...rows.map(r=>r.days||0)),
+    cov:withRev.length?withRev.reduce((a,r)=>a+r.cov*r.rev,0)/sr("rev"):1, waste:s("waste"), leak:leakKnown?rows.reduce((a,r)=>a+(r.leak||0),0):null, buy:s("buy"), opex:s("opex"), posted:rows.map(r=>r.posted).join(" · ")}; }
+const M={
+ food:{tab:"ต้นทุนอาหาร",unit:"% ของรายได้",get:a=>a.rev?a.sold/a.rev*100:null,fmt:v=>v.toFixed(1)+"%",low:true,band:[28,35],bound:a=>a.cov<.995?"อย่างน้อย ":"",why:a=>a.rev==null?"ไม่มียอดขาย":null,hint:"ต้นทุนของที่ขายไป ÷ รายได้ · แถบเขียว = เป้า 28–35%"},
+ leak:{tab:"ของหาย",unit:"จากการนับสต๊อก",get:a=>a.leak,fmt:v=>"฿"+f0(v),low:true,why:a=>a.leak==null?"ยังไม่ได้นับ":null,hint:"รู้ได้เฉพาะวันที่นับสต๊อก · จุด = การนับแต่ละครั้ง ขนาด = มูลค่าที่หาย · กดจุดเพื่อดูว่าอะไรหาย"},
+ waste:{tab:"ทิ้ง",unit:"ที่บันทึกไว้",get:a=>a.waste,fmt:v=>"฿"+f0(v),low:true,why:()=>null,hint:"ของที่มีคนบันทึกว่าทิ้ง ทั้งเดือน"},
+ rev:{tab:"รายได้ต่อวัน",unit:"หลังส่วนลด",get:a=>a.rev&&a.days?a.rev/a.days:null,fmt:v=>"฿"+f0(v),low:false,why:a=>a.rev==null?"ไม่มียอดขาย":null,hint:"รายได้ ÷ วันที่มีไฟล์ยอดขาย (เดือนยาวไม่เท่ากัน จึงเทียบต่อวัน)"},
+ gp:{tab:"กำไรขั้นต้น",unit:"ทั้งเดือน",get:a=>a.gp,fmt:v=>"฿"+f0(v),low:false,bound:a=>a.cov<.995?"ไม่เกิน ":"",why:a=>a.rev==null?"ไม่มียอดขาย":null,hint:"รายได้ − ต้นทุนของที่ขายไป · ตัดสต๊อกไม่ครบ = ไม่เกิน"},
+};
+// ---------- count-up ----------
+function countUp(el,to,fmt){ const from=+el.dataset.v||0; el.dataset.v=to; el.firstChild.textContent=fmt(to); /* final value first: a hidden tab never runs the animation */ const t0=performance.now(), dur=520;
+  const step=t=>{ const k=Math.min(1,(t-t0)/dur), e=1-Math.pow(1-k,3); el.firstChild.textContent=fmt(from+(to-from)*e); if(k<1) requestAnimationFrame(step); }; requestAnimationFrame(step); }
+// ---------- chips + sticky ----------
+function chips(){
+  $("#periodChips").innerHTML=D.months.map((k,i)=>`<button class="chip ${i===sel?"on":""}" data-i="${i}">${k}${D===DEMO&&!(i===3||i===4)?"*":""}</button>`).join("");
+  $$("#periodChips .chip").forEach(c=>c.onclick=()=>{sel=+c.dataset.i; render();});
+  $("#branchChips").innerHTML=[["ALL","ทุกสาขา (เทียบกัน)"],["ARI",BR.ARI.name],["LPR",BR.LPR.name]].map(([k,l])=>`<button class="chip ${branch===k?"on":""}" data-b="${k}">${k!=="ALL"?`<span class="dot" style="background:${BR[k].c1}"></span>`:""}${l}</button>`).join("");
+  $$("#branchChips .chip").forEach(c=>c.onclick=()=>{branch=c.dataset.b; render();});
+  $("#stView").textContent=`${D.months[sel]} · ${branch==="ALL"?"ทุกสาขา":BR[branch].name} · ${M[metric].tab}`;
+}
+// ---------- KPI tabs ----------
+function tabs(){
+  const a=agg(sel), p=sel>0?agg(sel-1):null;
+  if(!$("#tabs").children.length){ $("#tabs").innerHTML=Object.keys(M).map(k=>`<button class="tab" data-m="${k}" role="tab"><span class="tk"></span><span class="tv" data-v="0"> </span><span class="ts"></span><svg class="spark" width="100%" height="26" preserveAspectRatio="none"></svg></button>`).join("");
+    $$("#tabs .tab").forEach(t=>{ t.onclick=()=>{metric=t.dataset.m; render();}; }); }
+  $$("#tabs .tab").forEach(t=>{ const k=t.dataset.m, m=M[k], v=m.get(a), pv=p?m.get(p):null;
+    t.classList.toggle("on",k===metric); t.setAttribute("aria-selected",k===metric);
+    t.querySelector(".tk").textContent=m.tab;
+    const tv=t.querySelector(".tv");
+    if(v==null){ tv.dataset.v=0; tv.firstChild.textContent=m.why(a)||"—"; tv.classList.add("muted"); }
+    else { tv.classList.remove("muted"); const pre=m.bound?m.bound(a):""; countUp(tv,v,x=>pre+m.fmt(x)); tv.classList.toggle("warnv",!!pre); }
+    let s=m.unit; if(v!=null&&pv!=null){ const d=k==="food"?v-pv:(v-pv)/pv*100, good=m.low?d<0:d>0; s=`<b style="color:${good?"var(--good)":"var(--bad)"}">${d<0?"▼":"▲"} ${Math.abs(d).toFixed(1)}${k==="food"?" จุด":"%"}</b> เทียบ ${D.months[sel-1]}`; }
+    else if(v!=null&&sel>0) s=`เทียบ ${D.months[sel-1]} ไม่ได้ (${m.why(p)||"ไม่มีข้อมูล"})`;
+    t.querySelector(".ts").innerHTML=s;
+    // sparkline over months
+    const vals=D.months.map((_,i)=>m.get(agg(i))); const mx=Math.max(...vals.filter(x=>x!=null),1);
+    t.querySelector(".spark").innerHTML=vals.map((x,i)=>x==null?`<rect x="${i/vals.length*100}%" y="20" width="${80/vals.length}%" height="4" style="fill:var(--border)"/>`:`<rect x="${i/vals.length*100}%" y="${24-x/mx*22}" width="${80/vals.length}%" height="${Math.max(2,x/mx*22)}" rx="1.5" style="fill:${i===sel?"#C0692B":k===metric?"#5E6B14":"var(--strong)"}"/>`).join("");
+  });
+}
+// ---------- main chart ----------
+function chart(){
+  const k=preview||metric, m=M[k]; $("#chartTitle").innerHTML=`${m.tab} ${preview?'<span class="badge">ตัวอย่างจากแถวที่ชี้</span>':""}`; $("#chartHint").textContent=m.hint;
+  if(k==="leak") return timeline();
+  const W=Math.max(380,$("#trendbox").clientWidth-36), H=250, L=58, B=30, T=20, n=D.months.length, slot=(W-L)/n;
+  const bs=branch==="ALL"?["ARI","LPR"]:[branch]; const bw=Math.min(36,slot*(bs.length>1?.3:.42));
+  const vals=bs.map(b=>D.months.map((_,i)=>m.get(agg(i,b))));
+  const ghost=branch!=="ALL"?D.months.map((_,i)=>m.get(agg(i,branch==="ARI"?"LPR":"ARI"))):[];
+  let mx=Math.max(...vals.flat().filter(v=>v!=null),...ghost.filter(v=>v!=null),m.band?m.band[1]+4:0)*1.18||1;
+  const y=v=>T+(H-T-B)*(1-v/mx), cx=i=>L+slot*(i+.5), bx=(i,j)=>cx(i)+(j-(bs.length-1)/2)*(bw+5)-bw/2;
+  let g=`<svg width="${W}" height="${H}" style="display:block;overflow:visible"><defs><pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" style="fill:var(--muted)"/><line x1="0" y1="0" x2="0" y2="6" style="stroke:var(--strong)" stroke-width="2"/></pattern>${bs.map(b=>`<linearGradient id="g${b}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${BR[b].c1}"/><stop offset="1" stop-color="${BR[b].c2}"/></linearGradient>`).join("")}<linearGradient id="gSel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#C0692B"/><stop offset="1" stop-color="#E8A76F"/></linearGradient></defs>`;
+  for(let t=0;t<=4;t++){const v=mx/4*t; g+=`<line x1="${L}" x2="${W}" y1="${y(v)}" y2="${y(v)}" style="stroke:var(--border)"/><text x="${L-8}" y="${y(v)+4}" text-anchor="end" font-size="11" style="fill:var(--muted-fg)">${k==="food"?v.toFixed(0)+"%":"฿"+(v>=1000?(v/1000).toFixed(v>=10000?0:1)+"K":f0(v))}</text>`;}
+  if(m.band) g+=`<rect x="${L}" width="${W-L}" y="${y(m.band[1])}" height="${y(m.band[0])-y(m.band[1])}" fill="#5A7333" opacity=".1"/><text x="${L+6}" y="${y(m.band[1])-4}" text-anchor="start" font-size="10" style="fill:var(--good)">เป้า ${m.band[0]}–${m.band[1]}%</text>`;
+  g+=`<rect id="selband" x="${L+slot*sel+3}" y="${T-8}" width="${slot-6}" height="${H-T-B+8}" rx="10" fill="#C0692B" opacity=".09"/><rect id="hoverband" x="0" y="${T-8}" width="${slot-6}" height="${H-T-B+8}" rx="10" fill="#41431B" opacity="0"/>`;
+  bs.forEach((b,j)=>vals[j].forEach((v,i)=>{ const X=bx(i,j);
+    if(v==null){ const why=m.why(agg(i,b))||"—"; g+=`<rect x="${X}" width="${bw}" y="${y(mx*.22)}" height="${y(0)-y(mx*.22)}" rx="5" fill="url(#hatch)" style="stroke:var(--strong)"/><text x="${X+bw/2}" y="${y(mx*.22)-5}" text-anchor="middle" font-size="9.5" style="fill:var(--subtle)">${why}</text>`; return; }
+    const h=y(0)-y(v), demo=D[b][i]&&D[b][i].demo; g+=`<rect class="mbar" x="${X}" width="${bw}" y="${y(v)}" height="${h}" rx="5" fill="${i===sel&&bs.length===1?"url(#gSel)":`url(#g${b})`}" opacity="${demo?.62:1}" style="transform-origin:${X}px ${y(0)}px;animation:rise .55s cubic-bezier(.2,.8,.2,1) ${i*40+j*25}ms both"/>`;
+    if(i===sel) g+=`<text x="${X+bw/2}" y="${y(v)-6}" text-anchor="middle" font-size="11" font-weight="700" style="fill:var(--fg)">${m.fmt(v)}</text>`; }));
+  if(ghost.length){ const pts=ghost.map((v,i)=>v==null?null:`${cx(i)},${y(v)}`).filter(Boolean); if(pts.length) g+=`<polyline points="${pts.join(" ")}" fill="none" stroke="${BR[branch==="ARI"?"LPR":"ARI"].c1}" stroke-width="2" stroke-dasharray="4 4" opacity=".55"/>`+ghost.map((v,i)=>v==null?"":`<circle cx="${cx(i)}" cy="${y(v)}" r="3.5" style="fill:var(--surface)" stroke="${BR[branch==="ARI"?"LPR":"ARI"].c1}" stroke-width="2" opacity=".7"/>`).join(""); }
+  D.months.forEach((mo,i)=>{ g+=`<text x="${cx(i)}" y="${H-10}" text-anchor="middle" font-size="11.5" style="fill:${i===sel?"#C0692B":"var(--muted-fg)"}" font-weight="${i===sel?700:400}">${mo}</text><rect class="hit" data-i="${i}" x="${L+slot*i}" y="0" width="${slot}" height="${H}" fill="transparent" style="cursor:pointer"/>`; });
+  g+="</svg>";
+  $("#chart").innerHTML=g+'<div class="tip" id="ctip" hidden style="pointer-events:none;top:6px"></div>';
+  $("#chartLegend").innerHTML=bs.map(b=>`<span><i style="background:${BR[b].c1}"></i>${BR[b].name}</span>`).join("")+(ghost.length?`<span><i style="background:transparent;border:2px dashed ${BR[branch==="ARI"?"LPR":"ARI"].c1}"></i>${BR[branch==="ARI"?"LPR":"ARI"].name} (เส้นประ ไว้เทียบ)</span>`:"")+`<span><i style="background:#C0692B;opacity:.35"></i>เดือนที่เลือก</span>${D===DEMO?"<span>* ตัวเลขสมมติ</span>":""}`;
+  $$("#chart .hit").forEach(h=>{ const i=+h.dataset.i;
+    h.onmouseenter=()=>{ const hb=$("#hoverband"); hb.setAttribute("x",L+slot*i+3); hb.setAttribute("opacity",".06");
+      $$("#periodChips .chip").forEach((c,ci)=>c.classList.toggle("peek",ci===i));
+      const lines=["ARI","LPR"].map(b=>{ const a=agg(i,b), v=m.get(a), pv=i>0?m.get(agg(i-1,b)):null; const d=v!=null&&pv!=null?(k==="food"?v-pv:(v-pv)/pv*100):null;
+        return `<div class="tr"><span><i style="background:${BR[b].c1}"></i>${BR[b].name}</span><b>${v==null?(m.why(a)||"—"):(m.bound?m.bound(a):"")+m.fmt(v)}</b>${d==null?"":`<em style="color:${(m.low?d<0:d>0)?"#B7CF7C":"#EC9C80"}">${d<0?"▼":"▲"}${Math.abs(d).toFixed(1)}${k==="food"?"จุด":"%"}</em>`}</div>`; }).join("");
+      const t=$("#ctip"); t.hidden=false; t.innerHTML=`<b>${D.months[i]}</b>${lines}<div style="opacity:.7;margin-top:4px">${i>0?"ลูกศร = เทียบ "+D.months[i-1]+" ของสาขานั้น · ":""}กดเพื่อดูเดือนนี้</div>`;
+      t.style.left=Math.min(Math.max(8,cx(i)-120),W-260)+"px"; };
+    h.onmouseleave=()=>{ $("#hoverband").setAttribute("opacity","0"); $("#ctip").hidden=true; $$("#periodChips .chip").forEach(c=>c.classList.remove("peek")); };
+    h.onclick=()=>{sel=i; render();}; });
+}
+// ---------- leak timeline ----------
+function timeline(){
+  const W=Math.max(380,$("#trendbox").clientWidth-36), H=250, L=58, B=30, T=24, n=D.months.length, slot=(W-L)/n;
+  const bs=branch==="ALL"?["ARI","LPR"]:[branch]; const cs=D.counts.filter(c=>bs.includes(c.b)); const mx=Math.max(...cs.map(c=>c.v),1)*1.2;
+  const y=v=>T+(H-T-B)*(1-v/mx), xAt=c=>L+slot*c.m+slot*(c.day/(D.cal[c.m]||30));
+  let g=`<svg width="${W}" height="${H}" style="display:block;overflow:visible"><defs><pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" style="fill:var(--muted)"/><line x1="0" y1="0" x2="0" y2="6" style="stroke:var(--border)" stroke-width="2"/></pattern></defs>`;
+  for(let t=0;t<=4;t++){const v=mx/4*t; g+=`<line x1="${L}" x2="${W}" y1="${y(v)}" y2="${y(v)}" style="stroke:var(--border)"/><text x="${L-8}" y="${y(v)+4}" text-anchor="end" font-size="11" style="fill:var(--muted-fg)">฿${v>=1000?(v/1000).toFixed(0)+"K":f0(v)}</text>`;}
+  D.months.forEach((mo,i)=>{ const any=cs.some(c=>c.m===i); if(!any) g+=`<rect x="${L+slot*i+2}" y="${T}" width="${slot-4}" height="${H-T-B}" fill="url(#hatch)" rx="8"/><text x="${L+slot*(i+.5)}" y="${H-B-10}" text-anchor="middle" font-size="10.5" style="fill:var(--subtle)">ไม่ได้นับ</text>`;
+    g+=`<line x1="${L+slot*i}" x2="${L+slot*i}" y1="${T}" y2="${H-B}" style="stroke:var(--border)"/>`;
+    g+=`<text x="${L+slot*(i+.5)}" y="${H-10}" text-anchor="middle" font-size="11.5" style="fill:${i===sel?"#C0692B":"var(--muted-fg)"}" font-weight="${i===sel?700:400}">${mo}</text>`; });
+  g+=`<rect x="${L+slot*sel+2}" y="${T-6}" width="${slot-4}" height="${H-T-B+6}" rx="10" fill="#C0692B" opacity=".07"/>`;
+  bs.forEach(b=>{ const pts=cs.filter(c=>c.b===b).sort((p,q)=>p.m-q.m||p.day-q.day); if(pts.length>1) g+=`<polyline points="${pts.map(c=>`${xAt(c)},${y(c.v)}`).join(" ")}" fill="none" stroke="${BR[b].c1}" stroke-width="1.6" opacity=".45"/>`; });
+  cs.forEach((c,idx)=>{ const r=7+Math.sqrt(c.v/mx)*18; g+=`<g class="cnt" data-k="${idx}" style="cursor:pointer"><circle cx="${xAt(c)}" cy="${y(c.v)}" r="${r}" fill="${BR[c.b].c1}" opacity="${c.label.includes("*")?.55:.9}" style="transform-origin:${xAt(c)}px ${y(c.v)}px;animation:pop .45s cubic-bezier(.2,.8,.2,1) ${idx*60}ms both"/><text x="${xAt(c)}" y="${y(c.v)-r-5}" text-anchor="middle" font-size="10.5" font-weight="600" style="fill:var(--fg)">฿${f0(c.v)}</text></g>`; });
+  g+="</svg>";
+  $("#chart").innerHTML=g+'<div class="tip" id="ctip" hidden style="pointer-events:none;top:6px"></div>';
+  $("#chartLegend").innerHTML=bs.map(b=>`<span><i style="background:${BR[b].c1};border-radius:50%"></i>${BR[b].name}</span>`).join("")+`<span><i style="background:url(#);border:1px solid #D2CBA4"></i>ลายเส้น = เดือนที่ไม่ได้นับ (ไม่รู้ ไม่ใช่ ฿0)</span>`;
+  $$("#chart .cnt").forEach(el=>{ const c=cs[+el.dataset.k];
+    el.onmouseenter=()=>{ const prev=cs.filter(p=>p.b===c.b&&(p.m<c.m||(p.m===c.m&&p.day<c.day))).sort((p,q)=>q.m-p.m||q.day-p.day)[0]; const rev=D[c.b][c.m]&&D[c.b][c.m].rev;
+      const t=$("#ctip"); t.hidden=false; t.innerHTML=`<b>${BR[c.b].name} · นับ ${c.label}</b><div class="tr"><span>เจอของหาย</span><b>฿${f2(c.v)}</b></div>${rev?`<div class="tr"><span>% ของรายได้เดือนนั้น</span><b>${(c.v/rev*100).toFixed(1)}%</b></div>`:""}${prev?`<div class="tr"><span>ครั้งก่อน ${prev.label}</span><b>฿${f0(prev.v)}</b></div>`:'<div style="opacity:.75">ครั้งแรกที่นับ</div>'}<div style="opacity:.75;margin-top:4px">กดเพื่อดูว่าอะไรหาย</div>`;
+      t.style.left=Math.min(Math.max(8,xAt(c)-120),W-260)+"px"; el.querySelector("circle").setAttribute("stroke","#262811"); el.querySelector("circle").setAttribute("stroke-width","2"); };
+    el.onmouseleave=()=>{ $("#ctip").hidden=true; el.querySelector("circle").removeAttribute("stroke"); };
+    el.onclick=()=>openCount(c); });
+}
+function openCount(c){
+  const top=c.items[0][2];
+  $("#mbox").innerHTML=`<div class="row" style="justify-content:space-between"><h3 style="font-size:1.1rem">${BR[c.b].name} · นับสต๊อก ${c.label}</h3><span class="x2" style="position:static;cursor:pointer" id="mx">×</span></div>
+  <div class="kp" style="grid-template-columns:repeat(3,1fr)"><div class="kpi"><span class="k">ของหายรวม</span><span class="v num" style="font-size:1.15rem;color:var(--bad)">฿${f2(c.v)}</span></div><div class="kpi"><span class="k">รายการที่หาย</span><span class="v num" style="font-size:1.15rem">${c.items.length}</span></div><div class="kpi"><span class="k">ตัวที่หายมากสุด</span><span class="v" style="font-size:1.05rem">${c.items[0][0]}</span><span class="s">${Math.round(top/c.v*100)}% ของทั้งหมด</span></div></div>
+  <table class="mt"><thead><tr><th>วัตถุดิบ</th><th>หายไป</th><th>มูลค่า</th></tr></thead><tbody>${c.items.map(it=>`<tr><td>${it[0]}</td><td class="num">${it[1]}</td><td class="num"><span class="lbar" style="width:${Math.max(4,it[2]/top*110)}px;animation:grow .5s both"></span>฿${f2(it[2])}</td></tr>`).join("")}</tbody></table>
+  <div class="row" style="justify-content:space-between"><span class="sub">ควรเหลือ − นับได้ · ตีราคาตามต้นทุน FIFO</span><span class="dl">ดูทั้งหมดที่ “ของหายไปไหน” ›</span></div>`;
+  $("#modal").hidden=false; $("#mx").onclick=()=>$("#modal").hidden=true;
+}
+// ---------- benchmark ----------
+function bench(){
+  const a=agg(sel,"ARI"), b=agg(sel,"LPR"); $("#benchMonth").textContent=D.months[sel];
+  const rows=[["food","ต้นทุนอาหาร %"],["leak","ของหาย % ของรายได้",x=>x.rev&&x.leak!=null?x.leak/x.rev*100:null,v=>v.toFixed(2)+"%"],["waste","ทิ้ง % ของรายได้",x=>x.rev?x.waste/x.rev*100:null,v=>v.toFixed(2)+"%"],["rev","รายได้ต่อวัน"],["gp","กำไรขั้นต้น % ของรายได้",x=>x.rev?x.gp/x.rev*100:null,v=>v.toFixed(1)+"%"]];
+  const val=(r,x)=>r[2]?r[2](x):M[r[0]].get(x), fmt=(r,v)=>r[3]?r[3](v):M[r[0]].fmt(v), low=r=>M[r[0]].low;
+  let h=`<table class="mt"><thead><tr><th style="text-align:left">ตัวชี้วัด</th>${["ARI","LPR"].map(k=>`<th style="text-align:center;${branch===k?"color:var(--fg)":""}"><i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${BR[k].c1};margin-right:4px"></i>${BR[k].name}</th>`).join("")}</tr></thead><tbody>`;
+  rows.forEach(r=>{ const va=val(r,a), vb=val(r,b), both=va!=null&&vb!=null; const bestA=both&&(low(r)?va<vb:va>vb), bestB=both&&!bestA&&va!==vb;
+    const cell=(v,x,best,k)=>`<td style="text-align:center;${best?"background:var(--warn-bg);font-weight:700":""};${branch!=="ALL"&&branch!==k?"opacity:.5":""}">${v==null?`<span class="sub">${x.rev==null?"ไม่มียอดขาย":"ยังไม่ได้นับ"}</span>`:(best?"★ ":"")+fmt(r,v)}</td>`;
+    h+=`<tr class="brow ${r[0]===metric?"cur":""}" data-m="${r[0]}"><td>${r[1]}</td>${cell(va,a,bestA,"ARI")}${cell(vb,b,bestB,"LPR")}</tr>`; });
+  h+=`<tr><td>นับสต๊อกเดือนนี้</td>${["ARI","LPR"].map(k=>{const c=D.counts.filter(x=>x.b===k&&x.m===sel)[0]; return `<td style="text-align:center">${c?c.label.replace("*",""):'<span style="color:var(--bad)">ไม่ได้นับ</span>'}</td>`;}).join("")}</tr></tbody></table>`;
+  $("#bench").innerHTML=h;
+  $$("#bench .brow").forEach(tr=>{ tr.onmouseenter=()=>{ if(tr.dataset.m!==metric){preview=tr.dataset.m; chart(); $$("#tabs .tab").forEach(t=>t.classList.toggle("glow",t.dataset.m===preview));} };
+    tr.onmouseleave=()=>{ if(preview){preview=null; chart(); $$("#tabs .tab").forEach(t=>t.classList.remove("glow"));} };
+    tr.onclick=()=>{ preview=null; metric=tr.dataset.m; render(); }; });
+  if(a.rev!=null&&b.rev!=null){ const fa=a.sold/a.rev, fb=b.sold/b.rev, hiB=fa>fb?"ARI":"LPR", loB=hiB==="ARI"?"LPR":"ARI", hi=Math.max(fa,fb), lo=Math.min(fa,fb), money=(hi-lo)*agg(sel,hiB).rev;
+    $("#gap").innerHTML=`<div class="gapcard"><span class="sub">ถ้า${BR[hiB].name}ทำต้นทุนอาหารได้เท่า${BR[loB].name}</span><b class="num" data-v="0"> </b><span class="sub">ต่อเดือน (${(lo*100).toFixed(1)}% แทน ${(hi*100).toFixed(1)}%) · ดูว่ารั่วตรงไหนที่ “ของที่หาย ต้องตามต่อ”</span></div>`; countUp($("#gap b"),money,v=>"เหลือเงินเพิ่ม ฿"+f0(v)); }
+  else $("#gap").innerHTML=`<div class="restore">ยังเทียบเป็นเงินไม่ได้ · ${b.rev==null?BR.LPR.name:BR.ARI.name}ยังไม่มีไฟล์ยอดขายเดือนนี้ · <span class="dl">นำเข้ายอดขาย ›</span> · หรือกด “ตัวอย่าง 6 เดือน” ด้านบน</div>`;
+}
+// ---------- follow-up ----------
+function follow(){
+  const bs=branch==="ALL"?["ARI","LPR"]:[branch];
+  const now=D.counts.filter(c=>bs.includes(c.b)&&c.m===sel);
+  $("#followSub").textContent=`${D.months[sel]} เทียบการนับครั้งก่อน`;
+  if(!now.length){ $("#follow").innerHTML=`<p class="small">${D.months[sel]} ไม่มีการนับสต๊อก${branch==="ALL"?"ทั้งสองสาขา":"ที่"+BR[branch].name} จึงยังไม่รู้ว่าอะไรหาย · <b>นับเดือนละครั้งถึงจะเห็นว่าดีขึ้นหรือแย่ลง</b> · <span class="dl">ไปหน้านับสต๊อก ›</span></p>`; return; }
+  const rows=[]; now.forEach(c=>{ const prev=D.counts.filter(p=>p.b===c.b&&(p.m<c.m)).sort((p,q)=>q.m-p.m)[0];
+    c.items.forEach(it=>{ const pi=prev&&prev.items.find(x=>x[0]===it[0]); rows.push([c.b,it[0],it[2],prev?(pi?pi[2]:0):null,prev?prev.label:null]); });
+    if(prev) prev.items.forEach(pi=>{ if(!c.items.find(x=>x[0]===pi[0])) rows.push([c.b,pi[0],0,pi[2],prev.label]); }); });
+  rows.sort((p,q)=>q[2]-p[2]); const top=Math.max(...rows.map(r=>Math.max(r[2],r[3]||0)),1);
+  $("#follow").innerHTML=`<table class="mt"><thead><tr><th>วัตถุดิบ</th><th>ครั้งนี้</th><th>ครั้งก่อน</th><th>สถานะ</th></tr></thead><tbody>${rows.slice(0,7).map(r=>{ const [b,name,nowv,bef]=r; let tag,col;
+     if(bef==null){tag="ใหม่";col="var(--warn)";} else if(nowv===0){tag="แก้แล้ว";col="var(--good)";} else if(nowv<bef*.8){tag="ดีขึ้น";col="var(--good)";} else if(nowv>bef*1.2){tag=bef===0?"ใหม่":"แย่ลง";col=bef===0?"var(--warn)":"var(--bad)";} else {tag="เท่าเดิม";col="var(--muted-fg)";}
+     return `<tr><td><i style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${BR[b].c1};margin-right:6px"></i>${name}</td><td class="num"><span class="lbar" style="width:${Math.max(3,nowv/top*60)}px"></span>฿${f0(nowv)}</td><td class="num dim">${bef==null?"ยังไม่เคยนับ":"฿"+f0(bef)}</td><td><span class="badge" style="color:${col};background:transparent;border:1px solid currentColor">${tag}</span></td></tr>`;}).join("")}</tbody></table>`;
+}
+// ---------- table ----------
+function table(){
+  $("#tbody").innerHTML=["ARI","LPR"].filter(b=>branch==="ALL"||branch===b).map(b=>{ const d=D[b][sel], a=agg(sel,b), c=D.counts.find(x=>x.b===b&&x.m===sel);
+    return `<tr class="rowc"><td><b>${BR[b].name}</b>${d&&d.demo?'<br><span class="sub">สมมติ</span>':""}</td><td class="num">฿${f0(a.buy)}</td><td class="num">฿${f0(a.opex)}</td><td class="num red">฿${f0(a.waste)}</td><td class="num">${c?`<span class="clickcell red" data-c="${D.counts.indexOf(c)}">฿${f0(c.v)}</span>`:'<span class="dim">ยังไม่ได้นับ</span>'}</td><td class="num">${a.rev==null?'<span class="dim">ไม่มียอดขาย</span>':"<b>฿"+f0(a.rev)+"</b>"}</td><td class="num">${a.rev==null?'<span class="dim">—</span>':`<b class="${a.cov<.995?"warnv":""}">${a.cov<.995?"ไม่เกิน ":""}฿${f0(a.gp)}</b><br><span class="cov"><span class="bar"><i style="width:${a.cov*100}%"></i></span>ครอบคลุม ${Math.round(a.cov*100)}%</span>`}</td></tr>`; }).join("");
+  $$("#tbody [data-c]").forEach(el=>el.onclick=e=>{e.stopPropagation(); openCount(D.counts[+el.dataset.c]);});
+}
+function render(){ chips(); tabs(); chart(); bench(); follow(); table(); }
+function setData(w){ D=w==="demo"?DEMO:REAL; sel=w==="demo"?5:1; $("#demoNote").hidden=w!=="demo"; $("#d-real").setAttribute("aria-pressed",w!=="demo"); $("#d-demo").setAttribute("aria-pressed",w==="demo"); $("#tabs").innerHTML=""; render(); }
+$("#d-real").onclick=()=>setData("real"); $("#d-demo").onclick=()=>setData("demo");
+$("#modal").onclick=e=>{if(e.target.id==="modal")$("#modal").hidden=true;};
+document.addEventListener("keydown",e=>{if(e.key==="Escape")$("#modal").hidden=true;});
+let tip=null;
+$$(".q").forEach(q=>q.onclick=e=>{e.stopPropagation(); if(tip){tip.remove();tip=null;} const t=document.createElement("div"); t.className="tip"; t.textContent=q.dataset.tip; const box=$("#tablebox"), r=q.getBoundingClientRect(), b=box.getBoundingClientRect(); t.style.left=Math.max(8,Math.min(r.left-b.left-120,b.width-290))+"px"; t.style.top=(r.bottom-b.top+8)+"px"; box.appendChild(t); tip=t;});
+document.addEventListener("click",()=>{if(tip){tip.remove();tip=null;}});
+function mode(v){root.classList.toggle("v-new",v==="new");root.classList.toggle("v-now",v==="now");$("#b-now").setAttribute("aria-pressed",v==="now");$("#b-new").setAttribute("aria-pressed",v==="new");$("#modal").hidden=true; if(v==="new") chart();}
+$("#b-now").onclick=()=>mode("now"); $("#b-new").onclick=()=>mode("new");
+$("#b-mk").onclick=e=>{const on=root.classList.toggle("hide-mk");e.target.setAttribute("aria-pressed",!on);};
+window.addEventListener("resize",()=>chart());
+render();
+</script>

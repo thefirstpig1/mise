@@ -1,0 +1,156 @@
+<title>ต้นทุน: เจ้าของร้านอยากรู้อะไร</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Prompt:wght@500;600;700&family=Noto+Sans+Thai:wght@400;500;600&display=swap">
+<style>
+/* Research brief: question-first design for /cost. Layout: one reading column,
+   a wide question bank table, and a mapping of questions to screens.
+   App tokens (tailwind.config.ts). */
+:root{
+  --bg:#FDFBF3; --fg:#262811; --surface:#FFFFFF; --sunk:#F8F3E1; --primary:#41431B; --primary-fg:#F8F3E1;
+  --muted:#F3EFDF; --muted-fg:#5A5C31; --subtle:#8B8D63; --border:#E9E3C8; --strong:#D2CBA4;
+  --good:#5A7333; --good-bg:#EEF2E0; --bad:#A83A22; --bad-bg:#F9E5DF; --warn:#A87C1C; --warn-bg:#F8EFD6; --clay:#C0692B;
+  --display:"Prompt","Noto Sans Thai",system-ui,sans-serif; --body:"Noto Sans Thai","Prompt",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#1B1C10; --fg:#EEEAD6; --surface:#24261A; --sunk:#2A2C1E; --primary:#D9DDB0; --primary-fg:#1B1C10;
+  --muted:#2E301F; --muted-fg:#C9C8A6; --subtle:#9C9B7C; --border:#36381F; --strong:#4A4C30;
+  --good:#B7CF7C; --good-bg:#2B3320; --bad:#EC9C80; --bad-bg:#41261C; --warn:#E8BE62; --warn-bg:#3B3018; --clay:#E8A76F; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#1B1C10; --fg:#EEEAD6; --surface:#24261A; --sunk:#2A2C1E; --primary:#D9DDB0; --primary-fg:#1B1C10;
+  --muted:#2E301F; --muted-fg:#C9C8A6; --subtle:#9C9B7C; --border:#36381F; --strong:#4A4C30;
+  --good:#B7CF7C; --good-bg:#2B3320; --bad:#EC9C80; --bad-bg:#41261C; --warn:#E8BE62; --warn-bg:#3B3018; --clay:#E8A76F; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.65;margin:0;padding-inline:16px;padding-block:28px 64px}
+.wrap{max-width:1100px;margin:0 auto;display:grid;gap:30px}
+h1,h2,h3{font-family:var(--display);margin:0;text-wrap:balance;line-height:1.3}
+h1{font-size:1.8rem;color:var(--primary)} h2{font-size:1.25rem} h3{font-size:1rem}
+p{margin:0;max-width:72ch}
+.sub{color:var(--subtle);font-size:.85rem}
+.lead{font-size:1.02rem;color:var(--muted-fg)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px 20px;display:grid;gap:10px}
+.findings{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.finding{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 16px;display:grid;gap:4px}
+.finding b{font-family:var(--display);font-size:1.6rem;color:var(--clay);line-height:1.2}
+.finding span{font-size:.86rem;color:var(--muted-fg)}
+.tbox{overflow-x:auto;border:1px solid var(--border);border-radius:14px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:980px;font-size:.86rem}
+th{font-family:var(--display);font-weight:600;font-size:.76rem;color:var(--muted-fg);text-align:left;padding:10px;background:var(--sunk);position:sticky;top:0}
+td{padding:10px;border-top:1px solid var(--border);vertical-align:top}
+td b{font-family:var(--display);font-weight:600}
+.n{font-family:var(--display);font-weight:700;color:var(--clay)}
+.pill{display:inline-block;border-radius:999px;padding:1px 9px;font-size:.74rem;white-space:nowrap}
+.yes{background:var(--good-bg);color:var(--good)} .part{background:var(--warn-bg);color:var(--warn)} .no{background:var(--bad-bg);color:var(--bad)}
+.role{display:inline-block;border:1px solid var(--strong);border-radius:999px;padding:0 8px;font-size:.72rem;margin:1px 2px 1px 0;white-space:nowrap}
+.cad{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.cad .card h3{color:var(--primary)}
+.cad ul{margin:0;padding-left:18px;font-size:.9rem;display:grid;gap:4px}
+ol.steps{margin:0;padding-left:20px;display:grid;gap:8px}
+ol.steps li{max-width:80ch}
+.order{display:grid;gap:8px}
+.order div{display:grid;grid-template-columns:34px minmax(0,1fr);gap:10px;align-items:start;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:10px 14px}
+.order .k{font-family:var(--display);font-weight:700;color:var(--clay);font-size:1.1rem}
+a{color:var(--primary)}
+.src{font-size:.82rem;color:var(--muted-fg);display:grid;gap:3px}
+</style>
+
+<div class="wrap">
+  <header style="display:grid;gap:10px">
+    <span class="sub">งานค้นคว้า · 23 ต.ค. 69 · สำหรับหน้า “ต้นทุน” และหลักการของทุกหน้าในคิดครัว</span>
+    <h1>ต้นทุน: เจ้าของร้านอยากรู้อะไร</h1>
+    <p class="lead">คำถามที่เจ้าของร้าน ผู้จัดการสาขา และหัวหน้าครัวถามเรื่องต้นทุนจริง ๆ ตัวเลขที่ใช้ตอบ เกณฑ์ที่วงการใช้ กราฟที่เหมาะ และระบบเรามีข้อมูลตอบได้แล้วหรือยัง — เพื่อออกแบบหน้าจากคำถาม ไม่ใช่จากข้อมูลที่เรามี</p>
+  </header>
+
+  <section style="display:grid;gap:12px">
+    <h2>สิ่งที่เจอ</h2>
+    <div class="findings">
+      <div class="finding"><b>Prime cost</b><span>ตัวเลขที่วงการดูมากที่สุด = (ต้นทุนวัตถุดิบ + ค่าแรง) ÷ ยอดขาย · เป้า 55–65% · ถ้าตัวนี้ดี ที่เหลือพอจ่ายค่าเช่าและมีกำไร</span></div>
+      <div class="finding"><b>รายสัปดาห์</b><span>ทุกแหล่งย้ำว่าดูต้นทุนทุกสัปดาห์ ไม่ใช่สิ้นเดือน · รอสิ้นเดือน = ปัญหาวิ่งไปแล้ว 3–4 สัปดาห์ · หน้าเราตอนนี้ดูได้แค่รายเดือน/30 วัน</span></div>
+      <div class="finding"><b>28–35%</b><span>ต้นทุนอาหารที่ถือว่าปกติของร้านนั่งทาน (ไทย 28–35%) · ค่าแรง ~25–35% · ค่าเช่า 15–18%</span></div>
+      <div class="finding"><b>เงินซ่อนอยู่ใน “ส่วนต่าง”</b><span>ต้นทุนจริง − ต้นทุนตามสูตร บอกของหาย ของทิ้ง ตักเกินสูตร · ส่วนต่าง 2–3% ถือว่าปกติ เกินนั้นต้องหาสาเหตุ</span></div>
+      <div class="finding"><b>เทียบสาขา</b><span>ผู้จัดการเขตเริ่มจาก: สาขาไหนลากกำไรลง · สาขาไหนเป็นต้นแบบ · ต้องเทียบด้วย % ไม่ใช่ยอดรวม และต้องเจาะลงไปถึงตัวสินค้าได้</span></div>
+      <div class="finding"><b>เริ่มที่จุดบอดเดียว</b><span>อย่าทำ 12 แดชบอร์ดพร้อมกัน ทำหน้าที่ตอบ “จุดบอดใหญ่สุด” ให้ดีก่อน — สำหรับร้านเรา = เงินรั่วตรงไหน</span></div>
+    </div>
+  </section>
+
+  <section style="display:grid;gap:12px">
+    <h2>ใครดู ดูบ่อยแค่ไหน</h2>
+    <div class="cad">
+      <div class="card"><h3>เจ้าของร้าน</h3><ul><li><b>ทุกสัปดาห์:</b> prime cost · ต้นทุนอาหาร % · เงินสด</li><li><b>ทุกเดือน:</b> กำไร · เทียบเดือนก่อน · สาขาไหนดี/แย่ · เงินจมในสต๊อก</li><li>อยากได้คำตอบ ไม่ใช่ตาราง: “ดีขึ้นหรือแย่ลง เพราะอะไร”</li></ul></div>
+      <div class="card"><h3>ผู้จัดการสาขา</h3><ul><li><b>ทุกวัน:</b> ของที่รับเข้าตรงใบสั่งไหม · ของทิ้ง</li><li><b>ทุกสัปดาห์:</b> ต้นทุนอาหาร % และส่วนต่างเป็นเงิน · ราคาที่ขึ้น · ของทิ้งตามเหตุผล · นับของแพง</li><li>อยากรู้ว่า “ต้องไปจัดการตัวไหนก่อน”</li></ul></div>
+      <div class="card"><h3>หัวหน้าครัว</h3><ul><li>ตัวไหนหายเยอะ · ทิ้งอะไรเพราะอะไร · ตักตรงสูตรไหม · ของค้างนาน</li></ul></div>
+      <div class="card"><h3>ผู้ดูแลหลายสาขา</h3><ul><li><b>ทุกสัปดาห์:</b> สาขาเรียงตามต้นทุน % ค่าแรง % ส่วนต่าง · ช่องว่างระหว่างสาขาเป็นเงิน · แนวโน้มของแต่ละสาขา</li></ul></div>
+    </div>
+  </section>
+
+  <section style="display:grid;gap:12px">
+    <h2>คลังคำถามเรื่องต้นทุน · 12 ข้อ</h2>
+    <p class="sub">เรียงตามความสำคัญที่แหล่งข้อมูลให้ · “ระบบเรา” = ตอนนี้มีข้อมูลตอบได้ไหม</p>
+    <div class="tbox"><table>
+      <thead><tr><th>#</th><th>คำถาม</th><th>ตัวเลขที่ตอบ</th><th>เกณฑ์ทั่วไป</th><th>กราฟที่เหมาะ</th><th>ใคร · บ่อยแค่ไหน</th><th>ระบบเรา</th><th>ควรอยู่หน้า</th></tr></thead>
+      <tbody>
+        <tr><td class="n">1</td><td><b>ร้านแข็งแรงไหม สัปดาห์นี้</b></td><td>Prime cost % = (ต้นทุนของที่ขายไป + ค่าแรง) ÷ ยอดขาย</td><td>55–65%</td><td>เส้นรายสัปดาห์ + แถบเป้า · การ์ดตัวเลขใหญ่</td><td><span class="role">เจ้าของ</span> สัปดาห์</td><td><span class="pill part">มีบางส่วน</span><br><span class="sub">ค่าแรงมีถ้าร้านบันทึกเงินเดือนในหมวด “ค่าแรง”</span></td><td>ต้นทุน (บนสุด) · แดชบอร์ด</td></tr>
+        <tr><td class="n">2</td><td><b>ต้นทุนอาหารเท่าไร เทียบเป้า</b></td><td>ต้นทุนอาหาร % = ต้นทุนของที่ขายไป ÷ ยอดขาย</td><td>28–35%</td><td>เส้น/แท่งรายสัปดาห์ + แถบเป้า</td><td><span class="role">เจ้าของ</span><span class="role">ผู้จัดการ</span> สัปดาห์</td><td><span class="pill yes">มี</span><br><span class="sub">ตัดสต๊อกไม่ครบ = “อย่างน้อย”</span></td><td>ต้นทุน</td></tr>
+        <tr><td class="n">3</td><td><b>ดีขึ้นหรือแย่ลง</b></td><td>เทียบช่วงก่อน ต่อวัน (▲▼)</td><td>—</td><td>ลูกศร + แท่งเล็กย้อนหลังในการ์ด</td><td>ทุกคน · สัปดาห์</td><td><span class="pill yes">มี</span></td><td>ทุกตัวเลขในหน้า</td></tr>
+        <tr><td class="n">4</td><td><b>เงินรั่วตรงไหน</b></td><td>ส่วนต่าง = ต้นทุนจริง − ต้นทุนตามสูตร (เป็นเงินและ % ของยอดขาย) · ของหายจากการนับ</td><td>≤ 2–3% ของยอดขาย</td><td>แท่งแนวนอนเรียงตามเงิน (ตัวไหนหายมากสุด) · จุดของการนับแต่ละครั้ง</td><td><span class="role">ผู้จัดการ</span><span class="role">ครัว</span> สัปดาห์</td><td><span class="pill yes">มี</span><br><span class="sub">รู้เฉพาะวันที่นับ</span></td><td>ต้นทุน · ของหายไปไหน</td></tr>
+        <tr><td class="n">5</td><td><b>ทิ้งอะไร เพราะอะไร</b></td><td>ของทิ้งเป็นเงิน แยกเหตุผล/ตัวสินค้า</td><td>—</td><td>แท่งตามเหตุผล · ตัวที่ทิ้งบ่อย</td><td><span class="role">ครัว</span> สัปดาห์</td><td><span class="pill yes">มี</span></td><td>ของเสีย · สรุปในต้นทุน</td></tr>
+        <tr><td class="n">6</td><td><b>วัตถุดิบตัวไหนขึ้นราคา กระทบเท่าไร</b></td><td>% เปลี่ยน × ปริมาณที่ซื้อ = เงินที่เพิ่ม</td><td>—</td><td>รายการเรียงตามเงินที่กระทบ + แท่งเล็กราคาย้อนหลัง</td><td><span class="role">เจ้าของ</span><span class="role">จัดซื้อ</span> สัปดาห์</td><td><span class="pill yes">มี</span></td><td>ราคาวัตถุดิบขึ้นลง · สรุปในต้นทุน</td></tr>
+        <tr><td class="n">7</td><td><b>จ่ายแพงเกินไหม</b></td><td>จ่ายแพงกว่าที่ถูกสุด · ราคารับ ≠ ใบสั่ง</td><td>—</td><td>รายการผู้ขาย/สินค้าที่แพงกว่า</td><td><span class="role">ผู้จัดการ</span> วัน/สัปดาห์</td><td><span class="pill part">มีบางส่วน</span><br><span class="sub">มีตัวเลขรวม ยังไม่เจาะรายตัว</span></td><td>ต้นทุน · รับสินค้า</td></tr>
+        <tr><td class="n">8</td><td><b>สาขาไหนดี สาขาไหนแย่</b></td><td>ทุกตัวชี้วัดข้างบน ต่อสาขา เป็น % · ช่องว่างเป็นเงิน</td><td>เทียบกับสาขาที่ดีที่สุด</td><td>ตารางเทียบ + ★ · ลำดับสาขา</td><td><span class="role">เจ้าของ</span><span class="role">หลายสาขา</span> สัปดาห์</td><td><span class="pill yes">มี</span></td><td>ต้นทุน</td></tr>
+        <tr><td class="n">9</td><td><b>เงินจมในสต๊อกเท่าไร อะไรค้างนาน</b></td><td>มูลค่าสต๊อก · วันที่ของพอใช้ · ของไม่เคลื่อนไหว</td><td>—</td><td>แท่งตามหมวด · รายการของค้าง</td><td><span class="role">เจ้าของ</span> เดือน</td><td><span class="pill part">มีบางส่วน</span><br><span class="sub">มูลค่ามี · ของค้างนานคิดจากอัตราใช้ได้</span></td><td>สต๊อก · สรุปในต้นทุน</td></tr>
+        <tr><td class="n">10</td><td><b>เมนูไหนกำไรดี ควรปรับราคา</b></td><td>กำไรต่อจาน × จำนวนขาย (Menu engineering)</td><td>—</td><td>กราฟกระจาย 4 ช่อง</td><td><span class="role">เจ้าของ</span> เดือน</td><td><span class="pill yes">มี</span></td><td>ยอดขาย</td></tr>
+        <tr><td class="n">11</td><td><b>วัตถุดิบขึ้นแล้ว เมนูไหนโดน</b></td><td>เมนูที่ใช้วัตถุดิบนั้น · ต้นทุน % ใหม่</td><td>—</td><td>รายการเมนูพร้อม % เดิม → ใหม่</td><td><span class="role">เจ้าของ</span> เมื่อราคาเปลี่ยน</td><td><span class="pill part">มีบางส่วน</span><br><span class="sub">มีที่แผงวัตถุดิบ ยังไม่รวบรวม</span></td><td>ราคาวัตถุดิบขึ้นลง</td></tr>
+        <tr><td class="n">12</td><td><b>ตัวเลขเชื่อได้ไหม</b></td><td>นับสต๊อกล่าสุดเมื่อไร · ตัดสต๊อกครบกี่วัน · ยอดขายครบทุกสาขาไหม</td><td>นับอย่างน้อยเดือนละครั้ง (ของแพงทุกสัปดาห์)</td><td>รายการตรวจสั้น ๆ ข้างตัวเลข</td><td>ทุกคน</td><td><span class="pill yes">มี</span></td><td>ทุกหน้าที่มีตัวเลข</td></tr>
+        <tr><td class="n">—</td><td><b>เทียบงบที่ตั้งไว้</b></td><td>จริง vs งบ</td><td>—</td><td>แท่งจริงข้างแท่งงบ</td><td><span class="role">เจ้าของ</span> เดือน</td><td><span class="pill no">ไม่มี</span><br><span class="sub">มีแค่เป้า % ถ้าทำเป็นค่าที่ร้านตั้ง</span></td><td>— (ยังไม่ทำ)</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section style="display:grid;gap:12px">
+    <h2>หน้าต้นทุนควรเรียงแบบนี้</h2>
+    <p class="sub">เรียงตามคำถาม ไม่ใช่ตามตาราง · แต่ละส่วนตอบหนึ่งคำถามและบอกว่าต้องทำอะไรต่อ</p>
+    <div class="order">
+      <div><span class="k">1</span><span><b>การ์ด 4 ใบ (เป็นแท็บของกราฟ):</b> Prime cost % · ต้นทุนอาหาร % · ส่วนต่าง/ของหาย % · ทิ้ง — ทุกใบเทียบเป้าและเทียบช่วงก่อน (ข้อ 1–3)</span></div>
+      <div><span class="k">2</span><span><b>กราฟแนวโน้ม รายสัปดาห์เป็นค่าเริ่มต้น</b> (สลับรายเดือนได้) · แถบเป้า · แยกสาขา · ชี้/กดได้ (ข้อ 1–3)</span></div>
+      <div><span class="k">3</span><span><b>“ต้องจัดการก่อน”</b> 3–5 เรื่องที่เป็นเงินมากที่สุดสัปดาห์นี้ รวมจากหลายแหล่ง: ของหายตัวใหญ่ · วัตถุดิบขึ้นราคา · จ่ายแพงเกิน · ทิ้งเยอะ — แต่ละเรื่องกดไปหน้าที่แก้ได้ (ข้อ 4–7)</span></div>
+      <div><span class="k">4</span><span><b>เทียบสาขา</b> ตารางทีละตัวชี้วัด + ช่องว่างเป็นเงิน (ข้อ 8)</span></div>
+      <div><span class="k">5</span><span><b>เงินจมในสต๊อก + ของค้างนาน</b> (ข้อ 9)</span></div>
+      <div><span class="k">6</span><span><b>ตัวเลขเชื่อได้แค่ไหน</b> แถบเล็ก: นับล่าสุด · ตัดสต๊อกครบ · ยอดขายครบ (ข้อ 12)</span></div>
+    </div>
+    <div class="card" style="background:var(--warn-bg);border-color:var(--strong)">
+      <h3>ต้องตัดสิน / ต้องเพิ่มจากที่มี</h3>
+      <ul style="margin:0;padding-left:18px;display:grid;gap:4px;font-size:.92rem">
+        <li><b>ดูรายสัปดาห์:</b> ตอนนี้ระบบคิดต้นทุนเป็นช่วงวัน ทำรายสัปดาห์ได้โดยไม่ต้องเพิ่มตาราง แต่ต้องวัดความเร็ว (คิดหลายช่วงย้อนหลัง)</li>
+        <li><b>Prime cost:</b> ต้องให้ร้านบันทึกเงินเดือนในหมวด “ค่าแรง” · ถ้ายังไม่มีข้อมูล ต้องขึ้นว่า “ยังไม่มีค่าแรง” ไม่ใช่ 0</li>
+        <li><b>เป้า % เป็นค่าที่ร้านตั้งเอง:</b> ต้นทุนอาหาร · prime cost · ส่วนต่าง — ค่าเริ่มต้นตามตารางข้างบน (ลงทะเบียนค่าที่ร้านตั้งได้)</li>
+        <li><b>“ต้องจัดการก่อน”</b> รวมหลายแหล่งเป็นรายการเดียว จัดลำดับด้วย “เงิน” ตัวเดียว</li>
+      </ul>
+    </div>
+  </section>
+
+  <section style="display:grid;gap:12px">
+    <h2>หลักการสำหรับทุกหน้าในคิดครัว</h2>
+    <ol class="steps">
+      <li><b>เริ่มจากคำถาม ไม่ใช่ข้อมูล:</b> ก่อนออกแบบหน้า ค้นหาว่าคนที่ใช้หน้านั้น (เจ้าของ / ผู้จัดการ / ครัว / จัดซื้อ) ถามอะไร บ่อยแค่ไหน ใช้ตัวเลขอะไรตอบ เกณฑ์เท่าไร</li>
+      <li><b>ทำคลังคำถามของหน้านั้น:</b> คำถาม → ตัวเลข → เกณฑ์ → กราฟ → ความถี่ → ระบบมีข้อมูลไหม (แบบตารางข้างบน)</li>
+      <li><b>เรียงหน้าตามคำถามสำคัญที่สุดก่อน</b> และทุกส่วนต้องบอก “ทำอะไรต่อ” (ลิงก์ไปหน้าที่แก้ได้)</li>
+      <li><b>ทุกตัวเลขบอกว่าเทียบกับอะไร และเชื่อได้แค่ไหน</b> (เป้า · ช่วงก่อน · สาขาอื่น · ความครอบคลุม)</li>
+      <li><b>คำถามไหนระบบยังตอบไม่ได้ บอกตรง ๆ</b> และบอกว่าต้องทำอะไรถึงจะได้คำตอบ</li>
+    </ol>
+    <p class="sub">หน้าที่จะทำแบบนี้ต่อ ตามลำดับ: ต้นทุน → ของหายไปไหน → ราคาวัตถุดิบขึ้นลง → สต๊อก → ของเสีย → ยอดขาย → แดชบอร์ด → ซื้อของ</p>
+  </section>
+
+  <section class="src">
+    <h3 style="font-size:.95rem;color:var(--fg)">แหล่งที่ใช้</h3>
+    <a href="https://www.slang.ai/post/restaurant-kpis">20 Restaurant KPIs Every Operator Should Track (Slang.ai)</a>
+    <a href="https://therestaurantownersguide.com/blog/restaurant-kpi-guide">Restaurant KPIs to Track Weekly (The Restaurant Owner's Guide)</a>
+    <a href="https://whipplewood.com/insights/financial-benchmarks-for-restaurants/">Restaurant Financial Benchmarks 2026 (Whipplewood)</a>
+    <a href="https://www.xenia.team/articles/restaurant-dashboards">12 Restaurant Dashboard Examples (Xenia)</a>
+    <a href="https://www.restaurant365.com/blog/how-to-compare-performance-across-multiple-restaurant-locations/">How to Compare Performance Across Locations (Restaurant365)</a>
+    <a href="https://www.restaurant365.com/blog/closing-the-gap-between-actual-and-theoretical-food-costs">Closing the Gap Between Actual and Theoretical Food Costs (Restaurant365)</a>
+    <a href="https://opshospitality.com/blog/weekly-restaurant-management-review-checklist/">Weekly Restaurant Management Review Checklist (OPS Hospitality)</a>
+    <a href="https://thomasmonroebooks.com/restaurant-food-cost-control">Restaurant Food Cost Control: A Manager's Daily and Weekly System</a>
+    <a href="https://www.synergysuite.com/?p=13293">Why Multi-Location Performance Gaps Cost You 8–12% in EBITDA (SynergySuite)</a>
+    <a href="https://supy.io/blog/learn-restaurant-inventory-kpis-multi-site">Restaurant Inventory KPIs for Multi-Site (Supy)</a>
+    <a href="https://amarinacademy.com/1576/finance/cost-restaurant/">เผยวิธีคำนวณต้นทุนร้านอาหาร ที่เจ้าของกิจการต้องรู้ (Amarin Academy)</a>
+    <a href="https://pos.toasttab.com/blog/on-the-line/restaurant-prime-cost">How to Calculate Prime Cost (Toast)</a>
+  </section>
+</div>
