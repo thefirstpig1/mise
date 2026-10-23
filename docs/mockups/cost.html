@@ -275,7 +275,7 @@ tr.rowc{cursor:pointer} tr.rowc:hover td{background:rgb(174 183 132 / .12)}
 </style>
 <div class="wrap v-new" id="root">
   <div class="top">
-    <div><h1 style="font-size:1.2rem">ต้นทุน · เก่า–ใหม่ (รอบ 6)</h1>
+    <div><h1 style="font-size:1.2rem">ต้นทุน · เก่า–ใหม่ (รอบ 7)</h1>
       <p class="sub">ออกแบบจากคำถามที่เจ้าของร้านและผู้จัดการถาม · ตัวเลขจริงของร้านตัวอย่าง · กด “ตัวอย่าง” ในแถบกำลังดู เพื่อดูตอนข้อมูลครบสองสาขา</p></div>
     <div class="chips">
       <div class="seg" role="group" aria-label="แบบไหน"><button id="b-now" aria-pressed="false">ตอนนี้</button><button id="b-new" aria-pressed="true">ที่เสนอ</button></div>
@@ -369,13 +369,13 @@ tr.rowc{cursor:pointer} tr.rowc:hover td{background:rgb(174 183 132 / .12)}
     <h3 style="font-size:1rem">หน้านี้เรียงตามคำถาม (จากงานค้นคว้า)</h3>
     <ol>
       <li><b>1–3 ร้านแข็งแรงไหม ดีขึ้นหรือแย่ลง</b> — การ์ด 4 ใบเป็นแท็บของกราฟ: <b>Prime cost</b> · ต้นทุนอาหาร · ส่วนต่าง · ทิ้ง · ทุกใบบอก “อยู่ในเป้า / เกินเป้า” ตามเป้าที่ร้านตั้ง และเทียบช่วงก่อน · กราฟ<b>รายสัปดาห์เป็นค่าเริ่มต้น</b> (สลับรายเดือนได้ที่แถบบน) · เส้นประแดง = เป้า ส่วนที่เกินเป้าเป็นสีแดงบนแท่ง</li>
-      <li><b>4–7 ต้องจัดการอะไรก่อน</b> — รายการเดียว เรียงตามเงิน รวม นับขาด · ราคาที่ขึ้น (จ่ายเพิ่มเท่าไร) · ของทิ้ง · แต่ละแถวกดไปหน้าที่แก้ได้ · ราคาที่ลดลง · กล่องเหลือง “ข้อมูลยังไม่ครบ” บอกว่าทำไมตัวเลขอาจยังไม่เต็ม และต้องไปทำอะไร</li>
+      <li><b>4–7 ต้องจัดการอะไรก่อน</b> — รายการเดียว เรียงตามเงิน รวม ไม่ตรงกับระบบ · ราคาที่ขึ้น (จ่ายเพิ่มเท่าไร) · ของทิ้ง · แต่ละแถวกดไปหน้าที่แก้ได้ · ราคาที่ลดลง · กล่องเหลือง “ข้อมูลยังไม่ครบ” บอกว่าทำไมตัวเลขอาจยังไม่เต็ม และต้องไปทำอะไร</li>
       <li><b>8 สาขาไหนดี</b> — ตารางเทียบทีละตัวชี้วัด ★ = ดีกว่า · ชี้แถว = กราฟแสดงตัวนั้น · ช่องว่างเป็นเงิน</li>
-      <li><b>9 เงินจมในสต๊อก</b> — มูลค่ารวม + ของที่กว่าจะใช้หมดเกิน 45 วัน</li>
+      <li><b>9 เงินจมในสต๊อก</b> — มูลค่ารวม + <b>ของที่ค้างนานที่สุด</b> (ล็อตเก่าสุดที่ยังเหลือ ซื้อมากี่วันแล้ว) · สลับดู “อีกกี่วันจะใช้หมด” ได้</li>
       <li><b>12 ตัวเลขเชื่อได้แค่ไหน</b> — นับล่าสุด · ตัดสต๊อกครบไหม · ยอดขายครบทุกสาขาไหม · ค่าแรงมีไหม</li>
       <li><b>เป้าของร้าน</b> — ปุ่มบนขวา กดแก้ได้ (ค่าเริ่มต้น อาหาร ≤35% · prime ≤65% · ส่วนต่าง ≤2%) ทั้งหน้าเปลี่ยนตาม</li>
     </ol>
-    <p class="sub">ตัวเลขจริง: ต้นทุน ยอดขาย รายสัปดาห์ของสาขาอารีย์ 10 ส.ค.–27 ก.ย. · ค่าแรง = เงินเดือน ส.ค. ฿96,000 กระจายตามวัน (ก.ย. ยังไม่บันทึก จึงขึ้น “ยังไม่มีค่าแรง”) · ราคาที่ขึ้นคิดจากใบรับของ ส.ค.–ต.ค. × ปริมาณที่ซื้อใน ก.ย. · ของหายจากการนับ 24 ก.ย. · ของค้างนานจากคงเหลือ ÷ อัตราใช้ · งานค้นคว้า: claude.ai/artifact/61gpF3mXzc2PnUHVUTD5UN</p>
+    <p class="sub">ตัวเลขจริง: ต้นทุน ยอดขาย รายสัปดาห์ของสาขาอารีย์ 10 ส.ค.–27 ก.ย. · ค่าแรง = เงินเดือน ส.ค. ฿96,000 กระจายตามวัน (ก.ย. ยังไม่บันทึก จึงขึ้น “ยังไม่มีค่าแรง”) · ราคาที่ขึ้นคิดจากใบรับของ ส.ค.–ต.ค. × ปริมาณที่ซื้อใน ก.ย. · ของหายจากการนับ 24 ก.ย. · อายุของค้าง = วันนี้ − วันรับล็อตเก่าสุดที่ยังเหลือ (ตามลำดับ FIFO) · อีกกี่วันจะใช้หมด = คงเหลือ ÷ ใช้ต่อวัน · งานค้นคว้า: claude.ai/artifact/61gpF3mXzc2PnUHVUTD5UN</p>
   </div>
 </div>
 
@@ -428,7 +428,7 @@ const pctOn=(x,rev)=>rev?x/rev*100:null;
 const M={
  prime:{tab:"Prime cost",B:a=>a.rev==null||a.labor==null?null:a.sold+a.labor,P:a=>a.rev==null||a.labor==null?null:(a.sold+a.labor)/a.rev*100,target:()=>T.prime,why:a=>a.rev==null?"ไม่มียอดขาย":a.laborWhy||"ยังไม่มีค่าแรง",bound:a=>a.cov<.995,hint:"ต้นทุนของที่ขายไป + ค่าแรง · ค่าแรงรายเดือนกระจายตามวัน"},
  food:{tab:"ต้นทุนอาหาร",B:a=>a.rev==null?null:a.sold,P:a=>a.rev==null?null:a.sold/a.rev*100,target:()=>T.food,why:()=>"ไม่มียอดขาย",bound:a=>a.cov<.995,hint:"ต้นทุนของที่ขายไป (ตามสูตร)"},
- var:{tab:"นับขาด",counts:true,hint:"นับได้น้อยกว่าที่ระบบคิดว่าควรเหลือ · รู้ได้ตอนนับสต๊อกเท่านั้น · จุด = การนับแต่ละครั้ง"},
+ var:{tab:"ไม่ตรงกับระบบ",counts:true,hint:"นับได้ไม่ตรงกับที่ระบบคำนวณ หลังหักที่บันทึกว่าทิ้งและของเสียแล้ว · รู้ได้ตอนนับสต๊อกเท่านั้น · จุด = การนับแต่ละครั้ง"},
  waste:{tab:"ทิ้ง",B:a=>a.rev==null?null:a.waste,P:a=>a.rev==null?null:a.waste/a.rev*100,why:()=>"ไม่มียอดขาย",hint:"ของที่บันทึกว่าทิ้ง"},
 };
 const isPct=()=>unit==="pct";
@@ -453,7 +453,7 @@ function chips(){
 }
 // ---------- Q1–3 tabs ----------
 function tabs(){
-  if(!$("#tabs").children.length){ $("#tabs").innerHTML=Object.keys(M).map(k=>`<button class="tab" data-m="${k}" role="tab"><span class="tk"></span><span class="tv"></span><span class="tt"></span><span class="ts"></span><svg class="spark" width="100%" height="26" preserveAspectRatio="none"></svg></button>`).join(""); $$("#tabs .tab").forEach(t=>t.onclick=()=>{metric=t.dataset.m;render();}); const vt=$('#tabs .tab[data-m="var"] .tk'); if(vt) vt.title="นับได้น้อยกว่าที่ระบบคิดว่าควรเหลือ (รับเข้า − ตัดตามสูตร − บันทึกทิ้ง) · สาเหตุที่พบบ่อย: ตักเกินสูตร ทิ้งไม่บันทึก รับของไม่ครบ นับหรือหน่วยผิด ของถูกหยิบไป"; }
+  if(!$("#tabs").children.length){ $("#tabs").innerHTML=Object.keys(M).map(k=>`<button class="tab" data-m="${k}" role="tab"><span class="tk"></span><span class="tv"></span><span class="tt"></span><span class="ts"></span><svg class="spark" width="100%" height="26" preserveAspectRatio="none"></svg></button>`).join(""); $$("#tabs .tab").forEach(t=>t.onclick=()=>{metric=t.dataset.m;render();}); const vt=$('#tabs .tab[data-m="var"] .tk'); if(vt) vt.title="นับได้ไม่ตรงกับที่ระบบคำนวณว่าควรเหลือ (รับเข้า − ตัดตามสูตรที่ขาย − ที่บันทึกว่าทิ้งและของเสียแล้ว) · ส่วนที่ต่างคือของที่ไม่มีใครบันทึกว่าไปไหน · สาเหตุที่พบบ่อย: ตักเกินสูตร ทิ้งแต่ไม่ได้บันทึก รับของไม่ครบ นับหรือหน่วยผิด ของถูกหยิบไป"; vt.insertAdjacentHTML("beforeend",' <span class="q">?</span>'); }
   const a=agg(sel), p=sel>0?agg(sel-1):null, prevLabel=sel>0?P[sel-1].k:null;
   $$("#tabs .tab").forEach(t=>{ const k=t.dataset.m, m=M[k]; t.classList.toggle("on",k===metric); t.querySelector(".tk").textContent=m.tab;
     const tv=t.querySelector(".tv"), tt=t.querySelector(".tt"), ts=t.querySelector(".ts");
@@ -520,20 +520,20 @@ function countsChart(){
   $("#chartLegend").innerHTML=sets.map(b=>`<span><i style="background:${BR[b].c1};border-radius:50%"></i>${BR[b].name}</span>`).join("")+'<span class="sub">ลายเส้น = ช่วงที่ไม่ได้นับ (ไม่รู้ ไม่ใช่ ฿0) · กดจุดเพื่อดูว่าอะไรหาย</span>';
   $$("#chart .cnt").forEach(el=>{ const c=cs[+el.dataset.k];
     el.onmouseenter=()=>{ const prev=cs.filter(p=>p.b===c.b&&pos(p)<pos(c)).sort((p,q)=>pos(q)-pos(p))[0]; const t=$("#ctip"); t.hidden=false;
-      t.innerHTML=`<b>${BR[c.b].name} · นับ ${c.date}</b><div class="tr"><span>นับได้ขาด</span><b>฿${f2(c.v)}</b></div>${c.sinceRev?`<div class="tr"><span>% ของยอดขาย${c.since}</span><b>${(c.v/c.sinceRev*100).toFixed(2)}% (เป้า ≤${T.var}%)</b></div>`:""}${prev?`<div class="tr"><span>ครั้งก่อน ${prev.date}</span><b>฿${f0(prev.v)}</b></div>`:'<div style="opacity:.75">ครั้งแรกที่นับ</div>'}<div style="opacity:.75;margin-top:4px">กดเพื่อดูว่าขาดอะไร</div>`;
+      t.innerHTML=`<b>${BR[c.b].name} · นับ ${c.date}</b><div class="tr"><span>ไม่ตรงกับระบบ</span><b>฿${f2(c.v)}</b></div>${c.sinceRev?`<div class="tr"><span>% ของยอดขาย${c.since}</span><b>${(c.v/c.sinceRev*100).toFixed(2)}% (เป้า ≤${T.var}%)</b></div>`:""}${prev?`<div class="tr"><span>ครั้งก่อน ${prev.date}</span><b>฿${f0(prev.v)}</b></div>`:'<div style="opacity:.75">ครั้งแรกที่นับ</div>'}<div style="opacity:.75;margin-top:4px">กดเพื่อดูว่าตัวไหนไม่ตรง</div>`;
       t.style.left=Math.min(Math.max(8,L+slot*(pos(c)+.5)-120),W-260)+"px"; };
     el.onmouseleave=()=>{$("#ctip").hidden=true;}; el.onclick=()=>openCount(c); });
 }
 function openCount(c){ const top=c.items[0][2];
   $("#mbox").innerHTML=`<div class="row" style="justify-content:space-between"><h3 style="font-size:1.1rem">${BR[c.b].name} · นับสต๊อก ${c.date}</h3><span class="x2" style="position:static;cursor:pointer" id="mx">×</span></div>
-  <div class="kp" style="grid-template-columns:repeat(3,1fr)"><div class="kpi"><span class="k">นับขาดรวม</span><span class="v num" style="font-size:1.15rem;color:var(--bad)">฿${f2(c.v)}</span></div><div class="kpi"><span class="k">รายการที่ขาด</span><span class="v num" style="font-size:1.15rem">${c.items.length}</span></div><div class="kpi"><span class="k">ขาดมากสุด</span><span class="v" style="font-size:1.05rem">${c.items[0][0]}</span><span class="s">${Math.round(top/c.v*100)}% ของทั้งหมด</span></div></div>
-  <table class="mt"><thead><tr><th>วัตถุดิบ</th><th>นับได้ขาด</th><th>มูลค่า</th></tr></thead><tbody>${c.items.map(it=>`<tr><td>${it[0]}</td><td class="num">${it[1]}</td><td class="num"><span class="lbar" style="width:${Math.max(4,it[2]/top*110)}px;animation:grow .5s both"></span>฿${f2(it[2])}</td></tr>`).join("")}</tbody></table>
+  <div class="kp" style="grid-template-columns:repeat(3,1fr)"><div class="kpi"><span class="k">ไม่ตรงกับระบบ รวม</span><span class="v num" style="font-size:1.15rem;color:var(--bad)">฿${f2(c.v)}</span></div><div class="kpi"><span class="k">รายการที่ไม่ตรง</span><span class="v num" style="font-size:1.15rem">${c.items.length}</span></div><div class="kpi"><span class="k">ต่างมากสุด</span><span class="v" style="font-size:1.05rem">${c.items[0][0]}</span><span class="s">${Math.round(top/c.v*100)}% ของทั้งหมด</span></div></div>
+  <table class="mt"><thead><tr><th>วัตถุดิบ</th><th>นับได้ต่างจากระบบ</th><th>มูลค่า</th></tr></thead><tbody>${c.items.map(it=>`<tr><td>${it[0]}</td><td class="num">${it[1]}</td><td class="num"><span class="lbar" style="width:${Math.max(4,it[2]/top*110)}px;animation:grow .5s both"></span>฿${f2(it[2])}</td></tr>`).join("")}</tbody></table>
   <div class="row" style="justify-content:space-between"><span class="sub">ระบบคิดว่าควรเหลือ − นับได้จริง · ตีราคาตามต้นทุน · สาเหตุที่พบบ่อย: ตักเกินสูตร ทิ้งไม่บันทึก รับของไม่ครบ นับ/หน่วยผิด ของถูกหยิบไป</span><span class="dl">ดูทั้งหมดที่ “ของหายไปไหน” ›</span></div>`;
   $("#modal").hidden=false; $("#mx").onclick=()=>$("#modal").hidden=true; }
 // ---------- Q4–7: what to deal with first ----------
 function todo(){
   const items=[];
-  const c=lastCount(bs()); if(c) c.items.slice(0,3).forEach(it=>items.push({type:"นับขาด",tone:"bad",title:`${it[0]} นับได้ขาด ${it[1].replace("−","")}`,detail:`${BR[c.b].name} · นับ ${c.date} · น้อยกว่าที่ระบบคิดว่าควรเหลือ`,money:it[2],act:"ของหายไปไหน",count:c}));
+  const c=lastCount(bs()); if(c) c.items.slice(0,3).forEach(it=>items.push({type:"ไม่ตรงกับระบบ",tone:"bad",title:`${it[0]} นับได้น้อยกว่าระบบ ${it[1].replace("−","")}`,detail:`${BR[c.b].name} · นับ ${c.date} · หักที่บันทึกทิ้งและของเสียแล้ว`,money:it[2],act:"ของหายไปไหน",count:c}));
   if(real) PRICES_REAL.filter(p=>p[2]>0).slice(0,3).forEach(p=>items.push({type:"ราคาขึ้น",tone:"warn",title:`${p[0]} ขึ้น ${p[1]}%`,detail:`${p[3]} · ก.ย. จ่ายเพิ่ม`,money:p[2],act:"ราคาวัตถุดิบขึ้นลง"}));
   else items.push({type:"ราคาขึ้น",tone:"warn",title:"เบียร์สิงห์ 620 มล. ขึ้น 11.6%",detail:"ตัวอย่าง",money:3197,act:"ราคาวัตถุดิบขึ้นลง"});
   const a=agg(sel); if(a.rev!=null&&a.waste>0) items.push({type:"ทิ้ง",tone:"muted",title:"ของที่บันทึกว่าทิ้ง",detail:`${P[sel].k}`,money:a.waste,act:"ของเสีย"});
@@ -551,7 +551,7 @@ function todo(){
 // ---------- Q8 bench ----------
 function bench(){
   const a=agg(sel,"ARI"), b=agg(sel,"LPR");
-  const rows=[["prime","Prime cost %"],["food","ต้นทุนอาหาร %"],["var","นับขาด % ของยอดขาย (นับล่าสุด)",x=>{const c=lastCount([x]);return c&&c.sinceRev?c.v/c.sinceRev*100:null;},v=>v.toFixed(2)+"%"],["waste","ทิ้ง % ของยอดขาย",x=>{const g=agg(sel,x);return g.rev?g.waste/g.rev*100:null;},v=>v.toFixed(2)+"%"]];
+  const rows=[["prime","Prime cost %"],["food","ต้นทุนอาหาร %"],["var","ไม่ตรงกับระบบ % ของยอดขาย (นับล่าสุด)",x=>{const c=lastCount([x]);return c&&c.sinceRev?c.v/c.sinceRev*100:null;},v=>v.toFixed(2)+"%"],["waste","ทิ้ง % ของยอดขาย",x=>{const g=agg(sel,x);return g.rev?g.waste/g.rev*100:null;},v=>v.toFixed(2)+"%"]];
   const val=(r,br)=>r[2]?r[2](br):M[r[0]].P(agg(sel,br)), fmt=(r,v)=>r[3]?r[3](v):v.toFixed(1)+"%";
   let h=`<table class="mt"><thead><tr><th style="text-align:left">ตัวชี้วัด</th>${["ARI","LPR"].map(k=>`<th style="text-align:center"><i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${BR[k].c1};margin-right:4px"></i>${BR[k].name}</th>`).join("")}</tr></thead><tbody>`;
   rows.forEach(r=>{ const va=val(r,"ARI"), vb=val(r,"LPR"), both=va!=null&&vb!=null, bA=both&&va<vb, bB=both&&vb<va;
@@ -564,15 +564,28 @@ function bench(){
   else $("#gap").innerHTML=`<div class="gaps" style="margin-top:8px">ยังเทียบเป็นเงินไม่ได้ · สาขาลาดพร้าวยังไม่มีไฟล์ยอดขาย · <span class="dl">นำเข้ายอดขาย ›</span> · กด “ตัวอย่าง” เพื่อดูตอนมีครบ</div>`;
 }
 // ---------- Q9 stock ----------
+let stockView="age";
+const AGE_REAL=[["เส้นจันท์",56,"28 ส.ค.",90,8369],["เนื้อสันใน",53,"31 ส.ค.",2081,16124],["หมูสามชั้น",53,"31 ส.ค.",634,15021],["น้ำมันพืช",53,"31 ส.ค.",354,11738],["นมข้นจืด",53,"31 ส.ค.",59,9432],["กะทิ",50,"3 ก.ย.",1189,11133]];
+const AGE_DEMO=[["เส้นจันท์",96,"19 ก.ค.",1200,8400],["เนื้อสันใน",71,"13 ส.ค.",5200,14800],["น้ำมันพืช",64,"20 ส.ค.",2100,11000],["หมูสามชั้น",49,"4 ก.ย.",3300,13900]];
 function stock(){
   const total=bs().reduce((s,b)=>s+(real?STOCK_REAL[b]:(b==="ARI"?296000:184000)),0);
-  const slow=real?SLOW_REAL:[["เนื้อสันใน",62,14800],["หมูสามชั้น",48,13900],["น้ำมันพืช",45,11000]];
-  const mx=Math.max(...slow.map(s=>s[2]));
+  const sw=`<span class="seg" role="group" aria-label="มุมมองสต๊อก" style="font-size:.78rem"><button data-sv="age" aria-pressed="${stockView==="age"}">ค้างมากี่วัน</button><button data-sv="left" aria-pressed="${stockView==="left"}">อีกกี่วันจะใช้หมด</button></span>`;
+  let body;
+  if(stockView==="age"){
+    const rows=real?AGE_REAL:AGE_DEMO, mx=Math.max(...rows.map(s=>s[4]));
+    body=`<p class="sub" style="margin:6px 0 4px">ของเก่าสุดที่ยังอยู่ในสต๊อก ซื้อมากี่วันแล้ว <span class="q" title="นับจากวันรับล็อตเก่าสุดที่ยังเหลือ (ระบบใช้ของตามลำดับเข้าก่อนออกก่อน) · ของที่ค้างเกิน 45 วันเสี่ยงเสื่อมและเป็นเงินที่จมอยู่">?</span></p>
+    ${rows.map(s=>`<div class="slow" title="${s[0]} · ล็อตรับ ${s[2]} ยังเหลือ ฿${f0(s[3])} · ทั้งหมดในสต๊อก ฿${f0(s[4])}"><span>${s[0]}</span><span class="mbar"><i style="width:${s[4]/mx*100}%"></i></span><span class="num">฿${f0(s[4])}</span><span class="num" style="${s[1]>=45?"color:var(--bad);font-weight:600":""}">${s[1]} วัน</span></div><div class="sub" style="font-size:.72rem;margin:-4px 0 4px 120px">รับ ${s[2]} · จากล็อตนั้นยังเหลือ ฿${f0(s[3])}</div>`).join("")}
+    ${real?'<p class="sub" style="margin-top:6px">⚠ ข้อมูลรับของเริ่ม 28 ส.ค. อายุจึงยังไม่เกิน 56 วัน · ล็อตเก่าบางตัวเหลือนิดเดียว (เส้นจันท์ ฿90) — น่าจะเป็นเศษจากการตัดตามสูตร ควรนับยืนยัน</p>':""}`;
+  } else {
+    const slow=real?SLOW_REAL:[["เนื้อสันใน",62,14800],["หมูสามชั้น",48,13900],["น้ำมันพืช",45,11000]], mx=Math.max(...slow.map(s=>s[2]));
+    body=`<p class="sub" style="margin:6px 0 4px">ถ้าใช้เท่าที่ผ่านมา อีกกี่วันจะใช้หมด (≥ 45 วัน = ซื้อเกิน) <span class="q" title="วันที่พอใช้ = คงเหลือ ÷ ใช้ต่อวัน (เฉลี่ยจากวันที่ตัดสต๊อกแล้ว)">?</span></p>
+    ${slow.map(s=>`<div class="slow"><span>${s[0]}</span><span class="mbar"><i style="width:${s[2]/mx*100}%"></i></span><span class="num">฿${f0(s[2])}</span><span class="sub num">${s[1]} วัน</span></div>`).join("")}
+    ${real?'<p class="sub" style="margin-top:6px">⚠ อัตราใช้คิดจากวันที่ตัดสต๊อกแล้วซึ่งยังน้อย ตัวเลขวันจะแม่นขึ้นเมื่อตัดสต๊อกครบ</p>':""}`;
+  }
   $("#stock").innerHTML=`<div class="row" style="justify-content:space-between;align-items:baseline"><span class="sub">มูลค่าของในสต๊อก ณ วันนี้ ${branch==="ALL"?"ทุกสาขา":BR[branch].name}</span><b class="num" style="font-family:var(--display);font-size:1.4rem">฿${f0(total)}</b></div>
-   <p class="sub" style="margin:6px 0 4px">ของที่กว่าจะใช้หมด ≥ 45 วัน (เงินจมนาน) <span class="q" title="วันที่พอใช้ = คงเหลือ ÷ ใช้ต่อวัน">?</span></p>
-   ${slow.map(s=>`<div class="slow"><span>${s[0]}</span><span class="mbar"><i style="width:${s[2]/mx*100}%"></i></span><span class="num">฿${f0(s[2])}</span><span class="sub num">${s[1]} วัน</span></div>`).join("")}
-   ${real?'<p class="sub" style="margin-top:6px">⚠ อัตราใช้คิดจากวันที่ตัดสต๊อกแล้วซึ่งยังน้อย ตัวเลขวันจะแม่นขึ้นเมื่อตัดสต๊อกครบ</p>':""}
+   <div class="row" style="justify-content:flex-end;margin-top:6px">${sw}</div>${body}
    <span class="dl">ดูทั้งหมดที่หน้าสต๊อก ›</span>`;
+  $$("#stock [data-sv]").forEach(x=>x.onclick=()=>{stockView=x.dataset.sv;stock();});
 }
 // ---------- Q12 trust ----------
 function trust(){
