@@ -15,6 +15,7 @@
 import { revalidatePath } from "next/cache";
 import type { ZodError } from "zod";
 import { requireTenant } from "@/lib/require-tenant";
+import { withTenantContext } from "@/lib/db";
 import {
   declareStockCostInputSchema,
   getProductCostQuerySchema,
@@ -167,4 +168,39 @@ export async function getBranchCostSummaryAction(
 
   const rows = await getBranchCostSummaryLogic(tenantId, parsed.data, reach);
   return { ok: true, data: rows.map(toBranchCostSummaryView) };
+}
+
+// ── /cost targets (Kong 2026-10-23) ──────────────────────────────────────────
+// The shop's own targets and the two thresholds the overview reads against.
+// The same columns are edited in ตั้งค่าร้าน; this is the shortcut on the page
+// that uses them. Out-of-range values are refused, not clamped: a target the
+// owner did not type must never quietly become the one the page judges by.
+export type CostTargetsInput = { food: number; prime: number; variance: number; coverageMin: number; slowDays: number };
+
+export async function saveCostTargetsAction(
+  input: CostTargetsInput
+): Promise<{ ok: true } | { ok: false; formError: string }> {
+  const { tenantId } = await requireTenant("settings:write");
+  const { food, prime, variance, coverageMin, slowDays } = input;
+  const inRange = (v: number, lo: number, hi: number) => Number.isFinite(v) && v >= lo && v <= hi;
+  if (!inRange(food, 5, 90) || !inRange(prime, 10, 99) || !inRange(variance, 0, 20)) {
+    return { ok: false, formError: "เป้าต้องเป็นตัวเลข: ต้นทุนอาหาร 5–90% · prime cost 10–99% · ไม่ตรงกับระบบ 0–20%" };
+  }
+  if (!Number.isInteger(coverageMin) || !inRange(coverageMin, 50, 100) || !Number.isInteger(slowDays) || !inRange(slowDays, 7, 365)) {
+    return { ok: false, formError: "เกณฑ์ตัดสต๊อกครบต้องเป็น 50–100% และของค้างนานต้องเป็น 7–365 วัน (จำนวนเต็ม)" };
+  }
+  await withTenantContext(tenantId, (tx) =>
+    tx.tenant.update({
+      where: { id: tenantId },
+      data: {
+        foodCostTargetPct: Math.round(food * 10) / 10,
+        primeCostTargetPct: Math.round(prime * 10) / 10,
+        countVarianceTargetPct: Math.round(variance * 10) / 10,
+        costCoverageMinPct: coverageMin,
+        slowStockDays: slowDays,
+      },
+    })
+  );
+  revalidatePath("/settings");
+  return { ok: true };
 }

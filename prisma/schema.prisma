@@ -93,6 +93,19 @@ model Tenant {
   /// the market, so the shop sets it. 0 = no early warning, only below-par.
   parWarningDays Int @default(3) @map("par_warning_days")
 
+  /// /cost (Kong 2026-10-23). The shop's own targets, in % of sales. Defaults
+  /// are common restaurant rules of thumb; a shop edits them on /cost or in
+  /// ตั้งค่าร้าน, and every status chip on /cost reads against them.
+  foodCostTargetPct      Decimal @default(35) @map("food_cost_target_pct") @db.Decimal(4, 1)
+  primeCostTargetPct     Decimal @default(65) @map("prime_cost_target_pct") @db.Decimal(4, 1)
+  countVarianceTargetPct Decimal @default(2) @map("count_variance_target_pct") @db.Decimal(4, 1)
+  /// Rule CO-COV: below this share of sales posted to stock, a recipe-method
+  /// cost % is too incomplete to compare with a target or the period before
+  /// (fewer recipes posted = less cost = a % that reads as good news).
+  costCoverageMinPct Int @default(90) @map("cost_coverage_min_pct")
+  /// Stock whose oldest remaining lot is older than this is "ค้างนาน".
+  slowStockDays Int @default(45) @map("slow_stock_days")
+
   /// The two staff-meal controls (ADR 0028 Q9). Both nullable, and null means
   /// NOT CHECKED rather than zero — a shop with no policy must not read as a
   /// shop whose staff may eat nothing.

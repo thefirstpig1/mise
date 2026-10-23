@@ -45,6 +45,22 @@ export default async function SettingsPage() {
     const rawWarn = Number(formData.get("par_warning_days"));
     const parWarningDays = Number.isInteger(rawWarn) && rawWarn >= 0 && rawWarn <= 30 ? rawWarn : undefined;
 
+    // /cost targets (Kong 2026-10-23). A value out of range keeps what the shop
+    // had — the same rule as par_warning_days — rather than clamping to a
+    // target nobody typed.
+    const numIn = (name: string, lo: number, hi: number, int = false) => {
+      const v = Number(formData.get(name));
+      return formData.get(name) !== null && Number.isFinite(v) && v >= lo && v <= hi && (!int || Number.isInteger(v)) ? v : undefined;
+    };
+    const costTargets = {
+      foodCostTargetPct: numIn("food_cost_target_pct", 5, 90),
+      primeCostTargetPct: numIn("prime_cost_target_pct", 10, 99),
+      countVarianceTargetPct: numIn("count_variance_target_pct", 0, 20),
+      costCoverageMinPct: numIn("cost_coverage_min_pct", 50, 100, true),
+      slowStockDays: numIn("slow_stock_days", 7, 365, true),
+    };
+    const targetData = Object.fromEntries(Object.entries(costTargets).filter(([, v]) => v !== undefined));
+
     await withTenantContext(tenantId, (tx) =>
       tx.tenant.update({
         where: { id: tenantId },
@@ -55,6 +71,7 @@ export default async function SettingsPage() {
           cancelledSalePolicy: cancelPolicy,
           staffMealStockSource: staffMealStock,
           ...(parWarningDays === undefined ? {} : { parWarningDays }),
+          ...targetData,
         },
       })
     );
@@ -308,6 +325,32 @@ export default async function SettingsPage() {
             <p className="mt-2 text-xs text-muted-foreground">
               คิดจากปริมาณที่ใช้จริงต่อวัน (จากการตัดสต๊อกตามยอดขาย) · ของที่ยังไม่รู้อัตราการใช้ เตือนเมื่อเหลือไม่ถึง 20% เหนือขั้นต่ำ ·
               ผู้ขายส่งของช้า ตั้งให้มากกว่าจำนวนวันที่รอของ · ใส่ 0 = เตือนเฉพาะเมื่อต่ำกว่าขั้นต่ำแล้ว
+            </p>
+          </div>
+
+          <div className="rounded-lg border border-border bg-surface p-6">
+            <h3 className="mb-1 font-medium">เป้าต้นทุนของร้าน</h3>
+            <p className="mb-3 text-sm text-muted-foreground">
+              หน้า “ต้นทุน” บอกว่าอยู่ในเป้าหรือเกินเป้าตามตัวเลขเหล่านี้ · ค่าเริ่มต้นมาจากเกณฑ์ร้านอาหารทั่วไป
+            </p>
+            <div className="grid gap-3 text-sm">
+              {(
+                [
+                  ["food_cost_target_pct", "ต้นทุนอาหาร ไม่เกิน", "% ของยอดขาย", Number(tenant.foodCostTargetPct), 5, 90, 0.5],
+                  ["prime_cost_target_pct", "Prime cost (ต้นทุนอาหาร + ค่าแรง) ไม่เกิน", "% ของยอดขาย", Number(tenant.primeCostTargetPct), 10, 99, 0.5],
+                  ["count_variance_target_pct", "นับสต๊อกได้ไม่ตรงกับระบบ ไม่เกิน", "% ของยอดขาย", Number(tenant.countVarianceTargetPct), 0, 20, 0.1],
+                  ["cost_coverage_min_pct", "เทียบกับเป้าเมื่อตัดสต๊อกแล้วอย่างน้อย", "% ของยอดขาย", tenant.costCoverageMinPct, 50, 100, 1],
+                  ["slow_stock_days", "ของค้างนาน เมื่อล็อตเก่าสุดเก่ากว่า", "วัน", tenant.slowStockDays, 7, 365, 1],
+                ] as const
+              ).map(([name, label, unit, value, min, max, step]) => (
+                <label key={name} className="flex flex-wrap items-center gap-2">
+                  {label}
+                  <MeasureInput name={name} unit={unit} min={min} max={max} step={step} inputMode="decimal" defaultValue={value} aria-label={label} boxClassName="w-40" />
+                </label>
+              ))}
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground">
+              ตัดสต๊อกตามยอดขายได้ไม่ถึงเกณฑ์ ต้นทุนยังไม่ครบและดูดีเกินจริง ระบบจึงแสดงเป็น “อย่างน้อย” และไม่บอกว่าอยู่ในเป้า
             </p>
           </div>
 
