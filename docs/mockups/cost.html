@@ -244,16 +244,44 @@ tr.rowc{cursor:pointer} tr.rowc:hover td{background:rgb(174 183 132 / .12)}
 .lbar{transform-origin:left}
 @media (prefers-reduced-motion:reduce){.mbar,.cnt circle,.lbar{animation:none!important}}
 </style>
+
+<style>
+.qlabel{display:flex;align-items:center;gap:8px;font-family:var(--display);font-weight:600;font-size:.95rem;margin-top:6px}
+.qn{display:inline-grid;place-items:center;min-width:34px;height:22px;border-radius:999px;background:var(--primary);color:var(--primary-fg);font-size:.72rem;padding:0 6px}
+.tabs{grid-template-columns:repeat(4,minmax(0,1fr))}
+.tab .tt{min-height:1.4em}
+.tg{display:inline-block;border-radius:999px;padding:1px 8px;font-size:.7rem;white-space:nowrap}
+.tg.ok{background:var(--good-bg);color:var(--good)} .tg.bad{background:var(--bad-bg);color:var(--bad)} .tg.warn{background:var(--warn-bg);color:var(--warn)} .tg.muted{background:var(--muted);color:var(--muted-fg)}
+.todolist{display:grid;gap:6px}
+.todo{display:grid;grid-template-columns:78px minmax(0,1fr) 100px 160px;gap:12px;align-items:center;padding:9px 10px;border-radius:12px;border:1px solid var(--border);background:var(--surface);cursor:pointer;transition:transform .12s,box-shadow .12s,border-color .12s}
+.todo:hover{transform:translateX(2px);border-color:var(--strong);box-shadow:0 6px 16px rgb(0 0 0/.06)}
+.todo .tbody{display:grid;gap:2px;min-width:0}
+.todo .tmoney{font-family:var(--display);font-weight:700;font-size:1.05rem;text-align:right;font-variant-numeric:tabular-nums}
+.todo .dl{text-align:right}
+.mbar{display:block;height:5px;border-radius:9px;background:var(--muted);overflow:hidden}
+.mbar i{display:block;height:100%;border-radius:9px;background:linear-gradient(90deg,#E8A76F,#C0692B);transform-origin:left;animation:grow .6s cubic-bezier(.2,.8,.2,1) both}
+.gaps{margin-top:10px;padding:10px 12px;border-radius:12px;background:var(--warn-bg);border:1px solid var(--warn-border);font-size:.84rem}
+.gaps ul{margin:4px 0 0;padding-left:18px;display:grid;gap:3px}
+.slow{display:grid;grid-template-columns:110px minmax(0,1fr) 80px 54px;gap:10px;align-items:center;font-size:.86rem;padding:4px 0}
+.slow .mbar i{background:linear-gradient(90deg,#9DAA55,#5E6B14)}
+.trust{display:flex;flex-wrap:wrap;gap:8px}
+.tchip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);background:var(--surface);border-radius:999px;padding:4px 12px;font-size:.8rem}
+.tchip i{width:8px;height:8px;border-radius:50%}
+.tchip.ok i{background:var(--good)} .tchip.warn i{background:var(--warn)} .tchip.bad i{background:var(--bad)}
+.pop{position:fixed;right:24px;top:120px;z-index:9;background:var(--surface);border:1px solid var(--strong);border-radius:16px;box-shadow:0 18px 40px rgb(0 0 0/.18);padding:16px 18px;display:grid;gap:10px;width:min(360px,92vw)}
+.frow{display:flex;align-items:center;gap:8px;font-size:.88rem;flex-wrap:wrap}
+.frow input{width:70px;border:1px solid var(--strong);border-radius:8px;padding:4px 8px;background:var(--warn-bg);color:var(--fg);font:inherit;text-align:right}
+@media (max-width:900px){.todo{grid-template-columns:70px minmax(0,1fr) 90px}.todo .dl{grid-column:2/-1;text-align:left}}
+</style>
 <div class="wrap v-new" id="root">
   <div class="top">
-    <div><h1 style="font-size:1.2rem">ต้นทุน · เก่า–ใหม่ (รอบ 4)</h1>
-      <p class="sub">ข้อมูลจริงของร้านตัวอย่าง (ส.ค.–ก.ย. 69) · กด “ตัวอย่าง 6 เดือน” ในแถบกำลังดู เพื่อเห็นตอนมีครบสองสาขา</p></div>
+    <div><h1 style="font-size:1.2rem">ต้นทุน · เก่า–ใหม่ (รอบ 5)</h1>
+      <p class="sub">ออกแบบจากคำถามที่เจ้าของร้านและผู้จัดการถาม · ตัวเลขจริงของร้านตัวอย่าง · กด “ตัวอย่าง” ในแถบกำลังดู เพื่อดูตอนข้อมูลครบสองสาขา</p></div>
     <div class="chips">
       <div class="seg" role="group" aria-label="แบบไหน"><button id="b-now" aria-pressed="false">ตอนนี้</button><button id="b-new" aria-pressed="true">ที่เสนอ</button></div>
       <div class="seg" role="group"><button id="b-mk" aria-pressed="true">เลขกำกับ</button></div>
     </div>
   </div>
-
   <div class="scroller"><div class="screen auto" style="grid-template-columns:1fr;position:relative;overflow:visible" id="scr">
   <!-- ===== NOW ===== -->
   <div class="costpage" data-v="now">
@@ -277,253 +305,282 @@ tr.rowc{cursor:pointer} tr.rowc:hover td{background:rgb(174 183 132 / .12)}
     </div>
   </div>
 
-  <!-- ===== NEW (v4) ===== -->
+  <!-- ===== NEW (v5, question-first) ===== -->
   <div class="costpage" data-v="new" id="newpage">
-    <div class="sticky" id="sticky"><span>กำลังดู <b id="stView"></b></span><span class="row"><span class="seg" role="group" aria-label="ข้อมูล"><button id="d-real" aria-pressed="true">ข้อมูลจริง</button><button id="d-demo" aria-pressed="false">ตัวอย่าง 6 เดือน</button></span></span></div>
-    <div class="restore" id="demoNote" hidden><b>ตัวเลขสมมติ</b> เพื่อดูหน้าตาตอนร้านใช้มาหลายเดือนและมีครบสองสาขา · ส.ค. และ ก.ย. ของสาขาอารีย์เป็นของจริง นอกนั้นแต่งขึ้น</div>
+    <div class="sticky"><span>กำลังดู <b id="stView"></b></span>
+      <span class="row">
+        <span class="seg" role="group" aria-label="ช่วง"><button id="g-week" aria-pressed="true">รายสัปดาห์</button><button id="g-month" aria-pressed="false">รายเดือน</button></span>
+        <span class="seg" role="group" aria-label="ข้อมูล"><button id="d-real" aria-pressed="true">ข้อมูลจริง</button><button id="d-demo" aria-pressed="false">ตัวอย่าง</button></span>
+      </span></div>
+    <div class="restore" id="demoNote" hidden><b>ตัวเลขสมมติ</b> เพื่อดูหน้าตาตอนมีครบสองสาขาและมีค่าแรงทุกเดือน</div>
 
+    <div class="row" style="justify-content:space-between;align-items:flex-end">
+      <div><h2 style="font-size:1.3rem">ต้นทุน</h2><p class="small" style="font-size:.86rem">ร้านแข็งแรงไหม ดีขึ้นหรือแย่ลง และต้องจัดการอะไรก่อน</p></div>
+      <button class="pbtn" id="targetsBtn">เป้าของร้าน: อาหาร <b id="tFood"></b> · prime <b id="tPrime"></b> · ส่วนต่าง <b id="tVar"></b> ✎</button>
+    </div>
     <div class="sec" style="padding:10px 14px;gap:8px">
-      <div class="row"><span class="small" style="width:44px">เดือน</span><span id="periodChips" class="row"></span></div>
-      <div class="row"><span class="small" style="width:44px">สาขา</span><span id="branchChips" class="row"></span> <i class="mk">1</i></div>
+      <div class="row"><span class="small" style="width:44px">ช่วง</span><span id="periodChips" class="row"></span></div>
+      <div class="row"><span class="small" style="width:44px">สาขา</span><span id="branchChips" class="row"></span></div>
     </div>
 
-    <!-- KPI cards are the chart's tabs -->
+    <!-- Q1–3: health, as the chart's tabs -->
+    <div class="qlabel"><span class="qn">1–3</span> ร้านแข็งแรงไหม · ดีขึ้นหรือแย่ลง</div>
     <div class="tabs" id="tabs" role="tablist"></div>
-
     <div class="chartbox" id="trendbox" style="position:relative">
-      <div class="row" style="justify-content:space-between;align-items:baseline">
-        <div class="h3" style="display:block"><span id="chartTitle"></span></div>
-        <span class="sub" id="chartHint"></span>
-      </div>
+      <div class="row" style="justify-content:space-between;align-items:baseline"><div class="h3" style="display:block"><span id="chartTitle"></span></div><span class="sub" id="chartHint"></span></div>
       <div id="chart" style="position:relative"></div>
       <div class="lg" id="chartLegend"></div>
     </div>
 
+    <!-- Q4–7: what to deal with first -->
+    <div class="qlabel"><span class="qn">4–7</span> ต้องจัดการอะไรก่อน · เรียงตามเงิน</div>
+    <div class="chartbox"><div id="todo"></div></div>
+
     <div class="grid2">
-      <div class="chartbox" id="benchbox">
-        <div class="h3"><span>เทียบสาขา · <span id="benchMonth"></span> <i class="mk">5</i></span><span class="sub">ชี้แถวเพื่อดูในกราฟ</span></div>
-        <div id="bench"></div>
-        <div id="gap"></div>
+      <div>
+        <div class="qlabel"><span class="qn">8</span> สาขาไหนดี สาขาไหนแย่</div>
+        <div class="chartbox" id="benchbox"><div id="bench"></div><div id="gap"></div></div>
       </div>
-      <div class="chartbox">
-        <div class="h3"><span>ของที่หาย ต้องตามต่อ <i class="mk">6</i></span><span class="sub" id="followSub"></span></div>
-        <div id="follow"></div>
+      <div>
+        <div class="qlabel"><span class="qn">9</span> เงินจมในสต๊อก · ของค้างนาน</div>
+        <div class="chartbox"><div id="stock"></div></div>
       </div>
     </div>
 
-    <div class="wrapt" style="position:relative" id="tablebox"><table class="ctab">
-      <thead><tr><th>สาขา</th>
-        <th>ซื้อวัตถุดิบ<span class="q" data-tip="ของที่รับเข้าในช่วงนี้ตามใบรับของ · ไม่ใช่ต้นทุนของที่ขายไป เดือนที่ตุนของจะสูงกว่าปกติ">?</span></th>
-        <th>ค่าใช้จ่ายอื่น<span class="q" data-tip="ค่าใช้จ่ายที่ไม่ใช่วัตถุดิบ ที่บันทึกในหน้าค่าใช้จ่าย">?</span></th>
-        <th>ทิ้ง<span class="q" data-tip="ของที่มีคนบันทึกไว้ว่าทิ้ง พร้อมวันที่และสาเหตุ">?</span></th>
-        <th>ของหาย<span class="q" data-tip="ของที่หายโดยไม่มีใครบันทึก รู้ได้ตอนนับสต๊อกเท่านั้น · เดือนที่ไม่ได้นับขึ้น ‘ยังไม่ได้นับ’ · กดตัวเลขเพื่อดูว่าอะไรหาย">?</span></th>
-        <th>รายได้<span class="q" data-tip="จากไฟล์ยอดขาย · หลังหักส่วนลด ไม่รวม VAT และ Service charge">?</span></th>
-        <th>กำไรขั้นต้น<span class="q" data-tip="รายได้ − ต้นทุนของที่ขายไป · วันที่ยังไม่ได้ตัดสต๊อกยังไม่มีต้นทุน กำไรจึงเป็นเพดาน (ไม่เกิน)">?</span></th></tr></thead>
-      <tbody id="tbody"></tbody></table></div>
+    <!-- Q12: can I trust these numbers -->
+    <div class="qlabel"><span class="qn">12</span> ตัวเลขเชื่อได้แค่ไหน</div>
+    <div class="trust" id="trust"></div>
+  </div>
+
+  <div class="pop" id="targetsPop" hidden>
+    <h3 style="font-size:1rem">เป้าของร้าน</h3>
+    <p class="sub">ค่าเริ่มต้นจากเกณฑ์ร้านอาหารทั่วไป · ร้านแก้ได้ · ใช้ทุกสาขา</p>
+    <label class="frow">ต้นทุนอาหาร ไม่เกิน <input id="inFood" type="number" min="10" max="60" value="35"> %</label>
+    <label class="frow">Prime cost ไม่เกิน <input id="inPrime" type="number" min="30" max="90" value="65"> %</label>
+    <label class="frow">ส่วนต่าง (ของหาย) ไม่เกิน <input id="inVar" type="number" min="0" max="10" step="0.5" value="2"> % ของยอดขาย</label>
+    <div class="row" style="justify-content:flex-end"><button class="pbtn" id="tCancel">ยกเลิก</button><button class="pbtn dark" id="tSave">บันทึก</button></div>
   </div>
 
   <div class="modal" id="modal" hidden><div class="mbox" id="mbox"></div></div>
   </div></div>
 
   <div class="legend">
-    <h3 style="font-size:1rem">ลองเล่น (โหมด “ที่เสนอ”)</h3>
+    <h3 style="font-size:1rem">หน้านี้เรียงตามคำถาม (จากงานค้นคว้า)</h3>
     <ol>
-      <li><i class="mk">1</i><b>ชิปสาขากดได้จริง</b> · “ทุกสาขา” = แท่งคู่เทียบกัน · เลือกสาขาเดียว = ทั้งหน้าเป็นของสาขานั้น และอีกสาขาเป็นเส้นประจาง ๆ ไว้เทียบ</li>
-      <li><i class="mk">2</i><b>การ์ดตัวเลขคือแท็บของกราฟ</b> กดการ์ดแล้วกราฟเปลี่ยนเป็นตัวนั้น · ตัวเลขนับขึ้นเมื่อเปลี่ยนเดือน · มีแท่งเล็กย้อนหลังในการ์ด</li>
-      <li><i class="mk">3</i><b>ชี้คอลัมน์เดือน</b> = แถบไฮไลต์ + กล่องบอกทั้งสองสาขาพร้อมลูกศรเทียบเดือนก่อน + ชิปเดือนด้านบนสว่างตาม · <b>กด</b> = ทั้งหน้าเปลี่ยนเป็นเดือนนั้น</li>
-      <li><i class="mk">4</i><b>ของหาย</b> (กดการ์ด “ของหาย”) ไม่ใช่ค่าเฉลี่ยต่อวันแล้ว เป็น<b>จุดของการนับสต๊อกแต่ละครั้ง</b>ตามวันที่นับจริง ขนาดจุด = มูลค่า · ชี้ = เทียบการนับครั้งก่อน · กด = ป๊อปอัปรายการที่หายจากการนับครั้งนั้น · เดือนที่ไม่ได้นับเป็นลายเส้น</li>
-      <li><i class="mk">5</i><b>ตารางเทียบสาขา</b> ชี้แถวไหน กราฟด้านบนแสดงตัวชี้วัดนั้นทันที (การ์ดเรืองตาม) · กดแถว = เลือกตัวนั้น · ★ = สาขาที่ดีกว่า · ช่องว่างเป็นเงินนับขึ้น</li>
-      <li><i class="mk">6</i><b>ของที่ต้องตามต่อ</b> เทียบการนับครั้งนี้กับครั้งก่อน ป้าย ใหม่ / แย่ลง / ดีขึ้น / แก้แล้ว</li>
+      <li><b>1–3 ร้านแข็งแรงไหม ดีขึ้นหรือแย่ลง</b> — การ์ด 4 ใบเป็นแท็บของกราฟ: <b>Prime cost</b> · ต้นทุนอาหาร · ส่วนต่าง · ทิ้ง · ทุกใบบอก “อยู่ในเป้า / เกินเป้า” ตามเป้าที่ร้านตั้ง และเทียบช่วงก่อน · กราฟ<b>รายสัปดาห์เป็นค่าเริ่มต้น</b> (สลับรายเดือนได้ที่แถบบน) · เส้นประแดง = เป้า ส่วนที่เกินเป้าเป็นสีแดงบนแท่ง</li>
+      <li><b>4–7 ต้องจัดการอะไรก่อน</b> — รายการเดียว เรียงตามเงิน รวม ของหาย · ราคาที่ขึ้น (จ่ายเพิ่มเท่าไร) · ของทิ้ง · แต่ละแถวกดไปหน้าที่แก้ได้ · ข่าวดี (ราคาที่ลง) · กล่องเหลือง “ข้อมูลยังไม่ครบ” บอกว่าทำไมตัวเลขอาจยังไม่เต็ม และต้องไปทำอะไร</li>
+      <li><b>8 สาขาไหนดี</b> — ตารางเทียบทีละตัวชี้วัด ★ = ดีกว่า · ชี้แถว = กราฟแสดงตัวนั้น · ช่องว่างเป็นเงิน</li>
+      <li><b>9 เงินจมในสต๊อก</b> — มูลค่ารวม + ของที่กว่าจะใช้หมดเกิน 45 วัน</li>
+      <li><b>12 ตัวเลขเชื่อได้แค่ไหน</b> — นับล่าสุด · ตัดสต๊อกครบไหม · ยอดขายครบทุกสาขาไหม · ค่าแรงมีไหม</li>
+      <li><b>เป้าของร้าน</b> — ปุ่มบนขวา กดแก้ได้ (ค่าเริ่มต้น อาหาร ≤35% · prime ≤65% · ส่วนต่าง ≤2%) ทั้งหน้าเปลี่ยนตาม</li>
     </ol>
-    <p class="sub">ไอเดียจาก: หน้ายอดขายของเรา (กล่องข้อมูล แถบกำลังดู การไฮไลต์แท่ง) · การ์ดที่เป็นแท็บของกราฟ · การชี้แล้วไฮไลต์หลายส่วนพร้อมกัน (linked highlighting) · Esc ปิดป๊อปอัป</p>
+    <p class="sub">ตัวเลขจริง: ต้นทุน ยอดขาย รายสัปดาห์ของสาขาอารีย์ 10 ส.ค.–27 ก.ย. · ค่าแรง = เงินเดือน ส.ค. ฿96,000 กระจายตามวัน (ก.ย. ยังไม่บันทึก จึงขึ้น “ยังไม่มีค่าแรง”) · ราคาที่ขึ้นคิดจากใบรับของ ส.ค.–ต.ค. × ปริมาณที่ซื้อใน ก.ย. · ของหายจากการนับ 24 ก.ย. · ของค้างนานจากคงเหลือ ÷ อัตราใช้ · งานค้นคว้า: claude.ai/artifact/61gpF3mXzc2PnUHVUTD5UN</p>
   </div>
 </div>
 
 <script>
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)], root=$("#root");
-const f0=n=>Math.round(n).toLocaleString("th-TH");
-const f2=n=>n.toLocaleString("th-TH",{minimumFractionDigits:2,maximumFractionDigits:2});
+const f0=n=>Math.round(n).toLocaleString("th-TH"), f2=n=>n.toLocaleString("th-TH",{minimumFractionDigits:2,maximumFractionDigits:2});
 const BR={ARI:{name:"สาขาอารีย์",c1:"#5E6B14",c2:"#9DAA55"},LPR:{name:"สาขาลาดพร้าว",c1:"#8A4F9E",c2:"#C39AD1"}};
-// ---------- data ----------
-const REAL={months:["ส.ค. 69","ก.ย. 69"],cal:[31,30],
- ARI:[{days:19,rev:481509,sold:194637.72,cov:.928,posted:"19/19",waste:79.71,leak:null,buy:365984.01,opex:172330.03,gp:286871.28,excess:0},
-      {days:26,rev:615380,sold:230287.61,cov:.849,posted:"24/26",waste:206.71,leak:15164.14,buy:390645.36,opex:77450.74,gp:385092.39,excess:0}],
- LPR:[{days:0,rev:null,waste:0,leak:null,buy:0,opex:0,excess:0,posted:"—"},{days:0,rev:null,waste:0,leak:16.75,buy:0,opex:0,excess:0,posted:"—"}],
- counts:[{b:"ARI",m:1,day:24,label:"24 ก.ย. 69",v:15164.14,items:[["กุ้งขาว","−27.981 kg",9453.77],["เบียร์สิงห์ 620 มล.","−59 ขวด",4071.48],["ข้าวหอมมะลิ","−7.791 kg",372.22],["หมูสามชั้น","−1.282 kg",244.86],["เส้นจันท์","−2.952 kg",146.96],["ไข่ไก่","−33 ฟอง",145.39]]},
-         {b:"LPR",m:1,day:28,label:"28 ก.ย. 69",v:16.75,items:[["ไข่ไก่","ตัดจำหน่าย",16.75]]}]};
-const DEMO={months:["พ.ค. 69","มิ.ย. 69","ก.ค. 69","ส.ค. 69","ก.ย. 69","ต.ค. 69"],cal:[31,30,31,31,30,22],
- ARI:[{days:31,rev:690200,sold:289900,cov:.97,posted:"31/31",waste:410,leak:29800,buy:402000,opex:151000,gp:400300,excess:.6,demo:1},
-      {days:30,rev:661500,sold:271200,cov:.97,posted:"30/30",waste:380,leak:24100,buy:388000,opex:149000,gp:390300,excess:.5,demo:1},
-      {days:31,rev:702000,sold:283600,cov:.98,posted:"31/31",waste:520,leak:null,buy:415000,opex:150500,gp:418400,excess:.7,demo:1},
-      null,null,
-      {days:22,rev:528000,sold:189000,cov:.95,posted:"21/22",waste:140,leak:7400,buy:301000,opex:118000,gp:339000,excess:.4,demo:1}],
- LPR:[{days:31,rev:452000,sold:199000,cov:.96,posted:"30/31",waste:1460,leak:21500,buy:268000,opex:98000,gp:253000,excess:2.1,demo:1},
-      {days:30,rev:438500,sold:193800,cov:.95,posted:"28/30",waste:1320,leak:19900,buy:259000,opex:96500,gp:244700,excess:1.9,demo:1},
-      {days:31,rev:461000,sold:202800,cov:.96,posted:"30/31",waste:1550,leak:null,buy:276000,opex:99000,gp:258200,excess:2.4,demo:1},
-      {days:31,rev:455000,sold:198400,cov:.95,posted:"29/31",waste:1380,leak:18800,buy:270000,opex:97000,gp:256600,excess:2.0,demo:1},
-      {days:30,rev:446000,sold:193600,cov:.94,posted:"28/30",waste:1290,leak:17400,buy:262000,opex:95500,gp:252400,excess:1.7,demo:1},
-      {days:22,rev:330000,sold:141900,cov:.95,posted:"21/22",waste:880,leak:12900,buy:191000,opex:70000,gp:188100,excess:1.6,demo:1}],
- counts:[{b:"ARI",m:0,day:31,label:"31 พ.ค. 69*",v:29800,items:[["กุ้งขาว","−31 kg",11200],["เบียร์สิงห์ 620 มล.","−22 ขวด",1500]]},{b:"ARI",m:1,day:30,label:"30 มิ.ย. 69*",v:24100,items:[["กุ้งขาว","−27 kg",9800],["เบียร์สิงห์ 620 มล.","−28 ขวด",1900]]},
-         null,null,
-         {b:"ARI",m:5,day:20,label:"20 ต.ค. 69*",v:7400,items:[["กุ้งขาว","−9.2 kg",3120],["เบียร์สิงห์ 620 มล.","−43 ขวด",2950],["ปลากะพง","−3 kg",640]]},
-         {b:"LPR",m:0,day:31,label:"31 พ.ค. 69*",v:21500,items:[["หมูสามชั้น","−18 kg",5100]]},{b:"LPR",m:1,day:30,label:"30 มิ.ย. 69*",v:19900,items:[["หมูสามชั้น","−16 kg",4600]]},
-         {b:"LPR",m:3,day:31,label:"31 ส.ค. 69*",v:18800,items:[["หมูสามชั้น","−15 kg",4300]]},{b:"LPR",m:4,day:28,label:"28 ก.ย. 69*",v:17400,items:[["หมูสามชั้น","−14 kg",4000]]},{b:"LPR",m:5,day:20,label:"20 ต.ค. 69*",v:12900,items:[["หมูสามชั้น","−9 kg",2600],["น้ำมันพืช","−6 l",420]]}].filter(Boolean)};
-DEMO.ARI[3]=REAL.ARI[0]; DEMO.ARI[4]=REAL.ARI[1]; DEMO.counts.push({...REAL.counts[0],m:4}); // the real 24 Sep count sits in month 4 of the 6-month view
-let D=REAL, sel=1, branch="ALL", metric="food", preview=null;
-// ---------- metrics ----------
-const sumOf=(m,k)=>["ARI","LPR"].filter(b=>branch==="ALL"||branch===b).map(b=>D[b][m]).filter(Boolean);
-function agg(m,b){ const rows=b?[D[b][m]].filter(Boolean):sumOf(m); const withRev=rows.filter(r=>r.rev!=null);
-  const s=k=>rows.reduce((a,r)=>a+(r[k]||0),0), sr=k=>withRev.reduce((a,r)=>a+(r[k]||0),0);
-  const leakKnown=rows.some(r=>r.leak!=null);
-  return {rev:withRev.length?sr("rev"):null, sold:withRev.length?sr("sold"):null, gp:withRev.length?sr("gp"):null, days:Math.max(0,...rows.map(r=>r.days||0)),
-    cov:withRev.length?withRev.reduce((a,r)=>a+r.cov*r.rev,0)/sr("rev"):1, waste:s("waste"), leak:leakKnown?rows.reduce((a,r)=>a+(r.leak||0),0):null, buy:s("buy"), opex:s("opex"), posted:rows.map(r=>r.posted).join(" · ")}; }
+let T={food:35,prime:65,var:2};
+// Below this share of sales posted to stock, a cost % is too incomplete to compare with a target or another period:
+// fewer recipes posted = less cost = a lower %, which reads as good news that is not real.
+const COV_OK=.9;
+// ---------- REAL data (demo shop) ----------
+// Weekly, ARI. Labour = the August salary (฿96,000 on 28 Aug) spread over August's days; September has none yet.
+const LAB_AUG_DAY=96000/31;
+const NOS={rev:null,sold:null,cov:0,posted:"—",labor:0,waste:0,opex:0};
+const RW=[
+ {k:"10–16 ส.ค.",ARI:{rev:107525,sold:43771.76,cov:.927,posted:"4/4",labor:7*LAB_AUG_DAY,waste:0,days:4},LPR:NOS},
+ {k:"17–23 ส.ค.",ARI:{rev:184084,sold:74577.33,cov:.930,posted:"7/7",labor:7*LAB_AUG_DAY,waste:24.89,days:7},LPR:NOS},
+ {k:"24–30 ส.ค.",ARI:{rev:168063,sold:67430.85,cov:.925,posted:"7/7",labor:7*LAB_AUG_DAY,waste:54.82,days:7},LPR:NOS},
+ {k:"31 ส.ค.–6 ก.ย.",ARI:{rev:170266,sold:69989.37,cov:.928,posted:"7/7",labor:null,laborWhy:"ยังไม่มีค่าแรง ก.ย.",waste:85.24,days:7},LPR:NOS},
+ {k:"7–13 ก.ย.",ARI:{rev:165228,sold:67730.49,cov:.930,posted:"7/7",labor:null,laborWhy:"ยังไม่มีค่าแรง ก.ย.",waste:48.45,days:7},LPR:NOS},
+ {k:"14–20 ก.ย.",ARI:{rev:163122,sold:66533.30,cov:.927,posted:"7/7",labor:null,laborWhy:"ยังไม่มีค่าแรง ก.ย.",waste:23.98,days:7},LPR:NOS},
+ {k:"21–27 ก.ย.",ARI:{rev:138601,sold:34892.23,cov:.579,posted:"4/6",labor:null,laborWhy:"ยังไม่มีค่าแรง ก.ย.",waste:49.04,days:6},LPR:NOS},
+];
+const RM=[
+ {k:"ส.ค. 69",ARI:{rev:481509,sold:194637.72,cov:.928,posted:"19/19",labor:96000,waste:79.71,days:19},LPR:NOS},
+ {k:"ก.ย. 69",ARI:{rev:615380,sold:230287.61,cov:.849,posted:"24/26",labor:null,laborWhy:"ยังไม่มีค่าแรง ก.ย.",waste:206.71,days:26},LPR:NOS},
+];
+const COUNTS_REAL=[{b:"ARI",date:"24 ก.ย.",w:6,m:1,v:15164.14,monthRev:615380,items:[["กุ้งขาว","−27.981 kg",9453.77],["เบียร์สิงห์ 620 มล.","−59 ขวด",4071.48],["ข้าวหอมมะลิ","−7.791 kg",372.22],["หมูสามชั้น","−1.282 kg",244.86],["เส้นจันท์","−2.952 kg",146.96],["ไข่ไก่","−33 ฟอง",145.39]]},{b:"LPR",date:"28 ก.ย.",w:6,m:1,v:16.75,monthRev:null,items:[["ไข่ไก่","ตัดจำหน่าย",16.75]]}];
+const PRICES_REAL=[["เบียร์สิงห์ 620 มล.",11.6,3197,"฿61.98 → ฿69.18 ต่อขวด"],["เนื้อสันใน",6.3,832,"฿364.64 → ฿387.75 ต่อ kg"],["หมูสามชั้น",4.1,563,"฿172.23 → ฿179.27 ต่อ kg"],["ผักบุ้ง",10.7,440,"฿42.91 → ฿47.49 ต่อ kg"],["เส้นจันท์",5.8,414,"฿47.41 → ฿50.17 ต่อ kg"],["เมล็ดกาแฟคั่ว",-9.4,-773,"฿549.28 → ฿497.75 ต่อ kg"],["น้ำตาลทราย",-8.7,-370,"฿30.25 → ฿27.61 ต่อ kg"]];
+const SLOW_REAL=[["เนื้อสันใน",70,16571],["หมูสามชั้น",50,15914],["น้ำมันพืช",48,12227],["กะทิ",55,11061],["นมข้นจืด",48,9429],["เส้นจันท์",84,8552]];
+const STOCK_REAL={ARI:315702,LPR:1918};
+// ---------- DEMO (labelled) ----------
+function demoSeries(n,labels,scale){ const out=[]; for(let i=0;i<n;i++){ const wob=Math.sin(i*1.3)*.012;
+  out.push({k:labels[i],ARI:{rev:165000*scale*(1+Math.sin(i)*.05),sold:165000*scale*(.385-i*.004+wob),cov:.96,posted:"7/7",labor:165000*scale*.27,waste:120*scale,days:7*scale,demo:1},
+                     LPR:{rev:118000*scale*(1+Math.cos(i)*.05),sold:118000*scale*(.435-i*.002+wob),cov:.95,posted:"6/7",labor:118000*scale*.31,waste:330*scale,days:7*scale,demo:1}}); } return out; }
+const DW=demoSeries(8,["24–30 ส.ค.","31 ส.ค.–6 ก.ย.","7–13 ก.ย.","14–20 ก.ย.","21–27 ก.ย.","28 ก.ย.–4 ต.ค.","5–11 ต.ค.","12–18 ต.ค."],1);
+const DM=demoSeries(6,["พ.ค. 69","มิ.ย. 69","ก.ค. 69","ส.ค. 69","ก.ย. 69","ต.ค. 69"],4.3);
+const COUNTS_DEMO=[{b:"ARI",date:"31 ส.ค.",w:0,m:3,v:9800,monthRev:700000,items:[["กุ้งขาว","−27 kg",9800]]},{b:"ARI",date:"28 ก.ย.",w:4,m:4,v:6200,monthRev:700000,items:[["กุ้งขาว","−12 kg",4100],["เบียร์สิงห์ 620 มล.","−30 ขวด",2100]]},{b:"ARI",date:"12 ต.ค.",w:6,m:5,v:3400,monthRev:700000,items:[["กุ้งขาว","−6 kg",2050],["เบียร์สิงห์ 620 มล.","−19 ขวด",1350]]},
+ {b:"LPR",date:"31 ส.ค.",w:0,m:3,v:15800,monthRev:507000,items:[["หมูสามชั้น","−40 kg",7100],["กุ้งขาว","−15 kg",5300]]},{b:"LPR",date:"28 ก.ย.",w:4,m:4,v:14900,monthRev:507000,items:[["หมูสามชั้น","−38 kg",6800],["กุ้งขาว","−14 kg",4900]]},{b:"LPR",date:"12 ต.ค.",w:6,m:5,v:12100,monthRev:507000,items:[["หมูสามชั้น","−31 kg",5500]]}];
+// ---------- state ----------
+let real=true, gran="week", P=RW, COUNTS=COUNTS_REAL, sel=6, branch="ALL", metric="prime", preview=null;
+const bs=()=>branch==="ALL"?["ARI","LPR"]:[branch];
+function agg(i,b){ const rows=(b?[b]:bs()).map(x=>P[i][x]).filter(r=>r&&r.rev!=null);
+  if(!rows.length) return {rev:null};
+  const s=k=>rows.reduce((a,r)=>a+(r[k]||0),0), rev=s("rev"); const laborKnown=rows.every(r=>r.labor!=null);
+  return {rev,sold:s("sold"),cov:rows.reduce((a,r)=>a+r.cov*r.rev,0)/rev,labor:laborKnown?s("labor"):null,laborWhy:rows.find(r=>r.labor==null)?.laborWhy,waste:s("waste"),days:Math.max(...rows.map(r=>r.days)),posted:rows.map(r=>r.posted).join(" · "),demo:rows.some(r=>r.demo)}; }
 const M={
- food:{tab:"ต้นทุนอาหาร",unit:"% ของรายได้",get:a=>a.rev?a.sold/a.rev*100:null,fmt:v=>v.toFixed(1)+"%",low:true,band:[28,35],bound:a=>a.cov<.995?"อย่างน้อย ":"",why:a=>a.rev==null?"ไม่มียอดขาย":null,hint:"ต้นทุนของที่ขายไป ÷ รายได้ · แถบเขียว = เป้า 28–35%"},
- leak:{tab:"ของหาย",unit:"จากการนับสต๊อก",get:a=>a.leak,fmt:v=>"฿"+f0(v),low:true,why:a=>a.leak==null?"ยังไม่ได้นับ":null,hint:"รู้ได้เฉพาะวันที่นับสต๊อก · จุด = การนับแต่ละครั้ง ขนาด = มูลค่าที่หาย · กดจุดเพื่อดูว่าอะไรหาย"},
- waste:{tab:"ทิ้ง",unit:"ที่บันทึกไว้",get:a=>a.waste,fmt:v=>"฿"+f0(v),low:true,why:()=>null,hint:"ของที่มีคนบันทึกว่าทิ้ง ทั้งเดือน"},
- rev:{tab:"รายได้ต่อวัน",unit:"หลังส่วนลด",get:a=>a.rev&&a.days?a.rev/a.days:null,fmt:v=>"฿"+f0(v),low:false,why:a=>a.rev==null?"ไม่มียอดขาย":null,hint:"รายได้ ÷ วันที่มีไฟล์ยอดขาย (เดือนยาวไม่เท่ากัน จึงเทียบต่อวัน)"},
- gp:{tab:"กำไรขั้นต้น",unit:"ทั้งเดือน",get:a=>a.gp,fmt:v=>"฿"+f0(v),low:false,bound:a=>a.cov<.995?"ไม่เกิน ":"",why:a=>a.rev==null?"ไม่มียอดขาย":null,hint:"รายได้ − ต้นทุนของที่ขายไป · ตัดสต๊อกไม่ครบ = ไม่เกิน"},
+ prime:{tab:"Prime cost",get:a=>a.rev==null||a.labor==null?null:(a.sold+a.labor)/a.rev*100,fmt:v=>v.toFixed(1)+"%",low:true,target:()=>T.prime,why:a=>a.rev==null?"ไม่มียอดขาย":a.laborWhy||"ยังไม่มีค่าแรง",bound:a=>a.cov<.995?"อย่างน้อย ":"",hint:"(ต้นทุนของที่ขายไป + ค่าแรง) ÷ ยอดขาย · ค่าแรงรายเดือนกระจายตามวัน"},
+ food:{tab:"ต้นทุนอาหาร",get:a=>a.rev==null?null:a.sold/a.rev*100,fmt:v=>v.toFixed(1)+"%",low:true,target:()=>T.food,why:()=>"ไม่มียอดขาย",bound:a=>a.cov<.995?"อย่างน้อย ":"",hint:"ต้นทุนของที่ขายไป ÷ ยอดขาย"},
+ var:{tab:"ส่วนต่าง (ของหาย)",counts:true,hint:"รู้ได้ตอนนับสต๊อกเท่านั้น · จุด = การนับแต่ละครั้ง · % เทียบยอดขายเดือนนั้น"},
+ waste:{tab:"ทิ้ง",get:a=>a.rev==null?null:a.waste,fmt:v=>"฿"+f0(v),low:true,why:()=>"ไม่มียอดขาย",hint:"ของที่บันทึกว่าทิ้ง"},
 };
-// ---------- count-up ----------
-function countUp(el,to,fmt){ const from=+el.dataset.v||0; el.dataset.v=to; el.firstChild.textContent=fmt(to); /* final value first: a hidden tab never runs the animation */ const t0=performance.now(), dur=520;
-  const step=t=>{ const k=Math.min(1,(t-t0)/dur), e=1-Math.pow(1-k,3); el.firstChild.textContent=fmt(from+(to-from)*e); if(k<1) requestAnimationFrame(step); }; requestAnimationFrame(step); }
-// ---------- chips + sticky ----------
+// ---------- helpers ----------
+function countUp(el,to,fmt){ el.textContent=fmt(to); const from=+el.dataset.v||0; el.dataset.v=to; const t0=performance.now(); const step=t=>{const k=Math.min(1,(t-t0)/520),e=1-Math.pow(1-k,3); el.textContent=fmt(from+(to-from)*e); if(k<1) requestAnimationFrame(step);}; requestAnimationFrame(step); }
+const lastCount=b=>COUNTS.filter(c=>b.includes(c.b)).filter(c=>(gran==="week"?c.w:c.m)<=sel).sort((p,q)=>(gran==="week"?q.w-p.w:q.m-p.m))[0];
+// ---------- chips ----------
 function chips(){
-  $("#periodChips").innerHTML=D.months.map((k,i)=>`<button class="chip ${i===sel?"on":""}" data-i="${i}">${k}${D===DEMO&&!(i===3||i===4)?"*":""}</button>`).join("");
-  $$("#periodChips .chip").forEach(c=>c.onclick=()=>{sel=+c.dataset.i; render();});
+  $("#tFood").textContent="≤"+T.food+"%"; $("#tPrime").textContent="≤"+T.prime+"%"; $("#tVar").textContent="≤"+T.var+"%";
+  $("#periodChips").innerHTML=P.map((p,i)=>`<button class="chip ${i===sel?"on":""}" data-i="${i}">${p.k}</button>`).join("");
+  $$("#periodChips .chip").forEach(c=>c.onclick=()=>{sel=+c.dataset.i;render();});
   $("#branchChips").innerHTML=[["ALL","ทุกสาขา (เทียบกัน)"],["ARI",BR.ARI.name],["LPR",BR.LPR.name]].map(([k,l])=>`<button class="chip ${branch===k?"on":""}" data-b="${k}">${k!=="ALL"?`<span class="dot" style="background:${BR[k].c1}"></span>`:""}${l}</button>`).join("");
-  $$("#branchChips .chip").forEach(c=>c.onclick=()=>{branch=c.dataset.b; render();});
-  $("#stView").textContent=`${D.months[sel]} · ${branch==="ALL"?"ทุกสาขา":BR[branch].name} · ${M[metric].tab}`;
+  $$("#branchChips .chip").forEach(c=>c.onclick=()=>{branch=c.dataset.b;render();});
+  $("#stView").textContent=`${gran==="week"?"สัปดาห์ ":""}${P[sel].k} · ${branch==="ALL"?"ทุกสาขา":BR[branch].name} · ${M[metric].tab}`;
 }
-// ---------- KPI tabs ----------
+// ---------- Q1–3 tabs ----------
 function tabs(){
-  const a=agg(sel), p=sel>0?agg(sel-1):null;
-  if(!$("#tabs").children.length){ $("#tabs").innerHTML=Object.keys(M).map(k=>`<button class="tab" data-m="${k}" role="tab"><span class="tk"></span><span class="tv" data-v="0"> </span><span class="ts"></span><svg class="spark" width="100%" height="26" preserveAspectRatio="none"></svg></button>`).join("");
-    $$("#tabs .tab").forEach(t=>{ t.onclick=()=>{metric=t.dataset.m; render();}; }); }
-  $$("#tabs .tab").forEach(t=>{ const k=t.dataset.m, m=M[k], v=m.get(a), pv=p?m.get(p):null;
-    t.classList.toggle("on",k===metric); t.setAttribute("aria-selected",k===metric);
-    t.querySelector(".tk").textContent=m.tab;
-    const tv=t.querySelector(".tv");
-    if(v==null){ tv.dataset.v=0; tv.firstChild.textContent=m.why(a)||"—"; tv.classList.add("muted"); }
-    else { tv.classList.remove("muted"); const pre=m.bound?m.bound(a):""; countUp(tv,v,x=>pre+m.fmt(x)); tv.classList.toggle("warnv",!!pre); }
-    let s=m.unit; if(v!=null&&pv!=null){ const d=k==="food"?v-pv:(v-pv)/pv*100, good=m.low?d<0:d>0; s=`<b style="color:${good?"var(--good)":"var(--bad)"}">${d<0?"▼":"▲"} ${Math.abs(d).toFixed(1)}${k==="food"?" จุด":"%"}</b> เทียบ ${D.months[sel-1]}`; }
-    else if(v!=null&&sel>0) s=`เทียบ ${D.months[sel-1]} ไม่ได้ (${m.why(p)||"ไม่มีข้อมูล"})`;
-    t.querySelector(".ts").innerHTML=s;
-    // sparkline over months
-    const vals=D.months.map((_,i)=>m.get(agg(i))); const mx=Math.max(...vals.filter(x=>x!=null),1);
-    t.querySelector(".spark").innerHTML=vals.map((x,i)=>x==null?`<rect x="${i/vals.length*100}%" y="20" width="${80/vals.length}%" height="4" style="fill:var(--border)"/>`:`<rect x="${i/vals.length*100}%" y="${24-x/mx*22}" width="${80/vals.length}%" height="${Math.max(2,x/mx*22)}" rx="1.5" style="fill:${i===sel?"#C0692B":k===metric?"#5E6B14":"var(--strong)"}"/>`).join("");
-  });
+  if(!$("#tabs").children.length){ $("#tabs").innerHTML=Object.keys(M).map(k=>`<button class="tab" data-m="${k}" role="tab"><span class="tk"></span><span class="tv"></span><span class="tt"></span><span class="ts"></span><svg class="spark" width="100%" height="26" preserveAspectRatio="none"></svg></button>`).join(""); $$("#tabs .tab").forEach(t=>t.onclick=()=>{metric=t.dataset.m;render();}); }
+  const a=agg(sel), p=sel>0?agg(sel-1):null, prevLabel=sel>0?P[sel-1].k:null;
+  $$("#tabs .tab").forEach(t=>{ const k=t.dataset.m, m=M[k]; t.classList.toggle("on",k===metric); t.querySelector(".tk").textContent=m.tab;
+    const tv=t.querySelector(".tv"), tt=t.querySelector(".tt"), ts=t.querySelector(".ts");
+    if(m.counts){ const c=lastCount(bs()); if(!c){ tv.textContent="ยังไม่ได้นับ"; tv.className="tv muted"; tt.innerHTML=""; ts.textContent="นับสต๊อกถึงจะรู้"; }
+      else { const pct=c.monthRev?c.v/c.monthRev*100:null; tv.className="tv"; countUp(tv,c.v,v=>"฿"+f0(v)); const over=pct!=null&&pct>T.var; tt.innerHTML=pct==null?'<span class="sub">ยังเทียบยอดขายไม่ได้</span>':`<span class="tg ${over?"bad":"ok"}">${pct.toFixed(1)}% ของยอดขาย · เป้า ≤${T.var}%</span>`; ts.textContent=`นับล่าสุด ${c.date}`; }
+    } else { const v=m.get(a), pv=p?m.get(p):null;
+      if(v==null){ tv.textContent=a.rev==null?"ไม่มียอดขาย":m.why(a); tv.className="tv muted"; tt.innerHTML=""; }
+      else { const pre=m.bound?m.bound(a):""; tv.className="tv"+(pre?" warnv":""); countUp(tv,v,x=>pre+m.fmt(x)); const tgt=m.target?m.target():null;
+        // A lower bound may say "over" (the truth is higher still) but never "within".
+        tt.innerHTML=tgt==null?"":a.cov<COV_OK?`<span class="tg warn">ตัดสต๊อกแค่ ${Math.round(a.cov*100)}% · ยังเทียบเป้าไม่ได้</span>`:v>tgt?`<span class="tg bad">เกินเป้า ≤${tgt}%</span>`:pre?`<span class="tg warn">ต่ำกว่าเป้าตอนนี้ · ข้อมูล ${Math.round(a.cov*100)}%</span>`:`<span class="tg ok">อยู่ในเป้า ≤${tgt}%</span>`; }
+      if(k!=="waste"&&v!=null&&(a.cov<COV_OK||(p&&p.rev!=null&&p.cov<COV_OK))){ ts.textContent=sel>0?`เทียบ ${prevLabel} ไม่ได้ (ตัดสต๊อกไม่ครบ)`:""; } else
+      ts.innerHTML=v!=null&&pv!=null?(()=>{const d=k==="waste"?(v-pv)/pv*100:v-pv, good=d<0; return `<b style="color:${good?"var(--good)":"var(--bad)"}">${d<0?"▼":"▲"} ${Math.abs(d).toFixed(1)}${k==="waste"?"%":" จุด"}</b> เทียบ ${prevLabel}`;})():(sel>0&&v!=null?`เทียบ ${prevLabel} ไม่ได้`:"");
+    }
+    const vals=P.map((_,i)=>m.counts?((c=>c?c.v:null)(COUNTS.filter(c=>bs().includes(c.b)&&(gran==="week"?c.w:c.m)===i).reduce((s,c)=>({v:(s?s.v:0)+c.v}),null))):m.get(agg(i))); const mx=Math.max(...vals.filter(x=>x!=null),1);
+    t.querySelector(".spark").innerHTML=vals.map((x,i)=>x==null?`<rect x="${i/vals.length*100}%" y="21" width="${80/vals.length}%" height="3" style="fill:var(--border)"/>`:`<rect x="${i/vals.length*100}%" y="${24-x/mx*22}" width="${80/vals.length}%" height="${Math.max(2,x/mx*22)}" rx="1.5" style="fill:${i===sel?"#C0692B":k===metric?"#5E6B14":"var(--strong)"}"/>`).join(""); });
 }
-// ---------- main chart ----------
+// ---------- chart ----------
 function chart(){
-  const k=preview||metric, m=M[k]; $("#chartTitle").innerHTML=`${m.tab} ${preview?'<span class="badge">ตัวอย่างจากแถวที่ชี้</span>':""}`; $("#chartHint").textContent=m.hint;
-  if(k==="leak") return timeline();
-  const W=Math.max(380,$("#trendbox").clientWidth-36), H=250, L=58, B=30, T=20, n=D.months.length, slot=(W-L)/n;
-  const bs=branch==="ALL"?["ARI","LPR"]:[branch]; const bw=Math.min(36,slot*(bs.length>1?.3:.42));
-  const vals=bs.map(b=>D.months.map((_,i)=>m.get(agg(i,b))));
-  const ghost=branch!=="ALL"?D.months.map((_,i)=>m.get(agg(i,branch==="ARI"?"LPR":"ARI"))):[];
-  let mx=Math.max(...vals.flat().filter(v=>v!=null),...ghost.filter(v=>v!=null),m.band?m.band[1]+4:0)*1.18||1;
-  const y=v=>T+(H-T-B)*(1-v/mx), cx=i=>L+slot*(i+.5), bx=(i,j)=>cx(i)+(j-(bs.length-1)/2)*(bw+5)-bw/2;
-  let g=`<svg width="${W}" height="${H}" style="display:block;overflow:visible"><defs><pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" style="fill:var(--muted)"/><line x1="0" y1="0" x2="0" y2="6" style="stroke:var(--strong)" stroke-width="2"/></pattern>${bs.map(b=>`<linearGradient id="g${b}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${BR[b].c1}"/><stop offset="1" stop-color="${BR[b].c2}"/></linearGradient>`).join("")}<linearGradient id="gSel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#C0692B"/><stop offset="1" stop-color="#E8A76F"/></linearGradient></defs>`;
-  for(let t=0;t<=4;t++){const v=mx/4*t; g+=`<line x1="${L}" x2="${W}" y1="${y(v)}" y2="${y(v)}" style="stroke:var(--border)"/><text x="${L-8}" y="${y(v)+4}" text-anchor="end" font-size="11" style="fill:var(--muted-fg)">${k==="food"?v.toFixed(0)+"%":"฿"+(v>=1000?(v/1000).toFixed(v>=10000?0:1)+"K":f0(v))}</text>`;}
-  if(m.band) g+=`<rect x="${L}" width="${W-L}" y="${y(m.band[1])}" height="${y(m.band[0])-y(m.band[1])}" fill="#5A7333" opacity=".1"/><text x="${L+6}" y="${y(m.band[1])-4}" text-anchor="start" font-size="10" style="fill:var(--good)">เป้า ${m.band[0]}–${m.band[1]}%</text>`;
-  g+=`<rect id="selband" x="${L+slot*sel+3}" y="${T-8}" width="${slot-6}" height="${H-T-B+8}" rx="10" fill="#C0692B" opacity=".09"/><rect id="hoverband" x="0" y="${T-8}" width="${slot-6}" height="${H-T-B+8}" rx="10" fill="#41431B" opacity="0"/>`;
-  bs.forEach((b,j)=>vals[j].forEach((v,i)=>{ const X=bx(i,j);
-    if(v==null){ const why=m.why(agg(i,b))||"—"; g+=`<rect x="${X}" width="${bw}" y="${y(mx*.22)}" height="${y(0)-y(mx*.22)}" rx="5" fill="url(#hatch)" style="stroke:var(--strong)"/><text x="${X+bw/2}" y="${y(mx*.22)-5}" text-anchor="middle" font-size="9.5" style="fill:var(--subtle)">${why}</text>`; return; }
-    const h=y(0)-y(v), demo=D[b][i]&&D[b][i].demo; g+=`<rect class="mbar" x="${X}" width="${bw}" y="${y(v)}" height="${h}" rx="5" fill="${i===sel&&bs.length===1?"url(#gSel)":`url(#g${b})`}" opacity="${demo?.62:1}" style="transform-origin:${X}px ${y(0)}px;animation:rise .55s cubic-bezier(.2,.8,.2,1) ${i*40+j*25}ms both"/>`;
-    if(i===sel) g+=`<text x="${X+bw/2}" y="${y(v)-6}" text-anchor="middle" font-size="11" font-weight="700" style="fill:var(--fg)">${m.fmt(v)}</text>`; }));
-  if(ghost.length){ const pts=ghost.map((v,i)=>v==null?null:`${cx(i)},${y(v)}`).filter(Boolean); if(pts.length) g+=`<polyline points="${pts.join(" ")}" fill="none" stroke="${BR[branch==="ARI"?"LPR":"ARI"].c1}" stroke-width="2" stroke-dasharray="4 4" opacity=".55"/>`+ghost.map((v,i)=>v==null?"":`<circle cx="${cx(i)}" cy="${y(v)}" r="3.5" style="fill:var(--surface)" stroke="${BR[branch==="ARI"?"LPR":"ARI"].c1}" stroke-width="2" opacity=".7"/>`).join(""); }
-  D.months.forEach((mo,i)=>{ g+=`<text x="${cx(i)}" y="${H-10}" text-anchor="middle" font-size="11.5" style="fill:${i===sel?"#C0692B":"var(--muted-fg)"}" font-weight="${i===sel?700:400}">${mo}</text><rect class="hit" data-i="${i}" x="${L+slot*i}" y="0" width="${slot}" height="${H}" fill="transparent" style="cursor:pointer"/>`; });
-  g+="</svg>";
-  $("#chart").innerHTML=g+'<div class="tip" id="ctip" hidden style="pointer-events:none;top:6px"></div>';
-  $("#chartLegend").innerHTML=bs.map(b=>`<span><i style="background:${BR[b].c1}"></i>${BR[b].name}</span>`).join("")+(ghost.length?`<span><i style="background:transparent;border:2px dashed ${BR[branch==="ARI"?"LPR":"ARI"].c1}"></i>${BR[branch==="ARI"?"LPR":"ARI"].name} (เส้นประ ไว้เทียบ)</span>`:"")+`<span><i style="background:#C0692B;opacity:.35"></i>เดือนที่เลือก</span>${D===DEMO?"<span>* ตัวเลขสมมติ</span>":""}`;
+  const k=preview||metric, m=M[k]; $("#chartTitle").innerHTML=`${m.tab}${preview?' <span class="badge">จากแถวที่ชี้</span>':""}`; $("#chartHint").textContent=m.hint;
+  if(m.counts) return countsChart();
+  // A branch with nothing to show in the whole range gets one line of text, not a row of empty bars.
+  const all=bs(), sets=all.filter(b=>P.some((_,i)=>m.get(agg(i,b))!=null)), silent=all.filter(b=>!sets.includes(b));
+  if(!sets.length){ $("#chart").innerHTML=`<p class="sub" style="padding:30px 0;text-align:center">${all.map(b=>BR[b].name).join(" และ ")}ยังไม่มีข้อมูลสำหรับตัวนี้</p>`; $("#chartLegend").innerHTML=""; return; }
+  const W=Math.max(380,$("#trendbox").clientWidth-36), H=250, L=58, B=34, Tp=20, n=P.length, slot=(W-L)/n;
+  const bw=Math.min(30,slot*(sets.length>1?.28:.42)), vals=sets.map(b=>P.map((_,i)=>m.get(agg(i,b))));
+  const tgt=m.target?m.target():null; let mx=Math.max(...vals.flat().filter(v=>v!=null),tgt||0)*1.18||1;
+  const y=v=>Tp+(H-Tp-B)*(1-v/mx), cx=i=>L+slot*(i+.5), bx=(i,j)=>cx(i)+(j-(sets.length-1)/2)*(bw+5)-bw/2;
+  let g=`<svg width="${W}" height="${H}" style="display:block;overflow:visible"><defs><pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" style="fill:var(--muted)"/><line x1="0" y1="0" x2="0" y2="6" style="stroke:var(--strong)" stroke-width="2"/></pattern>${sets.map(b=>`<linearGradient id="g${b}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${BR[b].c1}"/><stop offset="1" stop-color="${BR[b].c2}"/></linearGradient>`).join("")}</defs>`;
+  for(let t=0;t<=4;t++){const v=mx/4*t; g+=`<line x1="${L}" x2="${W}" y1="${y(v)}" y2="${y(v)}" style="stroke:var(--border)"/><text x="${L-8}" y="${y(v)+4}" text-anchor="end" font-size="11" style="fill:var(--muted-fg)">${k==="waste"?"฿"+f0(v):v.toFixed(0)+"%"}</text>`;}
+  if(tgt!=null) g+=`<rect x="${L}" width="${W-L}" y="${Tp}" height="${y(tgt)-Tp}" fill="#A83A22" opacity=".05"/><line x1="${L}" x2="${W}" y1="${y(tgt)}" y2="${y(tgt)}" stroke="#A83A22" stroke-dasharray="6 4" stroke-width="1.5"/><rect x="${L-46}" y="${y(tgt)-9}" width="42" height="18" rx="9" fill="#A83A22"/><text x="${L-25}" y="${y(tgt)+4}" text-anchor="middle" font-size="10.5" font-weight="700" fill="#fff">เป้า ${tgt}</text>`;
+  g+=`<rect x="${L+slot*sel+3}" y="${Tp-8}" width="${slot-6}" height="${H-Tp-B+8}" rx="10" fill="#C0692B" opacity=".09"/><rect id="hoverband" x="0" y="${Tp-8}" width="${slot-6}" height="${H-Tp-B+8}" rx="10" style="fill:var(--fg)" opacity="0"/>`;
+  sets.forEach((b,j)=>vals[j].forEach((v,i)=>{ const X=bx(i,j);
+    if(v==null){ const a=agg(i,b); const why=a.rev==null?"ไม่มียอดขาย":m.why?m.why(a):"—"; g+=`<rect x="${X}" width="${bw}" y="${y(mx*.2)}" height="${y(0)-y(mx*.2)}" rx="5" fill="url(#hatch)" style="stroke:var(--strong)"/>${sets.length===1||i===sel?`<text x="${X+bw/2}" y="${y(mx*.2)-5}" text-anchor="middle" font-size="9.5" style="fill:var(--subtle)">${why.replace("ยังไม่มีค่าแรง ","ไม่มีค่าแรง ")}</text>`:""}`; return; }
+    const h=y(0)-y(v), over=tgt!=null&&v>tgt, demo=P[i][b]&&P[i][b].demo, thin=k!=="waste"&&agg(i,b).cov<COV_OK;
+    if(thin){ g+=`<rect x="${X}" width="${bw}" y="${y(v)}" height="${h}" rx="5" fill="url(#hatch)" stroke="${BR[b].c1}" stroke-width="1.5" stroke-dasharray="4 3"/><text x="${X+bw/2}" y="${y(v)-18}" text-anchor="middle" font-size="9.5" style="fill:var(--warn)">ข้อมูล ${Math.round(agg(i,b).cov*100)}%</text>${i===sel?`<text x="${X+bw/2}" y="${y(v)-6}" text-anchor="middle" font-size="10.5" font-weight="700" style="fill:var(--fg)">≥${m.fmt(v)}</text>`:""}`; return; }
+    g+=`<rect x="${X}" width="${bw}" y="${y(v)}" height="${h}" rx="5" fill="url(#g${b})" opacity="${demo?.7:1}" style="transform-origin:${X}px ${y(0)}px;animation:rise .55s cubic-bezier(.2,.8,.2,1) ${i*35+j*20}ms both"/>${over?`<rect x="${X}" width="${bw}" y="${y(v)}" height="${Math.max(0,y(tgt)-y(v))}" rx="5" fill="#A83A22" opacity=".55"/>`:""}`;
+    if(i===sel) g+=`<text x="${X+bw/2}" y="${y(v)-6}" text-anchor="middle" font-size="10.5" font-weight="700" style="fill:var(--fg)">${m.fmt(v)}</text>`; }));
+  P.forEach((p,i)=>{ const lab=p.k.length>9?p.k.replace(/ ส\.ค\.|\s?ก\.ย\.|\s?ต\.ค\./g,m=>m):p.k; g+=`<text x="${cx(i)}" y="${H-14}" text-anchor="middle" font-size="10.5" style="fill:${i===sel?"#C0692B":"var(--muted-fg)"}" font-weight="${i===sel?700:400}">${lab}</text><rect class="hit" data-i="${i}" x="${L+slot*i}" y="0" width="${slot}" height="${H}" fill="transparent" style="cursor:pointer"/>`; });
+  g+="</svg>"; $("#chart").innerHTML=g+'<div class="tip" id="ctip" hidden style="pointer-events:none;top:6px"></div>';
+  $("#chartLegend").innerHTML=sets.map(b=>`<span><i style="background:${BR[b].c1}"></i>${BR[b].name}</span>`).join("")+silent.map(b=>`<span class="sub">${BR[b].name}: ${agg(sel,b).rev==null?"ยังไม่มียอดขายในช่วงนี้":"ยังไม่มีข้อมูลตัวนี้"}</span>`).join("")+(tgt!=null?'<span><i style="background:#A83A22"></i>เส้นประแดง = เป้าของร้าน</span>':"")+(tgt!=null?'<span><i style="background:#A83A22;opacity:.6"></i>ส่วนที่เกินเป้า</span>':"")+'<span><i style="background:transparent;border:1.5px dashed var(--strong)"></i>แท่งเส้นประ = ตัดสต๊อกไม่ถึง 90% ตัวเลขยังต่ำกว่าจริง</span>'+'<span class="sub">ชี้ = ดูตัวเลข · กด = เลือกช่วงนั้น</span>';
   $$("#chart .hit").forEach(h=>{ const i=+h.dataset.i;
-    h.onmouseenter=()=>{ const hb=$("#hoverband"); hb.setAttribute("x",L+slot*i+3); hb.setAttribute("opacity",".06");
-      $$("#periodChips .chip").forEach((c,ci)=>c.classList.toggle("peek",ci===i));
-      const lines=["ARI","LPR"].map(b=>{ const a=agg(i,b), v=m.get(a), pv=i>0?m.get(agg(i-1,b)):null; const d=v!=null&&pv!=null?(k==="food"?v-pv:(v-pv)/pv*100):null;
-        return `<div class="tr"><span><i style="background:${BR[b].c1}"></i>${BR[b].name}</span><b>${v==null?(m.why(a)||"—"):(m.bound?m.bound(a):"")+m.fmt(v)}</b>${d==null?"":`<em style="color:${(m.low?d<0:d>0)?"#B7CF7C":"#EC9C80"}">${d<0?"▼":"▲"}${Math.abs(d).toFixed(1)}${k==="food"?"จุด":"%"}</em>`}</div>`; }).join("");
-      const t=$("#ctip"); t.hidden=false; t.innerHTML=`<b>${D.months[i]}</b>${lines}<div style="opacity:.7;margin-top:4px">${i>0?"ลูกศร = เทียบ "+D.months[i-1]+" ของสาขานั้น · ":""}กดเพื่อดูเดือนนี้</div>`;
+    h.onmouseenter=()=>{ const hb=$("#hoverband"); hb.setAttribute("x",L+slot*i+3); hb.setAttribute("opacity",".06"); $$("#periodChips .chip").forEach((c,ci)=>c.classList.toggle("peek",ci===i));
+      const lines=["ARI","LPR"].map(b=>{ const a=agg(i,b), v=m.get(a), pv=i>0?m.get(agg(i-1,b)):null, d=v!=null&&pv!=null?(k==="waste"?(v-pv)/pv*100:v-pv):null;
+        return `<div class="tr"><span><i style="background:${BR[b].c1}"></i>${BR[b].name}</span><b>${v==null?(a.rev==null?"ไม่มียอดขาย":m.why(a)):(m.bound?m.bound(a):"")+m.fmt(v)}</b>${d==null?"":`<em style="color:${d<0?"#B7CF7C":"#EC9C80"}">${d<0?"▼":"▲"}${Math.abs(d).toFixed(1)}${k==="waste"?"%":"จุด"}</em>`}</div>`;}).join("");
+      const a=agg(i); const t=$("#ctip"); t.hidden=false; t.innerHTML=`<b>${gran==="week"?"สัปดาห์ ":""}${P[i].k}</b>${lines}${a.rev!=null?`<div style="opacity:.75;margin-top:4px">ตัดสต๊อก ${a.posted} วัน · ครอบคลุม ${Math.round(a.cov*100)}%</div>`:""}<div style="opacity:.75">กดเพื่อดูช่วงนี้ทั้งหน้า</div>`;
       t.style.left=Math.min(Math.max(8,cx(i)-120),W-260)+"px"; };
     h.onmouseleave=()=>{ $("#hoverband").setAttribute("opacity","0"); $("#ctip").hidden=true; $$("#periodChips .chip").forEach(c=>c.classList.remove("peek")); };
-    h.onclick=()=>{sel=i; render();}; });
+    h.onclick=()=>{sel=i;render();}; });
 }
-// ---------- leak timeline ----------
-function timeline(){
-  const W=Math.max(380,$("#trendbox").clientWidth-36), H=250, L=58, B=30, T=24, n=D.months.length, slot=(W-L)/n;
-  const bs=branch==="ALL"?["ARI","LPR"]:[branch]; const cs=D.counts.filter(c=>bs.includes(c.b)); const mx=Math.max(...cs.map(c=>c.v),1)*1.2;
-  const y=v=>T+(H-T-B)*(1-v/mx), xAt=c=>L+slot*c.m+slot*(c.day/(D.cal[c.m]||30));
-  let g=`<svg width="${W}" height="${H}" style="display:block;overflow:visible"><defs><pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" style="fill:var(--muted)"/><line x1="0" y1="0" x2="0" y2="6" style="stroke:var(--border)" stroke-width="2"/></pattern></defs>`;
+function countsChart(){
+  const W=Math.max(380,$("#trendbox").clientWidth-36), H=250, L=58, B=34, Tp=26, n=P.length, slot=(W-L)/n, sets=bs();
+  const cs=COUNTS.filter(c=>sets.includes(c.b)), pos=c=>gran==="week"?c.w:c.m; const mx=Math.max(...cs.map(c=>c.v),1)*1.25, y=v=>Tp+(H-Tp-B)*(1-v/mx);
+  let g=`<svg width="${W}" height="${H}" style="display:block;overflow:visible"><defs><pattern id="hatch2" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" style="fill:var(--muted)"/><line x1="0" y1="0" x2="0" y2="6" style="stroke:var(--border)" stroke-width="2"/></pattern></defs>`;
   for(let t=0;t<=4;t++){const v=mx/4*t; g+=`<line x1="${L}" x2="${W}" y1="${y(v)}" y2="${y(v)}" style="stroke:var(--border)"/><text x="${L-8}" y="${y(v)+4}" text-anchor="end" font-size="11" style="fill:var(--muted-fg)">฿${v>=1000?(v/1000).toFixed(0)+"K":f0(v)}</text>`;}
-  D.months.forEach((mo,i)=>{ const any=cs.some(c=>c.m===i); if(!any) g+=`<rect x="${L+slot*i+2}" y="${T}" width="${slot-4}" height="${H-T-B}" fill="url(#hatch)" rx="8"/><text x="${L+slot*(i+.5)}" y="${H-B-10}" text-anchor="middle" font-size="10.5" style="fill:var(--subtle)">ไม่ได้นับ</text>`;
-    g+=`<line x1="${L+slot*i}" x2="${L+slot*i}" y1="${T}" y2="${H-B}" style="stroke:var(--border)"/>`;
-    g+=`<text x="${L+slot*(i+.5)}" y="${H-10}" text-anchor="middle" font-size="11.5" style="fill:${i===sel?"#C0692B":"var(--muted-fg)"}" font-weight="${i===sel?700:400}">${mo}</text>`; });
-  g+=`<rect x="${L+slot*sel+2}" y="${T-6}" width="${slot-4}" height="${H-T-B+6}" rx="10" fill="#C0692B" opacity=".07"/>`;
-  bs.forEach(b=>{ const pts=cs.filter(c=>c.b===b).sort((p,q)=>p.m-q.m||p.day-q.day); if(pts.length>1) g+=`<polyline points="${pts.map(c=>`${xAt(c)},${y(c.v)}`).join(" ")}" fill="none" stroke="${BR[b].c1}" stroke-width="1.6" opacity=".45"/>`; });
-  cs.forEach((c,idx)=>{ const r=7+Math.sqrt(c.v/mx)*18; g+=`<g class="cnt" data-k="${idx}" style="cursor:pointer"><circle cx="${xAt(c)}" cy="${y(c.v)}" r="${r}" fill="${BR[c.b].c1}" opacity="${c.label.includes("*")?.55:.9}" style="transform-origin:${xAt(c)}px ${y(c.v)}px;animation:pop .45s cubic-bezier(.2,.8,.2,1) ${idx*60}ms both"/><text x="${xAt(c)}" y="${y(c.v)-r-5}" text-anchor="middle" font-size="10.5" font-weight="600" style="fill:var(--fg)">฿${f0(c.v)}</text></g>`; });
-  g+="</svg>";
-  $("#chart").innerHTML=g+'<div class="tip" id="ctip" hidden style="pointer-events:none;top:6px"></div>';
-  $("#chartLegend").innerHTML=bs.map(b=>`<span><i style="background:${BR[b].c1};border-radius:50%"></i>${BR[b].name}</span>`).join("")+`<span><i style="background:url(#);border:1px solid #D2CBA4"></i>ลายเส้น = เดือนที่ไม่ได้นับ (ไม่รู้ ไม่ใช่ ฿0)</span>`;
+  P.forEach((p,i)=>{ if(!cs.some(c=>pos(c)===i)) g+=`<rect x="${L+slot*i+2}" y="${Tp}" width="${slot-4}" height="${H-Tp-B}" fill="url(#hatch2)" rx="8"/><text x="${L+slot*(i+.5)}" y="${H-B-8}" text-anchor="middle" font-size="9.5" style="fill:var(--subtle)">ไม่ได้นับ</text>`;
+    g+=`<text x="${L+slot*(i+.5)}" y="${H-14}" text-anchor="middle" font-size="10.5" style="fill:${i===sel?"#C0692B":"var(--muted-fg)"}" font-weight="${i===sel?700:400}">${p.k}</text>`; });
+  g+=`<rect x="${L+slot*sel+2}" y="${Tp-6}" width="${slot-4}" height="${H-Tp-B+6}" rx="10" fill="#C0692B" opacity=".07"/>`;
+  sets.forEach(b=>{ const pts=cs.filter(c=>c.b===b).sort((p,q)=>pos(p)-pos(q)); if(pts.length>1) g+=`<polyline points="${pts.map(c=>`${L+slot*(pos(c)+.5)},${y(c.v)}`).join(" ")}" fill="none" stroke="${BR[b].c1}" stroke-width="1.6" opacity=".45"/>`; });
+  cs.forEach((c,idx)=>{ const X=L+slot*(pos(c)+.5)+(sets.length>1?(c.b==="ARI"?-8:8):0), r=7+Math.sqrt(c.v/mx)*18; g+=`<g class="cnt" data-k="${idx}" style="cursor:pointer"><circle cx="${X}" cy="${y(c.v)}" r="${r}" fill="${BR[c.b].c1}" opacity=".88" style="transform-origin:${X}px ${y(c.v)}px;animation:pop .45s cubic-bezier(.2,.8,.2,1) ${idx*60}ms both"/><text x="${X}" y="${y(c.v)-r-5}" text-anchor="middle" font-size="10.5" font-weight="600" style="fill:var(--fg)">฿${f0(c.v)}</text></g>`; });
+  g+="</svg>"; $("#chart").innerHTML=g+'<div class="tip" id="ctip" hidden style="pointer-events:none;top:6px"></div>';
+  $("#chartLegend").innerHTML=sets.map(b=>`<span><i style="background:${BR[b].c1};border-radius:50%"></i>${BR[b].name}</span>`).join("")+'<span class="sub">ลายเส้น = ช่วงที่ไม่ได้นับ (ไม่รู้ ไม่ใช่ ฿0) · กดจุดเพื่อดูว่าอะไรหาย</span>';
   $$("#chart .cnt").forEach(el=>{ const c=cs[+el.dataset.k];
-    el.onmouseenter=()=>{ const prev=cs.filter(p=>p.b===c.b&&(p.m<c.m||(p.m===c.m&&p.day<c.day))).sort((p,q)=>q.m-p.m||q.day-p.day)[0]; const rev=D[c.b][c.m]&&D[c.b][c.m].rev;
-      const t=$("#ctip"); t.hidden=false; t.innerHTML=`<b>${BR[c.b].name} · นับ ${c.label}</b><div class="tr"><span>เจอของหาย</span><b>฿${f2(c.v)}</b></div>${rev?`<div class="tr"><span>% ของรายได้เดือนนั้น</span><b>${(c.v/rev*100).toFixed(1)}%</b></div>`:""}${prev?`<div class="tr"><span>ครั้งก่อน ${prev.label}</span><b>฿${f0(prev.v)}</b></div>`:'<div style="opacity:.75">ครั้งแรกที่นับ</div>'}<div style="opacity:.75;margin-top:4px">กดเพื่อดูว่าอะไรหาย</div>`;
-      t.style.left=Math.min(Math.max(8,xAt(c)-120),W-260)+"px"; el.querySelector("circle").setAttribute("stroke","#262811"); el.querySelector("circle").setAttribute("stroke-width","2"); };
-    el.onmouseleave=()=>{ $("#ctip").hidden=true; el.querySelector("circle").removeAttribute("stroke"); };
-    el.onclick=()=>openCount(c); });
+    el.onmouseenter=()=>{ const prev=cs.filter(p=>p.b===c.b&&pos(p)<pos(c)).sort((p,q)=>pos(q)-pos(p))[0]; const t=$("#ctip"); t.hidden=false;
+      t.innerHTML=`<b>${BR[c.b].name} · นับ ${c.date}</b><div class="tr"><span>เจอของหาย</span><b>฿${f2(c.v)}</b></div>${c.monthRev?`<div class="tr"><span>% ของยอดขายเดือนนั้น</span><b>${(c.v/c.monthRev*100).toFixed(1)}% (เป้า ≤${T.var}%)</b></div>`:""}${prev?`<div class="tr"><span>ครั้งก่อน ${prev.date}</span><b>฿${f0(prev.v)}</b></div>`:'<div style="opacity:.75">ครั้งแรกที่นับ</div>'}<div style="opacity:.75;margin-top:4px">กดเพื่อดูว่าอะไรหาย</div>`;
+      t.style.left=Math.min(Math.max(8,L+slot*(pos(c)+.5)-120),W-260)+"px"; };
+    el.onmouseleave=()=>{$("#ctip").hidden=true;}; el.onclick=()=>openCount(c); });
 }
-function openCount(c){
-  const top=c.items[0][2];
-  $("#mbox").innerHTML=`<div class="row" style="justify-content:space-between"><h3 style="font-size:1.1rem">${BR[c.b].name} · นับสต๊อก ${c.label}</h3><span class="x2" style="position:static;cursor:pointer" id="mx">×</span></div>
-  <div class="kp" style="grid-template-columns:repeat(3,1fr)"><div class="kpi"><span class="k">ของหายรวม</span><span class="v num" style="font-size:1.15rem;color:var(--bad)">฿${f2(c.v)}</span></div><div class="kpi"><span class="k">รายการที่หาย</span><span class="v num" style="font-size:1.15rem">${c.items.length}</span></div><div class="kpi"><span class="k">ตัวที่หายมากสุด</span><span class="v" style="font-size:1.05rem">${c.items[0][0]}</span><span class="s">${Math.round(top/c.v*100)}% ของทั้งหมด</span></div></div>
+function openCount(c){ const top=c.items[0][2];
+  $("#mbox").innerHTML=`<div class="row" style="justify-content:space-between"><h3 style="font-size:1.1rem">${BR[c.b].name} · นับสต๊อก ${c.date}</h3><span class="x2" style="position:static;cursor:pointer" id="mx">×</span></div>
+  <div class="kp" style="grid-template-columns:repeat(3,1fr)"><div class="kpi"><span class="k">ของหายรวม</span><span class="v num" style="font-size:1.15rem;color:var(--bad)">฿${f2(c.v)}</span></div><div class="kpi"><span class="k">รายการที่หาย</span><span class="v num" style="font-size:1.15rem">${c.items.length}</span></div><div class="kpi"><span class="k">หายมากสุด</span><span class="v" style="font-size:1.05rem">${c.items[0][0]}</span><span class="s">${Math.round(top/c.v*100)}% ของทั้งหมด</span></div></div>
   <table class="mt"><thead><tr><th>วัตถุดิบ</th><th>หายไป</th><th>มูลค่า</th></tr></thead><tbody>${c.items.map(it=>`<tr><td>${it[0]}</td><td class="num">${it[1]}</td><td class="num"><span class="lbar" style="width:${Math.max(4,it[2]/top*110)}px;animation:grow .5s both"></span>฿${f2(it[2])}</td></tr>`).join("")}</tbody></table>
-  <div class="row" style="justify-content:space-between"><span class="sub">ควรเหลือ − นับได้ · ตีราคาตามต้นทุน FIFO</span><span class="dl">ดูทั้งหมดที่ “ของหายไปไหน” ›</span></div>`;
-  $("#modal").hidden=false; $("#mx").onclick=()=>$("#modal").hidden=true;
+  <div class="row" style="justify-content:space-between"><span class="sub">ควรเหลือ − นับได้ · ตีราคาตามต้นทุน</span><span class="dl">ดูทั้งหมดที่ “ของหายไปไหน” ›</span></div>`;
+  $("#modal").hidden=false; $("#mx").onclick=()=>$("#modal").hidden=true; }
+// ---------- Q4–7: what to deal with first ----------
+function todo(){
+  const items=[];
+  const c=lastCount(bs()); if(c) c.items.slice(0,3).forEach(it=>items.push({type:"ของหาย",tone:"bad",title:`${it[0]} หายจากการนับ`,detail:`${BR[c.b].name} · นับ ${c.date} · ${it[1]}`,money:it[2],act:"ดูที่ของหายไปไหน",count:c}));
+  if(real) PRICES_REAL.filter(p=>p[2]>0).slice(0,3).forEach(p=>items.push({type:"ราคาขึ้น",tone:"warn",title:`${p[0]} ขึ้น ${p[1]}%`,detail:`${p[3]} · ก.ย. จ่ายเพิ่ม`,money:p[2],act:"เทียบผู้ขาย / ดูราคา"}));
+  else items.push({type:"ราคาขึ้น",tone:"warn",title:"เบียร์สิงห์ 620 มล. ขึ้น 11.6%",detail:"ตัวอย่าง",money:3197,act:"เทียบผู้ขาย / ดูราคา"});
+  const a=agg(sel); if(a.rev!=null&&a.waste>0) items.push({type:"ทิ้ง",tone:"muted",title:"ของที่บันทึกว่าทิ้ง",detail:`${P[sel].k}`,money:a.waste,act:"ดูที่ของเสีย"});
+  items.sort((p,q)=>q.money-p.money);
+  const gaps=[]; if(a.rev!=null&&a.cov<.995) gaps.push(`ตัดสต๊อกยังไม่ครบ (${a.posted} วัน · ครอบคลุม ${Math.round(a.cov*100)}%) — ต้นทุนช่วงนี้จึงเป็น “อย่างน้อย” · <span class="dl">ไปตัดสต๊อก ›</span>`);
+  if(a.rev!=null&&a.labor==null) gaps.push(`${a.laborWhy||"ยังไม่มีค่าแรง"} — prime cost คิดไม่ได้ · <span class="dl">บันทึกเงินเดือนในค่าใช้จ่าย หมวดค่าแรง ›</span>`);
+  if(bs().includes("LPR")&&agg(sel,"LPR").rev==null) gaps.push(`สาขาลาดพร้าวยังไม่มีไฟล์ยอดขาย — เทียบสาขาไม่ได้ · <span class="dl">นำเข้ายอดขาย ›</span>`);
+  const mx=Math.max(...items.map(i=>i.money),1);
+  const good=real?PRICES_REAL.filter(p=>p[2]<0):[];
+  $("#todo").innerHTML=`<div class="todolist">${items.slice(0,6).map((it,i)=>`<div class="todo" data-i="${i}"><span class="tg ${it.tone}">${it.type}</span><div class="tbody"><b>${it.title}</b><span class="sub">${it.detail}</span><span class="mbar"><i style="width:${it.money/mx*100}%;animation-delay:${i*50}ms"></i></span></div><div class="tmoney">฿${f0(it.money)}</div><span class="dl">${it.act} ›</span></div>`).join("")}</div>
+   ${good.length?`<p class="sub" style="margin-top:8px">ข่าวดี: ${good.map(p=>`${p[0]} ถูกลง ${Math.abs(p[1])}% (ประหยัด ฿${f0(-p[2])})`).join(" · ")}</p>`:""}
+   ${gaps.length?`<div class="gaps"><b>ข้อมูลยังไม่ครบ ตัวเลขข้างบนจึงอาจยังไม่เต็ม</b><ul>${gaps.map(g=>`<li>${g}</li>`).join("")}</ul></div>`:""}`;
+  $$("#todo .todo").forEach(el=>{ const it=items[+el.dataset.i]; el.onclick=()=>{ if(it.count) openCount(it.count); }; });
 }
-// ---------- benchmark ----------
+// ---------- Q8 bench ----------
 function bench(){
-  const a=agg(sel,"ARI"), b=agg(sel,"LPR"); $("#benchMonth").textContent=D.months[sel];
-  const rows=[["food","ต้นทุนอาหาร %"],["leak","ของหาย % ของรายได้",x=>x.rev&&x.leak!=null?x.leak/x.rev*100:null,v=>v.toFixed(2)+"%"],["waste","ทิ้ง % ของรายได้",x=>x.rev?x.waste/x.rev*100:null,v=>v.toFixed(2)+"%"],["rev","รายได้ต่อวัน"],["gp","กำไรขั้นต้น % ของรายได้",x=>x.rev?x.gp/x.rev*100:null,v=>v.toFixed(1)+"%"]];
-  const val=(r,x)=>r[2]?r[2](x):M[r[0]].get(x), fmt=(r,v)=>r[3]?r[3](v):M[r[0]].fmt(v), low=r=>M[r[0]].low;
-  let h=`<table class="mt"><thead><tr><th style="text-align:left">ตัวชี้วัด</th>${["ARI","LPR"].map(k=>`<th style="text-align:center;${branch===k?"color:var(--fg)":""}"><i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${BR[k].c1};margin-right:4px"></i>${BR[k].name}</th>`).join("")}</tr></thead><tbody>`;
-  rows.forEach(r=>{ const va=val(r,a), vb=val(r,b), both=va!=null&&vb!=null; const bestA=both&&(low(r)?va<vb:va>vb), bestB=both&&!bestA&&va!==vb;
-    const cell=(v,x,best,k)=>`<td style="text-align:center;${best?"background:var(--warn-bg);font-weight:700":""};${branch!=="ALL"&&branch!==k?"opacity:.5":""}">${v==null?`<span class="sub">${x.rev==null?"ไม่มียอดขาย":"ยังไม่ได้นับ"}</span>`:(best?"★ ":"")+fmt(r,v)}</td>`;
-    h+=`<tr class="brow ${r[0]===metric?"cur":""}" data-m="${r[0]}"><td>${r[1]}</td>${cell(va,a,bestA,"ARI")}${cell(vb,b,bestB,"LPR")}</tr>`; });
-  h+=`<tr><td>นับสต๊อกเดือนนี้</td>${["ARI","LPR"].map(k=>{const c=D.counts.filter(x=>x.b===k&&x.m===sel)[0]; return `<td style="text-align:center">${c?c.label.replace("*",""):'<span style="color:var(--bad)">ไม่ได้นับ</span>'}</td>`;}).join("")}</tr></tbody></table>`;
-  $("#bench").innerHTML=h;
-  $$("#bench .brow").forEach(tr=>{ tr.onmouseenter=()=>{ if(tr.dataset.m!==metric){preview=tr.dataset.m; chart(); $$("#tabs .tab").forEach(t=>t.classList.toggle("glow",t.dataset.m===preview));} };
-    tr.onmouseleave=()=>{ if(preview){preview=null; chart(); $$("#tabs .tab").forEach(t=>t.classList.remove("glow"));} };
-    tr.onclick=()=>{ preview=null; metric=tr.dataset.m; render(); }; });
-  if(a.rev!=null&&b.rev!=null){ const fa=a.sold/a.rev, fb=b.sold/b.rev, hiB=fa>fb?"ARI":"LPR", loB=hiB==="ARI"?"LPR":"ARI", hi=Math.max(fa,fb), lo=Math.min(fa,fb), money=(hi-lo)*agg(sel,hiB).rev;
-    $("#gap").innerHTML=`<div class="gapcard"><span class="sub">ถ้า${BR[hiB].name}ทำต้นทุนอาหารได้เท่า${BR[loB].name}</span><b class="num" data-v="0"> </b><span class="sub">ต่อเดือน (${(lo*100).toFixed(1)}% แทน ${(hi*100).toFixed(1)}%) · ดูว่ารั่วตรงไหนที่ “ของที่หาย ต้องตามต่อ”</span></div>`; countUp($("#gap b"),money,v=>"เหลือเงินเพิ่ม ฿"+f0(v)); }
-  else $("#gap").innerHTML=`<div class="restore">ยังเทียบเป็นเงินไม่ได้ · ${b.rev==null?BR.LPR.name:BR.ARI.name}ยังไม่มีไฟล์ยอดขายเดือนนี้ · <span class="dl">นำเข้ายอดขาย ›</span> · หรือกด “ตัวอย่าง 6 เดือน” ด้านบน</div>`;
+  const a=agg(sel,"ARI"), b=agg(sel,"LPR");
+  const rows=[["prime","Prime cost %"],["food","ต้นทุนอาหาร %"],["var","ส่วนต่าง % (นับล่าสุด)",x=>{const c=lastCount([x]);return c&&c.monthRev?c.v/c.monthRev*100:null;},v=>v.toFixed(1)+"%"],["waste","ทิ้ง % ของยอดขาย",x=>{const g=agg(sel,x);return g.rev?g.waste/g.rev*100:null;},v=>v.toFixed(2)+"%"]];
+  const val=(r,br)=>r[2]?r[2](br):M[r[0]].get(agg(sel,br)), fmt=(r,v)=>r[3]?r[3](v):M[r[0]].fmt(v);
+  let h=`<table class="mt"><thead><tr><th style="text-align:left">ตัวชี้วัด</th>${["ARI","LPR"].map(k=>`<th style="text-align:center"><i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${BR[k].c1};margin-right:4px"></i>${BR[k].name}</th>`).join("")}</tr></thead><tbody>`;
+  rows.forEach(r=>{ const va=val(r,"ARI"), vb=val(r,"LPR"), both=va!=null&&vb!=null, bA=both&&va<vb, bB=both&&vb<va;
+    const cell=(v,best,k)=>`<td style="text-align:center;${best?"background:var(--warn-bg);font-weight:700":""};${branch!=="ALL"&&branch!==k?"opacity:.45":""}">${v==null?`<span class="sub">${agg(sel,k).rev==null?"ไม่มียอดขาย":r[0]==="prime"?"ไม่มีค่าแรง":r[0]==="var"?"ยังไม่ได้นับ":"—"}</span>`:(()=>{const g=agg(sel,k), thin=(r[0]==="food"||r[0]==="prime")&&g.cov<COV_OK; return thin?`<span style="color:var(--warn)">≥${fmt(r,v)}</span><br><span class="sub">ข้อมูล ${Math.round(g.cov*100)}%</span>`:(best?"★ ":"")+fmt(r,v);})()}</td>`;
+    h+=`<tr class="brow ${r[0]===metric?"cur":""}" data-m="${r[0]}"><td>${r[1]}</td>${cell(va,bA,"ARI")}${cell(vb,bB,"LPR")}</tr>`; });
+  $("#bench").innerHTML=h+"</tbody></table>";
+  $$("#bench .brow").forEach(tr=>{ tr.onmouseenter=()=>{ if(tr.dataset.m!==metric){preview=tr.dataset.m;chart();$$("#tabs .tab").forEach(t=>t.classList.toggle("glow",t.dataset.m===preview));} }; tr.onmouseleave=()=>{ if(preview){preview=null;chart();$$("#tabs .tab").forEach(t=>t.classList.remove("glow"));} }; tr.onclick=()=>{preview=null;metric=tr.dataset.m;render();}; });
+  if(a.rev!=null&&b.rev!=null){ const fa=a.sold/a.rev, fb=b.sold/b.rev, hi=fa>fb?"ARI":"LPR", lo=hi==="ARI"?"LPR":"ARI", money=Math.abs(fa-fb)*agg(sel,hi).rev;
+    $("#gap").innerHTML=`<div class="gapcard"><span class="sub">ถ้า${BR[hi].name}ทำต้นทุนอาหารได้เท่า${BR[lo].name}</span><b class="num"></b><span class="sub">ในช่วงนี้ (${(Math.min(fa,fb)*100).toFixed(1)}% แทน ${(Math.max(fa,fb)*100).toFixed(1)}%)</span></div>`; countUp($("#gap b"),money,v=>"เหลือเงินเพิ่ม ฿"+f0(v)); }
+  else $("#gap").innerHTML=`<div class="gaps" style="margin-top:8px">ยังเทียบเป็นเงินไม่ได้ · สาขาลาดพร้าวยังไม่มีไฟล์ยอดขาย · <span class="dl">นำเข้ายอดขาย ›</span> · กด “ตัวอย่าง” เพื่อดูตอนมีครบ</div>`;
 }
-// ---------- follow-up ----------
-function follow(){
-  const bs=branch==="ALL"?["ARI","LPR"]:[branch];
-  const now=D.counts.filter(c=>bs.includes(c.b)&&c.m===sel);
-  $("#followSub").textContent=`${D.months[sel]} เทียบการนับครั้งก่อน`;
-  if(!now.length){ $("#follow").innerHTML=`<p class="small">${D.months[sel]} ไม่มีการนับสต๊อก${branch==="ALL"?"ทั้งสองสาขา":"ที่"+BR[branch].name} จึงยังไม่รู้ว่าอะไรหาย · <b>นับเดือนละครั้งถึงจะเห็นว่าดีขึ้นหรือแย่ลง</b> · <span class="dl">ไปหน้านับสต๊อก ›</span></p>`; return; }
-  const rows=[]; now.forEach(c=>{ const prev=D.counts.filter(p=>p.b===c.b&&(p.m<c.m)).sort((p,q)=>q.m-p.m)[0];
-    c.items.forEach(it=>{ const pi=prev&&prev.items.find(x=>x[0]===it[0]); rows.push([c.b,it[0],it[2],prev?(pi?pi[2]:0):null,prev?prev.label:null]); });
-    if(prev) prev.items.forEach(pi=>{ if(!c.items.find(x=>x[0]===pi[0])) rows.push([c.b,pi[0],0,pi[2],prev.label]); }); });
-  rows.sort((p,q)=>q[2]-p[2]); const top=Math.max(...rows.map(r=>Math.max(r[2],r[3]||0)),1);
-  $("#follow").innerHTML=`<table class="mt"><thead><tr><th>วัตถุดิบ</th><th>ครั้งนี้</th><th>ครั้งก่อน</th><th>สถานะ</th></tr></thead><tbody>${rows.slice(0,7).map(r=>{ const [b,name,nowv,bef]=r; let tag,col;
-     if(bef==null){tag="ใหม่";col="var(--warn)";} else if(nowv===0){tag="แก้แล้ว";col="var(--good)";} else if(nowv<bef*.8){tag="ดีขึ้น";col="var(--good)";} else if(nowv>bef*1.2){tag=bef===0?"ใหม่":"แย่ลง";col=bef===0?"var(--warn)":"var(--bad)";} else {tag="เท่าเดิม";col="var(--muted-fg)";}
-     return `<tr><td><i style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${BR[b].c1};margin-right:6px"></i>${name}</td><td class="num"><span class="lbar" style="width:${Math.max(3,nowv/top*60)}px"></span>฿${f0(nowv)}</td><td class="num dim">${bef==null?"ยังไม่เคยนับ":"฿"+f0(bef)}</td><td><span class="badge" style="color:${col};background:transparent;border:1px solid currentColor">${tag}</span></td></tr>`;}).join("")}</tbody></table>`;
+// ---------- Q9 stock ----------
+function stock(){
+  const total=bs().reduce((s,b)=>s+(real?STOCK_REAL[b]:(b==="ARI"?296000:184000)),0);
+  const slow=real?SLOW_REAL:[["เนื้อสันใน",62,14800],["หมูสามชั้น",48,13900],["น้ำมันพืช",45,11000]];
+  const mx=Math.max(...slow.map(s=>s[2]));
+  $("#stock").innerHTML=`<div class="row" style="justify-content:space-between;align-items:baseline"><span class="sub">มูลค่าของในสต๊อก ณ วันนี้ ${branch==="ALL"?"ทุกสาขา":BR[branch].name}</span><b class="num" style="font-family:var(--display);font-size:1.4rem">฿${f0(total)}</b></div>
+   <p class="sub" style="margin:6px 0 4px">ของที่กว่าจะใช้หมด ≥ 45 วัน (เงินจมนาน) <span class="q" title="วันที่พอใช้ = คงเหลือ ÷ ใช้ต่อวัน">?</span></p>
+   ${slow.map(s=>`<div class="slow"><span>${s[0]}</span><span class="mbar"><i style="width:${s[2]/mx*100}%"></i></span><span class="num">฿${f0(s[2])}</span><span class="sub num">${s[1]} วัน</span></div>`).join("")}
+   ${real?'<p class="sub" style="margin-top:6px">⚠ อัตราใช้คิดจากวันที่ตัดสต๊อกแล้วซึ่งยังน้อย ตัวเลขวันจะแม่นขึ้นเมื่อตัดสต๊อกครบ</p>':""}
+   <span class="dl">ดูทั้งหมดที่หน้าสต๊อก ›</span>`;
 }
-// ---------- table ----------
-function table(){
-  $("#tbody").innerHTML=["ARI","LPR"].filter(b=>branch==="ALL"||branch===b).map(b=>{ const d=D[b][sel], a=agg(sel,b), c=D.counts.find(x=>x.b===b&&x.m===sel);
-    return `<tr class="rowc"><td><b>${BR[b].name}</b>${d&&d.demo?'<br><span class="sub">สมมติ</span>':""}</td><td class="num">฿${f0(a.buy)}</td><td class="num">฿${f0(a.opex)}</td><td class="num red">฿${f0(a.waste)}</td><td class="num">${c?`<span class="clickcell red" data-c="${D.counts.indexOf(c)}">฿${f0(c.v)}</span>`:'<span class="dim">ยังไม่ได้นับ</span>'}</td><td class="num">${a.rev==null?'<span class="dim">ไม่มียอดขาย</span>':"<b>฿"+f0(a.rev)+"</b>"}</td><td class="num">${a.rev==null?'<span class="dim">—</span>':`<b class="${a.cov<.995?"warnv":""}">${a.cov<.995?"ไม่เกิน ":""}฿${f0(a.gp)}</b><br><span class="cov"><span class="bar"><i style="width:${a.cov*100}%"></i></span>ครอบคลุม ${Math.round(a.cov*100)}%</span>`}</td></tr>`; }).join("");
-  $$("#tbody [data-c]").forEach(el=>el.onclick=e=>{e.stopPropagation(); openCount(D.counts[+el.dataset.c]);});
+// ---------- Q12 trust ----------
+function trust(){
+  const it=[]; bs().forEach(b=>{ const c=COUNTS.filter(x=>x.b===b).sort((p,q)=>(gran==="week"?q.w-p.w:q.m-p.m))[0]; it.push([c?"ok":"bad",`${BR[b].name} นับสต๊อกล่าสุด`,c?c.date:"ยังไม่เคยนับ"]); });
+  const a=agg(sel); if(a.rev!=null) it.push([a.cov>=.995?"ok":"warn","ตัดสต๊อกตามยอดขาย",`${a.posted} วัน · ครอบคลุม ${Math.round(a.cov*100)}%`]);
+  bs().forEach(b=>{ if(agg(sel,b).rev==null) it.push(["bad",`${BR[b].name} ยอดขาย`,"ยังไม่มีไฟล์"]); });
+  if(a.rev!=null) it.push([a.labor==null?"bad":"ok","ค่าแรง",a.labor==null?(a.laborWhy||"ยังไม่มี"):"มีแล้ว"]);
+  $("#trust").innerHTML=it.map(([t,l,v])=>`<span class="tchip ${t}"><i></i>${l}: <b>${v}</b></span>`).join("");
 }
-function render(){ chips(); tabs(); chart(); bench(); follow(); table(); }
-function setData(w){ D=w==="demo"?DEMO:REAL; sel=w==="demo"?5:1; $("#demoNote").hidden=w!=="demo"; $("#d-real").setAttribute("aria-pressed",w!=="demo"); $("#d-demo").setAttribute("aria-pressed",w==="demo"); $("#tabs").innerHTML=""; render(); }
-$("#d-real").onclick=()=>setData("real"); $("#d-demo").onclick=()=>setData("demo");
+// ---------- wiring ----------
+function render(){ chips(); tabs(); chart(); todo(); bench(); stock(); trust(); }
+function setGran(g){ gran=g; P=real?(g==="week"?RW:RM):(g==="week"?DW:DM); sel=P.length-1; $("#g-week").setAttribute("aria-pressed",g==="week"); $("#g-month").setAttribute("aria-pressed",g==="month"); render(); }
+function setReal(r){ real=r; COUNTS=r?COUNTS_REAL:COUNTS_DEMO; $("#demoNote").hidden=r; $("#d-real").setAttribute("aria-pressed",r); $("#d-demo").setAttribute("aria-pressed",!r); $("#tabs").innerHTML=""; setGran(gran); }
+$("#g-week").onclick=()=>setGran("week"); $("#g-month").onclick=()=>setGran("month");
+$("#d-real").onclick=()=>setReal(true); $("#d-demo").onclick=()=>setReal(false);
+$("#targetsBtn").onclick=e=>{e.stopPropagation(); const p=$("#targetsPop"); p.hidden=!p.hidden; $("#inFood").value=T.food;$("#inPrime").value=T.prime;$("#inVar").value=T.var;};
+$("#targetsPop").onclick=e=>e.stopPropagation();
+$("#tCancel").onclick=()=>$("#targetsPop").hidden=true;
+$("#tSave").onclick=()=>{ T={food:+$("#inFood").value||35,prime:+$("#inPrime").value||65,var:+$("#inVar").value||2}; $("#targetsPop").hidden=true; render(); };
 $("#modal").onclick=e=>{if(e.target.id==="modal")$("#modal").hidden=true;};
-document.addEventListener("keydown",e=>{if(e.key==="Escape")$("#modal").hidden=true;});
-let tip=null;
-$$(".q").forEach(q=>q.onclick=e=>{e.stopPropagation(); if(tip){tip.remove();tip=null;} const t=document.createElement("div"); t.className="tip"; t.textContent=q.dataset.tip; const box=$("#tablebox"), r=q.getBoundingClientRect(), b=box.getBoundingClientRect(); t.style.left=Math.max(8,Math.min(r.left-b.left-120,b.width-290))+"px"; t.style.top=(r.bottom-b.top+8)+"px"; box.appendChild(t); tip=t;});
-document.addEventListener("click",()=>{if(tip){tip.remove();tip=null;}});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"){$("#modal").hidden=true;$("#targetsPop").hidden=true;}});
+document.addEventListener("click",()=>{$("#targetsPop").hidden=true;});
 function mode(v){root.classList.toggle("v-new",v==="new");root.classList.toggle("v-now",v==="now");$("#b-now").setAttribute("aria-pressed",v==="now");$("#b-new").setAttribute("aria-pressed",v==="new");$("#modal").hidden=true; if(v==="new") chart();}
 $("#b-now").onclick=()=>mode("now"); $("#b-new").onclick=()=>mode("new");
 $("#b-mk").onclick=e=>{const on=root.classList.toggle("hide-mk");e.target.setAttribute("aria-pressed",!on);};
