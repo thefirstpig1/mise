@@ -1,0 +1,323 @@
+<title>ของหายไปไหน · เก่า–ใหม่</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Prompt:wght@500;600;700&family=Noto+Sans+Thai:wght@400;500;600&display=swap">
+<style>
+/* Mockup: /cost/leaks (ของหายไปไหน) — current vs proposed, question-first.
+   Real figures of the demo shop (count ARI-SC-0001, 24 Sep 2026) unless the
+   "ตัวอย่าง" switch is on. App tokens from tailwind.config.ts. */
+:root{
+  --bg:#FDFBF3; --fg:#262811; --surface:#FFFFFF; --sunk:#F8F3E1; --primary:#41431B; --primary-fg:#F8F3E1;
+  --muted:#F3EFDF; --muted-fg:#5A5C31; --subtle:#8B8D63; --border:#E9E3C8; --strong:#D2CBA4;
+  --good:#5A7333; --good-bg:#EEF2E0; --bad:#A83A22; --bad-bg:#F9E5DF; --warn:#A87C1C; --warn-bg:#F8EFD6; --warn-border:#E2CE97; --clay:#C0692B;
+  --display:"Prompt","Noto Sans Thai",system-ui,sans-serif; --body:"Noto Sans Thai","Prompt",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#1B1C10; --fg:#EEEAD6; --surface:#24261A; --sunk:#2A2C1E; --primary:#D9DDB0; --primary-fg:#1B1C10;
+  --muted:#2E301F; --muted-fg:#C9C8A6; --subtle:#9C9B7C; --border:#36381F; --strong:#4A4C30;
+  --good:#B7CF7C; --good-bg:#2B3320; --bad:#EC9C80; --bad-bg:#41261C; --warn:#E8BE62; --warn-bg:#3B3018; --warn-border:#5A4A22; --clay:#E8A76F; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#1B1C10; --fg:#EEEAD6; --surface:#24261A; --sunk:#2A2C1E; --primary:#D9DDB0; --primary-fg:#1B1C10;
+  --muted:#2E301F; --muted-fg:#C9C8A6; --subtle:#9C9B7C; --border:#36381F; --strong:#4A4C30;
+  --good:#B7CF7C; --good-bg:#2B3320; --bad:#EC9C80; --bad-bg:#41261C; --warn:#E8BE62; --warn-bg:#3B3018; --warn-border:#5A4A22; --clay:#E8A76F; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:14px;line-height:1.55;margin:0;padding-inline:16px;padding-block:20px 60px}
+h1,h2,h3{font-family:var(--display);margin:0}
+p{margin:0}
+.wrap{max-width:1180px;margin:0 auto;display:grid;gap:14px}
+.top{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;justify-content:space-between}
+.seg{display:inline-flex;border:1px solid var(--strong);border-radius:999px;padding:3px;background:var(--surface);gap:2px}
+.seg button{font:inherit;font-size:.82rem;border:0;background:none;color:var(--fg);border-radius:999px;padding:3px 12px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--primary);color:var(--primary-fg)}
+.sub{color:var(--subtle);font-size:.8rem}
+.page{background:var(--bg);border:1px solid var(--border);border-radius:18px;padding:18px;display:grid;gap:14px;position:relative}
+.chip{border:1px solid var(--strong);background:var(--surface);color:var(--fg);border-radius:999px;padding:3px 12px;font:inherit;font-size:.8rem;cursor:pointer;white-space:nowrap}
+.chip.on{background:var(--primary);color:var(--primary-fg);border-color:var(--primary)}
+.row{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 16px}
+.qlabel{display:flex;align-items:center;gap:8px;font-family:var(--display);font-weight:600;font-size:.95rem}
+.qn{display:inline-grid;place-items:center;min-width:30px;height:22px;border-radius:999px;background:var(--primary);color:var(--primary-fg);font-size:.72rem;padding:0 6px}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:12px 14px;display:grid;gap:3px;align-content:start}
+.kpi .k{font-size:.74rem;color:var(--muted-fg)} .kpi .v{font-family:var(--display);font-weight:700;font-size:1.45rem;line-height:1.2;font-variant-numeric:tabular-nums}
+.kpi .s{font-size:.74rem;color:var(--muted-fg)}
+.tg{display:inline-block;border-radius:999px;padding:1px 8px;font-size:.7rem;white-space:nowrap;width:max-content}
+.tg.ok{background:var(--good-bg);color:var(--good)} .tg.bad{background:var(--bad-bg);color:var(--bad)} .tg.warn{background:var(--warn-bg);color:var(--warn)} .tg.muted{background:var(--muted);color:var(--muted-fg)}
+.band{position:relative;height:10px;border-radius:999px;background:linear-gradient(90deg,var(--good-bg) 0 33%,var(--warn-bg) 33% 83%,var(--bad-bg) 83%);margin-top:6px}
+.band i{position:absolute;top:-4px;width:4px;height:18px;border-radius:2px;background:var(--fg);transform:translateX(-2px);transition:left .5s cubic-bezier(.2,.8,.2,1)}
+.band-l{display:flex;justify-content:space-between;font-size:.66rem;color:var(--subtle);margin-top:2px}
+.items{display:grid;gap:6px}
+.it{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,2fr) 90px 54px;gap:12px;align-items:center;padding:9px 10px;border-radius:12px;border:1px solid var(--border);background:var(--surface);cursor:pointer;text-align:left;font:inherit;color:inherit;transition:transform .12s,border-color .12s,box-shadow .12s}
+.it:hover{transform:translateX(2px);border-color:var(--strong);box-shadow:0 6px 16px rgb(0 0 0/.06)}
+.it .nm b{font-family:var(--display);font-weight:600}
+.it .nm span{display:block;font-size:.74rem;color:var(--muted-fg)}
+.it .money{font-family:var(--display);font-weight:700;text-align:right;font-variant-numeric:tabular-nums}
+.it .cum{text-align:right;font-size:.72rem;color:var(--subtle);font-variant-numeric:tabular-nums}
+.bar{height:8px;border-radius:9px;background:var(--muted);overflow:hidden;position:relative}
+.bar i{display:block;height:100%;border-radius:9px;background:linear-gradient(90deg,#E8A76F,#C0692B);transform-origin:left;animation:grow .6s cubic-bezier(.2,.8,.2,1) both}
+.bar.pos i{background:linear-gradient(90deg,#9DAA55,#5E6B14)}
+.hints{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.hint{font-size:.7rem;border-radius:999px;padding:1px 8px;background:var(--warn-bg);color:var(--warn);white-space:nowrap}
+.hint.b{background:var(--bad-bg);color:var(--bad)} .hint.m{background:var(--muted);color:var(--muted-fg)}
+.fold{all:unset;cursor:pointer;font-size:.8rem;color:var(--muted-fg);padding:6px 10px;border:1px dashed var(--strong);border-radius:12px;display:block;text-align:center}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.trust{display:flex;flex-wrap:wrap;gap:8px}
+.tchip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);background:var(--surface);border-radius:999px;padding:4px 12px;font-size:.78rem}
+.tchip i{width:8px;height:8px;border-radius:50%}
+.tchip.ok i{background:var(--good)} .tchip.warn i{background:var(--warn)} .tchip.bad i{background:var(--bad)}
+.tchip a,.dl{color:var(--primary);text-decoration:underline;cursor:pointer}
+.modal{position:fixed;inset:0;background:rgb(0 0 0/.35);display:grid;place-items:center;z-index:9;animation:fade .18s both}
+.mbox{background:var(--surface);border-radius:18px;width:min(700px,94vw);max-height:88vh;overflow:auto;box-shadow:0 20px 50px rgb(0 0 0/.25);padding:18px 20px;display:grid;gap:12px;animation:pop .24s cubic-bezier(.2,.8,.2,1) both}
+.x{all:unset;cursor:pointer;font-size:1.3rem;line-height:1;color:var(--muted-fg)}
+.check{display:grid;gap:6px}
+.ck{display:grid;grid-template-columns:22px 1fr auto;gap:8px;align-items:start;padding:8px 10px;border:1px solid var(--border);border-radius:12px;background:var(--sunk)}
+.ck input{margin-top:3px;accent-color:var(--primary)}
+.ck .why{font-size:.76rem;color:var(--muted-fg)}
+.hist{display:flex;gap:10px;align-items:flex-end;height:70px;padding-top:6px}
+.hist div{display:grid;justify-items:center;gap:2px;font-size:.68rem;color:var(--muted-fg)}
+.hist b{display:block;width:26px;border-radius:6px 6px 2px 2px;background:linear-gradient(#C0692B,#E8A76F);transform-origin:bottom;animation:rise .5s cubic-bezier(.2,.8,.2,1) both}
+.tip{position:absolute;z-index:5;background:var(--fg);color:var(--bg);font-size:.76rem;line-height:1.5;padding:8px 10px;border-radius:10px;pointer-events:none;box-shadow:0 10px 24px rgb(0 0 0/.2);max-width:260px}
+.legend{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 16px;display:grid;gap:6px}
+.legend ol{margin:0;padding-left:18px;display:grid;gap:5px}
+.old table{width:100%;border-collapse:collapse;font-size:.85rem}
+.old th{text-align:left;padding:8px 6px;border-bottom:1px solid var(--border);font-weight:600}
+.old td{padding:8px 6px;border-bottom:1px solid color-mix(in srgb,var(--border) 50%,transparent)}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+.restore{background:var(--warn-bg);border:1px solid var(--warn-border);border-radius:12px;padding:8px 12px;font-size:.82rem}
+@keyframes grow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@keyframes rise{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+@keyframes pop{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+@media (max-width:860px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.grid2{grid-template-columns:1fr}.it{grid-template-columns:minmax(0,1fr) 80px}.it .bwrap,.it .cum{display:none}}
+</style>
+
+<div class="wrap">
+  <div class="top">
+    <div><h1 style="font-size:1.2rem">ของหายไปไหน · เก่า–ใหม่</h1>
+      <p class="sub">ออกแบบจากคำถามที่เจ้าของร้านและผู้จัดการถาม (<a href="https://claude.ai/artifact/QMbfAJtRRM7e9uFoAb1o3a">งานค้นคว้า</a>) · ตัวเลขจริงของร้านตัวอย่าง</p></div>
+    <div class="seg" role="group" aria-label="แบบไหน"><button id="b-old" aria-pressed="false">ตอนนี้</button><button id="b-new" aria-pressed="true">ที่เสนอ</button></div>
+  </div>
+
+  <!-- ===== CURRENT ===== -->
+  <div class="page old" id="oldpage" hidden>
+    <div><h2 style="font-size:1.15rem">ของหายไปไหน</h2><p class="sub">2026-09-22 – 2026-10-22 · สาขาลาดพร้าว</p></div>
+    <div class="row"><span class="chip on">สาขาลาดพร้าว</span><span class="chip">สาขาอารีย์</span></div>
+    <table><thead><tr><th>วัตถุดิบ</th><th class="num">ควรเหลือ</th><th class="num">นับได้</th><th class="num">ส่วนต่าง</th><th class="num">มูลค่าที่นับเจอ</th><th class="num">ตัดจำหน่าย/ขาดส่ง</th><th>แผนกที่ใช้</th></tr></thead>
+      <tbody id="oldrows"></tbody></table>
+    <p class="sub">มูลค่าที่นับเจอ คือส่วนต่างจากการนับ … ตัดจำหน่าย/ขาดส่ง คือของที่หายด้วยเหตุอื่นในช่วงเดียวกัน … (ข้อความอธิบายยาวใต้ตาราง)</p>
+    <p class="sub" style="color:var(--bad)">↑ เปิดหน้ามาเจอสาขาลาดพร้าว (เรียงตามชื่อ) ซึ่งการนับเจอของเกินทั้งหมด · กุ้งขาว ฿9,454 ที่อารีย์ ต้องกดเปลี่ยนสาขาก่อนจึงเห็น และอยู่ปนกับ 25 แถวอื่นเรียงตามชื่อ</p>
+  </div>
+
+  <!-- ===== PROPOSED ===== -->
+  <div class="page" id="newpage">
+    <div class="row" style="justify-content:space-between">
+      <div><h2 style="font-size:1.25rem">ของหายไปไหน</h2><p class="sub">นับได้ไม่ตรงกับที่ระบบคำนวณ หลังหักที่บันทึกว่าทิ้งและของเสียแล้ว · หายเพราะอะไร ต้องไปตามที่ไหน</p></div>
+      <span class="seg" role="group" aria-label="ข้อมูล"><button id="d-real" aria-pressed="true">ข้อมูลจริง</button><button id="d-demo" aria-pressed="false">ตัวอย่าง (นับหลายครั้ง)</button></span>
+    </div>
+    <div class="restore" id="demoNote" hidden><b>ตัวเลขสมมติ</b> — สาขาอารีย์นับ 3 ครั้ง เพื่อดูว่าหน้าตอบ “หายซ้ำไหม · แก้แล้วดีขึ้นไหม” อย่างไร</div>
+
+    <div class="card" style="padding:10px 14px;display:grid;gap:8px">
+      <div class="row"><span class="sub" style="width:64px">การนับ</span><span id="countChips" class="row"></span></div>
+      <p class="sub" id="countMeta"></p>
+    </div>
+
+    <div class="qlabel"><span class="qn">1</span> หายไปเท่าไร · เกินเป้าไหม</div>
+    <div class="kpis" id="kpis"></div>
+
+    <div class="qlabel"><span class="qn">2–4</span> ตัวไหน · น่าจะเพราะอะไร · ต้องไปดูที่ไหน <span class="sub" style="font-weight:400">เรียงตามเงิน · กดแถวเพื่อดูรายการตรวจ</span></div>
+    <div class="card"><div class="items" id="items"></div></div>
+
+    <div class="grid2">
+      <div style="display:grid;gap:8px;align-content:start">
+        <div class="qlabel"><span class="qn">5</span> หายซ้ำไหม · แก้แล้วดีขึ้นไหม</div>
+        <div class="card" id="trend" style="position:relative"></div>
+      </div>
+      <div style="display:grid;gap:8px;align-content:start">
+        <div class="qlabel"><span class="qn">8</span> ควรนับอะไรบ่อยขึ้น</div>
+        <div class="card" id="spot"></div>
+      </div>
+    </div>
+
+    <div class="qlabel"><span class="qn">↕</span> นับได้มากกว่าระบบ <span class="sub" style="font-weight:400">ไม่นำมาหักลบกับที่หาย</span></div>
+    <div class="card" id="over"></div>
+
+    <div class="qlabel"><span class="qn">7</span> นับครั้งนี้เชื่อได้แค่ไหน</div>
+    <div class="trust" id="trust"></div>
+  </div>
+
+  <div class="legend">
+    <h3 style="font-size:1rem">หน้านี้เรียงตามคำถาม (งานค้นคว้า: Restaurant365, MarketMan, Craftable, Supy)</h3>
+    <ol>
+      <li><b>ดูทีละครั้งที่นับ</b> แทนช่วงวันที่ 30 วัน — การนับคือเหตุการณ์ ชิปบนสุดเลือกได้ทุกสาขา (สาขาอยู่ในชื่อชิป) เปิดมาที่ครั้งล่าสุดที่หายเป็นเงินมากที่สุด</li>
+      <li><b>1 หายไปเท่าไร</b> — เงิน · % ของยอดขายตั้งแต่นับครั้งก่อน บนแถบ ≤2% ปกติ / 2–5% หาสาเหตุ / &gt;5% เร่งด่วน (เป้าเป็นค่าที่ร้านตั้งในหน้าต้นทุน) · กี่รายการเป็นเงินส่วนใหญ่</li>
+      <li><b>2–4 ตัวไหน เพราะอะไร ไปดูที่ไหน</b> — เรียงตามเงิน + % สะสม · ป้ายใต้ชื่อบอก “ลักษณะ” ของตัวเลข (ต่างกี่ % ของที่ควรเหลือ · ขายเป็นชิ้น · มีเมนูไม่มีสูตรชื่อคล้าย · เคยบันทึกทิ้งไหม) · ตัวที่ต่าง &lt;2% ของที่ควรเหลือพับรวมเป็น “ระดับปกติ” · กดแถว = รายการตรวจพร้อมลิงก์เอกสาร และติ๊กได้ว่าตรวจแล้ว</li>
+      <li><b>5 หายซ้ำไหม</b> — ทุกครั้งที่นับของสาขานี้ · ข้อมูลจริงนับครั้งเดียวจึงบอกตรง ๆ ว่ายังไม่รู้ · สลับ “ตัวอย่าง” เพื่อดูตอนนับ 3 ครั้ง</li>
+      <li><b>นับได้มากกว่าระบบ</b> แยกออกมา ไม่หักลบ และบอกว่ามักเป็นรับของไม่บันทึก/นับผิด</li>
+      <li><b>7 เชื่อได้แค่ไหน</b> — นับครบกี่รายการ · ตัดสต๊อกครบก่อนนับไหม · เมนูขายแต่ไม่มีสูตร · ใครนับ</li>
+      <li><b>8 ควรนับอะไรบ่อยขึ้น</b> — ของราคาสูงที่ต่าง → นับทุกสัปดาห์โดยไม่ต้องนับทั้งร้าน</li>
+    </ol>
+    <p class="sub">ตัวเลขจริง: ใบนับ ARI-SC-0001 (24 ก.ย.) และ LPR-SC-0001 (28 ก.ย.) · 6 รายการบนสุดมูลค่าตาม FIFO ตรงกับหน้าต้นทุน · รายการเล็ก 10 ตัวและของที่นับเกินคิดจากต้นทุนต่อหน่วยวันก่อนนับ (ประมาณ) · เมนูไม่มีสูตร = ยอดขายถึง 24 ก.ย. · ตอนลงหน้าจริง “ติ๊กว่าตรวจแล้ว” ต้องเก็บในฐานข้อมูล (ตารางใหม่ ต้องขออนุมัติ) — ใน mockup จำไว้ในหน้านี้เท่านั้น</p>
+  </div>
+</div>
+
+<script>
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const f0=n=>Math.round(n).toLocaleString("th-TH"), f2=n=>n.toLocaleString("th-TH",{minimumFractionDigits:2,maximumFractionDigits:2});
+const TARGET=2;
+// [name, qty short, unit, expected, value, kind, extra]
+// kind: "piece" = sold as-is (cannot be over-portioned)
+const ARI_SHORT=[
+ ["กุ้งขาว",27.981,"kg",186.54,9453.77,"",{waste:2,recipes:6,lastGR:"ARI-GR-0072 · 24 ก.ย. · มหาชัย · 12 กล่อง 2 กก. (24 kg)",sameDay:"24 kg"}],
+ ["เบียร์สิงห์ 620 มล.",59,"ขวด",393,4071.48,"piece",{waste:0,recipes:1,lastGR:"ARI-GR-0075 · 24 ก.ย. · บุญรอด · 4 ลัง 12 ขวด (48 ขวด)",sameDay:"48 ขวด"}],
+ ["ข้าวหอมมะลิ",7.791,"kg",888.1,372.22,"",{waste:0,recipes:9}],
+ ["หมูสามชั้น",1.282,"kg",84.6,244.86,"",{waste:0,recipes:3}],
+ ["เส้นจันท์",2.952,"kg",174.76,146.96,"",{waste:0,recipes:2}],
+ ["ไข่ไก่",33,"ฟอง",3533,145.39,"",{waste:1,recipes:5}],
+ ["น้ำปลา",3.136,"ลิตร",136.775,136.66,"",{waste:0,recipes:11}],
+ ["ผงชาไทย",0.348,"kg",13.21,132.68,"",{waste:0,recipes:1}],
+ ["มะนาว",33.5,"ลูก",1741.5,95.95,"",{waste:3,recipes:4,noRecipe:"น้ำมะนาวโซดา ขาย 326 แก้ว ยังไม่มีสูตร"}],
+ ["ผักบุ้ง",1.817,"kg",72,80.53,"",{waste:2,recipes:1}],
+ ["ปลากะพง",0.301,"kg",79.8,69.70,"",{waste:0,recipes:2}],
+ ["พริกขี้หนู",0.525,"kg",28.497,53.66,"",{waste:0,recipes:8}],
+ ["กะทิ",0.548,"ลิตร",121.55,50.09,"",{waste:0,recipes:3}],
+ ["น้ำตาลทราย",1.624,"kg",164.89,45.29,"",{waste:0,recipes:7}],
+ ["ซอสหอยนางรม",0.585,"ลิตร",43.275,39.49,"",{waste:0,recipes:6}],
+ ["อกไก่",0.303,"kg",74.2,25.41,"",{waste:0,recipes:4,noRecipe:"ไก่ผัดเม็ดมะม่วง · ข้าวซอยไก่ ขาย 635 จาน ยังไม่มีสูตร"}],
+];
+const ARI_OVER=[["โค้ก 325 มล.",32,"ขวด",708,433,"piece"],["หมูสับ",2.876,"kg",241.28,363,""],["เนื้อสันใน",0.767,"kg",41.28,302,""],["กระเทียม",0.785,"kg",42.77,71,""],["เมล็ดกาแฟคั่ว",0.122,"kg",14.42,66,""],["มะละกอดิบ",1.609,"kg",95.3,51,""],["น้ำดื่ม 600 มล.",8,"ขวด",609,42,"piece"],["น้ำมันพืช",0.166,"ลิตร",254.88,8,""],["ใบกะเพรา",0.041,"kg",30.185,3.5,""],["นมข้นจืด",0.009,"กระป๋อง",158.59,0.5,""]];
+// LPR has no priced stock for these, so no baht is shown (never a guessed ฿).
+const LPR_OVER=[["กล่องข้าวกระดาษ",50,"ใบ",0,null,""],["น้ำดื่ม 600 มล.",32,"ขวด",24,null,"piece"],["กะทิ",24,"กล่อง",0,null,""],["โค้ก 325 มล.",17,"ขวด",24,null,"piece"],["ซอสหอยนางรม",0.01,"ลิตร",0,null,""]];
+const REAL=[
+ {id:"ARI1",b:"สาขาอารีย์",date:"24 ก.ย.",sc:"ARI-SC-0001",short:ARI_SHORT,over:ARI_OVER,sinceRev:1045094,since:"ตั้งแต่เริ่มมีข้อมูล (นับครั้งแรก)",counted:26,stocked:26,by:"พี่แดง",posted:"ครบทุกวัน (43 วัน)",noRecipe:"3 เมนู · ฿75,619 (ไก่ผัดเม็ดมะม่วง · ข้าวซอยไก่ · น้ำมะนาวโซดา)"},
+ {id:"LPR1",b:"สาขาลาดพร้าว",date:"28 ก.ย.",sc:"LPR-SC-0001",short:[],over:LPR_OVER,sinceRev:null,since:"",counted:5,stocked:9,by:"(ไม่ระบุชื่อ)",posted:"ยังไม่มียอดขาย",noRecipe:"—"},
+];
+const scale=(arr,k)=>arr.map(x=>[x[0],+(x[1]*k).toFixed(3),x[2],x[3],+(x[4]*k).toFixed(2),x[5],x[6]]);
+const DEMO=[
+ {...REAL[0],id:"D1",date:"24 ก.ย.",since:"ตั้งแต่เริ่มมีข้อมูล",demo:1},
+ {...REAL[0],id:"D2",date:"8 ต.ค.",sc:"ARI-SC-0002",short:[["กุ้งขาว",12.4,"kg",170,4190,"",ARI_SHORT[0][6]],["เบียร์สิงห์ 620 มล.",54,"ขวด",380,3727,"piece",ARI_SHORT[1][6]],...scale(ARI_SHORT.slice(2),0.8)],sinceRev:330000,since:"ตั้งแต่นับครั้งก่อน (24 ก.ย.)",demo:1},
+ {...REAL[0],id:"D3",date:"22 ต.ค.",sc:"ARI-SC-0003",short:[["เบียร์สิงห์ 620 มล.",61,"ขวด",402,4210,"piece",ARI_SHORT[1][6]],["กุ้งขาว",4.1,"kg",180,1380,"",ARI_SHORT[0][6]],...scale(ARI_SHORT.slice(2),0.7)],sinceRev:335000,since:"ตั้งแต่นับครั้งก่อน (8 ต.ค.)",demo:1},
+];
+let demo=false, sel="ARI1", showSmall=false;
+const checked=new Set();
+const counts=()=>demo?DEMO:REAL;
+const cur=()=>counts().find(c=>c.id===sel)||counts()[0];
+const sum=a=>a.reduce((s,x)=>s+(x[4]||0),0);
+const pctOfExp=x=>x[3]>0?x[1]/x[3]*100:null;
+
+function hintsOf(x){
+  const h=[], p=pctOfExp(x), e=x[6]||{};
+  if(p!=null&&p>=5) h.push(["b",`ต่าง ${p.toFixed(1)}% ของที่ควรเหลือ — มากเกินกว่าตักเกินสูตร`]);
+  else if(p!=null) h.push(["m",`ต่าง ${p.toFixed(1)}% ของที่ควรเหลือ`]);
+  if(x[5]==="piece") h.push(["b","ขายเป็นชิ้น ตักเกินไม่ได้"]);
+  if(e.sameDay) h.push(["b",`รับของวันเดียวกับที่นับ (${e.sameDay})`]);
+  if(e.noRecipe) h.push(["",`อาจเกี่ยว: ${e.noRecipe}`]);
+  if(e.waste===0&&p!=null&&p>=5) h.push(["","ไม่เคยบันทึกทิ้งเลย"]);
+  if(e.waste>0&&p!=null&&p>=5) h.push(["m",`บันทึกทิ้ง ${e.waste} ครั้ง`]);
+  if(demo){ const hs=historyOf(x[0]); if(hs.filter(v=>v>0).length>=2) h.push(["b",`ต่างทุกครั้งที่นับ (${hs.filter(v=>v>0).length} ครั้ง)`]); }
+  return h;
+}
+function historyOf(name){ return counts().filter(c=>c.b===cur().b).map(c=>{const r=c.short.find(x=>x[0]===name);return r?r[4]:0;}); }
+
+function chips(){
+  const cs=counts(); const mx=[...cs].sort((a,b)=>sum(b.short)-sum(a.short))[0];
+  if(!cs.some(c=>c.id===sel)) sel=demo?cs[cs.length-1].id:mx.id;
+  $("#countChips").innerHTML=cs.map(c=>`<button class="chip ${c.id===sel?"on":""}" data-id="${c.id}">${c.b.replace("สาขา","")} · ${c.date}${c.short.length?` <span style="opacity:.75">฿${f0(sum(c.short))}</span>`:""}</button>`).join("");
+  $$("#countChips .chip").forEach(b=>b.onclick=()=>{sel=b.dataset.id;showSmall=false;render();});
+  const c=cur(); $("#countMeta").innerHTML=`${c.sc} · ${c.b} · นับ ${c.date} · นับโดย ${c.by} · <span class="dl">เปิดใบนับ ›</span>`;
+}
+function kpis(){
+  const c=cur(), v=sum(c.short), pct=c.sinceRev?v/c.sinceRev*100:null;
+  const sorted=[...c.short].sort((a,b)=>b[4]-a[4]); let acc=0,n=0; for(const x of sorted){acc+=x[4];n++; if(acc>=v*.8)break;}
+  const top2=sorted.slice(0,n).map(x=>x[0]).join(" + ");
+  const tone=pct==null?"muted":pct<=TARGET?"ok":pct<=5?"warn":"bad";
+  const word=pct==null?"ยังเทียบยอดขายไม่ได้":pct<=TARGET?`อยู่ในเป้า ≤${TARGET}%`:pct<=5?"เกินเป้า · หาสาเหตุ":"เกิน 5% · เร่งด่วน";
+  const prev=counts().filter(x=>x.b===c.b&&counts().indexOf(x)<counts().indexOf(c)).pop();
+  const pp=prev&&prev.sinceRev?sum(prev.short)/prev.sinceRev*100:null;
+  $("#kpis").innerHTML=`
+   <div class="kpi"><span class="k">ไม่ตรงกับระบบ (นับได้น้อยกว่า)</span><span class="v" style="color:${v?"var(--bad)":"inherit"}">฿${f0(v)}</span><span class="s">${c.short.length} รายการ${pp!=null?` · ครั้งก่อน ${pp.toFixed(2)}%`:""}</span></div>
+   <div class="kpi"><span class="k">% ของยอดขาย${c.since?" "+c.since:""}</span><span class="v">${pct==null?"—":pct.toFixed(2)+"%"}</span><span class="tg ${tone}">${word}</span>${pct!=null?`<div class="band" title="≤2% ปกติ · 2–5% หาสาเหตุ · >5% เร่งด่วน"><i style="left:${Math.min(100,pct/6*100)}%"></i></div><div class="band-l"><span>0</span><span>2%</span><span>5%</span><span>6%+</span></div>`:""}</div>
+   <div class="kpi"><span class="k">เงินส่วนใหญ่ (80%) มาจาก</span><span class="v" style="font-size:1.05rem">${v?top2:"—"}</span><span class="s">${v?`${n} จาก ${c.short.length} รายการ = ${Math.round(acc/v*100)}% ของทั้งหมด`:"การนับนี้ไม่พบของที่นับได้น้อยกว่า"}</span></div>
+   <div class="kpi"><span class="k">นับได้มากกว่าระบบ</span><span class="v" style="font-size:1.25rem">${c.over.length} รายการ</span><span class="s">${c.over.some(x=>x[4]==null)?"ยังไม่มีราคา":"≈ ฿"+f0(sum(c.over))} · ไม่นำมาหักลบ</span></div>`;
+}
+function items(){
+  const c=cur(); if(!c.short.length){ $("#items").innerHTML=`<p class="sub" style="padding:8px">การนับครั้งนี้ไม่พบของที่นับได้น้อยกว่าระบบ · มีแต่ของที่นับได้มากกว่า (ดูด้านล่าง)</p>`; return; }
+  const v=sum(c.short), sorted=[...c.short].sort((a,b)=>b[4]-a[4]), mx=sorted[0][4];
+  const big=sorted.filter(x=>(pctOfExp(x)??0)>=2||x[4]>=v*.05), small=sorted.filter(x=>!big.includes(x));
+  let acc=0;
+  const row=(x,i)=>{ acc+=x[4]; const h=hintsOf(x); const done=checked.has(c.id+x[0]);
+    return `<button class="it" data-n="${x[0]}"><div class="nm"><b>${done?"✓ ":""}${x[0]}</b><span>นับได้น้อยกว่าระบบ ${x[1].toLocaleString("th-TH",{maximumFractionDigits:3})} ${x[2]} (ควรเหลือ ${x[3].toLocaleString("th-TH",{maximumFractionDigits:3})})</span><div class="hints">${h.map(([t,s])=>`<span class="hint ${t}">${s}</span>`).join("")}</div></div>
+      <div class="bwrap"><div class="bar"><i style="width:${x[4]/mx*100}%;animation-delay:${i*40}ms"></i></div></div>
+      <div class="money">฿${f2(x[4])}</div><div class="cum">${Math.round(acc/v*100)}%<br><span style="font-size:.62rem">สะสม</span></div></button>`; };
+  let h=big.map(row).join("");
+  if(small.length){ h+= showSmall? small.map((x,i)=>row(x,i+big.length)).join("") + `<button class="fold" id="fold">ซ่อนรายการระดับปกติ</button>` : `<button class="fold" id="fold">+ อีก ${small.length} รายการ ฿${f0(sum(small))} (${Math.round(sum(small)/v*100)}%) — ต่างไม่ถึง 2% ของที่ควรเหลือ อยู่ในระดับปกติของการตัก/ชั่ง · กดเพื่อดู</button>`; }
+  $("#items").innerHTML=h;
+  $$("#items .it").forEach(b=>b.onclick=()=>openItem(c.short.find(x=>x[0]===b.dataset.n)));
+  const f=$("#fold"); if(f) f.onclick=()=>{showSmall=!showSmall;items();};
+}
+function openItem(x){
+  const c=cur(), e=x[6]||{}, p=pctOfExp(x), key=c.id+x[0];
+  const steps=[];
+  if(x[5]==="piece") steps.push(["เทียบยอดขาย"+x[0].replace(/ \d.*/,"")+"ใน POS กับจำนวนที่หายไป","ขายเป็นขวด/ชิ้น ตักเกินไม่ได้ ที่หายไปคือขายแต่ไม่ได้คีย์ แจก หรือแตกไม่บันทึก","ยอดขายเมนูนี้ ›"]);
+  if(e.sameDay) steps.push(["ของรอบ "+e.sameDay+" มาถึงก่อนหรือหลังนับ?","บันทึกรับของวันที่นับ ("+e.lastGR+") — ถ้าของมาถึงหลังนับแต่บันทึกรับก่อนกดบันทึกการนับ ระบบจะนับรวมไว้ใน “ควรเหลือ” แล้ว ส่วนที่ต่างจะใกล้เคียงกับรอบนี้","เปิดใบรับของ ›"]);
+  else if(e.lastGR) steps.push(["ตรวจใบรับของล่าสุด: "+e.lastGR,"รับจริงตรงกับบิลไหม (น้ำหนัก/จำนวน) · หน่วยที่บันทึกถูกไหม","เปิดใบรับของ ›"]);
+  if(e.noRecipe) steps.push(["เขียนสูตรเมนูที่ยังไม่มี: "+e.noRecipe,"ระบบตัดสต๊อกให้เฉพาะเมนูที่มีสูตร เมนูที่ไม่มีสูตรทำให้ของดูเหมือนหาย","เขียนสูตร ›"]);
+  if(p!=null&&p>=5&&x[5]!=="piece") steps.push(["ถามครัวเรื่องของที่ทิ้งแต่ไม่ได้บันทึก",e.waste?`บันทึกทิ้งไว้ ${e.waste} ครั้ง — มีทิ้งที่ไม่ได้บันทึกอีกไหม (ของเสีย ละลายแล้วทิ้ง)`:"ไม่เคยบันทึกทิ้งเลย ทั้งที่เป็นของสด","บันทึกของเสีย ›"]);
+  if(p!=null&&p<5&&x[5]!=="piece") steps.push(["ชั่งจานจริงเทียบสูตร","ต่างเล็กน้อยสม่ำเสมอ มักเป็นการตักเกินสูตร หรือสูตรตั้งไว้น้อยกว่าที่ทำจริง",`ดูสูตร (${e.recipes||0} เมนูใช้) ›`]);
+  steps.push(["นับซ้ำเฉพาะรายการนี้","ตัดความเป็นไปได้ว่านับหรือใส่หน่วยผิด","เริ่มนับรายการเดียว ›"]);
+  const hs=historyOf(x[0]), hm=Math.max(...hs,1), labels=counts().filter(cc=>cc.b===c.b).map(cc=>cc.date);
+  $("body").insertAdjacentHTML("beforeend",`<div class="modal" id="m"><div class="mbox" role="dialog" aria-labelledby="mt">
+   <div class="row" style="justify-content:space-between"><h3 id="mt" style="font-size:1.1rem">${x[0]} · ${c.b} · นับ ${c.date}</h3><button class="x" id="mx" aria-label="ปิด">×</button></div>
+   <div class="kpis" style="grid-template-columns:repeat(3,1fr)">
+    <div class="kpi"><span class="k">ไม่ตรงกับระบบ</span><span class="v" style="color:var(--bad);font-size:1.2rem">฿${f2(x[4])}</span><span class="s">${Math.round(x[4]/sum(c.short)*100)}% ของการนับครั้งนี้</span></div>
+    <div class="kpi"><span class="k">นับได้น้อยกว่า</span><span class="v" style="font-size:1.2rem">${x[1].toLocaleString("th-TH",{maximumFractionDigits:3})} ${x[2]}</span><span class="s">ควรเหลือ ${x[3].toLocaleString("th-TH",{maximumFractionDigits:3})} · ต่าง ${p.toFixed(1)}%</span></div>
+    <div class="kpi"><span class="k">ทุกครั้งที่นับ</span>${hs.length>1?`<div class="hist">${hs.map((v,i)=>`<div><b style="height:${Math.max(3,v/hm*44)}px;animation-delay:${i*60}ms"></b>${labels[i]}</div>`).join("")}</div>`:`<span class="s">นับครั้งเดียว ยังไม่รู้ว่าซ้ำไหม</span>`}</div>
+   </div>
+   <div><b style="font-family:var(--display)">รายการตรวจ</b> <span class="sub">ไล่จากที่น่าจะเป็นที่สุด · ติ๊กเมื่อตรวจแล้ว</span></div>
+   <div class="check">${steps.map((s,i)=>`<label class="ck"><input type="checkbox" ${checked.has(key+i)?"checked":""} data-k="${key+i}"><div><b>${s[0]}</b><div class="why">${s[1]}</div></div><span class="dl" style="font-size:.78rem;white-space:nowrap">${s[2]}</span></label>`).join("")}</div>
+   <p class="sub">ใช้ใน ${e.recipes||0} สูตร · ตีราคาตามต้นทุนเข้าก่อนออกก่อน · ป้ายทั้งหมดเป็น “อาจเป็น” ระบบไม่ตัดสินว่าใครผิด</p>
+  </div></div>`);
+  const close=()=>{ $("#m").remove(); document.removeEventListener("keydown",esc); items(); };
+  const esc=e=>{ if(e.key==="Escape") close(); };
+  document.addEventListener("keydown",esc);
+  $("#mx").onclick=close; $("#m").onclick=e=>{ if(e.target.id==="m") close(); };
+  $$("#m input").forEach(i=>i.onchange=()=>{ i.checked?checked.add(i.dataset.k):checked.delete(i.dataset.k); if(steps.every((_,j)=>checked.has(key+j))) checked.add(key); else checked.delete(key); });
+}
+function trend(){
+  const c=cur(), same=counts().filter(x=>x.b===c.b);
+  if(same.length<2){ $("#trend").innerHTML=`<p style="font-family:var(--display);font-weight:600">${c.b}นับมาแล้ว ${same.length} ครั้ง</p><p class="sub" style="margin-top:4px">ต้องนับอย่างน้อย 2 ครั้งถึงจะบอกได้ว่าหายซ้ำหรือดีขึ้น · ร้านส่วนใหญ่นับของราคาสูงทุกสัปดาห์ และนับทั้งร้านทุกเดือน</p><p class="sub" style="margin-top:6px">กด “ตัวอย่าง (นับหลายครั้ง)” ด้านบนเพื่อดูหน้าตาตอนมีหลายครั้ง</p>`; return; }
+  const W=Math.max(300,$("#trend").clientWidth-34), H=170, L=40, B=26, T=14, n=same.length, slot=(W-L)/n;
+  const ps=same.map(x=>x.sinceRev?sum(x.short)/x.sinceRev*100:0), mx=Math.max(...ps,TARGET)*1.3, y=v=>T+(H-T-B)*(1-v/mx);
+  const names=["กุ้งขาว","เบียร์สิงห์ 620 มล."];
+  let g=`<svg width="${W}" height="${H}" style="display:block;overflow:visible">`;
+  g+=`<rect x="${L}" y="${T}" width="${W-L}" height="${y(TARGET)-T}" fill="#A83A22" opacity=".05"/><line x1="${L}" x2="${W}" y1="${y(TARGET)}" y2="${y(TARGET)}" stroke="#A83A22" stroke-dasharray="5 4"/><text x="${L-6}" y="${y(TARGET)+4}" text-anchor="end" font-size="10" fill="#A83A22">เป้า ${TARGET}%</text>`;
+  same.forEach((x,i)=>{ const X=L+slot*(i+.5), parts=names.map(nm=>{const r=x.short.find(s=>s[0]===nm);return r?r[4]/x.sinceRev*100:0;}), rest=ps[i]-parts.reduce((a,b)=>a+b,0); let base=0;
+    [[parts[0],"#C0692B"],[parts[1],"#E8A76F"],[rest,"#D2CBA4"]].forEach(([v,col],k)=>{ g+=`<rect x="${X-14}" width="28" y="${y(base+v)}" height="${y(base)-y(base+v)}" fill="${col}" style="transform-origin:${X}px ${y(0)}px;animation:rise .5s ${i*80+k*40}ms both"/>`; base+=v; });
+    g+=`<text x="${X}" y="${y(ps[i])-5}" text-anchor="middle" font-size="11" font-weight="700" fill="currentColor">${ps[i].toFixed(2)}%</text><text x="${X}" y="${H-8}" text-anchor="middle" font-size="10.5" fill="${x.id===sel?"#C0692B":"#5A5C31"}" font-weight="${x.id===sel?700:400}">${x.date}</text><rect class="hit" data-id="${x.id}" x="${L+slot*i}" y="0" width="${slot}" height="${H}" fill="transparent" style="cursor:pointer"/>`; });
+  g+="</svg>";
+  $("#trend").innerHTML=`<p class="sub" style="margin-bottom:6px">% ของยอดขายต่อการนับแต่ละครั้ง · สีส้มเข้ม = กุ้งขาว · ส้มอ่อน = เบียร์ · เทา = อื่น ๆ</p>`+g+`<p class="sub" style="margin-top:6px"><b style="color:var(--good)">กุ้งขาวลดลงจาก ฿9,454 → ฿1,380</b> หลังตรวจใบรับของ · <b style="color:var(--bad)">เบียร์ต่าง ~55–60 ขวดทุกครั้ง</b> = ปัญหาในระบบงาน ไม่ใช่ความพลาด · กดแท่งเพื่อดูครั้งนั้น</p><div class="tip" id="ttip" hidden></div>`;
+  $$("#trend .hit").forEach(h=>{ h.onclick=()=>{sel=h.dataset.id;render();}; h.onmouseenter=()=>{ const x=same.find(s=>s.id===h.dataset.id), t=$("#ttip"); t.hidden=false; t.innerHTML=`<b>${x.b} · นับ ${x.date}</b><br>ไม่ตรงกับระบบ ฿${f0(sum(x.short))} · ${(sum(x.short)/x.sinceRev*100).toFixed(2)}%<br>${x.since}`; t.style.left=Math.min(+h.getAttribute("x")+10,W-240)+"px"; t.style.top="30px"; }; h.onmouseleave=()=>$("#ttip").hidden=true; });
+}
+function spot(){
+  const c=cur(); const src=[...c.short].filter(x=>(pctOfExp(x)??0)>=1.5).sort((a,b)=>b[4]-a[4]).slice(0,4);
+  $("#spot").innerHTML=src.length?`<p class="sub" style="margin-bottom:6px">ของที่ต่างมากและราคาสูง — นับเฉพาะรายการเหล่านี้ทุกสัปดาห์ ใช้เวลาไม่กี่นาที ไม่ต้องรอนับทั้งร้าน</p>${src.map(x=>`<div class="row" style="justify-content:space-between;padding:5px 0;border-top:1px solid var(--border)"><span><b style="font-family:var(--display);font-weight:600">${x[0]}</b> <span class="sub">ต่าง ${pctOfExp(x).toFixed(1)}%</span></span><span class="tg warn">นับทุกสัปดาห์</span></div>`).join("")}<p style="margin-top:8px"><span class="dl">เริ่มนับเฉพาะ ${src.length} รายการนี้ ›</span></p>`:`<p class="sub">ยังไม่มีรายการที่ต้องนับถี่ขึ้น</p>`;
+}
+function over(){
+  const c=cur(); if(!c.over.length){ $("#over").innerHTML=`<p class="sub">ไม่มี</p>`; return; }
+  const mx=Math.max(...c.over.map(x=>x[4]),1);
+  $("#over").innerHTML=`<p class="sub" style="margin-bottom:8px">มักเป็น <b>รับของแล้วไม่ได้บันทึก</b> · สูตรตัดเกินจริง · หรือนับผิด — และเป็นสัญญาณว่าการนับครั้งนี้มีความคลาดเคลื่อน${c.over.some(x=>x[3]===0)?" · <b>ระบบไม่มีของนี้เลยแต่นับเจอ</b> = ยังไม่ได้บันทึกรับของ":""}</p>`+
+   c.over.slice(0,6).map((x,i)=>`<div style="display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,2fr) 80px;gap:12px;align-items:center;padding:4px 0"><span>${x[0]} <span class="sub">+${x[1].toLocaleString("th-TH",{maximumFractionDigits:3})} ${x[2]}${x[3]===0?" · ระบบมี 0":""}${x[5]==="piece"?" · ขายเป็นชิ้น":""}</span></span><div class="bar pos"><i style="width:${x[4]==null?0:x[4]/mx*100}%;animation-delay:${i*40}ms"></i></div><span class="num">${x[4]==null?'<span class="sub">ไม่มีราคา</span>':"≈ ฿"+f0(x[4])}</span></div>`).join("")+(c.over.length>6?`<p class="sub" style="margin-top:4px">+ อีก ${c.over.length-6} รายการ</p>`:"")+`<p style="margin-top:6px"><span class="dl">ดูใบรับของที่ยังไม่ยืนยัน ›</span></p>`;
+}
+function trust(){
+  const c=cur(); const t=[[c.counted>=c.stocked?"ok":"warn","นับ",`${c.counted} จาก ${c.stocked} รายการที่มีในสต๊อก`],[c.posted.startsWith("ครบ")?"ok":"warn","ตัดสต๊อกก่อนนับ",c.posted],[c.noRecipe==="—"?"ok":"warn","เมนูขายแต่ไม่มีสูตร",c.noRecipe+(c.noRecipe!=="—"?' · <a>เขียนสูตร ›</a>':"")],[c.over.length>c.short.length?"warn":"ok","นับได้มากกว่าระบบ",`${c.over.length} รายการ`],["ok","นับโดย",c.by]];
+  $("#trust").innerHTML=t.map(([k,l,v])=>`<span class="tchip ${k}"><i></i>${l}: <b>${v}</b></span>`).join("");
+}
+function old(){
+  const rows=[["กล่องข้าวกระดาษ",0,50,50,"—","—","ไม่ได้ใช้ผ่านสูตรในช่วงนี้"],["กะทิ",0,24,24,"—","—","ไม่ได้ใช้ผ่านสูตรในช่วงนี้"],["โค้ก 325 มล.",24,41,17,"—","—","ไม่ได้ใช้ผ่านสูตรในช่วงนี้"],["ซอสหอยนางรม",0,0.01,0.01,"—","—","ไม่ได้ใช้ผ่านสูตรในช่วงนี้"],["น้ำดื่ม 600 มล.",24,56,32,"—","—","ไม่ได้ใช้ผ่านสูตรในช่วงนี้"],["ไข่ไก่","ยังไม่ได้นับในช่วงนี้","","","—","฿16.75","ไม่ได้ใช้ผ่านสูตรในช่วงนี้"]];
+  $("#oldrows").innerHTML=rows.map(r=>r[1]==="ยังไม่ได้นับในช่วงนี้"?`<tr><td>${r[0]}</td><td colspan="3" class="sub">${r[1]}</td><td class="num">${r[4]}</td><td class="num">${r[5]}</td><td class="sub">${r[6]}</td></tr>`:`<tr><td>${r[0]}</td><td class="num">${r[1]}</td><td class="num">${r[2]}</td><td class="num" style="color:var(--subtle)">${r[3]}</td><td class="num">${r[4]}</td><td class="num">${r[5]}</td><td class="sub">${r[6]}</td></tr>`).join("");
+}
+function render(){ chips(); kpis(); items(); trend(); spot(); over(); trust(); }
+$("#b-old").onclick=()=>{ $("#oldpage").hidden=false; $("#newpage").hidden=true; $("#b-old").setAttribute("aria-pressed","true"); $("#b-new").setAttribute("aria-pressed","false"); };
+$("#b-new").onclick=()=>{ $("#oldpage").hidden=true; $("#newpage").hidden=false; $("#b-new").setAttribute("aria-pressed","true"); $("#b-old").setAttribute("aria-pressed","false"); render(); };
+$("#d-real").onclick=()=>{ demo=false; sel="ARI1"; $("#d-real").setAttribute("aria-pressed","true"); $("#d-demo").setAttribute("aria-pressed","false"); $("#demoNote").hidden=true; render(); };
+$("#d-demo").onclick=()=>{ demo=true; sel="D3"; $("#d-demo").setAttribute("aria-pressed","true"); $("#d-real").setAttribute("aria-pressed","false"); $("#demoNote").hidden=false; render(); };
+old(); render();
+</script>

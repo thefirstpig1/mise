@@ -1,0 +1,135 @@
+<title>ของหาย: เจ้าของร้านอยากรู้อะไร</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Prompt:wght@500;600;700&family=Noto+Sans+Thai:wght@400;500;600&display=swap">
+<style>
+/* Research brief: question-first design for /cost. Layout: one reading column,
+   a wide question bank table, and a mapping of questions to screens.
+   App tokens (tailwind.config.ts). */
+:root{
+  --bg:#FDFBF3; --fg:#262811; --surface:#FFFFFF; --sunk:#F8F3E1; --primary:#41431B; --primary-fg:#F8F3E1;
+  --muted:#F3EFDF; --muted-fg:#5A5C31; --subtle:#8B8D63; --border:#E9E3C8; --strong:#D2CBA4;
+  --good:#5A7333; --good-bg:#EEF2E0; --bad:#A83A22; --bad-bg:#F9E5DF; --warn:#A87C1C; --warn-bg:#F8EFD6; --clay:#C0692B;
+  --display:"Prompt","Noto Sans Thai",system-ui,sans-serif; --body:"Noto Sans Thai","Prompt",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#1B1C10; --fg:#EEEAD6; --surface:#24261A; --sunk:#2A2C1E; --primary:#D9DDB0; --primary-fg:#1B1C10;
+  --muted:#2E301F; --muted-fg:#C9C8A6; --subtle:#9C9B7C; --border:#36381F; --strong:#4A4C30;
+  --good:#B7CF7C; --good-bg:#2B3320; --bad:#EC9C80; --bad-bg:#41261C; --warn:#E8BE62; --warn-bg:#3B3018; --clay:#E8A76F; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#1B1C10; --fg:#EEEAD6; --surface:#24261A; --sunk:#2A2C1E; --primary:#D9DDB0; --primary-fg:#1B1C10;
+  --muted:#2E301F; --muted-fg:#C9C8A6; --subtle:#9C9B7C; --border:#36381F; --strong:#4A4C30;
+  --good:#B7CF7C; --good-bg:#2B3320; --bad:#EC9C80; --bad-bg:#41261C; --warn:#E8BE62; --warn-bg:#3B3018; --clay:#E8A76F; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.65;margin:0;padding-inline:16px;padding-block:28px 64px}
+.wrap{max-width:1100px;margin:0 auto;display:grid;gap:30px}
+h1,h2,h3{font-family:var(--display);margin:0;text-wrap:balance;line-height:1.3}
+h1{font-size:1.8rem;color:var(--primary)} h2{font-size:1.25rem} h3{font-size:1rem}
+p{margin:0;max-width:72ch}
+.sub{color:var(--subtle);font-size:.85rem}
+.lead{font-size:1.02rem;color:var(--muted-fg)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px 20px;display:grid;gap:10px}
+.findings{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.finding{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 16px;display:grid;gap:4px}
+.finding b{font-family:var(--display);font-size:1.6rem;color:var(--clay);line-height:1.2}
+.finding span{font-size:.86rem;color:var(--muted-fg)}
+.tbox{overflow-x:auto;border:1px solid var(--border);border-radius:14px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:980px;font-size:.86rem}
+th{font-family:var(--display);font-weight:600;font-size:.76rem;color:var(--muted-fg);text-align:left;padding:10px;background:var(--sunk);position:sticky;top:0}
+td{padding:10px;border-top:1px solid var(--border);vertical-align:top}
+td b{font-family:var(--display);font-weight:600}
+.n{font-family:var(--display);font-weight:700;color:var(--clay)}
+.pill{display:inline-block;border-radius:999px;padding:1px 9px;font-size:.74rem;white-space:nowrap}
+.yes{background:var(--good-bg);color:var(--good)} .part{background:var(--warn-bg);color:var(--warn)} .no{background:var(--bad-bg);color:var(--bad)}
+.role{display:inline-block;border:1px solid var(--strong);border-radius:999px;padding:0 8px;font-size:.72rem;margin:1px 2px 1px 0;white-space:nowrap}
+.cad{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.cad .card h3{color:var(--primary)}
+.cad ul{margin:0;padding-left:18px;font-size:.9rem;display:grid;gap:4px}
+ol.steps{margin:0;padding-left:20px;display:grid;gap:8px}
+ol.steps li{max-width:80ch}
+.order{display:grid;gap:8px}
+.order div{display:grid;grid-template-columns:34px minmax(0,1fr);gap:10px;align-items:start;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:10px 14px}
+.order .k{font-family:var(--display);font-weight:700;color:var(--clay);font-size:1.1rem}
+a{color:var(--primary)}
+.src{font-size:.82rem;color:var(--muted-fg);display:grid;gap:3px}
+</style>
+
+<div class="wrap">
+  <header style="display:grid;gap:8px">
+    <p class="sub">งานค้นคว้าก่อนออกแบบ · หน้า “ของหายไปไหน” · 23 ต.ค. 2569</p>
+    <h1>ของไม่ตรงกับระบบ: เจ้าของร้านกับผู้จัดการอยากรู้อะไร</h1>
+    <p class="lead">หน้านี้ตอบคำถามเดียวให้ได้: <b>เงินที่หายไปจากการนับ หายเพราะอะไร และต้องไปตามที่ไหน</b> ระบบหลังร้านในตลาดเรียกรายงานนี้ว่า Actual vs Theoretical หรือ Variance report และทุกเจ้าใช้แบบเดียวกัน คือเรียงตามเงิน ไล่จากรายการใหญ่ แล้วตรวจทีละสาเหตุ</p>
+  </header>
+
+  <section class="findings">
+    <div class="finding"><b>ไม่เกิน 2%</b><span>ส่วนต่างที่ยอมรับได้ (% ของยอดขาย) · 2–5% ต้องหาสาเหตุ · เกิน 5% เป็นปัญหาเชิงระบบ</span></div>
+    <div class="finding"><b>3 รายการ</b><span>ผู้จัดการต้องระบุ 3 รายการที่ต่างมากสุด (วัดเป็นเงิน) ทุกครั้งที่เกินเกณฑ์ แล้วตั้งงานแก้พร้อมชื่อคนและวันกำหนด</span></div>
+    <div class="finding"><b>WEPT</b><span>สาเหตุหลัก 4 กลุ่ม: Waste ทิ้งไม่บันทึก · Errors นับ/รับ/หน่วยผิด · Portioning ตักเกินสูตร · Theft ของถูกหยิบ</span></div>
+    <div class="finding"><b>ดูแนวโน้ม</b><span>ต่างครั้งเดียวมักเป็นความผิดพลาด ต่างซ้ำทุกครั้งคือปัญหาในระบบงาน ต้องเทียบหลายครั้งที่นับ</span></div>
+  </section>
+
+  <section class="card">
+    <h2>คำถามที่ต้องตอบ (เรียงตามที่คนถาม)</h2>
+    <div class="tbox"><table>
+      <thead><tr><th>#</th><th>คำถาม</th><th>คนถาม</th><th>ตอบด้วยอะไร</th><th>ข้อมูลที่เรามี</th></tr></thead>
+      <tbody>
+        <tr><td class="n">1</td><td><b>หายไปเท่าไร เกินเป้าไหม</b></td><td>เจ้าของ</td><td>เงิน + % ของยอดขายตั้งแต่นับครั้งก่อน เทียบเป้าของร้าน (≤2%) และแถบ 2–5% / &gt;5%</td><td><span class="pill" style="background:var(--good-bg);color:var(--good)">มี</span> CO-COUNT จากหน้าต้นทุน</td></tr>
+        <tr><td class="n">2</td><td><b>ตัวไหนบ้าง</b> (กี่ตัวที่เป็นเงินส่วนใหญ่)</td><td>ทั้งคู่</td><td>เรียงตามเงิน พร้อม % สะสม (Pareto) · ตัวเล็ก ๆ ที่อยู่ในระดับปกติพับรวมไว้</td><td><span class="pill" style="background:var(--good-bg);color:var(--good)">มี</span> ราคา FIFO ต่อรายการ</td></tr>
+        <tr><td class="n">3</td><td><b>น่าจะเพราะอะไร</b></td><td>ผู้จัดการ</td><td>ข้อสังเกตต่อรายการจาก “ลักษณะ” ของตัวเลข (ดูตารางล่าง) · บอกว่า “อาจเป็น” ไม่ใช่ตัดสิน</td><td><span class="pill" style="background:var(--good-bg);color:var(--good)">มี</span> สูตร ยอดขาย ใบรับ ของเสีย</td></tr>
+        <tr><td class="n">4</td><td><b>ต้องทำอะไร ไปดูตรงไหน</b></td><td>ผู้จัดการ</td><td>รายการตรวจต่อรายการ กดไปเอกสารที่เกี่ยว (ใบรับของล่าสุด สูตรที่ใช้ บันทึกทิ้ง ยอดขายเมนู)</td><td><span class="pill" style="background:var(--good-bg);color:var(--good)">มี</span> ลิงก์เอกสาร</td></tr>
+        <tr><td class="n">5</td><td><b>หายซ้ำไหม · แก้แล้วดีขึ้นไหม</b></td><td>เจ้าของ</td><td>ต่อรายการ: ทุกครั้งที่นับเรียงกัน (จุดเล็ก ๆ) · รวม: เส้นแนวโน้ม % ต่อการนับ</td><td><span class="pill" style="background:var(--warn-bg);color:var(--warn)">ข้อมูลน้อย</span> ร้านตัวอย่างนับครั้งเดียว</td></tr>
+        <tr><td class="n">6</td><td><b>สาขาไหนหายมาก</b></td><td>เจ้าของ</td><td>สลับสาขา · เทียบ % ของยอดขาย ไม่ใช่เงิน (สาขาใหญ่หายเป็นเงินมากกว่าเสมอ)</td><td><span class="pill" style="background:var(--good-bg);color:var(--good)">มี</span></td></tr>
+        <tr><td class="n">7</td><td><b>นับครั้งนี้เชื่อได้แค่ไหน</b></td><td>ทั้งคู่</td><td>นับครบกี่รายการจากที่มีในสต๊อก · ตัดสต๊อกครบทุกวันก่อนนับไหม · เมนูที่ขายแต่ไม่มีสูตร · นับได้มากกว่ากี่รายการ · ใครนับ</td><td><span class="pill" style="background:var(--good-bg);color:var(--good)">มี</span></td></tr>
+        <tr><td class="n">8</td><td><b>ควรนับอะไรบ่อยขึ้น</b></td><td>ผู้จัดการ</td><td>ของราคาสูงที่ต่างบ่อย → นับทุกสัปดาห์ (spot count) ไม่ต้องรอนับทั้งร้าน</td><td><span class="pill" style="background:var(--good-bg);color:var(--good)">มี</span></td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section class="card">
+    <h2>ลักษณะของตัวเลข บอกสาเหตุที่น่าจะเป็น</h2>
+    <p>รายงานแบบนี้บอกได้แค่ว่า “ระบบคิดว่าควรเหลือมากกว่าที่นับได้” สาเหตุทุกแบบให้ตัวเลขหน้าตาเหมือนกัน สิ่งที่ช่วยได้คือ <b>ข้อมูลรอบ ๆ</b> ที่ระบบเรามีอยู่แล้ว:</p>
+    <div class="tbox"><table>
+      <thead><tr><th>ถ้าเห็นแบบนี้</th><th>น่าจะเป็น</th><th>ให้ไปดู</th></tr></thead>
+      <tbody>
+        <tr><td><b>ต่างเกิน 5% ของที่ควรเหลือ</b></td><td>ใหญ่เกินกว่าตักเกินสูตร (ปกติไม่กี่ %) → รับของขาด · นับ/หน่วยผิด · ทิ้งไม่บันทึก · ของถูกหยิบ</td><td>ใบรับของล่าสุด (น้ำหนักบนบิลกับที่รับจริง) · นับซ้ำ</td></tr>
+        <tr><td><b>ของที่ขายเป็นชิ้น (เบียร์ น้ำอัดลม)</b> ต่างเป็นชิ้น</td><td>ตักเกินไม่ได้ → ขายแต่ไม่ได้คีย์ · แจก · แตกไม่บันทึก · รับของไม่ครบ</td><td>ยอดขายเมนูนั้นใน POS · บันทึกของเสีย</td></tr>
+        <tr><td><b>มีเมนูที่ขายแต่ยังไม่มีสูตร</b> ชื่อคล้ายวัตถุดิบนี้</td><td>ระบบไม่ได้ตัดสต๊อกให้เมนูนั้น ของจึงดูเหมือนหาย</td><td>เขียนสูตรเมนูนั้น แล้วตัดสต๊อกใหม่</td></tr>
+        <tr><td><b>วันก่อนนับยังไม่ได้ตัดสต๊อก</b></td><td>ของที่ขายไปแล้วยังไม่ถูกหัก</td><td>ตัดสต๊อกวันที่ค้าง</td></tr>
+        <tr><td><b>ต่างเล็กน้อยทุกรายการ (1–3%)</b></td><td>ตักเกินสูตร หรือสูตรตั้งไว้น้อยกว่าที่ทำจริง</td><td>ชั่งจานจริงเทียบสูตร</td></tr>
+        <tr><td><b>ต่างซ้ำทุกครั้งที่นับ</b></td><td>ปัญหาในระบบงาน ไม่ใช่ความพลาด</td><td>ตั้งนับรายสัปดาห์ · คุยกับคนรับผิดชอบ</td></tr>
+        <tr><td><b>นับได้มากกว่าระบบ</b></td><td>รับของแล้วไม่ได้บันทึก · สูตรตัดเกิน · นับผิด (และเป็นสัญญาณว่าการนับครั้งนั้นมีความคลาดเคลื่อน)</td><td>ใบรับของที่ยังไม่บันทึก · สูตร</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section class="card">
+    <h2>ร้านตัวอย่างตอนนี้ (นับ 24 ก.ย. สาขาอารีย์)</h2>
+    <ul style="margin:0;padding-left:20px;display:grid;gap:4px">
+      <li>ไม่ตรงกับระบบ ฿15,164 = 1.45% ของยอดขายตั้งแต่เริ่มมีข้อมูล · <b>อยู่ในเป้า ≤2%</b></li>
+      <li><b>กุ้งขาว + เบียร์สิงห์ = 89%</b> ของทั้งหมด · ทั้งคู่ต่าง <b>15% ของที่ควรเหลือ</b> (ใหญ่เกินกว่าตักเกินสูตร) · เบียร์เป็นขวด ตักเกินไม่ได้</li>
+      <li>นับครบ 26 จาก 26 รายการที่มีในสต๊อก · ตัดสต๊อกครบทุกวันก่อนนับ · นับโดย พี่แดง</li>
+      <li>มีเมนูขายแต่ไม่มีสูตร 3 เมนู (฿75,619): ไก่ผัดเม็ดมะม่วง · ข้าวซอยไก่ · น้ำมะนาวโซดา → มะนาวที่ต่าง 33.5 ลูกอาจมาจากตรงนี้</li>
+      <li>นับได้มากกว่าระบบ 10 รายการ (≈ ฿1,340) เช่น โค้ก +32 ขวด</li>
+      <li>นับครั้งเดียว → ยังตอบ “หายซ้ำไหม” ไม่ได้ (mockup มีโหมดตัวอย่าง)</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2>สิ่งที่หน้าเดิมขาด</h2>
+    <ul style="margin:0;padding-left:20px;display:grid;gap:4px">
+      <li>ตารางเรียงตามชื่อ ไม่บอกว่าตัวไหนสำคัญ · ไม่มี % ของยอดขาย ไม่มีเป้า</li>
+      <li>บอกตัวเลขแต่ไม่บอกว่าน่าจะเพราะอะไร หรือต้องไปดูที่ไหน</li>
+      <li>ไม่เห็นการนับแต่ละครั้ง (ช่วงวันที่ 30 วันรวมทุกครั้ง) จึงไม่เห็นว่าซ้ำหรือดีขึ้น</li>
+      <li>ไม่บอกว่าการนับครั้งนั้นเชื่อได้แค่ไหน · นับได้มากกว่ากับน้อยกว่าอยู่ปนกัน</li>
+      <li>เลือกช่วงวันที่ได้ทาง URL เท่านั้น ไม่มีปุ่ม</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2>แหล่งที่มา</h2>
+    <ul class="sub" style="margin:0;padding-left:20px">
+      <li><a href="https://docs.restaurant365.com/docs/actual-vs-theoretical-analysis-troubleshooting-variances">Restaurant365 — Troubleshooting variances</a> · <a href="https://docs.restaurant365.com/docs/food-variance-report">Food Variance Report</a></li>
+      <li><a href="https://www.mangoapps.com/templates/tasks/theoretical-vs-actual-food-cost-variance-weekly-review">Weekly theoretical vs actual review checklist</a> (3 รายการใหญ่สุด · งานแก้มีชื่อและวันกำหนด · ค่าเฉลี่ย 4 สัปดาห์)</li>
+      <li><a href="https://supy.io/blog/learn-restaurant-inventory-variance-analysis">Supy — inventory variance analysis</a> (เกณฑ์ 2% / 2–5% / 5% · ลักษณะของแต่ละสาเหตุ)</li>
+      <li><a href="https://help.craftable.com/learning/variance-details-report">Craftable — variance details</a> · <a href="https://marketman.com/actual-vs-theoretical-food-cost-report">MarketMan — AvT report</a> · <a href="https://home.binwise.com/blog/what-is-a-variance-report">BinWise — variance report (WEPT)</a></li>
+    </ul>
+  </section>
+</div>
