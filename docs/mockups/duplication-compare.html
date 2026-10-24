@@ -1,0 +1,213 @@
+<title>ข้อมูลซ้ำ · เทียบภาพ</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Prompt:wght@500;600;700&family=Noto+Sans+Thai:wght@400;500;600&display=swap">
+<style>
+/* Side-by-side screenshots of every duplicated or conflicting figure found in
+   the system audit (docs/research/duplication-audit.html). Real screens of the
+   demo shop, September 2026 data, captured 24 Oct 2026. */
+:root{
+  --bg:#FDFBF3; --fg:#262811; --surface:#FFFFFF; --sunk:#F8F3E1; --primary:#41431B; --primary-fg:#F8F3E1;
+  --muted:#F3EFDF; --muted-fg:#5A5C31; --subtle:#8B8D63; --border:#E9E3C8; --strong:#D2CBA4;
+  --good:#5A7333; --good-bg:#EEF2E0; --bad:#A83A22; --bad-bg:#F9E5DF; --warn:#A87C1C; --warn-bg:#F8EFD6;
+  --display:"Prompt","Noto Sans Thai",system-ui,sans-serif; --body:"Noto Sans Thai","Prompt",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#1B1C10; --fg:#EEEAD6; --surface:#24261A; --sunk:#2A2C1E; --primary:#D9DDB0; --primary-fg:#1B1C10;
+  --muted:#2E301F; --muted-fg:#C9C8A6; --subtle:#9C9B7C; --border:#36381F; --strong:#4A4C30;
+  --good:#B7CF7C; --good-bg:#2B3320; --bad:#EC9C80; --bad-bg:#41261C; --warn:#E8BE62; --warn-bg:#3B3018; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#1B1C10; --fg:#EEEAD6; --surface:#24261A; --sunk:#2A2C1E; --primary:#D9DDB0; --primary-fg:#1B1C10;
+  --muted:#2E301F; --muted-fg:#C9C8A6; --subtle:#9C9B7C; --border:#36381F; --strong:#4A4C30;
+  --good:#B7CF7C; --good-bg:#2B3320; --bad:#EC9C80; --bad-bg:#41261C; --warn:#E8BE62; --warn-bg:#3B3018; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.6;margin:0;padding-inline:16px;padding-block:24px 80px}
+.wrap{max-width:1500px;margin:0 auto;display:grid;gap:22px}
+h1,h2,h3{font-family:var(--display);margin:0}
+h1{font-size:1.6rem;color:var(--primary)}
+p{margin:0}
+.sub{color:var(--subtle);font-size:.85rem}
+.nav{position:sticky;top:8px;z-index:5;display:flex;flex-wrap:wrap;gap:6px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:8px 10px;box-shadow:0 8px 20px rgb(0 0 0/.06)}
+.nav a{font-size:.8rem;border-radius:999px;padding:2px 10px;text-decoration:none;color:var(--fg);border:1px solid var(--border)}
+.nav a.B{background:var(--bad-bg);border-color:transparent} .nav a.C{background:var(--warn-bg);border-color:transparent} .nav a.A{background:var(--good-bg);border-color:transparent}
+.item{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:16px 18px;display:grid;gap:12px;scroll-margin-top:70px}
+.head{display:flex;flex-wrap:wrap;gap:10px;align-items:baseline}
+.id{font-family:var(--display);font-weight:700;font-size:1.1rem;border-radius:10px;padding:2px 10px}
+.id.B{background:var(--bad-bg);color:var(--bad)} .id.C{background:var(--warn-bg);color:var(--warn)} .id.A{background:var(--good-bg);color:var(--good)} .id.D{background:var(--muted);color:var(--muted-fg)}
+.cols{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));align-items:start}
+figure{margin:0;border:1px solid var(--border);border-radius:14px;overflow:hidden;background:var(--sunk)}
+figure img{display:block;width:100%;height:auto;background:#fff;cursor:zoom-in}
+figcaption{padding:8px 12px;font-size:.84rem;display:grid;gap:2px}
+figcaption b{font-family:var(--display)}
+.keep{border-color:var(--good)} .cut{border-color:var(--bad);border-style:dashed}
+.keep figcaption::before{content:"เก็บ";font-size:.7rem;color:var(--good);font-weight:700}
+.cut figcaption::before{content:"เสนอตัด";font-size:.7rem;color:var(--bad);font-weight:700}
+.rec{border-radius:12px;padding:10px 12px;background:var(--muted);font-size:.9rem}
+.rec b{font-family:var(--display)}
+.zoom{position:fixed;inset:0;background:rgb(0 0 0/.75);display:grid;place-items:center;z-index:9;padding:20px;cursor:zoom-out}
+.zoom img{max-width:100%;max-height:100%;border-radius:10px}
+</style>
+<div class="wrap">
+  <header style="display:grid;gap:6px">
+    <p class="sub">ภาพหน้าจอจริงของร้านตัวอย่าง (ข้อมูล ก.ย. 69) · ถ่าย 24 ต.ค. 2569 · กดภาพเพื่อขยาย</p>
+    <h1>ข้อมูลซ้ำในระบบ — วางเทียบกันทีละข้อ</h1>
+    <p>ขอบ<b style="color:var(--good)">เขียวทึบ</b> = เสนอเก็บ · ขอบ<b style="color:var(--bad)">แดงประ</b> = เสนอตัด · ตอบกลับแค่เลขข้อ เช่น “ตัด B1 B3 · แก้ C1–C4 · B6 ขอ mockup”</p>
+  </header>
+  <nav class="nav">
+    <a class="B" href="#B1">B1</a><a class="B" href="#B2">B2</a><a class="B" href="#B3">B3</a><a class="B" href="#B4">B4</a><a class="B" href="#B5">B5</a><a class="B" href="#B6">B6</a><a class="B" href="#B8">B8</a><a class="B" href="#B9">B9</a><a class="B" href="#B10">B10</a><a class="B" href="#B11">B11</a>
+    <a class="C" href="#C1">C1</a><a class="C" href="#C2">C2</a><a class="C" href="#C3">C3</a><a class="C" href="#C4">C4</a>
+    <a class="A" href="#A">A เก็บ</a><a href="#D">D</a>
+  </nav>
+
+  <section class="item" id="B1">
+    <div class="head"><span class="id B">B1</span><h2>แดชบอร์ด: กำไรเดือนเดียวกัน แสดง 3 รอบ</h2></div>
+    <div class="cols">
+      <figure class="keep"><img src="dup-shots/dash-kpis.png" alt="การ์ด 5 ใบ"><figcaption><b>การ์ด 5 ใบ</b>ยอดขาย · ต้นทุนขาย · กำไรขั้นต้น · ค่าใช้จ่าย · กำไรสุทธิ + เทียบเดือนก่อน</figcaption></figure>
+      <figure class="cut"><img src="dup-shots/dash-daily-waterfall.png" alt="จากยอดขายสู่กำไร"><figcaption><b>“จากยอดขายสู่กำไร” (กล่องขวา)</b>615.4K − 230.3K − 77.5K = 307.6K — ตัวเลข 4 ตัวเดียวกับการ์ด ไม่มีอะไรเพิ่ม</figcaption></figure>
+      <figure class="keep"><img src="dup-shots/dash-where-top10.png" alt="เงินจากยอดขายไปอยู่ที่ไหน"><figcaption><b>“เงินจากยอดขายไปอยู่ที่ไหน” (กล่องซ้าย)</b>มีของเพิ่ม: ค่าใช้จ่ายแยกหมวด เป็น % ของยอดขาย</figcaption></figure>
+    </div>
+    <p class="rec"><b>เสนอ:</b> ตัดกราฟ “จากยอดขายสู่กำไร” · กราฟรายรับรายวันขยายเต็มแถวแทน</p>
+  </section>
+
+  <section class="item" id="B2">
+    <div class="head"><span class="id B">B2</span><h2>แดชบอร์ด: ตารางสาขา = การ์ดด้านบน (เมื่อมีสาขาเดียวที่ขาย)</h2></div>
+    <div class="cols">
+      <figure class="keep"><img src="dup-shots/dash-kpis.png" alt=""><figcaption><b>การ์ดด้านบน</b>฿615,380 · ฿230,288 · ฿385,092 · ฿77,451 · ฿307,642</figcaption></figure>
+      <figure class="cut"><img src="dup-shots/dash-branch-table.png" alt=""><figcaption><b>ตารางสาขาท้ายหน้า</b>แถวอารีย์เป็นตัวเลขชุดเดียวกันเป๊ะ · แถวลาดพร้าวเป็น “—”</figcaption></figure>
+    </div>
+    <p class="rec"><b>เสนอ:</b> แสดงตารางเฉพาะเมื่อมีอย่างน้อย 2 สาขาที่มียอดขายในช่วงนั้น (ไม่ตัดทิ้ง เพราะร้านหลายสาขาต้องใช้)</p>
+  </section>
+
+  <section class="item" id="B3">
+    <div class="head"><span class="id B">B3</span><h2>เมนูที่ยังไม่มีสูตร: รายการเดียวกัน 3 ที่</h2></div>
+    <div class="cols">
+      <figure class="keep"><img src="dup-shots/menus-top.png" alt=""><figcaption><b>จัดการเมนู</b>“3 เมนูยังไม่มีสูตร” · “93% · ฿3,741 ยังคิดต้นทุนไม่ได้” · ตัวกรอง “ยังไม่มีสูตร 3”</figcaption></figure>
+      <figure class="keep"><img src="dup-shots/lab-top.png" alt=""><figcaption><b>ทดลองเมนู</b>“3 เมนู ฿3,741” + การ์ดสามเมนูพร้อมปุ่ม “+ ร่างสูตร” (สิ่งที่ต้องทำต่อ)</figcaption></figure>
+      <figure class="cut"><img src="dup-shots/coverage.png" alt=""><figcaption><b>หน้าเมนูที่ยังไม่มีสูตร</b>92.8% · ฿3,741 · สามเมนูเดิม — เพิ่มแค่สวิตช์ 7/30/90 วัน</figcaption></figure>
+    </div>
+    <p class="rec"><b>เสนอ:</b> ตัดหน้า /menus/coverage · ลิงก์ที่ชี้มาให้ไปทดลองเมนูแทน</p>
+  </section>
+
+  <section class="item" id="B4">
+    <div class="head"><span class="id B">B4</span><h2>ค่าใช้จ่ายแยกหมวด: หน้ารายการบิล vs หน้าวิเคราะห์</h2></div>
+    <div class="cols">
+      <figure class="cut"><img src="dup-shots/expenses-category.png" alt=""><figcaption><b>ค่าใช้จ่าย (รายการบิล) · รายจ่ายตามหมวด</b>อาหาร ฿321,085 · เครื่องดื่ม ฿69,560 · ค่าเช่า ฿45,000 …</figcaption></figure>
+      <figure class="keep"><img src="dup-shots/analysis-category.png" alt=""><figcaption><b>วิเคราะห์รายจ่าย · แยกตามหมวด</b>ตัวเลขชุดเดียวกัน + เจาะลงได้ + ผู้ขาย + รายวัน</figcaption></figure>
+    </div>
+    <p class="rec"><b>เสนอ:</b> ตัดออกจากหน้ารายการบิล (หน้านั้นเป็นที่บันทึกและหาบิล) เหลือปุ่ม “วิเคราะห์ละเอียด ›” ที่มีอยู่แล้ว</p>
+  </section>
+
+  <section class="item" id="B5">
+    <div class="head"><span class="id B">B5</span><h2>นับไม่ตรงกับระบบ: ป๊อปอัพในหน้าต้นทุน vs หน้าของหายไปไหน</h2></div>
+    <div class="cols">
+      <figure class="cut"><img src="dup-shots/cost-count-popup.png" alt=""><figcaption><b>หน้าต้นทุน · ป๊อปอัพการนับ</b>รายการ 16 ตัว ตัวเลขเดียวกัน</figcaption></figure>
+      <figure class="keep"><img src="dup-shots/leaks-items.png" alt=""><figcaption><b>ของหายไปไหน</b>รายการเดียวกัน + ป้ายสาเหตุ + พับรายการระดับปกติ + กดดูรายการตรวจ</figcaption></figure>
+    </div>
+    <p class="rec"><b>เสนอ:</b> กดจุดการนับหรือรายการ “ไม่ตรงกับระบบ” ในหน้าต้นทุน → ไปหน้าของหายไปไหนที่การนับครั้งนั้นเลย (ไม่มีป๊อปอัพ)</p>
+  </section>
+
+  <section class="item" id="B6">
+    <div class="head"><span class="id B">B6</span><h2>รายการวัตถุดิบ: สต๊อกคงเหลือ vs สินค้า/วัตถุดิบ</h2></div>
+    <div class="cols">
+      <figure class="cut"><img src="dup-shots/stock-table.png" alt=""><figcaption><b>สต๊อกคงเหลือ (สาขาอารีย์)</b>คงเหลือ · มูลค่ารวม · เคลื่อนไหวล่าสุด</figcaption></figure>
+      <figure class="keep"><img src="dup-shots/products-table.png" alt=""><figcaption><b>สินค้า/วัตถุดิบ (สาขาอารีย์)</b>คงเหลือ · ต้นทุนต่อหน่วย · ซื้อล่าสุด · ใช้ในกี่สูตร · ต่ำกว่าขั้นต่ำ · + ขอซื้อ · กดแล้วมีแผง</figcaption></figure>
+      <figure class="cut"><img src="dup-shots/stock-top.png" alt=""><figcaption><b>หัวหน้าสต๊อก</b>ทางเข้า ประวัติ · ของเสีย · โอน · ปรับสต๊อก (+ เปิดมาที่สาขาลาดพร้าวที่ไม่มีของ)</figcaption></figure>
+    </div>
+    <p class="rec"><b>เสนอ:</b> รวมเป็นหน้าเดียว — เพิ่มคอลัมน์ “มูลค่า” และ “เคลื่อนไหวล่าสุด” ในหน้าสินค้า · หน้าสต๊อกเหลือเป็นทางเข้า ปรับสต๊อก/ประวัติ/โอน · <i>ข้อนี้ใหญ่ จะทำ mockup ก่อนลงมือ</i></p>
+  </section>
+
+  <section class="item" id="B8">
+    <div class="head"><span class="id B">B8</span><h2>ราคาที่รับเข้าของสินค้าเดียวกัน วาด 2 แบบ</h2></div>
+    <div class="cols">
+      <figure class="cut"><img src="dup-shots/product-sheet.png" alt=""><figcaption><b>แผงสินค้า · ราคาที่รับเข้า</b>ตาราง 4 ใบล่าสุด + เส้นเล็ก + “แพงขึ้น 8.0% จาก 15 ก.ย.” (ดู C4)</figcaption></figure>
+      <figure class="keep"><img src="dup-shots/prices-popup.png" alt=""><figcaption><b>การผันผวนราคา · ป๊อปอัพ</b>ราคาทุกใบเป็นจุด + เฉลี่ยรายเดือน + ราคาที่เมนูรับได้ + ใช้ในเมนู</figcaption></figure>
+    </div>
+    <p class="rec"><b>เสนอ:</b> ไม่ใช่ตัดทิ้ง — แผงสินค้าใช้กราฟเดียวกับป๊อปอัพ (เหลือแบบเดียว) และใช้ % จากราคาเฉลี่ย</p>
+  </section>
+
+  <section class="item" id="B9">
+    <div class="head"><span class="id B">B9</span><h2>ยอดปิดร้าน (ยอดที่ลูกค้าจ่าย): คีย์ได้ 2 ที่</h2></div>
+    <div class="cols">
+      <figure class="keep"><img src="dup-shots/dash-tasks-pulse.png" alt=""><figcaption><b>แดชบอร์ด · ยอดที่ลูกค้าจ่ายรายวัน (ล่าง)</b>ต่อสาขา + “+ คีย์ยอดวันนี้”</figcaption></figure>
+      <figure class="cut"><img src="dup-shots/sales-top.png" alt=""><figcaption><b>ยอดขาย</b>“ยอดปิดร้านที่คีย์ไว้… คีย์แล้ว 0 จาก 26 วัน · กดแท่งเพื่อคีย์” + “ตรวจกับใบสรุปปิดร้าน ลูกค้าจ่ายรวม ฿658,456”</figcaption></figure>
+    </div>
+    <p class="rec"><b>เสนอ:</b> คีย์ที่แดชบอร์ดที่เดียว (งานประจำวัน) · หน้ายอดขายเหลือบรรทัดตรวจความครบ + ลิงก์</p>
+  </section>
+
+  <section class="item" id="B10">
+    <div class="head"><span class="id B">B10</span><h2>ใบโอนที่รอกดรับ: เตือน 3 หน้า</h2></div>
+    <div class="cols">
+      <figure class="keep"><img src="dup-shots/dash-tasks-pulse.png" alt=""><figcaption><b>แดชบอร์ด · งานที่รออยู่ (บน)</b>“มีใบโอน 1 ใบที่ปลายทางยังไม่กดรับ”</figcaption></figure>
+      <figure class="cut"><img src="dup-shots/stock-top.png" alt=""><figcaption><b>สต๊อกคงเหลือ · แบนเนอร์</b>“มีของกำลังส่งมาที่สาขาลาดพร้าว 1 ใบ ยังไม่มีใครกดรับ”</figcaption></figure>
+      <figure class="keep"><img src="dup-shots/transfers-top.png" alt=""><figcaption><b>หน้าโอน</b>แถบ “1 ใบยังไม่มีใครกดรับ” + รายการพร้อมปุ่มรอรับ</figcaption></figure>
+    </div>
+    <p class="rec"><b>เสนอ:</b> ตัดแบนเนอร์ในหน้าสต๊อก (แดชบอร์ดเป็นที่รวมงานที่รอ หน้าโอนเป็นที่กดรับ)</p>
+  </section>
+
+  <section class="item" id="B11">
+    <div class="head"><span class="id B">B11</span><h2>หน้ายอดขาย: “วันไหนขายดี” กับ “หมวดไหนขายดีวันไหน” <span class="sub">(เจอเพิ่มตอนถ่ายภาพ · เป็นตัวเลือก)</span></h2></div>
+    <div class="cols">
+      <figure class="cut"><img src="dup-shots/sales-weekday-category.png" alt=""><figcaption><b>วันไหนของสัปดาห์ขายดี (ซ้าย) · สัดส่วนหมวดเมนู (ขวา)</b>ยอดต่อวันแยกวัน · ยอดแยกหมวด</figcaption></figure>
+      <figure class="keep"><img src="dup-shots/sales-heatmap.png" alt=""><figcaption><b>หมวดไหนขายดีวันไหน (โหมดยอดขายเฉลี่ยต่อวัน)</b>ยอดต่อวัน × หมวด · คอลัมน์ “ทั้งสัปดาห์” = ยอดต่อวันของแต่ละหมวด</figcaption></figure>
+    </div>
+    <p class="rec"><b>เสนอ (ตัวเลือก):</b> กราฟ “วันไหนของสัปดาห์ขายดี” คือผลรวมแนวตั้งของตารางสี — เพิ่มแถว “รวม” ในตารางสีแล้วตัดกราฟแท่งได้ · “สัดส่วนหมวดเมนู” เก็บ (เป็นทางเข้าดูเมนูในหมวด)</p>
+  </section>
+
+  <section class="item" id="C1">
+    <div class="head"><span class="id C">C1</span><h2>ยอดขาย ก.ย.: แดชบอร์ดบอก “ดีขึ้น 28%” หน้ายอดขายบอก “ลดลง 6.6% ต่อวัน”</h2></div>
+    <div class="cols">
+      <figure class="cut"><img src="dup-shots/dash-kpis.png" alt=""><figcaption><b>แดชบอร์ด</b>▲ 27.8% เทียบ ส.ค. · เฉลี่ย ฿20,513/วัน · ส.ค. ฿15,533/วัน — หารด้วยวันในเดือน (30/31) และเทียบยอดรวม</figcaption></figure>
+      <figure class="keep"><img src="dup-shots/sales-top.png" alt=""><figcaption><b>ยอดขาย</b>▼ 6.6% ต่อวัน · ก.ย. ฿23,668/วัน · ส.ค. ฿25,343/วัน — หารด้วยวันที่มีข้อมูล (26 / 19 วัน) ตามกฎ SI1</figcaption></figure>
+    </div>
+    <p class="rec"><b>เสนอ:</b> แดชบอร์ดใช้วิธีเดียวกับหน้ายอดขายทุกการ์ด (ยอดขาย ต้นทุน กำไร ค่าใช้จ่าย)</p>
+  </section>
+
+  <section class="item" id="C2">
+    <div class="head"><span class="id C">C2</span><h2>แดชบอร์ด ก.ย.: กำไรสุทธิ ▲168.6% โดยไม่บอกว่ายังไม่มีเงินเดือน</h2></div>
+    <div class="cols">
+      <figure class="cut"><img src="dup-shots/dash-kpis.png" alt=""><figcaption><b>แดชบอร์ด</b>ค่าใช้จ่าย ▼55.1% · กำไรสุทธิ ▲168.6% · อัตรากำไรสุทธิ 50.0% — ไม่มีคำเตือน</figcaption></figure>
+      <figure class="keep"><img src="dup-shots/cost-todo.png" alt=""><figcaption><b>หน้าต้นทุน (กล่องเหลืองล่าง)</b>“ยังไม่มีค่าแรง ก.ย. — prime cost คิดไม่ได้ · บันทึกเงินเดือน ›”</figcaption></figure>
+    </div>
+    <p class="rec"><b>เสนอ:</b> แดชบอร์ดเตือนเมื่อรายการประจำของเดือนนั้นยังไม่ได้บันทึก (เงินเดือน ฯลฯ) และไม่บอก “ดีขึ้น” จนกว่าจะครบ</p>
+  </section>
+
+  <section class="item" id="C3">
+    <div class="head"><span class="id C">C3</span><h2>“ต้นทุน %” ชื่อคล้ายกัน ตัวเลขต่างกัน</h2></div>
+    <div class="cols">
+      <figure class="keep"><img src="dup-shots/dash-kpis.png" alt=""><figcaption><b>แดชบอร์ด · ต้นทุนขาย</b>“food cost 37.4%” — ของที่ตัดสต๊อกจริงใน ก.ย. (ราคา FIFO)</figcaption></figure>
+      <figure class="keep"><img src="dup-shots/menus-top.png" alt=""><figcaption><b>จัดการเมนู</b>“ต้นทุนวัตถุดิบ เทียบยอดขาย 40.9%” — สูตร × ราคาวันนี้ × ยอดขาย 30 วันล่าสุด</figcaption></figure>
+    </div>
+    <p class="rec"><b>เสนอ:</b> ไม่ตัด (คนละความหมายจริง) แต่ตั้งชื่อให้ต่าง: “ต้นทุนของที่ใช้ไปจริง” กับ “ต้นทุนตามสูตร (ราคาวันนี้)”</p>
+  </section>
+
+  <section class="item" id="C4">
+    <div class="head"><span class="id C">C4</span><h2>กุ้งขาว: แผงสินค้าบอก “แพงขึ้น 8.0%” หน้าการผันผวนบอก “+1.2%” <span class="sub">(เจอเพิ่มตอนถ่ายภาพ)</span></h2></div>
+    <div class="cols">
+      <figure class="cut"><img src="dup-shots/product-sheet.png" alt=""><figcaption><b>แผงสินค้า (และแผงวัตถุดิบในหน้าเมนู)</b>“ต่อkg แพงขึ้น 8.0% จาก 15 ก.ย.” — ใบเดียวเทียบใบเดียว</figcaption></figure>
+      <figure class="keep"><img src="dup-shots/prices-popup.png" alt=""><figcaption><b>การผันผวนราคา</b>เฉลี่ย ส.ค. ฿321.01 → ก.ย. ฿324.93 = +1.2% (กฎ CO-PRICE v2)</figcaption></figure>
+    </div>
+    <p class="rec"><b>เสนอ:</b> แผงสินค้าใช้ราคาเฉลี่ยแบบเดียวกัน (ไปพร้อม B8)</p>
+  </section>
+
+  <section class="item" id="A">
+    <div class="head"><span class="id A">A</span><h2>ข้อมูลเดียวกัน ความลึกต่างกัน — เก็บไว้</h2></div>
+    <div class="cols">
+      <figure class="keep"><img src="dup-shots/dash-daily-waterfall.png" alt=""><figcaption><b>A1 รายรับรายวัน · แดชบอร์ด</b>เส้นต่อสาขา ภาพรวม</figcaption></figure>
+      <figure class="keep"><img src="dup-shots/sales-daily.png" alt=""><figcaption><b>A1 ยอดขายรายวัน · หน้ายอดขาย</b>แท่ง วันหยุดสีต่าง เส้นเฉลี่ย กดดูวัน</figcaption></figure>
+      <figure class="keep"><img src="dup-shots/dash-where-top10.png" alt=""><figcaption><b>A2 เมนูขายดี 10 อันดับ · แดชบอร์ด (ขวา)</b>สรุป</figcaption></figure>
+      <figure class="keep"><img src="dup-shots/menus-table.png" alt=""><figcaption><b>A2 จัดการเมนู</b>ขาย 30 วัน + ต้นทุนต่อจาน (ที่แก้เมนู)</figcaption></figure>
+      <figure class="keep"><img src="dup-shots/cost-todo.png" alt=""><figcaption><b>A5/A6 หน้าต้นทุน · ต้องจัดการอะไรก่อน</b>3 อันดับต่อเรื่อง แล้วพาไปหน้าลึก</figcaption></figure>
+      <figure class="keep"><img src="dup-shots/cost-stock-age.png" alt=""><figcaption><b>A7 เงินจมในสต๊อก · หน้าต้นทุน</b>ของค้างนาน (หน้าสินค้าไม่มี)</figcaption></figure>
+      <figure class="keep"><img src="dup-shots/ingredient-sheet.png" alt=""><figcaption><b>(เดิม B7) แผงวัตถุดิบในหน้าเมนู</b>ตรวจแล้ว <b>เป็นแผงเดียวกับแผงสินค้าอยู่แล้ว</b> + กล่อง “ในกะเพรากุ้ง” ที่บอกการใช้ในเมนูนั้น → ไม่ซ้ำ ย้ายมาเก็บ</figcaption></figure>
+    </div>
+  </section>
+
+  <section class="item" id="D">
+    <div class="head"><span class="id D">D</span><h2>เจอระหว่างตรวจ (ไม่ใช่ความซ้ำ)</h2></div>
+    <div class="cols">
+      <figure><img src="dup-shots/consumption-default.png" alt=""><figcaption><b>D1 ตัดสต๊อกตามยอดขาย เปิดมาที่สาขาลาดพร้าว</b>ช่วง ก.ย. ก็ขึ้น “ยังไม่มียอดขายนำเข้า” (สต๊อกคงเหลือก็เปิดมาที่ลาดพร้าวเหมือนกัน — ดู B6) · เสนอเปิดสาขาที่มีข้อมูลล่าสุด</figcaption></figure>
+      <figure><img src="dup-shots/waste-list.png" alt=""><figcaption><b>D2 ของเสียไม่มีมูลค่าเป็นบาท</b>“ดูมูลค่าเป็นบาทที่หน้าต้นทุน” · เสนอแสดงบาทต่อรายการและรวม</figcaption></figure>
+    </div>
+  </section>
+</div>
+<script>
+document.querySelectorAll("figure img").forEach(img=>img.addEventListener("click",()=>{const z=document.createElement("div");z.className="zoom";z.innerHTML=`<img src="${img.src}" alt="">`;z.onclick=()=>z.remove();document.addEventListener("keydown",function k(e){if(e.key==="Escape"){z.remove();document.removeEventListener("keydown",k);}});document.body.appendChild(z);}));
+</script>
