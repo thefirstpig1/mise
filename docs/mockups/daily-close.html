@@ -1,0 +1,279 @@
+<title>ปิดร้านประจำวัน · mockup</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Prompt:wght@500;600;700&family=Noto+Sans+Thai:wght@400;500;600&display=swap">
+<style>
+/* Mockup: daily close report (Kong 2026-10-25 answers on brief 91qf84tZN7oT349Wzw2bfE).
+   Real: สาขาอารีย์ 24 ก.ย. 69 sales ฿21,994 (paid ฿23,533.58), 318 plates, 1 waste entry.
+   Sample (what a person would type): customers, cash, issues, comments. */
+:root{
+  --bg:#FDFBF3; --fg:#262811; --surface:#FFFFFF; --sunk:#F8F3E1; --primary:#41431B; --primary-fg:#F8F3E1;
+  --muted:#F3EFDF; --muted-fg:#5A5C31; --subtle:#8B8D63; --border:#E9E3C8; --strong:#D2CBA4;
+  --good:#5A7333; --good-bg:#EEF2E0; --bad:#A83A22; --bad-bg:#F9E5DF; --warn:#A87C1C; --warn-bg:#F8EFD6; --warn-border:#E2CE97; --clay:#C0692B;
+  --display:"Prompt","Noto Sans Thai",system-ui,sans-serif; --body:"Noto Sans Thai","Prompt",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#1B1C10; --fg:#EEEAD6; --surface:#24261A; --sunk:#2A2C1E; --primary:#D9DDB0; --primary-fg:#1B1C10;
+  --muted:#2E301F; --muted-fg:#C9C8A6; --subtle:#9C9B7C; --border:#36381F; --strong:#4A4C30;
+  --good:#B7CF7C; --good-bg:#2B3320; --bad:#EC9C80; --bad-bg:#41261C; --warn:#E8BE62; --warn-bg:#3B3018; --warn-border:#5A4A22; --clay:#E8A76F; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#1B1C10; --fg:#EEEAD6; --surface:#24261A; --sunk:#2A2C1E; --primary:#D9DDB0; --primary-fg:#1B1C10;
+  --muted:#2E301F; --muted-fg:#C9C8A6; --subtle:#9C9B7C; --border:#36381F; --strong:#4A4C30;
+  --good:#B7CF7C; --good-bg:#2B3320; --bad:#EC9C80; --bad-bg:#41261C; --warn:#E8BE62; --warn-bg:#3B3018; --warn-border:#5A4A22; --clay:#E8A76F; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:14px;line-height:1.55;margin:0;padding:20px 16px 60px}
+h1,h2,h3,h4{font-family:var(--display);margin:0}
+p{margin:0}
+.wrap{max-width:1180px;margin:0 auto;display:grid;gap:16px}
+.sub{color:var(--subtle);font-size:.8rem}
+.seg{display:inline-flex;flex-wrap:wrap;border:1px solid var(--strong);border-radius:999px;padding:3px;background:var(--surface);gap:2px}
+.seg button{font:inherit;font-size:.85rem;border:0;background:none;color:var(--fg);border-radius:999px;padding:4px 14px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--primary);color:var(--primary-fg)}
+.sample{display:inline-block;font-size:.7rem;border-radius:999px;padding:1px 8px;background:var(--warn-bg);color:var(--warn);border:1px solid var(--warn-border);white-space:nowrap}
+.real{display:inline-block;font-size:.7rem;border-radius:999px;padding:1px 8px;background:var(--good-bg);color:var(--good);white-space:nowrap}
+.two{display:grid;grid-template-columns:400px 1fr;gap:20px;align-items:start}
+@media (max-width:900px){.two{grid-template-columns:1fr}}
+.phone{width:100%;max-width:400px;border:1px solid var(--strong);border-radius:28px;background:var(--bg);padding:14px;display:grid;gap:12px;box-shadow:0 10px 30px rgba(0,0,0,.06)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:13px 14px;display:grid;gap:9px}
+.sec{display:flex;align-items:center;gap:8px;font-family:var(--display);font-weight:600}
+.n{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:999px;background:var(--primary);color:var(--primary-fg);font-size:.72rem}
+.field{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;font-size:.88rem}
+.inp{border:1px solid var(--strong);background:var(--sunk);border-radius:12px;padding:6px 10px;min-width:110px;text-align:right;font-variant-numeric:tabular-nums;font-family:var(--display);font-weight:500}
+.stepper{display:inline-flex;align-items:center;border:1px solid var(--strong);border-radius:999px;overflow:hidden;background:var(--surface)}
+.stepper span{padding:3px 10px;font-variant-numeric:tabular-nums;min-width:40px;text-align:center;font-weight:600}
+.stepper b{padding:3px 10px;background:var(--sunk);color:var(--muted-fg);font-weight:500}
+.result{border-radius:12px;padding:8px 10px;font-size:.88rem;display:flex;justify-content:space-between;gap:8px}
+.result.bad{background:var(--bad-bg);color:var(--bad)}
+.result.good{background:var(--good-bg);color:var(--good)}
+.photo{border:1.5px dashed var(--strong);border-radius:12px;padding:10px;text-align:center;color:var(--subtle);font-size:.8rem}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--strong);background:var(--surface);border-radius:999px;padding:3px 11px;font-size:.8rem;white-space:nowrap}
+.chip.on{background:var(--primary);color:var(--primary-fg);border-color:var(--primary)}
+.issue{border:1px solid var(--border);border-radius:12px;padding:8px 10px;display:grid;gap:3px;font-size:.86rem;background:var(--surface)}
+.issue .top{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.flag{font-size:.7rem;border-radius:999px;padding:1px 8px;white-space:nowrap}
+.flag.open{background:var(--bad-bg);color:var(--bad)}
+.flag.done{background:var(--good-bg);color:var(--good)}
+.flag.note{background:var(--muted);color:var(--muted-fg)}
+.auto li{display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-top:1px solid var(--border);font-size:.86rem;list-style:none}
+.auto li:first-child{border-top:0}
+.auto ul{margin:0;padding:0}
+.btn{background:var(--primary);color:var(--primary-fg);border:0;border-radius:999px;padding:10px 18px;font:600 .95rem var(--display);text-align:center}
+.btn.ghost{background:var(--surface);color:var(--fg);border:1px solid var(--strong);font-weight:500;font-size:.85rem;padding:6px 14px}
+.notes{display:grid;gap:10px;align-content:start}
+.notes .card{gap:6px}
+.notes h4{font-size:.92rem}
+.notes p{font-size:.85rem;color:var(--muted-fg)}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+@media (max-width:760px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:11px 13px;display:grid;gap:2px}
+.kpi b{font-family:var(--display);font-size:1.35rem;font-variant-numeric:tabular-nums}
+.delta{font-size:.75rem}
+.up{color:var(--good)} .down{color:var(--bad)}
+.mix{display:flex;height:14px;border-radius:999px;overflow:hidden}
+.mix span{display:block;height:100%}
+.legend{display:flex;flex-wrap:wrap;gap:10px;font-size:.8rem}
+.legend i{display:inline-block;width:9px;height:9px;border-radius:999px;margin-right:5px}
+.comment{display:grid;grid-template-columns:30px 1fr;gap:8px;font-size:.86rem}
+.av{width:30px;height:30px;border-radius:999px;background:var(--sunk);border:1px solid var(--border);display:grid;place-items:center;font-size:.72rem;font-weight:600;color:var(--muted-fg)}
+.bubble{background:var(--sunk);border-radius:12px;padding:7px 10px}
+table{width:100%;border-collapse:collapse;font-size:.86rem}
+th{font-weight:500;color:var(--muted-fg);text-align:left;padding:8px 10px;background:var(--sunk);font-size:.78rem;white-space:nowrap}
+td{padding:8px 10px;border-top:1px solid var(--border)}
+.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+tr.click:hover td{background:var(--sunk);cursor:pointer}
+.scroll{overflow-x:auto}
+.toggle{display:inline-flex;align-items:center;gap:8px;font-size:.88rem}
+.sw{width:38px;height:22px;border-radius:999px;background:var(--primary);position:relative}
+.sw::after{content:"";position:absolute;right:3px;top:3px;width:16px;height:16px;border-radius:999px;background:var(--primary-fg)}
+.sw.off{background:var(--strong)} .sw.off::after{right:auto;left:3px}
+.pill{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--strong);border-radius:999px;padding:3px 6px 3px 12px;font-size:.82rem;background:var(--surface)}
+.pill b{font-weight:400;color:var(--subtle);font-size:.75rem;border-radius:999px;padding:0 6px}
+.decide{border:1px solid var(--warn-border);background:var(--warn-bg);border-radius:14px;padding:12px 14px;font-size:.88rem;display:grid;gap:4px}
+</style>
+
+<div class="wrap">
+  <div>
+    <h1 style="font-size:1.35rem">ปิดร้านประจำวัน · mockup</h1>
+    <p class="sub">ตามคำตอบ A–E ของคุณ Kong (25 ต.ค. 69) · ยอดขาย/จาน/ของเสียของ <span class="real">จริง</span> สาขาอารีย์ 24 ก.ย. 69 · ลูกค้า เงินสด ปัญหา ความเห็น = <span class="sample">ตัวอย่างที่คนกรอก</span></p>
+  </div>
+
+  <div class="seg" id="tabs">
+    <button aria-pressed="true" data-v="fill">① กรอกตอนปิดร้าน</button>
+    <button aria-pressed="false" data-v="read">② ใบรายวัน + ความเห็น</button>
+    <button aria-pressed="false" data-v="month">③ ย้อนหลังรายเดือน</button>
+    <button aria-pressed="false" data-v="setup">④ เปิดใช้ + แดชบอร์ด</button>
+  </div>
+
+  <!-- =============== ① FILL =============== -->
+  <section data-p="fill" class="two">
+    <div class="phone">
+      <div style="display:flex;justify-content:space-between;align-items:baseline">
+        <h3>ปิดร้าน · สาขาอารีย์</h3><span class="sub">พฤ. 24 ก.ย. 69</span>
+      </div>
+
+      <div class="card">
+        <div class="sec"><span class="n">1</span>ยอดที่ลูกค้าจ่ายวันนี้</div>
+        <div class="field"><span>ยอดรวมจากเครื่อง POS<br><span class="sub">รวม VAT และค่าบริการ</span></span><span class="inp">23,533.58</span></div>
+        <p class="sub">ช่องเดิมจาก “คีย์ยอดปิดร้าน” — ไฟล์ยอดขายเข้าแล้วช่องนี้ล็อกเป็นหลักฐาน (เหมือนเดิม)</p>
+      </div>
+
+      <div class="card">
+        <div class="sec"><span class="n">2</span>เงินสดในลิ้นชัก</div>
+        <div class="field"><span>เงินทอนตั้งต้น</span><span class="inp">2,000</span></div>
+        <div class="field"><span>เงินสดตาม Z report<br><span class="sub">ยอดขายที่จ่ายเป็นเงินสด</span></span><span class="inp">8,450</span></div>
+        <div class="field"><span><b>นับได้จริง</b></span><span class="inp">10,410</span></div>
+        <div class="result bad"><span>ควรมี ฿10,450 · นับได้ ฿10,410</span><b>ขาด ฿40</b></div>
+        <div class="field"><span class="sub">หมายเหตุส่วนต่าง</span><span class="inp" style="text-align:left;min-width:150px;font-family:var(--body);font-weight:400">ทอนผิดโต๊ะ 7</span></div>
+        <div class="photo">📷 แนบรูปเงินที่นับ / Z report<br><span style="font-size:.72rem">เร็ว ๆ นี้ — รอที่เก็บไฟล์</span></div>
+      </div>
+
+      <div class="card">
+        <div class="sec"><span class="n">3</span>ลูกค้า</div>
+        <div class="field"><span><b>ลูกค้าทั้งหมด</b></span><span class="stepper"><b>−</b><span>142</span><b>+</b></span></div>
+        <p class="sub">แยกตามประเภท (ไม่ต้องครบก็ได้ · ร้านตั้งรายการเอง)</p>
+        <div class="field"><span>พนักงานออฟฟิศ</span><span class="stepper"><b>−</b><span>61</span><b>+</b></span></div>
+        <div class="field"><span>ครอบครัว</span><span class="stepper"><b>−</b><span>38</span><b>+</b></span></div>
+        <div class="field"><span>ขาประจำ</span><span class="stepper"><b>−</b><span>31</span><b>+</b></span></div>
+        <div class="field"><span>นักท่องเที่ยว</span><span class="stepper"><b>−</b><span>12</span><b>+</b></span></div>
+        <p class="sub">ช่องทาง (นั่งร้าน/กลับบ้าน/Grab…) ไม่ต้องกรอก — มาจากไฟล์ POS เมื่อไฟล์มีคอลัมน์ช่องทาง</p>
+      </div>
+
+      <div class="card">
+        <div class="sec"><span class="n">4</span>ปัญหาวันนี้</div>
+        <div class="chips"><span class="chip">ของหมด</span><span class="chip on">อุปกรณ์เสีย</span><span class="chip">ลูกค้าร้องเรียน</span><span class="chip">พนักงานขาด/สาย</span><span class="chip">อื่น ๆ</span></div>
+        <div class="issue"><div class="top"><b>อุปกรณ์เสีย</b><span class="flag open">ต้องตามต่อ</span></div>ตู้แช่หลังครัวไม่เย็น อุณหภูมิขึ้นถึง 9°C ย้ายของไปตู้หน้าแล้ว</div>
+        <div class="issue"><div class="top"><b>ของหมด</b><span class="flag note">จดไว้</span></div>ปลากะพงหมดตอน 19:30 · ของเข้าพรุ่งนี้เช้า</div>
+        <span class="btn ghost" style="justify-self:start">+ เพิ่มปัญหา</span>
+      </div>
+
+      <div class="card">
+        <div class="sec"><span class="n">5</span>ระบบเติมให้ <span class="sub" style="font-family:var(--body);font-weight:400">ไม่ต้องกรอก</span></div>
+        <div class="auto"><ul>
+          <li><span>ของเสีย</span><span>1 รายการ</span></li>
+          <li><span>มื้อพนักงาน</span><span>ดูจากที่บันทึก</span></li>
+          <li><span>ต่ำกว่าขั้นต่ำ</span><span style="color:var(--bad)">กุ้งขาว</span></li>
+          <li><span>ตัดสต๊อกตามยอดขาย</span><span>ตัดเองหลังนำเข้าไฟล์</span></li>
+        </ul></div>
+      </div>
+
+      <span class="btn">บันทึกปิดร้าน</span>
+      <p class="sub" style="text-align:center">บันทึกแล้วแก้ได้จนถึงเที่ยงคืนวันถัดไป · หลังจากนั้นผู้จัดการเขียนความเห็นต่อได้ แต่ตัวเลขไม่เปลี่ยน</p>
+    </div>
+
+    <div class="notes">
+      <div class="card"><h4>ทำไมเป็นแบบนี้</h4>
+        <p>• <b>หน้าเดียวยาวลงมา</b> ไม่แบ่งหลายหน้า — คนปิดร้านทำบนมือถือ เลื่อนลงทีเดียวจบ (เป้า 2 นาที)</p>
+        <p>• <b>ยอดปิดร้านอยู่ข้อ 1</b> (คำตอบ B) — แดชบอร์ดไม่มีช่องคีย์ของตัวเองอีก ร้านที่ไม่เปิดใช้ add-on นี้ยังคีย์ที่แดชบอร์ดได้เหมือนเดิม</p>
+        <p>• <b>ระบบลบให้</b> เงินทอน + เงินสดตาม Z − นับได้ = ขาด/เกิน เพราะไฟล์ POS ไม่บอกว่าลูกค้าจ่ายอะไร</p>
+        <p>• <b>ลูกค้าแยกตามประเภทคน</b> (คำตอบ A) — ไม่บังคับให้ผลรวมเท่ายอดรวม เพราะคนกะเอา · ช่องทางมาจาก POS เอง</p>
+        <p>• <b>ปัญหามีสองสถานะ</b> “ต้องตามต่อ” กับ “จดไว้” — ต้องตามต่อจะค้างให้ทุกคนในสาขาเห็นจนกว่าจะกดว่าจัดการแล้ว</p>
+        <p>• <b>ไม่แยกกลางวัน/เย็น</b> (คำตอบ D) · <b>รูปเว้นช่องไว้</b> (คำตอบ C)</p>
+      </div>
+      <div class="decide"><b>ยังต้องถาม 1 ข้อ</b>
+        แก้ตัวเลขหลังบันทึกได้ถึงเมื่อไหร่? ผมเสนอ “จนเที่ยงคืนวันถัดไป” แล้วล็อก — ให้ย้อนหลังเชื่อได้ (ความเห็นยังเขียนต่อได้ตลอด) · หรือจะให้แก้ได้เสมอแต่เก็บประวัติการแก้?
+      </div>
+    </div>
+  </section>
+
+  <!-- =============== ② READ =============== -->
+  <section data-p="read" hidden class="two" style="grid-template-columns:1fr 360px">
+    <div class="card" style="gap:14px">
+      <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:baseline">
+        <div><h3>ปิดร้าน · สาขาอารีย์ · พฤ. 24 ก.ย. 69</h3><p class="sub">ปิดโดย น้องเมย์ 22:14 · ‹ วันก่อน · วันถัดไป ›</p></div>
+        <span class="flag open" style="font-size:.78rem">ปัญหาค้าง 1</span>
+      </div>
+      <div class="kpis">
+        <div class="kpi"><span class="sub">ยอดขาย <span class="real">จริง</span></span><b>฿21,994</b><span class="delta up">▲ 5.6% เทียบเฉลี่ย พฤ. 3, 10, 17 ก.ย. (฿20,830)</span></div>
+        <div class="kpi"><span class="sub">ลูกค้า <span class="sample">ตัวอย่าง</span></span><b>142 คน</b><span class="delta down">▼ 6 คน เทียบ พฤ. ก่อน ๆ</span></div>
+        <div class="kpi"><span class="sub">ต่อหัว</span><b>฿154.9</b><span class="sub">ยอดขาย ÷ ลูกค้า · 2.2 จาน/คน</span></div>
+        <div class="kpi"><span class="sub">เงินสด</span><b style="color:var(--bad)">ขาด ฿40</b><span class="sub">“ทอนผิดโต๊ะ 7”</span></div>
+      </div>
+      <div>
+        <p class="sub" style="margin-bottom:6px">ลูกค้าตามประเภท</p>
+        <div class="mix"><span style="width:43%;background:#41431B"></span><span style="width:27%;background:#7D8450"></span><span style="width:22%;background:#AEB784"></span><span style="width:8%;background:#C0692B"></span></div>
+        <div class="legend" style="margin-top:6px"><span><i style="background:#41431B"></i>ออฟฟิศ 61</span><span><i style="background:#7D8450"></i>ครอบครัว 38</span><span><i style="background:#AEB784"></i>ขาประจำ 31</span><span><i style="background:#C0692B"></i>นักท่องเที่ยว 12</span></div>
+      </div>
+      <div style="display:grid;gap:6px">
+        <p class="sub">ปัญหา</p>
+        <div class="issue"><div class="top"><b>อุปกรณ์เสีย</b><span class="flag open">ต้องตามต่อ</span></div>ตู้แช่หลังครัวไม่เย็น อุณหภูมิขึ้นถึง 9°C ย้ายของไปตู้หน้าแล้ว<span class="btn ghost" style="justify-self:start;font-size:.78rem;padding:3px 10px">จัดการแล้ว</span></div>
+        <div class="issue"><div class="top"><b>ของหมด</b><span class="flag note">จดไว้</span></div>ปลากะพงหมดตอน 19:30 · ของเข้าพรุ่งนี้เช้า</div>
+      </div>
+      <div class="auto"><p class="sub">จากระบบ</p><ul>
+        <li><span>ยอดที่ลูกค้าจ่าย (คีย์) · ไฟล์ POS</span><span>฿23,533.58 · ตรงกัน ✓</span></li>
+        <li><span>จาน</span><span>318</span></li>
+        <li><span>ของเสีย</span><span>1 รายการ ›</span></li>
+        <li><span>ต่ำกว่าขั้นต่ำตอนปิดร้าน</span><span>กุ้งขาว</span></li>
+      </ul></div>
+    </div>
+
+    <div class="card" style="align-content:start">
+      <h4>ความเห็น</h4>
+      <p class="sub">เขียนต่อได้ตลอด แก้/ลบไม่ได้ · เก็บไว้ย้อนดูได้ไม่จำกัด</p>
+      <div class="comment"><span class="av">ผจ</span><div><b>คุณต้น · ผู้จัดการ</b> <span class="sub">25 ก.ย. 09:10</span><div class="bubble">โทรช่างแล้ว เข้ามาบ่ายนี้ ระหว่างนี้ห้ามใส่อาหารทะเลตู้หลัง</div></div></div>
+      <div class="comment"><span class="av">จก</span><div><b>คุณ Kong · เจ้าของ</b> <span class="sub">25 ก.ย. 12:40</span><div class="bubble">เงินขาดเดือนนี้ครั้งที่ 3 แล้ว ลองให้นับสองคนตอนปิด</div></div></div>
+      <div class="comment"><span class="av">ผจ</span><div><b>คุณต้น · ผู้จัดการ</b> <span class="sub">25 ก.ย. 16:05</span><div class="bubble">ช่างเปลี่ยนคอมเพรสเซอร์แล้ว ฿3,200 — ลงค่าใช้จ่ายแล้ว</div><span class="sub">✓ ปิดปัญหา “ตู้แช่หลังครัวไม่เย็น”</span></div></div>
+      <div class="inp" style="text-align:left;font-family:var(--body);font-weight:400;color:var(--subtle)">เขียนความเห็น…</div>
+    </div>
+  </section>
+
+  <!-- =============== ③ MONTH =============== -->
+  <section data-p="month" hidden>
+    <div class="card" style="gap:14px">
+      <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px"><h3>ปิดร้านย้อนหลัง · สาขาอารีย์ · ก.ย. 69</h3><div class="seg"><button aria-pressed="false">ส.ค. 69</button><button aria-pressed="true">ก.ย. 69</button><button aria-pressed="false">ต.ค. 69</button></div></div>
+      <div class="kpis">
+        <div class="kpi"><span class="sub">ลูกค้าต่อวัน <span class="sample">ตัวอย่าง</span></span><b>148</b><span class="sub">เฉลี่ย 26 วันที่ปิดร้าน</span></div>
+        <div class="kpi"><span class="sub">ต่อหัว</span><b>฿160</b><span class="delta up">▲ ฿6 เทียบ ส.ค. 69</span></div>
+        <div class="kpi"><span class="sub">เงินขาด/เกินสะสม</span><b style="color:var(--bad)">ขาด ฿185</b><span class="sub">ขาด 3 วัน · เกิน 1 วัน</span></div>
+        <div class="kpi"><span class="sub">ปัญหาที่ยังค้าง</span><b>1</b><span class="sub">จาก 9 ที่บันทึก</span></div>
+      </div>
+      <p class="sub">ไม่ได้ปิดร้าน 0 วัน · วันที่ไม่มีใบ แสดง “—” ไม่ใช่ 0</p>
+      <div class="scroll"><table>
+        <tr><th>วัน</th><th class="num">ยอดขาย <span class="real">จริง</span></th><th class="num">ลูกค้า</th><th class="num">ต่อหัว</th><th class="num">เงินสด</th><th>ปัญหา</th><th class="num">ความเห็น</th></tr>
+        <tr class="click"><td>พฤ. 24</td><td class="num">21,994</td><td class="num">142</td><td class="num">154.9</td><td class="num" style="color:var(--bad)">−40</td><td><span class="flag open">ค้าง 1</span> <span class="flag note">1</span></td><td class="num">3</td></tr>
+        <tr class="click"><td>พ. 23</td><td class="num">19,632</td><td class="num">131</td><td class="num">149.9</td><td class="num">ตรง</td><td><span class="sub">—</span></td><td class="num">0</td></tr>
+        <tr class="click"><td>อ. 22</td><td class="num">21,093</td><td class="num">139</td><td class="num">151.7</td><td class="num" style="color:var(--good)">+20</td><td><span class="flag done">จัดการแล้ว 1</span></td><td class="num">1</td></tr>
+        <tr class="click"><td>จ. 21</td><td class="num">24,087</td><td class="num">163</td><td class="num">147.8</td><td class="num">ตรง</td><td><span class="sub">—</span></td><td class="num">0</td></tr>
+      </table></div>
+      <p class="sub">กดแถว = เปิดใบของวันนั้น (popup) · กราฟลูกค้าต่อวันพร้อมเส้นเฉลี่ยจะอยู่เหนือตาราง ตามแบบกราฟรายวันของหน้ายอดขาย</p>
+    </div>
+  </section>
+
+  <!-- =============== ④ SETUP =============== -->
+  <section data-p="setup" hidden class="two" style="grid-template-columns:1fr 1fr">
+    <div class="card">
+      <h3>ตั้งค่าร้าน › รายงานปิดร้าน</h3>
+      <div class="toggle"><span class="sw"></span><b>ใช้รายงานปิดร้าน</b></div>
+      <p class="sub">ไม่บังคับ (คำตอบ E) — ปิดไว้ = แดชบอร์ดคีย์ยอดปิดร้านแบบเดิม · เปิด = ปุ่ม “ปิดร้านวันนี้”</p>
+      <div style="display:grid;gap:6px">
+        <b style="font-family:var(--display)">ประเภทลูกค้าของร้าน</b>
+        <div class="chips"><span class="pill">พนักงานออฟฟิศ <b>✕</b></span><span class="pill">ครอบครัว <b>✕</b></span><span class="pill">ขาประจำ <b>✕</b></span><span class="pill">นักท่องเที่ยว <b>✕</b></span><span class="chip">+ เพิ่ม</span></div>
+        <p class="sub">ลบประเภทที่เคยใช้แล้ว = ซ่อนจากฟอร์ม ตัวเลขเก่ายังอยู่ (ใช้แบบเดียวกับ “เลิกขาย” ของเมนู)</p>
+      </div>
+      <div style="display:grid;gap:6px">
+        <b style="font-family:var(--display)">ใครเห็นอะไร</b>
+        <p class="sub">• กรอก: คนที่คีย์ยอดปิดร้านได้ (สิทธิ์นำเข้ายอดขาย)<br>• เห็นใบและปัญหาค้าง: ทุกคนในสาขา<br>• เห็นเงินขาด/เกิน: เจ้าของ/ผู้จัดการ (สิทธิ์ดูยอดขาย)<br>• เขียนความเห็น: ทุกคนที่เห็นใบ</p>
+      </div>
+    </div>
+    <div class="card">
+      <h3>แดชบอร์ด › งานวันนี้</h3>
+      <div class="card" style="background:var(--sunk)">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b style="font-family:var(--display)">ปิดร้านวันนี้ · สาขาอารีย์</b><span class="flag open">ยังไม่ปิด</span></div>
+        <span class="btn">ปิดร้านวันนี้</span>
+        <span class="sub">เมื่อวาน: ปิดแล้ว · ขาด ฿40 · ปัญหาค้าง 1 ›</span>
+      </div>
+      <p class="sub">แทนที่กล่อง “คีย์ยอดปิดร้าน” เดิม (B9) เมื่อเปิดใช้ add-on · หลังปิดร้านแล้วกล่องเปลี่ยนเป็นสรุปสั้น ๆ + ลิงก์ไปใบ</p>
+      <div class="decide"><b>ต้องมี migration</b>
+        ตารางใหม่: ใบปิดร้าน (สาขา × วัน, เงินทอน, เงินสดตาม Z, นับได้, ลูกค้ารวม, ผู้ปิด) · ลูกค้าตามประเภท · ประเภทลูกค้าของร้าน · ปัญหา (ประเภท, ข้อความ, ต้องตามต่อ, ปิดโดย/เมื่อ) · ความเห็น (เพิ่มได้อย่างเดียว) · ตั้งค่า <code>tenant</code> หนึ่งช่องสำหรับเปิด/ปิด · ยอดปิดร้านยังอยู่ที่ <code>sales_day</code> เดิม ไม่ย้าย
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+const tabs=document.querySelectorAll('#tabs button');
+tabs.forEach(b=>b.addEventListener('click',()=>{
+  tabs.forEach(x=>x.setAttribute('aria-pressed',x===b));
+  document.querySelectorAll('[data-p]').forEach(s=>s.hidden=s.dataset.p!==b.dataset.v);
+}));
+</script>
