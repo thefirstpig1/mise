@@ -1,0 +1,269 @@
+<title>รวมสต๊อกเข้าสินค้า (B6)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Prompt:wght@500;600;700&family=Noto+Sans+Thai:wght@400;500;600&display=swap">
+<style>
+/* Mockup B6 (duplication review): /stock's product table merges into /products;
+   /stock becomes the door to stock WORK. Real figures of the demo shop,
+   สาขาอารีย์, read from the live pages on 2026-10-24. */
+:root{
+  --bg:#FDFBF3; --fg:#262811; --surface:#FFFFFF; --sunk:#F8F3E1; --primary:#41431B; --primary-fg:#F8F3E1;
+  --muted:#F3EFDF; --muted-fg:#5A5C31; --subtle:#8B8D63; --border:#E9E3C8; --strong:#D2CBA4;
+  --good:#5A7333; --good-bg:#EEF2E0; --bad:#A83A22; --bad-bg:#F9E5DF; --warn:#A87C1C; --warn-bg:#F8EFD6; --warn-border:#E2CE97; --clay:#C0692B;
+  --display:"Prompt","Noto Sans Thai",system-ui,sans-serif; --body:"Noto Sans Thai","Prompt",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#1B1C10; --fg:#EEEAD6; --surface:#24261A; --sunk:#2A2C1E; --primary:#D9DDB0; --primary-fg:#1B1C10;
+  --muted:#2E301F; --muted-fg:#C9C8A6; --subtle:#9C9B7C; --border:#36381F; --strong:#4A4C30;
+  --good:#B7CF7C; --good-bg:#2B3320; --bad:#EC9C80; --bad-bg:#41261C; --warn:#E8BE62; --warn-bg:#3B3018; --warn-border:#5A4A22; --clay:#E8A76F; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#1B1C10; --fg:#EEEAD6; --surface:#24261A; --sunk:#2A2C1E; --primary:#D9DDB0; --primary-fg:#1B1C10;
+  --muted:#2E301F; --muted-fg:#C9C8A6; --subtle:#9C9B7C; --border:#36381F; --strong:#4A4C30;
+  --good:#B7CF7C; --good-bg:#2B3320; --bad:#EC9C80; --bad-bg:#41261C; --warn:#E8BE62; --warn-bg:#3B3018; --warn-border:#5A4A22; --clay:#E8A76F; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:14px;line-height:1.55;margin:0;padding:20px 16px 60px}
+h1,h2,h3{font-family:var(--display);margin:0}
+p{margin:0}
+.wrap{max-width:1180px;margin:0 auto;display:grid;gap:16px}
+.sub{color:var(--subtle);font-size:.82rem}
+.seg{display:inline-flex;border:1px solid var(--strong);border-radius:999px;padding:3px;background:var(--surface);gap:2px;flex-wrap:wrap}
+.seg button{font:inherit;font-size:.85rem;border:0;background:none;color:var(--fg);border-radius:999px;padding:4px 14px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--primary);color:var(--primary-fg)}
+.note{background:var(--warn-bg);border:1px solid var(--warn-border);color:var(--fg);border-radius:12px;padding:10px 14px;font-size:.85rem}
+.note b{color:var(--warn)}
+.page{border:1px solid var(--border);border-radius:18px;padding:18px;display:grid;gap:14px;background:var(--bg)}
+.pagehead{display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px;align-items:flex-start}
+.crumb{font-size:.75rem;color:var(--subtle)}
+.btn{background:var(--primary);color:var(--primary-fg);border-radius:999px;padding:7px 16px;font-weight:600;font-size:.85rem;white-space:nowrap;border:0;font-family:inherit}
+.btn.ghost{background:var(--surface);color:var(--fg);border:1px solid var(--strong);font-weight:500}
+.row{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.chip{border:1px solid var(--strong);background:var(--surface);border-radius:999px;padding:4px 13px;font-size:.82rem;white-space:nowrap;position:relative}
+.chip.on{background:var(--primary);color:var(--primary-fg);border-color:var(--primary)}
+.chip.new{outline:2px dashed var(--clay);outline-offset:2px}
+.dot{position:absolute;top:-7px;right:-6px;min-width:18px;height:18px;border-radius:999px;font-size:.68rem;display:grid;place-items:center;color:#fff;background:var(--bad)}
+.dot.y{background:var(--warn)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 16px}
+table{width:100%;border-collapse:collapse;font-size:.86rem}
+th{font-weight:500;color:var(--muted-fg);text-align:left;padding:8px 10px;background:var(--sunk);font-size:.8rem}
+td{padding:9px 10px;border-top:1px solid var(--border);vertical-align:top}
+.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.sku{color:var(--subtle);font-size:.76rem}
+.newcol{background:color-mix(in srgb,var(--clay) 10%,transparent)}
+th.newcol{color:var(--clay)}
+.tag{font-size:.7rem;border-radius:999px;padding:1px 8px;white-space:nowrap}
+.tag.bad{background:var(--bad-bg);color:var(--bad)}
+.tag.warn{background:var(--warn-bg);color:var(--warn)}
+.tag.prep{background:var(--warn-bg);color:var(--muted-fg);border:1px solid var(--warn-border)}
+.muted{color:var(--subtle)}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px}
+.tile{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:12px 14px;display:grid;gap:2px;cursor:pointer}
+.tile:hover{border-color:var(--strong);background:var(--sunk)}
+.tile b{font-family:var(--display);font-size:.95rem}
+.tile.main{background:var(--primary);color:var(--primary-fg);border-color:var(--primary)}
+.tile.main .sub{color:color-mix(in srgb,var(--primary-fg) 75%,transparent)}
+.grid2{display:grid;grid-template-columns:1.2fr 1fr;gap:14px}
+@media (max-width:820px){.grid2{grid-template-columns:1fr}}
+.feed li{display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:8px 0;border-top:1px solid var(--border);list-style:none}
+.feed li:first-child{border-top:0}
+.feed ul{margin:0;padding:0}
+.plus{color:var(--good)} .minus{color:var(--bad)}
+.kpi{font-family:var(--display);font-size:1.5rem;font-weight:600;font-variant-numeric:tabular-nums}
+.callout{border-left:3px solid var(--clay);padding:2px 0 2px 10px;font-size:.82rem;color:var(--muted-fg)}
+.sheet{border:1px solid var(--border);border-radius:14px;background:var(--surface);padding:14px 16px;display:grid;gap:10px;max-width:420px}
+.scroll{overflow-x:auto}
+.cmp{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+@media (max-width:820px){.cmp{grid-template-columns:1fr}}
+.cmp .card h3{font-size:.95rem;margin-bottom:4px}
+.cmp ul{margin:6px 0 0;padding-left:18px;font-size:.84rem}
+</style>
+
+<div class="wrap">
+  <div>
+    <h1 style="font-size:1.35rem">B6 · รวม “สต๊อกคงเหลือ” เข้า “สินค้า/วัตถุดิบ”</h1>
+    <p class="sub">ข้อมูลจริงของร้านตัวอย่าง สาขาอารีย์ (อ่านจากหน้าจริง 24 ต.ค. 69) · ส่วนที่ขอบประสีส้ม = ของใหม่</p>
+  </div>
+
+  <div class="note">
+    <b>ปัญหาตอนนี้:</b> สองหน้ามีรายการวัตถุดิบ 31 ตัวเดียวกัน ยอดคงเหลือเดียวกัน หน้าสินค้ามีมากกว่า (ขั้นต่ำ เตือนแดง/เหลือง ต้นทุนต่อหน่วย ซื้อล่าสุด ใช้ในกี่สูตร แผงแก้ไข) ที่หน้าสต๊อกมีแต่หน้าสินค้าไม่มีคือ <b>มูลค่าต่อรายการ</b>, <b>เคลื่อนไหวล่าสุด</b>, และตัวกรอง <b>ติดลบ / หมด / ยังไม่เคยเคลื่อนไหว</b> ·
+    ทุกงานที่ทำกับสต๊อก (ปรับ · ของเสีย · โอน · ประวัติ) มีปุ่มอยู่แค่ที่หน้าสต๊อก
+  </div>
+
+  <div class="row" style="justify-content:space-between">
+    <div class="seg" id="tabs">
+      <button aria-pressed="false" data-v="now">ตอนนี้</button>
+      <button aria-pressed="true" data-v="products">เสนอ ① หน้าสินค้า = รายการเดียว</button>
+      <button aria-pressed="false" data-v="hub">เสนอ ② หน้าสต๊อก = งานสต๊อก</button>
+      <button aria-pressed="false" data-v="options">เทียบทางเลือก</button>
+    </div>
+  </div>
+
+  <!-- ===================== NOW ===================== -->
+  <section data-p="now" hidden class="grid2">
+    <div class="page">
+      <div class="crumb">สต๊อก › สต๊อกคงเหลือ</div>
+      <div class="pagehead">
+        <div><h2>ยอดคงเหลือ</h2><p class="sub">ยอดคำนวณสดจากรายการเคลื่อนไหวทั้งหมด</p></div>
+        <div class="row"><span class="btn ghost">ประวัติ</span><span class="btn ghost">ของเสีย</span><span class="btn ghost">โอน</span><span class="btn">ปรับสต๊อก</span></div>
+      </div>
+      <div class="card"><b>ของใกล้หมด (1)</b><p class="sub">กุ้งขาว 158.559 / 200 kg · ขาด 41.441 kg · ต้องสั่ง</p></div>
+      <div class="row"><span class="chip on">ทั้งหมด</span><span class="chip">ติดลบ</span><span class="chip">หมด (0)</span><span class="chip">ยังไม่เคยเคลื่อนไหว</span></div>
+      <div class="scroll"><table>
+        <tr><th>วัตถุดิบ</th><th class="num">คงเหลือ</th><th class="num">มูลค่า</th><th>เคลื่อนไหวล่าสุด</th></tr>
+        <tr><td>กระเทียม <span class="sku">P-0017</span></td><td class="num">43.555 kg</td><td class="num">4,200.92</td><td>27 ก.ย. 69</td></tr>
+        <tr><td>กะทิ <span class="sku">P-0013</span></td><td class="num">121.002 l</td><td class="num">11,132.54</td><td>27 ก.ย. 69</td></tr>
+        <tr><td>กุ้งขาว <span class="sku">P-0005</span></td><td class="num">158.559 kg</td><td class="num">50,582.48</td><td>27 ก.ย. 69</td></tr>
+        <tr><td>ข้าวหอมมะลิ <span class="sku">P-0007</span></td><td class="num">880.309 kg</td><td class="num">40,384.13</td><td>27 ก.ย. 69</td></tr>
+      </table></div>
+    </div>
+    <div class="page">
+      <div class="crumb">สต๊อก › สินค้า/วัตถุดิบ</div>
+      <div class="pagehead">
+        <div><h2>สินค้า/วัตถุดิบ</h2><p class="sub">31 รายการ · ต่ำกว่าขั้นต่ำ 1 · ใกล้ขั้นต่ำ 1</p></div>
+        <span class="btn">+ เพิ่มสินค้า</span>
+      </div>
+      <div class="row"><span class="chip on">ที่ใช้งานอยู่</span><span class="chip">วัตถุดิบ</span><span class="chip">ของแปรรูป</span><span class="chip">ต่ำกว่าขั้นต่ำ<span class="dot">1</span></span><span class="chip">ใกล้ขั้นต่ำ<span class="dot y">1</span></span><span class="chip">ปิดใช้งาน</span></div>
+      <div class="scroll"><table>
+        <tr><th>สินค้า</th><th class="num">คงเหลือ</th><th class="num">ต้นทุน/หน่วย</th><th class="num">ซื้อล่าสุด</th><th class="num">ใช้ใน</th></tr>
+        <tr><td>กระเทียม<br><span class="sku">P-0017 · ผักและผลไม้</span></td><td class="num">43.6 kg</td><td class="num">฿90.78/kg</td><td class="num">฿97.39/kg</td><td class="num">10 สูตร</td></tr>
+        <tr><td>กะทิ<br><span class="sku">P-0013 · ของแห้งฯ</span></td><td class="num">121 l</td><td class="num">฿91.41/l</td><td class="num">฿553.46/ลัง</td><td class="num">2 สูตร</td></tr>
+        <tr><td>กุ้งขาว <span class="tag bad">ต่ำกว่าขั้นต่ำ</span><br><span class="sku">P-0005 · อาหารทะเล</span></td><td class="num">159 kg<br><span class="tag bad">ขั้นต่ำ 200 kg</span></td><td class="num">฿341.78/kg</td><td class="num">฿671.33/กล่อง</td><td class="num">4 สูตร</td></tr>
+      </table></div>
+    </div>
+  </section>
+
+  <!-- ===================== PRODUCTS (merged list) ===================== -->
+  <section data-p="products" class="grid2" style="grid-template-columns:1fr">
+    <div class="page">
+      <div class="crumb">สต๊อก › สินค้า/วัตถุดิบ</div>
+      <div class="pagehead">
+        <div>
+          <h2>สินค้า/วัตถุดิบ</h2>
+          <p class="sub">31 รายการที่ใช้งาน · ของแปรรูป 4 · ต่ำกว่าขั้นต่ำ 1 · ใกล้ขั้นต่ำ 1</p>
+          <p class="newcol" style="margin-top:6px;padding:4px 10px;border-radius:10px;display:inline-block;font-size:.88rem">มูลค่าสต๊อกสาขาอารีย์ <b style="font-family:var(--display)">฿315,702</b> <span class="sub">· ตามราคาทุน (FIFO)</span></p>
+        </div>
+        <div class="row"><span class="sub">คงเหลือและต้นทุนของ</span><span class="chip">สาขาอารีย์ ▾</span><span class="btn">+ เพิ่มสินค้า</span></div>
+      </div>
+      <div class="row">
+        <span class="chip on">ที่ใช้งานอยู่</span><span class="chip">วัตถุดิบ</span><span class="chip">ของแปรรูป</span>
+        <span class="chip">ต่ำกว่าขั้นต่ำ<span class="dot">1</span></span><span class="chip">ใกล้ขั้นต่ำ<span class="dot y">1</span></span>
+        <span class="chip new">หมด / ติดลบ</span><span class="chip new">ไม่เคลื่อนไหว 45 วัน</span>
+        <span class="chip">ปิดใช้งาน</span><span class="chip">ทั้งหมด</span>
+      </div>
+      <div class="row"><span class="sub">เรียงตาม</span><span class="chip on">ชื่อ</span><span class="chip new">มูลค่ามากสุด</span><span class="chip">คงเหลือ</span></div>
+      <div class="scroll"><table>
+        <tr><th>สินค้า</th><th class="num">คงเหลือ</th><th class="num newcol">มูลค่า</th><th class="num">ต้นทุน/หน่วย</th><th class="num">ซื้อล่าสุด</th><th class="num">ใช้ใน</th></tr>
+        <tr><td>กุ้งขาว <span class="tag bad">ต่ำกว่าขั้นต่ำ · ยังไม่ได้สั่ง</span> <span class="chip" style="padding:1px 9px;font-size:.72rem">+ ขอซื้อ</span><br><span class="sku">P-0005 · อาหารทะเล · ซื้อเป็น กล่อง 2 kg</span></td><td class="num">158.6 kg<br><span class="tag bad">ขั้นต่ำ 200 kg</span></td><td class="num newcol">฿50,582</td><td class="num">฿341.78/kg</td><td class="num">฿671.33/กล่อง 2 kg<br><span class="sku">มหาชัย · 24 ก.ย. 69</span></td><td class="num">4 สูตร</td></tr>
+        <tr><td>ข้าวหอมมะลิ<br><span class="sku">P-0007 · ของแห้งและเครื่องปรุง</span></td><td class="num">880.3 kg</td><td class="num newcol">฿40,384</td><td class="num">฿45.87/kg</td><td class="num">—</td><td class="num">9 สูตร</td></tr>
+        <tr><td>หมูสับ<br><span class="sku">P-0001 · เนื้อสัตว์</span></td><td class="num">244.2 kg</td><td class="num newcol">฿31,926</td><td class="num">฿130.76/kg</td><td class="num">—</td><td class="num">6 สูตร</td></tr>
+        <tr><td>เบียร์สิงห์ 620 มล.<br><span class="sku">P-0025 · เครื่องดื่ม</span></td><td class="num">334 ชิ้น</td><td class="num newcol">฿21,923</td><td class="num">฿65.64/ชิ้น</td><td class="num">—</td><td class="num">1 สูตร</td></tr>
+        <tr><td>กะทิ<br><span class="sku">P-0013 · ของแห้งฯ · ซื้อเป็น ลัง 24 กล่อง</span></td><td class="num">121 l</td><td class="num newcol">฿11,133</td><td class="num">฿91.41/l</td><td class="num">฿553.46/ลัง<br><span class="sku">แม็คโคร · 24 ก.ย. 69</span></td><td class="num">2 สูตร</td></tr>
+        <tr><td>กล่องข้าวกระดาษ<br><span class="sku">P-0027 · ภาชนะใช้ครั้งเดียว</span></td><td class="num">0 ใบ</td><td class="num newcol muted">—</td><td class="num muted">ยังไม่เคยซื้อที่สาขานี้</td><td class="num">—</td><td class="num">—</td></tr>
+      </table></div>
+      <p class="sub">“—” ในช่องมูลค่า = ไม่มีของ ไม่ใช่ ฿0 · คนที่ไม่มีสิทธิ์ดูต้นทุนจะไม่เห็นคอลัมน์มูลค่าและยอดรวม (เหมือนหน้าสต๊อกเดิม)</p>
+
+      <div class="callout">กดแถว → แผงสินค้าเดิม เพิ่มกล่อง <b>“เคลื่อนไหวล่าสุด”</b> 5 รายการของสินค้านี้ (แทนคอลัมน์ “เคลื่อนไหวล่าสุด” ที่เคยเป็นแค่วันที่) และลิงก์ “ดูประวัติทั้งหมด” ที่กรองสินค้านี้ไว้ให้แล้ว</div>
+      <div class="sheet newcol" style="background:var(--surface)">
+        <b style="font-family:var(--display)">กุ้งขาว · เคลื่อนไหวล่าสุด <span class="tag warn">ตัวเลขสมมติ ดูหน้าตา</span></b>
+        <div class="feed"><ul>
+          <li><span>ปรับลด · นับสต๊อก <span class="sku">ARI-SC-0001</span></span><span class="num minus">−0.47 kg</span><span class="sku">27 ก.ย. 69 · kongnithipat5</span><span></span></li>
+          <li><span>ตัดสต๊อกตามยอดขาย</span><span class="num minus">−3.2 kg</span><span class="sku">26 ก.ย. 69</span><span></span></li>
+          <li><span>รับของเข้า · <span class="sku">ARI-GR-0012</span></span><span class="num plus">+20 kg</span><span class="sku">24 ก.ย. 69 · มหาชัย</span><span></span></li>
+        </ul></div>
+        <span class="sub" style="color:var(--primary)">ดูประวัติทั้งหมดของกุ้งขาว ›</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== HUB ===================== -->
+  <section data-p="hub" hidden>
+    <div class="page">
+      <div class="crumb">สต๊อก › งานสต๊อก <span class="tag warn" style="margin-left:6px">ชื่อเมนูเปลี่ยนจาก “สต๊อกคงเหลือ”</span></div>
+      <div class="pagehead">
+        <div><h2>งานสต๊อก</h2><p class="sub">ของเข้า-ออกที่ไม่ได้มาจากการซื้อหรือการขาย บันทึกที่นี่</p></div>
+        <div class="row"><span class="chip">สาขาลาดพร้าว</span><span class="chip on">สาขาอารีย์</span></div>
+      </div>
+
+      <div class="tiles">
+        <div class="tile main"><b>นับสต๊อก</b><span class="sub">นับล่าสุด 27 วันก่อน</span></div>
+        <div class="tile"><b>บันทึกของเสีย</b><span class="sub">ก.ย. ฿207 · 6 รายการ</span></div>
+        <div class="tile"><b>ปรับสต๊อก</b><span class="sub">ของเกิน/ขาดที่รู้สาเหตุ</span></div>
+        <div class="tile"><b>โอนไปสาขาอื่น</b><span class="sub">ไม่มีของกำลังมาส่ง</span></div>
+        <div class="tile"><b>มื้อพนักงาน</b><span class="sub">บันทึกของที่พนักงานกิน</span></div>
+        <div class="tile"><b>ประวัติการเคลื่อนไหว</b><span class="sub">ทุกรายการ แก้ไม่ได้</span></div>
+      </div>
+
+      <div class="grid2">
+        <div class="card feed">
+          <div class="row" style="justify-content:space-between"><b style="font-family:var(--display)">เคลื่อนไหวล่าสุดของสาขานี้</b><span class="sub" style="color:var(--primary)">ดูทั้งหมด ›</span></div>
+          <ul>
+            <li><span>พริกขี้หนู · ปรับลด จากนับสต๊อก</span><span class="num minus">−0.525 kg</span><span class="sku">27 ก.ย. 69 · kongnithipat5</span><span></span></li>
+            <li><span>อกไก่ · ปรับลด จากนับสต๊อก</span><span class="num minus">−0.303 kg</span><span class="sku">27 ก.ย. 69 · kongnithipat5</span><span></span></li>
+            <li><span>มะละกอดิบ · ปรับเพิ่ม จากนับสต๊อก</span><span class="num plus">+1.609 kg</span><span class="sku">27 ก.ย. 69 · kongnithipat5</span><span></span></li>
+            <li><span>กุ้งขาว · ของเสีย (เน่าเสีย)</span><span class="num minus">−0.25 kg</span><span class="sku">ก.ย. 69</span><span></span></li>
+          </ul>
+        </div>
+        <div style="display:grid;gap:14px;align-content:start">
+          <div class="card">
+            <span class="sub">มูลค่าสต๊อกสาขาอารีย์</span>
+            <div class="kpi">฿315,702</div>
+            <span class="sub" style="color:var(--primary)">ดูรายการในหน้าสินค้า ›</span>
+          </div>
+          <div class="card">
+            <b style="font-family:var(--display)">ต้องดู</b>
+            <p style="margin-top:4px"><span class="tag bad">ต่ำกว่าขั้นต่ำ 1</span> <span class="tag warn">ใกล้ขั้นต่ำ 1</span></p>
+            <p class="sub" style="margin-top:4px">กดแล้วไปหน้าสินค้าที่กรองไว้ (มีปุ่ม + ขอซื้อ อยู่แล้วที่นั่น) — ไม่ทำรายการซ้ำที่นี่</p>
+          </div>
+        </div>
+      </div>
+      <p class="sub">ไม่มีตารางสินค้าในหน้านี้อีก · ของที่กำลังส่งมาจากสาขาอื่นยังขึ้นบนสุดเมื่อมี (เหมือนเดิม)</p>
+    </div>
+  </section>
+
+  <!-- ===================== OPTIONS ===================== -->
+  <section data-p="options" hidden class="cmp">
+    <div class="card" style="outline:2px solid var(--primary)">
+      <h3>A · หน้าสต๊อกเป็น “งานสต๊อก” (แนะนำ)</h3>
+      <p class="sub">ภาพ ① + ②</p>
+      <ul>
+        <li>รายการเดียวอยู่ที่หน้าสินค้า</li>
+        <li>งานเข้า-ออกสต๊อกมีที่ของมัน ไม่แย่งที่กับรายการ</li>
+        <li>เมนูข้างยังมี “งานสต๊อก” ให้คนครัวเข้าตรง</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>B · ลบหน้าสต๊อกทิ้ง</h3>
+      <p class="sub">ปุ่ม นับ/ของเสีย/ปรับ/โอน/ประวัติ ไปอยู่บนหัวหน้าสินค้า</p>
+      <ul>
+        <li>เมนูข้างสั้นลงหนึ่งบรรทัด</li>
+        <li>หัวหน้าสินค้าจะมี 6 ปุ่ม + เพิ่มสินค้า แน่นมากบนมือถือ</li>
+        <li>ไม่มีที่ให้ “เคลื่อนไหวล่าสุดของสาขา”</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>C · คงสองหน้า แค่ตัดคอลัมน์ซ้ำ</h3>
+      <ul>
+        <li>เปลี่ยนน้อยสุด</li>
+        <li>ยังมีรายการ 31 ตัวสองที่ — ไม่แก้ปัญหาที่ตรวจเจอ</li>
+      </ul>
+    </div>
+  </section>
+
+  <div class="card">
+    <b style="font-family:var(--display)">ถ้าเลือก A จะเปลี่ยนอะไรบ้าง</b>
+    <ul style="margin:6px 0 0;padding-left:18px;font-size:.86rem">
+      <li>หน้าสินค้า: ยอดรวมมูลค่าสต๊อกบนหัว · คอลัมน์มูลค่า · ตัวกรอง “หมด / ติดลบ” และ “ไม่เคลื่อนไหว 45 วัน” (ใช้ค่าของค้างนานที่ร้านตั้งไว้แล้ว) · เรียงตามมูลค่า · แผงสินค้าเพิ่มเคลื่อนไหวล่าสุด 5 รายการ</li>
+      <li>หน้าสต๊อก (/stock เดิม URL เดิม): ปุ่มงานหกอัน · เคลื่อนไหวล่าสุดของสาขา · มูลค่ารวม · ต้องดู (ลิงก์ไปหน้าสินค้า) · ของกำลังมาส่ง</li>
+      <li>หน้าประวัติ: ช่องเลือกวัตถุดิบเป็น <code>&lt;select&gt;</code> ทุกตัว → เปลี่ยนเป็นช่องค้นหา (กฎเดิมของคุณ Kong) ระหว่างทำ</li>
+      <li>ลิงก์ที่ชี้มา /stock (หน้าต้นทุน 3 จุด) เปลี่ยนให้ชี้หน้าสินค้าเรียงตามมูลค่า</li>
+      <li>ไม่มี migration</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+const tabs=document.querySelectorAll('#tabs button');
+tabs.forEach(b=>b.addEventListener('click',()=>{
+  tabs.forEach(x=>x.setAttribute('aria-pressed',x===b));
+  document.querySelectorAll('[data-p]').forEach(s=>s.hidden=s.dataset.p!==b.dataset.v);
+}));
+</script>
