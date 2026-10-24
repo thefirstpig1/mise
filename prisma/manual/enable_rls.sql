@@ -539,3 +539,37 @@ USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 -- ============================================================
 -- End Sprint 7 Part 38 RLS
 -- ============================================================
+
+-- ============================================================
+-- Daily close add-on (Kong 2026-10-25, ADR 0042) — five tables, each
+-- carrying tenant_id directly (ADR 0004 pattern).
+-- ============================================================
+
+ALTER TABLE customer_type ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON customer_type;
+CREATE POLICY tenant_isolation ON customer_type
+USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+ALTER TABLE daily_close ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON daily_close;
+CREATE POLICY tenant_isolation ON daily_close
+USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+ALTER TABLE daily_close_mix ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON daily_close_mix;
+CREATE POLICY tenant_isolation ON daily_close_mix
+USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+ALTER TABLE daily_issue ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON daily_issue;
+CREATE POLICY tenant_isolation ON daily_issue
+USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+ALTER TABLE daily_comment ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON daily_comment;
+CREATE POLICY tenant_isolation ON daily_comment
+USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+-- ============================================================
+-- End daily close RLS
+-- ============================================================

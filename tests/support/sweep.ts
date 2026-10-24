@@ -52,6 +52,12 @@ export const TENANT_SCOPED_DELETE_ORDER = [
   "UserBranchAccess",
   "UserDepartmentAssignment",
   "WasteLog",
+  // Daily close (ADR 0042): children first, the close before its branch.
+  "DailyComment",
+  "DailyIssue",
+  "DailyCloseMix",
+  "DailyClose",
+  "CustomerType",
   "Expense",
   "GoodsReceiptItem",
   "PurchaseOrderItemAllocation",

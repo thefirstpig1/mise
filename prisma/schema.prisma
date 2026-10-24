@@ -105,6 +105,8 @@ model Tenant {
   costCoverageMinPct Int @default(90) @map("cost_coverage_min_pct")
   /// Stock whose oldest remaining lot is older than this is "ค้างนาน".
   slowStockDays Int @default(45) @map("slow_stock_days")
+  /// Kong 2026-10-25 (ADR 0042): the ปิดร้านประจำวัน add-on. Off = the dashboard keys the till total as before.
+  dailyCloseEnabled Boolean @default(false) @map("daily_close_enabled")
 
   /// The two staff-meal controls (ADR 0028 Q9). Both nullable, and null means
   /// NOT CHECKED rather than zero — a shop with no policy must not read as a
@@ -187,6 +189,11 @@ model Tenant {
   deliveryPromises        PurchaseOrderDeliveryPromise[]
 
   @@map("tenant")
+  customerTypes  CustomerType[]
+  dailyCloses    DailyClose[]
+  dailyCloseMix  DailyCloseMix[]
+  dailyIssues    DailyIssue[]
+  dailyComments  DailyComment[]
 }
 
 model Branch {
@@ -250,6 +257,7 @@ model Branch {
 
   @@index([tenantId])
   @@map("branch")
+  dailyCloses DailyClose[]
 }
 
 model User {
@@ -312,6 +320,11 @@ model User {
   purchaseRequestMessages   PurchaseRequestMessage[] @relation("PrMessageAuthor")
   purchaseRequestReadies    PurchaseRequestReady[]   @relation("PrReadyBy")
   deliveryPromisesSet       PurchaseOrderDeliveryPromise[] @relation("PoPromiseSetBy")
+
+  dailyClosesClosed  DailyClose[]   @relation("DailyCloseClosedBy")
+  dailyIssuesCreated DailyIssue[]   @relation("DailyIssueCreatedBy")
+  dailyIssuesResolved DailyIssue[]  @relation("DailyIssueResolvedBy")
+  dailyComments      DailyComment[] @relation("DailyCommentAuthor")
 
   @@map("app_user")
 }
@@ -2444,6 +2457,10 @@ model SalesDay {
   /// Worth more than any threshold, because it is the explanation rather than the
   /// detection.
   pulseNote       String?           @map("pulse_note")
+  /// ADR 0042: how many customers the POS says came; null = not recorded. POS
+  /// fills it when the file carries it, otherwise the closer types it.
+  guestCount       Int?              @map("guest_count")
+  guestCountSource GuestCountSource? @map("guest_count_source")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -3396,3 +3413,129 @@ model StaffMealItem {
   @@index([productId], map: "staff_meal_item_product_idx")
   @@map("staff_meal_item")
 }
+
+// ============================================================
+// ปิดร้านประจำวัน — daily close (Kong 2026-10-25, ADR 0042)
+// ============================================================
+
+enum GuestCountSource {
+  MANUAL
+  POS
+
+  @@map("guest_count_source")
+}
+
+enum DailyIssueCategory {
+  OUT_OF_STOCK
+  EQUIPMENT
+  COMPLAINT
+  STAFF
+  OTHER
+
+  @@map("daily_issue_category")
+}
+
+/// The shop's own list of customer types (ออฟฟิศ, ครอบครัว…). Archived, never
+/// deleted, once used — old estimates keep their label.
+model CustomerType {
+  id           String    @id @default(uuid()) @db.Uuid
+  tenantId     String    @map("tenant_id") @db.Uuid
+  name         String
+  displayOrder Int       @default(0) @map("display_order")
+  archivedAt   DateTime? @map("archived_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  tenant Tenant          @relation(fields: [tenantId], references: [id])
+  mix    DailyCloseMix[]
+
+  @@index([tenantId])
+  @@map("customer_type")
+}
+
+/// One branch's close for one business day. Every figure nullable: blank =
+/// not recorded. Editable until midnight at the end of the NEXT day, then
+/// frozen (ADR 0042 Q5); comments and issue resolution continue after.
+model DailyClose {
+  id           String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  branchId     String   @map("branch_id") @db.Uuid
+  businessDate DateTime @map("business_date") @db.Date
+  cashFloat    Decimal? @map("cash_float") @db.Decimal(15, 2)
+  /// Cash the POS says customers paid in cash (เงินสดจากการขาย).
+  cashSales    Decimal? @map("cash_sales") @db.Decimal(15, 2)
+  cashCounted  Decimal? @map("cash_counted") @db.Decimal(15, 2)
+  cashNote     String?  @map("cash_note")
+  closedBy     String   @map("closed_by")
+  closedAt     DateTime @default(now()) @map("closed_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  tenant       Tenant          @relation(fields: [tenantId], references: [id])
+  branch       Branch          @relation(fields: [branchId], references: [id])
+  closedByUser User            @relation("DailyCloseClosedBy", fields: [closedBy], references: [id])
+  mix          DailyCloseMix[]
+  issues       DailyIssue[]
+  comments     DailyComment[]
+
+  @@unique([branchId, businessDate], map: "daily_close_branch_date_unique")
+  @@index([tenantId])
+  @@map("daily_close")
+}
+
+/// "Out of 10 customers, how many were this type" — an estimate in tenths,
+/// never a head count (ADR 0042 Q3).
+model DailyCloseMix {
+  tenantId       String @map("tenant_id") @db.Uuid
+  dailyCloseId   String @map("daily_close_id") @db.Uuid
+  customerTypeId String @map("customer_type_id") @db.Uuid
+  parts          Int
+
+  tenant       Tenant       @relation(fields: [tenantId], references: [id])
+  dailyClose   DailyClose   @relation(fields: [dailyCloseId], references: [id], onDelete: Cascade)
+  customerType CustomerType @relation(fields: [customerTypeId], references: [id])
+
+  @@id([dailyCloseId, customerTypeId])
+  @@index([tenantId])
+  @@map("daily_close_mix")
+}
+
+model DailyIssue {
+  id           String             @id @default(uuid()) @db.Uuid
+  tenantId     String             @map("tenant_id") @db.Uuid
+  dailyCloseId String             @map("daily_close_id") @db.Uuid
+  category     DailyIssueCategory
+  body         String
+  /// ต้องตามต่อ — stays on every branch member's screen until resolved.
+  followUp     Boolean            @default(false) @map("follow_up")
+  resolvedAt   DateTime?          @map("resolved_at")
+  resolvedBy   String?            @map("resolved_by")
+  createdBy    String             @map("created_by")
+  createdAt    DateTime           @default(now()) @map("created_at")
+
+  tenant         Tenant     @relation(fields: [tenantId], references: [id])
+  dailyClose     DailyClose @relation(fields: [dailyCloseId], references: [id], onDelete: Cascade)
+  resolvedByUser User?      @relation("DailyIssueResolvedBy", fields: [resolvedBy], references: [id])
+  createdByUser  User       @relation("DailyIssueCreatedBy", fields: [createdBy], references: [id])
+
+  @@index([tenantId])
+  @@index([dailyCloseId], map: "daily_issue_close_idx")
+  @@map("daily_issue")
+}
+
+/// Append-only: no edit, no delete — the history a manager tracks back through.
+model DailyComment {
+  id           String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  dailyCloseId String   @map("daily_close_id") @db.Uuid
+  body         String
+  author       String
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  tenant     Tenant     @relation(fields: [tenantId], references: [id])
+  dailyClose DailyClose @relation(fields: [dailyCloseId], references: [id], onDelete: Cascade)
+  authorUser User       @relation("DailyCommentAuthor", fields: [author], references: [id])
+
+  @@index([tenantId])
+  @@index([dailyCloseId, createdAt], map: "daily_comment_close_idx")
+  @@map("daily_comment")
+}
+
