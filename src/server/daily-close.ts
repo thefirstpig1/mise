@@ -383,7 +383,8 @@ export async function getDailyCloseMonthLogic(tenantId: string, branchId: string
     }
 
     // Weighted share: each day's tenths become fractions of that day's guests
-    // (or of 1 when the guest count is missing), then summed (rule DC-MIX).
+    // (or of 1 when the guest count is missing), then summed over every
+    // estimated day's whole weight (rule DC-MIX).
     const weight = new Map<string, number>();
     let total = 0;
     let mixDays = 0;
@@ -394,7 +395,9 @@ export async function getDailyCloseMonthLogic(tenantId: string, branchId: string
       for (const m of c.mix) {
         weight.set(m.customerTypeId, (weight.get(m.customerTypeId) ?? 0) + (m.parts / 10) * w);
       }
-      total += w * (c.mix.reduce((t, m) => t + m.parts, 0) / 10);
+      // The whole day counts, unassigned tenths included — they are "ไม่แน่ใจ",
+      // the same as on the day's own sheet, not a reason to inflate the rest.
+      total += w;
     }
     const name = new Map(types.map((t) => [t.id, t.name]));
     const mix = [...weight.entries()]
@@ -464,3 +467,26 @@ export async function isDailyCloseEnabledLogic(tenantId: string): Promise<boolea
   return withTenantContext(tenantId, async (tx) => (await tx.tenant.findUniqueOrThrow({ where: { id: tenantId }, select: { dailyCloseEnabled: true } })).dailyCloseEnabled);
 }
 
+
+/** The dashboard card: today's and yesterday's close per branch, and open issues (no money). */
+export async function getCloseStatusLogic(tenantId: string, branchIds: string[]) {
+  const today = computeBangkokToday();
+  const yesterday = addDays(today, -1);
+  if (branchIds.length === 0) return { today: isoDate(today), yesterday: isoDate(yesterday), branches: [] as { branchId: string; today: boolean; yesterday: boolean; openIssues: number }[] };
+  return withTenantContext(tenantId, async (tx) => {
+    const [closes, issues] = await Promise.all([
+      tx.dailyClose.findMany({ where: { tenantId, branchId: { in: branchIds }, businessDate: { in: [today, yesterday] } }, select: { branchId: true, businessDate: true } }),
+      tx.dailyIssue.findMany({ where: { tenantId, followUp: true, resolvedAt: null, dailyClose: { branchId: { in: branchIds } } }, select: { dailyClose: { select: { branchId: true } } } }),
+    ]);
+    return {
+      today: isoDate(today),
+      yesterday: isoDate(yesterday),
+      branches: branchIds.map((b) => ({
+        branchId: b,
+        today: closes.some((c) => c.branchId === b && c.businessDate.getTime() === today.getTime()),
+        yesterday: closes.some((c) => c.branchId === b && c.businessDate.getTime() === yesterday.getTime()),
+        openIssues: issues.filter((i) => i.dailyClose.branchId === b).length,
+      })),
+    };
+  });
+}

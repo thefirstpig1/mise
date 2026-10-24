@@ -7,11 +7,14 @@ import {
   RECOMMENDED_CANCELLED_SALE_POLICY,
 } from "@/lib/validations/consumption";
 import { requireTenant } from "@/lib/require-tenant";
+import { getDailyCloseSettingsLogic } from "@/server/daily-close";
+import DailyCloseSettings from "./_components/DailyCloseSettings";
 import { revalidatePath } from "next/cache";
 
 export default async function SettingsPage() {
   const { membership } = await requireTenant("settings:write");
   const { tenant } = membership;
+  const dailyClose = await getDailyCloseSettingsLogic(membership.tenantId);
 
   async function updateTenant(formData: FormData) {
     "use server";
@@ -361,6 +364,9 @@ export default async function SettingsPage() {
             บันทึก
           </button>
         </form>
+
+        {/* ADR 0042 — saves on its own, outside the form above. */}
+        <DailyCloseSettings enabled={dailyClose.enabled} types={dailyClose.types} />
     </div>
   );
 }

@@ -19,6 +19,8 @@ export interface NavItem {
   href: string;
   label: string;
   need: Requirement;
+  /** Shown only when the shop has switched this add-on on (ADR 0042). */
+  addon?: "dailyClose";
 }
 
 export interface NavGroup {
@@ -55,6 +57,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
     label: "ขายและเมนู",
     items: [
       { href: "/sales", label: "ยอดขาย", need: "sales:view" },
+      { href: "/closing", label: "ปิดร้านประจำวัน", need: "any:member", addon: "dailyClose" },
       { href: "/menus", label: "จัดการเมนู", need: "any:member" },
       { href: "/menus/lab", label: "ทดลองเมนู", need: "recipe:draft" },
       { href: "/consumption", label: "ตัดสต๊อกตามยอดขาย", need: "consumption:post" },

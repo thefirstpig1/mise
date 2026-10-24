@@ -252,7 +252,9 @@ describe("department demand over a period (ADR 0032 Q1/Q2)", () => {
     await makeRecipe(yum, 0.04, addDays(today, -60));
     sodaRecipeId = (await makeRecipe(soda, 0.06, addDays(today, -60))).id;
     await makeRecipe(orphan, 0.01, addDays(today, -60));
-  });
+    // ~10 sequential transactions: over vitest's 10 s default at ~50 ms a
+    // round trip (the same explicit budget consumption-post-logic gives itself).
+  }, 300_000);
 
   afterAll(async () => {
     await withRlsBypass(async (tx) => {

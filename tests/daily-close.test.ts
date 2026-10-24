@@ -216,10 +216,10 @@ describe("daily close (ADR 0042)", () => {
     expect(t.cashDiff).toBe(-40);
     expect(t.issuesResolved).toBe(1);
     expect(t.comments).toBe(2);
-    // office = (0.4×142 + 1.0×8) / (0.7×142 + 1.0×8) = 64.8/107.4
+    // office = (0.4×142 + 1.0×8) / (142 + 8) — today's unassigned 3/10 stays "ไม่แน่ใจ"
     const share = (id: string) => m.mix.find((x) => x.customerTypeId === id)!.share;
-    expect(share(office.id)).toBeCloseTo(64.8 / 107.4, 6);
-    expect(share(family.id)).toBeCloseTo(42.6 / 107.4, 6);
+    expect(share(office.id)).toBeCloseTo(64.8 / 150, 6);
+    expect(share(family.id)).toBeCloseTo(42.6 / 150, 6);
     expect(m.mixDays).toBe(2);
   });
 

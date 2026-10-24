@@ -12,6 +12,7 @@ import { getTransfersLogic } from "@/server/transfer";
 import { getTransfersQuerySchema } from "@/lib/validations/transfer";
 import { toTransferView } from "@/app/(app)/transfers/_components/transfer-view";
 import { getPulseDashboardLogic } from "@/server/sales-pulse";
+import { getCloseStatusLogic } from "@/server/daily-close";
 import { getRequestQueueLogic, type RequestQueueRow } from "@/server/purchase-request";
 import { toPulseDashboardView } from "@/app/(app)/sales/_components/sales-view";
 import PulsePanel from "./_components/PulsePanel";
@@ -91,6 +92,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
       <Suspense fallback={null}>
         <WorkQueue
           showPulse={seeSales}
+          dailyClose={
+            membership.tenant.dailyCloseEnabled ? { branches: branches.map((b) => ({ id: b.id, name: b.name })), canFill: can("sales:import") } : null
+          }
           tenantId={tenantId}
           reach={reach}
           costAccess={costAccess}
@@ -636,12 +640,15 @@ function AnalyticsSkeleton() {
 // ------------------------------------------------------------
 async function WorkQueue({
   showPulse,
+  dailyClose,
   tenantId,
   reach,
   costAccess,
   purchaseBranches,
 }: {
   showPulse: boolean;
+  /** ADR 0042: the add-on is on — the closing card replaces the till box (keyed in one place). */
+  dailyClose: { branches: { id: string; name: string }[]; canFill: boolean } | null;
   tenantId: string;
   reach: Awaited<ReturnType<typeof requireTenant>>["reach"];
   costAccess: Awaited<ReturnType<typeof requireTenant>>["costAccess"];
@@ -650,23 +657,74 @@ async function WorkQueue({
 }) {
   // Streamed in its own Suspense: the page frame and the figures no longer
   // wait for these two reads before anything appears.
-  const [transfers, pulseRaw, requests] = await Promise.all([
+  const [transfers, pulseRaw, requests, closeStatus] = await Promise.all([
     // Part 18 Q8: any truck still unconfirmed, whatever the chips say.
     getTransfersLogic(tenantId, getTransfersQuerySchema.parse({ status: "SENT", includeReversalLines: "false" })),
     // Part 20a Q4 — "the shop runs blind between imports".
-    showPulse ? getPulseDashboardLogic(tenantId, reach) : Promise.resolve(null),
+    showPulse && !dailyClose ? getPulseDashboardLogic(tenantId, reach) : Promise.resolve(null),
     // ADR 0036 Q9 — the purchaser learns a kitchen is ready without being told.
     getRequestQueueLogic(tenantId, purchaseBranches),
+    dailyClose ? getCloseStatusLogic(tenantId, dailyClose.branches.map((b) => b.id)) : Promise.resolve(null),
   ]);
   const waiting = transfers.map((t) => toTransferView(t, costAccess));
   const pulse = pulseRaw ? toPulseDashboardView(pulseRaw) : null;
   const todayIso = computeBangkokToday().toISOString().slice(0, 10);
 
-  if (!pulse && waiting.length === 0 && requests.length === 0) return null;
+  if (!pulse && !closeStatus && waiting.length === 0 && requests.length === 0) return null;
   return (
     <div className="space-y-4">
       <h2 className="text-lg font-semibold">งานวันนี้</h2>
       {pulse ? <PulsePanel dashboard={pulse} todayIso={todayIso} /> : null}
+      {closeStatus && dailyClose ? (
+        <div className="rounded-xl border border-border bg-surface p-4">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h3 className="font-semibold">ปิดร้านประจำวัน</h3>
+            <a href="/closing" className="text-xs text-primary hover:underline">
+              ดูย้อนหลัง
+            </a>
+          </div>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            {closeStatus.branches.map((b) => {
+              const name = dailyClose.branches.find((x) => x.id === b.branchId)?.name ?? "";
+              const href = `/closing/day?branch=${b.branchId}&date=${closeStatus.today}`;
+              return (
+                <div key={b.branchId} className="space-y-2 rounded-xl border border-border bg-surface-sunk p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-medium">{name}</span>
+                    <span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] ${b.today ? "bg-good-bg text-good" : "bg-bad-bg text-bad"}`}>
+                      {b.today ? "ปิดร้านแล้ว" : "ยังไม่ปิด"}
+                    </span>
+                  </div>
+                  {dailyClose.canFill && (
+                    <a href={href} className={`block rounded-full px-4 py-2 text-center text-sm font-semibold ${b.today ? "border border-border-strong bg-surface" : "bg-primary text-primary-foreground"}`}>
+                      {b.today ? "ดู / แก้ใบวันนี้" : "ปิดร้านวันนี้"}
+                    </a>
+                  )}
+                  <p className="text-xs text-muted-subtle">
+                    {!b.yesterday && dailyClose.canFill ? (
+                      <a href={`/closing/day?branch=${b.branchId}&date=${closeStatus.yesterday}`} className="text-warn underline">
+                        เมื่อวานยังไม่ได้ปิด — ปิดได้ถึงเที่ยงคืนนี้
+                      </a>
+                    ) : b.yesterday ? (
+                      "เมื่อวานปิดแล้ว"
+                    ) : (
+                      "เมื่อวานไม่ได้ปิด"
+                    )}
+                    {b.openIssues > 0 && (
+                      <>
+                        {" · "}
+                        <a href={`/closing?branch=${b.branchId}`} className="text-bad underline">
+                          ปัญหาค้าง {b.openIssues}
+                        </a>
+                      </>
+                    )}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
       {requests.length > 0 ? <RequestQueue rows={requests} /> : null}
       {waiting.length > 0 ? (
         // Kong (2026-09-28): this must LEAD somewhere. The heading opens the

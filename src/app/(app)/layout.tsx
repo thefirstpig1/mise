@@ -19,7 +19,8 @@ import { NAV_GROUPS } from "@/components/layout/nav";
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const { user, membership, can, membershipCount } = await requireTenant("any:member");
 
-  const groups = NAV_GROUPS.map((g) => ({ ...g, items: g.items.filter((i) => can(i.need)) })).filter(
+  const addonOn = (a: "dailyClose" | undefined) => a === undefined || (a === "dailyClose" && membership.tenant.dailyCloseEnabled);
+  const groups = NAV_GROUPS.map((g) => ({ ...g, items: g.items.filter((i) => can(i.need) && addonOn(i.addon)) })).filter(
     (g) => g.items.length > 0
   );
 
