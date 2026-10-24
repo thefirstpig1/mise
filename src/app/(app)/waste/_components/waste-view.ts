@@ -49,6 +49,8 @@ export type WasteLogView = {
     baseUnitName: string | null;
   };
   branch: { id: string; name: string };
+  /** D2 — null = ไม่ระบุแผนก. */
+  departmentName: string | null;
 };
 
 export function toWasteLogView(w: WasteLogDetail): WasteLogView {
@@ -73,5 +75,6 @@ export function toWasteLogView(w: WasteLogDetail): WasteLogView {
       baseUnitName: w.product.productUnits[0]?.unitName ?? null,
     },
     branch: w.branch,
+    departmentName: w.department?.name ?? null,
   };
 }

@@ -14,7 +14,11 @@
 import { requireTenant } from "@/lib/require-tenant";
 import { computeBangkokToday } from "@/lib/bangkok-date";
 import { getProductsLogic } from "@/server/product";
-import { getFrequentlyWastedLogic } from "@/server/waste";
+import { Suspense } from "react";
+import { getFrequentlyWastedLogic, getWasteDepartmentDefaultsLogic } from "@/server/waste";
+import { getDepartmentsForAdminLogic } from "@/server/department";
+import { getWasteSummaryLogic } from "@/server/waste-summary";
+import WasteSummaryPanel, { WasteRowValue } from "./_components/WasteSummary";
 import { getBranchesLogic } from "@/server/branch";
 import { MAX_WASTE_ROWS, getWasteLogsLogic } from "@/server/waste";
 import { getWasteQuerySchema, WASTE_REASON_LABELS_TH, WASTE_REASON_VALUES } from "@/lib/validations/waste";
@@ -75,7 +79,8 @@ export default async function WastePage({
     to?: string;
   }>;
 }) {
-  const { tenantId, reach} = await requireTenant("stock:write");
+  const { tenantId, reach, can } = await requireTenant("stock:write");
+  const canSeeCost = can("cost:view");
   const sp = await searchParams;
 
   const month = currentMonthBangkok();
@@ -94,13 +99,20 @@ export default async function WastePage({
   // One wave (2026-10-01): the history never needed the branch list, so it no
   // longer waits behind it; only the one-tap picks do.
   const branchesP = getBranchesLogic(tenantId, reach);
-  const [products, branches, frequentByBranch, logs] = await Promise.all([
+  // D2: the summary walks FIFO, so it streams in after the page paints.
+  const summaryP = branchesP.then((bs) =>
+    getWasteSummaryLogic(tenantId, sp.branch && bs.some((b) => b.id === sp.branch) ? [sp.branch] : bs.map((b) => b.id))
+  );
+  const [products, branches, frequentByBranch, logs, departments, departmentDefaults] = await Promise.all([
     getProductsLogic(tenantId),
     branchesP,
     // One-tap picks on the form: what each branch this person reaches wastes most.
     branchesP.then((bs) => getFrequentlyWastedLogic(tenantId, bs.map((b) => b.id))),
     query.success ? getWasteLogsLogic(tenantId, query.data) : Promise.resolve([]),
+    getDepartmentsForAdminLogic(tenantId),
+    getWasteDepartmentDefaultsLogic(tenantId),
   ]);
+  const departmentOptions = departments.filter((d) => d.isActive).map((d) => ({ id: d.id, name: d.name }));
   const fetched = logs.map(toWasteLogView);
   const truncated = fetched.length > MAX_WASTE_ROWS;
   const rows = truncated ? fetched.slice(0, MAX_WASTE_ROWS) : fetched;
@@ -158,23 +170,25 @@ export default async function WastePage({
             todayBangkok={todayBangkok}
             defaultBranchId={branchOptions[0].id}
             frequentByBranch={frequentByBranch}
+            departments={departmentOptions}
+            departmentDefaults={departmentDefaults}
           />
         </section>
       )}
+
+      <Suspense
+        fallback={<div className="h-48 animate-pulse rounded-2xl border border-border bg-muted/30" aria-label="กำลังคำนวณ…" />}
+      >
+        <WasteSummaryPanel data={summaryP} canSeeCost={canSeeCost} />
+      </Suspense>
 
       <section className="space-y-3">
         <div className="space-y-3">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h3 className="text-lg font-semibold">รายการที่บันทึกไว้</h3>
-            {/* Scale, in rows. The BAHT lives on /cost — quantities here are in
-                each product's own unit, so summing them would invent a number
-                that means nothing ("3 กระสอบ + 5 kg" is not 8 of anything). */}
-            <p className="text-sm text-muted-foreground">
-              {rows.length} รายการ ·{" "}
-              <a href="/cost" className="text-primary hover:underline">
-                ดูมูลค่าเป็นบาทที่หน้าต้นทุน
-              </a>
-            </p>
+            {/* Scale, in rows. Quantities are in each product's own unit, so
+                they are never summed here; the baht total is in the summary. */}
+            <p className="text-sm text-muted-foreground">{rows.length} รายการ</p>
           </div>
 
           {/* GET form: the filters belong in the URL, not in component state. */}
@@ -266,6 +280,11 @@ export default async function WastePage({
                     </span>
                     <span className="font-medium">
                       {row.inputQty} {row.inputUnitName}
+                      {canSeeCost && !row.isReversal && !isVoided && (
+                        <Suspense fallback={null}>
+                          <WasteRowValue data={summaryP} id={row.id} />
+                        </Suspense>
+                      )}
                     </span>
                   </div>
 
@@ -273,6 +292,7 @@ export default async function WastePage({
                     <span>{label(WASTE_REASON_LABELS_TH, row.reason)}</span>
                     <span>{row.occurredAtLabel}</span>
                     <span>{row.branch.name}</span>
+                    {row.departmentName && <span>แผนก {row.departmentName}</span>}
                     {/* The account that recorded it is accountable; the name,
                         when given, is who actually wasted it (Kong, 2026-09-28). */}
                     <span>

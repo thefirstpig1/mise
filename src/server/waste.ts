@@ -87,6 +87,7 @@ const DETAIL_INCLUDE = {
     },
   },
   branch: { select: { id: true, name: true } },
+  department: { select: { name: true } },
   inputUnit: { select: { id: true, unitName: true, toBaseRatio: true } },
   wastedByUser: { select: { id: true, name: true, email: true } },
   voidedByUser: { select: { id: true, name: true, email: true } },
@@ -235,6 +236,7 @@ export async function createWasteLogic(
 
     await assertRefBelongsToTenant(tx, tenantId, "product", productId);
     await assertRefBelongsToTenant(tx, tenantId, "branch", branchId);
+    if (input.departmentId) await assertRefBelongsToTenant(tx, tenantId, "department", input.departmentId);
 
     // The unit must belong to THIS product. Matching on productId is also what
     // makes a cross-tenant unit unreachable — the product is already asserted.
@@ -269,6 +271,7 @@ export async function createWasteLogic(
         occurredAt,
         wastedBy,
         wastedByName: input.wastedByName,
+        departmentId: input.departmentId ?? null,
         notes: input.notes,
       },
     });
@@ -348,6 +351,7 @@ export async function voidWasteLogic(
         occurredAt: voidedAt,
         wastedBy: voidedBy,
         wastedByName: original.wastedByName,
+        departmentId: original.departmentId,
         notes: input.voidReason,
         reversalOfId: original.id,
       },
@@ -407,3 +411,44 @@ const resultFor = async (
   }
   return { waste, movement, postBalance: await balanceOf(tx, tenantId, waste) };
 };
+
+/**
+ * Kong 2026-10-24 (D2): the department the form pre-selects for each product.
+ * The one this product was last thrown away under wins (a kitchen repeats
+ * itself); otherwise the department whose live dishes list it most often.
+ * Only a SUGGESTION — the person recording can change it, and nothing reads it
+ * but the form.
+ */
+export async function getWasteDepartmentDefaultsLogic(tenantId: string): Promise<Record<string, string>> {
+  return withTenantContext(tenantId, async (tx) => {
+    const [recent, ingredients] = await Promise.all([
+      tx.wasteLog.findMany({
+        where: { tenantId, departmentId: { not: null }, reversalOfId: null, voidedAt: null },
+        orderBy: { createdAt: "desc" },
+        distinct: ["productId"],
+        select: { productId: true, departmentId: true },
+        take: 500,
+      }),
+      tx.recipeIngredient.findMany({
+        where: {
+          tenantId,
+          productId: { not: null },
+          recipe: { isDraft: false, supersededAt: null, deletedAt: null, menu: { deletedAt: null, primaryDepartmentId: { not: null } } },
+        },
+        select: { productId: true, recipe: { select: { menu: { select: { primaryDepartmentId: true } } } } },
+      }),
+    ]);
+    const tally = new Map<string, Map<string, number>>();
+    for (const i of ingredients) {
+      const d = i.recipe.menu?.primaryDepartmentId;
+      if (!i.productId || !d) continue;
+      const m = tally.get(i.productId) ?? new Map<string, number>();
+      m.set(d, (m.get(d) ?? 0) + 1);
+      tally.set(i.productId, m);
+    }
+    const out: Record<string, string> = {};
+    for (const [p, m] of tally) out[p] = [...m.entries()].sort((a, b) => b[1] - a[1])[0][0];
+    for (const r of recent) if (r.departmentId) out[r.productId] = r.departmentId;
+    return out;
+  });
+}

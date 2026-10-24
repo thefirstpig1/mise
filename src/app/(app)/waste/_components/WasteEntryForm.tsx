@@ -60,6 +60,8 @@ export default function WasteEntryForm({
   todayBangkok,
   defaultBranchId,
   frequentByBranch,
+  departments = [],
+  departmentDefaults = {},
 }: {
   action: (prev: WasteActionState, fd: FormData) => Promise<WasteActionState>;
   products: WasteProductOption[];
@@ -68,6 +70,10 @@ export default function WasteEntryForm({
   defaultBranchId: string;
   /** Per branch, the products wasted most in the last 30 days — one-tap picks. */
   frequentByBranch: Record<string, string[]>;
+  /** Active departments; the picker shows only when there are two or more (D2). */
+  departments?: { id: string; name: string }[];
+  /** Product id -> the department to pre-select (getWasteDepartmentDefaultsLogic). */
+  departmentDefaults?: Record<string, string>;
 }) {
   const [state, formAction, isPending] = useActionState(action, {
     ok: false,
@@ -78,6 +84,7 @@ export default function WasteEntryForm({
   const [branchId, setBranchId] = useState(defaultBranchId);
   const [unitId, setUnitId] = useState("");
   const [qty, setQty] = useState("");
+  const [departmentId, setDepartmentId] = useState("");
 
   const qtyRef = useRef<HTMLInputElement>(null);
   const notesRef = useRef<HTMLTextAreaElement>(null);
@@ -91,7 +98,8 @@ export default function WasteEntryForm({
   useEffect(() => {
     const base = product?.units.find((u) => u.isBase) ?? product?.units[0];
     setUnitId(base?.id ?? "");
-  }, [product]);
+    if (product) setDepartmentId(departmentDefaults[product.id] ?? "");
+  }, [product, departmentDefaults]);
 
   // Successive entry (see (2)/(3) above): keep what stays the same across a
   // batch, clear what does not, rotate the key, put the cursor back on quantity.
@@ -261,6 +269,31 @@ export default function WasteEntryForm({
           />
           {err("occurredAt") && <p className={errorClass}>{err("occurredAt")}</p>}
         </div>
+
+        {departments.length > 1 && (
+          <div>
+            <label htmlFor="department_id" className="label">
+              แผนก
+            </label>
+            <select
+              id="department_id"
+              name="department_id"
+              value={departmentId}
+              onChange={(e) => setDepartmentId(e.target.value)}
+              className={"input w-full mt-1"}
+            >
+              <option value="">ไม่ระบุแผนก</option>
+              {departments.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name}
+                </option>
+              ))}
+            </select>
+            {/* D2 (Kong 2026-10-24): pre-selected from what this product was last
+                wasted under, else the department whose dishes use it most. */}
+            {err("departmentId") && <p className={errorClass}>{err("departmentId")}</p>}
+          </div>
+        )}
 
         <div>
           <label htmlFor="wasted_by_name" className="label">

@@ -145,6 +145,7 @@ export async function createWasteAction(
     inputUnitId: formData.get("input_unit_id"),
     occurredAt: formData.get("occurred_at"),
     wastedByName: formData.get("wasted_by_name"),
+    departmentId: formData.get("department_id"),
     notes: formData.get("notes"),
   });
   if (!parsed.success) {

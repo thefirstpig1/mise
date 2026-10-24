@@ -404,6 +404,7 @@ model Department {
   @@unique([tenantId, code])
   @@index([tenantId])
   @@map("department")
+  wasteLogs WasteLog[]
 }
 
 model UserDepartmentAssignment {
@@ -1874,6 +1875,9 @@ model WasteLog {
   /// the FK alone would record "the owner threw everything away" — tidy and false.
   wastedBy     String  @map("wasted_by")
   wastedByName String? @map("wasted_by_name")
+  /// Kong 2026-10-24 (D2): which department threw it away. NULL = ไม่ระบุแผนก
+  /// (every row before this, and every shop without departments).
+  departmentId String? @map("department_id") @db.Uuid
   notes        String?
 
   /// A void APPENDS this row against the original (Q2) and posts the compensating
@@ -1896,6 +1900,7 @@ model WasteLog {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   tenant       Tenant      @relation(fields: [tenantId], references: [id])
+  department   Department? @relation(fields: [departmentId], references: [id])
   product      Product     @relation(fields: [productId], references: [id])
   branch       Branch      @relation(fields: [branchId], references: [id])
   inputUnit    ProductUnit @relation(fields: [inputUnitId], references: [id])
@@ -1907,6 +1912,7 @@ model WasteLog {
   @@index([tenantId])
   @@index([branchId, occurredAt], map: "waste_log_branch_occurred_idx")
   @@index([productId, branchId, occurredAt], map: "waste_log_product_branch_idx")
+  @@index([departmentId], map: "waste_log_department_idx")
   @@map("waste_log")
 }
 

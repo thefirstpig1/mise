@@ -10,6 +10,7 @@
 // ============================================================
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { getWasteSummaryLogic } from "@/server/waste-summary";
 import { randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { withRlsBypass } from "@/lib/db-admin";
@@ -45,6 +46,7 @@ describe("waste *Logic (the fourth writer to the ledger)", () => {
   let branchA: string;
   let branchA2: string;
   let userA: string;
+  let deptA: string;
 
   const freshProduct = (tag: string): Promise<ProductWithUnits> =>
     createProductLogic(
@@ -90,6 +92,7 @@ describe("waste *Logic (the fourth writer to the ledger)", () => {
       branchId?: string;
       wastedByName?: string | null;
       occurredAt?: Date;
+      departmentId?: string | null;
     } = {}
   ) =>
     createWasteLogic(
@@ -103,6 +106,7 @@ describe("waste *Logic (the fourth writer to the ledger)", () => {
         inputUnitId: unitOf(p, opts.unit ?? "kg"),
         occurredAt: opts.occurredAt ?? new Date(),
         wastedByName: opts.wastedByName ?? null,
+        departmentId: opts.departmentId ?? null,
         notes: null,
       }),
       userA
@@ -132,6 +136,8 @@ describe("waste *Logic (the fourth writer to the ledger)", () => {
         data: { email: `waste-${randomUUID()}@example.com`, name: "เจ้าของร้าน" },
       });
       userA = u.id;
+      const d = await tx.department.create({ data: { tenantId: t.id, name: "ครัวร้อน", code: "HOT" } });
+      deptA = d.id;
     });
   });
 
@@ -147,6 +153,7 @@ describe("waste *Logic (the fourth writer to the ledger)", () => {
       await tx.productUnit.deleteMany({ where: { product: { tenantId: tenantA } } });
       await tx.product.deleteMany({ where: { tenantId: tenantA } });
       await tx.branch.deleteMany({ where: { tenantId: tenantA } });
+      await tx.department.deleteMany({ where: { tenantId: tenantA } });
       await tx.tenant.deleteMany({ where: { id: tenantA } });
       await tx.user.deleteMany({ where: { id: userA } });
     });
@@ -420,5 +427,29 @@ describe("waste *Logic (the fourth writer to the ledger)", () => {
       userA
     );
     expect(await balanceOf(p)).toBe(100);
+  });
+
+  it("L15: the department is stored, carried onto a void, and folded into the summary (D2)", async () => {
+    const p = await freshProduct("L15");
+    await seed(p, 20);
+    const { waste } = await throwAway(p, 3, { departmentId: deptA });
+    const { waste: gone } = await throwAway(p, 1, { departmentId: deptA });
+    await voidWasteLogic(tenantA, voidWasteInputSchema.parse({ id: gone.id, voidReason: "คีย์ซ้ำ" }), userA);
+
+    const rows = await withRlsBypass((tx) => tx.wasteLog.findMany({ where: { tenantId: tenantA, productId: p.id } }));
+    expect(rows.find((r) => r.id === waste.id)!.departmentId).toBe(deptA);
+    expect(rows.find((r) => r.reversalOfId === gone.id)!.departmentId).toBe(deptA);
+
+    const summary = await getWasteSummaryLogic(tenantA, [branchA]);
+    const mine = summary.rows.filter((r) => r.productId === p.id);
+    // The voided entry and its reversal are not waste that happened.
+    expect(mine).toHaveLength(1);
+    expect(mine[0]).toMatchObject({ id: waste.id, departmentId: deptA, qty: 3, unit: "kg" });
+    expect(summary.departments.map((d) => d.id)).toContain(deptA);
+  });
+
+  it("L16: a department from another tenant is refused", async () => {
+    const p = await freshProduct("L16");
+    await expect(throwAway(p, 1, { departmentId: randomUUID() })).rejects.toThrow();
   });
 });

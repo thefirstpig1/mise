@@ -120,6 +120,8 @@ export const createWasteInputSchema = z.object({
   submitKey: z.string().uuid("คีย์การบันทึกไม่ถูกต้อง"),
   productId: z.string().uuid("วัตถุดิบไม่ถูกต้อง"),
   branchId: z.string().uuid("สาขาไม่ถูกต้อง"),
+  /** Which department threw it away (Kong 2026-10-24, D2). Optional: a shop without departments, or a loss nobody can pin on one. */
+  departmentId: z.preprocess(blankToNull, z.string().uuid("แผนกไม่ถูกต้อง").nullable()),
   reason: z.enum(WASTE_REASON_VALUES, {
     errorMap: () => ({ message: "กรุณาเลือกสาเหตุที่ทิ้ง" }),
   }),
