@@ -280,6 +280,40 @@ added it; the CHECK re-declared in the next.
 6. **The rules are registered** in `docs/calculation-rules.md` §10 (N1–N12 — `S` was already the stock-count prefix) as
    they were decided, and the ★ items seed the user manual.
 
+## Amendment 2026-10-24 — the import posts by itself (Kong, duplication review D1)
+
+Kong asked why a shop must press a second button after every import. Re-reading
+this ADR, the reasons for Q2 were three, and **none of them forbids posting
+right after the commit** — they forbid posting INSIDE it:
+
+1. *A recipe problem must not sink a good file* — still true: posting runs
+   **after** the import transaction has committed, one day per transaction, and
+   a day that fails is reported, never thrown. The file is already in.
+2. *Shops import before they have recipes* — a day with no recipe posts what it
+   can and reports the rest (rule N5 is unchanged: a menu posts whole or not at
+   all, coverage is a share of revenue). Writing the recipe later is exactly the
+   Q7 signal, which already asks for a re-post.
+3. *Q7: a recipe edit must never re-cut a posted day by itself* — unchanged. Auto
+   posting only touches days with **no standing run**: every day the import just
+   added, and every day its re-import just voided (Q5). A day someone already
+   posted is reported as such and left alone.
+
+What changes:
+
+- `commitSalesImportAction` calls `autoPostImportedDaysLogic` after the commit
+  (`src/server/consumption-auto.ts`), using the **batch id as the submit key**,
+  so retrying a commit derives the same run ids and posts nothing twice.
+- **Only for someone who holds `consumption:post`.** The accountant role imports
+  but deliberately does not move the ledger (ADR 0029); for them the import
+  screen says the stock is not cut yet and who can do it.
+- Days older than the 90-day window import and do not post (N9, unchanged).
+- Four days post side by side: one at a time held a 30-day file's screen for
+  about a minute.
+- `/consumption` stays — its job is now **re-posting** after recipes are written
+  or edited, and posting days imported by someone without the capability.
+
+Rule N6 in `docs/calculation-rules.md` is amended to match.
+
 ## References
 
 ADR 0011 (ledger) · 0013 Q6 (void by reversal lines) · 0014 Q8 (a reversal cuts

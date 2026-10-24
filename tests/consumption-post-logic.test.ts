@@ -27,6 +27,7 @@ import {
   voidConsumptionForDayInTx,
   voidConsumptionRunInTx,
 } from "@/server/consumption-post";
+import { autoPostImportedDaysLogic } from "@/server/consumption-auto";
 
 describe("posting consumption (ADR 0022 Part 22 L3b)", () => {
   let tenantA: string;
@@ -524,5 +525,36 @@ describe("posting consumption (ADR 0022 Part 22 L3b)", () => {
     expect(res.run.menusPosted).toBe(0);
     expect(res.run.menusSkipped).toBe(0);
     expect(res.run.totalNetAmount.toString()).toBe("0");
+  });
+
+  // ------------------------------------------------------------
+  // ADR 0022 amendment (Kong 2026-10-24, D1): posting right after an import
+  // ------------------------------------------------------------
+
+  it("A1: auto-post posts each imported day, reports a partial day, skips the window, and is retry-safe", async () => {
+    const full = addDays(today, -40);
+    const partial = addDays(today, -41);
+    const old = addDays(today, -120);
+    await sell(full, kaphrao.id, 10, 500);
+    await sell(partial, kaphrao.id, 5, 250);
+    await sell(partial, noRecipeDish.id, 2, 100);
+    const porkBefore = Number(await balance(pork));
+
+    const first = await autoPostImportedDaysLogic(tenantA, { batchId, branchId: branchA, days: [full, partial, old] }, userA);
+    expect(first).toMatchObject({ postedFull: 1, postedPartial: 1, skippedMenus: 1, outsideWindow: 1, alreadyPosted: 0, failed: 0 });
+    // 15 plates of kaphrao x 0.1 kg pork.
+    expect(Number(await balance(pork))).toBeCloseTo(porkBefore - 1.5, 6);
+
+    // Retrying the same commit derives the same run ids: nothing posts twice.
+    await autoPostImportedDaysLogic(tenantA, { batchId, branchId: branchA, days: [full, partial] }, userA);
+    expect(Number(await balance(pork))).toBeCloseTo(porkBefore - 1.5, 6);
+  });
+
+  it("A2: a day someone already posted is reported, never re-cut (Q7 — re-posting stays a person's step)", async () => {
+    const day = addDays(today, -42);
+    await sell(day, kaphrao.id, 4, 200);
+    await post(day);
+    const res = await autoPostImportedDaysLogic(tenantA, { batchId: randomUUID(), branchId: branchA, days: [day] }, userA);
+    expect(res).toMatchObject({ postedFull: 0, alreadyPosted: 1, failed: 0 });
   });
 });

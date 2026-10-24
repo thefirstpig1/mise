@@ -936,6 +936,9 @@ export interface CommitSalesImportResult {
    * most expensive kind of invisible.
    */
   consumptionRunsVoided: number;
+  /** The branch and the business days this file wrote — what auto-posting reads (ADR 0022 amendment). */
+  branchId: string;
+  days: Date[];
 }
 
 /**
@@ -1167,6 +1170,8 @@ export async function commitSalesImportLogic(
         categoriesCreated: newCategories.length,
         rowsSuperseded,
         consumptionRunsVoided,
+        branchId: profile.branchId,
+        days,
       };
     },
     { maxWait: 15_000, timeout: 120_000 }

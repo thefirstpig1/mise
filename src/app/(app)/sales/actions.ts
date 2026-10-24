@@ -24,6 +24,7 @@
 // ============================================================
 
 import { revalidatePath } from "next/cache";
+import { autoPostImportedDaysLogic, type AutoPostSummary } from "@/server/consumption-auto";
 import type { ZodError } from "zod";
 import { requireTenant } from "@/lib/require-tenant";
 import {
@@ -99,6 +100,8 @@ export type SalesImportCommitState =
        * most expensive kind of invisible.
        */
       consumptionRunsVoided: number;
+      /** ADR 0022 amendment: what posting right after the commit did. null = this person may not post. */
+      autoPost: AutoPostSummary | null;
     }
   | { ok: false; formError?: string; fieldErrors?: Record<string, string> };
 
@@ -276,7 +279,7 @@ export async function commitSalesImportAction(
   _prev: SalesImportCommitState | null,
   formData: FormData
 ): Promise<SalesImportCommitState> {
-  const { tenantId, user } = await requireTenant("sales:import");
+  const { tenantId, user, can } = await requireTenant("sales:import");
 
   const read = await readUploadedFile(formData);
   if (!read.ok) return { ok: false, fieldErrors: { file: read.message } };
@@ -298,9 +301,23 @@ export async function commitSalesImportAction(
       parsedInput.data,
       read.bytes
     );
+    // ADR 0022 amendment (Kong 2026-10-24, D1): post right after the commit, so
+    // nobody has to remember a second press. Outside the import transaction on
+    // purpose (Q2) — a recipe problem reports a day, it never undoes the file.
+    // Only for someone who may post: the accountant role imports but does not
+    // move the ledger (permissions/service.ts).
+    const autoPost = can("consumption:post")
+      ? await autoPostImportedDaysLogic(tenantId, { batchId: result.batchId, branchId: result.branchId, days: result.days }, user.id)
+      : null;
     revalidateSalesViews();
+    if (autoPost) {
+      revalidatePath("/consumption");
+      revalidatePath("/stock");
+      revalidatePath("/products");
+    }
     return {
       ok: true,
+      autoPost,
       rowsWritten: result.rowsWritten,
       daysReplaced: result.daysReplaced,
       daysAdded: result.daysAdded,

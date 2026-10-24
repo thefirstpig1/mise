@@ -31,6 +31,7 @@ import {
   type SalesImportPreviewState,
 } from "@/app/(app)/sales/actions";
 import type { ImportPreviewView } from "@/app/(app)/sales/_components/sales-view";
+import type { AutoPostSummary } from "@/server/consumption-auto";
 
 export type ImportProfileOption = {
   id: string;
@@ -148,17 +149,11 @@ export default function SalesImportWizard({
           {commitState.consumptionRunsVoided > 0 && (
             <p className="mt-2 rounded border border-warn-border bg-warn-bg p-2 text-xs text-warn">
               {commitState.consumptionRunsVoided} วันเคยตัดสต๊อกตามสูตรไว้แล้ว —
-              ระบบยกเลิกการตัดของวันเหล่านั้นให้แล้ว เพราะยอดขายเดิมถูกแทนที่ ·
-              วัตถุดิบกลับเข้าสต๊อกตามมูลค่าเดิมที่มันออกไป
+              ระบบยกเลิกการตัดเดิมของวันเหล่านั้น (ยอดขายเดิมถูกแทนที่) แล้วตัดใหม่จากยอดขายในไฟล์นี้
             </p>
           )}
 
-          <p className="mt-2 text-xs">
-            ยอดขายที่นำเข้ายัง<strong>ไม่ทำให้สต๊อกลดลง</strong> จนกว่าจะกดตัด —{" "}
-            <a href="/consumption" className="text-primary underline">
-              ไปตัดสต๊อกตามสูตร
-            </a>
-          </p>
+<AutoPostNote autoPost={commitState.autoPost} />
         </div>
       )}
 
@@ -363,7 +358,7 @@ export default function SalesImportWizard({
 
           <div className="mt-4 flex gap-2">
             <button type="button" onClick={runCommit} disabled={pending} className="btn">
-              {pending ? "กำลังบันทึก…" : "ยืนยันนำเข้า"}
+              {pending ? "กำลังบันทึกและตัดสต๊อก…" : "ยืนยันนำเข้า"}
             </button>
             <button
               type="button"
@@ -375,6 +370,49 @@ export default function SalesImportWizard({
             </button>
           </div>
         </section>
+      )}
+    </div>
+  );
+}
+
+/**
+ * ADR 0022 amendment (Kong 2026-10-24, D1): the import now posts stock by
+ * itself. Say what happened — a day with menus missing a recipe is the one the
+ * shop must act on, and a person without consumption:post is told who can.
+ */
+function AutoPostNote({ autoPost: a }: { autoPost: AutoPostSummary | null }) {
+  if (a === null) {
+    return (
+      <p className="mt-2 text-xs">
+        ยอดขายที่นำเข้ายัง<strong>ไม่ได้ตัดสต๊อก</strong> เพราะบัญชีนี้ไม่มีสิทธิ์ตัดสต๊อก — ให้เจ้าของร้านหรือผู้จัดการกดที่{" "}
+        <a href="/consumption" className="text-primary underline">ตัดสต๊อกตามยอดขาย</a>
+      </p>
+    );
+  }
+  const posted = a.postedFull + a.postedPartial;
+  return (
+    <div className="mt-2 space-y-1 text-xs">
+      {posted > 0 && (
+        <p>
+          ตัดสต๊อกตามสูตรให้แล้ว <strong>{posted} วัน</strong>
+          {a.postedPartial > 0 && (
+            <>
+              {" "}— <span className="text-warn">{a.postedPartial} วันตัดไม่ครบ เพราะ {a.skippedMenus} เมนูยังไม่มีสูตร</span> ·{" "}
+              <a href="/menus" className="text-primary underline">เขียนสูตร</a> แล้วกดตัดใหม่ที่{" "}
+              <a href="/consumption" className="text-primary underline">ตัดสต๊อกตามยอดขาย</a>
+            </>
+          )}
+        </p>
+      )}
+      {a.outsideWindow > 0 && (
+        <p className="text-muted-foreground">{a.outsideWindow} วันเก่ากว่า 90 วัน — นำเข้ายอดขายแล้ว แต่ไม่ตัดสต๊อก (ย้อนหลังได้ไม่เกิน 90 วันเหมือนเอกสารอื่น)</p>
+      )}
+      {a.alreadyPosted > 0 && <p className="text-muted-foreground">{a.alreadyPosted} วันมีคนตัดสต๊อกไปพร้อมกันแล้ว</p>}
+      {a.failed > 0 && (
+        <p className="text-bad">
+          {a.failed} วันตัดสต๊อกไม่สำเร็จ — ยอดขายเข้าครบแล้ว ลองกดตัดอีกครั้งที่{" "}
+          <a href="/consumption" className="text-primary underline">ตัดสต๊อกตามยอดขาย</a>
+        </p>
       )}
     </div>
   );

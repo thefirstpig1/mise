@@ -70,7 +70,7 @@ export default function DepartmentTable({
         <div className="rounded-lg border border-bad-border bg-bad-bg p-4 text-sm">
           <p className="font-medium">ยังไม่ได้ตัดสต๊อกตามยอดขายในช่วงนี้</p>
           <p className="mt-1 text-muted-foreground">
-            ยอดขายนำเข้ามาแล้ว แต่ยังไม่ได้กดตัดสต๊อก — ต้นทุนวัตถุดิบจึงเป็น 0 ทุกแผนก
+            ยอดขายนำเข้ามาแล้ว แต่ยังไม่ได้ตัดสต๊อก — ต้นทุนวัตถุดิบจึงเป็น 0 ทุกแผนก
             และ <strong>กำไรขั้นต้นด้านล่างยังไม่ใช่ตัวเลขจริง</strong> ไปที่หน้าตัดสต๊อกตามยอดขายก่อน
             แล้วกลับมาดูอีกครั้ง
           </p>
