@@ -89,6 +89,17 @@ tr.click:hover td{background:var(--sunk);cursor:pointer}
 .sw.off{background:var(--strong)} .sw.off::after{right:auto;left:3px}
 .pill{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--strong);border-radius:999px;padding:3px 6px 3px 12px;font-size:.82rem;background:var(--surface)}
 .pill b{font-weight:400;color:var(--subtle);font-size:.75rem;border-radius:999px;padding:0 6px}
+.req{color:var(--bad);font-weight:700;margin-left:2px}
+.dots{display:flex;gap:4px;flex-wrap:wrap}
+.dot{width:16px;height:16px;border-radius:999px;border:1.5px solid var(--strong);background:var(--surface)}
+.dot.f{border-color:transparent}
+.est{display:grid;grid-template-columns:1fr auto;gap:6px 10px;align-items:center;font-size:.86rem}
+.est .bar{grid-column:1/-1;display:flex;gap:3px}
+.est .bar i{flex:1;height:8px;border-radius:3px;background:var(--muted)}
+.mini{display:inline-flex;align-items:center;border:1px solid var(--strong);border-radius:999px;overflow:hidden}
+.mini b{padding:1px 9px;background:var(--sunk);color:var(--muted-fg);font-weight:500}
+.mini span{padding:1px 8px;min-width:26px;text-align:center;font-weight:600;font-variant-numeric:tabular-nums}
+.src{font-size:.7rem;border-radius:999px;padding:1px 8px;background:var(--good-bg);color:var(--good);white-space:nowrap}
 .decide{border:1px solid var(--warn-border);background:var(--warn-bg);border-radius:14px;padding:12px 14px;font-size:.88rem;display:grid;gap:4px}
 </style>
 
@@ -113,29 +124,45 @@ tr.click:hover td{background:var(--sunk);cursor:pointer}
       </div>
 
       <div class="card">
-        <div class="sec"><span class="n">1</span>ยอดที่ลูกค้าจ่ายวันนี้</div>
-        <div class="field"><span>ยอดรวมจากเครื่อง POS<br><span class="sub">รวม VAT และค่าบริการ</span></span><span class="inp">23,533.58</span></div>
-        <p class="sub">ช่องเดิมจาก “คีย์ยอดปิดร้าน” — ไฟล์ยอดขายเข้าแล้วช่องนี้ล็อกเป็นหลักฐาน (เหมือนเดิม)</p>
+        <div class="sec"><span class="n">1</span>ยอดขายวันนี้</div>
+        <div class="field"><span>ยอดรวมจาก POS<span class="req">*</span><br><span class="sub">ที่ลูกค้าจ่าย รวม VAT และค่าบริการ</span></span><span class="inp">23,533.58</span></div>
+        <p class="sub">ช่องเดียวที่ต้องกรอก · ร้านที่เปิดใช้รายงานนี้ คีย์ยอดปิดร้านที่นี่ที่เดียว · ไฟล์ยอดขายเข้าแล้วช่องนี้ล็อกเป็นหลักฐาน (เหมือนเดิม)</p>
       </div>
 
       <div class="card">
-        <div class="sec"><span class="n">2</span>เงินสดในลิ้นชัก</div>
+        <div class="sec"><span class="n">2</span>เงินสด <span class="sub" style="font-family:var(--body);font-weight:400">ไม่กรอกก็ได้</span></div>
         <div class="field"><span>เงินทอนตั้งต้น</span><span class="inp">2,000</span></div>
-        <div class="field"><span>เงินสดตาม Z report<br><span class="sub">ยอดขายที่จ่ายเป็นเงินสด</span></span><span class="inp">8,450</span></div>
-        <div class="field"><span><b>นับได้จริง</b></span><span class="inp">10,410</span></div>
+        <div class="field"><span>เงินสดจากการขาย<br><span class="sub">ยอดที่ลูกค้าจ่ายเป็นเงินสด ดูจากเครื่อง POS</span></span><span class="inp">8,450</span></div>
+        <div class="field"><span>นับได้จริง</span><span class="inp">10,410</span></div>
         <div class="result bad"><span>ควรมี ฿10,450 · นับได้ ฿10,410</span><b>ขาด ฿40</b></div>
         <div class="field"><span class="sub">หมายเหตุส่วนต่าง</span><span class="inp" style="text-align:left;min-width:150px;font-family:var(--body);font-weight:400">ทอนผิดโต๊ะ 7</span></div>
-        <div class="photo">📷 แนบรูปเงินที่นับ / Z report<br><span style="font-size:.72rem">เร็ว ๆ นี้ — รอที่เก็บไฟล์</span></div>
+        <div class="photo">📷 แนบรูปเงินที่นับ<br><span style="font-size:.72rem">เร็ว ๆ นี้ — รอที่เก็บไฟล์</span></div>
+        <p class="sub">เว้นช่องไหนไว้ = ไม่มีข้อมูล (แสดง “—”) ไม่ใช่ 0 · กรอกไม่ครบสามช่อง ระบบไม่คิดขาด/เกิน</p>
       </div>
 
       <div class="card">
-        <div class="sec"><span class="n">3</span>ลูกค้า</div>
-        <div class="field"><span><b>ลูกค้าทั้งหมด</b></span><span class="stepper"><b>−</b><span>142</span><b>+</b></span></div>
-        <p class="sub">แยกตามประเภท (ไม่ต้องครบก็ได้ · ร้านตั้งรายการเอง)</p>
-        <div class="field"><span>พนักงานออฟฟิศ</span><span class="stepper"><b>−</b><span>61</span><b>+</b></span></div>
-        <div class="field"><span>ครอบครัว</span><span class="stepper"><b>−</b><span>38</span><b>+</b></span></div>
-        <div class="field"><span>ขาประจำ</span><span class="stepper"><b>−</b><span>31</span><b>+</b></span></div>
-        <div class="field"><span>นักท่องเที่ยว</span><span class="stepper"><b>−</b><span>12</span><b>+</b></span></div>
+        <div class="sec"><span class="n">3</span>ลูกค้า <span class="sub" style="font-family:var(--body);font-weight:400">ไม่กรอกก็ได้</span></div>
+        <div class="field"><span><b>จำนวนลูกค้าทั้งหมด</b><br><span class="sub">ตัวเลขจริงจาก POS</span></span><span class="inp">142</span></div>
+        <p class="sub">ถ้าไฟล์ POS ของร้านมีคอลัมน์จำนวนลูกค้า ระบบเติมให้เองตอนนำเข้า <span class="src">จาก POS</span> และล็อกเหมือนยอดขาย · ถ้าไม่มี คนปิดร้านดูจากหน้าจอ POS แล้วพิมพ์</p>
+
+        <div style="border-top:1px solid var(--border);padding-top:9px;display:grid;gap:8px">
+          <b style="font-family:var(--display);font-size:.9rem">ถ้าลูกค้า 10 คน ส่วนใหญ่เป็นใคร? <span class="sample">ประมาณ</span></b>
+          <div class="est">
+            <span>พนักงานออฟฟิศ</span><span class="mini"><b>−</b><span>4</span><b>+</b></span>
+            <span class="bar"><i style="background:#41431B"></i><i style="background:#41431B"></i><i style="background:#41431B"></i><i style="background:#41431B"></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+            <span>ครอบครัว</span><span class="mini"><b>−</b><span>3</span><b>+</b></span>
+            <span class="bar"><i style="background:#7D8450"></i><i style="background:#7D8450"></i><i style="background:#7D8450"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+            <span>ขาประจำ</span><span class="mini"><b>−</b><span>2</span><b>+</b></span>
+            <span class="bar"><i style="background:#AEB784"></i><i style="background:#AEB784"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+            <span>นักท่องเที่ยว</span><span class="mini"><b>−</b><span>1</span><b>+</b></span>
+            <span class="bar"><i style="background:#C0692B"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+            <div class="dots"><span class="dot f" style="background:#41431B"></span><span class="dot f" style="background:#41431B"></span><span class="dot f" style="background:#41431B"></span><span class="dot f" style="background:#41431B"></span><span class="dot f" style="background:#7D8450"></span><span class="dot f" style="background:#7D8450"></span><span class="dot f" style="background:#7D8450"></span><span class="dot f" style="background:#AEB784"></span><span class="dot f" style="background:#AEB784"></span><span class="dot f" style="background:#C0692B"></span></div>
+            <span class="sub">ครบ 10 ส่วน</span>
+          </div>
+          <p class="sub">แบ่งได้ไม่ครบ 10 ก็ได้ — ที่เหลือนับเป็น “ไม่แน่ใจ” · ระบบไม่เคยแปลงเป็น “จำนวนคน” แสดงเป็นสัดส่วนประมาณเท่านั้น</p>
+        </div>
         <p class="sub">ช่องทาง (นั่งร้าน/กลับบ้าน/Grab…) ไม่ต้องกรอก — มาจากไฟล์ POS เมื่อไฟล์มีคอลัมน์ช่องทาง</p>
       </div>
 
@@ -164,11 +191,18 @@ tr.click:hover td{background:var(--sunk);cursor:pointer}
     <div class="notes">
       <div class="card"><h4>ทำไมเป็นแบบนี้</h4>
         <p>• <b>หน้าเดียวยาวลงมา</b> ไม่แบ่งหลายหน้า — คนปิดร้านทำบนมือถือ เลื่อนลงทีเดียวจบ (เป้า 2 นาที)</p>
-        <p>• <b>ยอดปิดร้านอยู่ข้อ 1</b> (คำตอบ B) — แดชบอร์ดไม่มีช่องคีย์ของตัวเองอีก ร้านที่ไม่เปิดใช้ add-on นี้ยังคีย์ที่แดชบอร์ดได้เหมือนเดิม</p>
-        <p>• <b>ระบบลบให้</b> เงินทอน + เงินสดตาม Z − นับได้ = ขาด/เกิน เพราะไฟล์ POS ไม่บอกว่าลูกค้าจ่ายอะไร</p>
-        <p>• <b>ลูกค้าแยกตามประเภทคน</b> (คำตอบ A) — ไม่บังคับให้ผลรวมเท่ายอดรวม เพราะคนกะเอา · ช่องทางมาจาก POS เอง</p>
+        <p>• <b>บังคับช่องเดียว: ยอดรวมจาก POS (*)</b> — ร้านที่เปิดใช้ คีย์ยอดปิดร้านที่นี่ที่เดียว · ช่องอื่นเว้นได้ทั้งหมด เว้น = ไม่มีข้อมูล (null) ไม่ใช่ศูนย์</p>
+        <p>• <b>ระบบลบให้</b> เงินทอน + เงินสดจากการขาย − นับได้ = ขาด/เกิน (ไฟล์ POS ไม่บอกว่าลูกค้าจ่ายอะไร) · ขาดช่องใดช่องหนึ่ง = ไม่คิด</p>
+        <p>• <b>ลูกค้าทั้งหมดต้องเป๊ะ</b> → มาจาก POS: ระบบ POS ส่วนใหญ่มี “จำนวนลูกค้า (guest count)” ในรายงานสรุปยอดรายวัน จึงเพิ่มให้รูปแบบไฟล์นำเข้าจับคอลัมน์นี้ได้ ไม่มีก็พิมพ์จากหน้าจอ POS</p>
+        <p>• <b>ประเภทลูกค้าเป็นการประมาณ</b> → “ถ้าลูกค้า 10 คน ส่วนใหญ่เป็นใคร” แบ่ง 10 ส่วน · เหตุผลด้านล่าง</p>
         <p>• <b>ปัญหามีสองสถานะ</b> “ต้องตามต่อ” กับ “จดไว้” — ต้องตามต่อจะค้างให้ทุกคนในสาขาเห็นจนกว่าจะกดว่าจัดการแล้ว</p>
         <p>• <b>ไม่แยกกลางวัน/เย็น</b> (คำตอบ D) · <b>รูปเว้นช่องไว้</b> (คำตอบ C)</p>
+      </div>
+      <div class="card"><h4>วิธีประมาณประเภทลูกค้า — เทียบ 3 แบบ</h4>
+        <p><b>✓ แบ่ง 10 ส่วน (เลือก)</b> — ถามแบบที่คนตอบได้จริง (“ส่วนใหญ่เป็นออฟฟิศ รองลงมาครอบครัว”) · ได้สัดส่วนที่รวมกันเป็น 100% เสมอ เทียบข้ามวันได้ · กด 4–6 ครั้งจบ · ไม่แกล้งทำเป็นรู้จำนวนคน</p>
+        <p><b>ระดับ ไม่มี/น้อย/ปานกลาง/มาก</b> — ง่ายกว่าเล็กน้อย แต่ “มาก” ของสองประเภทรวมกันแล้วไม่รู้ว่าแบ่งกันยังไง ต้องเดาแปลงเป็น % ทีหลัง</p>
+        <p><b>นับจริงระหว่างวัน (นับขีด)</b> — แม่นที่สุด แต่ต้องมีคนคอยนับตอนร้านยุ่ง ร้านเล็กไม่ทำ · ถ้าร้านไหนอยากแม่นขึ้น ทำแบบนี้บางวันเป็นตัวอย่างแทนได้</p>
+        <p class="sub">ข้อควรรู้: เป็นความรู้สึกของคนปิดร้าน ดูเป็น<b>แนวโน้มหลายวัน</b>ดีกว่าดูวันเดียว · ใบรายวันและรายเดือนจะติดคำว่า “ประมาณ” ทุกที่</p>
       </div>
       <div class="decide"><b>ยังต้องถาม 1 ข้อ</b>
         แก้ตัวเลขหลังบันทึกได้ถึงเมื่อไหร่? ผมเสนอ “จนเที่ยงคืนวันถัดไป” แล้วล็อก — ให้ย้อนหลังเชื่อได้ (ความเห็นยังเขียนต่อได้ตลอด) · หรือจะให้แก้ได้เสมอแต่เก็บประวัติการแก้?
@@ -185,14 +219,14 @@ tr.click:hover td{background:var(--sunk);cursor:pointer}
       </div>
       <div class="kpis">
         <div class="kpi"><span class="sub">ยอดขาย <span class="real">จริง</span></span><b>฿21,994</b><span class="delta up">▲ 5.6% เทียบเฉลี่ย พฤ. 3, 10, 17 ก.ย. (฿20,830)</span></div>
-        <div class="kpi"><span class="sub">ลูกค้า <span class="sample">ตัวอย่าง</span></span><b>142 คน</b><span class="delta down">▼ 6 คน เทียบ พฤ. ก่อน ๆ</span></div>
+        <div class="kpi"><span class="sub">ลูกค้า <span class="sample">ตัวอย่าง</span> <span class="src">จาก POS</span></span><b>142 คน</b><span class="delta down">▼ 6 คน เทียบเฉลี่ย พฤ. 3 สัปดาห์ก่อน</span></div>
         <div class="kpi"><span class="sub">ต่อหัว</span><b>฿154.9</b><span class="sub">ยอดขาย ÷ ลูกค้า · 2.2 จาน/คน</span></div>
         <div class="kpi"><span class="sub">เงินสด</span><b style="color:var(--bad)">ขาด ฿40</b><span class="sub">“ทอนผิดโต๊ะ 7”</span></div>
       </div>
       <div>
-        <p class="sub" style="margin-bottom:6px">ลูกค้าตามประเภท</p>
-        <div class="mix"><span style="width:43%;background:#41431B"></span><span style="width:27%;background:#7D8450"></span><span style="width:22%;background:#AEB784"></span><span style="width:8%;background:#C0692B"></span></div>
-        <div class="legend" style="margin-top:6px"><span><i style="background:#41431B"></i>ออฟฟิศ 61</span><span><i style="background:#7D8450"></i>ครอบครัว 38</span><span><i style="background:#AEB784"></i>ขาประจำ 31</span><span><i style="background:#C0692B"></i>นักท่องเที่ยว 12</span></div>
+        <p class="sub" style="margin-bottom:6px">ลูกค้าส่วนใหญ่เป็นใคร <span class="sample">ประมาณ</span> · คนปิดร้านประเมิน</p>
+        <div class="mix"><span style="width:40%;background:#41431B"></span><span style="width:30%;background:#7D8450"></span><span style="width:20%;background:#AEB784"></span><span style="width:10%;background:#C0692B"></span></div>
+        <div class="legend" style="margin-top:6px"><span><i style="background:#41431B"></i>ออฟฟิศ ~40%</span><span><i style="background:#7D8450"></i>ครอบครัว ~30%</span><span><i style="background:#AEB784"></i>ขาประจำ ~20%</span><span><i style="background:#C0692B"></i>นักท่องเที่ยว ~10%</span></div>
       </div>
       <div style="display:grid;gap:6px">
         <p class="sub">ปัญหา</p>
@@ -227,7 +261,12 @@ tr.click:hover td{background:var(--sunk);cursor:pointer}
         <div class="kpi"><span class="sub">เงินขาด/เกินสะสม</span><b style="color:var(--bad)">ขาด ฿185</b><span class="sub">ขาด 3 วัน · เกิน 1 วัน</span></div>
         <div class="kpi"><span class="sub">ปัญหาที่ยังค้าง</span><b>1</b><span class="sub">จาก 9 ที่บันทึก</span></div>
       </div>
-      <p class="sub">ไม่ได้ปิดร้าน 0 วัน · วันที่ไม่มีใบ แสดง “—” ไม่ใช่ 0</p>
+      <div>
+        <p class="sub" style="margin-bottom:6px">ลูกค้าส่วนใหญ่เป็นใคร · ทั้งเดือน <span class="sample">ประมาณ</span> — เฉลี่ยถ่วงด้วยจำนวนลูกค้าของแต่ละวัน · นับเฉพาะ 22 วันที่มีการประเมิน</p>
+        <div class="mix"><span style="width:44%;background:#41431B"></span><span style="width:26%;background:#7D8450"></span><span style="width:21%;background:#AEB784"></span><span style="width:9%;background:#C0692B"></span></div>
+        <div class="legend" style="margin-top:6px"><span><i style="background:#41431B"></i>ออฟฟิศ ~44%</span><span><i style="background:#7D8450"></i>ครอบครัว ~26%</span><span><i style="background:#AEB784"></i>ขาประจำ ~21%</span><span><i style="background:#C0692B"></i>นักท่องเที่ยว ~9%</span><span class="sub">วันธรรมดา ออฟฟิศ ~55% · เสาร์-อาทิตย์ ครอบครัว ~48%</span></div>
+      </div>
+      <p class="sub">ไม่ได้ปิดร้าน 0 วัน · วันที่ไม่มีใบหรือช่องที่ไม่ได้กรอก แสดง “—” ไม่ใช่ 0</p>
       <div class="scroll"><table>
         <tr><th>วัน</th><th class="num">ยอดขาย <span class="real">จริง</span></th><th class="num">ลูกค้า</th><th class="num">ต่อหัว</th><th class="num">เงินสด</th><th>ปัญหา</th><th class="num">ความเห็น</th></tr>
         <tr class="click"><td>พฤ. 24</td><td class="num">21,994</td><td class="num">142</td><td class="num">154.9</td><td class="num" style="color:var(--bad)">−40</td><td><span class="flag open">ค้าง 1</span> <span class="flag note">1</span></td><td class="num">3</td></tr>
@@ -264,7 +303,7 @@ tr.click:hover td{background:var(--sunk);cursor:pointer}
       </div>
       <p class="sub">แทนที่กล่อง “คีย์ยอดปิดร้าน” เดิม (B9) เมื่อเปิดใช้ add-on · หลังปิดร้านแล้วกล่องเปลี่ยนเป็นสรุปสั้น ๆ + ลิงก์ไปใบ</p>
       <div class="decide"><b>ต้องมี migration</b>
-        ตารางใหม่: ใบปิดร้าน (สาขา × วัน, เงินทอน, เงินสดตาม Z, นับได้, ลูกค้ารวม, ผู้ปิด) · ลูกค้าตามประเภท · ประเภทลูกค้าของร้าน · ปัญหา (ประเภท, ข้อความ, ต้องตามต่อ, ปิดโดย/เมื่อ) · ความเห็น (เพิ่มได้อย่างเดียว) · ตั้งค่า <code>tenant</code> หนึ่งช่องสำหรับเปิด/ปิด · ยอดปิดร้านยังอยู่ที่ <code>sales_day</code> เดิม ไม่ย้าย
+        ตารางใหม่: ใบปิดร้าน (สาขา × วัน, เงินทอน, เงินสดจากการขาย, นับได้, ผู้ปิด — ทุกช่องเว้นได้) · สัดส่วนประเภทลูกค้า (ส่วนจาก 10) · ประเภทลูกค้าของร้าน · <b>จำนวนลูกค้าเก็บที่ <code>sales_day</code> ข้างยอดปิดร้าน</b> พร้อมที่มา (POS / พิมพ์) และรูปแบบไฟล์นำเข้าจับคอลัมน์จำนวนลูกค้าได้ · ปัญหา (ประเภท, ข้อความ, ต้องตามต่อ, ปิดโดย/เมื่อ) · ความเห็น (เพิ่มได้อย่างเดียว) · ตั้งค่า <code>tenant</code> หนึ่งช่องสำหรับเปิด/ปิด · ยอดปิดร้านยังอยู่ที่ <code>sales_day</code> เดิม ไม่ย้าย
       </div>
     </div>
   </section>
