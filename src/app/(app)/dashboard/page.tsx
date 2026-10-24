@@ -4,6 +4,7 @@ import { withTenantContext } from "@/lib/db";
 import { computeBangkokToday } from "@/lib/bangkok-date";
 import { getBranchesLogic } from "@/server/branch";
 import { getPnlLogic, getRevenueByDayLogic, type Pnl } from "@/server/pnl";
+import { getDueRecurringLogic } from "@/server/expense";
 import { getSalesSummaryLogic } from "@/server/sales";
 import { periodLabelTh } from "@/lib/sales-insight";
 import { getSalesQuerySchema } from "@/lib/validations/sales-import";
@@ -162,12 +163,25 @@ async function Analytics({
   });
   const vs = periodLabelTh(isoDay(period.prevFrom), isoDay(period.prevTo));
   const dayCount = (a: Date, b: Date) => Math.round((b.getTime() - a.getTime()) / 86_400_000) + 1;
-  const days = { cur: dayCount(period.from, period.to), prev: dayCount(period.prevFrom, period.prevTo) };
-  const [pnl, revenueDays, menus] = await Promise.all([
+  const [pnl, revenueDays, prevRevenueDays, menus] = await Promise.all([
     getPnlLogic(tenantId, q, reach),
     see.sales ? getRevenueByDayLogic(tenantId, q, reach, activeIds) : Promise.resolve([]),
+    see.sales
+      ? getRevenueByDayLogic(tenantId, { from: period.prevFrom, to: period.prevTo, branchIds: selected }, reach, activeIds).catch(() => [])
+      : Promise.resolve([]),
     see.sales ? topMenus(tenantId, period, activeIds) : Promise.resolve([] as MenuBar[]),
   ]);
+  const missing = see.expense ? await missingRecurring(tenantId, period, activeIds) : [];
+  // Kong 2026-10-24 (C1): a per-day figure divides by the days the shop
+  // OPERATED — days with sales — not by the calendar. "This month 10 days → ÷10,
+  // last month 31 → ÷31", and the ▲▼ compares those averages, so a month with
+  // fewer trading days no longer reads as a fall (or a part month as a rise).
+  // The same rule /sales uses (SI1). With no sales at all, the calendar stands in.
+  const opDays = (rows: { businessDate: Date }[]) => new Set(rows.map((r) => isoDay(r.businessDate))).size;
+  const days = {
+    cur: opDays(revenueDays) || dayCount(period.from, period.to),
+    prev: opDays(prevRevenueDays) || dayCount(period.prevFrom, period.prevTo),
+  };
 
   const seeGross = see.sales && see.cost;
   const seeNet = seeGross && see.expense;
@@ -234,7 +248,17 @@ async function Analytics({
 
   return (
     <div className="space-y-6">
-      <KpiRow pnl={pnl} prevP={prevP} vs={vs} days={days} see={{ ...see, gross: seeGross, net: seeNet }} />
+      {missing.length > 0 && (
+        <div className="rounded-lg border border-warn-border bg-warn-bg p-4 text-sm text-warn">
+          <b>ค่าใช้จ่ายของช่วงนี้ยังไม่ครบ</b> — รายการประจำที่ถึงกำหนดแล้วยังไม่ได้บันทึก {missing.length} รายการ:{" "}
+          {missing.slice(0, 4).map((m) => `${m.description} ${m.periodLabel} (ตั้งต้น ฿${Math.round(m.amount).toLocaleString("th-TH")})`).join(" · ")}
+          {missing.length > 4 && ` และอีก ${missing.length - 4}`} · ค่าใช้จ่ายและกำไรสุทธิจึงยังต่ำ/สูงกว่าจริง ·{" "}
+          <a href="/expenses" className="font-medium underline">
+            บันทึกค่าใช้จ่าย ›
+          </a>
+        </div>
+      )}
+      <KpiRow pnl={pnl} prevP={prevP} vs={vs} days={days} see={{ ...see, gross: seeGross, net: seeNet }} incomplete={missing.length > 0} />
       <UnknownNote pnl={pnl} seeGross={seeGross} />
 
       <div className="grid gap-6 xl:grid-cols-5">
@@ -330,16 +354,20 @@ function Card({ title, hint, className = "", children }: { title: string; hint?:
   );
 }
 
-function Delta({ cur, prev, goodWhenUp, vs }: { cur: number | null; prev: number | null; goodWhenUp: boolean; vs: string }) {
+function Delta({ cur, prev, goodWhenUp, vs, days }: { cur: number | null; prev: number | null; goodWhenUp: boolean; vs: string; days: DayCounts }) {
   if (cur === null || prev === null || prev === 0) {
     return <span className="text-xs text-muted-subtle">ไม่มีตัวเลข {vs} ให้เทียบ</span>;
   }
-  const pct = ((cur - prev) / Math.abs(prev)) * 100;
+  // Average per operating day against average per operating day (C1).
+  const perDay = days.cur !== days.prev;
+  const a = perDay ? cur / days.cur : cur;
+  const b = perDay ? prev / days.prev : prev;
+  const pct = ((a - b) / Math.abs(b)) * 100;
   const up = pct >= 0;
   const good = up === goodWhenUp;
   return (
     <span className={`text-xs font-medium ${good ? "text-good" : "text-bad"}`}>
-      {up ? "▲" : "▼"} {Math.abs(pct).toFixed(1)}% <span className="font-normal text-muted-foreground">เทียบ {vs}</span>
+      {up ? "▲" : "▼"} {Math.abs(pct).toFixed(1)}%{perDay && " ต่อวัน"} <span className="font-normal text-muted-foreground">เทียบ {vs}</span>
     </span>
   );
 }
@@ -396,25 +424,25 @@ const marginOf = (part: { toString(): string } | null, whole: { toString(): stri
 type PnlPick = (p: Pnl) => number | null;
 
 /** A KPI's ▲▼ — waits for the previous period without holding up the figure above it. */
-/** Calendar days in each of the two periods — what a per-day figure divides by. */
+/** Operating days (days with sales) in each period — what a per-day figure divides by (C1). */
 type DayCounts = { cur: number; prev: number };
 
 /**
  * "เฉลี่ย ฿X/วัน" beside the total (Kong, 2026-10-01). Two periods of different
  * lengths — September's 30 days against August's 31 — differ by ~3% from the
  * calendar alone; the per-day pair shows how much of a % is the calendar.
- * Calendar days, not days with an import: rent and salaries accrue on every day.
+ * Operating days, not calendar days (Kong 2026-10-24, C1): "เดือนนี้ 10 วันก็หาร 10".
  */
 function PerDay({ cur, prev, days, vs }: { cur: number | null; prev: number | null | undefined; days: DayCounts; vs: string }) {
   if (cur === null) return null;
   return (
     <span className="mt-0.5 block text-xs leading-snug text-muted-foreground">
       <span className="block whitespace-nowrap">
-        เฉลี่ย <span className="tabular-nums">{baht(cur / days.cur)}</span>/วัน
+        เฉลี่ย <span className="tabular-nums">{baht(cur / days.cur)}</span>/วัน ({days.cur} วัน)
       </span>
       {prev === undefined || prev === null ? null : (
         <span className="block whitespace-nowrap">
-          {vs} <span className="tabular-nums">{baht(prev / days.prev)}</span>/วัน
+          {vs} <span className="tabular-nums">{baht(prev / days.prev)}</span>/วัน ({days.prev} วัน)
         </span>
       )}
     </span>
@@ -448,7 +476,7 @@ async function PrevDeltaResolved({ prevP, cur, pick, goodWhenUp, vs, days }: { p
   }
   return (
     <>
-      <Delta cur={cur} prev={pick(prev)} goodWhenUp={goodWhenUp} vs={vs} />
+      <Delta cur={cur} prev={pick(prev)} goodWhenUp={goodWhenUp} vs={vs} days={days} />
       <PerDay cur={cur} prev={pick(prev)} days={days} vs={vs} />
     </>
   );
@@ -474,14 +502,18 @@ function KpiRow({
   vs,
   days,
   see,
+  incomplete,
 }: {
   pnl: Pnl;
   prevP: Promise<Pnl | null>;
   vs: string;
   days: DayCounts;
   see: { sales: boolean; cost: boolean; expense: boolean; gross: boolean; net: boolean };
+  /** C2: recurring expenses due in the period are not recorded — never say "better". */
+  incomplete?: boolean;
 }) {
   const revenue = num(pnl.revenue);
+  const notYet = <span className="text-xs font-medium text-warn">ยังเทียบไม่ได้ — รายการประจำยังไม่ครบ</span>;
   const cogs = num(pnl.cogs);
   const gross = num(pnl.grossProfit);
   const net = num(pnl.netProfit);
@@ -507,15 +539,16 @@ function KpiRow({
         />
       ) : null}
       {see.expense ? (
-        <Kpi label="ค่าใช้จ่ายดำเนินงาน" value={num(pnl.opex)} sub="ค่าเช่า ค่าแรง ค่าน้ำไฟ ฯลฯ" delta={<PrevDelta prevP={prevP} vs={vs} days={days} cur={num(pnl.opex)} pick={(p) => num(p.opex)} goodWhenUp={false} />} />
+        <Kpi label="ค่าใช้จ่ายดำเนินงาน" value={num(pnl.opex)} sub={incomplete ? "ยังไม่ครบ — มีรายการประจำที่ยังไม่บันทึก" : "ค่าเช่า ค่าแรง ค่าน้ำไฟ ฯลฯ"} delta={incomplete ? notYet : <PrevDelta prevP={prevP} vs={vs} days={days} cur={num(pnl.opex)} pick={(p) => num(p.opex)} goodWhenUp={false} />} />
       ) : null}
       {see.net ? (
         <Kpi
           label="กำไรสุทธิ"
           value={net}
           tone={net === null ? undefined : net >= 0 ? "good" : "bad"}
-          delta={<PrevDelta prevP={prevP} vs={vs} days={days} cur={net} pick={(p) => num(p.netProfit)} goodWhenUp />}
-          extra={<PrevMargin prevP={prevP} label="อัตรากำไรสุทธิ" cur={marginOf(pnl.netProfit, pnl.revenue)} part={(p) => p.netProfit} />}
+          sub={incomplete ? "ยังไม่ครบ — สูงกว่าจริง" : undefined}
+          delta={incomplete ? notYet : <PrevDelta prevP={prevP} vs={vs} days={days} cur={net} pick={(p) => num(p.netProfit)} goodWhenUp />}
+          extra={incomplete ? null : <PrevMargin prevP={prevP} label="อัตรากำไรสุทธิ" cur={marginOf(pnl.netProfit, pnl.revenue)} part={(p) => p.netProfit} />}
         />
       ) : null}
     </div>
@@ -717,4 +750,37 @@ async function DraftsWaiting({ tenantId, userId, shared }: { tenantId: string; u
       มีร่างสูตรรอคุณ <b className="tabular-nums">{n}</b> รายการ ในทดลองเมนู — ตรวจแล้วรับรองหรือนำไปใช้จริง
     </a>
   );
+}
+
+const MONTHS_SHORT = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+
+/**
+ * C2 (Kong 2026-10-24). Recurring expenses whose due date inside the period has
+ * passed and that nobody has recorded — salaries, rent. Without this the
+ * dashboard reported September's net profit ▲169% because September's
+ * salaries were simply not entered yet. A template is owed in a month only once
+ * its day of the month has arrived (October's salary on the 28th is not missing
+ * on the 24th).
+ */
+async function missingRecurring(tenantId: string, period: Period, branchIds: string[]) {
+  const today = computeBangkokToday();
+  const toKey = isoDay(period.to).slice(0, 7);
+  const fromKey = isoDay(period.from).slice(0, 7);
+  const due = await getDueRecurringLogic(tenantId, { asOfPeriod: toKey }).catch(() => []);
+  const out: { description: string; periodLabel: string; amount: number }[] = [];
+  for (const row of due) {
+    if (!branchIds.includes(row.template.branch.id)) continue;
+    for (const p of row.duePeriods) {
+      if (p < fromKey || p > toKey) continue;
+      const [y, m] = p.split("-").map(Number);
+      const dueDay = new Date(Date.UTC(y, m - 1, Math.min(row.template.dayOfMonth, new Date(Date.UTC(y, m, 0)).getUTCDate())));
+      if (dueDay.getTime() > today.getTime() || dueDay.getTime() > period.to.getTime()) continue;
+      out.push({
+        description: row.template.description,
+        periodLabel: `${MONTHS_SHORT[m - 1]} ${String((y + 543) % 100).padStart(2, "0")}`,
+        amount: Number(row.template.defaultAmount),
+      });
+    }
+  }
+  return out;
 }
