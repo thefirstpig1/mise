@@ -1,0 +1,170 @@
+<title>ข้อมูลที่ซ้ำกันในระบบ</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Prompt:wght@500;600;700&family=Noto+Sans+Thai:wght@400;500;600&display=swap">
+<style>
+/* Research brief: question-first design for /cost. Layout: one reading column,
+   a wide question bank table, and a mapping of questions to screens.
+   App tokens (tailwind.config.ts). */
+:root{
+  --bg:#FDFBF3; --fg:#262811; --surface:#FFFFFF; --sunk:#F8F3E1; --primary:#41431B; --primary-fg:#F8F3E1;
+  --muted:#F3EFDF; --muted-fg:#5A5C31; --subtle:#8B8D63; --border:#E9E3C8; --strong:#D2CBA4;
+  --good:#5A7333; --good-bg:#EEF2E0; --bad:#A83A22; --bad-bg:#F9E5DF; --warn:#A87C1C; --warn-bg:#F8EFD6; --clay:#C0692B;
+  --display:"Prompt","Noto Sans Thai",system-ui,sans-serif; --body:"Noto Sans Thai","Prompt",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#1B1C10; --fg:#EEEAD6; --surface:#24261A; --sunk:#2A2C1E; --primary:#D9DDB0; --primary-fg:#1B1C10;
+  --muted:#2E301F; --muted-fg:#C9C8A6; --subtle:#9C9B7C; --border:#36381F; --strong:#4A4C30;
+  --good:#B7CF7C; --good-bg:#2B3320; --bad:#EC9C80; --bad-bg:#41261C; --warn:#E8BE62; --warn-bg:#3B3018; --clay:#E8A76F; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#1B1C10; --fg:#EEEAD6; --surface:#24261A; --sunk:#2A2C1E; --primary:#D9DDB0; --primary-fg:#1B1C10;
+  --muted:#2E301F; --muted-fg:#C9C8A6; --subtle:#9C9B7C; --border:#36381F; --strong:#4A4C30;
+  --good:#B7CF7C; --good-bg:#2B3320; --bad:#EC9C80; --bad-bg:#41261C; --warn:#E8BE62; --warn-bg:#3B3018; --clay:#E8A76F; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.65;margin:0;padding-inline:16px;padding-block:28px 64px}
+.wrap{max-width:1100px;margin:0 auto;display:grid;gap:30px}
+h1,h2,h3{font-family:var(--display);margin:0;text-wrap:balance;line-height:1.3}
+h1{font-size:1.8rem;color:var(--primary)} h2{font-size:1.25rem} h3{font-size:1rem}
+p{margin:0;max-width:72ch}
+.sub{color:var(--subtle);font-size:.85rem}
+.lead{font-size:1.02rem;color:var(--muted-fg)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px 20px;display:grid;gap:10px}
+.findings{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.finding{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 16px;display:grid;gap:4px}
+.finding b{font-family:var(--display);font-size:1.6rem;color:var(--clay);line-height:1.2}
+.finding span{font-size:.86rem;color:var(--muted-fg)}
+.tbox{overflow-x:auto;border:1px solid var(--border);border-radius:14px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:980px;font-size:.86rem}
+th{font-family:var(--display);font-weight:600;font-size:.76rem;color:var(--muted-fg);text-align:left;padding:10px;background:var(--sunk);position:sticky;top:0}
+td{padding:10px;border-top:1px solid var(--border);vertical-align:top}
+td b{font-family:var(--display);font-weight:600}
+.n{font-family:var(--display);font-weight:700;color:var(--clay)}
+.pill{display:inline-block;border-radius:999px;padding:1px 9px;font-size:.74rem;white-space:nowrap}
+.yes{background:var(--good-bg);color:var(--good)} .part{background:var(--warn-bg);color:var(--warn)} .no{background:var(--bad-bg);color:var(--bad)}
+.role{display:inline-block;border:1px solid var(--strong);border-radius:999px;padding:0 8px;font-size:.72rem;margin:1px 2px 1px 0;white-space:nowrap}
+.cad{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.cad .card h3{color:var(--primary)}
+.cad ul{margin:0;padding-left:18px;font-size:.9rem;display:grid;gap:4px}
+ol.steps{margin:0;padding-left:20px;display:grid;gap:8px}
+ol.steps li{max-width:80ch}
+.order{display:grid;gap:8px}
+.order div{display:grid;grid-template-columns:34px minmax(0,1fr);gap:10px;align-items:start;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:10px 14px}
+.order .k{font-family:var(--display);font-weight:700;color:var(--clay);font-size:1.1rem}
+a{color:var(--primary)}
+.src{font-size:.82rem;color:var(--muted-fg);display:grid;gap:3px}
+</style>
+
+<style>
+.grp{display:grid;gap:10px}
+.item{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:12px 16px;display:grid;gap:6px}
+.item h3{display:flex;gap:10px;align-items:baseline;font-size:1rem}
+.id{font-family:var(--display);font-weight:700;color:var(--primary);min-width:34px}
+.where{display:flex;flex-wrap:wrap;gap:6px}
+.where span{font-size:.76rem;border-radius:999px;padding:1px 9px;background:var(--muted);color:var(--muted-fg)}
+.rec{font-size:.88rem}
+.tagB{background:var(--bad-bg);color:var(--bad)} .tagA{background:var(--good-bg);color:var(--good)} .tagC{background:var(--warn-bg);color:var(--warn)}
+.legendbar{display:flex;flex-wrap:wrap;gap:8px}
+.legendbar span{border-radius:999px;padding:3px 12px;font-size:.82rem}
+</style>
+<div class="wrap">
+  <header style="display:grid;gap:8px">
+    <p class="sub">ตรวจทั้งระบบ · 24 ต.ค. 2569 · เปิดทุกหน้าจริง (ช่วง ก.ย. 69 ที่มีข้อมูล) แล้วเทียบว่าข้อมูลแต่ละตัวโผล่ที่ไหนบ้าง</p>
+    <h1>ข้อมูลที่ซ้ำกันในระบบ — ให้เลือกตัด</h1>
+    <p class="lead">หลักที่คุณ Kong ให้: <b>ข้อมูลเดียวกัน ความลึกต่างกัน → เก็บ</b> · <b>ข้อมูลเดียวกัน แค่หน้าตาต่าง (ใช้ได้เท่าเดิม) → ตัด</b> · ระหว่างตรวจเจออีกแบบที่หนักกว่าความซ้ำ คือ <b>ตัวเลขเรื่องเดียวกันที่บอกไม่ตรงกัน</b> — แยกไว้เป็นกลุ่ม C เพราะต้องแก้ไม่ว่าจะตัดอะไร</p>
+    <div class="legendbar"><span class="tagB">B · เสนอตัด/รวม (10)</span><span class="tagC">C · ตัวเลขขัดกัน ต้องแก้ (3)</span><span class="tagA">A · ลึกต่างกัน เก็บไว้ (7)</span><span style="background:var(--muted)">D · เจอระหว่างทาง (2)</span></div>
+    <p class="sub">ตอบกลับแค่เลขข้อที่จะตัด เช่น “ตัด B1 B3 B4 · B6 ขอดูก่อน”</p>
+  </header>
+
+  <section class="grp">
+    <h2>B · ข้อมูลเดียวกัน แค่หน้าตาต่าง — เสนอตัดหรือรวม</h2>
+
+    <div class="item"><h3><span class="id">B1</span>แดชบอร์ด: กราฟ “จากยอดขายสู่กำไร”</h3>
+      <div class="where"><span>แดชบอร์ด · การ์ด 5 ใบด้านบน</span><span>แดชบอร์ด · จากยอดขายสู่กำไร</span><span>แดชบอร์ด · เงินจากยอดขายไปอยู่ที่ไหน</span></div>
+      <p class="rec">ยอดขาย − ต้นทุนขาย − ค่าใช้จ่าย = กำไรสุทธิ แสดง <b>3 รอบในหน้าเดียว</b> กราฟแท่ง “จากยอดขายสู่กำไร” มีแค่ 4 ตัวเลขเดียวกับการ์ด ไม่มีอะไรเพิ่ม · “เงินจากยอดขายไปอยู่ที่ไหน” มีของเพิ่ม (แยกค่าใช้จ่ายรายหมวด % ของยอดขาย) จึงเก็บ</p>
+      <p class="rec"><b>เสนอ:</b> ตัดกราฟ “จากยอดขายสู่กำไร”</p></div>
+
+    <div class="item"><h3><span class="id">B2</span>แดชบอร์ด: ตารางสาขาท้ายหน้า</h3>
+      <div class="where"><span>แดชบอร์ด · การ์ดด้านบน</span><span>แดชบอร์ด · ตารางสาขา</span></div>
+      <p class="rec">ตาราง ยอดขาย/ต้นทุน/กำไร/ค่าใช้จ่าย/สุทธิ ต่อสาขา — ตอนนี้มีสาขาเดียวที่มียอดขาย ตารางจึงเป็นตัวเลขเดียวกับการ์ดเป๊ะ ๆ (อีกแถวเป็น “—”)</p>
+      <p class="rec"><b>เสนอ:</b> แสดงตารางเฉพาะเมื่อมีอย่างน้อย 2 สาขาที่มียอดขายในช่วงนั้น</p></div>
+
+    <div class="item"><h3><span class="id">B3</span>หน้า “เมนูที่ยังไม่มีสูตร” (/menus/coverage)</h3>
+      <div class="where"><span>จัดการเมนู · การ์ด “3 เมนูยังไม่มีสูตร · มีสูตรแล้ว 93%” + ตัวกรอง “ยังไม่มีสูตร 3”</span><span>ทดลองเมนู · “ขายอยู่แต่ยังไม่มีสูตร 3 เมนู ฿3,741” + รายการพร้อมปุ่มร่างสูตร</span><span>เมนูที่ยังไม่มีสูตร (หน้าแยก)</span></div>
+      <p class="rec">รายการเดียวกัน 3 เมนู ตัวเลขเดียวกัน (93% · ฿3,741) อยู่ 3 ที่ หน้าแยกมีแค่สวิตช์ 7/30/90 วันเพิ่ม · ที่ทดลองเมนูมีปุ่ม “+ ร่างสูตร” ซึ่งเป็นสิ่งที่ต้องทำต่อจริง ๆ</p>
+      <p class="rec"><b>เสนอ:</b> ตัดหน้า /menus/coverage (ลิงก์ที่ชี้ไปหน้านี้ให้ไปทดลองเมนูแทน)</p></div>
+
+    <div class="item"><h3><span class="id">B4</span>ค่าใช้จ่าย: “รายจ่ายตามหมวด” ในหน้ารายการบิล</h3>
+      <div class="where"><span>ค่าใช้จ่าย · รายจ่ายตามหมวด</span><span>วิเคราะห์รายจ่าย · แยกตามหมวด (เจาะลงได้ + ผู้ขาย + รายวัน)</span></div>
+      <p class="rec">ข้อมูลเดียวกัน หน้าวิเคราะห์ทำได้มากกว่าทุกอย่าง หน้ารายการบิลควรเป็นที่บันทึกและหาบิล</p>
+      <p class="rec"><b>เสนอ:</b> ตัดออกจากหน้ารายการบิล เหลือลิงก์ “วิเคราะห์รายจ่าย ›”</p></div>
+
+    <div class="item"><h3><span class="id">B5</span>หน้าต้นทุน: ป๊อปอัพ “นับสต๊อก วันที่ …” (รายการที่ไม่ตรง)</h3>
+      <div class="where"><span>ต้นทุน · ป๊อปอัพการนับ</span><span>ของหายไปไหน · การนับครั้งเดียวกัน</span></div>
+      <p class="rec">รายการวัตถุดิบที่นับไม่ตรง ตัวเลขเดียวกัน แต่หน้าของหายไปไหนมีป้ายสาเหตุ รายการตรวจ และแนวโน้มด้วย — ป๊อปอัพเป็นฉบับย่อที่ไม่ได้ช่วยตัดสินใจเพิ่ม</p>
+      <p class="rec"><b>เสนอ:</b> กดจุดการนับ/รายการ “ไม่ตรงกับระบบ” แล้วไปหน้าของหายไปไหนที่ครั้งนั้นเลย</p></div>
+
+    <div class="item"><h3><span class="id">B6</span>รายการ “ยอดคงเหลือ” (/stock) กับ “สินค้า/วัตถุดิบ” (/products)</h3>
+      <div class="where"><span>สต๊อกคงเหลือ · วัตถุดิบ / คงเหลือ / มูลค่า / เคลื่อนไหวล่าสุด</span><span>สินค้า/วัตถุดิบ · คงเหลือ / ต้นทุน / ขั้นต่ำ / ใช้ในกี่สูตร + แผงข้าง</span></div>
+      <p class="rec">รายการวัตถุดิบเดียวกัน คงเหลือเดียวกัน สองหน้า หน้าสินค้ามีมากกว่า (ขั้นต่ำ เตือนแดงเหลือง แผงแก้ไข) ยกเว้น “มูลค่ารวมต่อรายการ” และ “เคลื่อนไหวล่าสุด” ที่หน้าสินค้ายังไม่มี</p>
+      <p class="rec"><b>เสนอ:</b> รวมเป็นหน้าเดียว — หน้าสต๊อกเหลือเป็นทางเข้า ปรับสต๊อก · ประวัติ · โอน (ตรงกับโน้ตเดิม “ย้ายปุ่มตัดสต๊อกเข้าหน้าสต๊อก”) · <i>ข้อนี้ใหญ่ ต้องทำ mockup ก่อน</i></p></div>
+
+    <div class="item"><h3><span class="id">B7</span>แผงวัตถุดิบในหน้าเมนู กับ แผงสินค้าในหน้าสินค้า</h3>
+      <div class="where"><span>จัดการเมนู → สูตร → กดวัตถุดิบ (แผงวัตถุดิบ)</span><span>สินค้า/วัตถุดิบ → กดแถว (แผงสินค้า)</span></div>
+      <p class="rec">สองแผงแสดงของชุดเดียวกัน (คงเหลือ ใช้ต่อวัน พอใช้อีกกี่วัน ราคา ซื้อล่าสุด ปุ่มขอซื้อ) หน้าตาต่างกัน คนจำสองแบบ</p>
+      <p class="rec"><b>เสนอ:</b> ใช้แผงสินค้าแผงเดียวทั้งสองที่</p></div>
+
+    <div class="item"><h3><span class="id">B8</span>ประวัติราคาของสินค้า</h3>
+      <div class="where"><span>แผงสินค้า · ประวัติราคา</span><span>การผันผวนราคาวัตถุดิบ · ป๊อปอัพ (ราคาทุกใบ + เฉลี่ยรายเดือน + ราคาที่เมนูรับได้)</span></div>
+      <p class="rec">ราคาทุกใบของสินค้าตัวเดียวกัน วาดสองแบบ ป๊อปอัพใหม่บอกได้มากกว่า (เส้นเฉลี่ย ราคาที่รับได้)</p>
+      <p class="rec"><b>เสนอ:</b> แผงสินค้าใช้กราฟเดียวกับป๊อปอัพ (ไม่ใช่ตัด — รวมให้เหลือแบบเดียว)</p></div>
+
+    <div class="item"><h3><span class="id">B9</span>ยอดปิดร้าน (ยอดที่ลูกค้าจ่าย) — ทางเข้าคีย์สองที่</h3>
+      <div class="where"><span>แดชบอร์ด · ยอดที่ลูกค้าจ่ายรายวัน + “+ คีย์ยอดวันนี้”</span><span>ยอดขาย · “คีย์แล้ว 0 จาก 26 วัน · กดแท่งเพื่อคีย์” + “ตรวจกับใบสรุปปิดร้าน”</span></div>
+      <p class="rec">ตัวเลขเดียวกัน กรอกได้สองที่ หน้าตาสองแบบ</p>
+      <p class="rec"><b>เสนอ:</b> คีย์ที่แดชบอร์ดที่เดียว (เป็นงานประจำวัน) · หน้ายอดขายเหลือแค่บรรทัดตรวจความครบ + ลิงก์</p></div>
+
+    <div class="item"><h3><span class="id">B10</span>ของที่รอกดรับโอน</h3>
+      <div class="where"><span>แดชบอร์ด · งานที่รออยู่</span><span>สต๊อกคงเหลือ · แบนเนอร์ “มีของกำลังส่งมา…กดรับ”</span><span>ตัวเลขบนเมนูซ้าย</span><span>หน้าโอน</span></div>
+      <p class="rec">เรื่องเดียว เตือน 4 ที่ — ใครเปิดแดชบอร์ดแล้วไปหน้าสต๊อกจะเห็นซ้ำ</p>
+      <p class="rec"><b>เสนอ:</b> ตัดแบนเนอร์ในหน้าสต๊อก เหลือแดชบอร์ด + ตัวเลขเมนูซ้าย + หน้าโอน</p></div>
+  </section>
+
+  <section class="grp">
+    <h2>C · ตัวเลขเรื่องเดียวกันที่บอกไม่ตรงกัน — ต้องแก้</h2>
+
+    <div class="item"><h3><span class="id">C1</span>ยอดขาย ก.ย. ต่อวัน: แดชบอร์ดกับหน้ายอดขายบอกคนละทาง</h3>
+      <div class="where"><span>แดชบอร์ด: ฿20,513/วัน · ▲ 27.8% เทียบ ส.ค.</span><span>ยอดขาย: ฿23,668/วัน · ▼ 6.6% ต่อวัน</span></div>
+      <p class="rec">แดชบอร์ดหารด้วยวันในเดือน (30) และเทียบยอดรวม (ก.ย. มีข้อมูล 26 วัน ส.ค. 19 วัน) → บอกว่า “ขายดีขึ้น 28%” ทั้งที่ขายต่อวันลดลง 6.6% · ขัดกับกฎ SI1 (เทียบต่อวันที่มีข้อมูล)</p>
+      <p class="rec"><b>เสนอ:</b> แดชบอร์ดใช้วิธีเดียวกับหน้ายอดขาย (ต่อวันที่มีข้อมูล) ทุกการ์ด</p></div>
+
+    <div class="item"><h3><span class="id">C2</span>แดชบอร์ด ก.ย.: กำไรสุทธิ ▲169% อัตรากำไรสุทธิ 50%</h3>
+      <div class="where"><span>แดชบอร์ด: ค่าใช้จ่าย ▼55% · กำไรสุทธิ ฿307,642</span><span>ต้นทุน: “ยังไม่มีค่าแรง ก.ย.”</span></div>
+      <p class="rec">เงินเดือน ก.ย. ยังไม่ได้บันทึก ค่าใช้จ่ายจึงลดลงครึ่งหนึ่งและกำไรดูพุ่ง แต่แดชบอร์ดไม่เตือนเลย ขณะที่หน้าต้นทุนบอกชัดว่ายังไม่มีค่าแรง</p>
+      <p class="rec"><b>เสนอ:</b> แดชบอร์ดเตือนเมื่อเดือนนั้นยังไม่มีรายการประจำที่ถึงกำหนด (เงินเดือน ค่าเช่า) และไม่บอกว่า “ดีขึ้น” จนกว่าจะครบ</p></div>
+
+    <div class="item"><h3><span class="id">C3</span>“ต้นทุน %” สามตัวที่ชื่อคล้ายกันแต่คิดต่างกัน</h3>
+      <div class="where"><span>แดชบอร์ด/ต้นทุน: food cost 37.4% (ของที่ตัดสต๊อกจริง ราคา FIFO)</span><span>จัดการเมนู: “ต้นทุนวัตถุดิบเทียบยอดขาย” (สูตร × ราคาวันนี้ × ยอดขาย 30 วัน)</span><span>ยอดขาย/กำไร: ต้นทุนสูตร ณ ปลายช่วง</span></div>
+      <p class="rec">สามตัวควรต่างกันจริง (ตัวหนึ่งคือของที่ใช้ไป อีกตัวคือ “ถ้าทำตามสูตรวันนี้”) แต่ชื่อบนจอทำให้คนคิดว่าเป็นตัวเดียวกันแล้วเห็นว่าไม่ตรง</p>
+      <p class="rec"><b>เสนอ:</b> ไม่ตัด แต่ตั้งชื่อให้ต่าง เช่น “ต้นทุนของที่ใช้ไปจริง” กับ “ต้นทุนตามสูตร (ราคาวันนี้)” และบอกในวงเล็บ</p></div>
+  </section>
+
+  <section class="grp">
+    <h2>A · ข้อมูลเดียวกัน ความลึกต่างกัน — เก็บไว้ทั้งหมด</h2>
+    <div class="item"><h3><span class="id">A1</span>ยอดขายรายวัน</h3><div class="where"><span>แดชบอร์ด: เส้นต่อสาขา (ภาพรวม)</span><span>ยอดขาย: แท่ง วันหยุด กดดูวัน คีย์ยอดปิด</span></div></div>
+    <div class="item"><h3><span class="id">A2</span>เมนูขายดี</h3><div class="where"><span>แดชบอร์ด: 10 อันดับ</span><span>ยอดขาย: หมวด → เมนู · จาน/กำไร · menu engineering</span><span>จัดการเมนู: 30 วัน + ต้นทุนต่อจาน (ที่จัดการ ไม่ใช่ที่วิเคราะห์)</span></div></div>
+    <div class="item"><h3><span class="id">A3</span>ค่าใช้จ่ายรายหมวด</h3><div class="where"><span>แดชบอร์ด: เฉพาะค่าใช้จ่ายดำเนินงาน เป็น % ของยอดขาย</span><span>วิเคราะห์รายจ่าย: ทุกหมวด เจาะลงได้ ผู้ขาย รายวัน</span></div></div>
+    <div class="item"><h3><span class="id">A4</span>ต้นทุนและกำไรขั้นต้น</h3><div class="where"><span>แดชบอร์ด: รายเดือน</span><span>ต้นทุน: รายสัปดาห์ เป้า prime cost สิ่งที่ต้องจัดการ</span><span>ต้นทุนตามแผนก</span><span>ตารางต้นทุนละเอียด</span></div><p class="rec">ตารางต้นทุนละเอียดซ้ำหน้าต้นทุนเกือบทุกคอลัมน์ ยกเว้น 3 อย่างที่มีที่นี่ที่เดียว: ซื้อเข้ามา · ค่าใช้จ่ายอื่น · จ่ายแพงกว่าที่ถูกสุด (เทียบราคาระหว่างสาขา) → เก็บไว้เป็นตารางลึก</p></div>
+    <div class="item"><h3><span class="id">A5</span>ไม่ตรงกับระบบ</h3><div class="where"><span>ต้นทุน: ตัวเลขรวม + แนวโน้ม</span><span>ของหายไปไหน: ทีละรายการ สาเหตุ รายการตรวจ</span><span>ใบนับ: ทีละบรรทัดที่นับ</span></div></div>
+    <div class="item"><h3><span class="id">A6</span>ราคาวัตถุดิบที่ขึ้น</h3><div class="where"><span>ต้นทุน: 3 รายการที่จ่ายเพิ่มมากสุด</span><span>การผันผวนราคาวัตถุดิบ: ทุกรายการ แนวโน้ม ราคาที่เมนูรับได้</span></div></div>
+    <div class="item"><h3><span class="id">A7</span>เงินในสต๊อก</h3><div class="where"><span>ต้นทุน: รวม + ของค้างนาน</span><span>ตารางต้นทุนละเอียด: ต่อสาขา</span><span>สินค้า: ต่อรายการ</span></div></div>
+  </section>
+
+  <section class="grp">
+    <h2>D · เจอระหว่างตรวจ (ไม่ใช่ความซ้ำ)</h2>
+    <div class="item"><h3><span class="id">D1</span>ตัดสต๊อกตามยอดขาย เปิดมาที่สาขาลาดพร้าว</h3><p class="rec">เรียงสาขาตามชื่อ → เปิดมาที่สาขาที่ไม่เคยมียอดขาย จึงขึ้น “ยังไม่มียอดขาย” แม้เลือก ก.ย. (ปัญหาเดียวกับหน้าแผนกเดิม) · เสนอเปิดสาขาที่มียอดขายล่าสุด</p></div>
+    <div class="item"><h3><span class="id">D2</span>หน้าของเสียไม่มีมูลค่าเป็นบาท</h3><p class="rec">รายการบอก “ดูมูลค่าเป็นบาทที่หน้าต้นทุน” — ส่งคนไปอีกหน้าเพื่อรู้ว่าทิ้งไปกี่บาท · เสนอแสดงบาทในรายการเลย</p></div>
+  </section>
+
+  <section class="item">
+    <h2 style="font-size:1rem">บันทึกการตัดสินใจ</h2>
+    <p class="rec">✅ <b>แผนกตั้งตอนรับของ</b> (Kong 24 ต.ค.) — ใบรับของแต่ละบรรทัดเลือกแผนก แทนการลง “Main” ทั้งหมด · จะทำพร้อมหน้าต้นทุนตามแผนก</p>
+  </section>
+</div>
