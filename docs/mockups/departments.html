@@ -1,0 +1,277 @@
+<title>ต้นทุนตามแผนก · เก่า–ใหม่</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Prompt:wght@500;600;700&family=Noto+Sans+Thai:wght@400;500;600&display=swap">
+<style>
+/* Mockup: /cost/departments (ต้นทุนตามแผนก) — current vs proposed, question-first.
+   Real figures of the demo shop (count ARI-SC-0001, 24 Sep 2026) unless the
+   "ตัวอย่าง" switch is on. App tokens from tailwind.config.ts. */
+:root{
+  --bg:#FDFBF3; --fg:#262811; --surface:#FFFFFF; --sunk:#F8F3E1; --primary:#41431B; --primary-fg:#F8F3E1;
+  --muted:#F3EFDF; --muted-fg:#5A5C31; --subtle:#8B8D63; --border:#E9E3C8; --strong:#D2CBA4;
+  --good:#5A7333; --good-bg:#EEF2E0; --bad:#A83A22; --bad-bg:#F9E5DF; --warn:#A87C1C; --warn-bg:#F8EFD6; --warn-border:#E2CE97; --clay:#C0692B;
+  --display:"Prompt","Noto Sans Thai",system-ui,sans-serif; --body:"Noto Sans Thai","Prompt",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#1B1C10; --fg:#EEEAD6; --surface:#24261A; --sunk:#2A2C1E; --primary:#D9DDB0; --primary-fg:#1B1C10;
+  --muted:#2E301F; --muted-fg:#C9C8A6; --subtle:#9C9B7C; --border:#36381F; --strong:#4A4C30;
+  --good:#B7CF7C; --good-bg:#2B3320; --bad:#EC9C80; --bad-bg:#41261C; --warn:#E8BE62; --warn-bg:#3B3018; --warn-border:#5A4A22; --clay:#E8A76F; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#1B1C10; --fg:#EEEAD6; --surface:#24261A; --sunk:#2A2C1E; --primary:#D9DDB0; --primary-fg:#1B1C10;
+  --muted:#2E301F; --muted-fg:#C9C8A6; --subtle:#9C9B7C; --border:#36381F; --strong:#4A4C30;
+  --good:#B7CF7C; --good-bg:#2B3320; --bad:#EC9C80; --bad-bg:#41261C; --warn:#E8BE62; --warn-bg:#3B3018; --warn-border:#5A4A22; --clay:#E8A76F; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:14px;line-height:1.55;margin:0;padding-inline:16px;padding-block:20px 60px}
+h1,h2,h3{font-family:var(--display);margin:0}
+p{margin:0}
+.wrap{max-width:1180px;margin:0 auto;display:grid;gap:14px}
+.top{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;justify-content:space-between}
+.seg{display:inline-flex;border:1px solid var(--strong);border-radius:999px;padding:3px;background:var(--surface);gap:2px}
+.seg button{font:inherit;font-size:.82rem;border:0;background:none;color:var(--fg);border-radius:999px;padding:3px 12px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--primary);color:var(--primary-fg)}
+.sub{color:var(--subtle);font-size:.8rem}
+.page{background:var(--bg);border:1px solid var(--border);border-radius:18px;padding:18px;display:grid;gap:14px;position:relative}
+.chip{border:1px solid var(--strong);background:var(--surface);color:var(--fg);border-radius:999px;padding:3px 12px;font:inherit;font-size:.8rem;cursor:pointer;white-space:nowrap}
+.chip.on{background:var(--primary);color:var(--primary-fg);border-color:var(--primary)}
+.row{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 16px}
+.qlabel{display:flex;align-items:center;gap:8px;font-family:var(--display);font-weight:600;font-size:.95rem}
+.qn{display:inline-grid;place-items:center;min-width:30px;height:22px;border-radius:999px;background:var(--primary);color:var(--primary-fg);font-size:.72rem;padding:0 6px}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:12px 14px;display:grid;gap:3px;align-content:start}
+.kpi .k{font-size:.74rem;color:var(--muted-fg)} .kpi .v{font-family:var(--display);font-weight:700;font-size:1.45rem;line-height:1.2;font-variant-numeric:tabular-nums}
+.kpi .s{font-size:.74rem;color:var(--muted-fg)}
+.tg{display:inline-block;border-radius:999px;padding:1px 8px;font-size:.7rem;white-space:nowrap;width:max-content}
+.tg.ok{background:var(--good-bg);color:var(--good)} .tg.bad{background:var(--bad-bg);color:var(--bad)} .tg.warn{background:var(--warn-bg);color:var(--warn)} .tg.muted{background:var(--muted);color:var(--muted-fg)}
+.band{position:relative;height:10px;border-radius:999px;background:linear-gradient(90deg,var(--good-bg) 0 33%,var(--warn-bg) 33% 83%,var(--bad-bg) 83%);margin-top:6px}
+.band i{position:absolute;top:-4px;width:4px;height:18px;border-radius:2px;background:var(--fg);transform:translateX(-2px);transition:left .5s cubic-bezier(.2,.8,.2,1)}
+.band-l{display:flex;justify-content:space-between;font-size:.66rem;color:var(--subtle);margin-top:2px}
+.items{display:grid;gap:6px}
+.it{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,2fr) 90px 54px;gap:12px;align-items:center;padding:9px 10px;border-radius:12px;border:1px solid var(--border);background:var(--surface);cursor:pointer;text-align:left;font:inherit;color:inherit;transition:transform .12s,border-color .12s,box-shadow .12s}
+.it:hover{transform:translateX(2px);border-color:var(--strong);box-shadow:0 6px 16px rgb(0 0 0/.06)}
+.it .nm b{font-family:var(--display);font-weight:600}
+.it .nm span{display:block;font-size:.74rem;color:var(--muted-fg)}
+.it .money{font-family:var(--display);font-weight:700;text-align:right;font-variant-numeric:tabular-nums}
+.it .cum{text-align:right;font-size:.72rem;color:var(--subtle);font-variant-numeric:tabular-nums}
+.bar{height:8px;border-radius:9px;background:var(--muted);overflow:hidden;position:relative}
+.bar i{display:block;height:100%;border-radius:9px;background:linear-gradient(90deg,#E8A76F,#C0692B);transform-origin:left;animation:grow .6s cubic-bezier(.2,.8,.2,1) both}
+.bar.pos i{background:linear-gradient(90deg,#9DAA55,#5E6B14)}
+.hints{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.hint{font-size:.7rem;border-radius:999px;padding:1px 8px;background:var(--warn-bg);color:var(--warn);white-space:nowrap}
+.hint.b{background:var(--bad-bg);color:var(--bad)} .hint.m{background:var(--muted);color:var(--muted-fg)}
+.fold{all:unset;cursor:pointer;font-size:.8rem;color:var(--muted-fg);padding:6px 10px;border:1px dashed var(--strong);border-radius:12px;display:block;text-align:center}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.trust{display:flex;flex-wrap:wrap;gap:8px}
+.tchip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);background:var(--surface);border-radius:999px;padding:4px 12px;font-size:.78rem}
+.tchip i{width:8px;height:8px;border-radius:50%}
+.tchip.ok i{background:var(--good)} .tchip.warn i{background:var(--warn)} .tchip.bad i{background:var(--bad)}
+.tchip a,.dl{color:var(--primary);text-decoration:underline;cursor:pointer}
+.modal{position:fixed;inset:0;background:rgb(0 0 0/.35);display:grid;place-items:center;z-index:9;animation:fade .18s both}
+.mbox{background:var(--surface);border-radius:18px;width:min(700px,94vw);max-height:88vh;overflow:auto;box-shadow:0 20px 50px rgb(0 0 0/.25);padding:18px 20px;display:grid;gap:12px;animation:pop .24s cubic-bezier(.2,.8,.2,1) both}
+.x{all:unset;cursor:pointer;font-size:1.3rem;line-height:1;color:var(--muted-fg)}
+.check{display:grid;gap:6px}
+.ck{display:grid;grid-template-columns:22px 1fr auto;gap:8px;align-items:start;padding:8px 10px;border:1px solid var(--border);border-radius:12px;background:var(--sunk)}
+.ck input{margin-top:3px;accent-color:var(--primary)}
+.ck .why{font-size:.76rem;color:var(--muted-fg)}
+.hist{display:flex;gap:10px;align-items:flex-end;height:70px;padding-top:6px}
+.hist div{display:grid;justify-items:center;gap:2px;font-size:.68rem;color:var(--muted-fg)}
+.hist b{display:block;width:26px;border-radius:6px 6px 2px 2px;background:linear-gradient(#C0692B,#E8A76F);transform-origin:bottom;animation:rise .5s cubic-bezier(.2,.8,.2,1) both}
+.tip{position:absolute;z-index:5;background:var(--fg);color:var(--bg);font-size:.76rem;line-height:1.5;padding:8px 10px;border-radius:10px;pointer-events:none;box-shadow:0 10px 24px rgb(0 0 0/.2);max-width:260px}
+.legend{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 16px;display:grid;gap:6px}
+.legend ol{margin:0;padding-left:18px;display:grid;gap:5px}
+.old table{width:100%;border-collapse:collapse;font-size:.85rem}
+.old th{text-align:left;padding:8px 6px;border-bottom:1px solid var(--border);font-weight:600}
+.old td{padding:8px 6px;border-bottom:1px solid color-mix(in srgb,var(--border) 50%,transparent)}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+.restore{background:var(--warn-bg);border:1px solid var(--warn-border);border-radius:12px;padding:8px 12px;font-size:.82rem}
+@keyframes grow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@keyframes rise{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+@keyframes pop{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+@media (max-width:860px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.grid2{grid-template-columns:1fr}.it{grid-template-columns:minmax(0,1fr) 80px}.it .bwrap,.it .cum{display:none}}
+</style>
+
+<style>
+.stick{position:sticky;top:8px;z-index:6;display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:9px 12px;box-shadow:0 8px 22px rgb(0 0 0/.07)}
+.stick .lab{font-size:.72rem;color:var(--muted-fg)}
+.depts{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}
+.dc{all:unset;cursor:pointer;display:grid;gap:4px;border:1px solid var(--border);border-radius:16px;padding:14px 16px;background:var(--surface);transition:transform .15s,border-color .15s,box-shadow .15s}
+.dc:hover{transform:translateY(-2px);border-color:var(--strong)}
+.dc[aria-pressed="true"]{border-color:var(--primary);box-shadow:0 0 0 1px var(--primary) inset}
+.dc .nm{font-family:var(--display);font-weight:700;font-size:1.1rem;display:flex;align-items:center;gap:8px}
+.dc .nm i{width:10px;height:10px;border-radius:3px}
+.dc .big{font-family:var(--display);font-weight:700;font-size:1.6rem;font-variant-numeric:tabular-nums}
+.dc .gr{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:4px}
+.dc .gr span{display:grid;font-size:.72rem;color:var(--muted-fg)} .dc .gr b{font-family:var(--display);font-size:1rem;color:var(--fg);font-variant-numeric:tabular-nums}
+.share{display:grid;gap:6px}
+.share .bar{display:flex;height:22px;border-radius:8px;overflow:hidden;background:var(--muted)}
+.share .bar span{display:flex;align-items:center;justify-content:center;color:#fff;font-size:.72rem;font-weight:600;transform-origin:left;animation:grow .7s cubic-bezier(.2,.8,.2,1) both}
+.smalls{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px}
+.sm{border:1px solid var(--border);border-radius:14px;padding:10px 12px;background:var(--surface);position:relative}
+.mt{width:100%;border-collapse:collapse;font-size:.85rem}
+.mt th{text-align:left;font-weight:600;font-size:.72rem;color:var(--muted-fg);padding:6px;border-bottom:1px solid var(--border);white-space:nowrap}
+.mt td{padding:7px 6px;border-bottom:1px solid color-mix(in srgb,var(--border) 60%,transparent)}
+.mt tr.flag td{background:var(--warn-bg)}
+.ing{display:grid;grid-template-columns:120px minmax(0,1fr) 90px;gap:10px;align-items:center;padding:4px 0;font-size:.86rem}
+.ing .b{height:9px;border-radius:9px;background:var(--muted);overflow:hidden}.ing .b i{display:block;height:100%;border-radius:9px;transform-origin:left;animation:grow .6s both}
+.empty{border:1px dashed var(--strong);border-radius:12px;padding:12px 14px;font-size:.86rem;color:var(--muted-fg)}
+.vs{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:8px}
+.vs div{border-radius:12px;background:var(--sunk);padding:10px 12px;display:grid;gap:2px}
+.vs b{font-family:var(--display);font-size:1.15rem;font-variant-numeric:tabular-nums}
+@keyframes draw{to{stroke-dashoffset:0}}
+</style>
+<div class="wrap">
+  <div class="top">
+    <div><h1 style="font-size:1.2rem">ต้นทุนตามแผนก · เก่า–ใหม่</h1>
+      <p class="sub">ออกแบบจากคำถามที่เจ้าของร้านถาม (<a href="https://claude.ai/artifact/UquT29bbnRBaE6bkTuRsoP">งานค้นคว้า</a>) · ตัวเลขจริงสาขาอารีย์ · ต้นทุนของที่ใช้ไป = วิธีสูตรอาหาร (ตัดสต๊อกตามยอดขาย)</p></div>
+    <div class="seg" role="group" aria-label="แบบไหน"><button id="b-old" aria-pressed="false">ตอนนี้</button><button id="b-new" aria-pressed="true">ที่เสนอ</button></div>
+  </div>
+
+  <div class="page old" id="oldpage" hidden>
+    <div><h2 style="font-size:1.15rem">ต้นทุนและรายได้ต่อแผนก</h2><p class="sub">2026-09-24 – 2026-10-24 · สาขาลาดพร้าว</p></div>
+    <div class="row"><span class="chip on">สาขาลาดพร้าว</span><span class="chip">สาขาอารีย์</span></div>
+    <div class="card"><table class="mt"><thead><tr><th>แผนก</th><th class="num">ต้นทุนวัตถุดิบ</th><th class="num">รายได้</th><th class="num">กำไรขั้นต้น</th></tr></thead><tbody><tr><td colspan="4" class="sub">ไม่มีข้อมูลในช่วงนี้</td></tr></tbody></table></div>
+    <p class="sub" style="color:var(--bad)">↑ เปิดมา 30 วันล่าสุดซึ่งยังไม่มียอดขาย และเลือกสาขาลาดพร้าวที่ไม่เคยมียอดขาย จึงเป็นตารางว่าง · แม้เลือกอารีย์ ก.ย. ก็เป็นแค่ตาราง 2 แถว ไม่มีเป้า ไม่มีแนวโน้ม ไม่บอกว่าอะไรดันต้นทุน</p>
+  </div>
+
+  <div class="page" id="newpage">
+    <div><h2 style="font-size:1.25rem">ต้นทุนตามแผนก</h2><p class="sub">แผนกไหนทำเงิน ต้นทุนอยู่ในเป้าของแผนกไหม ดีขึ้นหรือแย่ลง และอะไรดันต้นทุน</p></div>
+
+    <div class="stick">
+      <span class="row"><span class="lab">ช่วง</span><span class="seg" id="grans"></span></span>
+      <span class="row" id="periods"></span>
+      <span class="row"><span class="lab">ดู</span><span class="seg" id="metrics"></span></span>
+      <span class="row"><span class="lab">สาขา</span><span class="chip on">สาขาอารีย์</span><span class="chip" title="ยังไม่มียอดขาย" style="opacity:.55">สาขาลาดพร้าว · ยังไม่มียอดขาย</span></span>
+    </div>
+
+    <div class="qlabel"><span class="qn">1–2</span> แผนกไหนทำเงิน · อยู่ในเป้าของแผนกไหม <span class="sub" style="font-weight:400">กดแผนกเพื่อดูข้อ 4–5 ของแผนกนั้น</span></div>
+    <div class="depts" id="depts"></div>
+    <div class="card share" id="share"></div>
+
+    <div class="qlabel"><span class="qn">3</span> ดีขึ้นหรือแย่ลง <span class="sub" style="font-weight:400" id="q3hint"></span></div>
+    <div class="smalls" id="trend"></div>
+
+    <div class="qlabel"><span class="qn">4</span> เมนูไหนดันต้นทุน<span id="q4d"></span> <span class="sub" style="font-weight:400">ก.ย. 69 · เรียงตามเงินที่เกินเป้า</span></div>
+    <div class="card" id="menus"></div>
+
+    <div class="qlabel"><span class="qn">5</span> วัตถุดิบไหนกินเงิน<span id="q5d"></span>มากที่สุด <span class="sub" style="font-weight:400">ก.ย. 69 · ต้นทุนในจาน × จานที่ขาย</span></div>
+    <div class="card" id="ings"></div>
+
+    <div class="grid2">
+      <div style="display:grid;gap:8px;align-content:start">
+        <div class="qlabel"><span class="qn">6</span> แผนกสั่งของมากกว่าที่ใช้ไหม</div>
+        <div class="card">
+          <div class="empty">🔴 <b>ใบรับของทุกใบลงแผนก “Main”</b> ซึ่งไม่มีเมนูอยู่เลย จึงยังเทียบของที่แผนกสั่งกับที่แผนกใช้ไม่ได้ · ตั้งแผนกที่บรรทัดของใบรับของ (หรือตั้งแผนกเริ่มต้นของสินค้า) แล้วตรงนี้จะขึ้นเอง <span class="dl">ตั้งค่าแผนก ›</span></div>
+          <div class="vs" id="ordvs"></div>
+          <p class="sub" style="margin-top:6px">สองตัวเลขนี้<b>ห้ามบวกกัน</b> — ส่วนต่างคือของที่ยังอยู่ในสต๊อก ไม่ใช่ต้นทุนเพิ่ม (F3)</p>
+        </div>
+      </div>
+      <div style="display:grid;gap:8px;align-content:start">
+        <div class="qlabel"><span class="qn">7</span> หักค่าแรงแผนกแล้วเหลือเท่าไร</div>
+        <div class="card"><div class="empty">ค่าใช้จ่ายทุกบรรทัด (฿1,006,410 ตั้งแต่ ส.ค.) เป็น <b>ส่วนกลาง</b> ยังไม่มีบรรทัดไหนลงแผนก จึงยังคิดกำไรหลังหักค่าแรงของแต่ละแผนกไม่ได้ · ถ้าบันทึกเงินเดือนแยกครัว/บาร์ ตรงนี้จะขึ้น <b>กำไรขั้นต้น − ค่าแรงแผนก</b> · ค่าเช่า ค่าไฟ อยู่ส่วนกลางเสมอ ไม่หารเข้าแผนก (F5) <span class="dl">บันทึกค่าใช้จ่าย ›</span></div></div>
+      </div>
+    </div>
+
+    <div class="qlabel"><span class="qn">8</span> ตัวเลขเชื่อได้แค่ไหน</div>
+    <div class="trust" id="trust"></div>
+  </div>
+
+  <div class="legend">
+    <h3 style="font-size:1rem">หน้านี้เรียงตามคำถาม</h3>
+    <ol>
+      <li><b>แถบปรับมุมมองติดด้านบน</b> — ช่วง (รายสัปดาห์/รายเดือน) · เลือกช่วง · ตัวชี้วัด (ต้นทุน % / กำไรขั้นต้น ฿ / ยอดขาย ฿) · สาขา (เปิดมาที่สาขาที่มียอดขาย ไม่ใช่ 30 วันล่าสุดที่ว่าง)</li>
+      <li><b>1–2</b> การ์ดต่อแผนก: ยอดขาย · ต้นทุน % เทียบ <b>เป้าของแผนก</b> = เป้าต้นทุนต่อเมนูของเมนูในแผนก ถ่วงตามยอดขาย (ใช้คอลัมน์ที่เพิ่งเพิ่ม · ตอนนี้ทุกเมนูใช้เป้าร้าน 35%) · กำไรขั้นต้น · เทียบช่วงก่อน · แถบสัดส่วนยอดขายและกำไร</li>
+      <li><b>3</b> กราฟเล็กต่อแผนก สเกลเดียวกัน เส้นประ = เป้าแผนก · ช่วงที่ตัดสต๊อกไม่ถึง 90% ของยอดขายเป็นจุดกลวง + บอกว่าเทียบไม่ได้ (CO-COV)</li>
+      <li><b>4–5</b> ของแผนกที่เลือก: เมนูเรียงตามเงินที่เกินเป้า (ลิงก์ไปลองราคา) · วัตถุดิบที่กินเงินแผนกมากสุด (ลิงก์ไปการผันผวนราคา)</li>
+      <li><b>6–7</b> บอกตรง ๆ ว่าข้อมูลยังไม่พร้อมเพราะอะไร และต้องทำอะไร</li>
+      <li><b>8</b> ตัดสต๊อกครอบคลุมเท่าไร · เมนูที่ไม่มีสูตรต่อแผนก · ของเสียและของไม่ตรงกับระบบ <b>ไม่แบ่งแผนก</b> (ไม่มีใครบันทึกว่าหายจากมือใคร — F7)</li>
+    </ol>
+    <p class="sub">ตัวเลขจริง: ยอดขาย/ต้นทุนของที่ใช้ไปต่อแผนกรายสัปดาห์และรายเดือนจากรายงานแผนกปัจจุบัน (สาขาอารีย์) · ข้อ 4–5 จากสูตรและยอดขาย ก.ย. · ใบรับของลงแผนกจาก goods_receipt_item_allocation · ค่าใช้จ่ายจาก expense_item</p>
+  </div>
+</div>
+
+<script>
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const f0=n=>Math.round(n).toLocaleString("th-TH"), f2=n=>n.toLocaleString("th-TH",{minimumFractionDigits:2,maximumFractionDigits:2});
+const D={"weeks":[{"w":"08-10","cov":0.927,"rows":[["บาร์",19076,6819.46],["ครัว",88449,36952.3]]},{"w":"08-17","cov":0.93,"rows":[["บาร์",32883,12311.51],["ครัว",151201,62265.82]]},{"w":"08-24","cov":0.925,"rows":[["บาร์",31373,11481.48],["ครัว",136690,55949.37]]},{"w":"08-31","cov":0.928,"rows":[["บาร์",31228,11217.26],["ครัว",139038,58772.11]]},{"w":"09-07","cov":0.93,"rows":[["บาร์",30113,11331.85],["ครัว",135115,56398.64]]},{"w":"09-14","cov":0.927,"rows":[["บาร์",30238,11518.92],["ครัว",132884,55014.38]]},{"w":"09-21","cov":0.579,"rows":[["บาร์",26499,6376.03],["ครัว",112102,28516.2]]}],"menus":[{"n":"กะเพราหมูสับไข่ดาว","d":"ครัว","p":69,"q":949,"c":29.26,"l":[["กระเทียม",0.908],["ข้าวหอมมะลิ",3.822],["ซอสหอยนางรม",0.675],["น้ำตาลทราย",0.139],["น้ำปลา",0.436],["น้ำมันพืช",1.438],["พริกขี้หนู",1.008],["หมูสับ",15.154],["ใบกะเพรา",1.274],["ไข่ไก่",4.406]]},{"n":"กะเพรากุ้ง","d":"ครัว","p":89,"q":432,"c":50.57,"l":[["กระเทียม",0.908],["กุ้งขาว",41.014],["ข้าวหอมมะลิ",3.822],["ซอสหอยนางรม",0.675],["น้ำปลา",0.436],["น้ำมันพืช",1.438],["พริกขี้หนู",1.008],["ใบกะเพรา",1.274]]},{"n":"ข้าวผัดหมู","d":"ครัว","p":65,"q":670,"c":24.55,"l":[["กระเทียม",0.726],["ข้าวหอมมะลิ",4.777],["น้ำตาลทราย",0.139],["น้ำปลา",0.436],["น้ำมันพืช",1.438],["หมูสับ",12.628],["ไข่ไก่",4.406]]},{"n":"ข้าวผัดกุ้ง","d":"ครัว","p":85,"q":377,"c":45.96,"l":[["กระเทียม",0.726],["กุ้งขาว",34.178],["ข้าวหอมมะลิ",4.777],["น้ำปลา",0.436],["น้ำมันพืช",1.438],["ไข่ไก่",4.406]]},{"n":"ผัดไทยกุ้งสด","d":"ครัว","p":95,"q":528,"c":41.8,"l":[["กุ้งขาว",27.342],["น้ำตาลทราย",0.558],["น้ำปลา",0.654],["น้ำมันพืช",1.438],["มะนาว",1.433],["เส้นจันท์",5.973],["ไข่ไก่",4.406]]},{"n":"ต้มยำกุ้งน้ำข้น","d":"ครัว","p":159,"q":275,"c":63.81,"l":[["กะทิ",4.571],["กุ้งขาว",51.267],["นมข้นจืด",2.973],["น้ำปลา",0.872],["พริกขี้หนู",1.26],["มะนาว",2.865]]},{"n":"แกงเขียวหวานไก่","d":"ครัว","p":89,"q":367,"c":29.09,"l":[["กะทิ",13.712],["ข้าวหอมมะลิ",3.822],["น้ำตาลทราย",0.279],["น้ำปลา",0.436],["อกไก่",10.415],["ใบกะเพรา",0.425]]},{"n":"ส้มตำไทย","d":"ครัว","p":59,"q":599,"c":9.63,"l":[["กระเทียม",0.454],["น้ำตาลทราย",0.558],["น้ำปลา",0.654],["พริกขี้หนู",0.63],["มะนาว",2.865],["มะละกอดิบ",4.467]]},{"n":"หมูกรอบผัดพริกเกลือ","d":"ครัว","p":109,"q":241,"c":37.85,"l":[["กระเทียม",0.908],["ข้าวหอมมะลิ",3.822],["น้ำมันพืช",3.835],["พริกขี้หนู",0.63],["หมูสามชั้น",28.651]]},{"n":"ปลากะพงนึ่งมะนาว","d":"ครัว","p":289,"q":96,"c":183.37,"l":[["กระเทียม",1.816],["น้ำปลา",1.307],["ปลากะพง",170.392],["พริกขี้หนู",1.26],["มะนาว",8.596]]},{"n":"ผัดผักบุ้งไฟแดง","d":"ครัว","p":69,"q":343,"c":13.04,"l":[["กระเทียม",0.908],["ซอสหอยนางรม",1.013],["น้ำมันพืช",1.438],["ผักบุ้ง",9.056],["พริกขี้หนู",0.63]]},{"n":"ข้าวไข่เจียวหมูสับ","d":"ครัว","p":59,"q":430,"c":21.56,"l":[["ข้าวหอมมะลิ",3.822],["น้ำปลา",0.218],["น้ำมันพืช",2.397],["หมูสับ",6.314],["ไข่ไก่",8.811]]},{"n":"เนื้อผัดน้ำมันหอย","d":"ครัว","p":129,"q":173,"c":55.49,"l":[["กระเทียม",0.908],["ข้าวหอมมะลิ",3.822],["ซอสหอยนางรม",2.025],["น้ำมันพืช",1.438],["เนื้อสันใน",47.293]]},{"n":"ชาไทยเย็น","d":"บาร์","p":45,"q":636,"c":9.6,"l":[["นมข้นจืด",3.567],["น้ำตาลทราย",0.697],["ผงชาไทย",5.337]]},{"n":"กาแฟเย็น","d":"บาร์","p":55,"q":468,"c":13.88,"l":[["นมข้นจืด",3.567],["น้ำตาลทราย",0.558],["เมล็ดกาแฟคั่ว",9.754]]},{"n":"โค้ก","d":"บาร์","p":25,"q":581,"c":13.53,"l":[["โค้ก 325 มล.",13.527]]},{"n":"เบียร์สิงห์","d":"บาร์","p":95,"q":276,"c":68.92,"l":[["เบียร์สิงห์ 620 มล.",68.925]]},{"n":"น้ำดื่ม","d":"บาร์","p":15,"q":595,"c":5.24,"l":[["น้ำดื่ม 600 มล.",5.243]]}],"cats":{"หมูสับ":"เนื้อสัตว์","หมูสามชั้น":"เนื้อสัตว์","อกไก่":"เนื้อสัตว์","เนื้อสันใน":"เนื้อสัตว์","กุ้งขาว":"อาหารทะเล","ปลากะพง":"อาหารทะเล","ข้าวหอมมะลิ":"ของแห้งและเครื่องปรุง","เส้นจันท์":"ของแห้งและเครื่องปรุง","น้ำมันพืช":"ของแห้งและเครื่องปรุง","น้ำปลา":"ของแห้งและเครื่องปรุง","ซอสหอยนางรม":"ของแห้งและเครื่องปรุง","น้ำตาลทราย":"ของแห้งและเครื่องปรุง","กะทิ":"ของแห้งและเครื่องปรุง","ไข่ไก่":"ของแห้งและเครื่องปรุง","ใบกะเพรา":"ผักและผลไม้","พริกขี้หนู":"ผักและผลไม้","กระเทียม":"ผักและผลไม้","มะนาว":"ผักและผลไม้","ผักบุ้ง":"ผักและผลไม้","มะละกอดิบ":"ผักและผลไม้","ผงชาไทย":"กาแฟและชา","เมล็ดกาแฟคั่ว":"กาแฟและชา","นมข้นจืด":"กาแฟและชา","โค้ก 325 มล.":"น้ำอัดลมและน้ำดื่ม","เบียร์สิงห์ 620 มล.":"เครื่องดื่มแอลกอฮอล์","น้ำดื่ม 600 มล.":"น้ำอัดลมและน้ำดื่ม","กล่องข้าวกระดาษ":"ภาชนะใช้ครั้งเดียว","กุ้งแกะ":"อาหารทะเล","น้ำจิ้มซีฟู้ด":"ของแห้งและเครื่องปรุง","ซอสผัดกะเพรา":"ของแห้งและเครื่องปรุง","ข้าวสวย":"ของแห้งและเครื่องปรุง","ทดสอบสินค้า":"ไม่ระบุ","ทดสอบสอง":"ไม่ระบุ"}};
+const COL={"ครัว":"#C0692B","บาร์":"#8A4F9E"}, TGT=35, COV_OK=.9;
+const MONTHS=[{k:"ส.ค. 69",cov:446719/481509,rows:[["บาร์",87629,32065.6],["ครัว",393880,162572.12]],posted:"19/19"},{k:"ก.ย. 69",cov:522756/615380,rows:[["บาร์",113781,38991.26],["ครัว",501599,191296.35]],posted:"24/26"}];
+const MN=["","ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
+const WL=w=>{const s=new Date(Date.UTC(2026,+w.slice(0,2)-1,+w.slice(3))), e=new Date(s.getTime()+6*864e5); return s.getUTCMonth()===e.getUTCMonth()?`${s.getUTCDate()}–${e.getUTCDate()} ${MN[e.getUTCMonth()+1]}`:`${s.getUTCDate()} ${MN[s.getUTCMonth()+1]}–${e.getUTCDate()} ${MN[e.getUTCMonth()+1]}`;};
+const WEEKS=D.weeks.map(w=>({k:WL(w.w),cov:w.cov,rows:w.rows,posted:""}));
+let gran="month", sel=1, metric="pct", dept="ครัว";
+const P=()=>gran==="week"?WEEKS:MONTHS;
+const depts=["ครัว","บาร์"];
+const sepRev=d=>MONTHS[1].rows.find(r=>r[0]===d)[1];
+// department target = revenue-weighted menu targets (each menu: own target or shop 35%)
+function deptTarget(d){ const ms=D.menus.filter(m=>m.d===d); const rev=ms.reduce((s,m)=>s+m.p*m.q,0); return rev?ms.reduce((s,m)=>s+TGT*m.p*m.q,0)/rev:TGT; }
+function cell(i,d){ const r=P()[i]?.rows.find(x=>x[0]===d); return r?{rev:r[1],cost:r[2],pct:r[2]/r[1]*100,gp:r[1]-r[2]}:null; }
+const val=(c)=>c==null?null:metric==="pct"?c.pct:metric==="gp"?c.gp:c.rev;
+const fmt=v=>metric==="pct"?v.toFixed(1)+"%":"฿"+f0(v);
+
+function controls(){
+  $("#grans").innerHTML=[["week","รายสัปดาห์"],["month","รายเดือน"]].map(([k,l])=>`<button aria-pressed="${gran===k}" data-g="${k}">${l}</button>`).join("");
+  $$("#grans button").forEach(b=>b.onclick=()=>{gran=b.dataset.g; sel=P().length-1; if(gran==="week"&&P()[sel].cov<COV_OK) sel=P().length-2; render();});
+  $("#periods").innerHTML=P().map((p,i)=>`<button class="chip ${i===sel?"on":""}" data-i="${i}">${p.k}</button>`).join("");
+  $$("#periods .chip").forEach(b=>b.onclick=()=>{sel=+b.dataset.i;render();});
+  $("#metrics").innerHTML=[["pct","ต้นทุน %"],["gp","กำไรขั้นต้น ฿"],["rev","ยอดขาย ฿"]].map(([k,l])=>`<button aria-pressed="${metric===k}" data-m="${k}">${l}</button>`).join("");
+  $$("#metrics button").forEach(b=>b.onclick=()=>{metric=b.dataset.m;render();});
+}
+function cards(){
+  const p=P()[sel], prev=sel>0?P()[sel-1]:null, thin=p.cov<COV_OK, prevThin=prev&&prev.cov<COV_OK;
+  const tot=depts.reduce((s,d)=>s+(cell(sel,d)?.rev||0),0);
+  $("#depts").innerHTML=depts.map(d=>{ const c=cell(sel,d), pc=prev?cell(sel-1,d):null, t=deptTarget(d); const over=c.pct>t;
+    const tag=thin?`<span class="tg warn">ตัดสต๊อกแค่ ${Math.round(p.cov*100)}% · ยังเทียบเป้าไม่ได้</span>`:over?`<span class="tg bad">เกินเป้า ${t.toFixed(0)}% · เกิน ฿${f0(c.cost-t/100*c.rev)}</span>`:`<span class="tg ok">อยู่ในเป้า ${t.toFixed(0)}%</span>`;
+    const delta=pc&&!thin&&!prevThin?`${c.pct<pc.pct?"▼":"▲"} ${Math.abs(c.pct-pc.pct).toFixed(1)} จุด เทียบ ${prev.k}`:prev?`เทียบ ${prev.k} ไม่ได้ (ตัดสต๊อกไม่ครบ)`:"";
+    return `<button class="dc" data-d="${d}" aria-pressed="${dept===d}"><span class="nm"><i style="background:${COL[d]}"></i>${d}<span class="sub" style="font-weight:400;font-size:.78rem">${Math.round(c.rev/tot*100)}% ของยอดขาย</span></span>
+     <span class="row" style="gap:10px;align-items:baseline"><span class="big" style="color:${thin?"var(--warn)":over?"var(--bad)":"var(--good)"}">${thin?"อย่างน้อย ":""}${c.pct.toFixed(1)}%</span><span class="sub">ต้นทุนของที่ใช้ไป ÷ ยอดขาย</span></span>${tag}
+     <span class="gr"><span>ยอดขาย<b>฿${f0(c.rev)}</b></span><span>ต้นทุนของที่ใช้ไป<b>฿${f0(c.cost)}</b></span><span>กำไรขั้นต้น<b style="color:var(--good)">฿${f0(c.gp)}</b></span></span>
+     <span class="sub" style="${delta.startsWith("▼")?"color:var(--good)":delta.startsWith("▲")?"color:var(--bad)":""}">${delta}</span></button>`; }).join("");
+  $$("#depts .dc").forEach(b=>b.onclick=()=>{dept=b.dataset.d;render();});
+  const gpTot=depts.reduce((s,d)=>s+cell(sel,d).gp,0);
+  const bar=(k,f)=>`<div><span class="sub">${k}</span><div class="bar">${depts.map((d,i)=>{const v=f(d), share=v/depts.reduce((s,x)=>s+f(x),0)*100;return `<span style="width:${share}%;background:${COL[d]};animation-delay:${i*80}ms">${d} ${share.toFixed(0)}%</span>`;}).join("")}</div></div>`;
+  $("#share").innerHTML=`<div class="row" style="justify-content:space-between"><b style="font-family:var(--display)">สัดส่วน · ${p.k}</b><span class="sub">ยอดขายรวม ฿${f0(tot)} · กำไรขั้นต้นรวม ฿${f0(gpTot)}</span></div>`+bar("ยอดขาย",d=>cell(sel,d).rev)+bar("กำไรขั้นต้น",d=>cell(sel,d).gp)+`<span class="sub">บาร์ได้กำไรเป็นสัดส่วน${cell(sel,"บาร์").gp/gpTot>cell(sel,"บาร์").rev/tot?"มากกว่า":"น้อยกว่า"}ยอดขาย — ต้นทุน % ของบาร์${cell(sel,"บาร์").pct<cell(sel,"ครัว").pct?"ต่ำ":"สูง"}กว่าครัว</span>`;
+}
+function trend(){
+  $("#q3hint").textContent=`${metric==="pct"?"ต้นทุน % ":metric==="gp"?"กำไรขั้นต้น ":"ยอดขาย "}${gran==="week"?"รายสัปดาห์":"รายเดือน"} · สเกลเดียวกันทุกใบ · จุดกลวง = ตัดสต๊อกไม่ถึง 90%`;
+  const L=P(); const all=depts.flatMap(d=>L.map((_,i)=>val(cell(i,d)))).filter(v=>v!=null); let lo=Math.min(...all,metric==="pct"?TGT:Infinity), hi=Math.max(...all,metric==="pct"?TGT:-Infinity); const pad=(hi-lo||1)*.18; lo=Math.max(0,lo-pad); hi+=pad;
+  const W=460,H=150,Lm=44,Bm=24,T=12, x=i=>Lm+(L.length===1?.5:i/(L.length-1))*(W-Lm-14), y=v=>T+(H-T-Bm)*(1-(v-lo)/(hi-lo));
+  $("#trend").innerHTML=depts.map((d,di)=>{ const v=L.map((_,i)=>val(cell(i,d))); const t=deptTarget(d); let path=""; v.forEach((n,i)=>{ if(n!=null) path+=(path?"L":"M")+x(i)+","+y(n); });
+    const last=v[sel];
+    return `<div class="sm"><div class="row" style="justify-content:space-between;align-items:baseline"><b style="font-family:var(--display)"><i style="display:inline-block;width:9px;height:9px;border-radius:3px;background:${COL[d]};margin-right:6px"></i>${d}</b><b style="font-family:var(--display);font-size:1.15rem">${fmt(last)}</b></div>
+    <svg width="100%" viewBox="0 0 ${W} ${H}" style="display:block;overflow:visible">${[0,1,2,3].map(k=>{const vv=lo+(hi-lo)*k/3;return `<line x1="${Lm}" x2="${W}" y1="${y(vv)}" y2="${y(vv)}" stroke="#ECE6CC"/><text x="${Lm-6}" y="${y(vv)+4}" text-anchor="end" font-size="10" fill="#8B8D63">${metric==="pct"?vv.toFixed(0)+"%":"฿"+(vv/1000).toFixed(0)+"K"}</text>`;}).join("")}
+     ${metric==="pct"?`<line x1="${Lm}" x2="${W}" y1="${y(t)}" y2="${y(t)}" stroke="#A83A22" stroke-dasharray="6 4"/><text x="${W}" y="${y(t)-5}" text-anchor="end" font-size="10" fill="#A83A22">เป้า ${t.toFixed(0)}%</text>`:""}
+     <rect x="${x(sel)-14}" y="${T-6}" width="28" height="${H-T-Bm+6}" rx="8" fill="#C0692B" opacity=".08"/>
+     <path d="${path}" fill="none" stroke="${COL[d]}" stroke-width="2.6" stroke-linejoin="round" style="stroke-dasharray:900;stroke-dashoffset:900;animation:draw .9s ${di*120}ms cubic-bezier(.2,.8,.2,1) forwards"/>
+     ${v.map((n,i)=>n==null?"":`<circle cx="${x(i)}" cy="${y(n)}" r="${i===sel?5:3.5}" fill="${L[i].cov<COV_OK?"var(--surface)":COL[d]}" stroke="${COL[d]}" stroke-width="2"><title>${L[i].k}: ${fmt(n)}${L[i].cov<COV_OK?` · ตัดสต๊อกแค่ ${Math.round(L[i].cov*100)}% ตัวเลขต่ำกว่าจริง`:""}</title></circle>`).join("")}
+     ${L.map((p,i)=>(L.length<=8||i%2===0)?`<text x="${x(i)}" y="${H-6}" text-anchor="middle" font-size="10" fill="${i===sel?"#C0692B":"#5A5C31"}" font-weight="${i===sel?700:400}">${p.k}</text>`:"").join("")}</svg></div>`; }).join("");
+}
+function menus(){
+  $("#q4d").textContent=` · ${dept}`; const t=deptTarget(dept);
+  const rows=D.menus.filter(m=>m.d===dept).map(m=>({...m,pct:m.c/m.p*100,over:(m.c-TGT/100*m.p)*m.q})).sort((a,b)=>b.over-a.over);
+  $("#menus").innerHTML=`<table class="mt"><thead><tr><th>เมนู</th><th class="num">ราคาขาย</th><th class="num">ต้นทุนต่อจาน</th><th class="num">ต้นทุน %</th><th class="num">เป้า</th><th class="num">จาน</th><th class="num">เกินเป้า/เดือน</th><th class="num">% ของยอดขายแผนก</th><th></th></tr></thead><tbody>${rows.map(m=>`<tr class="${m.pct>TGT?"flag":""}"><td><b>${m.n}</b></td><td class="num">฿${f0(m.p)}</td><td class="num">฿${f2(m.c)}</td><td class="num" style="color:${m.pct>TGT?"var(--bad)":"var(--good)"};font-weight:600">${m.pct.toFixed(1)}%</td><td class="num">${TGT}%</td><td class="num">${f0(m.q)}</td><td class="num" style="color:${m.over>0?"var(--bad)":"var(--muted-fg)"}">${m.over>0?"฿"+f0(m.over):"—"}</td><td class="num">${(m.p*m.q/sepRev(dept)*100).toFixed(1)}%</td><td>${m.pct>TGT?'<span class="dl">ลองราคา ›</span>':""}</td></tr>`).join("")}</tbody></table>
+  <p class="sub" style="margin-top:6px">เป้าแผนก${dept} = ${t.toFixed(0)}% (เป้าของแต่ละเมนูถ่วงตามยอดขาย · ตั้งเป้าต่อเมนูได้ที่หน้าการผันผวนราคาวัตถุดิบ) · เมนูที่ยังไม่มีสูตรไม่อยู่ในตารางนี้ (ดูข้อ 8)</p>`;
+}
+function ings(){
+  $("#q5d").textContent=`${dept}`;
+  const acc={}; for(const m of D.menus.filter(m=>m.d===dept)) for(const [n,c] of m.l) acc[n]=(acc[n]||0)+c*m.q;
+  const rows=Object.entries(acc).sort((a,b)=>b[1]-a[1]).slice(0,8), tot=Object.values(acc).reduce((s,v)=>s+v,0), mx=rows[0][1];
+  $("#ings").innerHTML=rows.map(([n,v],i)=>`<div class="ing"><span>${n}</span><span class="b"><i style="width:${v/mx*100}%;background:linear-gradient(90deg,${COL[dept]}88,${COL[dept]});animation-delay:${i*40}ms"></i></span><span class="num">฿${f0(v)} <span class="sub">${(v/tot*100).toFixed(0)}%</span></span></div>`).join("")+`<p class="sub" style="margin-top:6px">${rows.slice(0,2).map(r=>r[0]).join(" + ")} = ${((rows[0][1]+(rows[1]?.[1]||0))/tot*100).toFixed(0)}% ของต้นทุนวัตถุดิบ${dept} · <span class="dl">ดูราคาที่การผันผวนราคาวัตถุดิบ ›</span></p>`;
+}
+function ordvs(){
+  const p=MONTHS[1];
+  $("#ordvs").innerHTML=`<div><span class="sub">สั่งลงแผนก Main (ก.ย.)</span><b>฿390,645</b><span class="sub">ไม่มีเมนูอยู่แผนกนี้</span></div><div><span class="sub">ครัวใช้ไป</span><b>฿${f0(p.rows[1][2])}</b><span class="sub">สั่งลงครัว ฿0</span></div><div><span class="sub">บาร์ใช้ไป</span><b>฿${f0(p.rows[0][2])}</b><span class="sub">สั่งลงบาร์ ฿0</span></div>`;
+}
+function trust(){
+  const p=P()[sel]; const cov=d=>{const r=D.menus.filter(m=>m.d===d).reduce((s,m)=>s+m.p*m.q,0); return r/sepRev(d);};
+  const chips=[[p.cov>=.995?"ok":"warn","ตัดสต๊อกตามยอดขาย",`${p.posted?p.posted+" วัน · ":""}${Math.round(p.cov*100)}% ของยอดขาย (${p.k})`],
+   [cov("ครัว")>=.995?"ok":"warn","ครัว: เมนูที่มีสูตร",`${Math.round(cov("ครัว")*100)}% ของยอดขาย ก.ย. · ขาด ไก่ผัดเม็ดมะม่วง · ข้าวซอยไก่`],
+   [cov("บาร์")>=.995?"ok":"warn","บาร์: เมนูที่มีสูตร",`${Math.round(cov("บาร์")*100)}% ของยอดขาย ก.ย. · ขาด น้ำมะนาวโซดา`],
+   ["warn","ของเสีย ฿207 · ไม่ตรงกับระบบ ฿15,164","ไม่แบ่งแผนก (ไม่มีใครบันทึกว่าหายจากมือใคร)"],
+   ["ok","วิธีคิดต้นทุน","สูตรอาหาร — คิดกำไรต่อแผนกได้"]];
+  $("#trust").innerHTML=chips.map(([t,l,v])=>`<span class="tchip ${t}"><i></i>${l}: <b>${v}</b></span>`).join("");
+}
+function render(){ controls(); cards(); trend(); menus(); ings(); ordvs(); trust(); }
+$("#b-old").onclick=()=>{ $("#oldpage").hidden=false; $("#newpage").hidden=true; $("#b-old").setAttribute("aria-pressed","true"); $("#b-new").setAttribute("aria-pressed","false"); };
+$("#b-new").onclick=()=>{ $("#oldpage").hidden=true; $("#newpage").hidden=false; $("#b-new").setAttribute("aria-pressed","true"); $("#b-old").setAttribute("aria-pressed","false"); render(); };
+render();
+</script>

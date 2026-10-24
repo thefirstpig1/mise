@@ -1,0 +1,103 @@
+<title>ต้นทุนตามแผนก: เจ้าของร้านอยากรู้อะไร</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Prompt:wght@500;600;700&family=Noto+Sans+Thai:wght@400;500;600&display=swap">
+<style>
+/* Research brief: question-first design for /cost. Layout: one reading column,
+   a wide question bank table, and a mapping of questions to screens.
+   App tokens (tailwind.config.ts). */
+:root{
+  --bg:#FDFBF3; --fg:#262811; --surface:#FFFFFF; --sunk:#F8F3E1; --primary:#41431B; --primary-fg:#F8F3E1;
+  --muted:#F3EFDF; --muted-fg:#5A5C31; --subtle:#8B8D63; --border:#E9E3C8; --strong:#D2CBA4;
+  --good:#5A7333; --good-bg:#EEF2E0; --bad:#A83A22; --bad-bg:#F9E5DF; --warn:#A87C1C; --warn-bg:#F8EFD6; --clay:#C0692B;
+  --display:"Prompt","Noto Sans Thai",system-ui,sans-serif; --body:"Noto Sans Thai","Prompt",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#1B1C10; --fg:#EEEAD6; --surface:#24261A; --sunk:#2A2C1E; --primary:#D9DDB0; --primary-fg:#1B1C10;
+  --muted:#2E301F; --muted-fg:#C9C8A6; --subtle:#9C9B7C; --border:#36381F; --strong:#4A4C30;
+  --good:#B7CF7C; --good-bg:#2B3320; --bad:#EC9C80; --bad-bg:#41261C; --warn:#E8BE62; --warn-bg:#3B3018; --clay:#E8A76F; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#1B1C10; --fg:#EEEAD6; --surface:#24261A; --sunk:#2A2C1E; --primary:#D9DDB0; --primary-fg:#1B1C10;
+  --muted:#2E301F; --muted-fg:#C9C8A6; --subtle:#9C9B7C; --border:#36381F; --strong:#4A4C30;
+  --good:#B7CF7C; --good-bg:#2B3320; --bad:#EC9C80; --bad-bg:#41261C; --warn:#E8BE62; --warn-bg:#3B3018; --clay:#E8A76F; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.65;margin:0;padding-inline:16px;padding-block:28px 64px}
+.wrap{max-width:1100px;margin:0 auto;display:grid;gap:30px}
+h1,h2,h3{font-family:var(--display);margin:0;text-wrap:balance;line-height:1.3}
+h1{font-size:1.8rem;color:var(--primary)} h2{font-size:1.25rem} h3{font-size:1rem}
+p{margin:0;max-width:72ch}
+.sub{color:var(--subtle);font-size:.85rem}
+.lead{font-size:1.02rem;color:var(--muted-fg)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px 20px;display:grid;gap:10px}
+.findings{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.finding{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 16px;display:grid;gap:4px}
+.finding b{font-family:var(--display);font-size:1.6rem;color:var(--clay);line-height:1.2}
+.finding span{font-size:.86rem;color:var(--muted-fg)}
+.tbox{overflow-x:auto;border:1px solid var(--border);border-radius:14px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:980px;font-size:.86rem}
+th{font-family:var(--display);font-weight:600;font-size:.76rem;color:var(--muted-fg);text-align:left;padding:10px;background:var(--sunk);position:sticky;top:0}
+td{padding:10px;border-top:1px solid var(--border);vertical-align:top}
+td b{font-family:var(--display);font-weight:600}
+.n{font-family:var(--display);font-weight:700;color:var(--clay)}
+.pill{display:inline-block;border-radius:999px;padding:1px 9px;font-size:.74rem;white-space:nowrap}
+.yes{background:var(--good-bg);color:var(--good)} .part{background:var(--warn-bg);color:var(--warn)} .no{background:var(--bad-bg);color:var(--bad)}
+.role{display:inline-block;border:1px solid var(--strong);border-radius:999px;padding:0 8px;font-size:.72rem;margin:1px 2px 1px 0;white-space:nowrap}
+.cad{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.cad .card h3{color:var(--primary)}
+.cad ul{margin:0;padding-left:18px;font-size:.9rem;display:grid;gap:4px}
+ol.steps{margin:0;padding-left:20px;display:grid;gap:8px}
+ol.steps li{max-width:80ch}
+.order{display:grid;gap:8px}
+.order div{display:grid;grid-template-columns:34px minmax(0,1fr);gap:10px;align-items:start;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:10px 14px}
+.order .k{font-family:var(--display);font-weight:700;color:var(--clay);font-size:1.1rem}
+a{color:var(--primary)}
+.src{font-size:.82rem;color:var(--muted-fg);display:grid;gap:3px}
+</style>
+
+<div class="wrap">
+  <header style="display:grid;gap:8px">
+    <p class="sub">งานค้นคว้าก่อนออกแบบ · หน้า “ต้นทุนตามแผนก” · 24 ต.ค. 2569</p>
+    <h1>ต้นทุนตามแผนก: เจ้าของร้านอยากรู้อะไร</h1>
+    <p class="lead">ร้านที่มีครัวกับบาร์ ถามคำถามเดียวกับหน้าต้นทุน แต่<b>แยกทีละแผนก</b>: แผนกไหนทำเงิน ต้นทุนของแต่ละแผนกอยู่ในเป้าของแผนกนั้นไหม (บาร์กับครัวเป้าไม่เท่ากัน) ดีขึ้นหรือแย่ลง และอะไรในแผนกนั้นดันต้นทุนขึ้น</p>
+  </header>
+
+  <section class="findings">
+    <div class="finding"><b>แยก P&amp;L</b><span>Departmental P&amp;L แยกยอดขายและต้นทุนของตามแผนก (Bar COGS = เหล้า เบียร์ ของตกแต่ง · Food COGS = วัตถุดิบ) เพื่อดูว่าบาร์กำไรแยกจากครัวเท่าไร</span></div>
+    <div class="finding"><b>เป้าไม่เท่ากัน</b><span>อาหาร 28–35% · เบียร์ขวด ~25% · ซอฟต์ดริงก์ ~15% · บาร์รวม ต่ำกว่า 18% ดีมาก 24–28% เริ่มเสี่ยง — ใช้เป้าครัวกับบาร์ไม่ได้</span></div>
+    <div class="finding"><b>อัตรากำไรต่างกัน</b><span>ร้านที่บาร์แข็งแรงกำไรรวมสูงกว่าร้านอาหารล้วนชัดเจน — สัดส่วนยอดขายบาร์เป็นตัวเลขที่เจ้าของดู</span></div>
+  </section>
+
+  <section class="card">
+    <h2>คำถามที่ต้องตอบ</h2>
+    <div class="tbox"><table>
+      <thead><tr><th>#</th><th>คำถาม</th><th>ตอบด้วยอะไร</th><th>ข้อมูลที่เรามี</th></tr></thead>
+      <tbody>
+        <tr><td class="n">1</td><td><b>แผนกไหนทำเงิน</b></td><td>ยอดขาย · กำไรขั้นต้น ฿ · ต้นทุน % · สัดส่วนยอดขาย ต่อแผนก</td><td><span class="pill" style="background:var(--good-bg);color:var(--good)">มี</span> (วิธีสูตรอาหาร)</td></tr>
+        <tr><td class="n">2</td><td><b>อยู่ในเป้าของแผนกไหม</b></td><td>เป้าแผนก = เป้าต้นทุนต่อเมนูถ่วงตามยอดขาย (ใช้คอลัมน์ที่เพิ่งเพิ่ม) · เกินเป้ากี่บาท</td><td><span class="pill" style="background:var(--good-bg);color:var(--good)">มี</span></td></tr>
+        <tr><td class="n">3</td><td><b>ดีขึ้นหรือแย่ลง</b></td><td>กราฟเล็กต่อแผนก รายสัปดาห์/เดือน สเกลเดียวกัน · สัปดาห์ที่ตัดสต๊อกไม่ครบเป็นแท่งลาย (CO-COV)</td><td><span class="pill" style="background:var(--good-bg);color:var(--good)">มี</span></td></tr>
+        <tr><td class="n">4</td><td><b>เมนูไหนดันต้นทุนแผนก</b></td><td>เมนูในแผนกเรียงตามเงินที่เกินเป้า</td><td><span class="pill" style="background:var(--good-bg);color:var(--good)">มี</span></td></tr>
+        <tr><td class="n">5</td><td><b>วัตถุดิบไหนกินเงินแผนกมากสุด</b></td><td>ต้นทุนวัตถุดิบในจาน × จานที่ขาย ต่อแผนก</td><td><span class="pill" style="background:var(--good-bg);color:var(--good)">มี</span></td></tr>
+        <tr><td class="n">6</td><td><b>แผนกสั่งของมากกว่าที่ใช้ไหม</b></td><td>ของที่สั่งลงแผนก vs ของที่แผนกใช้จริง — สองตัวเลขที่ห้ามบวกกัน (F3)</td><td><span class="pill" style="background:var(--warn-bg);color:var(--warn)">ใช้ไม่ได้</span> ใบรับของทุกใบลงแผนก Main</td></tr>
+        <tr><td class="n">7</td><td><b>หลังหักค่าแรงแผนก เหลือเท่าไร</b></td><td>กำไรขั้นต้น − ค่าแรง/ค่าใช้จ่ายที่ลงแผนก</td><td><span class="pill" style="background:var(--muted);color:var(--muted-fg)">ยังไม่มี</span> ค่าใช้จ่ายทุกบรรทัดเป็นส่วนกลาง</td></tr>
+        <tr><td class="n">8</td><td><b>ตัวเลขเชื่อได้แค่ไหน</b></td><td>ตัดสต๊อกครอบคลุมยอดขายแผนกกี่ % · เมนูไม่มีสูตรต่อแผนก · ของเสียและของไม่ตรงกับระบบไม่แบ่งแผนก (F7)</td><td><span class="pill" style="background:var(--good-bg);color:var(--good)">มี</span></td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section class="card">
+    <h2>ร้านตัวอย่าง (สาขาอารีย์)</h2>
+    <ul style="margin:0;padding-left:20px;display:grid;gap:4px">
+      <li>ก.ย.: ครัว ยอดขาย ฿501,599 ต้นทุน ฿191,296 = <b>38.1%</b> · บาร์ ฿113,781 / ฿38,991 = <b>34.3%</b> · บาร์ = 18% ของยอดขาย</li>
+      <li>ส.ค. → ก.ย. ทั้งสองแผนกต้นทุน % ลดลง (ครัว 41.3% → 38.1% · บาร์ 36.6% → 34.3%) แต่ ก.ย. ตัดสต๊อกครอบคลุมแค่ 85% ของยอดขาย จึงยังเชื่อว่าดีขึ้นไม่ได้</li>
+      <li>บาร์ 34% สูงกว่าเกณฑ์บาร์ทั่วไปมาก เพราะเบียร์/โค้กซื้อมาขายต่อ (ต้นทุน 73%/54%) — ต้องตั้งเป้าต่อเมนู ไม่งั้นบาร์ดูแย่กว่าความจริงหรือดีเกินจริง</li>
+      <li>🔴 ใบรับของทั้งหมด (ก.ย. ฿390,645) ลงแผนก <b>Main</b> ซึ่งไม่มีเมนูอยู่ → “สั่ง vs ใช้” ต่อแผนกตอบไม่ได้ · ค่าใช้จ่าย ฿1,006,410 ทั้งหมดเป็นส่วนกลาง → ยังไม่มีกำไรหลังหักค่าแรงต่อแผนก</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2>แหล่งที่มา</h2>
+    <ul class="sub" style="margin:0;padding-left:20px">
+      <li><a href="https://www.orderout.co/blog/profit-and-loss-statement-for-a-restaurant-example/">OrderOut — restaurant P&amp;L example (departmental)</a></li>
+      <li><a href="https://www.papaya.co.th/benchmark/restaurant-margin-benchmarks.md">Restaurant cost benchmarks by segment</a> · <a href="https://docs.restaurant365.com/docs/profitability-score-thresholds-by-restaurant-type">Restaurant365 — profitability thresholds (bar pour cost)</a></li>
+      <li><a href="https://www.cleverence.com/amp/articles/for-business/restaurant-gross-profit-margins-5273/">Restaurant gross profit margins (beverage cost by category)</a></li>
+    </ul>
+  </section>
+</div>
