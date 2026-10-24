@@ -26,7 +26,6 @@ import { formatMoney } from "@/app/(app)/cost/_components/cost-view";
 import PaymentBadge from "./_components/PaymentBadge";
 
 import EmptyState from "@/components/ui/EmptyState";
-import BarList from "@/components/charts/BarList";
 import ActionLink from "@/components/ui/ActionLink";
 import { getSpendBreakdownLogic } from "@/server/pnl";
 import { computeBangkokToday } from "@/lib/bangkok-date";
@@ -80,13 +79,6 @@ export default async function ExpenseListPage({
   // One money style inside the breakdown, the same as the bars beside it.
   const bahtWhole = (n: number) =>
     new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB", maximumFractionDigits: 0 }).format(n);
-  const toRows = (list: typeof spend.opex) =>
-    list.map((sct) => ({
-      key: sct.section,
-      label: sct.section,
-      detail: sct.groups.map((g) => `${g.group} ${bahtWhole(Number(g.amount.toString()))}`).join(" · "),
-      value: Number(sct.amount.toString()),
-    }));
   const periodLabel = `${breakdownFrom.toLocaleDateString("th-TH", { day: "numeric", month: "short", timeZone: "UTC" })} – ${breakdownTo.toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}`;
 
   const unpaidTotal = rows
@@ -158,32 +150,15 @@ export default async function ExpenseListPage({
         </section>
       )}
 
-      {/* Kong (2026-09-28): the spend breakdown belongs on this page. It is
-          SPEND by bill — what was bought — and says so, because the dashboard's
-          "ต้นทุนขาย" is what was SOLD and the two differ by the stock carried
-          forward (ADR 0019 Q17). */}
-      <section className="rounded-xl border border-border bg-surface p-5">
-        <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
-          <div>
-            <h3 className="text-base font-semibold">รายจ่ายตามหมวด</h3>
-            <p className="text-xs text-muted-foreground">
-              {periodLabel} · ตามวันที่บิล ไม่รวม VAT · % คือสัดส่วนของรายจ่ายรวม
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <p className="tabular-nums text-lg font-semibold">{bahtWhole(spendTotal)}</p>
-            <ActionLink href="/expenses/analysis">วิเคราะห์ละเอียด</ActionLink>
-          </div>
-        </div>
-        <BarList
-          total={spendTotal}
-          emptyText="ยังไม่มีบิลในช่วงนี้"
-          groups={[
-            { heading: "ซื้อวัตถุดิบและของใช้ในครัว", note: "ยอดที่ซื้อเข้ามา — ไม่ใช่ต้นทุนของที่ขายไป (ส่วนต่างคือของที่ยังอยู่ในสต๊อก)", rows: toRows(spend.cogs) },
-            { heading: "ค่าใช้จ่ายดำเนินงาน", rows: toRows(spend.opex) },
-          ]}
-        />
-      </section>
+      {/* B4 (Kong 2026-10-24): the breakdown by category lives on วิเคราะห์รายจ่าย,
+          which drills further; this page records and finds bills. */}
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-surface px-4 py-3">
+        <p className="text-sm">
+          รายจ่าย {periodLabel}: <b className="tabular-nums">{bahtWhole(spendTotal)}</b>
+          <span className="text-muted-foreground"> · ตามวันที่บิล ไม่รวม VAT</span>
+        </p>
+        <ActionLink href="/expenses/analysis">ดูแยกหมวดและผู้ขาย ›</ActionLink>
+      </div>
 
       <form method="get" className="flex flex-wrap items-end gap-3">
         {branches.length > 1 && (

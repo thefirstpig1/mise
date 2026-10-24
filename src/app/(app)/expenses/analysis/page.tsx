@@ -1,7 +1,7 @@
 import { requireTenant } from "@/lib/require-tenant";
 import { getBranchesLogic } from "@/server/branch";
 import { getExpenseAnalysisLogic, type ExpenseAnalysisFilter, type Ranked } from "@/server/expense-analysis";
-import BarList from "@/components/charts/BarList";
+import ExpenseDrill from "./_components/ExpenseDrill";
 import ActionLink from "@/components/ui/ActionLink";
 import { DailyBarsChart } from "@/app/(app)/dashboard/_components/Charts";
 import { recentMonths } from "@/app/(app)/dashboard/_components/dashboard-period";
@@ -33,6 +33,9 @@ export default async function ExpenseAnalysisPage({ searchParams }: { searchPara
   const branchId = branches.some((b) => b.id === sp.branch) ? sp.branch : undefined;
   const account = sp.account === "COGS" || sp.account === "OpEx" ? sp.account : undefined;
 
+  // B4 (Kong 2026-10-24): month and branch are the only filters; drilling by
+  // หมวด/กลุ่ม/ผู้ขาย happens in ExpenseDrill's popups. Old links that still
+  // carry ?section=… are read so they keep working.
   const filter: ExpenseAnalysisFilter = {
     from: month.from,
     to: month.to,
@@ -102,31 +105,7 @@ export default async function ExpenseAnalysisPage({ searchParams }: { searchPara
             ))}
           </FilterRow>
         ) : null}
-        <FilterRow label="ประเภท">
-          <Pill href={toggle("account", "COGS", ["section", "group"])} active={account === "COGS"}>ต้นทุน (ซื้อเข้าครัว)</Pill>
-          <Pill href={toggle("account", "OpEx", ["section", "group"])} active={account === "OpEx"}>ค่าใช้จ่ายดำเนินงาน</Pill>
-        </FilterRow>
-        {a.options.sections.length > 1 || filter.section ? (
-          <FilterRow label="หมวด">
-            {a.options.sections.map((s) => (
-              <Pill key={s} href={toggle("section", s, ["group"])} active={s === filter.section}>{s}</Pill>
-            ))}
-          </FilterRow>
-        ) : null}
-        {filter.section ? (
-          <FilterRow label="กลุ่ม">
-            {a.options.groups.map((g) => (
-              <Pill key={g} href={toggle("group", g)} active={g === filter.group}>{g}</Pill>
-            ))}
-          </FilterRow>
-        ) : null}
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-surface-sunk px-3 py-2 text-sm">
-          <p>
-            <span className="font-medium">กำลังดู:</span> {scope.join(" · ")}
-            {narrowed ? <span className="text-muted-foreground"> — นับเฉพาะรายการในบิลที่ตรงเงื่อนไข ไม่ใช่ยอดทั้งบิล</span> : null}
-          </p>
-          {narrowed ? <ActionLink href={href({ account: undefined, section: undefined, group: undefined, supplier: undefined })}>ล้างตัวกรอง</ActionLink> : null}
-        </div>
+        <p className="text-xs text-muted-foreground">กดชิ้นในวงกลมหรือแถวเพื่อเจาะลงไป (หมวด → กลุ่ม → วัตถุดิบและบิล) · ปิดป๊อปอัพเพื่อกลับ</p>
       </section>
 
       {/* --- headline --- */}
@@ -149,63 +128,19 @@ export default async function ExpenseAnalysisPage({ searchParams }: { searchPara
         </div>
       ) : (
         <>
-          <div className="grid gap-6 xl:grid-cols-2">
-            <Card
-              title={filter.section ? `กลุ่มใน “${filter.section}”` : account ? "แยกตามหมวด" : "แยกตามหมวด"}
-              hint="% คือสัดส่วนของรายจ่ายที่กำลังดู · กดแถวเพื่อเจาะลงไป"
-            >
-              <BarList
-                total={total}
-                groups={[
-                  {
-                    rows: filter.section
-                      ? rows(a.byGroup, (r) => toggle("group", r.key))
-                      : rows(a.bySection, (r) => toggle("section", r.key, ["group"])),
-                  },
-                ]}
-              />
-            </Card>
-            <Card title="ผู้ขายที่จ่ายเยอะสุด 10 อันดับ" hint="กดชื่อผู้ขายเพื่อดูเฉพาะบิลของผู้ขายนั้น">
-              <BarList total={total} groups={[{ rows: rows(a.bySupplier.slice(0, 10), (r) => toggle("supplier", r.key)) }]} />
-            </Card>
-          </div>
+          <ExpenseDrill
+            month={month.key}
+            branch={branchId}
+            total={total}
+            sections={a.bySection.map((r) => ({ key: r.key, label: r.label, amount: n(r.amount) }))}
+            suppliers={a.bySupplier.map((r) => ({ key: r.key, label: r.label, amount: n(r.amount) }))}
+          />
 
           <Card title="รายจ่ายรายวัน" hint="รวมตามวันที่บิล">
             <DailyBarsChart label="รายจ่าย" rows={a.byDay.map((d) => ({ day: d.day, amount: n(d.amount) }))} />
           </Card>
 
-          {a.products.length > 0 && (filter.group || filter.section || filter.supplier) ? (
-            <Card title="รายวัตถุดิบ" hint="ซื้อเท่าไร ราคาเฉลี่ยต่อหน่วยเท่าไร — ราคาเฉลี่ยแสดงเมื่อทุกบิลซื้อด้วยหน่วยเดียวกัน">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-surface-sunk text-left text-muted-foreground">
-                    <tr>
-                      <th className="px-3 py-2 font-medium">วัตถุดิบ</th>
-                      <th className="px-3 py-2 text-right font-medium">จำนวนที่ซื้อ</th>
-                      <th className="px-3 py-2 text-right font-medium">ราคาเฉลี่ย/หน่วย</th>
-                      <th className="px-3 py-2 text-right font-medium">รวม</th>
-                      <th className="px-3 py-2 text-right font-medium">%</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border tabular-nums">
-                    {a.products.map((p) => (
-                      <tr key={p.productId}>
-                        <td className="px-3 py-2">
-                          <a href={`/products/${p.productId}`} className="font-medium text-primary hover:underline">{p.name}</a>
-                        </td>
-                        <td className="px-3 py-2 text-right">
-                          {p.unitName ? `${n(p.qty).toLocaleString("th-TH", { maximumFractionDigits: 2 })} ${p.unitName}` : "หลายหน่วย"}
-                        </td>
-                        <td className="px-3 py-2 text-right">{p.avgPrice ? baht(n(p.avgPrice)) : "—"}</td>
-                        <td className="px-3 py-2 text-right font-medium">{baht(n(p.amount))}</td>
-                        <td className="px-3 py-2 text-right text-muted-foreground">{((n(p.amount) / total) * 100).toFixed(1)}%</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </Card>
-          ) : null}
+
 
           <Card title="บิลที่เกี่ยวข้อง" hint="กดที่บิลเพื่อดูรายการข้างใน · ยอดคือส่วนที่ตรงเงื่อนไขเท่านั้น">
             <ul className="divide-y divide-border rounded-lg border border-border">
