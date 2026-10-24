@@ -12,7 +12,7 @@
 // with different default locale/timezone between them.
 
 import { requireTenant } from "@/lib/require-tenant";
-import { getBranchesLogic } from "@/server/branch";
+import { getBranchesLogic, liveliestBranchId } from "@/server/branch";
 import { getStockBalancesByBranchLogic } from "@/server/stock-movement";
 import { getProductCostsLogic } from "@/server/stock-cost";
 import { getProductCostsQuerySchema } from "@/lib/validations/stock-cost";
@@ -58,8 +58,9 @@ export default async function StockLevelsPage({
 
   // An unknown/foreign branch id in the URL falls back to the first branch
   // rather than erroring — the id never reaches the query unvalidated.
+  const fallbackId = branchParam ? undefined : await liveliestBranchId(tenantId, branches.map((b) => b.id));
   const activeBranch =
-    branches.find((b) => b.id === branchParam) ?? branches[0];
+    branches.find((b) => b.id === branchParam) ?? branches.find((b) => b.id === fallbackId) ?? branches[0];
 
   const incoming = (
     await getIncomingTransfersLogic(tenantId, activeBranch.id)

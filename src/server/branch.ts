@@ -135,3 +135,31 @@ export async function getBranchesLogic(
     })
   );
 }
+
+/**
+ * Which branch a page should open on when the URL names none (Kong 2026-10-24,
+ * duplication review D1): the one with the most recent SALES day, then the
+ * most recent stock movement. Alphabetical order opened ตัดสต๊อก and สต๊อก on a
+ * branch that had never sold anything, so the page said "nothing here" while
+ * the shop's real branch sat one click away. Only ever chooses among the ids
+ * the caller already holds (reach-filtered).
+ */
+export async function liveliestBranchId(tenantId: string, branchIds: readonly string[]): Promise<string | undefined> {
+  if (branchIds.length <= 1) return branchIds[0];
+  return withTenantContext(tenantId, async (tx) => {
+    const sales = await tx.salesDay.groupBy({
+      by: ["branchId"],
+      where: { tenantId, branchId: { in: [...branchIds] } },
+      _max: { businessDate: true },
+    });
+    const bySales = sales.filter((s) => s._max.businessDate).sort((a, b) => b._max.businessDate!.getTime() - a._max.businessDate!.getTime())[0];
+    if (bySales) return bySales.branchId;
+    const moves = await tx.stockMovement.groupBy({
+      by: ["branchId"],
+      where: { tenantId, branchId: { in: [...branchIds] } },
+      _max: { occurredAt: true },
+    });
+    const byMove = moves.filter((m) => m._max.occurredAt).sort((a, b) => b._max.occurredAt!.getTime() - a._max.occurredAt!.getTime())[0];
+    return byMove?.branchId ?? branchIds[0];
+  });
+}

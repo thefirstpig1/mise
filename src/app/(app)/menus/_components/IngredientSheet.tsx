@@ -24,6 +24,7 @@ import { updateRecipeAction } from "@/app/(app)/recipes/actions";
 import type { IngredientInsight, IngredientOption, PriceBook, SheetLine, StandardUnit } from "@/server/menu-manager";
 import { Adder, appendLines, lineCost as lineCostOf, lineFrom, materializeUnits, nextKey, qtyOf, RecipeTable, signature, type Line } from "./recipe-editor";
 import { orStale } from "@/lib/stale-tab";
+import ReceiptPriceChart, { monthAverages } from "@/components/charts/ReceiptPriceChart";
 import { baht, newSubmitKey, qtyFmt, thDate, unitTh, packQtyTh } from "./manager-format";
 import { ConfirmDialog, type ConfirmSpec, PhotoSlot, Sheet } from "./sheet-parts";
 import type { Option, Perm } from "./MenuManager";
@@ -239,10 +240,11 @@ export default function IngredientSheet({
     });
 
   const receipts = data?.receipts ?? null;
-  const trend =
-    receipts && receipts.length >= 2
-      ? ((receipts[0].perBase - receipts[receipts.length - 1].perBase) / receipts[receipts.length - 1].perBase) * 100
-      : null;
+  // C4 (Kong 2026-10-24): the change is month average against month average,
+  // never one receipt against another (rule CO-PRICE v2) — the sheet said shrimp
+  // "แพงขึ้น 8.0%" while the monthly averages moved +1.2%.
+  const months = receipts ? monthAverages(receipts.map((r) => ({ date: r.date, price: r.perBase, qty: r.qtyBase }))) : [];
+  const trend = months.length >= 2 ? ((months.at(-1)!.avg - months.at(-2)!.avg) / months.at(-2)!.avg) * 100 : null;
 
   // Warn about a thin rate only where there IS a rate (Kong 2026-10-22).
   const thinRate = !!data && !!fact?.usedPerDay && data.facts.postedDays > 0 && data.facts.postedDays < FEW_DAYS;
@@ -382,16 +384,16 @@ export default function IngredientSheet({
                   <h4 className="font-semibold">ราคาที่รับเข้า</h4>
                   <span className="text-xs text-muted-foreground">ซื้อจาก {[...new Set(receipts.map((r) => r.supplier))].join(", ")}</span>
                 </div>
-                <div className="flex flex-wrap items-center gap-3">
-                  <Spark values={[...receipts].reverse().map((r) => r.perBase)} />
-                  {trend !== null && (
-                    <span className="text-xs text-muted-foreground">
-                      ต่อ{unitTh(baseUnit)} {Math.abs(trend) < 1 ? "เท่าเดิม" : `${trend > 0 ? "แพงขึ้น" : "ถูกลง"} ${Math.abs(trend).toFixed(1)}%`} จาก {thDate(receipts[receipts.length - 1].date, false)}
-                    </span>
-                  )}
-                </div>
+                {trend !== null && (
+                  <p className="text-xs text-muted-foreground">
+                    ราคาเฉลี่ย {months.at(-1)!.label} {Math.abs(trend) < 0.5 ? "เท่ากับ" : trend > 0 ? `แพงขึ้น ${trend.toFixed(1)}% จาก` : `ถูกลง ${Math.abs(trend).toFixed(1)}% จาก`}{" "}
+                    {months.at(-2)!.label} · ราคาแกว่งทุกใบเป็นปกติ ดูเส้นเฉลี่ย ไม่ใช่ใบล่าสุด
+                  </p>
+                )}
+                <ReceiptPriceChart points={receipts.map((r) => ({ date: r.date, price: r.perBase, qty: r.qtyBase }))} months={months} />
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
+                    <caption className="pb-1 text-left text-xs text-muted-foreground">4 ใบล่าสุด</caption>
                     <thead className="text-left text-xs text-muted-foreground">
                       <tr>
                         <th className="py-1 font-medium">วันที่รับ</th>
@@ -402,7 +404,7 @@ export default function IngredientSheet({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border tabular-nums">
-                      {receipts.map((r, i) => (
+                      {receipts.slice(0, 4).map((r, i) => (
                         <tr key={i}>
                           <td className="py-1.5">{thDate(r.date, false)}</td>
                           <td className="py-1.5">{r.supplier}</td>
@@ -499,19 +501,3 @@ function Tile({ k, v, s, warn, bad }: { k: string; v: string; s: string; warn?: 
   );
 }
 
-function Spark({ values }: { values: number[] }) {
-  if (values.length < 2) return null;
-  const w = 80,
-    h = 22,
-    lo = Math.min(...values),
-    hi = Math.max(...values),
-    span = hi - lo || 1;
-  const pts = values.map((v, i) => [(i / (values.length - 1)) * (w - 4) + 2, h - 3 - ((v - lo) / span) * (h - 6)]);
-  const [lx, ly] = pts[pts.length - 1];
-  return (
-    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} aria-hidden>
-      <polyline points={pts.map((p) => p.join(",")).join(" ")} fill="none" stroke="#AEB784" strokeWidth={1.6} />
-      <circle cx={lx} cy={ly} r={2.4} fill="#41431B" />
-    </svg>
-  );
-}

@@ -12,6 +12,7 @@ import PageFrame from "@/components/layout/PageFrame";
 import { requireTenant } from "@/lib/require-tenant";
 import { branchScopeWhere } from "@/lib/permissions/service";
 import { withTenantContext } from "@/lib/db";
+import { liveliestBranchId } from "@/server/branch";
 import { addDays, computeBangkokToday } from "@/lib/bangkok-date";
 import { getConsumptionDayStatusLogic } from "@/server/consumption-read";
 import { toConsumptionDayView } from "@/app/(app)/consumption/_components/consumption-view";
@@ -38,7 +39,7 @@ export default async function ConsumptionPage({
 
   const today = computeBangkokToday();
   const branchId =
-    branches.find((b) => b.id === params.branch)?.id ?? branches[0]?.id;
+    branches.find((b) => b.id === params.branch)?.id ?? (await liveliestBranchId(tenantId, branches.map((b) => b.id)));
 
   // A bad date in the URL falls back and says so, rather than erroring — the
   // same fallback-plus-notice /cost uses.

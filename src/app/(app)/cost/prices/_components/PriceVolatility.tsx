@@ -9,6 +9,7 @@
 import { use, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ModalShell } from "@/app/(app)/sales/_components/Breakdown";
 import { orStale } from "@/lib/stale-tab";
+import ReceiptPriceChart from "@/components/charts/ReceiptPriceChart";
 import { allowances, menuCostDelta, type Allowance, type MenuCostRow } from "@/lib/price-volatility";
 import type { PriceVolatility as Data, PvProduct } from "@/server/price-volatility";
 import { saveMenuCostTargetAction } from "../../actions";
@@ -868,13 +869,6 @@ function ProductPopup({ p, mode, allow, nowPrice, dept, menus, months, onClose }
   const pts = p.receipts;
   const mIdx = months.map((_, i) => i).filter((i) => p.month[i]);
   const allowed = allow && nowPrice ? nowPrice * allow.k : null;
-  const vals = [...pts.map((x) => x[1]), ...(mode === "tgt" && allowed ? [allowed] : [])];
-  const lo = Math.min(...vals) * 0.96, hi = Math.max(...vals) * 1.04;
-  const W = 640, H = 220, L = 56;
-  const t = (s: string) => Date.parse(s);
-  const t0 = t(pts[0][0]), t1 = t(pts.at(-1)![0]);
-  const x = (s: string) => L + ((t(s) - t0) / (t1 - t0 || 1)) * (W - L - 12);
-  const y = (v: number) => 12 + (H - 40) * (1 - (v - lo) / (hi - lo));
   const last = mIdx.at(-1), prev = mIdx.at(-2);
   return (
     <ModalShell onClose={onClose} labelledBy="pv-pop">
@@ -900,52 +894,11 @@ function ProductPopup({ p, mode, allow, nowPrice, dept, menus, months, onClose }
       <p className="mt-3 font-display text-sm font-semibold">
         ราคาทุกใบ <span className="text-xs font-normal text-muted-foreground">จุด = ใบรับของ · เส้นทึบ = เฉลี่ยรายเดือน{mode === "tgt" ? " · เส้นประแดง = ราคาที่เมนูรับได้" : ""} · ชี้จุดเพื่อดูวันที่</span>
       </p>
-      <svg width="100%" viewBox={`0 0 ${W} ${H}`} className="block">
-        {[0, 1, 2, 3].map((i) => {
-          const v = lo + ((hi - lo) * i) / 3;
-          return (
-            <g key={i}>
-              <line x1={L} x2={W} y1={y(v)} y2={y(v)} stroke="#ECE6CC" />
-              <text x={L - 6} y={y(v) + 4} textAnchor="end" fontSize={10} fill="#8B8D63">
-                ฿{v.toFixed(v < 20 ? 2 : 0)}
-              </text>
-            </g>
-          );
-        })}
-        {mIdx.map((i) => {
-          const inM = pts.filter((q) => q[0] >= months[i].from && q[0] <= months[i].to);
-          if (!inM.length) return null;
-          const avg = p.month[i]![0];
-          return (
-            <g key={i}>
-              <line x1={x(inM[0][0])} x2={x(inM.at(-1)![0])} y1={y(avg)} y2={y(avg)} stroke="#5E6B14" strokeWidth={2.5} />
-              <text x={x(inM[0][0]) + 6} y={y(avg) - 6} fontSize={10.5} fill="#5E6B14">
-                เฉลี่ย {months[i].label} ฿{f2(avg)}
-              </text>
-            </g>
-          );
-        })}
-        {mode === "tgt" && allowed && (
-          <g>
-            <line x1={L} x2={W} y1={y(allowed)} y2={y(allowed)} stroke="#A83A22" strokeDasharray="6 4" strokeWidth={2} />
-            <text x={W - 4} y={y(allowed) - 6} textAnchor="end" fontSize={10.5} fontWeight={700} fill="#A83A22">
-              ราคาที่เมนูรับได้ ฿{f2(allowed)}
-            </text>
-          </g>
-        )}
-        {pts.map((q, i) => (
-          <circle key={i} cx={x(q[0])} cy={y(q[1])} r={4.2} fill="#C0692B" opacity={0.85}>
-            <title>{`${dayTh(q[0])} ฿${f2(q[1])}`}</title>
-          </circle>
-        ))}
-        {pts.map((q, i) =>
-          i % Math.max(1, Math.ceil(pts.length / 8)) === 0 ? (
-            <text key={`l${i}`} x={x(q[0])} y={H - 8} textAnchor="middle" fontSize={10} fill="#5A5C31">
-              {dayTh(q[0])}
-            </text>
-          ) : null
-        )}
-      </svg>
+      <ReceiptPriceChart
+        points={pts.map(([date, price]) => ({ date, price }))}
+        months={mIdx.map((i) => ({ key: months[i].from.slice(0, 7), label: months[i].label, avg: p.month[i]![0] }))}
+        allowed={mode === "tgt" ? allowed : null}
+      />
       <p className="mt-2 text-xs text-muted-foreground">
         ราคาแกว่งทุกใบเป็นปกติของของสด ดูเส้นเฉลี่ย ไม่ใช่ใบล่าสุด ·{" "}
         <a href={`/products?product=${p.id}`} className="text-primary hover:underline">

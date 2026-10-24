@@ -10,6 +10,7 @@
 
 import { requireTenant } from "@/lib/require-tenant";
 import { withTenantContext } from "@/lib/db";
+import { liveliestBranchId } from "@/server/branch";
 import { computeBangkokToday, addDays } from "@/lib/bangkok-date";
 import { branchScopeWhere } from "@/lib/permissions/service";
 import { getDepartmentReportLogic } from "@/server/department-read";
@@ -47,7 +48,7 @@ export default async function DepartmentCostPage({
   // Cost needs a branch (ADR 0014 Q9) — this page never averages across them,
   // it names the one it is showing. First in reach unless the URL says another.
   const branchId =
-    branches.find((b) => b.id === params.branch)?.id ?? branches[0]?.id ?? null;
+    branches.find((b) => b.id === params.branch)?.id ?? (await liveliestBranchId(tenantId, branches.map((b) => b.id))) ?? null;
 
   const report =
     branchId === null

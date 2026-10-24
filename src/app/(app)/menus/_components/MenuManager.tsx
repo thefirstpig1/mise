@@ -312,6 +312,33 @@ export default function MenuManager(props: {
         </div>
       )}
 
+      {/* B3 (Kong 2026-10-24): "เมนูยังไม่มีสูตร" stands apart so the shop sees
+          it is something to DO — it replaced the /menus/coverage page. */}
+      {noRecipe.length > 0 && status !== "none" && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-bad-border bg-bad-bg px-4 py-3">
+          <div className="min-w-0">
+            <p className="font-display font-semibold text-bad">
+              {noRecipe.length} เมนูขายอยู่แต่ยังไม่มีสูตร
+            </p>
+            <p className="text-sm text-bad/90">
+              {stats.coverage === null
+                ? "ยังคิดต้นทุนเมนูเหล่านี้ไม่ได้"
+                : `ขายไป ${baht(stats.total - stats.covered)} ใน ${factDays} วันที่ยังคิดต้นทุนไม่ได้ และยังไม่ถูกตัดสต๊อก`}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={() => setStatus("none")} className="rounded-lg border border-bad-border bg-surface px-3 py-1.5 text-sm font-medium text-bad hover:bg-bad-bg">
+              ดู {noRecipe.length} เมนูนี้
+            </button>
+            {props.perm.recipe && (
+              <a href="/menus/lab" className="rounded-lg bg-bad px-3 py-1.5 text-sm font-medium text-bad-foreground hover:brightness-95">
+                เริ่มเขียนสูตร ›
+              </a>
+            )}
+          </div>
+        </div>
+      )}
+
       {stubCount > 0 && status !== "review" && (
         <button
           type="button"
@@ -362,7 +389,7 @@ export default function MenuManager(props: {
             </div>
             {!costHidden && (
               <div className="rounded-xl border border-border bg-surface p-3">
-                <p className="text-xs text-muted-subtle">ต้นทุนวัตถุดิบ เทียบยอดขาย</p>
+                <p className="text-xs text-muted-subtle" title="ต้นทุนตามสูตรของเมนูที่ขาย คิดด้วยราคาวัตถุดิบวันนี้ — คนละตัวกับต้นทุนของที่ใช้ไปจริงในหน้าต้นทุนและแดชบอร์ด">ต้นทุนตามสูตร (ราคาวันนี้) เทียบยอดขาย</p>
                 <p className="font-display text-2xl font-semibold tabular-nums">
                   {pricesLoading ? <span className="inline-block h-7 w-20 animate-pulse rounded bg-muted align-middle" /> : stats.foodCost === null ? "—" : atLeastTh(stats.lowCount > 0, `${stats.foodCost.toFixed(1)}%`)}
                 </p>
@@ -406,7 +433,16 @@ export default function MenuManager(props: {
             </div>
             <div className="flex flex-wrap gap-2" role="group" aria-label="สถานะ">
               {STATUS.filter((s) => s.key !== "trial" || trial.length > 0 || status === "trial").map((s) => (
-                <button key={s.key} type="button" className={chip(status === s.key)} onClick={() => setStatus(s.key)}>
+                <button
+                  key={s.key}
+                  type="button"
+                  className={
+                    s.key === "none" && count("none") > 0 && status !== "none"
+                      ? "whitespace-nowrap rounded-full border border-bad-border bg-bad-bg px-3 py-1 text-sm font-medium text-bad transition-colors hover:brightness-95"
+                      : chip(status === s.key)
+                  }
+                  onClick={() => setStatus(s.key)}
+                >
                   {s.label}
                   <span className="ml-1 tabular-nums opacity-70">{count(s.key)}</span>
                 </button>

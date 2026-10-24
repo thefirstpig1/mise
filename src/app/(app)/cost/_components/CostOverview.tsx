@@ -145,7 +145,11 @@ function Overview({ data, canEditTargets }: { data: Overview; canEditTargets: bo
   const [metric, setMetric] = useState<MetricKey>("prime");
   const P = gran === "week" ? data.week : data.month;
   const [sel, setSel] = useState(() => lastWithSales(data.week));
-  const [openCount, setOpenCount] = useState<CountEvent | null>(null);
+  // B5 (Kong 2026-10-24): a count opens ของหายไปไหน at that count — the deep
+  // page with causes and a checklist — instead of a shorter popup of the same list.
+  const openCount = (c: CountEvent) => {
+    window.location.href = `/cost/leaks?count=${c.countId}`;
+  };
   const [editTargets, setEditTargets] = useState(false);
   const [stockView, setStockView] = useState<"age" | "left">("age");
 
@@ -337,7 +341,7 @@ function Overview({ data, canEditTargets }: { data: Overview; canEditTargets: bo
           </span>
         </div>
         {metric === "var" ? (
-          <CountsChart P={P} sel={sel} counts={data.counts.filter((c) => bs.includes(c.branchId))} colorOf={colorOf} nameOf={nameOf} targets={targets} onOpen={setOpenCount} />
+          <CountsChart P={P} sel={sel} counts={data.counts.filter((c) => bs.includes(c.branchId))} colorOf={colorOf} nameOf={nameOf} targets={targets} onOpen={openCount} />
         ) : (
           <BarChart
             P={P}
@@ -364,7 +368,7 @@ function Overview({ data, canEditTargets }: { data: Overview; canEditTargets: bo
         cur={cur}
         counts={latestCounts(bs)}
         nameOf={nameOf}
-        onCount={setOpenCount}
+        onCount={openCount}
         missingSales={bs.filter((b) => agg(P[sel], [b]).rev === null).map((b) => nameOf.get(b) ?? "")}
         multi={multi}
       />
@@ -393,7 +397,6 @@ function Overview({ data, canEditTargets }: { data: Overview; canEditTargets: bo
         </a>
       </p>
 
-      {openCount && <CountPopup c={openCount} name={nameOf.get(openCount.branchId) ?? ""} targets={targets} onClose={() => setOpenCount(null)} />}
       {editTargets && (
         <TargetsPopup
           targets={targets}
@@ -928,7 +931,7 @@ function CountsChart({
               </b>
             </div>
           )}
-          <div className="mt-1 opacity-75">กดเพื่อดูว่าตัวไหนไม่ตรง</div>
+          <div className="mt-1 opacity-75">กดเพื่อเปิดหน้าของหายไปไหน</div>
         </div>
       )}
       <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
@@ -1297,82 +1300,6 @@ function Trust({ data, bs, cur, nameOf, periodEnd }: { data: Overview; bs: strin
 }
 
 // ── popups ──────────────────────────────────────────────────────────────────
-
-function CountPopup({ c, name, targets, onClose }: { c: CountEvent; name: string; targets: CostTargets; onClose: () => void }) {
-  const top = c.items[0]?.value ?? 0;
-  return (
-    <ModalShell onClose={onClose} labelledBy="co-count-title">
-      <div className="mb-3 pr-10">
-        <h3 id="co-count-title" className="text-lg font-semibold">
-          {name} · นับสต๊อก {c.dateLabel}
-        </h3>
-        <p className="text-sm text-muted-foreground">
-          {c.scNumber} · ระบบคำนวณว่าควรเหลือ − นับได้จริง · ตีราคาตามต้นทุน (เข้าก่อนออกก่อน)
-        </p>
-      </div>
-      <div className="grid grid-cols-3 gap-2">
-        <div className="rounded-xl bg-muted p-3">
-          <span className="block text-xs text-muted-foreground">ไม่ตรงกับระบบ รวม</span>
-          <b className="font-display text-lg tabular-nums text-bad">฿{f2(c.value)}</b>
-          {c.sinceRevenue && (
-            <span className="block text-xs text-muted-foreground">
-              {((c.value / c.sinceRevenue) * 100).toFixed(2)}% ของยอดขาย{c.sinceLabel} · เป้า ≤{targets.variance}%
-            </span>
-          )}
-        </div>
-        <div className="rounded-xl bg-muted p-3">
-          <span className="block text-xs text-muted-foreground">รายการที่นับได้น้อยกว่า</span>
-          <b className="font-display text-lg tabular-nums">{c.items.length}</b>
-          {c.overItems > 0 && <span className="block text-xs text-muted-foreground">นับได้มากกว่า {c.overItems} รายการ (ไม่นำมาหักลบ)</span>}
-        </div>
-        <div className="rounded-xl bg-muted p-3">
-          <span className="block text-xs text-muted-foreground">ต่างมากสุด</span>
-          <b className="text-base">{c.items[0]?.name ?? "—"}</b>
-          {c.value > 0 && top > 0 && <span className="block text-xs text-muted-foreground">{Math.round((top / c.value) * 100)}% ของทั้งหมด</span>}
-        </div>
-      </div>
-      {c.items.length > 0 ? (
-        <table className="mt-3 w-full text-sm">
-          <thead>
-            <tr className="text-xs text-muted-foreground">
-              <th className="py-1 text-left font-normal">วัตถุดิบ</th>
-              <th className="py-1 text-right font-normal">นับได้ต่างจากระบบ</th>
-              <th className="py-1 text-right font-normal">มูลค่า</th>
-            </tr>
-          </thead>
-          <tbody>
-            {c.items.map((it, i) => (
-              <tr key={it.productId} className="border-t border-border">
-                <td className="py-1.5">{it.name}</td>
-                <td className="py-1.5 text-right tabular-nums">{it.qty}</td>
-                <td className="py-1.5 text-right tabular-nums">
-                  <span
-                    className="mr-2 inline-block h-1.5 origin-left animate-grow-x rounded-full align-middle"
-                    style={{ width: Math.max(4, top ? (it.value / top) * 110 : 4), background: CLAY, animationDelay: `${i * 30}ms` }}
-                  />
-                  ฿{f2(it.value)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      ) : (
-        <p className="mt-3 text-sm text-muted-foreground">การนับครั้งนี้ไม่พบของที่นับได้น้อยกว่าระบบ</p>
-      )}
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-        <span>สาเหตุที่พบบ่อย: ตักเกินสูตร ทิ้งแต่ไม่ได้บันทึก รับของไม่ครบ นับหรือหน่วยผิด ของถูกหยิบไป</span>
-        <span className="flex gap-3">
-          <a className="text-primary hover:underline" href={`/stock-counts/${c.countId}`}>
-            เปิดใบนับ ›
-          </a>
-          <a className="text-primary hover:underline" href="/cost/leaks">
-            ดูทั้งหมดที่ “ของหายไปไหน” ›
-          </a>
-        </span>
-      </div>
-    </ModalShell>
-  );
-}
 
 function TargetsPopup({ targets, onClose, onSaved }: { targets: CostTargets; onClose: () => void; onSaved: (t: CostTargets) => void }) {
   const [v, setV] = useState({

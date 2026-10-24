@@ -495,7 +495,7 @@ export type IngredientInsight = {
   product: { id: string; name: string; sku: string; type: string; baseUnitName: string | null };
   facts: IngredientFacts;
   /** The last four confirmed receipts at this branch; null without the ticket. */
-  receipts: { date: string; supplier: string; packUnit: string; qty: number; price: number; perBase: number }[] | null;
+  receipts: { date: string; supplier: string; packUnit: string; qty: number; price: number; perBase: number; qtyBase: number }[] | null;
   /** Current recipes that use it, one row per recipe LINE. */
   usedIn: { menuId: string | null; label: string; qty: number; unitName: string | null; isCentral: boolean }[];
   /** How a PREPPED product is made; null for RAW. Priced by the client's price book. */
@@ -547,7 +547,9 @@ export async function getIngredientInsightLogic(
         cost === null
           ? Promise.resolve([])
           : tx.goodsReceiptItem.findMany({
-              where: { tenantId, productId: query.productId, goodsReceipt: { branchId: query.branchId, status: "CONFIRMED" } },
+              // B8 (Kong 2026-10-24): six months, not four rows — the sheet draws every
+              // receipt with monthly averages, like the price-volatility popup.
+              where: { tenantId, productId: query.productId, reversalOfItemId: null, goodsReceipt: { branchId: query.branchId, status: "CONFIRMED", receivedAt: { gte: addDays(today, -182) } } },
               select: {
                 qtyReceivedActual: true,
                 receivedUnitName: true,
@@ -557,7 +559,7 @@ export async function getIngredientInsightLogic(
                 goodsReceipt: { select: { receivedAt: true, supplier: { select: { nameShort: true, nameFull: true } } } },
               },
               orderBy: { goodsReceipt: { receivedAt: "desc" } },
-              take: 4,
+              take: 120,
             }),
         resolveRecipeIds(tx, tenantId, [{ kind: "product", id: query.productId }], query.branchId, today),
       ]);
@@ -629,6 +631,7 @@ export async function getIngredientInsightLogic(
             qty: Number(r.qtyReceivedActual),
             price: Number(r.unitPriceActual),
             perBase: Number(r.unitPriceActual) / Number(r.toBaseRatio),
+            qtyBase: Number(r.qtyReceivedActual) * Number(r.toBaseRatio),
           })),
     usedIn: [...newest.values()]
       .map((u) => ({
