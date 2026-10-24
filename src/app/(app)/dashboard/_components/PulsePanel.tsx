@@ -64,8 +64,8 @@ export default function PulsePanel({
     <section className="rounded-xl border border-border bg-surface p-5">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <div>
-          <h2 className="text-base font-semibold">ยอดที่ลูกค้าจ่ายรายวัน</h2>
-          <p className="text-xs text-muted-foreground">ตัวเลขจากเครื่องเก็บเงิน รวม VAT และ service charge</p>
+          <h2 className="text-base font-semibold">คีย์ยอดปิดร้าน</h2>
+          <p className="text-xs text-muted-foreground">ยอดที่ลูกค้าจ่ายตามเครื่องเก็บเงิน (รวม VAT และ service charge) · ทำทุกวันหลังปิดร้าน ใช้ตรวจว่าไฟล์ยอดขายครบ</p>
         </div>
         <ActionLink href="/sales">ดูยอดขายทั้งเดือน</ActionLink>
       </div>
@@ -82,14 +82,22 @@ export default function PulsePanel({
                 ) : null}
               </div>
 
-              <p className="mt-3 text-xs text-muted-foreground">วันนี้</p>
-              {b.today.amount !== null ? (
-                <p className="tabular-nums text-2xl font-semibold">{baht(b.today.amount)}</p>
-              ) : keying ? (
+              <p className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+                วันนี้
+                {b.today.amount === null ? (
+                  <span className="rounded-full bg-warn-bg px-2 py-0.5 text-[11px] font-medium text-warn">ยังไม่ได้คีย์</span>
+                ) : (
+                  <span className="rounded-full bg-good-bg px-2 py-0.5 text-[11px] font-medium text-good">✓ คีย์แล้ว</span>
+                )}
+              </p>
+              {keying ? (
                 <form action={action} className="mt-1 space-y-2">
                   <input type="hidden" name="branchId" value={b.branchId} />
-                  <input type="hidden" name="businessDate" value={todayIso} />
-                  <MoneyInput name="amount" placeholder="ยอดที่ลูกค้าจ่ายวันนี้" aria-label="ยอดที่ลูกค้าจ่ายวันนี้" boxClassName="w-full" autoFocus />
+                  <label className="block text-xs text-muted-foreground">
+                    ของวันที่
+                    <input type="date" name="businessDate" defaultValue={todayIso} max={todayIso} min={sevenDaysBefore(todayIso)} className="input mt-1 w-full" />
+                  </label>
+                  <MoneyInput name="amount" placeholder="ยอดที่ลูกค้าจ่าย" aria-label="ยอดที่ลูกค้าจ่าย" boxClassName="w-full" autoFocus />
                   <input name="note" placeholder="หมายเหตุ (ไม่บังคับ)" className="input w-full" />
                   <div className="flex items-center gap-2">
                     <button type="submit" disabled={pending} className="btn">
@@ -100,13 +108,20 @@ export default function PulsePanel({
                     </button>
                   </div>
                 </form>
+              ) : b.today.amount !== null ? (
+                <p className="tabular-nums text-2xl font-semibold">{baht(b.today.amount)}</p>
               ) : (
                 <button
                   type="button"
                   onClick={() => setOpenBranchId(b.branchId)}
-                  className="mt-1 w-full rounded-lg border border-dashed border-border-strong px-3 py-2.5 text-sm font-medium text-primary hover:bg-muted"
+                  className="mt-1 w-full rounded-lg bg-primary px-3 py-3 text-base font-semibold text-primary-foreground shadow-card transition hover:bg-primary-deep"
                 >
                   + คีย์ยอดวันนี้
+                </button>
+              )}
+              {!keying && b.today.amount !== null && (
+                <button type="button" onClick={() => setOpenBranchId(b.branchId)} className="mt-1 text-xs text-primary underline decoration-dotted underline-offset-4">
+                  + คีย์ของวันอื่น (ย้อนหลัง 7 วัน)
                 </button>
               )}
               {b.today.note ? <p className="mt-1 text-xs text-muted-foreground">“{b.today.note}”</p> : null}
@@ -167,4 +182,10 @@ export default function PulsePanel({
       </details>
     </section>
   );
+}
+
+/** Keying reaches back a week — a missed night is keyed here too, not elsewhere (B9). */
+function sevenDaysBefore(iso: string): string {
+  const d = new Date(`${iso}T00:00:00.000Z`);
+  return new Date(d.getTime() - 6 * 86_400_000).toISOString().slice(0, 10);
 }

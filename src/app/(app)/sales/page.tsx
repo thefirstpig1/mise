@@ -393,7 +393,7 @@ export default async function SalesPage({
             ) : (
               <p>
                 ยอดปิดร้านที่คีย์ไว้ใช้ตรวจว่าไฟล์ครบทั้งวัน: คีย์แล้ว {keyed} จาก {dayGroups.length} วัน
-                {keyed > 0 ? " · ทุกวันที่คีย์ตรงกับไฟล์" : " · กดแท่งในกราฟรายวันเพื่อคีย์"}
+                {keyed > 0 ? " · ทุกวันที่คีย์ตรงกับไฟล์" : ""} · <a href="/dashboard" className="text-primary underline">คีย์ยอดปิดร้านที่แดชบอร์ด ›</a>
               </p>
             )}
           </div>

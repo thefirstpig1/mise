@@ -18,15 +18,10 @@
 // a branch whose file is in shows why there is no box instead.
 // ============================================================
 
-import { useActionState, useCallback, useEffect, useState } from "react";
-import { MeasureInput, MoneyInput } from "@/components/ui/NumberField";
+import { useCallback } from "react";
 import Link from "next/link";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
-import {
-  recordSalesPulseAction,
-  type RecordPulseActionState,
-} from "../pulse-actions";
 import {
   BreakdownPanes,
   ModalShell,
@@ -150,16 +145,8 @@ function NavArrow({ href, label, children }: { href: string | null; label: strin
 }
 
 function BranchCard({ day, branch: b, canKeyPulse }: { day: string; branch: DayModalBranch; canKeyPulse: boolean }) {
-  const [state, action, pending] = useActionState<RecordPulseActionState | null, FormData>(
-    recordSalesPulseAction,
-    null
-  );
   // The till figure can be keyed only while no file owns the day (ADR 0020).
   const canKey = canKeyPulse && b.fileName === null;
-  const [open, setOpen] = useState(false);
-  useEffect(() => {
-    if (state?.ok) setOpen(false);
-  }, [state]);
 
   return (
     <div className="rounded-xl border border-border p-3 text-sm">
@@ -195,40 +182,16 @@ function BranchCard({ day, branch: b, canKeyPulse }: { day: string; branch: DayM
           </span>
         )}
 
-        {canKey &&
-          (open ? (
-            <form action={action} className="mt-2 flex flex-wrap items-end gap-2">
-              <input type="hidden" name="branchId" value={b.branchId} />
-              <input type="hidden" name="businessDate" value={day} />
-              <label className="flex-1">
-                <span className="text-muted-foreground">ยอดที่ลูกค้าจ่ายทั้งวัน (รวม VAT และ SC)</span>
-                <MoneyInput name="amount" defaultValue={b.pulseAmount ?? ""} boxClassName="mt-1 w-40" autoFocus />
-              </label>
-              <label className="w-full">
-                <span className="text-muted-foreground">หมายเหตุ (ไม่บังคับ)</span>
-                <input name="note" defaultValue={b.pulseNote ?? ""} className="input mt-1 w-full" />
-              </label>
-              <button type="submit" disabled={pending} className="btn">
-                {pending ? "กำลังบันทึก…" : "บันทึก"}
-              </button>
-              <button type="button" onClick={() => setOpen(false)} className="text-muted-foreground underline">
-                ยกเลิก
-              </button>
-              {state && !state.ok && (
-                <p className="w-full text-bad">
-                  {state.formError ?? Object.values(state.fieldErrors ?? {})[0]}
-                </p>
-              )}
-            </form>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setOpen(true)}
-              className="mt-2 block rounded-full border border-primary-line px-3 py-1 font-medium text-primary hover:bg-primary hover:text-primary-foreground"
-            >
-              {b.pulseAmount === null ? "คีย์ยอดปิดร้าน" : "แก้ยอดที่คีย์"}
-            </button>
-          ))}
+        {canKey && (
+          // B9 (Kong 2026-10-24): the till's figure is keyed in ONE place — the
+          // dashboard's daily work — so this popup only shows and checks it.
+          <a
+            href="/dashboard"
+            className="mt-2 inline-block rounded-full border border-primary-line px-3 py-1 font-medium text-primary hover:bg-primary hover:text-primary-foreground"
+          >
+            {b.pulseAmount === null ? "คีย์ยอดปิดร้านที่แดชบอร์ด ›" : "แก้ยอดที่คีย์ที่แดชบอร์ด ›"}
+          </a>
+        )}
         {canKeyPulse && b.fileName !== null && b.pulseAmount === null && (
           <span className="mt-1 block text-muted-foreground">
             คีย์ได้เฉพาะก่อนนำเข้าไฟล์ของวันนั้น — ไฟล์เข้ามาแล้ว ยอดในไฟล์จึงเป็นหลักฐานของวันนี้

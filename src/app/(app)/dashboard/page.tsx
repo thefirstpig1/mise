@@ -15,6 +15,7 @@ import { getPulseDashboardLogic } from "@/server/sales-pulse";
 import { getRequestQueueLogic, type RequestQueueRow } from "@/server/purchase-request";
 import { toPulseDashboardView } from "@/app/(app)/sales/_components/sales-view";
 import PulsePanel from "./_components/PulsePanel";
+import KpiViewToggle from "./_components/KpiViewToggle";
 import ActionLink from "@/components/ui/ActionLink";
 import DashboardControls, { type BranchChip } from "./_components/DashboardControls";
 import BarList, { type BarListGroup } from "@/components/charts/BarList";
@@ -85,6 +86,17 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
         </Suspense>
       )}
 
+      {/* B9 (Kong 2026-10-24): today's work — keying the till's figure, trucks
+          to receive — leads the page; it is done every day. */}
+      <Suspense fallback={null}>
+        <WorkQueue
+          showPulse={seeSales}
+          tenantId={tenantId}
+          reach={reach}
+          costAccess={costAccess}
+          purchaseBranches={can("purchase:approve") ? branches.map((b) => ({ id: b.id, name: b.name })) : []}
+        />
+      </Suspense>
       {seeMoney ? (
         <>
           <DashboardControls
@@ -114,15 +126,6 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
         </>
       ) : null}
 
-      <Suspense fallback={null}>
-        <WorkQueue
-          showPulse={seeSales}
-          tenantId={tenantId}
-          reach={reach}
-          costAccess={costAccess}
-          purchaseBranches={can("purchase:approve") ? branches.map((b) => ({ id: b.id, name: b.name })) : []}
-        />
-      </Suspense>
     </div>
   );
 }
@@ -258,12 +261,21 @@ async function Analytics({
           </a>
         </div>
       )}
-      <KpiRow pnl={pnl} prevP={prevP} vs={vs} days={days} see={{ ...see, gross: seeGross, net: seeNet }} incomplete={missing.length > 0} />
+      <KpiViewToggle
+        cards={<KpiRow pnl={pnl} prevP={prevP} vs={vs} days={days} see={{ ...see, gross: seeGross, net: seeNet }} incomplete={missing.length > 0} />}
+        chart={
+          seeNet && pnl.netProfit !== null && pnl.revenue !== null ? (
+            <Card title="จากยอดขายสู่กำไร" hint="ยอดขาย − ต้นทุนขาย − ค่าใช้จ่าย = กำไรสุทธิ">
+              <PnlWaterfallChart data={{ revenue: num(pnl.revenue)!, cogs: num(pnl.cogs)!, opex: num(pnl.opex)!, net: num(pnl.netProfit)! }} />
+            </Card>
+          ) : null
+        }
+      />
       <UnknownNote pnl={pnl} seeGross={seeGross} />
 
-      <div className="grid gap-6 xl:grid-cols-5">
+      <div className="grid gap-6">
         {see.sales ? (
-          <Card className="xl:col-span-3" title="รายรับรายวัน" hint="ยอดขายไม่รวม VAT และ service charge · กดชื่อสาขาเพื่อซ่อน/แสดงเส้น">
+          <Card title="รายรับรายวัน" hint="ยอดขายไม่รวม VAT และ service charge · กดชื่อสาขาเพื่อซ่อน/แสดงเส้น">
             {revenueRows.length ? (
               <>
                 <RevenueTrendChart rows={revenueRows} series={series} />
@@ -280,13 +292,6 @@ async function Analytics({
                 <ActionLink href="/sales/import" className="ml-1 align-middle">นำเข้าไฟล์ยอดขาย</ActionLink>
               </p>
             )}
-          </Card>
-        ) : null}
-        {seeNet && pnl.netProfit !== null && pnl.revenue !== null ? (
-          <Card className="xl:col-span-2" title="จากยอดขายสู่กำไร" hint="ยอดขาย − ต้นทุนขาย − ค่าใช้จ่าย = กำไรสุทธิ">
-            <PnlWaterfallChart
-              data={{ revenue: num(pnl.revenue)!, cogs: num(pnl.cogs)!, opex: num(pnl.opex)!, net: num(pnl.netProfit)! }}
-            />
           </Card>
         ) : null}
       </div>
@@ -660,7 +665,8 @@ async function WorkQueue({
   if (!pulse && waiting.length === 0 && requests.length === 0) return null;
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-semibold">งานที่รออยู่</h2>
+      <h2 className="text-lg font-semibold">งานวันนี้</h2>
+      {pulse ? <PulsePanel dashboard={pulse} todayIso={todayIso} /> : null}
       {requests.length > 0 ? <RequestQueue rows={requests} /> : null}
       {waiting.length > 0 ? (
         // Kong (2026-09-28): this must LEAD somewhere. The heading opens the
@@ -696,7 +702,6 @@ async function WorkQueue({
           </ul>
         </div>
       ) : null}
-      {pulse ? <PulsePanel dashboard={pulse} todayIso={todayIso} /> : null}
     </div>
   );
 }
