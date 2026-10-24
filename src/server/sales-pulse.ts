@@ -126,7 +126,21 @@ export async function recordSalesPulseLogic(
   userId: string,
   input: RecordSalesPulseInputForServer
 ): Promise<RecordSalesPulseResult> {
-  return withTenantContext(tenantId, async (tx) => {
+  return withTenantContext(tenantId, (tx) => recordSalesPulseInTx(tx, tenantId, userId, input));
+}
+
+/**
+ * The same write inside a caller's transaction — the daily close (ADR 0042)
+ * saves the till total together with the rest of the close, so a refused
+ * pulse (Q2's lock) refuses the whole close rather than half of it.
+ */
+export async function recordSalesPulseInTx(
+  tx: PrismaClient,
+  tenantId: string,
+  userId: string,
+  input: RecordSalesPulseInputForServer
+): Promise<RecordSalesPulseResult> {
+  {
     const branch = await tx.branch.findFirst({
       where: { id: input.branchId, tenantId, deletedAt: null },
       select: { id: true },
@@ -200,7 +214,7 @@ export async function recordSalesPulseLogic(
       amount,
       replacedPrevious: existing?.pulseAmount != null,
     };
-  });
+  }
 }
 
 // ------------------------------------------------------------
