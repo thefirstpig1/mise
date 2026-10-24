@@ -127,6 +127,7 @@ function View({ data, initialCountId }: { data: Overview; initialCountId: string
 
   return (
     <div className="space-y-5">
+      <h2 className="font-display text-xl font-semibold">ของหายไปไหน</h2>
       <p className="text-sm text-muted-foreground">นับได้ไม่ตรงกับที่ระบบคำนวณ หลังหักที่บันทึกว่าทิ้งและของเสียแล้ว · หายเพราะอะไร ต้องไปตามที่ไหน</p>
 
       <div className="space-y-2 rounded-xl border border-border bg-surface px-3 py-2.5">

@@ -2524,6 +2524,11 @@ model Menu {
   isPosStub Boolean @default(false) @map("is_pos_stub")
   isActive  Boolean @default(true) @map("is_active")
 
+  /// Kong 2026-10-24 — this menu's own food-cost target, in % of its price.
+  /// NULL = follow tenant.food_cost_target_pct. Drinks bought to resell
+  /// usually carry a higher one than the kitchen's dishes (rule PV-ALLOW).
+  foodCostTargetPct Decimal? @map("food_cost_target_pct") @db.Decimal(4, 1)
+
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")

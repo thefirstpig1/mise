@@ -982,7 +982,7 @@ function Todo({
     }
   }
   for (const p of period?.priceUp.slice(0, 3) ?? []) {
-    items.push({ type: "ราคาขึ้น", tone: "warn", title: `${p.name} ขึ้น ${p.changePct}%`, detail: `${p.detail} · ${period?.label} จ่ายเพิ่ม (ทั้งร้าน)`, money: p.extra, href: "/cost/prices", dest: "ไปที่ ราคาวัตถุดิบขึ้นลง" });
+    items.push({ type: "ราคาขึ้น", tone: "warn", title: `${p.name} ขึ้น ${p.changePct}%`, detail: `${p.detail} · ${period?.label} จ่ายเพิ่ม (ทั้งร้าน)`, money: p.extra, href: "/cost/prices", dest: "ไปที่ การผันผวนราคาวัตถุดิบ" });
   }
   if (cur.rev !== null && cur.waste > 0) {
     items.push({ type: "ทิ้ง", tone: "muted", title: "ของที่บันทึกว่าทิ้ง", detail: period?.label ?? "", money: cur.waste, href: "/waste", dest: "ไปที่ ของเสีย" });

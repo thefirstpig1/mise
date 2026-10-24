@@ -40,7 +40,7 @@ describe("rule CO-LABOR — monthly labour spread over calendar days", () => {
   });
 });
 
-describe("rule CO-PRICE — what price movements cost in a period", () => {
+describe("rule CO-PRICE v2 — average against average, never one receipt", () => {
   const pt = (date: string, productId: string, price: number, qty: number): PricePoint => ({
     date: d(date),
     productId,
@@ -54,18 +54,25 @@ describe("rule CO-PRICE — what price movements cost in a period", () => {
     qtyBase: qty,
   });
   const range = { from: d("2026-09-01"), to: d("2026-09-30") };
+  const prev = { from: d("2026-08-01"), to: d("2026-08-31") };
 
-  it("prices each receipt in the period against the last price before it", () => {
-    const r = priceMovesFor(range, [pt("2026-08-20", "pork", 100, 5), pt("2026-09-05", "pork", 110, 10), pt("2026-09-20", "pork", 120, 10)]);
+  it("prices the period's average against the previous period's average, times the quantity bought now", () => {
+    // Aug averages 105 (100×5 + 110×5); Sep averages 115 over 20 kg.
+    const r = priceMovesFor(range, prev, [pt("2026-08-05", "pork", 100, 5), pt("2026-08-25", "pork", 110, 5), pt("2026-09-05", "pork", 110, 10), pt("2026-09-20", "pork", 120, 10)]);
     expect(r.up).toHaveLength(1);
-    expect(r.up[0].extra).toBe(300); // (110−100)×10 + (120−100)×10
-    expect(r.up[0].changePct).toBe(15);
+    expect(r.up[0].extra).toBe(200); // (115 − 105) × 20
+    expect(r.up[0].changePct).toBe(9.5);
   });
-  it("a product first bought inside the period has no reference and is left out", () => {
-    expect(priceMovesFor(range, [pt("2026-09-05", "new", 50, 1), pt("2026-09-25", "new", 80, 1)]).up).toEqual([]);
+  it("a cheap last receipt before the period does not make a rise out of noise", () => {
+    // The old rule priced Sep against the 31 Aug receipt alone (95) and called this +15.8%.
+    const r = priceMovesFor(range, prev, [pt("2026-08-10", "beer", 110, 10), pt("2026-08-31", "beer", 95, 10), pt("2026-09-10", "beer", 110, 10)]);
+    expect(r.up[0].changePct).toBe(7.3); // 110 vs the Aug average 102.5
+  });
+  it("a product not bought in both windows is left out", () => {
+    expect(priceMovesFor(range, prev, [pt("2026-09-05", "new", 50, 1), pt("2026-09-25", "new", 80, 1)]).up).toEqual([]);
   });
   it("a fall is a saving, listed apart", () => {
-    const r = priceMovesFor(range, [pt("2026-08-01", "sugar", 30, 1), pt("2026-09-10", "sugar", 27, 10)]);
+    const r = priceMovesFor(range, prev, [pt("2026-08-01", "sugar", 30, 1), pt("2026-09-10", "sugar", 27, 10)]);
     expect(r.up).toEqual([]);
     expect(r.down[0].extra).toBe(-30);
   });

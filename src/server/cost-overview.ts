@@ -23,7 +23,8 @@ import { branchScopeWhere, type BranchReach } from "@/lib/permissions/service";
 import { DEFAULT_CATEGORIES } from "@/lib/category-seed";
 import { getBranchCostSummariesLogic, replayPairsInTx, costKeyOf } from "./stock-cost";
 import { ingredientFactsInTx } from "./menu-manager";
-import { getPriceWatchLogic, type PricePoint } from "./price-watch";
+import { getPriceWatchLogic } from "./price-watch";
+import { priceMovesFor, type PriceMove } from "@/lib/price-average";
 
 export const WEEKS_SHOWN = 12;
 export const MONTHS_SHOWN = 6;
@@ -83,14 +84,7 @@ export type CostPeriod = {
   priceDown: PriceMove[];
 };
 
-export type PriceMove = {
-  productId: string;
-  name: string;
-  changePct: number;
-  /** Baht paid above (or, negative, below) the last price before the period. */
-  extra: number;
-  detail: string;
-};
+export type { PriceMove } from "@/lib/price-average";
 
 export type CountEvent = {
   countId: string;
@@ -179,44 +173,7 @@ export function laborFor(
   return { labor: round2(total), missing: null };
 }
 
-/**
- * Rule CO-PRICE. What price movements cost in a period: every receipt in it,
- * priced against the LAST price paid for that product before the period began
- * (any supplier), times the quantity received. A product first bought inside
- * the period has no reference and is left out rather than guessed.
- */
-export function priceMovesFor(range: { from: Date; to: Date }, points: PricePoint[]): { up: PriceMove[]; down: PriceMove[] } {
-  const start = range.from.getTime();
-  const end = range.to.getTime() + DAY;
-  const byProduct = new Map<string, PricePoint[]>();
-  for (const p of points) byProduct.set(p.productId, [...(byProduct.get(p.productId) ?? []), p]);
-  const moves: PriceMove[] = [];
-  for (const [productId, pts] of byProduct) {
-    const sorted = [...pts].sort((a, b) => a.date.getTime() - b.date.getTime());
-    const before = sorted.filter((p) => p.date.getTime() < start).at(-1);
-    const inside = sorted.filter((p) => p.date.getTime() >= start && p.date.getTime() < end);
-    if (!before || inside.length === 0 || before.pricePerBase <= 0) continue;
-    const qty = inside.reduce((s, p) => s + p.qtyBase, 0);
-    if (qty <= 0) continue;
-    const paid = inside.reduce((s, p) => s + p.pricePerBase * p.qtyBase, 0);
-    const avg = paid / qty;
-    const extra = round2(paid - before.pricePerBase * qty);
-    const changePct = Math.round(((avg - before.pricePerBase) / before.pricePerBase) * 1000) / 10;
-    if (Math.abs(extra) < 1 || changePct === 0) continue;
-    const unit = before.baseUnit ? ` ต่อ ${before.baseUnit}` : "";
-    moves.push({
-      productId,
-      name: before.productName,
-      changePct,
-      extra,
-      detail: `฿${before.pricePerBase.toFixed(2)} → ฿${avg.toFixed(2)}${unit}`,
-    });
-  }
-  return {
-    up: moves.filter((m) => m.extra > 0).sort((a, b) => b.extra - a.extra).slice(0, 5),
-    down: moves.filter((m) => m.extra < 0).sort((a, b) => a.extra - b.extra).slice(0, 3),
-  };
-}
+export { priceMovesFor } from "@/lib/price-average";
 
 export async function getCostOverviewLogic(tenantId: string, reach: BranchReach): Promise<CostOverview> {
   const today = computeBangkokToday();
@@ -251,7 +208,14 @@ export async function getCostOverviewLogic(tenantId: string, reach: BranchReach)
         waste: round2(num(row.wasteValue)),
       };
     }
-    const moves = priceMovesFor(r, prices);
+    // CO-PRICE v2: against the period before, of the same length (the previous
+    // week / month), by average — never the single receipt before it.
+    const prev = all[i - 1] && all[i - 1].key[0] === r.key[0]
+      ? all[i - 1]
+      : r.key[0] === "w"
+        ? { from: addDays(r.from, -7), to: addDays(r.from, -1) }
+        : { from: new Date(Date.UTC(r.from.getUTCFullYear(), r.from.getUTCMonth() - 1, 1)), to: addDays(r.from, -1) };
+    const moves = priceMovesFor(r, prev, prices);
     return {
       key: r.key,
       label: r.label,

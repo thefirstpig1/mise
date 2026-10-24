@@ -204,3 +204,23 @@ export async function saveCostTargetsAction(
   revalidatePath("/settings");
   return { ok: true };
 }
+
+// ── per-menu food-cost target (Kong 2026-10-24, rule PV-ALLOW) ───────────────
+// null = follow the shop's target. 5–95%, refused (not clamped) outside it.
+export async function saveMenuCostTargetAction(
+  menuId: string,
+  pct: number | null
+): Promise<{ ok: true } | { ok: false; formError: string }> {
+  const { tenantId } = await requireTenant("master:write");
+  if (pct !== null && !(Number.isFinite(pct) && pct >= 5 && pct <= 95)) {
+    return { ok: false, formError: "เป้าต้นทุนต้องอยู่ระหว่าง 5–95% ของราคาขาย" };
+  }
+  const n = await withTenantContext(tenantId, (tx) =>
+    tx.menu.updateMany({
+      where: { id: menuId, tenantId, deletedAt: null },
+      data: { foodCostTargetPct: pct === null ? null : Math.round(pct * 10) / 10 },
+    })
+  );
+  if (n.count !== 1) return { ok: false, formError: "ไม่พบเมนูนี้ อาจถูกลบไปแล้ว" };
+  return { ok: true };
+}
