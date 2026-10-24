@@ -1,7 +1,7 @@
-<title>ราคาวัตถุดิบ · เก่า–ใหม่</title>
+<title>การผันผวนราคาวัตถุดิบ · เก่า–ใหม่</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Prompt:wght@500;600;700&family=Noto+Sans+Thai:wght@400;500;600&display=swap">
 <style>
-/* Mockup: /cost/prices (ราคาวัตถุดิบขึ้นลง) — current vs proposed, question-first.
+/* Mockup: /cost/prices → การผันผวนราคาวัตถุดิบ (round 2) — current vs proposed.
    Real figures of the demo shop (count ARI-SC-0001, 24 Sep 2026) unless the
    "ตัวอย่าง" switch is on. App tokens from tailwind.config.ts. */
 :root{
@@ -91,167 +91,219 @@ p{margin:0}
 </style>
 
 <style>
-.div{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) minmax(0,1fr) 84px;gap:10px;align-items:center;padding:7px 8px;border-radius:10px;cursor:pointer;transition:background .12s}
-.div:hover{background:var(--muted)}
-.div .l,.div .r{height:12px;position:relative}
-.div .l i{position:absolute;right:0;top:0;height:100%;border-radius:6px 0 0 6px;background:linear-gradient(270deg,#5A7333,#A3BA73);transform-origin:right;animation:growr .6s cubic-bezier(.2,.8,.2,1) both}
-.div .r i{position:absolute;left:0;top:0;height:100%;border-radius:0 6px 6px 0;background:linear-gradient(90deg,#DD8A74,#A83A22);transform-origin:left;animation:grow .6s cubic-bezier(.2,.8,.2,1) both}
-.div .axis{border-left:1px solid var(--strong)}
-.mt{width:100%;border-collapse:collapse;font-size:.85rem}
-.mt th{text-align:left;font-weight:600;font-size:.74rem;color:var(--muted-fg);padding:6px;border-bottom:1px solid var(--border)}
-.mt td{padding:7px 6px;border-bottom:1px solid color-mix(in srgb,var(--border) 60%,transparent)}
-.mt tr.flag td{background:var(--warn-bg)}
-.minis{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px}
-.mini{border:1px solid var(--border);border-radius:12px;padding:10px;background:var(--surface);cursor:pointer}
-.mini:hover{border-color:var(--strong)}
-.empty{border:1px dashed var(--strong);border-radius:12px;padding:12px 14px;font-size:.84rem;color:var(--muted-fg)}
-@keyframes growr{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+.ctl{display:grid;gap:8px}
+.ctl .lab{font-size:.74rem;color:var(--muted-fg);width:72px;flex-shrink:0}
+.modecards{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.mode{all:unset;cursor:pointer;border:1px solid var(--border);background:var(--surface);border-radius:14px;padding:12px 14px;display:grid;gap:3px;transition:border-color .15s,box-shadow .15s,transform .15s}
+.mode:hover{transform:translateY(-1px);border-color:var(--strong)}
+.mode[aria-pressed="true"]{border-color:var(--primary);box-shadow:0 0 0 1px var(--primary) inset}
+.mode b{font-family:var(--display);font-weight:600}
+.mode span{font-size:.78rem;color:var(--muted-fg)}
+.chartwrap{position:relative}
+.lg{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.lgi{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-size:.76rem;border:1px solid var(--border);border-radius:999px;padding:2px 10px;background:var(--surface)}
+.lgi i{width:10px;height:10px;border-radius:3px}
+.lgi[aria-pressed="false"]{opacity:.4}
+.lgi:hover{border-color:var(--strong)}
+.rk{width:100%;border-collapse:collapse;font-size:.85rem}
+.rk th{text-align:left;font-weight:600;font-size:.72rem;color:var(--muted-fg);padding:7px 6px;border-bottom:1px solid var(--border);white-space:nowrap}
+.rk td{padding:8px 6px;border-bottom:1px solid color-mix(in srgb,var(--border) 60%,transparent)}
+.rk tbody tr{cursor:pointer;transition:background .1s}
+.rk tbody tr:hover,.rk tbody tr.hl{background:var(--muted)}
+.gap{display:inline-block;min-width:56px;text-align:right;font-weight:600}
+.search{width:100%;max-width:280px;border:1px solid var(--strong);border-radius:10px;padding:5px 10px;font:inherit;font-size:.82rem;background:var(--surface);color:var(--fg)}
+.tin{width:56px;border:1px solid var(--strong);border-radius:8px;padding:2px 6px;font:inherit;font-size:.8rem;text-align:right;background:var(--warn-bg);color:var(--fg)}
+.callout{border-radius:12px;padding:10px 12px;background:var(--bad-bg);border:1px solid color-mix(in srgb,var(--bad) 30%,transparent);font-size:.86rem}
 </style>
 <div class="wrap">
   <div class="top">
-    <div><h1 style="font-size:1.2rem">ราคาวัตถุดิบขึ้นลง · เก่า–ใหม่</h1>
-      <p class="sub">ออกแบบจากคำถามที่เจ้าของร้านถาม (<a href="https://claude.ai/artifact/AdGfM9yfp7jUJscJwSiXQZ">งานค้นคว้า</a>) · ตัวเลขจริงของร้านตัวอย่าง · ใบรับของ 10 ส.ค.–24 ก.ย.</p></div>
+    <div><h1 style="font-size:1.2rem">การผันผวนราคาวัตถุดิบ · เก่า–ใหม่ (รอบ 2)</h1>
+      <p class="sub">ตัวเลขจริงของร้านตัวอย่าง · ราคาเฉลี่ยถ่วงปริมาณรายสัปดาห์จากใบรับของ 10 ส.ค.–24 ก.ย. · ต้นทุนเมนูจากสูตรจริง สาขาอารีย์ · ยอดขาย ก.ย.</p></div>
     <div class="seg" role="group" aria-label="แบบไหน"><button id="b-old" aria-pressed="false">ตอนนี้</button><button id="b-new" aria-pressed="true">ที่เสนอ</button></div>
   </div>
 
   <div class="page old" id="oldpage" hidden>
-    <div><h2 style="font-size:1.15rem">ราคาวัตถุดิบขึ้นลง</h2><p class="sub">จากใบรับของที่ยืนยันแล้ว · เทียบราคาครั้งแรกกับครั้งล่าสุดในช่วงที่เลือก · ย้อนหลัง 8 สัปดาห์</p></div>
-    <div class="kpis" style="grid-template-columns:repeat(3,1fr)">
-      <div class="kpi"><span class="k">วัตถุดิบที่เทียบราคาได้</span><span class="v">26 รายการ</span></div>
-      <div class="kpi"><span class="k">แพงขึ้น</span><span class="v" style="color:var(--bad)">มากสุด +11.6%</span><span class="s">เบียร์สิงห์ 620 มล.</span></div>
-      <div class="kpi"><span class="k">ถูกลง</span><span class="v" style="color:var(--good)">มากสุด −3.7%</span><span class="s">หมูสับ</span></div>
-    </div>
-    <div class="card"><b>ราคาเปลี่ยนไปเท่าไร รายวัตถุดิบ</b> <span class="sub">เรียงตาม %</span>
-      <div id="oldbars" style="margin-top:8px;display:grid;gap:4px"></div></div>
-    <p class="sub" style="color:var(--bad)">↑ เรียงตาม % และเทียบใบแรกกับใบล่าสุด: เบียร์ +11.6% ผักบุ้ง +10.7% เนื้อสันใน +6.3% — แต่ราคาเฉลี่ย ก.ย. เทียบ ส.ค. คือ +1.8% · +2.3% · −1.7% · ไม่บอกว่าเป็นเงินเท่าไร และไม่บอกว่ากระทบเมนูไหน</p>
+    <div><h2 style="font-size:1.15rem">ราคาวัตถุดิบขึ้นลง</h2><p class="sub">เทียบราคาใบแรกกับใบล่าสุดในช่วงที่เลือก · เรียงตาม %</p></div>
+    <div class="card"><div id="oldbars" style="display:grid;gap:4px"></div></div>
+    <p class="sub" style="color:var(--bad)">↑ ไม่มีแนวโน้ม ไม่มีมุมมองหมวด/แผนก และไม่รู้ว่าราคานี้เมนูรับได้หรือเปล่า</p>
   </div>
 
   <div class="page" id="newpage">
-    <div class="row" style="justify-content:space-between">
-      <div><h2 style="font-size:1.25rem">ราคาวัตถุดิบขึ้นลง</h2><p class="sub">ราคาที่เปลี่ยนทำให้ร้านจ่ายเพิ่มเท่าไร กระทบเมนูไหน และต้องทำอะไร · ราคาต่อหน่วยไม่รวม VAT จากใบรับของ</p></div>
+    <div><h2 style="font-size:1.25rem">การผันผวนราคาวัตถุดิบ</h2><p class="sub">ราคาเปลี่ยนไปเท่าไร และราคานี้เมนูที่ใช้ยังรับไหวไหม</p></div>
+
+    <div class="modecards" role="group" aria-label="เทียบกับอะไร">
+      <button class="mode" id="m-ref" aria-pressed="true"><b>① เทียบกับช่วงอ้างอิง</b><span>ราคาขึ้นหรือลงกี่ % จากช่วงที่เลือกเป็นฐาน</span></button>
+      <button class="mode" id="m-tgt" aria-pressed="false"><b>② เทียบกับราคาที่เมนูรับได้</b><span>ถ้าจะให้ต้นทุนเมนูอยู่ในเป้า วัตถุดิบนี้ควรราคาไม่เกินเท่าไร · ราคาไม่เปลี่ยนไม่ได้แปลว่าไม่ขาดทุน</span></button>
     </div>
-    <div class="card" style="padding:10px 14px;display:grid;gap:6px">
-      <div class="row"><span class="sub" style="width:56px">เดือน</span><span id="months" class="row"></span></div>
-      <p class="sub" id="fresh"></p>
+
+    <div class="card ctl">
+      <div class="row"><span class="lab">ดูแบบ</span><span class="seg" role="group" id="views"></span></div>
+      <div class="row"><span class="lab">ช่วง</span><span class="seg" role="group" id="grans"></span></div>
+      <div class="row" id="refrow"><span class="lab">ฐานอ้างอิง</span><span class="row" id="refs"></span></div>
+      <div class="row" id="pickrow" hidden><span class="lab">เลือกสินค้า</span><input class="search" id="search" placeholder="พิมพ์ชื่อวัตถุดิบเพื่อเพิ่มในกราฟ…" list="plist"><datalist id="plist"></datalist><span class="row" id="picked"></span></div>
     </div>
 
-    <div class="qlabel"><span class="qn">1</span> ราคาที่เปลี่ยนทำให้จ่ายเพิ่มหรือประหยัดเท่าไร</div>
-    <div class="kpis" id="kpis"></div>
-
-    <div class="qlabel"><span class="qn">2</span> ตัวไหน <span class="sub" style="font-weight:400">เรียงตามเงิน · ซ้าย = ถูกลง (ประหยัด) · ขวา = แพงขึ้น (จ่ายเพิ่ม) · กดเพื่อดูราคาทุกใบ</span></div>
-    <div class="card" id="bars"></div>
-
-    <div class="qlabel"><span class="qn">3</span> กระทบเมนูไหน · ต้องขึ้นราคาไหม</div>
-    <div class="card" id="menus"></div>
-
-    <div class="grid2">
-      <div style="display:grid;gap:8px;align-content:start">
-        <div class="qlabel"><span class="qn">4</span> ขึ้นทีละนิดสะสมไหม</div>
-        <div class="card" id="creep"></div>
-      </div>
-      <div style="display:grid;gap:8px;align-content:start">
-        <div class="qlabel"><span class="qn">5–6</span> เจ้าไหนถูกกว่า · บิลตรงราคาที่สั่งไหม</div>
-        <div class="card" style="display:grid;gap:8px">
-          <div class="empty"><b>เจ้าไหนถูกกว่า:</b> ทุกรายการในช่วงนี้ซื้อจากเจ้าเดียว จึงยังไม่มีราคาเทียบ · ของที่ซื้อเยอะ (กุ้งขาว ฿80,582 · ข้าวหอมมะลิ ฿52,939 · หมูสับ ฿39,258 ต่อเดือน) คุ้มที่จะขอราคาจากเจ้าที่สอง <span class="dl">เพิ่มผู้ขายให้สินค้า ›</span></div>
-          <div class="empty"><b>บิลตรงราคาที่สั่งไหม:</b> ใบรับของทั้งหมดบันทึกตรง ไม่ได้มาจากใบสั่งซื้อ จึงไม่มีราคาที่ตกลงไว้ให้เทียบ · เมื่อรับของจากใบสั่งซื้อ ระบบจะบอกบรรทัดที่ราคาไม่ตรงและต่างกี่บาท</div>
-        </div>
-      </div>
+    <div class="card">
+      <div class="row" style="justify-content:space-between;align-items:baseline"><h3 style="font-size:1rem" id="ctitle"></h3><span class="sub" id="chint"></span></div>
+      <div class="chartwrap" id="chart"></div>
+      <div class="lg" id="legend"></div>
     </div>
+
+    <div class="callout" id="callout" hidden></div>
+
+    <div class="card">
+      <div class="row" style="justify-content:space-between;align-items:baseline"><h3 style="font-size:1rem" id="ttitle"></h3><span class="sub" id="thint"></span></div>
+      <div style="overflow-x:auto"><table class="rk" id="table"></table></div>
+    </div>
+
+    <div class="card" id="targets" hidden></div>
   </div>
 
   <div class="legend">
-    <h3 style="font-size:1rem">หน้านี้เรียงตามคำถาม</h3>
+    <h3 style="font-size:1rem">รอบ 2 ตามที่คุณ Kong สั่ง</h3>
     <ol>
-      <li><b>เทียบราคาเฉลี่ย ไม่ใช่ใบเดียว</b> — ราคาซื้อแกว่งทุกใบ (เบียร์ ฿61.98–69.47 ใน 6 สัปดาห์) จึงเทียบราคาเฉลี่ยถ่วงตามปริมาณของเดือนนี้กับเดือนก่อน · เงินที่จ่ายเพิ่ม = (เฉลี่ยใหม่ − เฉลี่ยเดิม) × ปริมาณที่ซื้อเดือนนี้ · เสนอให้รายการ “ราคาขึ้น” ในหน้าต้นทุนใช้วิธีเดียวกัน</li>
-      <li><b>1</b> จ่ายเพิ่ม · ประหยัด · สุทธิ เป็น % ของยอดซื้อ · บอกว่ารับของล่าสุดเมื่อไร — เดือนที่ยังไม่มีใบรับของขึ้นว่า “ยังไม่มีใบรับของ” ไม่ใช่ “ไม่เปลี่ยน”</li>
-      <li><b>2</b> แท่งสองข้างเรียงตามเงิน · ป้ายบอก % และช่วงแกว่งในเดือน · กด = ราคาทุกใบเป็นจุด พร้อมเส้นเฉลี่ยรายเดือน และเมนูที่ใช้</li>
-      <li><b>3</b> ต้นทุนต่อจานเปลี่ยนกี่บาท = กี่จุดของราคาขาย (เทียบ food cost %) × จานที่ขายเดือนนี้ · เน้นเมนูที่ขึ้นตั้งแต่ 1 จุด · ปุ่ม “ลองราคา” ไปทดลองเมนู</li>
-      <li><b>4</b> ราคาเฉลี่ยรายเดือนต่อรายการ · ต้อง 3 เดือนขึ้นไปจึงบอกว่า “ขึ้นติดกัน” ได้ (ตอนนี้มี 2)</li>
-      <li><b>5–6</b> ยังไม่มีข้อมูล บอกตรง ๆ ว่าต้องทำอะไรจึงจะมี</li>
+      <li><b>ชื่อหน้า “การผันผวนราคาวัตถุดิบ”</b></li>
+      <li><b>ดูแบบ: ภาพรวม · หมวดหมู่ · แผนก · สินค้า</b> + <b>ช่วง: รายสัปดาห์ / รายเดือน</b> — ทุกแบบเป็นกราฟเส้นแนวโน้มวางเทียบกัน · ชี้กราฟ = เห็นค่าทุกเส้นในช่วงนั้น · กดป้ายสีเพื่อซ่อน/แสดงเส้น · ชี้แถวในตาราง = เส้นนั้นเด่น · ดูแบบสินค้า พิมพ์ชื่อเพื่อเพิ่มเส้น (เริ่มที่ 5 ตัวที่ซื้อเป็นเงินมากสุด)</li>
+      <li><b>① เทียบกับช่วงอ้างอิง</b> — เลือกฐานได้: สัปดาห์แรก / เดือน ส.ค. / ช่วงก่อนหน้า (แต่ละจุดเทียบจุดก่อน) · หมวด/แผนก/ภาพรวม = ดัชนีถ่วงตามยอดซื้อ ไม่ใช่ค่าเฉลี่ยธรรมดา</li>
+      <li><b>② เทียบกับราคาที่เมนูรับได้</b> — ราคาที่รับได้ = ราคาที่ทำให้ทุกเมนูที่ใช้วัตถุดิบนี้มีต้นทุนพอดีเป้า (ถ่วงตามจานที่ขาย) · เส้น 0% = พอดีเป้า · เหนือ 0 = แพงเกินกว่าที่ราคาเมนูรองรับ · <b>“เกินงบต่อเดือน”</b> = เงินที่วัตถุดิบนี้ทำให้ต้นทุนเมนูเกินเป้า · เป้าตั้งต่อเมนูได้ (ค่าเริ่มต้น = เป้าร้าน 35%) — ตารางล่างสุด</li>
+      <li>ตัวอย่างจริง: <b>กุ้งขาว ราคาแทบไม่ขยับ (+1.2%) แต่แพงเกินที่เมนูรับได้มาตลอด</b> เพราะเมนูกุ้งต้นทุน 40–57% ของราคาขาย — โหมด ① มองไม่เห็นเลย</li>
     </ol>
-    <p class="sub">ตัวเลขจริงทั้งหมด: ราคาเฉลี่ยถ่วงปริมาณ ส.ค./ก.ย. ทุก 26 รายการ · ผลต่อเมนู = ปริมาณในสูตร × ราคาเฉลี่ยที่เปลี่ยน × จานที่ขาย ก.ย. (ราคาขาย = ยอดขาย ÷ จาน) · ราคาทุกใบ 10 รายการบนสุด</p>
+    <p class="sub">⚠ ลงหน้าจริงต้องเพิ่ม “เป้าต้นทุนต่อเมนู” ในฐานข้อมูล (คอลัมน์ใหม่ใน menu ต้องขออนุมัติ) — ตอนนี้ร้านมีแค่เป้ารวม 35% · ราคาที่รับได้คิดจากราคาขายและสูตรปัจจุบัน แบ่งส่วนเกินให้วัตถุดิบตามสัดส่วนต้นทุนในจาน (สมมติว่าทุกวัตถุดิบในจานต้องลดเท่ากัน) · เครื่องดื่มซื้อมาขายต่อ (เบียร์ โค้ก) ร้านส่วนใหญ่ตั้งเป้าสูงกว่าอาหาร ลองแก้เป้าในตารางล่างสุด</p>
   </div>
 </div>
 
 <script>
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const f0=n=>Math.round(n).toLocaleString("th-TH"), f2=n=>n.toLocaleString("th-TH",{minimumFractionDigits:2,maximumFractionDigits:2});
-// [name, unit, supplier, avg Aug, avg Sep, %, baht impact Sep, Sep spend]
-const ROWS=[["กุ้งขาว","kg","มหาชัย",321.01,324.93,1.2,971,80582],["เบียร์สิงห์ 620 มล.","ขวด","บุญรอด",65.36,66.53,1.8,518,29538],["หมูสับ","kg","ลุงชัย",129.45,130.86,1.1,424,39258],["อกไก่","kg","ลุงชัย",85.77,87.17,1.6,112,6974],["นมข้นจืด","l","บุญรอด",58.82,59.47,1.1,102,9372],["ผักบุ้ง","kg","ป้าศรี",45.12,46.17,2.3,101,4432],["น้ำตาลทราย","kg","แม็คโคร",28.62,29.29,2.4,94,4101],["มะละกอดิบ","kg","ป้าศรี",30.45,31.07,2,80,4039],["โค้ก 325 มล.","ขวด","บุญรอด",13.91,13.99,0.6,70,12756],["กะทิ","l","แม็คโคร",91.43,91.98,0.6,70,11589],["ผงชาไทย","kg","บุญรอด",366.05,369.62,1,54,5618],["น้ำมันพืช","l","แม็คโคร",45.76,45.97,0.5,51,11376],["กระเทียม","kg","ป้าศรี",94.98,95.38,0.4,21,5055],["ใบกะเพรา","kg","ป้าศรี",81.49,81.79,0.4,11,2944],["น้ำดื่ม 600 มล.","ขวด","บุญรอด",5.07,5.06,-0.1,-4,4497],["พริกขี้หนู","kg","ป้าศรี",123.23,122.39,-0.7,-27,3917],["มะนาว","ลูก","ป้าศรี",3.04,3.03,-0.4,-28,6514],["น้ำปลา","l","แม็คโคร",43,42.54,-1.1,-58,5360],["ซอสหอยนางรม","l","แม็คโคร",68.43,66.99,-2.1,-58,2680],["เส้นจันท์","kg","แม็คโคร",49.2,48.52,-1.4,-101,7279],["ไข่ไก่","ฟอง","แม็คโคร",4.21,4.18,-0.8,-155,20304],["เนื้อสันใน","kg","ลุงชัย",388.32,381.83,-1.7,-234,13746],["เมล็ดกาแฟคั่ว","kg","บุญรอด",534.48,518.62,-3,-238,7779],["หมูสามชั้น","kg","ลุงชัย",183.3,179.84,-1.9,-277,14387],["ปลากะพง","kg","มหาชัย",225.12,220.65,-2,-478,23609],["ข้าวหอมมะลิ","kg","แม็คโคร",47.04,45.83,-2.6,-1388,52939]];
-// [menu, Δcost/plate, plates Sep, price, Δ฿/month, [[ingredient, Δ]]]
-const MENUS=[["เบียร์สิงห์",1.17,276,95,323,[["เบียร์สิงห์ 620 มล.",1.17]]],["ต้มยำกุ้งน้ำข้น",0.62,275,159,171,[["กุ้งขาว",0.59],["กะทิ",0.03]]],["ผัดไทยกุ้งสด",0.21,528,95,111,[["กุ้งขาว",0.31],["เส้นจันท์",-0.08]]],["กะเพรากุ้ง",0.22,432,89,94,[["กุ้งขาว",0.47],["ข้าวหอมมะลิ",-0.24]]],["ชาไทยเย็น",0.11,636,45,70,[["ผงชาไทย",0.05],["นมข้นจืด",0.04]]],["ผัดผักบุ้งไฟแดง",0.19,343,69,67,[["ผักบุ้ง",0.21],["ซอสหอยนางรม",-0.02]]],["ส้มตำไทย",0.09,599,59,52,[["มะละกอดิบ",0.09],["มะนาว",-0.01]]],["โค้ก",0.08,581,25,46,[["โค้ก 325 มล.",0.08]]],["ข้าวผัดกุ้ง",0.06,377,85,24,[["กุ้งขาว",0.39],["ข้าวหอมมะลิ",-0.3]]],["ข้าวไข่เจียวหมูสับ",-0.22,430,59,-96,[["ข้าวหอมมะลิ",-0.24],["หมูสับ",0.07]]],["กะเพราหมูสับไข่ดาว",-0.11,949,69,-105,[["ข้าวหอมมะลิ",-0.24],["หมูสับ",0.17]]],["กาแฟเย็น",-0.23,468,55,-109,[["เมล็ดกาแฟคั่ว",-0.29],["นมข้นจืด",0.04]]],["ข้าวผัดหมู",-0.18,670,65,-123,[["ข้าวหอมมะลิ",-0.3],["หมูสับ",0.14]]],["หมูกรอบผัดพริกเกลือ",-0.74,241,109,-179,[["หมูสามชั้น",-0.52],["ข้าวหอมมะลิ",-0.24]]],["เนื้อผัดน้ำมันหอย",-1.05,173,129,-182,[["เนื้อสันใน",-0.78],["ข้าวหอมมะลิ",-0.24]]],["ปลากะพงนึ่งมะนาว",-3.62,96,289,-348,[["ปลากะพง",-3.58],["มะนาว",-0.03]]]];
-const SERIES={"เบียร์สิงห์ 620 มล.":[["08-13",61.98],["08-16",67.3],["08-19",64.01],["08-22",64.22],["08-25",68.59],["08-28",69.18],["08-31",62.88],["09-03",69.47],["09-06",68.92],["09-09",64.34],["09-12",63.23],["09-15",66.47],["09-18",64.75],["09-21",65.8],["09-24",69.18]],"ผักบุ้ง":[["08-13",42.91],["08-16",43.93],["08-19",45.68],["08-22",47.19],["08-25",46.16],["08-28",42.88],["08-31",47.27],["09-03",47.56],["09-06",44.32],["09-09",45.28],["09-12",45.34],["09-15",47.61],["09-18",46.02],["09-21",45.83],["09-24",47.49]],"เนื้อสันใน":[["08-13",364.64],["08-16",401.06],["08-19",399.13],["08-22",383.9],["08-25",378.14],["08-28",397.23],["08-31",394.11],["09-03",361.06],["09-06",404.92],["09-09",406.56],["09-12",367.76],["09-15",394.42],["09-18",383.3],["09-21",366.29],["09-24",387.75]],"เส้นจันท์":[["08-13",47.41],["08-16",49.94],["08-19",48.63],["08-22",48.57],["08-25",49.15],["08-28",49.78],["08-31",50.01],["09-03",49.39],["09-06",46.88],["09-09",45.8],["09-12",45.9],["09-15",51.31],["09-18",48.8],["09-21",50.76],["09-24",50.17]],"หมูสับ":[["08-13",133.55],["08-16",124.57],["08-19",124.33],["08-22",125.05],["08-25",136.83],["08-28",137.48],["08-31",123.53],["09-03",132.66],["09-06",126.28],["09-09",124.58],["09-12",138.73],["09-15",138.49],["09-18",133.4],["09-21",124.41],["09-24",128.65]],"ไข่ไก่":[["08-13",4.38],["08-16",4.2],["08-19",4.39],["08-22",4.44],["08-25",4.02],["08-28",3.99],["08-31",3.97],["09-03",4.07],["09-06",4.19],["09-09",4.41],["09-12",4.29],["09-15",3.97],["09-18",4.11],["09-21",4.06],["09-24",4.35]],"กุ้งขาว":[["08-13",329.16],["08-16",323.43],["08-19",310.08],["08-22",306.68],["08-25",340.98],["08-28",310.72],["08-31",334.45],["09-03",340.86],["09-06",325.02],["09-09",341.78],["09-12",311.2],["09-15",310.82],["09-18",312.04],["09-21",322.31],["09-24",335.67]],"ปลากะพง":[["08-13",222.27],["08-16",220.05],["08-19",218.31],["08-22",228.07],["08-25",229.42],["08-28",227.69],["08-31",232.35],["09-03",224.55],["09-06",231.56],["09-09",212.99],["09-12",210.65],["09-15",224.05],["09-18",221.42],["09-21",224.17],["09-24",220.67]],"กะทิ":[["08-13",92.17],["08-16",92.13],["08-19",92.91],["08-22",94.45],["08-25",91.2],["08-28",86.75],["08-31",87.4],["09-03",91.41],["09-06",87.36],["09-09",94.08],["09-12",89.8],["09-15",94.84],["09-18",91.35],["09-21",93.97],["09-24",92.24]],"หมูสามชั้น":[["08-13",172.23],["08-16",173.63],["08-19",177.02],["08-22",185.35],["08-25",192.53],["08-28",191.35],["08-31",191],["09-03",171.84],["09-06",176.68],["09-09",175.77],["09-12",189.31],["09-15",174.61],["09-18",188.05],["09-21",183.18],["09-24",179.27]]};
-const SPEND=390645, FLAG=1;
-const up=ROWS.filter(r=>r[6]>0), dn=ROWS.filter(r=>r[6]<0);
-const sumUp=up.reduce((s,r)=>s+r[6],0), sumDn=dn.reduce((s,r)=>s+r[6],0), net=sumUp+sumDn;
-let month="ก.ย.";
+const D={"weeks":["08-10","08-17","08-24","08-31","09-07","09-14","09-21"],"unit":{"โค้ก 325 มล.":"ชิ้น","เบียร์สิงห์ 620 มล.":"ชิ้น","น้ำดื่ม 600 มล.":"ชิ้น","หมูสับ":"kg","หมูสามชั้น":"kg","อกไก่":"kg","เนื้อสันใน":"kg","กุ้งขาว":"kg","ปลากะพง":"kg","ข้าวหอมมะลิ":"kg","เส้นจันท์":"kg","น้ำมันพืช":"l","น้ำปลา":"l","ซอสหอยนางรม":"l","น้ำตาลทราย":"kg","กะทิ":"l","ไข่ไก่":"ฟอง","ใบกะเพรา":"kg","พริกขี้หนู":"kg","กระเทียม":"kg","มะนาว":"ลูก","ผักบุ้ง":"kg","มะละกอดิบ":"kg","ผงชาไทย":"kg","เมล็ดกาแฟคั่ว":"kg","นมข้นจืด":"l"},"series":{"โค้ก 325 มล.":[[13.42,240],[13.97,240],[14.08,216],[14.08,312],[14.25,240],[13.83,240],[13.99,216]],"เบียร์สิงห์ 620 มล.":[[64.64,120],[64.11,144],[68.92,108],[67.39,168],[63.72,108],[65.61,120],[67.49,96]],"น้ำดื่ม 600 มล.":[[5,240],[5.16,216],[5.1,192],[5.08,312],[5.02,264],[5.16,216],[4.94,180]],"หมูสับ":[[129.33,85],[124.71,85],[137.19,80],[127.87,120],[131.66,80],[135.58,70],[126.37,65]],"หมูสามชั้น":[[172.93,20],[181.18,20],[191.94,20],[179.84,30],[182.54,20],[181.33,20],[181.23,20]],"อกไก่":[[86.92,20],[85.26,20],[86.13,15],[86.97,30],[87.48,20],[87.81,20],[84.95,20]],"เนื้อสันใน":[[382.85,12],[391.52,12],[387.69,12],[384.42,16],[383.28,10],[388.86,8],[377.02,8]],"กุ้งขาว":[[326.38,66],[308.29,76],[324.38,62],[333.73,98],[326.03,66],[311.49,62],[328.47,52]],"ปลากะพง":[[221.26,33],[223.01,27],[228.46,27],[229.31,39],[211.71,31],[222.53,26],[222.42,24]],"ข้าวหอมมะลิ":[[47.55,315],[46.63,345],[47.38,270],[46.04,450],[45.63,300],[46.69,285],[44.96,255]],"เส้นจันท์":[[49.1,30],[48.6,40],[49.46,40],[48.76,60],[45.85,40],[50.05,40],[50.57,30]],"น้ำมันพืช":[[46.28,82.5],[45.98,82.5],[43.99,68.75],[47.67,96.25],[46.92,55],[44.22,68.75],[45.19,55]],"น้ำปลา":[[43,33.6],[42.45,33.6],[43.36,25.2],[42.75,50.4],[43.28,33.6],[41.11,33.6],[43.74,25.2]],"ซอสหอยนางรม":[[69.29,10],[68.88,20],[67.14,10],[67.09,15],[69.34,10],[65.01,10],[66.75,10]],"น้ำตาลทราย":[[29.04,40],[28.26,40],[27.86,30],[29.16,60],[30.17,40],[30.18,30],[27.71,30]],"กะทิ":[[92.15,36],[93.68,36],[88.97,24],[89.11,42],[91.94,36],[93.09,36],[93.11,24]],"ไข่ไก่":[[4.29,1320],[4.41,1380],[4,1230],[4.08,1860],[4.35,1230],[4.05,1230],[4.19,1080]],"ใบกะเพรา":[[81.87,10],[80.61,10],[82.43,9],[83.58,14],[78.26,9],[81.69,9],[82.18,8]],"พริกขี้หนู":[[125.13,9],[123.91,10],[124.1,9],[120.35,13],[121.83,9],[122.21,7],[123.05,7]],"กระเทียม":[[100.19,15],[92.1,15],[94.1,13],[90.97,21],[96.13,14],[99.76,13],[95.34,11]],"มะนาว":[[3.03,600],[3.1,600],[3.04,550],[2.94,800],[3.06,600],[3.05,550],[3.08,450]],"ผักบุ้ง":[[43.4,29],[46.43,30],[44.59,25],[46.48,36],[45.31,24],[46.66,25],[46.58,22]],"มะละกอดิบ":[[31.03,35],[29.84,33],[30.35,33],[30.98,50],[30.83,36],[31.75,33],[30.47,27]],"ผงชาไทย":[[350.23,4],[372.94,4],[366.67,4],[373.23,6],[367.64,4],[377.91,3.6],[364.74,3.6]],"เมล็ดกาแฟคั่ว":[[540.27,4],[542.24,4],[519.73,4],[531.84,6],[527.39,4],[515.4,3],[501.56,4]],"นมข้นจืด":[[57.47,39.4],[58.86,39.4],[59.81,39.4],[59.87,59.1],[57.45,39.4],[60.6,39.4],[59.74,39.4]]},"cats":{"หมูสับ":"เนื้อสัตว์","หมูสามชั้น":"เนื้อสัตว์","อกไก่":"เนื้อสัตว์","เนื้อสันใน":"เนื้อสัตว์","กุ้งขาว":"อาหารทะเล","ปลากะพง":"อาหารทะเล","ข้าวหอมมะลิ":"ของแห้งและเครื่องปรุง","เส้นจันท์":"ของแห้งและเครื่องปรุง","น้ำมันพืช":"ของแห้งและเครื่องปรุง","น้ำปลา":"ของแห้งและเครื่องปรุง","ซอสหอยนางรม":"ของแห้งและเครื่องปรุง","น้ำตาลทราย":"ของแห้งและเครื่องปรุง","กะทิ":"ของแห้งและเครื่องปรุง","ไข่ไก่":"ของแห้งและเครื่องปรุง","ใบกะเพรา":"ผักและผลไม้","พริกขี้หนู":"ผักและผลไม้","กระเทียม":"ผักและผลไม้","มะนาว":"ผักและผลไม้","ผักบุ้ง":"ผักและผลไม้","มะละกอดิบ":"ผักและผลไม้","ผงชาไทย":"กาแฟและชา","เมล็ดกาแฟคั่ว":"กาแฟและชา","นมข้นจืด":"กาแฟและชา","โค้ก 325 มล.":"น้ำอัดลมและน้ำดื่ม","เบียร์สิงห์ 620 มล.":"เครื่องดื่มแอลกอฮอล์","น้ำดื่ม 600 มล.":"น้ำอัดลมและน้ำดื่ม","กล่องข้าวกระดาษ":"ภาชนะใช้ครั้งเดียว","กุ้งแกะ":"อาหารทะเล","น้ำจิ้มซีฟู้ด":"ของแห้งและเครื่องปรุง","ซอสผัดกะเพรา":"ของแห้งและเครื่องปรุง","ข้าวสวย":"ของแห้งและเครื่องปรุง","ทดสอบสินค้า":"ไม่ระบุ","ทดสอบสอง":"ไม่ระบุ"},"menus":[{"n":"กะเพราหมูสับไข่ดาว","d":"ครัว","p":69,"q":949,"c":29.26,"conf":"HIGH","l":[["กระเทียม",0.908],["ข้าวหอมมะลิ",3.822],["ซอสหอยนางรม",0.675],["น้ำตาลทราย",0.139],["น้ำปลา",0.436],["น้ำมันพืช",1.438],["พริกขี้หนู",1.008],["หมูสับ",15.154],["ใบกะเพรา",1.274],["ไข่ไก่",4.406]]},{"n":"กะเพรากุ้ง","d":"ครัว","p":89,"q":432,"c":50.57,"conf":"HIGH","l":[["กระเทียม",0.908],["กุ้งขาว",41.014],["ข้าวหอมมะลิ",3.822],["ซอสหอยนางรม",0.675],["น้ำปลา",0.436],["น้ำมันพืช",1.438],["พริกขี้หนู",1.008],["ใบกะเพรา",1.274]]},{"n":"ข้าวผัดหมู","d":"ครัว","p":65,"q":670,"c":24.55,"conf":"HIGH","l":[["กระเทียม",0.726],["ข้าวหอมมะลิ",4.777],["น้ำตาลทราย",0.139],["น้ำปลา",0.436],["น้ำมันพืช",1.438],["หมูสับ",12.628],["ไข่ไก่",4.406]]},{"n":"ข้าวผัดกุ้ง","d":"ครัว","p":85,"q":377,"c":45.96,"conf":"HIGH","l":[["กระเทียม",0.726],["กุ้งขาว",34.178],["ข้าวหอมมะลิ",4.777],["น้ำปลา",0.436],["น้ำมันพืช",1.438],["ไข่ไก่",4.406]]},{"n":"ผัดไทยกุ้งสด","d":"ครัว","p":95,"q":528,"c":41.8,"conf":"HIGH","l":[["กุ้งขาว",27.342],["น้ำตาลทราย",0.558],["น้ำปลา",0.654],["น้ำมันพืช",1.438],["มะนาว",1.433],["เส้นจันท์",5.973],["ไข่ไก่",4.406]]},{"n":"ต้มยำกุ้งน้ำข้น","d":"ครัว","p":159,"q":275,"c":63.81,"conf":"HIGH","l":[["กะทิ",4.571],["กุ้งขาว",51.267],["นมข้นจืด",2.973],["น้ำปลา",0.872],["พริกขี้หนู",1.26],["มะนาว",2.865]]},{"n":"แกงเขียวหวานไก่","d":"ครัว","p":89,"q":367,"c":29.09,"conf":"HIGH","l":[["กะทิ",13.712],["ข้าวหอมมะลิ",3.822],["น้ำตาลทราย",0.279],["น้ำปลา",0.436],["อกไก่",10.415],["ใบกะเพรา",0.425]]},{"n":"ส้มตำไทย","d":"ครัว","p":59,"q":599,"c":9.63,"conf":"HIGH","l":[["กระเทียม",0.454],["น้ำตาลทราย",0.558],["น้ำปลา",0.654],["พริกขี้หนู",0.63],["มะนาว",2.865],["มะละกอดิบ",4.467]]},{"n":"หมูกรอบผัดพริกเกลือ","d":"ครัว","p":109,"q":241,"c":37.85,"conf":"HIGH","l":[["กระเทียม",0.908],["ข้าวหอมมะลิ",3.822],["น้ำมันพืช",3.835],["พริกขี้หนู",0.63],["หมูสามชั้น",28.651]]},{"n":"ปลากะพงนึ่งมะนาว","d":"ครัว","p":289,"q":96,"c":183.37,"conf":"HIGH","l":[["กระเทียม",1.816],["น้ำปลา",1.307],["ปลากะพง",170.392],["พริกขี้หนู",1.26],["มะนาว",8.596]]},{"n":"ผัดผักบุ้งไฟแดง","d":"ครัว","p":69,"q":343,"c":13.04,"conf":"HIGH","l":[["กระเทียม",0.908],["ซอสหอยนางรม",1.013],["น้ำมันพืช",1.438],["ผักบุ้ง",9.056],["พริกขี้หนู",0.63]]},{"n":"ข้าวไข่เจียวหมูสับ","d":"ครัว","p":59,"q":430,"c":21.56,"conf":"HIGH","l":[["ข้าวหอมมะลิ",3.822],["น้ำปลา",0.218],["น้ำมันพืช",2.397],["หมูสับ",6.314],["ไข่ไก่",8.811]]},{"n":"เนื้อผัดน้ำมันหอย","d":"ครัว","p":129,"q":173,"c":55.49,"conf":"HIGH","l":[["กระเทียม",0.908],["ข้าวหอมมะลิ",3.822],["ซอสหอยนางรม",2.025],["น้ำมันพืช",1.438],["เนื้อสันใน",47.293]]},{"n":"ชาไทยเย็น","d":"บาร์","p":45,"q":636,"c":9.6,"conf":"HIGH","l":[["นมข้นจืด",3.567],["น้ำตาลทราย",0.697],["ผงชาไทย",5.337]]},{"n":"กาแฟเย็น","d":"บาร์","p":55,"q":468,"c":13.88,"conf":"HIGH","l":[["นมข้นจืด",3.567],["น้ำตาลทราย",0.558],["เมล็ดกาแฟคั่ว",9.754]]},{"n":"โค้ก","d":"บาร์","p":25,"q":581,"c":13.53,"conf":"HIGH","l":[["โค้ก 325 มล.",13.527]]},{"n":"เบียร์สิงห์","d":"บาร์","p":95,"q":276,"c":68.92,"conf":"HIGH","l":[["เบียร์สิงห์ 620 มล.",68.925]]},{"n":"น้ำดื่ม","d":"บาร์","p":15,"q":595,"c":5.24,"conf":"HIGH","l":[["น้ำดื่ม 600 มล.",5.243]]}]};
+const PAL=["#5E6B14","#C0692B","#00857B","#8A4F9E","#B8900F","#A83A22","#5A7333","#3E6FA8","#9C5B3B","#6B6B6B"];
+const WEEK_LABEL=w=>{const [m,d]=w.split("-").map(Number);return `${d} ${["","ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."][m]}`;};
+const SHOP_T=35;
+let mode="ref", view="cat", gran="week", ref="first", hidden=new Set(), hl=null;
+const targets={}; D.menus.forEach(m=>targets[m.n]=SHOP_T);
+let picked=null;
 
-function months(){
-  $("#months").innerHTML=[["ส.ค.","ไม่มีเดือนก่อนให้เทียบ"],["ก.ย.",""],["ต.ค.","ยังไม่มีใบรับของ"]].map(([m,why])=>`<button class="chip ${m===month?"on":""}" data-m="${m}">${m} 69${why?` <span style="opacity:.7">· ${why}</span>`:""}</button>`).join("");
-  $$("#months .chip").forEach(b=>b.onclick=()=>{month=b.dataset.m;render();});
-  $("#fresh").innerHTML=`รับของล่าสุด <b>24 ก.ย.</b> (30 วันก่อน) · ราคาที่เห็นจึงเป็นราคาเมื่อเดือนที่แล้ว · <span class="dl">บันทึกรับของ ›</span>`;
+// ---- buckets (weeks or months) ----
+function buckets(){
+  if(gran==="week") return D.weeks.map((w,i)=>({label:WEEK_LABEL(w),idx:[i]}));
+  const by={}; D.weeks.forEach((w,i)=>{const m=w.slice(0,2);(by[m]??=[]).push(i);});
+  return Object.entries(by).map(([m,idx])=>({label:({"08":"ส.ค. 69","09":"ก.ย. 69"})[m]||m,idx}));
 }
-function emptyMonth(){
-  const why=month==="ส.ค."?"ส.ค. เป็นเดือนแรกที่มีใบรับของ จึงไม่มีราคาเดือนก่อนให้เทียบ":"ต.ค. ยังไม่มีใบรับของ — ไม่ได้แปลว่าราคาไม่เปลี่ยน แปลว่ายังไม่รู้";
-  ["#kpis","#bars","#menus"].forEach(s=>$(s).innerHTML=s==="#kpis"?`<div class="kpi" style="grid-column:1/-1"><span class="v" style="font-size:1.1rem">ยังเทียบไม่ได้</span><span class="s">${why}</span></div>`:`<p class="sub">${why}</p>`);
+// product avg price in a bucket (qty weighted)
+function pAt(name,b){const s=D.series[name]; if(!s) return null; let v=0,q=0; for(const i of b.idx){const x=s[i]; if(x){v+=x[0]*x[1];q+=x[1];}} return q?v/q:null;}
+function pSpend(name){const s=D.series[name]; return s?s.reduce((a,x)=>a+(x?x[0]*x[1]:0),0):0;}
+// ---- allowed price per product (mode 2) ----
+function allowed(){
+  const acc={}; // name -> {w, wk, over}
+  for(const m of D.menus){ const t=targets[m.n]/100, k=t*m.p/m.c;
+    for(const [n,c] of m.l){ if(c<=0) continue; const w=c*m.q; const a=(acc[n]??={w:0,wk:0,over:0}); a.w+=w; a.wk+=w*k; a.over+=w*(1-k); } }
+  const out={}; for(const [n,a] of Object.entries(acc)){ out[n]={k:a.wk/a.w, over:a.over, use:a.w}; } return out;
 }
-function kpis(){
-  $("#kpis").innerHTML=`
-   <div class="kpi"><span class="k">จ่ายเพิ่มจากของที่แพงขึ้น</span><span class="v" style="color:var(--bad)">฿${f0(sumUp)}</span><span class="s">${up.length} รายการ · มากสุด ${up[0][0]}</span></div>
-   <div class="kpi"><span class="k">ประหยัดจากของที่ถูกลง</span><span class="v" style="color:var(--good)">฿${f0(-sumDn)}</span><span class="s">${dn.length} รายการ · มากสุด ${dn[dn.length-1][0]}</span></div>
-   <div class="kpi"><span class="k">สุทธิ ก.ย. เทียบ ส.ค.</span><span class="v">${net<0?"ประหยัด ":"จ่ายเพิ่ม "}฿${f0(Math.abs(net))}</span><span class="s">${(net/SPEND*100).toFixed(2)}% ของยอดซื้อ ฿${f0(SPEND)}</span></div>
-   <div class="kpi"><span class="k">เมนูที่ต้นทุนขึ้นตั้งแต่ ${FLAG} จุด</span><span class="v">${MENUS.filter(m=>m[1]/m[3]*100>=FLAG).length} เมนู</span><span class="s">${MENUS.filter(m=>m[1]/m[3]*100>=FLAG).map(m=>m[0]).join(" · ")||"ไม่มี"}</span></div>`;
+function deptOf(name){ const d={}; for(const m of D.menus) for(const [n,c] of m.l) if(n===name) d[m.d||"ไม่ระบุแผนก"]=(d[m.d||"ไม่ระบุแผนก"]||0)+c*m.q; const e=Object.entries(d).sort((a,b)=>b[1]-a[1]); return e.length?e[0][0]:"ไม่ได้ใช้ในเมนู"; }
+const products=Object.keys(D.series).sort((a,b)=>pSpend(b)-pSpend(a));
+// ---- series per entity ----
+function groupsOf(){
+  if(view==="all") return [["ทั้งร้าน",products]];
+  if(view==="cat"){const g={}; products.forEach(p=>(g[D.cats[p]||"ไม่ระบุ"]??=[]).push(p)); return Object.entries(g).sort((a,b)=>b[1].reduce((s,p)=>s+pSpend(p),0)-a[1].reduce((s,p)=>s+pSpend(p),0));}
+  if(view==="dept"){const g={}; products.forEach(p=>(g[deptOf(p)]??=[]).push(p)); return Object.entries(g).filter(([k])=>mode==="ref"||k!=="ไม่ได้ใช้ในเมนู");}
+  if(!picked) picked=products.slice(0,5);
+  return picked.map(p=>[p,[p]]);
 }
-function bars(){
-  const top=[...up.slice(0,7),...dn.slice(-7).reverse()].sort((a,b)=>b[6]-a[6]);
-  const mx=Math.max(...top.map(r=>Math.abs(r[6])));
-  $("#bars").innerHTML=`<div class="div" style="cursor:default;font-size:.72rem;color:var(--subtle)"><span></span><span style="text-align:right">ประหยัด ←</span><span>→ จ่ายเพิ่ม</span><span style="text-align:right">฿ ต่อเดือน</span></div>`+top.map((r,i)=>{ const s=SERIES[r[0]]; const sep=s?s.filter(x=>x[0].startsWith("09")).map(x=>x[1]):null;
-    return `<div class="div" data-n="${r[0]}"><span><b style="font-family:var(--display);font-weight:600">${r[0]}</b><span class="sub" style="display:block">${r[5]>0?"+":""}${r[5]}% · ฿${f2(r[3])} → ฿${f2(r[4])} ต่อ ${r[1]}${sep?` · ก.ย. แกว่ง ฿${f2(Math.min(...sep))}–${f2(Math.max(...sep))}`:""}</span></span>
-      <span class="l">${r[6]<0?`<i style="width:${-r[6]/mx*100}%;animation-delay:${i*30}ms"></i>`:""}</span><span class="r axis">${r[6]>0?`<i style="width:${r[6]/mx*100}%;animation-delay:${i*30}ms"></i>`:""}</span>
-      <span class="num" style="font-family:var(--display);font-weight:700;color:${r[6]>0?"var(--bad)":"var(--good)"}">${r[6]>0?"+":"−"}฿${f0(Math.abs(r[6]))}</span></div>`;}).join("")+`<p class="sub" style="margin-top:6px">+ อีก ${ROWS.length-top.length} รายการที่เปลี่ยนไม่ถึง ฿${f0(Math.min(...top.map(r=>Math.abs(r[6]))))}/เดือน</p>`;
-  $$("#bars .div[data-n]").forEach(d=>d.onclick=()=>openItem(d.dataset.n));
+function line(members){
+  const B=buckets(), A=allowed();
+  if(mode==="ref"){
+    // spend-weighted index of each member vs its base
+    return B.map((b,bi)=>{ let num=0,den=0; for(const p of members){ const cur=pAt(p,b); if(cur==null) continue;
+      let base; if(ref==="first") base=pAt(p,B[0]); else if(ref==="aug") base=pAt(p,{idx:D.weeks.map((w,i)=>w.startsWith("08")?i:-1).filter(i=>i>=0)}); else base=bi>0?pAt(p,B[bi-1]):null;
+      if(base==null||base<=0) continue; const w=pSpend(p); num+=w*(cur/base-1); den+=w; } return den?num/den*100:null; });
+  }
+  return B.map(b=>{ let num=0,den=0; for(const p of members){ const a=A[p]; const cur=pAt(p,b); if(!a||cur==null) continue; const nowP=pAt(p,{idx:[D.weeks.length-1]})||cur; const allowedP=nowP*a.k; num+=a.use*(cur/allowedP-1); den+=a.use; } return den?num/den*100:null; });
 }
-function menus(){
-  const rows=[...MENUS].sort((a,b)=>b[1]/b[3]-a[1]/a[3]);
-  $("#menus").innerHTML=`<p class="sub" style="margin-bottom:6px">ต้นทุนต่อจานเปลี่ยนเพราะราคาวัตถุดิบเฉลี่ยเดือนนี้ × ปริมาณในสูตร · <b>จุด</b> = กี่ % ของราคาขาย (food cost % ขยับเท่านั้น) · เน้นเมนูที่ขึ้นตั้งแต่ ${FLAG} จุด</p>
-  <table class="mt"><thead><tr><th>เมนู</th><th class="num">ต้นทุนต่อจาน</th><th class="num">จุดของราคาขาย</th><th class="num">จาน ก.ย.</th><th class="num">กระทบต่อเดือน</th><th>เพราะ</th><th></th></tr></thead><tbody>${rows.slice(0,8).map(m=>{const pt=m[1]/m[3]*100;return `<tr class="${pt>=FLAG?"flag":""}"><td><b>${m[0]}</b> <span class="sub">฿${m[3]}</span></td><td class="num" style="color:${m[1]>0?"var(--bad)":"var(--good)"}">${m[1]>0?"+":"−"}฿${f2(Math.abs(m[1]))}</td><td class="num">${pt>0?"+":""}${pt.toFixed(1)}</td><td class="num">${f0(m[2])}</td><td class="num">${m[4]>0?"+":"−"}฿${f0(Math.abs(m[4]))}</td><td class="sub">${m[5].map(([n,d])=>`${n} ${d>0?"+":""}${d.toFixed(2)}`).join(" · ")}</td><td>${pt>=FLAG?'<span class="dl">ลองราคา ›</span>':""}</td></tr>`;}).join("")}</tbody></table>
-  <p style="margin-top:8px;font-size:.88rem"><b>สรุป:</b> เบียร์สิงห์ต้นทุนขึ้น 1.2 จุด (ขาย ฿95 ต้นทุน +฿1.17) ที่เหลือขยับไม่ถึงครึ่งจุด และ 7 เมนูต้นทุนลดลง (ส่วนใหญ่เพราะข้าวหอมมะลิถูกลง) → <b>เดือนนี้ยังไม่ต้องขึ้นราคาเมนูไหน</b> · ดูเบียร์อีกเดือน ถ้ายังขึ้นค่อยพิจารณา</p>`;
+// ---- render ----
+function controls(){
+  const V=[["all","ภาพรวม"],["cat","หมวดหมู่"],["dept","แผนก"],["prod","สินค้า"]];
+  $("#views").innerHTML=V.map(([k,l])=>`<button aria-pressed="${view===k}" data-v="${k}">${l}</button>`).join("");
+  $$("#views button").forEach(b=>b.onclick=()=>{view=b.dataset.v;hidden.clear();render();});
+  $("#grans").innerHTML=[["week","รายสัปดาห์"],["month","รายเดือน"]].map(([k,l])=>`<button aria-pressed="${gran===k}" data-g="${k}">${l}</button>`).join("");
+  $$("#grans button").forEach(b=>b.onclick=()=>{gran=b.dataset.g;render();});
+  $("#refrow").hidden=mode!=="ref";
+  $("#refs").innerHTML=[["first",gran==="week"?"สัปดาห์แรก (10 ส.ค.)":"เดือนแรก (ส.ค.)"],["aug","ราคาเฉลี่ย ส.ค."],["prev","ช่วงก่อนหน้า (จุดต่อจุด)"]].map(([k,l])=>`<button class="chip ${ref===k?"on":""}" data-r="${k}">${l}</button>`).join("");
+  $$("#refs .chip").forEach(b=>b.onclick=()=>{ref=b.dataset.r;render();});
+  $("#pickrow").hidden=view!=="prod";
+  $("#plist").innerHTML=products.map(p=>`<option value="${p}">`).join("");
+  $("#picked").innerHTML=(picked||[]).map(p=>`<button class="chip on" data-p="${p}">${p} ×</button>`).join("");
+  $$("#picked .chip").forEach(b=>b.onclick=()=>{picked=picked.filter(x=>x!==b.dataset.p);render();});
+  $("#search").onchange=e=>{const v=e.target.value.trim(); if(products.includes(v)&&!picked.includes(v)){picked=[...picked,v].slice(-8);} e.target.value=""; render();};
 }
-function creep(){
-  const names=["กุ้งขาว","เบียร์สิงห์ 620 มล.","หมูสับ","ข้าวหอมมะลิ","ผักบุ้ง","ปลากะพง"].filter(n=>SERIES[n]||ROWS.find(r=>r[0]===n));
-  $("#creep").innerHTML=`<p class="sub" style="margin-bottom:8px">จุด = ราคาแต่ละใบ · เส้น = เฉลี่ยรายเดือน · มีข้อมูล 2 เดือน ต้อง 3 เดือนขึ้นไปจึงบอกได้ว่า “ขึ้นติดกัน”</p><div class="minis">${names.map(n=>{const r=ROWS.find(x=>x[0]===n);return `<div class="mini" data-n="${n}"><b style="font-family:var(--display);font-weight:600;font-size:.85rem">${n}</b><div>${spark(n,160,44)}</div><span class="sub">${r?`${r[5]>0?"+":""}${r[5]}% ต่อเดือน`:""}</span></div>`;}).join("")}</div>`;
-  $$("#creep .mini").forEach(d=>d.onclick=()=>openItem(d.dataset.n));
+function chart(){
+  const G=groupsOf(), B=buckets(), L=G.map(([n,m],i)=>({n,col:PAL[i%PAL.length],v:line(m)}));
+  const vis=L.filter(l=>!hidden.has(l.n));
+  $("#ctitle").textContent=mode==="ref"?`ราคาเปลี่ยนไปกี่ % จาก${ref==="first"?(gran==="week"?"สัปดาห์แรก":"เดือนแรก"):ref==="aug"?"ราคาเฉลี่ย ส.ค.":"ช่วงก่อนหน้า"}`:"ราคาจริงเทียบราคาที่เมนูรับได้ (0% = พอดีเป้า)";
+  $("#chint").textContent=mode==="ref"?"หมวด/แผนก/ภาพรวม ถ่วงตามยอดซื้อ":"เหนือเส้น 0 = แพงเกินกว่าราคาเมนูรองรับ · เป้าต่อเมนูแก้ได้ด้านล่าง";
+  const W=Math.max(360,$("#chart").clientWidth||900), H=300, Lm=52, Bm=30, Tm=14;
+  const all=vis.flatMap(l=>l.v).filter(v=>v!=null); let lo=Math.min(0,...all), hi=Math.max(0,...all); const pad=(hi-lo||4)*.12; lo-=pad; hi+=pad;
+  const x=i=>Lm+(B.length===1?0.5:i/(B.length-1))*(W-Lm-16), y=v=>Tm+(H-Tm-Bm)*(1-(v-lo)/(hi-lo));
+  let g=`<svg width="${W}" height="${H}" style="display:block;overflow:visible">`;
+  for(let t=0;t<=4;t++){const v=lo+(hi-lo)*t/4; g+=`<line x1="${Lm}" x2="${W}" y1="${y(v)}" y2="${y(v)}" stroke="#ECE6CC"/><text x="${Lm-8}" y="${y(v)+4}" text-anchor="end" font-size="11" fill="#5A5C31">${v>0?"+":""}${v.toFixed(Math.abs(hi-lo)<10?1:0)}%</text>`;}
+  if(mode==="tgt") g+=`<rect x="${Lm}" y="${Tm}" width="${W-Lm}" height="${Math.max(0,y(0)-Tm)}" fill="#A83A22" opacity=".05"/><text x="${W-4}" y="${Tm+12}" text-anchor="end" font-size="10.5" fill="#A83A22">แพงเกินที่เมนูรับได้</text><text x="${W-4}" y="${H-Bm-6}" text-anchor="end" font-size="10.5" fill="#5A7333">ยังมีงบเหลือ</text>`;
+  g+=`<line x1="${Lm}" x2="${W}" y1="${y(0)}" y2="${y(0)}" stroke="${mode==="tgt"?"#A83A22":"#8B8D63"}" stroke-width="1.5" ${mode==="tgt"?'stroke-dasharray="6 4"':""}/>`;
+  B.forEach((b,i)=>g+=`<text x="${x(i)}" y="${H-8}" text-anchor="middle" font-size="10.5" fill="#5A5C31">${b.label}</text>`);
+  vis.forEach(l=>{ const pts=l.v.map((v,i)=>v==null?null:[x(i),y(v)]); let d="",pen=false; pts.forEach(p=>{ if(!p){pen=false;return;} d+=(pen?"L":"M")+p[0]+","+p[1]; pen=true; });
+    const dim=hl&&hl!==l.n; g+=`<path d="${d}" fill="none" stroke="${l.col}" stroke-width="${hl===l.n?3.5:2.2}" opacity="${dim?.18:1}" stroke-linejoin="round" stroke-linecap="round" style="stroke-dasharray:2000;stroke-dashoffset:2000;animation:draw 1s cubic-bezier(.2,.8,.2,1) forwards"/>`+
+      pts.map(p=>p?`<circle cx="${p[0]}" cy="${p[1]}" r="${hl===l.n?4:3}" fill="${l.col}" opacity="${dim?.18:1}"/>`:"").join(""); });
+  g+=`<line id="xh" x1="0" x2="0" y1="${Tm}" y2="${H-Bm}" stroke="#262811" opacity="0" stroke-dasharray="3 3"/>`;
+  B.forEach((b,i)=>{const w=(W-Lm)/B.length; g+=`<rect class="hit" data-i="${i}" x="${x(i)-w/2}" y="0" width="${w}" height="${H}" fill="transparent"/>`;});
+  g+="</svg>";
+  $("#chart").innerHTML=g+`<div class="tip" id="tip" hidden></div><style>@keyframes draw{to{stroke-dashoffset:0}}</style>`;
+  $$("#chart .hit").forEach(h=>{ const i=+h.dataset.i;
+    h.onmousemove=()=>{ const xh=$("#xh"); xh.setAttribute("x1",x(i)); xh.setAttribute("x2",x(i)); xh.setAttribute("opacity",".35");
+      const rows=vis.map(l=>[l,l.v[i]]).filter(r=>r[1]!=null).sort((a,b)=>b[1]-a[1]);
+      const t=$("#tip"); t.hidden=false; t.innerHTML=`<b>${B[i].label}</b>`+rows.map(([l,v])=>`<div style="display:flex;justify-content:space-between;gap:12px"><span><i style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${l.col};margin-right:5px"></i>${l.n}</span><b>${v>0?"+":""}${v.toFixed(1)}%</b></div>`).join("");
+      t.style.left=(x(i)>W/2?x(i)-260:x(i)+14)+"px"; t.style.top="10px"; };
+    h.onmouseleave=()=>{ $("#tip").hidden=true; $("#xh").setAttribute("opacity","0"); }; });
+  $("#legend").innerHTML=L.map(l=>`<button class="lgi" aria-pressed="${!hidden.has(l.n)}" data-n="${l.n}"><i style="background:${l.col}"></i>${l.n}</button>`).join("")+`<span class="sub" style="align-self:center">กดป้ายเพื่อซ่อน/แสดง</span>`;
+  $$("#legend .lgi").forEach(b=>{ b.onclick=()=>{ hidden.has(b.dataset.n)?hidden.delete(b.dataset.n):hidden.add(b.dataset.n); chart(); }; b.onmouseenter=()=>{hl=b.dataset.n;chart();}; b.onmouseleave=()=>{hl=null;chart();}; });
+  return L;
 }
-function spark(n,W,H){
-  const s=SERIES[n]; const r=ROWS.find(x=>x[0]===n); if(!s) return `<span class="sub">—</span>`;
-  const ps=s.map(x=>x[1]), lo=Math.min(...ps)*.98, hi=Math.max(...ps)*1.02, x=i=>4+i/(s.length-1)*(W-8), y=v=>H-4-(v-lo)/(hi-lo)*(H-8);
-  const split=s.findIndex(p=>p[0].startsWith("09"));
-  return `<svg width="${W}" height="${H}" style="display:block;overflow:visible">${s.map((p,i)=>`<circle cx="${x(i)}" cy="${y(p[1])}" r="2.4" fill="#AEB784"/>`).join("")}
-   ${r?`<line x1="${x(0)}" x2="${x(split-1)}" y1="${y(r[3])}" y2="${y(r[3])}" stroke="#5E6B14" stroke-width="2"/><line x1="${x(split)}" x2="${x(s.length-1)}" y1="${y(r[4])}" y2="${y(r[4])}" stroke="${r[5]>0?"#A83A22":"#5A7333"}" stroke-width="2"/>`:""}</svg>`;
+function table(L){
+  const G=groupsOf(), B=buckets(), A=allowed(), last=B[B.length-1];
+  if(mode==="ref"){
+    $("#ttitle").textContent=`ล่าสุด (${last.label}) เทียบฐาน`; $("#thint").textContent="จ่ายเพิ่ม = (ราคาล่าสุด − ฐาน) × ปริมาณที่ซื้อช่วงล่าสุด · เรียงตามเงิน";
+    const rows=G.map(([n,m],i)=>{ let extra=0; for(const p of m){ const cur=pAt(p,last); const base=ref==="first"?pAt(p,B[0]):ref==="aug"?pAt(p,{idx:D.weeks.map((w,j)=>w.startsWith("08")?j:-1).filter(j=>j>=0)}):pAt(p,B[B.length-2]||B[0]); const q=last.idx.reduce((s,j)=>s+((D.series[p]||[])[j]?.[1]||0),0); if(cur!=null&&base!=null) extra+=(cur-base)*q; } const v=L[i].v.at(-1); return {n,col:L[i].col,v,extra,members:m}; }).sort((a,b)=>b.extra-a.extra);
+    $("#table").innerHTML=`<thead><tr><th>${view==="prod"?"วัตถุดิบ":view==="cat"?"หมวดหมู่":view==="dept"?"แผนก":""}</th><th class="num">% เทียบฐาน</th><th class="num">จ่ายเพิ่ม/ประหยัด ช่วงล่าสุด</th><th>แนวโน้ม</th>${view==="prod"?"<th class=num>ราคาฐาน → ล่าสุด</th>":"<th>ตัวที่ขยับมากสุด</th>"}</tr></thead><tbody>${rows.map(r=>`<tr data-n="${r.n}"><td><i style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${r.col};margin-right:6px"></i><b>${r.n}</b></td><td class="num"><span class="gap" style="color:${r.v>0?"var(--bad)":"var(--good)"}">${r.v==null?"—":(r.v>0?"+":"")+r.v.toFixed(1)+"%"}</span></td><td class="num" style="color:${r.extra>0?"var(--bad)":"var(--good)"}">${r.extra>0?"+":"−"}฿${f0(Math.abs(r.extra))}</td><td>${spark(L.find(l=>l.n===r.n).v,r.col)}</td><td class="sub">${view==="prod"?(()=>{const p=r.n,c=pAt(p,last),b=ref==="first"?pAt(p,B[0]):pAt(p,B[B.length-2]||B[0]);return c&&b?`฿${f2(b)} → ฿${f2(c)} ต่อ ${D.unit[p]}`:"—";})():topMover(r.members,last,B)}</td></tr>`).join("")}</tbody>`;
+  } else {
+    $("#ttitle").textContent="ราคาจริงเทียบราคาที่เมนูรับได้"; $("#thint").textContent="เกินงบต่อเดือน = เงินที่วัตถุดิบนี้ทำให้ต้นทุนเมนูเกินเป้า (ก.ย.) · เรียงตามเงิน";
+    const rows=G.map(([n,m],i)=>{ let over=0; for(const p of m) if(A[p]) over+=A[p].over; return {n,col:L[i].col,v:L[i].v.at(-1),over,members:m}; }).filter(r=>r.v!=null).sort((a,b)=>b.over-a.over);
+    $("#table").innerHTML=`<thead><tr><th>${view==="prod"?"วัตถุดิบ":view==="cat"?"หมวดหมู่":view==="dept"?"แผนก":""}</th><th class="num">แพงกว่าที่รับได้</th><th class="num">เกินงบต่อเดือน</th><th>แนวโน้ม</th><th>${view==="prod"?"ราคาจริง / ที่รับได้ · เมนูที่ใช้":"ตัวที่เกินมากสุด"}</th></tr></thead><tbody>${rows.map(r=>`<tr data-n="${r.n}"><td><i style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${r.col};margin-right:6px"></i><b>${r.n}</b></td><td class="num"><span class="gap" style="color:${r.v>0?"var(--bad)":"var(--good)"}">${(r.v>0?"+":"")+r.v.toFixed(0)+"%"}</span></td><td class="num" style="color:${r.over>0?"var(--bad)":"var(--good)"}">${r.over>0?"฿"+f0(r.over):"เหลืองบ ฿"+f0(-r.over)}</td><td>${spark(L.find(l=>l.n===r.n).v,r.col)}</td><td class="sub">${view==="prod"?prodDetail(r.n,A):topOver(r.members,A)}</td></tr>`).join("")}</tbody>`;
+  }
+  $$("#table tbody tr").forEach(tr=>{ tr.onmouseenter=()=>{hl=tr.dataset.n;chart();}; tr.onmouseleave=()=>{hl=null;chart();}; tr.onclick=()=>{ if(view!=="prod"){ /* drill into the products of this row */ const m=groupsOf().find(g=>g[0]===tr.dataset.n)[1]; picked=[...m].sort((a,b)=>pSpend(b)-pSpend(a)).slice(0,6); view="prod"; hidden.clear(); render(); } }; });
 }
-function openItem(n){
-  const r=ROWS.find(x=>x[0]===n), s=SERIES[n], uses=MENUS.filter(m=>m[5].some(([i])=>i===n));
-  const W=600,H=200,L=50; let chart="";
-  if(s){ const ps=s.map(x=>x[1]), lo=Math.min(...ps)*.97, hi=Math.max(...ps)*1.03, x=i=>L+i/(s.length-1)*(W-L-10), y=v=>12+(H-40)*(1-(v-lo)/(hi-lo)); const split=s.findIndex(p=>p[0].startsWith("09"));
-    chart=`<svg width="100%" viewBox="0 0 ${W} ${H}" style="display:block">${[0,1,2,3].map(t=>{const v=lo+(hi-lo)*t/3;return `<line x1="${L}" x2="${W}" y1="${y(v)}" y2="${y(v)}" stroke="#ECE6CC"/><text x="${L-6}" y="${y(v)+4}" text-anchor="end" font-size="10" fill="#8B8D63">฿${v.toFixed(v<20?2:0)}</text>`;}).join("")}
-     <line x1="${x(0)}" x2="${x(split-1)}" y1="${y(r[3])}" y2="${y(r[3])}" stroke="#5E6B14" stroke-width="2.5"/><text x="${x(0)}" y="${y(r[3])-6}" font-size="10.5" fill="#5E6B14">เฉลี่ย ส.ค. ฿${f2(r[3])}</text>
-     <line x1="${x(split)}" x2="${x(s.length-1)}" y1="${y(r[4])}" y2="${y(r[4])}" stroke="${r[5]>0?"#A83A22":"#5A7333"}" stroke-width="2.5"/><text x="${x(split)}" y="${y(r[4])-6}" font-size="10.5" fill="${r[5]>0?"#A83A22":"#5A7333"}">เฉลี่ย ก.ย. ฿${f2(r[4])}</text>
-     ${s.map((p,i)=>`<circle cx="${x(i)}" cy="${y(p[1])}" r="4" fill="#C0692B" opacity=".85" style="animation:pop .3s ${i*25}ms both"><title>${p[0].slice(3)}/${p[0].slice(0,2)} ฿${f2(p[1])}</title></circle>`).join("")}
-     ${s.map((p,i)=>i%3===0?`<text x="${x(i)}" y="${H-8}" text-anchor="middle" font-size="10" fill="#5A5C31">${+p[0].slice(3)}/${+p[0].slice(0,2)}</text>`:"").join("")}</svg>`; }
-  document.body.insertAdjacentHTML("beforeend",`<div class="modal" id="m"><div class="mbox" role="dialog" aria-labelledby="mt">
-   <div class="row" style="justify-content:space-between"><h3 id="mt" style="font-size:1.1rem">${n} · ${r?r[2]:""}</h3><button class="x" id="mx" aria-label="ปิด">×</button></div>
-   ${r?`<div class="kpis" style="grid-template-columns:repeat(3,1fr)"><div class="kpi"><span class="k">ราคาเฉลี่ย</span><span class="v" style="font-size:1.15rem">฿${f2(r[3])} → ฿${f2(r[4])}</span><span class="s">ต่อ ${r[1]} · ${r[5]>0?"+":""}${r[5]}%</span></div><div class="kpi"><span class="k">ก.ย. ${r[6]>0?"จ่ายเพิ่ม":"ประหยัด"}</span><span class="v" style="font-size:1.15rem;color:${r[6]>0?"var(--bad)":"var(--good)"}">฿${f0(Math.abs(r[6]))}</span><span class="s">จากยอดซื้อ ฿${f0(r[7])}</span></div><div class="kpi"><span class="k">ใช้ในเมนู</span><span class="v" style="font-size:1.15rem">${uses.length}</span><span class="s">${uses.slice(0,3).map(u=>u[0]).join(" · ")}</span></div></div>`:""}
-   ${chart?`<div><b style="font-family:var(--display)">ราคาทุกใบ</b> <span class="sub">จุด = ใบรับของ · เส้น = เฉลี่ยรายเดือน · ชี้จุดเพื่อดูวันที่และราคา</span>${chart}</div>`:'<p class="sub">ดูราคาทุกใบที่หน้าสินค้า</p>'}
-   <p class="sub">ราคาแกว่งทุกใบเป็นปกติของของสด · ดูเส้นเฉลี่ย ไม่ใช่ใบล่าสุด · <span class="dl">ดูสินค้า ›</span> <span class="dl">ใบรับของ ›</span></p></div></div>`);
-  const close=()=>{$("#m").remove();document.removeEventListener("keydown",esc);}; const esc=e=>{if(e.key==="Escape")close();};
-  document.addEventListener("keydown",esc); $("#mx").onclick=close; $("#m").onclick=e=>{if(e.target.id==="m")close();};
+function prodDetail(p,A){ const a=A[p]; if(!a) return "ไม่ได้ใช้ในเมนู"; const now=pAt(p,{idx:[D.weeks.length-1]})||0; const ms=D.menus.filter(m=>m.l.some(([n])=>n===p)).sort((x,y)=>y.c/y.p-x.c/x.p); return `฿${f2(now)} / ฿${f2(now*a.k)} ต่อ ${D.unit[p]} · ${ms.slice(0,3).map(m=>`${m.n} ${(m.c/m.p*100).toFixed(0)}%`).join(" · ")}`; }
+function topOver(members,A){ const r=members.filter(p=>A[p]).sort((a,b)=>A[b].over-A[a].over)[0]; return r?`${r} ฿${f0(A[r].over)}`:"—"; }
+function topMover(members,last,B){ let best=null,bv=0; for(const p of members){ const c=pAt(p,last), b=pAt(p,B[0]); if(c==null||b==null) continue; const v=(c-b)/b*100; if(Math.abs(v)>Math.abs(bv)){bv=v;best=p;} } return best?`${best} ${bv>0?"+":""}${bv.toFixed(1)}%`:"—"; }
+function spark(v,col){ const xs=v.filter(x=>x!=null); if(xs.length<2) return '<span class="sub">—</span>'; const lo=Math.min(...xs,0), hi=Math.max(...xs,0)||1, W=90,H=24; const pts=v.map((x,i)=>x==null?null:`${4+i/(v.length-1)*(W-8)},${H-3-(x-lo)/((hi-lo)||1)*(H-6)}`).filter(Boolean).join(" "); return `<svg width="${W}" height="${H}"><line x1="0" x2="${W}" y1="${H-3-(0-lo)/((hi-lo)||1)*(H-6)}" y2="${H-3-(0-lo)/((hi-lo)||1)*(H-6)}" stroke="#D2CBA4" stroke-dasharray="2 2"/><polyline points="${pts}" fill="none" stroke="${col}" stroke-width="2"/></svg>`; }
+function callout(){
+  const c=$("#callout"); if(mode!=="tgt"){c.hidden=true;return;}
+  const A=allowed(); const s=A["กุ้งขาว"]; const sm=D.menus.filter(m=>m.l.some(([n])=>n==="กุ้งขาว"));
+  const B=buckets(); const first=pAt("กุ้งขาว",B[0]), last=pAt("กุ้งขาว",B.at(-1));
+  c.hidden=false; c.innerHTML=`<b>ตัวอย่างที่โหมด ① มองไม่เห็น:</b> กุ้งขาว ราคา${gran==="week"?"สัปดาห์แรก":"เดือนแรก"} ฿${f2(first)} → ล่าสุด ฿${f2(last)} (${((last/first-1)*100).toFixed(1)}%) แทบไม่ขยับ แต่ถ้าจะให้ ${sm.length} เมนูกุ้งอยู่ในเป้า กุ้งต้องไม่เกิน <b>฿${f2(last*s.k)}/kg</b> — ตอนนี้แพงกว่า <b>${((1/s.k-1)*100).toFixed(0)}%</b> และทำให้ต้นทุนเกินเป้า <b>฿${f0(s.over)}/เดือน</b> · เมนูกุ้งต้นทุน ${sm.map(m=>`${m.n} ${(m.c/m.p*100).toFixed(0)}%`).join(" · ")} · ทางเลือก: ขึ้นราคาเมนู · ลดปริมาณกุ้งในสูตร · หาเจ้าที่ถูกกว่า · หรือตั้งเป้าเมนูกุ้งให้สูงขึ้นถ้าตั้งใจ`;
+}
+function targetsCard(){
+  const c=$("#targets"); if(mode!=="tgt"){c.hidden=true;return;} c.hidden=false;
+  const rows=[...D.menus].sort((a,b)=>b.c/b.p-a.c/a.p);
+  c.innerHTML=`<div class="row" style="justify-content:space-between;align-items:baseline"><h3 style="font-size:1rem">เป้าต้นทุนต่อเมนู</h3><span class="sub">ค่าเริ่มต้น = เป้าร้าน ${SHOP_T}% · แก้ตัวเลขแล้วทั้งหน้าคิดใหม่ทันที</span></div>
+   <div style="overflow-x:auto"><table class="rk" style="margin-top:6px"><thead><tr><th>เมนู</th><th class="num">ราคาขาย</th><th class="num">ต้นทุนต่อจาน</th><th class="num">ต้นทุน %</th><th class="num">เป้า %</th><th class="num">จาน ก.ย.</th><th class="num">เกินเป้าต่อเดือน</th></tr></thead><tbody>${rows.map(m=>{const pct=m.c/m.p*100, over=(m.c-targets[m.n]/100*m.p)*m.q; return `<tr style="cursor:default"><td><b>${m.n}</b> <span class="sub">${m.d||""}</span></td><td class="num">฿${f0(m.p)}</td><td class="num">฿${f2(m.c)}</td><td class="num" style="color:${pct>targets[m.n]?"var(--bad)":"var(--good)"};font-weight:600">${pct.toFixed(1)}%</td><td class="num"><input class="tin" type="number" min="5" max="95" value="${targets[m.n]}" data-m="${m.n}"></td><td class="num">${f0(m.q)}</td><td class="num" style="color:${over>0?"var(--bad)":"var(--good)"}">${over>0?"฿"+f0(over):"—"}</td></tr>`;}).join("")}</tbody></table></div>`;
+  $$("#targets .tin").forEach(i=>i.onchange=()=>{ const v=+i.value; if(v>=5&&v<=95){targets[i.dataset.m]=v; render();} });
 }
 function old(){
   const firstLast=[["เบียร์สิงห์ 620 มล.",11.6],["ผักบุ้ง",10.7],["เนื้อสันใน",6.3],["เส้นจันท์",5.8],["ใบกะเพรา",4.3],["หมูสามชั้น",4.1],["กุ้งขาว",2],["พริกขี้หนู",1.8],["ไข่ไก่",-0.7],["ปลากะพง",-0.7],["หมูสับ",-3.7]];
   $("#oldbars").innerHTML=firstLast.map(([n,p])=>`<div style="display:grid;grid-template-columns:150px 1fr 60px;gap:8px;align-items:center;font-size:.82rem"><span>${n}</span><span style="height:10px;border-radius:4px;background:${p>0?"#A83A22":"#5A7333"};width:${Math.abs(p)/12*100}%"></span><span class="num">${p>0?"+":""}${p}%</span></div>`).join("");
 }
-function render(){ months(); if(month!=="ก.ย."){ emptyMonth(); creep(); return; } kpis(); bars(); menus(); creep(); }
+function render(){ controls(); const L=chart(); table(L); callout(); targetsCard(); }
+$("#m-ref").onclick=()=>{mode="ref";$("#m-ref").setAttribute("aria-pressed","true");$("#m-tgt").setAttribute("aria-pressed","false");hidden.clear();render();};
+$("#m-tgt").onclick=()=>{mode="tgt";$("#m-tgt").setAttribute("aria-pressed","true");$("#m-ref").setAttribute("aria-pressed","false");hidden.clear();render();};
 $("#b-old").onclick=()=>{ $("#oldpage").hidden=false; $("#newpage").hidden=true; $("#b-old").setAttribute("aria-pressed","true"); $("#b-new").setAttribute("aria-pressed","false"); };
-$("#b-new").onclick=()=>{ $("#oldpage").hidden=true; $("#newpage").hidden=false; $("#b-new").setAttribute("aria-pressed","true"); $("#b-old").setAttribute("aria-pressed","false"); };
+$("#b-new").onclick=()=>{ $("#oldpage").hidden=true; $("#newpage").hidden=false; $("#b-new").setAttribute("aria-pressed","true"); $("#b-old").setAttribute("aria-pressed","false"); render(); };
+window.addEventListener("resize",()=>chart());
 old(); render();
 </script>
