@@ -1,0 +1,142 @@
+<title>รายงานประจำวัน · บรีฟ</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Prompt:wght@500;600;700&family=Noto+Sans+Thai:wght@400;500;600&display=swap">
+<style>
+/* Brief (question-first) for the daily report page Kong asked for on
+   2026-10-24 under C1: customers per day, problems, customer groups, cash-count
+   photo evidence. Research + what the system already holds + decisions. */
+:root{
+  --bg:#FDFBF3; --fg:#262811; --surface:#FFFFFF; --sunk:#F8F3E1; --primary:#41431B; --primary-fg:#F8F3E1;
+  --muted-fg:#5A5C31; --subtle:#8B8D63; --border:#E9E3C8; --strong:#D2CBA4;
+  --good:#5A7333; --good-bg:#EEF2E0; --bad:#A83A22; --bad-bg:#F9E5DF; --warn:#A87C1C; --warn-bg:#F8EFD6; --warn-border:#E2CE97; --clay:#C0692B;
+  --display:"Prompt","Noto Sans Thai",system-ui,sans-serif; --body:"Noto Sans Thai","Prompt",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#1B1C10; --fg:#EEEAD6; --surface:#24261A; --sunk:#2A2C1E; --primary:#D9DDB0; --primary-fg:#1B1C10;
+  --muted-fg:#C9C8A6; --subtle:#9C9B7C; --border:#36381F; --strong:#4A4C30;
+  --good:#B7CF7C; --good-bg:#2B3320; --bad:#EC9C80; --bad-bg:#41261C; --warn:#E8BE62; --warn-bg:#3B3018; --warn-border:#5A4A22; --clay:#E8A76F; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#1B1C10; --fg:#EEEAD6; --surface:#24261A; --sunk:#2A2C1E; --primary:#D9DDB0; --primary-fg:#1B1C10;
+  --muted-fg:#C9C8A6; --subtle:#9C9B7C; --border:#36381F; --strong:#4A4C30;
+  --good:#B7CF7C; --good-bg:#2B3320; --bad:#EC9C80; --bad-bg:#41261C; --warn:#E8BE62; --warn-bg:#3B3018; --warn-border:#5A4A22; --clay:#E8A76F; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.65;margin:0;padding:24px 16px 64px}
+h1,h2,h3{font-family:var(--display);margin:0}
+p{margin:0}
+.wrap{max-width:920px;margin:0 auto;display:grid;gap:22px}
+.sub{color:var(--subtle);font-size:.85rem}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px 18px;display:grid;gap:10px}
+h2{font-size:1.1rem}
+.q{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;align-items:start;padding:10px 0;border-top:1px solid var(--border)}
+.q:first-of-type{border-top:0}
+.qn{display:inline-grid;place-items:center;min-width:34px;height:24px;border-radius:999px;background:var(--primary);color:var(--primary-fg);font-size:.75rem;font-weight:600;font-family:var(--display)}
+.q b{font-family:var(--display);font-weight:600}
+.q .sub{grid-column:2}
+table{width:100%;border-collapse:collapse;font-size:.88rem}
+th{text-align:left;font-weight:500;color:var(--muted-fg);background:var(--sunk);padding:8px 10px;font-size:.8rem}
+td{padding:9px 10px;border-top:1px solid var(--border);vertical-align:top}
+.tag{display:inline-block;font-size:.72rem;border-radius:999px;padding:1px 9px;white-space:nowrap}
+.has{background:var(--good-bg);color:var(--good)}
+.part{background:var(--warn-bg);color:var(--warn)}
+.none{background:var(--bad-bg);color:var(--bad)}
+.find{border-left:3px solid var(--clay);padding:4px 0 4px 12px;font-size:.9rem}
+.flow{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.step{background:var(--sunk);border:1px solid var(--border);border-radius:12px;padding:10px 12px;font-size:.86rem}
+.step b{display:block;font-family:var(--display)}
+.dec{border:1px solid var(--warn-border);background:var(--warn-bg);border-radius:14px;padding:12px 14px;display:grid;gap:6px}
+.dec h3{font-size:.95rem}
+.opt{font-size:.88rem;padding-left:4px}
+.rec{color:var(--good);font-weight:600}
+.scroll{overflow-x:auto}
+ul{margin:4px 0 0;padding-left:20px}
+li{margin:2px 0}
+a{color:var(--primary)}
+</style>
+
+<div class="wrap">
+  <div>
+    <h1 style="font-size:1.45rem">รายงานประจำวัน · บรีฟก่อนออกแบบ</h1>
+    <p class="sub">โจทย์จากคุณ Kong (24 ต.ค. 69 ใต้ข้อ C1): จำนวนลูกค้าต่อวัน · ปัญหาที่เกิด · กลุ่มลูกค้า · รูปถ่ายนับเงินสดเป็นหลักฐาน — ยังไม่มีหน้าจอ ยังไม่แตะโค้ด</p>
+  </div>
+
+  <section class="card">
+    <h2>1. คำถามที่เจ้าของ/ผู้จัดการถามจากรายงานประจำวัน</h2>
+    <p class="sub">รวบจากแบบฟอร์ม manager log และ end-of-day close ที่ร้านอาหารใช้กันจริง (แหล่งท้ายหน้า) แล้วเรียงตามที่คนอ่านถามก่อน</p>
+    <div class="q"><span class="qn">Q1</span><b>เงินครบไหม</b><span class="sub">ควรมีเงินสดเท่าไหร่ นับได้จริงเท่าไหร่ ขาด/เกินกี่บาท ใครนับ — ทุกแบบฟอร์มให้จดยอด "ที่ควรมี" ก่อนนับ เพื่อไม่ให้ย้อนมาเติมทีหลัง และให้จดส่วนต่างเป็นข้อเท็จจริง (จำนวน · ใคร · เวลา)</span></div>
+    <div class="q"><span class="qn">Q2</span><b>ลูกค้ากี่คน จ่ายต่อหัวเท่าไหร่</b><span class="sub">จำนวนลูกค้า (covers) · จำนวนบิล · ยอดต่อหัว / ต่อบิล — ระบบใหญ่แยกตามช่วงเวลา (กลางวัน/เย็น) ด้วย</span></div>
+    <div class="q"><span class="qn">Q3</span><b>ลูกค้ามาจากไหน</b><span class="sub">นั่งร้าน · กลับบ้าน · Grab · LINE MAN · ShopeeFood … แต่ละกลุ่มกี่คน/กี่บาท</span></div>
+    <div class="q"><span class="qn">Q4</span><b>วันนี้มีปัญหาอะไร และใครต้องตามต่อ</b><span class="sub">ของหมด (86) พร้อมวันที่จะกลับมา · อุปกรณ์เสีย (บอกอาการ ไม่ใช่แค่ "เสีย") · ลูกค้าร้องเรียน · พนักงานขาด/สาย · แยก "ต้องจัดการก่อน" ออกจาก "จดไว้เฉย ๆ" ให้คนเปิดร้านพรุ่งนี้รู้ว่าต้องทำอะไรก่อน</span></div>
+    <div class="q"><span class="qn">Q5</span><b>วันนี้ปกติไหม</b><span class="sub">เทียบกับวันเดียวกันของสัปดาห์ก่อน ๆ (วันศุกร์เทียบวันศุกร์) — ตามกฎเดิมของระบบ ทุก % ต้องบอกว่าเทียบกับอะไร</span></div>
+    <div class="q"><span class="qn">Q6</span><b>มีหลักฐานไหม</b><span class="sub">รูปเงินที่นับ / ใบนำฝาก / Z report ถ่ายตอนนั้นเลย มีเวลาติด ไม่ใช่ถ่ายย้อนหลัง</span></div>
+  </section>
+
+  <section class="card">
+    <h2>2. ระบบมีอะไรอยู่แล้ว ขาดอะไร</h2>
+    <div class="scroll"><table>
+      <tr><th>ข้อมูล</th><th>สถานะ</th><th>มาจากไหน / ต้องทำอะไร</th></tr>
+      <tr><td>ยอดขายของวัน</td><td><span class="tag has">มีแล้ว</span></td><td>ไฟล์ POS + ยอดที่คีย์ตอนปิดร้าน (ADR 0020) — ยอดที่คีย์อยู่ที่แดชบอร์ด (B9)</td></tr>
+      <tr><td>จำนวนบิล · ช่องทาง</td><td><span class="tag part">มีที่เก็บ แต่ไม่มีข้อมูล</span></td><td>ตาราง <code>sales_line</code> เก็บเลขบิลและช่องทาง (9 ช่องทาง รวม Grab/LINE MAN/ShopeeFood) ได้อยู่แล้ว <b>แต่ร้านตัวอย่างนำเข้าไฟล์สรุปรายวัน: 1,695 แถว มีเลขบิล 0 แถว มีช่องทาง 0 แถว</b></td></tr>
+      <tr><td>จำนวนลูกค้า</td><td><span class="tag none">ไม่มี</span></td><td>ไฟล์ POS ไม่มี (ร้านส่วนใหญ่ก็ไม่มี) → ต้องให้คนกรอก</td></tr>
+      <tr><td>เงินสดที่ควรมี / นับได้</td><td><span class="tag none">ไม่มี</span></td><td>ไฟล์ POS ไม่มีวิธีชำระเงิน จึงคำนวณ "ควรมี" เองไม่ได้ → ให้กรอกยอดเงินสดจาก Z report ของเครื่อง POS + เงินทอนตั้งต้น แล้วระบบลบให้</td></tr>
+      <tr><td>ปัญหา / ส่งต่อกะ</td><td><span class="tag none">ไม่มี</span></td><td>มีแค่ "หมายเหตุ" ข้างยอดที่คีย์ → ต้องทำเป็นรายการที่มีประเภท และมี "ต้องตามต่อ / จัดการแล้ว"</td></tr>
+      <tr><td>ของเสีย · มื้อพนักงาน · โอนของ · ของใกล้หมด · ตัดสต๊อก</td><td><span class="tag has">มีแล้ว</span></td><td><b>ดึงมาโชว์เอง ไม่ต้องกรอกซ้ำ</b> — รายงานจะเป็นที่เดียวที่เห็นวันนั้นครบ</td></tr>
+      <tr><td>รูปถ่าย</td><td><span class="tag none">ยังเก็บไม่ได้</span></td><td>ระบบยังไม่มีที่เก็บไฟล์ (เลื่อนไว้รอ object storage ตั้งแต่ตอนวางเรื่องรูปสินค้า) → ต้องเพิ่ม dependency + ตั้งค่า .env = ต้องตัดสินใจก่อน</td></tr>
+    </table></div>
+    <p class="find">ข้อสังเกต: ถ้าทำหน้านี้แยกจาก "คีย์ยอดปิดร้าน" จะกลับไปเป็นปัญหาข้อมูลซ้ำที่เพิ่งแก้ใน B9 — ยอดปิดร้านควรเป็น <b>ช่องหนึ่งของรายงานนี้</b> แล้วแดชบอร์ดมีปุ่ม "ปิดร้านวันนี้" แทน</p>
+  </section>
+
+  <section class="card">
+    <h2>3. รูปร่างที่เสนอ (ยังไม่ใช่ดีไซน์)</h2>
+    <p><b>"ปิดร้านประจำวัน"</b> — หนึ่งใบต่อสาขาต่อวัน กรอกตอนปิดร้านบนมือถือ ไม่เกิน 2 นาที</p>
+    <div class="flow">
+      <div class="step"><b>① ยอด</b>ยอดที่ลูกค้าจ่ายวันนี้ (ช่องเดิมจากแดชบอร์ด)</div>
+      <div class="step"><b>② เงินสด</b>เงินสดตาม Z report · เงินทอนตั้งต้น · นับได้ → ขาด/เกิน อัตโนมัติ · รูป</div>
+      <div class="step"><b>③ ลูกค้า</b>จำนวนลูกค้า (ใส่รวม หรือแยกกลุ่ม)</div>
+      <div class="step"><b>④ ปัญหา</b>แตะประเภท + พิมพ์สั้น ๆ + ติ๊ก "ต้องตามต่อ"</div>
+      <div class="step"><b>⑤ ระบบเติมให้</b>ของเสีย · มื้อพนักงาน · ของหมด/ใกล้หมด · ตัดสต๊อกแล้วหรือยัง</div>
+    </div>
+    <p class="sub">ฝั่งคนอ่าน: หน้ารายวัน (ใบเดียว) + มุมมองรายเดือน — ลูกค้าต่อวัน · ยอดต่อหัว · เงินขาด/เกินสะสม · ปัญหาที่ยังเปิดค้าง · เทียบวันเดียวกันของสัปดาห์ก่อน ๆ</p>
+    <p class="sub">ต้องมีตารางใหม่ (เช่น <code>daily_close</code> + <code>daily_issue</code>) = migration — จะขออนุมัติพร้อม mockup</p>
+  </section>
+
+  <section class="card">
+    <h2>4. ต้องให้คุณ Kong ตัดสินใจก่อนทำ mockup</h2>
+    <div class="dec">
+      <h3>A. "กลุ่มลูกค้า" หมายถึงอะไร</h3>
+      <div class="opt">① ช่องทาง — นั่งร้าน / กลับบ้าน / Grab / LINE MAN / ShopeeFood (ตรงกับที่ระบบมีที่เก็บอยู่แล้ว ไฟล์แบบรายบิลอาจเติมให้เอง)</div>
+      <div class="opt">② ประเภทคน — ครอบครัว / พนักงานออฟฟิศ / นักท่องเที่ยว / ขาประจำ (ต้องให้คนกะเอา)</div>
+      <div class="opt rec">③ ร้านตั้งรายการกลุ่มเอง (ค่าเริ่มต้น = ช่องทาง) — แนะนำ เพราะร้านต่างกันจริง (ตามหลัก "ความต่างของร้าน = setting")</div>
+    </div>
+    <div class="dec">
+      <h3>B. รวม "คีย์ยอดปิดร้าน" เข้ารายงานนี้ไหม</h3>
+      <div class="opt rec">ใช่ (แนะนำ) — กรอกที่เดียว แดชบอร์ดเปลี่ยนเป็นปุ่ม "ปิดร้านวันนี้" · กติกา ADR 0020 เดิม (ไฟล์เข้าแล้วยอดล็อก) ยังอยู่</div>
+      <div class="opt">ไม่ — แยกกัน (เสี่ยงซ้ำแบบที่ B9 เพิ่งแก้)</div>
+    </div>
+    <div class="dec">
+      <h3>C. รูปถ่าย</h3>
+      <div class="opt rec">เฟสแรกยังไม่มีรูป เว้นช่องไว้ แล้วทำที่เก็บไฟล์เป็นงานแยก (ใช้ร่วมกับรูปสินค้า/เมนู/หลักฐานโอนที่รออยู่) — แนะนำ เพราะต้องเลือกผู้ให้บริการ + dependency ใหม่ + แก้ .env</div>
+      <div class="opt">ทำที่เก็บไฟล์ก่อน แล้วค่อยทำรายงานนี้</div>
+    </div>
+    <div class="dec">
+      <h3>D. ต้องการแยกช่วงเวลา (กลางวัน / เย็น) ไหม</h3>
+      <div class="opt rec">ไม่ในเฟสแรก — ร้านเล็กส่วนใหญ่ปิดยอดวันละครั้ง (แนะนำ)</div>
+      <div class="opt">แยก — กรอกลูกค้าและเงินสองรอบต่อวัน</div>
+    </div>
+    <div class="dec">
+      <h3>E. ใครกรอก ใครเห็น</h3>
+      <div class="opt rec">คนที่คีย์ยอดปิดร้านได้อยู่แล้ว (sales:import) กรอก · ทุกคนในสาขาเห็นปัญหาที่ต้องตามต่อ · ตัวเลขเงินขาด/เกินเห็นเฉพาะเจ้าของ/ผู้จัดการ (แนะนำ)</div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>แหล่งที่ใช้</h2>
+    <ul class="sub">
+      <li><a href="https://www.shiftforce.com/blog/what-are-the-key-elements-of-a-good-manager-logbook-for-restaurants">ShiftForce — key elements of a manager logbook</a></li>
+      <li><a href="https://www.mangoapps.com/templates/tasks/manager-on-duty-daily-logbook">MangoApps — manager on duty daily logbook</a> · <a href="https://www.mangoapps.com/templates/tasks/post-shift-recap-and-mod-handoff-log">post-shift recap & handoff log</a></li>
+      <li><a href="https://www.joinhomebase.com/tools/shift-report-template">Homebase — shift report template</a></li>
+      <li><a href="https://beancount.io/blog/2026/09/14/end-of-day-close-z-reports-cash-drawer-daily-sales-reconciliation-guide">Beancount — end-of-day close, Z reports, cash drawer reconciliation</a> · <a href="https://www.mangoapps.com/templates/sop/cash-office-reconciliation-sop-2">MangoApps — cash office reconciliation SOP</a></li>
+      <li><a href="https://docs.oracle.com/cd/E66143_01/doc.850/e65823/c_reports_ref_todaydetail_serviceperf.htm">Oracle Simphony — Today's service performance (guests, checks, per-guest)</a></li>
+      <li><a href="https://appmaster.io/th/blog/pidlinchak-raayngaanpidpracchamwan">AppMaster — ปิดลิ้นชักและรายงานปิดประจำวัน</a></li>
+    </ul>
+  </section>
+</div>
