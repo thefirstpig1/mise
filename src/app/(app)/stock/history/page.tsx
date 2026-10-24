@@ -10,6 +10,7 @@
 import { requireTenant } from "@/lib/require-tenant";
 import { getBranchesLogic } from "@/server/branch";
 import { getProductsLogic } from "@/server/product";
+import ProductFilter from "./_components/ProductFilter";
 import { getStockMovementHistoryLogic } from "@/server/stock-movement";
 import {
   getStockMovementHistoryQuerySchema,
@@ -86,7 +87,7 @@ export default async function StockHistoryPage({
           href="/stock"
           className="rounded-lg border border-border px-4 py-2 text-sm hover:bg-muted/40"
         >
-          ยอดคงเหลือ
+          งานสต๊อก
         </a>
       </div>
 
@@ -101,17 +102,21 @@ export default async function StockHistoryPage({
         action="/stock/history"
         className="flex flex-wrap items-end gap-3 rounded-lg border border-border bg-muted/20 p-3"
       >
-        <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+        <div className="flex flex-col gap-1 text-xs text-muted-foreground">
           วัตถุดิบ
-          <select name="product" defaultValue={sp.product ?? ""} className="input">
-            <option value="">ทั้งหมด</option>
-            {products.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-        </label>
+          <ProductFilter
+            initial={sp.product ?? ""}
+            products={products.map((p) => ({
+              id: p.id,
+              name: p.name,
+              sku: p.sku,
+              imageUrl: p.imageUrl,
+              section: p.category?.accountingSection ?? null,
+              group: p.category?.groupName ?? null,
+              baseUnitName: p.productUnits.find((u) => u.isBase)?.unitName ?? null,
+            }))}
+          />
+        </div>
 
         <label className="flex flex-col gap-1 text-xs text-muted-foreground">
           สาขา

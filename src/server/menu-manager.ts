@@ -57,6 +57,12 @@ export type PriceBook = {
   menus: Record<string, { recipeId: string; own: boolean; costPerServing: number | null; confidence: RecipeConfidence | null }>;
   /** Baht per BASE unit at this branch; absent = nobody has bought it here. */
   products: Record<string, number>;
+  /**
+   * B6 (Kong 2026-10-24): what the stock on hand is worth at this branch, from
+   * the same FIFO walk — the figure the old /stock table showed. Only products
+   * with something on hand; absent = nothing there.
+   */
+  values?: Record<string, number>;
 };
 
 export async function getMenuPriceBookLogic(
@@ -131,8 +137,10 @@ export async function getMenuPriceBookLogic(
       book.products[key.slice(8)] = Number(c.costPerServing);
     }
   }
+  book.values = {};
   for (const [key, c] of replayed) {
     const productId = key.split("|")[0];
+    if (!c.inventoryValue.isZero()) book.values[productId] = Number(c.inventoryValue);
     // UNPRICED is "nobody has bought this here", never "free".
     if (c.costSource !== "UNPRICED" && !(productId in book.products)) book.products[productId] = Number(c.costPerBaseUnit);
   }

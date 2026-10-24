@@ -17,7 +17,7 @@ import { computeBangkokToday } from "@/lib/bangkok-date";
 import { toProductView } from "./_components/product-view";
 import ProductsManager from "./_components/ProductsManager";
 
-const STATUSES = ["active", "raw", "prepped", "low", "near", "inactive", "all"] as const;
+const STATUSES = ["active", "raw", "prepped", "low", "near", "out", "idle", "inactive", "all"] as const;
 type Status = (typeof STATUSES)[number];
 
 export default async function ProductsPage({
@@ -65,6 +65,7 @@ export default async function ProductsPage({
       canRequest={can("purchase:request")}
       initialProductId={one("product") ?? null}
       initialNew={one("new") === "1"}
+      initialSort={one("sort") === "value" ? "value" : "name"}
       initialStatus={(STATUSES as readonly string[]).includes(filter ?? "") ? (filter as Status) : "active"}
     />
   );

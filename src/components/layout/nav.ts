@@ -44,7 +44,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
     label: "สต๊อก",
     items: [
       { href: "/products", label: "สินค้า/วัตถุดิบ", need: "any:member" },
-      { href: "/stock", label: "สต๊อกคงเหลือ", need: "any:member" },
+      { href: "/stock", label: "งานสต๊อก", need: "any:member" },
       { href: "/stock-counts", label: "นับสต๊อก", need: "count:write" },
       { href: "/waste", label: "ของเสีย", need: "stock:write" },
       { href: "/transfers", label: "โอนของระหว่างสาขา", need: "any:member" },

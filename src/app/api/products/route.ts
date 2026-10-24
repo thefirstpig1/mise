@@ -3,6 +3,7 @@
 // ============================================================
 // what=list&branch=  the per-branch figures beside every product
 // what=sheet&id=     the editable part of one product's sheet
+// what=moves&id=&branch=  one product's last ledger rows at a branch (B6)
 // what=newform       the "+ เพิ่มสินค้า" sheet's choices (master:write)
 // Same gates as the pages: membership to read, the branch asserted against
 // reach (rule A5), receipts' money only with the cost ticket.
@@ -10,7 +11,7 @@
 
 import { requireTenant } from "@/lib/require-tenant";
 import { guardRead } from "@/lib/read-api";
-import { getNewProductFormLogic, getParDocsLogic, getProductListFactsLogic, getProductSheetFormLogic } from "@/server/product-list";
+import { getNewProductFormLogic, getParDocsLogic, getProductListFactsLogic, getProductSheetFormLogic, getRecentMovementsLogic } from "@/server/product-list";
 
 export const dynamic = "force-dynamic";
 
@@ -45,6 +46,13 @@ export function GET(req: Request) {
       if (!UUID.test(branchId) || !UUID.test(productId)) return json({ ok: false, error: "คำขอไม่ถูกต้อง" }, 400);
       assertBranch(branchId);
       return json({ ok: true, docs: await getParDocsLogic(tenantId, { productId, branchId }) });
+    }
+    if (what === "moves") {
+      const branchId = url.searchParams.get("branch") ?? "";
+      const productId = url.searchParams.get("id") ?? "";
+      if (!UUID.test(branchId) || !UUID.test(productId)) return json({ ok: false, error: "คำขอไม่ถูกต้อง" }, 400);
+      assertBranch(branchId);
+      return json({ ok: true, moves: await getRecentMovementsLogic(tenantId, productId, branchId) });
     }
     return json({ ok: false, error: "unknown read" }, 400);
   });

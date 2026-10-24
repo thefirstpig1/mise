@@ -37,6 +37,10 @@ export type ProductListFacts = {
   postedThrough: string | null;
   postedDays: number;
   warningDays: number;
+  /** B6: last ledger movement at this branch (yyyy-mm-dd); absent = never moved here. */
+  lastMoved: Record<string, string>;
+  /** The shop's "slow stock" days (tenant.slow_stock_days) — the ไม่เคลื่อนไหว filter. */
+  slowDays: number;
 };
 
 const LAST_RECEIPT_DAYS = 180;
@@ -49,12 +53,12 @@ export async function getProductListFactsLogic(
 ): Promise<ProductListFacts> {
   const today = computeBangkokToday();
   return withTenantContext(tenantId, async (tx) => {
-    const [products, tenant, receipts, usage] = await Promise.all([
+    const [products, tenant, receipts, usage, moved] = await Promise.all([
       tx.product.findMany({
         where: { tenantId, deletedAt: null },
         select: { id: true, productUnits: { where: { OR: [{ isBase: true }, { isDefaultBuyUnit: true }] }, select: { id: true, unitName: true, toBaseRatio: true, isBase: true, isDefaultBuyUnit: true } } },
       }),
-      tx.tenant.findUniqueOrThrow({ where: { id: tenantId }, select: { parWarningDays: true } }),
+      tx.tenant.findUniqueOrThrow({ where: { id: tenantId }, select: { parWarningDays: true, slowStockDays: true } }),
       cost === null
         ? Promise.resolve([])
         : tx.goodsReceiptItem.findMany({
@@ -81,6 +85,7 @@ export async function getProductListFactsLogic(
         },
         select: { productId: true, recipe: { select: { lineId: true } } },
       }),
+      tx.stockMovement.groupBy({ by: ["productId"], where: { tenantId, branchId }, _max: { occurredAt: true } }),
     ]);
     const [facts0, cover] = await Promise.all([
       ingredientFactsInTx(tx, tenantId, branchId, products.map((p) => p.id)),
@@ -123,7 +128,19 @@ export async function getProductListFactsLogic(
     }
     const usedIn = Object.fromEntries([...lines].map(([id, s]) => [id, s.size]));
 
-    return { facts, last, usedIn, postedThrough: facts0.postedThrough, postedDays: facts0.postedDays, warningDays: tenant.parWarningDays };
+    const lastMoved: Record<string, string> = {};
+    for (const m of moved) if (m._max.occurredAt) lastMoved[m.productId] = isoDate(new Date(m._max.occurredAt.getTime() + 7 * 3_600_000));
+
+    return {
+      facts,
+      last,
+      usedIn,
+      postedThrough: facts0.postedThrough,
+      postedDays: facts0.postedDays,
+      warningDays: tenant.parWarningDays,
+      lastMoved,
+      slowDays: tenant.slowStockDays,
+    };
   });
 }
 
@@ -418,4 +435,47 @@ export async function getNewProductFormLogic(tenantId: string): Promise<NewProdu
     densities: densities.map((d) => ({ id: d.id, name: d.name, gPerMl: d.gPerMl })),
     nextSku: `P-${String(max + 1).padStart(4, "0")}`,
   };
+}
+
+// ------------------------------------------------------------
+// B6 (Kong 2026-10-24): the product sheet's "เคลื่อนไหวล่าสุด"
+// ------------------------------------------------------------
+
+export type RecentMovement = {
+  id: string;
+  date: string;
+  type: string;
+  sourceType: string;
+  qty: number;
+  by: string | null;
+  product: { id: string; name: string; unit: string };
+};
+
+/** The last few ledger rows at one branch — of one product, or of all (productId null). Newest first. */
+export async function getRecentMovementsLogic(tenantId: string, productId: string | null, branchId: string, take = 5): Promise<RecentMovement[]> {
+  return withTenantContext(tenantId, async (tx) => {
+    const rows = await tx.stockMovement.findMany({
+      where: { tenantId, branchId, ...(productId ? { productId } : {}) },
+      orderBy: [{ occurredAt: "desc" }, { createdAt: "desc" }],
+      take,
+      select: {
+        id: true,
+        occurredAt: true,
+        type: true,
+        sourceType: true,
+        qty: true,
+        createdByUser: { select: { name: true, email: true } },
+        product: { select: { id: true, name: true, productUnits: { where: { isBase: true }, select: { unitName: true }, take: 1 } } },
+      },
+    });
+    return rows.map((m) => ({
+      id: m.id,
+      date: isoDate(new Date(m.occurredAt.getTime() + 7 * 3_600_000)),
+      type: m.type,
+      sourceType: m.sourceType,
+      qty: Number(m.qty),
+      by: m.createdByUser?.name ?? m.createdByUser?.email ?? null,
+      product: { id: m.product.id, name: m.product.name, unit: m.product.productUnits[0]?.unitName ?? "" },
+    }));
+  });
 }

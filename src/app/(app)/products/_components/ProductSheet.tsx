@@ -13,6 +13,8 @@
 // on the full form, linked from here.
 
 import { useEffect, useMemo, useState } from "react";
+import type { RecentMovement } from "@/server/product-list";
+import { MOVEMENT_TYPE_LABELS_TH, SOURCE_TYPE_LABELS_TH } from "@/lib/validations/stock-movement";
 import QtyStepper from "@/components/ui/QtyStepper";
 import SelectChip from "@/components/ui/SelectChip";
 import { MeasureInput, MoneyInput } from "@/components/ui/NumberField";
@@ -236,6 +238,7 @@ export default function ProductSheet({
 
   const sections = (
     <>
+      <RecentMoves productId={product.id} branch={branch} unit={baseUnit} />
       {canEditPar && (
         <section className="space-y-2 rounded-xl border border-border bg-surface p-4">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -461,3 +464,60 @@ export default function ProductSheet({
     </>
   );
 }
+
+/**
+ * B6 (Kong 2026-10-24): the last movements of this product at this branch —
+ * what the old /stock table's "เคลื่อนไหวล่าสุด" date stood for, now with what
+ * actually happened, and a door to the full history filtered to it.
+ */
+function RecentMoves({ productId, branch, unit }: { productId: string; branch: { id: string; name: string }; unit: string }) {
+  const [moves, setMoves] = useState<RecentMovement[] | null>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    let on = true;
+    setMoves(null);
+    setFailed(false);
+    void fetch(`/api/products?what=moves&id=${productId}&branch=${branch.id}`, { cache: "no-store" })
+      .then((r) => (r.headers.get("content-type")?.includes("json") ? r.json() : { ok: false }))
+      .then((j) => on && (j.ok ? setMoves(j.moves) : setFailed(true)))
+      .catch(() => on && setFailed(true));
+    return () => {
+      on = false;
+    };
+  }, [productId, branch.id]);
+  const label = (m: Record<string, string>, k: string) => m[k] ?? k;
+  const fmt = (n: number) => `${n > 0 ? "+" : ""}${n.toLocaleString("th-TH", { maximumFractionDigits: 3 })}`;
+  const day = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit", timeZone: "UTC" });
+  return (
+    <section className="space-y-2 rounded-xl border border-border bg-surface p-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h4 className="font-semibold">เคลื่อนไหวล่าสุด · {branch.name}</h4>
+        <a href={`/stock/history?product=${productId}&branch=${branch.id}`} className="text-xs text-primary hover:underline">
+          ดูประวัติทั้งหมด
+        </a>
+      </div>
+      {failed ? (
+        <p className="text-sm text-muted-foreground">โหลดไม่ได้ — ลองเปิดใหม่</p>
+      ) : moves === null ? (
+        <div className="h-16 animate-pulse rounded-lg bg-muted" />
+      ) : moves.length === 0 ? (
+        <p className="text-sm text-muted-foreground">ยังไม่เคยมีของเข้า-ออกที่สาขานี้</p>
+      ) : (
+        <ul className="divide-y divide-border text-sm">
+          {moves.map((m) => (
+            <li key={m.id} className="flex items-baseline justify-between gap-3 py-1.5">
+              <span>
+                {label(MOVEMENT_TYPE_LABELS_TH, m.type)}
+                <span className="text-xs text-muted-subtle"> · {label(SOURCE_TYPE_LABELS_TH, m.sourceType)} · {day(m.date)}{m.by ? ` · ${m.by}` : ""}</span>
+              </span>
+              <span className={`whitespace-nowrap tabular-nums ${m.qty < 0 ? "text-bad" : "text-good"}`}>
+                {fmt(m.qty)} {unitTh(unit)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+

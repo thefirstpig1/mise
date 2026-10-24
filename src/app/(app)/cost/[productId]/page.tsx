@@ -66,8 +66,8 @@ export default async function ProductCostPage({
   return (
     <div className="space-y-6">
       <div>
-        <a href="/stock" className="text-sm text-muted-foreground hover:text-foreground">
-          ← กลับไปหน้าสต๊อก
+        <a href="/products?sort=value" className="text-sm text-muted-foreground hover:text-foreground">
+          ← กลับไปหน้าสินค้า/วัตถุดิบ
         </a>
         <h2 className="mt-1 text-base font-semibold">
           {product.name}{" "}

@@ -30,7 +30,8 @@ import ParDocsPopup from "./ParDocsPopup";
 import QuickRequest from "./QuickRequest";
 import { PAR_RED } from "@/lib/par-alert";
 
-type Status = "active" | "raw" | "prepped" | "low" | "near" | "inactive" | "all";
+type Status = "active" | "raw" | "prepped" | "low" | "near" | "out" | "idle" | "inactive" | "all";
+type Sort = "name" | "value";
 type View = "table" | "cards";
 const VIEW_KEY = "kitkrua.products.view2";
 const NO_CATEGORY = "ไม่มีหมวด";
@@ -83,11 +84,13 @@ export default function ProductsManager(props: {
   /** `?new=1` — the old /products/new address lands here (Kong 2026-10-22). */
   initialNew: boolean;
   initialStatus: Status;
+  initialSort?: Sort;
 }) {
   const { products, branches, costHidden } = props;
   const router = useRouter();
   const [status, setStatus] = useState<Status>(props.initialStatus);
   const [section, setSection] = useState<string | null>(null);
+  const [sort, setSort] = useState<Sort>(props.initialSort === "value" && !costHidden ? "value" : "name");
   const [q, setQ] = useState("");
   const [view, setView] = useState<View>("table");
   const [branchId, setBranchId] = useState(props.defaultBranchId ?? branches[0]?.id ?? "");
@@ -197,6 +200,10 @@ export default function ProductsManager(props: {
         + ขอซื้อ
       </button>
     ) : null;
+  // No ledger movement at this branch for the shop's slow-stock days (or never).
+  const idleSince = list ? new Date(Date.parse(`${props.today}T00:00:00Z`) - list.slowDays * 86_400_000).toISOString().slice(0, 10) : null;
+  const isIdle = (p: ProductView) => idleSince !== null && (factOf(p)?.onHand ?? 0) > 0 && (list!.lastMoved[p.id] ?? "") < idleSince;
+  const valueOf = (p: ProductView) => book?.values?.[p.id] ?? 0;
   const byStatus = products.filter((p) => {
     const a = factOf(p)?.alert?.level;
     switch (status) {
@@ -210,6 +217,11 @@ export default function ProductsManager(props: {
         return p.isActive && a === "LOW";
       case "near":
         return p.isActive && (kindOf(p) === "near" || kindOf(p) === "near-covered");
+      // B6 (Kong 2026-10-24): the filters the old /stock table had.
+      case "out":
+        return p.isActive && p.type !== "PREPPED" && (factOf(p)?.onHand ?? 1) <= 0;
+      case "idle":
+        return p.isActive && p.type !== "PREPPED" && isIdle(p);
       case "inactive":
         return !p.isActive;
       default:
@@ -228,7 +240,10 @@ export default function ProductsManager(props: {
   ];
   const rows: { p: ProductView; weak: boolean }[] = hasQuery(q)
     ? rankBySearch(inSection, q, fields).map((r) => ({ p: r.item, weak: r.score < STRONG_MATCH }))
-    : [...inSection].sort((a, b) => a.name.localeCompare(b.name, "th")).map((p) => ({ p, weak: false }));
+    : [...inSection]
+        .sort((a, b) => (sort === "value" ? valueOf(b) - valueOf(a) : 0) || a.name.localeCompare(b.name, "th"))
+        .map((p) => ({ p, weak: false }));
+  const stockValue = book?.values ? Object.entries(book.values).reduce((t, [id, v]) => (products.some((p) => p.id === id) ? t + v : t), 0) : null;
 
   const branchName = branches.find((b) => b.id === branchId)?.name ?? "";
   const openProduct = openId ? (products.find((p) => p.id === openId) ?? null) : null;
@@ -337,6 +352,12 @@ export default function ProductsManager(props: {
       </>
     );
   };
+  // B6: what the stock on hand is worth (FIFO, the old /stock column).
+  const valueCell = (p: ProductView) => {
+    if (book === null) return pulse;
+    const v = book.values?.[p.id];
+    return v === undefined ? <span className="text-xs text-muted-subtle">—</span> : <span className="tabular-nums">{baht(v, 0)}</span>;
+  };
   const usedCell = (p: ProductView) => {
     if (list === null) return pulse;
     const n = list.usedIn[p.id] ?? 0;
@@ -361,6 +382,8 @@ export default function ProductsManager(props: {
     { key: "prepped", label: "ของแปรรูป" },
     { key: "low", label: "ต่ำกว่าขั้นต่ำ", n: lowCount, tone: "red" },
     { key: "near", label: "ใกล้ขั้นต่ำ", n: nearCount, tone: "yellow" },
+    { key: "out", label: "หมด / ติดลบ" },
+    { key: "idle", label: list ? `ไม่เคลื่อนไหว ${list.slowDays} วัน` : "ไม่เคลื่อนไหว" },
     { key: "inactive", label: "ปิดใช้งาน" },
     { key: "all", label: "ทั้งหมด" },
   ];
@@ -374,6 +397,13 @@ export default function ProductsManager(props: {
             {active.length} รายการที่ใช้งาน · ของแปรรูป {active.filter((p) => p.type === "PREPPED").length}
             {list ? ` · ต่ำกว่าขั้นต่ำ ${lowCount} · ใกล้ขั้นต่ำ ${nearCount}` : ""}
           </p>
+          {!costHidden && (
+            <p className="mt-1 text-sm">
+              มูลค่าสต๊อก{branchName}{" "}
+              {stockValue === null ? pulse : <strong className="font-display tabular-nums">{baht(stockValue, 0)}</strong>}
+              <span className="text-xs text-muted-subtle"> · ตามราคาทุน (FIFO)</span>
+            </p>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {branches.length > 1 && (
@@ -421,6 +451,17 @@ export default function ProductsManager(props: {
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="ค้นหาชื่อหรือรหัส เช่น กุ้ง, 07" aria-label="ค้นหาสินค้า" className="input min-w-[200px] flex-1" />
+              {!costHidden && (
+                <div className="flex items-center gap-1" role="group" aria-label="เรียง">
+                  <span className="text-xs text-muted-subtle">เรียง</span>
+                  <button type="button" className={chip(sort === "name", true)} onClick={() => setSort("name")}>
+                    ชื่อ
+                  </button>
+                  <button type="button" className={chip(sort === "value", true)} onClick={() => setSort("value")}>
+                    มูลค่ามากสุด
+                  </button>
+                </div>
+              )}
               <div className="flex gap-1" role="group" aria-label="มุมมอง">
                 <button type="button" className={chip(view === "table", true)} onClick={() => chooseView("table")}>
                   ตาราง
@@ -441,6 +482,7 @@ export default function ProductsManager(props: {
                   <tr>
                     <th className="px-3 py-2 font-medium">สินค้า</th>
                     <th className="px-3 py-2 text-right font-medium">คงเหลือ</th>
+                    {!costHidden && <th className="px-3 py-2 text-right font-medium">มูลค่า</th>}
                     {!costHidden && <th className="px-3 py-2 text-right font-medium">ต้นทุนต่อหน่วย</th>}
                     {!costHidden && <th className="px-3 py-2 text-right font-medium">ซื้อล่าสุด</th>}
                     <th className="px-3 py-2 text-right font-medium">ใช้ใน</th>
@@ -464,6 +506,7 @@ export default function ProductsManager(props: {
                         </div>
                       </td>
                       <td className="px-3 py-2.5 text-right align-top">{stockCell(p)}</td>
+                      {!costHidden && <td className="px-3 py-2.5 text-right align-top">{valueCell(p)}</td>}
                       {!costHidden && <td className="px-3 py-2.5 text-right align-top">{costCell(p)}</td>}
                       {!costHidden && <td className="px-3 py-2.5 text-right align-top">{lastCell(p)}</td>}
                       <td className="px-3 py-2.5 text-right align-top">{usedCell(p)}</td>
@@ -511,7 +554,7 @@ export default function ProductsManager(props: {
                       {k && <span className="-ml-1.5">{alertBadge(p)}</span>}
                       {!costHidden && (
                         <span className="mt-1 flex flex-wrap justify-between gap-x-2 text-xs">
-                          <span className="text-muted-subtle">ต้นทุน</span>
+                          <span className="text-muted-subtle">มูลค่า {book === null ? "…" : book.values?.[p.id] === undefined ? "—" : baht(book.values[p.id], 0)} · ต้นทุน</span>
                           <span className="ml-auto tabular-nums">{book === null ? "…" : book.products[p.id] === undefined ? "—" : `${baht(book.products[p.id], 2)}/${base(p)}`}</span>
                         </span>
                       )}

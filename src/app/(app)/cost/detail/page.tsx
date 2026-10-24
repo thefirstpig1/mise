@@ -100,10 +100,10 @@ export default async function CostOverviewPage({
 
       <p className="text-xs text-muted-foreground">
         ต้องการดูรายวัตถุดิบ? เปิดหน้า{" "}
-        <a href="/stock" className="text-primary hover:underline">
-          สต๊อก
+        <a href="/products?sort=value" className="text-primary hover:underline">
+          สินค้า/วัตถุดิบ
         </a>{" "}
-        แล้วเลือกวัตถุดิบที่ต้องการ
+        แล้วกดวัตถุดิบที่ต้องการ
       </p>
     </div>
   );

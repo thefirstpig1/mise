@@ -1266,8 +1266,8 @@ function Stock({
           </div>
         ))
       )}
-      <a href="/stock" className="mt-1 inline-block text-xs text-primary hover:underline">
-        ดูทั้งหมดที่หน้าสต๊อก ›
+      <a href="/products?sort=value" className="mt-1 inline-block text-xs text-primary hover:underline">
+        ดูทั้งหมดที่หน้าสินค้า/วัตถุดิบ ›
       </a>
     </div>
   );
