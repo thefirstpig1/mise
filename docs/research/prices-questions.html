@@ -1,0 +1,120 @@
+<title>ราคาวัตถุดิบ: เจ้าของร้านอยากรู้อะไร</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Prompt:wght@500;600;700&family=Noto+Sans+Thai:wght@400;500;600&display=swap">
+<style>
+/* Research brief: question-first design for /cost. Layout: one reading column,
+   a wide question bank table, and a mapping of questions to screens.
+   App tokens (tailwind.config.ts). */
+:root{
+  --bg:#FDFBF3; --fg:#262811; --surface:#FFFFFF; --sunk:#F8F3E1; --primary:#41431B; --primary-fg:#F8F3E1;
+  --muted:#F3EFDF; --muted-fg:#5A5C31; --subtle:#8B8D63; --border:#E9E3C8; --strong:#D2CBA4;
+  --good:#5A7333; --good-bg:#EEF2E0; --bad:#A83A22; --bad-bg:#F9E5DF; --warn:#A87C1C; --warn-bg:#F8EFD6; --clay:#C0692B;
+  --display:"Prompt","Noto Sans Thai",system-ui,sans-serif; --body:"Noto Sans Thai","Prompt",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#1B1C10; --fg:#EEEAD6; --surface:#24261A; --sunk:#2A2C1E; --primary:#D9DDB0; --primary-fg:#1B1C10;
+  --muted:#2E301F; --muted-fg:#C9C8A6; --subtle:#9C9B7C; --border:#36381F; --strong:#4A4C30;
+  --good:#B7CF7C; --good-bg:#2B3320; --bad:#EC9C80; --bad-bg:#41261C; --warn:#E8BE62; --warn-bg:#3B3018; --clay:#E8A76F; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#1B1C10; --fg:#EEEAD6; --surface:#24261A; --sunk:#2A2C1E; --primary:#D9DDB0; --primary-fg:#1B1C10;
+  --muted:#2E301F; --muted-fg:#C9C8A6; --subtle:#9C9B7C; --border:#36381F; --strong:#4A4C30;
+  --good:#B7CF7C; --good-bg:#2B3320; --bad:#EC9C80; --bad-bg:#41261C; --warn:#E8BE62; --warn-bg:#3B3018; --clay:#E8A76F; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.65;margin:0;padding-inline:16px;padding-block:28px 64px}
+.wrap{max-width:1100px;margin:0 auto;display:grid;gap:30px}
+h1,h2,h3{font-family:var(--display);margin:0;text-wrap:balance;line-height:1.3}
+h1{font-size:1.8rem;color:var(--primary)} h2{font-size:1.25rem} h3{font-size:1rem}
+p{margin:0;max-width:72ch}
+.sub{color:var(--subtle);font-size:.85rem}
+.lead{font-size:1.02rem;color:var(--muted-fg)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px 20px;display:grid;gap:10px}
+.findings{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.finding{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 16px;display:grid;gap:4px}
+.finding b{font-family:var(--display);font-size:1.6rem;color:var(--clay);line-height:1.2}
+.finding span{font-size:.86rem;color:var(--muted-fg)}
+.tbox{overflow-x:auto;border:1px solid var(--border);border-radius:14px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:980px;font-size:.86rem}
+th{font-family:var(--display);font-weight:600;font-size:.76rem;color:var(--muted-fg);text-align:left;padding:10px;background:var(--sunk);position:sticky;top:0}
+td{padding:10px;border-top:1px solid var(--border);vertical-align:top}
+td b{font-family:var(--display);font-weight:600}
+.n{font-family:var(--display);font-weight:700;color:var(--clay)}
+.pill{display:inline-block;border-radius:999px;padding:1px 9px;font-size:.74rem;white-space:nowrap}
+.yes{background:var(--good-bg);color:var(--good)} .part{background:var(--warn-bg);color:var(--warn)} .no{background:var(--bad-bg);color:var(--bad)}
+.role{display:inline-block;border:1px solid var(--strong);border-radius:999px;padding:0 8px;font-size:.72rem;margin:1px 2px 1px 0;white-space:nowrap}
+.cad{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.cad .card h3{color:var(--primary)}
+.cad ul{margin:0;padding-left:18px;font-size:.9rem;display:grid;gap:4px}
+ol.steps{margin:0;padding-left:20px;display:grid;gap:8px}
+ol.steps li{max-width:80ch}
+.order{display:grid;gap:8px}
+.order div{display:grid;grid-template-columns:34px minmax(0,1fr);gap:10px;align-items:start;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:10px 14px}
+.order .k{font-family:var(--display);font-weight:700;color:var(--clay);font-size:1.1rem}
+a{color:var(--primary)}
+.src{font-size:.82rem;color:var(--muted-fg);display:grid;gap:3px}
+</style>
+
+<div class="wrap">
+  <header style="display:grid;gap:8px">
+    <p class="sub">งานค้นคว้าก่อนออกแบบ · หน้า “ราคาวัตถุดิบขึ้นลง” · 24 ต.ค. 2569</p>
+    <h1>ราคาวัตถุดิบ: เจ้าของร้านอยากรู้อะไร</h1>
+    <p class="lead">คำถามจริงไม่ใช่ “อะไรขึ้นกี่ %” แต่คือ <b>ราคาที่เปลี่ยนทำให้ร้านจ่ายเพิ่มเท่าไร กระทบเมนูไหน และต้องทำอะไร</b> (ขึ้นราคาเมนู · ต่อรอง · เปลี่ยนเจ้า · แก้สูตร)</p>
+  </header>
+
+  <section class="findings">
+    <div class="finding"><b>เป็นเงิน</b><span>เรียงตามเงินที่จ่ายเพิ่ม (ราคาที่เปลี่ยน × ปริมาณที่ซื้อ) ไม่ใช่ % — ผักขึ้น 10% อาจเป็นเงินน้อยกว่าข้าวขึ้น 2%</span></div>
+    <div class="finding"><b>2–3%</b><span>ราคาขึ้นทีละนิดต่อไตรมาส (price creep) ไม่มีครั้งไหนใหญ่พอให้ใครสังเกต ต้องดูสะสมหลายเดือน</span></div>
+    <div class="finding"><b>เมนูที่กระทบ</b><span>ระบบชั้นนำบอกทันทีว่าราคาที่เปลี่ยนทำให้ต้นทุนต่อจานของเมนูไหนขึ้น และ food cost % ยังอยู่ในเป้าไหม</span></div>
+    <div class="finding"><b>22.7%</b><span>ของใบแจ้งหนี้มีอย่างน้อยหนึ่งบรรทัดที่ราคาไม่ตรงกับที่ตกลง — ต้องเทียบใบรับของกับใบสั่งซื้อ</span></div>
+  </section>
+
+  <section class="card">
+    <h2>🔴 สิ่งที่เจอในข้อมูลจริง: เทียบใบเดียวกับใบเดียวทำให้เห็นผิด</h2>
+    <p>ราคาซื้อของร้านตัวอย่างแกว่งขึ้นลงทุกใบ (เบียร์ ฿61.98–69.47 ใน 6 สัปดาห์) หน้าปัจจุบันเทียบ “ใบแรกกับใบล่าสุด” จึงได้ตัวเลขที่ขึ้นกับว่าบังเอิญเลือกใบไหน:</p>
+    <div class="tbox"><table style="min-width:640px">
+      <thead><tr><th>วัตถุดิบ</th><th>ใบแรก → ใบล่าสุด (หน้าปัจจุบัน)</th><th>ราคาเฉลี่ย ส.ค. → ก.ย.</th></tr></thead>
+      <tbody>
+        <tr><td>เบียร์สิงห์</td><td style="color:var(--bad)">+11.6%</td><td>+1.8%</td></tr>
+        <tr><td>ผักบุ้ง</td><td style="color:var(--bad)">+10.7%</td><td>+2.3%</td></tr>
+        <tr><td>เนื้อสันใน</td><td style="color:var(--bad)">+6.3%</td><td style="color:var(--good)">−1.7%</td></tr>
+        <tr><td>หมูสามชั้น</td><td style="color:var(--bad)">+4.1%</td><td style="color:var(--good)">−1.9%</td></tr>
+        <tr><td>กุ้งขาว (รายการ “ราคาที่ลดลง” ในหน้าต้นทุน)</td><td style="color:var(--good)">−2.8% (ราคาก่อนเดือนเป็นใบเดียว)</td><td style="color:var(--bad)">+1.2%</td></tr>
+      </tbody>
+    </table></div>
+    <p><b>เสนอ: เทียบราคาเฉลี่ยตามปริมาณ (ถ่วงน้ำหนัก) ของช่วงนี้กับช่วงก่อนที่ยาวเท่ากัน</b> และแก้กฎ CO-PRICE ในหน้าต้นทุนให้ใช้วิธีเดียวกัน (ตอนนี้ใช้ราคาใบล่าสุดก่อนช่วงเป็นตัวเทียบ จึงบอกว่าหมูสับทำให้จ่ายเพิ่ม ฿2,200 ทั้งที่เฉลี่ยแล้วแค่ ฿424)</p>
+  </section>
+
+  <section class="card">
+    <h2>คำถามที่ต้องตอบ</h2>
+    <div class="tbox"><table>
+      <thead><tr><th>#</th><th>คำถาม</th><th>คนถาม</th><th>ตอบด้วยอะไร</th><th>ข้อมูลที่เรามี</th></tr></thead>
+      <tbody>
+        <tr><td class="n">1</td><td><b>เดือนนี้ราคาที่เปลี่ยนทำให้จ่ายเพิ่มหรือประหยัดเท่าไร</b></td><td>เจ้าของ</td><td>จ่ายเพิ่ม · ประหยัด · สุทธิ · เป็น % ของยอดซื้อ</td><td><span class="pill" style="background:var(--good-bg);color:var(--good)">มี</span> ใบรับของ</td></tr>
+        <tr><td class="n">2</td><td><b>ตัวไหน</b></td><td>ทั้งคู่</td><td>แท่งสองข้าง (ขึ้น/ลง) เรียงตามเงิน · ราคาเฉลี่ยเดิม → ใหม่ · ช่วงแกว่งในเดือน</td><td><span class="pill" style="background:var(--good-bg);color:var(--good)">มี</span></td></tr>
+        <tr><td class="n">3</td><td><b>กระทบเมนูไหน ต้องขึ้นราคาไหม</b></td><td>เจ้าของ</td><td>ต้นทุนต่อจานขึ้นกี่บาท = กี่จุดของราคาขาย × จานที่ขาย = กระทบต่อเดือน · ลิงก์ไป “ลองราคา” ในทดลองเมนู</td><td><span class="pill" style="background:var(--good-bg);color:var(--good)">มี</span> สูตร + ยอดขาย</td></tr>
+        <tr><td class="n">4</td><td><b>ขึ้นทีละนิดสะสมไหม</b></td><td>เจ้าของ</td><td>ราคาเฉลี่ยรายเดือนต่อรายการ (เส้นเล็ก) · ขึ้นติดกันกี่เดือน</td><td><span class="pill" style="background:var(--warn-bg);color:var(--warn)">ข้อมูลน้อย</span> มี 2 เดือน</td></tr>
+        <tr><td class="n">5</td><td><b>เจ้าไหนถูกกว่า</b></td><td>ผู้จัดการ</td><td>ของเดียวกันจากหลายเจ้า · ถ้าซื้อจากเจ้าถูกสุดจะประหยัดเท่าไร</td><td><span class="pill" style="background:var(--muted);color:var(--muted-fg)">ยังไม่มี</span> ทุกรายการซื้อเจ้าเดียว</td></tr>
+        <tr><td class="n">6</td><td><b>บิลตรงกับราคาที่สั่งไหม</b></td><td>ผู้จัดการ</td><td>ราคาในใบรับของ ≠ ราคาในใบสั่งซื้อ · บาทที่ต่าง</td><td><span class="pill" style="background:var(--muted);color:var(--muted-fg)">ยังไม่มี</span> ไม่มีใบรับของที่มาจากใบสั่งซื้อ</td></tr>
+        <tr><td class="n">7</td><td><b>ราคาที่เห็นใหม่แค่ไหน</b></td><td>ทั้งคู่</td><td>รับของล่าสุดเมื่อไร · เดือนที่ยังไม่มีใบรับของไม่แสดงเป็น “ราคาไม่เปลี่ยน”</td><td><span class="pill" style="background:var(--good-bg);color:var(--good)">มี</span></td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section class="card">
+    <h2>ร้านตัวอย่าง: ก.ย. เทียบ ส.ค. (ราคาเฉลี่ย)</h2>
+    <ul style="margin:0;padding-left:20px;display:grid;gap:4px">
+      <li>จ่ายเพิ่มจากของที่ขึ้น <b>฿2,679</b> · ประหยัดจากของที่ลง <b>฿3,046</b> · <b>สุทธิประหยัด ฿367</b> จากยอดซื้อ ฿390,645</li>
+      <li>ขึ้นเป็นเงินมากสุด: กุ้งขาว +1.2% (฿971) · เบียร์ +1.8% (฿518) · หมูสับ +1.1% (฿424) · ลงมากสุด: ข้าวหอมมะลิ −2.6% (ประหยัด ฿1,388)</li>
+      <li>เมนูที่ต้นทุนขึ้นเป็นสัดส่วนของราคามากสุด: <b>เบียร์สิงห์ +฿1.17/ขวด = 1.2 จุด</b> · ที่เหลือไม่ถึง 0.5 จุด → <b>เดือนนี้ยังไม่มีเมนูไหนต้องขึ้นราคา</b></li>
+      <li>ใบรับของล่าสุด 24 ก.ย. — ต.ค. ยังไม่มี ข้อมูลราคาเก่า 30 วัน</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2>แหล่งที่มา</h2>
+    <ul class="sub" style="margin:0;padding-left:20px">
+      <li><a href="https://supy.io/blog/learn-keep-recipe-costs-current-supplier-price-sync">Supy — keeping recipe costs current</a> · <a href="https://supy.io/the-spread">The Spread (invoice accuracy 22.7%)</a></li>
+      <li><a href="https://www.wisk.ai/blog/how-do-you-get-automatic-price-updates-from-restaurant-invoices">WISK — automatic price updates from invoices</a></li>
+      <li><a href="https://radar.help.restaurant365.com/support/solutions/articles/12000083920-contract-management-price-alerts">Restaurant365 — contract price alerts</a> · <a href="https://cloud.compeat.com/CompeatBackOffice/Help/Reports/Price_Variance_-_Last_Purchase.htm">Compeat — price variance last purchase</a></li>
+      <li><a href="https://www.cp24.com/news/money/2026/05/22/victoria-restaurant-raises-and-lowers-prices-in-response-to-food-costs-and-inflation/">CP24 — repricing dish by dish, up and down</a></li>
+    </ul>
+  </section>
+</div>
