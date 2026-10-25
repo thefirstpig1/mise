@@ -56,7 +56,7 @@ async function chooseShop(formData: FormData) {
   });
 
   revalidatePath("/", "layout");
-  redirect("/dashboard");
+  redirect("/home");
 }
 
 export default async function ChooseShopPage() {
@@ -67,7 +67,7 @@ export default async function ChooseShopPage() {
 
   if (memberships.length === 0) redirect("/signup");
   // Nothing to choose between — going back would be a dead end with one button.
-  if (memberships.length === 1) redirect("/dashboard");
+  if (memberships.length === 1) redirect("/home");
 
   return (
     <main className="flex min-h-screen items-center justify-center px-4 py-8">

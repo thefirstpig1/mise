@@ -49,7 +49,7 @@ async function requestLink(formData: FormData) {
   // (require-tenant.ts), so this one target is right for both.
   const outcome = await signIn("email", {
     email,
-    redirectTo: "/dashboard",
+    redirectTo: "/home",
     redirect: false,
   });
 
@@ -71,7 +71,7 @@ export default async function LoginPage({
   // to them reads as "the link did not work". Every link sent before the fix
   // above still lands here, so this is what rescues those.
   const session = await auth();
-  if (session?.user) redirect("/dashboard");
+  if (session?.user) redirect("/home");
 
   const params = await searchParams;
   const checkEmail = params["check-email"] !== undefined;

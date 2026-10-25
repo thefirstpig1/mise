@@ -93,13 +93,25 @@ export default async function StockWorkPage({ searchParams }: { searchParams: Pr
             : `นับล่าสุด ${countAgo} วันก่อน · รอบละ ${cycle} วัน`;
   const countDue = countAgo === null || countAgo >= cycle - 3;
 
+  // Kong 2026-10-25: this is also the kitchen's home page (homeFor). For people
+  // who see no money, it is "งานครัว", and asking for stock comes first.
+  const kitchenView = !can("sales:view") && can("purchase:request");
   const tiles: { href: string; title: string; sub: string; show: boolean; main?: boolean; alert?: boolean; daily?: boolean }[] = [
+    {
+      href: `/purchase-requests?b=${branch.id}`,
+      title: "ขอซื้อของ",
+      sub: low + near > 0 ? `ต่ำกว่า/ใกล้ขั้นต่ำ ${low + near} รายการ` : "ใส่ของที่ต้องการ · แผนกกดพร้อม",
+      show: kitchenView,
+      main: true,
+      alert: low + near > 0,
+      daily: true,
+    },
     {
       href: `/stock-counts/new?branch=${branch.id}`,
       title: "นับสต๊อก",
       sub: countSub,
       show: can("count:write"),
-      main: true,
+      main: !kitchenView,
       alert: countDue,
       daily: true,
     },
@@ -138,7 +150,7 @@ export default async function StockWorkPage({ searchParams }: { searchParams: Pr
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold">งานสต๊อก</h2>
+          <h2 className="text-xl font-bold">{kitchenView ? "งานครัว" : "งานสต๊อก"}</h2>
           <p className="mt-1 text-sm text-muted-foreground">ของเข้า-ออกที่ไม่ได้มาจากการซื้อหรือการขาย บันทึกที่นี่ · ดูรายการสินค้าและยอดคงเหลือที่หน้าสินค้า/วัตถุดิบ</p>
         </div>
         {branches.length > 1 && (

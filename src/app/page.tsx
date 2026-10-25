@@ -7,7 +7,7 @@ export default async function HomePage() {
 
   // Logged in → go to dashboard
   if (session?.user) {
-    redirect("/dashboard");
+    redirect("/home");
   }
 
   return (
