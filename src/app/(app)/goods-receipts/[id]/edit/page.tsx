@@ -69,7 +69,7 @@ export default async function EditGoodsReceiptPage({
     );
   }
 
-  const { products, suppliers, branches, purchaseOrders } =
+  const { products, suppliers, branches, purchaseOrders, departments, departmentDefaults } =
     await loadGoodsReceiptFormOptions(tenantId, reach);
 
   const today = computeBangkokToday();
@@ -100,6 +100,8 @@ export default async function EditGoodsReceiptPage({
         nowLocal={nowLocal}
         minLocal={minLocal}
         maxLocal={maxLocal}
+        departments={departments}
+        departmentDefaults={departmentDefaults}
         initial={{
           id: gr.id,
           branchId: gr.branch.id,
@@ -120,6 +122,7 @@ export default async function EditGoodsReceiptPage({
             // A VAT-inclusive receipt is edited as the bill shows it (PR3).
             unitPriceActual: l.unitPriceQuoted ?? l.unitPriceActual,
             notes: l.notes,
+            departmentId: l.allocations.length === 1 ? l.allocations[0].departmentId : null,
           })),
         }}
       />

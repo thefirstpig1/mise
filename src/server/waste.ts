@@ -24,6 +24,7 @@ import type { PrismaClient, StockMovement, WasteLog } from "@prisma/client";
 import { withTenantContext } from "@/lib/db";
 import { addDays, computeBangkokToday } from "@/lib/bangkok-date";
 import { assertRefBelongsToTenant } from "@/server/product";
+import { recipeDepartmentMajorityInTx } from "@/server/department-defaults";
 import {
   QtyRoundsToZeroError,
   StockUnitMismatchError,
@@ -421,7 +422,7 @@ const resultFor = async (
  */
 export async function getWasteDepartmentDefaultsLogic(tenantId: string): Promise<Record<string, string>> {
   return withTenantContext(tenantId, async (tx) => {
-    const [recent, ingredients] = await Promise.all([
+    const [recent, majority] = await Promise.all([
       tx.wasteLog.findMany({
         where: { tenantId, departmentId: { not: null }, reversalOfId: null, voidedAt: null },
         orderBy: { createdAt: "desc" },
@@ -429,25 +430,9 @@ export async function getWasteDepartmentDefaultsLogic(tenantId: string): Promise
         select: { productId: true, departmentId: true },
         take: 500,
       }),
-      tx.recipeIngredient.findMany({
-        where: {
-          tenantId,
-          productId: { not: null },
-          recipe: { isDraft: false, supersededAt: null, deletedAt: null, menu: { deletedAt: null, primaryDepartmentId: { not: null } } },
-        },
-        select: { productId: true, recipe: { select: { menu: { select: { primaryDepartmentId: true } } } } },
-      }),
+      recipeDepartmentMajorityInTx(tx as unknown as PrismaClient, tenantId),
     ]);
-    const tally = new Map<string, Map<string, number>>();
-    for (const i of ingredients) {
-      const d = i.recipe.menu?.primaryDepartmentId;
-      if (!i.productId || !d) continue;
-      const m = tally.get(i.productId) ?? new Map<string, number>();
-      m.set(d, (m.get(d) ?? 0) + 1);
-      tally.set(i.productId, m);
-    }
-    const out: Record<string, string> = {};
-    for (const [p, m] of tally) out[p] = [...m.entries()].sort((a, b) => b[1] - a[1])[0][0];
+    const out: Record<string, string> = { ...majority };
     for (const r of recent) if (r.departmentId) out[r.productId] = r.departmentId;
     return out;
   });

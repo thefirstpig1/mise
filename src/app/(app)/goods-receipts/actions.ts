@@ -245,16 +245,23 @@ function linesFromFormData(formData: FormData): Record<string, unknown>[] {
   const qtys = formData.getAll("line_qty");
   const prices = formData.getAll("line_unit_price");
   const notes = formData.getAll("line_notes");
+  // Kong 2026-10-24: one department per line from the form. Blank = let the
+  // server decide (the order's own split, or the MAIN fallback).
+  const departmentIds = formData.getAll("line_department_id");
 
   return productIds
-    .map((productId, i) => ({
-      productId,
-      purchaseOrderItemId: poItemIds[i] ?? null,
-      receivedUnitId: unitIds[i],
-      qtyReceivedActual: qtys[i],
-      unitPriceActual: prices[i],
-      notes: notes[i] ?? null,
-    }))
+    .map((productId, i) => {
+      const dept = String(departmentIds[i] ?? "").trim();
+      return {
+        productId,
+        purchaseOrderItemId: poItemIds[i] ?? null,
+        receivedUnitId: unitIds[i],
+        qtyReceivedActual: qtys[i],
+        unitPriceActual: prices[i],
+        notes: notes[i] ?? null,
+        ...(dept ? { allocations: [{ departmentId: dept, qtyAllocatedActual: qtys[i] }] } : {}),
+      };
+    })
     .filter((l) => String(l.productId ?? "").trim() !== "");
 }
 

@@ -43,7 +43,7 @@ export default async function NewGoodsReceiptPage({
   const { tenantId, reach} = await requireTenant("receive:write");
   const sp = await searchParams;
 
-  const { products, suppliers, branches, purchaseOrders } =
+  const { products, suppliers, branches, purchaseOrders, departments, departmentDefaults } =
     await loadGoodsReceiptFormOptions(tenantId, reach);
 
   const initialPo = sp.po
@@ -94,6 +94,8 @@ export default async function NewGoodsReceiptPage({
           nowLocal={nowLocal}
           minLocal={minLocal}
           maxLocal={maxLocal}
+          departments={departments}
+          departmentDefaults={departmentDefaults}
           initialPurchaseOrder={
             initialPo
               ? toReceivablePurchaseOrderView(

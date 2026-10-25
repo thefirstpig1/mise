@@ -7,6 +7,7 @@
 import { getProductsLogic } from "@/server/product";
 import { getSuppliersLogic } from "@/server/supplier";
 import { getBranchesLogic } from "@/server/branch";
+import { departmentPickerOptionsLogic, receiptDepartmentDefaultsLogic } from "@/server/department-defaults";
 import type { BranchReach } from "@/lib/permissions/service";
 import { getPurchaseOrdersLogic } from "@/server/purchase-order";
 import { RECEIVABLE_PO_STATUSES } from "@/lib/validations/goods-receipt";
@@ -23,6 +24,10 @@ export type GoodsReceiptFormOptions = {
   suppliers: GrSupplierOption[];
   branches: GrBranchOption[];
   purchaseOrders: GrPurchaseOrderOption[];
+  /** Kong 2026-10-24: a department per line — empty when the shop has nothing to choose between. */
+  departments: { id: string; name: string; isDefault: boolean }[];
+  /** Product id → the department to pre-select (department-defaults.ts). */
+  departmentDefaults: Record<string, string>;
 };
 
 export async function loadGoodsReceiptFormOptions(
@@ -30,14 +35,18 @@ export async function loadGoodsReceiptFormOptions(
   /** Rule A5: the picker only ever offers branches this person may act on. */
   reach: BranchReach
 ): Promise<GoodsReceiptFormOptions> {
-  const [products, suppliers, branches, orders] = await Promise.all([
+  const [products, suppliers, branches, orders, departments] = await Promise.all([
     getProductsLogic(tenantId),
     getSuppliersLogic(tenantId),
     getBranchesLogic(tenantId, reach),
     getPurchaseOrdersLogic(tenantId, {}),
+    departmentPickerOptionsLogic(tenantId),
   ]);
+  const departmentDefaults = departments.length > 0 ? await receiptDepartmentDefaultsLogic(tenantId) : {};
 
   return {
+    departments,
+    departmentDefaults,
     // getProductsLogic orders by the category tree (built for the product page);
     // a picker reads better by name.
     products: products

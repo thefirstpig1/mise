@@ -92,6 +92,8 @@ type LineRow = {
   orderedUnitPrice: string | null;
   /** FROZEN ratio from the PO line; null on a standalone row (use the unit's). */
   frozenRatio: string | null;
+  /** Kong 2026-10-24: which department this line goes to; "" = server default. */
+  departmentId: string;
 };
 
 export type GoodsReceiptFormInitial = {
@@ -116,6 +118,8 @@ export type GoodsReceiptFormInitial = {
     qtyReceivedActual: string;
     unitPriceActual: string;
     notes: string | null;
+    /** The line's department when it went to exactly one; null otherwise. */
+    departmentId?: string | null;
   }[];
 };
 
@@ -134,6 +138,7 @@ const newRow = (): LineRow => ({
   orderedUnitName: null,
   orderedUnitPrice: null,
   frozenRatio: null,
+  departmentId: "",
 });
 
 const n = (s: string) => {
@@ -163,6 +168,8 @@ export default function GoodsReceiptForm({
   maxLocal,
   initial,
   initialPurchaseOrder,
+  departments = [],
+  departmentDefaults = {},
 }: {
   action: (
     prev: GoodsReceiptActionState,
@@ -186,6 +193,9 @@ export default function GoodsReceiptForm({
   initial?: GoodsReceiptFormInitial;
   /** Prefilled order when the page was opened as /new?po=<id>. */
   initialPurchaseOrder?: ReceivablePurchaseOrderView | null;
+  /** Active departments; the per-line picker shows only when there are two or more. */
+  departments?: { id: string; name: string; isDefault?: boolean }[];
+  departmentDefaults?: Record<string, string>;
 }) {
   const [state, formAction, isPending] = useActionState(
     action,
@@ -266,6 +276,7 @@ export default function GoodsReceiptForm({
       orderedUnitName: l.orderUnitName,
       orderedUnitPrice: l.unitPrice,
       frozenRatio: l.toBaseRatio,
+      departmentId: departmentDefaults[l.productId] ?? "",
     }));
 
   const [rows, setRows] = useState<LineRow[]>(() => {
@@ -282,6 +293,7 @@ export default function GoodsReceiptForm({
         orderedUnitName: l.receivedUnitName,
         orderedUnitPrice: null,
         frozenRatio: l.toBaseRatio,
+        departmentId: l.departmentId ?? "",
       }));
     }
     if (initialPurchaseOrder?.receivable) return linesFromPo(initialPurchaseOrder);
@@ -665,6 +677,7 @@ export default function GoodsReceiptForm({
                 <input type="hidden" name="line_po_item_id" value={r.purchaseOrderItemId} />
                 <input type="hidden" name="line_product_id" value={r.productId} />
                 <input type="hidden" name="line_received_unit_id" value={r.receivedUnitId} />
+                {departments.length === 0 && <input type="hidden" name="line_department_id" value="" />}
 
                 <div className={`grid items-center gap-x-3 gap-y-2 ${LINE_GRID_MOBILE} sm:[grid-template-areas:'p_q_u_pr_t_x'] ${LINE_GRID}`}>
                   <div className="min-w-0 [grid-area:p]">
@@ -686,6 +699,7 @@ export default function GoodsReceiptForm({
                             productId: id,
                             // Default to the base unit — the unit stock is counted in.
                             receivedUnitId: p?.units[0]?.id ?? "",
+                            departmentId: departmentDefaults[id] ?? "",
                           });
                         }}
                       />
@@ -758,6 +772,20 @@ export default function GoodsReceiptForm({
                     )}
                   </div>
                 </div>
+
+                {departments.length > 0 && (
+                  <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                    <span>แผนก</span>
+                    <SelectChip
+                      size="sm"
+                      value={r.departmentId || (departments.find((d) => d.isDefault)?.id ?? "")}
+                      onChange={(v) => setRow(r.key, { departmentId: v })}
+                      options={departments.map((d) => ({ value: d.id, label: d.name }))}
+                      className="w-48"
+                      selectProps={{ name: "line_department_id", "aria-label": `แผนกของ ${product?.name ?? "รายการนี้"}` }}
+                    />
+                  </div>
+                )}
 
                 {(short || (r.orderedUnitPrice !== null && n(r.unitPrice) !== n(r.orderedUnitPrice))) && (
                   <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-warn">
