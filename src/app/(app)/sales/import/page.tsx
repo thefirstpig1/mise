@@ -105,7 +105,7 @@ export default async function SalesImportPage() {
                     <span className="text-xs text-muted-foreground">
                       {STATUS_LABELS_TH[b.status] ?? b.status} ·{" "}
                       {BANGKOK_DATETIME.format(b.uploadedAt)}
-                      {b.status === "COMMITTED" && ` · ${b.rowCount.toLocaleString("th-TH")} รายการ`}
+                      {b.status === "COMMITTED" && ` · ${b.lineCount.toLocaleString("th-TH")} แถว`}
                     </span>
                   </div>
                   {reasons.length > 0 && (

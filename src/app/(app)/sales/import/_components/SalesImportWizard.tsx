@@ -14,7 +14,7 @@ import { orStale } from "@/lib/stale-tab";
 //
 // **The file is held in this component and posted twice.** There is no object
 // storage yet, so the preview cannot keep the bytes it parsed between two
-// requests (L3c). The `<input type="file">` keeps the File, and the confirm step
+// requests (L3c). The chosen File is held in state, and the confirm step
 // builds its own FormData from the same one. If the user swaps the file between
 // steps, the second parse produces different counts and the server refuses —
 // which is why the acknowledged counts travel with the confirm.
@@ -23,7 +23,8 @@ import { orStale } from "@/lib/stale-tab";
 // file, and "import failed" tells them nothing, so every row error is shown with
 // its Excel row number and the column that went wrong.
 
-import { useRef, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
+import FileDrop from "@/components/ui/FileDrop";
 import {
   commitSalesImportAction,
   previewSalesImportAction,
@@ -58,7 +59,7 @@ export default function SalesImportWizard({
 }: {
   profiles: ImportProfileOption[];
 }) {
-  const fileRef = useRef<HTMLInputElement>(null);
+  const [file, setFile] = useState<File | null>(null);
   const [profileId, setProfileId] = useState(profiles[0]?.id ?? "");
   const [batchId, setBatchId] = useState(newBatchId);
   const [previewState, setPreviewState] = useState<SalesImportPreviewState | null>(null);
@@ -69,7 +70,6 @@ export default function SalesImportWizard({
     previewState?.ok === true ? previewState.preview : null;
 
   const runPreview = () => {
-    const file = fileRef.current?.files?.[0];
     if (!file) {
       setPreviewState({ ok: false, fieldErrors: { file: "ยังไม่ได้เลือกไฟล์" } });
       return;
@@ -85,7 +85,6 @@ export default function SalesImportWizard({
   };
 
   const runCommit = () => {
-    const file = fileRef.current?.files?.[0];
     if (!file || !preview) return;
     const fd = new FormData();
     fd.set("file", file);
@@ -101,7 +100,7 @@ export default function SalesImportWizard({
         // consumed — start clean rather than leaving a screen that looks armed.
         setPreviewState(null);
         setBatchId(newBatchId());
-        if (fileRef.current) fileRef.current.value = "";
+        setFile(null);
       }
     });
   };
@@ -176,19 +175,19 @@ export default function SalesImportWizard({
           </select>
         </label>
 
-        <label className="mt-4 block text-sm">
-          ไฟล์จาก POS
-          <input
-            ref={fileRef}
-            type="file"
+        <div className="mt-4 text-sm">
+          <p className="mb-1">ไฟล์จาก POS</p>
+          <FileDrop
             accept=".csv,text/csv,text/plain"
-            className={"input w-full mt-1"}
-            onChange={() => {
+            fileName={file?.name ?? null}
+            hint="ไฟล์ .csv จากหลังบ้าน POS"
+            onFile={(f) => {
+              setFile(f);
               setPreviewState(null);
               setCommitState(null);
             }}
           />
-        </label>
+        </div>
         {previewState?.ok === false && previewState.fieldErrors?.file && (
           <p className="mt-1 text-xs text-bad">{previewState.fieldErrors.file}</p>
         )}

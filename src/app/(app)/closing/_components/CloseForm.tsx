@@ -12,6 +12,7 @@ import { saveDailyCloseAction } from "../actions";
 import { DAILY_ISSUE_CATEGORY_LABELS_TH, DAILY_ISSUE_CATEGORY_VALUES, MIX_PARTS, cashDifference, type DailyIssueCategoryValue } from "@/lib/validations/daily-close";
 import type { DailyCloseDay } from "@/server/daily-close";
 import { colorOf } from "./mix";
+import ClosingUpload from "./ClosingUpload";
 
 type IssueDraft = { key: string; id: string | null; category: DailyIssueCategoryValue; body: string; followUp: boolean };
 let seq = 0;
@@ -19,7 +20,18 @@ const s = (n: number | null) => (n === null ? "" : String(n));
 const toNum = (v: string) => (v.trim() === "" ? null : Number(v.replace(/,/g, "")));
 const baht = (n: number) => `฿${n.toLocaleString("th-TH", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
 
-export default function CloseForm({ day, branchName, dateLabel }: { day: DailyCloseDay; branchName: string; dateLabel: string }) {
+export default function CloseForm({
+  day,
+  branchName,
+  dateLabel,
+  profiles = [],
+}: {
+  day: DailyCloseDay;
+  branchName: string;
+  dateLabel: string;
+  /** This branch's POS file formats — step 5 uploads the day's file (Kong 2026-10-25). */
+  profiles?: { id: string; label: string }[];
+}) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [pulse, setPulse] = useState(s(day.pulseAmount));
@@ -245,7 +257,7 @@ export default function CloseForm({ day, branchName, dateLabel }: { day: DailyCl
       </section>
 
       <section className="space-y-1 rounded-2xl border border-border bg-surface p-4 text-sm">
-        <Sec n={5} title="ระบบเติมให้" />
+        <h3 className="font-semibold">ระบบเติมให้ <span className="text-xs font-normal text-muted-subtle">ไม่ต้องกรอก</span></h3>
         <ul className="divide-y divide-border">
           <li className="flex justify-between py-1.5">
             <span>ของเสีย</span>
@@ -268,6 +280,12 @@ export default function CloseForm({ day, branchName, dateLabel }: { day: DailyCl
         {pending ? "กำลังบันทึก…" : day.close ? "บันทึกการแก้ไข" : "บันทึกปิดร้าน"}
       </button>
       <p className="text-center text-xs text-muted-subtle">แก้ได้ถึงเที่ยงคืนของวันถัดไป · หลังจากนั้นเขียนความเห็นต่อได้ แต่ตัวเลขไม่เปลี่ยน</p>
+
+      <section className="space-y-2 rounded-2xl border border-border bg-surface p-4">
+        <Sec n={5} title="อัปโหลดไฟล์ยอดขายจาก POS" />
+        <p className="text-xs text-muted-subtle">หลังบันทึกยอดปิดร้านแล้ว — ระบบเทียบไฟล์กับยอดที่คีย์ให้ทันที แล้วตัดสต๊อกตามสูตร</p>
+        <ClosingUpload profiles={profiles} businessDate={day.businessDate} pulseSaved={day.pulseAmount !== null || day.pulseLocked} pulseLocked={day.pulseLocked} />
+      </section>
     </div>
   );
 }

@@ -10,6 +10,8 @@ import { requireTenant } from "@/lib/require-tenant";
 import { addDays, computeBangkokToday } from "@/lib/bangkok-date";
 import { getBranchesLogic } from "@/server/branch";
 import { getDailyCloseDayLogic } from "@/server/daily-close";
+import { getSalesImportProfilesLogic } from "@/server/menu";
+import { SALES_FILE_KIND_LABELS_TH } from "@/lib/validations/sales-import";
 import { cashDifference } from "@/lib/validations/daily-close";
 import CloseForm from "../_components/CloseForm";
 import { Comments, IssueList } from "../_components/IssuesAndComments";
@@ -29,7 +31,13 @@ export default async function ClosingDayPage({ searchParams }: { searchParams: P
   const requested = sp.date && DAY.test(sp.date) ? new Date(`${sp.date}T00:00:00Z`) : today;
   const date = requested.getTime() > today.getTime() ? today : requested;
 
-  const day = await getDailyCloseDayLogic(tenantId, branch.id, date);
+  const [day, profiles] = await Promise.all([
+    getDailyCloseDayLogic(tenantId, branch.id, date),
+    can("sales:import") ? getSalesImportProfilesLogic(tenantId) : Promise.resolve([]),
+  ]);
+  const branchProfiles = profiles
+    .filter((p) => p.posIntegration.branch.id === branch.id)
+    .map((p) => ({ id: p.id, label: `${p.name} (${SALES_FILE_KIND_LABELS_TH[p.fileKind] ?? p.fileKind})` }));
   const enabled = membership.tenant.dailyCloseEnabled;
   const canFill = can("sales:import") && enabled;
   const seeMoney = can("sales:view");
@@ -77,7 +85,7 @@ export default async function ClosingDayPage({ searchParams }: { searchParams: P
       </div>
 
       {editing ? (
-        <CloseForm day={day} branchName={branch.name} dateLabel={longDate(date)} />
+        <CloseForm day={day} branchName={branch.name} dateLabel={longDate(date)} profiles={branchProfiles} />
       ) : (
         <section className="space-y-4 rounded-2xl border border-border bg-surface p-4">
           <div className="flex flex-wrap items-baseline justify-between gap-2">

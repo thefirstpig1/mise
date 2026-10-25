@@ -1185,12 +1185,17 @@ export async function commitSalesImportLogic(
 export async function getSalesImportBatchesLogic(
   tenantId: string,
   branchId?: string
-): Promise<SalesImportBatch[]> {
-  return withTenantContext(tenantId, async (tx) =>
+): Promise<(SalesImportBatch & { lineCount: number })[]> {
+  // `lineCount` counts the sales lines the batch actually wrote, superseded or
+  // not. The stored `rowCount` is the parser's figure and is 0 on batches that
+  // were written by a seed, so the history printed "0 รายการ" beside real days.
+  const rows = await withTenantContext(tenantId, async (tx) =>
     tx.salesImportBatch.findMany({
       where: { tenantId, ...(branchId ? { branchId } : {}) },
       orderBy: { uploadedAt: "desc" },
       take: 100,
+      include: { _count: { select: { salesLines: true } } },
     })
   );
+  return rows.map(({ _count, ...b }) => ({ ...b, lineCount: _count.salesLines }));
 }
