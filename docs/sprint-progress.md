@@ -1,10 +1,22 @@
 # Mise Sprint Progress
 
-**Last updated:** 2026-09-03
+**Last updated:** 2026-10-25
 
 ## Current Sprint: Sprint 7 — RLS · อีเมลขาออก · ต้นทุนตามแผนก · ธีม · deploy 🚧 IN PROGRESS
 
 **Status:** **Part 30 (เปิด RLS ให้ทำงานจริง) ✅ COMPLETE 2026-08-30** · **Part 31 (อีเมลขาออก) ✅ COMPLETE 2026-09-01** · **Part 32 (ต้นทุนตามแผนก + ของหายไปไหน) ✅ COMPLETE 2026-09-01** · **Part 33 (ธีม + โลโก้) ✅ COMPLETE 2026-09-02** · **Part 34 (ที่อยู่ของโปรดักชัน) 🚧 IN PROGRESS — หมุด A งาน 1–5 เสร็จ 2026-09-03** — Part 30 คือหนี้ที่ ADR 0004 เลื่อนมาตั้งแต่ Sprint 1 · Part 31 ปลด blocker ที่ทุกเอกสารเขียนผิดมาตั้งแต่ Sprint 4: มันเป็นสองการตัดสินใจ ไม่ใช่หนึ่ง และขาออกไม่เคยต้องรอขาเข้าเลย · Part 34 ปลด blocker ที่ค้างมาหลายเดือนด้วยวิธีเดียวกัน: **ทำให้การเลือกย้อนกลับได้ แทนที่จะพยายามเลือกให้ถูก**
+
+---
+
+## ถัดไป (session หน้า): ADR 0038 สิทธิ์ที่ร้านปรับเอง — Kong เลือกทาง A 2026-10-25
+Kong: *"สิทธิ์อะไรต่างๆให้ร้านเขาตั้งเองได้"* · ADR `docs/adr/0038-shop-adjustable-permissions.md` (accepted, Q1–Q3) · **มี migration → mockup ก่อน แล้วรอ Kong อนุมัติ** ก่อนแตะ schema
+1. **Brief + mockup** (question-first): เจ้าของร้านถามอะไรเวลาตั้งสิทธิ์ ("แคชเชียร์เห็นยอดขายไหม", "ผู้จัดการอนุมัติ PO ได้ไหม") · ดูว่า Toast / Square / Lightspeed / MarketMan ทำหน้าตั้งสิทธิ์ยังไง → mockup สองหน้า: (ก) ตารางบทบาท × สิทธิ์ที่ปรับได้ (~10–12 ข้อ, เจ้าของเท่านั้น, ปุ่มกลับเป็นค่าเริ่มต้น, ข้อที่ล็อกแสดงพร้อมเหตุผล) (ข) ในแผงสมาชิก: เปิด/ปิดรายคน + สรุป "สิทธิ์จริงของคนนี้" · คู่สิทธิ์ Q2 (ติ๊กตาม `cost:view` พร้อมเหตุผล) · บันทึกการเปลี่ยน
+2. **Audit ก่อน migration** (Consequence 3): ไล่ทุกหน้าที่แสดงราคา/ต้นทุนโดยไม่เช็ก `cost:view` (ADR ระบุ PO · ใบรับของ · แคตตาล็อกผู้ขาย · หน้าตัดรอบ) → ตารางคู่สิทธิ์ในโค้ด + เทสต์ที่แดงเมื่อหน้าใหม่แสดงราคาโดยไม่อยู่ในตาราง
+3. **Migration** (🛑 ขอ Kong): ตาราง diff สองตาราง (role × capability, membership × capability, `granted` bool) + ตารางบันทึกการเปลี่ยน · RLS ใน `enable_rls.sql` + `enforce_rls.sql` (รันซ้ำ enable แล้วต้องรัน ALTER POLICY ของ enforce ซ้ำ) · เพิ่มใน `TENANT_SCOPED_DELETE_ORDER`
+4. **Effective capabilities**: `requireTenant` โหลด diff พร้อม membership ในคิวรีเดียว · `hasCapability`/`costAccessFor` ที่เรียกด้วย role ล้วน (suppliers, suppliers/[id], categories, stock-counts actions+[id], purchase-ready-notify, cost-access) เปลี่ยนเป็นถามสิทธิ์จริง · subset containment (ADR 0029 Q10 rule 1) คิดจากสิทธิ์จริง · `member:manage` `settings:write` ล็อกกับบทบาท
+5. **หน้าจอ + เทสต์ + docs**: drift test กับสิทธิ์จริง · settings-register สองแถว · คู่มือ · progress map
+- บทบาทตอนนี้ (โค้ด `src/lib/permissions/service.ts`): owner · admin · manager · purchaser · accountant · dept_head · kitchen_staff · **cashier** (ใหม่ 2026-10-25) · viewer · หน้าแรกตามบทบาท `src/lib/permissions/home.ts`
+- หลัง ADR 0038 กลับไปลำดับรีวิวทั้งระบบ: ค่าใช้จ่าย (new/[id]/recurring) → ใบนับบนมือถือ → หน้ารายละเอียดเอกสาร (+ตัด /cost/[productId]) → ใบขอซื้อ/ผู้ขาย → ตั้งค่า → login/signup → merges/recipes/staff → มือถือรอบสุดท้าย (artifact SPX2jH3AbukyaGgexsCCTu)
 
 ---
 
