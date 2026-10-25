@@ -1,0 +1,187 @@
+<meta charset="utf-8">
+<title>แคชเชียร์ · ปิดร้าน · หน้าแรกตามบทบาท</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Prompt:wght@500;600;700&family=Noto+Sans+Thai:wght@400;500;600&display=swap">
+<style>
+/* Mockup (Kong 2026-10-25): the cashier closes the shop and uploads the POS file;
+   each role lands on the page it works in. Real: สาขาอารีย์ 24 ก.ย. 69 — paid ฿23,533.58,
+   318 plates. Sample: cash, guests, the mismatch case. */
+:root{
+  --bg:#FDFBF3; --fg:#262811; --surface:#FFFFFF; --sunk:#F8F3E1; --primary:#41431B; --primary-fg:#F8F3E1;
+  --muted:#F3EFDF; --muted-fg:#5A5C31; --subtle:#8B8D63; --border:#E9E3C8; --strong:#D2CBA4;
+  --good:#5A7333; --good-bg:#EEF2E0; --bad:#A83A22; --bad-bg:#F9E5DF; --warn:#A87C1C; --warn-bg:#F8EFD6; --warn-border:#E2CE97; --clay:#C0692B;
+  --display:"Prompt","Noto Sans Thai",system-ui,sans-serif; --body:"Noto Sans Thai","Prompt",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#1B1C10; --fg:#EEEAD6; --surface:#24261A; --sunk:#2A2C1E; --primary:#D9DDB0; --primary-fg:#1B1C10;
+  --muted:#2E301F; --muted-fg:#C9C8A6; --subtle:#9C9B7C; --border:#36381F; --strong:#4A4C30;
+  --good:#B7CF7C; --good-bg:#2B3320; --bad:#EC9C80; --bad-bg:#41261C; --warn:#E8BE62; --warn-bg:#3B3018; --warn-border:#5A4A22; --clay:#E8A76F; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#1B1C10; --fg:#EEEAD6; --surface:#24261A; --sunk:#2A2C1E; --primary:#D9DDB0; --primary-fg:#1B1C10;
+  --muted:#2E301F; --muted-fg:#C9C8A6; --subtle:#9C9B7C; --border:#36381F; --strong:#4A4C30;
+  --good:#B7CF7C; --good-bg:#2B3320; --bad:#EC9C80; --bad-bg:#41261C; --warn:#E8BE62; --warn-bg:#3B3018; --warn-border:#5A4A22; --clay:#E8A76F; color-scheme:dark}
+*{box-sizing:border-box}[hidden]{display:none!important}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:14px;line-height:1.55;margin:0;padding:20px 16px 60px}
+h1,h2,h3,h4{font-family:var(--display);margin:0}p{margin:0}
+.wrap{max-width:1120px;margin:0 auto;display:grid;gap:16px}
+.sub{color:var(--subtle);font-size:.8rem}
+.seg{display:inline-flex;flex-wrap:wrap;border:1px solid var(--strong);border-radius:999px;padding:3px;background:var(--surface);gap:2px}
+.seg button{font:inherit;font-size:.85rem;border:0;background:none;color:var(--fg);border-radius:999px;padding:4px 14px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--primary);color:var(--primary-fg)}
+.real{display:inline-block;font-size:.7rem;border-radius:999px;padding:1px 8px;background:var(--good-bg);color:var(--good);white-space:nowrap}
+.sample{display:inline-block;font-size:.7rem;border-radius:999px;padding:1px 8px;background:var(--warn-bg);color:var(--warn);border:1px solid var(--warn-border);white-space:nowrap}
+.new{outline:2px dashed var(--clay);outline-offset:3px}
+.two{display:grid;grid-template-columns:420px 1fr;gap:20px;align-items:start}
+@media (max-width:900px){.two{grid-template-columns:1fr}}
+.phone{border:1px solid var(--strong);border-radius:28px;background:var(--bg);padding:14px;display:grid;gap:10px;box-shadow:0 10px 30px rgba(0,0,0,.06)}
+.side{display:flex;gap:6px;flex-wrap:wrap;font-size:.78rem}
+.side span{border-radius:999px;padding:2px 10px;background:var(--muted);color:var(--muted-fg)}
+.side span.on{background:var(--primary);color:var(--primary-fg)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:12px 14px;display:grid;gap:8px}
+.sec{display:flex;align-items:center;gap:8px;font-family:var(--display);font-weight:600}
+.n{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:999px;background:var(--primary);color:var(--primary-fg);font-size:.72rem}
+.n.done{background:var(--good);}
+.row{display:flex;justify-content:space-between;gap:8px;align-items:center;font-size:.88rem}
+.mini{font-size:.82rem;color:var(--muted-fg)}
+.drop{border:2px dashed var(--strong);border-radius:14px;padding:16px;text-align:center;display:grid;gap:4px;background:var(--sunk)}
+.drop b{font-family:var(--display)}
+.btn{background:var(--primary);color:var(--primary-fg);border-radius:999px;padding:9px 16px;font:600 .9rem var(--display);text-align:center}
+.btn.ghost{background:var(--surface);color:var(--fg);border:1px solid var(--strong);font-weight:500}
+.ok{border-radius:12px;padding:10px 12px;background:var(--good-bg);color:var(--good);display:grid;gap:3px;font-size:.88rem}
+.bad{border-radius:12px;padding:10px 12px;background:var(--bad-bg);color:var(--bad);display:grid;gap:3px;font-size:.88rem}
+.notes{display:grid;gap:10px;align-content:start}
+.notes .card p{font-size:.86rem;color:var(--muted-fg)}
+.tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.tiles.two-col{grid-template-columns:repeat(2,minmax(0,1fr))}
+.tile{border:1px solid var(--border);border-radius:14px;padding:11px 12px;background:var(--surface);display:grid;gap:2px}
+.tile b{font-family:var(--display);font-size:.95rem}
+.tile.main{background:var(--primary);color:var(--primary-fg);border-color:var(--primary)}
+.tile.main .sub{color:color-mix(in srgb,var(--primary-fg) 80%,transparent)}
+.warnt{color:var(--warn);font-weight:600}
+table{width:100%;border-collapse:collapse;font-size:.85rem}
+th{text-align:left;font-weight:500;color:var(--muted-fg);background:var(--sunk);padding:7px 9px;font-size:.78rem}
+td{padding:7px 9px;border-top:1px solid var(--border);vertical-align:top}
+.y{color:var(--good);font-weight:600}.no{color:var(--subtle)}
+.scroll{overflow-x:auto}
+.decide{border:1px solid var(--warn-border);background:var(--warn-bg);border-radius:14px;padding:12px 14px;font-size:.88rem;display:grid;gap:4px}
+</style>
+<div class="wrap">
+  <div>
+    <h1 style="font-size:1.35rem">แคชเชียร์ปิดร้าน + หน้าแรกตามบทบาท · mockup</h1>
+    <p class="sub">ตามที่คุณ Kong ตอบ (25 ต.ค.) · ยอด/จาน <span class="real">จริง</span> สาขาอารีย์ 24 ก.ย. 69 · เงินสด ลูกค้า กรณีไม่ตรง <span class="sample">ตัวอย่าง</span> · กรอบประส้ม = ของใหม่</p>
+  </div>
+  <div class="seg" id="tabs">
+    <button aria-pressed="true" data-v="cashier">① แคชเชียร์เข้าแอป</button>
+    <button aria-pressed="false" data-v="kitchen">② พนักงานครัวเข้าแอป</button>
+    <button aria-pressed="false" data-v="roles">③ บทบาท · หน้าแรก · สิทธิ์</button>
+    <button aria-pressed="false" data-v="import">④ หน้านำเข้า (ผู้จัดการ)</button>
+  </div>
+
+  <!-- ① -->
+  <section data-p="cashier" class="two">
+    <div class="phone">
+      <div class="side new"><span class="on">ปิดร้าน</span><span>ของเสีย</span><span>มื้อพนักงาน</span><span>ปิดร้านย้อนหลัง</span></div>
+      <p class="sub">เมนูของแคชเชียร์สั้นแค่นี้ · เข้าแอปแล้วมาหน้านี้ทันที</p>
+      <div class="row"><h3>ปิดร้าน · สาขาอารีย์</h3><span class="sub">พฤ. 24 ก.ย. 69</span></div>
+      <div class="card"><div class="sec"><span class="n done">✓</span>ยอดรวมจาก POS*</div><div class="row"><span class="mini">รวม VAT และค่าบริการ</span><b>฿23,533.58 <span class="real">จริง</span></b></div></div>
+      <div class="card"><div class="sec"><span class="n done">✓</span>เงินสด</div><div class="row mini"><span>ควรมี ฿10,450 · นับได้ ฿10,410</span><b style="color:var(--bad)">ขาด ฿40 <span class="sample">ตัวอย่าง</span></b></div></div>
+      <div class="card"><div class="sec"><span class="n done">✓</span>ลูกค้า</div><div class="row mini"><span>142 คน · ส่วนใหญ่ออฟฟิศ</span><span class="sample">ตัวอย่าง</span></div></div>
+      <div class="card"><div class="sec"><span class="n done">✓</span>ปัญหาวันนี้</div><div class="mini">ตู้แช่หลังครัวไม่เย็น · ต้องตามต่อ</div></div>
+      <div class="card new">
+        <div class="sec"><span class="n">5</span>อัปโหลดไฟล์ยอดขายจาก POS</div>
+        <div class="drop"><b>📄 แตะเพื่อเลือกไฟล์</b><span class="sub">หรือลากไฟล์มาวาง · .csv .xlsx จากหลังบ้าน POS · รูปแบบไฟล์ของสาขาอารีย์เลือกให้แล้ว</span></div>
+        <div class="ok"><b>✓ ไฟล์ของวันที่ 24 ก.ย. 69 · 318 จาน <span class="real">จริง</span></b><span>ยอดในไฟล์ ฿23,533.58 = ยอดที่คีย์ ฿23,533.58 · ตรงกัน</span><span class="sub" style="color:inherit">ระบบตัดสต๊อกตามสูตรให้แล้ว</span></div>
+        <div class="bad"><b>⚠ ไฟล์ ฿19,880 · ยอดที่คีย์ ฿23,533.58 · ขาด ฿3,653 <span class="sample">ตัวอย่าง</span></b><span>มักแปลว่า export มาไม่ครบทั้งวัน (เช่น ตั้งช่วงเวลาผิด) — export ใหม่แล้วอัปโหลดทับได้เลย</span><span class="btn ghost" style="justify-self:start;padding:4px 12px;font-size:.8rem">อัปโหลดไฟล์ใหม่</span></div>
+        <p class="sub">ข้ามได้ ถ้ายังไม่ได้ export · หัวหน้าจะเห็นว่าวันไหนไฟล์ยังไม่เข้า</p>
+      </div>
+      <span class="btn">บันทึกปิดร้าน</span>
+    </div>
+    <div class="notes">
+      <div class="card"><h4>ลำดับนี้ตั้งใจ</h4>
+        <p>• <b>คีย์ยอดก่อน อัปโหลดไฟล์ทีหลัง</b> — ยอดที่คีย์จากหน้าจอ POS เป็นตัวตรวจไฟล์ (กติกาเดิม ADR 0020) ถ้าอัปโหลดก่อน ช่องยอดจะล็อกตามไฟล์ และจะไม่มีอะไรจับไฟล์ที่ export มาไม่ครบ</p>
+        <p>• <b>รู้ผลทันทีก่อนกลับบ้าน</b> — ตอนนี้ไฟล์ไม่ครบจะรู้ตอนผู้จัดการเปิดดูหลายวันต่อมา · ตรงนี้แคชเชียร์ยังอยู่หน้าเครื่อง export ใหม่ได้</p>
+        <p>• <b>ตัดสต๊อกให้เองทันที</b> (D1) — ต้องให้บทบาทแคชเชียร์มีสิทธิ์ตัดสต๊อก (ดูแท็บ ③)</p>
+        <p>• ปุ่มเลือกไฟล์ภาษาไทย ใหญ่ แตะได้บนแท็บเล็ต/มือถือ แทน “Choose File” ของเบราว์เซอร์</p>
+        <p>• ไฟล์ที่ครอบหลายวัน (export ทั้งสัปดาห์) ยังรับได้ — จะบอกว่า “ไฟล์ครอบ 7 วัน · เข้าแทนวันเดิม 6 วัน” แล้วให้กดยืนยัน</p>
+      </div>
+      <div class="decide"><b>ร้านที่ไม่ได้เปิด add-on ปิดร้าน</b> แคชเชียร์เข้าแอปแล้วไปหน้า “นำเข้ายอดขาย” แบบใหม่ (แท็บ ④) แทน</div>
+    </div>
+  </section>
+
+  <!-- ② -->
+  <section data-p="kitchen" hidden class="two">
+    <div class="phone">
+      <div class="side new"><span class="on">งานครัว</span><span>ใบขอซื้อ</span><span>สินค้า/วัตถุดิบ</span><span>นับสต๊อก</span><span>ของเสีย</span><span>มื้อพนักงาน</span><span>ทดลองเมนู</span></div>
+      <div class="row"><h3>งานครัว · สาขาอารีย์</h3><span class="sub">ไม่มีตัวเลขเงินในหน้านี้</span></div>
+      <div class="tiles two-col new">
+        <div class="tile main"><b>ขอซื้อของ</b><span class="sub">รอบนี้ครัวยังไม่กดพร้อม</span></div>
+        <div class="tile"><b>ดูสต๊อก</b><span class="sub warnt">ต่ำกว่าขั้นต่ำ 1 · ใกล้ 1 <span class="real">จริง</span></span></div>
+        <div class="tile"><b>บันทึกของเสีย</b><span class="sub">วันนี้ 0 รายการ</span></div>
+        <div class="tile"><b>มื้อพนักงาน</b><span class="sub">วันนี้ยังไม่ลง</span></div>
+        <div class="tile"><b>นับสต๊อก</b><span class="sub warnt">นับล่าสุด 28 วันก่อน · ใกล้ครบรอบ <span class="real">จริง</span></span></div>
+        <div class="tile"><b>รับโอนจากสาขาอื่น</b><span class="sub">ไม่มีของกำลังมา</span></div>
+      </div>
+      <div class="card"><b style="font-family:var(--display)">ต้องดู</b><div class="mini">กุ้งขาว ต่ำกว่าขั้นต่ำ · ยังไม่ได้ขอซื้อ <span class="real">จริง</span> → <u>ขอซื้อ</u></div></div>
+    </div>
+    <div class="notes">
+      <div class="card"><h4>หน้าแรกของครัว = “งานครัว”</h4>
+        <p>• คือหน้างานสต๊อกที่ทำไปแล้ว ปรับให้เหมาะกับครัว: <b>ขอซื้อของมาเป็นปุ่มแรก</b> · ไม่มีมูลค่าสต๊อก/ต้นทุน (ครัวไม่เห็นเงินอยู่แล้ว)</p>
+        <p>• ไม่มีปุ่มปรับสต๊อก/โอนออก/ประวัติ — งานผู้จัดการ</p>
+        <p>• หัวหน้าแผนกได้หน้าเดียวกัน + ปุ่มอนุมัติมื้อพนักงาน และปิดใบนับ</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ③ -->
+  <section data-p="roles" hidden style="display:grid;gap:14px">
+    <div class="card scroll">
+      <h3>เข้าแอปแล้วไปหน้าไหน</h3>
+      <table>
+        <tr><th>บทบาท</th><th>หน้าแรก</th><th>เหตุผล</th></tr>
+        <tr class="new"><td><b>แคชเชียร์</b> (ใหม่)</td><td>ปิดร้านวันนี้ · ไม่ได้เปิด add-on → นำเข้ายอดขาย</td><td>งานหลักทุกวันคือปิดร้าน</td></tr>
+        <tr class="new"><td><b>พนักงานครัว · หัวหน้าแผนก</b></td><td>งานครัว</td><td>ขอซื้อ ดูสต๊อก ของเสีย มื้อพนักงาน นับ</td></tr>
+        <tr><td><b>จัดซื้อ</b></td><td>ใบขอซื้อ (หน้าตัดรอบ)</td><td>งานหลักคือรวมใบขอซื้อเป็นใบสั่งซื้อ</td></tr>
+        <tr><td><b>นักบัญชี</b></td><td>ค่าใช้จ่าย</td><td>ลงบิล</td></tr>
+        <tr><td><b>เจ้าของ · แอดมิน · ผู้จัดการ</b></td><td>แดชบอร์ด (เหมือนเดิม)</td><td>ดูภาพรวม</td></tr>
+      </table>
+      <p class="sub">กดโลโก้/เมนูก็ยังไปหน้าอื่นที่มีสิทธิ์ได้ตามปกติ · เปลี่ยนแค่ “หน้าแรก”</p>
+    </div>
+    <div class="card scroll">
+      <h3>ใครทำอะไรได้ (เฉพาะที่เกี่ยวกับเรื่องนี้)</h3>
+      <table>
+        <tr><th>ทำอะไร</th><th>แคชเชียร์ (ใหม่)</th><th>พนักงานครัว</th><th>หัวหน้าแผนก</th><th>นักบัญชี</th><th>ผู้จัดการ</th></tr>
+        <tr><td>อัปโหลดไฟล์ POS · คีย์ยอดปิดร้าน · กรอกใบปิดร้าน</td><td class="y">✓</td><td class="no">–</td><td class="no">–</td><td class="y">✓</td><td class="y">✓</td></tr>
+        <tr><td>ตัดสต๊อกตามสูตร (อัตโนมัติหลังอัปโหลด)</td><td class="y">✓</td><td class="no">–</td><td class="no">–</td><td class="no">–</td><td class="y">✓</td></tr>
+        <tr class="new"><td>บันทึกของเสีย</td><td class="y">✓</td><td class="y">✓</td><td class="y">✓</td><td class="no">–</td><td class="y">✓</td></tr>
+        <tr><td>มื้อพนักงาน</td><td class="y">✓</td><td class="y">✓</td><td class="y">✓</td><td class="no">–</td><td class="y">✓</td></tr>
+        <tr class="new"><td>ปรับสต๊อก · โอนของ</td><td class="no">–</td><td class="y">✓ (เดิม)</td><td class="y">✓ (เดิม)</td><td class="no">–</td><td class="y">✓</td></tr>
+        <tr><td>เห็นยอดขาย/ต้นทุน/กำไร/เงินขาดเกิน</td><td class="no">– (เห็นแค่ยอดที่ตัวเองคีย์)</td><td class="no">–</td><td class="no">–</td><td class="y">✓</td><td class="y">✓</td></tr>
+      </table>
+      <p class="sub">ตอนนี้ “บันทึกของเสีย” ใช้สิทธิ์เดียวกับ “ปรับสต๊อก” → จะแยกเป็นสิทธิ์ของตัวเอง เพื่อให้แคชเชียร์ลงของเสียได้โดยไม่ได้สิทธิ์ปรับสต๊อกไปด้วย · ไม่มี migration (บทบาทเก็บเป็นข้อความ)</p>
+    </div>
+    <div class="decide"><b>ถามเพิ่ม 1 ข้อ:</b> พนักงานครัวตอนนี้<b>ปรับสต๊อกและโอนของได้</b> (สิทธิ์เดิม) — จะคงไว้ หรือให้เหลือแค่ของเสียเหมือนแคชเชียร์ แล้วปรับ/โอนเป็นงานหัวหน้าแผนกขึ้นไป?</div>
+  </section>
+
+  <!-- ④ -->
+  <section data-p="import" hidden class="two" style="grid-template-columns:1fr 1fr">
+    <div class="card new">
+      <h3>นำเข้ายอดขาย</h3>
+      <p class="sub">ไฟล์เดียวครอบได้หลายวัน · สำหรับนำเข้าย้อนหลัง/ทั้งเดือน (ปิดร้านรายวันใช้ขั้นที่ 5 ของใบปิดร้าน)</p>
+      <div class="row"><span class="mini">สาขา</span><span><span class="sub" style="border:1px solid var(--strong);border-radius:999px;padding:2px 10px">สาขาลาดพร้าว</span> <span style="background:var(--primary);color:var(--primary-fg);border-radius:999px;padding:2px 10px;font-size:.8rem">สาขาอารีย์</span></span></div>
+      <div class="drop"><b>📄 ลากไฟล์มาวาง หรือแตะเพื่อเลือก</b><span class="sub">รูปแบบไฟล์: สรุปยอดรายวัน (เมนูละแถวต่อวัน) · เปลี่ยน</span></div>
+      <div class="ok" style="background:var(--sunk);color:var(--fg)"><b>ตรวจแล้ว · พร้อมนำเข้า</b><span>ครอบ 1–30 ก.ย. 69 · 26 วันที่มียอดขาย · 1,695 แถว · ยอดขาย ฿615,380 <span class="real">จริง</span></span><span class="sub">เข้าแทนวันเดิม 0 วัน · เมนูใหม่ 0 รายการ</span></div>
+      <span class="btn" style="justify-self:start">ยืนยันนำเข้า</span>
+    </div>
+    <div class="card new">
+      <h3>ประวัติการนำเข้า</h3>
+      <table>
+        <tr><th>ไฟล์</th><th>ครอบวันที่</th><th>แถว</th><th>ใครนำเข้า</th></tr>
+        <tr><td>ยอดขาย-อารีย์.csv</td><td>1–30 ก.ย. 69</td><td>1,695 <span class="real">จริง</span></td><td>27 ก.ย. 21:31</td></tr>
+      </table>
+      <p class="sub">จำนวนแถวนับจากข้อมูลที่อยู่ในระบบจริง (ตอนนี้ขึ้น “0 รายการ” เพราะข้อมูลตัวอย่างไม่ได้บันทึกตัวเลขนี้ไว้ — ไม่ใช่บั๊กของการนำเข้าจริง)</p>
+    </div>
+  </section>
+</div>
+<script>
+const tabs=document.querySelectorAll('#tabs button');tabs.forEach(b=>b.addEventListener('click',()=>{tabs.forEach(x=>x.setAttribute('aria-pressed',x===b));document.querySelectorAll('[data-p]').forEach(s=>s.hidden=s.dataset.p!==b.dataset.v)}));
+</script>
