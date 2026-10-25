@@ -1,0 +1,198 @@
+<meta charset="utf-8">
+<title>หน้าสต๊อก · mockup</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Prompt:wght@500;600;700&family=Noto+Sans+Thai:wght@400;500;600&display=swap">
+<style>
+/* Mockup: stock pages review (Kong 2026-10-25 "ไหนดูหน่อย"). Real: สาขาอารีย์ — last count,
+   stock value, low/near, recent movements, กุ้งขาว's September ledger (opening 98.15 kg).
+   Sample: the adjust form's typed values, movement baht. */
+:root{
+  --bg:#FDFBF3; --fg:#262811; --surface:#FFFFFF; --sunk:#F8F3E1; --primary:#41431B; --primary-fg:#F8F3E1;
+  --muted:#F3EFDF; --muted-fg:#5A5C31; --subtle:#8B8D63; --border:#E9E3C8; --strong:#D2CBA4;
+  --good:#5A7333; --good-bg:#EEF2E0; --bad:#A83A22; --bad-bg:#F9E5DF; --warn:#A87C1C; --warn-bg:#F8EFD6; --warn-border:#E2CE97; --clay:#C0692B;
+  --display:"Prompt","Noto Sans Thai",system-ui,sans-serif; --body:"Noto Sans Thai","Prompt",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#1B1C10; --fg:#EEEAD6; --surface:#24261A; --sunk:#2A2C1E; --primary:#D9DDB0; --primary-fg:#1B1C10;
+  --muted:#2E301F; --muted-fg:#C9C8A6; --subtle:#9C9B7C; --border:#36381F; --strong:#4A4C30;
+  --good:#B7CF7C; --good-bg:#2B3320; --bad:#EC9C80; --bad-bg:#41261C; --warn:#E8BE62; --warn-bg:#3B3018; --warn-border:#5A4A22; --clay:#E8A76F; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#1B1C10; --fg:#EEEAD6; --surface:#24261A; --sunk:#2A2C1E; --primary:#D9DDB0; --primary-fg:#1B1C10;
+  --muted:#2E301F; --muted-fg:#C9C8A6; --subtle:#9C9B7C; --border:#36381F; --strong:#4A4C30;
+  --good:#B7CF7C; --good-bg:#2B3320; --bad:#EC9C80; --bad-bg:#41261C; --warn:#E8BE62; --warn-bg:#3B3018; --warn-border:#5A4A22; --clay:#E8A76F; color-scheme:dark}
+*{box-sizing:border-box}[hidden]{display:none!important}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:14px;line-height:1.55;margin:0;padding:20px 16px 60px}
+h1,h2,h3,h4{font-family:var(--display);margin:0}p{margin:0}
+.wrap{max-width:1120px;margin:0 auto;display:grid;gap:16px}
+.sub{color:var(--subtle);font-size:.8rem}
+.seg{display:inline-flex;flex-wrap:wrap;border:1px solid var(--strong);border-radius:999px;padding:3px;background:var(--surface);gap:2px}
+.seg button{font:inherit;font-size:.85rem;border:0;background:none;color:var(--fg);border-radius:999px;padding:4px 14px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--primary);color:var(--primary-fg)}
+.real{display:inline-block;font-size:.7rem;border-radius:999px;padding:1px 8px;background:var(--good-bg);color:var(--good);white-space:nowrap}
+.sample{display:inline-block;font-size:.7rem;border-radius:999px;padding:1px 8px;background:var(--warn-bg);color:var(--warn);border:1px solid var(--warn-border);white-space:nowrap}
+.new{outline:2px dashed var(--clay);outline-offset:3px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:14px 16px;display:grid;gap:10px}
+.page{display:grid;gap:14px}
+.chip{border:1px solid var(--strong);background:var(--surface);border-radius:999px;padding:3px 12px;font-size:.82rem;white-space:nowrap}
+.chip.on{background:var(--primary);color:var(--primary-fg);border-color:var(--primary)}
+.row{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.grp{display:grid;gap:8px}
+.grp h4{font-size:.85rem;color:var(--muted-fg)}
+.tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.tiles.four{grid-template-columns:repeat(4,minmax(0,1fr))}
+@media (max-width:760px){.tiles,.tiles.four{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.tile{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:12px 14px;display:grid;gap:2px}
+.tile b{font-family:var(--display);font-size:.98rem}
+.tile.main{background:var(--primary);color:var(--primary-fg);border-color:var(--primary)}
+.tile.main .sub{color:color-mix(in srgb,var(--primary-fg) 80%,transparent)}
+.tile.warn .sub{color:var(--warn);font-weight:600}
+.two{display:grid;grid-template-columns:1.3fr 1fr;gap:14px}
+@media (max-width:860px){.two{grid-template-columns:1fr}}
+.feed li{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-top:1px solid var(--border);list-style:none;font-size:.88rem}
+.feed li:first-child{border-top:0}.feed ul{margin:0;padding:0}
+.plus{color:var(--good)}.minus{color:var(--bad)}
+.pill{display:inline-block;border-radius:999px;padding:3px 12px;font-size:.84rem;white-space:nowrap}
+.pill.bad{background:var(--bad-bg);color:var(--bad)}.pill.warn{background:var(--warn-bg);color:var(--warn);border:1px solid var(--warn-border)}.pill.ok{background:var(--good-bg);color:var(--good)}
+.kpi{font-family:var(--display);font-size:1.6rem;font-weight:600}
+.form{display:grid;gap:12px;max-width:640px}
+.f label{display:block;font-size:.85rem;margin-bottom:4px}
+.inp{border:1px solid var(--strong);background:var(--sunk);border-radius:12px;padding:8px 12px;font-size:.92rem}
+.mode{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.mode div{border:1.5px solid var(--strong);border-radius:12px;padding:10px 12px;font-size:.86rem}
+.mode div.on{border-color:var(--primary);background:color-mix(in srgb,var(--primary) 6%,transparent)}
+.balance{display:flex;align-items:baseline;gap:10px;border-radius:12px;padding:10px 12px;background:var(--sunk)}
+.balance b{font-family:var(--display);font-size:1.3rem}
+.result{border-radius:12px;padding:10px 12px;background:var(--bad-bg);color:var(--bad);display:flex;justify-content:space-between}
+.btn{background:var(--primary);color:var(--primary-fg);border-radius:999px;padding:9px 18px;font:600 .92rem var(--display);text-align:center;justify-self:start}
+table{width:100%;border-collapse:collapse;font-size:.86rem}
+th{font-weight:500;color:var(--muted-fg);text-align:left;padding:7px 9px;background:var(--sunk);font-size:.78rem;white-space:nowrap}
+td{padding:7px 9px;border-top:1px solid var(--border)}
+tr.click:hover td{background:var(--sunk);cursor:pointer}
+.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.scroll{overflow-x:auto}
+.tag{font-size:.72rem;border-radius:999px;padding:1px 8px;background:var(--muted);color:var(--muted-fg);white-space:nowrap}
+.sum{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.sum div{background:var(--sunk);border-radius:12px;padding:8px 12px;font-size:.84rem}
+.sum b{display:block;font-family:var(--display);font-size:1.05rem}
+.note{border-left:3px solid var(--clay);padding:2px 0 2px 10px;font-size:.84rem;color:var(--muted-fg)}
+</style>
+<div class="wrap">
+  <div>
+    <h1 style="font-size:1.35rem">หน้าสต๊อก · mockup</h1>
+    <p class="sub">สาขาอารีย์ <span class="real">จริง</span> = ข้อมูลจริง · <span class="sample">ตัวอย่าง</span> = ค่าที่สมมติไว้ดูหน้าตา · กรอบประส้ม = ของใหม่</p>
+  </div>
+  <div class="seg" id="tabs">
+    <button aria-pressed="true" data-v="hub">① งานสต๊อก</button>
+    <button aria-pressed="false" data-v="adj">② ปรับสต๊อก</button>
+    <button aria-pressed="false" data-v="hist">③ ประวัติ / บัตรสต๊อก</button>
+  </div>
+
+  <!-- ① -->
+  <section data-p="hub" class="page">
+    <div class="row" style="justify-content:space-between">
+      <div><h2>งานสต๊อก</h2><p class="sub">ของเข้า-ออกที่ไม่ได้มาจากการซื้อหรือการขาย บันทึกที่นี่</p></div>
+      <div class="row"><span class="chip">สาขาลาดพร้าว</span><span class="chip on">สาขาอารีย์</span></div>
+    </div>
+    <div class="grp new">
+      <h4>งานประจำ</h4>
+      <div class="tiles">
+        <div class="tile main warn" style="background:var(--primary)"><b>นับสต๊อก</b><span class="sub" style="color:#F2C66D">นับล่าสุด 28 วันก่อน · ใกล้ครบรอบ 30 วัน <span class="real" style="background:transparent;color:inherit;border:1px solid currentColor">จริง</span></span></div>
+        <div class="tile"><b>บันทึกของเสีย</b><span class="sub">เดือนนี้ ฿0 · 0 รายการ <span class="real">จริง</span></span></div>
+        <div class="tile warn"><b>ตัดสต๊อกตามยอดขาย</b><span class="sub">2 วันยังไม่ได้ตัด <span class="real">จริง</span></span></div>
+      </div>
+      <h4>งานเป็นครั้งคราว</h4>
+      <div class="tiles four">
+        <div class="tile"><b>ปรับสต๊อก</b><span class="sub">ของเกิน/ขาดที่รู้สาเหตุ</span></div>
+        <div class="tile"><b>โอนไปสาขาอื่น</b><span class="sub">ไม่มีของกำลังมาส่ง</span></div>
+        <div class="tile"><b>มื้อพนักงาน</b><span class="sub">ของที่พนักงานกิน</span></div>
+        <div class="tile"><b>ประวัติ / บัตรสต๊อก</b><span class="sub">ทุกรายการ พร้อมยอดคงเหลือ</span></div>
+      </div>
+    </div>
+    <div class="two">
+      <div class="card feed">
+        <div class="row" style="justify-content:space-between"><h3 style="font-size:.98rem">เคลื่อนไหวล่าสุดของสาขาอารีย์ <span class="real">จริง</span></h3><span class="sub" style="color:var(--primary)">ดูทั้งหมด ›</span></div>
+        <ul>
+          <li><span><b>พริกขี้หนู</b> · ปรับลด<span class="sub" style="display:block">นับสต๊อก · 27 ก.ย. 69 · <span class="new" style="outline-offset:1px">kongnithipat5</span></span></span><span class="minus">−0.525 kg</span></li>
+          <li><span><b>อกไก่</b> · ปรับลด<span class="sub" style="display:block">นับสต๊อก · 27 ก.ย. 69 · kongnithipat5</span></span><span class="minus">−0.303 kg</span></li>
+          <li><span><b>มะละกอดิบ</b> · ปรับเพิ่ม<span class="sub" style="display:block">นับสต๊อก · 27 ก.ย. 69 · kongnithipat5</span></span><span class="plus">+1.609 kg</span></li>
+          <li><span><b>กุ้งขาว</b> · ปรับลด<span class="sub" style="display:block">นับสต๊อก · 27 ก.ย. 69 · kongnithipat5</span></span><span class="minus">−27.981 kg</span></li>
+        </ul>
+        <p class="sub">ชื่อคนแทนอีเมล (ไม่มีชื่อ = ส่วนหน้า @ ของอีเมล)</p>
+      </div>
+      <div style="display:grid;gap:14px;align-content:start">
+        <div class="card"><span class="sub">มูลค่าสต๊อกสาขาอารีย์ · ราคาทุน FIFO <span class="real">จริง</span></span><span class="kpi">฿315,702</span><span class="sub" style="color:var(--primary)">ดูรายการเรียงตามมูลค่า ›</span></div>
+        <div class="card new">
+          <h3 style="font-size:.98rem">ต้องดู</h3>
+          <div class="row"><span class="pill ok">ไม่มีของติดลบ</span><span class="pill bad">ต่ำกว่าขั้นต่ำ 1</span><span class="pill warn">ใกล้ขั้นต่ำ 1</span></div>
+          <p class="sub"><b>ติดลบ</b> = ระบบคิดว่าใช้มากกว่าที่มี → มีรายการตกหล่น (เช่น รับของแล้วไม่ได้บันทึก) · ถ้ามีจะเป็นสีแดงและอยู่ซ้ายสุด</p>
+        </div>
+      </div>
+    </div>
+    <p class="note">รอบนับ 30 วัน: ค่าตั้งต้น — เลือกได้ว่าจะให้ร้านตั้งเอง (ค่าตั้งร้านใหม่ 1 ช่อง) หรือใช้ 30 วันไปก่อน · เกินรอบแล้วปุ่มนับสต๊อกขึ้น “เลยรอบมา x วัน”</p>
+  </section>
+
+  <!-- ② -->
+  <section data-p="adj" hidden class="page">
+    <div><h2>ปรับสต๊อก</h2><p class="sub">แก้ตัวเลขให้ตรงกับของจริงเมื่อรู้สาเหตุ — บันทึกถาวร แก้ไม่ได้ ผิดให้ปรับกลับ</p></div>
+    <div class="two">
+      <div class="card form">
+        <div class="f"><label>สาขา</label><span class="inp" style="display:inline-block">สาขาอารีย์ <span class="sub">(ตามที่กดมาจากหน้างานสต๊อก)</span></span></div>
+        <div class="f"><label>วัตถุดิบ *</label><div class="inp">กระเทียม · P-0017</div></div>
+        <div class="balance new"><span class="sub">คงเหลือในระบบตอนนี้</span><b>43.555 kg</b><span class="real">จริง</span><span class="sub">· ต้นทุน ฿90.78/kg</span></div>
+        <div class="f"><label>ปรับยังไง</label>
+          <div class="mode new"><div class="on"><b>ตั้งเป็นยอดที่มีจริง</b><br><span class="sub">พิมพ์ว่าเหลือเท่าไหร่ ระบบคิดส่วนต่างให้</span></div><div><b>เพิ่ม / ลด เท่านี้</b><br><span class="sub">รู้จำนวนที่เปลี่ยน (ไม่ได้เลือกไว้ให้)</span></div></div>
+        </div>
+        <div class="f"><label>มีจริงตอนนี้ <span class="sample">ตัวอย่าง</span></label><span class="inp" style="display:inline-block;min-width:160px">41 kg</span></div>
+        <div class="result new"><span>ระบบ 43.555 → จริง 41 kg</span><b>ปรับลด 2.555 kg · ≈ ฿232</b></div>
+        <div class="f"><label>สาเหตุ * <span class="sub">ไม่ได้เลือกไว้ให้</span></label>
+          <div class="row"><span class="chip">คีย์ผิดตอนรับของ</span><span class="chip on">เจอของ/หายโดยรู้สาเหตุ</span><span class="chip">แก้ยอดยกมา</span><span class="chip">อื่น ๆ</span></div>
+          <p class="sub" style="margin-top:6px">นับทั้งร้านใหม่? ใช้หน้า <span style="color:var(--primary);text-decoration:underline">นับสต๊อก</span> — ได้เอกสารและรายการขาด/เกินครบ · ของเสียใช้หน้า <span style="color:var(--primary);text-decoration:underline">บันทึกของเสีย</span></p>
+        </div>
+        <div class="f"><label>วันที่</label><span class="inp" style="display:inline-block">25/10/2026</span></div>
+        <span class="btn">บันทึกการปรับ</span>
+      </div>
+      <div class="card new" style="align-content:start">
+        <h3 style="font-size:.98rem">ปรับล่าสุด <span class="real">จริง</span></h3>
+        <p class="sub" id="adjEmpty"></p>
+        <ul class="feed" style="margin:0;padding:0" id="adjList"></ul>
+        <p class="sub">กันกดซ้ำ — เห็นทันทีว่าเพิ่งปรับอะไรไป</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ③ -->
+  <section data-p="hist" hidden class="page">
+    <div class="row" style="justify-content:space-between"><div><h2>ประวัติการเคลื่อนไหว</h2><p class="sub">บันทึกถาวร แก้ไม่ได้ · เลือกวัตถุดิบตัวเดียว = บัตรสต๊อก</p></div></div>
+    <div class="card new" style="gap:8px">
+      <div class="row"><span class="inp" style="min-width:220px">กุ้งขาว · P-0005 ✕</span><span class="chip on">สาขาอารีย์</span><span class="chip">1 – 30 ก.ย. 69</span></div>
+      <div class="row"><span class="sub">เกิดจาก</span><span class="chip on">ทั้งหมด</span><span class="chip">รับของ</span><span class="chip">ขาย (ตัดตามสูตร)</span><span class="chip">นับสต๊อก</span><span class="chip">ของเสีย</span><span class="chip">ปรับ</span><span class="chip">โอน</span><span class="chip">มื้อพนักงาน</span></div>
+      <p class="sub">แทนตัวกรอง “ประเภท” + “แหล่งที่มา” สองช่องเดิมที่ทับกัน</p>
+    </div>
+    <div class="sum new" id="sum"></div>
+    <div class="card new scroll" style="padding:0">
+      <table id="card"></table>
+    </div>
+    <p class="note">ยอดปลายช่วงตรงกับคงเหลือในหน้าสินค้า (158.559 kg) — ถ้าไม่ตรง แปลว่ามีอะไรผิด · ทั้งแถวกดได้ไปเอกสารต้นทาง (ใบรับของ · ใบนับ · ของเสีย · วันขาย · ใบโอน · มื้อพนักงาน) · มูลค่า ฿ <span class="sample">ตัวอย่าง</span> เห็นเฉพาะคนที่ดูต้นทุนได้ ของจริงใช้ราคา FIFO ของแต่ละรายการ</p>
+    <p class="sub">ไม่เลือกวัตถุดิบ = รายการรวมแบบเดิม (ไม่มียอดคงเหลือ เพราะรวมหลายสินค้า) แต่ได้ตัวกรอง “เกิดจาก” และแถวกดได้เหมือนกัน</p>
+  </section>
+</div>
+<script>
+const D = {"opening": 98.15, "moves": [{"d": "2026-09-01", "type": "CONSUMPTION", "src": "SALES_CONSUMPTION", "q": -6.72}, {"d": "2026-09-02", "type": "CONSUMPTION", "src": "SALES_CONSUMPTION", "q": -6.03}, {"d": "2026-09-02", "type": "ADJUST_LOSS", "src": "WASTE_LOG", "q": -0.25}, {"d": "2026-09-03", "type": "PO_RECEIVE", "src": "GR_LINE", "q": 36}, {"d": "2026-09-03", "type": "CONSUMPTION", "src": "SALES_CONSUMPTION", "q": -6.67}, {"d": "2026-09-04", "type": "CONSUMPTION", "src": "SALES_CONSUMPTION", "q": -5.99}, {"d": "2026-09-05", "type": "CONSUMPTION", "src": "SALES_CONSUMPTION", "q": -8.52}, {"d": "2026-09-06", "type": "PO_RECEIVE", "src": "GR_LINE", "q": 32}, {"d": "2026-09-06", "type": "CONSUMPTION", "src": "SALES_CONSUMPTION", "q": -9.27}, {"d": "2026-09-07", "type": "CONSUMPTION", "src": "SALES_CONSUMPTION", "q": -5.26}, {"d": "2026-09-08", "type": "CONSUMPTION", "src": "SALES_CONSUMPTION", "q": -6.34}, {"d": "2026-09-09", "type": "PO_RECEIVE", "src": "GR_LINE", "q": 32}, {"d": "2026-09-09", "type": "CONSUMPTION", "src": "SALES_CONSUMPTION", "q": -6.53}, {"d": "2026-09-10", "type": "CONSUMPTION", "src": "SALES_CONSUMPTION", "q": -5.8}, {"d": "2026-09-11", "type": "CONSUMPTION", "src": "SALES_CONSUMPTION", "q": -6.43}, {"d": "2026-09-12", "type": "PO_RECEIVE", "src": "GR_LINE", "q": 34}, {"d": "2026-09-12", "type": "CONSUMPTION", "src": "SALES_CONSUMPTION", "q": -8.5}, {"d": "2026-09-13", "type": "CONSUMPTION", "src": "SALES_CONSUMPTION", "q": -7.77}, {"d": "2026-09-14", "type": "CONSUMPTION", "src": "SALES_CONSUMPTION", "q": -5.31}, {"d": "2026-09-15", "type": "PO_RECEIVE", "src": "GR_LINE", "q": 28}, {"d": "2026-09-15", "type": "CONSUMPTION", "src": "SALES_CONSUMPTION", "q": -7.16}, {"d": "2026-09-16", "type": "CONSUMPTION", "src": "SALES_CONSUMPTION", "q": -4.97}, {"d": "2026-09-17", "type": "CONSUMPTION", "src": "SALES_CONSUMPTION", "q": -6.69}, {"d": "2026-09-18", "type": "PO_RECEIVE", "src": "GR_LINE", "q": 34}, {"d": "2026-09-18", "type": "CONSUMPTION", "src": "SALES_CONSUMPTION", "q": -5.46}, {"d": "2026-09-19", "type": "CONSUMPTION", "src": "SALES_CONSUMPTION", "q": -9.13}, {"d": "2026-09-20", "type": "CONSUMPTION", "src": "SALES_CONSUMPTION", "q": -7.94}, {"d": "2026-09-21", "type": "PO_RECEIVE", "src": "GR_LINE", "q": 28}, {"d": "2026-09-21", "type": "CONSUMPTION", "src": "SALES_CONSUMPTION", "q": -6.43}, {"d": "2026-09-22", "type": "CONSUMPTION", "src": "SALES_CONSUMPTION", "q": -5.74}, {"d": "2026-09-23", "type": "CONSUMPTION", "src": "SALES_CONSUMPTION", "q": -5.06}, {"d": "2026-09-24", "type": "PO_RECEIVE", "src": "GR_LINE", "q": 24}, {"d": "2026-09-24", "type": "CONSUMPTION", "src": "SALES_CONSUMPTION", "q": -5.64}, {"d": "2026-09-27", "type": "ADJUST_LOSS", "src": "STOCK_COUNT", "q": -27.981}], "adj": []};
+const LBL={CONSUMPTION:"ขาย (ตัดตามสูตร)",CONSUMPTION_REVERSAL:"ยกเลิกการตัดสต๊อก",PO_RECEIVE:"รับของ",ADJUST_LOSS:"ปรับลด",ADJUST_GAIN:"ปรับเพิ่ม",TRANSFER_OUT:"โอนออก",TRANSFER_IN:"รับโอน"};
+const SRC={SALES_CONSUMPTION:"ยอดขาย",GR_LINE:"ใบรับของ",WASTE_LOG:"ของเสีย",STOCK_COUNT:"นับสต๊อก",ADJUSTMENT:"ปรับสต๊อก",TRANSFER_OUT:"ใบโอน",TRANSFER_IN:"ใบโอน",STAFF_MEAL:"มื้อพนักงาน"};
+const MTH=["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
+const q=n=>n.toLocaleString("th-TH",{maximumFractionDigits:3});
+const day=s=>`${+s.slice(8)} ${MTH[+s.slice(5,7)-1]}`;
+const COST=341.78;
+let bal=D.opening, inn=0, out=0; const by={};
+let rows=`<tr><th>วันที่</th><th>เกิดจาก</th><th class="num">เข้า</th><th class="num">ออก</th><th class="num">คงเหลือ</th><th class="num">มูลค่า ฿</th></tr><tr><td colspan="4"><b>ยอดยกมา 1 ก.ย. 69</b></td><td class="num"><b>${q(D.opening)} kg</b></td><td></td></tr>`;
+D.moves.forEach(m=>{bal+=m.q; if(m.q>0)inn+=m.q; else out-=m.q; const k=SRC[m.src]||m.src; by[k]=(by[k]||0)+m.q;
+ rows+=`<tr class="click"><td>${day(m.d)}</td><td>${LBL[m.type]||m.type} <span class="tag">${SRC[m.src]||m.src}</span></td><td class="num plus">${m.q>0?"+"+q(m.q):""}</td><td class="num minus">${m.q<0?q(-m.q):""}</td><td class="num"><b>${q(Math.round(bal*1000)/1000)}</b></td><td class="num" style="color:var(--subtle)">${(m.q*COST).toLocaleString("th-TH",{maximumFractionDigits:0})}</td></tr>`;});
+rows+=`<tr><td colspan="4"><b>ยอดปลายช่วง 30 ก.ย. 69</b></td><td class="num"><b>${q(Math.round(bal*1000)/1000)} kg</b></td><td></td></tr>`;
+document.getElementById("card").innerHTML=rows;
+document.getElementById("sum").innerHTML=`<div><span class="sub">ยกมา</span><b>${q(D.opening)} kg</b></div><div><span class="sub">เข้ารวม</span><b class="plus">+${q(Math.round(inn*1000)/1000)} kg</b></div><div><span class="sub">ออกรวม</span><b class="minus">−${q(Math.round(out*1000)/1000)} kg</b></div><div><span class="sub">ปลายช่วง</span><b>${q(Math.round(bal*1000)/1000)} kg</b></div>`+Object.entries(by).map(([k,v])=>`<div><span class="sub">${k} (${D.moves.filter(m=>(SRC[m.src]||m.src)===k).length} รายการ)</span><b class="${v<0?'minus':'plus'}">${v>0?'+':''}${q(Math.round(v*1000)/1000)} kg</b></div>`).join("");
+const RS={RECOUNT:"นับใหม่",DATA_ENTRY_ERROR:"คีย์ผิด",FOUND:"เจอของ",THEFT:"สูญหาย",OPENING_BALANCE:"ยอดยกมา",OTHER:"อื่น ๆ"};
+if(!D.adj.length){document.getElementById("adjEmpty").textContent="ยังไม่เคยปรับสต๊อก";}
+document.getElementById("adjList").innerHTML=D.adj.map(a=>`<li><span>${a.name}<span class="sub" style="display:block">${RS[a.reason]||a.reason||""} · ${day(a.d)}</span></span><span class="${a.q<0?'minus':'plus'}">${a.q>0?'+':''}${q(a.q)}</span></li>`).join("");
+const tabs=document.querySelectorAll('#tabs button');tabs.forEach(b=>b.addEventListener('click',()=>{tabs.forEach(x=>x.setAttribute('aria-pressed',x===b));document.querySelectorAll('[data-p]').forEach(s=>s.hidden=s.dataset.p!==b.dataset.v)}));
+</script>
