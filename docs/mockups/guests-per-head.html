@@ -1,0 +1,225 @@
+<meta charset="utf-8">
+<title>ต่อหัวและลูกค้า · mockup</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Prompt:wght@500;600;700&family=Noto+Sans+Thai:wght@400;500;600&display=swap">
+<style>
+/* Mockup: monthly summary of the daily close + revenue per head on the dashboard and /sales
+   (Kong 2026-10-25 "จัดมา"). Real: สาขาอารีย์ daily sales Aug–Sep 69. SAMPLE: guest counts
+   (plates ÷ ~2.2, more families at weekends) and the customer-type estimate. */
+:root{
+  --bg:#FDFBF3; --fg:#262811; --surface:#FFFFFF; --sunk:#F8F3E1; --primary:#41431B; --primary-fg:#F8F3E1;
+  --muted:#F3EFDF; --muted-fg:#5A5C31; --subtle:#8B8D63; --border:#E9E3C8; --strong:#D2CBA4;
+  --good:#5A7333; --good-bg:#EEF2E0; --bad:#A83A22; --bad-bg:#F9E5DF; --warn:#A87C1C; --warn-bg:#F8EFD6; --warn-border:#E2CE97; --clay:#C0692B;
+  --display:"Prompt","Noto Sans Thai",system-ui,sans-serif; --body:"Noto Sans Thai","Prompt",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#1B1C10; --fg:#EEEAD6; --surface:#24261A; --sunk:#2A2C1E; --primary:#D9DDB0; --primary-fg:#1B1C10;
+  --muted:#2E301F; --muted-fg:#C9C8A6; --subtle:#9C9B7C; --border:#36381F; --strong:#4A4C30;
+  --good:#B7CF7C; --good-bg:#2B3320; --bad:#EC9C80; --bad-bg:#41261C; --warn:#E8BE62; --warn-bg:#3B3018; --warn-border:#5A4A22; --clay:#E8A76F; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#1B1C10; --fg:#EEEAD6; --surface:#24261A; --sunk:#2A2C1E; --primary:#D9DDB0; --primary-fg:#1B1C10;
+  --muted:#2E301F; --muted-fg:#C9C8A6; --subtle:#9C9B7C; --border:#36381F; --strong:#4A4C30;
+  --good:#B7CF7C; --good-bg:#2B3320; --bad:#EC9C80; --bad-bg:#41261C; --warn:#E8BE62; --warn-bg:#3B3018; --warn-border:#5A4A22; --clay:#E8A76F; color-scheme:dark}
+*{box-sizing:border-box}[hidden]{display:none!important}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:14px;line-height:1.55;margin:0;padding:20px 16px 60px}
+h1,h2,h3{font-family:var(--display);margin:0}p{margin:0}
+.wrap{max-width:1120px;margin:0 auto;display:grid;gap:16px}
+.sub{color:var(--subtle);font-size:.8rem}
+.seg{display:inline-flex;flex-wrap:wrap;border:1px solid var(--strong);border-radius:999px;padding:3px;background:var(--surface);gap:2px}
+.seg button{font:inherit;font-size:.85rem;border:0;background:none;color:var(--fg);border-radius:999px;padding:4px 14px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--primary);color:var(--primary-fg)}
+.sample{display:inline-block;font-size:.7rem;border-radius:999px;padding:1px 8px;background:var(--warn-bg);color:var(--warn);border:1px solid var(--warn-border);white-space:nowrap}
+.real{display:inline-block;font-size:.7rem;border-radius:999px;padding:1px 8px;background:var(--good-bg);color:var(--good);white-space:nowrap}
+.new{outline:2px dashed var(--clay);outline-offset:3px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:14px 16px;display:grid;gap:10px}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+@media (max-width:760px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:11px 13px;display:grid;gap:2px}
+.kpi b{font-family:var(--display);font-size:1.4rem;font-variant-numeric:tabular-nums}
+.up{color:var(--good)}.down{color:var(--bad)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:860px){.grid2{grid-template-columns:1fr}}
+table{width:100%;border-collapse:collapse;font-size:.86rem}
+th{font-weight:500;color:var(--muted-fg);text-align:left;padding:7px 9px;background:var(--sunk);font-size:.78rem}
+td{padding:7px 9px;border-top:1px solid var(--border)}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:.78rem;color:var(--muted-fg)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.note{border-left:3px solid var(--clay);padding:2px 0 2px 10px;font-size:.84rem;color:var(--muted-fg)}
+.mix{display:flex;height:16px;border-radius:999px;overflow:hidden}
+.mix span{display:block;height:100%}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--strong);background:var(--surface);border-radius:999px;padding:3px 12px;font-size:.8rem;white-space:nowrap}
+.chip.on{background:var(--primary);color:var(--primary-fg);border-color:var(--primary)}
+.dash{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+@media (max-width:860px){.dash{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.dcard{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:12px 14px;display:grid;gap:3px}
+.dcard b{font-family:var(--display);font-size:1.5rem;font-variant-numeric:tabular-nums}
+.ghost{opacity:.55}
+</style>
+<div class="wrap">
+  <div>
+    <h1 style="font-size:1.35rem">ลูกค้าและยอดต่อหัว · mockup</h1>
+    <p class="sub">ยอดขายรายวัน <span class="real">จริง</span> สาขาอารีย์ ส.ค.–ก.ย. 69 · จำนวนลูกค้าและสัดส่วนประเภท <span class="sample">ตัวอย่าง</span> (ร้านตัวอย่างยังไม่ได้กรอก) · กรอบประส้ม = ของใหม่</p>
+  </div>
+  <div class="seg" id="tabs">
+    <button aria-pressed="true" data-v="close">① ปิดร้านประจำวัน · รายเดือน</button>
+    <button aria-pressed="false" data-v="dash">② แดชบอร์ด</button>
+    <button aria-pressed="false" data-v="sales">③ หน้ายอดขาย</button>
+  </div>
+
+  <!-- ① -->
+  <section data-p="close" style="display:grid;gap:14px">
+    <div class="kpis" id="closeKpis"></div>
+    <div class="card new">
+      <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:baseline">
+        <h3>ลูกค้าต่อวัน และยอดต่อหัว · ก.ย. 69</h3>
+        <div class="legend"><span><i style="background:#AEB784"></i>วันธรรมดา</span><span><i style="background:#41431B"></i>เสาร์–อาทิตย์</span><span><i style="background:#C0692B;height:3px"></i>ยอดต่อหัว (แกนขวา)</span><span>- - เฉลี่ยลูกค้าต่อวัน</span></div>
+      </div>
+      <div id="dailyChart"></div>
+      <p class="note" id="dailyNote"></p>
+    </div>
+    <div class="grid2">
+      <div class="card new">
+        <h3>ลูกค้าส่วนใหญ่เป็นใคร <span class="sample">ประมาณ</span></h3>
+        <p class="sub">แยกวันธรรมดา / เสาร์–อาทิตย์ · ถ่วงด้วยจำนวนลูกค้าของแต่ละวัน</p>
+        <div id="mixSplit" style="display:grid;gap:10px"></div>
+        <div class="legend" id="mixLegend"></div>
+      </div>
+      <div class="card new">
+        <h3>วันที่กลุ่มไหนเยอะ ร้านได้ต่อหัวเท่าไหร่</h3>
+        <p class="sub">ยอดขายจริง ÷ ลูกค้าจริง ของวันที่กลุ่มนั้นเกินครึ่ง (ตามที่คนปิดร้านประเมิน) · ต้องมีอย่างน้อย 5 วันถึงจะแสดง</p>
+        <table id="domTable"></table>
+        <p class="note">ไม่คูณสัดส่วนคนกับยอดขาย — นั่นคือการสมมติว่าทุกกลุ่มจ่ายเท่ากัน ซึ่งไม่จริง ตารางนี้ใช้แต่ตัวเลขจริงมาจัดกลุ่มวัน</p>
+      </div>
+    </div>
+    <div class="card new">
+      <h3>สัดส่วนประเภทลูกค้าย้อนหลัง <span class="sample">ประมาณ</span></h3>
+      <div id="mixTrend" style="display:grid;gap:8px"></div>
+    </div>
+    <p class="sub">ตารางรายวัน ปัญหา และความเห็น อยู่ต่อจากนี้เหมือนเดิม</p>
+  </section>
+
+  <!-- ② -->
+  <section data-p="dash" hidden style="display:grid;gap:14px">
+    <p class="sub">แถวตัวเลขบนแดชบอร์ด (สลับการ์ด/กราฟได้อยู่แล้ว) — เพิ่มการ์ด “ต่อหัว” ใบเดียว</p>
+    <div class="dash">
+      <div class="dcard"><span class="sub">ยอดขายต่อวัน <span class="real">จริง</span></span><b id="dRev"></b><span class="sub" id="dRevSub"></span></div>
+      <div class="dcard ghost"><span class="sub">ต้นทุนวัตถุดิบ</span><b>…</b><span class="sub">การ์ดเดิม</span></div>
+      <div class="dcard ghost"><span class="sub">กำไรสุทธิ</span><b>…</b><span class="sub">การ์ดเดิม</span></div>
+      <div class="dcard new"><span class="sub">ยอดต่อหัว <span class="sample">ตัวอย่าง</span></span><b id="dHead"></b><span class="sub" id="dHeadSub"></span><span style="font-size:.75rem;color:var(--primary)">ดูที่หน้ายอดขาย ›</span></div>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <h3 style="font-size:.95rem">เมื่อข้อมูลลูกค้ายังไม่พอ</h3>
+        <div class="dcard new ghost" style="opacity:1"><span class="sub">ยอดต่อหัว</span><b style="color:var(--subtle)">—</b><span class="sub">กรอกจำนวนลูกค้าแล้ว 6 จาก 26 วันขาย · ต้องได้ 80% ถึงจะแสดง</span><span style="font-size:.75rem;color:var(--primary)">กรอกตอนปิดร้าน ›</span></div>
+        <p class="sub">ไม่โชว์ตัวเลขจาก 6 วัน — ดูน่าเชื่อเกินจริง</p>
+      </div>
+      <div class="card">
+        <h3 style="font-size:.95rem">ร้านที่ไม่ได้เปิดรายงานปิดร้าน</h3>
+        <p class="sub">ไม่มีการ์ดนี้เลย (ไม่มีแหล่งจำนวนลูกค้า) — วันที่นำเข้าจำนวนลูกค้าจากไฟล์ POS ได้ การ์ดจะขึ้นเองโดยไม่ต้องเปิด add-on</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ③ -->
+  <section data-p="sales" hidden style="display:grid;gap:14px">
+    <p class="sub">หน้ายอดขาย · ช่วง ก.ย. 69 · สาขาอารีย์ — การ์ดสรุปเดิมมี ยอดขาย · จาน · กำไร · เพิ่ม “ลูกค้า” กับ “ต่อหัว”</p>
+    <div class="kpis">
+      <div class="kpi"><span class="sub">ยอดขาย <span class="real">จริง</span></span><b id="sRev"></b><span class="sub" id="sRevSub"></span></div>
+      <div class="kpi"><span class="sub">จาน <span class="real">จริง</span></span><b id="sPl"></b><span class="sub" id="sPlSub"></span></div>
+      <div class="kpi new"><span class="sub">ลูกค้า <span class="sample">ตัวอย่าง</span></span><b id="sGu"></b><span class="sub" id="sGuSub"></span></div>
+      <div class="kpi new"><span class="sub">ต่อหัว</span><b id="sHead"></b><span class="sub" id="sHeadSub"></span></div>
+    </div>
+    <div class="grid2">
+      <div class="card new">
+        <h3>ต่อหัวตามวันในสัปดาห์</h3>
+        <p class="sub">เฉลี่ย ก.ย. 69 · ยอดขายรวมของวันนั้น ÷ ลูกค้ารวม · ★ = สูงสุด</p>
+        <div id="weekdayChart"></div>
+      </div>
+      <div class="card new">
+        <h3>จานต่อลูกค้า และต่อหัว รายสัปดาห์</h3>
+        <p class="sub">ต่อหัวขึ้นเพราะสั่งเยอะขึ้น หรือเพราะราคาขึ้น? — จานต่อคนแยกสองเรื่องนี้ออกจากกัน</p>
+        <table id="weekTable"></table>
+      </div>
+    </div>
+    <p class="note">ปุ่มสลับมุมมอง ยอดขาย / จาน / กำไร ของกราฟและป๊อปอัปวันในหน้ายอดขายคงเดิม · ป๊อปอัปของวันจะมีบรรทัด “ลูกค้า 142 คน · ต่อหัว ฿155” เพิ่ม</p>
+  </section>
+
+  <div class="card">
+    <b style="font-family:var(--display)">สิ่งที่ต้องทำถ้าเอาตามนี้</b>
+    <ul style="margin:4px 0 0;padding-left:18px;font-size:.86rem">
+      <li>ไม่มี migration — จำนวนลูกค้าอยู่ที่ <code>sales_day.guest_count</code> แล้ว ประเภทลูกค้าอยู่ที่ใบปิดร้าน</li>
+      <li>ต่อหัว = ยอดขายหลังส่วนลด ไม่รวม VAT/ค่าบริการ (ตัวเดียวกับหน้ายอดขาย) ÷ ลูกค้า · คิดเฉพาะวันที่มีทั้งสองอย่าง · ขึ้นเมื่อวันที่มีจำนวนลูกค้า ≥ 80% ของวันขาย</li>
+      <li>เทียบช่วงก่อนแบบต่อหัว (ไม่ใช่ยอดรวม) และบอกชื่อช่วงที่เทียบทุกครั้ง</li>
+    </ul>
+  </div>
+</div>
+<script>
+const DAYS = [["2026-08-13", 23349, 331], ["2026-08-14", 22740, 310], ["2026-08-15", 30608, 422], ["2026-08-16", 30828, 430], ["2026-08-17", 22379, 307], ["2026-08-18", 23405, 337], ["2026-08-19", 24109, 325], ["2026-08-20", 24153, 329], ["2026-08-21", 23332, 322], ["2026-08-22", 34463, 463], ["2026-08-23", 32243, 439], ["2026-08-24", 22153, 305], ["2026-08-25", 21953, 317], ["2026-08-26", 21142, 290], ["2026-08-27", 20997, 289], ["2026-08-28", 19984, 278], ["2026-08-29", 32022, 444], ["2026-08-30", 29812, 428], ["2026-08-31", 21837, 301], ["2026-09-01", 21175, 293], ["2026-09-02", 22093, 307], ["2026-09-03", 21217, 291], ["2026-09-04", 19500, 266], ["2026-09-05", 32130, 430], ["2026-09-06", 32314, 454], ["2026-09-07", 20371, 287], ["2026-09-08", 21395, 309], ["2026-09-09", 21258, 302], ["2026-09-10", 20086, 294], ["2026-09-11", 22767, 309], ["2026-09-12", 30912, 428], ["2026-09-13", 28439, 405], ["2026-09-14", 20989, 307], ["2026-09-15", 21765, 297], ["2026-09-16", 19871, 281], ["2026-09-17", 21188, 294], ["2026-09-18", 20198, 286], ["2026-09-19", 28617, 395], ["2026-09-20", 30494, 430], ["2026-09-21", 24087, 339], ["2026-09-22", 21093, 293], ["2026-09-23", 19632, 282], ["2026-09-24", 21994, 318], ["2026-09-25", 21592, 286], ["2026-09-26", 30203, 423]];
+const TYPES = [["พนักงานออฟฟิศ","#41431B"],["ครอบครัว","#7D8450"],["ขาประจำ","#AEB784"],["นักท่องเที่ยว","#C0692B"]];
+const MTH=["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
+const WD=["อา.","จ.","อ.","พ.","พฤ.","ศ.","ส."];
+const fmt=n=>Math.round(n).toLocaleString("th-TH"); const baht=n=>"฿"+fmt(n);
+const rows=DAYS.map(([d,net,pl])=>{const dt=new Date(d+"T00:00:00Z"),wd=dt.getUTCDay(),we=wd===0||wd===6;
+  const seed=(dt.getUTCDate()*7919)%13; const g=Math.round(pl/(we?2.35:2.15)*(0.97+seed/200));
+  const mix=we?[1,5,2,2]:[5,2,2,1]; if(seed%5===0&&!we){mix[0]=4;mix[2]=3}
+  return {d,dt,wd,we,net,pl,g,mix,m:d.slice(0,7)}});
+const sep=rows.filter(r=>r.m==="2026-09"), aug=rows.filter(r=>r.m==="2026-08");
+const sum=(a,f)=>a.reduce((t,r)=>t+f(r),0);
+const head=a=>sum(a,r=>r.net)/sum(a,r=>r.g);
+// ① KPIs
+const avgG=sum(sep,r=>r.g)/sep.length, avgGa=sum(aug,r=>r.g)/aug.length;
+document.getElementById("closeKpis").innerHTML=`
+ <div class="kpi"><span class="sub">ลูกค้าต่อวัน <span class="sample">ตัวอย่าง</span></span><b>${fmt(avgG)}</b><span class="sub ${avgG<avgGa?'down':'up'}">${avgG<avgGa?'▼':'▲'} ${fmt(Math.abs(avgG-avgGa))} คน/วัน เทียบ ส.ค. 69</span></div>
+ <div class="kpi"><span class="sub">ต่อหัว</span><b>฿${head(sep).toFixed(0)}</b><span class="sub ${head(sep)<head(aug)?'down':'up'}">${head(sep)<head(aug)?'▼':'▲'} ฿${Math.abs(head(sep)-head(aug)).toFixed(0)} เทียบ ส.ค. 69</span></div>
+ <div class="kpi"><span class="sub">เงินขาด/เกินสะสม <span class="sample">ตัวอย่าง</span></span><b style="color:var(--bad)">ขาด ฿185</b><span class="sub">ขาด 3 วัน · เกิน 1 วัน</span></div>
+ <div class="kpi"><span class="sub">ปัญหาที่ยังค้าง <span class="sample">ตัวอย่าง</span></span><b>1</b><span class="sub">จาก 9 ที่บันทึก</span></div>`;
+// daily chart
+(function(){const W=1060,H=230,L=40,R=48,B=26,T=12;const n=sep.length,bw=(W-L-R)/n;
+ const gMax=Math.max(...sep.map(r=>r.g))*1.1, hs=sep.map(r=>r.net/r.g), hMin=Math.min(...hs)*0.92, hMax=Math.max(...hs)*1.05;
+ const y=v=>T+(H-T-B)*(1-v/gMax), yh=v=>T+(H-T-B)*(1-(v-hMin)/(hMax-hMin));
+ let s=`<svg viewBox="0 0 ${W} ${H}" width="100%">`;
+ [0,.5,1].forEach(f=>{const v=gMax*f;s+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="#ECE6CC"/><text x="${L-5}" y="${y(v)+4}" font-size="10" text-anchor="end" fill="#8B8D63">${fmt(v)}</text>`;});
+ sep.forEach((r,i)=>{s+=`<rect x="${L+i*bw+2}" y="${y(r.g)}" width="${bw-4}" height="${H-B-y(r.g)}" rx="3" fill="${r.we?'#41431B':'#AEB784'}"><title>${r.dt.getUTCDate()} ${MTH[8]} · ${r.g} คน · ต่อหัว ฿${(r.net/r.g).toFixed(0)}</title></rect>`;
+  if(i%2===0)s+=`<text x="${L+i*bw+bw/2}" y="${H-8}" font-size="9.5" text-anchor="middle" fill="#5A5C31">${r.dt.getUTCDate()}</text>`;});
+ s+=`<line x1="${L}" x2="${W-R}" y1="${y(avgG)}" y2="${y(avgG)}" stroke="#5A5C31" stroke-dasharray="5 4"/><text x="${L+4}" y="${y(avgG)-5}" font-size="10" fill="#5A5C31">เฉลี่ย ${fmt(avgG)} คน</text>`;
+ s+=`<polyline fill="none" stroke="#C0692B" stroke-width="2.2" points="${sep.map((r,i)=>`${L+i*bw+bw/2},${yh(r.net/r.g)}`).join(" ")}"/>`;
+ sep.forEach((r,i)=>s+=`<circle cx="${L+i*bw+bw/2}" cy="${yh(r.net/r.g)}" r="2.6" fill="#C0692B"/>`);
+ [hMin,(hMin+hMax)/2,hMax].forEach(v=>s+=`<text x="${W-R+5}" y="${yh(v)+4}" font-size="10" fill="#C0692B">฿${v.toFixed(0)}</text>`);
+ document.getElementById("dailyChart").innerHTML=s+"</svg>";})();
+{const wd=sep.filter(r=>!r.we),we=sep.filter(r=>r.we),gw=sum(we,r=>r.g)/we.length,gd=sum(wd,r=>r.g)/wd.length,hw=head(we),hd=head(wd);
+ document.getElementById("dailyNote").innerHTML=`เสาร์–อาทิตย์ลูกค้ามากกว่าวันธรรมดา ${Math.round((gw/gd-1)*100)}% (${fmt(gw)} เทียบ ${fmt(gd)} คน/วัน) และต่อหัว${hw>hd?'<b>สูงกว่า</b>':'<b>ต่ำกว่า</b>'} (฿${hw.toFixed(0)} เทียบ ฿${hd.toFixed(0)}) · ประโยคนี้ระบบเขียนจากตัวเลขของเดือนนั้นเอง · กดแท่ง = เปิดใบปิดร้านของวันนั้น`;}
+// mix split
+function mixOf(a){const w=TYPES.map(()=>0);let tot=0;a.forEach(r=>{r.mix.forEach((p,i)=>w[i]+=p/10*r.g);tot+=r.g});return w.map(v=>v/tot)}
+function bar(m,label){return `<div><p class="sub" style="margin-bottom:4px">${label}</p><div class="mix">${m.map((v,i)=>`<span style="width:${v*100}%;background:${TYPES[i][1]}" title="${TYPES[i][0]} ~${Math.round(v*100)}%"></span>`).join("")}</div><p class="sub" style="margin-top:3px">${m.map((v,i)=>`${TYPES[i][0]} ~${Math.round(v*100)}%`).join(" · ")}</p></div>`}
+document.getElementById("mixSplit").innerHTML=bar(mixOf(sep.filter(r=>!r.we)),"วันธรรมดา ("+sep.filter(r=>!r.we).length+" วัน)")+bar(mixOf(sep.filter(r=>r.we)),"เสาร์–อาทิตย์ ("+sep.filter(r=>r.we).length+" วัน)");
+document.getElementById("mixLegend").innerHTML=TYPES.map(t=>`<span><i style="background:${t[1]}"></i>${t[0]}</span>`).join("");
+// dominant-group table
+let tb=`<tr><th>วันที่กลุ่มนี้เกินครึ่ง</th><th class="num">วัน</th><th class="num">ต่อหัว</th><th class="num">จาน/คน</th></tr>`;
+TYPES.forEach((t,i)=>{const a=sep.filter(r=>r.mix[i]>=5);tb+= a.length>=5?`<tr><td><i style="display:inline-block;width:9px;height:9px;border-radius:99px;background:${t[1]};margin-right:6px"></i>${t[0]}</td><td class="num">${a.length}</td><td class="num"><b>฿${head(a).toFixed(0)}</b></td><td class="num">${(sum(a,r=>r.pl)/sum(a,r=>r.g)).toFixed(2)}</td></tr>`:`<tr><td style="color:var(--subtle)">${t[0]}</td><td class="num" style="color:var(--subtle)">${a.length}</td><td class="num" colspan="2" style="color:var(--subtle)">ข้อมูลไม่พอ (ต้อง 5 วัน)</td></tr>`;});
+const mixed=sep.filter(r=>Math.max(...r.mix)<5);tb+=`<tr><td style="color:var(--subtle)">ไม่มีกลุ่มไหนเกินครึ่ง</td><td class="num">${mixed.length}</td><td class="num" colspan="2">${mixed.length>=5?'฿'+head(mixed).toFixed(0):'—'}</td></tr>`;
+document.getElementById("domTable").innerHTML=tb;
+// mix trend
+document.getElementById("mixTrend").innerHTML=[["ส.ค. 69 (19 วัน)",aug],["ก.ย. 69 (26 วัน)",sep]].map(([l,a])=>bar(mixOf(a),l)).join("")+`<p class="sub">ดูได้ 6 เดือน · เป็นความรู้สึกของคนปิดร้าน ดูเป็นแนวโน้มดีกว่าตัวเลขเป๊ะ</p>`;
+// ② dashboard
+document.getElementById("dRev").textContent=baht(sum(sep,r=>r.net)/sep.length);
+{const a=sum(sep,r=>r.net)/sep.length,b=sum(aug,r=>r.net)/aug.length,d=(a/b-1)*100;document.getElementById("dRevSub").innerHTML=`<span class="${d<0?'down':'up'}">${d<0?'▼':'▲'} ${Math.abs(d).toFixed(1)}% ต่อวัน เทียบ ส.ค. 69</span>`;}
+document.getElementById("sRevSub").textContent=`ต่อวัน ${baht(sum(sep,r=>r.net)/sep.length)} (${sep.length} วัน)`;
+document.getElementById("sPlSub").textContent=`ต่อวัน ${fmt(sum(sep,r=>r.pl)/sep.length)}`;
+document.getElementById("dHead").textContent="฿"+head(sep).toFixed(0);
+document.getElementById("dHeadSub").innerHTML=`<span class="${head(sep)<head(aug)?'down':'up'}">${head(sep)<head(aug)?'▼':'▲'} ฿${Math.abs(head(sep)-head(aug)).toFixed(0)} เทียบ ส.ค. 69</span> · ${fmt(avgG)} คน/วัน`;
+// ③ sales
+document.getElementById("sRev").textContent=baht(sum(sep,r=>r.net)); document.getElementById("sPl").textContent=fmt(sum(sep,r=>r.pl));
+document.getElementById("sGu").textContent=fmt(sum(sep,r=>r.g)); document.getElementById("sGuSub").textContent=`ต่อวัน ${fmt(avgG)} · ครบ 26 จาก 26 วัน`;
+document.getElementById("sHead").textContent="฿"+head(sep).toFixed(0); document.getElementById("sHeadSub").innerHTML=`<span class="${head(sep)<head(aug)?'down':'up'}">${head(sep)<head(aug)?'▼':'▲'} ฿${Math.abs(head(sep)-head(aug)).toFixed(0)} ต่อหัว เทียบ ส.ค. 69</span> · ${(sum(sep,r=>r.pl)/sum(sep,r=>r.g)).toFixed(2)} จาน/คน`;
+(function(){const by=[0,1,2,3,4,5,6].map(w=>{const a=sep.filter(r=>r.wd===w);return {w,h:a.length?head(a):0,n:a.length}});const order=[1,2,3,4,5,6,0].map(w=>by[w]);
+ const W=520,H=200,L=40,B=26,T=14,mx=Math.max(...order.map(o=>o.h))*1.08,mn=Math.min(...order.map(o=>o.h))*0.85,best=Math.max(...order.map(o=>o.h));
+ const bw=(W-L-10)/7,y=v=>T+(H-T-B)*(1-(v-mn)/(mx-mn));let s=`<svg viewBox="0 0 ${W} ${H}" width="100%">`;
+ order.forEach((o,i)=>{const we=o.w===0||o.w===6;s+=`<rect x="${L+i*bw+6}" y="${y(o.h)}" width="${bw-12}" height="${H-B-y(o.h)}" rx="4" fill="${o.h===best?'#C0692B':we?'#41431B':'#AEB784'}"/><text x="${L+i*bw+bw/2}" y="${y(o.h)-5}" font-size="11" text-anchor="middle" fill="#262811">${o.h===best?'★ ':''}฿${o.h.toFixed(0)}</text><text x="${L+i*bw+bw/2}" y="${H-8}" font-size="11" text-anchor="middle" fill="#5A5C31">${WD[o.w]}</text>`});
+ document.getElementById("weekdayChart").innerHTML=s+"</svg>";})();
+(function(){const wk={};sep.forEach(r=>{const k=Math.floor((r.dt.getUTCDate()-1)/7);(wk[k]=wk[k]||[]).push(r)});let t=`<tr><th>สัปดาห์</th><th class="num">ลูกค้า/วัน</th><th class="num">จาน/คน</th><th class="num">ต่อหัว</th></tr>`;
+ Object.values(wk).forEach(a=>{t+=`<tr><td>${a[0].dt.getUTCDate()}–${a[a.length-1].dt.getUTCDate()} ก.ย.</td><td class="num">${fmt(sum(a,r=>r.g)/a.length)}</td><td class="num">${(sum(a,r=>r.pl)/sum(a,r=>r.g)).toFixed(2)}</td><td class="num">฿${head(a).toFixed(0)}</td></tr>`});
+ document.getElementById("weekTable").innerHTML=t;})();
+const tabs=document.querySelectorAll('#tabs button');tabs.forEach(b=>b.addEventListener('click',()=>{tabs.forEach(x=>x.setAttribute('aria-pressed',x===b));document.querySelectorAll('[data-p]').forEach(s=>s.hidden=s.dataset.p!==b.dataset.v)}));
+</script>
