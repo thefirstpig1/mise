@@ -1,0 +1,129 @@
+<meta charset="utf-8">
+<title>รีวิวทั้งระบบ · หน้าที่เหลือ</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Prompt:wght@500;600;700&family=Noto+Sans+Thai:wght@400;500;600&display=swap">
+<style>
+:root{
+  --bg:#FDFBF3; --fg:#262811; --surface:#FFFFFF; --sunk:#F8F3E1; --primary:#41431B; --primary-fg:#F8F3E1;
+  --muted-fg:#5A5C31; --subtle:#8B8D63; --border:#E9E3C8; --strong:#D2CBA4;
+  --good:#5A7333; --good-bg:#EEF2E0; --bad:#A83A22; --bad-bg:#F9E5DF; --warn:#A87C1C; --warn-bg:#F8EFD6; --clay:#C0692B;
+  --display:"Prompt","Noto Sans Thai",system-ui,sans-serif; --body:"Noto Sans Thai","Prompt",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#1B1C10; --fg:#EEEAD6; --surface:#24261A; --sunk:#2A2C1E; --primary:#D9DDB0; --primary-fg:#1B1C10;
+  --muted-fg:#C9C8A6; --subtle:#9C9B7C; --border:#36381F; --strong:#4A4C30;
+  --good:#B7CF7C; --good-bg:#2B3320; --bad:#EC9C80; --bad-bg:#41261C; --warn:#E8BE62; --warn-bg:#3B3018; --clay:#E8A76F; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#1B1C10; --fg:#EEEAD6; --surface:#24261A; --sunk:#2A2C1E; --primary:#D9DDB0; --primary-fg:#1B1C10;
+  --muted-fg:#C9C8A6; --subtle:#9C9B7C; --border:#36381F; --strong:#4A4C30;
+  --good:#B7CF7C; --good-bg:#2B3320; --bad:#EC9C80; --bad-bg:#41261C; --warn:#E8BE62; --warn-bg:#3B3018; --clay:#E8A76F; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.6;margin:0;padding:24px 16px 64px}
+h1,h2,h3{font-family:var(--display);margin:0}
+p{margin:0}
+.wrap{max-width:1040px;margin:0 auto;display:grid;gap:22px}
+.sub{color:var(--subtle);font-size:.85rem}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px 18px;display:grid;gap:10px}
+h2{font-size:1.12rem}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border-radius:999px;padding:2px 10px;font-size:.8rem;white-space:nowrap;border:1px solid var(--border);background:var(--sunk)}
+.chip.ok{background:var(--good-bg);color:var(--good);border-color:transparent}
+.chip.part{background:var(--warn-bg);color:var(--warn);border-color:transparent}
+.scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.86rem;min-width:820px}
+th{text-align:left;font-weight:500;color:var(--muted-fg);background:var(--sunk);padding:8px 10px;font-size:.78rem}
+td{padding:9px 10px;border-top:1px solid var(--border);vertical-align:top}
+td b{font-family:var(--display);font-weight:600}
+.p{display:inline-block;border-radius:999px;padding:1px 9px;font-size:.74rem;font-weight:600;white-space:nowrap}
+.p1{background:var(--bad-bg);color:var(--bad)}.p2{background:var(--warn-bg);color:var(--warn)}.p3{background:var(--sunk);color:var(--muted-fg)}
+.seen{color:var(--bad)}
+ol{margin:0;padding-left:20px;display:grid;gap:6px}
+ul{margin:4px 0 0;padding-left:20px}
+li{margin:2px 0}
+a{color:var(--primary)}
+.src{font-size:.82rem;display:grid;gap:3px}
+</style>
+<div class="wrap">
+  <div>
+    <h1 style="font-size:1.5rem">รีวิวทั้งระบบ · หน้าไหนยังไม่ได้ดู และควรปรับอะไร</h1>
+    <p class="sub">25 ต.ค. 69 · นับจากหน้าในระบบทั้งหมด 66 หน้า (ไม่รวมหน้าที่แค่ส่งต่อไปหน้าอื่น) · เปิดดูหน้าจริงบนเครื่อง dev · ยังไม่ได้แก้อะไร</p>
+  </div>
+
+  <section class="card">
+    <h2>1. หน้าที่รีวิวแล้ว</h2>
+    <div class="chips">
+      <span class="chip ok">แดชบอร์ด</span><span class="chip ok">ยอดขาย</span><span class="chip ok">ปิดร้านประจำวัน (ใหม่)</span>
+      <span class="chip ok">จัดการเมนู</span><span class="chip ok">ทดลองเมนู</span>
+      <span class="chip ok">สินค้า/วัตถุดิบ (รายการ + แผง)</span><span class="chip ok">งานสต๊อก · ปรับ · ประวัติ/บัตรสต๊อก</span>
+      <span class="chip ok">นับสต๊อก (รายการ)</span><span class="chip ok">ของเสีย</span><span class="chip ok">โอนของ (รายการ)</span><span class="chip ok">มื้อพนักงาน</span>
+      <span class="chip ok">ใบสั่งซื้อ (รายการ + ฟอร์ม)</span><span class="chip ok">รับสินค้า (รายการ + ฟอร์ม)</span><span class="chip ok">ซัพพลายเออร์ + สั่งของ</span>
+      <span class="chip ok">ต้นทุน</span><span class="chip ok">ต้นทุนตามแผนก</span><span class="chip ok">ของหายไปไหน</span><span class="chip ok">การผันผวนราคา</span>
+      <span class="chip ok">วิเคราะห์รายจ่าย</span><span class="chip ok">หมวดบัญชี (กล่องตามกลุ่ม)</span>
+      <span class="chip part">ค่าใช้จ่าย (รายการ — แค่คลิกทั้งแถว)</span><span class="chip part">ค่าใช้จ่ายประจำ (แค่คลิกทั้งแถว)</span><span class="chip part">ตัดสต๊อกตามยอดขาย (แค่แก้ข้อความ)</span>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>2. หน้าที่ยังไม่ได้รีวิว — เรียงตามความถี่ที่ร้านใช้</h2>
+    <p class="sub">P1 = ใช้ทุกวัน/ทุกสัปดาห์ หรือมีปัญหาที่เห็นชัด · P2 = ใช้เป็นช่วง ๆ · P3 = ตั้งค่าครั้งเดียว · <span class="seen">ตัวแดง</span> = สิ่งที่เจอบนหน้าจริงวันนี้</p>
+    <div class="scroll"><table>
+      <tr><th>หน้า</th><th>ใช้ทำอะไร</th><th>ที่เจอ / ที่ควรเป็น (best practice)</th><th></th></tr>
+      <tr><td><b>นำเข้ายอดขาย</b><br><span class="sub">/sales/import</span></td><td>อัปโหลดไฟล์ POS ทุกวัน/ทุกสัปดาห์</td><td><span class="seen">ปุ่มเลือกไฟล์ของเบราว์เซอร์เป็นภาษาอังกฤษ "Choose File · No file chosen" · ประวัติขึ้น "0 รายการ" ทั้งที่ไฟล์มีทั้งเดือน</span> · มาตรฐานการนำเข้าไฟล์: ลากวางได้ · 4 ขั้น เลือกไฟล์ → จับคู่คอลัมน์ → ตรวจ → ยืนยัน · บอกสรุปก่อนกดยืนยัน ("26 วัน 1,695 แถว ยอดขาย ฿615,380") · แสดงแถวที่ผิดพร้อมเลขแถวให้แก้</td><td><span class="p p1">P1</span></td></tr>
+      <tr><td><b>ตัดสต๊อกตามยอดขาย</b><br><span class="sub">/consumption</span></td><td>ตัดใหม่หลังแก้สูตร</td><td><span class="seen">ไม่มีหัวข้อหน้า · ทุกแถวเขียน "ดู 3 เมนูที่ตัดไม่ได้" ซ้ำกัน 32 แถว (เป็นเมนูชุดเดิม) · ปุ่ม "ตัดสต๊อกตามสูตร 32 วัน" ไม่บอกว่าจะเกิดอะไร · ช่องเลือกสาขา + ปุ่ม "ดู" แบบเก่า</span> · ควร: บอกครั้งเดียวด้านบนว่า "3 เมนูไม่มีสูตร → เขียนสูตร" · แยก "วันที่ต้องตัดใหม่" ไว้บนสุด · ชิปสาขาเหมือนหน้าอื่น</td><td><span class="p p1">P1</span></td></tr>
+      <tr><td><b>บันทึก/ดู/แก้ค่าใช้จ่าย</b><br><span class="sub">/expenses/new · [id] · edit · รายการ</span></td><td>ลงบิลค่าใช้จ่ายทุกวัน</td><td><span class="seen">หมวดบัญชีและผู้ขายเป็น dropdown ยาว · วิธีชำระเงินพิมพ์เอง (เงินสด/โอน/บัตร ควรเป็นปุ่มเลือก) · ฟอร์มยาวหลายช่องที่ไม่ค่อยใช้ (เลขใบกำกับภาษี) โชว์ตลอด</span> · มาตรฐานแอปบันทึกค่าใช้จ่าย: ใช้บนมือถือได้เร็ว · ถ่ายรูปบิลแล้วค่อยกรอก (รอที่เก็บไฟล์) · จำหมวด/ผู้ขายล่าสุด · ช่องขั้นสูงพับไว้</td><td><span class="p p1">P1</span></td></tr>
+      <tr><td><b>ค่าใช้จ่ายประจำ</b><br><span class="sub">/expenses/recurring + new/edit</span></td><td>ค่าเช่า เงินเดือน ฯลฯ</td><td>ตอนนี้แดชบอร์ดเตือนว่าค่าใช้จ่ายประจำยังไม่ลง → หน้านี้ควรมีปุ่ม "ลงของเดือนนี้" ทีละรายการ/ทั้งหมด และบอกว่ารายการไหนถึงกำหนดแล้ว</td><td><span class="p p1">P1</span></td></tr>
+      <tr><td><b>นับสต๊อก — แผ่นนับ</b><br><span class="sub">/stock-counts/[id]</span></td><td>นับจริงหน้าตู้ บนมือถือ</td><td>รายการรีวิวแล้วแต่แผ่นนับยังไม่ได้ดูเต็ม · มาตรฐาน: ใช้มือเดียวบนมือถือ · เรียงตามจุดเก็บของ (ตู้แช่/ชั้นแห้ง) · ปุ่มใหญ่ · เห็นว่านับไปกี่จากกี่รายการ · ทำงานต่อได้เมื่อเน็ตหลุด</td><td><span class="p p1">P1</span></td></tr>
+      <tr><td><b>ใบขอซื้อ + ตัดรอบ</b><br><span class="sub">/purchase-requests · /cut</span></td><td>ครัวขอของ จัดซื้อตัดรอบ</td><td>สร้างใน Part 38 หน้าตาเรียบร้อย แต่ยังไม่ผ่านรอบรีวิว · มาตรฐานใบขอซื้อร้านอาหาร (Supy, Odoo): เติมจำนวนแนะนำจากขั้นต่ำ · กดอนุมัติ/ปฏิเสธได้จากมือถือ · แจ้งเตือนเมื่อสถานะเปลี่ยน</td><td><span class="p p2">P2</span></td></tr>
+      <tr><td><b>หน้าเอกสารรายใบ</b><br><span class="sub">ใบสั่งซื้อ · ใบรับของ · ใบโอน · [id]</span></td><td>เปิดดูจากลิงก์/บัตรสต๊อก</td><td>เพิ่งเริ่มมีลิงก์เข้าจากบัตรสต๊อก · ควรมีหัวเหมือนกันทุกใบ (เลขที่ สถานะ ใครทำ เมื่อไหร่) · ปุ่มงานถัดไปเด่น (รับของ/ยืนยัน/ยกเลิก) · ลิงก์ไปเอกสารที่เกี่ยวกัน (PO ↔ ใบรับ ↔ ค่าใช้จ่าย)</td><td><span class="p p2">P2</span></td></tr>
+      <tr><td><b>ต้นทุนรายวัตถุดิบ / ตารางละเอียด</b><br><span class="sub">/cost/[productId] · /cost/detail</span></td><td>เจาะลึกจากหน้าต้นทุน</td><td>หน้าแบบเก่า (ก่อนรีวิวต้นทุน) · /cost/[productId] ซ้ำกับแผงสินค้า + บัตรสต๊อกที่เพิ่งทำ → พิจารณาให้ลิงก์ไปบัตรสต๊อกแทน (ตัดหน้าซ้ำ ตามหลักที่คุณ Kong วางไว้)</td><td><span class="p p2">P2</span></td></tr>
+      <tr><td><b>ตั้งค่าร้าน</b><br><span class="sub">/settings</span></td><td>ตั้งครั้งเดียว ปรับนาน ๆ ครั้ง</td><td><span class="seen">หน้ายาวหน้าเดียวรวมทุกอย่าง · โหลด ~6 วินาที · ปุ่มบันทึกอยู่ล่างสุด บางส่วนบันทึกทันที (ปิดร้าน) บางส่วนต้องกด → สับสน</span> · มาตรฐานหน้าตั้งค่า SaaS: แบ่งหมวด (ร้าน · ภาษี · การคำนวณ · สต๊อก · add-on) มีเมนูข้าง · บันทึกแบบเดียวกันทั้งหน้า</td><td><span class="p p2">P2</span></td></tr>
+      <tr><td><b>คนในร้าน</b><br><span class="sub">/settings/members</span></td><td>เชิญคน ให้สิทธิ์</td><td><span class="seen">ฟอร์มเชิญอยู่บนสุดกินพื้นที่ รายชื่อคนอยู่ข้างล่าง</span> · มาตรฐาน: รายชื่อก่อน ปุ่ม "เชิญ" เปิดป๊อปอัป · ตารางอ่านง่ายว่าบทบาทไหนทำอะไรได้ · สถานะ "รอเข้าใช้ครั้งแรก"</td><td><span class="p p2">P2</span></td></tr>
+      <tr><td><b>สาขา · แผนก</b><br><span class="sub">/settings/branches · departments</span></td><td>ตั้งครั้งเดียว</td><td>ทำใน Part 35 ยังไม่รีวิว · ใช้รูปแบบเดียวกับคนในร้าน</td><td><span class="p p3">P3</span></td></tr>
+      <tr><td><b>ตั้งรูปแบบไฟล์ POS</b><br><span class="sub">/sales/import/profiles/new</span></td><td>ครั้งแรก + ตอน POS เปลี่ยน</td><td>ส่วนที่ยากที่สุดของการเริ่มใช้ · มาตรฐาน: เดาคอลัมน์ให้อัตโนมัติจากหัวตาราง · แสดงตัวอย่างข้อมูล 5 แถวข้างแต่ละคอลัมน์ · บันทึกเป็นรูปแบบไว้ใช้ซ้ำ</td><td><span class="p p2">P2</span></td></tr>
+      <tr><td><b>ซัพพลายเออร์รายราย · เพิ่ม</b><br><span class="sub">/suppliers/[id] · new</span></td><td>ดูประวัติซื้อ</td><td>รายการรีวิวแล้ว หน้ารายรายยังไม่ · ควรตอบ: ซื้ออะไรบ้าง ราคาเทียบเจ้าอื่น ส่งตรงนัดไหม ค้างจ่ายเท่าไหร่</td><td><span class="p p2">P2</span></td></tr>
+      <tr><td><b>รวมเมนูที่ซ้ำ</b><br><span class="sub">/menus/merges</span></td><td>หลังเพิ่มสาขา</td><td><span class="seen">ช่องค้นหา + ปุ่ม "ค้นหา" แบบเก่า · ระบบรู้อยู่แล้วว่าเมนูไหนน่าจะซ้ำ แต่ไม่เสนอ</span> · ควร: แสดงคู่ที่น่าจะซ้ำให้กดรวมได้เลย</td><td><span class="p p3">P3</span></td></tr>
+      <tr><td><b>สูตรของแปรรูป · เปลี่ยนวัตถุดิบหลายสูตร</b><br><span class="sub">/recipes/[id] · new · substitute</span></td><td>เป็นช่วง ๆ</td><td>หน้าแบบเก่า (เมนูย้ายไปหน้าจัดการเมนูแล้ว) · ควรย้ายสูตรผลิตเข้าแผงสินค้าตามที่ตั้งใจไว้ และทำ "เปลี่ยนวัตถุดิบ" เป็นแผงในหน้าจัดการเมนู</td><td><span class="p p3">P3</span></td></tr>
+      <tr><td><b>รายชื่อพนักงาน (มื้อพนักงาน)</b><br><span class="sub">/staff-meals/people</span></td><td>ตั้งครั้งเดียว</td><td>เล็ก ใช้รูปแบบเดียวกับหน้าตั้งค่าอื่น</td><td><span class="p p3">P3</span></td></tr>
+      <tr><td><b>เข้าสู่ระบบ · สมัคร · เลือกร้าน · ไม่มีสิทธิ์</b><br><span class="sub">/login · /signup · /choose-shop · /denied · /</span></td><td>ความประทับใจแรก</td><td>ยังไม่ได้ดูหลังเปลี่ยนชื่อเป็นคิดครัว · มาตรฐาน magic link: หน้า "เช็กอีเมล" บอกอีเมลที่ส่งไป · ปุ่มส่งใหม่พร้อมนับถอยหลัง · บอกว่าลิงก์หมดอายุเมื่อไหร่ · หน้าไม่มีสิทธิ์บอกว่าต้องขอใคร</td><td><span class="p p2">P2</span></td></tr>
+    </table></div>
+  </section>
+
+  <section class="card">
+    <h2>3. ฟีเจอร์/งานข้ามหน้าที่ยังไม่ได้ปรับ</h2>
+    <ul>
+      <li><b>การเริ่มใช้ครั้งแรก (onboarding):</b> ร้านใหม่เปิดมาเจอหน้าว่าง ไม่มีรายการ "ทำ 5 อย่างนี้แล้วเริ่มใช้ได้" (เพิ่มวัตถุดิบ → ซัพพลายเออร์ → นำเข้ายอดขาย → เขียนสูตร → นับสต๊อกครั้งแรก) — แนวปฏิบัติ B2B: 3–7 ขั้น มีแถบความคืบหน้า และหน้าว่างแต่ละหน้าบอกปุ่มเดียวที่ต้องกด</li>
+      <li><b>มือถือ:</b> ยังไม่เคยไล่ทุกหน้าที่ความกว้างมือถือ — หน้าที่ใช้หน้างาน (นับ ของเสีย ปิดร้าน รับของ ขอซื้อ) สำคัญที่สุด</li>
+      <li><b>รูปถ่าย/ไฟล์แนบ (Tigris):</b> รูปสินค้า · รูปบิลค่าใช้จ่าย · หลักฐานใบโอน · รูปนับเงินปิดร้าน — เลือก vendor แล้ว รอ dependency + .env</li>
+      <li><b>การอ่านที่ยังเป็น Server Action:</b> 16 จุด (สินค้า ใบสั่งซื้อ ตัดสต๊อก ใบขอซื้อ ต้นทุน มื้อพนักงาน เมนู ทดลองเมนู รวมเมนู สต๊อก รับของ นับสต๊อก) — ทำให้ช้า/ค้างได้ ย้ายเป็น GET ตอนรีวิวแต่ละหน้า</li>
+      <li><b>ความเร็ว:</b> ตั้งค่าร้าน ~6 วินาที · แนวโน้มรายสัปดาห์ของต้นทุนตามแผนก ~10 วินาที</li>
+      <li><b>ค้างจากรอบก่อน:</b> สาเหตุการปรับสต๊อกเพิ่ม (คีย์ผิด/เจอของ/ยอดยกมา) · จำนวนลูกค้าจากไฟล์ POS · อีเมลแจ้งจัดซื้อแบบเลือกรายคน · ต้นทุนสาขาอื่นในแผงเมนู · ลองด้วยบัญชีพนักงานครัว/ผู้จัดการในเบราว์เซอร์</li>
+      <li><b>ฟีเจอร์ใหญ่ที่รอหลังรอบ UI (ตามที่คุณ Kong วางลำดับไว้):</b> ADR 0037 รับของ/เจ้าหนี้ · ADR 0038 สิทธิ์ที่ร้านปรับเอง · ขั้นต่ำแยกแผนก · แพ็กเกจราคา · ตรวจสอบการคำนวณ · AI (สรุป P&L อ่านบิล ร่างสูตร)</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2>4. ลำดับที่เสนอ</h2>
+    <ol>
+      <li><b>นำเข้ายอดขาย + ตั้งรูปแบบไฟล์</b> — ใช้บ่อยที่สุดในกลุ่มที่เหลือ และมีปัญหาเห็นชัด (ปุ่มภาษาอังกฤษ · "0 รายการ")</li>
+      <li><b>ตัดสต๊อกตามยอดขาย</b> — เล็ก แก้เร็ว</li>
+      <li><b>ค่าใช้จ่าย</b> (บันทึก · รายใบ · ประจำ) — ใช้ทุกวัน และผูกกับคำเตือนบนแดชบอร์ด</li>
+      <li><b>แผ่นนับสต๊อกบนมือถือ</b></li>
+      <li><b>หน้าเอกสารรายใบ</b> (PO · ใบรับ · ใบโอน) ให้หัวเหมือนกัน + ตัด /cost/[productId] ที่ซ้ำกับบัตรสต๊อก</li>
+      <li><b>ใบขอซื้อ · ซัพพลายเออร์รายราย</b></li>
+      <li><b>ตั้งค่า · คนในร้าน · สาขา · แผนก</b> (แบ่งหมวด บันทึกแบบเดียวกัน)</li>
+      <li><b>เข้าสู่ระบบ/สมัคร + onboarding ครั้งแรก</b> — ควรทำก่อนให้ร้านแรกใช้จริง</li>
+      <li>รวมเมนู · สูตรของแปรรูป · รายชื่อพนักงาน</li>
+      <li>ไล่มือถือทั้งระบบเป็นรอบสุดท้าย</li>
+    </ol>
+  </section>
+
+  <section class="card src">
+    <h2 style="font-size:1rem">แหล่งที่ใช้</h2>
+    <span>นำเข้าไฟล์: <a href="https://blog.csvbox.io/multi-step-import-flow/">CSVBox — multi-step import flow</a> · <a href="https://dromo.io/blog/5-best-practices-to-streamline-your-csv-import-process">Dromo — CSV import best practices</a></span>
+    <span>ค่าใช้จ่าย/บิล: <a href="https://quickbooks.intuit.com/r/expenses/receipt-capture-app/">QuickBooks — receipt capture</a></span>
+    <span>ตั้งค่า/สิทธิ์: <a href="https://saasui.design/blog/saas-permissions-roles-ux-patterns">SaaS UI — permissions & roles patterns</a></span>
+    <span>ใบขอซื้อ: <a href="https://supy.io/en-au/product-features/orders-requisitions">Supy — orders & requisitions</a></span>
+    <span>เข้าสู่ระบบ: <a href="https://workos.com/blog/a-guide-to-magic-links">WorkOS — guide to magic links</a> · <a href="https://appmaster.io/blog/passwordless-magic-links-ux-security-checklist">AppMaster — magic link UX checklist</a></span>
+    <span>เริ่มใช้ครั้งแรก: <a href="https://www.saasui.design/blog/saas-onboarding-ux-examples">SaaS UI — onboarding UX examples</a> · <a href="https://productled.com/blog/5-best-practices-for-better-saas-user-onboarding">ProductLed — onboarding best practices</a></span>
+  </section>
+</div>
