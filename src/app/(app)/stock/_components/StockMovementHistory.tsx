@@ -30,6 +30,8 @@ export type HistoryFilter = {
   branchId?: string;
   type?: string;
   sourceType?: string;
+  /** "เกิดจาก" — a group of source types (MOVEMENT_ORIGINS). */
+  origin?: string;
   dateFrom?: string;
   dateTo?: string;
 };
@@ -131,7 +133,7 @@ export default function StockMovementHistory({
                 </a>
               )}
               <span>{m.occurredAtLabel}</span>
-              <span>· {m.createdBy.name ?? m.createdBy.email}</span>
+              <span>· {m.createdBy.name ?? m.createdBy.email?.split("@")[0]}</span>
             </div>
 
             {/* As-entered qty, when it differs from the base unit stored above. */}

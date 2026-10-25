@@ -61,6 +61,7 @@ export default async function SettingsPage() {
       countVarianceTargetPct: numIn("count_variance_target_pct", 0, 20),
       costCoverageMinPct: numIn("cost_coverage_min_pct", 50, 100, true),
       slowStockDays: numIn("slow_stock_days", 7, 365, true),
+      countCycleDays: numIn("count_cycle_days", 1, 365, true),
     };
     const targetData = Object.fromEntries(Object.entries(costTargets).filter(([, v]) => v !== undefined));
 
@@ -324,6 +325,21 @@ export default async function SettingsPage() {
                 boxClassName="w-28"
               />
               ก่อนถึงขั้นต่ำ
+            </label>
+            <label className="mt-3 flex flex-wrap items-center gap-2 text-sm">
+              นับสต๊อกทุก
+              <MeasureInput
+                name="count_cycle_days"
+                unit="วัน"
+                min={1}
+                max={365}
+                step={1}
+                inputMode="numeric"
+                defaultValue={tenant.countCycleDays}
+                aria-label="นับสต๊อกทุกกี่วัน"
+                boxClassName="w-28"
+              />
+              <span className="text-xs text-muted-foreground">หน้างานสต๊อกเตือนเมื่อนับล่าสุดเก่ากว่านี้</span>
             </label>
             <p className="mt-2 text-xs text-muted-foreground">
               คิดจากปริมาณที่ใช้จริงต่อวัน (จากการตัดสต๊อกตามยอดขาย) · ของที่ยังไม่รู้อัตราการใช้ เตือนเมื่อเหลือไม่ถึง 20% เหนือขั้นต่ำ ·

@@ -452,11 +452,17 @@ export type RecentMovement = {
 };
 
 /** The last few ledger rows at one branch — of one product, or of all (productId null). Newest first. */
-export async function getRecentMovementsLogic(tenantId: string, productId: string | null, branchId: string, take = 5): Promise<RecentMovement[]> {
+export async function getRecentMovementsLogic(
+  tenantId: string,
+  productId: string | null,
+  branchId: string,
+  take = 5,
+  sourceType?: "ADJUSTMENT"
+): Promise<RecentMovement[]> {
   return withTenantContext(tenantId, async (tx) => {
     const rows = await tx.stockMovement.findMany({
-      where: { tenantId, branchId, ...(productId ? { productId } : {}) },
-      orderBy: [{ occurredAt: "desc" }, { createdAt: "desc" }],
+      where: { tenantId, branchId, ...(productId ? { productId } : {}), ...(sourceType ? { sourceType } : {}) },
+      orderBy: sourceType ? [{ createdAt: "desc" }] : [{ occurredAt: "desc" }, { createdAt: "desc" }],
       take,
       select: {
         id: true,
@@ -474,7 +480,8 @@ export async function getRecentMovementsLogic(tenantId: string, productId: strin
       type: m.type,
       sourceType: m.sourceType,
       qty: Number(m.qty),
-      by: m.createdByUser?.name ?? m.createdByUser?.email ?? null,
+      // A person, not an address: the name, else the part before @ (Kong 2026-10-25).
+      by: m.createdByUser?.name ?? m.createdByUser?.email?.split("@")[0] ?? null,
       product: { id: m.product.id, name: m.product.name, unit: m.product.productUnits[0]?.unitName ?? "" },
     }));
   });

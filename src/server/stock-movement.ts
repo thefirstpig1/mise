@@ -45,6 +45,7 @@ import type {
   GetStockBalanceQuery,
   GetStockMovementHistoryQuery,
 } from "@/lib/validations/stock-movement";
+import { MOVEMENT_ORIGINS } from "@/lib/validations/stock-movement";
 
 const ZERO = new Prisma.Decimal(0);
 
@@ -380,6 +381,7 @@ export async function getStockMovementHistoryLogic(
     branchId,
     type,
     sourceType,
+    origin,
     dateFrom,
     dateTo,
     limit,
@@ -401,6 +403,7 @@ export async function getStockMovementHistoryLogic(
             : { branchId: { in: [...reach.allowedBranchIds] } }),
         ...(type ? { type } : {}),
         ...(sourceType ? { sourceType } : {}),
+        ...(origin ? { sourceType: { in: [...MOVEMENT_ORIGINS[origin].sources] } } : {}),
         ...(occurredAt ? { occurredAt } : {}),
       },
       include: {

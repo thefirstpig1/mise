@@ -32,7 +32,7 @@ const day = (iso: string) =>
   new Date(`${iso}T00:00:00Z`).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit", timeZone: "UTC" });
 
 export default async function StockWorkPage({ searchParams }: { searchParams: Promise<{ branch?: string }> }) {
-  const { tenantId, reach, costAccess, can } = await requireTenant("any:member");
+  const { tenantId, reach, costAccess, can, membership } = await requireTenant("any:member");
   const { branch: branchParam } = await searchParams;
 
   const branches = await getBranchesLogic(tenantId, reach);
@@ -42,23 +42,35 @@ export default async function StockWorkPage({ searchParams }: { searchParams: Pr
   const fallbackId = branchParam ? undefined : await liveliestBranchId(tenantId, branches.map((b) => b.id));
   const branch = branches.find((b) => b.id === branchParam) ?? branches.find((b) => b.id === fallbackId) ?? branches[0];
 
-  const [incoming, facts, hub, recent, value] = await Promise.all([
+  const monthStart = (() => {
+    const t = computeBangkokToday();
+    return new Date(Date.UTC(t.getUTCFullYear(), t.getUTCMonth(), 1) - 7 * 3_600_000);
+  })();
+  const [incoming, facts, hub, recent, stock] = await Promise.all([
     getIncomingTransfersLogic(tenantId, branch.id).then((ts) => ts.map((t) => toTransferView(t, costAccess))),
     getProductListFactsLogic(tenantId, branch.id, null),
     getStockHubFactsLogic(tenantId, branch.id),
     getRecentMovementsLogic(tenantId, null, branch.id, 8),
-    costAccess === null
-      ? Promise.resolve(null)
-      : getStockBalancesByBranchLogic(tenantId, branch.id).then(async (balances) => {
-          const costs = await getProductCostsLogic(
-            tenantId,
-            getProductCostsQuerySchema.parse({ productIds: balances.map((b) => b.productId), branchId: branch.id })
-          );
-          let total = 0;
-          for (const c of costs.values()) total += Number(c.inventoryValue);
-          return total;
-        }),
+    getStockBalancesByBranchLogic(tenantId, branch.id).then(async (balances) => {
+      // A negative balance means a movement is missing (a receipt never keyed,
+      // a count mistyped) — the strongest "something is wrong" this page can show.
+      const negative = balances.filter((b) => b.balance.lessThan(0) && b.product.type !== "PREPPED").map((b) => b.product.name);
+      if (costAccess === null) return { negative, value: null as number | null, wasteBaht: null as number | null };
+      const costs = await getProductCostsLogic(
+        tenantId,
+        getProductCostsQuerySchema.parse({ productIds: balances.map((b) => b.productId), branchId: branch.id })
+      );
+      let value = 0;
+      let wasteBaht = 0;
+      for (const c of costs.values()) {
+        value += Number(c.inventoryValue);
+        // This month's waste in baht — the same FIFO walk, no second read.
+        for (const o of c.outflows) if (o.sourceType === "WASTE_LOG" && o.occurredAt >= monthStart) wasteBaht += Number(o.value);
+      }
+      return { negative, value, wasteBaht };
+    }),
   ]);
+  const value = stock.value;
 
   // The same two counts /products floats over its chips (rule PAR-3).
   const kinds = Object.values(facts.facts).map((f) => f.state?.kind ?? null);
@@ -68,17 +80,37 @@ export default async function StockWorkPage({ searchParams }: { searchParams: Pr
   const countAgo = hub.lastCountDate
     ? Math.round((today.getTime() - Date.parse(`${hub.lastCountDate}T00:00:00Z`)) / 86_400_000)
     : null;
+  const cycle = membership.tenant.countCycleDays;
+  const countSub =
+    countAgo === null
+      ? "ยังไม่เคยนับที่สาขานี้"
+      : countAgo > cycle
+        ? `นับล่าสุด ${countAgo} วันก่อน · เลยรอบ ${cycle} วันมา ${countAgo - cycle} วัน`
+        : countAgo >= cycle - 3
+          ? `นับล่าสุด ${countAgo} วันก่อน · ใกล้ครบรอบ ${cycle} วัน`
+          : countAgo === 0
+            ? "นับล่าสุดวันนี้"
+            : `นับล่าสุด ${countAgo} วันก่อน · รอบละ ${cycle} วัน`;
+  const countDue = countAgo === null || countAgo >= cycle - 3;
 
-  const tiles: { href: string; title: string; sub: string; show: boolean; main?: boolean; alert?: boolean }[] = [
+  const tiles: { href: string; title: string; sub: string; show: boolean; main?: boolean; alert?: boolean; daily?: boolean }[] = [
     {
       href: `/stock-counts/new?branch=${branch.id}`,
       title: "นับสต๊อก",
-      sub: countAgo === null ? "ยังไม่เคยนับที่สาขานี้" : countAgo === 0 ? "นับล่าสุดวันนี้" : `นับล่าสุด ${countAgo} วันก่อน`,
+      sub: countSub,
       show: can("count:write"),
       main: true,
+      alert: countDue,
+      daily: true,
     },
-    { href: "/waste", title: "บันทึกของเสีย", sub: `เดือนนี้ ${hub.wasteThisMonth} รายการ`, show: can("stock:write") },
-    { href: "/stock/adjust", title: "ปรับสต๊อก", sub: "ของเกิน/ขาดที่รู้สาเหตุ", show: can("stock:write") },
+    {
+      href: "/waste",
+      title: "บันทึกของเสีย",
+      sub: stock.wasteBaht === null ? `เดือนนี้ ${hub.wasteThisMonth} รายการ` : `เดือนนี้ ${baht(stock.wasteBaht)} · ${hub.wasteThisMonth} รายการ`,
+      show: can("stock:write"),
+      daily: true,
+    },
+    { href: `/stock/adjust?branch=${branch.id}`, title: "ปรับสต๊อก", sub: "ของเกิน/ขาดที่รู้สาเหตุ", show: can("stock:write") },
     {
       href: `/transfers/new?from=${branch.id}`,
       title: "โอนไปสาขาอื่น",
@@ -97,8 +129,9 @@ export default async function StockWorkPage({ searchParams }: { searchParams: Pr
             : "ตัดครบแล้ว · ตัดให้เองตอนนำเข้า",
       show: can("consumption:post"),
       alert: hub.staleDays > 0 || hub.unpostedDays > 0,
+      daily: true,
     },
-    { href: `/stock/history?branch=${branch.id}`, title: "ประวัติการเคลื่อนไหว", sub: "ทุกรายการ แก้ไม่ได้", show: true },
+    { href: `/stock/history?branch=${branch.id}`, title: "ประวัติ / บัตรสต๊อก", sub: "ทุกรายการ พร้อมยอดคงเหลือ", show: true },
   ];
 
   return (
@@ -128,22 +161,38 @@ export default async function StockWorkPage({ searchParams }: { searchParams: Pr
       {/* Part 18 Q8: the receiving half of a transfer appears where the branch looks every day. */}
       <IncomingTransfers transfers={incoming} branchName={branch.name} variant="quiet" />
 
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3">
-        {tiles
-          .filter((t) => t.show)
-          .map((t) => (
-            <a
-              key={t.title}
-              href={t.href}
-              className={`grid gap-0.5 rounded-2xl border p-3.5 transition hover:-translate-y-px hover:shadow-card ${
-                t.main ? "border-primary bg-primary text-primary-foreground" : "border-border bg-surface hover:bg-muted/40"
-              }`}
-            >
-              <span className="font-display font-semibold">{t.title}</span>
-              <span className={`text-xs ${t.main ? "text-primary-foreground/80" : t.alert ? "font-medium text-warn" : "text-muted-subtle"}`}>{t.sub}</span>
-            </a>
-          ))}
-      </div>
+      {(
+        [
+          ["งานประจำ", tiles.filter((t) => t.show && t.daily), "sm:grid-cols-3"],
+          ["งานเป็นครั้งคราว", tiles.filter((t) => t.show && !t.daily), "sm:grid-cols-4"],
+        ] as const
+      ).map(([label, group, cols]) =>
+        group.length === 0 ? null : (
+          <section key={label} className="space-y-2">
+            <h3 className="text-sm font-medium text-muted-foreground">{label}</h3>
+            <div className={`grid grid-cols-2 gap-3 ${cols}`}>
+              {group.map((t) => (
+                <a
+                  key={t.title}
+                  href={t.href}
+                  className={`grid gap-0.5 rounded-2xl border p-3.5 transition hover:-translate-y-px hover:shadow-card ${
+                    t.main ? "border-primary bg-primary text-primary-foreground" : "border-border bg-surface hover:bg-muted/40"
+                  }`}
+                >
+                  <span className="font-display font-semibold">{t.title}</span>
+                  <span
+                    className={`text-xs ${
+                      t.main ? (t.alert ? "font-semibold text-[#F2C66D]" : "text-primary-foreground/80") : t.alert ? "font-medium text-warn" : "text-muted-subtle"
+                    }`}
+                  >
+                    {t.sub}
+                  </span>
+                </a>
+              ))}
+            </div>
+          </section>
+        )
+      )}
 
       <div className="grid gap-4 lg:grid-cols-[1.3fr_1fr]">
         <section className="rounded-2xl border border-border bg-surface p-4">
@@ -188,8 +237,17 @@ export default async function StockWorkPage({ searchParams }: { searchParams: Pr
           )}
           <section className="rounded-2xl border border-border bg-surface p-4">
             <h3 className="font-semibold">ต้องดู</h3>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {stock.negative.length > 0 ? (
+                <a href="/products?filter=out" className="whitespace-nowrap rounded-full bg-bad-bg px-3 py-1 text-sm font-medium text-bad hover:underline" title={stock.negative.join(", ")}>
+                  ติดลบ {stock.negative.length}
+                </a>
+              ) : (
+                <span className="whitespace-nowrap rounded-full bg-good-bg px-3 py-1 text-sm text-good">ไม่มีของติดลบ</span>
+              )}
+            </div>
             {low === 0 && near === 0 ? (
-              <p className="mt-1 text-sm text-muted-foreground">ไม่มีของต่ำกว่าหรือใกล้ขั้นต่ำ</p>
+              <p className="mt-2 text-sm text-muted-foreground">ไม่มีของต่ำกว่าหรือใกล้ขั้นต่ำ</p>
             ) : (
               <div className="mt-2 flex flex-wrap gap-2">
                 {low > 0 && (
@@ -204,7 +262,9 @@ export default async function StockWorkPage({ searchParams }: { searchParams: Pr
                 )}
               </div>
             )}
-            <p className="mt-2 text-xs text-muted-subtle">กดแล้วไปหน้าสินค้าที่กรองไว้ — ขอซื้อได้จากตรงนั้น</p>
+            <p className="mt-2 text-xs text-muted-subtle">
+              <b>ติดลบ</b> = ระบบคิดว่าใช้มากกว่าที่มี แปลว่ามีรายการตกหล่น (เช่น รับของแล้วไม่ได้บันทึก) · กดแล้วไปหน้าสินค้าที่กรองไว้ — ขอซื้อได้จากตรงนั้น
+            </p>
           </section>
         </div>
       </div>

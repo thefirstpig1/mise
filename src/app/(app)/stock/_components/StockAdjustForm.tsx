@@ -93,6 +93,7 @@ export default function StockAdjustForm({
   todayBangkok,
   fetchBalance,
   fetchCost,
+  initialBranchId,
 }: {
   action: (
     prev: StockAdjustmentActionState,
@@ -117,6 +118,8 @@ export default function StockAdjustForm({
     | { ok: true; data: { costPerBaseUnit: string; costSourceLabel: string } }
     | { ok: false; formError: string }
   >;
+  /** `?branch=` — the branch the person came from (the งานสต๊อก hub). */
+  initialBranchId?: string;
 }) {
   const [state, formAction, isPending] = useActionState(
     action,
@@ -128,8 +131,16 @@ export default function StockAdjustForm({
   const [submitKey, setSubmitKey] = useState(newSubmitKey);
 
   const [productId, setProductId] = useState("");
-  const [branchId, setBranchId] = useState(branches[0]?.id ?? "");
-  const [type, setType] = useState<AdjustmentType>("ADJUST_GAIN");
+  const [branchId, setBranchId] = useState(
+    branches.find((b) => b.id === initialBranchId)?.id ?? branches[0]?.id ?? ""
+  );
+  // Kong 2026-10-25 (stock mockup XYYyUgNP18V4HL3vUwrUf1): no direction is
+  // pre-chosen — "ปรับเพิ่ม" by default added stock to anyone who pressed save
+  // without looking. And the usual case is "this is what is really there", so
+  // that is the first mode: type what you see, the system works out the change.
+  const [mode, setMode] = useState<"counted" | "delta">("counted");
+  const [counted, setCounted] = useState("");
+  const [type, setType] = useState<AdjustmentType | null>(null);
   const [qty, setQty] = useState("");
   const [unitId, setUnitId] = useState("");
   const [confirmedNegative, setConfirmedNegative] = useState(false);
@@ -208,18 +219,24 @@ export default function StockAdjustForm({
   const unit = product?.units.find((u) => u.id === unitId);
   const qtyNum = Number(qty);
   const hasQty = qty.trim() !== "" && Number.isFinite(qtyNum) && qtyNum > 0;
-  const deltaBase =
-    hasQty && unit
-      ? (type === "ADJUST_LOSS" ? -1 : 1) * qtyNum * Number(unit.toBaseRatio)
-      : 0;
   const currentBase = balance ? Number(balance.balance) : 0;
+  const baseUnit = product?.units.find((u) => u.isBase) ?? null;
+  const countedNum = Number(counted);
+  const hasCounted = counted.trim() !== "" && Number.isFinite(countedNum) && countedNum >= 0 && balance !== null;
+  const countedDelta = hasCounted ? Math.round((countedNum - currentBase) * 1000) / 1000 : 0;
+  const deltaBase =
+    mode === "counted"
+      ? countedDelta
+      : hasQty && unit && type
+        ? (type === "ADJUST_LOSS" ? -1 : 1) * qtyNum * Number(unit.toBaseRatio)
+        : 0;
   const previewBase = currentBase + deltaBase;
-  const willGoNegative = hasQty && balance !== null && previewBase < 0;
+  const willGoNegative = (mode === "counted" ? hasCounted : hasQty) && balance !== null && previewBase < 0;
 
   // A new selection invalidates a confirmation given for the previous preview.
   useEffect(() => {
     setConfirmedNegative(false);
-  }, [productId, branchId, type, qty, unitId]);
+  }, [productId, branchId, type, qty, unitId, mode, counted]);
 
   // Successive entry: keep product/branch/date, clear qty + notes, refocus qty.
   // The key rotates HERE, in the same effect: the previous key is now spent (it
@@ -228,6 +245,7 @@ export default function StockAdjustForm({
   useEffect(() => {
     if (!state.ok) return;
     setQty("");
+    setCounted("");
     if (notesRef.current) notesRef.current.value = "";
     if (costRef.current) costRef.current.value = "";
     if (costNoteRef.current) costNoteRef.current.value = "";
@@ -345,63 +363,107 @@ export default function StockAdjustForm({
         </div>
       )}
 
-      {/* --- direction --- */}
+      {/* --- how: what is really there, or by how much --- */}
       <fieldset>
-        <legend className="label">
-          ประเภทการปรับ <span className="text-bad">*</span>
-        </legend>
-        <div className="mt-2 flex gap-4">
-          {ADJUSTMENT_TYPE_VALUES.map((t) => (
-            <label key={t} className="flex items-center gap-2 text-sm">
-              <input
-                type="radio"
-                name="type"
-                value={t}
-                checked={type === t}
-                onChange={() => setType(t)}
-              />
-              {ADJUSTMENT_TYPE_LABELS_TH[t]}
-            </label>
+        <legend className="label">ปรับยังไง</legend>
+        <div className="mt-2 grid gap-2 sm:grid-cols-2">
+          {(
+            [
+              ["counted", "ตั้งเป็นยอดที่มีจริง", "พิมพ์ว่าเหลือเท่าไหร่ ระบบคิดส่วนต่างให้"],
+              ["delta", "เพิ่ม / ลด เท่านี้", "รู้จำนวนที่เปลี่ยน"],
+            ] as const
+          ).map(([m, title, hint]) => (
+            <button
+              key={m}
+              type="button"
+              onClick={() => setMode(m)}
+              className={`rounded-xl border-2 p-3 text-left text-sm ${mode === m ? "border-primary bg-primary/5" : "border-border-strong"}`}
+            >
+              <b>{title}</b>
+              <span className="block text-xs text-muted-foreground">{hint}</span>
+            </button>
           ))}
         </div>
-        {err("type") && <p className={errorClass}>{err("type")}</p>}
       </fieldset>
 
-      {/* --- how much, in which unit --- */}
-      <div className="grid grid-cols-2 gap-4">
+      {mode === "counted" ? (
         <div>
-          <label htmlFor="input_qty" className="label">
-            จำนวน <span className="text-bad">*</span>
+          <label htmlFor="counted_qty" className="label">
+            มีจริงตอนนี้ <span className="text-bad">*</span>
           </label>
-          <QtyStepper
-            inputRef={qtyRef}
-            value={qty}
-            onChange={setQty}
-            label="จำนวน"
-            className="mt-1"
-            inputProps={{ id: "input_qty", name: "input_qty", required: true }}
-          />
+          <div className="mt-1 flex items-center gap-2">
+            <QtyStepper inputRef={qtyRef} value={counted} onChange={setCounted} label="มีจริงตอนนี้" inputProps={{ id: "counted_qty" }} />
+            <span className="text-sm text-muted-foreground">{baseUnitLabel || "หน่วยหลัก"}</span>
+          </div>
+          {/* What the server receives is the CHANGE — the same three fields the
+              delta mode posts, worked out here from what was typed. */}
+          <input type="hidden" name="type" value={countedDelta < 0 ? "ADJUST_LOSS" : "ADJUST_GAIN"} />
+          <input type="hidden" name="input_qty" value={hasCounted && countedDelta !== 0 ? String(Math.abs(countedDelta)) : ""} />
+          <input type="hidden" name="input_unit_id" value={baseUnit?.id ?? ""} />
+          {hasCounted && (
+            <p className={`mt-2 rounded-lg px-3 py-2 text-sm ${countedDelta === 0 ? "bg-good-bg text-good" : "bg-bad-bg text-bad"}`}>
+              ระบบ {fmt(currentBase)} → จริง {fmt(countedNum)} {baseUnitLabel} ·{" "}
+              <b>{countedDelta === 0 ? "ตรงกับระบบแล้ว ไม่ต้องปรับ" : `${countedDelta < 0 ? "ปรับลด" : "ปรับเพิ่ม"} ${fmt(Math.abs(countedDelta))} ${baseUnitLabel}`}</b>
+              {countedDelta !== 0 && defaultCost && (
+                <span> · ≈ ฿{Math.round(Math.abs(countedDelta) * Number(defaultCost.costPerBaseUnit)).toLocaleString("th-TH")}</span>
+              )}
+            </p>
+          )}
           {err("inputQty") && <p className={errorClass}>{err("inputQty")}</p>}
         </div>
+      ) : (
+        <>
+          <fieldset>
+            <legend className="label">
+              ประเภทการปรับ <span className="text-bad">*</span>
+            </legend>
+            <div className="mt-2 flex gap-4">
+              {ADJUSTMENT_TYPE_VALUES.map((t) => (
+                <label key={t} className="flex items-center gap-2 text-sm">
+                  <input type="radio" name="type" value={t} checked={type === t} onChange={() => setType(t)} required />
+                  {ADJUSTMENT_TYPE_LABELS_TH[t]}
+                </label>
+              ))}
+            </div>
+            {err("type") && <p className={errorClass}>{err("type")}</p>}
+          </fieldset>
 
-        <div>
-          <label htmlFor="input_unit_id" className="label">
-            หน่วย <span className="text-bad">*</span>
-          </label>
-          <SelectChip
-            value={unitId}
-            onChange={setUnitId}
-            placeholder={product ? "หน่วย" : "เลือกวัตถุดิบก่อน"}
-            options={(product?.units ?? []).map((u) => ({ value: u.id, label: u.isBase ? `${u.unitName} (หน่วยหลัก)` : u.unitName }))}
-            className="mt-1 w-56"
-            selectProps={{ id: "input_unit_id", name: "input_unit_id", required: true, disabled: !product }}
-          />
-          {err("inputUnitId") && <p className={errorClass}>{err("inputUnitId")}</p>}
-        </div>
-      </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="input_qty" className="label">
+                จำนวน <span className="text-bad">*</span>
+              </label>
+              <QtyStepper
+                inputRef={qtyRef}
+                value={qty}
+                onChange={setQty}
+                label="จำนวน"
+                className="mt-1"
+                inputProps={{ id: "input_qty", name: "input_qty", required: true }}
+              />
+              {err("inputQty") && <p className={errorClass}>{err("inputQty")}</p>}
+            </div>
+
+            <div>
+              <label htmlFor="input_unit_id" className="label">
+                หน่วย <span className="text-bad">*</span>
+              </label>
+              <SelectChip
+                value={unitId}
+                onChange={setUnitId}
+                placeholder={product ? "หน่วย" : "เลือกวัตถุดิบก่อน"}
+                options={(product?.units ?? []).map((u) => ({ value: u.id, label: u.isBase ? `${u.unitName} (หน่วยหลัก)` : u.unitName }))}
+                className="mt-1 w-56"
+                selectProps={{ id: "input_unit_id", name: "input_unit_id", required: true, disabled: !product }}
+              />
+              {err("inputUnitId") && <p className={errorClass}>{err("inputUnitId")}</p>}
+            </div>
+          </div>
+        </>
+      )}
 
       {/* --- preview: the consequence, before the write --- */}
-      {hasQty && balance && unit && (
+      {mode === "delta" && hasQty && balance && unit && type && (
         <div
           className={`rounded-lg border p-3 text-sm ${
             willGoNegative
@@ -419,7 +481,7 @@ export default function StockAdjustForm({
               {fmt(Math.abs(deltaBase))})
             </span>
           </div>
-          {!unit.isBase && (
+          {unit && !unit.isBase && (
             <div className="mt-1 text-xs text-muted-foreground">
               {qty} {unit.unitName} = {fmt(Math.abs(deltaBase))} {baseUnitLabel}
             </div>
@@ -449,10 +511,13 @@ export default function StockAdjustForm({
         <select
           id="reason"
           name="reason"
-          defaultValue="RECOUNT"
+          defaultValue=""
           className={"input w-full mt-1"}
           required
         >
+          <option value="" disabled>
+            เลือกสาเหตุ
+          </option>
           {/* Part 17 Q4: SPOILAGE and DAMAGE are gone from this list. An
               adjustment is a CORRECTION; throwing food away is an event, and it
               has its own document now. */}
@@ -468,7 +533,11 @@ export default function StockAdjustForm({
           <a href="/waste" className="text-primary hover:underline">
             ของเสีย
           </a>{" "}
-          — จะได้แยกออกจากของที่หายโดยไม่รู้สาเหตุในรายงานต้นทุน
+          — จะได้แยกออกจากของที่หายโดยไม่รู้สาเหตุในรายงานต้นทุน · นับทั้งร้านใหม่? ใช้หน้า{" "}
+          <a href="/stock-counts/new" className="text-primary hover:underline">
+            นับสต๊อก
+          </a>{" "}
+          — ได้เอกสารและรายการขาด/เกินครบ
         </p>
       </div>
 
@@ -587,7 +656,7 @@ export default function StockAdjustForm({
       <div className="flex items-center gap-3">
         <button
           type="submit"
-          disabled={isPending || blockedByNegative}
+          disabled={isPending || blockedByNegative || (mode === "counted" && (!hasCounted || countedDelta === 0))}
           className="btn"
         >
           {isPending ? "กำลังบันทึก…" : "บันทึกการปรับสต๊อก"}

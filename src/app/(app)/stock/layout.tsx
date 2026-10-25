@@ -6,7 +6,7 @@ import PageFrame from "@/components/layout/PageFrame";
 // Part 35 L4: the header and "← กลับหน้าหลัก" moved into the sidebar.
 export default function StockLayout({ children }: { children: ReactNode }) {
   return (
-    <PageFrame title="สต๊อก" width="3xl">
+    <PageFrame title="สต๊อก" width="5xl">
       {children}
     </PageFrame>
   );

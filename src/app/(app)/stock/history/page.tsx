@@ -11,14 +11,11 @@ import { requireTenant } from "@/lib/require-tenant";
 import { getBranchesLogic } from "@/server/branch";
 import { getProductsLogic } from "@/server/product";
 import ProductFilter from "./_components/ProductFilter";
-import { getStockMovementHistoryLogic } from "@/server/stock-movement";
-import {
-  getStockMovementHistoryQuerySchema,
-  MOVEMENT_TYPE_LABELS_TH,
-  MOVEMENT_TYPE_VALUES,
-  SOURCE_TYPE_LABELS_TH,
-  SOURCE_TYPE_VALUES,
-} from "@/lib/validations/stock-movement";
+import { getStockBalanceLogic, getStockMovementHistoryLogic } from "@/server/stock-movement";
+import { getStockCardLogic } from "@/server/stock-card";
+import StockCardTable from "./_components/StockCardTable";
+import { addDays, computeBangkokToday } from "@/lib/bangkok-date";
+import { getStockMovementHistoryQuerySchema, MOVEMENT_ORIGINS, MOVEMENT_ORIGIN_VALUES } from "@/lib/validations/stock-movement";
 import { toStockMovementView } from "../_components/stock-view";
 import StockMovementHistory, {
   type HistoryFilter,
@@ -33,11 +30,12 @@ export default async function StockHistoryPage({
     branch?: string;
     type?: string;
     source?: string;
+    origin?: string;
     from?: string;
     to?: string;
   }>;
 }) {
-  const { tenantId, reach} = await requireTenant("any:member");
+  const { tenantId, reach, costAccess } = await requireTenant("any:member");
   const sp = await searchParams;
 
   // The URL is user-editable, so it is parsed, not trusted. A malformed filter
@@ -48,6 +46,7 @@ export default async function StockHistoryPage({
     branchId: sp.branch,
     type: sp.type,
     sourceType: sp.source,
+    origin: sp.origin,
     dateFrom: sp.from,
     dateTo: sp.to,
   });
@@ -55,10 +54,20 @@ export default async function StockHistoryPage({
     ? parsed.data
     : getStockMovementHistoryQuerySchema.parse({});
 
-  const [products, branches, page] = await Promise.all([
-    getProductsLogic(tenantId),
-    getBranchesLogic(tenantId, reach),
-    getStockMovementHistoryLogic(tenantId, query, reach),
+  const [products, branches] = await Promise.all([getProductsLogic(tenantId), getBranchesLogic(tenantId, reach)]);
+
+  // Kong 2026-10-25: one product at one branch IS a stock card — the kardex,
+  // balance after every row. With several branches in reach a card needs one named.
+  const cardBranchId = query.productId ? (query.branchId ?? (branches.length === 1 ? branches[0].id : null)) : null;
+  const today = computeBangkokToday();
+  const cardFrom = query.dateFrom ?? addDays(today, -30);
+  const cardTo = query.dateTo ?? today;
+  const [page, card, onHand] = await Promise.all([
+    cardBranchId ? Promise.resolve(null) : getStockMovementHistoryLogic(tenantId, query, reach),
+    cardBranchId
+      ? getStockCardLogic(tenantId, { productId: query.productId!, branchId: cardBranchId, from: cardFrom, to: cardTo, withCost: costAccess !== null })
+      : Promise.resolve(null),
+    cardBranchId ? getStockBalanceLogic(tenantId, { productId: query.productId!, branchId: cardBranchId }).then((b) => Number(b.balance)).catch(() => null) : Promise.resolve(null),
   ]);
 
   // Only the filters the schema accepted are replayed for the next page.
@@ -67,6 +76,7 @@ export default async function StockHistoryPage({
     ...(query.branchId ? { branchId: query.branchId } : {}),
     ...(query.type ? { type: query.type } : {}),
     ...(query.sourceType ? { sourceType: query.sourceType } : {}),
+    ...(query.origin ? { origin: query.origin } : {}),
     ...(query.dateFrom ? { dateFrom: query.dateFrom.toISOString() } : {}),
     ...(query.dateTo ? { dateTo: query.dateTo.toISOString() } : {}),
   };
@@ -80,7 +90,7 @@ export default async function StockHistoryPage({
         <div>
           <h2 className="text-xl font-bold">ประวัติการเคลื่อนไหว</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            บันทึกถาวร แก้ไขหรือลบไม่ได้ — การแก้ทำโดยบันทึกรายการปรับกลับ
+            บันทึกถาวร แก้ไขหรือลบไม่ได้ — การแก้ทำโดยบันทึกรายการปรับกลับ · เลือกวัตถุดิบตัวเดียว = บัตรสต๊อก พร้อมยอดคงเหลือ
           </p>
         </div>
         <a
@@ -130,36 +140,27 @@ export default async function StockHistoryPage({
           </select>
         </label>
 
-        <label className="flex flex-col gap-1 text-xs text-muted-foreground">
-          ประเภท
-          <select name="type" defaultValue={sp.type ?? ""} className="input">
-            <option value="">ทั้งหมด</option>
-            {MOVEMENT_TYPE_VALUES.map((t) => (
-              <option key={t} value={t}>
-                {MOVEMENT_TYPE_LABELS_TH[t]}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="flex flex-col gap-1 text-xs text-muted-foreground">
-          แหล่งที่มา
-          <select name="source" defaultValue={sp.source ?? ""} className="input">
-            <option value="">ทั้งหมด</option>
-            {SOURCE_TYPE_VALUES.map((s) => (
-              <option key={s} value={s}>
-                {SOURCE_TYPE_LABELS_TH[s]}
-              </option>
-            ))}
-          </select>
-        </label>
+        {/* Kong 2026-10-25: one "เกิดจาก" instead of ประเภท + แหล่งที่มา, which overlapped. */}
+        <fieldset className="flex w-full flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+          <legend className="sr-only">เกิดจาก</legend>
+          <span className="mr-1">เกิดจาก</span>
+          {([["", "ทั้งหมด"], ...MOVEMENT_ORIGIN_VALUES.map((o) => [o, MOVEMENT_ORIGINS[o].label] as const)] as const).map(([v, l]) => (
+            <label
+              key={v || "all"}
+              className="cursor-pointer whitespace-nowrap rounded-full border border-border-strong bg-surface px-3 py-1 text-sm text-foreground has-[:checked]:border-primary has-[:checked]:bg-primary has-[:checked]:text-primary-foreground"
+            >
+              <input type="radio" name="origin" value={v} defaultChecked={(query.origin ?? "") === v} className="sr-only" />
+              {l}
+            </label>
+          ))}
+        </fieldset>
 
         <label className="flex flex-col gap-1 text-xs text-muted-foreground">
           ตั้งแต่
           <input
             type="date"
             name="from"
-            defaultValue={asDateValue(query.dateFrom)}
+            defaultValue={asDateValue(query.dateFrom ?? (query.productId ? cardFrom : undefined))}
             className="input"
           />
         </label>
@@ -169,7 +170,7 @@ export default async function StockHistoryPage({
           <input
             type="date"
             name="to"
-            defaultValue={asDateValue(query.dateTo)}
+            defaultValue={asDateValue(query.dateTo ?? (query.productId ? cardTo : undefined))}
             className="input"
           />
         </label>
@@ -188,11 +189,30 @@ export default async function StockHistoryPage({
         </a>
       </form>
 
-      <StockMovementHistory
-        initialRows={page.rows.map(toStockMovementView)}
-        initialCursor={page.nextCursor}
-        filter={filter}
-      />
+      {query.productId && !cardBranchId && (
+        <p className="rounded-lg border border-border bg-muted/30 p-3 text-sm text-muted-foreground">เลือกสาขาเพื่อดูบัตรสต๊อกของวัตถุดิบนี้ (ยอดคงเหลือนับแยกสาขา)</p>
+      )}
+      {card ? (
+        <section className="space-y-2">
+          <h3 className="font-semibold">
+            บัตรสต๊อก · {card.product.name} · {branches.find((b) => b.id === cardBranchId)?.name}
+          </h3>
+          <StockCardTable
+            card={card}
+            from={cardFrom.toISOString().slice(0, 10)}
+            to={cardTo.toISOString().slice(0, 10)}
+            onHandNow={onHand}
+            showCost={costAccess !== null}
+            originSources={query.origin ? MOVEMENT_ORIGINS[query.origin].sources : null}
+          />
+        </section>
+      ) : page ? (
+        <StockMovementHistory
+          initialRows={page.rows.map(toStockMovementView)}
+          initialCursor={page.nextCursor}
+          filter={filter}
+        />
+      ) : null}
     </div>
   );
 }

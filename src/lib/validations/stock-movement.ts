@@ -214,7 +214,7 @@ export const ADJUSTMENT_REASON_LABELS_TH: Record<
   (typeof ADJUSTMENT_REASON_VALUES)[number],
   string
 > = {
-  RECOUNT: "นับสต๊อกใหม่",
+  RECOUNT: "นับใหม่ (รายการเดียว)",
   SPOILAGE: "ของเสีย/หมดอายุ",
   DAMAGE: "ของชำรุด",
   OTHER: "อื่น ๆ",
@@ -408,8 +408,27 @@ export const HISTORY_MAX_LIMIT = 100;
  * `effectiveTo > effectiveFrom` in supplier-product-mapping.ts — that one guards
  * a price validity window, this one is a display filter.
  */
+/**
+ * "เกิดจาก" — what a person means by where a movement came from (Kong
+ * 2026-10-25). Replaces the two filters that overlapped ("ประเภท" ปรับลด and
+ * "แหล่งที่มา" นับสต๊อก described the same row). A transfer is three source
+ * types; a person asks for one thing.
+ */
+export const MOVEMENT_ORIGINS = {
+  receive: { label: "รับของ", sources: ["GR_LINE"] },
+  sale: { label: "ขาย (ตัดตามสูตร)", sources: ["SALES_CONSUMPTION"] },
+  count: { label: "นับสต๊อก", sources: ["STOCK_COUNT"] },
+  waste: { label: "ของเสีย", sources: ["WASTE_LOG"] },
+  adjust: { label: "ปรับ", sources: ["ADJUSTMENT", "SYSTEM_INITIAL"] },
+  transfer: { label: "โอน", sources: ["TRANSFER_OUT", "TRANSFER_IN", "TRANSFER_SHORTAGE"] },
+  staff: { label: "มื้อพนักงาน", sources: ["STAFF_MEAL"] },
+} as const satisfies Record<string, { label: string; sources: readonly SourceType[] }>;
+export type MovementOrigin = keyof typeof MOVEMENT_ORIGINS;
+export const MOVEMENT_ORIGIN_VALUES = Object.keys(MOVEMENT_ORIGINS) as [MovementOrigin, ...MovementOrigin[]];
+
 export const getStockMovementHistoryQuerySchema = z
   .object({
+    origin: z.preprocess(blankToUndefined, z.enum(MOVEMENT_ORIGIN_VALUES).optional()),
     productId: z.preprocess(
       blankToUndefined,
       z.string().uuid("วัตถุดิบไม่ถูกต้อง").optional()

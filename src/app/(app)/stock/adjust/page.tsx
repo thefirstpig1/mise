@@ -13,6 +13,9 @@ import { requireTenant } from "@/lib/require-tenant";
 import { computeBangkokToday } from "@/lib/bangkok-date";
 import { getProductsLogic } from "@/server/product";
 import { getBranchesLogic } from "@/server/branch";
+import { getRecentMovementsLogic } from "@/server/product-list";
+import { ADJUSTMENT_TYPE_LABELS_TH } from "@/lib/validations/stock-movement";
+import { unitTh } from "@/app/(app)/menus/_components/manager-format";
 import { createStockAdjustmentAction, getStockBalanceAction } from "../actions";
 import { getProductCostAction } from "@/app/(app)/cost/actions";
 import StockAdjustForm, {
@@ -21,13 +24,18 @@ import StockAdjustForm, {
 } from "../_components/StockAdjustForm";
 
 import EmptyState from "@/components/ui/EmptyState";
-export default async function StockAdjustPage() {
-  const { tenantId, reach} = await requireTenant("stock:write");
+export default async function StockAdjustPage({ searchParams }: { searchParams: Promise<{ branch?: string }> }) {
+  const { tenantId, reach } = await requireTenant("stock:write");
+  const sp = await searchParams;
 
   const [products, branches] = await Promise.all([
     getProductsLogic(tenantId),
     getBranchesLogic(tenantId, reach),
   ]);
+  const initialBranchId = branches.find((b) => b.id === sp.branch)?.id ?? branches[0]?.id;
+  // Kong 2026-10-25: what was adjusted lately, beside the form — so nobody
+  // records the same correction twice.
+  const recent = initialBranchId ? await getRecentMovementsLogic(tenantId, null, initialBranchId, 10, "ADJUSTMENT") : [];
 
   // getProductsLogic orders by category tree (built for the product page); a
   // picker reads better by name.
@@ -80,14 +88,43 @@ export default async function StockAdjustPage() {
           </a>
         </EmptyState>
       ) : (
-        <StockAdjustForm
-          action={createStockAdjustmentAction}
-          products={productOptions}
-          branches={branchOptions}
-          todayBangkok={todayBangkok}
-          fetchBalance={getStockBalanceAction}
-          fetchCost={getProductCostAction}
-        />
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <StockAdjustForm
+            action={createStockAdjustmentAction}
+            products={productOptions}
+            branches={branchOptions}
+            todayBangkok={todayBangkok}
+            fetchBalance={getStockBalanceAction}
+            fetchCost={getProductCostAction}
+            initialBranchId={initialBranchId}
+          />
+          <aside className="h-fit rounded-xl border border-border bg-surface p-4 text-sm">
+            <h3 className="font-semibold">ปรับล่าสุด · {branches.find((b) => b.id === initialBranchId)?.name}</h3>
+            {recent.length === 0 ? (
+              <p className="mt-1 text-muted-foreground">ยังไม่เคยปรับสต๊อกที่สาขานี้</p>
+            ) : (
+              <ul className="mt-2 divide-y divide-border">
+                {recent.map((m) => (
+                  <li key={m.id} className="flex items-baseline justify-between gap-2 py-1.5">
+                    <span className="min-w-0">
+                      {m.product.name}
+                      <span className="block text-xs text-muted-subtle">
+                        {ADJUSTMENT_TYPE_LABELS_TH[m.type as keyof typeof ADJUSTMENT_TYPE_LABELS_TH] ?? m.type} ·{" "}
+                        {new Date(`${m.date}T00:00:00Z`).toLocaleDateString("th-TH", { day: "numeric", month: "short", timeZone: "UTC" })}
+                        {m.by ? ` · ${m.by}` : ""}
+                      </span>
+                    </span>
+                    <span className={`whitespace-nowrap tabular-nums ${m.qty < 0 ? "text-bad" : "text-good"}`}>
+                      {m.qty > 0 ? "+" : ""}
+                      {m.qty.toLocaleString("th-TH", { maximumFractionDigits: 3 })} {unitTh(m.product.unit)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <p className="mt-2 text-xs text-muted-subtle">ดูก่อนบันทึก — กันปรับซ้ำ</p>
+          </aside>
+        </div>
       )}
     </div>
   );

@@ -105,6 +105,8 @@ model Tenant {
   costCoverageMinPct Int @default(90) @map("cost_coverage_min_pct")
   /// Stock whose oldest remaining lot is older than this is "ค้างนาน".
   slowStockDays Int @default(45) @map("slow_stock_days")
+  /// Kong 2026-10-25: how often the shop means to count (days); the hub warns past it.
+  countCycleDays Int @default(30) @map("count_cycle_days")
   /// Kong 2026-10-25 (ADR 0042): the ปิดร้านประจำวัน add-on. Off = the dashboard keys the till total as before.
   dailyCloseEnabled Boolean @default(false) @map("daily_close_enabled")
 
