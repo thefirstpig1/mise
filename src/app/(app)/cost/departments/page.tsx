@@ -1,132 +1,63 @@
-// Sprint 7 Part 32 L4 — ต้นทุนและรายได้ต่อแผนก (ADR 0032).
+// /cost/departments — ต้นทุนตามแผนก, built from the questions owners ask
+// (Kong 2026-10-25 "เริ่มเลย"; mockup X2ShNU69NhR3VdeTBm1Fnf, brief
+// UquT29bbnRBaE6bkTuRsoP). The figures stream in after the frame paints; the
+// trend (question 3) loads itself over GET once the page is up.
 //
-// A separate route rather than a section of /cost, and deliberately so: /cost
-// is the heaviest page in the system, and this adds a recipe explosion per
-// resolution segment on top of it. A shop that does not use departments should
-// not pay for one, and one that does should choose when to.
+// Opens on the branch that sells and the period that holds its latest sales —
+// not "the last 30 days", which was an empty table on the demo shop.
 //
-// `searchParams` is a PROMISE in Next 15 — the plain-object signature passes
-// `pnpm tsc` and fails `pnpm build` (the Part 10 L5a discovery).
+// `searchParams` is a PROMISE in Next 15.
 
+import { Suspense } from "react";
 import { requireTenant } from "@/lib/require-tenant";
 import { withTenantContext } from "@/lib/db";
-import { liveliestBranchId } from "@/server/branch";
-import { computeBangkokToday, addDays } from "@/lib/bangkok-date";
-import { branchScopeWhere } from "@/lib/permissions/service";
-import { getDepartmentReportLogic } from "@/server/department-read";
-import DepartmentTable from "./_components/DepartmentTable";
-
-const iso = (d: Date) => d.toISOString().slice(0, 10);
-const parseDay = (s: string | undefined, fallback: Date): Date => {
-  if (!s || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return fallback;
-  const d = new Date(`${s}T00:00:00.000Z`);
-  return Number.isNaN(d.getTime()) ? fallback : d;
-};
+import { computeBangkokToday } from "@/lib/bangkok-date";
+import { getBranchesLogic, liveliestBranchId } from "@/server/branch";
+import { monthRanges, weekRanges } from "@/server/cost-overview";
+import { getDepartmentOverviewLogic } from "@/server/department-overview";
+import DepartmentOverview from "./_components/DepartmentOverview";
 
 export default async function DepartmentCostPage({
   searchParams,
 }: {
-  searchParams: Promise<{ from?: string; to?: string; branch?: string }>;
+  searchParams: Promise<{ branch?: string; view?: string; p?: string }>;
 }) {
   const { tenantId, reach, membership } = await requireTenant("cost:view");
-  const params = await searchParams;
+  const sp = await searchParams;
+  const branches = await getBranchesLogic(tenantId, reach);
+  if (branches.length === 0) return <p className="text-sm text-muted-foreground">ยังไม่มีสาขา</p>;
+  const fallback = sp.branch ? undefined : await liveliestBranchId(tenantId, branches.map((b) => b.id));
+  const branch = branches.find((b) => b.id === sp.branch) ?? branches.find((b) => b.id === fallback) ?? branches[0];
 
+  const view: "month" | "week" = sp.view === "week" ? "week" : "month";
   const today = computeBangkokToday();
-  const from = parseDay(params.from, addDays(today, -30));
-  const to = parseDay(params.to, today);
+  // One extra in front, so the first bucket shown still has a "period before".
+  const all = view === "week" ? weekRanges(today, 13) : monthRanges(today, 7);
+  const shown = all.slice(1);
 
-  const departmentsOn = membership.tenant.enableDepartments;
-
-  const branches = await withTenantContext(tenantId, (tx) =>
-    tx.branch.findMany({
-      where: { tenantId, deletedAt: null, ...branchScopeWhere(reach) },
-      select: { id: true, name: true },
-      orderBy: { name: "asc" },
-    })
+  const latest = await withTenantContext(tenantId, (tx) =>
+    tx.salesLine.findFirst({ where: { tenantId, branchId: branch.id, supersededAt: null }, orderBy: { businessDate: "desc" }, select: { businessDate: true } })
   );
+  const holding = latest ? shown.findLast((b) => b.from.getTime() <= latest.businessDate.getTime()) : undefined;
+  const selected = shown.find((b) => b.key === sp.p) ?? holding ?? shown[shown.length - 1];
+  const idx = all.findIndex((b) => b.key === selected.key);
+  const previous = all[idx - 1];
 
-  // Cost needs a branch (ADR 0014 Q9) — this page never averages across them,
-  // it names the one it is showing. First in reach unless the URL says another.
-  const branchId =
-    branches.find((b) => b.id === params.branch)?.id ?? (await liveliestBranchId(tenantId, branches.map((b) => b.id))) ?? null;
-
-  const report =
-    branchId === null
-      ? null
-      : await getDepartmentReportLogic(tenantId, { branchId, from, to });
-
-  const departmentIds = report
-    ? report.rows.map((r) => r.departmentId).filter((d): d is string => d !== null)
-    : [];
-  const departments = departmentIds.length
-    ? await withTenantContext(tenantId, (tx) =>
-        tx.department.findMany({
-          where: { tenantId, id: { in: departmentIds } },
-          select: { id: true, name: true },
-        })
-      )
-    : [];
-  const nameOf = new Map(departments.map((d) => [d.id, d.name]));
+  const overview = getDepartmentOverviewLogic(tenantId, branch.id, selected, previous, selected.label).catch(() => null);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-bold">ต้นทุนและรายได้ต่อแผนก</h2>
-        <p className="text-sm text-muted-foreground">
-          {iso(from)} – {iso(to)}
-          {branchId !== null && (
-            <> · {branches.find((b) => b.id === branchId)?.name}</>
-          )}
-        </p>
-      </div>
-
-      {!departmentsOn && (
-        <div className="rounded-lg border border-border bg-muted/40 p-4 text-sm">
-          ร้านนี้ยังไม่ได้เปิดใช้แผนก — ทุกอย่างจะอยู่ในแถว{" "}
-          <span className="font-medium">ไม่ระบุแผนก</span> แถวเดียว
-        </div>
-      )}
-
-      {branches.length > 1 && (
-        <nav className="flex flex-wrap gap-2 text-sm">
-          {branches.map((b) => (
-            <a
-              key={b.id}
-              href={`/cost/departments?branch=${b.id}&from=${iso(from)}&to=${iso(to)}`}
-              className={`rounded-lg border px-3 py-1 ${
-                b.id === branchId
-                  ? "border-primary font-medium"
-                  : "border-border text-muted-foreground"
-              }`}
-            >
-              {b.name}
-            </a>
-          ))}
-        </nav>
-      )}
-
-      {report === null ? (
-        <p className="text-sm text-muted-foreground">ยังไม่มีสาขา</p>
-      ) : (
-        <DepartmentTable
-          rows={report.rows.map((r) => ({
-            departmentId: r.departmentId,
-            name:
-              r.departmentId === null
-                ? "ไม่ระบุแผนก"
-                : nameOf.get(r.departmentId) ?? r.departmentId,
-            materialCost: r.materialCost.toFixed(2),
-            revenue: r.revenue.toFixed(2),
-            grossProfit: r.revenue.minus(r.materialCost).toFixed(2),
-          }))}
-          materialCostTotal={report.materialCostTotal.toFixed(2)}
-          revenueTotal={report.revenueTotal.toFixed(2)}
-          grossProfitUnavailable={report.grossProfitUnavailable}
-          skippedCount={report.skippedMenuIds.length}
-          coveredNetAmount={report.coveredNetAmount.toFixed(2)}
-          postedDays={report.postedDays}
-        />
-      )}
-    </div>
+    <Suspense fallback={<div className="h-96 animate-pulse rounded-2xl border border-border bg-muted/30" aria-label="กำลังคำนวณ…" />}>
+      <DepartmentOverview
+        data={overview}
+        branches={branches.map((b) => ({ id: b.id, name: b.name }))}
+        branchId={branch.id}
+        view={view}
+        buckets={shown.map((b) => ({ key: b.key, label: b.label, partial: b.partial }))}
+        selectedKey={selected.key}
+        previousLabel={previous.label}
+        coverageMin={membership.tenant.costCoverageMinPct}
+        departmentsOn={membership.tenant.enableDepartments}
+      />
+    </Suspense>
   );
 }

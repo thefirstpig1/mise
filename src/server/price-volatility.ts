@@ -22,8 +22,7 @@ import type { MenuCostRow } from "@/lib/price-volatility";
 import { getPriceWatchLogic } from "./price-watch";
 import { weekRanges, monthRanges } from "./cost-overview";
 import { freshestCostBranch } from "./menu-lab-read";
-import { resolveRecipeIds } from "./recipe-resolve";
-import { recipeCostsInTx } from "./recipe-cost";
+import { menuCostRowsInTx } from "./menu-cost-rows";
 import { replayPairsInTx } from "./stock-cost";
 
 const MONTHS_TH = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
@@ -124,42 +123,7 @@ export async function getPriceVolatilityLogic(tenantId: string, reach: BranchRea
         const d = latest.businessDate;
         const mFrom = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
         const mTo = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0));
-        const [menuRows, sales] = await Promise.all([
-          tx.menu.findMany({
-            where: { tenantId, deletedAt: null },
-            select: { id: true, name: true, foodCostTargetPct: true, primaryDepartment: { select: { name: true } } },
-          }),
-          tx.salesLine.groupBy({
-            by: ["menuId"],
-            where: { tenantId, branchId: branch.id, supersededAt: null, businessDate: { gte: mFrom, lte: mTo } },
-            _sum: { qty: true, netAmount: true },
-          }),
-        ]);
-        const sold = new Map(sales.filter((s) => s.menuId).map((s) => [s.menuId as string, { qty: Number(s._sum.qty ?? 0), net: Number(s._sum.netAmount ?? 0) }]));
-        const targets = menuRows.filter((m) => (sold.get(m.id)?.qty ?? 0) > 0).map((m) => ({ kind: "menu" as const, id: m.id }));
-        const resolved = await resolveRecipeIds(tx, tenantId, targets, branch.id, today);
-        const recipeIds = [...new Set([...resolved.values()].map((r) => r.id))];
-        const costs = recipeIds.length ? await recipeCostsInTx(tx, tenantId, { recipeIds, branchId: branch.id, asOf: today }, { replayed: fifo }) : new Map();
-        const rows: MenuCostRow[] = [];
-        for (const m of menuRows) {
-          const r = resolved.get(`menu:${m.id}`);
-          const s = sold.get(m.id);
-          if (!r || !s || s.qty <= 0) continue;
-          const c = costs.get(r.id);
-          if (!c) continue;
-          const servings = Number(c.servings) || 1;
-          rows.push({
-            menuId: m.id,
-            name: m.name,
-            department: m.primaryDepartment?.name ?? null,
-            price: r2(s.net / s.qty),
-            plates: s.qty,
-            cost: r2(Number(c.costPerServing)),
-            target: m.foodCostTargetPct === null ? shopTarget : Number(m.foodCostTargetPct),
-            ownTarget: m.foodCostTargetPct !== null,
-            leaves: c.leaves.map((l: { productId: string; cost: unknown }) => [l.productId, r2(Number(l.cost) / servings)] as [string, number]),
-          });
-        }
+        const rows = await menuCostRowsInTx(tx, tenantId, { branchId: branch.id, from: mFrom, to: mTo, asOf: today, shopTarget, replayed: fifo });
         return { rows, label: `${MONTHS_TH[d.getUTCMonth()]} ${String((d.getUTCFullYear() + 543) % 100).padStart(2, "0")}` };
       },
       { timeout: 30_000 }

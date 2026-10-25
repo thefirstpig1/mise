@@ -40,7 +40,7 @@ const monthKey = (d: Date) => iso(d).slice(0, 7);
 const daysInMonth = (d: Date) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
 
 /** The labour sections, in both spellings a shop's categories can carry (Part 35 rename). */
-const LABOR_SECTIONS = [
+export const LABOR_SECTIONS = [
   ...new Set(DEFAULT_CATEGORIES.filter((c) => c.en.section === "Labor").flatMap((c) => [c.en.section, c.th.section])),
 ];
 
