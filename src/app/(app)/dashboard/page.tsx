@@ -12,7 +12,8 @@ import { getTransfersLogic } from "@/server/transfer";
 import { getTransfersQuerySchema } from "@/lib/validations/transfer";
 import { toTransferView } from "@/app/(app)/transfers/_components/transfer-view";
 import { getPulseDashboardLogic } from "@/server/sales-pulse";
-import { getCloseStatusLogic } from "@/server/daily-close";
+import { getCloseStatusLogic, getGuestDaysLogic } from "@/server/daily-close";
+import { GUEST_COVERAGE_MIN, guestStats, type GuestStats } from "@/lib/guest-stats";
 import { getRequestQueueLogic, type RequestQueueRow } from "@/server/purchase-request";
 import { toPulseDashboardView } from "@/app/(app)/sales/_components/sales-view";
 import PulsePanel from "./_components/PulsePanel";
@@ -118,6 +119,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
               activeIds={activeIds}
               chips={chips}
               see={{ sales: seeSales, cost: seeCost, expense: seeExpense }}
+              dailyCloseOn={membership.tenant.dailyCloseEnabled}
             />
           </Suspense>
           {seeSales && seeCost && seeExpense ? (
@@ -145,6 +147,7 @@ async function Analytics({
   activeIds,
   chips,
   see,
+  dailyCloseOn,
 }: {
   tenantId: string;
   reach: Awaited<ReturnType<typeof requireTenant>>["reach"];
@@ -153,6 +156,8 @@ async function Analytics({
   activeIds: string[];
   chips: BranchChip[];
   see: { sales: boolean; cost: boolean; expense: boolean };
+  /** ADR 0042 — the shop keys guest counts at close. */
+  dailyCloseOn: boolean;
 }) {
   const q = { from: period.from, to: period.to, branchIds: selected };
   // The previous period only feeds the ▲▼ under each KPI, so it is NOT awaited
@@ -178,7 +183,16 @@ async function Analytics({
       : Promise.resolve([]),
     see.sales ? topMenus(tenantId, period, activeIds) : Promise.resolve([] as MenuBar[]),
   ]);
-  const missing = see.expense ? await missingRecurring(tenantId, period, activeIds) : [];
+  // Customers per head (Kong 2026-10-25): the card exists when the shop keys
+  // guests (the add-on) or the data already holds some.
+  const [missing, guestNow, guestPrev] = await Promise.all([
+    see.expense ? missingRecurring(tenantId, period, activeIds) : Promise.resolve([]),
+    see.sales ? getGuestDaysLogic(tenantId, { branchIds: activeIds, from: period.from, to: period.to }).catch(() => []) : Promise.resolve([]),
+    see.sales ? getGuestDaysLogic(tenantId, { branchIds: activeIds, from: period.prevFrom, to: period.prevTo }).catch(() => []) : Promise.resolve([]),
+  ]);
+  const gNow = guestStats(guestNow);
+  const gPrev = guestStats(guestPrev);
+  const guestCard = see.sales && (dailyCloseOn || gNow.guestDays > 0) ? { now: gNow, prev: gPrev, vs, canKey: dailyCloseOn } : null;
   // Kong 2026-10-24 (C1): a per-day figure divides by the days the shop
   // OPERATED — days with sales — not by the calendar. "This month 10 days → ÷10,
   // last month 31 → ÷31", and the ▲▼ compares those averages, so a month with
@@ -266,7 +280,7 @@ async function Analytics({
         </div>
       )}
       <KpiViewToggle
-        cards={<KpiRow pnl={pnl} prevP={prevP} vs={vs} days={days} see={{ ...see, gross: seeGross, net: seeNet }} incomplete={missing.length > 0} />}
+        cards={<KpiRow pnl={pnl} prevP={prevP} vs={vs} days={days} see={{ ...see, gross: seeGross, net: seeNet }} incomplete={missing.length > 0} guest={guestCard} />}
         chart={
           seeNet && pnl.netProfit !== null && pnl.revenue !== null ? (
             <Card title="จากยอดขายสู่กำไร" hint="ยอดขาย − ต้นทุนขาย − ค่าใช้จ่าย = กำไรสุทธิ">
@@ -512,6 +526,7 @@ function KpiRow({
   days,
   see,
   incomplete,
+  guest,
 }: {
   pnl: Pnl;
   prevP: Promise<Pnl | null>;
@@ -520,6 +535,8 @@ function KpiRow({
   see: { sales: boolean; cost: boolean; expense: boolean; gross: boolean; net: boolean };
   /** C2: recurring expenses due in the period are not recorded — never say "better". */
   incomplete?: boolean;
+  /** Rules GH-HEAD / GH-COV — null = no card. */
+  guest?: { now: GuestStats; prev: GuestStats; vs: string; canKey: boolean } | null;
 }) {
   const revenue = num(pnl.revenue);
   const notYet = <span className="text-xs font-medium text-warn">ยังเทียบไม่ได้ — รายการประจำยังไม่ครบ</span>;
@@ -531,7 +548,7 @@ function KpiRow({
     pnl.recipeCoverage !== null ? `คิดจากสูตร ครอบคลุม ${(pnl.recipeCoverage * 100).toFixed(0)}% ของยอดขาย` : undefined;
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+    <div className={`grid gap-4 sm:grid-cols-2 ${guest ? "xl:grid-cols-3 2xl:grid-cols-6" : "xl:grid-cols-5"}`}>
       {see.sales ? (
         <Kpi label="ยอดขาย" value={revenue} sub="ไม่รวม VAT และ service charge" delta={<PrevDelta prevP={prevP} vs={vs} days={days} cur={revenue} pick={(p) => num(p.revenue)} goodWhenUp />} />
       ) : null}
@@ -560,7 +577,49 @@ function KpiRow({
           extra={incomplete ? null : <PrevMargin prevP={prevP} label="อัตรากำไรสุทธิ" cur={marginOf(pnl.netProfit, pnl.revenue)} part={(p) => p.netProfit} />}
         />
       ) : null}
+      {guest ? <GuestKpi {...guest} /> : null}
     </div>
+  );
+}
+
+/** ยอดต่อหัว — shown only when enough sales days carry a guest count (GH-COV). */
+function GuestKpi({ now, prev, vs, canKey }: { now: GuestStats; prev: GuestStats; vs: string; canKey: boolean }) {
+  if (!now.enough || now.perHead === null) {
+    return (
+      <div className="rounded-xl border border-border bg-surface p-4">
+        <p className="text-sm text-muted-foreground">ยอดต่อหัว</p>
+        <p className="mt-1 text-2xl font-semibold text-muted-subtle">—</p>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          {now.salesDays === 0
+            ? "ยังไม่มียอดขายในช่วงนี้"
+            : `กรอกจำนวนลูกค้าแล้ว ${now.guestDays} จาก ${now.salesDays} วันขาย · ต้องได้ ${Math.round(GUEST_COVERAGE_MIN * 100)}% ถึงจะแสดง`}
+        </p>
+        {canKey && now.salesDays > 0 && (
+          <a href="/closing" className="mt-2 inline-block text-xs text-primary hover:underline">
+            กรอกตอนปิดร้าน ›
+          </a>
+        )}
+      </div>
+    );
+  }
+  const diff = prev.enough && prev.perHead !== null ? now.perHead - prev.perHead : null;
+  return (
+    <a href="/sales" className="block rounded-xl border border-border bg-surface p-4 transition hover:bg-muted/40">
+      <p className="text-sm text-muted-foreground">ยอดต่อหัว</p>
+      <p className="mt-1 tabular-nums text-2xl font-semibold">{baht(now.perHead)}</p>
+      <p className="mt-0.5 text-xs text-muted-foreground">
+        {now.guestsPerDay === null ? "" : `${Math.round(now.guestsPerDay).toLocaleString("th-TH")} คน/วัน`} · ยอดขาย ÷ ลูกค้า
+      </p>
+      <p className="mt-2 text-xs">
+        {diff === null ? (
+          <span className="text-muted-subtle">ช่วงก่อนข้อมูลลูกค้าไม่พอ ยังเทียบไม่ได้</span>
+        ) : (
+          <span className={diff >= 0 ? "text-good" : "text-bad"}>
+            {diff >= 0 ? "▲" : "▼"} {baht(Math.abs(diff))} ต่อหัว เทียบ {vs}
+          </span>
+        )}
+      </p>
+    </a>
   );
 }
 

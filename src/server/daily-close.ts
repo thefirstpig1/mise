@@ -16,6 +16,7 @@ import { addDays, computeBangkokToday } from "@/lib/bangkok-date";
 import { assertRefBelongsToTenant } from "@/server/product";
 import { recordSalesPulseInTx } from "@/server/sales-pulse";
 import { MAX_CUSTOMER_TYPES, type SaveDailyCloseInput } from "@/lib/validations/daily-close";
+import { mixShares } from "@/lib/closing-insight";
 
 const BKK_MS = 7 * 3_600_000;
 const num = (d: Prisma.Decimal | null | undefined) => (d === null || d === undefined ? null : Number(d));
@@ -325,10 +326,15 @@ export type DailyCloseMonthRow = {
   issuesResolved: number;
   issuesNoted: number;
   comments: number;
+  plates: number | null;
+  /** The day's customer-type estimate, in tenths. */
+  mix: { customerTypeId: string; parts: number }[];
 };
 
 export type DailyCloseMonth = {
   rows: DailyCloseMonthRow[];
+  /** Every customer type the shop has had, archived ones included (old estimates keep their label). */
+  types: { id: string; name: string }[];
   /** Customer types with their share, weighted by each day's guest count (Q3). */
   mix: { customerTypeId: string; name: string; share: number }[];
   mixDays: number;
@@ -350,11 +356,12 @@ export async function getDailyCloseMonthLogic(tenantId: string, branchId: string
         },
       }),
       tx.salesDay.findMany({ where: { tenantId, branchId, businessDate: { gte: from, lte: to } }, select: { businessDate: true, guestCount: true } }),
-      tx.salesLine.groupBy({ by: ["businessDate"], where: { tenantId, branchId, supersededAt: null, businessDate: { gte: from, lte: to } }, _sum: { netAmount: true } }),
-      tx.customerType.findMany({ where: { tenantId }, select: { id: true, name: true } }),
+      tx.salesLine.groupBy({ by: ["businessDate"], where: { tenantId, branchId, supersededAt: null, businessDate: { gte: from, lte: to } }, _sum: { netAmount: true, qty: true } }),
+      tx.customerType.findMany({ where: { tenantId }, orderBy: [{ displayOrder: "asc" }, { createdAt: "asc" }], select: { id: true, name: true } }),
     ]);
     const guests = new Map(days.map((d) => [isoDate(d.businessDate), d.guestCount]));
     const net = new Map(revenue.map((r) => [isoDate(r.businessDate), num(r._sum.netAmount)]));
+    const plates = new Map(revenue.map((r) => [isoDate(r.businessDate), num(r._sum.qty)]));
     const byDate = new Map(closes.map((c) => [isoDate(c.businessDate), c]));
 
     const rows: DailyCloseMonthRow[] = [];
@@ -379,31 +386,21 @@ export async function getDailyCloseMonthLogic(tenantId: string, branchId: string
         issuesResolved: c?.issues.filter((i) => i.resolvedAt).length ?? 0,
         issuesNoted: c?.issues.filter((i) => !i.followUp && !i.resolvedAt).length ?? 0,
         comments: c?._count.comments ?? 0,
+        plates: plates.get(k) ?? null,
+        mix: c?.mix ?? [],
       });
     }
 
-    // Weighted share: each day's tenths become fractions of that day's guests
-    // (or of 1 when the guest count is missing), then summed over every
-    // estimated day's whole weight (rule DC-MIX).
-    const weight = new Map<string, number>();
-    let total = 0;
-    let mixDays = 0;
-    for (const c of closes) {
-      if (c.mix.length === 0) continue;
-      mixDays++;
-      const w = guests.get(isoDate(c.businessDate)) || 1;
-      for (const m of c.mix) {
-        weight.set(m.customerTypeId, (weight.get(m.customerTypeId) ?? 0) + (m.parts / 10) * w);
-      }
-      // The whole day counts, unassigned tenths included — they are "ไม่แน่ใจ",
-      // the same as on the day's own sheet, not a reason to inflate the rest.
-      total += w;
-    }
+    // Rule DC-MIX — the one formula, shared with the page (closing-insight.ts).
+    const folded = mixShares(rows.map((r) => ({ date: r.date, guests: r.guestCount, netRevenue: r.netRevenue, plates: r.plates, mix: r.mix })));
+    const weight = folded.shares;
+    const mixDays = folded.days;
+    const total = 1;
     const name = new Map(types.map((t) => [t.id, t.name]));
     const mix = [...weight.entries()]
-      .map(([id, v]) => ({ customerTypeId: id, name: name.get(id) ?? "", share: total > 0 ? v / total : 0 }))
+      .map(([id, v]) => ({ customerTypeId: id, name: name.get(id) ?? "", share: v / total }))
       .sort((a, b) => b.share - a.share);
-    return { rows: rows.reverse(), mix, mixDays };
+    return { rows: rows.reverse(), mix, mixDays, types: types.map((t) => ({ id: t.id, name: t.name })) };
   });
 }
 
@@ -488,5 +485,37 @@ export async function getCloseStatusLogic(tenantId: string, branchIds: string[])
         openIssues: issues.filter((i) => i.dailyClose.branchId === b).length,
       })),
     };
+  });
+}
+
+/**
+ * Per branch-day: revenue (the /sales figure), plates and the guest count —
+ * what guest-stats.ts folds into per head. Days with live sales lines only.
+ */
+export async function getGuestDaysLogic(
+  tenantId: string,
+  q: { branchIds: string[]; from: Date; to: Date }
+): Promise<import("@/lib/guest-stats").GuestDay[]> {
+  if (q.branchIds.length === 0) return [];
+  return withTenantContext(tenantId, async (tx) => {
+    const [sales, days] = await Promise.all([
+      tx.salesLine.groupBy({
+        by: ["branchId", "businessDate"],
+        where: { tenantId, branchId: { in: q.branchIds }, supersededAt: null, businessDate: { gte: q.from, lte: q.to } },
+        _sum: { netAmount: true, qty: true },
+      }),
+      tx.salesDay.findMany({
+        where: { tenantId, branchId: { in: q.branchIds }, businessDate: { gte: q.from, lte: q.to }, guestCount: { not: null } },
+        select: { branchId: true, businessDate: true, guestCount: true },
+      }),
+    ]);
+    const g = new Map(days.map((d) => [`${d.branchId}|${isoDate(d.businessDate)}`, d.guestCount]));
+    return sales.map((s) => ({
+      day: isoDate(s.businessDate),
+      branchId: s.branchId,
+      net: num(s._sum.netAmount) ?? 0,
+      plates: num(s._sum.qty) ?? 0,
+      guests: g.get(`${s.branchId}|${isoDate(s.businessDate)}`) ?? null,
+    }));
   });
 }

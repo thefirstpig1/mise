@@ -44,6 +44,8 @@ export type DayModalBranch = {
   pulseDifference: number | null;
   pulseIsMismatch: boolean;
   pulseNote: string | null;
+  /** ADR 0042 — the guest count for this branch-day; null = not recorded. */
+  guests?: number | null;
 };
 
 export default function DayDetailModal({
@@ -154,6 +156,17 @@ function BranchCard({ day, branch: b, canKeyPulse }: { day: string; branch: DayM
         <span className="font-medium">{b.name}</span>
         <span className="tabular-nums font-medium">{b.net === null ? "—" : baht(b.net)}</span>
       </div>
+      {b.guests != null && b.guests > 0 && (
+        <p className="mt-0.5 text-xs">
+          ลูกค้า <b className="tabular-nums">{b.guests.toLocaleString("th-TH")}</b> คน
+          {b.net !== null && (
+            <>
+              {" "}
+              · ต่อหัว <b className="tabular-nums">{baht(b.net / b.guests)}</b>
+            </>
+          )}
+        </p>
+      )}
       <p className="mt-0.5 text-xs text-muted-foreground">
         {b.fileName
           ? `จากไฟล์ ${b.fileName} · นำเข้า ${b.importedAtLabel}`

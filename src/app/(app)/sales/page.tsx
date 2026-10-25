@@ -43,6 +43,9 @@ import { buildSalesView, tonesFor, type SalesView } from "./_components/sales-vi
 import type { ToneMap } from "./_components/Breakdown";
 import { toneOf } from "@/components/charts/chart-theme";
 import StickyFilters from "./_components/StickyFilters";
+import GuestPanel from "./_components/GuestPanel";
+import { getGuestDaysLogic } from "@/server/daily-close";
+import { GUEST_COVERAGE_MIN, guestStats } from "@/lib/guest-stats";
 import Link from "next/link";
 import ActionLink from "@/components/ui/ActionLink";
 import { recentMonths } from "@/app/(app)/dashboard/_components/dashboard-period";
@@ -105,8 +108,13 @@ export default async function SalesPage({
   const prevRange = comparisonRange(isoFrom, isoTo, vsPicked);
   const asDate = (iso: string) => new Date(`${iso}T00:00:00.000Z`);
 
-  const [branches, categories, totalsRaw, daysRaw, menuDays] = await Promise.all([
-    getBranchesLogic(tenantId, reach),
+  const branchesP = getBranchesLogic(tenantId, reach);
+  // Customers and per head (Kong 2026-10-25): both periods, the branches in view.
+  const guestBranchIds = branchesP.then((bs) => (query.branchId ? bs.filter((b) => b.id === query.branchId) : bs).map((b) => b.id));
+  const guestRowsP = guestBranchIds.then((ids) => getGuestDaysLogic(tenantId, { branchIds: ids, from: asDate(isoFrom), to: asDate(isoTo) }));
+  const guestPrevP = guestBranchIds.then((ids) => getGuestDaysLogic(tenantId, { branchIds: ids, from: asDate(prevRange.from), to: asDate(prevRange.to) }));
+  const [branches, categories, totalsRaw, daysRaw, menuDays, guestRows, guestPrev] = await Promise.all([
+    branchesP,
     getMenuCategoriesLogic(tenantId),
     // Kong (2026-09-28): the page was slow. The full summary (~10 queries on the
     // critical path) is gone; everything by day, menu and category comes from
@@ -124,6 +132,8 @@ export default async function SalesPage({
       { from: asDate(isoFrom), to: asDate(isoTo) },
       { from: asDate(prevRange.from), to: asDate(prevRange.to) }
     ),
+    guestRowsP,
+    guestPrevP,
   ]);
 
 
@@ -245,6 +255,33 @@ export default async function SalesPage({
       perDay: false,
     },
   ];
+  // Rules GH-HEAD / GH-COV: shown when the period has any guest count; the
+  // figure itself only when enough of the sales days carry one.
+  const gNow = guestStats(guestRows);
+  const gPrev = guestStats(guestPrev);
+  if (gNow.guestDays > 0) {
+    const gap = `กรอกจำนวนลูกค้าแล้ว ${gNow.guestDays} จาก ${gNow.salesDays} วันขาย · ต้องได้ ${Math.round(GUEST_COVERAGE_MIN * 100)}%`;
+    kpis.push(
+      {
+        label: "ลูกค้า",
+        note: gNow.enough ? `ครบ ${gNow.guestDays} จาก ${gNow.salesDays} วันขาย` : gap,
+        value: gNow.enough ? gNow.guests.toLocaleString("th-TH") : "—",
+        cur: gNow.enough ? gNow.guestsPerDay : null,
+        prev: gPrev.enough ? gPrev.guestsPerDay : null,
+        fmt: (n) => `${Math.round(n).toLocaleString("th-TH")} คน/วัน`,
+        perDay: true,
+      },
+      {
+        label: "ต่อหัว",
+        note: gNow.enough && gNow.platesPerGuest !== null ? `${gNow.platesPerGuest.toFixed(2)} จาน/คน · ยอดขาย ÷ ลูกค้า` : "ยอดขาย ÷ ลูกค้า",
+        value: gNow.enough && gNow.perHead !== null ? `฿${Math.round(gNow.perHead).toLocaleString("th-TH")}` : "—",
+        cur: gNow.enough ? gNow.perHead : null,
+        prev: gPrev.enough ? gPrev.perHead : null,
+        fmt: (n) => `฿${Math.round(n).toLocaleString("th-TH")}`,
+        perDay: false,
+      }
+    );
+  }
   const zNet = Number(s.totals.net);
   const paidTotal = zNet + Number(s.totals.serviceCharge) + Number(s.totals.vat);
   const zLines = [
@@ -282,6 +319,7 @@ export default async function SalesPage({
       pulseDifference: r?.pulseDifference ? Number(r.pulseDifference) : null,
       pulseIsMismatch: r?.pulseIsMismatch ?? false,
       pulseNote: r?.pulseNote ?? null,
+      guests: guestRows.find((g) => g.day === dayValid && g.branchId === b.id)?.guests ?? null,
     };
   });
   const empty = s.totals.rows === 0;
@@ -448,11 +486,12 @@ export default async function SalesPage({
               rows so the lines do not read on into each other. The quiet line
               under them answers "does this match the POS": the Z-report
               order, folded until asked for, so it never outshouts the cards. */}
-          <section className="grid gap-3 sm:grid-cols-3">
+          <section className={`grid gap-3 sm:grid-cols-3 ${kpis.length > 3 ? "xl:grid-cols-5" : ""}`}>
             {kpis.map((k) => (
               <Kpi key={k.label} {...k} curLabel={curLabel} prevLabel={prevLabel} />
             ))}
           </section>
+          {gNow.enough && <GuestPanel rows={guestRows} periodLabel={curLabel} />}
           <details className="group -mt-5 text-xs text-muted-subtle">
             <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-1 px-1 marker:hidden">
               <span>ตรวจกับใบสรุปปิดร้านของ POS</span>

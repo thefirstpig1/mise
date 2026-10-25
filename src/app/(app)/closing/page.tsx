@@ -9,7 +9,8 @@ import { requireTenant } from "@/lib/require-tenant";
 import { addDays, computeBangkokToday } from "@/lib/bangkok-date";
 import { getBranchesLogic, liveliestBranchId } from "@/server/branch";
 import { getDailyCloseMonthLogic } from "@/server/daily-close";
-import { MixBar } from "./_components/mix";
+import MonthInsight from "./_components/MonthInsight";
+import { mixShares } from "@/lib/closing-insight";
 
 const MTH = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
 const WD = ["อา.", "จ.", "อ.", "พ.", "พฤ.", "ศ.", "ส."];
@@ -30,7 +31,22 @@ export default async function ClosingMonthPage({ searchParams }: { searchParams:
   const from = new Date(`${m}-01T00:00:00Z`);
   const end = addDays(new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth() + 1, 1)), -1);
   const to = end.getTime() > today.getTime() ? today : end;
-  const data = await getDailyCloseMonthLogic(tenantId, branch.id, from, to);
+  // The month on screen plus every month in the chips: the mix trend and the
+  // comparison with the month before both come from the same read.
+  const monthRange = (k: string) => {
+    const f = new Date(`${k}-01T00:00:00Z`);
+    const e = addDays(new Date(Date.UTC(f.getUTCFullYear(), f.getUTCMonth() + 1, 1)), -1);
+    return { f, t: e.getTime() > today.getTime() ? today : e };
+  };
+  const prevKey = new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth() - 1, 1)).toISOString().slice(0, 7);
+  const trendKeys = [...months].reverse();
+  const [data, trendData, prevData] = await Promise.all([
+    getDailyCloseMonthLogic(tenantId, branch.id, from, to),
+    Promise.all(trendKeys.map((k) => getDailyCloseMonthLogic(tenantId, branch.id, monthRange(k).f, monthRange(k).t))),
+    getDailyCloseMonthLogic(tenantId, branch.id, monthRange(prevKey).f, monthRange(prevKey).t),
+  ]);
+  const asMix = (rows: typeof data.rows) => rows.map((r) => ({ date: r.date, guests: r.guestCount, netRevenue: r.netRevenue, plates: r.plates, mix: r.mix }));
+  const trend = trendKeys.map((k, i) => ({ label: monthTh(k), ...(() => { const f = mixShares(asMix(trendData[i].rows)); return { shares: f.shares, days: f.days }; })() }));
 
   const enabled = membership.tenant.dailyCloseEnabled;
   const seeMoney = can("sales:view");
@@ -47,6 +63,12 @@ export default async function ClosingMonthPage({ searchParams }: { searchParams:
   const open = data.rows.reduce((t, r) => t + r.issuesOpen, 0);
   const allIssues = data.rows.reduce((t, r) => t + r.issuesOpen + r.issuesResolved + r.issuesNoted, 0);
   const missing = data.rows.filter((r) => !r.closed && r.netRevenue !== null).length;
+  // The month before, per day / per head (rule SI1), for the two customer cards.
+  const pg = prevData.rows.filter((r) => r.guestCount !== null);
+  const prevGuests = pg.length ? pg.reduce((t, r) => t + r.guestCount!, 0) / pg.length : null;
+  const ph = prevData.rows.filter((r) => r.perHead !== null);
+  const prevHead = ph.length ? ph.reduce((t, r) => t + r.netRevenue!, 0) / ph.reduce((t, r) => t + r.guestCount!, 0) : null;
+  const vsLabel = monthTh(prevKey);
   const order = data.mix.map((x) => x.customerTypeId);
   const dayLink = (date: string) => `/closing/day?branch=${branch.id}&date=${date}`;
 
@@ -103,12 +125,22 @@ export default async function ClosingMonthPage({ searchParams }: { searchParams:
           <span className="text-xs text-muted-subtle">ลูกค้าต่อวัน</span>
           <b className="block font-display text-2xl tabular-nums">{avgGuests === null ? "—" : Math.round(avgGuests).toLocaleString("th-TH")}</b>
           <span className="text-xs text-muted-subtle">{withGuests.length ? `เฉลี่ย ${withGuests.length} วันที่มีจำนวนลูกค้า` : "ยังไม่มีวันที่กรอกจำนวนลูกค้า"}</span>
+          {avgGuests !== null && prevGuests !== null && (
+            <span className={`text-xs ${avgGuests >= prevGuests ? "text-good" : "text-bad"}`}>
+              {avgGuests >= prevGuests ? "▲" : "▼"} {Math.abs(Math.round(avgGuests - prevGuests)).toLocaleString("th-TH")} คน/วัน เทียบ {vsLabel}
+            </span>
+          )}
         </div>
         {seeMoney && (
           <div className="rounded-2xl border border-border bg-surface p-3.5">
             <span className="text-xs text-muted-subtle">ต่อหัว</span>
             <b className="block font-display text-2xl tabular-nums">{perHead === null ? "—" : baht(perHead, 1)}</b>
             <span className="text-xs text-muted-subtle">ยอดขาย ÷ ลูกค้า ของวันที่มีทั้งสองอย่าง</span>
+            {perHead !== null && prevHead !== null && (
+              <span className={`text-xs ${perHead >= prevHead ? "text-good" : "text-bad"}`}>
+                {perHead >= prevHead ? "▲" : "▼"} {baht(Math.abs(perHead - prevHead), 0)} เทียบ {vsLabel}
+              </span>
+            )}
           </div>
         )}
         {seeMoney && (
@@ -127,12 +159,14 @@ export default async function ClosingMonthPage({ searchParams }: { searchParams:
         </div>
       </div>
 
-      <section className="rounded-2xl border border-border bg-surface p-4">
-        <p className="mb-2 text-xs text-muted-subtle">
-          ลูกค้าส่วนใหญ่เป็นใคร · ทั้งเดือน <span className="rounded-full border border-warn-border bg-warn-bg px-2 py-0.5 text-[11px] text-warn">ประมาณ</span> · เฉลี่ยถ่วงด้วยจำนวนลูกค้าของแต่ละวัน · จาก {data.mixDays} วันที่มีการประเมิน
-        </p>
-        <MixBar slices={data.mix.map((x) => ({ id: x.customerTypeId, name: x.name, share: x.share }))} order={order} />
-      </section>
+      <MonthInsight
+        days={asMix(data.rows)}
+        types={data.types}
+        branchId={branch.id}
+        monthLabel={monthTh(m)}
+        seeMoney={seeMoney}
+        trend={trend}
+      />
 
       {missing > 0 && <p className="text-xs text-muted-subtle">มียอดขายแต่ไม่ได้ปิดร้าน {missing} วัน · วันหรือช่องที่ไม่ได้กรอก แสดง “—” ไม่ใช่ 0</p>}
 
