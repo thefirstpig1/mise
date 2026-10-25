@@ -38,6 +38,8 @@ export type Role =
   | "kitchen_staff"
   /** หัวหน้าแผนก — head chef, head of bar, head baker (ADR 0034 Q6). */
   | "dept_head"
+  /** แคชเชียร์ — closes the shop and uploads the POS file every day (Kong 2026-10-25). */
+  | "cashier"
   | "accountant"
   | "viewer";
 
@@ -65,8 +67,13 @@ export type Capability =
   | "purchase:approve"
   /** Receive goods against an order, confirm and void receipts. */
   | "receive:write"
-  /** Adjustments, waste, par levels, inter-branch transfers. */
+  /** Adjustments, par levels, inter-branch transfers. */
   | "stock:write"
+  /**
+   * Record waste (Kong 2026-10-25). Split from `stock:write` so a cashier can
+   * log what was thrown away without being able to adjust stock or move it.
+   */
+  | "waste:write"
   /** Open and fill a stock count; close or void one YOU opened. */
   | "count:write"
   /**
@@ -126,6 +133,7 @@ export const ALL_CAPABILITIES = [
   "purchase:approve",
   "receive:write",
   "stock:write",
+  "waste:write",
   "count:write",
   "count:close",
   "expense:write",
@@ -150,6 +158,7 @@ export const ALL_ROLES = [
   "purchaser",
   "kitchen_staff",
   "dept_head",
+  "cashier",
   "accountant",
   "viewer",
 ] as const satisfies readonly Role[];
@@ -204,6 +213,7 @@ const MANAGER: readonly Capability[] = [
   "purchase:approve",
   "receive:write",
   "stock:write",
+  "waste:write",
   "count:write",
   "count:close",
   "expense:write",
@@ -245,6 +255,7 @@ const PURCHASER: readonly Capability[] = [
 const KITCHEN_STAFF: readonly Capability[] = [
   "purchase:request",
   "stock:write",
+  "waste:write",
   "count:write",
   "staffmeal:write",
   // Kong 2026-10-05: a cook may draft and propose a recipe; a manager
@@ -261,6 +272,15 @@ const KITCHEN_STAFF: readonly Capability[] = [
  * belongs to the whole branch (ADR 0015).
  */
 const DEPT_HEAD: readonly Capability[] = [...KITCHEN_STAFF, "count:close", "staffmeal:approve"];
+
+/**
+ * แคชเชียร์ (Kong 2026-10-25) — closes the shop every day: keys the till total,
+ * counts the drawer, uploads the POS file. `consumption:post` because the
+ * upload posts the day's stock by itself (ADR 0022 amendment) and a manager
+ * pressing it daily defeats that. Records waste and staff meals. Sees no cost,
+ * no gross profit, and no revenue beyond the figure they keyed.
+ */
+const CASHIER: readonly Capability[] = ["sales:import", "consumption:post", "waste:write", "staffmeal:write"];
 
 /**
  * Books. Sees every figure and writes only financial ones. `sales:import` is
@@ -286,6 +306,7 @@ export const ROLE_CAPABILITIES: Readonly<Record<Role, ReadonlySet<Capability>>> 
     purchaser: new Set(PURCHASER),
     kitchen_staff: new Set(KITCHEN_STAFF),
     dept_head: new Set(DEPT_HEAD),
+    cashier: new Set(CASHIER),
     accountant: new Set(ACCOUNTANT),
     viewer: new Set(VIEWER),
   };

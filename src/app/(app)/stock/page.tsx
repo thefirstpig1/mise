@@ -107,7 +107,7 @@ export default async function StockWorkPage({ searchParams }: { searchParams: Pr
       href: "/waste",
       title: "บันทึกของเสีย",
       sub: stock.wasteBaht === null ? `เดือนนี้ ${hub.wasteThisMonth} รายการ` : `เดือนนี้ ${baht(stock.wasteBaht)} · ${hub.wasteThisMonth} รายการ`,
-      show: can("stock:write"),
+      show: can("waste:write"),
       daily: true,
     },
     { href: `/stock/adjust?branch=${branch.id}`, title: "ปรับสต๊อก", sub: "ของเกิน/ขาดที่รู้สาเหตุ", show: can("stock:write") },

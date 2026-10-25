@@ -79,7 +79,7 @@ export default async function WastePage({
     to?: string;
   }>;
 }) {
-  const { tenantId, reach, can } = await requireTenant("stock:write");
+  const { tenantId, reach, can } = await requireTenant("waste:write");
   const canSeeCost = can("cost:view");
   const sp = await searchParams;
 
