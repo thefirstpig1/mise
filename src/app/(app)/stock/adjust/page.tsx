@@ -25,7 +25,7 @@ import StockAdjustForm, {
 
 import EmptyState from "@/components/ui/EmptyState";
 export default async function StockAdjustPage({ searchParams }: { searchParams: Promise<{ branch?: string }> }) {
-  const { tenantId, reach } = await requireTenant("stock:write");
+  const { tenantId, reach, can } = await requireTenant("stock:write");
   const sp = await searchParams;
 
   const [products, branches] = await Promise.all([
@@ -95,7 +95,7 @@ export default async function StockAdjustPage({ searchParams }: { searchParams: 
             branches={branchOptions}
             todayBangkok={todayBangkok}
             fetchBalance={getStockBalanceAction}
-            fetchCost={getProductCostAction}
+            fetchCost={can("cost:view") ? getProductCostAction : null}
             initialBranchId={initialBranchId}
           />
           <aside className="h-fit rounded-xl border border-border bg-surface p-4 text-sm">

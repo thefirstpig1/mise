@@ -37,7 +37,9 @@ import {
   canGrantRole,
   canModifyMembershipOf,
   type BranchReach,
+  type Capability,
 } from "@/lib/permissions/service";
+import { shopCapabilitiesInTx } from "@/server/capability-overrides";
 import type {
   InviteMemberInput,
   SetMemberActiveInput,
@@ -115,6 +117,12 @@ export class BranchNotFoundError extends Error {
 export interface MembershipActor {
   userId: string;
   role: string;
+  /**
+   * What the actor may ACTUALLY do — `requireTenant().capabilities`. Rule 4
+   * compares this set, not the role's defaults (ADR 0038 Q1.3): a manager the
+   * shop stopped seeing overheads cannot hand overheads to anybody.
+   */
+  capabilities: ReadonlySet<Capability>;
   reach: BranchReach;
 }
 
@@ -146,11 +154,13 @@ const wantedReach = (input: {
 function assertMayGrant(
   actor: MembershipActor,
   targetRole: string,
+  /** What `targetRole` would carry for this person in this shop. */
+  targetCapabilities: ReadonlySet<Capability>,
   wanted: BranchReach,
   currentRoleOfTarget: string | null
 ): void {
   // Rule 4 — first, because it is the general reason and the informative one.
-  if (!canGrantRole(actor.role, targetRole)) {
+  if (!canGrantRole(actor.capabilities, targetCapabilities)) {
     throw new CannotGrantRoleError(targetRole);
   }
 
@@ -258,7 +268,12 @@ export async function inviteMemberLogic(
   input: InviteMemberInput,
   actor: MembershipActor
 ): Promise<{ membershipId: string; userId: string; wasReactivated: boolean }> {
-  assertMayGrant(actor, input.role, wantedReach(input), null);
+  // A new person has no exceptions yet; what they get is the role as this shop
+  // set it. Read before the User exists, for the same reason as the branches.
+  const targetCapabilities = await withTenantContext(tenantId, (tx) =>
+    shopCapabilitiesInTx(tx, tenantId, input.role, null)
+  );
+  assertMayGrant(actor, input.role, targetCapabilities, wantedReach(input), null);
 
   // ── the branches are checked BEFORE the person is created ────────────────
   //
@@ -350,7 +365,9 @@ export async function updateMemberLogic(
     });
     if (!target) throw new MembershipNotFoundError();
 
-    assertMayGrant(actor, input.role, wantedReach(input), target.role);
+    // The target keeps their exceptions across a role change, so they count.
+    const targetCapabilities = await shopCapabilitiesInTx(tx, tenantId, input.role, target.id);
+    assertMayGrant(actor, input.role, targetCapabilities, wantedReach(input), target.role);
     await assertBranchesExist(tx, tenantId, input.branchIds);
 
     // Rule 3 — demoting the last owner leaves nobody who can ever administer
@@ -402,7 +419,10 @@ export async function setMemberActiveLogic(
       throw new CannotTouchOwnerError();
     }
     // Rule 4 — turning somebody back on is granting their role again.
-    if (input.isActive && !canGrantRole(actor.role, target.role)) {
+    if (
+      input.isActive &&
+      !canGrantRole(actor.capabilities, await shopCapabilitiesInTx(tx, tenantId, target.role, target.id))
+    ) {
       throw new CannotGrantRoleError(target.role);
     }
     // Rule 3

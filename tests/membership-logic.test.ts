@@ -11,6 +11,7 @@
 // actually landing as a row, and re-inviting somebody who was removed.
 // ============================================================
 
+import { capabilitiesOf } from "@/lib/permissions/service";
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { randomUUID } from "node:crypto";
 import { withRlsBypass } from "@/lib/db-admin";
@@ -52,18 +53,21 @@ describe("membership writes (ADR 0029 Part 29 L3)", () => {
   const OWNER = (): MembershipActor => ({
     userId: ownerUser,
     role: "owner",
+    capabilities: capabilitiesOf("owner"),
     reach: { allBranches: true, allowedBranchIds: [] },
   });
 
   const BRANCH_MANAGER = (): MembershipActor => ({
     userId: ownerUser,
     role: "manager",
+    capabilities: capabilitiesOf("manager"),
     reach: { allBranches: false, allowedBranchIds: [asok] },
   });
 
   const ADMIN = (): MembershipActor => ({
     userId: ownerUser,
     role: "admin",
+    capabilities: capabilitiesOf("admin"),
     reach: { allBranches: true, allowedBranchIds: [] },
   });
 
@@ -420,7 +424,7 @@ describe("membership writes (ADR 0029 Part 29 L3)", () => {
         allBranches: false,
         branchIds: [asok],
       }),
-      { userId: second.id, role: "owner", reach: { allBranches: true, allowedBranchIds: [] } }
+      { userId: second.id, role: "owner", capabilities: capabilitiesOf("owner"), reach: { allBranches: true, allowedBranchIds: [] } }
     );
 
     const after = await withRlsBypass((tx) =>

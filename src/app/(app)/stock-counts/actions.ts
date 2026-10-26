@@ -22,7 +22,6 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { ZodError } from "zod";
 import { requireTenant } from "@/lib/require-tenant";
-import { hasCapability } from "@/lib/permissions/service";
 import {
   closeStockCountInputSchema,
   editStockCountContributionInputSchema,
@@ -133,10 +132,10 @@ function revalidateStockViews(countId: string): void {
 
 /** Who is acting, and whether they may act for the host (ADR 0034 Q5). */
 async function countActor(): Promise<{ tenantId: string; actor: CountActor }> {
-  const { tenantId, membership, role } = await requireTenant("count:write");
+  const { tenantId, membership, can } = await requireTenant("count:write");
   return {
     tenantId,
-    actor: { userId: membership.userId, canCloseAny: hasCapability(role, "count:close") },
+    actor: { userId: membership.userId, canCloseAny: can("count:close") },
   };
 }
 

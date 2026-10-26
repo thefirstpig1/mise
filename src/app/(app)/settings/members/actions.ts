@@ -120,10 +120,12 @@ function revalidateMembers(): void {
 const actorOf = (ctx: {
   membership: { userId: string };
   role: string;
+  capabilities: MembershipActor["capabilities"];
   reach: { allBranches: boolean; allowedBranchIds: string[] };
 }): MembershipActor => ({
   userId: ctx.membership.userId,
   role: ctx.role,
+  capabilities: ctx.capabilities,
   reach: ctx.reach,
 });
 

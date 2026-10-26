@@ -110,14 +110,17 @@ export default function StockAdjustForm({
   /**
    * Part 14 — resolves the cost the server WOULD apply to a gain, so the user can
    * judge it without opening the cost field at all (ADR 0014 UX guardrail 1).
+   * `null` for a reader without cost:view: the action behind it requires that
+   * capability, and calling it anyway sent a cook to /denied mid-form
+   * (ADR 0038 audit).
    */
-  fetchCost: (query: {
+  fetchCost: null | ((query: {
     productId: string;
     branchId: string;
   }) => Promise<
     | { ok: true; data: { costPerBaseUnit: string; costSourceLabel: string } }
     | { ok: false; formError: string }
-  >;
+  >);
   /** `?branch=` — the branch the person came from (the งานสต๊อก hub). */
   initialBranchId?: string;
 }) {
@@ -201,7 +204,7 @@ export default function StockAdjustForm({
   // What the server would use if the user says nothing (Q5's fallback chain),
   // shown as plain text so the decision "is that right?" needs no clicks.
   useEffect(() => {
-    if (!productId || !branchId) {
+    if (!fetchCost || !productId || !branchId) {
       setDefaultCost(null);
       return;
     }

@@ -330,6 +330,109 @@ export function hasCapability(role: string, need: Requirement): boolean {
 }
 
 // ============================================================
+// What a shop changed (ADR 0038)
+// ============================================================
+// The table above is the DEFAULT. A shop may change it per role, and give one
+// person an exception, and only the difference is stored — so a capability
+// added next year reaches every shop that never touched it (Q3).
+//
+//   effective = role default (as the shop adjusted it) + opened for this
+//               person − closed for this person
+//
+// Everything that decides what somebody may do asks THIS set, never the role
+// table alone: the page gate, the cost ticket, rule 4 below, and the people a
+// notice is sent to. A role-only check would let a shop close a capability on
+// screen and leave it open underneath.
+// ============================================================
+
+/** One stored difference: `granted` true opens a capability, false closes it. */
+export interface CapabilityOverride {
+  capability: string;
+  granted: boolean;
+}
+
+/**
+ * The sixteen a shop may change (ADR 0038 Amendment Q4), in the four groups
+ * the settings screen shows. The basics every working role needs
+ * (`purchase:request`, `count:write`, `staffmeal:write`, `recipe:draft`) and
+ * the two structural ones (`member:manage`, `settings:write` — Q1.2: opening
+ * either lets a person lift themselves back up) are not here, and a stored row
+ * naming one of them is ignored.
+ */
+export const ADJUSTABLE_CAPABILITY_GROUPS = [
+  { key: "money", capabilities: ["cost:view", "sales:view", "expense:view", "staff:view"] },
+  { key: "buying", capabilities: ["purchase:write", "purchase:approve", "receive:write", "master:write"] },
+  { key: "stock", capabilities: ["stock:write", "waste:write", "count:close", "recipe:write"] },
+  { key: "books", capabilities: ["sales:import", "consumption:post", "expense:write", "staffmeal:approve"] },
+] as const satisfies readonly { key: string; capabilities: readonly Capability[] }[];
+
+export const ADJUSTABLE_CAPABILITIES: ReadonlySet<Capability> = new Set(
+  ADJUSTABLE_CAPABILITY_GROUPS.flatMap((g) => g.capabilities)
+);
+
+/**
+ * Roles whose row in the table cannot be changed (Q1, Amendment Q5). An
+ * `owner` holds everything, always — exceptions included. An `admin` can still
+ * be narrowed one person at a time.
+ */
+export const LOCKED_ROLES: ReadonlySet<Role> = new Set<Role>(["owner", "admin"]);
+
+/**
+ * Capabilities whose screens print money, and the money they print (Q2,
+ * Amendment Q6). Holding the left without the right would put a price in front
+ * of somebody the shop decided must not see one, so the set below never
+ * contains the left without the right: the settings screen ticks the pair with
+ * its reason, and `effectiveCapabilities` drops the left if a stored row ever
+ * says otherwise — closed, never open.
+ *
+ * `tests/price-pairs.test.ts` goes red when a page prints a price behind a
+ * capability that is neither a money view nor listed here.
+ */
+export const CAPABILITY_NEEDS: Readonly<Partial<Record<Capability, Capability>>> = {
+  "purchase:write": "cost:view",
+  "purchase:approve": "cost:view",
+  "receive:write": "cost:view",
+  "master:write": "cost:view",
+  "expense:write": "expense:view",
+};
+
+const isAdjustable = (c: string): c is Capability => ADJUSTABLE_CAPABILITIES.has(c as Capability);
+
+/**
+ * What this person may actually do.
+ *
+ * @param roleOverrides  the shop's changes to THIS role (other roles' rows are
+ *                       ignored, so passing the whole tenant's list is safe).
+ * @param memberOverrides this person's exceptions.
+ */
+export function effectiveCapabilities(
+  role: string,
+  roleOverrides: readonly (CapabilityOverride & { role?: string })[],
+  memberOverrides: readonly CapabilityOverride[]
+): ReadonlySet<Capability> {
+  if (role === "owner") return capabilitiesOf(role);
+  const caps = new Set(capabilitiesOf(role));
+  const apply = (o: CapabilityOverride) => {
+    if (!isAdjustable(o.capability)) return;
+    if (o.granted) caps.add(o.capability);
+    else caps.delete(o.capability);
+  };
+  if (!LOCKED_ROLES.has(role as Role)) {
+    roleOverrides.filter((o) => o.role === undefined || o.role === role).forEach(apply);
+  }
+  memberOverrides.forEach(apply);
+  for (const [cap, need] of Object.entries(CAPABILITY_NEEDS) as [Capability, Capability][]) {
+    if (caps.has(cap) && !caps.has(need)) caps.delete(cap);
+  }
+  return caps;
+}
+
+/** Does this set of capabilities satisfy this requirement? */
+export function holds(caps: ReadonlySet<Capability>, need: Requirement): boolean {
+  return need === "any:member" || caps.has(need);
+}
+
+// ============================================================
 // Where — a separate question, answered without the word "role"
 // ============================================================
 
@@ -436,9 +539,16 @@ export function narrowBranches<T extends { id: string }>(
  * capability effectively has it already, because they can always grant it to an
  * address they control. A system claiming otherwise is lying to itself.
  */
-export function canGrantRole(granterRole: string, targetRole: string): boolean {
-  const mine = capabilitiesOf(granterRole);
-  return [...capabilitiesOf(targetRole)].every((cap) => mine.has(cap));
+export function canGrantRole(
+  granter: string | ReadonlySet<Capability>,
+  target: string | ReadonlySet<Capability>
+): boolean {
+  // Since ADR 0038 the callers pass EFFECTIVE sets (Q1.3): what the granter
+  // actually holds after the shop's changes, against what the role would carry
+  // in this shop. A role name still means its default, for the drift tests.
+  const mine = typeof granter === "string" ? capabilitiesOf(granter) : granter;
+  const theirs = typeof target === "string" ? capabilitiesOf(target) : target;
+  return [...theirs].every((cap) => mine.has(cap));
 }
 
 /**

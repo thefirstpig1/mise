@@ -4,8 +4,9 @@
 // ============================================================
 // Layer 1 of the two-layer data-access pattern: authenticate the request,
 // DISCOVER which tenant the user belongs to, and — since Part 28 — refuse the
-// request if the role that membership carries does not hold what the surface
-// asked for.
+// request if that membership does not hold what the surface asked for — its
+// role's capabilities as this shop adjusted them, plus or minus the person's
+// own exceptions (ADR 0038).
 //
 // This membership lookup is cross-tenant BY NATURE — it filters by userId, not
 // tenantId — so it MUST run as bare `prisma`. It is the query that discovers
@@ -38,7 +39,13 @@ import { cache } from "react";
 import { redirect } from "next/navigation";
 import { auth } from "./auth";
 import { prismaBypass } from "./db-admin";
-import { canAccessBranch, canEditShared, hasCapability, type Requirement } from "./permissions/service";
+import {
+  canAccessBranch,
+  canEditShared,
+  effectiveCapabilities,
+  holds,
+  type Requirement,
+} from "./permissions/service";
 import { costAccessFor, type CostAccess } from "./permissions/cost-access";
 import { pickActiveTenant, readActiveTenantCookie } from "./active-tenant";
 
@@ -73,8 +80,15 @@ function findMembershipsFor(userId: string) {
   return prismaBypass.tenantMembership.findMany({
     where: { userId, isActive: true },
     include: {
-      tenant: true,
+      // ADR 0038 — the shop's changes to the role table and this person's
+      // exceptions ride on the same discovery, so the gate below asks what the
+      // person may ACTUALLY do. Still keyed on this one userId: the role rows
+      // come only through the membership's own tenant.
+      tenant: {
+        include: { roleCapabilityOverrides: { select: { role: true, capability: true, granted: true } } },
+      },
       branchAccess: { select: { branchId: true } },
+      capabilityOverrides: { select: { capability: true, granted: true } },
     },
     orderBy: { createdAt: "asc" },
   });
@@ -134,7 +148,12 @@ export async function requireTenant(
   if (!membership) redirect("/choose-shop");
 
   const role = membership.role;
-  if (!hasCapability(role, need)) deny(need);
+  const capabilities = effectiveCapabilities(
+    role,
+    membership.tenant.roleCapabilityOverrides,
+    membership.capabilityOverrides
+  );
+  if (!holds(capabilities, need)) deny(need);
 
   const reach: Reach = {
     allBranches: membership.allBranches,
@@ -150,6 +169,8 @@ export async function requireTenant(
     tenantId: membership.tenantId,
     role,
     reach,
+    /** What this person may actually do — role + the shop's changes + exceptions. */
+    capabilities,
 
     /**
      * How many shops this person belongs to. Only ever compared against 1: the
@@ -165,7 +186,7 @@ export async function requireTenant(
      * render "ไม่มีสิทธิ์ดู" — never ฿0, never a dash: both are read as claims
      * about the money rather than about the permission (rule A8).
      */
-    costAccess: costAccessFor(role) as CostAccess | null,
+    costAccess: costAccessFor(capabilities) as CostAccess | null,
 
     /**
      * A second capability, for a SECTION of a page rather than the page.
@@ -178,7 +199,7 @@ export async function requireTenant(
      * also WRITES must still be refused by its own action's gate.
      */
     can(need: Requirement): boolean {
-      return hasCapability(role, need);
+      return holds(capabilities, need);
     },
 
     /**

@@ -28,7 +28,7 @@
 // signature without dragging auth or navigation into its dependency graph.
 // ============================================================
 
-import { hasCapability } from "./service";
+import { hasCapability, type Capability } from "./service";
 
 declare const costAccessBrand: unique symbol;
 
@@ -45,12 +45,15 @@ export interface CostAccess {
 const TICKET = Object.freeze({}) as CostAccess;
 
 /**
- * Mint a ticket if this role may see cost, otherwise `null`.
+ * Mint a ticket if this person may see cost, otherwise `null`.
  *
  * This is the single door. `requireTenant` calls it once per request; tests
  * call it with a role name to get exactly what that role would get, which is
  * why they can pin the cook's blindness without going near a session.
  */
-export function costAccessFor(role: string): CostAccess | null {
-  return hasCapability(role, "cost:view") ? TICKET : null;
+export function costAccessFor(who: string | ReadonlySet<Capability>): CostAccess | null {
+  // A role name asks the default table (tests); a set is what requireTenant
+  // passes — the person's effective capabilities (ADR 0038).
+  const sees = typeof who === "string" ? hasCapability(who, "cost:view") : who.has("cost:view");
+  return sees ? TICKET : null;
 }

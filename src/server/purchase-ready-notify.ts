@@ -12,7 +12,7 @@
 // ============================================================
 
 import { withTenantContext } from "@/lib/db";
-import { hasCapability } from "@/lib/permissions/service";
+import { effectiveCapabilitiesForMembersInTx } from "@/server/capability-overrides";
 import { purchaseReadyEmail } from "@/lib/email/templates";
 import { decideEmailDelivery, isProductionRuntime } from "@/lib/email/delivery";
 import { isEmailConfigured, sendEmail } from "@/lib/email/transport";
@@ -23,14 +23,18 @@ export async function purchaseReadyRecipientsLogic(tenantId: string, branchId: s
     const members = await tx.tenantMembership.findMany({
       where: { tenantId, isActive: true, notifyPurchaseReady: true },
       select: {
+        id: true,
         role: true,
         allBranches: true,
         branchAccess: { select: { branchId: true } },
         user: { select: { email: true } },
       },
     });
+    // Effective, not the role's default (ADR 0038): a shop that took approving
+    // away from someone must stop writing to them about it.
+    const caps = await effectiveCapabilitiesForMembersInTx(tx, tenantId, members);
     return members
-      .filter((m) => hasCapability(m.role, "purchase:approve"))
+      .filter((m) => caps.get(m.id)?.has("purchase:approve"))
       .filter((m) => m.allBranches || m.branchAccess.some((b) => b.branchId === branchId))
       .map((m) => m.user.email)
       .filter((e): e is string => Boolean(e));

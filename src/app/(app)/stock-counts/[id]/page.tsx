@@ -14,7 +14,6 @@
 
 import { notFound } from "next/navigation";
 import { requireTenant } from "@/lib/require-tenant";
-import { hasCapability } from "@/lib/permissions/service";
 import {
   getCountVarianceCostsLogic,
   getStockCountByIdLogic,
@@ -38,7 +37,7 @@ export default async function StockCountDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { tenantId, membership, role, costAccess } = await requireTenant("count:write");
+  const { tenantId, membership, can, costAccess } = await requireTenant("count:write");
   const { id } = await params;
 
   const count = await getStockCountByIdLogic(tenantId, id);
@@ -81,7 +80,7 @@ export default async function StockCountDetailPage({
       costByProduct={costByProduct}
       stockedProductIds={stockedProductIds}
       currentUserId={membership.userId}
-      canCloseAny={hasCapability(role, "count:close")}
+      canCloseAny={can("count:close")}
       confirmCount={confirmCountAction}
       editContribution={editContributionAction}
       deleteContribution={deleteContributionAction}
