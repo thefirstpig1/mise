@@ -1,0 +1,538 @@
+<title>ตั้งสิทธิ์ของร้าน</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Prompt:wght@500;600;700&family=Noto+Sans+Thai:wght@400;500;600&display=swap">
+<style>
+/* ADR 0038 brief + mockup. Layout: a research brief in one reading column,
+   then the mockup as an app frame with three tabs (role table · people · log).
+   App tokens (tailwind.config.ts), same set as docs/research/*.html. */
+:root{
+  --bg:#FDFBF3; --fg:#262811; --surface:#FFFFFF; --sunk:#F8F3E1; --primary:#41431B; --primary-fg:#F8F3E1;
+  --muted:#F3EFDF; --muted-fg:#5A5C31; --subtle:#8B8D63; --border:#E9E3C8; --strong:#D2CBA4;
+  --good:#5A7333; --good-bg:#EEF2E0; --bad:#A83A22; --bad-bg:#F9E5DF; --warn:#A87C1C; --warn-bg:#F8EFD6; --clay:#C0692B; --clay-bg:#F7E6D6;
+  --display:"Prompt","Noto Sans Thai",system-ui,sans-serif; --body:"Noto Sans Thai","Prompt",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#1B1C10; --fg:#EEEAD6; --surface:#24261A; --sunk:#2A2C1E; --primary:#D9DDB0; --primary-fg:#1B1C10;
+  --muted:#2E301F; --muted-fg:#C9C8A6; --subtle:#9C9B7C; --border:#36381F; --strong:#4A4C30;
+  --good:#B7CF7C; --good-bg:#2B3320; --bad:#EC9C80; --bad-bg:#41261C; --warn:#E8BE62; --warn-bg:#3B3018; --clay:#E8A76F; --clay-bg:#3E2A1A; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#1B1C10; --fg:#EEEAD6; --surface:#24261A; --sunk:#2A2C1E; --primary:#D9DDB0; --primary-fg:#1B1C10;
+  --muted:#2E301F; --muted-fg:#C9C8A6; --subtle:#9C9B7C; --border:#36381F; --strong:#4A4C30;
+  --good:#B7CF7C; --good-bg:#2B3320; --bad:#EC9C80; --bad-bg:#41261C; --warn:#E8BE62; --warn-bg:#3B3018; --clay:#E8A76F; --clay-bg:#3E2A1A; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.65;margin:0;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 80px}
+.wrap{max-width:1120px;margin:0 auto;display:grid;gap:30px}
+h1,h2,h3{font-family:var(--display);margin:0;text-wrap:balance;line-height:1.3}
+h1{font-size:1.8rem;color:var(--primary)} h2{font-size:1.25rem} h3{font-size:1rem}
+p{margin:0;max-width:74ch}
+.sub{color:var(--subtle);font-size:.85rem}
+.lead{font-size:1.02rem;color:var(--muted-fg)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px 20px;display:grid;gap:10px;min-width:0}
+.findings{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px}
+.finding{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 16px;display:grid;gap:4px;align-content:start}
+.finding b{font-family:var(--display);font-size:1.05rem;color:var(--primary)}
+.finding span{font-size:.88rem;color:var(--muted-fg)}
+.finding .take{font-size:.84rem;color:var(--clay);font-weight:600}
+.tbox{overflow-x:auto;border:1px solid var(--border);border-radius:14px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:.88rem}
+.qb{min-width:860px}
+th{font-family:var(--display);font-weight:600;font-size:.78rem;color:var(--muted-fg);text-align:left;padding:10px;background:var(--sunk)}
+td{padding:10px;border-top:1px solid var(--border);vertical-align:top}
+.pill{display:inline-block;border-radius:999px;padding:1px 9px;font-size:.75rem;white-space:nowrap}
+.yes{background:var(--good-bg);color:var(--good)} .part{background:var(--warn-bg);color:var(--warn)} .no{background:var(--bad-bg);color:var(--bad)}
+.dec{display:grid;gap:8px;margin:0;padding-left:20px}
+.dec li{max-width:84ch}
+.open{display:grid;gap:10px}
+.open div{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 14px;display:grid;gap:4px}
+.open b{font-family:var(--display);font-weight:600}
+.open .rec{font-size:.86rem;color:var(--good)}
+a{color:var(--primary)}
+.src{font-size:.82rem;color:var(--muted-fg);display:grid;gap:3px}
+code{font-size:.82em;background:var(--muted);padding:0 5px;border-radius:5px}
+
+/* ── mockup frame ───────────────────────────────────────────── */
+.divider{display:flex;align-items:center;gap:12px;color:var(--subtle);font-size:.82rem;letter-spacing:.04em}
+.divider::before,.divider::after{content:"";flex:1;height:1px;background:var(--strong)}
+.app{background:var(--sunk);border:1px solid var(--strong);border-radius:20px;padding:18px;display:grid;gap:16px;min-width:0}
+.apphead{display:flex;flex-wrap:wrap;gap:12px;align-items:end;justify-content:space-between}
+.apphead h2{font-size:1.3rem}
+.as{display:flex;gap:6px;align-items:center;font-size:.82rem;color:var(--muted-fg);flex-wrap:wrap}
+.seg{display:inline-flex;background:var(--muted);border:1px solid var(--border);border-radius:999px;padding:3px}
+.seg button{border:0;background:none;font:inherit;font-size:.84rem;padding:4px 12px;border-radius:999px;color:var(--muted-fg);cursor:pointer;white-space:nowrap}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--fg);box-shadow:0 1px 2px rgba(0,0,0,.12);font-weight:600}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--strong);overflow-x:auto}
+.tabs button{border:0;background:none;font:inherit;font-family:var(--display);font-weight:500;padding:8px 14px;color:var(--muted-fg);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
+.tabs button[aria-selected="true"]{color:var(--primary);border-bottom-color:var(--clay)}
+.tabs .cnt{font-size:.72rem;background:var(--clay-bg);color:var(--clay);border-radius:999px;padding:0 7px;margin-left:4px}
+.banner{display:flex;gap:10px;align-items:start;background:var(--warn-bg);color:var(--fg);border-radius:12px;padding:10px 14px;font-size:.88rem}
+.banner b{color:var(--warn)}
+.banner button{margin-left:auto}
+.btn{font:inherit;font-size:.86rem;border-radius:10px;padding:6px 14px;border:1px solid var(--strong);background:var(--surface);color:var(--fg);cursor:pointer;white-space:nowrap}
+.btn:hover{background:var(--muted)}
+.btn.primary{background:var(--primary);color:var(--primary-fg);border-color:var(--primary)}
+.btn.primary:hover{opacity:.92}
+.btn.ghost{border-color:transparent;background:none;color:var(--muted-fg)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn:focus-visible,.seg button:focus-visible,.tabs button:focus-visible,.cell:focus-visible,.tri button:focus-visible{outline:2px solid var(--clay);outline-offset:2px}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:14px;display:grid;gap:12px;min-width:0}
+.note{font-size:.84rem;color:var(--muted-fg)}
+
+/* role × capability table */
+.rt{overflow-x:auto;border:1px solid var(--border);border-radius:12px}
+.rt table{min-width:880px;font-size:.86rem}
+.rt th,.rt td{padding:8px 6px;text-align:center;border-top:1px solid var(--border)}
+.rt thead th{border-top:0;vertical-align:bottom}
+.rt th.capcol,.rt td.capcol{text-align:left;position:sticky;left:0;background:var(--surface);z-index:1;min-width:230px;max-width:260px;padding-left:12px}
+.rt thead th.capcol{background:var(--sunk)}
+.rt .grp td{background:var(--muted);text-align:left;font-family:var(--display);font-weight:600;font-size:.78rem;color:var(--muted-fg);letter-spacing:.03em;padding:6px 12px}
+.rt .grp td.capcol{background:var(--muted)}
+.rolehead{display:grid;gap:2px;justify-items:center}
+.rolehead span{font-size:.72rem;font-weight:400;color:var(--subtle)}
+.rolehead button{font-size:.7rem;padding:1px 8px;border-radius:999px}
+.capname{font-weight:500}
+.caphint{font-size:.76rem;color:var(--subtle);line-height:1.4}
+.needs{font-size:.72rem;color:var(--clay)}
+.cell{width:30px;height:30px;border-radius:8px;border:1.5px solid var(--strong);background:var(--surface);cursor:pointer;display:inline-grid;place-items:center;position:relative;color:var(--primary-fg);font-size:.9rem;padding:0}
+.cell.on{background:var(--primary);border-color:var(--primary)}
+.cell.on::after{content:"✓";font-weight:700}
+.cell.changed::before{content:"";position:absolute;top:-4px;right:-4px;width:9px;height:9px;border-radius:50%;background:var(--clay);border:2px solid var(--surface)}
+.cell:disabled{cursor:not-allowed;opacity:.55}
+.lockcell{color:var(--subtle);font-size:.8rem}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:.8rem;color:var(--muted-fg);align-items:center}
+.legend i{display:inline-block;width:14px;height:14px;border-radius:4px;vertical-align:-2px;margin-right:4px}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--clay);margin-right:4px}
+.savebar{position:sticky;bottom:12px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;background:var(--primary);color:var(--primary-fg);border-radius:14px;padding:10px 14px;box-shadow:0 6px 20px rgba(0,0,0,.18);z-index:5}
+.savebar .btn{background:var(--primary-fg);color:var(--primary);border-color:var(--primary-fg)}
+.savebar .btn.ghost{background:none;color:var(--primary-fg);border-color:transparent}
+
+/* people */
+.strip{display:flex;flex-wrap:wrap;gap:8px}
+.chip{font:inherit;font-size:.84rem;border:1px solid var(--border);background:var(--surface);border-radius:999px;padding:4px 12px;cursor:pointer;color:var(--fg)}
+.chip b{font-family:var(--display);color:var(--clay)}
+.chip[aria-pressed="true"]{border-color:var(--clay);background:var(--clay-bg)}
+.people{display:grid;gap:0;border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.person{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) minmax(0,1.3fr);gap:10px;align-items:center;padding:10px 14px;border-top:1px solid var(--border);cursor:pointer;background:var(--surface)}
+.person:first-child{border-top:0}
+.person:hover{background:var(--muted)}
+.person .nm{font-weight:600}
+.person .em{font-size:.78rem;color:var(--subtle)}
+.exc{font-size:.78rem;color:var(--clay);white-space:nowrap}
+.money{display:flex;flex-wrap:wrap;gap:4px}
+.mtag{font-size:.72rem;border-radius:999px;padding:0 8px;background:var(--good-bg);color:var(--good);white-space:nowrap}
+.mtag.offtag{background:var(--muted);color:var(--subtle);text-decoration:line-through}
+@media (max-width:640px){.person{grid-template-columns:minmax(0,1fr)}}
+
+/* sheet */
+.scrim{position:fixed;inset:0;background:rgba(20,20,10,.42);z-index:20;display:flex;justify-content:flex-end;animation:fade .15s ease}
+.sheet{width:min(560px,100%);height:100%;background:var(--bg);overflow-y:auto;padding:18px max(18px,env(safe-area-inset-right,0px)) 90px 18px;display:grid;gap:14px;align-content:start;animation:slide .18s ease}
+.sheethead{display:flex;gap:10px;justify-content:space-between;align-items:start}
+.sum{display:grid;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:12px 14px}
+.sum h3{font-size:.9rem;color:var(--muted-fg)}
+.sumrow{display:grid;grid-template-columns:84px minmax(0,1fr);gap:8px;font-size:.86rem;align-items:start}
+.sumrow > span:first-child{color:var(--subtle)}
+.ovr{display:grid;gap:0;border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--surface)}
+.ovr .g{background:var(--muted);font-family:var(--display);font-weight:600;font-size:.76rem;color:var(--muted-fg);padding:5px 12px}
+.orow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;padding:9px 12px;border-top:1px solid var(--border)}
+.orow .why{font-size:.75rem;color:var(--subtle)}
+.orow .why.block{color:var(--warn)}
+.tri{display:inline-flex;border:1px solid var(--border);border-radius:10px;overflow:hidden;background:var(--sunk)}
+.tri button{border:0;background:none;font:inherit;font-size:.78rem;padding:5px 9px;cursor:pointer;color:var(--muted-fg);white-space:nowrap}
+.tri button + button{border-left:1px solid var(--border)}
+.tri button[aria-pressed="true"].inh{background:var(--surface);color:var(--fg);font-weight:600}
+.tri button[aria-pressed="true"].gr{background:var(--good-bg);color:var(--good);font-weight:600}
+.tri button[aria-pressed="true"].rv{background:var(--bad-bg);color:var(--bad);font-weight:600}
+.tri button:disabled{cursor:not-allowed;opacity:.4}
+.state{font-size:.75rem}
+
+/* log */
+.log{display:grid;gap:0;border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.logrow{display:grid;grid-template-columns:130px minmax(0,1fr);gap:12px;padding:10px 14px;border-top:1px solid var(--border);background:var(--surface);font-size:.88rem}
+.logrow:first-child{border-top:0}
+.logrow time{color:var(--subtle);font-size:.8rem;font-variant-numeric:tabular-nums}
+@media (max-width:520px){.logrow{grid-template-columns:minmax(0,1fr);gap:2px}}
+
+/* modal + toast */
+.modal{position:fixed;inset:0;background:rgba(20,20,10,.45);z-index:30;display:grid;place-items:center;padding:16px;animation:fade .15s ease}
+.box{background:var(--surface);border-radius:16px;max-width:460px;width:100%;padding:18px 20px;display:grid;gap:12px;animation:pop .16s ease}
+.box ul{margin:0;padding-left:20px;font-size:.9rem}
+.box .acts{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.toast{position:fixed;left:50%;bottom:calc(22px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:9px 16px;border-radius:12px;font-size:.88rem;z-index:40;max-width:min(520px,calc(100% - 32px));animation:pop .16s ease}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+@keyframes slide{from{transform:translateX(24px);opacity:.6}to{transform:none;opacity:1}}
+@keyframes pop{from{transform:translate(var(--tx,0),6px) scale(.98);opacity:0}to{transform:translate(var(--tx,0),0);opacity:1}}
+.toast{--tx:-50%}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+
+<div class="wrap">
+  <header style="display:grid;gap:10px">
+    <span class="sub">งานค้นคว้า + ตัวอย่างหน้าจอ · 26 ต.ค. 69 · ADR 0038 สิทธิ์ที่ร้านปรับเอง</span>
+    <h1>ตั้งสิทธิ์ของร้าน</h1>
+    <p class="lead">เจ้าของร้านอยากตั้งเองว่าใครเห็นตัวเลขเงินอะไร และใครทำอะไรได้ โดยไม่ต้องเริ่มจากศูนย์ คิดครัวตั้งค่าเริ่มต้นให้ทุกบทบาท ร้านปรับเฉพาะข้อที่ร้านตัวเองต่างไป แล้วยกเว้นให้รายคนได้</p>
+  </header>
+
+  <section style="display:grid;gap:12px">
+    <h2>ระบบอื่นทำอย่างไร</h2>
+    <div class="findings">
+      <div class="finding"><b>Toast</b><span>สองชั้นแบบเดียวกับ ADR 0038: สิทธิ์ตาม “งาน” (job) เป็นค่าเริ่มต้น แล้ว override รายคนได้ ช่องที่ได้จากงานเป็นสีเทา ช่องที่ยกเว้นรายคนเป็นสีน้ำเงิน คนที่จะแก้สิทธิ์ของใครต้องมีสิทธิ์ทุกข้อของคนนั้นอยู่แล้ว</span><span class="take">เราใช้: แยกสี “ตามบทบาท” กับ “ยกเว้น” และกฎให้ได้ไม่เกินที่ตัวเองมี (ADR 0029 ข้อ 1)</span></div>
+      <div class="finding"><b>Square for Restaurants</b><span>ชุดสิทธิ์ (permission set) ทุกคนในชุดได้เท่ากันหมด เริ่มจากระดับสำเร็จรูป มาตรฐาน / เพิ่ม / เต็ม แล้วติ๊กปรับ มีตารางตัวอย่างบทบาทร้านอาหาร (แคชเชียร์ เสิร์ฟ บาร์) ให้เป็นจุดเริ่ม</span><span class="take">เราใช้: ค่าเริ่มต้นพร้อมใช้ และคำอธิบายบทบาทใต้ชื่อ</span></div>
+      <div class="finding"><b>Lightspeed Restaurant</b><span>กลุ่มผู้ใช้ (Manager, Chef, Cook…) เป็นชุดสิทธิ์สำเร็จรูป ตอนเพิ่มคนเลือกได้ว่าจะเข้ากลุ่ม หรือปรับสิทธิ์ทีละข้อเอง</span><span class="take">ยืนยันว่าเจ้าของร้านคิดเป็น “บทบาทก่อน รายคนทีหลัง”</span></div>
+      <div class="finding"><b>Restaurant365</b><span>บทบาทของระบบแก้ไม่ได้และลบไม่ได้ ต้องคัดลอกเป็นบทบาทใหม่ก่อนจึงปรับได้ คนจัดการผู้ใช้แก้ได้แค่ในระดับสิทธิ์ของตัวเอง มีบันทึกเหตุการณ์ว่าใครเปลี่ยนอะไร</span><span class="take">เราเลือกต่าง: ปรับบทบาทเดิมได้เลย เก็บแค่ส่วนต่าง จึงกลับเป็นค่าเริ่มต้นได้เสมอ (ADR 0038 Q3)</span></div>
+      <div class="finding"><b>Zoho Inventory</b><span>ซ่อนราคาซื้อจากบทบาทไหนไม่ได้ ถ้าบทบาทนั้นยังเข้าหน้าซื้อของได้อยู่</span><span class="take">ปัญหาเดียวกับ ADR 0038 Q2: หน้าที่มีราคาในตัวต้องมาคู่กับ “เห็นต้นทุน”</span></div>
+      <div class="finding"><b>MarketMan</b><span>ไม่พบเอกสารสาธารณะเรื่องหน้าตั้งสิทธิ์ จึงไม่ได้ใช้เป็นแบบ</span><span class="take">ถ้าต้องการ ต้องขอดูจากบัญชีทดลองใช้</span></div>
+    </div>
+  </section>
+
+  <section style="display:grid;gap:12px">
+    <h2>เจ้าของร้านถามอะไรเวลาตั้งสิทธิ์</h2>
+    <div class="tbox"><table class="qb">
+      <thead><tr><th>คำถาม</th><th>ใครถาม · บ่อยแค่ไหน</th><th>หน้าจอตอบด้วย</th><th>มีวันนี้ไหม</th></tr></thead>
+      <tbody>
+        <tr><td><b>ผู้จัดการสาขาควรเห็นกำไรไหม</b></td><td>เจ้าของ · ตอนเปิดร้าน ตอนเปลี่ยนผู้จัดการ</td><td>ตาราง ช่อง “เห็นต้นทุนและกำไร” × ผู้จัดการ</td><td><span class="pill no">ยังไม่มี</span> ล็อกในโค้ด</td></tr>
+        <tr><td><b>แคชเชียร์เห็นยอดขายทั้งวันได้ไหม</b></td><td>เจ้าของ · ครั้งเดียว</td><td>ช่อง “เห็นยอดขาย” × แคชเชียร์</td><td><span class="pill no">ยังไม่มี</span></td></tr>
+        <tr><td><b>ใครกดส่งใบสั่งซื้อจริงได้</b></td><td>เจ้าของ ผู้จัดการ · ครั้งเดียว</td><td>ช่อง “ส่ง/ยกเลิกใบสั่งซื้อ”</td><td><span class="pill no">ยังไม่มี</span></td></tr>
+        <tr><td><b>คนรับของต้องเห็นราคาไหม</b></td><td>เจ้าของ · ตอนตั้งคนรับของ</td><td>ติ๊ก “รับของ” แล้วระบบเปิด “เห็นต้นทุน” ให้พร้อมเหตุผล</td><td><span class="pill no">ยังไม่มี</span> วันนี้ทุกคนที่รับของได้บังเอิญเห็นราคาอยู่แล้ว</td></tr>
+        <tr><td><b>คนนี้คนเดียว ขอให้ทำได้มากกว่าเพื่อนในบทบาทเดียวกัน</b></td><td>ผู้จัดการ · เป็นครั้งคราว</td><td>แผงสมาชิก: เปิด/ปิดรายข้อ</td><td><span class="pill no">ยังไม่มี</span> ต้องเปลี่ยนบทบาททั้งก้อน</td></tr>
+        <tr><td><b>ตอนนี้ใครเห็นต้นทุนบ้าง</b></td><td>เจ้าของ · ตอนมีคนลาออก</td><td>แถบสรุปเหนือรายชื่อ กดแล้วกรองคน</td><td><span class="pill part">บางส่วน</span> ต้องจำว่าบทบาทไหนเห็น</td></tr>
+        <tr><td><b>สิทธิ์จริงของคนนี้คืออะไร</b></td><td>ผู้จัดการ · ตอนมีคนบอกว่า “เข้าหน้านี้ไม่ได้”</td><td>กล่อง “สิทธิ์จริงของคนนี้” บนแผงสมาชิก</td><td><span class="pill part">บางส่วน</span> ดูได้แค่คำอธิบายบทบาท</td></tr>
+        <tr><td><b>ใครไปเปลี่ยนสิทธิ์ เมื่อไหร่</b></td><td>เจ้าของ · ตอนมีอะไรแปลก</td><td>แท็บบันทึกการเปลี่ยน</td><td><span class="pill part">บางส่วน</span> มีแค่ “แก้ไขล่าสุดโดย” ต่อคน</td></tr>
+        <tr><td><b>ปรับจนงงแล้ว กลับค่าเดิมได้ไหม</b></td><td>เจ้าของ · นาน ๆ ครั้ง</td><td>ปุ่ม “กลับเป็นค่าเริ่มต้น” ต่อบทบาท</td><td><span class="pill no">ยังไม่มี</span></td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section class="card">
+    <h2>สิ่งที่ตัดสินแล้ว (ADR 0038) และหน้าจอนี้ทำตาม</h2>
+    <ol class="dec">
+      <li><b>สิทธิ์จริง = ของบทบาท (ตามที่ร้านปรับ) + ที่เปิดให้คนนั้น − ที่ปิดให้คนนั้น</b> · ฐานข้อมูลเก็บเฉพาะส่วนที่ต่างจากค่าเริ่มต้น สิทธิ์ใหม่ที่ออกภายหลังได้ค่าเริ่มต้นเอง</li>
+      <li><b>ตารางบทบาท: เจ้าของร้านเท่านั้น</b> · ข้อยกเว้นรายคน: คนที่จัดการสมาชิกได้ แต่ให้ได้ไม่เกินสิทธิ์จริงของตัวเอง</li>
+      <li><b>เชิญคน/แก้คนในร้าน และตั้งค่าร้าน ปรับไม่ได้</b> · ถ้าปรับได้ ใครก็ยกสิทธิ์ตัวเองกลับมาได้</li>
+      <li><b>สิทธิ์ที่เห็นเงินในตัวมาคู่กับ “เห็นต้นทุน”</b> · ติ๊กแล้วเปิดให้พร้อมบอกเหตุผล เอา “เห็นต้นทุน” ออกต้องเอาข้อที่พึ่งมันออกด้วย</li>
+      <li><b>ทุกการเปลี่ยนมีบันทึก</b> · ใคร เปลี่ยนอะไร ของใคร/บทบาทไหน เมื่อไหร่</li>
+      <li><b>มีผลทันที</b> · ระบบตรวจสิทธิ์ทุกครั้งที่เปิดหน้า คนนั้นไม่ต้องออกแล้วเข้าใหม่ (ต่างจาก Toast ที่ต้องล็อกอินใหม่)</li>
+    </ol>
+  </section>
+
+  <section style="display:grid;gap:12px">
+    <h2>คำถามที่อยากให้คุณ Kong ตัดสิน</h2>
+    <div class="open">
+      <div><b>1. ปรับได้ 16 ข้อ มากไปไหม</b><span>ADR ประมาณไว้ 10–12 ข้อ ผมนับข้อที่ร้านต่างกันจริงได้ 16 ข้อ ส่วนข้อพื้นฐานอย่าง ขอซื้อของ นับสต๊อก บันทึกมื้อตัวเอง ร่างสูตร ไม่อยู่ในตาราง เพราะทุกบทบาทที่ทำงานครัวต้องมี</span><span class="rec">ผมแนะนำ: เก็บ 16 ข้อ จัดเป็น 4 กลุ่ม อ่านง่ายกว่าตัดเหลือ 12 แล้วร้านหาข้อที่ต้องการไม่เจอ</span></div>
+      <div><b>2. ผู้ดูแลส่วนกลางปรับได้ไหม</b><span>วันนี้ผู้ดูแลส่วนกลางมีสิทธิ์เท่าเจ้าของ (ADR 0029 บังคับไว้ เพราะต้องสร้างผู้จัดการได้)</span><span class="rec">ผมแนะนำ: ล็อกคอลัมน์ไว้เหมือนเจ้าของ ถ้าจะลดสิทธิ์ใครคนหนึ่ง ใช้ข้อยกเว้นรายคน</span></div>
+      <div><b>3. บันทึกค่าใช้จ่าย ต้องมาคู่กับ เห็นค่าใช้จ่าย ไหม</b><span>หน้ารายการค่าใช้จ่ายแสดงยอดเงินทุกใบ คนที่บันทึกได้จะเห็นค่าเช่า ค่าไฟไปด้วย</span><span class="rec">ผมแนะนำ: ใช่ เป็นคู่สิทธิ์อีกคู่ (ยืนยันอีกครั้งตอน audit ขั้นที่ 2)</span></div>
+    </div>
+  </section>
+
+  <div class="divider">ตัวอย่างหน้าจอ · กดได้จริง · ข้อมูลเป็นตัวอย่าง</div>
+
+  <section class="app" id="app">
+    <div class="apphead">
+      <div style="display:grid;gap:2px">
+        <span class="sub">ตั้งค่า › คนในร้าน</span>
+        <h2>สิทธิ์ของร้าน</h2>
+      </div>
+      <div class="as"><span>ลองดูในฐานะ</span>
+        <div class="seg" id="actorSeg">
+          <button type="button" data-actor="owner" aria-pressed="true">เจ้าของร้าน</button>
+          <button type="button" data-actor="manager" aria-pressed="false">ผู้จัดการ (สมชาย)</button>
+        </div>
+      </div>
+    </div>
+    <div class="banner" id="newBanner"><span>✦</span><span><b>มีสิทธิ์ใหม่ 1 ข้อ</b> “บันทึกของที่ซื้อเอง” ตอนนี้เปิดให้ เจ้าของร้าน ผู้ดูแลส่วนกลาง และผู้จัดการ ตรวจดูได้ว่าตรงกับร้านไหม</span><button class="btn ghost" type="button" id="bannerClose">รับทราบ</button></div>
+    <div class="tabs" role="tablist">
+      <button type="button" role="tab" data-tab="roles" aria-selected="true">ตามบทบาท</button>
+      <button type="button" role="tab" data-tab="people" aria-selected="false">รายคน</button>
+      <button type="button" role="tab" data-tab="log" aria-selected="false">บันทึกการเปลี่ยน</button>
+    </div>
+    <div id="view"></div>
+  </section>
+
+  <section class="card">
+    <h2>หลังคุณ Kong อนุมัติ</h2>
+    <ol class="dec">
+      <li>Audit ทุกหน้าที่แสดงราคาโดยไม่เช็กสิทธิ์ “เห็นต้นทุน” (ใบสั่งซื้อ ใบรับของ แคตตาล็อกผู้ขาย หน้าตัดรอบ และที่เจอเพิ่ม) แล้วทำตารางคู่สิทธิ์ในโค้ด + เทสต์ที่แดงเมื่อหน้าใหม่แสดงราคาโดยไม่อยู่ในตาราง</li>
+      <li>🛑 Migration (ขออนุมัติแยก): ตารางส่วนต่างของบทบาท ตารางส่วนต่างรายคน ตารางบันทึกการเปลี่ยน พร้อม RLS</li>
+      <li>สิทธิ์จริงโหลดพร้อม membership ในคิวรีเดียว ทุกที่ที่ถามด้วยบทบาทล้วนเปลี่ยนเป็นถามสิทธิ์จริง</li>
+      <li>หน้าจอจริงตาม mockup นี้ + เทสต์ + คู่มือ + ทะเบียนการตั้งค่า</li>
+    </ol>
+  </section>
+
+  <section class="src">
+    <b>แหล่งข้อมูล</b>
+    <a href="https://support.toasttab.com/article/Assigning-User-Access-Permissions">Toast · Assign user access permissions</a>
+    <a href="https://support.toasttab.com/en/article/Managing-User-Permissions-with-Master-Menu-Management">Toast · Manage user jobs &amp; permissions (multi-location)</a>
+    <a href="https://square.com/help/us/en/article/6430-setting-up-your-employees-with-square-for-restaurants">Square · Customize team member permissions for Restaurants</a>
+    <a href="https://square.com/help/us/en/article/5822">Square · Customize team member permissions</a>
+    <a href="https://k-series-support.lightspeedhq.com/hc/articles/1260804647189">Lightspeed K-Series · POS users and user groups</a>
+    <a href="https://docs.restaurant365.com/docs/security-permissions-user-roles">Restaurant365 · User roles</a>
+    <a href="https://docs.restaurant365.com/docs/event-audit-log">Restaurant365 · Event audit log</a>
+    <a href="https://www.zoho.com/inventory/kb/general-overview/hide-prices.html">Zoho Inventory · Hide prices</a>
+  </section>
+</div>
+
+<script>
+(() => {
+  const ROLES = [
+    { id: "owner", th: "เจ้าของร้าน", locked: "ทำได้ทุกอย่างเสมอ" },
+    { id: "admin", th: "ผู้ดูแลส่วนกลาง", locked: "เท่าเจ้าของ (ข้อเสนอ 2)" },
+    { id: "manager", th: "ผู้จัดการ" },
+    { id: "purchaser", th: "ฝ่ายจัดซื้อ" },
+    { id: "dept_head", th: "หัวหน้าแผนก" },
+    { id: "kitchen_staff", th: "พนักงานครัว" },
+    { id: "cashier", th: "แคชเชียร์" },
+    { id: "accountant", th: "บัญชี" },
+    { id: "viewer", th: "ดูอย่างเดียว" },
+  ];
+  const EDIT_ROLES = ROLES.filter(r => !r.locked).map(r => r.id);
+  const GROUPS = [
+    { th: "เห็นตัวเลขเงิน", caps: [
+      { id: "cost", th: "เห็นต้นทุนและกำไร", hint: "ราคาซื้อ ต้นทุนเมนู food cost % กำไรขั้นต้น", money: true },
+      { id: "sales", th: "เห็นยอดขาย", hint: "ยอดขายรายวัน รายเมนู และตัวเลขที่คิดจากยอดขาย", money: true },
+      { id: "expv", th: "เห็นค่าใช้จ่ายร้าน", hint: "ค่าเช่า ค่าไฟ ค่าบริการ", money: true },
+      { id: "staffv", th: "ดูประวัติมื้อพนักงานรายคน", hint: "ใครกินอะไร เท่าไร (ข้อมูลส่วนบุคคล)" },
+    ]},
+    { th: "ซื้อของ", caps: [
+      { id: "pow", th: "ร่างใบสั่งซื้อ", hint: "เลือกผู้ขาย ใส่จำนวนและราคา", needs: "cost" },
+      { id: "poa", th: "ส่งหรือยกเลิกใบสั่งซื้อ", hint: "ขั้นที่ร้านผูกพันว่าจะจ่ายเงิน", needs: "cost" },
+      { id: "rcv", th: "รับของตามใบสั่งซื้อ", hint: "ยืนยันใบรับของ ยกเลิกใบรับของ", needs: "cost" },
+      { id: "master", th: "แก้ข้อมูลผู้ขาย สินค้า เมนู", hint: "รวมราคาตามแคตตาล็อกผู้ขาย", needs: "cost" },
+    ]},
+    { th: "สต๊อกและครัว", caps: [
+      { id: "stock", th: "ปรับยอดสต๊อก โอนระหว่างสาขา", hint: "รวมตั้งจุดสั่งซื้อขั้นต่ำ" },
+      { id: "waste", th: "บันทึกของเสีย", hint: "" },
+      { id: "close", th: "ปิดใบนับของคนอื่น", hint: "ไม่ให้ใบนับค้างเมื่อคนเปิดกลับบ้านไปแล้ว" },
+      { id: "recipe", th: "แก้สูตร และนำร่างสูตรไปใช้จริง", hint: "ร่างและเสนอสูตรเป็นสิทธิ์พื้นฐาน" },
+    ]},
+    { th: "ยอดขายและบัญชี", caps: [
+      { id: "imp", th: "อัปโหลดไฟล์ POS", hint: "และบันทึกยอดปิดร้าน" },
+      { id: "cons", th: "ตัดสต๊อกตามยอดขาย", hint: "ตัดให้อัตโนมัติหลังอัปโหลด ถ้ามีสิทธิ์นี้" },
+      { id: "expw", th: "บันทึกค่าใช้จ่าย", hint: "รวมค่าใช้จ่ายประจำ" },
+      { id: "mealok", th: "อนุมัติมื้อพนักงาน", hint: "ของคนอื่นเท่านั้น ไม่ใช่ของตัวเอง" },
+    ]},
+  ];
+  const LOCKED = [
+    { th: "เชิญคน แก้บทบาทและสาขาของคนในร้าน", why: "ถ้าปรับได้ ใครก็ให้สิทธิ์นี้กับอีเมลที่สองของตัวเองแล้วยกสิทธิ์กลับมาได้", has: ["owner","admin","manager"] },
+    { th: "ตั้งค่าร้าน (VAT วิธีคิดกำไร สาขา แผนก)", why: "เปลี่ยนความหมายของตัวเลขย้อนหลังทั้งหมด เป็นของเจ้าของกิจการ", has: ["owner","admin"] },
+  ];
+  const CAPS = GROUPS.flatMap(g => g.caps);
+  const CAP = Object.fromEntries(CAPS.map(c => [c.id, c]));
+  const DEPENDENTS = id => CAPS.filter(c => c.needs === id).map(c => c.id);
+  const ALL = CAPS.map(c => c.id);
+  const DEFAULTS = {
+    owner: ALL, admin: ALL,
+    manager: ALL,
+    purchaser: ["cost","pow","poa","rcv","master"],
+    dept_head: ["stock","waste","close","mealok"],
+    kitchen_staff: ["stock","waste"],
+    cashier: ["imp","cons","waste"],
+    accountant: ["cost","sales","expv","imp","expw"],
+    viewer: [],
+  };
+  const ROLE_TH = Object.fromEntries(ROLES.map(r => [r.id, r.th]));
+
+  // What the shop has saved (diff from DEFAULTS) — the example shop already
+  // stopped managers seeing overheads.
+  let saved = { manager: { expv: false } };
+  let draft = clone(saved);
+  const people = [
+    { id: "p1", name: "คุณกัญญา", email: "kanya@baankrua.co", role: "owner", branch: "ทุกสาขา", ovr: {} },
+    { id: "p2", name: "สมชาย ใจดี", email: "somchai@baankrua.co", role: "manager", branch: "สาขาสยาม", ovr: {} },
+    { id: "p3", name: "แอน", email: "ann.buy@gmail.com", role: "purchaser", branch: "ทุกสาขา", ovr: {} },
+    { id: "p4", name: "เชฟเก่ง", email: "keng.chef@gmail.com", role: "dept_head", branch: "สาขาสยาม", ovr: { sales: true } },
+    { id: "p5", name: "ป้อม", email: "pom1998@gmail.com", role: "kitchen_staff", branch: "สาขาสยาม", ovr: {} },
+    { id: "p6", name: "นิด", email: "nid.cashier@gmail.com", role: "cashier", branch: "สาขาสยาม", ovr: { sales: true } },
+    { id: "p7", name: "หนึ่ง", email: "nueng.pos@gmail.com", role: "cashier", branch: "สาขาลาดพร้าว", ovr: {} },
+    { id: "p8", name: "พี่อร (สำนักงานบัญชี)", email: "orn@acc-office.co.th", role: "accountant", branch: "ทุกสาขา", ovr: {} },
+  ];
+  let log = [
+    { t: "24 ต.ค. 69 · 14:05", who: "สมชาย ใจดี", what: "เปิด “เห็นยอดขาย” ให้ นิด (แคชเชียร์)" },
+    { t: "22 ต.ค. 69 · 09:40", who: "คุณกัญญา", what: "เปิด “เห็นยอดขาย” ให้ เชฟเก่ง (หัวหน้าแผนก)" },
+    { t: "20 ต.ค. 69 · 18:12", who: "คุณกัญญา", what: "ปิด “เห็นค่าใช้จ่ายร้าน” ของบทบาท ผู้จัดการ" },
+  ];
+  let actor = "owner", tab = "roles", openId = null, filter = null;
+
+  function clone(o) { return JSON.parse(JSON.stringify(o)); }
+  const roleHas = (tbl, role, cap) => {
+    if (role === "owner" || role === "admin") return true;
+    const d = tbl[role] && cap in tbl[role] ? tbl[role][cap] : DEFAULTS[role].includes(cap);
+    return d;
+  };
+  const effective = (p, cap) => (cap in p.ovr ? p.ovr[cap] : roleHas(saved, p.role, cap));
+  const actorPerson = () => people.find(p => p.role === actor);
+  const actorHas = cap => actor === "owner" || effective(actorPerson(), cap);
+  const changesCount = () => EDIT_ROLES.reduce((n, r) => n + ALL.filter(c => roleHas(draft, r, c) !== roleHas(saved, r, c)).length, 0);
+  const isChanged = (r, c) => roleHas(draft, r, c) !== DEFAULTS[r].includes(c);
+
+  const el = (h) => { const t = document.createElement("template"); t.innerHTML = h.trim(); return t.content.firstChild; };
+  const view = document.getElementById("view");
+  let toastTimer;
+  function toast(msg) {
+    document.querySelectorAll(".toast").forEach(n => n.remove());
+    const t = el(`<div class="toast" role="status">${msg}</div>`); document.body.appendChild(t);
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => t.remove(), 3600);
+  }
+  function confirmBox(title, body, items, okLabel, onOk) {
+    const m = el(`<div class="modal" role="dialog" aria-modal="true"><div class="box"><h3>${title}</h3><p class="note">${body}</p><ul>${items.map(i => `<li>${i}</li>`).join("")}</ul><div class="acts"><button class="btn" type="button" data-x>กลับไปแก้</button><button class="btn primary" type="button" data-ok>${okLabel}</button></div></div></div>`);
+    const close = () => m.remove();
+    m.addEventListener("click", e => { if (e.target === m || e.target.closest("[data-x]")) close(); if (e.target.closest("[data-ok]")) { close(); onOk(); } });
+    document.body.appendChild(m); m.querySelector("[data-x]").focus();
+  }
+
+  // ── role table ────────────────────────────────────────────────
+  function setRole(r, c, v) { draft[r] = draft[r] || {}; draft[r][c] = v; if (v === DEFAULTS[r].includes(c)) delete draft[r][c]; }
+  function toggleRole(r, c) {
+    const on = roleHas(draft, r, c);
+    if (on) {
+      const deps = DEPENDENTS(c).filter(d => roleHas(draft, r, d));
+      if (deps.length) {
+        confirmBox(`ปิด “${CAP[c].th}” ของ${ROLE_TH[r]}`,
+          "หน้าเหล่านี้แสดงราคา ถ้าไม่เห็นต้นทุนจะทำงานนี้ไม่ได้ จึงต้องปิดไปด้วย:",
+          deps.map(d => CAP[d].th), `ปิดทั้ง ${deps.length + 1} ข้อ`,
+          () => { setRole(r, c, false); deps.forEach(d => setRole(r, d, false)); render(); });
+        return;
+      }
+      setRole(r, c, false);
+    } else {
+      setRole(r, c, true);
+      const need = CAP[c].needs;
+      if (need && !roleHas(draft, r, need)) { setRole(r, need, true); toast(`เปิด “${CAP[need].th}” ให้${ROLE_TH[r]}ด้วย เพราะหน้า${CAP[c].th}แสดงราคา`); }
+    }
+    render();
+  }
+  function rolesView() {
+    const ownerOnly = actor !== "owner";
+    const n = changesCount();
+    const head = ROLES.map(r => `<th><div class="rolehead">${r.th}${r.locked ? `<span>${r.locked}</span>` : (ownerOnly ? "" : `<button class="btn ghost" type="button" data-reset="${r.id}" ${Object.keys(draft[r.id] || {}).length ? "" : "disabled"}>ค่าเริ่มต้น</button>`)}</div></th>`).join("");
+    const body = GROUPS.map(g => `<tr class="grp"><td class="capcol">${g.th}</td><td colspan="${ROLES.length}"></td></tr>` + g.caps.map(c => `<tr><td class="capcol"><div class="capname">${c.th}</div>${c.hint ? `<div class="caphint">${c.hint}</div>` : ""}${c.needs ? `<div class="needs">ต้องเห็นต้นทุนด้วย</div>` : ""}</td>${ROLES.map(r => {
+      if (r.locked) return `<td><span class="lockcell" title="${r.locked}">✓</span></td>`;
+      const on = roleHas(draft, r.id, c.id);
+      return `<td><button type="button" class="cell ${on ? "on" : ""} ${isChanged(r.id, c.id) ? "changed" : ""}" data-r="${r.id}" data-c="${c.id}" aria-pressed="${on}" aria-label="${c.th} · ${r.th}" ${ownerOnly ? "disabled" : ""}></button></td>`;
+    }).join("")}</tr>`).join("")).join("")
+      + `<tr class="grp"><td class="capcol">ล็อกกับบทบาท ปรับไม่ได้</td><td colspan="${ROLES.length}"></td></tr>`
+      + LOCKED.map(l => `<tr><td class="capcol"><div class="capname">🔒 ${l.th}</div><div class="caphint">${l.why}</div></td>${ROLES.map(r => `<td><span class="lockcell">${l.has.includes(r.id) ? "✓" : "—"}</span></td>`).join("")}</tr>`).join("");
+    const v = el(`<div class="panel">
+      <p class="note">${ownerOnly ? "เฉพาะเจ้าของร้านที่ปรับตารางนี้ได้ คุณดูได้อย่างเดียว ถ้าต้องการยกเว้นให้ใครคนหนึ่ง ไปที่แท็บรายคน" : "ติ๊กเพื่อเปลี่ยนค่าของทั้งบทบาท ทุกคนในบทบาทนั้นได้ตาม ยกเว้นคนที่ตั้งไว้รายคน"}</p>
+      <div class="legend"><span><i style="background:var(--primary)"></i>มีสิทธิ์</span><span><i style="border:1.5px solid var(--strong)"></i>ไม่มี</span><span><span class="dot"></span>ร้านเปลี่ยนจากค่าเริ่มต้นของคิดครัว</span></div>
+      <div class="rt"><table><thead><tr><th class="capcol">สิทธิ์</th>${head}</tr></thead><tbody>${body}</tbody></table></div>
+      ${n ? `<div class="savebar"><span>เปลี่ยน ${n} ข้อ · มีผลกับ ${affected()} คน ทันทีที่เขาเปิดหน้าถัดไป</span><span style="display:flex;gap:8px"><button class="btn ghost" type="button" data-cancel>ยกเลิก</button><button class="btn" type="button" data-save>บันทึก</button></span></div>` : ""}
+    </div>`);
+    v.addEventListener("click", e => {
+      const b = e.target.closest(".cell"); if (b && !b.disabled) return toggleRole(b.dataset.r, b.dataset.c);
+      const rs = e.target.closest("[data-reset]");
+      if (rs) { const r = rs.dataset.reset; const k = Object.keys(draft[r] || {});
+        confirmBox(`กลับ${ROLE_TH[r]}เป็นค่าเริ่มต้นของคิดครัว`, "ข้อที่ร้านเคยเปลี่ยนจะกลับเป็นแบบนี้:", k.map(c => `${CAP[c].th} → ${DEFAULTS[r].includes(c) ? "มีสิทธิ์" : "ไม่มี"}`), "กลับเป็นค่าเริ่มต้น", () => { delete draft[r]; render(); }); }
+      if (e.target.closest("[data-cancel]")) { draft = clone(saved); render(); }
+      if (e.target.closest("[data-save]")) {
+        EDIT_ROLES.forEach(r => ALL.forEach(c => { const a = roleHas(saved, r, c), b2 = roleHas(draft, r, c); if (a !== b2) log.unshift({ t: "วันนี้ · เมื่อสักครู่", who: "คุณกัญญา", what: `${b2 ? "เปิด" : "ปิด"} “${CAP[c].th}” ของบทบาท ${ROLE_TH[r]}` }); }));
+        saved = clone(draft); toast("บันทึกแล้ว · ทุกคนในบทบาทนั้นได้สิทธิ์ใหม่ตั้งแต่หน้าถัดไปที่เปิด"); render();
+      }
+    });
+    return v;
+  }
+  function affected() {
+    const roles = EDIT_ROLES.filter(r => ALL.some(c => roleHas(draft, r, c) !== roleHas(saved, r, c)));
+    return people.filter(p => roles.includes(p.role)).length;
+  }
+
+  // ── people ───────────────────────────────────────────────────
+  const MONEY = ["cost","sales","expv"];
+  function peopleView() {
+    const counts = MONEY.map(c => ({ c, n: people.filter(p => effective(p, c)).length }));
+    const list = people.filter(p => !filter || effective(p, filter));
+    const v = el(`<div class="panel">
+      <div class="strip">${counts.map(x => `<button type="button" class="chip" data-f="${x.c}" aria-pressed="${filter === x.c}">${CAP[x.c].th} <b>${x.n}</b> คน</button>`).join("")}${filter ? `<button type="button" class="chip" data-f="">ดูทุกคน</button>` : ""}</div>
+      <div class="people">${list.map(p => {
+        const ex = Object.keys(p.ovr).length;
+        return `<div class="person" data-p="${p.id}" tabindex="0"><div><div class="nm">${p.name}</div><div class="em">${p.email}</div></div><div><div>${ROLE_TH[p.role]}</div><div class="em">${p.branch}</div></div><div style="display:grid;gap:3px"><div class="money">${MONEY.map(c => `<span class="mtag ${effective(p, c) ? "" : "offtag"}">${CAP[c].th.replace("เห็น", "")}</span>`).join("")}</div>${ex ? `<span class="exc">ยกเว้นรายคน ${ex} ข้อ</span>` : ""}</div></div>`;
+      }).join("")}</div>
+      <p class="note">ป้ายเขียวคือตัวเลขเงินที่คนนั้นเห็นจริง หลังรวมข้อยกเว้นแล้ว กดที่แถวเพื่อดูและปรับรายคน</p>
+    </div>`);
+    v.addEventListener("click", e => {
+      const f = e.target.closest("[data-f]"); if (f) { filter = (!f.dataset.f || filter === f.dataset.f) ? null : f.dataset.f; render(); return; }
+      const r = e.target.closest("[data-p]"); if (r) { openId = r.dataset.p; render(); }
+    });
+    v.addEventListener("keydown", e => { const r = e.target.closest("[data-p]"); if (r && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); openId = r.dataset.p; render(); } });
+    return v;
+  }
+  function sheet(p) {
+    const editable = p.role !== "owner" && p.role !== "admin" && !(actor === "manager" && p.role === "manager");
+    const why = (c) => {
+      if (!editable) return p.role === "owner" ? "เจ้าของร้านมีทุกสิทธิ์เสมอ" : (p.role === "admin" ? "ผู้ดูแลส่วนกลางมีสิทธิ์เท่าเจ้าของ" : "ผู้จัดการแก้สิทธิ์ของผู้จัดการด้วยกันไม่ได้");
+      if (!actorHas(c)) return "คุณไม่มีสิทธิ์นี้เอง จึงให้คนอื่นไม่ได้";
+      return "";
+    };
+    const row = c => {
+      const inh = roleHas(saved, p.role, c.id), st = c.id in p.ovr ? (p.ovr[c.id] ? "gr" : "rv") : "inh";
+      const w = why(c.id), blockGrant = !!w && w.startsWith("คุณไม่มี"), dis = !editable;
+      const stateTxt = st === "inh" ? `ตาม${ROLE_TH[p.role]}: ${inh ? "มีสิทธิ์" : "ไม่มี"}` : (st === "gr" ? "เปิดให้คนนี้" : "ปิดสำหรับคนนี้");
+      return `<div class="orow"><div><div>${c.th}</div><div class="why ${w ? "block" : ""}">${w || stateTxt}${c.needs ? " · ต้องเห็นต้นทุนด้วย" : ""}</div></div>
+        <div class="tri" role="group" aria-label="${c.th}">
+          <button type="button" class="inh" data-o="${c.id}" data-v="inh" aria-pressed="${st === "inh"}" ${dis ? "disabled" : ""}>ตามบทบาท ${inh ? "✓" : "—"}</button>
+          <button type="button" class="gr" data-o="${c.id}" data-v="on" aria-pressed="${st === "gr"}" ${dis || blockGrant || inh ? "disabled" : ""}>เปิด</button>
+          <button type="button" class="rv" data-o="${c.id}" data-v="off" aria-pressed="${st === "rv"}" ${dis || !inh ? "disabled" : ""}>ปิด</button>
+        </div></div>`;
+    };
+    const has = CAPS.filter(c => effective(p, c.id)), no = CAPS.filter(c => !effective(p, c.id));
+    const m = el(`<div class="scrim"><aside class="sheet" role="dialog" aria-modal="true" aria-label="สิทธิ์ของ ${p.name}">
+      <div class="sheethead"><div><span class="sub">${ROLE_TH[p.role]} · ${p.branch}</span><h2>${p.name}</h2><span class="sub">${p.email}</span></div><button class="btn ghost" type="button" data-close aria-label="ปิด">✕</button></div>
+      <div class="sum"><h3>สิทธิ์จริงของคนนี้</h3>
+        <div class="sumrow"><span>เห็นเงิน</span><span class="money">${MONEY.map(c => `<span class="mtag ${effective(p, c) ? "" : "offtag"}">${CAP[c].th.replace("เห็น", "")}</span>`).join("")}</span></div>
+        <div class="sumrow"><span>ทำได้</span><span>${has.filter(c => !MONEY.includes(c.id)).map(c => c.th).join(" · ") || "ไม่มีข้อในตารางนี้"}</span></div>
+        <div class="sumrow"><span>ทำไม่ได้</span><span style="color:var(--subtle)">${no.filter(c => !MONEY.includes(c.id)).map(c => c.th).join(" · ") || "—"}</span></div>
+      </div>
+      <p class="note">“ตามบทบาท” คือได้ตามตารางของร้าน ถ้าวันหน้าร้านเปลี่ยนตาราง คนนี้เปลี่ยนตาม ส่วน “เปิด” หรือ “ปิด” คือยกเว้นให้คนนี้คนเดียว และคงอยู่แม้ตารางเปลี่ยน</p>
+      <div class="ovr">${GROUPS.map(g => `<div class="g">${g.th}</div>` + g.caps.map(row).join("")).join("")}</div>
+    </aside></div>`);
+    const close = () => { openId = null; render(); };
+    m.addEventListener("click", e => {
+      if (e.target === m || e.target.closest("[data-close]")) return close();
+      const b = e.target.closest("[data-o]"); if (!b || b.disabled) return;
+      const c = b.dataset.o, v = b.dataset.v, before = effective(p, c);
+      const apply = (cap, val) => { if (val === "inh") delete p.ovr[cap]; else p.ovr[cap] = val === "on"; };
+      if (v === "off" && c === "cost") {
+        const deps = DEPENDENTS("cost").filter(d => effective(p, d));
+        if (deps.length) return confirmBox(`ปิด “เห็นต้นทุนและกำไร” ของ${p.name}`, "งานเหล่านี้แสดงราคา ต้องปิดไปด้วย:", deps.map(d => CAP[d].th), `ปิดทั้ง ${deps.length + 1} ข้อ`, () => {
+          apply("cost", "off"); deps.forEach(d => apply(d, roleHas(saved, p.role, d) ? "off" : "inh")); logIt(p, "ปิด", "cost", deps); render(); });
+      }
+      apply(c, v);
+      const need = CAP[c].needs;
+      if (effective(p, c) && need && !effective(p, need)) {
+        if (!actorHas(need)) { apply(c, "inh"); toast(`ให้ไม่ได้ เพราะงานนี้ต้องเห็นต้นทุนด้วย และคุณไม่มีสิทธิ์เห็นต้นทุนเอง`); return render(); }
+        apply(need, roleHas(saved, p.role, need) ? "inh" : "on"); toast(`เปิด “${CAP[need].th}” ให้ด้วย เพราะ${CAP[c].th}แสดงราคา`);
+      }
+      if (before !== effective(p, c)) logIt(p, effective(p, c) ? "เปิด" : "ปิด", c, []);
+      else if (v === "inh") log.unshift({ t: "วันนี้ · เมื่อสักครู่", who: actorName(), what: `ให้ “${CAP[c].th}” ของ ${p.name} กลับไปตามบทบาท` });
+      render();
+    });
+    m.addEventListener("keydown", e => { if (e.key === "Escape") close(); });
+    return m;
+  }
+  const actorName = () => (actor === "owner" ? "คุณกัญญา" : "สมชาย ใจดี");
+  function logIt(p, verb, c, deps) {
+    log.unshift({ t: "วันนี้ · เมื่อสักครู่", who: actorName(), what: `${verb} “${CAP[c].th}”${deps.length ? ` (พร้อม ${deps.map(d => CAP[d].th).join(", ")})` : ""} ให้ ${p.name} (${ROLE_TH[p.role]})` });
+  }
+
+  // ── log ──────────────────────────────────────────────────────
+  function logView() {
+    return el(`<div class="panel"><p class="note">ทุกการเปลี่ยนสิทธิ์ ทั้งของบทบาทและรายคน เก็บไว้ตลอด ลบไม่ได้</p><div class="log">${log.map(l => `<div class="logrow"><time>${l.t}</time><div><b>${l.who}</b> ${l.what}</div></div>`).join("")}</div></div>`);
+  }
+
+  function render() {
+    document.querySelectorAll(".scrim").forEach(n => n.remove());
+    document.querySelectorAll('[data-tab]').forEach(b => b.setAttribute("aria-selected", b.dataset.tab === tab));
+    const pc = document.querySelector('[data-tab="people"]');
+    const ex = people.reduce((n, p) => n + Object.keys(p.ovr).length, 0);
+    pc.innerHTML = `รายคน${ex ? `<span class="cnt">ยกเว้น ${ex}</span>` : ""}`;
+    view.replaceChildren(tab === "roles" ? rolesView() : tab === "people" ? peopleView() : logView());
+    if (openId) { const s = sheet(people.find(p => p.id === openId)); document.body.appendChild(s); s.querySelector("[data-close]").focus(); }
+  }
+  document.querySelector(".tabs").addEventListener("click", e => { const b = e.target.closest("[data-tab]"); if (b) { tab = b.dataset.tab; render(); } });
+  document.getElementById("actorSeg").addEventListener("click", e => {
+    const b = e.target.closest("[data-actor]"); if (!b) return; actor = b.dataset.actor; draft = clone(saved);
+    document.querySelectorAll("[data-actor]").forEach(x => x.setAttribute("aria-pressed", x === b)); render();
+    if (actor === "manager") toast("ผู้จัดการ: ตารางบทบาทดูได้อย่างเดียว · ร้านนี้ปิด “เห็นค่าใช้จ่ายร้าน” ของผู้จัดการ จึงให้ข้อนี้กับใครไม่ได้");
+  });
+  document.getElementById("bannerClose").addEventListener("click", () => document.getElementById("newBanner").hidden = true);
+  render();
+})();
+</script>

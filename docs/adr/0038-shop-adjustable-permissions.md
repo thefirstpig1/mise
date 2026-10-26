@@ -31,3 +31,27 @@ ADR 0029 Q8 วางตารางบทบาทไว้ในโค้ด�
 2. drift test ของ ADR 0029 (matrix, grant rules) ต้องทดสอบกับสิทธิ์จริง ไม่ใช่กับตารางค่าเริ่มต้นอย่างเดียว
 3. หน้าที่แสดงราคาต้องถูกไล่ใส่ในตารางคู่สิทธิ์ครั้งแรก — งาน audit หนึ่งรอบก่อนเปิดให้ร้านปรับ
 4. ทะเบียน `docs/settings-register.md` ได้แถว "ตารางสิทธิ์ของบทบาท" และ "สิทธิ์รายคน"
+
+## Amendment 2026-10-26 — mockup approved (Kong) + the price audit
+
+Mockup: `docs/mockups/permissions.html` (artifact ShGwn4G37nphkvnQrnf3WN). Kong took all three recommendations:
+
+- **Q4 — 16 adjustable capabilities in four groups**, not cut to 12: เห็นตัวเลขเงิน (`cost:view` `sales:view` `expense:view` `staff:view`) · ซื้อของ (`purchase:write` `purchase:approve` `receive:write` `master:write`) · สต๊อกและครัว (`stock:write` `waste:write` `count:close` `recipe:write`) · ยอดขายและบัญชี (`sales:import` `consumption:post` `expense:write` `staffmeal:approve`). The basics every working role needs (`purchase:request` `count:write` `staffmeal:write` `recipe:draft`) are not in the table. Locked: `member:manage` `settings:write`.
+- **Q5 — `admin` is locked like `owner`.** To narrow one admin, use a per-person exception.
+- **Q6 — a second pair: `expense:write` ⇒ `expense:view`**, because the expense list prints every amount.
+
+### What the audit found (step 2, Consequence 3)
+Pages that print money while gated only by a capability that does not imply seeing it:
+
+| Page | Money shown | Gate today | Pair needed |
+|---|---|---|---|
+| `/purchase-orders` `[id]` `[id]/edit` | line prices, totals | `purchase:write` | `cost:view` |
+| `/goods-receipts` `[id]` `[id]/edit` | line prices, totals | `receive:write` | `cost:view` |
+| `/suppliers/[id]` `/suppliers/[id]/order` `/products/[id]` | catalogue price | `master:write` / `purchase:write` | `cost:view` |
+| `/expenses/new` | — (the list it returns to) | `expense:write` | `expense:view` |
+
+Safe today only because every role holding those gates happens to hold the pair.
+
+🔴 **One is NOT safe today:** `/stock-counts/[id]` (`count:write`) sends `costPerBaseUnit` for every product to the browser and prints **มูลค่าส่วนต่าง ฿** — so a cook and a head of department, who ADR 0029 says see no money anywhere, see the value of the count variance and can read unit costs out of the page payload.
+
+Already gated correctly: `/cost/*` `/sales` `/dashboard` `/closing` (`sales:view`) `/stock` `/stock/history` `/transfers` `/menus` `/menus/lab` `/recipes` `/products` `/waste` `/purchase-requests` (+`/cut`), `/api/products` `/api/menus` `/api/cost` `/api/expenses`. `/staff-meals` prints selling prices and quotas only, which are not cost.
