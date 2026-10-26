@@ -52,6 +52,10 @@ export const TENANT_SCOPED_DELETE_ORDER = [
   "UserBranchAccess",
   "UserDepartmentAssignment",
   "WasteLog",
+  // ADR 0038: overrides and their log, before the memberships they name.
+  "RoleCapabilityOverride",
+  "MembershipCapabilityOverride",
+  "PermissionChangeLog",
   // Daily close (ADR 0042): children first, the close before its branch.
   "DailyComment",
   "DailyIssue",

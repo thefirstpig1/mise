@@ -192,6 +192,8 @@ getRecipeListLogic(tenantId, { ..., cost: CostAccess | null })
 
 ### Q14 — บันทึกการเปลี่ยนสิทธิ์ครั้งล่าสุด ไม่ใช่ทั้งประวัติ
 
+> **แก้โดย ADR 0038 (2026-10-27):** สิทธิ์รายข้อที่ร้านปรับเองต้องมีประวัติเต็ม → `permission_change_log` (append-only) · ข้อนี้ยังใช้กับบทบาทและสาขาของสมาชิก (`role_changed_at/by`)
+
 `tenant_membership` เป็นแถวที่ UPDATE ทับ มีแค่ `updated_at` ไม่มี `updated_by` พอ Q10/Q11 ให้ `manager` และ `admin` เปลี่ยน role คนอื่นได้ คำถาม *"ใครถอดสิทธิ์ดูต้นทุนของฉันเมื่อวาน"* จะไม่มีคำตอบอยู่ในระบบเลย
 
 **`role_changed_at` + `role_changed_by`** สองคอลัมน์บนแถวเดิม ขี่ไปกับ migration ของ `all_branches`

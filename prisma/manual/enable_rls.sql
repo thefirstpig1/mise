@@ -573,3 +573,26 @@ USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 -- ============================================================
 -- End daily close RLS
 -- ============================================================
+
+-- ============================================================
+-- ADR 0038 — shop-adjustable permissions
+-- ============================================================
+
+ALTER TABLE role_capability_override ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON role_capability_override;
+CREATE POLICY tenant_isolation ON role_capability_override
+USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+ALTER TABLE membership_capability_override ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON membership_capability_override;
+CREATE POLICY tenant_isolation ON membership_capability_override
+USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+ALTER TABLE permission_change_log ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON permission_change_log;
+CREATE POLICY tenant_isolation ON permission_change_log
+USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+-- ============================================================
+-- End ADR 0038 RLS
+-- ============================================================

@@ -102,13 +102,13 @@ model Tenant {
   /// Rule CO-COV: below this share of sales posted to stock, a recipe-method
   /// cost % is too incomplete to compare with a target or the period before
   /// (fewer recipes posted = less cost = a % that reads as good news).
-  costCoverageMinPct Int @default(90) @map("cost_coverage_min_pct")
+  costCoverageMinPct     Int     @default(90) @map("cost_coverage_min_pct")
   /// Stock whose oldest remaining lot is older than this is "ค้างนาน".
-  slowStockDays Int @default(45) @map("slow_stock_days")
+  slowStockDays          Int     @default(45) @map("slow_stock_days")
   /// Kong 2026-10-25: how often the shop means to count (days); the hub warns past it.
-  countCycleDays Int @default(30) @map("count_cycle_days")
+  countCycleDays         Int     @default(30) @map("count_cycle_days")
   /// Kong 2026-10-25 (ADR 0042): the ปิดร้านประจำวัน add-on. Off = the dashboard keys the till total as before.
-  dailyCloseEnabled Boolean @default(false) @map("daily_close_enabled")
+  dailyCloseEnabled      Boolean @default(false) @map("daily_close_enabled")
 
   /// The two staff-meal controls (ADR 0028 Q9). Both nullable, and null means
   /// NOT CHECKED rather than zero — a shop with no policy must not read as a
@@ -141,61 +141,64 @@ model Tenant {
   updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
 
-  branches                Branch[]
-  memberships             TenantMembership[]
-  departments             Department[]
-  suppliers               Supplier[]
-  categories              Category[]
-  products                Product[]
-  supplierProductMappings SupplierProductMapping[]
-  stockMovements          StockMovement[]
-  stockAdjustments        StockAdjustment[]
-  stockCostDeclarations   StockCostDeclaration[]
-  stockCounts             StockCount[]
-  stockCountItems         StockCountItem[]
-  stockCountEntries       StockCountEntry[]
-  stockCountContributions StockCountContribution[]
-  purchaseOrders          PurchaseOrder[]
-  purchaseOrderItems      PurchaseOrderItem[]
-  poItemAllocations       PurchaseOrderItemAllocation[]
-  goodsReceipts           GoodsReceipt[]
-  goodsReceiptItems       GoodsReceiptItem[]
-  grItemAllocations       GoodsReceiptItemAllocation[]
-  expenses                Expense[]
-  expenseItems            ExpenseItem[]
-  recurringExpenses       RecurringExpense[]
-  wasteLogs               WasteLog[]
-  parLevels               ParLevel[]
-  stockTransfers          StockTransfer[]
-  stockTransferItems      StockTransferItem[]
-  posIntegrations         PosIntegration[]
-  salesImportProfiles     SalesImportProfile[]
-  salesImportBatches      SalesImportBatch[]
-  salesDays               SalesDay[]
-  menuCategories          MenuCategory[]
-  menus                   Menu[]
-  menuAliases             MenuAlias[]
-  menuMerges              MenuMerge[]
-  salesLines              SalesLine[]
-  recipes                 Recipe[]
-  recipeIngredients       RecipeIngredient[]
-  recipeBranches          RecipeBranch[]
-  salesConsumptionRuns    SalesConsumptionRun[]
-  salesConsumptionItems   SalesConsumptionItem[]
-  staffMembers            StaffMember[]
-  staffMeals              StaffMeal[]
-  staffMealItems          StaffMealItem[]
-  purchaseRequestLines    PurchaseRequestLine[]
-  purchaseRequestMessages PurchaseRequestMessage[]
-  purchaseRequestReadies  PurchaseRequestReady[]
-  deliveryPromises        PurchaseOrderDeliveryPromise[]
+  branches                      Branch[]
+  memberships                   TenantMembership[]
+  departments                   Department[]
+  suppliers                     Supplier[]
+  categories                    Category[]
+  products                      Product[]
+  supplierProductMappings       SupplierProductMapping[]
+  stockMovements                StockMovement[]
+  stockAdjustments              StockAdjustment[]
+  stockCostDeclarations         StockCostDeclaration[]
+  stockCounts                   StockCount[]
+  stockCountItems               StockCountItem[]
+  stockCountEntries             StockCountEntry[]
+  stockCountContributions       StockCountContribution[]
+  purchaseOrders                PurchaseOrder[]
+  purchaseOrderItems            PurchaseOrderItem[]
+  poItemAllocations             PurchaseOrderItemAllocation[]
+  goodsReceipts                 GoodsReceipt[]
+  goodsReceiptItems             GoodsReceiptItem[]
+  grItemAllocations             GoodsReceiptItemAllocation[]
+  expenses                      Expense[]
+  expenseItems                  ExpenseItem[]
+  recurringExpenses             RecurringExpense[]
+  wasteLogs                     WasteLog[]
+  parLevels                     ParLevel[]
+  stockTransfers                StockTransfer[]
+  stockTransferItems            StockTransferItem[]
+  posIntegrations               PosIntegration[]
+  salesImportProfiles           SalesImportProfile[]
+  salesImportBatches            SalesImportBatch[]
+  salesDays                     SalesDay[]
+  menuCategories                MenuCategory[]
+  menus                         Menu[]
+  menuAliases                   MenuAlias[]
+  menuMerges                    MenuMerge[]
+  salesLines                    SalesLine[]
+  recipes                       Recipe[]
+  recipeIngredients             RecipeIngredient[]
+  recipeBranches                RecipeBranch[]
+  salesConsumptionRuns          SalesConsumptionRun[]
+  salesConsumptionItems         SalesConsumptionItem[]
+  staffMembers                  StaffMember[]
+  staffMeals                    StaffMeal[]
+  staffMealItems                StaffMealItem[]
+  purchaseRequestLines          PurchaseRequestLine[]
+  purchaseRequestMessages       PurchaseRequestMessage[]
+  purchaseRequestReadies        PurchaseRequestReady[]
+  deliveryPromises              PurchaseOrderDeliveryPromise[]
+  customerTypes                 CustomerType[]
+  roleCapabilityOverrides       RoleCapabilityOverride[]
+  membershipCapabilityOverrides MembershipCapabilityOverride[]
+  permissionChanges             PermissionChangeLog[]
+  dailyCloses                   DailyClose[]
+  dailyCloseMix                 DailyCloseMix[]
+  dailyIssues                   DailyIssue[]
+  dailyComments                 DailyComment[]
 
   @@map("tenant")
-  customerTypes  CustomerType[]
-  dailyCloses    DailyClose[]
-  dailyCloseMix  DailyCloseMix[]
-  dailyIssues    DailyIssue[]
-  dailyComments  DailyComment[]
 }
 
 model Branch {
@@ -256,10 +259,10 @@ model Branch {
   staffMeals              StaffMeal[]
   purchaseRequestLines    PurchaseRequestLine[]
   purchaseRequestReadies  PurchaseRequestReady[]
+  dailyCloses             DailyClose[]
 
   @@index([tenantId])
   @@map("branch")
-  dailyCloses DailyClose[]
 }
 
 model User {
@@ -278,55 +281,59 @@ model User {
   accounts                  Account[]
   sessions                  Session[]
   memberships               TenantMembership[]
-  membershipRoleChanges     TenantMembership[]       @relation("MembershipRoleChangedBy")
+  membershipRoleChanges     TenantMembership[]             @relation("MembershipRoleChangedBy")
   stockMovements            StockMovement[]
   stockAdjustments          StockAdjustment[]
   stockCostDeclarations     StockCostDeclaration[]
-  stockCountsStarted        StockCount[]             @relation("ScStartedBy")
-  stockCountsClosed         StockCount[]             @relation("ScClosedBy")
-  stockCountsVoided         StockCount[]             @relation("ScVoidedBy")
+  stockCountsStarted        StockCount[]                   @relation("ScStartedBy")
+  stockCountsClosed         StockCount[]                   @relation("ScClosedBy")
+  stockCountsVoided         StockCount[]                   @relation("ScVoidedBy")
   stockCountItemsCounted    StockCountItem[]
-  stockCountContributions   StockCountContribution[] @relation("ScContributionBy")
-  purchaseOrdersMade        PurchaseOrder[]          @relation("PoCreatedBy")
-  purchaseOrdersSent        PurchaseOrder[]          @relation("PoSentBy")
-  purchaseOrdersVoided      PurchaseOrder[]          @relation("PoCancelledBy")
-  purchaseOrdersClosedShort PurchaseOrder[]          @relation("PoClosedShortBy")
-  goodsReceiptsReceived     GoodsReceipt[]           @relation("GrReceivedBy")
-  goodsReceiptsConfirmed    GoodsReceipt[]           @relation("GrConfirmedBy")
-  goodsReceiptsVoided       GoodsReceipt[]           @relation("GrVoidedBy")
+  stockCountContributions   StockCountContribution[]       @relation("ScContributionBy")
+  purchaseOrdersMade        PurchaseOrder[]                @relation("PoCreatedBy")
+  purchaseOrdersSent        PurchaseOrder[]                @relation("PoSentBy")
+  purchaseOrdersVoided      PurchaseOrder[]                @relation("PoCancelledBy")
+  purchaseOrdersClosedShort PurchaseOrder[]                @relation("PoClosedShortBy")
+  goodsReceiptsReceived     GoodsReceipt[]                 @relation("GrReceivedBy")
+  goodsReceiptsConfirmed    GoodsReceipt[]                 @relation("GrConfirmedBy")
+  goodsReceiptsVoided       GoodsReceipt[]                 @relation("GrVoidedBy")
   expensesCreated           Expense[]
-  wasteLogged               WasteLog[]               @relation("WasteWastedBy")
-  wasteVoided               WasteLog[]               @relation("WasteVoidedBy")
-  staffMealsRecorded        StaffMeal[]              @relation("StaffMealRecordedBy")
-  staffMealsVoided          StaffMeal[]              @relation("StaffMealVoidedBy")
-  staffMealsApproved        StaffMeal[]              @relation("StaffMealApprovedBy")
-  staffMemberRows           StaffMember[]            @relation("StaffMemberAccount")
-  consumptionPosted         SalesConsumptionRun[]    @relation("ConsumptionPostedBy")
-  consumptionVoided         SalesConsumptionRun[]    @relation("ConsumptionVoidedBy")
-  transfersDispatched       StockTransfer[]          @relation("TfDispatchedBy")
+  wasteLogged               WasteLog[]                     @relation("WasteWastedBy")
+  wasteVoided               WasteLog[]                     @relation("WasteVoidedBy")
+  staffMealsRecorded        StaffMeal[]                    @relation("StaffMealRecordedBy")
+  staffMealsVoided          StaffMeal[]                    @relation("StaffMealVoidedBy")
+  staffMealsApproved        StaffMeal[]                    @relation("StaffMealApprovedBy")
+  staffMemberRows           StaffMember[]                  @relation("StaffMemberAccount")
+  consumptionPosted         SalesConsumptionRun[]          @relation("ConsumptionPostedBy")
+  consumptionVoided         SalesConsumptionRun[]          @relation("ConsumptionVoidedBy")
+  transfersDispatched       StockTransfer[]                @relation("TfDispatchedBy")
   /// Null on every row until user management ships (ADR 0018 Q3) — a company
   /// driver is a member and will confirm as themselves; a hired outside driver
   /// never will, and `driver_name` is the record for both until then.
-  transfersDriven           StockTransfer[]          @relation("TfDriver")
-  transfersReceived         StockTransfer[]          @relation("TfReceivedBy")
-  transfersVoided           StockTransfer[]          @relation("TfVoidedBy")
-  salesImportsUploaded      SalesImportBatch[]       @relation("SalesImportUploadedBy")
-  menuAliasesConfirmed      MenuAlias[]              @relation("MenuAliasConfirmedBy")
-  menuMergesMade            MenuMerge[]              @relation("MenuMergeMergedBy")
-  menuMergesRevoked         MenuMerge[]              @relation("MenuMergeRevokedBy")
-  salesPulsesRecorded       SalesDay[]               @relation("SalesPulseRecordedBy")
-  recipesCreated            Recipe[]                 @relation("RecipeCreatedBy")
-  recipesEndorsed           Recipe[]                 @relation("RecipeEndorsedBy")
-  purchaseRequestsMade      PurchaseRequestLine[]    @relation("PrLineRequestedBy")
-  purchaseRequestsRejected  PurchaseRequestLine[]    @relation("PrLineRejectedBy")
-  purchaseRequestMessages   PurchaseRequestMessage[] @relation("PrMessageAuthor")
-  purchaseRequestReadies    PurchaseRequestReady[]   @relation("PrReadyBy")
+  transfersDriven           StockTransfer[]                @relation("TfDriver")
+  transfersReceived         StockTransfer[]                @relation("TfReceivedBy")
+  transfersVoided           StockTransfer[]                @relation("TfVoidedBy")
+  salesImportsUploaded      SalesImportBatch[]             @relation("SalesImportUploadedBy")
+  menuAliasesConfirmed      MenuAlias[]                    @relation("MenuAliasConfirmedBy")
+  menuMergesMade            MenuMerge[]                    @relation("MenuMergeMergedBy")
+  menuMergesRevoked         MenuMerge[]                    @relation("MenuMergeRevokedBy")
+  salesPulsesRecorded       SalesDay[]                     @relation("SalesPulseRecordedBy")
+  recipesCreated            Recipe[]                       @relation("RecipeCreatedBy")
+  recipesEndorsed           Recipe[]                       @relation("RecipeEndorsedBy")
+  purchaseRequestsMade      PurchaseRequestLine[]          @relation("PrLineRequestedBy")
+  purchaseRequestsRejected  PurchaseRequestLine[]          @relation("PrLineRejectedBy")
+  purchaseRequestMessages   PurchaseRequestMessage[]       @relation("PrMessageAuthor")
+  purchaseRequestReadies    PurchaseRequestReady[]         @relation("PrReadyBy")
   deliveryPromisesSet       PurchaseOrderDeliveryPromise[] @relation("PoPromiseSetBy")
 
-  dailyClosesClosed  DailyClose[]   @relation("DailyCloseClosedBy")
-  dailyIssuesCreated DailyIssue[]   @relation("DailyIssueCreatedBy")
-  dailyIssuesResolved DailyIssue[]  @relation("DailyIssueResolvedBy")
-  dailyComments      DailyComment[] @relation("DailyCommentAuthor")
+  dailyClosesClosed   DailyClose[]   @relation("DailyCloseClosedBy")
+  dailyIssuesCreated  DailyIssue[]   @relation("DailyIssueCreatedBy")
+  dailyIssuesResolved DailyIssue[]   @relation("DailyIssueResolvedBy")
+  dailyComments       DailyComment[] @relation("DailyCommentAuthor")
+
+  roleOverridesChanged       RoleCapabilityOverride[]       @relation("RoleOverrideChangedBy")
+  membershipOverridesChanged MembershipCapabilityOverride[] @relation("MembershipOverrideChangedBy")
+  permissionChangesMade      PermissionChangeLog[]          @relation("PermissionChangeActor")
 
   @@map("app_user")
 }
@@ -368,14 +375,85 @@ model TenantMembership {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  tenant            Tenant                     @relation(fields: [tenantId], references: [id])
-  user              User                       @relation(fields: [userId], references: [id])
-  roleChangedByUser User?                      @relation("MembershipRoleChangedBy", fields: [roleChangedBy], references: [id])
-  branchAccess      UserBranchAccess[]
-  deptAssignments   UserDepartmentAssignment[]
+  tenant              Tenant                         @relation(fields: [tenantId], references: [id])
+  user                User                           @relation(fields: [userId], references: [id])
+  roleChangedByUser   User?                          @relation("MembershipRoleChangedBy", fields: [roleChangedBy], references: [id])
+  branchAccess        UserBranchAccess[]
+  deptAssignments     UserDepartmentAssignment[]
+  capabilityOverrides MembershipCapabilityOverride[]
+  permissionChanges   PermissionChangeLog[]
 
   @@unique([tenantId, userId])
   @@map("tenant_membership")
+}
+
+/// ADR 0038 Q1/Q3 — what a shop changed in a role's DEFAULT capabilities.
+///
+/// Only the difference is stored: the defaults stay in TypeScript
+/// (`ROLE_CAPABILITIES`), so a capability added next year reaches every shop
+/// that never touched it. `role` and `capability` are plain text like
+/// `tenant_membership.role`; the code reads only names it knows, so an unknown
+/// string here grants nothing. `owner`, `admin`, `member:manage` and
+/// `settings:write` are never written (ADR 0038 Q1.2, Amendment Q5).
+model RoleCapabilityOverride {
+  id         String   @id @default(uuid()) @db.Uuid
+  tenantId   String   @map("tenant_id") @db.Uuid
+  role       String
+  capability String
+  granted    Boolean
+  changedBy  String   @map("changed_by")
+  changedAt  DateTime @default(now()) @map("changed_at")
+
+  tenant        Tenant @relation(fields: [tenantId], references: [id])
+  changedByUser User   @relation("RoleOverrideChangedBy", fields: [changedBy], references: [id])
+
+  @@unique([tenantId, role, capability])
+  @@map("role_capability_override")
+}
+
+/// ADR 0038 Q1 — one person's exception to their role: `granted` true opens a
+/// capability the role lacks, false closes one it has. Survives a later change
+/// to the role table, which is the point of an exception.
+model MembershipCapabilityOverride {
+  id                 String   @id @default(uuid()) @db.Uuid
+  tenantId           String   @map("tenant_id") @db.Uuid
+  tenantMembershipId String   @map("tenant_membership_id") @db.Uuid
+  capability         String
+  granted            Boolean
+  changedBy          String   @map("changed_by")
+  changedAt          DateTime @default(now()) @map("changed_at")
+
+  tenant        Tenant           @relation(fields: [tenantId], references: [id])
+  membership    TenantMembership @relation(fields: [tenantMembershipId], references: [id])
+  changedByUser User             @relation("MembershipOverrideChangedBy", fields: [changedBy], references: [id])
+
+  @@unique([tenantMembershipId, capability])
+  @@index([tenantId])
+  @@map("membership_capability_override")
+}
+
+/// ADR 0038 Q1.5 — every permission change, append-only (no updated_at, no
+/// deleted_at). Exactly one of `role` / `tenantMembershipId` names the target.
+/// Supersedes ADR 0029 Q14's refusal of a change log: that refusal was about
+/// role and reach, where the last change answers the dispute; a table a shop
+/// edits cell by cell needs its history.
+model PermissionChangeLog {
+  id                 String   @id @default(uuid()) @db.Uuid
+  tenantId           String   @map("tenant_id") @db.Uuid
+  actorUserId        String   @map("actor_user_id")
+  role               String?
+  tenantMembershipId String?  @map("tenant_membership_id") @db.Uuid
+  capability         String
+  /// "grant" | "revoke" | "reset" (back to the default / back to the role)
+  change             String
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  tenant     Tenant            @relation(fields: [tenantId], references: [id])
+  actor      User              @relation("PermissionChangeActor", fields: [actorUserId], references: [id])
+  membership TenantMembership? @relation(fields: [tenantMembershipId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId, createdAt])
+  @@map("permission_change_log")
 }
 
 model UserBranchAccess {
@@ -404,22 +482,22 @@ model Department {
   updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
 
-  tenant            Tenant                        @relation(fields: [tenantId], references: [id])
-  parentDept        Department?                   @relation("DeptHierarchy", fields: [parentDeptId], references: [id])
-  childDepts        Department[]                  @relation("DeptHierarchy")
-  assignments       UserDepartmentAssignment[]
-  poItemAllocations PurchaseOrderItemAllocation[]
-  grItemAllocations GoodsReceiptItemAllocation[]
-  expenseItems      ExpenseItem[]
+  tenant                 Tenant                        @relation(fields: [tenantId], references: [id])
+  parentDept             Department?                   @relation("DeptHierarchy", fields: [parentDeptId], references: [id])
+  childDepts             Department[]                  @relation("DeptHierarchy")
+  assignments            UserDepartmentAssignment[]
+  poItemAllocations      PurchaseOrderItemAllocation[]
+  grItemAllocations      GoodsReceiptItemAllocation[]
+  expenseItems           ExpenseItem[]
   /// Part 19 Q16 — which department a menu earns revenue for.
-  menus             Menu[]
+  menus                  Menu[]
   purchaseRequestLines   PurchaseRequestLine[]
   purchaseRequestReadies PurchaseRequestReady[]
+  wasteLogs              WasteLog[]
 
   @@unique([tenantId, code])
   @@index([tenantId])
   @@map("department")
-  wasteLogs WasteLog[]
 }
 
 model UserDepartmentAssignment {
@@ -1206,15 +1284,15 @@ model PurchaseOrder {
 
   /// --- VAT snapshot (Q6), frozen when the PO is sent ---
   /// Sum of line totals. 15,2 = THB satang; unit prices carry more precision.
-  subtotalExclVat Decimal  @default(0) @map("subtotal_excl_vat") @db.Decimal(15, 2)
+  subtotalExclVat  Decimal  @default(0) @map("subtotal_excl_vat") @db.Decimal(15, 2)
   /// null = this order carries no VAT (supplier not registered).
-  vatRatePercent  Decimal? @map("vat_rate_percent") @db.Decimal(5, 2)
+  vatRatePercent   Decimal? @map("vat_rate_percent") @db.Decimal(5, 2)
   /// ADR 0036 Q7 / rule PR3 — the lines were typed as the supplier quotes them,
   /// VAT included. Every EXISTING money column still means EXCLUDING VAT; the
   /// quoted figures live in `unit_price_quoted` / `line_total_quoted` only.
-  pricesIncludeVat Boolean @default(false) @map("prices_include_vat")
-  vatAmount       Decimal  @default(0) @map("vat_amount") @db.Decimal(15, 2)
-  totalAmount     Decimal  @default(0) @map("total_amount") @db.Decimal(15, 2)
+  pricesIncludeVat Boolean  @default(false) @map("prices_include_vat")
+  vatAmount        Decimal  @default(0) @map("vat_amount") @db.Decimal(15, 2)
+  totalAmount      Decimal  @default(0) @map("total_amount") @db.Decimal(15, 2)
 
   notes String?
 
@@ -1240,13 +1318,13 @@ model PurchaseOrder {
   /// DRAFT only (Q9) — a sent PO goes to CANCELLED and stays visible forever.
   deletedAt DateTime? @map("deleted_at")
 
-  tenant            Tenant              @relation(fields: [tenantId], references: [id])
-  branch            Branch              @relation(fields: [branchId], references: [id])
-  supplier          Supplier            @relation(fields: [supplierId], references: [id])
-  createdByUser     User                @relation("PoCreatedBy", fields: [createdBy], references: [id])
-  sentByUser        User?               @relation("PoSentBy", fields: [sentBy], references: [id])
-  cancelledByUser   User?               @relation("PoCancelledBy", fields: [cancelledBy], references: [id])
-  closedShortByUser User?               @relation("PoClosedShortBy", fields: [closedShortBy], references: [id])
+  tenant            Tenant                         @relation(fields: [tenantId], references: [id])
+  branch            Branch                         @relation(fields: [branchId], references: [id])
+  supplier          Supplier                       @relation(fields: [supplierId], references: [id])
+  createdByUser     User                           @relation("PoCreatedBy", fields: [createdBy], references: [id])
+  sentByUser        User?                          @relation("PoSentBy", fields: [sentBy], references: [id])
+  cancelledByUser   User?                          @relation("PoCancelledBy", fields: [cancelledBy], references: [id])
+  closedShortByUser User?                          @relation("PoClosedShortBy", fields: [closedShortBy], references: [id])
   items             PurchaseOrderItem[]
   goodsReceipts     GoodsReceipt[]
   deliveryPromises  PurchaseOrderDeliveryPromise[]
@@ -1275,12 +1353,12 @@ model PurchaseOrderItem {
   /// --- snapshot (Q3) ---
   /// Copied from ProductUnit at send time so a later rename/ratio edit cannot
   /// change what this order meant. to_base_ratio mirrors ProductUnit's (15,6).
-  orderUnitName String  @map("order_unit_name")
-  toBaseRatio   Decimal @map("to_base_ratio") @db.Decimal(15, 6)
+  orderUnitName   String   @map("order_unit_name")
+  toBaseRatio     Decimal  @map("to_base_ratio") @db.Decimal(15, 6)
   /// excl VAT. 15,4 matches supplier_product_mapping.current_unit_price.
-  unitPrice     Decimal @map("unit_price") @db.Decimal(15, 4)
+  unitPrice       Decimal  @map("unit_price") @db.Decimal(15, 4)
   /// round(qtyOrdered × unitPrice, 2) — computed in the app, stored, never re-derived.
-  lineTotal     Decimal @map("line_total") @db.Decimal(15, 2)
+  lineTotal       Decimal  @map("line_total") @db.Decimal(15, 2)
   /// Rule PR3 — as the supplier quotes it, VAT INCLUDED; null on an order typed
   /// excluding VAT. For display and printing only: nothing costs from these.
   unitPriceQuoted Decimal? @map("unit_price_quoted") @db.Decimal(15, 4)
@@ -1359,19 +1437,19 @@ model PurchaseOrderDeliveryPromise {
 
 /// One thing one branch needs, as the kitchen asked for it.
 model PurchaseRequestLine {
-  id           String  @id @default(uuid()) @db.Uuid
-  tenantId     String  @map("tenant_id") @db.Uuid
-  branchId     String  @map("branch_id") @db.Uuid
-  productId    String  @map("product_id") @db.Uuid
+  id           String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  branchId     String   @map("branch_id") @db.Uuid
+  productId    String   @map("product_id") @db.Uuid
   /// In `unitId` — what the kitchen asked for. The purchaser may change it when
   /// ordering (ADR 0036 Q4); the PO line records what was actually ordered.
-  qty          Decimal @db.Decimal(15, 3)
-  unitId       String  @map("unit_id") @db.Uuid
+  qty          Decimal  @db.Decimal(15, 3)
+  unitId       String   @map("unit_id") @db.Uuid
   /// Always set: a shop with departments switched off files everything under
   /// its "Main" department, the same rule ADR 0012 Q2 applied to PO allocations.
-  departmentId String  @map("department_id") @db.Uuid
+  departmentId String   @map("department_id") @db.Uuid
   /// Proposed by the system (Q11) or chosen by the kitchen; null = "ให้จัดซื้อเลือก".
-  supplierId   String? @map("supplier_id") @db.Uuid
+  supplierId   String?  @map("supplier_id") @db.Uuid
   /// "ที่เหลืออยู่จริง" in the product's BASE unit — what the person standing
   /// at the shelf saw. Informs the order; NEVER moves stock (ADR 0015 owns that).
   onHandQty    Decimal? @map("on_hand_qty") @db.Decimal(15, 3)
@@ -1379,8 +1457,8 @@ model PurchaseRequestLine {
   /// who moves this line to another supplier must answer it first (Q4).
   note         String?
 
-  requestedBy  String   @map("requested_by")
-  requestedAt  DateTime @default(now()) @map("requested_at")
+  requestedBy String   @map("requested_by")
+  requestedAt DateTime @default(now()) @map("requested_at")
 
   /// "ไม่สั่ง" (Q4) — never a silent delete. Cleared when the kitchen asks again,
   /// which reopens THIS line so the conversation stays in one place.
@@ -1531,24 +1609,24 @@ model GoodsReceipt {
 
   /// Part 16 (ADR 0016 Q2). VAT sits at the HEADER, following Decision #35's rule
   /// for expenses. Null rate = no VAT on this delivery.
-  vatRatePercent Decimal? @map("vat_rate_percent") @db.Decimal(5, 2)
-  vatAmount      Decimal  @default(0) @map("vat_amount") @db.Decimal(15, 2)
+  vatRatePercent   Decimal? @map("vat_rate_percent") @db.Decimal(5, 2)
+  vatAmount        Decimal  @default(0) @map("vat_amount") @db.Decimal(15, 2)
   /// Rule PR3 — the lines were typed as the supplier's bill shows them, VAT
   /// included. `line_total_actual` still means EXCLUDING VAT.
-  pricesIncludeVat Boolean @default(false) @map("prices_include_vat")
+  pricesIncludeVat Boolean  @default(false) @map("prices_include_vat")
   /// SNAPSHOT of tenant.is_vat_registered AT RECEIPT TIME — never read live.
   /// A shop that crosses the 1.8M threshold in October must not have the whole
   /// year's stock silently re-valued: it did pay that VAT and nobody refunds it.
   /// Same rule ADR 0012 Q3 applied to to_base_ratio. When false, the VAT is part
   /// of what the stock cost and Part 14's replay adds it to the layer value.
-  vatReclaimable Boolean  @default(false) @map("vat_reclaimable")
+  vatReclaimable   Boolean  @default(false) @map("vat_reclaimable")
   /// Business time of the delivery — becomes every movement's occurred_at (Q4).
-  receivedAt     DateTime @map("received_at")
-  receivedBy     String   @map("received_by")
-  notes          String?
+  receivedAt       DateTime @map("received_at")
+  receivedBy       String   @map("received_by")
+  notes            String?
   /// Set at confirm when any line over/under-delivers or its price differs from
   /// the PO (Q3/Q7). Drives review-by-exception, not a block.
-  hasDiscrepancy Boolean  @default(false) @map("has_discrepancy")
+  hasDiscrepancy   Boolean  @default(false) @map("has_discrepancy")
 
   /// --- lifecycle audit (Q2/Q6) ---
   confirmedAt DateTime? @map("confirmed_at")
@@ -1604,13 +1682,13 @@ model GoodsReceiptItem {
   /// "sack was 25 kg, someone made it 30" bug comes straight back. A standalone
   /// line snapshots the live ProductUnit, because the receipt IS the originating
   /// record and there is no earlier document to disagree with.
-  receivedUnitName String  @map("received_unit_name")
-  toBaseRatio      Decimal @map("to_base_ratio") @db.Decimal(15, 6)
+  receivedUnitName String   @map("received_unit_name")
+  toBaseRatio      Decimal  @map("to_base_ratio") @db.Decimal(15, 6)
   /// Price actually invoiced, excl VAT (Q7). Defaults from the PO line, editable.
-  unitPriceActual  Decimal @map("unit_price_actual") @db.Decimal(15, 4)
+  unitPriceActual  Decimal  @map("unit_price_actual") @db.Decimal(15, 4)
   /// round(qtyReceivedActual × unitPriceActual, 2). variance_qty / variance_price
   /// are NOT stored — they are pure functions of values already on this row.
-  lineTotalActual  Decimal @map("line_total_actual") @db.Decimal(15, 2)
+  lineTotalActual  Decimal  @map("line_total_actual") @db.Decimal(15, 2)
   /// Rule PR3 — as the bill shows it, VAT INCLUDED; null when typed excluding
   /// VAT. `line_total_quoted` is also what a shop that cannot reclaim VAT paid
   /// for the layer, to the satang (R6). Negated on a reversal line, like the rest.
@@ -2450,15 +2528,15 @@ model SalesDay {
   /// the POS, where a refund really is negative and Mise is not the authority
   /// (ADR 0019 Q14). This is TYPED BY A PERSON, where a leading minus is a slip
   /// and Mise is the only check there is. `sales_day_pulse_amount_check`.
-  pulseAmount     Decimal?          @map("pulse_amount") @db.Decimal(15, 2)
-  pulseSource     SalesPulseSource? @map("pulse_source")
+  pulseAmount      Decimal?          @map("pulse_amount") @db.Decimal(15, 2)
+  pulseSource      SalesPulseSource? @map("pulse_source")
   /// A figure used as evidence needs a name on it.
-  pulseRecordedBy String?           @map("pulse_recorded_by")
-  pulseRecordedAt DateTime?         @map("pulse_recorded_at")
+  pulseRecordedBy  String?           @map("pulse_recorded_by")
+  pulseRecordedAt  DateTime?         @map("pulse_recorded_at")
   /// "ตู้เย็นเสีย ปิดเร็ว" — why a day looks odd, from the person who was there.
   /// Worth more than any threshold, because it is the explanation rather than the
   /// detection.
-  pulseNote       String?           @map("pulse_note")
+  pulseNote        String?           @map("pulse_note")
   /// ADR 0042: how many customers the POS says came; null = not recorded. POS
   /// fills it when the file carries it, otherwise the closer types it.
   guestCount       Int?              @map("guest_count")
@@ -2912,8 +2990,8 @@ model Recipe {
   draftStatus RecipeDraftStatus? @map("draft_status")
   /// Who endorsed it and when. Cleared when the draft's content changes,
   /// because an endorsement vouches for the recipe the endorser read.
-  endorsedBy String?   @map("endorsed_by")
-  endorsedAt DateTime? @map("endorsed_at")
+  endorsedBy  String?            @map("endorsed_by")
+  endorsedAt  DateTime?          @map("endorsed_at")
 
   /// The person who WROTE it. For a draft this no longer moves to whoever
   /// edited last (ADR 0041): "ร่างโดย" is credit, and the editor is not the author.
@@ -2925,12 +3003,12 @@ model Recipe {
   tenant         Tenant             @relation(fields: [tenantId], references: [id])
   endorsedByUser User?              @relation("RecipeEndorsedBy", fields: [endorsedBy], references: [id])
   menu           Menu?              @relation(fields: [menuId], references: [id])
-  outputProduct Product?           @relation("RecipeOutputProduct", fields: [outputProductId], references: [id])
-  supersededBy  Recipe?            @relation("RecipeSupersede", fields: [supersededById], references: [id])
-  supersedes    Recipe[]           @relation("RecipeSupersede")
-  createdByUser User               @relation("RecipeCreatedBy", fields: [createdBy], references: [id])
-  ingredients   RecipeIngredient[]
-  branches      RecipeBranch[]
+  outputProduct  Product?           @relation("RecipeOutputProduct", fields: [outputProductId], references: [id])
+  supersededBy   Recipe?            @relation("RecipeSupersede", fields: [supersededById], references: [id])
+  supersedes     Recipe[]           @relation("RecipeSupersede")
+  createdByUser  User               @relation("RecipeCreatedBy", fields: [createdBy], references: [id])
+  ingredients    RecipeIngredient[]
+  branches       RecipeBranch[]
 
   @@index([tenantId])
   @@index([lineId, effectiveFrom], map: "recipe_line_effective_idx")
@@ -3540,4 +3618,3 @@ model DailyComment {
   @@index([dailyCloseId, createdAt], map: "daily_comment_close_idx")
   @@map("daily_comment")
 }
-
