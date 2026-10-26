@@ -78,6 +78,11 @@ export default async function MembersPage() {
           เชิญคนเข้าร้านด้วยอีเมล — ไม่มีลิงก์คำเชิญให้ส่งต่อ
           คนที่ถูกเชิญเข้าใช้งานได้ทันทีเมื่อล็อกอินด้วยอีเมลนั้น
         </p>
+        <p className="mt-1 text-sm">
+          <a href="/settings/permissions" className="text-primary underline-offset-2 hover:underline">
+            ตั้งว่าแต่ละบทบาทหรือแต่ละคนเห็นอะไรและทำอะไรได้ →
+          </a>
+        </p>
       </div>
 
       <MemberForms

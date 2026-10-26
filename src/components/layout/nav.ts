@@ -82,6 +82,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
       { href: "/settings/departments", label: "แผนก", need: "settings:write" },
       { href: "/categories", label: "หมวดบัญชี", need: "any:member" },
       { href: "/settings/members", label: "คนในร้าน", need: "member:manage" },
+      { href: "/settings/permissions", label: "สิทธิ์ของร้าน", need: "member:manage" },
     ],
   },
 ];
