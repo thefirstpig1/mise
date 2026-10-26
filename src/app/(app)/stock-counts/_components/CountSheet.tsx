@@ -56,8 +56,11 @@ export default function CountSheet({
 }: {
   initial: StockCountDetailView;
   products: CountProduct[];
-  /** Cost per base unit, as a string, for valuing a variance (ADR 0015 Q4). */
-  costByProduct: Record<string, string>;
+  /**
+   * Cost per base unit, as a string, for valuing a variance (ADR 0015 Q4).
+   * `null` for a reader without cost:view — the money card is not shown.
+   */
+  costByProduct: Record<string, string> | null;
   /** Products holding stock at this branch — for the "not counted" warning at close. */
   stockedProductIds: string[];
   currentUserId: string;
@@ -248,9 +251,11 @@ export default function CountSheet({
   const preppedRows = rows.filter((p) => p.prepped);
   const preppedCounted = preppedRows.filter((p) => lineByProduct.has(p.id)).length;
   const uncountedStocked = stockedProductIds.filter((id) => !lineByProduct.has(id)).length;
-  const varianceValue = detail.items
-    .filter((i) => !i.isReversal)
-    .reduce((sum, i) => sum + Number(i.variance) * Number(costByProduct[i.productId] ?? 0), 0);
+  const varianceValue =
+    costByProduct &&
+    detail.items
+      .filter((i) => !i.isReversal)
+      .reduce((sum, i) => sum + Number(i.variance) * Number(costByProduct[i.productId] ?? 0), 0);
 
   const closeError = closeState.ok === false ? closeState.formError : undefined;
   const voidError = voidState.ok === false ? voidState.formError : undefined;
@@ -415,7 +420,7 @@ export default function CountSheet({
 
       {/* --- summary (money computed, never stored — ADR 0015 Q4) --- */}
       {detail.showExpected && countedCount > 0 && (
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className={`grid gap-3 ${varianceValue !== null ? "sm:grid-cols-2" : ""}`}>
           <div className="rounded-lg border border-border p-4">
             <p className="text-xs text-muted-foreground">ขาด / เกิน (จำนวน)</p>
             <p className="mt-1 text-lg font-semibold tabular-nums">
@@ -429,13 +434,15 @@ export default function CountSheet({
               {preppedCounted > 0 && ` · รวมของแปรรูป ${preppedCounted} รายการ ซึ่งส่วนต่างยังเชื่อไม่ได้`}
             </p>
           </div>
-          <div className="rounded-lg border border-border p-4">
-            <p className="text-xs text-muted-foreground">มูลค่าส่วนต่าง (ประมาณ)</p>
-            <p className={`mt-1 text-2xl font-semibold tabular-nums ${varianceValue < 0 ? "text-bad" : ""}`}>
-              {formatMoney(String(varianceValue))}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">คิดจากต้นทุนล่าสุด · ตัวเลขจริงดูที่หน้าต้นทุน</p>
-          </div>
+          {varianceValue !== null && (
+            <div className="rounded-lg border border-border p-4">
+              <p className="text-xs text-muted-foreground">มูลค่าส่วนต่าง (ประมาณ)</p>
+              <p className={`mt-1 text-2xl font-semibold tabular-nums ${varianceValue < 0 ? "text-bad" : ""}`}>
+                {formatMoney(String(varianceValue))}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">คิดจากต้นทุนล่าสุด · ตัวเลขจริงดูที่หน้าต้นทุน</p>
+            </div>
+          )}
         </div>
       )}
 

@@ -15,10 +15,12 @@
 import { notFound } from "next/navigation";
 import { requireTenant } from "@/lib/require-tenant";
 import { hasCapability } from "@/lib/permissions/service";
-import { getStockCountByIdLogic, getStockedProductIdsLogic } from "@/server/stock-count";
+import {
+  getCountVarianceCostsLogic,
+  getStockCountByIdLogic,
+  getStockedProductIdsLogic,
+} from "@/server/stock-count";
 import { getProductsLogic } from "@/server/product";
-import { getProductCostsLogic } from "@/server/stock-cost";
-import { getProductCostsQuerySchema } from "@/lib/validations/stock-cost";
 import { toStockCountDetailView } from "../_components/stock-count-view";
 import CountSheet from "../_components/CountSheet";
 import {
@@ -36,7 +38,7 @@ export default async function StockCountDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { tenantId, membership, role } = await requireTenant("count:write");
+  const { tenantId, membership, role, costAccess } = await requireTenant("count:write");
   const { id } = await params;
 
   const count = await getStockCountByIdLogic(tenantId, id);
@@ -68,17 +70,9 @@ export default async function StockCountDetailPage({
 
   // One batched cost read for everything that can show a variance: what is
   // stocked here, plus what is already on the sheet (R1 — never one per product).
+  // Only for a reader with cost:view — null hides the money card (ADR 0038 audit).
   const valued = Array.from(new Set([...stockedProductIds, ...detail.items.map((i) => i.productId)]));
-  const costs = valued.length
-    ? await getProductCostsLogic(
-        tenantId,
-        getProductCostsQuerySchema.parse({ productIds: valued, branchId: detail.branchId })
-      )
-    : new Map();
-  const costByProduct: Record<string, string> = {};
-  for (const [productId, state] of costs) {
-    costByProduct[productId] = state.costPerBaseUnit.toString();
-  }
+  const costByProduct = await getCountVarianceCostsLogic(tenantId, costAccess, detail.branchId, valued);
 
   return (
     <CountSheet

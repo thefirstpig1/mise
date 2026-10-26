@@ -25,6 +25,9 @@ import { withTenantContext } from "@/lib/db";
 import { assertRefBelongsToTenant } from "@/server/product";
 import { acquireCounterLock } from "@/server/counter-lock";
 import { createStockMovementLogic, toBaseQty } from "@/server/stock-movement";
+import { getProductCostsLogic } from "@/server/stock-cost";
+import { getProductCostsQuerySchema } from "@/lib/validations/stock-cost";
+import type { CostAccess } from "@/lib/permissions/cost-access";
 import type {
   CloseStockCountInput,
   EditStockCountContributionInput,
@@ -293,6 +296,32 @@ export async function getStockedProductIdsLogic(
     });
     return withStock.filter((g) => !(g._sum.qty ?? ZERO).isZero()).map((g) => g.productId);
   });
+}
+
+/**
+ * Cost per base unit for valuing a sheet's variance (ADR 0015 Q4), or `null`
+ * for a reader without `cost:view`.
+ *
+ * The ticket is required because the count sheet is opened by cooks and heads
+ * of department (`count:write`), who see no money anywhere (ADR 0029). Until
+ * 2026-10-26 the page computed this for everyone, printed มูลค่าส่วนต่าง ฿ to
+ * them, and shipped every unit cost in the page payload (ADR 0038 audit).
+ */
+export async function getCountVarianceCostsLogic(
+  tenantId: string,
+  costAccess: CostAccess | null,
+  branchId: string,
+  productIds: readonly string[]
+): Promise<Record<string, string> | null> {
+  if (!costAccess) return null;
+  if (productIds.length === 0) return {};
+  const costs = await getProductCostsLogic(
+    tenantId,
+    getProductCostsQuerySchema.parse({ productIds: [...productIds], branchId })
+  );
+  const out: Record<string, string> = {};
+  for (const [productId, state] of costs) out[productId] = state.costPerBaseUnit.toString();
+  return out;
 }
 
 // ------------------------------------------------------------
