@@ -19,14 +19,19 @@ import { orStale } from "@/lib/stale-tab";
 //     and variance figures are not rendered at all.
 //  4. **The partial-count warning** at close. It never blocks — a partial count
 //     is the normal case, and only the person closing knows why.
+//  5. **A phone in one hand** (Kong 2026-10-27, mockup NBRTCZ2dkWty1n4fu7nUw4):
+//     the header, progress and filters stay on screen while the list scrolls,
+//     the help folds to one line, and closing is a bar at the bottom that opens
+//     a sheet saying what closing does — not a form after the last row.
 
-import { useActionState, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useActionState, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { StockCountActionState } from "../actions";
 import StatusBadge from "./StatusBadge";
 import CountRow, { type CountProduct, type RowSubmit } from "./CountRow";
 import { formatMoney, formatQty } from "./stock-count-view";
 import type { StockCountDetailView } from "./stock-count-view";
 import EmptyState from "@/components/ui/EmptyState";
+import { Portal, useTopLayer } from "@/app/(app)/menus/_components/sheet-parts";
 
 const POLL_MS = 5_000;
 const NO_CATEGORY = "ไม่มีหมวด";
@@ -92,7 +97,8 @@ export default function CountSheet({
   const [group, setGroup] = useState<string | null>(null);
   const [show, setShow] = useState<Show>("all");
   const [search, setSearch] = useState("");
-  const [confirmClose, setConfirmClose] = useState(false);
+  const [closeOpen, setCloseOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const [voidOpen, setVoidOpen] = useState(false);
 
   const [closeState, closeAction, closing] = useActionState(close, { ok: false } as StockCountActionState);
@@ -100,7 +106,10 @@ export default function CountSheet({
 
   // A close or void returns the new document; adopt it.
   useEffect(() => {
-    if (closeState.ok && closeState.detail) setDetail(closeState.detail);
+    if (closeState.ok && closeState.detail) {
+      setDetail(closeState.detail);
+      setCloseOpen(false);
+    }
   }, [closeState]);
   useEffect(() => {
     if (voidState.ok && voidState.detail) setDetail(voidState.detail);
@@ -262,31 +271,126 @@ export default function CountSheet({
 
   return (
     <div className="space-y-5">
-      {/* --- header --- */}
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <a href="/stock-counts" className="text-sm text-muted-foreground hover:text-foreground">
-            ← กลับไปรายการใบนับ
+      {/* --- header + filters: stay on screen while the list scrolls --- */}
+      <div className="sticky top-[3.6rem] z-20 -mx-4 space-y-2 border-b border-border bg-background/95 px-4 pb-3 pt-2 backdrop-blur lg:top-0 lg:-mx-8 lg:px-8">
+        <div className="flex items-center gap-3">
+          <a
+            href="/stock-counts"
+            aria-label="กลับไปรายการใบนับ"
+            className="-ml-2 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg hover:bg-muted"
+          >
+            <svg aria-hidden viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="m15 18-6-6 6-6" />
+            </svg>
           </a>
-          <h2 className="mt-1 flex items-center gap-2 text-xl font-bold">
-            {detail.scNumber}
-            <StatusBadge status={detail.status} />
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {detail.branchName} · นับวันที่ {detail.countDateLabel}
-            {detail.startedBy && ` · เจ้าภาพ ${isHost ? "คุณ" : detail.startedBy}`}
-            {!detail.showExpected && " · นับแบบไม่เห็นจำนวนในระบบ"}
-          </p>
-        </div>
-        {isDraft && (
-          <div className="rounded-xl border border-border bg-surface px-4 py-2 text-right">
-            <p className="text-xs text-muted-foreground">นับแล้ว</p>
-            <p className="text-2xl font-semibold tabular-nums">
-              {countedCount}
-              <span className="text-base font-normal text-muted-foreground"> / {rows.length}</span>
+          <div className="min-w-0 flex-1">
+            <h2 className="flex flex-wrap items-center gap-2 text-lg font-bold leading-tight">
+              {detail.scNumber}
+              <StatusBadge status={detail.status} />
+            </h2>
+            <p className="truncate text-xs text-muted-foreground">
+              {detail.branchName} · {detail.countDateLabel}
+              {detail.startedBy && ` · เจ้าภาพ ${isHost ? "คุณ" : detail.startedBy}`}
+              {!detail.showExpected && " · ไม่เห็นจำนวนในระบบ"}
             </p>
           </div>
+          {isDraft && (
+            <p className="shrink-0 text-right leading-none">
+              <span className="text-xl font-semibold tabular-nums">{countedCount}</span>
+              <span className="text-sm text-muted-foreground"> / {rows.length}</span>
+              <span className="mt-1 block text-[11px] text-muted-foreground">นับแล้ว</span>
+            </p>
+          )}
+        </div>
+        {isDraft && (
+          <div className="h-1 overflow-hidden rounded-full bg-muted" aria-hidden>
+            <div
+              className="h-1 rounded-full bg-good transition-[width] duration-500"
+              style={{ width: `${rows.length ? (countedCount / rows.length) * 100 : 0}%` }}
+            />
+          </div>
         )}
+
+        {isDraft && (
+          <button
+            type="button"
+            onClick={() => setHelpOpen((o) => !o)}
+            aria-expanded={helpOpen}
+            className="block w-full text-left text-xs text-muted-foreground"
+          >
+            กรอกจำนวนแล้วกดยืนยัน · ไม่ได้นับไม่ต้องใส่
+            {preppedRows.length > 0 && <span className="text-warn"> · ของแปรรูปส่วนต่างยังเชื่อไม่ได้</span>}{" "}
+            <span className="underline">{helpOpen ? "ย่อ" : "อ่านต่อ"}</span>
+          </button>
+        )}
+        {isDraft && helpOpen && (
+          <div className="space-y-1 rounded-lg border border-warn-border bg-warn-bg p-3 text-xs text-warn">
+            <p>
+              ยืนยันแล้วรายการจะเป็นสีเขียวบนทุกเครื่องที่เปิดใบนี้อยู่ พร้อมชื่อคนนับ · ของที่ไม่ได้นับ ไม่ต้องใส่
+            </p>
+            {preppedRows.length > 0 && (
+              <p>
+                ของแปรรูป (ป้ายเหลือง): ระบบยังไม่มีบันทึกการผลิต ยอดในระบบจึงไม่เพิ่มตอนทำ และไม่ลดตอนขาย
+                ยอดเปลี่ยนตอนนับ ลงของเสีย หรือโอนของ — <strong>นับครั้งแรกจึงขึ้นว่าเกินเสมอ</strong>
+                และครั้งต่อ ๆ ไปส่วนต่างก็ไม่ได้แปลว่าของหายหรือเกิน
+              </p>
+            )}
+          </div>
+        )}
+
+        <div className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-0.5 lg:mx-0 lg:flex-wrap lg:px-0" role="group" aria-label="หมวดหมู่">
+          <button type="button" className={`shrink-0 ${chip(section === null)}`} onClick={() => { setSection(null); setGroup(null); }}>
+            ทั้งหมด
+          </button>
+          {sections.map((s) => (
+            <button key={s} type="button" className={`shrink-0 whitespace-nowrap ${chip(section === s)}`} onClick={() => { setSection(s); setGroup(null); }}>
+              {s}
+            </button>
+          ))}
+        </div>
+        {groups.length > 1 && (
+          <div className="-mx-4 flex gap-1.5 overflow-x-auto px-4 lg:mx-0 lg:flex-wrap lg:px-0" role="group" aria-label="หมวดย่อย">
+            <button type="button" className={`shrink-0 whitespace-nowrap ${chip(group === null, true)}`} onClick={() => setGroup(null)}>
+              ทุกหมวดย่อย
+            </button>
+            {groups.map((g) => (
+              <button key={g} type="button" className={`shrink-0 whitespace-nowrap ${chip(group === g, true)}`} onClick={() => setGroup(g)}>
+                {g}
+              </button>
+            ))}
+          </div>
+        )}
+        <div className="flex items-center gap-2">
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="ค้นหาชื่อหรือรหัสสินค้า"
+            aria-label="ค้นหาชื่อหรือรหัสสินค้า"
+            className="input h-9 min-w-0 flex-1"
+          />
+          {isDraft && (
+            <div className="flex shrink-0 rounded-lg bg-muted p-0.5" role="group" aria-label="สถานะการนับ">
+              {(
+                [
+                  ["all", "ทั้งหมด"],
+                  ["todo", "ยังไม่นับ"],
+                  ["done", "นับแล้ว"],
+                ] as const
+              ).map(([v, label]) => (
+                <button
+                  key={v}
+                  type="button"
+                  aria-pressed={show === v}
+                  onClick={() => setShow(v)}
+                  className={`h-8 rounded-md px-2.5 text-xs ${show === v ? "bg-surface font-semibold text-foreground shadow-sm" : "text-muted-foreground"}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {detail.status === "VOIDED" && (
@@ -304,76 +408,15 @@ export default function CountSheet({
           {detail.closedBy && ` โดย ${detail.closedBy}`} — ส่วนต่างถูกบันทึกเข้าคลังเรียบร้อย
         </div>
       )}
-      {isDraft && (
-        <p className="text-sm text-muted-foreground">
-          ใส่จำนวนที่นับได้แล้วกด <strong>ยืนยัน</strong> ท้ายบรรทัด รายการจะเป็นสีเขียวบนทุกเครื่องที่เปิดใบนี้อยู่
-          พร้อมชื่อคนนับ — ของที่ไม่ได้นับ ไม่ต้องใส่
-        </p>
-      )}
-      {preppedRows.length > 0 && (isDraft || preppedCounted > 0) && (
+      {!isDraft && preppedCounted > 0 && (
         <div className="rounded-lg border border-warn-border bg-warn-bg p-3 text-sm text-warn">
-          <p className="font-medium">
-            {isDraft ? "ของแปรรูป (ป้ายเหลือง) นับได้ แต่ส่วนต่างยังเชื่อไม่ได้" : `ใบนี้มีของแปรรูป ${preppedCounted} รายการ — ส่วนต่างของรายการเหล่านั้นเชื่อไม่ได้`}
-          </p>
-          <p className="mt-1 text-xs">
-            ระบบยังไม่มีบันทึกการผลิต ยอดของแปรรูปในระบบจึงไม่เพิ่มตอนทำ และไม่ลดตอนขาย (ขายแล้วระบบตัดวัตถุดิบดิบตามสูตรแทน)
-            ยอดจะเปลี่ยนตอนนับ (และตอนลงของเสียหรือโอนของ) — <strong>นับครั้งแรกจึงขึ้นว่าเกินเสมอ</strong> และครั้งต่อ ๆ ไปส่วนต่างก็ไม่ได้แปลว่าของหายหรือเกิน
-          </p>
+          ใบนี้มีของแปรรูป {preppedCounted} รายการ — ส่วนต่างของรายการเหล่านั้นเชื่อไม่ได้
+          เพราะระบบยังไม่มีบันทึกการผลิต
         </div>
       )}
       {sheetError && (
         <div className="rounded-lg border border-bad-border bg-bad-bg p-3 text-sm text-bad">{sheetError}</div>
       )}
-
-      {/* --- filters --- */}
-      <div className="space-y-3 rounded-xl border border-border bg-surface p-4">
-        <div className="flex flex-wrap gap-2" role="group" aria-label="หมวดหมู่">
-          <button type="button" className={chip(section === null)} onClick={() => { setSection(null); setGroup(null); }}>
-            ทั้งหมด
-          </button>
-          {sections.map((s) => (
-            <button key={s} type="button" className={chip(section === s)} onClick={() => { setSection(s); setGroup(null); }}>
-              {s}
-            </button>
-          ))}
-        </div>
-        {groups.length > 1 && (
-          <div className="flex flex-wrap gap-1.5 border-t border-border pt-3" role="group" aria-label="หมวดย่อย">
-            <button type="button" className={chip(group === null, true)} onClick={() => setGroup(null)}>
-              ทุกหมวดย่อยใน{section}
-            </button>
-            {groups.map((g) => (
-              <button key={g} type="button" className={chip(group === g, true)} onClick={() => setGroup(g)}>
-                {g}
-              </button>
-            ))}
-          </div>
-        )}
-        <div className="flex flex-col gap-3 border-t border-border pt-3 sm:flex-row sm:items-center">
-          <input
-            type="search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="ค้นหาชื่อหรือรหัสสินค้า"
-            className="input w-full"
-          />
-          {isDraft && (
-            <div className="flex shrink-0 gap-1.5" role="group" aria-label="สถานะการนับ">
-              {(
-                [
-                  ["all", "ทั้งหมด"],
-                  ["todo", "ยังไม่นับ"],
-                  ["done", "นับแล้ว"],
-                ] as const
-              ).map(([v, label]) => (
-                <button key={v} type="button" className={chip(show === v, true)} onClick={() => setShow(v)}>
-                  {label}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
 
       {/* --- the rows --- */}
       {rows.length === 0 ? (
@@ -446,42 +489,6 @@ export default function CountSheet({
         </div>
       )}
 
-      {/* --- close (host, or count:close — ADR 0034 Q5) --- */}
-      {isDraft &&
-        (canClose ? (
-          <form action={closeAction} className="rounded-lg border border-border p-4">
-            <input type="hidden" name="id" value={detail.id} />
-            <h3 className="text-sm font-medium">ปิดใบนับ</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              ปิดแล้วระบบจะบันทึกส่วนต่างเข้าคลังทันที และแก้ใบนี้ไม่ได้อีก — ตรวจให้แน่ใจว่าทุกคนนับเสร็จแล้ว
-            </p>
-            {uncountedStocked > 0 && (
-              <div className="mt-3 rounded-lg border border-warn-border bg-warn-bg p-3 text-sm text-warn">
-                ยังมีวัตถุดิบอีก <strong>{uncountedStocked}</strong> รายการที่มีของอยู่แต่ไม่ได้นับรอบนี้
-                — ของพวกนี้จะไม่ถูกแตะต้อง ปิดใบได้ตามปกติถ้าตั้งใจนับแค่บางส่วน
-              </div>
-            )}
-            {closeError && (
-              <div className="mt-3 rounded-lg border border-bad-border bg-bad-bg p-3 text-sm text-bad">{closeError}</div>
-            )}
-            <label className="mt-3 flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={confirmClose} onChange={(e) => setConfirmClose(e.target.checked)} />
-              ตรวจตัวเลขแล้ว ยืนยันปิดใบนับ
-            </label>
-            <button
-              type="submit"
-              disabled={closing || !confirmClose || countedCount === 0}
-              className="btn mt-3"
-            >
-              {closing ? "กำลังปิด…" : "ปิดใบนับและบันทึกส่วนต่าง"}
-            </button>
-          </form>
-        ) : (
-          <p className="rounded-lg border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
-            เมื่อนับเสร็จ {detail.startedBy ?? "เจ้าภาพ"} (ผู้เปิดใบนับ) หรือผู้จัดการจะเป็นคนปิดใบนับ
-          </p>
-        ))}
-
       {/* --- void --- */}
       {detail.status === "CLOSED" && canClose && (
         <div className="rounded-lg border border-border p-4">
@@ -529,6 +536,101 @@ export default function CountSheet({
           )}
         </div>
       )}
+
+      {/* --- close (host, or count:close — ADR 0034 Q5): a bar that stays at the bottom --- */}
+      {isDraft && (
+        <div className="sticky bottom-0 z-20 -mx-4 border-t border-border bg-surface/95 px-4 pb-3 pt-2.5 backdrop-blur lg:-mx-8 lg:px-8">
+          {canClose ? (
+            <button
+              type="button"
+              onClick={() => setCloseOpen(true)}
+              disabled={countedCount === 0}
+              className="flex h-12 w-full items-center justify-center gap-2 rounded-xl border-[1.5px] border-primary font-semibold text-primary hover:bg-primary-soft disabled:border-border disabled:text-muted-foreground"
+            >
+              ปิดใบนับ
+              <span className="text-sm font-normal text-muted-foreground">
+                · นับแล้ว {countedCount} จาก {rows.length}
+              </span>
+            </button>
+          ) : (
+            <p className="py-2 text-center text-sm text-muted-foreground">
+              เมื่อนับเสร็จ {detail.startedBy ?? "เจ้าภาพ"} (ผู้เปิดใบนับ) หรือผู้จัดการจะเป็นคนปิดใบนับ
+            </p>
+          )}
+        </div>
+      )}
+      {isDraft && canClose && closeOpen && (
+        <CloseSheet onClose={() => setCloseOpen(false)}>
+          <form action={closeAction} className="space-y-4">
+            <input type="hidden" name="id" value={detail.id} />
+            <h3 id="close-title" className="text-lg font-semibold">
+              ปิดใบนับ {detail.scNumber}?
+            </h3>
+            <p className="flex items-baseline gap-2">
+              <span className="text-3xl font-semibold tabular-nums">{countedCount}</span>
+              <span className="text-muted-foreground">จาก {rows.length} รายการที่นับแล้ว</span>
+            </p>
+            {uncountedStocked > 0 && (
+              <div className="rounded-xl border border-warn-border bg-warn-bg p-3 text-sm text-warn">
+                ยังมี <strong>{uncountedStocked} รายการ</strong>ที่มีของอยู่แต่ไม่ได้นับรอบนี้
+                ของพวกนี้จะไม่ถูกแตะต้อง ปิดได้ตามปกติถ้าตั้งใจนับแค่บางส่วน
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShow("todo");
+                    setCloseOpen(false);
+                  }}
+                  className="mt-1 block font-semibold underline"
+                >
+                  ดูรายการที่ยังไม่นับ
+                </button>
+              </div>
+            )}
+            <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+              <li>ปิดแล้วระบบบันทึกส่วนต่างเข้าคลังทันที และแก้ใบนี้ไม่ได้อีก</li>
+              <li>ถ้าปิดผิด ยกเลิกทั้งใบได้ ระบบจะคืนสต๊อกให้เหมือนเดิม</li>
+            </ul>
+            {closeError && (
+              <div className="rounded-lg border border-bad-border bg-bad-bg p-3 text-sm text-bad">{closeError}</div>
+            )}
+            <div className="space-y-2">
+              <button type="submit" disabled={closing} className="btn h-12 w-full text-base">
+                {closing ? "กำลังปิด…" : "ปิดใบนับและบันทึกส่วนต่าง"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setCloseOpen(false)}
+                className="h-11 w-full rounded-xl border border-border-strong text-sm font-medium"
+              >
+                นับต่อ
+              </button>
+            </div>
+          </form>
+        </CloseSheet>
+      )}
     </div>
+  );
+}
+
+/** A sheet that rises from the bottom (a phone's natural reach), centred on a wide screen. */
+function CloseSheet({ onClose, children }: { onClose: () => void; children: ReactNode }) {
+  useTopLayer(onClose);
+  return (
+    <Portal>
+      <div
+        className="fixed inset-0 z-[70] flex animate-fade-in items-end justify-center bg-black/40 sm:items-center sm:p-4"
+        onMouseDown={(e) => e.target === e.currentTarget && onClose()}
+      >
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="close-title"
+          className="w-full max-w-md animate-pop-in rounded-t-2xl bg-surface p-5 pb-6 shadow-2xl sm:rounded-2xl"
+        >
+          <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-border-strong sm:hidden" aria-hidden />
+          {children}
+        </div>
+      </div>
+    </Portal>
   );
 }
