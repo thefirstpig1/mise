@@ -11,6 +11,11 @@
 //
 // The result is DRAFT orders, one per supplier; they can be opened and checked
 // one by one, or all sent at once.
+//
+// Review 2026-10-27 (mockup 5sMMvLFbYSjsXDVpZirBXM): the supplier is a search
+// box whose list puts "เคยซื้อของนี้" (with the latest price) above every other
+// supplier, readiness reads as two clearly different states, and "ไม่สั่ง" /
+// "ส่งทั้งหมด" ask in the app's own dialogs instead of prompt() / confirm().
 // ============================================================
 
 import { useMemo, useState } from "react";
@@ -21,6 +26,9 @@ import Link from "next/link";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
 import { orStale } from "@/lib/stale-tab";
+import ProductPicker from "@/components/ui/ProductPicker";
+import { ConfirmDialog } from "@/app/(app)/menus/_components/sheet-parts";
+import { ModalShell } from "@/app/(app)/sales/_components/Breakdown";
 import type { CutSheet as Sheet, CutSheetLine } from "@/server/purchase-request";
 import { cutRoundAction, rejectRequestLineAction, type CutActionState } from "../actions";
 import { sendPurchaseOrderAction } from "@/app/(app)/purchase-orders/actions";
@@ -52,6 +60,9 @@ export default function CutSheet({ sheet, branchId }: { sheet: Sheet; branchId: 
   const [error, setError] = useState<{ text: string; lineId?: string } | null>(null);
   const [result, setResult] = useState<Extract<CutActionState, { ok: true }>["orders"] | null>(null);
   const [sent, setSent] = useState<Record<string, string>>({});
+  const [rejecting, setRejecting] = useState<CutSheetLine | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
+  const [confirmSend, setConfirmSend] = useState(false);
 
   const patch = (id: string, next: Partial<Row>) => setRows((rs) => ({ ...rs, [id]: { ...rs[id], ...next } }));
   const chosen = sheet.lines.filter((l) => rows[l.id]?.include);
@@ -85,16 +96,17 @@ export default function CutSheet({ sheet, branchId }: { sheet: Sheet; branchId: 
     else setError({ text: r.formError, lineId: "lineId" in r ? r.lineId : undefined });
   };
 
-  const reject = async (l: CutSheetLine) => {
-    const reason = window.prompt(`ไม่สั่ง “${l.product.name}” เพราะอะไร (ครัวจะเห็นเหตุผลนี้)`, "");
-    if (!reason?.trim()) return;
+  const reject = async (l: CutSheetLine, reason: string) => {
+    if (!reason.trim()) return;
+    setRejecting(null);
+    setRejectReason("");
     const r = await orStale(rejectRequestLineAction({ lineId: l.id, reason }));
     if (!r.ok) setError({ text: r.formError, lineId: l.id });
     else router.refresh();
   };
 
   const sendAll = async () => {
-    if (!result || !window.confirm(`ส่งใบสั่งซื้อทั้ง ${result.length} ใบ? ส่งแล้วแก้ไม่ได้`)) return;
+    if (!result) return;
     setBusy(true);
     for (const o of result) {
       if (sent[o.id]) continue;
@@ -125,13 +137,27 @@ export default function CutSheet({ sheet, branchId }: { sheet: Sheet; branchId: 
           ))}
         </ul>
         <div className="flex gap-3">
-          <button type="button" className="btn" disabled={busy} onClick={sendAll}>
+          <button type="button" className="btn" disabled={busy} onClick={() => setConfirmSend(true)}>
             {busy ? "กำลังส่ง…" : "ส่งทั้งหมด"}
           </button>
           <button type="button" className="rounded-lg border border-border px-4 py-2 text-sm" onClick={() => router.refresh()}>
             ตัดรอบต่อ
           </button>
         </div>
+        {confirmSend && (
+          <ConfirmDialog
+            spec={{
+              title: `ส่งใบสั่งซื้อทั้ง ${result.length} ใบ?`,
+              lines: result.map((o) => `${o.poNumber} · ${o.supplierName} · ${o.lines} รายการ`),
+              money: null,
+              who: "ส่งแล้วแก้ใบไม่ได้ ถ้าต้องเปลี่ยนต้องยกเลิกแล้วออกใบใหม่",
+              go: "ส่งทั้งหมด",
+              back: "ยังไม่ส่ง",
+              onGo: () => void sendAll(),
+            }}
+            onClose={() => setConfirmSend(false)}
+          />
+        )}
       </section>
     );
   }
@@ -141,9 +167,20 @@ export default function CutSheet({ sheet, branchId }: { sheet: Sheet; branchId: 
     <div className="space-y-4">
       <section className={`rounded-xl border p-4 text-sm ${r.allReady ? "border-good-border bg-good-bg" : "border-warn-border bg-warn-bg"}`}>
         <p className="font-medium">{r.allReady ? "ทุกแผนกพร้อมแล้ว" : "ยังมีแผนกที่ไม่พร้อม — ตัดรอบก่อนได้ แต่ของที่เพิ่มทีหลังจะไปรอบถัดไป"}</p>
-        <p className="mt-1 text-xs">
-          {r.departments.map((d) => `${d.name}: ${d.ready ? `พร้อม (${d.ready.by})` : `ยังไม่พร้อม · ${d.waitingLines} รายการ`}`).join(" · ")}
-        </p>
+        <div className="mt-2 flex flex-wrap gap-1.5 text-xs">
+          {r.departments.map((d) => (
+            <span
+              key={d.id}
+              className={
+                d.ready
+                  ? "rounded-full border border-good-border bg-good-bg px-2.5 py-0.5 text-good"
+                  : "rounded-full border-[1.5px] border-dashed border-border-strong bg-surface px-2.5 py-0.5 text-muted-foreground"
+              }
+            >
+              {d.ready ? `✓ ${d.name} · พร้อมแล้ว (${d.ready.by})` : `${d.name} · ยังไม่พร้อม · ${d.waitingLines} รายการ`}
+            </span>
+          ))}
+        </div>
       </section>
 
       {sheet.lines.length === 0 ? (
@@ -183,23 +220,37 @@ export default function CutSheet({ sheet, branchId }: { sheet: Sheet; branchId: 
                       {l.note && <p className="mt-1 text-xs">📝 ครัว: {l.note}</p>}
                     </td>
                     <td className="px-3 py-3">
-                      <select
-                        value={row.supplierId}
-                        onChange={(e) => patch(l.id, { supplierId: e.target.value, unitPrice: priceFor(l, e.target.value, row.unitId) || row.unitPrice })}
-                        className={`input w-56 ${!row.supplierId && row.include ? "border-bad" : ""}`}
-                      >
-                        <option value="">— เลือกผู้ขาย —</option>
-                        {sheet.suppliers.map((s) => {
-                          const p = l.prices.find((x) => x.supplierId === s.id);
-                          return (
-                            <option key={s.id} value={s.id}>
-                              {s.name}
-                              {p ? ` · ${baht(p.pricePerBase)}/${l.units[0]?.name ?? "หน่วย"} (${thaiDate(p.asOf)})${p === cheapest && l.prices.length > 1 ? " ★ถูกสุด" : ""}` : ""}
-                              {s.id === l.supplierId ? " · ครัวเลือก" : ""}
-                            </option>
-                          );
-                        })}
-                      </select>
+                      <div className="w-64">
+                        <ProductPicker
+                          products={sheet.suppliers.map((sp) => {
+                            const p = l.prices.find((x) => x.supplierId === sp.id);
+                            return {
+                              id: sp.id,
+                              name: sp.name,
+                              sku: "",
+                              imageUrl: null,
+                              section: p ? "เคยซื้อของนี้" : "ผู้ขายอื่น",
+                              group: null,
+                              baseUnitName: null,
+                              detail: [
+                                p
+                                  ? `${baht(p.pricePerBase)}/${l.units[0]?.name ?? "หน่วย"} · ${thaiDate(p.asOf)}${p === cheapest && l.prices.length > 1 ? " · ★ถูกสุด" : ""}`
+                                  : "ยังไม่เคยซื้อของนี้",
+                                sp.id === l.supplierId ? "ครัวเลือก" : null,
+                              ]
+                                .filter(Boolean)
+                                .join(" · "),
+                            };
+                          })}
+                          value={row.supplierId}
+                          onChange={(id) =>
+                            patch(l.id, { supplierId: id, unitPrice: id ? priceFor(l, id, row.unitId) || row.unitPrice : row.unitPrice })
+                          }
+                          thumbs={false}
+                          invalid={!row.supplierId && row.include}
+                          placeholder="เลือกผู้ขาย — พิมพ์ชื่อเพื่อค้นหา"
+                        />
+                      </div>
                       {needsReply(l) && (
                         <input
                           value={row.reply}
@@ -225,7 +276,7 @@ export default function CutSheet({ sheet, branchId }: { sheet: Sheet; branchId: 
                       <MoneyInput value={row.unitPrice} onChange={(e) => patch(l.id, { unitPrice: e.target.value })} aria-label={`ราคาต่อหน่วย ${l.product.name}`} boxClassName="w-32" />
                     </td>
                     <td className="px-3 py-3 text-right">
-                      <button type="button" onClick={() => reject(l)} className="whitespace-nowrap text-xs text-bad hover:underline">
+                      <button type="button" onClick={() => setRejecting(l)} className="whitespace-nowrap text-xs text-bad hover:underline">
                         ไม่สั่ง
                       </button>
                     </td>
@@ -243,10 +294,34 @@ export default function CutSheet({ sheet, branchId }: { sheet: Sheet; branchId: 
         </p>
       )}
 
+      {rejecting && (
+        <ModalShell onClose={() => setRejecting(null)} labelledBy="reject-title">
+          <h3 id="reject-title" className="pr-10 text-lg font-semibold">
+            ไม่สั่ง “{rejecting.product.name}”?
+          </h3>
+          <p className="mt-1 text-sm text-muted-foreground">ครัวจะเห็นเหตุผลนี้ในใบขอซื้อของแผนก และตอบกลับหรือขอใหม่ได้</p>
+          <input
+            autoFocus
+            value={rejectReason}
+            onChange={(e) => setRejectReason(e.target.value)}
+            placeholder="เช่น ยังมีพอถึงสัปดาห์หน้า"
+            className="input mt-3 w-full"
+          />
+          <div className="mt-4 flex gap-3">
+            <button type="button" className="btn" disabled={!rejectReason.trim()} onClick={() => reject(rejecting, rejectReason)}>
+              ไม่สั่งรายการนี้
+            </button>
+            <button type="button" className="rounded-lg border border-border px-4 py-2 text-sm" onClick={() => setRejecting(null)}>
+              กลับ
+            </button>
+          </div>
+        </ModalShell>
+      )}
+
       {sheet.lines.length > 0 && (
         <div className="flex flex-wrap items-center gap-3">
           <button type="button" className="btn" disabled={busy || chosen.length === 0 || blocked} onClick={cut}>
-            {busy ? "กำลังสร้าง…" : `สร้างใบสั่งซื้อร่าง ${bySupplier.size} ใบ (${chosen.length} รายการ)`}
+            {busy ? "กำลังสร้าง…" : `สร้างใบสั่งซื้อ ${bySupplier.size} ใบ (แยกตามผู้ขาย · ${chosen.length} รายการ)`}
           </button>
           {blocked && <span className="text-xs text-warn">ยังมีรายการที่ไม่ได้เลือกผู้ขาย ไม่มีราคา หรือยังไม่ได้ตอบหมายเหตุของครัว</span>}
         </div>

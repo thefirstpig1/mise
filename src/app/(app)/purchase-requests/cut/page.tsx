@@ -38,14 +38,18 @@ export default async function CutRoundPage({ searchParams }: { searchParams: Sea
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">ตัดรอบสั่งซื้อ · {branch.name}</h1>
+          <nav aria-label="ตำแหน่งของหน้านี้" className="text-sm text-muted-foreground">
+            <Link href={`/purchase-requests?b=${branch.id}` as Route} className="hover:text-foreground">
+              ใบขอซื้อ
+            </Link>
+            <span aria-hidden className="mx-1.5">›</span>
+            <span className="text-foreground">ตัดรอบสั่งซื้อ</span>
+          </nav>
+          <h1 className="mt-1 text-2xl font-bold">ตัดรอบสั่งซื้อ · {branch.name}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             เลือกผู้ขายของแต่ละรายการ แล้วกดสร้างใบสั่งซื้อ — ระบบแยกเป็นใบร่างตามผู้ขายให้ ตรวจแล้วค่อยส่ง
           </p>
         </div>
-        <Link href={`/purchase-requests?b=${branch.id}` as Route} className="text-sm text-primary underline">
-          กลับไปหน้าใบขอซื้อ
-        </Link>
       </div>
       {branches.length > 1 && (
         <div className="flex flex-wrap gap-2" role="group" aria-label="สาขา">
@@ -63,8 +67,11 @@ export default async function CutRoundPage({ searchParams }: { searchParams: Sea
           ))}
         </div>
       )}
-      <NotifyToggle initial={notifyOn} />
       <CutSheet sheet={sheet} branchId={branch.id} />
+      {/* A personal setting, so it sits under the work, not above it (review 2026-10-27). */}
+      <div className="border-t border-border pt-4">
+        <NotifyToggle initial={notifyOn} />
+      </div>
     </div>
   );
 }

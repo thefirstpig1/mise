@@ -366,6 +366,14 @@ async function supplierPrices(
   return out;
 }
 
+/** The chosen supplier's latest known price, else the cheapest anyone has. */
+function estimatePerBase(supplierId: string | null, prices: readonly SupplierPrice[]): number | null {
+  const ours = supplierId ? prices.find((p) => p.supplierId === supplierId) : undefined;
+  if (ours) return ours.pricePerBase;
+  if (prices.length === 0) return null;
+  return Math.min(...prices.map((p) => p.pricePerBase));
+}
+
 /** Q11 — preferred supplier, else the one this branch bought from last. */
 async function proposedSupplierId(tx: PrismaClient, tenantId: string, branchId: string, productId: string) {
   const today = computeBangkokToday();
@@ -419,7 +427,36 @@ export type BoardLine = {
   lastMessageAt: string | null;
   /** Rule PR2; `money` present only for a reader holding cost:view (R5). */
   cheaper: CheaperHint | null;
+  /**
+   * The basket's "ประมาณ ฿…" (Kong 2026-10-27): the latest known price per base
+   * unit — the line's supplier if it has one, else the cheapest known. Null for
+   * a reader without cost:view (R5), and when nobody has a price yet.
+   */
+  pricePerBase: number | null;
 };
+
+/** What the catalog card says about stock (Kong 2026-10-27): "มี … · ขั้นต่ำ …". */
+export type CatalogStock = Record<string, { onHandBase: number; parBase: number | null }>;
+
+/**
+ * On hand and par for every product at a branch, in base units — one grouped
+ * read of the ledger and one of par levels, so the catalog does not ask per card.
+ */
+export async function getRequestCatalogStockLogic(tenantId: string, branchId: string): Promise<CatalogStock> {
+  return withTenantContext(tenantId, async (tx) => {
+    await assertRefBelongsToTenant(tx, tenantId, "branch", branchId);
+    const [groups, pars] = await Promise.all([
+      tx.stockMovement.groupBy({ by: ["productId"], where: { tenantId, branchId }, _sum: { qty: true } }),
+      tx.parLevel.findMany({ where: { tenantId, branchId, deletedAt: null }, select: { productId: true, parQty: true } }),
+    ]);
+    const out: CatalogStock = {};
+    for (const g of groups) out[g.productId] = { onHandBase: Number(g._sum.qty ?? 0), parBase: null };
+    for (const p of pars) {
+      out[p.productId] = { onHandBase: out[p.productId]?.onHandBase ?? 0, parBase: Number(p.parQty) };
+    }
+    return out;
+  });
+}
 
 export type ParSuggestion = {
   product: { id: string; name: string; sku: string; baseUnitName: string | null };
@@ -538,6 +575,7 @@ export async function getRequestBoardLogic(tenantId: string, branchId: string, v
         // Only while a supplier can still be changed does "cheaper" mean anything.
         cheaper:
           status.kind === "waiting" ? cheaperElsewhere(r.supplierId, prices.get(r.productId) ?? [], withMoney) : null,
+        pricePerBase: withMoney ? estimatePerBase(r.supplierId, prices.get(r.productId) ?? []) : null,
       };
     });
 

@@ -13,7 +13,7 @@ import Link from "next/link";
 import type { Route } from "next";
 import { requireTenant } from "@/lib/require-tenant";
 import { getBranchesLogic } from "@/server/branch";
-import { getRequestBoardLogic } from "@/server/purchase-request";
+import { getRequestBoardLogic, getRequestCatalogStockLogic } from "@/server/purchase-request";
 import { loadPurchaseOrderFormOptions } from "../purchase-orders/_components/form-options";
 import EmptyState from "@/components/ui/EmptyState";
 import RequestBoard from "./_components/RequestBoard";
@@ -35,24 +35,23 @@ export default async function PurchaseRequestsPage({ searchParams }: { searchPar
     canApprove: t.can("purchase:approve"),
     costAccess: t.costAccess,
   };
-  const [board, options] = await Promise.all([
+  const [board, options, stock] = await Promise.all([
     getRequestBoardLogic(t.tenantId, branch.id, viewer),
     loadPurchaseOrderFormOptions(t.tenantId, t.reach),
+    getRequestCatalogStockLogic(t.tenantId, branch.id),
   ]);
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold">ใบขอซื้อ</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            ของที่ใกล้หมดใส่ไว้ที่นี่ได้ทุกคน · แต่ละแผนกกด “พร้อมแล้ว” เมื่อใส่ครบ · ฝ่ายจัดซื้อจะรวมเป็นใบสั่งซื้อให้เอง
-          </p>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold">ขอซื้อ · {branch.name}</h1>
+          <p className="mt-0.5 text-sm text-muted-foreground">กด + ของที่ใกล้หมด แล้วกดพร้อมในใบขอซื้อ</p>
         </div>
         {viewer.canApprove && (
           <Link
             href={`/purchase-requests/cut?b=${branch.id}` as Route}
-            className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
+            className="shrink-0 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
           >
             ตัดรอบสั่งซื้อ
           </Link>
@@ -81,6 +80,7 @@ export default async function PurchaseRequestsPage({ searchParams }: { searchPar
         branchName={branch.name}
         products={options.products}
         suppliers={options.suppliers.map((s) => ({ id: s.id, name: s.nameFull }))}
+        stock={stock}
         me={{ userId: viewer.userId, canApprove: viewer.canApprove, isHead: t.role === "dept_head" }}
       />
     </div>
