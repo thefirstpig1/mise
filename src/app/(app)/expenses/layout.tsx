@@ -6,7 +6,9 @@ import PageFrame from "@/components/layout/PageFrame";
 // Part 35 L4: the header and "← กลับหน้าหลัก" moved into the sidebar.
 export default function ExpenseLayout({ children }: { children: ReactNode }) {
   return (
-    <PageFrame title="ค่าใช้จ่าย" width="5xl">
+    // No section label: every expense page carries its own "ค่าใช้จ่าย › …"
+    // line or heading, and the label repeated it (Kong 2026-10-27, option A).
+    <PageFrame width="5xl">
       {children}
     </PageFrame>
   );

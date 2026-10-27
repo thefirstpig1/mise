@@ -20,13 +20,17 @@ export default function PageFrame({
   width,
   children,
 }: {
-  title: string;
+  /**
+   * Omit when every page in the section names itself with its own breadcrumb
+   * (expenses, Kong 2026-10-27: the label above "ค่าใช้จ่าย › …" said it twice).
+   */
+  title?: string;
   width: keyof typeof WIDTH;
   children: ReactNode;
 }) {
   return (
     <div className={`mx-auto w-full ${WIDTH[width]} px-4 py-6 lg:px-8 lg:py-8`}>
-      <p className="mb-4 text-xs font-medium uppercase tracking-wider text-muted-foreground">{title}</p>
+      {title && <p className="mb-4 text-xs font-medium uppercase tracking-wider text-muted-foreground">{title}</p>}
       {children}
     </div>
   );
