@@ -11,8 +11,13 @@ import { setDeliveryPromiseAction } from "../actions";
 
 export type PromiseRow = { id: string; promisedDate: string; note: string | null; setAt: string; setBy: string };
 
-const thaiDate = (iso: string) =>
-  new Date(`${iso}T00:00:00Z`).toLocaleDateString("th-TH", { weekday: "short", day: "numeric", month: "short", year: "2-digit", timeZone: "UTC" });
+// The weekday comes from our own list: Node's ICU says "จ." where the browser
+// says "จันทร์", and that one word failed hydration on every open (2026-10-27).
+const WEEKDAY_TH = ["อา.", "จ.", "อ.", "พ.", "พฤ.", "ศ.", "ส."];
+const thaiDate = (iso: string) => {
+  const d = new Date(`${iso}T00:00:00Z`);
+  return `${WEEKDAY_TH[d.getUTCDay()]} ${d.toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit", timeZone: "UTC" })}`;
+};
 const thaiTime = (iso: string) =>
   new Date(iso).toLocaleString("th-TH", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Bangkok" });
 
