@@ -238,14 +238,27 @@ export async function receiveTransferAction(
 ): Promise<TransferActionState> {
   const { tenantId, membership } = await requireTenant("stock:write");
 
-  const itemIds = formData.getAll("line_item_id").map(String);
-  const qtys = formData.getAll("line_qty_received").map(String);
+  // One triple per counted amount (Kong 2026-10-27): a line may be counted in
+  // several units, so the form posts entries, grouped here by line. A line with
+  // every box empty arrives with no entries, and the schema asks for a count.
+  const itemIds = formData.getAll("entry_item_id").map(String);
+  const unitIds = formData.getAll("entry_unit_id").map(String);
+  const qtys = formData.getAll("entry_qty").map(String);
+  const byLine = new Map<string, { productUnitId: string; qty: string }[]>();
+  itemIds.forEach((itemId, i) => {
+    const list = byLine.get(itemId) ?? [];
+    if ((qtys[i] ?? "").trim() !== "") list.push({ productUnitId: unitIds[i], qty: qtys[i] });
+    byLine.set(itemId, list);
+  });
 
   const parsed = receiveTransferInputSchema.safeParse({
     id: formData.get("id"),
     receivedByName: formData.get("received_by_name"),
     notes: formData.get("notes"),
-    lines: itemIds.map((itemId, i) => ({ itemId, qtyReceived: qtys[i] })),
+    lines: [...byLine.entries()].map(([itemId, entries]) => ({
+      itemId,
+      entries: entries.length > 0 ? entries : undefined,
+    })),
   });
   if (!parsed.success) {
     return { ok: false, fieldErrors: toFieldErrors(parsed.error) };

@@ -9,8 +9,10 @@ import PageFrame from "@/components/layout/PageFrame";
 // column pushes the money off the first screen.
 // Part 35 L4: the header and "← กลับหน้าหลัก" moved into the sidebar.
 export default function PurchaseOrdersLayout({ children }: { children: ReactNode }) {
+  // No section label: every page here names itself (a heading, or the
+  // document header's "… › number" line) — Kong 2026-10-27, option A.
   return (
-    <PageFrame title="ใบสั่งซื้อ" width="5xl">
+    <PageFrame width="5xl">
       {children}
     </PageFrame>
   );

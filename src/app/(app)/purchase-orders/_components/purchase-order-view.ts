@@ -63,6 +63,8 @@ export type PurchaseOrderLineView = {
   /** The FROZEN unit name (ADR 0012 Q3) — not the ProductUnit's current name. */
   orderUnitName: string;
   toBaseRatio: string;
+  /** The product's base unit as it is today — only for "1 ถุง = 5 กก." wording. */
+  baseUnitName: string | null;
   unitPrice: string;
   lineTotal: string;
   /** Rule PR3 — as the supplier quoted it, VAT included; null when typed excluding VAT. */
@@ -179,6 +181,7 @@ export function toPurchaseOrderDetailView(
       lineNo: l.lineNo,
       productId: l.productId,
       productName: l.product.name,
+      baseUnitName: l.product.productUnits[0]?.unitName ?? null,
       productSku: l.product.sku,
       productDeleted: l.product.deletedAt !== null,
       qtyOrdered: str(l.qtyOrdered),

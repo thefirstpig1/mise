@@ -15,6 +15,14 @@
 - `requireTenant` คิด **สิทธิ์จริง** (`effectiveCapabilities`) · rule 4 + อีเมลใบขอซื้อพร้อมสั่งถามสิทธิ์จริง · หน้า `/settings/permissions` (ตามบทบาท · รายคน · บันทึก) ลองกดจริงในเบราว์เซอร์ด้วยบัญชีเจ้าของแล้ว
 - ⚠️ ยังไม่ได้: ลองล็อกอินเป็นผู้จัดการ/ครัวในเบราว์เซอร์ (มีเทสต์ฝั่ง server) · แถบ "มีสิทธิ์ใหม่ ตรวจดูได้" (Q3) ยังไม่ทำ เพราะยังไม่มีสิทธิ์ใหม่ — ทำพร้อม ADR 0037 · ในบันทึกการเปลี่ยนของร้านตัวอย่างมี 2 แถวจากการทดสอบ (เปิด/กลับค่าเริ่มต้น "เห็นยอดขาย" ของแคชเชียร์)
 
+## ✅ หน้าเอกสารรายใบ — เสร็จ 2026-10-27
+- mockup 58mU74dLaAMwH6nF3AC6zw · Kong: "เอาตามที่เสนอ" + ย้ำเรื่องหน่วยตอนส่ง/รับของ + "เอา A" (migration)
+- `DocHeader` / `RelatedDocs` / `HeaderChip` (`src/components/ui/DocHeader.tsx`) ใช้กับใบสั่งซื้อ ใบรับของ ใบโอน · `PurchaseOrderActions` และ `GoodsReceiptActions` แยก `part="head" | "foot"` และใช้ `ConfirmDialog` แทน `window.confirm`
+- migration `20261027120000_transfer_receive_units`: `stock_transfer_item.qty_received_base` + `received_detail` · `receiveTransferLogic` รับ `entries` หลายหน่วย ของหาย = ส่ง(หน่วยหลัก) − รับ(หน่วยหลัก) · เทสต์ U1–U3 (U2 แดงด้วย −3.996 ตามคาดเมื่อใช้วิธีเดิม)
+- ลบ `/cost/[productId]` (ไม่มีลิงก์เข้า) · กล่อง "ของที่ยังไม่รู้ต้นทุน" + ระบุต้นทุน อยู่ในบัตรสต๊อก (`/stock/history?product=&branch=`) เฉพาะคนเห็นต้นทุน
+- 🔴 แก้: hydration mismatch วันในสัปดาห์ (`DeliveryPromise`) · ป้ายหมวดซ้ำ breadcrumb ใน purchase-orders / goods-receipts / transfers · แผนกตั้งต้นร้านใหม่ "ครัวหลัก"
+- ⬜ ยังไม่ได้: กดยืนยันรับใบโอนจริงในเบราว์เซอร์ (ตรวจ FormData + เทสต์ฝั่ง server แทน เพื่อไม่ให้ใบโอนตัวอย่างเปลี่ยนสถานะ) · ร้านเดิมยังมีแผนก "Main"
+
 ## ✅ ใบนับสต๊อกบนมือถือ — เสร็จ 2026-10-27
 - mockup NBRTCZ2dkWty1n4fu7nUw4 · Kong: "เอาตามที่เสนอทั้ง 6 ข้อ" + "โอเคเลย" · ไม่มี migration · แก้แค่ `CountSheet.tsx` `CountRow.tsx`
 - หัว/ความคืบหน้า/ตัวกรองติดจอ (`sticky top-[3.6rem]` ใต้แถบบนมือถือ 57px) · ปิดใบนับเป็นแถบล่าง + แผงยืนยัน (แทนช่องติ๊ก) · "หมด (0)" · แถวนับแล้วยุบ · ใบปิดแล้วเห็นส่วนต่างทุกแถว (เพิ่มเอง)

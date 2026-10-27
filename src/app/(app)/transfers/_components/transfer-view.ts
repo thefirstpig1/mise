@@ -60,9 +60,20 @@ export type TransferLineView = {
     name: string;
     sku: string;
     baseUnitName: string | null;
+    /** What a receiver may count in, smallest first (Kong 2026-10-27). */
+    units: { id: string; unitName: string; toBaseRatio: string }[];
   };
   /** As entered, in `inputUnitName` — never the base unit. */
   qtySent: string;
+  inputUnitId: string;
+  /** What was sent, in the base unit — the yardstick for any count. */
+  qtySentBase: string;
+  /** Exact, in the base unit, when received after 2026-10-27; else null. */
+  qtyReceivedBase: string | null;
+  /** How the receiver counted it ("1 แพ็ค 12 ขวด + 11 ขวด"), when they used units. */
+  receivedDetail: string | null;
+  /** In the base unit when the exact figure exists; positive = went missing. */
+  qtyMissingBase: string | null;
   /**
    * `null` means **nobody has counted yet**, which is a different thing from a
    * counted zero and must stay distinguishable all the way to the screen (Q2).
@@ -144,6 +155,7 @@ export function toTransferLineView(
 ): TransferLineView {
   const qtyMissing =
     l.qtyReceived === null ? null : l.qtySent.minus(l.qtyReceived);
+  const sentBase = l.qtySent.times(l.toBaseRatio).toDecimalPlaces(3);
   return {
     id: l.id,
     lineNo: l.lineNo,
@@ -151,9 +163,15 @@ export function toTransferLineView(
       id: l.product.id,
       name: l.product.name,
       sku: l.product.sku,
-      baseUnitName: l.product.productUnits[0]?.unitName ?? null,
+      baseUnitName: l.product.productUnits.find((u) => u.isBase)?.unitName ?? null,
+      units: l.product.productUnits.map((u) => ({ id: u.id, unitName: u.unitName, toBaseRatio: str(u.toBaseRatio) })),
     },
     qtySent: str(l.qtySent),
+    inputUnitId: l.inputUnitId,
+    qtySentBase: str(sentBase),
+    qtyReceivedBase: l.qtyReceivedBase === null ? null : str(l.qtyReceivedBase),
+    receivedDetail: l.receivedDetail,
+    qtyMissingBase: l.qtyReceivedBase === null ? null : str(sentBase.minus(l.qtyReceivedBase)),
     qtyReceived: l.qtyReceived === null ? null : str(l.qtyReceived),
     inputUnitName: l.inputUnitName,
     qtyMissing: qtyMissing === null ? null : str(qtyMissing),
@@ -211,8 +229,10 @@ export function toTransferView(
     lineCount: live.length,
     totalCost: cost === null ? null : totalCost ? str(totalCost) : "0",
     costHidden: cost === null,
-    hasShortage: live.some(
-      (l) => l.qtyReceived !== null && l.qtyReceived.lessThan(l.qtySent)
+    hasShortage: live.some((l) =>
+      l.qtyReceivedBase !== null
+        ? l.qtyReceivedBase.lessThan(l.qtySent.times(l.toBaseRatio).toDecimalPlaces(3))
+        : l.qtyReceived !== null && l.qtyReceived.lessThan(l.qtySent)
     ),
   };
 }

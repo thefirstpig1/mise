@@ -13,6 +13,11 @@
 // A voided receipt keeps BOTH its original lines and their reversals, side by
 // side. That is not clutter: it is the only honest way to show that stock came
 // in and went back out, and the ledger rows behind them are immortal.
+//
+// Document-page review (Kong 2026-10-27, mockup 58mU74dLaAMwH6nF3AC6zw): the
+// shared header, the order / bill / supplier invoice / stock card as chips,
+// "ต่างจากที่สั่ง" only when there IS an order, what entered stock as a folded
+// table in the shop's words, and voiding at the bottom.
 
 import { notFound } from "next/navigation";
 import { requireTenant } from "@/lib/require-tenant";
@@ -30,6 +35,7 @@ import {
 } from "../_components/goods-receipt-view";
 import GoodsReceiptActions from "../_components/GoodsReceiptActions";
 import StatusBadge from "../_components/StatusBadge";
+import { DocHeader, HeaderChip, RelatedDocs, type RelatedDoc } from "@/components/ui/DocHeader";
 
 export default async function GoodsReceiptDetailPage({
   params,
@@ -49,26 +55,49 @@ export default async function GoodsReceiptDetailPage({
   // a link, a system-created document cannot be found from the document that
   // created it — which is the fastest way to make people distrust automation.
   const expense = await getExpenseByGoodsReceiptLogic(tenantId, gr.id);
+  const forward = gr.lines.some((l) => !l.isReversal);
+  const related: RelatedDoc[] = [
+    gr.purchaseOrder
+      ? { label: `ใบสั่งซื้อ ${gr.purchaseOrder.poNumber}`, href: `/purchase-orders/${gr.purchaseOrder.id}` }
+      : { label: "ซื้อสด", note: "ไม่มีใบสั่งซื้อ" },
+    ...(expense
+      ? [{ label: `บิลค่าใช้จ่าย ฿${formatMoney(expense.totalAmount.toString())}`, href: `/expenses/${expense.id}`, note: expense.paymentStatus === "PAID" ? "จ่ายแล้ว" : "ยังไม่จ่าย" }]
+      : gr.status === "DRAFT"
+        ? [{ label: "บิลค่าใช้จ่าย", note: "สร้างให้เองเมื่อยืนยัน" }]
+        : []),
+    ...(gr.invoiceNo ? [{ label: `ใบส่งของผู้ขาย ${gr.invoiceNo}` }] : []),
+    ...(gr.status !== "DRAFT" && forward ? [{ label: "ดูในบัตรสต๊อก", href: "/stock/history" }] : []),
+  ];
+  // "ต่างจากที่สั่ง" means nothing on a purchase with no order: every row is "—".
+  const fromOrder = gr.purchaseOrder !== null;
 
   return (
     <div className="space-y-6">
-      <div className="print:hidden">
-        <a
-          href="/goods-receipts"
-          className="text-sm text-muted-foreground hover:text-foreground"
-        >
-          ← กลับรายการใบรับสินค้า
-        </a>
-      </div>
-
-      <GoodsReceiptActions
-        id={gr.id}
-        grNumber={gr.grNumber}
-        status={gr.status}
-        onConfirm={confirmGoodsReceiptAction}
-        onVoid={voidGoodsReceiptAction}
-        onDiscard={deleteGoodsReceiptDraftAction}
+      <DocHeader
+        trail={{ href: "/goods-receipts", label: "รับสินค้า" }}
+        number={gr.grNumber}
+        badges={
+          <>
+            <StatusBadge status={gr.status} />
+            {gr.hasDiscrepancy && gr.status === "CONFIRMED" && <HeaderChip tone="warn">ต้องตรวจสอบ</HeaderChip>}
+          </>
+        }
+        meta={`${gr.supplier.nameFull} · ${gr.branch.name} · รับ ${gr.receivedAtLabel}${
+          gr.confirmedByName ? ` · ยืนยันโดย ${gr.confirmedByName}` : ""
+        }`}
+        actions={
+          <GoodsReceiptActions
+            part="head"
+            id={gr.id}
+            grNumber={gr.grNumber}
+            status={gr.status}
+            onConfirm={confirmGoodsReceiptAction}
+            onVoid={voidGoodsReceiptAction}
+            onDiscard={deleteGoodsReceiptDraftAction}
+          />
+        }
       />
+      <RelatedDocs items={related} />
 
       {gr.status === "DRAFT" && (
         <div className="rounded-lg border border-border bg-muted/30 p-3 text-xs text-muted-foreground print:hidden">
@@ -85,22 +114,11 @@ export default async function GoodsReceiptDetailPage({
           </div>
         </div>
       )}
-      {expense && (
-        <div className="rounded-lg border border-border-strong bg-muted p-3 text-sm text-foreground print:hidden">
-          ใบนี้บันทึกเป็นค่าใช้จ่ายให้อัตโนมัติแล้ว —{" "}
-          <a href={`/expenses/${expense.id}`} className="font-medium underline">
-            ดูบิลค่าใช้จ่าย
-          </a>
-          {gr.vatRatePercent && (
-            <span className="ml-1 text-xs">
-              (VAT {gr.vatRatePercent}%{" "}
-              {gr.vatReclaimable
-                ? "ขอคืนได้ ไม่รวมในต้นทุนของ"
-                : "ขอคืนไม่ได้ จึงรวมเป็นต้นทุนของ"}
-              )
-            </span>
-          )}
-        </div>
+      {expense && gr.vatRatePercent && (
+        <p className="-mt-3 text-xs text-muted-foreground print:hidden">
+          VAT {gr.vatRatePercent}%{" "}
+          {gr.vatReclaimable ? "ขอคืนได้ ไม่รวมในต้นทุนของ" : "ขอคืนไม่ได้ จึงรวมเป็นต้นทุนของ"}
+        </p>
       )}
 
       {gr.hasDiscrepancy && gr.status === "CONFIRMED" && (
@@ -179,7 +197,7 @@ export default async function GoodsReceiptDetailPage({
                 <th className="py-2 pr-2 font-medium">รายการ</th>
                 <th className="py-2 pr-2 text-right font-medium">จำนวนที่รับ</th>
                 <th className="py-2 pr-2 font-medium">หน่วย</th>
-                <th className="py-2 pr-2 text-right font-medium">ต่างจากที่สั่ง</th>
+                {fromOrder && <th className="py-2 pr-2 text-right font-medium">ต่างจากที่สั่ง</th>}
                 <th className="py-2 pr-2 text-right font-medium">ราคา/หน่วย</th>
                 <th className="py-2 text-right font-medium">รวม</th>
               </tr>
@@ -216,7 +234,7 @@ export default async function GoodsReceiptDetailPage({
                     {formatQty(l.qtyReceivedActual)}
                   </td>
                   <td className="py-2 pr-2">{l.receivedUnitName}</td>
-                  <td className="py-2 pr-2 text-right tabular-nums">
+                  {fromOrder && <td className="py-2 pr-2 text-right tabular-nums">
                     {l.ordered && !l.isReversal ? (
                       Number(l.ordered.varianceQty) === 0 ? (
                         <span className="text-muted-foreground">ตรงตามสั่ง</span>
@@ -235,7 +253,7 @@ export default async function GoodsReceiptDetailPage({
                     ) : (
                       <span className="text-muted-foreground">—</span>
                     )}
-                  </td>
+                  </td>}
                   <td className="py-2 pr-2 text-right tabular-nums">
                     {formatMoney(l.unitPriceActual)}
                     {/* Rule PR3 — the bill's own figure, beside the net one the ledger uses. */}
@@ -274,37 +292,58 @@ export default async function GoodsReceiptDetailPage({
         )}
       </article>
 
-      {/* ---------- what only we need to know ---------- */}
-      <section className="rounded-lg border border-border p-4 text-xs text-muted-foreground print:hidden">
-        <h3 className="mb-2 text-sm font-medium text-foreground">ข้อมูลภายใน</h3>
-        <p>
-          จำนวนที่เข้าคลังคำนวณด้วยอัตราแปลงหน่วยที่ &ldquo;ตรึง&rdquo;
-          ไว้บนใบสั่งซื้อ ไม่ใช่ค่าปัจจุบันของวัตถุดิบ —
-          หากมีการแก้หน่วยภายหลัง ใบนี้จะยังคงเดิม
-        </p>
-        <ul className="mt-2 space-y-1">
-          {gr.lines.map((l) => (
-            <li key={l.id}>
-              #{l.lineNo} {l.productName} — 1 {l.receivedUnitName} ={" "}
-              {formatQty(l.toBaseRatio)} (หน่วยหลัก) → เข้าคลัง{" "}
-              <span className="tabular-nums">{formatQty(l.qtyBase)}</span> · ปันส่วน:{" "}
-              {l.allocations
-                .map((a) => `${a.departmentName} ${formatQty(a.qtyAllocatedActual)}`)
-                .join(", ")}
-              {l.purchaseOrderItemId ? "" : " · ไม่ผูกกับใบสั่งซื้อ"}
-            </li>
-          ))}
-        </ul>
-        {gr.confirmedAtLabel && (
-          <p className="mt-2">
-            ยืนยันรับของเมื่อ {gr.confirmedAtLabel}
-            {gr.confirmedByName ? ` โดย ${gr.confirmedByName}` : ""} ·{" "}
-            <a href="/stock/history" className="text-primary hover:underline">
-              ดูในบัญชีคลัง
-            </a>
+      {/* ---------- what entered stock, in the shop's words, folded ---------- */}
+      <details className="group rounded-xl border border-border bg-surface print:hidden">
+        <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-semibold">
+          ของเข้าคลังเท่าไร (แปลงหน่วยแล้ว)
+          <span className="text-xs font-normal text-muted-foreground group-open:hidden">กดเพื่อดู</span>
+          <span className="hidden text-xs font-normal text-muted-foreground group-open:inline">ย่อ</span>
+        </summary>
+        <div className="space-y-2 overflow-x-auto px-4 pb-4">
+          <table className="w-full min-w-[32rem] text-sm">
+            <thead className="text-left text-xs text-muted-foreground">
+              <tr>
+                <th className="py-1.5 pr-2 font-medium">รายการ</th>
+                <th className="py-1.5 pr-2 font-medium">รับมา</th>
+                <th className="py-1.5 pr-2 text-right font-medium">เข้าคลัง</th>
+                <th className="py-1.5 font-medium">แผนก</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {gr.lines.map((l) => (
+                <tr key={l.id} className={l.isReversal ? "text-bad" : ""}>
+                  <td className="py-1.5 pr-2">
+                    {l.productName}
+                    {l.isReversal && " (กลับรายการ)"}
+                  </td>
+                  <td className="py-1.5 pr-2">
+                    {formatQty(l.qtyReceivedActual)} {l.receivedUnitName}
+                  </td>
+                  <td className="py-1.5 pr-2 text-right tabular-nums">
+                    {formatQty(l.qtyBase)} {l.baseUnitName ?? ""}
+                  </td>
+                  <td className="py-1.5">
+                    {l.allocations.map((a) => `${a.departmentName} ${formatQty(a.qtyAllocatedActual)}`).join(", ") || "—"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="text-xs text-muted-foreground">
+            ใช้อัตราแปลงหน่วยที่ล็อกไว้ตอนรับของ ถ้าแก้หน่วยของวัตถุดิบภายหลัง ใบนี้ไม่เปลี่ยนตาม
           </p>
-        )}
-      </section>
+        </div>
+      </details>
+
+      <GoodsReceiptActions
+        part="foot"
+        id={gr.id}
+        grNumber={gr.grNumber}
+        status={gr.status}
+        onConfirm={confirmGoodsReceiptAction}
+        onVoid={voidGoodsReceiptAction}
+        onDiscard={deleteGoodsReceiptDraftAction}
+      />
     </div>
   );
 }

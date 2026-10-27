@@ -13,6 +13,10 @@ import { getProductsLogic } from "@/server/product";
 import ProductFilter from "./_components/ProductFilter";
 import { getStockBalanceLogic, getStockMovementHistoryLogic } from "@/server/stock-movement";
 import { getStockCardLogic } from "@/server/stock-card";
+import { getProductCostLogic } from "@/server/stock-cost";
+import { getProductCostQuerySchema } from "@/lib/validations/stock-cost";
+import { toProductCostView } from "@/app/(app)/cost/_components/cost-view";
+import CostLayerTable from "@/app/(app)/cost/_components/CostLayerTable";
 import StockCardTable from "./_components/StockCardTable";
 import { addDays, computeBangkokToday } from "@/lib/bangkok-date";
 import { getStockMovementHistoryQuerySchema, MOVEMENT_ORIGINS, MOVEMENT_ORIGIN_VALUES } from "@/lib/validations/stock-movement";
@@ -62,13 +66,24 @@ export default async function StockHistoryPage({
   const today = computeBangkokToday();
   const cardFrom = query.dateFrom ?? addDays(today, -30);
   const cardTo = query.dateTo ?? today;
-  const [page, card, onHand] = await Promise.all([
+  // Document-page review 2026-10-27: the stock that arrived without a price
+  // (an upward adjustment, an opening balance) is priced HERE, on the card,
+  // instead of on /cost/[productId], which no page linked to. Cost readers only.
+  const [page, card, onHand, layerCost] = await Promise.all([
     cardBranchId ? Promise.resolve(null) : getStockMovementHistoryLogic(tenantId, query, reach),
     cardBranchId
       ? getStockCardLogic(tenantId, { productId: query.productId!, branchId: cardBranchId, from: cardFrom, to: cardTo, withCost: costAccess !== null })
       : Promise.resolve(null),
     cardBranchId ? getStockBalanceLogic(tenantId, { productId: query.productId!, branchId: cardBranchId }).then((b) => Number(b.balance)).catch(() => null) : Promise.resolve(null),
+    cardBranchId && costAccess
+      ? getProductCostLogic(
+          tenantId,
+          getProductCostQuerySchema.parse({ productId: query.productId!, branchId: cardBranchId })
+        ).then(toProductCostView)
+      : Promise.resolve(null),
   ]);
+  const guessed = layerCost?.layers.filter((l) => l.pricing === "LAST_KNOWN" || l.pricing === "UNPRICED") ?? [];
+  const cardProduct = query.productId ? products.find((p) => p.id === query.productId) : undefined;
 
   // Only the filters the schema accepted are replayed for the next page.
   const filter: HistoryFilter = {
@@ -197,6 +212,23 @@ export default async function StockHistoryPage({
           <h3 className="font-semibold">
             บัตรสต๊อก · {card.product.name} · {branches.find((b) => b.id === cardBranchId)?.name}
           </h3>
+          {guessed.length > 0 && cardProduct && (
+            <div className="space-y-2 rounded-xl border border-warn-border bg-warn-bg p-4">
+              <p className="font-semibold text-warn">ของที่ยังไม่รู้ต้นทุน · {guessed.length} ล็อต</p>
+              <p className="text-sm text-warn">
+                เข้ามาโดยไม่มีบิล (ปรับสต๊อกเพิ่ม · นับได้เกิน · ยอดยกมา) ตอนนี้ระบบใช้ราคาล่าสุดแทนไปก่อน ·
+                ล็อตจากการปรับสต๊อกกด &ldquo;ระบุต้นทุน&rdquo; ได้เมื่อเจอบิล แล้วต้นทุนย้อนหลังจะคิดใหม่ให้ ·
+                ล็อตจากการนับได้เกินใช้ราคาล่าสุดเสมอ
+              </p>
+              <div className="rounded-lg bg-surface">
+                <CostLayerTable
+                  layers={guessed}
+                  units={cardProduct.productUnits.map((u) => ({ id: u.id, unitName: u.unitName, isBase: u.isBase }))}
+                  baseUnitName={cardProduct.productUnits.find((u) => u.isBase)?.unitName ?? ""}
+                />
+              </div>
+            </div>
+          )}
           <StockCardTable
             card={card}
             from={cardFrom.toISOString().slice(0, 10)}

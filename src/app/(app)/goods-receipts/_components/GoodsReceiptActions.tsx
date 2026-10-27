@@ -11,10 +11,9 @@ import { orStale } from "@/lib/stale-tab";
 //   void    — compensating rows are appended; nothing is erased (Q6)
 //   discard — a draft that never posted is thrown away
 //
-// `window.confirm` is used deliberately, matching PurchaseOrderActions: a dialog
-// component would be nicer, but inventing a second modal for three buttons is
-// more surface than the choice deserves. NOTE: native confirm, not a JS alert
-// triggered by automation — the E2E drives the actions directly.
+// Each asks first in the app's own dialog (it was window.confirm until the
+// document-page review, 2026-10-27). Drawn twice: `part="head"` in the page
+// header (confirm a draft, print), `part="foot"` at the bottom (void, discard).
 //
 // After a confirm the post-write balances come back with the response, so the
 // page can say where the stock landed without another round trip — and flag a
@@ -22,6 +21,7 @@ import { orStale } from "@/lib/stale-tab";
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { ConfirmDialog, type ConfirmSpec } from "@/app/(app)/menus/_components/sheet-parts";
 import type {
   GoodsReceiptActionState,
   GoodsReceiptPostActionState,
@@ -30,6 +30,7 @@ import type {
 type Balances = { productId: string; productName: string; balance: string }[];
 
 export default function GoodsReceiptActions({
+  part,
   id,
   grNumber,
   status,
@@ -37,6 +38,8 @@ export default function GoodsReceiptActions({
   onVoid,
   onDiscard,
 }: {
+  /** Document-page review 2026-10-27: "head" = next step + print, "foot" = void / discard. */
+  part: "head" | "foot";
   id: string;
   grNumber: string;
   status: string;
@@ -57,17 +60,24 @@ export default function GoodsReceiptActions({
     negative: boolean;
   } | null>(null);
 
+  const [asking, setAsking] = useState<ConfirmSpec | null>(null);
   const isDraft = status === "DRAFT";
   const isConfirmed = status === "CONFIRMED";
 
-  const confirmReceipt = () => {
-    if (
-      !window.confirm(
-        `ยืนยันรับของตามใบ ${grNumber}?\n\nสต๊อกจะเพิ่มทันทีและแก้ไขใบนี้ไม่ได้อีก — ถ้าตัวเลขผิดต้องยกเลิกใบรับแล้วออกใบใหม่`
-      )
-    ) {
-      return;
-    }
+  const confirmReceipt = () =>
+    setAsking({
+      title: `ยืนยันรับของตามใบ ${grNumber}?`,
+      lines: [
+        "สต๊อกเพิ่มทันที และระบบสร้างบิลค่าใช้จ่ายให้",
+        "แก้ใบนี้ไม่ได้อีก ถ้าตัวเลขผิดต้องยกเลิกใบรับแล้วออกใบใหม่",
+      ],
+      money: null,
+      who: "",
+      go: "ยืนยันรับของเข้าคลัง",
+      back: "ยังไม่ยืนยัน",
+      onGo: doConfirm,
+    });
+  const doConfirm = () => {
     setError(null);
     startTransition(async () => {
       const res = await orStale(onConfirm(id));
@@ -80,8 +90,17 @@ export default function GoodsReceiptActions({
     });
   };
 
-  const discard = () => {
-    if (!window.confirm(`ทิ้งร่าง ${grNumber}?`)) return;
+  const discard = () =>
+    setAsking({
+      title: `ทิ้งร่าง ${grNumber}?`,
+      lines: ["ร่างนี้ยังไม่ได้รับเข้าคลัง จะหายไปจากรายการ"],
+      money: null,
+      who: "",
+      go: "ทิ้งร่าง",
+      back: "ไม่ทิ้ง",
+      onGo: doDiscard,
+    });
+  const doDiscard = () => {
     setError(null);
     startTransition(async () => {
       const res = await orStale(onDiscard(id));
@@ -106,87 +125,81 @@ export default function GoodsReceiptActions({
     });
   };
 
-  return (
-    <div className="space-y-3 print:hidden">
-      {error && (
-        <div className="rounded-lg border border-bad-border bg-bad-bg p-3 text-sm text-bad">
-          {error}
-        </div>
+  const dialog = asking && <ConfirmDialog spec={asking} onClose={() => setAsking(null)} />;
+  const errorBox = error && (
+    <div className="basis-full rounded-lg border border-bad-border bg-bad-bg p-3 text-sm text-bad">{error}</div>
+  );
+  const postedBox = posted && (
+    <div
+      className={`basis-full rounded-lg border p-3 text-sm ${
+        posted.negative ? "border-bad-border bg-bad-bg text-bad" : "border-good-border bg-good-bg text-good"
+      }`}
+    >
+      <p className="font-medium">{posted.negative ? "บันทึกแล้ว — แต่ต้องตรวจสอบ" : "บันทึกเข้าคลังแล้ว"}</p>
+      <ul className="mt-1 space-y-0.5">
+        {posted.balances.map((b) => (
+          <li key={b.productId}>
+            {b.productName}: คงเหลือ <span className="font-medium tabular-nums">{b.balance}</span>
+          </li>
+        ))}
+      </ul>
+      {posted.negative && (
+        <p className="mt-1">
+          มีวัตถุดิบที่ยอดคงเหลือติดลบ — แปลว่ามีการเบิกออกไปแล้วมากกว่าที่รับเข้า ลองตรวจการนับสต๊อกย้อนหลัง
+        </p>
       )}
+    </div>
+  );
 
-      {posted && (
-        <div
-          className={`rounded-lg border p-3 text-sm ${
-            posted.negative
-              ? "border-bad-border bg-bad-bg text-bad"
-              : "border-good-border bg-good-bg text-good"
-          }`}
-        >
-          <p className="font-medium">
-            {posted.negative ? "บันทึกแล้ว — แต่ต้องตรวจสอบ" : "บันทึกเข้าคลังแล้ว"}
-          </p>
-          <ul className="mt-1 space-y-0.5">
-            {posted.balances.map((b) => (
-              <li key={b.productId}>
-                {b.productName}: คงเหลือ{" "}
-                <span className="font-medium tabular-nums">{b.balance}</span>
-              </li>
-            ))}
-          </ul>
-          {posted.negative && (
-            <p className="mt-1">
-              มีวัตถุดิบที่ยอดคงเหลือติดลบ — แปลว่ามีการเบิกออกไปแล้วมากกว่าที่รับเข้า
-              ลองตรวจการนับสต๊อกย้อนหลัง
-            </p>
-          )}
-        </div>
-      )}
-
-      <div className="flex flex-wrap gap-2">
+  if (part === "head") {
+    return (
+      <>
         {isDraft && (
-          <>
-            <button
-              type="button"
-              onClick={confirmReceipt}
-              disabled={pending}
-              className="btn"
-            >
-              ยืนยันรับของเข้าคลัง
-            </button>
-            <a
-              href={`/goods-receipts/${id}/edit`}
-              className="rounded-lg border border-border px-4 py-2 text-sm hover:bg-muted/40"
-            >
-              แก้ไข
-            </a>
-          </>
+          <a href={`/goods-receipts/${id}/edit`} className="rounded-xl border border-border-strong bg-surface px-4 py-2.5 text-sm font-medium hover:bg-muted/40">
+            แก้ไข
+          </a>
         )}
-
         <button
           type="button"
           onClick={() => window.print()}
-          className="rounded-lg border border-border px-4 py-2 text-sm hover:bg-muted/40"
+          className="rounded-xl border border-border-strong bg-surface px-4 py-2.5 text-sm font-medium hover:bg-muted/40"
         >
           พิมพ์ / บันทึกภาพ
         </button>
+        {isDraft && (
+          <button type="button" onClick={confirmReceipt} disabled={pending} className="btn">
+            ยืนยันรับของเข้าคลัง
+          </button>
+        )}
+        {errorBox}
+        {postedBox}
+        {dialog}
+      </>
+    );
+  }
 
+  if (!isConfirmed && !isDraft) return null;
+  return (
+    <section className="space-y-3 border-t border-border pt-4 print:hidden">
+      {errorBox}
+      {postedBox}
+      <div className="flex flex-wrap gap-2">
         {isConfirmed && !voiding && (
           <button
             type="button"
             onClick={() => setVoiding(true)}
             disabled={pending}
-            className="rounded-lg border border-bad-border px-4 py-2 text-sm text-bad hover:bg-bad-bg disabled:opacity-50"
+            className="rounded-xl border border-bad-border bg-surface px-4 py-2 text-sm font-medium text-bad hover:bg-bad-bg disabled:opacity-50"
           >
             ยกเลิกใบรับ
           </button>
         )}
-
         {isDraft && (
           <button
             type="button"
             onClick={discard}
             disabled={pending}
-            className="rounded-lg px-4 py-2 text-sm text-muted-foreground hover:text-bad disabled:opacity-50"
+            className="rounded-xl px-4 py-2 text-sm text-muted-foreground hover:text-bad disabled:opacity-50"
           >
             ทิ้งร่าง
           </button>
@@ -235,6 +248,7 @@ export default function GoodsReceiptActions({
           </div>
         </form>
       )}
-    </div>
+      {dialog}
+    </section>
   );
 }

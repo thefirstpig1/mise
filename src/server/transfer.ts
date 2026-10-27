@@ -152,7 +152,12 @@ const DETAIL_INCLUDE = {
           id: true,
           name: true,
           sku: true,
-          productUnits: { where: { isBase: true }, select: { unitName: true } },
+          // Every unit, not just the base: the receiver counts in any of them
+          // (Kong 2026-10-27). The base one is still found by `isBase`.
+          productUnits: {
+            select: { id: true, unitName: true, toBaseRatio: true, isBase: true },
+            orderBy: { toBaseRatio: "asc" },
+          },
         },
       },
       inputUnit: { select: { id: true, unitName: true, toBaseRatio: true } },

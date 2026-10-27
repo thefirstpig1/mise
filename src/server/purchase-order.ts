@@ -437,7 +437,14 @@ const PO_DETAIL_INCLUDE = {
     orderBy: { lineNo: "asc" },
     include: {
       product: {
-        select: { id: true, name: true, sku: true, deletedAt: true },
+        select: {
+          id: true,
+          name: true,
+          sku: true,
+          deletedAt: true,
+          // "1 ถุง 5 กก. = 5 กก." in the unit details (2026-10-27).
+          productUnits: { where: { isBase: true }, select: { unitName: true }, take: 1 },
+        },
       },
       allocations: {
         include: { department: { select: { id: true, name: true, code: true } } },

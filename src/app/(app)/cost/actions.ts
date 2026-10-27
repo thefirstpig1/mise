@@ -104,6 +104,8 @@ export async function declareCostAction(
     // every surface that shows a cost — not just the page it was typed on.
     revalidatePath("/cost");
     revalidatePath("/stock");
+    // The stock card is where a price is now declared (2026-10-27).
+    revalidatePath("/stock/history");
 
     return { ok: true, declarationId: declaration.id };
   } catch (e) {

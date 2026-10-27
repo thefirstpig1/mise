@@ -102,7 +102,10 @@ export async function createTenant(input: CreateTenantInput) {
       data: {
         tenantId: tenant.id,
         code: "MAIN",
-        name: "Main",
+        // Shown on receipts and orders ("แผนกครัวหลัก 3 ถุง") — in the shop's
+        // language (2026-10-27; it was "Main"). Existing shops keep theirs and
+        // rename it at ตั้งค่า → แผนก. The CODE stays MAIN: code reads it.
+        name: "ครัวหลัก",
         description: "Default department (auto-created on tenant init)",
         isActive: true,
         displayOrder: 0,

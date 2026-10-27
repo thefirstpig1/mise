@@ -9,6 +9,10 @@
 //  3. **The receive form and the void control side by side**, with the void
 //     spelling out that it is not a transfer back (Q6).
 //
+// Document-page review (Kong 2026-10-27, mockup 58mU74dLaAMwH6nF3AC6zw): the
+// shared header with "รับของที่ …" as its next step, and the receiver counts
+// in any unit — the received column shows how they counted it.
+//
 // `params` is a PROMISE in Next 15, the same as `searchParams`.
 
 import { notFound } from "next/navigation";
@@ -18,6 +22,7 @@ import { receiveTransferAction, voidTransferAction } from "../actions";
 import { toTransferView } from "../_components/transfer-view";
 import ReceiveTransferForm from "../_components/ReceiveTransferForm";
 import VoidTransferButton from "../_components/VoidTransferButton";
+import { DocHeader, HeaderChip, RelatedDocs } from "@/components/ui/DocHeader";
 
 const STATUS_STYLE: Record<string, string> = {
   SENT: "border-warn-border bg-warn-bg text-warn",
@@ -42,23 +47,28 @@ export default async function TransferDetailPage({
 
   return (
     <div className="space-y-6">
-      <a href="/transfers" className="text-sm text-muted-foreground hover:underline">
-        ← กลับรายการใบโอน
-      </a>
-
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="text-xl font-bold">{t.tfNumber}</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {t.fromBranch.name} → {t.toBranch.name} · ส่ง {t.dispatchedAtLabel}
-          </p>
-        </div>
-        <span
-          className={`rounded-full border px-3 py-1 text-sm ${STATUS_STYLE[t.status] ?? ""}`}
-        >
-          {t.statusLabel}
-        </span>
-      </div>
+      <DocHeader
+        trail={{ href: "/transfers", label: "โอนของระหว่างสาขา" }}
+        number={t.tfNumber}
+        badges={
+          <span className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${STATUS_STYLE[t.status] ?? ""}`}>
+            {t.statusLabel}
+          </span>
+        }
+        meta={`${t.fromBranch.name} → ${t.toBranch.name} · ส่ง ${t.dispatchedAtLabel}${
+          t.dispatchedByName ?? t.dispatchedByAccount ? ` โดย ${t.dispatchedByName ?? t.dispatchedByAccount}` : ""
+        }`}
+        actions={
+          t.status === "SENT" ? (
+            <a href="#receive" className="btn">
+              รับของที่{t.toBranch.name}
+            </a>
+          ) : t.hasShortage ? (
+            <HeaderChip tone="warn">มีของหายระหว่างทาง</HeaderChip>
+          ) : undefined
+        }
+      />
+      <RelatedDocs items={[{ label: "ค่าใช้จ่าย", note: "การโอนไม่สร้างค่าใช้จ่าย" }]} />
 
       <p className="rounded-lg border border-border bg-muted/30 p-3 text-sm text-muted-foreground">
         {t.statusHint}
@@ -130,12 +140,27 @@ export default async function TransferDetailPage({
                       means nobody counted, the other means nothing arrived. */}
                   {l.qtyReceived === null ? (
                     <span className="text-muted-foreground">ยังไม่ได้นับ</span>
+                  ) : l.qtyReceivedBase !== null ? (
+                    <>
+                      {Number(l.qtyReceivedBase)} {l.product.baseUnitName}
+                      {l.receivedDetail && (
+                        <span className="block text-xs text-muted-foreground">นับเป็น {l.receivedDetail}</span>
+                      )}
+                    </>
                   ) : (
                     `${l.qtyReceived} ${l.inputUnitName}`
                   )}
                 </td>
                 <td className="px-3 py-2 text-right">
-                  {l.qtyMissing === null || Number(l.qtyMissing) === 0 ? (
+                  {l.qtyMissingBase !== null ? (
+                    Number(l.qtyMissingBase) === 0 ? (
+                      <span className="text-muted-foreground">—</span>
+                    ) : (
+                      <span className="text-bad">
+                        {Number(l.qtyMissingBase)} {l.product.baseUnitName}
+                      </span>
+                    )
+                  ) : l.qtyMissing === null || Number(l.qtyMissing) === 0 ? (
                     <span className="text-muted-foreground">—</span>
                   ) : (
                     <span className="text-bad">
@@ -204,8 +229,8 @@ export default async function TransferDetailPage({
       )}
 
       {t.status === "SENT" && (
-        <section className="rounded-lg border border-border bg-surface p-4">
-          <h3 className="mb-3 font-medium">รับของที่ {t.toBranch.name}</h3>
+        <section id="receive" className="scroll-mt-20 rounded-xl border border-border bg-surface p-4">
+          <h3 className="mb-3 text-lg font-semibold">รับของที่{t.toBranch.name}</h3>
           <ReceiveTransferForm
             action={receiveTransferAction}
             transferId={t.id}

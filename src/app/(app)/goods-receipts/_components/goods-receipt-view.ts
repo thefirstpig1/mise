@@ -106,6 +106,8 @@ export type GoodsReceiptLineView = {
   lineNo: number;
   productId: string;
   productName: string;
+  /** The product's base unit today — wording only ("เข้าคลัง 120 กก."). */
+  baseUnitName: string | null;
   productSku: string;
   productDeleted: boolean;
   qtyReceivedActual: string;
@@ -295,6 +297,7 @@ export function toGoodsReceiptDetailView(
       lineNo: l.lineNo,
       productId: l.productId,
       productName: l.product.name,
+      baseUnitName: l.product.productUnits?.[0]?.unitName ?? null,
       productSku: l.product.sku,
       productDeleted: l.product.deletedAt !== null,
       qtyReceivedActual: str(l.qtyReceivedActual),

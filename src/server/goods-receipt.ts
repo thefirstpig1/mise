@@ -88,7 +88,16 @@ const GR_DETAIL_INCLUDE = {
   items: {
     orderBy: { lineNo: "asc" },
     include: {
-      product: { select: { id: true, name: true, sku: true, deletedAt: true } },
+      product: {
+        select: {
+          id: true,
+          name: true,
+          sku: true,
+          deletedAt: true,
+          // "เข้าคลัง 120 กก." in the folded stock table (2026-10-27).
+          productUnits: { where: { isBase: true }, select: { unitName: true }, take: 1 },
+        },
+      },
       // The ordered side, so the detail page can show variance without a second
       // query. These are the PO line's FROZEN values (ADR 0012 Q3).
       purchaseOrderItem: {
