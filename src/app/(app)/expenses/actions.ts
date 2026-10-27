@@ -19,6 +19,7 @@
 // ============================================================
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import type { ZodError } from "zod";
 import { requireTenant } from "@/lib/require-tenant";
 import {
@@ -299,6 +300,9 @@ export async function setExpensePaymentAction(
     paymentStatus: formData.get("payment_status"),
     paidAt: formData.get("paid_at"),
     paymentMethod: formData.get("payment_method"),
+    whtCertificateNo: formData.has("wht_certificate_no")
+      ? formData.get("wht_certificate_no")
+      : undefined,
   });
   if (!parsed.success) {
     return { ok: false, fieldErrors: toFieldErrors(parsed.error, EXPENSE_FIELD_LABELS_TH) };
@@ -327,10 +331,14 @@ export async function deleteExpenseAction(
   try {
     const expense = await deleteExpenseLogic(tenantId, parsed.data);
     revalidateExpenseViews(expense.id);
-    return { ok: true, expenseId: expense.id };
   } catch (e) {
     return toFormError(e);
   }
+  // Redirect from the server, not a client push after the answer: revalidating
+  // re-renders the bill's own page first, which is now a 404, and the person
+  // saw "ไม่พบหน้านี้" instead of the list (expense review 2026-10-27).
+  // Outside the try — redirect() works by throwing.
+  redirect("/expenses");
 }
 
 // ------------------------------------------------------------
@@ -432,10 +440,11 @@ export async function deleteRecurringExpenseAction(
   }
 
   try {
-    const template = await deleteRecurringExpenseLogic(tenantId, parsed.data);
+    await deleteRecurringExpenseLogic(tenantId, parsed.data);
     revalidateExpenseViews();
-    return { ok: true, recurringId: template.id };
   } catch (e) {
     return toFormError(e);
   }
+  // As deleteExpenseAction: the template's own page is a 404 once it is gone.
+  redirect("/expenses/recurring");
 }

@@ -411,6 +411,14 @@ export const setExpensePaymentInputSchema = z
       blankToNull,
       z.string().trim().max(50, "วิธีชำระเงินต้องไม่เกิน 50 ตัวอักษร").nullable()
     ),
+    // The "จ่ายบิลนี้" box asks for the 50 ทวิ number at the moment of paying,
+    // which is when it is issued. Absent = leave the stored one alone.
+    whtCertificateNo: z
+      .preprocess(
+        blankToNull,
+        z.string().trim().max(100, "เลขที่หนังสือรับรองต้องไม่เกิน 100 ตัวอักษร").nullable()
+      )
+      .optional(),
   })
   .superRefine((input, ctx) => {
     if (input.paymentStatus === "UNPAID" && input.paidAt !== null) {

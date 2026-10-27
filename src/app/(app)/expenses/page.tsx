@@ -19,9 +19,12 @@ import {
   EXPENSE_SOURCE_VALUES,
 } from "@/lib/validations/expense";
 import {
+  expenseTitle,
   toDueRecurringView,
   toExpenseListRowView,
 } from "./_components/expense-view";
+import { monthLabelTh } from "@/lib/expense-labels";
+import SupplierFilter from "./_components/SupplierFilter";
 import { formatMoney } from "@/app/(app)/cost/_components/cost-view";
 import PaymentBadge from "./_components/PaymentBadge";
 
@@ -81,6 +84,18 @@ export default async function ExpenseListPage({
     new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB", maximumFractionDigits: 0 }).format(n);
   const periodLabel = `${breakdownFrom.toLocaleDateString("th-TH", { day: "numeric", month: "short", timeZone: "UTC" })} – ${breakdownTo.toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}`;
 
+  const dueCount = due.reduce((n, d) => n + d.duePeriods.length, 0);
+  const supplierItems = suppliers.map((s) => ({
+    id: s.id,
+    name: s.nameShort ?? s.nameFull,
+    sku: "",
+    imageUrl: null,
+    section: "ผู้ขาย",
+    group: null,
+    baseUnitName: null,
+    detail: s.nameShort && s.nameShort !== s.nameFull ? s.nameFull : null,
+  }));
+
   const unpaidTotal = rows
     .filter((r) => r.paymentStatus === "UNPAID")
     .reduce((sum, r) => sum + Number(r.netPaymentAmount), 0);
@@ -119,7 +134,7 @@ export default async function ExpenseListPage({
       {due.length > 0 && (
         <section className="rounded-lg border border-warn-border bg-warn-bg p-4">
           <h3 className="text-sm font-bold text-warn">
-            ถึงกำหนดบันทึก ({due.reduce((n, d) => n + d.duePeriods.length, 0)} งวด)
+            ถึงกำหนดบันทึก ({dueCount} งวด)
           </h3>
           <p className="mt-1 text-xs text-warn">
             รายการประจำที่ยังไม่ได้บันทึกในเดือนนั้น — ระบบไม่บันทึกให้เอง
@@ -140,7 +155,7 @@ export default async function ExpenseListPage({
                       href={`/expenses/new?recurring=${d.template.id}&period=${period}`}
                       className="rounded-lg border border-warn-border bg-white px-2 py-1 text-xs font-medium hover:bg-warn-bg"
                     >
-                      บันทึกงวด {period}
+                      บันทึกงวด {monthLabelTh(period)}
                     </a>
                   ))}
                 </div>
@@ -153,9 +168,21 @@ export default async function ExpenseListPage({
       {/* B4 (Kong 2026-10-24): the breakdown by category lives on วิเคราะห์รายจ่าย,
           which drills further; this page records and finds bills. */}
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-surface px-4 py-3">
+        {/* Never ฿0 for "nothing recorded yet" (mise-ui-review §3): say so, and
+            point at the recurring months that are the usual reason. */}
         <p className="text-sm">
-          รายจ่าย {periodLabel}: <b className="tabular-nums">{bahtWhole(spendTotal)}</b>
-          <span className="text-muted-foreground"> · ตามวันที่บิล ไม่รวม VAT</span>
+          รายจ่าย {periodLabel}:{" "}
+          {spendTotal === 0 ? (
+            <b className="text-muted-foreground">ยังไม่มีบิลในช่วงนี้</b>
+          ) : (
+            <>
+              <b className="tabular-nums">{bahtWhole(spendTotal)}</b>
+              <span className="text-muted-foreground"> · ตามวันที่บิล ไม่รวม VAT</span>
+            </>
+          )}
+          {dueCount > 0 && (
+            <span className="text-muted-foreground"> · รายการประจำรอบันทึก {dueCount} งวด</span>
+          )}
         </p>
         <ActionLink href="/expenses/analysis">ดูแยกหมวดและผู้ขาย ›</ActionLink>
       </div>
@@ -181,23 +208,11 @@ export default async function ExpenseListPage({
             </select>
           </div>
         )}
-        <div>
+        <div className="w-72 max-w-full">
           <label htmlFor="supplier" className="label">
             ผู้ขาย
           </label>
-          <select
-            id="supplier"
-            name="supplier"
-            defaultValue={query.supplierId ?? ""}
-            className="input mt-1"
-          >
-            <option value="">ทั้งหมด</option>
-            {suppliers.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.nameShort ?? s.nameFull}
-              </option>
-            ))}
-          </select>
+          <SupplierFilter items={supplierItems} value={query.supplierId ?? ""} />
         </div>
         <div>
           <label htmlFor="source" className="label">
@@ -310,12 +325,12 @@ export default async function ExpenseListPage({
                         href={`/expenses/${r.id}`}
                         className="font-medium text-primary after:absolute after:inset-0 after:content-['']"
                       >
-                        {r.supplierName ?? r.billNo ?? "ค่าใช้จ่าย"}
+                        {expenseTitle(r)}
                       </a>
                       <div className="text-xs text-muted-foreground">
                         {r.itemCount} รายการ
                         {r.billNo && ` · ${r.billNo}`}
-                        {r.period && ` · งวด ${r.period}`}
+                        {r.period && ` · งวด ${monthLabelTh(r.period)}`}
                       </div>
                     </td>
                     <td className="px-3 py-2 text-sm">{r.branchName}</td>

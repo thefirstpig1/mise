@@ -17,17 +17,18 @@ import type {
   ExpenseListRow,
   RecurringExpenseRow,
 } from "@/server/expense";
+import type { Supplier } from "@prisma/client";
+import { categoryLabelTh } from "@/lib/expense-labels";
 
 /** How a supplier is named on screen — the short name if there is one. */
 const supplierLabel = (s: { nameFull: string; nameShort: string | null } | null) =>
   s === null ? null : (s.nameShort ?? s.nameFull);
 
-/** `COGS · Food · Meat`. Flattened for a table cell, never for a decision. */
-const categoryLabel = (c: {
-  account: string;
-  accountingSection: string;
-  groupName: string;
-}) => `${c.account} · ${c.accountingSection} · ${c.groupName}`;
+/**
+ * `ค่าใช้จ่ายดำเนินงาน · สาธารณูปโภค · ค่าไฟฟ้า` — the account in the shop's
+ * words, never `OpEx` (expense review 2026-10-27). For a table cell, never a decision.
+ */
+const categoryLabel = categoryLabelTh;
 
 export type ExpenseListRowView = {
   id: string;
@@ -46,6 +47,8 @@ export type ExpenseListRowView = {
   paidAt: string | null;
   itemCount: number;
   period: string | null;
+  /** The first line, for the title (see `expenseTitle`). */
+  items: { description: string }[];
 };
 
 const dayString = (d: Date) => d.toISOString().slice(0, 10);
@@ -67,6 +70,7 @@ export function toExpenseListRowView(row: ExpenseListRow): ExpenseListRowView {
     paidAt: row.paidAt ? row.paidAt.toISOString() : null,
     itemCount: row._count.items,
     period: row.period,
+    items: row.items,
   };
 }
 
@@ -240,3 +244,53 @@ export const toDueRecurringView = (row: DueRecurringRow): DueRecurringView => ({
   template: toRecurringExpenseView(row.template),
   duePeriods: row.duePeriods,
 });
+
+/** A supplier as the bill form needs it: the name, and what choosing it fills in. */
+export type ExpenseSupplierOption = {
+  id: string;
+  label: string;
+  /** The full legal name, when it says more than the label. */
+  fullName: string | null;
+  /** STRING or null (Pitfall #20). null = not VAT-registered → the bill has no VAT. */
+  vatRatePercent: string | null;
+  pricesIncludeVat: boolean;
+  subjectToWht: boolean;
+  whtRatePercent: string | null;
+  /** The category on this supplier's last hand-entered bill, if any. */
+  lastCategoryId: string | null;
+};
+
+/**
+ * VAT follows the supplier exactly as the purchase order does (ADR 0036 Q7):
+ * a registered supplier → its own rate, else the shop's; not registered → none.
+ */
+export function toExpenseSupplierOption(
+  s: Supplier,
+  lastCategories: Map<string, string>,
+  tenantDefaultVatRate: string
+): ExpenseSupplierOption {
+  const label = supplierLabel(s)!;
+  return {
+    id: s.id,
+    label,
+    fullName: s.nameFull !== label ? s.nameFull : null,
+    vatRatePercent: s.isVatRegistered
+      ? (s.defaultVatRatePercent?.toString() ?? tenantDefaultVatRate)
+      : null,
+    pricesIncludeVat: s.pricesIncludeVat,
+    subjectToWht: s.defaultSubjectToWht,
+    whtRatePercent: s.defaultWhtRatePercent?.toString() ?? null,
+    lastCategoryId: lastCategories.get(s.id) ?? null,
+  };
+}
+
+/**
+ * What a bill is called on screen: the supplier, else what its first line says
+ * (ค่าทำบัญชีรายเดือน), else its number. Never the bare word "ค่าใช้จ่าย",
+ * which is what every bill without a supplier used to be titled.
+ */
+export const expenseTitle = (e: {
+  supplierName: string | null;
+  billNo: string | null;
+  items: { description: string }[];
+}) => e.supplierName ?? e.items[0]?.description ?? e.billNo ?? "ค่าใช้จ่าย";

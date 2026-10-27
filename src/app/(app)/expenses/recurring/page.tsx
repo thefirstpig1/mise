@@ -3,6 +3,10 @@
 // A template is a note about what repeats, not a scheduler. Nothing here writes
 // an expense; the "ถึงกำหนด" panel on /expenses computes which months are still
 // owed and a human confirms each one (ADR 0016 Q5).
+//
+// Expense review 2026-10-27: each row carries its own "บันทึกงวด …" buttons
+// (no trip back to /expenses), the status column that said เปิดใช้งาน on every
+// row is gone, and a switched-off template is a dimmed row at the end.
 
 import { requireTenant } from "@/lib/require-tenant";
 import {
@@ -12,39 +16,38 @@ import {
 } from "@/server/expense";
 import { formatMoney } from "@/app/(app)/cost/_components/cost-view";
 import { toRecurringExpenseView } from "../_components/expense-view";
+import { monthLabelTh } from "@/lib/expense-labels";
+import Crumbs from "../_components/Crumbs";
 
 import EmptyState from "@/components/ui/EmptyState";
 export default async function RecurringExpensePage() {
-  const { tenantId } = await requireTenant("expense:view");
+  const { tenantId, capabilities } = await requireTenant("expense:view");
+  const canWrite = capabilities.has("expense:write");
 
   const [templates, due] = await Promise.all([
     getRecurringExpensesLogic(tenantId).then((rows) => rows.map(toRecurringExpenseView)),
     getDueRecurringLogic(tenantId),
   ]);
-  const dueCount = new Map(due.map((d) => [d.template.id, d.duePeriods.length]));
+  const dueOf = new Map(due.map((d) => [d.template.id, d.duePeriods]));
+  /** Buttons shown per row, oldest first (the order someone works through them); the rest are counted. */
+  const SHOWN = 3;
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <a
-            href="/expenses"
-            className="text-sm text-muted-foreground hover:text-foreground"
-          >
-            ← กลับรายการค่าใช้จ่าย
-          </a>
+          <Crumbs trail={[{ href: "/expenses", label: "ค่าใช้จ่าย" }]} here="รายการประจำ" />
           <h2 className="mt-1 text-xl font-bold">รายการประจำ</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             ค่าใช้จ่ายที่มาทุกเดือน — ระบบจะเตือนว่าเดือนไหนยังไม่ได้บันทึก
             แต่ไม่บันทึกให้เอง เพราะยอดจริงแต่ละเดือนไม่เท่ากัน
           </p>
         </div>
-        <a
-          href="/expenses/recurring/new"
-          className="btn"
-        >
-          เพิ่มรายการประจำ
-        </a>
+        {canWrite && (
+          <a href="/expenses/recurring/new" className="btn">
+            เพิ่มรายการประจำ
+          </a>
+        )}
       </div>
 
       {templates.length === 0 ? (
@@ -54,68 +57,81 @@ export default async function RecurringExpensePage() {
         </EmptyState>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-border">
-          <table className="w-full min-w-[42rem]">
+          <table className="w-full min-w-[46rem]">
             <thead className="border-b border-border bg-muted/40 text-left text-xs text-muted-foreground">
               <tr>
                 <th className="px-3 py-2 font-medium">รายการ</th>
-                <th className="px-3 py-2 font-medium">สาขา</th>
                 <th className="px-3 py-2 font-medium">หมวดบัญชี</th>
                 <th className="px-3 py-2 text-right font-medium">ยอดตั้งต้น</th>
                 <th className="px-3 py-2 font-medium">ครบกำหนด</th>
-                <th className="px-3 py-2 font-medium">ช่วงที่ใช้</th>
-                <th className="px-3 py-2 font-medium">สถานะ</th>
+                <th className="px-3 py-2 text-right font-medium">ยังไม่ได้บันทึก</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {templates.map((t) => (
-                <tr key={t.id} className="group relative transition-colors hover:bg-muted/50">
-                  <td className="px-3 py-2">
-                    <a
-                      href={`/expenses/recurring/${t.id}/edit`}
-                      className="font-medium text-primary after:absolute after:inset-0 after:content-['']"
-                    >
-                      {t.description}
-                    </a>
-                    {(dueCount.get(t.id) ?? 0) > 0 && (
-                      <div className="text-xs text-warn">
-                        ค้าง {dueCount.get(t.id)} งวด
+              {templates.map((t) => {
+                const periods = t.isActive ? (dueOf.get(t.id) ?? []) : [];
+                return (
+                  <tr
+                    key={t.id}
+                    className={`group relative transition-colors hover:bg-muted/50 ${t.isActive ? "" : "opacity-60"}`}
+                  >
+                    <td className="px-3 py-2">
+                      <a
+                        href={`/expenses/recurring/${t.id}/edit`}
+                        className="font-medium text-primary after:absolute after:inset-0 after:content-['']"
+                      >
+                        {t.description}
+                      </a>
+                      <div className="text-xs text-muted-foreground">
+                        {t.isActive
+                          ? `${t.branchName} · ตั้งแต่ ${monthLabelTh(t.startPeriod)}${t.endPeriod ? ` ถึง ${monthLabelTh(t.endPeriod)}` : ""}`
+                          : `ปิดใช้งานแล้ว · ${t.branchName}`}
                       </div>
-                    )}
-                  </td>
-                  <td className="px-3 py-2 text-sm">{t.branchName}</td>
-                  <td className="px-3 py-2 text-xs text-muted-foreground">
-                    {t.categoryLabel}
-                  </td>
-                  <td className="px-3 py-2 text-right text-sm tabular-nums">
-                    {formatMoney(t.defaultAmount)}
-                  </td>
-                  <td className="px-3 py-2 text-sm">ทุกวันที่ {t.dayOfMonth}</td>
-                  <td className="px-3 py-2 text-xs text-muted-foreground">
-                    {t.startPeriod} – {t.endPeriod ?? "ไม่มีกำหนด"}
-                  </td>
-                  <td className="px-3 py-2">
-                    {/*
-                      On or off is a NEUTRAL STATE, not a verdict — a template
-                      being active is not good for the shop, it is merely on.
-                      Rule 2 of the theme: what is not a verdict is warm grey.
-                      The pair stays legible because the live one keeps the
-                      ordinary ink and the closed one is muted.
-                    */}
-                    {t.isActive ? (
-                      <span className="text-xs text-foreground">เปิดใช้งาน</span>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">ปิดแล้ว</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="px-3 py-2 text-xs text-muted-foreground">
+                      {t.categoryLabel}
+                    </td>
+                    <td className="px-3 py-2 text-right text-sm tabular-nums">
+                      {formatMoney(t.defaultAmount)}
+                    </td>
+                    <td className="px-3 py-2 text-sm">ทุกวันที่ {t.dayOfMonth}</td>
+                    <td className="px-3 py-2 text-right">
+                      {!t.isActive ? (
+                        <span className="text-xs text-muted-foreground">ไม่เตือนแล้ว</span>
+                      ) : periods.length === 0 ? (
+                        <span className="text-xs text-muted-foreground">ครบแล้ว</span>
+                      ) : canWrite ? (
+                        <div className="relative z-10 inline-flex flex-wrap justify-end gap-1.5">
+                          {periods.slice(0, SHOWN).map((p, i) => (
+                            <a
+                              key={p}
+                              href={`/expenses/new?recurring=${t.id}&period=${p}`}
+                              className="whitespace-nowrap rounded-full border border-warn-border bg-warn-bg px-3 py-1 text-xs font-semibold text-warn hover:brightness-95"
+                            >
+                              {periods.length === 1 || i === 0 ? "บันทึกงวด " : ""}
+                              {monthLabelTh(p)}
+                            </a>
+                          ))}
+                          {periods.length > SHOWN && (
+                            <span className="self-center text-xs text-muted-foreground">
+                              และอีก {periods.length - SHOWN} งวด
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-warn">ค้าง {periods.length} งวด</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
       )}
 
       <p className="text-xs text-muted-foreground">
-        งวดปัจจุบัน {currentPeriod()} · รายการที่ค้างจะขึ้นเตือนในหน้าค่าใช้จ่าย
+        งวดปัจจุบัน {monthLabelTh(currentPeriod())} · งวดที่ยังไม่ได้บันทึกจะขึ้นเตือนในหน้าค่าใช้จ่ายด้วย
         ย้อนหลังได้ไม่เกิน 12 เดือน
       </p>
     </div>

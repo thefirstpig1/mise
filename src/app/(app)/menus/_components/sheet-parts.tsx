@@ -120,6 +120,8 @@ export type ConfirmSpec = {
   onGo: () => void;
   /** A second, lesser way through (e.g. "ทิ้งแค่ร่าง" beside "ทิ้งร่างและลบเมนู"). */
   alt?: { label: string; onGo: () => void };
+  /** The way back, when "กลับไปแก้" is wrong for it (a delete: "ไม่ลบ"). */
+  back?: string;
 };
 
 export function ConfirmDialog({ spec, onClose }: { spec: ConfirmSpec; onClose: () => void }) {
@@ -149,10 +151,10 @@ export function ConfirmDialog({ spec, onClose }: { spec: ConfirmSpec; onClose: (
           </ul>
         )}
         {spec.money && <p className="rounded-lg bg-warn-bg px-3 py-2 text-sm tabular-nums">{spec.money}</p>}
-        <p className="text-xs text-muted-foreground">{spec.who}</p>
+        {spec.who && <p className="text-xs text-muted-foreground">{spec.who}</p>}
         <div className="flex flex-wrap justify-end gap-2 pt-1">
           <button ref={back} autoFocus type="button" onClick={onClose} className="rounded-full border border-border-strong px-4 py-1.5 text-sm hover:bg-muted">
-            กลับไปแก้
+            {spec.back ?? "กลับไปแก้"}
           </button>
           {spec.alt && (
             <button

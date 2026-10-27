@@ -364,6 +364,8 @@ export type ExpenseListRow = Prisma.ExpenseGetPayload<{
     branch: { select: { id: true; name: true; code: true } };
     supplier: { select: { id: true; nameFull: true; nameShort: true } };
     _count: { select: { items: true } };
+    /** The first line only — what a bill with no supplier is called on screen. */
+    items: { select: { description: true }; orderBy: { lineNo: "asc" }; take: 1 };
   };
 }>;
 
@@ -419,6 +421,7 @@ export async function getExpensesLogic(
         branch: { select: { id: true, name: true, code: true } },
         supplier: { select: { id: true, nameFull: true, nameShort: true } },
         _count: { select: { items: true } },
+        items: { select: { description: true }, orderBy: { lineNo: "asc" }, take: 1 },
       },
       orderBy: [{ billDate: "desc" }, { createdAt: "desc" }],
     })
@@ -452,6 +455,71 @@ export async function getExpenseByGoodsReceiptLogic(
       where: { tenantId, sourceGrId: goodsReceiptId, deletedAt: null },
     })
   );
+}
+
+/** How far back "the category this supplier used last" looks, in bills. */
+const LAST_CATEGORY_LOOKBACK = 500;
+
+/**
+ * supplierId → the category on the first line of that supplier's most recent
+ * hand-entered bill (expense review 2026-10-27, Kong). The bill form fills it
+ * in when a supplier is chosen, instead of guessing `categories[0]`.
+ *
+ * MANUAL only: a goods-receipt bill carries the PRODUCT's category, which says
+ * nothing about what someone types by hand for the same shop (แม็คโคร sells the
+ * pork that goes to stock AND the dish soap that does not). Derived, not
+ * stored — the bills already say it, so a column would only be a second copy.
+ */
+export async function getSupplierLastCategoriesLogic(
+  tenantId: string
+): Promise<Map<string, string>> {
+  const lines = await withTenantContext(tenantId, (tx) =>
+    tx.expenseItem.findMany({
+      where: {
+        tenantId,
+        lineNo: 1,
+        expense: { deletedAt: null, source: "MANUAL", supplierId: { not: null } },
+      },
+      select: { categoryId: true, expense: { select: { supplierId: true } } },
+      orderBy: [{ expense: { billDate: "desc" } }, { expense: { createdAt: "desc" } }],
+      take: LAST_CATEGORY_LOOKBACK,
+    })
+  );
+  const out = new Map<string, string>();
+  for (const l of lines) {
+    const s = l.expense.supplierId;
+    if (s && !out.has(s)) out.set(s, l.categoryId);
+  }
+  return out;
+}
+
+/** One recorded month of a recurring template — what the history chart draws. */
+export type RecurringHistoryRow = {
+  expenseId: string;
+  period: string;
+  totalAmount: Prisma.Decimal;
+  paymentStatus: "UNPAID" | "PAID";
+};
+
+/** The bills confirmed from one template for the given months, oldest first. */
+export async function getRecurringHistoryLogic(
+  tenantId: string,
+  recurringExpenseId: string,
+  periods: string[]
+): Promise<RecurringHistoryRow[]> {
+  const rows = await withTenantContext(tenantId, (tx) =>
+    tx.expense.findMany({
+      where: { tenantId, recurringExpenseId, deletedAt: null, period: { in: periods } },
+      select: { id: true, period: true, totalAmount: true, paymentStatus: true },
+      orderBy: { period: "asc" },
+    })
+  );
+  return rows.map((r) => ({
+    expenseId: r.id,
+    period: r.period!,
+    totalAmount: r.totalAmount,
+    paymentStatus: r.paymentStatus,
+  }));
 }
 
 export async function getRecurringExpensesLogic(
@@ -964,6 +1032,9 @@ export async function setExpensePaymentLogic(
         paidAt:
           input.paymentStatus === "PAID" ? (input.paidAt ?? new Date()) : null,
         paymentMethod: input.paymentMethod,
+        ...(input.whtCertificateNo !== undefined
+          ? { whtCertificateNo: input.whtCertificateNo }
+          : {}),
       },
     });
   });

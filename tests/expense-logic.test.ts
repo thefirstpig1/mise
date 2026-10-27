@@ -38,6 +38,8 @@ import {
   getDueRecurringLogic,
   getExpenseByIdLogic,
   getExpensesLogic,
+  getRecurringHistoryLogic,
+  getSupplierLastCategoriesLogic,
   periodOf,
   RecurringExpenseConfirmError,
   RecurringPeriodAlreadyConfirmedError,
@@ -322,6 +324,7 @@ describe("expense *Logic (every baht that leaves, in one place)", () => {
         await tx.productUnit.deleteMany({ where: { product: { tenantId } } });
         await tx.product.deleteMany({ where: { tenantId } });
         await tx.category.deleteMany({ where: { tenantId } });
+        await tx.supplier.deleteMany({ where: { tenantId } });
         await tx.branch.deleteMany({ where: { tenantId } });
         await tx.tenant.deleteMany({ where: { id: tenantId } });
       }
@@ -669,5 +672,100 @@ describe("expense *Logic (every baht that leaves, in one place)", () => {
     const due = await getDueRecurringLogic(tenantA, { branchId: branchA });
     const mine = due.find((d) => d.template.id === t.id);
     expect(mine?.duePeriods).toEqual([addPeriods(period, -3), addPeriods(period, -2)]);
+  });
+  // ----------------------------------------------------------
+  // E15–E17 — expense review 2026-10-27 (Kong)
+  // ----------------------------------------------------------
+
+  it("E15: a supplier's category is the one on its LATEST hand-entered bill — deleted bills do not count", async () => {
+    const [s1, s2] = await withRlsBypass((tx) =>
+      Promise.all([
+        tx.supplier.create({ data: { tenantId: tenantA, nameFull: `แม็คโคร-${randomUUID().slice(0, 6)}` } }),
+        tx.supplier.create({ data: { tenantId: tenantA, nameFull: `ป้าศรี-${randomUUID().slice(0, 6)}` } }),
+      ])
+    );
+    const line = (categoryId: string) => [
+      { categoryId, description: "ของใช้", lineTotal: 100 },
+    ];
+    await createExpenseLogic(tenantA, bill({ supplierId: s1.id, billDate: "2026-08-01", items: line(cogsCategory) }), userA);
+    await createExpenseLogic(tenantA, bill({ supplierId: s1.id, billDate: "2026-08-20", items: line(opexCategory) }), userA);
+    await createExpenseLogic(tenantA, bill({ supplierId: s2.id, billDate: "2026-08-25", items: line(cogsCategory) }), userA);
+    // Newest of all for s1, then deleted: it must not decide anything.
+    const mistake = await createExpenseLogic(
+      tenantA,
+      bill({ supplierId: s1.id, billDate: "2026-08-30", items: line(cogsCategory) }),
+      userA
+    );
+    await deleteExpenseLogic(tenantA, deleteExpenseInputSchema.parse({ id: mistake.id }));
+
+    const last = await getSupplierLastCategoriesLogic(tenantA);
+    expect(last.get(s1.id)).toBe(opexCategory);
+    expect(last.get(s2.id)).toBe(cogsCategory);
+    // Another tenant's reading sees none of it.
+    expect((await getSupplierLastCategoriesLogic(tenantB)).has(s1.id)).toBe(false);
+  });
+
+  it("E16: a template's history is its own live bills for the months asked, oldest first", async () => {
+    const period = currentPeriod();
+    const t = await createRecurringExpenseLogic(
+      tenantA,
+      template({ dayOfMonth: 17, startPeriod: addPeriods(period, -2) })
+    );
+    const confirm = (p: string, amount: number) =>
+      createExpenseLogic(
+        tenantA,
+        bill({ recurringExpenseId: t.id, period: p, items: [
+          { categoryId: opexCategory, description: "ค่าเช่าร้าน", lineTotal: amount },
+        ] }),
+        userA
+      );
+    await confirm(period, 36_000);
+    const gone = await confirm(addPeriods(period, -1), 35_500);
+    await confirm(addPeriods(period, -2), 35_000);
+    await deleteExpenseLogic(tenantA, deleteExpenseInputSchema.parse({ id: gone.id }));
+
+    const rows = await getRecurringHistoryLogic(tenantA, t.id, [
+      addPeriods(period, -2),
+      addPeriods(period, -1),
+      period,
+    ]);
+    expect(rows.map((r) => [r.period, r.totalAmount.toNumber()])).toEqual([
+      [addPeriods(period, -2), 35_000],
+      [period, 36_000],
+    ]);
+    // Only the months asked for.
+    const one = await getRecurringHistoryLogic(tenantA, t.id, [period]);
+    expect(one).toHaveLength(1);
+  });
+
+  it("E17: paying a bill can record its 50 ทวิ number; leaving the field out keeps the one stored", async () => {
+    const created = await createExpenseLogic(
+      tenantA,
+      bill({ subjectToWht: true, whtRatePercent: 3 }),
+      userA
+    );
+    const paid = await setExpensePaymentLogic(
+      tenantA,
+      setExpensePaymentInputSchema.parse({
+        id: created.id,
+        paymentStatus: "PAID",
+        paidAt: "",
+        paymentMethod: "โอน",
+        whtCertificateNo: "50T-0001",
+      })
+    );
+    expect(paid.whtCertificateNo).toBe("50T-0001");
+    expect(paid.paymentMethod).toBe("โอน");
+
+    const back = await setExpensePaymentLogic(
+      tenantA,
+      setExpensePaymentInputSchema.parse({
+        id: created.id,
+        paymentStatus: "UNPAID",
+        paidAt: "",
+        paymentMethod: "โอน",
+      })
+    );
+    expect(back.whtCertificateNo).toBe("50T-0001");
   });
 });

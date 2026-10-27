@@ -53,7 +53,7 @@ function search(products: PickerProduct[], query: string): PickerProduct[] {
   const scored: { p: PickerProduct; rank: number }[] = [];
   for (const p of products) {
     const name = p.name.toLowerCase();
-    const hay = `${name} ${p.sku.toLowerCase()} ${(p.section ?? "").toLowerCase()} ${(p.group ?? "").toLowerCase()}`;
+    const hay = `${name} ${p.sku.toLowerCase()} ${(p.section ?? "").toLowerCase()} ${(p.group ?? "").toLowerCase()} ${(p.detail ?? "").toLowerCase()}`;
     if (!words.every((w) => hay.includes(w))) continue;
     const rank = name.startsWith(words[0]) ? 0 : name.includes(words[0]) ? 1 : 2;
     scored.push({ p, rank });
@@ -88,6 +88,7 @@ export default function ProductPicker({
   footer,
   disabledText,
   onInputRef,
+  thumbs = true,
 }: {
   products: PickerProduct[];
   value: string;
@@ -109,6 +110,8 @@ export default function ProductPicker({
   disabledText?: string;
   /** Lets a form focus the search box (e.g. a row it just added). */
   onInputRef?: (el: HTMLInputElement | null) => void;
+  /** false = no picture slot (suppliers, account categories — things with no photo). */
+  thumbs?: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
@@ -152,7 +155,7 @@ export default function ProductPicker({
       <div className="mt-1">
         {hidden}
         <div className="flex items-center gap-3 rounded-lg border border-border-strong bg-surface p-2 pr-3">
-          <ProductThumb imageUrl={selected.imageUrl} name={selected.name} className="h-11 w-11" />
+          {thumbs && <ProductThumb imageUrl={selected.imageUrl} name={selected.name} className="h-11 w-11" />}
           <div className="min-w-0 flex-1">
             {/* Cut with "…", and slides on hover to show the rest (Kong 2026-10-22). */}
             <Marquee className="font-medium">{selected.name}</Marquee>
@@ -213,7 +216,7 @@ export default function ProductPicker({
       onMouseEnter={() => setActive(i)}
       className={`flex cursor-pointer items-center gap-3 px-3 py-2 ${i === active ? "bg-muted" : ""}`}
     >
-      <ProductThumb imageUrl={p.imageUrl} name={p.name} className="h-9 w-9" />
+      {thumbs && <ProductThumb imageUrl={p.imageUrl} name={p.name} className="h-9 w-9" />}
       <div className="min-w-0 flex-1">
         <Marquee className="text-sm font-medium">{p.name}</Marquee>
         <p className="truncate text-xs text-muted-foreground">

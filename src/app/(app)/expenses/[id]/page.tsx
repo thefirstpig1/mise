@@ -10,7 +10,10 @@ import { requireTenant } from "@/lib/require-tenant";
 import { getExpenseByIdLogic } from "@/server/expense";
 import { formatMoney } from "@/app/(app)/cost/_components/cost-view";
 import { EXPENSE_SOURCE_LABELS_TH } from "@/lib/validations/expense";
-import { toExpenseDetailView } from "../_components/expense-view";
+import { computeBangkokToday } from "@/lib/bangkok-date";
+import { monthLabelTh } from "@/lib/expense-labels";
+import { expenseTitle, toExpenseDetailView } from "../_components/expense-view";
+import Crumbs from "../_components/Crumbs";
 import PaymentBadge from "../_components/PaymentBadge";
 import PaymentToggle from "../_components/PaymentToggle";
 import DeleteExpenseButton from "../_components/DeleteExpenseButton";
@@ -45,26 +48,23 @@ export default async function ExpenseDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { tenantId } = await requireTenant("expense:view");
+  const { tenantId, capabilities } = await requireTenant("expense:view");
+  const canWrite = capabilities.has("expense:write");
   const { id } = await params;
 
   const row = await getExpenseByIdLogic(tenantId, id);
   if (!row) notFound();
   const expense = toExpenseDetailView(row);
+  const title = expenseTitle(expense);
+  const period = expense.period ? monthLabelTh(expense.period) : null;
+  const billMonth = monthLabelTh(expense.billDate.slice(0, 7));
 
   return (
     <div className="space-y-6">
       <div>
-        <a
-          href="/expenses"
-          className="text-sm text-muted-foreground hover:text-foreground"
-        >
-          ← กลับรายการค่าใช้จ่าย
-        </a>
+        <Crumbs trail={[{ href: "/expenses", label: "ค่าใช้จ่าย" }]} here={title} />
         <div className="mt-1 flex flex-wrap items-center gap-3">
-          <h2 className="text-xl font-bold">
-            {expense.supplierName ?? expense.billNo ?? "ค่าใช้จ่าย"}
-          </h2>
+          <h2 className="text-xl font-bold">{title}</h2>
           <PaymentBadge status={expense.paymentStatus} />
           <span className="text-xs text-muted-foreground">
             {EXPENSE_SOURCE_LABELS_TH[expense.source]}
@@ -93,10 +93,13 @@ export default async function ExpenseDetailPage({
       {expense.recurringExpenseId && (
         <div className="rounded-lg border border-border bg-muted/30 p-3 text-sm">
           บันทึกจากรายการประจำ{" "}
-          <a href="/expenses/recurring" className="font-medium underline">
+          <a
+            href={`/expenses/recurring/${expense.recurringExpenseId}/edit`}
+            className="font-medium underline"
+          >
             {expense.recurringDescription}
           </a>{" "}
-          งวด {expense.period}
+          งวด <b>{period}</b>
         </div>
       )}
 
@@ -141,7 +144,8 @@ export default async function ExpenseDetailPage({
         </table>
       </section>
 
-      <section className="max-w-sm rounded-lg border border-border p-4 text-sm">
+      <div className="grid items-start gap-5 md:grid-cols-2">
+      <section className="rounded-xl border border-border bg-surface p-4 text-sm">
         <Row label="ยอดก่อน VAT" value={formatMoney(expense.subtotalExclVat)} />
         <Row
           label={
@@ -167,12 +171,12 @@ export default async function ExpenseDetailPage({
           value={formatMoney(expense.netPaymentAmount)}
           strong
         />
-        {expense.whtCertificateNo && (
+        {!canWrite && expense.whtCertificateNo && (
           <p className="mt-2 text-xs text-muted-foreground">
             หนังสือรับรอง 50 ทวิ เลขที่ {expense.whtCertificateNo}
           </p>
         )}
-        {expense.paidAt && (
+        {!canWrite && expense.paidAt && (
           <p className="mt-2 text-xs text-muted-foreground">
             จ่ายเมื่อ {dateLabel(expense.paidAt)}
             {expense.paymentMethod && ` · ${expense.paymentMethod}`}
@@ -180,19 +184,29 @@ export default async function ExpenseDetailPage({
         )}
       </section>
 
+      {canWrite && (
+        <PaymentToggle
+          action={setExpensePaymentAction}
+          expenseId={expense.id}
+          paymentStatus={expense.paymentStatus}
+          paymentMethod={expense.paymentMethod}
+          paidAtLabel={expense.paidAt ? dateLabel(expense.paidAt) : null}
+          todayBangkok={computeBangkokToday().toISOString().slice(0, 10)}
+          netLabel={`฿${formatMoney(expense.netPaymentAmount)}`}
+          withheld={expense.subjectToWht}
+          whtCertificateNo={expense.whtCertificateNo}
+        />
+      )}
+      </div>
+
       {expense.notes && (
         <p className="whitespace-pre-line rounded-lg border border-border bg-muted/30 p-3 text-sm">
           {expense.notes}
         </p>
       )}
 
-      <div className="flex flex-wrap items-end gap-4 border-t border-border pt-4">
-        <PaymentToggle
-          action={setExpensePaymentAction}
-          expenseId={expense.id}
-          paymentStatus={expense.paymentStatus}
-          paymentMethod={expense.paymentMethod}
-        />
+      {canWrite && (
+      <div className="flex flex-wrap items-start gap-3 border-t border-border pt-4">
         <a
           href={`/expenses/${expense.id}/edit`}
           className="rounded-lg border border-border px-4 py-2 text-sm font-medium"
@@ -204,8 +218,14 @@ export default async function ExpenseDetailPage({
           expenseId={expense.id}
           fromGoodsReceipt={expense.source === "FROM_GOODS_RECEIPT"}
           sourceGrId={expense.sourceGrId}
+          title={`ลบบิล${title}${period ? ` งวด ${period}` : ""}?`}
+          consequences={[
+            `ยอด ฿${formatMoney(expense.totalAmount)} จะหายจากรายจ่ายเดือน ${billMonth}`,
+            ...(period ? [`งวด ${period} จะกลับไปขึ้นในรายการที่รอบันทึก`] : []),
+          ]}
         />
       </div>
+      )}
 
       <p className="text-xs text-muted-foreground">
         บันทึกเมื่อ {dateLabel(expense.createdAt)}

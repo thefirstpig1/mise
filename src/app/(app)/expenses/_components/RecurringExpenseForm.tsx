@@ -10,14 +10,22 @@
 // The due day stops at 28 and the field says why — a template due on the 30th
 // would skip February, and a template that silently skips a month is worse than
 // one that lands early.
+//
+// Expense review 2026-10-27: months come from a month grid, not typed YYYY-MM;
+// supplier and category are searchable pickers; VAT and withholding are the
+// same chips as the bill form, and choosing a supplier fills its tax in.
 
-import { useActionState, useEffect, useState } from "react";
-import { MeasureInput, MoneyInput } from "@/components/ui/NumberField";
+import { useActionState, useEffect, useMemo, useState } from "react";
+import { MoneyInput } from "@/components/ui/NumberField";
 import QtyStepper from "@/components/ui/QtyStepper";
+import ProductPicker, { type PickerProduct } from "@/components/ui/ProductPicker";
 import { useRouter } from "next/navigation";
+import { ACCOUNT_TH } from "@/lib/expense-labels";
 import type { RecurringExpenseActionState } from "../actions";
 import type { CategoryOption } from "./ExpenseForm";
-import type { RecurringExpenseView } from "./expense-view";
+import type { ExpenseSupplierOption, RecurringExpenseView } from "./expense-view";
+import MonthPicker from "./MonthPicker";
+import { Chips, VatChips, WhtChips } from "./TaxChips";
 
 
 export default function RecurringExpenseForm({
@@ -33,7 +41,7 @@ export default function RecurringExpenseForm({
     fd: FormData
   ) => Promise<RecurringExpenseActionState>;
   branches: { id: string; name: string }[];
-  suppliers: { id: string; label: string }[];
+  suppliers: ExpenseSupplierOption[];
   categories: CategoryOption[];
   currentPeriod: string;
   existing?: RecurringExpenseView;
@@ -43,18 +51,69 @@ export default function RecurringExpenseForm({
     action,
     { ok: false } as RecurringExpenseActionState
   );
-  const [subjectToWht, setSubjectToWht] = useState(existing?.subjectToWht ?? false);
+  const [branchId, setBranchId] = useState(
+    existing?.branchId ?? (branches.length === 1 ? branches[0].id : "")
+  );
+  const [supplierId, setSupplierId] = useState(existing?.supplierId ?? "");
+  const [categoryId, setCategoryId] = useState(existing?.categoryId ?? "");
+  const [vatRate, setVatRate] = useState(existing?.vatRatePercent ?? "");
+  const [inclusive, setInclusive] = useState(existing?.isPriceVatInclusive ?? true);
+  const [whtRate, setWhtRate] = useState(
+    existing?.subjectToWht ? (existing.whtRatePercent ?? "") : ""
+  );
+  const [missing, setMissing] = useState<string | null>(null);
+
+  const supplierById = useMemo(() => new Map(suppliers.map((s) => [s.id, s])), [suppliers]);
+  const supplierItems: PickerProduct[] = useMemo(
+    () =>
+      suppliers.map((s) => ({
+        id: s.id, name: s.label, sku: "", imageUrl: null, section: "ผู้ขาย",
+        group: null, baseUnitName: null, detail: s.fullName,
+      })),
+    [suppliers]
+  );
+  const categoryItems: PickerProduct[] = useMemo(
+    () =>
+      categories.map((c) => ({
+        id: c.id, name: c.groupName, sku: "", imageUrl: null,
+        section: ACCOUNT_TH[c.account] ?? c.account, group: null,
+        baseUnitName: null, detail: c.accountingSection,
+      })),
+    [categories]
+  );
+  const chooseSupplier = (id: string) => {
+    setSupplierId(id);
+    const s = id ? supplierById.get(id) : undefined;
+    if (!s) return;
+    setVatRate(s.vatRatePercent ?? "");
+    setInclusive(s.vatRatePercent ? s.pricesIncludeVat : true);
+    setWhtRate(s.subjectToWht ? (s.whtRatePercent ?? "") : "");
+    if (!categoryId && s.lastCategoryId) setCategoryId(s.lastCategoryId);
+  };
+  const fallbackYear = Number(currentPeriod.slice(0, 4));
 
   useEffect(() => {
     if (state.ok) router.push("/expenses/recurring");
   }, [state, router]);
 
-  const formError = state.ok === false ? state.formError : undefined;
+  const formError = missing ?? (state.ok === false ? state.formError : undefined);
   const fieldErrors = state.ok === false ? state.fieldErrors : undefined;
   const err = (field: string) => fieldErrors?.[field];
 
   return (
-    <form action={formAction} className="space-y-5">
+    <form
+      action={formAction}
+      onSubmit={(e) => {
+        const gap = !branchId ? "กรุณาเลือกสาขา" : !categoryId ? "กรุณาเลือกหมวดบัญชี" : null;
+        setMissing(gap);
+        if (gap) {
+          e.preventDefault();
+          // The message sits at the top; the button is at the bottom.
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }
+      }}
+      className="space-y-5"
+    >
       {existing && <input type="hidden" name="id" value={existing.id} />}
 
       {formError && (
@@ -82,63 +141,54 @@ export default function RecurringExpenseForm({
         </div>
 
         <div>
-          <label htmlFor="branch_id" className="label">
+          <span className="label">
             สาขา <span className="text-bad">*</span>
-          </label>
-          <select
-            id="branch_id"
-            name="branch_id"
-            defaultValue={existing?.branchId ?? branches[0]?.id ?? ""}
-            className={"input w-full mt-1"}
-            required
-          >
-            {branches.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name}
-              </option>
-            ))}
-          </select>
+          </span>
+          {branches.length === 1 ? (
+            <p className="mt-1 flex h-10 items-center text-sm">{branches[0].name}</p>
+          ) : (
+            <Chips
+              label="สาขา"
+              options={branches.map((b) => ({ value: b.id, label: b.name }))}
+              value={branchId}
+              onChange={setBranchId}
+            />
+          )}
+          <input type="hidden" name="branch_id" value={branchId} />
           {err("branchId") && (
             <p className="mt-1 text-xs text-bad">{err("branchId")}</p>
           )}
         </div>
 
         <div>
-          <label htmlFor="supplier_id" className="label">
+          <label htmlFor="supplier_pick" className="label">
             ผู้ขาย
           </label>
-          <select
-            id="supplier_id"
+          <ProductPicker
+            products={supplierItems}
+            value={supplierId}
+            onChange={chooseSupplier}
             name="supplier_id"
-            defaultValue={existing?.supplierId ?? ""}
-            className={"input w-full mt-1"}
-          >
-            <option value="">ไม่ระบุ</option>
-            {suppliers.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.label}
-              </option>
-            ))}
-          </select>
+            inputId="supplier_pick"
+            thumbs={false}
+            placeholder="ไม่ระบุผู้ขาย — พิมพ์ชื่อเพื่อค้นหา"
+          />
         </div>
 
         <div>
-          <label htmlFor="category_id" className="label">
+          <label htmlFor="category_pick" className="label">
             หมวดบัญชี <span className="text-bad">*</span>
           </label>
-          <select
-            id="category_id"
+          <ProductPicker
+            products={categoryItems}
+            value={categoryId}
+            onChange={setCategoryId}
             name="category_id"
-            defaultValue={existing?.categoryId ?? categories[0]?.id ?? ""}
-            className={"input w-full mt-1"}
-            required
-          >
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.account} · {c.accountingSection} · {c.groupName}
-              </option>
-            ))}
-          </select>
+            inputId="category_pick"
+            thumbs={false}
+            placeholder="เลือกหมวดบัญชี — พิมพ์ค้นหา เช่น ไฟ เช่า"
+            invalid={!categoryId && (!!missing || !!err("categoryId"))}
+          />
           {err("categoryId") && (
             <p className="mt-1 text-xs text-bad">{err("categoryId")}</p>
           )}
@@ -184,15 +234,13 @@ export default function RecurringExpenseForm({
 
         <div>
           <label htmlFor="start_period" className="label">
-            เริ่มงวด (YYYY-MM) <span className="text-bad">*</span>
+            เริ่มงวด <span className="text-bad">*</span>
           </label>
-          <input
+          <MonthPicker
             id="start_period"
             name="start_period"
-            placeholder={currentPeriod}
             defaultValue={existing?.startPeriod ?? currentPeriod}
-            className={"input w-full mt-1"}
-            required
+            fallbackYear={fallbackYear}
           />
           {err("startPeriod") && (
             <p className="mt-1 text-xs text-bad">{err("startPeriod")}</p>
@@ -201,14 +249,14 @@ export default function RecurringExpenseForm({
 
         <div>
           <label htmlFor="end_period" className="label">
-            ถึงงวด (เว้นว่าง = ไม่มีกำหนดจบ)
+            ถึงงวด
           </label>
-          <input
+          <MonthPicker
             id="end_period"
             name="end_period"
-            placeholder="YYYY-MM"
             defaultValue={existing?.endPeriod ?? ""}
-            className={"input w-full mt-1"}
+            fallbackYear={fallbackYear}
+            emptyLabel="ไม่มีกำหนดจบ"
           />
           {err("endPeriod") && (
             <p className="mt-1 text-xs text-bad">{err("endPeriod")}</p>
@@ -216,53 +264,26 @@ export default function RecurringExpenseForm({
         </div>
 
         <div>
-          <label htmlFor="vat_rate_percent" className="label">
-            อัตรา VAT <span className="font-normal text-muted-subtle">(เว้นว่าง = ไม่มี VAT)</span>
-          </label>
-          <MeasureInput
-            id="vat_rate_percent"
-            name="vat_rate_percent"
-            unit="%"
-            placeholder="ไม่มี"
-            defaultValue={existing?.vatRatePercent ?? ""}
-            boxClassName="mt-1 w-28"
+          <span className="label">VAT</span>
+          <VatChips
+            rate={vatRate}
+            inclusive={inclusive}
+            onChange={(r, inc) => {
+              setVatRate(r);
+              setInclusive(inc);
+            }}
           />
-          <label className="mt-2 flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              name="is_price_vat_inclusive"
-              defaultChecked={existing?.isPriceVatInclusive ?? true}
-            />
-            ยอดที่กรอกรวม VAT แล้ว
-          </label>
+          {err("vatRatePercent") && (
+            <p className="mt-1 text-xs text-bad">{err("vatRatePercent")}</p>
+          )}
         </div>
 
         <div>
-          <label className="flex items-center gap-2 text-sm font-medium">
-            <input
-              type="checkbox"
-              name="subject_to_wht"
-              checked={subjectToWht}
-              onChange={(e) => setSubjectToWht(e.target.checked)}
-            />
-            หักภาษี ณ ที่จ่าย
-          </label>
-          {subjectToWht ? (
-            <>
-              <MeasureInput
-                name="wht_rate_percent"
-                unit="%"
-                placeholder="5"
-                defaultValue={existing?.whtRatePercent ?? ""}
-                aria-label="อัตราภาษีหัก ณ ที่จ่าย (ค่าเช่ามัก 5%)"
-                boxClassName="mt-2 w-28"
-              />
-              {err("whtRatePercent") && (
-                <p className="mt-1 text-xs text-bad">{err("whtRatePercent")}</p>
-              )}
-            </>
-          ) : (
-            <input type="hidden" name="wht_rate_percent" value="" />
+          <span className="label">หักภาษี ณ ที่จ่าย</span>
+          <WhtChips rate={whtRate} onChange={setWhtRate} />
+          <p className="mt-1 text-xs text-muted-foreground">ค่าเช่ามักหัก 5% ค่าบริการ 3%</p>
+          {err("whtRatePercent") && (
+            <p className="mt-1 text-xs text-bad">{err("whtRatePercent")}</p>
           )}
         </div>
       </div>
