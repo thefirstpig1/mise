@@ -471,25 +471,59 @@ export async function receiveTransferLogic(
 
     const receivedAt = new Date();
 
+    // The units a receiver may count in: the product's own, nobody else's.
+    const unitRows = await tx.productUnit.findMany({
+      where: { productId: { in: live.map((i) => i.productId) } },
+      select: { id: true, productId: true, unitName: true, toBaseRatio: true },
+    });
+    const unitById = new Map(unitRows.map((u) => [u.id, u]));
+
     for (const l of input.lines) {
       const item = byId.get(l.itemId)!;
-      const qtyReceived = new Prisma.Decimal(l.qtyReceived);
-      if (qtyReceived.greaterThan(item.qtySent)) {
-        throw new TransferQtyExceedsSentError(item.id, item.qtySent, qtyReceived);
+      // The sent amount in base, with the line's FROZEN ratio, not a fresh
+      // lookup: a sack resized between dispatch and arrival must not change how
+      // much went missing on a journey that already happened (ADR 0012 Q3).
+      const sentBase = toBaseQty(item.qtySent, item.toBaseRatio);
+
+      // Kong 2026-10-27: counted in any unit, or several. Base is the exact
+      // figure; the sent-unit number is kept, rounded, for every older reader.
+      let receivedBase: Prisma.Decimal;
+      let detail: string | null = null;
+      if (l.entries) {
+        receivedBase = new Prisma.Decimal(0);
+        const parts: string[] = [];
+        for (const e of l.entries) {
+          const unit = unitById.get(e.productUnitId);
+          if (!unit || unit.productId !== item.productId) {
+            throw new TransferLineMismatchError(transfer.id);
+          }
+          receivedBase = receivedBase.plus(new Prisma.Decimal(e.qty).times(unit.toBaseRatio));
+          parts.push(`${new Prisma.Decimal(e.qty).toString()} ${unit.unitName}`);
+        }
+        receivedBase = receivedBase.toDecimalPlaces(3);
+        detail = parts.join(" + ");
+      } else {
+        receivedBase = toBaseQty(new Prisma.Decimal(l.qtyReceived!), item.toBaseRatio);
       }
+      if (receivedBase.greaterThan(sentBase)) {
+        throw new TransferQtyExceedsSentError(
+          item.id,
+          item.qtySent,
+          receivedBase.dividedBy(item.toBaseRatio).toDecimalPlaces(3)
+        );
+      }
+      // Never above what was sent, even by a rounding hair (the CHECK refuses it).
+      const inSentUnit = Prisma.Decimal.min(
+        item.qtySent,
+        receivedBase.dividedBy(item.toBaseRatio).toDecimalPlaces(3)
+      );
 
       await tx.stockTransferItem.update({
         where: { id: item.id },
-        data: { qtyReceived },
+        data: { qtyReceived: inSentUnit, qtyReceivedBase: receivedBase, receivedDetail: detail },
       });
 
-      const missing = item.qtySent.minus(qtyReceived);
-      if (missing.isZero()) continue;
-
-      // Converted with the line's FROZEN ratio, not a fresh lookup: a sack
-      // resized between dispatch and arrival must not change how much went
-      // missing on a journey that already happened (ADR 0012 Q3).
-      const missingBase = toBaseQty(missing, item.toBaseRatio);
+      const missingBase = sentBase.minus(receivedBase);
       if (missingBase.isZero()) continue;
 
       await createStockMovementLogic(tx, {
@@ -589,6 +623,7 @@ export async function voidTransferLogic(
           // zero without anyone having to know which lines were reversals.
           qtySent: item.qtySent.negated(),
           qtyReceived: item.qtyReceived ? item.qtyReceived.negated() : null,
+          qtyReceivedBase: item.qtyReceivedBase ? item.qtyReceivedBase.negated() : null,
           inputUnitId: item.inputUnitId,
           inputUnitName: item.inputUnitName,
           toBaseRatio: item.toBaseRatio,

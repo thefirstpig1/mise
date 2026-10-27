@@ -2194,6 +2194,13 @@ model StockTransferItem {
   /// cost and no meaning as a transfer — one of the two counts is simply wrong,
   /// and that is a conversation, not a ledger entry.
   qtyReceived Decimal? @map("qty_received") @db.Decimal(15, 3)
+  /// What arrived, in the BASE unit, exactly (Kong 2026-10-27, option A). The
+  /// receiver may count in any unit or several ("1 แพ็ค + 11 ขวด"); the
+  /// shortage is sent-in-base minus this. NULL on lines received before it
+  /// existed. `qtyReceived` (sent unit, rounded) is still written for readers.
+  qtyReceivedBase Decimal? @map("qty_received_base") @db.Decimal(15, 3)
+  /// How the receiver counted it, e.g. "1 แพ็ค 12 ขวด + 11 ชิ้น". Display only.
+  receivedDetail  String?  @map("received_detail")
 
   /// --- snapshot (ADR 0012 Q3's frozen-ratio rule) ---
   /// The unit is captured as it was AT DISPATCH. A live ProductUnit lookup brings

@@ -698,4 +698,81 @@ describe("transfer *Logic (the fifth writer, and the first at two branches)", ()
     const after = await getIncomingTransfersLogic(tenantA, ari);
     expect(after.map((t) => t.id)).not.toContain(tf.id);
   });
+  // ----------------------------------------------------------
+  // Receiving in any unit (Kong 2026-10-27, option A)
+  // ----------------------------------------------------------
+
+  const receiveIn = (tfId: string, itemId: string, entries: { productUnitId: string; qty: number }[]) =>
+    receiveTransferLogic(
+      tenantA,
+      receiveTransferInputSchema.parse({ id: tfId, receivedByName: null, notes: null, lines: [{ itemId, entries }] }),
+      userA
+    );
+  const shortageOf = (itemId: string) =>
+    withRlsBypass((tx) =>
+      tx.stockMovement.findFirst({ where: { tenantId: tenantA, sourceType: "TRANSFER_SHORTAGE", sourceId: itemId } })
+    );
+
+  it("U1: a receiver may count in several units; the gap is posted from the exact base", async () => {
+    const p = await freshProduct("U1");
+    await seed(p, 60, thonglor, 100);
+    const tf = await send(p, 2, { unit: "กระสอบ" }); // 50 kg
+
+    const got = await receiveIn(tf.id, tf.items[0].id, [
+      { productUnitId: unitOf(p, "กระสอบ"), qty: 1 },
+      { productUnitId: unitOf(p, "kg"), qty: 20 },
+    ]);
+
+    const line = got.items[0];
+    expect(num(line.qtyReceivedBase!)).toBe(45);
+    expect(num(line.qtyReceived!)).toBe(1.8); // in the sent unit, for older readers
+    expect(line.receivedDetail).toBe("1 กระสอบ + 20 kg");
+    expect(num((await shortageOf(line.id))!.qty)).toBe(-5);
+    expect(await balanceOf(p, ari)).toBe(45);
+  });
+
+  it("U2: a count that does not divide the sent unit loses nothing to rounding", async () => {
+    // 20 bottles of a 12-bottle pack is 1.667 packs; × 12 back = 20.004. Stored in
+    // the sent unit alone, that hair would post as a phantom loss in transit.
+    const p = await createProductLogic(
+      tenantA,
+      productInputSchema.parse({
+        name: `TF-U2-${randomUUID().slice(0, 6)}`,
+        primaryDimension: "COUNT",
+        baseUnitName: "ขวด",
+        additionalUnits: [{ unitName: "แพ็ค", toBaseRatio: 12 }],
+      })
+    );
+    await createStockAdjustmentLogic(
+      tenantA,
+      createStockAdjustmentInputSchema.parse({
+        submitKey: randomUUID(), productId: p.id, branchId: thonglor, type: "ADJUST_GAIN", reason: "RECOUNT",
+        inputQty: 30, inputUnitId: unitOf(p, "ขวด"), occurredAt: new Date(), notes: null,
+        costDeclaration: { unitCost: 10, unitId: unitOf(p, "ขวด"), note: null },
+      }),
+      userA
+    );
+    const tf = await send(p, 2, { unit: "แพ็ค" }); // 24 bottles
+
+    const got = await receiveIn(tf.id, tf.items[0].id, [{ productUnitId: unitOf(p, "ขวด"), qty: 20 }]);
+
+    expect(num(got.items[0].qtyReceivedBase!)).toBe(20);
+    expect(num((await shortageOf(got.items[0].id))!.qty)).toBe(-4); // not -3.996
+    expect(await balanceOf(p, ari)).toBe(20);
+  });
+
+  it("U3: another product's unit, or more than was sent, is refused and nothing posts", async () => {
+    const p = await freshProduct("U3");
+    const other = await freshProduct("U3b");
+    await seed(p, 30, thonglor, 100);
+    const tf = await send(p, 10);
+
+    await expect(
+      receiveIn(tf.id, tf.items[0].id, [{ productUnitId: unitOf(other, "kg"), qty: 5 }])
+    ).rejects.toBeInstanceOf(TransferLineMismatchError);
+    await expect(
+      receiveIn(tf.id, tf.items[0].id, [{ productUnitId: unitOf(p, "กระสอบ"), qty: 1 }]) // 25 > 10
+    ).rejects.toBeInstanceOf(TransferQtyExceedsSentError);
+    expect(await shortageOf(tf.items[0].id)).toBeNull();
+  });
 });

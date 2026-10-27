@@ -298,8 +298,27 @@ export type DispatchTransferInput = z.infer<typeof dispatchTransferInputSchema>;
 // 2. Receiving — the count at the far end
 // ------------------------------------------------------------
 
+/** One counted amount in one unit — the receiver may use several (Kong 2026-10-27). */
+const receiveEntrySchema = z.object({
+  productUnitId: z.string().uuid("หน่วยไม่ถูกต้อง"),
+  qty: z.preprocess(
+    blankToUndefinedNumber,
+    z
+      .number({ required_error: "ต้องระบุจำนวนที่รับ", invalid_type_error: "จำนวนที่รับไม่ถูกต้อง" })
+      .min(0, "จำนวนที่รับต้องไม่ติดลบ")
+      .max(QTY_MAX, "จำนวนเกินค่าที่ระบบรองรับ")
+      .refine(hasAtMostThreeDecimals, "จำนวนต้องมีทศนิยมไม่เกิน 3 ตำแหน่ง")
+  ),
+});
+
 const receiveLineInputSchema = z.object({
   itemId: z.string().uuid("รายการในใบโอนไม่ถูกต้อง"),
+  /**
+   * What was counted, in whatever units were in front of the receiver
+   * ("1 แพ็ค + 11 ขวด"). When present it wins over `qtyReceived`, which is the
+   * older single number in the SENT unit and stays for callers that have it.
+   */
+  entries: z.array(receiveEntrySchema).min(1).max(5).optional(),
   /**
    * What was actually counted on arrival (Q2). **0 is a real observation** — the
    * crate arrived empty, or did not arrive at all — and is therefore allowed,
@@ -317,7 +336,11 @@ const receiveLineInputSchema = z.object({
       .min(0, "จำนวนที่รับต้องไม่ติดลบ")
       .max(QTY_MAX, "จำนวนเกินค่าที่ระบบรองรับ")
       .refine(hasAtMostThreeDecimals, "จำนวนต้องมีทศนิยมไม่เกิน 3 ตำแหน่ง")
+      .optional()
   ),
+}).refine((l) => l.entries !== undefined || l.qtyReceived !== undefined, {
+  message: "ต้องระบุจำนวนที่รับ",
+  path: ["qtyReceived"],
 });
 
 export type ReceiveTransferLineInput = z.infer<typeof receiveLineInputSchema>;
