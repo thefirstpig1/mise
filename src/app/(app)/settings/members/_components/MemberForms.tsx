@@ -2,11 +2,12 @@
 
 // Sprint 6 Part 29 L5 — inviting and managing people (ADR 0029).
 //
-// One invite form at the top, and one row per person that expands into an edit
-// form. Deliberately plain: this screen is used a handful of times in a shop's
-// life, so it is built to be UNDERSTOOD rather than to be fast.
+// The people first, one row each that opens on a press; inviting is a button
+// that opens a popup (review 2026-10-28 — the invite form used to push the list
+// off the screen). Deliberately plain: this screen is used a handful of times
+// in a shop's life, so it is built to be UNDERSTOOD rather than to be fast.
 //
-// THE ROLE DROPDOWN OFFERS EVERY ROLE, INCLUDING `owner`, EVEN TO A MANAGER WHO
+// THE ROLE CARDS OFFER EVERY ROLE, INCLUDING `owner`, EVEN TO A MANAGER WHO
 // CANNOT GRANT IT. That is the choice this file most wants explained. Filtering
 // it would teach nobody anything: the manager would simply never learn the role
 // exists, and would ask the owner for "the thing that lets me see everything"
@@ -17,7 +18,8 @@
 // The remove/restore button IS hidden on an owner's row when the reader is not
 // an owner, because there is no version of that press which could succeed.
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
+import SettingsModal from "@/app/(app)/settings/_components/SettingsModal";
 import {
   inviteMemberAction,
   setMemberActiveAction,
@@ -45,18 +47,6 @@ export type MemberRowView = {
 
 const IDLE: MemberActionState = { ok: false };
 
-function Feedback({ state }: { state: MemberActionState }) {
-  if (state.ok) {
-    return (
-      <p className="mt-2 text-sm text-good">{state.message}</p>
-    );
-  }
-  if (state.formError) {
-    return <p className="mt-2 text-sm text-bad">{state.formError}</p>;
-  }
-  return null;
-}
-
 function ReachFields({
   branches,
   canGrantAllBranches,
@@ -79,6 +69,7 @@ function ReachFields({
           <input
             type="checkbox"
             name="all_branches"
+            className="h-4 w-4 accent-primary"
             checked={all}
             onChange={(e) => setAll(e.target.checked)}
           />
@@ -95,6 +86,7 @@ function ReachFields({
             <input
               type="checkbox"
               name="branch_id"
+              className="h-4 w-4 accent-primary"
               value={b.id}
               defaultChecked={defaultBranchIds.includes(b.id)}
               disabled={all}
@@ -112,244 +104,184 @@ function ReachFields({
   );
 }
 
-function RoleSelect({
-  roleOptions,
-  defaultValue,
-  id,
-}: {
-  roleOptions: RoleOption[];
-  defaultValue: string;
-  id: string;
-}) {
-  const [role, setRole] = useState(defaultValue);
-  const hint = roleOptions.find((r) => r.value === role)?.hint;
-
+/**
+ * Every role as a card, so they can be compared side by side — a dropdown
+ * showed one description at a time (review 2026-10-28). Real radios: the form
+ * posts `role` exactly as the <select> did.
+ */
+function RoleCards({ roleOptions, defaultValue, idPrefix }: { roleOptions: RoleOption[]; defaultValue: string; idPrefix: string }) {
   return (
-    <div>
-      <label htmlFor={id} className="mb-1 label">
-        บทบาท
-      </label>
-      <select
-        id={id}
-        name="role"
-        value={role}
-        onChange={(e) => setRole(e.target.value)}
-        className="input w-full"
-      >
+    <fieldset>
+      <legend className="mb-1.5 label">บทบาท</legend>
+      <div className="grid gap-2 sm:grid-cols-3">
         {roleOptions.map((r) => (
-          <option key={r.value} value={r.value}>
-            {r.label}
-          </option>
+          <label
+            key={r.value}
+            htmlFor={`${idPrefix}-${r.value}`}
+            className="flex cursor-pointer flex-col gap-0.5 rounded-xl border border-border px-3 py-2.5 transition-colors hover:bg-muted/40 has-[:checked]:border-primary has-[:checked]:bg-primary-soft has-[:checked]:ring-1 has-[:checked]:ring-primary"
+          >
+            <span className="flex items-center gap-2">
+              <input id={`${idPrefix}-${r.value}`} type="radio" name="role" value={r.value} defaultChecked={r.value === defaultValue} className="h-4 w-4 shrink-0 accent-primary" />
+              <span className="text-sm font-semibold">{r.label}</span>
+            </span>
+            {/* What the role can SEE, not just what it is called. */}
+            <span className="text-xs leading-snug text-muted-foreground">{r.hint}</span>
+          </label>
         ))}
-      </select>
-      {/* What the role can SEE, not just what it is called. A shop owner
-          picking "ผู้จัดการ" from a list of job titles learns nothing about
-          cost otherwise. */}
-      {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
-    </div>
+      </div>
+    </fieldset>
   );
 }
 
-function InviteForm({
+const ghost = "h-11 rounded-xl border border-border-strong px-4 text-sm font-semibold text-primary hover:bg-muted";
+
+function InviteDialog({
   branches,
   roleOptions,
   canGrantAllBranches,
+  onClose,
 }: {
   branches: BranchOption[];
   roleOptions: RoleOption[];
   canGrantAllBranches: boolean;
+  onClose: () => void;
 }) {
   const [state, action, pending] = useActionState(inviteMemberAction, IDLE);
+  const [round, setRound] = useState(0);
 
   return (
-    <form action={action} className="space-y-3 rounded-xl border border-border p-4">
-      <h3 className="text-base font-semibold">เชิญคนเข้าร้าน</h3>
-
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div>
-          <label htmlFor="invite-email" className="mb-1 label">
-            อีเมล
-          </label>
-          <input
-            id="invite-email"
-            name="email"
-            type="email"
-            required
-            className="input w-full"
-          />
-          {!state.ok && state.fieldErrors?.email && (
-            <p className="mt-1 text-xs text-bad">{state.fieldErrors.email}</p>
-          )}
+    <SettingsModal title="เชิญคนเข้าร้าน" sub="ไม่มีลิงก์คำเชิญให้ส่งต่อ · คนนั้นเข้าใช้ได้ทันทีเมื่อล็อกอินด้วยอีเมลนี้" onClose={onClose}>
+      {state.ok ? (
+        <div className="space-y-4">
+          <p className="rounded-xl border border-good-border bg-good-bg px-4 py-3 text-sm text-good">{state.message}</p>
+          <div className="flex justify-end gap-2">
+            <button type="button" className={ghost} onClick={() => setRound((n) => n + 1)}>
+              เชิญคนต่อไป
+            </button>
+            <button type="button" className="btn h-11 px-5" onClick={onClose}>
+              เสร็จ
+            </button>
+          </div>
         </div>
-        <div>
-          <label htmlFor="invite-name" className="mb-1 label">
-            ชื่อ <span className="text-muted-foreground">(ไม่บังคับ)</span>
-          </label>
-          <input
-            id="invite-name"
-            name="name"
-            type="text"
-            className="input w-full"
-          />
-          {/* Said out loud, because an upsert that overwrote it would be a
-              silent surprise for the person who owns the account. */}
-          <p className="mt-1 text-xs text-muted-foreground">
-            ใช้เฉพาะกับอีเมลที่ยังไม่เคยเข้าใช้คิดครัว — ไม่ทับชื่อที่เจ้าตัวตั้งไว้เอง
-          </p>
-        </div>
-      </div>
-
-      <RoleSelect roleOptions={roleOptions} defaultValue="kitchen_staff" id="invite-role" />
-
-      <ReachFields
-        branches={branches}
-        canGrantAllBranches={canGrantAllBranches}
-        defaultAllBranches={false}
-        defaultBranchIds={[]}
-      />
-
-      <button
-        type="submit"
-        disabled={pending}
-        className="btn"
-      >
-        {pending ? "กำลังเชิญ…" : "เชิญ"}
-      </button>
-
-      <Feedback state={state} />
-    </form>
+      ) : (
+        <form key={round} action={action} className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label htmlFor="invite-email" className="mb-1 label">อีเมล</label>
+              <input id="invite-email" name="email" type="email" required autoFocus placeholder="name@example.com" className="input w-full" />
+              {!state.ok && state.fieldErrors?.email && <p className="mt-1 text-xs text-bad">{state.fieldErrors.email}</p>}
+            </div>
+            <div>
+              <label htmlFor="invite-name" className="mb-1 label">
+                ชื่อ <span className="font-normal text-muted-foreground">(ไม่บังคับ)</span>
+              </label>
+              <input id="invite-name" name="name" type="text" placeholder="ชื่อที่คนในร้านเรียก" className="input w-full" />
+              {/* Said out loud, because an upsert that overwrote it would be a
+                  silent surprise for the person who owns the account. */}
+              <p className="mt-1 text-xs text-muted-foreground">ใช้เฉพาะกับอีเมลที่ยังไม่เคยเข้าใช้คิดครัว ไม่ทับชื่อที่เจ้าตัวตั้งไว้เอง</p>
+            </div>
+          </div>
+          <RoleCards roleOptions={roleOptions} defaultValue="kitchen_staff" idPrefix="invite-role" />
+          <ReachFields branches={branches} canGrantAllBranches={canGrantAllBranches} defaultAllBranches={false} defaultBranchIds={[]} />
+          {!state.ok && state.formError && <p className="text-sm text-bad">{state.formError}</p>}
+          <div className="flex justify-end gap-2 border-t border-border pt-4">
+            <button type="button" className={ghost} onClick={onClose}>
+              ยกเลิก
+            </button>
+            <button type="submit" disabled={pending} className="btn h-11 px-5">
+              {pending ? "กำลังเชิญ…" : "เชิญ"}
+            </button>
+          </div>
+        </form>
+      )}
+    </SettingsModal>
   );
 }
 
-function MemberRow({
+export function InviteButton(props: { branches: BranchOption[]; roleOptions: RoleOption[]; canGrantAllBranches: boolean }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button type="button" className="btn h-11 px-5" onClick={() => setOpen(true)}>
+        + เชิญคนเข้าร้าน
+      </button>
+      {open && <InviteDialog {...props} onClose={() => setOpen(false)} />}
+    </>
+  );
+}
+
+function EditDialog({
   row,
   branches,
   roleOptions,
   canGrantAllBranches,
-  branchIdsByName,
+  currentBranchIds,
+  onClose,
 }: {
   row: MemberRowView;
   branches: BranchOption[];
   roleOptions: RoleOption[];
   canGrantAllBranches: boolean;
-  branchIdsByName: Map<string, string>;
+  currentBranchIds: string[];
+  onClose: () => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const [editState, editAction, editPending] = useActionState(
-    updateMemberAction,
-    IDLE
-  );
-  const [activeState, activeAction, activePending] = useActionState(
-    setMemberActiveAction,
-    IDLE
-  );
-
-  const currentBranchIds = row.branchNames
-    .map((n) => branchIdsByName.get(n))
-    .filter((id): id is string => id !== undefined);
+  const [editState, editAction, editPending] = useActionState(updateMemberAction, IDLE);
+  const [activeState, activeAction, activePending] = useActionState(setMemberActiveAction, IDLE);
+  const [asking, setAsking] = useState(false);
+  useEffect(() => {
+    if (editState.ok || activeState.ok) onClose();
+  }, [editState, activeState, onClose]);
 
   return (
-    <li className="rounded-xl border border-border p-4">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <div>
-          <span className="font-medium">{row.name ?? row.email}</span>
-          {row.name && (
-            <span className="ml-2 text-xs text-muted-foreground">{row.email}</span>
-          )}
-          {row.isSelf && (
-            <span className="ml-2 rounded-full border border-border px-2 py-0.5 text-xs">
-              คุณ
-            </span>
-          )}
-          {!row.isActive && (
-            <span className="ml-2 rounded-full border border-bad-border bg-bad-bg px-2 py-0.5 text-xs text-bad">
-              ออกจากร้านแล้ว
-            </span>
-          )}
-          {row.isActive && row.neverSignedIn && (
-            // No status column and no invitation table: "never signed in" IS
-            // the pending state, read off the account (ADR 0029 Q2).
-            <span className="ml-2 rounded-full border border-warn-border bg-warn-bg px-2 py-0.5 text-xs text-warn">
-              ยังไม่เคยเข้าใช้งาน
-            </span>
-          )}
-        </div>
-        <span className="text-sm text-muted-foreground">{row.roleLabel}</span>
-      </div>
-
-      <p className="mt-1 text-xs text-muted-foreground">
-        {row.allBranches
-          ? "ทุกสาขา"
-          : row.branchNames.length > 0
-            ? row.branchNames.join(" · ")
-            : "ยังไม่ได้กำหนดสาขา"}
-      </p>
-
-      {row.changedLine && (
-        <p className="mt-1 text-xs text-muted-foreground">{row.changedLine}</p>
-      )}
-
-      {!row.editable ? (
-        // Rule 1 on the screen rather than only in a refusal. There is no
-        // version of these buttons that could succeed for this reader.
-        <p className="mt-2 text-xs text-muted-foreground">
-          บัญชีเจ้าของร้าน — แก้ไขได้โดยเจ้าของร้านเท่านั้น
-        </p>
-      ) : (
-        <div className="mt-3 space-y-3">
-          <button
-            type="button"
-            onClick={() => setOpen((v) => !v)}
-            className="text-sm text-primary hover:underline"
-          >
-            {open ? "ปิด" : "แก้ไขสิทธิ์"}
+    <SettingsModal title={row.name ?? row.email} sub={[row.name ? row.email : null, row.changedLine].filter(Boolean).join(" · ") || undefined} onClose={onClose}>
+      <form action={editAction} className="space-y-4">
+        <input type="hidden" name="membership_id" value={row.membershipId} />
+        <RoleCards roleOptions={roleOptions} defaultValue={row.role} idPrefix={`role-${row.membershipId}`} />
+        <ReachFields branches={branches} canGrantAllBranches={canGrantAllBranches} defaultAllBranches={row.allBranches} defaultBranchIds={currentBranchIds} />
+        {!editState.ok && editState.formError && <p className="text-sm text-bad">{editState.formError}</p>}
+        <div className="flex justify-end gap-2 border-t border-border pt-4">
+          <button type="button" className={ghost} onClick={onClose}>
+            ยกเลิก
           </button>
-
-          {open && (
-            <form action={editAction} className="space-y-3 border-t border-border pt-3">
-              <input type="hidden" name="membership_id" value={row.membershipId} />
-              <RoleSelect
-                roleOptions={roleOptions}
-                defaultValue={row.role}
-                id={`role-${row.membershipId}`}
-              />
-              <ReachFields
-                branches={branches}
-                canGrantAllBranches={canGrantAllBranches}
-                defaultAllBranches={row.allBranches}
-                defaultBranchIds={currentBranchIds}
-              />
-              <button
-                type="submit"
-                disabled={editPending}
-                className="rounded-lg border border-border px-3 py-2 text-sm hover:bg-muted disabled:opacity-50"
-              >
-                {editPending ? "กำลังบันทึก…" : "บันทึก"}
-              </button>
-              <Feedback state={editState} />
-            </form>
-          )}
-
-          <form action={activeAction}>
-            <input type="hidden" name="membership_id" value={row.membershipId} />
-            <input
-              type="hidden"
-              name="is_active"
-              value={row.isActive ? "false" : "true"}
-            />
-            <button
-              type="submit"
-              disabled={activePending}
-              className="text-sm text-muted-foreground underline disabled:opacity-50"
-            >
-              {row.isActive ? "นำออกจากร้าน" : "เพิ่มกลับเข้าร้าน"}
-            </button>
-            <Feedback state={activeState} />
-          </form>
+          <button type="submit" disabled={editPending} className="btn h-11 px-5">
+            {editPending ? "กำลังบันทึก…" : "บันทึก"}
+          </button>
         </div>
-      )}
-    </li>
+      </form>
+
+      <form action={activeAction} className="mt-3 border-t border-border pt-3">
+        <input type="hidden" name="membership_id" value={row.membershipId} />
+        <input type="hidden" name="is_active" value={row.isActive ? "false" : "true"} />
+        {!row.isActive ? (
+          <button type="submit" disabled={activePending} className="py-2 text-sm font-semibold text-primary hover:underline">
+            {activePending ? "กำลังเพิ่มกลับ…" : "เพิ่มกลับเข้าร้าน"}
+          </button>
+        ) : !asking ? (
+          <button type="button" onClick={() => setAsking(true)} className="py-2 text-sm font-semibold text-bad hover:underline">
+            นำออกจากร้าน
+          </button>
+        ) : (
+          <div role="alert" className="rounded-xl border border-bad-border bg-bad-bg p-3.5">
+            <p className="font-semibold text-bad">นำ{row.name ?? row.email}ออกจากร้าน?</p>
+            <p className="mt-1 text-sm text-foreground/80">เข้าร้านนี้ไม่ได้อีกตั้งแต่ตอนนี้ · เอกสารที่เคยทำไว้ยังอยู่และยังขึ้นชื่อเดิม · เพิ่มกลับได้ทุกเมื่อ</p>
+            <div className="mt-3 flex gap-2">
+              <button type="button" autoFocus onClick={() => setAsking(false)} className="h-10 rounded-xl border border-border-strong bg-surface px-4 text-sm font-semibold text-primary hover:bg-muted">
+                ไม่นำออก
+              </button>
+              <button type="submit" disabled={activePending} className="h-10 rounded-xl bg-bad px-4 text-sm font-semibold text-bad-foreground disabled:opacity-60">
+                {activePending ? "กำลังนำออก…" : "นำออกจากร้าน"}
+              </button>
+            </div>
+          </div>
+        )}
+        {!activeState.ok && activeState.formError && <p className="mt-2 text-sm text-bad">{activeState.formError}</p>}
+      </form>
+    </SettingsModal>
   );
+}
+
+function reachLine(row: MemberRowView) {
+  return row.allBranches ? "ทุกสาขา" : row.branchNames.length > 0 ? row.branchNames.join(" · ") : "ยังไม่ได้กำหนดสาขา";
 }
 
 export default function MemberForms({
@@ -364,27 +296,60 @@ export default function MemberForms({
   canGrantAllBranches: boolean;
 }) {
   const branchIdsByName = new Map(branches.map((b) => [b.name, b.id]));
+  const [open, setOpen] = useState<MemberRowView | null>(null);
 
   return (
-    <div className="space-y-6">
-      <InviteForm
-        branches={branches}
-        roleOptions={roleOptions}
-        canGrantAllBranches={canGrantAllBranches}
-      />
-
-      <ul className="space-y-2">
-        {rows.map((row) => (
-          <MemberRow
-            key={row.membershipId}
-            row={row}
-            branches={branches}
-            roleOptions={roleOptions}
-            canGrantAllBranches={canGrantAllBranches}
-            branchIdsByName={branchIdsByName}
-          />
-        ))}
+    <>
+      <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-surface">
+        {rows.map((row) => {
+          const body = (
+            <>
+              <span className="min-w-0">
+                <span className="font-semibold">{row.name ?? row.email}</span>
+                {row.isSelf && <span className="ml-2 rounded-full border border-border px-2 py-0.5 text-xs">คุณ</span>}
+                {!row.isActive && (
+                  <span className="ml-2 whitespace-nowrap rounded-full border border-bad-border bg-bad-bg px-2 py-0.5 text-xs text-bad">ออกจากร้านแล้ว</span>
+                )}
+                {row.isActive && row.neverSignedIn && (
+                  // No status column and no invitation table: "never signed in" IS
+                  // the pending state, read off the account (ADR 0029 Q2).
+                  <span className="ml-2 whitespace-nowrap rounded-full border border-warn-border bg-warn-bg px-2 py-0.5 text-xs text-warn">ยังไม่เคยเข้าใช้งาน</span>
+                )}
+                <span className="mt-0.5 block text-sm text-muted-foreground">
+                  {[row.name ? row.email : null, reachLine(row)].filter(Boolean).join(" · ")}
+                </span>
+                {!row.editable && (
+                  // Rule 1 on the screen rather than only in a refusal.
+                  <span className="mt-0.5 block text-xs text-muted-foreground">บัญชีเจ้าของร้าน แก้ไขได้โดยเจ้าของร้านเท่านั้น</span>
+                )}
+              </span>
+              <span className="shrink-0 text-sm font-semibold">{row.roleLabel}</span>
+            </>
+          );
+          return (
+            <li key={row.membershipId} className={row.isActive ? "" : "opacity-70"}>
+              {row.editable ? (
+                <button type="button" onClick={() => setOpen(row)} className="flex w-full items-start justify-between gap-3 px-5 py-4 text-left transition-colors hover:bg-muted/50">
+                  {body}
+                </button>
+              ) : (
+                <div className="flex items-start justify-between gap-3 px-5 py-4">{body}</div>
+              )}
+            </li>
+          );
+        })}
       </ul>
-    </div>
+      {open && (
+        <EditDialog
+          key={open.membershipId}
+          row={open}
+          branches={branches}
+          roleOptions={roleOptions}
+          canGrantAllBranches={canGrantAllBranches}
+          currentBranchIds={open.branchNames.map((n) => branchIdsByName.get(n)).filter((id): id is string => id !== undefined)}
+          onClose={() => setOpen(null)}
+        />
+      )}
+    </>
   );
 }

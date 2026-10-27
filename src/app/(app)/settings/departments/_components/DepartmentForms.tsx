@@ -1,14 +1,21 @@
 "use client";
 
 // Part 35 L1 — add, rename, close and reopen departments.
+// Review 2026-10-28 (mockup 6A5E893FefkuYmW3Z5vzbn): "ปิดใช้งาน" sat right
+// beside "แก้ไข" and closed a department on one press with no question. It now
+// lives inside the department's popup and says what closing does before it
+// does it; the row opens on a press anywhere; the add form became a button.
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
   createDepartmentAction,
   setDepartmentActiveAction,
   updateDepartmentAction,
 } from "@/app/(app)/settings/departments/actions";
 import type { SettingsActionState } from "@/app/(app)/settings/branches/actions";
+import SettingsModal from "@/app/(app)/settings/_components/SettingsModal";
+import { orStale } from "@/lib/stale-tab";
 
 export type DepartmentRowView = {
   id: string;
@@ -26,125 +33,144 @@ function FieldError({ state, name }: { state: SettingsActionState; name: string 
   return <p className="mt-1 text-xs text-bad">{state.fieldErrors[name]}</p>;
 }
 
-function Feedback({ state }: { state: SettingsActionState }) {
-  if (state.ok) return <p className="text-sm text-good">{state.message}</p>;
-  if (state.formError) return <p className="text-sm text-bad">{state.formError}</p>;
-  return null;
+/** Closing or reopening, from inside the popup. Closing asks first; reopening does not need to. */
+function ActiveControl({ row, onDone }: { row: DepartmentRowView; onDone: () => void }) {
+  const router = useRouter();
+  const [asking, setAsking] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+  if (row.isDefault) return <p className="text-xs text-muted-foreground">แผนกตั้งต้นปิดใช้งานไม่ได้</p>;
+
+  const set = (active: boolean) =>
+    start(async () => {
+      const fd = new FormData();
+      fd.set("id", row.id);
+      fd.set("isActive", active ? "true" : "false");
+      const r = await orStale(setDepartmentActiveAction(IDLE, fd));
+      if (r.ok) {
+        router.refresh();
+        onDone();
+      } else setError(r.formError ?? "บันทึกไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+    });
+
+  if (!row.isActive) {
+    return (
+      <button type="button" disabled={pending} onClick={() => set(true)} className="py-2 text-sm font-semibold text-primary hover:underline">
+        {pending ? "กำลังเปิด…" : "เปิดใช้งานแผนกนี้อีกครั้ง"}
+      </button>
+    );
+  }
+  if (!asking) {
+    return (
+      <button type="button" onClick={() => setAsking(true)} className="py-2 text-sm font-semibold text-bad hover:underline">
+        ปิดใช้งานแผนกนี้
+      </button>
+    );
+  }
+  return (
+    <div role="alert" className="w-full rounded-xl border border-bad-border bg-bad-bg p-3.5">
+      <p className="font-semibold text-bad">ปิดใช้งานแผนก{row.name}?</p>
+      <p className="mt-1 text-sm text-foreground/80">
+        ขอซื้อหรือรับของใหม่เลือก{row.name}ไม่ได้ · ต้นทุนและยอดขายเก่าของ{row.name}ยังอยู่ในรายงาน · เปิดใหม่ได้ทุกเมื่อ
+      </p>
+      {error && <p className="mt-1 text-sm text-bad">{error}</p>}
+      <div className="mt-3 flex gap-2">
+        <button type="button" autoFocus onClick={() => setAsking(false)} className="h-10 rounded-xl border border-border-strong bg-surface px-4 text-sm font-semibold text-primary hover:bg-muted">
+          ไม่ปิด
+        </button>
+        <button type="button" disabled={pending} onClick={() => set(false)} className="h-10 rounded-xl bg-bad px-4 text-sm font-semibold text-bad-foreground disabled:opacity-60">
+          {pending ? "กำลังปิด…" : "ปิดใช้งาน"}
+        </button>
+      </div>
+    </div>
+  );
 }
 
-export function AddDepartmentForm() {
-  const [state, action, pending] = useActionState(createDepartmentAction, IDLE);
+function DepartmentDialog({ row, onClose }: { row: DepartmentRowView | null; onClose: () => void }) {
+  const [state, action, pending] = useActionState(row ? updateDepartmentAction : createDepartmentAction, IDLE);
+  useEffect(() => {
+    if (state.ok) onClose();
+  }, [state, onClose]);
+
   return (
-    <form action={action} className="rounded-xl border border-border bg-surface p-5">
-      <h2 className="mb-4 font-semibold">เพิ่มแผนก</h2>
-      <div className="grid gap-4 sm:grid-cols-[2fr_1fr]">
-        <div>
-          <label htmlFor="new-name" className="label mb-1">ชื่อแผนก</label>
-          <input id="new-name" name="name" required placeholder="เช่น ครัว, บาร์, เบเกอรี่" className="input w-full" />
-          <FieldError state={state} name="name" />
+    <SettingsModal title={row ? `แก้แผนก${row.name}` : "เพิ่มแผนก"} sub={row && !row.isActive ? "แผนกนี้ปิดใช้งานอยู่" : undefined} onClose={onClose}>
+      <form action={action} className="space-y-4">
+        {row && <input type="hidden" name="id" value={row.id} />}
+        <div className="grid gap-3 sm:grid-cols-[2fr_1fr]">
+          <div>
+            <label htmlFor="dept-name" className="label mb-1">ชื่อแผนก</label>
+            <input id="dept-name" name="name" defaultValue={row?.name ?? ""} required placeholder="เช่น ครัว บาร์ เบเกอรี่" className="input w-full" autoFocus />
+            <FieldError state={state} name="name" />
+          </div>
+          <div>
+            <label htmlFor="dept-code" className="label mb-1">รหัสแผนก</label>
+            {row ? (
+              <input id="dept-code" value={row.code} disabled className="input w-full bg-muted font-mono text-muted-foreground" />
+            ) : (
+              <input id="dept-code" name="code" required maxLength={10} placeholder="เช่น KIT" className="input w-full uppercase" />
+            )}
+            <FieldError state={state} name="code" />
+          </div>
         </div>
         <div>
-          <label htmlFor="new-code" className="label mb-1">รหัสแผนก</label>
-          <input id="new-code" name="code" required maxLength={10} placeholder="เช่น KIT" className="input w-full uppercase" />
-          <FieldError state={state} name="code" />
-        </div>
-        <div className="sm:col-span-2">
-          <label htmlFor="new-desc" className="label mb-1">
+          <label htmlFor="dept-desc" className="label mb-1">
             คำอธิบาย <span className="font-normal text-muted-foreground">(ไม่บังคับ)</span>
           </label>
-          <input id="new-desc" name="description" className="input w-full" />
+          <input id="dept-desc" name="description" defaultValue={row?.description ?? ""} placeholder="เช่น เครื่องดื่มและของหวาน" className="input w-full" />
         </div>
-      </div>
-      <div className="mt-4 flex items-center gap-3">
-        <button type="submit" className="btn" disabled={pending}>
-          {pending ? "กำลังบันทึก…" : "เพิ่มแผนก"}
-        </button>
-        <Feedback state={state} />
-      </div>
-    </form>
+        {!state.ok && state.formError && <p className="text-sm text-bad">{state.formError}</p>}
+        <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border pt-4">
+          <button type="button" onClick={onClose} className="h-11 rounded-xl border border-border-strong px-4 text-sm font-semibold text-primary hover:bg-muted">
+            ยกเลิก
+          </button>
+          <button type="submit" className="btn h-11 px-5" disabled={pending}>
+            {pending ? "กำลังบันทึก…" : row ? "บันทึก" : "เพิ่มแผนก"}
+          </button>
+        </div>
+      </form>
+      {row && (
+        <div className="mt-3 border-t border-border pt-3">
+          <ActiveControl row={row} onDone={onClose} />
+        </div>
+      )}
+    </SettingsModal>
   );
 }
 
-function ActiveToggle({ row }: { row: DepartmentRowView }) {
-  const [state, action, pending] = useActionState(setDepartmentActiveAction, IDLE);
-  if (row.isDefault) return null;
+export function AddDepartmentButton() {
+  const [open, setOpen] = useState(false);
   return (
-    <form action={action} className="flex items-center gap-2">
-      <input type="hidden" name="id" value={row.id} />
-      <input type="hidden" name="isActive" value={row.isActive ? "false" : "true"} />
-      <button
-        type="submit"
-        disabled={pending}
-        className="text-sm text-muted-foreground hover:text-foreground disabled:opacity-50"
-      >
-        {row.isActive ? "ปิดใช้งาน" : "เปิดใช้งาน"}
+    <>
+      <button type="button" className="btn h-11 px-5" onClick={() => setOpen(true)}>
+        + เพิ่มแผนก
       </button>
-      {!state.ok && state.formError ? <span className="text-xs text-bad">{state.formError}</span> : null}
-    </form>
-  );
-}
-
-function EditDepartment({ row, onDone }: { row: DepartmentRowView; onDone: () => void }) {
-  const [state, action, pending] = useActionState(updateDepartmentAction, IDLE);
-  return (
-    <form action={action} className="mt-3 grid gap-3 border-t border-border pt-3 sm:grid-cols-2">
-      <input type="hidden" name="id" value={row.id} />
-      <div>
-        <label className="label mb-1" htmlFor={`name-${row.id}`}>ชื่อแผนก</label>
-        <input id={`name-${row.id}`} name="name" defaultValue={row.name} required className="input w-full" />
-        <FieldError state={state} name="name" />
-      </div>
-      <div>
-        <label className="label mb-1" htmlFor={`desc-${row.id}`}>คำอธิบาย</label>
-        <input id={`desc-${row.id}`} name="description" defaultValue={row.description ?? ""} className="input w-full" />
-      </div>
-      <div className="flex items-center gap-3 sm:col-span-2">
-        <button type="submit" className="btn" disabled={pending}>
-          {pending ? "กำลังบันทึก…" : "บันทึก"}
-        </button>
-        <button type="button" onClick={onDone} className="text-sm text-muted-foreground hover:text-foreground">
-          ปิด
-        </button>
-        <Feedback state={state} />
-      </div>
-    </form>
+      {open && <DepartmentDialog row={null} onClose={() => setOpen(false)} />}
+    </>
   );
 }
 
 export function DepartmentList({ rows }: { rows: DepartmentRowView[] }) {
-  const [open, setOpen] = useState<string | null>(null);
+  const [open, setOpen] = useState<DepartmentRowView | null>(null);
   return (
-    <ul className="divide-y divide-border rounded-xl border border-border bg-surface">
-      {rows.map((r) => (
-        <li key={r.id} className={`p-4 ${r.isActive ? "" : "opacity-60"}`}>
-          <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <p className="font-medium">
-                {r.name}{" "}
-                <span className="ml-1 rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-muted-foreground">
-                  {r.code}
+    <>
+      <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-surface">
+        {rows.map((r) => (
+          <li key={r.id}>
+            <button type="button" onClick={() => setOpen(r)} className={`block w-full px-5 py-4 text-left transition-colors hover:bg-muted/50 ${r.isActive ? "" : "opacity-60"}`}>
+              <span className="font-semibold">{r.name}</span>
+              <span className="ml-2 rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-muted-foreground">{r.code}</span>
+              {r.isDefault && <span className="ml-2 whitespace-nowrap rounded-full bg-primary-soft px-2 py-0.5 text-xs text-primary">แผนกตั้งต้น</span>}
+              {!r.isActive && <span className="ml-2 whitespace-nowrap rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">ปิดใช้งานอยู่</span>}
+              {(r.description || r.isDefault) && (
+                <span className="mt-0.5 block text-sm text-muted-foreground">
+                  {r.isDefault ? "รายการที่ไม่ได้ระบุแผนกลงที่นี่" : r.description}
                 </span>
-                {r.isDefault ? (
-                  <span className="ml-2 text-xs text-muted-foreground">แผนกตั้งต้น</span>
-                ) : null}
-                {!r.isActive ? <span className="ml-2 text-xs text-muted-foreground">ปิดใช้งานอยู่</span> : null}
-              </p>
-              {r.description ? <p className="truncate text-sm text-muted-foreground">{r.description}</p> : null}
-            </div>
-            <div className="flex shrink-0 items-center gap-4">
-              <ActiveToggle row={r} />
-              <button
-                type="button"
-                onClick={() => setOpen(open === r.id ? null : r.id)}
-                className="text-sm text-primary hover:underline"
-              >
-                {open === r.id ? "ปิด" : "แก้ไข"}
-              </button>
-            </div>
-          </div>
-          {open === r.id ? <EditDepartment row={r} onDone={() => setOpen(null)} /> : null}
-        </li>
-      ))}
-    </ul>
+              )}
+            </button>
+          </li>
+        ))}
+      </ul>
+      {open && <DepartmentDialog key={open.id} row={open} onClose={() => setOpen(null)} />}
+    </>
   );
 }

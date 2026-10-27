@@ -1,7 +1,7 @@
 import { requireTenant } from "@/lib/require-tenant";
 import { getAllBranchesForAdminLogic } from "@/server/branch";
 import { cutoffToHHMM } from "@/lib/validations/branch";
-import { AddBranchForm, BranchList, type BranchRowView } from "./_components/BranchForms";
+import { AddBranchButton, BranchList, type BranchRowView } from "./_components/BranchForms";
 
 // Part 35 L1 — the screen that did not exist: a shop could never add its
 // second branch, so transfers, branch reach and per-branch cost were
@@ -17,15 +17,18 @@ export default async function BranchesPage() {
   }));
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">สาขา</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          เจ้าของร้านและแอดมินเห็นสาขาใหม่ทันที ส่วนผู้จัดการสาขาต้องเพิ่มสิทธิ์ให้ที่หน้า “คนในร้าน”
-        </p>
-      </div>
+    <div className="space-y-5">
+      <header className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold">สาขา</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {rows.length} สาขา · กดที่สาขาเพื่อแก้ไข · ผู้จัดการสาขาเห็นสาขาใหม่เมื่อเพิ่มให้ที่หน้า{" "}
+            <a href="/settings/members" className="font-semibold text-primary hover:underline">คนในร้าน</a>
+          </p>
+        </div>
+        <AddBranchButton />
+      </header>
       <BranchList rows={rows} />
-      <AddBranchForm />
     </div>
   );
 }

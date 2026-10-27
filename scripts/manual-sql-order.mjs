@@ -72,6 +72,9 @@ export const MANUAL_SQL_ORDER = [
   // (กก. → kg …) that system_reference_seed.sql no longer offers. Same group,
   // same reason as the line above.
   "unit_names_en.sql",
+  // 2026-10-28: the default department "Main" → "ครัวหลัก", and its English
+  // seed description cleared. Same group, same reason.
+  "department_names_th.sql",
 
   // --- 3. the policies ----------------------------------------------------
   "enable_rls.sql",

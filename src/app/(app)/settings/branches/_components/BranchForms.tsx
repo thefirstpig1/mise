@@ -1,14 +1,17 @@
 "use client";
 
-// Part 35 L1 — add a branch, rename one. Built like settings/members: one add
-// form on top, one row per branch that opens into its edit form.
+// Part 35 L1 — add a branch, rename one.
+// Review 2026-10-28 (mockup 6A5E893FefkuYmW3Z5vzbn): the add form no longer
+// sits open under the list taking half the screen, and a row opens on a press
+// anywhere on it (not a small "แก้ไข") — both open the same popup.
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import {
   createBranchAction,
   updateBranchAction,
   type SettingsActionState,
 } from "@/app/(app)/settings/branches/actions";
+import SettingsModal from "@/app/(app)/settings/_components/SettingsModal";
 
 export type BranchRowView = {
   id: string;
@@ -30,10 +33,14 @@ export function CutoffField({ id, defaultValue, error }: { id: string; defaultVa
       <input id={id} name="sales_day_cutoff" type="time" min="00:00" max="12:00" defaultValue={defaultValue} required className="input w-36 tabular-nums" />
       {error ? <p className="mt-1 text-xs text-bad">{error}</p> : null}
       <p className="mt-1 text-xs text-muted-foreground">
-        บิลก่อนเวลานี้นับเป็นยอดของวันก่อน · เช่น ร้านเปิด 17:00–02:00 ตั้ง 05:00 บิลตีหนึ่งของวันที่ 6 จะนับเป็นยอดวันที่ 5
-        <br />
-        ใช้กับไฟล์ POS ที่มีเวลาขายแต่ไม่บอกวันขาย (ไฟล์ที่บอกวันมาแล้วใช้วันตามไฟล์) · แก้แล้วมีผลกับการนำเข้าครั้งถัดไป ถ้าจะแก้วันเก่าให้นำเข้าวันนั้นใหม่
+        บิลก่อนเวลานี้นับเป็นยอดของวันก่อน · ร้านเปิดถึงตีสอง ตั้ง 05:00 แล้วบิลตีหนึ่งจะอยู่ในยอดเมื่อวาน
       </p>
+      <details className="mt-1 text-xs">
+        <summary className="cursor-pointer font-semibold text-primary">อ่านเพิ่ม</summary>
+        <p className="mt-1 text-muted-foreground">
+          ใช้กับไฟล์ POS ที่มีเวลาขายแต่ไม่บอกวันขาย (ไฟล์ที่บอกวันมาแล้วใช้วันตามไฟล์) · แก้แล้วมีผลกับการนำเข้าครั้งถัดไป ถ้าจะแก้วันเก่าให้นำเข้าวันนั้นใหม่
+        </p>
+      </details>
     </div>
   );
 }
@@ -45,117 +52,87 @@ function FieldError({ state, name }: { state: SettingsActionState; name: string 
   return <p className="mt-1 text-xs text-bad">{state.fieldErrors[name]}</p>;
 }
 
-function Feedback({ state }: { state: SettingsActionState }) {
-  if (state.ok) return <p className="text-sm text-good">{state.message}</p>;
-  if (state.formError) return <p className="text-sm text-bad">{state.formError}</p>;
-  return null;
-}
+/** Add (row = null) or edit one branch. Closes itself once the save went through. */
+function BranchDialog({ row, onClose }: { row: BranchRowView | null; onClose: () => void }) {
+  const [state, action, pending] = useActionState(row ? updateBranchAction : createBranchAction, IDLE);
+  useEffect(() => {
+    if (state.ok) onClose();
+  }, [state, onClose]);
+  const title = row ? `แก้${row.name}` : "เพิ่มสาขา";
 
-export function AddBranchForm() {
-  const [state, action, pending] = useActionState(createBranchAction, IDLE);
   return (
-    <form action={action} className="rounded-xl border border-border bg-surface p-5">
-      <h2 className="mb-4 font-semibold">เพิ่มสาขา</h2>
-      <div className="grid gap-4 sm:grid-cols-[2fr_1fr]">
-        <div>
-          <label htmlFor="new-name" className="label mb-1">ชื่อสาขา</label>
-          <input id="new-name" name="name" required placeholder="เช่น สาขาลาดพร้าว" className="input w-full" />
-          <FieldError state={state} name="name" />
+    <SettingsModal title={title} onClose={onClose}>
+      <form action={action} className="space-y-4">
+        {row && <input type="hidden" name="id" value={row.id} />}
+        <div className="grid gap-3 sm:grid-cols-[2fr_1fr]">
+          <div>
+            <label htmlFor="branch-name" className="label mb-1">ชื่อสาขา</label>
+            <input id="branch-name" name="name" defaultValue={row?.name ?? ""} required placeholder="เช่น สาขาลาดพร้าว" className="input w-full" autoFocus />
+            <FieldError state={state} name="name" />
+          </div>
+          <div>
+            <label htmlFor="branch-code" className="label mb-1">รหัสสาขา</label>
+            {row ? (
+              <input id="branch-code" value={row.code} disabled className="input w-full bg-muted font-mono text-muted-foreground" />
+            ) : (
+              <input id="branch-code" name="code" required maxLength={10} placeholder="เช่น LPR" className="input w-full uppercase" />
+            )}
+            <FieldError state={state} name="code" />
+          </div>
         </div>
+        <p className="-mt-2 text-xs text-muted-foreground">รหัสอยู่หน้าเลขเอกสารทุกใบ เช่น {row?.code ?? "LPR"}-PO-0001 จึงเปลี่ยนภายหลังไม่ได้</p>
         <div>
-          <label htmlFor="new-code" className="label mb-1">รหัสสาขา</label>
-          <input
-            id="new-code"
-            name="code"
-            required
-            maxLength={10}
-            placeholder="เช่น LPR"
-            className="input w-full uppercase"
-          />
-          <FieldError state={state} name="code" />
-        </div>
-        <div className="sm:col-span-2">
-          <label htmlFor="new-address" className="label mb-1">
+          <label htmlFor="branch-address" className="label mb-1">
             ที่อยู่ <span className="font-normal text-muted-foreground">(ไม่บังคับ)</span>
           </label>
-          <input id="new-address" name="address" className="input w-full" />
+          <input id="branch-address" name="address" defaultValue={row?.address ?? ""} className="input w-full" />
           <FieldError state={state} name="address" />
         </div>
-        <div className="sm:col-span-2">
-          <CutoffField id="new-cutoff" defaultValue="05:00" error={!state.ok ? state.fieldErrors?.salesDayCutoffMinutes : undefined} />
+        <CutoffField id="branch-cutoff" defaultValue={row?.salesDayCutoff ?? "05:00"} error={!state.ok ? state.fieldErrors?.salesDayCutoffMinutes : undefined} />
+        {!state.ok && state.formError && <p className="text-sm text-bad">{state.formError}</p>}
+        <div className="flex justify-end gap-2 border-t border-border pt-4">
+          <button type="button" onClick={onClose} className="h-11 rounded-xl border border-border-strong px-4 text-sm font-semibold text-primary hover:bg-muted">
+            ยกเลิก
+          </button>
+          <button type="submit" className="btn h-11 px-5" disabled={pending}>
+            {pending ? "กำลังบันทึก…" : row ? "บันทึก" : "เพิ่มสาขา"}
+          </button>
         </div>
-      </div>
-      <p className="mt-3 text-xs text-muted-foreground">
-        รหัสสาขาจะอยู่หน้าเลขเอกสารทุกใบ เช่น LPR-PO-0001 และเปลี่ยนภายหลังไม่ได้
-      </p>
-      <div className="mt-4 flex items-center gap-3">
-        <button type="submit" className="btn" disabled={pending}>
-          {pending ? "กำลังบันทึก…" : "เพิ่มสาขา"}
-        </button>
-        <Feedback state={state} />
-      </div>
-    </form>
+      </form>
+    </SettingsModal>
   );
 }
 
-function EditBranch({ row, onDone }: { row: BranchRowView; onDone: () => void }) {
-  const [state, action, pending] = useActionState(updateBranchAction, IDLE);
+export function AddBranchButton() {
+  const [open, setOpen] = useState(false);
   return (
-    <form action={action} className="mt-3 grid gap-3 border-t border-border pt-3 sm:grid-cols-2">
-      <input type="hidden" name="id" value={row.id} />
-      <div>
-        <label className="label mb-1" htmlFor={`name-${row.id}`}>ชื่อสาขา</label>
-        <input id={`name-${row.id}`} name="name" defaultValue={row.name} required className="input w-full" />
-        <FieldError state={state} name="name" />
-      </div>
-      <div>
-        <label className="label mb-1" htmlFor={`address-${row.id}`}>ที่อยู่</label>
-        <input id={`address-${row.id}`} name="address" defaultValue={row.address ?? ""} className="input w-full" />
-      </div>
-      <div className="sm:col-span-2">
-        <CutoffField id={`cutoff-${row.id}`} defaultValue={row.salesDayCutoff} error={!state.ok ? state.fieldErrors?.salesDayCutoffMinutes : undefined} />
-      </div>
-      <div className="flex items-center gap-3 sm:col-span-2">
-        <button type="submit" className="btn" disabled={pending}>
-          {pending ? "กำลังบันทึก…" : "บันทึก"}
-        </button>
-        <button type="button" onClick={onDone} className="text-sm text-muted-foreground hover:text-foreground">
-          ปิด
-        </button>
-        <Feedback state={state} />
-      </div>
-    </form>
+    <>
+      <button type="button" className="btn h-11 px-5" onClick={() => setOpen(true)}>
+        + เพิ่มสาขา
+      </button>
+      {open && <BranchDialog row={null} onClose={() => setOpen(false)} />}
+    </>
   );
 }
 
 export function BranchList({ rows }: { rows: BranchRowView[] }) {
-  const [open, setOpen] = useState<string | null>(null);
+  const [open, setOpen] = useState<BranchRowView | null>(null);
   return (
-    <ul className="divide-y divide-border rounded-xl border border-border bg-surface">
-      {rows.map((r) => (
-        <li key={r.id} className="p-4">
-          <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <p className="font-medium">
-                {r.name}{" "}
-                <span className="ml-1 rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-muted-foreground">
-                  {r.code}
-                </span>
-              </p>
-              {r.address ? <p className="truncate text-sm text-muted-foreground">{r.address}</p> : null}
-              <p className="text-xs text-muted-foreground">ตัดวันขายเวลา <span className="tabular-nums">{r.salesDayCutoff}</span> น.</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setOpen(open === r.id ? null : r.id)}
-              className="shrink-0 text-sm text-primary hover:underline"
-            >
-              {open === r.id ? "ปิด" : "แก้ไข"}
+    <>
+      <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-surface">
+        {rows.map((r) => (
+          <li key={r.id}>
+            <button type="button" onClick={() => setOpen(r)} className="block w-full px-5 py-4 text-left transition-colors hover:bg-muted/50">
+              <span className="font-semibold">{r.name}</span>
+              <span className="ml-2 rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-muted-foreground">{r.code}</span>
+              <span className="mt-0.5 block text-sm text-muted-foreground">
+                ตัดวันขาย <span className="tabular-nums">{r.salesDayCutoff}</span> น. · {r.address ?? "ยังไม่ใส่ที่อยู่"}
+              </span>
             </button>
-          </div>
-          {open === r.id ? <EditBranch row={r} onDone={() => setOpen(null)} /> : null}
-        </li>
-      ))}
-    </ul>
+          </li>
+        ))}
+      </ul>
+      {open && <BranchDialog key={open.id} row={open} onClose={() => setOpen(null)} />}
+    </>
   );
 }

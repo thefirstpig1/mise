@@ -21,7 +21,7 @@ import { getBranchesLogic } from "@/server/branch";
 import { getMembersLogic } from "@/server/membership-read";
 import { ALL_ROLES, type Role } from "@/lib/permissions/service";
 import { ROLE_HINTS_TH, ROLE_LABELS_TH } from "@/lib/validations/membership";
-import MemberForms from "./_components/MemberForms";
+import MemberForms, { InviteButton } from "./_components/MemberForms";
 import HomeDepartments from "./_components/HomeDepartments";
 import { getHomeDepartmentsLogic } from "@/server/home-department";
 import { getDepartmentsForAdminLogic } from "@/server/department";
@@ -71,19 +71,23 @@ export default async function MembersPage() {
   }));
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-bold">คนในร้าน</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          เชิญคนเข้าร้านด้วยอีเมล — ไม่มีลิงก์คำเชิญให้ส่งต่อ
-          คนที่ถูกเชิญเข้าใช้งานได้ทันทีเมื่อล็อกอินด้วยอีเมลนั้น
-        </p>
-        <p className="mt-1 text-sm">
-          <a href="/settings/permissions" className="text-primary underline-offset-2 hover:underline">
-            ตั้งว่าแต่ละบทบาทหรือแต่ละคนเห็นอะไรและทำอะไรได้ →
-          </a>
-        </p>
-      </div>
+    <div className="space-y-5">
+      <header className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold">คนในร้าน</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            กดที่ชื่อเพื่อแก้บทบาท สาขา หรือนำออก ·{" "}
+            <a href="/settings/permissions" className="font-semibold text-primary hover:underline">
+              ตั้งว่าแต่ละบทบาทเห็นอะไร ทำอะไรได้ ›
+            </a>
+          </p>
+        </div>
+        <InviteButton
+          branches={branches.map((b) => ({ id: b.id, name: b.name }))}
+          roleOptions={roleOptions}
+          canGrantAllBranches={reach.allBranches}
+        />
+      </header>
 
       <MemberForms
         rows={rows}
