@@ -62,9 +62,9 @@ export const supplierProductMappingInputSchema = z
       blankToNull,
       z.coerce
         .number()
-        .int("Lead time ต้องเป็นจำนวนเต็ม")
-        .nonnegative("Lead time ต้องไม่ติดลบ")
-        .max(365, "Lead time ต้องไม่เกิน 365 วัน")
+        .int("จำนวนวันส่งของต้องเป็นจำนวนเต็ม")
+        .nonnegative("จำนวนวันส่งของต้องไม่ติดลบ")
+        .max(365, "จำนวนวันส่งของต้องไม่เกิน 365 วัน")
         .nullable()
     ),
     isPreferred: z.preprocess(isPreferredPreprocess, z.boolean()).default(false),

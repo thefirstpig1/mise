@@ -97,5 +97,5 @@ async function read(req: Request): Promise<Response> {
     const insight = await getIngredientInsightLogic(tenantId, { productId, branchId }, costAccess);
     return insight === null ? json({ ok: false, error: "ไม่พบวัตถุดิบนี้" }, 404) : json({ ok: true, insight });
   }
-  return json({ ok: false, error: "unknown read" }, 400);
+  return json({ ok: false, error: "คำขอไม่ถูกต้อง" }, 400);
 }

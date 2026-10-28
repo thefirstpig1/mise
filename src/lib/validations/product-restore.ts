@@ -64,10 +64,10 @@ export const mappingUpdatesPayloadSchema = z.object({
     .number({ invalid_type_error: "ปริมาณขั้นต่ำไม่ถูกต้อง" })
     .positive("ปริมาณขั้นต่ำต้องมากกว่า 0"),
   leadTimeDays: z.coerce
-    .number({ invalid_type_error: "Lead time ไม่ถูกต้อง" })
-    .int("Lead time ต้องเป็นจำนวนเต็ม")
-    .nonnegative("Lead time ต้องไม่ติดลบ")
-    .max(365, "Lead time ต้องไม่เกิน 365 วัน"),
+    .number({ invalid_type_error: "จำนวนวันส่งของไม่ถูกต้อง" })
+    .int("จำนวนวันส่งของต้องเป็นจำนวนเต็ม")
+    .nonnegative("จำนวนวันส่งของต้องไม่ติดลบ")
+    .max(365, "จำนวนวันส่งของต้องไม่เกิน 365 วัน"),
 });
 
 /**

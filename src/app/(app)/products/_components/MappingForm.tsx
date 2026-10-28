@@ -362,7 +362,7 @@ export default function MappingForm({
             />
             {showLongLeadHint && (
               <p className="mt-1 text-xs text-warn">
-                Lead time มากกว่า 30 วัน — กรุณาตรวจสอบ
+                ส่งของภายในเกิน 30 วัน — กรุณาตรวจสอบอีกครั้ง
               </p>
             )}
             {err("leadTimeDays") && (

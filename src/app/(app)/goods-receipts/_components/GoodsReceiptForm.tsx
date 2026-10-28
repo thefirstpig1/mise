@@ -811,7 +811,7 @@ export default function GoodsReceiptForm({
                       value={r.notes}
                       onChange={(e) => setRow(r.key, { notes: e.target.value })}
                       className={"input w-full mt-1"}
-                      placeholder="เช่น ซัพส่งเกินมา 2 กระสอบ / แถมให้"
+                      placeholder="เช่น ผู้ขายส่งเกินมา 2 กระสอบ / แถมให้"
                     />
                   </div>
                 ) : (

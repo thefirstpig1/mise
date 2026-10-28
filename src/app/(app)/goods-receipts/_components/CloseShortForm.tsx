@@ -70,7 +70,7 @@ export default function CloseShortForm({
         name="closed_short_reason"
         value={reason}
         onChange={(e) => setReason(e.target.value)}
-        placeholder="เช่น ซัพแจ้งของหมด ไม่ส่งส่วนที่เหลือแล้ว"
+        placeholder="เช่น ผู้ขายแจ้งว่าของหมด ไม่ส่งส่วนที่เหลือแล้ว"
         className="input mt-1 w-full"
       />
       <p className="mt-1 text-xs text-muted-foreground">

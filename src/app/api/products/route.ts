@@ -70,6 +70,6 @@ export function GET(req: Request) {
       assertBranch(branchId);
       return json({ ok: true, moves: await getRecentMovementsLogic(tenantId, productId, branchId) });
     }
-    return json({ ok: false, error: "unknown read" }, 400);
+    return json({ ok: false, error: "คำขอไม่ถูกต้อง" }, 400);
   });
 }
