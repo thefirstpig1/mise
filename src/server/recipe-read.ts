@@ -84,15 +84,23 @@ export async function getRecipeUsageLogic(
 async function usageRows(
   tx: PrismaClient,
   tenantId: string,
-  target: RecipeTarget
+  target: RecipeTarget,
+  /**
+   * Only the version each line follows TODAY, plus any dated in the future —
+   * never a merely-past one, and never a draft. The substitution plan needs
+   * this (Kong 2026-10-28): listing a past version showed the dish twice, and
+   * ticking it appended a new version built from the OLD ingredients, quietly
+   * undoing every edit made since.
+   */
+  currentOnly = false
 ): Promise<RecipeUsageRow[]> {
-  const lines = await tx.recipeIngredient.findMany({
+  const found = await tx.recipeIngredient.findMany({
     where: {
       tenantId,
       ...(target.kind === "product"
         ? { productId: target.id }
         : { componentMenuId: target.id }),
-      recipe: { deletedAt: null, supersededAt: null },
+      recipe: { deletedAt: null, supersededAt: null, ...(currentOnly ? { isDraft: false } : {}) },
     },
     select: {
       id: true,
@@ -110,7 +118,35 @@ async function usageRows(
       },
     },
   });
-  if (lines.length === 0) return [];
+  if (found.length === 0) return [];
+  let lines = found;
+  if (currentOnly) {
+    // Every live version of these lines — including ones that DROPPED the
+    // ingredient, or the version that dropped it would leave the older one
+    // looking current.
+    const today = computeBangkokToday();
+    const versions = await tx.recipe.findMany({
+      where: {
+        tenantId,
+        lineId: { in: [...new Set(found.map((l) => l.recipe.lineId))] },
+        deletedAt: null,
+        supersededAt: null,
+        isDraft: false,
+      },
+      select: { id: true, lineId: true, effectiveFrom: true },
+    });
+    const current = new Map<string, { id: string; at: number }>();
+    for (const v of versions) {
+      const at = v.effectiveFrom.getTime();
+      if (at > today.getTime()) continue;
+      const seen = current.get(v.lineId);
+      if (!seen || at > seen.at) current.set(v.lineId, { id: v.id, at });
+    }
+    lines = found.filter(
+      (l) => current.get(l.recipe.lineId)?.id === l.recipe.id || l.recipe.effectiveFrom.getTime() > today.getTime()
+    );
+    if (lines.length === 0) return [];
+  }
 
   const links = await tx.recipeBranch.findMany({
     where: {
@@ -198,10 +234,12 @@ export async function getSubstitutionPlanLogic(
   }
 ): Promise<SubstitutionPlan> {
   return withTenantContext(tenantId, async (tx) => {
-    const rows = await usageRows(tx, tenantId, {
-      kind: "product",
-      id: args.fromProductId,
-    });
+    const rows = await usageRows(
+      tx,
+      tenantId,
+      { kind: "product", id: args.fromProductId },
+      true
+    );
 
     const from = await tx.product.findFirst({
       where: { id: args.fromProductId, tenantId },

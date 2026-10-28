@@ -955,6 +955,29 @@ export async function substituteIngredientLogic(
         if (row.supersededAt !== null) throw new RecipeSupersededError(t.recipeId);
       }
 
+      // A merely-PAST version is refused too (Kong 2026-10-28): appending to it
+      // would build today's version from the old ingredients and silently undo
+      // every edit made since. Only the version a line follows today (or one
+      // dated in the future) may be the base of a swap.
+      const today = computeBangkokToday();
+      const newer = await tx.recipe.findMany({
+        where: {
+          tenantId,
+          lineId: { in: existing.map((r) => r.lineId) },
+          deletedAt: null,
+          supersededAt: null,
+          isDraft: false,
+          effectiveFrom: { lte: today },
+        },
+        select: { id: true, lineId: true, effectiveFrom: true },
+      });
+      for (const row of existing) {
+        const passed = newer.some(
+          (v) => v.lineId === row.lineId && v.id !== row.id && v.effectiveFrom.getTime() > row.effectiveFrom.getTime()
+        );
+        if (passed) throw new RecipeSupersededError(row.id);
+      }
+
       // --- Q8: which of these belong to a branch that decided for itself? ---
       const links = await tx.recipeBranch.findMany({
         where: { tenantId, lineId: { in: existing.map((r) => r.lineId) } },

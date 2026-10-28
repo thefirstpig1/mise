@@ -23,6 +23,7 @@ import {
   substituteIngredientInputSchema,
 } from "@/lib/validations/recipe";
 import {
+  RecipeSupersededError,
   RecipeUnitMismatchError,
   SubstitutionDuplicateError,
   SubstitutionTargetStaleError,
@@ -571,6 +572,53 @@ describe("substitution + reverse lookup *Logic (ADR 0021 Q14/Q15/Q17)", () => {
     expect(ids).toContain(recipe.id); // past, but never wrong
     expect(ids).toContain(v3.id);
     expect(ids).not.toContain(v2.id); // superseded = this version was wrong
+  });
+
+  it("S-18 the plan lists the version a dish follows TODAY, never a merely-past one (Kong 2026-10-28)", async () => {
+    const past = addDays(today, -12);
+    const { menu, recipe } = await makeRecipe("สองเวอร์ชัน", [ing(birdChilli, 0.02), ing(pork, 0.1)], past);
+    const v2 = await updateRecipeLogic(
+      tenantA,
+      recipe.id,
+      recipeInput({ menuId: menu.id, effectiveFrom: today, ingredients: [ing(birdChilli, 0.03), ing(pork, 0.1)] }),
+      userA
+    );
+    // A third dish whose newer version DROPPED the ingredient: the old version
+    // must not resurface as if it were current.
+    const dropped = await makeRecipe("เลิกใช้แล้ว", [ing(birdChilli, 0.01)], past);
+    await updateRecipeLogic(
+      tenantA,
+      dropped.recipe.id,
+      recipeInput({ menuId: dropped.menu.id, effectiveFrom: today, ingredients: [ing(pork, 0.1)] }),
+      userA
+    );
+
+    const plan = await getSubstitutionPlanLogic(tenantA, { fromProductId: birdChilli.id, toProductId: longChilli.id });
+    const ids = plan.central.map((r) => r.recipeId);
+    expect(ids).toContain(v2.id);
+    expect(ids).not.toContain(recipe.id);
+    expect(ids).not.toContain(dropped.recipe.id);
+  });
+
+  it("S-19 refuses to build a swap on a merely-past version", async () => {
+    const past = addDays(today, -12);
+    const { menu, recipe } = await makeRecipe("ฐานเก่า", [ing(birdChilli, 0.02)], past);
+    await updateRecipeLogic(
+      tenantA,
+      recipe.id,
+      recipeInput({ menuId: menu.id, effectiveFrom: today, ingredients: [ing(birdChilli, 0.05)] }),
+      userA
+    );
+    await expect(
+      substituteIngredientLogic(
+        tenantA,
+        substitution({
+          toProductId: longChilli.id,
+          targets: [{ recipeId: recipe.id, qty: 0.02, productUnitId: unitOf(longChilli) }],
+        }),
+        userA
+      )
+    ).rejects.toBeInstanceOf(RecipeSupersededError);
   });
 
   it("S-17 names the recipes a unit-ratio change would move (Q17)", async () => {
