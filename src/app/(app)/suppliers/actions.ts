@@ -49,7 +49,7 @@ export type SupplierActionState =
   | { ok: false; formError?: string; fieldErrors?: Record<string, string> };
 
 /** Generic Thai duplicate-code message (Q5a) — shown at the form level. */
-const DUPLICATE_CODE_MESSAGE = "รหัสซัพพลายเออร์นี้มีอยู่แล้ว";
+const DUPLICATE_CODE_MESSAGE = "รหัสผู้ขายนี้มีอยู่แล้ว";
 
 /**
  * L4 (Q6 cascade): a mapping id the user selected in the L5 blast-radius dialog
@@ -147,7 +147,7 @@ export async function updateSupplier(
     const updated = await updateSupplierLogic(tenantId, id, parsed.data);
     if (!updated) {
       // No row matched: wrong tenant, missing, or already soft-deleted.
-      return { ok: false, formError: "ไม่พบซัพพลายเออร์ที่ต้องการแก้ไข" };
+      return { ok: false, formError: "ไม่พบผู้ขายที่ต้องการแก้ไข" };
     }
     revalidatePath("/suppliers");
     revalidatePath(`/suppliers/${id}`);
@@ -199,7 +199,7 @@ export async function deleteSupplier(
       mappingIdsToSoftDelete
     );
     if (!deleted) {
-      return { ok: false, error: "ไม่พบซัพพลายเออร์ที่ต้องการลบ" };
+      return { ok: false, error: "ไม่พบผู้ขายที่ต้องการลบ" };
     }
     revalidatePath("/suppliers");
     revalidatePath(`/suppliers/${id}`);

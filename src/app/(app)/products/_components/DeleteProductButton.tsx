@@ -9,12 +9,13 @@ import { orStale } from "@/lib/stale-tab";
 // the plain confirm() is replaced by a blast-radius dialog (CascadeDeleteDialog)
 // that lists those mappings with per-row checkboxes (default all checked). The
 // chosen ids are forwarded to deleteProduct(id, mappingIds[]) which soft-deletes
-// them alongside the product in one tx. With no mappings the original confirm()
+// them alongside the product in one tx. With no mappings a plain ConfirmDialog
 // path is kept unchanged. A ProductHasChildrenError / MappingNotFoundError comes
 // back as a Thai `error` string and is surfaced where the user is (in the dialog
 // when it's open, else inline under the button).
 
 import { useState, useTransition } from "react";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { useRouter } from "next/navigation";
 import { deleteProduct } from "@/app/(app)/products/actions";
 import CascadeDeleteDialog, {
@@ -35,6 +36,7 @@ export default function DeleteProductButton({
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [askOpen, setAskOpen] = useState(false);
 
   /** Run the delete with the chosen cascade ids; on success leave to the list. */
   function runDelete(mappingIds: string[]) {
@@ -51,10 +53,9 @@ export default function DeleteProductButton({
   }
 
   function handleDelete() {
-    // No linked mappings → keep the original simple confirm() path.
+    // No linked mappings → keep the original simple ConfirmDialog path.
     if (cascadeItems.length === 0) {
-      if (!confirm("ต้องการลบสินค้านี้?")) return;
-      runDelete([]);
+      setAskOpen(true);
       return;
     }
     setDialogOpen(true);
@@ -70,11 +71,25 @@ export default function DeleteProductButton({
       >
         {isPending ? "กำลังลบ..." : "ลบ"}
       </button>
-      {/* Inline error only for the no-dialog confirm() path. */}
+      {/* Inline error only for the no-cascade path. */}
       {!dialogOpen && error && (
         <p className="mt-2 text-sm text-bad">{error}</p>
       )}
 
+      <ConfirmDialog
+        open={askOpen}
+        title="ลบสินค้านี้?"
+        confirmLabel="ลบ"
+        danger
+        pending={isPending}
+        onConfirm={() => {
+          setAskOpen(false);
+          runDelete([]);
+        }}
+        onCancel={() => setAskOpen(false)}
+      >
+        สินค้านี้จะไม่ขึ้นในรายการและตัวเลือกอีก · ประวัติและเอกสารที่บันทึกไปแล้วยังอยู่ครบ
+      </ConfirmDialog>
       <CascadeDeleteDialog
         open={dialogOpen}
         title="ลบสินค้า — มีรายการราคาที่เชื่อมอยู่"

@@ -6,6 +6,7 @@ import { orStale } from "@/lib/stale-tab";
 // Mirrors src/app/suppliers/_components/DeleteSupplierButton.tsx.
 
 import { useState, useTransition } from "react";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { useRouter } from "next/navigation";
 import { deleteCategory } from "@/app/(app)/categories/actions";
 
@@ -13,9 +14,10 @@ export default function DeleteCategoryButton({ id }: { id: string }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [askOpen, setAskOpen] = useState(false);
 
   function handleDelete() {
-    if (!confirm("ต้องการลบหมวดบัญชีนี้?")) return;
+    setAskOpen(false);
     setError(null);
     startTransition(async () => {
       const res = await orStale(deleteCategory(id));
@@ -32,13 +34,16 @@ export default function DeleteCategoryButton({ id }: { id: string }) {
     <div className="text-right">
       <button
         type="button"
-        onClick={handleDelete}
+        onClick={() => setAskOpen(true)}
         disabled={isPending}
         className="btn-danger"
       >
         {isPending ? "กำลังลบ..." : "ลบ"}
       </button>
       {error && <p className="mt-2 text-sm text-bad">{error}</p>}
+      <ConfirmDialog open={askOpen} title="ลบหมวดบัญชีนี้?" confirmLabel="ลบ" danger pending={isPending} onConfirm={handleDelete} onCancel={() => setAskOpen(false)}>
+        หมวดนี้จะไม่ขึ้นในตัวเลือกอีก · รายการที่บันทึกไว้ในหมวดนี้แล้วยังอยู่ครบ
+      </ConfirmDialog>
     </div>
   );
 }

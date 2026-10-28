@@ -34,12 +34,15 @@ export default function SupplierList({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-4">
-        <h2 className="text-2xl font-semibold">รายการซัพพลายเออร์</h2>
+        <div>
+          <h2 className="text-2xl font-semibold">รายชื่อผู้ขาย</h2>
+          <p className="mt-1 text-sm text-muted-foreground">ซัพพลายเออร์ทุกรายที่ร้านซื้อของด้วย — ร้านค้าส่ง ฟาร์ม แผงในตลาด</p>
+        </div>
         <Link
           href="/suppliers/new"
           className="btn"
         >
-          + เพิ่มซัพพลายเออร์
+          + เพิ่มผู้ขาย
         </Link>
       </div>
 
@@ -63,7 +66,7 @@ export default function SupplierList({
 
       {suppliers.length === 0 ? (
         <EmptyState art="start">
-          ยังไม่มีซัพพลายเออร์ — กด &quot;เพิ่มซัพพลายเออร์&quot; เพื่อเริ่มต้น
+          ยังไม่มีผู้ขาย — กด &quot;เพิ่มผู้ขาย&quot; เพื่อเริ่มต้น
         </EmptyState>
       ) : filtered.length === 0 ? (
         <EmptyState art="none">

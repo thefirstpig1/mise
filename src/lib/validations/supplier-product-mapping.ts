@@ -32,7 +32,7 @@ const isPreferredPreprocess = (v: unknown) =>
 
 export const supplierProductMappingInputSchema = z
   .object({
-    supplierId: z.string().uuid("ซัพพลายเออร์ไม่ถูกต้อง"),
+    supplierId: z.string().uuid("ผู้ขายไม่ถูกต้อง"),
     productId: z.string().uuid("วัตถุดิบไม่ถูกต้อง"),
     branchId: z.preprocess(
       blankToNull,

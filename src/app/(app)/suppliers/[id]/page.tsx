@@ -126,7 +126,7 @@ export default async function SupplierPage({
         <div className="min-w-0 space-y-1">
           <nav aria-label="ตำแหน่งของหน้านี้" className="text-sm text-muted-foreground">
             <Link href="/suppliers" className="hover:text-foreground">
-              ซัพพลายเออร์
+              ผู้ขาย
             </Link>
             <span aria-hidden className="mx-1.5">›</span>
             <span className="text-foreground">{shortName}</span>

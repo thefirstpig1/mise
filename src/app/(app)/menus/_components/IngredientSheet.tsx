@@ -473,7 +473,7 @@ export default function IngredientSheet({
                     <thead className="text-left text-xs text-muted-foreground">
                       <tr>
                         <th className="py-1 font-medium">วันที่รับ</th>
-                        <th className="py-1 font-medium">ซัพพลายเออร์</th>
+                        <th className="py-1 font-medium">ผู้ขาย</th>
                         <th className="py-1 font-medium">หน่วยซื้อ</th>
                         <th className="py-1 text-right font-medium">ราคา</th>
                         <th className="py-1 text-right font-medium">ต่อ{unitTh(baseUnit)}</th>

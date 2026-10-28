@@ -14,7 +14,7 @@ export default function SuppliersFrame({ children }: { children: ReactNode }) {
   // form — wide, and its breadcrumb names the section, so no frame title.
   const detail = /^\/suppliers\/[0-9a-f-]{36}$/.test(path);
   return (
-    <PageFrame title={detail ? undefined : "ซัพพลายเออร์"} width={wide || detail ? "5xl" : "3xl"}>
+    <PageFrame title={detail ? undefined : "ผู้ขาย"} width={wide || detail ? "5xl" : "3xl"}>
       {children}
     </PageFrame>
   );

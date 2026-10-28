@@ -24,7 +24,7 @@ const badgeBase =
 function seriesLabel(s: PriceHistorySeries, perspective: Perspective): string {
   const primary =
     perspective === "product"
-      ? (s.supplier?.name ?? "(ไม่ทราบซัพพลายเออร์)")
+      ? (s.supplier?.name ?? "(ไม่ทราบผู้ขาย)")
       : (s.product?.name ?? "(ไม่ทราบสินค้า)");
   const branch = s.branch ? s.branch.name : "ทุกสาขา";
   return `${primary} · ${branch}`;
@@ -64,7 +64,7 @@ export default function MappingHistoryViewer({
             onChange={(e) => setSelected(e.target.value)}
             className="rounded-lg border border-border bg-background px-3 py-1.5 text-sm focus:border-primary focus:outline-none"
           >
-            <option value="all">ทุกซัพพลายเออร์/สาขา</option>
+            <option value="all">ทุกผู้ขาย/สาขา</option>
             {series.map((s) => (
               <option key={s.key} value={s.key}>
                 {seriesLabel(s, perspective)}

@@ -7,7 +7,7 @@ export default async function NewSupplierPage() {
   await requireTenant("master:write"); // auth gate / redirect; tenantId resolved inside the action
   return (
     <div className="max-w-3xl space-y-6">
-      <h2 className="text-2xl font-semibold">เพิ่มซัพพลายเออร์</h2>
+      <h2 className="text-2xl font-semibold">เพิ่มผู้ขาย</h2>
       <SupplierForm action={createSupplier} submitLabel="บันทึก" />
     </div>
   );

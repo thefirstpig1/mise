@@ -110,7 +110,7 @@ function buildHasChildrenMessage(childNames: string[]): string {
  * from the UPDATE path (unit removal), not delete; surfaced as a form error.
  */
 function buildUnitReferencedMessage(mappingIds: string[]): string {
-  return `ลบหน่วยไม่ได้ — มี ${mappingIds.length} รายการราคาซัพพลายเออร์ใช้หน่วยนี้อยู่`;
+  return `ลบหน่วยไม่ได้ — มี ${mappingIds.length} รายการราคาผู้ขายใช้หน่วยนี้อยู่`;
 }
 
 /**

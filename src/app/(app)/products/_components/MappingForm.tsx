@@ -121,7 +121,7 @@ export default function MappingForm({
       <section className="space-y-4 rounded-lg border border-border bg-surface p-6">
         <div>
           <label htmlFor="supplier_id" className="mb-1 label">
-            ซัพพลายเออร์<span className="text-bad"> *</span>
+            ผู้ขาย<span className="text-bad"> *</span>
           </label>
           {isEdit ? (
             <>
@@ -134,7 +134,7 @@ export default function MappingForm({
                 value={initial?.supplierId ?? ""}
               />
               <p className="mt-1 text-xs text-muted-foreground">
-                เปลี่ยนซัพพลายเออร์ไม่ได้ — สร้างรายการราคาใหม่แทน
+                เปลี่ยนผู้ขายไม่ได้ — สร้างรายการราคาใหม่แทน
               </p>
             </>
           ) : (
@@ -145,7 +145,7 @@ export default function MappingForm({
               className="input w-full"
             >
               <option value="" disabled>
-                — เลือกซัพพลายเออร์ —
+                — เลือกผู้ขาย —
               </option>
               {suppliers.map((s) => (
                 <option key={s.id} value={s.id}>
@@ -231,7 +231,7 @@ export default function MappingForm({
             htmlFor="supplier_item_code"
             className="mb-1 label"
           >
-            รหัสสินค้าของซัพพลายเออร์
+            รหัสสินค้าของผู้ขาย
           </label>
           <input
             id="supplier_item_code"
@@ -239,7 +239,7 @@ export default function MappingForm({
             type="text"
             maxLength={64}
             defaultValue={initial?.supplierItemCode ?? ""}
-            placeholder="เช่น SKU ฝั่งซัพพลายเออร์"
+            placeholder="เช่น SKU ฝั่งผู้ขาย"
             className="input w-full"
           />
           {err("supplierItemCode") && (
@@ -251,7 +251,7 @@ export default function MappingForm({
             htmlFor="supplier_item_name"
             className="mb-1 label"
           >
-            ชื่อสินค้าของซัพพลายเออร์
+            ชื่อสินค้าของผู้ขาย
           </label>
           <input
             id="supplier_item_name"
@@ -259,7 +259,7 @@ export default function MappingForm({
             type="text"
             maxLength={200}
             defaultValue={initial?.supplierItemName ?? ""}
-            placeholder="ชื่อที่ซัพพลายเออร์ใช้เรียกสินค้านี้"
+            placeholder="ชื่อที่ผู้ขายใช้เรียกสินค้านี้"
             className="input w-full"
           />
           {err("supplierItemName") && (
@@ -288,7 +288,7 @@ export default function MappingForm({
             ))}
           </select>
           <p className="mt-1 text-xs text-muted-foreground">
-            หน่วยที่สั่งซื้อจากซัพพลายเออร์รายนี้ (ต้องเป็นหน่วยของวัตถุดิบนี้)
+            หน่วยที่สั่งซื้อจากผู้ขายรายนี้ (ต้องเป็นหน่วยของวัตถุดิบนี้)
           </p>
           {err("orderUnitId") && (
             <p className="mt-1 text-sm text-bad">{err("orderUnitId")}</p>
@@ -379,7 +379,7 @@ export default function MappingForm({
             defaultChecked={initial?.isPreferred ?? false}
             className="h-4 w-4 rounded border-border"
           />
-          ตั้งเป็นซัพพลายเออร์แนะนำ (1 รายต่อสาขา)
+          ตั้งเป็นผู้ขายแนะนำ (1 รายต่อสาขา)
         </label>
         {err("isPreferred") && (
           <p className="text-sm text-bad">{err("isPreferred")}</p>

@@ -69,7 +69,7 @@ export const supplierInputSchema = z
       z
         .string()
         .trim()
-        .min(1, "กรุณากรอกชื่อซัพพลายเออร์")
+        .min(1, "กรุณากรอกชื่อผู้ขาย")
         .max(200, "ชื่อต้องไม่เกิน 200 ตัวอักษร")
     ),
     nameShort: optionalText,
@@ -112,7 +112,7 @@ export const supplierInputSchema = z
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["defaultWhtRatePercent"],
-        message: "ซัพพลายเออร์ที่หัก ณ ที่จ่าย ต้องระบุอัตรา WHT",
+        message: "ผู้ขายที่หัก ณ ที่จ่าย ต้องระบุอัตรา WHT",
       });
     }
   });
@@ -126,7 +126,7 @@ export type SupplierInput = z.infer<typeof supplierInputSchema>;
  * Step 7 form to render <label>s — one source of truth for both.
  */
 export const SUPPLIER_FIELD_LABELS_TH: Record<keyof SupplierInput, string> = {
-  code: "รหัสซัพพลายเออร์",
+  code: "รหัสผู้ขาย",
   nameFull: "ชื่อเต็ม",
   nameShort: "ชื่อย่อ",
   contactName: "ชื่อผู้ติดต่อ",

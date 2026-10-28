@@ -4,11 +4,12 @@
 // Unlike DeleteProductButton (7c direct-invoke), the L4 deleteMappingAction is
 // useActionState-style `(id, prev, fd)` so it can surface a Thai formError
 // (MappingNotFoundError → "ไม่พบรายการราคา"). We bind the id, wrap in
-// useActionState, and gate submission behind a confirm() in onSubmit. On
+// useActionState, and gate submission behind ConfirmDialog (the app's own, 2026-10-29). On
 // success we leave the (now-deleted) mapping's edit page back to the product
 // and refresh so the revalidated price list re-renders.
 
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { useRouter } from "next/navigation";
 import {
   deleteMappingAction,
@@ -36,23 +37,34 @@ export default function DeleteMappingButton({
   }, [state, router, productId]);
 
   const formError = state.ok === false ? state.formError : undefined;
+  const formRef = useRef<HTMLFormElement>(null);
+  const [askOpen, setAskOpen] = useState(false);
 
   return (
-    <form
-      action={formAction}
-      onSubmit={(e) => {
-        if (!confirm("ต้องการลบรายการราคานี้?")) e.preventDefault();
-      }}
-      className="text-right"
-    >
+    <form ref={formRef} action={formAction} className="text-right">
       <button
-        type="submit"
+        type="button"
+        onClick={() => setAskOpen(true)}
         disabled={isPending}
         className="btn-danger"
       >
         {isPending ? "กำลังลบ..." : "ลบรายการราคา"}
       </button>
       {formError && <p className="mt-2 text-sm text-bad">{formError}</p>}
+      <ConfirmDialog
+        open={askOpen}
+        title="ลบรายการราคานี้?"
+        confirmLabel="ลบรายการราคา"
+        danger
+        pending={isPending}
+        onConfirm={() => {
+          setAskOpen(false);
+          formRef.current?.requestSubmit();
+        }}
+        onCancel={() => setAskOpen(false)}
+      >
+        ราคานี้จะไม่ถูกใช้เติมในใบสั่งซื้ออีก · ประวัติราคายังอยู่
+      </ConfirmDialog>
     </form>
   );
 }

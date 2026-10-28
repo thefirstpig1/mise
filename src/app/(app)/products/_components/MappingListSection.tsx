@@ -50,17 +50,17 @@ const COPY: Record<
   }
 > = {
   product: {
-    title: "รายการราคาซัพพลายเออร์",
-    nameHeader: "ซัพพลายเออร์",
-    empty: "ยังไม่มีรายการราคาซัพพลายเออร์สำหรับสินค้านี้",
-    orphanBadge: "ซัพพลายเออร์ถูกลบ",
+    title: "รายการราคาผู้ขาย",
+    nameHeader: "ผู้ขาย",
+    empty: "ยังไม่มีรายการราคาผู้ขายสำหรับสินค้านี้",
+    orphanBadge: "ผู้ขายถูกลบ",
     nameOf: (m) => m.supplier?.name ?? "(ไม่ทราบ)",
     isOrphan: (m) => m.supplierDeleted,
   },
   supplier: {
     title: "รายการราคาสินค้า",
     nameHeader: "สินค้า/วัตถุดิบ",
-    empty: "ยังไม่มีรายการราคาสินค้าสำหรับซัพพลายเออร์นี้",
+    empty: "ยังไม่มีรายการราคาสินค้าสำหรับผู้ขายนี้",
     orphanBadge: "สินค้าถูกลบ",
     nameOf: (m) => m.product?.name ?? "(ไม่ทราบ)",
     isOrphan: (m) => m.productDeleted,
