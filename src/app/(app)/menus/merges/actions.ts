@@ -327,3 +327,70 @@ export async function getMergeCandidatesAction(
     throw e;
   }
 }
+
+// ------------------------------------------------------------
+// One dish, many branches, one press (Kong, 2026-10-28)
+// ------------------------------------------------------------
+
+export type MergeGroupResult =
+  | { ok: true; merged: number }
+  | {
+      ok: false;
+      formError: string;
+      needsAcknowledgement?: MergeAcknowledgement;
+      /** Losers already merged before the refusal — kept; a retry replays them. */
+      done: string[];
+    };
+
+/**
+ * Fold several rows into one dish — the group the person ticked in the popup.
+ *
+ * Not a "merge all suggestions" button (the header of this file forbids that):
+ * every row here was ticked by a person, on a screen that showed its branch,
+ * code, sales and recipe. It runs `mergeMenusLogic` once per row, each with the
+ * `submit_key` the browser minted for that row, so a retry after a refusal (the
+ * backdate acknowledgement) replays the rows already written instead of
+ * tripping over them. A star, never a chain: every row points at one winner.
+ */
+export async function mergeGroupAction(input: {
+  winningMenuId: string;
+  losers: { menuId: string; submitKey: string }[];
+  effectiveFrom: string;
+  acknowledgeBackdate: boolean;
+}): Promise<MergeGroupResult> {
+  const { tenantId, membership, assertShared } = await requireTenant("master:write");
+  assertShared();
+  if (!Array.isArray(input?.losers) || input.losers.length === 0 || input.losers.length > 20) {
+    return { ok: false, formError: "เลือกรายการที่จะรวมก่อน", done: [] };
+  }
+
+  const done: string[] = [];
+  for (const l of input.losers) {
+    const parsed = mergeMenusInputSchema.safeParse({
+      submitKey: l.submitKey,
+      losingMenuId: l.menuId,
+      winningMenuId: input.winningMenuId,
+      effectiveFrom: input.effectiveFrom,
+      acknowledgeBackdate: input.acknowledgeBackdate ? "on" : undefined,
+    });
+    if (!parsed.success) {
+      const first = Object.values(toFieldErrors(parsed.error))[0] ?? INVALID_MENU_MESSAGE;
+      return { ok: false, formError: first, done };
+    }
+    try {
+      await mergeMenusLogic(tenantId, parsed.data, membership.userId);
+      done.push(l.menuId);
+    } catch (e) {
+      const f = toFormError(e);
+      if (done.length) revalidateMergeViews();
+      return {
+        ok: false,
+        formError: f.formError ?? Object.values(f.fieldErrors ?? {})[0] ?? "รวมไม่สำเร็จ",
+        needsAcknowledgement: f.needsAcknowledgement,
+        done,
+      };
+    }
+  }
+  revalidateMergeViews();
+  return { ok: true, merged: done.length };
+}
