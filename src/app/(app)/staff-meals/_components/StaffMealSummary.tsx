@@ -66,6 +66,9 @@ export default function StaffMealSummary({
   const potShare = s && s.cost ? (s.people.find((p) => p.staffMemberId === null)?.cost ?? 0) / s.cost : null;
   const worst = s?.people.filter((p) => (p.overQuotaDays ?? 0) > 0).sort((a, b) => (b.overQuotaDays ?? 0) - (a.overQuotaDays ?? 0))[0];
   const maxDay = s ? Math.max(1, ...s.costByDay.map((d) => d.cost)) : 1;
+  // Meals the POS deducted have no cost on this page — unknown, not ฿0.
+  const allPos = s !== null && s.meals > 0 && s.notPosted === s.meals;
+  const posNote = s && s.notPosted > 0 && !allPos ? ` · ไม่รวม ${s.notPosted} มื้อที่ POS ตัดสต๊อก` : "";
 
   const showPerson = (id: string | null) => {
     if (!id) return;
@@ -120,12 +123,18 @@ export default function StaffMealSummary({
             <StatGrid>
               <Stat
                 label="ต้นทุนจริง (วัตถุดิบ)"
-                value={s.cost === null ? "—" : baht(s.cost)}
-                sub={s.cost === null ? "เห็นเฉพาะคนที่ดูต้นทุนได้" : `${baht(s.cost / Math.max(1, s.days))} ต่อวันที่มีมื้อ`}
+                value={s.cost === null || allPos ? "—" : baht(s.cost)}
+                sub={
+                  s.cost === null
+                    ? "เห็นเฉพาะคนที่ดูต้นทุนได้"
+                    : allPos
+                      ? "POS เป็นคนตัดสต๊อกมื้อพนักงาน ต้นทุนอยู่ในยอดขายที่นำเข้า"
+                      : `${baht(s.cost / Math.max(1, s.costByDay.length))} ต่อวันที่มีมื้อ${posNote}`
+                }
               />
               <Stat
                 label="คิดเป็นของยอดขาย"
-                value={s.cost === null || r.sales === null || r.sales === 0 ? "—" : pct((s.cost / r.sales) * 100)}
+                value={s.cost === null || allPos || r.sales === null || r.sales === 0 ? "—" : pct((s.cost / r.sales) * 100)}
                 sub={r.sales === null ? "เห็นเฉพาะคนที่ดูยอดขายได้" : r.sales === 0 ? `ยังไม่มียอดขาย ${monthLabel(month)}` : `ต้นทุนมื้อพนักงาน ÷ ยอดขาย ${monthLabel(month)}`}
               />
               <Stat label="จำนวนมื้อ" value={`${s.meals} มื้อ`} sub={`${(s.meals / Math.max(1, s.days)).toFixed(1)} มื้อต่อวัน · ${s.days} วันที่มีมื้อ`} />
@@ -171,7 +180,16 @@ export default function StaffMealSummary({
                               <span className="text-xs text-muted-foreground">0</span>
                             )}
                           </td>
-                          {r.canSeeCost && <td className="text-right tabular-nums">{p.cost === null ? "—" : baht(p.cost)}</td>}
+                          {r.canSeeCost && (
+                            <td className="text-right tabular-nums">
+                              {p.cost === null || p.notPosted === p.meals ? "—" : baht(p.cost)}
+                              {p.notPosted > 0 && (
+                                <div className="text-xs text-muted-foreground">
+                                  {p.notPosted === p.meals ? "POS ตัดสต๊อก" : `ไม่รวม ${p.notPosted} มื้อ (POS ตัด)`}
+                                </div>
+                              )}
+                            </td>
+                          )}
                         </tr>
                       ))}
                     </tbody>
@@ -181,7 +199,7 @@ export default function StaffMealSummary({
               </div>
 
               <div className="min-w-0 space-y-3">
-                {r.canSeeCost && (
+                {r.canSeeCost && !allPos && (
                   <div className="space-y-1.5">
                     <h3 className="text-base font-semibold">ต้นทุนรายวัน</h3>
                     <div className="flex h-28 items-end gap-1 rounded-xl border border-border bg-surface px-2 pt-2" aria-label="ต้นทุนมื้อพนักงานรายวัน">
@@ -214,6 +232,7 @@ export default function StaffMealSummary({
             </div>
             <p className="text-xs text-muted-foreground">
               ต้นทุนจริง = ราคาวัตถุดิบที่ตัดออกจากสต๊อกจริง (FIFO) · นับเฉพาะมื้อที่อนุมัติแล้วและไม่ได้ยกเลิก · ใช้ดูเป็นค่าสวัสดิการพนักงาน แยกจากต้นทุนอาหารที่ขาย
+              {s.notPosted > 0 && " · มื้อที่ POS เป็นคนตัดสต๊อกไม่มีต้นทุนในหน้านี้ (อยู่ในยอดขายที่นำเข้า)"}
             </p>
           </>
         )

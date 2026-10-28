@@ -40,6 +40,7 @@ import {
   getMyStaffMealTicketsLogic,
   getPendingStaffMealTicketsLogic,
   getStaffMealQuotaLogic,
+  getStaffMealSummaryLogic,
 } from "@/server/staff-meal-read";
 
 describe("staff meal tickets (ADR 0035 Part 37)", () => {
@@ -322,5 +323,33 @@ describe("staff meal tickets (ADR 0035 Part 37)", () => {
     const names = new Set(mine.map((m) => m.staffMemberName));
     expect([...names]).toEqual(["น้องบี"]);
     expect(mine.some((m) => m.status === "REJECTED" && m.rejectedReason === "เกินโควตา")).toBe(true);
+  });
+
+  it("T11: the month summary counts a meal the POS deducted apart — its cost is unknown here, never ฿0", async () => {
+    // cook already has a SYSTEM-approved meal (T2); this one is deducted by the POS.
+    await setSource("POS");
+    const t = await request(cook);
+    await approveStaffMealLogic(tenantA, t.id, head);
+
+    const from = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
+    const to = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 1, 0));
+    const s = await getStaffMealSummaryLogic(tenantA, { branchIds: [branchA], from, to, withCost: true });
+
+    const approved = await withRlsBypass((tx) =>
+      tx.staffMeal.findMany({
+        where: { tenantId: tenantA, status: "APPROVED", voidedAt: null, businessDate: { gte: from, lte: to } },
+        select: { stockPosted: true },
+      })
+    );
+    expect(s.meals).toBe(approved.length);
+    expect(s.notPosted).toBe(approved.filter((a) => !a.stockPosted).length);
+    expect(s.notPosted).toBeGreaterThan(0);
+
+    const row = s.people.find((p) => p.name === "น้องเอ")!;
+    expect(row.notPosted).toBeGreaterThan(0);
+    expect(row.notPosted).toBeLessThan(row.meals);
+    // Every day on the cost chart had a meal this system deducted.
+    expect(s.costByDay.length).toBeLessThanOrEqual(approved.filter((a) => a.stockPosted).length);
+    await setSource("SYSTEM");
   });
 });

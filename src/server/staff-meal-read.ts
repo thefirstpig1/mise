@@ -519,6 +519,12 @@ export type StaffMealSummaryPerson = {
   overQuotaDays: number | null;
   /** FIFO money the meals took out of stock. null = no cost access. */
   cost: number | null;
+  /**
+   * Meals this system did not deduct — the shop lets the POS cut stock for
+   * staff meals (rule S11), so their cost sits in the imported sales, not
+   * here. Counted apart, never added to `cost` as ฿0.
+   */
+  notPosted: number;
 };
 
 export type StaffMealSummary = {
@@ -527,6 +533,8 @@ export type StaffMealSummary = {
   days: number;
   value: number;
   cost: number | null;
+  /** Meals whose stock the POS cut — see StaffMealSummaryPerson.notPosted. */
+  notPosted: number;
   /** Cost per business day, for the bar chart. Days with no meal are absent. */
   costByDay: { day: string; cost: number }[];
   rejected: number;
@@ -541,6 +549,8 @@ export type StaffMealSummary = {
  * movements a staff meal posted (`sourceType = STAFF_MEAL`, `sourceId` = the
  * meal's item). Nothing is stored (ADR 0014). A voided meal is left out whole:
  * its reversal put the stock back at the price it left at, so the two cancel.
+ * A meal the POS deducted (`stockPosted = false`) has no movement here at all:
+ * it is counted in `notPosted` and its cost is UNKNOWN to this page, not zero.
  */
 export async function getStaffMealSummaryLogic(
   tenantId: string,
@@ -559,6 +569,7 @@ export async function getStaffMealSummaryLogic(
             businessDate: true,
             servings: true,
             frozenUnitPrice: true,
+            stockPosted: true,
             staffMemberId: true,
             staffMember: { select: { name: true, dailyQuotaAmount: true, branch: { select: { name: true } } } },
             items: { select: { id: true, productId: true } },
@@ -607,6 +618,7 @@ export async function getStaffMealSummaryLogic(
             unpriced: 0,
             overQuotaDays: null,
             cost: params.withCost ? 0 : null,
+            notPosted: 0,
             daily: new Map(),
           };
           byPerson.set(key, p);
@@ -617,6 +629,10 @@ export async function getStaffMealSummaryLogic(
           const v = Number(m.frozenUnitPrice) * Number(m.servings);
           p.value += v;
           p.daily.set(day, (p.daily.get(day) ?? 0) + v);
+        }
+        if (!m.stockPosted) {
+          p.notPosted += 1;
+          continue;
         }
         const c = costByMeal.get(m.id) ?? 0;
         if (p.cost !== null) p.cost += c;
@@ -640,6 +656,7 @@ export async function getStaffMealSummaryLogic(
         days: days.size,
         value: people.reduce((t, p) => t + p.value, 0),
         cost: params.withCost ? people.reduce((t, p) => t + (p.cost ?? 0), 0) : null,
+        notPosted: people.reduce((t, p) => t + p.notPosted, 0),
         costByDay: [...costDay.entries()].map(([day, cost]) => ({ day, cost })).sort((a, b) => a.day.localeCompare(b.day)),
         rejected,
         voided,
