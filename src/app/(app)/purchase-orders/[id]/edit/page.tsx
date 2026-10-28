@@ -38,7 +38,7 @@ export default async function EditPurchaseOrderPage({
         </div>
         <a
           href={`/purchase-orders/${view.id}`}
-          className="inline-block rounded-lg border border-border px-4 py-2 text-sm hover:bg-muted/40"
+          className="btn-secondary"
         >
           ดูใบสั่งซื้อ
         </a>

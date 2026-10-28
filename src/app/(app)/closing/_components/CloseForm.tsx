@@ -221,7 +221,7 @@ export default function CloseForm({
                   key={c}
                   type="button"
                   onClick={() => setIssues((xs) => xs.map((x) => (x.key === i.key ? { ...x, category: c } : x)))}
-                  className={`whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs ${i.category === c ? "border-primary bg-primary text-primary-foreground" : "border-border-strong bg-surface"}`}
+                  className={`pill ${i.category === c ? "is-on" : ""}`}
                 >
                   {DAILY_ISSUE_CATEGORY_LABELS_TH[c]}
                 </button>

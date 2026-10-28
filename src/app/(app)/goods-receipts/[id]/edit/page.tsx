@@ -61,7 +61,7 @@ export default async function EditGoodsReceiptPage({
         </div>
         <a
           href={`/goods-receipts/${gr.id}`}
-          className="inline-block rounded-lg border border-border px-4 py-2 text-sm"
+          className="btn-secondary"
         >
           ← กลับไปหน้าใบรับสินค้า
         </a>

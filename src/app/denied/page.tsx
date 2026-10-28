@@ -93,7 +93,7 @@ export default async function DeniedPage({
 
         <Link
           href="/dashboard"
-          className="inline-block rounded-lg border border-border px-4 py-2 text-sm hover:bg-muted"
+          className="btn-secondary"
         >
           กลับหน้าหลัก
         </Link>

@@ -770,7 +770,7 @@ export default function MenuSheet(props: {
             </span>
             <span className="flex gap-2">
               {dirty.length > 0 && (
-                <button type="button" onClick={revert} className="rounded-full border border-border-strong px-3 py-1.5 text-sm hover:bg-muted">
+                <button type="button" onClick={revert} className="btn-secondary btn-sm">
                   ยกเลิกการแก้
                 </button>
               )}

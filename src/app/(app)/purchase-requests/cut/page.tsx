@@ -58,9 +58,7 @@ export default async function CutRoundPage({ searchParams }: { searchParams: Sea
               key={b.id}
               href={`/purchase-requests/cut?b=${b.id}` as Route}
               aria-current={b.id === branch.id ? "page" : undefined}
-              className={`rounded-full border px-3 py-1 text-sm ${
-                b.id === branch.id ? "border-primary bg-primary text-primary-foreground" : "border-border-strong hover:bg-muted"
-              }`}
+              className={`pill ${b.id === branch.id ? "is-on" : ""}`}
             >
               {b.name}
             </Link>

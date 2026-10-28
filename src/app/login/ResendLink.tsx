@@ -53,7 +53,7 @@ export default function ResendLink({
       <button
         type="submit"
         disabled={waiting}
-        className="rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+        className="btn-secondary"
       >
         {pending
           ? "กำลังส่ง…"

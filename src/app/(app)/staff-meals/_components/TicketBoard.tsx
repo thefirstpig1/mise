@@ -318,7 +318,7 @@ export default function TicketBoard({
             />
             {fieldErrors?.menuId && <p className="mt-1 text-xs text-bad">{fieldErrors.menuId}</p>}
           </div>
-          <div className="grid gap-3 sm:grid-cols-[8rem_1fr]">
+          <div className="grid gap-3 sm:grid-cols-[9rem_1fr]">
             <div>
               <label className="label" htmlFor="ticket-servings">
                 จำนวนที่

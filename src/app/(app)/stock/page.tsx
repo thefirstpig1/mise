@@ -119,7 +119,13 @@ export default async function StockWorkPage({ searchParams }: { searchParams: Pr
     {
       href: "/waste",
       title: "บันทึกของเสีย",
-      sub: stock.wasteBaht === null ? `เดือนนี้ ${hub.wasteThisMonth} รายการ` : `เดือนนี้ ${baht(stock.wasteBaht)} · ${hub.wasteThisMonth} รายการ`,
+      // Nothing thrown away is said in words, never "฿0 · 0 รายการ" (kit).
+      sub:
+        hub.wasteThisMonth === 0
+          ? "ยังไม่มีของเสียเดือนนี้"
+          : stock.wasteBaht === null
+            ? `เดือนนี้ ${hub.wasteThisMonth} รายการ`
+            : `เดือนนี้ ${baht(stock.wasteBaht)} · ${hub.wasteThisMonth} รายการ`,
       show: can("waste:write"),
       daily: true,
     },

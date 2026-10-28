@@ -118,7 +118,7 @@ export default function TransferDispatchForm({
         </div>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="card grid gap-4 sm:grid-cols-2">
         <label className="label">
           สาขาต้นทาง
           <select
@@ -183,7 +183,7 @@ export default function TransferDispatchForm({
             required
             className="input mt-1 w-full"
           />
-          <span className="mt-1 block text-xs text-muted-foreground">
+          <span className="mt-1 block text-xs font-normal text-muted-foreground">
             ย้อนหลังได้ไม่เกิน {MAX_BACKDATE_DAYS} วัน
           </span>
           {fieldErrors.dispatchedAt && (
@@ -203,9 +203,9 @@ export default function TransferDispatchForm({
         </label>
       </div>
 
-      <fieldset className="rounded-lg border border-border p-4">
-        <legend className="px-1 text-sm font-medium">คนขับรถ</legend>
-        <p className="mb-3 text-xs text-muted-foreground">
+      <section className="card space-y-3">
+        <h3 className="font-semibold">คนขับรถ</h3>
+        <p className="text-xs text-muted-foreground">
           ให้คนขับนับของต่อหน้าก่อนรับไป แล้วกรอกชื่อเขาไว้ — เวลาปลายทางนับได้ไม่ครบ
           จะได้รู้ว่าหายก่อนขึ้นรถหรือหายระหว่างทาง
         </p>
@@ -233,10 +233,10 @@ export default function TransferDispatchForm({
             คนขับนับของและรับไปแล้ว
           </label>
         </div>
-      </fieldset>
+      </section>
 
-      <fieldset className="rounded-lg border border-border p-4">
-        <legend className="px-1 text-sm font-medium">รายการที่โอน</legend>
+      <section className="card">
+        <h3 className="mb-3 font-semibold">รายการที่โอน</h3>
         {fieldErrors.lines && (
           <p className="mb-2 text-xs text-bad">{fieldErrors.lines}</p>
         )}
@@ -248,21 +248,24 @@ export default function TransferDispatchForm({
           {lines.map((l) => {
             const product = productById.get(l.productId);
             return (
-              <div key={l.key} className="grid items-center gap-2 sm:grid-cols-[minmax(0,1fr)_8rem_11rem_1.75rem]">
-                <ProductPicker
-                  name="line_product_id"
-                  products={products}
-                  value={l.productId}
-                  onChange={(id) => {
-                    const p = productById.get(id);
-                    setLine(l.key, {
-                      productId: id,
-                      // Default to the base unit, which is the unit stock is
-                      // kept in and the one a storeman thinks in.
-                      unitId: p?.units.find((u) => u.isBase)?.id ?? "",
-                    });
-                  }}
-                />
+              // Phone: the product on its own row, then stepper · unit · × on one.
+              <div key={l.key} className="grid grid-cols-[9rem_minmax(0,1fr)_1.75rem] items-center gap-2 sm:grid-cols-[minmax(0,1fr)_9rem_11rem_1.75rem]">
+                <div className="col-span-3 min-w-0 sm:col-span-1">
+                  <ProductPicker
+                    name="line_product_id"
+                    products={products}
+                    value={l.productId}
+                    onChange={(id) => {
+                      const p = productById.get(id);
+                      setLine(l.key, {
+                        productId: id,
+                        // Default to the base unit, which is the unit stock is
+                        // kept in and the one a storeman thinks in.
+                        unitId: p?.units.find((u) => u.isBase)?.id ?? "",
+                      });
+                    }}
+                  />
+                </div>
 
                 <QtyStepper
                   value={l.qty}
@@ -305,11 +308,11 @@ export default function TransferDispatchForm({
         <button
           type="button"
           onClick={() => setLines((ls) => [...ls, blankLine()])}
-          className="mt-3 rounded-lg border border-border px-3 py-1.5 text-sm hover:bg-muted/40"
+          className="btn-secondary btn-sm mt-3"
         >
           + เพิ่มรายการ
         </button>
-      </fieldset>
+      </section>
 
       <label className="label">
         หมายเหตุ
@@ -330,7 +333,7 @@ export default function TransferDispatchForm({
       <button
         type="submit"
         disabled={isPending || branches.length < 2}
-        className="btn w-full py-2.5"
+        className="btn w-full"
       >
         {isPending ? "กำลังบันทึก…" : "ส่งของ"}
       </button>

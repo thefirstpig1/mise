@@ -77,7 +77,7 @@ export default function Error({
         </button>
         <a
           href="/"
-          className="rounded-lg border border-border-strong px-5 py-2.5 text-sm font-medium transition-colors hover:bg-muted"
+          className="btn-secondary"
         >
           กลับหน้าแรก
         </a>

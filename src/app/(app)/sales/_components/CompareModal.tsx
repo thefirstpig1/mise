@@ -155,11 +155,7 @@ function CompareModal({
               setA(p.a);
               setB(p.b);
             }}
-            className={`rounded-full border px-3 py-1 text-xs transition-colors ${
-              labelOf(p.a, months) === la && labelOf(p.b, months) === lb
-                ? "border-primary bg-primary text-primary-foreground"
-                : "border-border-strong hover:bg-muted"
-            }`}
+            className={`pill ${labelOf(p.a, months) === la && labelOf(p.b, months) === lb ? "is-on" : ""}`}
           >
             {p.label}
           </button>

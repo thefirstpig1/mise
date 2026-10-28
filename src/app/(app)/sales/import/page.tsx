@@ -19,6 +19,7 @@ import {
 import SalesImportWizard, {
   type ImportProfileOption,
 } from "./_components/SalesImportWizard";
+import PageHeader from "@/components/ui/PageHeader";
 
 const BANGKOK_DATETIME = new Intl.DateTimeFormat("th-TH", {
   timeZone: "Asia/Bangkok",
@@ -67,17 +68,15 @@ export default async function SalesImportPage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-base font-bold">นำเข้ายอดขาย</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            โหลดไฟล์ยอดขายจากหลังบ้านของ POS แล้วอัปที่นี่ — ไฟล์เดียวครอบได้หลายวัน
-          </p>
-        </div>
-        <a href="/sales" className="text-sm text-primary hover:underline">
-          ดูยอดขาย →
-        </a>
-      </div>
+      <PageHeader
+        title="นำเข้ายอดขาย"
+        description="โหลดไฟล์ยอดขายจากหลังบ้านของ POS แล้วอัปที่นี่ — ไฟล์เดียวครอบได้หลายวัน"
+        actions={
+          <a href="/sales" className="btn-secondary">
+            ดูยอดขาย
+          </a>
+        }
+      />
 
       <SalesImportWizard profiles={options} />
 

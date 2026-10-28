@@ -124,8 +124,8 @@ const n = (s: string) => {
 
 /** Display-only money formatting for the preview. */
 /** One column template for the header and every line (Kong 2026-10-22). */
-const LINE_GRID = "sm:grid-cols-[minmax(0,1fr)_8rem_12.5rem_8.5rem_6.5rem_1.75rem]";
-const LINE_GRID_MOBILE = "grid-cols-[8rem_minmax(0,1fr)_auto] [grid-template-areas:'p_p_x'_'q_u_u'_'pr_t_t']";
+const LINE_GRID = "sm:grid-cols-[minmax(0,1fr)_9rem_12.5rem_8.5rem_6.5rem_1.75rem]";
+const LINE_GRID_MOBILE = "grid-cols-[9rem_minmax(0,1fr)_auto] [grid-template-areas:'p_p_x'_'q_u_u'_'pr_t_t']";
 const nf = (v: number) => v.toLocaleString("th-TH", { maximumFractionDigits: 3 });
 
 const fmt = (v: number) =>

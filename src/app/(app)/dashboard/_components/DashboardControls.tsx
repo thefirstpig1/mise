@@ -91,11 +91,7 @@ export default function DashboardControls({
                 onClick={() => pick(b.id)}
                 aria-pressed={active}
                 title={b.id && active ? "กดอีกครั้งเพื่อกลับไปดูทุกสาขา" : undefined}
-                className={`flex items-center gap-2 rounded-full border px-3 py-1 text-sm transition-colors ${
-                  active
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : "border-border-strong bg-surface text-foreground hover:bg-muted"
-                }`}
+                className={`pill flex items-center gap-2 ${active ? "is-on" : ""}`}
               >
                 {b.color ? (
                   <span aria-hidden className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: b.color }} />

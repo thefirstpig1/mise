@@ -28,7 +28,7 @@ import { toTransferView } from "./_components/transfer-view";
 
 import EmptyState from "@/components/ui/EmptyState";
 import { RowChevron } from "@/components/ui/ActionLink";
-import { FilterForm } from "@/components/ui/FilterLink";
+import FilterLink from "@/components/ui/FilterLink";
 const STATUS_STYLE: Record<string, string> = {
   SENT: "border-warn-border bg-warn-bg text-warn",
   RECEIVED: "border-good-border bg-good-bg text-good",
@@ -65,6 +65,18 @@ export default async function TransfersPage({
 
   const waiting = rows.filter((t) => t.status === "SENT");
 
+  const linkFor = (next: { status?: string; branch?: string; direction?: string }) => {
+    const q = new URLSearchParams();
+    const st = next.status ?? sp.status;
+    const br = next.branch ?? sp.branch;
+    const dir = next.direction ?? sp.direction;
+    if (st) q.set("status", st);
+    if (br) q.set("branch", br);
+    if (br && dir && dir !== "ANY") q.set("direction", dir);
+    const qs = q.toString();
+    return qs ? `/transfers?${qs}` : "/transfers";
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -91,53 +103,43 @@ export default async function TransfersPage({
         </div>
       )}
 
-      <FilterForm className="flex flex-wrap items-end gap-3 rounded-lg border border-border bg-surface p-4">
-        <label className="text-sm">
-          <span className="mb-1 block text-muted-foreground">สาขา</span>
-          <select name="branch" defaultValue={sp.branch ?? ""} className="input">
-            <option value="">ทุกสาขา</option>
-            {branches.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="text-sm">
-          <span className="mb-1 block text-muted-foreground">ทิศทาง</span>
-          <select
-            name="direction"
-            defaultValue={sp.direction ?? "ANY"}
-            className="input"
-          >
-            {TRANSFER_DIRECTION_VALUES.map((d) => (
-              <option key={d} value={d}>
-                {TRANSFER_DIRECTION_LABELS_TH[d]}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="text-sm">
-          <span className="mb-1 block text-muted-foreground">สถานะ</span>
-          <select name="status" defaultValue={sp.status ?? ""} className="input">
-            <option value="">ทุกสถานะ</option>
-            {TRANSFER_STATUS_VALUES.map((s) => (
-              <option key={s} value={s}>
-                {TRANSFER_STATUS_LABELS_TH[s]}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <button
-          type="submit"
-          className="btn-secondary"
-        >
-          กรอง
-        </button>
-      </FilterForm>
+      {/* Filters answer at once, like every list (kit, 2026-10-28). Direction
+          only means something once a branch is chosen. */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="seg">
+          <FilterLink href={linkFor({ status: "" })} className={`seg-item ${!sp.status ? "is-on" : ""}`}>
+            ทุกสถานะ
+          </FilterLink>
+          {TRANSFER_STATUS_VALUES.map((s) => (
+            <FilterLink key={s} href={linkFor({ status: s })} className={`seg-item ${sp.status === s ? "is-on" : ""}`}>
+              {TRANSFER_STATUS_LABELS_TH[s]}
+            </FilterLink>
+          ))}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {sp.branch && (
+            <div className="seg">
+              {TRANSFER_DIRECTION_VALUES.map((d) => (
+                <FilterLink key={d} href={linkFor({ direction: d })} className={`seg-item ${(sp.direction ?? "ANY") === d ? "is-on" : ""}`}>
+                  {TRANSFER_DIRECTION_LABELS_TH[d]}
+                </FilterLink>
+              ))}
+            </div>
+          )}
+          {branches.length > 1 && (
+            <div className="seg">
+              <FilterLink href={linkFor({ branch: "", direction: "" })} className={`seg-item ${!sp.branch ? "is-on" : ""}`}>
+                ทุกสาขา
+              </FilterLink>
+              {branches.map((b) => (
+                <FilterLink key={b.id} href={linkFor({ branch: b.id })} className={`seg-item ${sp.branch === b.id ? "is-on" : ""}`}>
+                  {b.name}
+                </FilterLink>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
 
       {waiting.length > 0 && (
         <div className="rounded-lg border border-warn-border bg-warn-bg p-4 text-sm text-warn">

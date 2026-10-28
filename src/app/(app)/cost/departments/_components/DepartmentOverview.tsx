@@ -8,6 +8,7 @@
 import { use, useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
+import PageHeader from "@/components/ui/PageHeader";
 import type { DepartmentOverview as Data } from "@/server/department-overview";
 
 type Bucket = { key: string; label: string; partial: boolean };
@@ -75,28 +76,32 @@ export default function DepartmentOverview(props: {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h2 className="text-2xl font-semibold">ต้นทุนตามแผนก</h2>
-        <p className="mt-1 text-sm text-muted-foreground">แผนกไหนทำเงิน ต้นทุนอยู่ในเป้าของแผนกไหม ดีขึ้นหรือแย่ลง และอะไรดันต้นทุน</p>
-      </div>
+      <PageHeader title="ต้นทุนตามแผนก" description="แผนกไหนทำเงิน ต้นทุนอยู่ในเป้าของแผนกไหม ดีขึ้นหรือแย่ลง และอะไรดันต้นทุน" />
 
       {/* sticky slice control */}
       <div className="sticky top-2 z-20 space-y-2 rounded-2xl border border-border bg-surface px-3 py-2.5 shadow-card">
         <div className="flex flex-wrap items-center gap-2">
           <Seg value={props.view} onChange={(v) => go({ view: v, p: null }, `v${v}`)} options={[["month", "รายเดือน"], ["week", "รายสัปดาห์"]]} />
-          {props.branches.length > 1 &&
-            props.branches.map((b) => (
-              <Chip key={b.id} on={(pressed === `b${b.id}` && pending) || (b.id === props.branchId && !(pending && pressed?.startsWith("b")))} onClick={() => go({ branch: b.id, p: null }, `b${b.id}`)}>
-                {b.name}
-              </Chip>
-            ))}
+          {props.branches.length > 1 && (
+            <span role="group" className="seg">
+              {props.branches.map((b) => (
+                <button
+                  key={b.id}
+                  type="button"
+                  onClick={() => go({ branch: b.id, p: null }, `b${b.id}`)}
+                  className={`seg-item ${(pressed === `b${b.id}` && pending) || (b.id === props.branchId && !(pending && pressed?.startsWith("b"))) ? "is-on" : ""}`}
+                >
+                  {b.name}
+                </button>
+              ))}
+            </span>
+          )}
           {pending && <span className="text-xs text-muted-subtle">กำลังคำนวณ…</span>}
         </div>
         <div className="flex flex-wrap gap-1.5">
           {props.buckets.map((b) => (
             <Chip
               key={b.key}
-              small
               on={(pressed === `p${b.key}` && pending) || (b.key === props.selectedKey && !(pending && pressed?.startsWith("p")))}
               onClick={() => go({ p: b.key }, `p${b.key}`)}
             >
@@ -343,13 +348,9 @@ function Q({ n, title, sub }: { n: string; title: string; sub?: string }) {
   );
 }
 
-function Chip({ on, onClick, small, children }: { on: boolean; onClick: () => void; small?: boolean; children: React.ReactNode }) {
+function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`whitespace-nowrap rounded-full border ${small ? "px-2.5 py-0.5 text-xs" : "px-3 py-1 text-sm"} ${on ? "border-primary bg-primary text-primary-foreground" : "border-border-strong bg-surface hover:bg-muted"}`}
-    >
+    <button type="button" onClick={onClick} className={`pill ${on ? "is-on" : ""}`}>
       {children}
     </button>
   );
@@ -357,14 +358,14 @@ function Chip({ on, onClick, small, children }: { on: boolean; onClick: () => vo
 
 function Seg<T extends string>({ value, onChange, options }: { value: T; onChange: (v: T) => void; options: [T, string][] }) {
   return (
-    <span role="group" className="inline-flex rounded-full border border-border bg-muted p-0.5">
+    <span role="group" className="seg">
       {options.map(([v, l]) => (
         <button
           key={v}
           type="button"
           aria-pressed={value === v}
           onClick={() => onChange(v)}
-          className={`whitespace-nowrap rounded-full px-3 py-0.5 text-xs transition-colors ${value === v ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+          className={`seg-item ${value === v ? "is-on" : ""}`}
         >
           {l}
         </button>

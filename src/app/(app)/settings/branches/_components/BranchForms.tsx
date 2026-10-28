@@ -91,7 +91,7 @@ function BranchDialog({ row, onClose }: { row: BranchRowView | null; onClose: ()
         <CutoffField id="branch-cutoff" defaultValue={row?.salesDayCutoff ?? "05:00"} error={!state.ok ? state.fieldErrors?.salesDayCutoffMinutes : undefined} />
         {!state.ok && state.formError && <p className="text-sm text-bad">{state.formError}</p>}
         <div className="flex justify-end gap-2 border-t border-border pt-4">
-          <button type="button" onClick={onClose} className="h-11 rounded-xl border border-border-strong px-4 text-sm font-semibold text-primary hover:bg-muted">
+          <button type="button" onClick={onClose} className="btn-secondary">
             ยกเลิก
           </button>
           <button type="submit" className="btn h-11 px-5" disabled={pending}>

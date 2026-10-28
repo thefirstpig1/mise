@@ -336,7 +336,7 @@ export default function MenuManager(props: {
             )}
           </div>
           <div className="flex flex-wrap gap-2">
-            <button type="button" onClick={() => setStatus("none")} className="rounded-lg border border-bad-border bg-surface px-3 py-1.5 text-sm font-medium text-bad hover:bg-bad-bg">
+            <button type="button" onClick={() => setStatus("none")} className="btn-danger btn-sm">
               ดู {noRecipe.length} เมนูนี้
             </button>
             {dupCount > 0 && props.perm.editMenu && (

@@ -141,7 +141,7 @@ export default function CascadeDeleteDialog({
             type="button"
             onClick={onCancel}
             disabled={isPending}
-            className="rounded-lg border border-border px-4 py-2 text-sm hover:bg-muted/40 disabled:opacity-50"
+            className="btn-secondary"
           >
             ยกเลิก
           </button>

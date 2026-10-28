@@ -437,9 +437,7 @@ function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; chi
       type="button"
       onClick={onClick}
       aria-pressed={on}
-      className={`inline-flex items-center whitespace-nowrap rounded-full border px-3 py-0.5 text-xs transition-colors ${
-        on ? "border-primary bg-primary text-primary-foreground" : "border-border bg-surface hover:border-border-strong"
-      }`}
+      className={`pill inline-flex items-center ${on ? "is-on" : ""}`}
     >
       {children}
     </button>

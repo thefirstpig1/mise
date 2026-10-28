@@ -142,9 +142,7 @@ function View({ data, initialCountId }: { data: Overview; initialCountId: string
                 setShowOrdinary(false);
               }}
               aria-pressed={x.id === sel}
-              className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-3 py-0.5 text-xs transition-colors ${
-                x.id === sel ? "border-primary bg-primary text-primary-foreground" : "border-border bg-surface hover:border-border-strong"
-              }`}
+              className={`pill gap-1 ${x.id === sel ? "is-on" : ""}`}
             >
               {data.branches.length > 1 && `${x.branchName.replace(/^สาขา/, "")} · `}
               {x.dateLabel}

@@ -314,9 +314,7 @@ export default function RequestBoard({
                 type="button"
                 aria-pressed={d.id === deptId}
                 onClick={() => setDeptId(d.id)}
-                className={`shrink-0 whitespace-nowrap rounded-full border px-3 py-1 text-xs ${
-                  d.id === deptId ? "border-primary bg-primary text-primary-foreground" : "border-border-strong bg-surface"
-                }`}
+                className={`pill shrink-0 ${d.id === deptId ? "is-on" : ""}`}
               >
                 {d.name}
                 {d.id === board.homeDepartmentId ? " (ของคุณ)" : ""}
@@ -341,9 +339,7 @@ export default function RequestBoard({
                 type="button"
                 aria-pressed={group === g}
                 onClick={() => setGroup(g)}
-                className={`shrink-0 whitespace-nowrap rounded-full border px-3.5 py-1.5 text-sm ${
-                  group === g ? "border-primary bg-primary text-primary-foreground" : "border-border-strong bg-surface hover:bg-muted"
-                }`}
+                className={`pill shrink-0 ${group === g ? "is-on" : ""}`}
               >
                 {g ?? "ทั้งหมด"}
               </button>

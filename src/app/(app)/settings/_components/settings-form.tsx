@@ -124,7 +124,7 @@ export function SectionForm({
 
   const buttons = (
     <>
-      <button type="button" onClick={cancel} disabled={pending} className="h-11 rounded-xl border border-border-strong px-4 text-sm font-semibold text-primary hover:bg-muted">
+      <button type="button" onClick={cancel} disabled={pending} className="btn-secondary">
         ยกเลิก
       </button>
       <button type="submit" form={id} disabled={pending} className="btn h-11 px-5">
@@ -294,9 +294,7 @@ export function SectionNav({ sections }: { sections: { id: string; label: string
           href={`#${s.id}`}
           onClick={() => setActive(s.id)}
           aria-current={active === s.id ? "true" : undefined}
-          className={`inline-flex h-9 shrink-0 items-center whitespace-nowrap rounded-full border px-3.5 text-sm transition-colors ${
-            active === s.id ? "border-primary bg-primary text-primary-foreground" : "border-border-strong bg-surface text-primary hover:bg-muted"
-          }`}
+          className={`pill shrink-0 ${active === s.id ? "is-on" : ""}`}
         >
           {s.label}
         </a>

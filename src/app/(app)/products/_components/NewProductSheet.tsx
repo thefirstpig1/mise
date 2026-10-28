@@ -274,7 +274,7 @@ export default function NewProductSheet({
                         type="button"
                         onClick={() => chooseBase(u.unitName)}
                         aria-pressed={d.baseUnit === u.unitName}
-                        className={`rounded-full border px-3.5 py-1 text-sm transition-colors ${d.baseUnit === u.unitName ? "border-primary bg-primary text-primary-foreground" : "border-border-strong bg-surface hover:bg-muted"}`}
+                        className={`pill ${d.baseUnit === u.unitName ? "is-on" : ""}`}
                       >
                         {unitTh(u.unitName)}
                       </button>

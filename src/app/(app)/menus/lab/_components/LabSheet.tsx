@@ -699,7 +699,7 @@ export default function LabSheet(props: {
           {canEdit && (
             <>
               {savedId ? (
-                <button type="button" onClick={askDiscard} disabled={busy} className="rounded-full border border-border-strong px-4 py-1.5 text-sm text-bad hover:bg-bad-bg">
+                <button type="button" onClick={askDiscard} disabled={busy} className="btn-danger btn-sm">
                   ทิ้งร่าง
                 </button>
               ) : (

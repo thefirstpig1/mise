@@ -23,7 +23,7 @@ import IncomingTransfers from "@/app/(app)/transfers/_components/IncomingTransfe
 
 import EmptyState from "@/components/ui/EmptyState";
 import { RowChevron } from "@/components/ui/ActionLink";
-import { FilterForm } from "@/components/ui/FilterLink";
+import FilterLink from "@/components/ui/FilterLink";
 export default async function StockCountListPage({
   searchParams,
 }: {
@@ -57,6 +57,16 @@ export default async function StockCountListPage({
   const incoming = noticeBranch
     ? (await getIncomingTransfersLogic(tenantId, noticeBranch.id)).map((t) => toTransferView(t, costAccess))
     : [];
+
+  const linkFor = (next: { status?: string; branch?: string }) => {
+    const q = new URLSearchParams();
+    const st = next.status ?? query.status;
+    const br = next.branch ?? query.branchId;
+    if (st) q.set("status", st);
+    if (br) q.set("branch", br);
+    const qs = q.toString();
+    return qs ? `/stock-counts?${qs}` : "/stock-counts";
+  };
 
   return (
     <div className="space-y-6">
@@ -93,52 +103,31 @@ export default async function StockCountListPage({
         </div>
       )}
 
-      <FilterForm className="flex flex-wrap items-end gap-3">
+      {/* Filters answer at once, like every list (kit, 2026-10-28). */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="seg">
+          <FilterLink href={linkFor({ status: "" })} className={`seg-item ${!query.status ? "is-on" : ""}`}>
+            ทั้งหมด
+          </FilterLink>
+          {STOCK_COUNT_STATUS_VALUES.map((s) => (
+            <FilterLink key={s} href={linkFor({ status: s })} className={`seg-item ${query.status === s ? "is-on" : ""}`}>
+              {STOCK_COUNT_STATUS_LABELS_TH[s]}
+            </FilterLink>
+          ))}
+        </div>
         {branches.length > 1 && (
-          <div>
-            <label htmlFor="branch" className="label">
-              สาขา
-            </label>
-            <select
-              id="branch"
-              name="branch"
-              defaultValue={query.branchId ?? ""}
-              className="input mt-1"
-            >
-              <option value="">ทุกสาขา</option>
-              {branches.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
+          <div className="seg">
+            <FilterLink href={linkFor({ branch: "" })} className={`seg-item ${!query.branchId ? "is-on" : ""}`}>
+              ทุกสาขา
+            </FilterLink>
+            {branches.map((b) => (
+              <FilterLink key={b.id} href={linkFor({ branch: b.id })} className={`seg-item ${query.branchId === b.id ? "is-on" : ""}`}>
+                {b.name}
+              </FilterLink>
+            ))}
           </div>
         )}
-        <div>
-          <label htmlFor="status" className="label">
-            สถานะ
-          </label>
-          <select
-            id="status"
-            name="status"
-            defaultValue={query.status ?? ""}
-            className="input mt-1"
-          >
-            <option value="">ทั้งหมด</option>
-            {STOCK_COUNT_STATUS_VALUES.map((s) => (
-              <option key={s} value={s}>
-                {STOCK_COUNT_STATUS_LABELS_TH[s]}
-              </option>
-            ))}
-          </select>
-        </div>
-        <button
-          type="submit"
-          className="btn-secondary"
-        >
-          กรอง
-        </button>
-      </FilterForm>
+      </div>
 
       {rows.length === 0 ? (
         <EmptyState art="start">

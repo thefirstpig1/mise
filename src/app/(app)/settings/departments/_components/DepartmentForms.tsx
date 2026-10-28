@@ -75,7 +75,7 @@ function ActiveControl({ row, onDone }: { row: DepartmentRowView; onDone: () => 
       </p>
       {error && <p className="mt-1 text-sm text-bad">{error}</p>}
       <div className="mt-3 flex gap-2">
-        <button type="button" autoFocus onClick={() => setAsking(false)} className="h-10 rounded-xl border border-border-strong bg-surface px-4 text-sm font-semibold text-primary hover:bg-muted">
+        <button type="button" autoFocus onClick={() => setAsking(false)} className="btn-secondary">
           ไม่ปิด
         </button>
         <button type="button" disabled={pending} onClick={() => set(false)} className="h-10 rounded-xl bg-bad px-4 text-sm font-semibold text-bad-foreground disabled:opacity-60">
@@ -120,7 +120,7 @@ function DepartmentDialog({ row, onClose }: { row: DepartmentRowView | null; onC
         </div>
         {!state.ok && state.formError && <p className="text-sm text-bad">{state.formError}</p>}
         <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border pt-4">
-          <button type="button" onClick={onClose} className="h-11 rounded-xl border border-border-strong px-4 text-sm font-semibold text-primary hover:bg-muted">
+          <button type="button" onClick={onClose} className="btn-secondary">
             ยกเลิก
           </button>
           <button type="submit" className="btn h-11 px-5" disabled={pending}>

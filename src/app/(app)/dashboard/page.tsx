@@ -692,7 +692,8 @@ function BranchTable({ pnl }: { pnl: Pnl }) {
               <td className="px-4 py-2 text-right">{cell(b.revenue)}</td>
               <td className="px-4 py-2 text-right">{cell(b.cogs)}</td>
               <td className="px-4 py-2 text-right">{cell(b.grossProfit)}</td>
-              <td className="px-4 py-2 text-right">{cell(b.opex)}</td>
+              {/* No bill recorded is "—", never ฿0 (kit rule). */}
+              <td className="px-4 py-2 text-right">{b.opex === null || Number(b.opex.toString()) === 0 ? "—" : cell(b.opex)}</td>
               <td className={`px-4 py-2 text-right font-medium ${b.netProfit === null ? "" : b.netProfit.gte(0) ? "text-good" : "text-bad"}`}>
                 {cell(b.netProfit)}
               </td>

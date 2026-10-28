@@ -406,7 +406,7 @@ export default function StaffMealEntryForm({
             <button
               type="button"
               onClick={() => setLines((ls) => [...ls, emptyLine()])}
-              className="mt-2 rounded-lg border border-border px-3 py-1.5 text-xs hover:bg-muted"
+              className="btn-secondary btn-sm mt-2"
             >
               + เพิ่มวัตถุดิบ
             </button>

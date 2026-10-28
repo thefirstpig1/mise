@@ -17,7 +17,8 @@ import { addDays, computeBangkokToday } from "@/lib/bangkok-date";
 import { getConsumptionDayStatusLogic } from "@/server/consumption-read";
 import { toConsumptionDayView } from "@/app/(app)/consumption/_components/consumption-view";
 import { ConsumptionDayTable } from "@/app/(app)/consumption/_components/ConsumptionDayTable";
-import { FilterForm } from "@/components/ui/FilterLink";
+import FilterLink from "@/components/ui/FilterLink";
+import PageHeader from "@/components/ui/PageHeader";
 
 /** The window a shop actually works in: this month and the one before it. */
 const DEFAULT_DAYS_BACK = 60;
@@ -63,40 +64,32 @@ export default async function ConsumptionPage({
   const stale = days.filter((d) => d.state === "POSTED_STALE").length;
 
   return (
-    <PageFrame title="ตัดสต๊อกตามยอดขาย" width="5xl">
+    <PageFrame title="ขายและเมนู">
       <div className="space-y-6">
-        <p className="text-sm text-muted-foreground">
-          ระบบตัดสต๊อกให้เองทุกครั้งที่นำเข้ายอดขาย โดยระเบิดสูตรของทุกเมนูที่ขายในวันนั้น{" "}
-          <strong>ตามสูตรที่มีผลในวันนั้นจริง</strong> · หน้านี้ใช้<strong>ตัดใหม่</strong>หลังเขียนหรือแก้สูตร
-          และตัดวันที่ยังไม่ได้ตัด (เช่น นำเข้าโดยบัญชีที่ไม่มีสิทธิ์ตัดสต๊อก)
-        </p>
-
-        {branches.length > 1 && (
-          <FilterForm className="flex flex-wrap items-end gap-3">
-            <label className="text-sm">
-              สาขา
-              <select
-                name="branch"
-                defaultValue={branchId}
-                className="input mt-1 block"
-              >
+        <PageHeader
+          title="ตัดสต๊อกตามยอดขาย"
+          description={
+            <>
+              ระบบตัดสต๊อกให้เองทุกครั้งที่นำเข้ายอดขาย ตาม<strong>สูตรที่มีผลในวันนั้นจริง</strong> · หน้านี้ใช้<strong>ตัดใหม่</strong>หลังเขียนหรือแก้สูตร
+              และตัดวันที่ยังไม่ได้ตัด
+            </>
+          }
+          actions={
+            branches.length > 1 ? (
+              <div className="seg">
                 {branches.map((b) => (
-                  <option key={b.id} value={b.id}>
+                  <FilterLink
+                    key={b.id}
+                    href={`/consumption?branch=${b.id}&from=${from.toISOString().slice(0, 10)}&to=${to.toISOString().slice(0, 10)}`}
+                    className={`seg-item ${b.id === branchId ? "is-on" : ""}`}
+                  >
                     {b.name}
-                  </option>
+                  </FilterLink>
                 ))}
-              </select>
-            </label>
-            <input type="hidden" name="from" value={from.toISOString().slice(0, 10)} />
-            <input type="hidden" name="to" value={to.toISOString().slice(0, 10)} />
-            <button
-              type="submit"
-              className="btn-secondary"
-            >
-              ดู
-            </button>
-          </FilterForm>
-        )}
+              </div>
+            ) : undefined
+          }
+        />
 
         {stale > 0 && (
           <div className="rounded-lg border border-warn-border bg-warn-bg p-4 text-sm text-warn">

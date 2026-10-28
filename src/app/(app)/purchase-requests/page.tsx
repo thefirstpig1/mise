@@ -66,9 +66,7 @@ export default async function PurchaseRequestsPage({ searchParams }: { searchPar
               href={`/purchase-requests?b=${b.id}` as Route}
               scroll={false}
               aria-current={b.id === branch.id ? "page" : undefined}
-              className={`rounded-full border px-3 py-1 text-sm ${
-                b.id === branch.id ? "border-primary bg-primary text-primary-foreground" : "border-border-strong hover:bg-muted"
-              }`}
+              className={`pill ${b.id === branch.id ? "is-on" : ""}`}
             >
               {b.name}
             </Link>

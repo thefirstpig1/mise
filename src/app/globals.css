@@ -121,6 +121,12 @@
   .label {
     @apply block text-sm font-semibold;
   }
+  /* A hint written inside the label ("ย้อนหลังได้ไม่เกิน 90 วัน") is not part
+     of its name — it must not inherit the bold. Low specificity, so a hint
+     that asks for weight with a utility still gets it. */
+  .label :where(.text-xs) {
+    @apply font-normal;
+  }
 
   /* --------------------------------------------------------
      The primary button — 54 places, 17 different strings.

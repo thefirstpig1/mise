@@ -527,7 +527,7 @@ function MergePopup({
         )}
 
         <div className="flex flex-wrap justify-end gap-2">
-          <button type="button" onClick={onClose} className="h-10 rounded-xl border border-border-strong px-4 text-sm font-semibold">
+          <button type="button" onClick={onClose} className="btn-secondary">
             ยกเลิก
           </button>
           <button type="button" className="btn" disabled={pending || losers.length === 0 || Boolean(blockedLoser)} onClick={submit}>
@@ -646,7 +646,7 @@ function RevokePopup({ row, onClose, onDone }: { row: MergeRowView; onClose: () 
           <p className={`rounded-xl border px-3 py-2 text-sm ${error.warn ? "border-warn-border bg-warn-bg text-warn" : "border-bad-border bg-bad-bg text-bad"}`}>{error.text}</p>
         )}
         <div className="flex flex-wrap justify-end gap-2">
-          <button type="button" onClick={onClose} className="h-10 rounded-xl border border-border-strong px-4 text-sm font-semibold">
+          <button type="button" onClick={onClose} className="btn-secondary">
             ไม่ยกเลิก
           </button>
           <button type="button" className="btn" disabled={pending} onClick={submit}>

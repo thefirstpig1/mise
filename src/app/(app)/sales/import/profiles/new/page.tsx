@@ -36,7 +36,7 @@ export default async function NewProfilePage() {
   if (integrations.length === 0) {
     return (
       <div className="space-y-4">
-        <h2 className="text-base font-bold">ลงทะเบียนเครื่อง POS ก่อน</h2>
+        <h2 className="text-2xl font-semibold">ลงทะเบียนเครื่อง POS ก่อน</h2>
         <p className="text-sm text-muted-foreground">
           บอกระบบว่าไฟล์ยอดขายมาจากสาขาไหน — ไม่ต้องกรอกรหัสผ่านหรือเชื่อมต่ออะไรทั้งสิ้น
           คิดครัวไม่เคยเข้าไปแตะ POS ของคุณ
@@ -54,7 +54,7 @@ export default async function NewProfilePage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-base font-bold">ตั้งค่ารูปแบบไฟล์</h2>
+        <h2 className="text-2xl font-semibold">ตั้งค่ารูปแบบไฟล์</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           ทำครั้งเดียวต่อรูปแบบไฟล์หนึ่งแบบ — ครั้งต่อไปอัปไฟล์หน้าตาเดิม ระบบอ่านเองไม่ถามอะไรอีก
         </p>

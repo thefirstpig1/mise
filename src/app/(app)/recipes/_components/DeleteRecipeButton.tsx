@@ -68,7 +68,7 @@ export default function DeleteRecipeButton({ recipeId }: { recipeId: string }) {
         type="button"
         onClick={run}
         disabled={isPending}
-        className="rounded-lg border border-bad-border px-3 py-2 text-sm text-bad hover:bg-bad-bg disabled:opacity-50"
+        className="btn-danger"
       >
         {isPending ? "กำลังลบ…" : armed ? "ยืนยันลบสูตรนี้" : "ลบสูตรนี้"}
       </button>

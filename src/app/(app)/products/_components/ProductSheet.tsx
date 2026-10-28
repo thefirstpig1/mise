@@ -436,7 +436,7 @@ export default function ProductSheet({
     confirm,
     save,
     footerLeft: canEditInfo ? (
-      <button type="button" onClick={askDelete} className="rounded-full border border-border-strong px-3 py-1 text-sm text-bad hover:bg-bad-bg">
+      <button type="button" onClick={askDelete} className="btn-danger btn-sm">
         ลบสินค้า
       </button>
     ) : undefined,

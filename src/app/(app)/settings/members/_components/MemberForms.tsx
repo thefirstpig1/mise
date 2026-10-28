@@ -133,7 +133,7 @@ function RoleCards({ roleOptions, defaultValue, idPrefix }: { roleOptions: RoleO
   );
 }
 
-const ghost = "h-11 rounded-xl border border-border-strong px-4 text-sm font-semibold text-primary hover:bg-muted";
+const ghost = "btn-secondary";
 
 function InviteDialog({
   branches,
@@ -265,7 +265,7 @@ function EditDialog({
             <p className="font-semibold text-bad">นำ{row.name ?? row.email}ออกจากร้าน?</p>
             <p className="mt-1 text-sm text-foreground/80">เข้าร้านนี้ไม่ได้อีกตั้งแต่ตอนนี้ · เอกสารที่เคยทำไว้ยังอยู่และยังขึ้นชื่อเดิม · เพิ่มกลับได้ทุกเมื่อ</p>
             <div className="mt-3 flex gap-2">
-              <button type="button" autoFocus onClick={() => setAsking(false)} className="h-10 rounded-xl border border-border-strong bg-surface px-4 text-sm font-semibold text-primary hover:bg-muted">
+              <button type="button" autoFocus onClick={() => setAsking(false)} className="btn-secondary">
                 ไม่นำออก
               </button>
               <button type="submit" disabled={activePending} className="h-10 rounded-xl bg-bad px-4 text-sm font-semibold text-bad-foreground disabled:opacity-60">
