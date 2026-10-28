@@ -10,13 +10,14 @@
 // with the columns (sales · food cost % weighted by sales against the target ·
 // profit); food cost % carries the dish's target, with what it is over by;
 // profit per plate and over 30 days are columns; the toolbar stays on screen;
-// search filters as you type without the input ever waiting on the list
-// (useDeferredValue) and without the page jumping up under the cursor.
+// search answers as you type without the input ever waiting on the list
+// (useDeferredValue) and, like every search in the app, hides nothing: what
+// resembles the query rises to the top (Kong 2026-10-29, "ใช้กฎที่ไม่ซ่อนอะไร").
 //
 // Kept from the old /menus: the รอตรวจ banner and queue, retired dishes one tap
 // away, merged spellings nested under their dish (ADR 0026 Q6), + เพิ่มหมวด.
 
-import { useDeferredValue, useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
+import { Fragment, useDeferredValue, useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
 import { rankBySearch, hasQuery, highlightRuns, STRONG_MATCH, type SearchField } from "@/lib/smart-search";
@@ -93,6 +94,11 @@ function CostBar({ pct, target, over }: { pct: number; target: number; over: boo
   );
 }
 
+/** Under the matches while searching: everything else, still here. */
+function OtherLine() {
+  return <div className="border-b border-border bg-background px-4 py-1 text-[11px] text-muted-subtle">เมนูอื่น</div>;
+}
+
 const pct1 = (v: number) => `${v.toFixed(1)}%`;
 const pctTarget = (v: number) => `${Number.isInteger(v) ? v : v.toFixed(1)}%`;
 
@@ -140,11 +146,7 @@ export default function MenuManager(props: {
   const [toast, setToast] = useState<string | null>(null);
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const searchRef = useRef<HTMLInputElement>(null);
-  const listRef = useRef<HTMLDivElement>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
-  // The list keeps the height it had when someone started typing, so the page
-  // never jumps up under the cursor while results shrink.
-  const [lockH, setLockH] = useState(0);
   // The phone's app bar and the toolbar, measured, so sticky heads sit under them.
   const [appBarH, setAppBarH] = useState(0);
   const [toolbarH, setToolbarH] = useState(0);
@@ -252,11 +254,7 @@ export default function MenuManager(props: {
     return () => ro.disconnect();
   }, [rows.length]);
 
-  const typeQuery = (v: string) => {
-    if (v && !query && listRef.current) setLockH(listRef.current.offsetHeight);
-    if (!v) setLockH(0);
-    setQuery(v);
-  };
+  const typeQuery = (v: string) => setQuery(v);
 
   // ---- numbers per dish ----
   const facts = useMemo(() => {
@@ -367,14 +365,11 @@ export default function MenuManager(props: {
   ];
   const searching = hasQuery(deferredQuery);
   type Hit = { item: ManagerRow; score: number; field: number | null; marks: number[] };
-  // Round 2 (Kong 2026-10-29, mockup approved): on THIS list a search keeps only
-  // what resembles the query — near spellings stay, tagged ใกล้เคียง, so a typo
-  // still finds its dish; a row with nothing in common (score 0) steps aside.
-  // The app-wide rule elsewhere (smart-search.ts) still keeps every row.
+  // The app-wide rule (smart-search.ts; Kong 2026-10-29: "ใช้กฎที่ไม่ซ่อนอะไร
+  // แหละถูกแล้ว … แค่ sort ให้ตัวที่คล้ายขึ้นมาอยู่บนสุด"): typing hides nothing.
+  // What resembles the query rises to the top; the rest stays, below a line.
   const ranked: Hit[] = searching
-    ? rankBySearch(scoped, deferredQuery, fields)
-        .filter((r) => r.score > 0)
-        .map((r) => ({ item: r.item, score: r.score, field: r.field, marks: [...r.marks] }))
+    ? rankBySearch(scoped, deferredQuery, fields).map((r) => ({ item: r.item, score: r.score, field: r.field, marks: [...r.marks] }))
     : scoped.map((item) => ({ item, score: 0, field: null, marks: [] }));
   const rankOrder = (a: Hit, b: Hit) => (searching ? b.score - a.score : 0) || bySort(a.item, b.item);
 
@@ -473,7 +468,8 @@ export default function MenuManager(props: {
   const renderRow = (h: Hit, showCategory: boolean) => {
     const m = h.item;
     const f = fx(m.id);
-    const weak = searching && h.score < STRONG_MATCH;
+    const weak = searching && h.score > 0 && h.score < STRONG_MATCH;
+    const other = searching && h.score === 0;
     const spellings = spellingsByWinner[m.id] ?? [];
     const mark = (text: string | null, field: number) =>
       text === null ? null : searching && h.field === field ? <Marked text={text} marks={h.marks} /> : text;
@@ -525,7 +521,7 @@ export default function MenuManager(props: {
           hoverTimer.current = setTimeout(() => branch && void menuSheet(m.id, branch.id), 150);
         }}
         onPointerLeave={() => clearTimeout(hoverTimer.current)}
-        className={`group cursor-pointer border-b border-border px-4 py-2.5 transition-colors last:border-b-0 hover:bg-surface-sunk focus-visible:bg-surface-sunk focus-visible:outline-none ${openId === m.id ? "bg-highlight" : m.recipeId === null ? "bg-[#FFFEFA]" : ""}`}
+        className={`group cursor-pointer border-b border-border px-4 py-2.5 transition-colors last:border-b-0 hover:bg-surface-sunk focus-visible:bg-surface-sunk focus-visible:outline-none ${openId === m.id ? "bg-highlight" : m.recipeId === null ? "bg-[#FFFEFA]" : ""} ${other ? "opacity-50 hover:opacity-100" : ""}`}
       >
         {/* Desktop: the columns. */}
         <div className={`hidden items-center gap-x-3.5 md:grid ${cols}`}>
@@ -608,9 +604,12 @@ export default function MenuManager(props: {
     const k = catOf(h.item);
     hitsByCat.set(k, [...(hitsByCat.get(k) ?? []), h]);
   }
-  const shownGroups = groups.filter((g) => hitsByCat.has(g.name));
+  const matchCount = searching ? visible.filter((h) => h.score > 0).length : visible.length;
+  const bestIn = (name: string) => Math.max(0, ...(hitsByCat.get(name) ?? []).map((h) => h.score));
+  // While searching, the categories holding the closest matches come first.
+  const shownGroups = groups.filter((g) => hitsByCat.has(g.name)).sort((a, b) => (searching ? bestIn(b.name) - bestIn(a.name) : 0));
   const allClosed = groups.length > 0 && groups.every((g) => closed.has(g.name));
-  const elsewhere = searching && visible.length === 0 ? rankBySearch(rows.filter((r) => !scoped.includes(r)), deferredQuery, fields).filter((r) => r.score > 0).length : 0;
+  const elsewhere = searching && matchCount === 0 ? rankBySearch(rows.filter((r) => !scoped.includes(r)), deferredQuery, fields).filter((r) => r.score > 0).length : 0;
 
   return (
     <div className="space-y-5">
@@ -914,16 +913,31 @@ export default function MenuManager(props: {
             <p className="flex min-h-5 flex-wrap items-center gap-x-3 gap-y-1 px-0.5 text-[13px] text-muted-foreground" aria-live="polite">
               {searching ? (
                 <>
-                  <span>
-                    พบ <b className="text-foreground">{visible.length} เมนู</b>
-                    {mode === "cat" && visible.length > 0 && (
-                      <>
-                        {" "}
-                        ใน <b className="text-foreground">{shownGroups.length} หมวด</b>
-                      </>
-                    )}{" "}
-                    ที่ตรงกับ “{deferredQuery.trim()}”
-                  </span>
+                  {matchCount > 0 ? (
+                    <span>
+                      ตรงกับ “{deferredQuery.trim()}” <b className="text-foreground">{matchCount} เมนู</b>
+                      {mode === "cat" && (
+                        <>
+                          {" "}
+                          ใน <b className="text-foreground">{shownGroups.filter((g) => bestIn(g.name) > 0).length} หมวด</b>
+                        </>
+                      )}{" "}
+                      — ขึ้นไปอยู่บนสุด เมนูอื่นยังอยู่ด้านล่าง
+                    </span>
+                  ) : (
+                    <span>
+                      ไม่มีเมนูที่ตรงกับ “{deferredQuery.trim()}” · ลองพิมพ์ให้สั้นลง หรือค้นด้วยรหัส POS เช่น A01
+                      {elsewhere > 0 && (
+                        <>
+                          {" "}
+                          · มี {elsewhere} เมนูที่ตรงแต่อยู่นอกตัวกรอง{" "}
+                          <button type="button" onClick={() => (setStatus("every"), setCategory(null))} className="font-medium text-primary underline underline-offset-2">
+                            ดูทุกสถานะและทุกหมวด
+                          </button>
+                        </>
+                      )}
+                    </span>
+                  )}
                   <span className="text-xs text-muted-subtle">ตรงตัวขึ้นก่อน · “ใกล้เคียง” = ตัวอักษรครบแต่ไม่ติดกัน · กด Esc เพื่อล้าง</span>
                 </>
               ) : (
@@ -935,32 +949,32 @@ export default function MenuManager(props: {
               )}
             </p>
 
-            <div ref={listRef} style={{ minHeight: query ? lockH : undefined }} className="space-y-3">
+            <div className="space-y-3">
               {visible.length === 0 ? (
                 <div className="flex flex-col items-center gap-2.5 rounded-2xl border border-border bg-surface px-5 py-9 text-center text-sm text-muted-foreground">
-                  <p className="font-display text-base font-semibold text-foreground">{searching ? `ไม่พบเมนูที่ตรงกับ “${deferredQuery.trim()}”` : "ไม่มีเมนูตรงกับตัวกรอง"}</p>
-                  <p>{elsewhere > 0 ? `มี ${elsewhere} เมนูที่ตรงแต่อยู่นอกตัวกรองที่เลือก` : searching ? "ลองพิมพ์ให้สั้นลง หรือค้นด้วยรหัส POS เช่น A01" : ""}</p>
-                  <div className="flex flex-wrap justify-center gap-2">
-                    {(elsewhere > 0 || !searching) && (
-                      <button type="button" onClick={() => (setStatus("every"), setCategory(null))} className="btn-secondary btn-sm">
-                        ดูทุกสถานะและทุกหมวด
-                      </button>
-                    )}
-                    {searching && (
-                      <button type="button" onClick={() => typeQuery("")} className="btn-secondary btn-sm">
-                        ล้างคำค้น
-                      </button>
-                    )}
-                  </div>
+                  <p className="font-display text-base font-semibold text-foreground">ไม่มีเมนูตรงกับตัวกรอง</p>
+                  <button type="button" onClick={() => (setStatus("every"), setCategory(null))} className="btn-secondary btn-sm">
+                    ดูทุกสถานะและทุกหมวด
+                  </button>
                 </div>
               ) : mode === "flat" ? (
-                <div className="overflow-hidden rounded-2xl border border-border bg-surface">{[...visible].sort(rankOrder).map((h) => renderRow(h, true))}</div>
+                <div className="overflow-hidden rounded-2xl border border-border bg-surface">
+                  {[...visible].sort(rankOrder).map((h, i, all) => (
+                    <Fragment key={h.item.id}>
+                      {searching && h.score === 0 && i > 0 && all[i - 1].score > 0 && <OtherLine />}
+                      {renderRow(h, true)}
+                    </Fragment>
+                  ))}
+                </div>
               ) : (
                 shownGroups.map((g) => {
                   const hits = hitsByCat.get(g.name)!;
-                  const isClosed = closed.has(g.name) && !searching;
-                  const withRecipe = hits.filter((h) => h.item.recipeId !== null).sort(rankOrder);
-                  const without = hits.filter((h) => h.item.recipeId === null).sort(rankOrder);
+                  // While searching: this category's matches first, the rest below a line.
+                  const matched = searching ? hits.filter((h) => h.score > 0).sort(rankOrder) : [];
+                  const rest = searching ? hits.filter((h) => h.score === 0) : hits;
+                  const isClosed = closed.has(g.name) && !(searching && matched.length > 0);
+                  const withRecipe = rest.filter((h) => h.item.recipeId !== null).sort(rankOrder);
+                  const without = rest.filter((h) => h.item.recipeId === null).sort(rankOrder);
                   const toggle = () =>
                     setClosed((s) => {
                       const n = new Set(s);
@@ -969,7 +983,13 @@ export default function MenuManager(props: {
                       return n;
                     });
                   const over = g.pct !== null && g.pct > g.target + 1e-9;
-                  const metaLine = searching || hits.length !== g.count ? `พบ ${hits.length} จาก ${g.count} เมนู` : `${g.count} เมนู${g.withoutRecipe ? ` · ไม่มีสูตร ${g.withoutRecipe}` : ""}`;
+                  const metaLine = searching
+                    ? matched.length > 0
+                      ? `ตรง ${matched.length} จาก ${hits.length} เมนู`
+                      : `${hits.length} เมนู · ไม่มีเมนูที่ตรง`
+                    : hits.length !== g.count
+                      ? `${hits.length} จาก ${g.count} เมนู`
+                      : `${g.count} เมนู${g.withoutRecipe ? ` · ไม่มีสูตร ${g.withoutRecipe}` : ""}`;
                   return (
                     <section key={g.name} className="rounded-2xl border border-border bg-surface">
                       <button
@@ -1031,6 +1051,8 @@ export default function MenuManager(props: {
                       </button>
                       {!isClosed && (
                         <div className="overflow-hidden rounded-b-2xl">
+                          {matched.map((h) => renderRow(h, false))}
+                          {matched.length > 0 && rest.length > 0 && <OtherLine />}
                           {withRecipe.map((h) => renderRow(h, false))}
                           {without.length > 0 && (
                             <>
