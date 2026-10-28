@@ -252,8 +252,8 @@ export default function IngredientSheet({
   return (
     <Sheet stacked={stacked} onClose={close} labelledBy="ing-title">
       {/* Kong 2026-10-22: the 4:3 photo of the menu and lab sheets. */}
-      <div className="relative flex flex-col gap-4 border-b border-border bg-surface px-5 py-4 sm:flex-row sm:items-start">
-        <PhotoSlot label="รูปสินค้า" className="aspect-[4/3] w-full sm:w-[200px]" />
+      <div className="relative flex gap-4 border-b border-border bg-surface px-5 py-4 max-sm:flex-none sm:items-start">
+        <PhotoSlot label="รูปสินค้า" className="aspect-[4/3] w-24 flex-none self-start sm:w-[200px]" />
         <div className="min-w-0 flex-1 pr-8">
           <span className="badge">{data?.product.type === "PREPPED" ? "ของแปรรูป" : "วัตถุดิบ"}{data ? ` · ${data.product.sku}` : ""}</span>
           {extra?.title ?? <h3 id="ing-title" className="mt-1 text-lg font-semibold">{data?.product.name ?? "กำลังโหลด…"}</h3>}
@@ -264,7 +264,7 @@ export default function IngredientSheet({
         </button>
       </div>
 
-      <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4">
+      <div className="space-y-4 px-5 py-4 max-sm:flex-none sm:flex-1 sm:overflow-y-auto">
         {error && <p className="text-sm text-bad">{error}</p>}
         {!data && !error && <div className="h-40 animate-pulse rounded-xl bg-muted" />}
         {data && (
@@ -461,7 +461,7 @@ export default function IngredientSheet({
       </div>
 
       {data && (editable || extra) && (
-        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border bg-surface px-5 py-3 text-sm">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border bg-surface px-5 py-3 text-sm max-sm:sticky max-sm:bottom-0 max-sm:z-10 max-sm:mt-auto">
           {extra?.footerLeft}
           <span className="flex flex-1 flex-wrap items-center justify-end gap-1 text-muted-foreground">
             {extra && !madeDirty ? (

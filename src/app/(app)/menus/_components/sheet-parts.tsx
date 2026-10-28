@@ -73,7 +73,9 @@ export function Sheet({
         role="dialog"
         aria-modal="true"
         aria-labelledby={labelledBy}
-        className={`absolute inset-y-0 right-0 flex w-full flex-col bg-background shadow-2xl animate-slide-in-right ${stacked ? "sm:w-[620px]" : "sm:w-[720px]"}`}
+        // A sheet whose body opts out of its own scroll on a phone (max-sm:flex-none)
+        // scrolls here instead, header and all; for the others this changes nothing.
+        className={`absolute inset-y-0 right-0 flex w-full flex-col bg-background shadow-2xl animate-slide-in-right max-sm:overflow-y-auto ${stacked ? "sm:w-[620px]" : "sm:w-[720px]"}`}
       >
         {children}
       </aside>

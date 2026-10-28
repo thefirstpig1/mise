@@ -362,6 +362,7 @@ export default function LabManager(props: {
                 </span>
                 <span aria-hidden="true" className="text-muted-subtle max-sm:hidden">→</span>
                 <span className="min-w-0 flex-[1_1_220px]">
+                  <span className="text-xs text-muted-foreground sm:hidden">เมนูเดียวกับ </span>
                   <b className="font-semibold">{m.dupOf!.name}</b>
                   {m.dupOf!.code && <span className="ml-1.5 text-xs tabular-nums text-muted-subtle">{m.dupOf!.code}</span>}
                   <span className="block text-xs text-muted-foreground">มีสูตรแล้ว</span>

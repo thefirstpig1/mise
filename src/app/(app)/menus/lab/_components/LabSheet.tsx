@@ -399,8 +399,8 @@ export default function LabSheet(props: {
     <Sheet onClose={close} labelledBy="lab-title">
       {/* Kong 2026-10-22 (mockup PiWpnuu2kXAGAL9yCDNYtw): the same header as the
           menu sheet — a 4:3 photo, the name beside it, every choice NAMED. */}
-      <div className="relative flex flex-col gap-4 border-b border-border bg-surface px-5 py-4 sm:flex-row sm:items-start">
-        <PhotoSlot label="รูปเมนู" className="aspect-[4/3] w-full sm:w-[200px]" />
+      <div className="relative flex gap-4 border-b border-border bg-surface px-5 py-4 max-sm:flex-none sm:items-start">
+        <PhotoSlot label="รูปเมนู" className="aspect-[4/3] w-24 flex-none self-start sm:w-[200px]" />
         <div className="min-w-0 flex-1 space-y-2.5 pr-8">
           <p id="lab-title" className="text-xs text-muted-subtle">
             {savedId ? "ร่างสูตร" : "ร่างสูตรใหม่"}
@@ -488,7 +488,7 @@ export default function LabSheet(props: {
         </button>
       </div>
 
-      <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4">
+      <div className="space-y-4 px-5 py-4 max-sm:flex-none sm:flex-1 sm:overflow-y-auto">
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {!costHidden && (
             <Tile k="ต้นทุนต่อจาน" title={verified ? confidenceHintTh(verified.confidence) : undefined}>
@@ -543,9 +543,9 @@ export default function LabSheet(props: {
               </span>
             </div>
             <div className="grid gap-1">
-              <div className="grid grid-cols-[88px_minmax(0,1fr)_56px_96px] gap-3 px-2 text-[11px] text-muted-subtle">
+              <div className="grid grid-cols-[88px_minmax(0,1fr)_56px_96px] gap-3 px-2 text-[11px] text-muted-subtle max-sm:grid-cols-[76px_minmax(0,1fr)_48px_84px] max-sm:gap-2">
                 <span>ราคา</span>
-                <span>ต้นทุน % · เส้น = เป้า {target}%</span>
+                <span className="whitespace-nowrap">ต้นทุน %<span className="max-sm:hidden"> · เส้น = เป้า {target}%</span></span>
                 <span className="text-right">%</span>
                 <span className="text-right">กำไร/จาน</span>
               </div>
@@ -558,7 +558,7 @@ export default function LabSheet(props: {
                     type="button"
                     disabled={!canEdit}
                     onClick={() => setPrice(String(p))}
-                    className={`grid grid-cols-[88px_minmax(0,1fr)_56px_96px] items-center gap-3 rounded-lg px-2 py-1.5 text-left text-sm tabular-nums transition-colors ${chosen ? "bg-warn-bg ring-1 ring-warn-border" : "hover:bg-muted/60"}`}
+                    className={`grid grid-cols-[88px_minmax(0,1fr)_56px_96px] items-center gap-3 rounded-lg max-sm:grid-cols-[76px_minmax(0,1fr)_48px_84px] max-sm:gap-2 px-2 py-1.5 text-left text-sm tabular-nums transition-colors ${chosen ? "bg-warn-bg ring-1 ring-warn-border" : "hover:bg-muted/60"}`}
                   >
                     <span className="font-display font-semibold">
                       {baht(p)}
@@ -699,7 +699,7 @@ export default function LabSheet(props: {
         )}
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border bg-surface px-5 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border bg-surface px-5 py-3 max-sm:sticky max-sm:bottom-0 max-sm:z-10 max-sm:mt-auto">
         <span className="text-xs text-muted-foreground">
           {formError ? <span className="text-bad">{formError}</span> : dirty ? "มีการแก้ที่ยังไม่บันทึก" : savedId ? "บันทึกร่างแล้ว · ยังไม่ตัดสต๊อก" : ""}
         </span>

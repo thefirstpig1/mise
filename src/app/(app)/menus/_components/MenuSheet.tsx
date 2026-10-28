@@ -448,8 +448,11 @@ export default function MenuSheet(props: {
       {/* Kong 2026-10-22: a bigger photo (4:3, like the product cards), the
           name and the three choices beside it, each choice NAMED — three
           identical pills left people guessing which was หมวด / แผนก / สถานะ. */}
-      <div className="relative flex flex-col gap-4 border-b border-border bg-surface px-5 py-4 sm:flex-row sm:items-start">
-        <PhotoSlot label="รูปเมนู" className="aspect-[4/3] w-full sm:w-[200px]" />
+      {/* Phone (Kong 2026-10-29): the 4:3 photo took half the first screen and the
+          head never scrolled, leaving one strip for the dish — now a small photo
+          beside the name, and the whole sheet scrolls as one. */}
+      <div className="relative flex gap-4 border-b border-border bg-surface px-5 py-4 max-sm:flex-none sm:items-start">
+        <PhotoSlot label="รูปเมนู" className="aspect-[4/3] w-24 flex-none self-start sm:w-[200px]" />
         <div className="min-w-0 flex-1 space-y-2.5 pr-8">
           <div>
             {perm.editMenu ? (
@@ -523,7 +526,7 @@ export default function MenuSheet(props: {
         </button>
       </div>
 
-      <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4">
+      <div className="space-y-4 px-5 py-4 max-sm:flex-none sm:flex-1 sm:overflow-y-auto">
         {menu.todoLabel && (
           <p className="text-sm text-warn">
             {menu.todoLabel}
@@ -856,7 +859,7 @@ export default function MenuSheet(props: {
 
       {/* ---------------- footer ---------------- */}
       {(perm.editMenu || perm.recipe) && (
-        <div className="space-y-1 border-t border-border bg-surface px-5 py-3">
+        <div className="space-y-1 border-t border-border bg-surface px-5 py-3 max-sm:sticky max-sm:bottom-0 max-sm:z-10 max-sm:mt-auto">
           {formError && <p className="text-sm text-bad">{formError}</p>}
           <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
             <span className="flex flex-wrap items-center gap-1.5 text-muted-foreground">

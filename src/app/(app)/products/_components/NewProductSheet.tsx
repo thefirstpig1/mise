@@ -177,8 +177,8 @@ export default function NewProductSheet({
 
   return (
     <Sheet onClose={close} labelledBy="new-product-title">
-      <div className="relative flex flex-col gap-4 border-b border-border bg-surface px-5 py-4 sm:flex-row sm:items-start">
-        <PhotoSlot label="รูปสินค้า" className="aspect-[4/3] w-full sm:w-[200px]" />
+      <div className="relative flex gap-4 border-b border-border bg-surface px-5 py-4 max-sm:flex-none sm:items-start">
+        <PhotoSlot label="รูปสินค้า" className="aspect-[4/3] w-24 flex-none self-start sm:w-[200px]" />
         <div className="min-w-0 flex-1 space-y-2.5 pr-8">
           <p id="new-product-title" className="text-xs text-muted-subtle">
             สินค้าใหม่ ·{" "}
@@ -214,7 +214,7 @@ export default function NewProductSheet({
         </button>
       </div>
 
-      <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4">
+      <div className="space-y-4 px-5 py-4 max-sm:flex-none sm:flex-1 sm:overflow-y-auto">
         {loadError && <p className="text-sm text-bad">{loadError}</p>}
 
         <section className="space-y-2 rounded-2xl border border-border bg-surface p-4">
@@ -416,7 +416,7 @@ export default function NewProductSheet({
         </section>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border bg-surface px-5 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border bg-surface px-5 py-3 max-sm:sticky max-sm:bottom-0 max-sm:z-10 max-sm:mt-auto">
         <span className="text-xs">{error ? <span className="text-bad">{error}</span> : <span className="text-muted-foreground">ยังไม่ได้บันทึก</span>}</span>
         <span className="flex flex-wrap justify-end gap-2">
           <button type="button" onClick={close} disabled={busy} className="btn-secondary btn-sm">

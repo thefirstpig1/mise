@@ -183,7 +183,7 @@ export function RecipeTable({
     <>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="text-left text-xs text-muted-foreground">
+          <thead className="text-left text-xs text-muted-foreground max-sm:hidden">
             <tr>
               <th className="py-1 font-medium">วัตถุดิบ</th>
               <th className="py-1 text-right font-medium">ปริมาณ</th>
@@ -204,7 +204,9 @@ export function RecipeTable({
               return (
                 <tr
                   key={l.key}
-                  className={`${l.kind === "product" && onOpen ? "cursor-pointer hover:bg-muted/60" : ""} ${changed}`}
+                  // Phone: name · cost · × on one line, amount and unit under it — the
+                  // five columns side by side pushed the cost off a 400px screen.
+                  className={`${l.kind === "product" && onOpen ? "cursor-pointer hover:bg-muted/60" : ""} ${changed} max-sm:grid max-sm:grid-cols-[auto_minmax(0,1fr)_auto_auto] max-sm:items-start max-sm:gap-x-2 max-sm:py-1 max-sm:[grid-template-areas:'n_n_c_x'_'q_u_u_u']`}
                   onPointerEnter={() => l.kind === "product" && l.productId && onHover?.(l.productId)}
                   onClick={(e) => {
                     if (l.kind !== "product" || !l.productId || !onOpen) return;
@@ -212,7 +214,7 @@ export function RecipeTable({
                     onOpen(l.productId);
                   }}
                 >
-                  <td className="py-1.5 pr-2">
+                  <td className="py-1.5 pr-2 max-sm:[grid-area:n]">
                     <span>{l.label}</span>
                     {l.prepped && <span className="ml-1.5 rounded border border-warn-border bg-warn-bg px-1 text-[10px] text-warn">ของแปรรูป</span>}
                     {l.kind === "menu" && <span className="ml-1.5 rounded border border-border px-1 text-[10px] text-muted-foreground">เมนู</span>}
@@ -222,7 +224,7 @@ export function RecipeTable({
                     )}
                     {!showNotes && l.notes && <span className="block text-[11px] italic text-muted-foreground">{l.notes}</span>}
                   </td>
-                  <td className="py-1.5 text-right align-top">
+                  <td className="py-1.5 text-right align-top max-sm:[grid-area:q] max-sm:pt-0">
                     {editable ? (
                       <MeasureInput
                         size="sm"
@@ -238,7 +240,7 @@ export function RecipeTable({
                       <span className="tabular-nums">{l.qty}</span>
                     )}
                   </td>
-                  <td className="py-1.5 pl-2 align-top">
+                  <td className="py-1.5 pl-2 align-top max-sm:[grid-area:u] max-sm:pl-0 max-sm:pt-0">
                     {editable && l.kind === "product" && choices.length > 0 ? (
                       <select
                         value={l.unitName ?? ""}
@@ -283,7 +285,7 @@ export function RecipeTable({
                     )}
                   </td>
                   {!costHidden && (
-                    <td className="py-1.5 text-right align-top tabular-nums">
+                    <td className="py-1.5 text-right align-top tabular-nums max-sm:[grid-area:c]">
                       {pricesPending ? <span className="inline-block h-3.5 w-12 animate-pulse rounded bg-muted align-middle" /> : c === null ? <span className="text-xs text-warn">ไม่มีราคา</span> : baht(c, 2)}
                       {/* Share of the dish, said in words — the bar it replaced (Kong 2026-10-22) read as stock. */}
                       {!pricesPending && c !== null && total > 0 && allPriced && (
@@ -293,7 +295,7 @@ export function RecipeTable({
                       )}
                     </td>
                   )}
-                  <td className="py-1.5 text-right align-top">
+                  <td className="py-1.5 text-right align-top max-sm:[grid-area:x]">
                     {editable && (
                       <button type="button" onClick={() => setLines((ls) => ls.filter((x) => x.key !== l.key))} aria-label={`เอา ${l.label} ออก`} className="rounded px-1.5 text-muted-subtle hover:bg-bad-bg hover:text-bad">
                         ×
