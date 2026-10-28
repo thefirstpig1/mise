@@ -26,7 +26,7 @@
 
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import type { PurchaseOrderActionState } from "../actions";
-import type { ResolvedPriceView } from "./purchase-order-view";
+import type { LastPaidView, ResolvedPriceView } from "./purchase-order-view";
 import { readApi } from "@/lib/read-api";
 import ProductPicker from "@/components/ui/ProductPicker";
 import QtyStepper from "@/components/ui/QtyStepper";
@@ -77,7 +77,9 @@ type LineRow = {
   /** ADR 0036 R1 — the kitchen line this row was cut from, kept through edits. */
   requestLineId: string;
   /** null = not looked up yet; "none" = looked up and there is no price. */
-  priceScope: "branch" | "tenant" | "none" | null;
+  priceScope: "branch" | "tenant" | "last" | "none" | null;
+  /** For "last": where that price came from, said on the line. */
+  priceNote?: string;
   minOrderQty: string | null;
 };
 
@@ -135,7 +137,7 @@ const fmt = (v: number) =>
 // GET reads (mise-ui-review §5c) — these were Server Actions the page handed down.
 /** Today's price for a (product, supplier, branch) — the form's autofill. */
 const resolvePrice = (q: { productId: string; supplierId: string; branchId: string }) =>
-  readApi<{ ok: true; data: ResolvedPriceView | null }>("/api/purchase-orders", "price", q);
+  readApi<{ ok: true; data: ResolvedPriceView | null; last: LastPaidView | null }>("/api/purchase-orders", "price", q);
 /** Which products the chosen supplier carries at the chosen branch. */
 const supplierCarries = (q: { supplierId: string; branchId: string }) =>
   readApi<{ ok: true; productIds: string[] }>("/api/purchase-orders", "carries", q);
@@ -261,12 +263,30 @@ export default function PurchaseOrderForm({
     if (!productId || !supplierId || !branchId) return;
     const res = await resolvePrice({ productId, supplierId, branchId });
     if (!res.ok) return;
+    const rate = vatRate.trim() === "" ? 0 : Number(vatRate);
+    const withVat = (exclVat: string) =>
+      inclusive && rate > 0 ? String(Math.round(Number(exclVat) * (1 + rate / 100) * 10_000) / 10_000) : exclVat;
+    const isUnitOf = (unitId: string | null) =>
+      !!unitId && !!products.find((p) => p.id === productId)?.units.some((u) => u.id === unitId);
     if (!res.data) {
+      // No price list: what we last paid this supplier (Kong 2026-10-29), said
+      // on the line so nobody takes it for an agreed price.
+      const last = res.last;
+      if (last && isUnitOf(last.unitId)) {
+        patch(key, {
+          unitPrice: withVat(last.unitPrice),
+          orderUnitId: last.unitId,
+          mappingId: "",
+          minOrderQty: null,
+          priceScope: "last",
+          priceNote: `ราคาที่ซื้อครั้งล่าสุด ${last.receivedOn}${last.otherBranchName ? ` (${last.otherBranchName})` : ""}`,
+        });
+        return;
+      }
       patch(key, { priceScope: "none", mappingId: "", minOrderQty: null });
       return;
     }
     const listPrice = Number(res.data.unitPrice);
-    const rate = vatRate.trim() === "" ? 0 : Number(vatRate);
     patch(key, {
       // The price list is excluding VAT; a VAT-inclusive order shows it with VAT.
       unitPrice: inclusive && rate > 0 ? String(Math.round(listPrice * (1 + rate / 100) * 10_000) / 10_000) : res.data.unitPrice,
@@ -580,6 +600,11 @@ export default function PurchaseOrderForm({
                     {row.priceScope === "tenant" && (
                       <span className="rounded-full border border-border bg-muted/50 px-2 py-0.5 text-muted-foreground">
                         ราคากลางจากรายการราคา
+                      </span>
+                    )}
+                    {row.priceScope === "last" && (
+                      <span className="rounded-full border border-border bg-muted/50 px-2 py-0.5 text-muted-foreground">
+                        {row.priceNote ?? "ราคาที่ซื้อครั้งล่าสุด"} — ตรวจกับผู้ขายอีกครั้ง
                       </span>
                     )}
                     {row.priceScope === "none" && (

@@ -129,6 +129,30 @@ export type ResolvedPriceView = {
   scope: "branch" | "tenant";
 };
 
+/** What we last paid — the autofill when there is no price list. Decimal → string (Pitfall #20). */
+export type LastPaidView = {
+  unitPrice: string;
+  unitId: string;
+  unitName: string;
+  /** "28 ก.ย. 69" */
+  receivedOn: string;
+  /** Set only when the last delivery was at ANOTHER branch. */
+  otherBranchName: string | null;
+};
+
+export function toLastPaidView(
+  last: { unitPrice: { toString(): string }; unitId: string; unitName: string; receivedAt: Date; branchId: string; branchName: string },
+  branchId: string
+): LastPaidView {
+  return {
+    unitPrice: last.unitPrice.toString(),
+    unitId: last.unitId,
+    unitName: last.unitName,
+    receivedOn: last.receivedAt.toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit", timeZone: "Asia/Bangkok" }),
+    otherBranchName: last.branchId === branchId ? null : last.branchName,
+  };
+}
+
 const userLabel = (u: { name: string | null; email: string } | null): string =>
   u ? (u.name ?? u.email) : "—";
 

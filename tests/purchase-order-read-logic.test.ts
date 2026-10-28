@@ -33,6 +33,7 @@ import {
   getPurchaseOrderByIdLogic,
   getPurchaseOrdersLogic,
   getSupplierCatalogLogic,
+  getLastPaidPriceLogic,
   resolveSupplierPriceLogic,
   suggestSuppliersForProductLogic,
 } from "@/server/purchase-order";
@@ -684,6 +685,13 @@ describe("purchase-order read *Logic (tenant-scoped, app-layer isolation)", () =
     expect(num(item.lastPaid!.unitPrice)).toBe(44);
     expect(item.lastPaid!.unitId).toBe(unit);
     expect(item.defaultUnitId).toBe(unit);
+
+    // The order form's autofill (Kong 2026-10-29) is the SAME choice: voided,
+    // reversed and draft receipts do not count, and nothing delivered is null.
+    const formLast = await getLastPaidPriceLogic(tenantA, bought.id, sup, branchA1);
+    expect(num(formLast!.unitPrice)).toBe(44);
+    expect(formLast!.unitId).toBe(unit);
+    expect(await getLastPaidPriceLogic(tenantA, draftOnly.id, sup, branchA1)).toBeNull();
   });
 
   it("C8: this branch's last price beats a newer one paid at another branch", async () => {
@@ -704,6 +712,12 @@ describe("purchase-order read *Logic (tenant-scoped, app-layer isolation)", () =
     const atA3 = (await getSupplierCatalogLogic(tenantA, sup, fresh.id))[0];
     expect(num(atA3.lastPaid!.unitPrice)).toBe(35);
     expect(atA3.lastPaid!.branchName).toBe("A2");
+
+    // The order form picks the same delivery as the catalog, branch by branch.
+    expect(num((await getLastPaidPriceLogic(tenantA, p.id, sup, branchA1))!.unitPrice)).toBe(30);
+    const formAtA3 = await getLastPaidPriceLogic(tenantA, p.id, sup, fresh.id);
+    expect(num(formAtA3!.unitPrice)).toBe(35);
+    expect(formAtA3!.branchName).toBe("A2");
   });
 
   it("C9: a price-list price and a delivery history for one product make ONE row, and the price list sets the price", async () => {

@@ -253,6 +253,75 @@ const CATALOG_PRODUCT_SELECT = {
  * Two queries for the whole catalog, then pickCurrentPrice per product:
  * calling resolveSupplierPriceLogic per product would be one transaction per row.
  */
+/**
+ * The deliveries that count as "what we last paid" (ADR 0012 Q5 fallback,
+ * Kong 2026-10-29): confirmed receipts from this supplier, a line that was
+ * neither reversed nor a reversal, something actually received. Newest first.
+ */
+const lastPaidWhere = (tenantId: string, supplierId: string) =>
+  ({
+    tenantId,
+    goodsReceipt: { supplierId, status: "CONFIRMED", deletedAt: null },
+    reversalOfItemId: null,
+    reversedBy: { none: {} },
+    qtyReceivedActual: { gt: 0 },
+    product: { deletedAt: null },
+  }) satisfies Prisma.GoodsReceiptItemWhereInput;
+
+/** This branch's newest delivery, else the newest anywhere — one rule for the catalog and the order form. */
+function pickLastDelivery<T extends { goodsReceipt: { branchId: string } }>(newestFirst: T[], branchId: string): T | undefined {
+  return newestFirst.find((d) => d.goodsReceipt.branchId === branchId) ?? newestFirst[0];
+}
+
+export type LastPaidPrice = {
+  /** Excluding VAT — a VAT-inclusive receipt stores its excl-VAT share. */
+  unitPrice: Prisma.Decimal;
+  unitId: string;
+  unitName: string;
+  receivedAt: Date;
+  branchId: string;
+  branchName: string;
+};
+
+/**
+ * What we last paid this supplier for this product — the order form's
+ * autofill when the supplier has no price list (Kong 2026-10-29: "มันควรจะเป็น
+ * อย่างงั้นอยู่แล้ว"). The same choice the supplier catalog shows as ราคาล่าสุด.
+ * `null` when the supplier never delivered it, or only in a unit the product
+ * no longer has.
+ */
+export async function getLastPaidPriceLogic(
+  tenantId: string,
+  productId: string,
+  supplierId: string,
+  branchId: string
+): Promise<LastPaidPrice | null> {
+  const deliveries = await withTenantContext(tenantId, (tx) =>
+    tx.goodsReceiptItem.findMany({
+      where: { ...lastPaidWhere(tenantId, supplierId), productId },
+      select: {
+        unitPriceActual: true,
+        receivedUnitId: true,
+        receivedUnitName: true,
+        receivedUnit: { select: { unitName: true, productId: true } },
+        goodsReceipt: { select: { receivedAt: true, branchId: true, branch: { select: { name: true } } } },
+      },
+      orderBy: [{ goodsReceipt: { receivedAt: "desc" } }, { lineNo: "asc" }],
+      take: 50,
+    })
+  );
+  const last = pickLastDelivery(deliveries, branchId);
+  if (!last || !last.receivedUnitId || last.receivedUnit?.productId !== productId) return null;
+  return {
+    unitPrice: last.unitPriceActual,
+    unitId: last.receivedUnitId,
+    unitName: last.receivedUnit.unitName ?? last.receivedUnitName,
+    receivedAt: last.goodsReceipt.receivedAt,
+    branchId: last.goodsReceipt.branchId,
+    branchName: last.goodsReceipt.branch.name,
+  };
+}
+
 export async function getSupplierCatalogLogic(
   tenantId: string,
   supplierId: string,
@@ -273,14 +342,7 @@ export async function getSupplierCatalogLogic(
       select: { ...MAPPING_PRICE_SELECT, product: { select: CATALOG_PRODUCT_SELECT } },
     }),
     deliveries: await tx.goodsReceiptItem.findMany({
-      where: {
-        tenantId,
-        goodsReceipt: { supplierId, status: "CONFIRMED", deletedAt: null },
-        reversalOfItemId: null,
-        reversedBy: { none: {} },
-        qtyReceivedActual: { gt: 0 },
-        product: { deletedAt: null },
-      },
+      where: lastPaidWhere(tenantId, supplierId),
       select: {
         unitPriceActual: true,
         receivedUnitId: true,
@@ -315,7 +377,7 @@ export async function getSupplierCatalogLogic(
       const newest = [...series].sort(
         (a, b) => b.effectiveFrom.getTime() - a.effectiveFrom.getTime()
       )[0];
-      const last = delivered.find((d) => d.goodsReceipt.branchId === branchId) ?? delivered[0];
+      const last = pickLastDelivery(delivered, branchId);
 
       const units = [...p.productUnits].sort((a, b) => Number(b.isBase) - Number(a.isBase));
       const isUnitOfProduct = (id: string | undefined): id is string =>

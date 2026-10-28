@@ -2,7 +2,9 @@
 // Mise — ใบสั่งซื้อ's reads, as GET (mise-ui-review §5c)
 // ============================================================
 // what=price&q={productId,supplierId,branchId}  today's price, the form's
-//   autofill — `data: null` is not an error, it is the hand-typed path (Q5)
+//   autofill — `data: null` is not an error. When the supplier has no price
+//   list, `last` carries what we last paid them (Kong 2026-10-29); with
+//   neither, it is the hand-typed path (Q5)
 // what=carries&q={supplierId,branchId}  which products this supplier carries
 //   at this branch (Kong 2026-09-29: "ไม่อยากให้เกิดเหตุการณ์กดซัพมั่วแล้วสั่งของที่ซัพไม่มี")
 // These were resolveSupplierPriceAction / getSupplierCarriesAction, handed to
@@ -12,8 +14,8 @@
 
 import { requireTenant } from "@/lib/require-tenant";
 import { guardRead, readInput } from "@/lib/read-api";
-import { getSupplierCatalogLogic, resolveSupplierPriceLogic } from "@/server/purchase-order";
-import { toResolvedPriceView } from "@/app/(app)/purchase-orders/_components/purchase-order-view";
+import { getLastPaidPriceLogic, getSupplierCatalogLogic, resolveSupplierPriceLogic } from "@/server/purchase-order";
+import { toLastPaidView, toResolvedPriceView } from "@/app/(app)/purchase-orders/_components/purchase-order-view";
 
 export const dynamic = "force-dynamic";
 
@@ -44,6 +46,8 @@ export function GET(req: Request) {
     const productId = uuidOf(q, "productId");
     if (!productId) return json({ ok: false, formError: "ข้อมูลไม่ครบสำหรับค้นหาราคา" });
     const resolved = await resolveSupplierPriceLogic(tenantId, productId, supplierId, branchId);
-    return json({ ok: true, data: resolved ? toResolvedPriceView(resolved) : null });
+    if (resolved) return json({ ok: true, data: toResolvedPriceView(resolved), last: null });
+    const last = await getLastPaidPriceLogic(tenantId, productId, supplierId, branchId);
+    return json({ ok: true, data: null, last: last ? toLastPaidView(last, branchId) : null });
   });
 }
