@@ -20,6 +20,7 @@
 // arrive looking like "no".
 
 import { useActionState, useState } from "react";
+import FileDrop from "@/components/ui/FileDrop";
 import {
   createSalesImportProfileAction,
   inspectSalesFileAction,
@@ -67,6 +68,8 @@ export default function ProfileBuilder({ posOptions }: { posOptions: PosOption[]
     createSalesImportProfileAction,
     null
   );
+  // The sample file lives in state: FileDrop's own input carries no name (Thai picker, Kong 2026-10-25).
+  const [sample, setSample] = useState<File | null>(null);
   const [columnMap, setColumnMap] = useState<Partial<Record<ColumnMapField, number>>>({});
 
   const header = inspectState?.ok ? inspectState.header : null;
@@ -97,17 +100,23 @@ export default function ProfileBuilder({ posOptions }: { posOptions: PosOption[]
   return (
     <div className="space-y-6">
       {/* ---------- 1. read a real file ---------- */}
-      <form action={inspectAction} className="rounded-lg border border-border bg-surface p-4">
+      <form
+        action={(fd) => {
+          if (sample) fd.set("file", sample);
+          inspectAction(fd);
+        }}
+        className="rounded-lg border border-border bg-surface p-4"
+      >
         <h2 className="text-sm font-medium">1. อัปไฟล์ตัวอย่างจาก POS</h2>
         <p className="mt-1 text-xs text-muted-foreground">
           ใช้ไฟล์จริงหนึ่งไฟล์ ระบบจะอ่านหัวตารางกับข้อมูลตัวอย่างมาให้จับคู่ — ไม่มีการบันทึกอะไร
         </p>
 
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <label className="block text-sm">
-            ไฟล์
-            <input type="file" name="file" accept=".csv,text/csv,text/plain" className={"input w-full mt-1"} />
-          </label>
+          <div className="text-sm">
+            <p className="mb-1">ไฟล์</p>
+            <FileDrop accept=".csv,text/csv,text/plain" fileName={sample?.name ?? null} hint="ไฟล์ .csv จากหลังบ้าน POS" onFile={setSample} />
+          </div>
           <label className="block text-sm">
             การเข้ารหัสไฟล์
             <select name="encoding" defaultValue="UTF8" className={"input w-full mt-1"}>

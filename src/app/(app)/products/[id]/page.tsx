@@ -33,6 +33,7 @@ import ProductForm, { type UnitRecipeUsage } from "../_components/ProductForm";
 import DeleteProductButton from "../_components/DeleteProductButton";
 import MappingListSection from "../_components/MappingListSection";
 import MappingHistoryViewer from "../_components/MappingHistoryViewer";
+import PageHeader from "@/components/ui/PageHeader";
 
 // Next 15: route params are async (await before use).
 export default async function EditProductPage({
@@ -165,10 +166,11 @@ export default async function EditProductPage({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <h2 className="text-2xl font-semibold">แก้ไขสินค้า</h2>
-        <DeleteProductButton id={product.id} cascadeItems={cascadeItems} />
-      </div>
+      <PageHeader
+        title={product.name}
+        description="แก้แบบละเอียด — ประเภท หน่วยวัด ความหนาแน่น จุดสั่งซื้อ และราคาจากผู้ขาย"
+        actions={<DeleteProductButton id={product.id} cascadeItems={cascadeItems} />}
+      />
       <ProductForm
         action={updateProduct.bind(null, product.id)}
         initial={toProductView(product)}

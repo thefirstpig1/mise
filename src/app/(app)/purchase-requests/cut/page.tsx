@@ -45,7 +45,7 @@ export default async function CutRoundPage({ searchParams }: { searchParams: Sea
             <span aria-hidden className="mx-1.5">›</span>
             <span className="text-foreground">ตัดรอบสั่งซื้อ</span>
           </nav>
-          <h1 className="mt-1 text-2xl font-bold">ตัดรอบสั่งซื้อ · {branch.name}</h1>
+          <h1 className="mt-1 text-2xl font-semibold leading-tight">ตัดรอบสั่งซื้อ · {branch.name}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             เลือกผู้ขายของแต่ละรายการ แล้วกดสร้างใบสั่งซื้อ — ระบบแยกเป็นใบร่างตามผู้ขายให้ ตรวจแล้วค่อยส่ง
           </p>
@@ -57,6 +57,7 @@ export default async function CutRoundPage({ searchParams }: { searchParams: Sea
             <Link
               key={b.id}
               href={`/purchase-requests/cut?b=${b.id}` as Route}
+              scroll={false}
               aria-current={b.id === branch.id ? "page" : undefined}
               className={`pill ${b.id === branch.id ? "is-on" : ""}`}
             >

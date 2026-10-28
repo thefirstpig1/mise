@@ -7,6 +7,13 @@
     @apply text-foreground;
   }
 
+  /* Ticks and radio dots in the brand olive, not the browser's blue
+     (review 2026-10-29) — 35 files draw native checkboxes/radios. */
+  input[type="checkbox"],
+  input[type="radio"] {
+    accent-color: theme("colors.primary.DEFAULT");
+  }
+
   /* ============================================================
      Where the two faces land (Part 33).
      ------------------------------------------------------------

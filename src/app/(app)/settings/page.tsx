@@ -107,7 +107,7 @@ export default async function SettingsPage() {
     // A preferences page reads best narrow: label and switch stay close (kit).
     <div className="max-w-3xl space-y-5 pb-24 lg:pb-0">
       <header>
-        <h1 className="text-2xl font-bold">ตั้งค่าร้าน</h1>
+        <h1 className="text-2xl font-semibold leading-tight">ตั้งค่าร้าน</h1>
         <p className="mt-1 text-sm text-muted-foreground">แต่ละหมวดบันทึกแยกกัน · แก้แล้วยังไม่บันทึก ระบบจะถามก่อนออกจากหน้า</p>
       </header>
 

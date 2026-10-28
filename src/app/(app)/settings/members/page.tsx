@@ -74,7 +74,7 @@ export default async function MembersPage() {
     <div className="space-y-5">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">คนในร้าน</h1>
+          <h1 className="text-2xl font-semibold leading-tight">คนในร้าน</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             กดที่ชื่อเพื่อแก้บทบาท สาขา หรือนำออก ·{" "}
             <a href="/settings/permissions" className="font-semibold text-primary hover:underline">

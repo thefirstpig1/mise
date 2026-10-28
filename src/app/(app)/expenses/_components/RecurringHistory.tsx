@@ -102,7 +102,7 @@ export default function RecurringHistory({
                 <span className="tabular-nums font-semibold">{formatMoney(String(total))}</span>
                 <span className="whitespace-nowrap text-xs">
                   {pct === null || Math.abs(pct) < 0.05 ? (
-                    <span className="text-muted-foreground">เท่ากับ{base.period ? monthLabelTh(base.period) : "ยอดตั้งต้น"}</span>
+                    <span className="text-muted-foreground">{base.period ? `เท่ากับ ${monthLabelTh(base.period)}` : "เท่ากับยอดตั้งต้น"}</span>
                   ) : (
                     <span className={pct > 0 ? "text-bad" : "text-good"}>
                       {pct > 0 ? "▲" : "▼"} {Math.abs(pct).toFixed(1)}% {vs}

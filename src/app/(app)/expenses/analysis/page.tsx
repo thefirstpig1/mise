@@ -83,7 +83,7 @@ export default async function ExpenseAnalysisPage({ searchParams }: { searchPara
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">วิเคราะห์รายจ่าย</h1>
+          <h1 className="text-2xl font-semibold leading-tight">วิเคราะห์รายจ่าย</h1>
           <p className="mt-1 text-sm text-muted-foreground">ตามวันที่บิล ไม่รวม VAT · กดแถวในกราฟเพื่อเจาะลงไปทีละชั้น</p>
         </div>
         <ActionLink href="/expenses">กลับไปรายการบิล</ActionLink>

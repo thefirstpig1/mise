@@ -10,6 +10,7 @@ import { getSuppliersLogic } from "@/server/supplier";
 import { getBranchesLogic } from "@/server/branch";
 import { createMappingAction } from "@/app/(app)/supplier-product-mappings/actions";
 import MappingForm from "../../../_components/MappingForm";
+import PageHeader from "@/components/ui/PageHeader";
 
 // Next 15: route params are async (await before use).
 export default async function NewMappingPage({
@@ -40,8 +41,7 @@ export default async function NewMappingPage({
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-semibold">เพิ่มรายการราคา</h2>
-      <p className="text-sm text-muted-foreground">{product.name}</p>
+      <PageHeader title="เพิ่มรายการราคา" description={`${product.name} — ราคาที่ผู้ขายรายหนึ่งให้ ใช้เติมราคาในใบสั่งซื้ออัตโนมัติ`} />
       <MappingForm
         action={createMappingAction}
         productId={product.id}

@@ -38,7 +38,7 @@ export default async function ClosingDayPage({ searchParams }: { searchParams: P
   ]);
   const branchProfiles = profiles
     .filter((p) => p.posIntegration.branch.id === branch.id)
-    .map((p) => ({ id: p.id, label: `${p.name} (${SALES_FILE_KIND_LABELS_TH[p.fileKind] ?? p.fileKind})` }));
+    .map((p) => ({ id: p.id, label: `${p.name} — ${SALES_FILE_KIND_LABELS_TH[p.fileKind] ?? p.fileKind}` }));
   const enabled = membership.tenant.dailyCloseEnabled;
   const canFill = can("sales:import") && enabled;
   const seeMoney = can("sales:view");

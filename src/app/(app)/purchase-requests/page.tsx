@@ -45,7 +45,7 @@ export default async function PurchaseRequestsPage({ searchParams }: { searchPar
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="text-2xl font-bold">ขอซื้อ · {branch.name}</h1>
+          <h1 className="text-2xl font-semibold leading-tight">ขอซื้อ · {branch.name}</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">กด + ของที่ใกล้หมด แล้วกดพร้อมในใบขอซื้อ</p>
         </div>
         {viewer.canApprove && (

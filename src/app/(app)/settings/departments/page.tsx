@@ -22,7 +22,7 @@ export default async function DepartmentsPage() {
     <div className="space-y-5">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">แผนก</h1>
+          <h1 className="text-2xl font-semibold leading-tight">แผนก</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             แยกต้นทุนและยอดขายตามส่วนงาน · กดที่แผนกเพื่อแก้ไข · รายการที่ไม่ได้ระบุแผนกลงที่แผนกตั้งต้น
           </p>

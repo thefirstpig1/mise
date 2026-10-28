@@ -13,6 +13,7 @@ import { getSupplierProductMappingByIdLogic } from "@/server/supplier-product-ma
 import { updateMappingAction } from "@/app/(app)/supplier-product-mappings/actions";
 import { toMappingView } from "../../../../_components/mapping-view";
 import MappingForm from "../../../../_components/MappingForm";
+import PageHeader from "@/components/ui/PageHeader";
 import DeleteMappingButton from "../../../../_components/DeleteMappingButton";
 
 // Next 15: route params are async (await before use).
@@ -44,11 +45,11 @@ export default async function EditMappingPage({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <h2 className="text-2xl font-semibold">แก้ไขรายการราคา</h2>
-        <DeleteMappingButton mappingId={mapping.id} productId={product.id} />
-      </div>
-      <p className="text-sm text-muted-foreground">{product.name}</p>
+      <PageHeader
+        title="แก้ไขรายการราคา"
+        description={product.name}
+        actions={<DeleteMappingButton mappingId={mapping.id} productId={product.id} />}
+      />
       <MappingForm
         action={updateMappingAction.bind(null, mapping.id)}
         initial={toMappingView(mapping)}

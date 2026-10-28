@@ -169,11 +169,18 @@ export default function SalesImportWizard({
           >
             {profiles.map((p) => (
               <option key={p.id} value={p.id}>
-                {p.branchName} · {p.name} ({p.fileKindLabel})
+                {p.branchName} · {p.name}
               </option>
             ))}
           </select>
         </label>
+        {/* The kind under the choice, not inside it: "สรุปยอดรายวัน (สรุปรายวัน
+            (เมนูละแถวต่อวัน))" read as a stutter (review 2026-10-29). */}
+        {profiles.find((p) => p.id === profileId) && (
+          <p className="mt-1 text-xs text-muted-foreground">
+            ไฟล์แบบ{profiles.find((p) => p.id === profileId)!.fileKindLabel}
+          </p>
+        )}
 
         <div className="mt-4 text-sm">
           <p className="mb-1">ไฟล์จาก POS</p>

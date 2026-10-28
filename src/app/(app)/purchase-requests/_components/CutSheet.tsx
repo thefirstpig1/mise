@@ -165,6 +165,9 @@ export default function CutSheet({ sheet, branchId }: { sheet: Sheet; branchId: 
   const r = sheet.readiness;
   return (
     <div className="space-y-4">
+      {/* Readiness only matters when there is something to cut — with nothing
+          waiting, "ยังมีแผนกที่ไม่พร้อม" warned about nothing (review 2026-10-29). */}
+      {sheet.lines.length > 0 && (
       <section className={`rounded-xl border p-4 text-sm ${r.allReady ? "border-good-border bg-good-bg" : "border-warn-border bg-warn-bg"}`}>
         <p className="font-medium">{r.allReady ? "ทุกแผนกพร้อมแล้ว" : "ยังมีแผนกที่ไม่พร้อม — ตัดรอบก่อนได้ แต่ของที่เพิ่มทีหลังจะไปรอบถัดไป"}</p>
         <div className="mt-2 flex flex-wrap gap-1.5 text-xs">
@@ -182,10 +185,11 @@ export default function CutSheet({ sheet, branchId }: { sheet: Sheet; branchId: 
           ))}
         </div>
       </section>
+      )}
 
       {sheet.lines.length === 0 ? (
         <p className="rounded-2xl border border-border bg-surface px-4 py-10 text-center text-sm text-muted-foreground">
-          ไม่มีรายการรอสั่ง
+          ไม่มีรายการรอสั่ง — รอบนี้ยังไม่มีแผนกไหนขอของ
         </p>
       ) : (
         <div className="data-table">

@@ -20,7 +20,7 @@ export default async function BranchesPage() {
     <div className="space-y-5">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">สาขา</h1>
+          <h1 className="text-2xl font-semibold leading-tight">สาขา</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {rows.length} สาขา · กดที่สาขาเพื่อแก้ไข · ผู้จัดการสาขาเห็นสาขาใหม่เมื่อเพิ่มให้ที่หน้า{" "}
             <a href="/settings/members" className="font-semibold text-primary hover:underline">คนในร้าน</a>
