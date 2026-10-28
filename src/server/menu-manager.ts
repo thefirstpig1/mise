@@ -362,16 +362,7 @@ export async function getMenuSheetLogic(
       }),
       tx.recipe.findMany({
         where: { tenantId, lineId: hit.lineId, deletedAt: null, isDraft: false },
-        select: {
-          id: true,
-          effectiveFrom: true,
-          supersededAt: true,
-          createdAt: true,
-          notes: true,
-          servings: true,
-          createdByUser: { select: { name: true, email: true } },
-          ingredients: { orderBy: { sortOrder: "asc" }, select: INGREDIENT_SELECT },
-        },
+        select: VERSION_SELECT,
         orderBy: [{ effectiveFrom: "desc" }, { createdAt: "desc" }],
       }),
     ]);
@@ -400,18 +391,7 @@ export async function getMenuSheetLogic(
       effectiveFrom: isoDate(recipe.effectiveFrom),
       lines: recipe.ingredients.map(toSheetLine),
     },
-    history: versions.map((v) => ({
-      recipeId: v.id,
-      effectiveFrom: isoDate(v.effectiveFrom),
-      isSuperseded: v.supersededAt !== null,
-      isCurrent: v.id === recipe.id,
-      savedBy: v.createdByUser?.name ?? v.createdByUser?.email?.split("@")[0] ?? null,
-      // The Bangkok day it was saved, not the UTC one.
-      savedAt: isoDate(new Date(v.createdAt.getTime() + 7 * 3_600_000)),
-      notes: v.notes,
-      servings: Number(v.servings),
-      lines: v.ingredients.map(toSheetLine),
-    })),
+    history: toHistory(versions, recipe.id),
     facts,
   };
 }
@@ -439,6 +419,37 @@ type IngredientRow = {
   componentMenu: { name: string } | null;
   productUnit: { unitName: string; toBaseRatio: Prisma.Decimal } | null;
 };
+
+/** Every saved version of a recipe line, for the history list (dish or prepped). */
+const VERSION_SELECT = {
+  id: true,
+  effectiveFrom: true,
+  supersededAt: true,
+  createdAt: true,
+  notes: true,
+  servings: true,
+  createdByUser: { select: { name: true, email: true } },
+  ingredients: { orderBy: { sortOrder: "asc" }, select: INGREDIENT_SELECT },
+} as const satisfies Prisma.RecipeSelect;
+
+function toHistory(
+  versions: Prisma.RecipeGetPayload<{ select: typeof VERSION_SELECT }>[],
+  currentId: string
+): MenuSheet["history"] {
+  return versions.map((v) => ({
+    recipeId: v.id,
+    effectiveFrom: isoDate(v.effectiveFrom),
+    isSuperseded: v.supersededAt !== null,
+    isCurrent: v.id === currentId,
+    savedBy: v.createdByUser?.name ?? v.createdByUser?.email?.split("@")[0] ?? null,
+    // The Bangkok day it was saved, not the UTC one.
+    savedAt: isoDate(new Date(v.createdAt.getTime() + 7 * 3_600_000)),
+    notes: v.notes,
+    servings: Number(v.servings),
+    lines: v.ingredients.map(toSheetLine),
+  }));
+}
+
 const toSheetLine = (i: IngredientRow): SheetLine => ({
   ingredientId: i.id,
   kind: i.componentMenuId ? "menu" : "product",
@@ -537,7 +548,7 @@ export type IngredientInsight = {
   made:
     | null
     | { how: "yield"; parentId: string; parentName: string; yieldPercent: number }
-    | { how: "recipe"; recipeId: string; servings: number; lines: SheetLine[] }
+    | { how: "recipe"; recipeId: string; servings: number; lines: SheetLine[]; history: MenuSheet["history"] }
     | { how: "none" };
 };
 
@@ -600,7 +611,7 @@ export async function getIngredientInsightLogic(
       ]);
       if (product === null) return null;
       const hit = produced.get(`product:${product.id}`);
-      const [links, recipe] = await Promise.all([
+      const [links, recipe, versions] = await Promise.all([
         tx.recipeBranch.findMany({
           where: { tenantId, lineId: { in: [...new Set(usage.map((u) => u.recipe.lineId))] } },
           select: { lineId: true },
@@ -628,13 +639,21 @@ export async function getIngredientInsightLogic(
                 },
               },
             }),
+        // Its versions, for the history list — the page /recipes/[id] used to be the only place to see them.
+        hit === undefined
+          ? Promise.resolve([])
+          : tx.recipe.findMany({
+              where: { tenantId, lineId: hit.lineId, deletedAt: null, isDraft: false },
+              select: VERSION_SELECT,
+              orderBy: [{ effectiveFrom: "desc" }, { createdAt: "desc" }],
+            }),
       ]);
-      return { product, usage, receipts, recipe, branchLines: new Set(links.map((l) => l.lineId)) };
+      return { product, usage, receipts, recipe, versions, branchLines: new Set(links.map((l) => l.lineId)) };
     }),
     getIngredientFactsLogic(tenantId, query.branchId, [query.productId]),
   ]);
   if (base === null) return null;
-  const { product, usage, receipts, recipe, branchLines } = base;
+  const { product, usage, receipts, recipe, versions, branchLines } = base;
 
   // One row per LINE: only the newest version at or before today still governs.
   const newest = new Map<string, (typeof usage)[number]>();
@@ -647,7 +666,7 @@ export async function getIngredientInsightLogic(
 
   let made: IngredientInsight["made"] = null;
   if (product.type === "PREPPED") {
-    if (recipe) made = { how: "recipe", recipeId: recipe.id, servings: Number(recipe.servings), lines: recipe.ingredients.map(toSheetLine) };
+    if (recipe) made = { how: "recipe", recipeId: recipe.id, servings: Number(recipe.servings), lines: recipe.ingredients.map(toSheetLine), history: toHistory(versions, recipe.id) };
     else if (product.parentProduct && product.yieldPercent)
       made = { how: "yield", parentId: product.parentProduct.id, parentName: product.parentProduct.name, yieldPercent: Number(product.yieldPercent) };
     else made = { how: "none" };

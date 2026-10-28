@@ -286,7 +286,7 @@ export function MenuTable({ rows, total, by }: { rows: MenuRow[]; total: number;
                   <td className="px-3 py-2 text-right text-muted-foreground">
                     {r.costPerDish === null ? (
                       <a
-                        href={`/recipes/new?menu=${r.id}`}
+                        href={`/menus?menu=${r.id}`}
                         onClick={(e) => e.stopPropagation()}
                         className="text-xs text-primary underline"
                       >

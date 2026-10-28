@@ -79,6 +79,8 @@ export default function NewProductSheet({
     sku: "",
     ownSku: false,
     type: "RAW" as "RAW" | "PREPPED",
+    /** A prepped item is made from ONE thing (+ yield) or from several (a production recipe) — ADR 0021 Q1. */
+    madeFrom: "one" as "one" | "many",
     parentId: "",
     yieldPct: "100",
     baseUnit: "",
@@ -141,7 +143,7 @@ export default function NewProductSheet({
       setError(null);
       if (d.name.trim() === "") return setError("ใส่ชื่อสินค้าก่อน");
       if (d.baseUnit === "") return setError("เลือกว่านับสต๊อกเป็นหน่วยอะไร");
-      if (d.type === "PREPPED" && d.parentId === "") return setError("เลือกว่าของแปรรูปนี้ทำจากอะไร");
+      if (d.type === "PREPPED" && d.madeFrom === "one" && d.parentId === "") return setError("เลือกว่าของแปรรูปนี้ทำจากอะไร");
       const bad = d.packs.find((p) => (packName(p) !== "" || p.box || p.size) && (packName(p) === "" || !(Number(packRatioOf(p)) > 0)));
       if (bad) return setError("หน่วยซื้อยังไม่ครบ: ใส่ภาชนะ ขนาด และหน่วยของขนาด");
       const fd = new FormData();
@@ -159,8 +161,10 @@ export default function NewProductSheet({
       }
       fd.set("default_buy_unit_name", buyPack && packName(buyPack) ? packName(buyPack) : d.baseUnit);
       fd.set("type", d.type);
-      fd.set("parent_product_id", d.type === "PREPPED" ? d.parentId : "");
-      fd.set("yield_percent", d.type === "PREPPED" ? d.yieldPct : "");
+      // Several inputs: no parent and no yield — the product's sheet opens next and writes the production recipe.
+      const fromOne = d.type === "PREPPED" && d.madeFrom === "one";
+      fd.set("parent_product_id", fromOne ? d.parentId : "");
+      fd.set("yield_percent", fromOne ? d.yieldPct : "");
       fd.set("liquid_density_template_id", densityShown && d.density === "template" ? d.densityId : "");
       fd.set("density_g_per_ml_override", densityShown && d.density === "custom" ? d.densityOwn : "");
       const res = await orStale(createProduct({ ok: false }, fd));
@@ -240,7 +244,22 @@ export default function NewProductSheet({
           </div>
           {d.type === "PREPPED" && (
             <div className="space-y-2 pt-1">
-              <p className="text-xs text-muted-foreground">ทำจากของตัวเดียว + % ที่ได้ · ถ้าทำจากหลายอย่าง ตั้ง “สูตรผลิต” ต่อได้ในแผงหลังบันทึก</p>
+              {/* Kong 2026-10-29 ("เอาที่มันทำงานถูกต้อง"): the hint used to promise a
+                  production recipe "in the sheet after saving", which only /recipes/new
+                  could write and nothing linked to. Choosing here makes it true. */}
+              <div className="seg" role="group" aria-label="ทำจากอะไร">
+                <button type="button" className={`seg-item ${d.madeFrom === "one" ? "is-on" : ""}`} aria-pressed={d.madeFrom === "one"} onClick={() => set({ madeFrom: "one" })}>
+                  ทำจากของตัวเดียว
+                </button>
+                <button type="button" className={`seg-item ${d.madeFrom === "many" ? "is-on" : ""}`} aria-pressed={d.madeFrom === "many"} onClick={() => set({ madeFrom: "many" })}>
+                  ทำจากหลายอย่าง (สูตรผลิต)
+                </button>
+              </div>
+              {d.madeFrom === "many" ? (
+                <p className="text-xs text-muted-foreground">เช่น น้ำจิ้มซีฟู้ด ซอสผัด · บันทึกแล้วแผงของสินค้านี้จะเปิดขึ้น กด “เขียนสูตรผลิต” แล้วใส่วัตถุดิบที่ใช้ต่อครั้ง</p>
+              ) : (
+              <>
+              <p className="text-xs text-muted-foreground">เช่น ข้าวสาร → ข้าวสวย · กุ้ง → กุ้งแกะ · บอกว่าของตั้งต้น 1 หน่วยได้ของนี้กี่ %</p>
               <div className="flex flex-wrap items-center gap-2 text-sm">
                 ทำจาก
                 <div className="min-w-[14rem] flex-1">
@@ -250,6 +269,8 @@ export default function NewProductSheet({
                 <MeasureInput size="sm" unit="%" min="0.01" value={d.yieldPct} onChange={(e) => set({ yieldPct: e.target.value })} aria-label="% ที่ได้" boxClassName="w-24" />
               </div>
               {Number(d.yieldPct) > 300 && <p className="text-xs text-muted-foreground">เกิน 300% · ปกติสำหรับของที่พองตอนปรุง เช่น ข้าวสาร → ข้าวสวย</p>}
+              </>
+              )}
             </div>
           )}
         </section>

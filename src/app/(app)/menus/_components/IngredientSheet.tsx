@@ -20,7 +20,8 @@ import { useEffect, useState, useTransition, type ReactNode } from "react";
 import { MeasureInput, MoneyInput } from "@/components/ui/NumberField";
 import { setPreppedYieldAction } from "@/app/(app)/menus/manager-actions";
 import { dropPrefetched, ingredientInsight } from "./prefetch";
-import { updateRecipeAction } from "@/app/(app)/recipes/actions";
+import { createRecipeAction, deleteRecipeAction, updateRecipeAction } from "@/app/(app)/recipes/actions";
+import RecipeHistory from "./RecipeHistory";
 import type { IngredientInsight, IngredientOption, PriceBook, SheetLine, StandardUnit } from "@/server/menu-manager";
 import { Adder, appendLines, lineCost as lineCostOf, lineFrom, materializeUnits, nextKey, qtyOf, RecipeTable, signature, type Line } from "./recipe-editor";
 import { orStale } from "@/lib/stale-tab";
@@ -91,6 +92,11 @@ export default function IngredientSheet({
   const [eff, setEff] = useState(today);
   const [confirm, setConfirm] = useState<ConfirmSpec | null>(null);
   const [saving, startSaving] = useTransition();
+  // A prepped item nobody has said how to make: its first production recipe is
+  // written here (2026-10-29) — /recipes/new was the only place, and nothing
+  // linked to it any more.
+  const [writing, setWriting] = useState(false);
+  const [newServings, setNewServings] = useState("1");
 
   const toLine = (l: SheetLine): Line => ({
     key: nextKey(),
@@ -110,6 +116,7 @@ export default function IngredientSheet({
     ingredientInsight(productId, branch.id, fresh).then((res) => {
       if (!res.ok) return setError("error" in res ? res.error : "เปิดไม่ได้");
       setData(res.insight);
+      setWriting(false);
       const m = res.insight.made;
       const ls = m?.how === "recipe" ? m.lines.map(toLine) : null;
       setLinesRaw(ls);
@@ -121,7 +128,11 @@ export default function IngredientSheet({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [productId, branch.id]);
 
-  const made = data?.made ?? null;
+  const made: IngredientInsight["made"] =
+    writing && data?.made?.how === "none"
+      ? { how: "recipe", recipeId: "", servings: Number(newServings) > 0 ? Number(newServings) : 1, lines: [], history: [] }
+      : (data?.made ?? null);
+  const isNewRecipe = made?.how === "recipe" && made.recipeId === "";
   const editable = made?.how === "recipe" ? perm.recipeShared : made?.how === "yield" ? perm.yield : false;
   const baseUnit = data?.product.baseUnitName ?? null;
   const fact = data?.facts.facts[productId] ?? null;
@@ -141,13 +152,13 @@ export default function IngredientSheet({
   const parentPrice = made?.how === "yield" ? (book?.products[made.parentId] ?? null) : null;
   const baseCost =
     made?.how === "recipe"
-      ? total(made.lines) / servings
+      ? isNewRecipe ? null : total(made.lines) / servings // a first recipe has no "before"
       : made?.how === "yield"
         ? parentPrice === null ? null : parentPrice / (made.yieldPercent / 100)
         : (book?.products[productId] ?? null);
   const draftCost =
     made?.how === "recipe" && lines
-      ? draftTotal(lines) / servings
+      ? lines.length === 0 || lines.some((l) => l.qty.trim() === "") ? null : draftTotal(lines) / servings // nothing (or a blank amount) is "—", never ฿0
       : made?.how === "yield"
         ? parentPrice === null || !(Number(yieldPct) > 0) ? null : parentPrice / (Number(yieldPct) / 100)
         : baseCost;
@@ -227,7 +238,9 @@ export default function IngredientSheet({
         const m = await materializeUnits(lines ?? []);
         if (!m.ok) return onToast(m.error);
         appendLines(fd, m.lines);
-        const res = await orStale(updateRecipeAction(made.recipeId, { ok: false }, fd));
+        const res = isNewRecipe
+          ? await orStale(createRecipeAction({ ok: false }, fd))
+          : await orStale(updateRecipeAction(made.recipeId, { ok: false }, fd));
         if (!res.ok) {
           const msg = "formError" in res && res.formError ? res.formError : Object.values(("fieldErrors" in res && res.fieldErrors) || {})[0];
           return onToast(msg ?? "บันทึกไม่ได้");
@@ -238,6 +251,30 @@ export default function IngredientSheet({
       onPreppedSaved();
       await load(true);
     });
+
+  // Deleting the production recipe (2026-10-29): /recipes/[id] was the only
+  // place, and a prepped item with a recipe cannot be deleted until its recipe
+  // is (Part 21 Q13) — without this the product would be stuck for ever.
+  const askRemoveRecipe = () => {
+    if (!data || made?.how !== "recipe" || isNewRecipe) return;
+    const uses = data.usedIn.length;
+    setConfirm({
+      title: `ลบสูตรผลิตของ${data.product.name}?`,
+      lines: [uses ? `${uses} เมนูที่ใช้${data.product.name} จะคิดต้นทุนส่วนนี้ไม่ได้จนกว่าจะเขียนสูตรใหม่` : "ยังไม่มีเมนูไหนใช้ของนี้"],
+      money: null,
+      who: "เขียนสูตรใหม่ได้ทุกเมื่อ",
+      go: "ลบสูตรผลิต",
+      onGo: () =>
+        startSaving(async () => {
+          const res = await orStale(deleteRecipeAction(made.recipeId));
+          if (!res.ok) return onToast("error" in res && res.error ? res.error : "ลบไม่ได้");
+          onToast(`ลบสูตรผลิตของ${data.product.name}แล้ว`);
+          dropPrefetched();
+          onPreppedSaved();
+          await load(true);
+        }),
+    });
+  };
 
   const receipts = data?.receipts ?? null;
   // C4 (Kong 2026-10-24): the change is month average against month average,
@@ -309,7 +346,15 @@ export default function IngredientSheet({
               <section className="space-y-2 rounded-2xl border border-border bg-surface p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <h4 className="font-semibold">สูตรผลิต</h4>
-                  <span className="text-xs text-muted-foreground">ทำครั้งละ {qtyFmt(made.servings, baseUnit)} · ใช้ร่วมกันทุกสาขา</span>
+                  {isNewRecipe ? (
+                    <span className="flex items-center gap-2 text-xs text-muted-foreground">
+                      ทำครั้งละ
+                      <MeasureInput size="sm" unit={unitTh(baseUnit) || "หน่วย"} min="0.001" value={newServings} onChange={(e) => setNewServings(e.target.value)} aria-label="ทำครั้งละ" boxClassName="w-28" />
+                      · ใช้ร่วมกันทุกสาขา
+                    </span>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">ทำครั้งละ {qtyFmt(made.servings, baseUnit)} · ใช้ร่วมกันทุกสาขา</span>
+                  )}
                 </div>
                 <RecipeTable
                   lines={lines}
@@ -321,6 +366,7 @@ export default function IngredientSheet({
                   editable={editable}
                   costHidden={costHidden}
                   showNotes={false}
+                  wholeLabel="ของสูตร"
                   canDefineUnit={perm.recipeShared}
                   onToast={onToast}
                 />
@@ -335,8 +381,16 @@ export default function IngredientSheet({
                   />
                 )}
                 {!editable && <p className="text-xs text-muted-foreground">สูตรของแปรรูปใช้ร่วมกันทุกสาขา แก้ได้เฉพาะเจ้าของร้าน ส่วนกลาง และผู้ดูแลทุกสาขา</p>}
+                {editable && !isNewRecipe && (
+                  <div className="flex justify-end">
+                    <button type="button" onClick={askRemoveRecipe} disabled={saving} className="text-xs text-bad underline decoration-dotted underline-offset-4 hover:decoration-solid">
+                      ลบสูตรผลิต
+                    </button>
+                  </div>
+                )}
               </section>
             )}
+            {made?.how === "recipe" && made.history.length > 0 && <RecipeHistory history={made.history} book={book} costHidden={costHidden} />}
 
             {made?.how === "yield" && (
               <section className="space-y-2 rounded-2xl border border-border bg-surface p-4">
@@ -359,7 +413,29 @@ export default function IngredientSheet({
                 )}
               </section>
             )}
-            {made?.how === "none" && <p className="rounded-lg bg-warn-bg p-3 text-sm text-warn">ของแปรรูปนี้ยังไม่ได้บอกว่าทำจากอะไร จึงคิดต้นทุนไม่ได้ — ตั้งที่หน้าวัตถุดิบ</p>}
+            {made?.how === "none" && (
+              <div className="rounded-lg bg-warn-bg p-3 text-sm text-warn">
+                ของแปรรูปนี้ยังไม่ได้บอกว่าทำจากอะไร จึงคิดต้นทุนไม่ได้
+                {perm.recipeShared ? (
+                  <>
+                    {" "}—{" "}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setWriting(true);
+                        setLinesRaw([]);
+                        setBaseLines([]);
+                      }}
+                      className="font-medium underline decoration-dotted underline-offset-4 hover:decoration-solid"
+                    >
+                      เขียนสูตรผลิต
+                    </button>
+                  </>
+                ) : (
+                  " — ให้เจ้าของร้านหรือผู้ดูแลทุกสาขาเขียนสูตรผลิต"
+                )}
+              </div>
+            )}
 
             {inThisDish && (
               <section className="space-y-1 rounded-2xl border border-border bg-surface p-4">
@@ -468,7 +544,11 @@ export default function IngredientSheet({
               dirty ? `มีการแก้ที่ยังไม่บันทึก: ${dirtyParts.join(" · ")}` : "ยังไม่มีอะไรเปลี่ยน"
             ) : dirty ? (
               <>
-                {!costHidden && baseCost !== null && draftCost !== null ? `ต้นทุนเปลี่ยน ${baht(baseCost, 2)} → ${baht(draftCost, 2)} · ` : ""}
+                {!costHidden && baseCost !== null && draftCost !== null
+                  ? `ต้นทุนเปลี่ยน ${baht(baseCost, 2)} → ${baht(draftCost, 2)} · `
+                  : !costHidden && isNewRecipe && draftCost !== null
+                    ? `ต้นทุน ${baht(draftCost, 2)}/${unitTh(baseUnit)} · `
+                    : ""}
                 {data.usedIn.length ? `กระทบ ${data.usedIn.length} เมนู · ` : ""}
                 {made?.how === "recipe" && (
                   <>

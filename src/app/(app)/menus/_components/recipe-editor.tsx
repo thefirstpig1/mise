@@ -145,6 +145,7 @@ export function RecipeTable({
   costHidden,
   showNotes,
   canDefineUnit,
+  wholeLabel = "ของจาน",
   stockLine,
   onOpen,
   onHover,
@@ -159,6 +160,8 @@ export function RecipeTable({
   editable: boolean;
   costHidden: boolean;
   showNotes: boolean;
+  /** What the first line's share is "of" — a dish, or a production recipe's batch. */
+  wholeLabel?: string;
   /** Shop-defined units are shared by every branch (shared reach). */
   canDefineUnit: boolean;
   stockLine?: (l: Line) => ReactNode;
@@ -286,11 +289,20 @@ export function RecipeTable({
                   </td>
                   {!costHidden && (
                     <td className="py-1.5 text-right align-top tabular-nums max-sm:[grid-area:c]">
-                      {pricesPending ? <span className="inline-block h-3.5 w-12 animate-pulse rounded bg-muted align-middle" /> : c === null ? <span className="text-xs text-warn">ไม่มีราคา</span> : baht(c, 2)}
+                      {pricesPending ? (
+                        <span className="inline-block h-3.5 w-12 animate-pulse rounded bg-muted align-middle" />
+                      ) : l.qty.trim() === "" ? (
+                        // Nothing typed yet is "—", never ฿0 (review 2026-10-29).
+                        <span className="text-muted-subtle">—</span>
+                      ) : c === null ? (
+                        <span className="text-xs text-warn">ไม่มีราคา</span>
+                      ) : (
+                        baht(c, 2)
+                      )}
                       {/* Share of the dish, said in words — the bar it replaced (Kong 2026-10-22) read as stock. */}
                       {!pricesPending && c !== null && total > 0 && allPriced && (
                         <span className="block text-[11px] text-muted-subtle">
-                          {Math.round((c / total) * 100)}%{idx === 0 ? " ของจาน" : ""}
+                          {Math.round((c / total) * 100)}%{idx === 0 ? ` ${wholeLabel}` : ""}
                         </span>
                       )}
                     </td>

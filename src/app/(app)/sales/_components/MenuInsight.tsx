@@ -268,7 +268,7 @@ function InsightBody({ r, from, to, branchId }: { r: Extract<MenuInsightResult, 
           {noRecipe ? (
             <p className="text-sm">
               <span className="font-medium">ยังคิดกำไรไม่ได้</span> — เมนูนี้ยังไม่มีสูตรอาหาร ระบบจึงไม่รู้ต้นทุนต่อจาน ·{" "}
-              <a href={`/recipes/new?menu=${m.id}`} className="font-medium text-primary underline">
+              <a href={`/menus?menu=${m.id}`} className="font-medium text-primary underline">
                 เขียนสูตร
               </a>
             </p>
@@ -312,7 +312,7 @@ function InsightBody({ r, from, to, branchId }: { r: Extract<MenuInsightResult, 
               <p className="mt-2 text-xs text-muted-foreground">
                 ต้นทุนจากสูตรอาหาร ณ {r.costAsOf} (ราคาวัตถุดิบตามที่ซื้อเข้ามาจริง) ไม่ใช่ต้นทุนรายวัน ·{" "}
                 {m.recipeId && (
-                  <a href={`/recipes/${m.recipeId}`} className="text-primary underline">
+                  <a href={`/menus?menu=${m.id}`} className="text-primary underline">
                     ดูสูตรและต้นทุนแต่ละวัตถุดิบ
                   </a>
                 )}
