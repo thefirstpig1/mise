@@ -110,8 +110,13 @@ export default async function ExpenseAnalysisPage({ searchParams }: { searchPara
 
       {/* --- headline --- */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Stat label="รวมรายจ่าย" value={baht(total)} sub={`${a.lineCount.toLocaleString("th-TH")} รายการ`} />
-        <Stat label="จำนวนบิล" value={a.billCount.toLocaleString("th-TH")} sub="บิลที่มีรายการตรงเงื่อนไข" />
+        {/* No bill recorded is "not known yet", not ฿0 spent (Kong's rule: never ฿0 for no data). */}
+        <Stat
+          label="รวมรายจ่าย"
+          value={a.billCount === 0 ? "—" : baht(total)}
+          sub={a.billCount === 0 ? "ยังไม่มีบิลที่ตรงเงื่อนไข" : `${a.lineCount.toLocaleString("th-TH")} รายการ`}
+        />
+        <Stat label="จำนวนบิล" value={a.billCount === 0 ? "—" : a.billCount.toLocaleString("th-TH")} sub="บิลที่มีรายการตรงเงื่อนไข" />
         <Stat label="ผู้ขายที่จ่ายเยอะสุด" value={top(a.bySupplier)?.label ?? "—"} sub={top(a.bySupplier) ? baht(n(top(a.bySupplier)!.amount)) : undefined} small />
         <Stat
           label={filter.section ? "กลุ่มที่จ่ายเยอะสุด" : "หมวดที่จ่ายเยอะสุด"}
