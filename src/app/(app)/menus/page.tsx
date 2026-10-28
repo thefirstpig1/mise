@@ -137,6 +137,7 @@ export default async function MenusPage({
         recipe: can("recipe:write"),
         recipeShared: can("recipe:write") && canEditShared,
         yield: can("master:write") && canEditShared,
+        sales: can("sales:view"),
       }}
     />
   );

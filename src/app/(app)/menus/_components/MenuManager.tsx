@@ -37,7 +37,7 @@ export type ManagerRow = MenuRowView & {
   tone: string;
 };
 
-export type Perm = { editMenu: boolean; deleteMenu: boolean; recipe: boolean; recipeShared: boolean; yield: boolean };
+export type Perm = { editMenu: boolean; deleteMenu: boolean; recipe: boolean; recipeShared: boolean; yield: boolean; /** Sees the sales block in the sheet. */ sales?: boolean };
 export type Option = { id: string; name: string };
 
 type Status = "all" | "none" | "trial" | "review" | "retired" | "every";

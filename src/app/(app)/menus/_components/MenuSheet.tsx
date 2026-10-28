@@ -38,6 +38,7 @@ import type { ManagerRow, Option, Perm } from "./MenuManager";
 import { atLeastTh, atMostTh, baht, confidenceHintTh, confidenceTh, newSubmitKey, qtyFmt, thDate, unitTh } from "./manager-format";
 import { ConfirmDialog, type ConfirmSpec, PhotoSlot, Sheet } from "./sheet-parts";
 import IngredientSheet from "./IngredientSheet";
+import MenuSalesTrend from "./MenuSalesTrend";
 
 export default function MenuSheet(props: {
   menu: ManagerRow;
@@ -528,6 +529,9 @@ export default function MenuSheet(props: {
             />
           )}
         </div>
+
+        {/* Rough sales by month (Kong, 2026-10-28) — the detail is on /sales. */}
+        {perm.sales && <MenuSalesTrend menuId={menu.id} branchId={branch.id} branchName={branch.name} today={today} />}
 
         {/* ---------------- recipe ---------------- */}
         <section className="space-y-3 rounded-xl border border-border bg-surface p-4">

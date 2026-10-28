@@ -22,6 +22,7 @@ import { METRIC_LABELS_TH, baht, fmtMetric, type Metric } from "@/lib/sales-insi
 import { useMenuInsight } from "./insight-context";
 import { PopupMetricSwitch } from "./MetricSwitch";
 import { STALE_TAB_MESSAGE, announceStale } from "@/lib/stale-tab";
+import { CategoryTrendPane, RangeControls, useSalesTrend } from "./SalesTrend";
 
 export type BreakdownCategory = { key: string; label: string; value: number | null; qty: number };
 export type BreakdownMenu = { id: string; name: string; categoryKey: string; value: number | null; qty: number };
@@ -314,6 +315,8 @@ export function CategoryShare({
   periodLabel,
   filterHref,
   onMenu,
+  open: openProp,
+  onOpenChange,
 }: {
   categories: BreakdownCategory[];
   menus: BreakdownMenu[];
@@ -324,9 +327,15 @@ export function CategoryShare({
   /** Link that narrows the whole PAGE to one category (the old click). */
   filterHref: Record<string, string>;
   onMenu?: (menuId: string) => void;
+  /** Controlled from outside — แนวโน้มรายหมวด opens this popup too. */
+  open?: string | null;
+  onOpenChange?: (key: string | null) => void;
 }) {
-  const [open, setOpen] = useState<string | null>(null);
-  const close = useMemo(() => () => setOpen(null), []);
+  const [openState, setOpenState] = useState<string | null>(null);
+  const open = openProp !== undefined ? openProp : openState;
+  const setOpen = onOpenChange ?? setOpenState;
+  const close = useMemo(() => () => setOpen(null), [setOpen]);
+  const trend = useSalesTrend();
   const ctx = useMenuInsight();
   const openMenu = onMenu ?? ctx?.open;
 
@@ -407,24 +416,96 @@ export function CategoryShare({
               <PopupMetricSwitch />
             </div>
           </div>
-          <BreakdownPanes
-            categories={categories}
-            menus={menus}
-            tones={tones}
-            total={total}
-            by={by}
-            initial={open}
-            onMenu={
-              openMenu
-                ? (id) => {
-                    setOpen(null);
-                    openMenu(id);
-                  }
-                : undefined
-            }
-          />
+          {trend ? (
+            // With the month-by-month trend (Kong, 2026-10-28): the chosen
+            // category's line and a searchable list of its menus.
+            <TrendPanes
+              categories={categories}
+              tones={tones}
+              total={total}
+              by={by}
+              open={open}
+              setOpen={setOpen}
+              onMenu={
+                openMenu
+                  ? (id) => {
+                      setOpen(null);
+                      openMenu(id);
+                    }
+                  : undefined
+              }
+            />
+          ) : (
+            <BreakdownPanes
+              categories={categories}
+              menus={menus}
+              tones={tones}
+              total={total}
+              by={by}
+              initial={open}
+              onMenu={
+                openMenu
+                  ? (id) => {
+                      setOpen(null);
+                      openMenu(id);
+                    }
+                  : undefined
+              }
+            />
+          )}
         </ModalShell>
       )}
+    </div>
+  );
+}
+
+/** The category popup's panes when the trend is on the page. */
+function TrendPanes({
+  categories,
+  tones,
+  total,
+  by,
+  open,
+  setOpen,
+  onMenu,
+}: {
+  categories: BreakdownCategory[];
+  tones: ToneMap;
+  total: number;
+  by: Metric;
+  open: string;
+  setOpen: (k: string) => void;
+  onMenu?: (menuId: string) => void;
+}) {
+  const maxCat = Math.max(1, ...categories.map((c) => pos(c.value)));
+  const i = Math.max(0, categories.findIndex((c) => c.key === open));
+  const key = categories[i]?.key ?? open;
+  return (
+    <div className="space-y-3">
+      <RangeControls />
+      <div className="grid gap-4 md:grid-cols-[minmax(0,15rem)_minmax(0,1fr)]">
+        <div className="rounded-xl border border-border bg-muted/30 p-2">
+          <p className="px-2 pb-1 pt-1 text-xs font-medium text-muted-foreground">หมวดเมนู · {METRIC_LABELS_TH[by]}ช่วงนี้</p>
+          <div className="flex flex-col gap-1">
+            {categories.map((c, k) => (
+              <CatButton
+                key={c.key}
+                active={key === c.key}
+                onClick={() => setOpen(c.key)}
+                label={c.label}
+                text={fmtMetric(by, c.value)}
+                share={total > 0 && c.value !== null ? (c.value / total) * 100 : null}
+                width={(pos(c.value) / maxCat) * 100}
+                tone={toneFor(tones, c.key, k)}
+                index={k}
+              />
+            ))}
+          </div>
+        </div>
+        <div className="min-w-0 rounded-xl border border-border p-4">
+          <CategoryTrendPane categoryKey={key} tone={TONES[toneFor(tones, key, i)][0]} onMenu={onMenu} />
+        </div>
+      </div>
     </div>
   );
 }

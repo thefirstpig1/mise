@@ -29,6 +29,8 @@ import type { MenuInsightResult } from "../insight-reads";
 import { readApi } from "@/lib/read-api";
 import { ActionError, ModalShell, STALE_TAB_MESSAGE, baht, fmtMetric } from "./Breakdown";
 import { atLeastTh, atMostTh, isUnderstated } from "@/lib/cost-bound";
+import { MenuMonthlyTab, PromoCheckTab } from "./MenuTrendTabs";
+import { useSalesTrend } from "./SalesTrend";
 
 const WEEKDAY_SHORT = ["อา.", "จ.", "อ.", "พ.", "พฤ.", "ศ.", "ส."];
 const STALE: MenuInsightResult = { ok: false, formError: STALE_TAB_MESSAGE, stale: true };
@@ -139,7 +141,7 @@ function MenuInsightModal({
       ) : !res.ok ? (
         <ActionError message={res.formError} stale={"stale" in res && Boolean(res.stale)} />
       ) : (
-        <InsightBody r={res} />
+        <InsightBody r={res} from={from} to={to} branchId={branchId} />
       )}
     </ModalShell>
   );
@@ -175,8 +177,13 @@ function Kpi({ label, value, sub, tone }: { label: string; value: string; sub?: 
 // the same screen, so a measure switch here only repeated them (Kong, 2026-09-29).
 const by: Metric = "net";
 
-function InsightBody({ r }: { r: Extract<MenuInsightResult, { ok: true }> }) {
+type Tab = "now" | "month" | "promo";
+
+function InsightBody({ r, from, to, branchId }: { r: Extract<MenuInsightResult, { ok: true }>; from: string; to: string; branchId?: string }) {
   const m = r.insight;
+  const [tab, setTab] = useState<Tab>("now");
+  // The month-by-month tabs need the page's trend (Kong, 2026-10-28).
+  const hasTrend = useSalesTrend() !== null;
   const noRecipe = m.costPerDish === null;
   // Rule RC-LB: an unpriced ingredient makes the cost a floor, the profit a ceiling.
   const low = isUnderstated(m.confidence);
@@ -211,6 +218,34 @@ function InsightBody({ r }: { r: Extract<MenuInsightResult, { ok: true }> }) {
         </div>
       </div>
 
+      {hasTrend && (
+        <div role="tablist" aria-label="มุมมองของเมนูนี้" className="-mt-1 flex gap-1 border-b border-border">
+          {(
+            [
+              ["now", "ช่วงนี้"],
+              ["month", "รายเดือน"],
+              ["promo", "ทำโปรได้ผลไหม"],
+            ] as [Tab, string][]
+          ).map(([k, l]) => (
+            <button
+              key={k}
+              type="button"
+              role="tab"
+              aria-selected={tab === k}
+              onClick={() => setTab(k)}
+              className={`-mb-px h-10 border-b-2 px-3.5 text-[15px] font-semibold transition-colors ${
+                tab === k ? "border-foreground text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {l}
+            </button>
+          ))}
+        </div>
+      )}
+      {tab === "month" && <MenuMonthlyTab menuId={m.id} endMonth={to.slice(0, 7)} />}
+      {tab === "promo" && <PromoCheckTab menuId={m.id} from={from} to={to} branchId={branchId} />}
+      {tab === "now" && (
+      <>
       {/* ---------- sells? ---------- */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Kpi label="ยอดขายต่อวัน" value={baht(m.netPerDay)} sub={<Delta v={change(m.netPerDay, m.prev?.netPerDay)} vs={r.prevLabel} />} />
@@ -349,6 +384,8 @@ function InsightBody({ r }: { r: Extract<MenuInsightResult, { ok: true }> }) {
       <p className="text-xs text-muted-foreground">
         ทุก % เทียบ {r.curLabel} กับ {r.prevLabel} แบบเฉลี่ยต่อวันที่มีข้อมูล (สองช่วงยาวไม่เท่ากันก็เทียบได้ตรง)
       </p>
+      </>
+      )}
     </div>
   );
 }

@@ -18,6 +18,16 @@ import type { CostAccess } from "@/lib/permissions/cost-access";
 import type { BranchReach } from "@/lib/permissions/service";
 import type { CostMap } from "@/lib/sales-insight";
 import { toneOf } from "@/components/charts/chart-theme";
+import {
+  monthRangeDates,
+  monthsBetween,
+  promoSide,
+  promoVerdict,
+  promoWindows,
+  salesTrend,
+  type PromoCheck,
+  type SalesTrend,
+} from "@/lib/sales-trend";
 import { buildSalesView, tonesFor, type SalesView } from "./_components/sales-views";
 import {
   enrich,
@@ -226,5 +236,116 @@ export async function readSalesProfitView(input: {
   return {
     ok: true,
     view: buildSalesView({ cur, before, menuMeta, costs, tones: tonesFor(cur, toneOf), day }, "profit"),
+  };
+}
+
+// ------------------------------------------------------------
+// Sales by month, and "did the promotion work" (Kong, 2026-10-28)
+// ------------------------------------------------------------
+const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/** Two years is the longest range the custom picker offers. */
+const MAX_TREND_MONTHS = 24;
+
+export type SalesTrendResult =
+  | { ok: true; trend: SalesTrend; canSeeCost: boolean; withProfit: boolean; costAsOf: string }
+  | { ok: false; formError: string; stale?: boolean };
+
+/**
+ * Every category and menu, month by month, for the branch(es) in view. Profit
+ * is the slow part (the recipe walk), so it comes only when asked for, priced
+ * once at the END of the range (rule TR3) like every other /sales figure.
+ */
+export async function readSalesTrend(input: {
+  fromMonth: string;
+  toMonth: string;
+  branchId?: string;
+  categoryId?: string;
+  withProfit: boolean;
+}): Promise<SalesTrendResult> {
+  const { tenantId, assertBranch, costAccess, reach } = await requireTenant("sales:view");
+  if (!MONTH.test(input.fromMonth) || !MONTH.test(input.toMonth) || input.fromMonth > input.toMonth) {
+    return { ok: false, formError: "ช่วงเดือนไม่ถูกต้อง" };
+  }
+  const months = monthsBetween(input.fromMonth, input.toMonth);
+  if (input.categoryId && !UUID_RE.test(input.categoryId)) return { ok: false, formError: "คำขอไม่ถูกต้อง" };
+  if (months.length > MAX_TREND_MONTHS) return { ok: false, formError: `เลือกได้ไม่เกิน ${MAX_TREND_MONTHS} เดือน` };
+  if (input.branchId) assertBranch(input.branchId);
+  const range = monthRangeDates(input.fromMonth, input.toMonth);
+  const withProfit = input.withProfit && costAccess !== null;
+
+  const { data, costs } = await rowsWithCosts(
+    tenantId,
+    reach,
+    input.branchId || undefined,
+    d(range.to),
+    withProfit ? costAccess : null,
+    getSalesMenuDaysLogic(tenantId, {
+      reach,
+      branchId: input.branchId || undefined,
+      menuCategoryId: input.categoryId || undefined,
+      from: d(range.from),
+      to: d(range.to),
+    })
+  );
+  const menus = new Map<string, MenuMeta>(data.menus.map((m) => [m.id, m]));
+  return {
+    ok: true,
+    trend: salesTrend(data.rows, menus, costs, months),
+    canSeeCost: costAccess !== null,
+    withProfit,
+    costAsOf: thai(range.to),
+  };
+}
+
+export type PromoCheckResult =
+  | { ok: true; check: PromoCheck; menuName: string; categoryName: string; canSeeCost: boolean; costAsOf: string }
+  | { ok: false; formError: string; stale?: boolean };
+
+/**
+ * One menu's promotion, judged per day against the time before it (rule TR5):
+ * the menu itself, the OTHER menus of its category, and the category's profit.
+ * Nothing records a promotion yet, so the reader says when it ran.
+ */
+export async function readPromoCheck(input: {
+  menuId: string;
+  from: string;
+  to: string;
+  base: "3m" | "1m";
+  branchId?: string;
+}): Promise<PromoCheckResult> {
+  const { tenantId, assertBranch, costAccess, reach } = await requireTenant("sales:view");
+  if (!ISO.test(input.from) || !ISO.test(input.to) || input.from > input.to) {
+    return { ok: false, formError: "ช่วงวันที่ไม่ถูกต้อง" };
+  }
+  if (!UUID_RE.test(input.menuId)) return { ok: false, formError: "ไม่พบเมนูนี้" };
+  if (input.base !== "3m" && input.base !== "1m") return { ok: false, formError: "คำขอไม่ถูกต้อง" };
+  if (input.branchId) assertBranch(input.branchId);
+
+  const w = promoWindows(input.from, input.to, input.base);
+  const { data, costs } = await rowsWithCosts(
+    tenantId,
+    reach,
+    input.branchId || undefined,
+    d(input.to),
+    costAccess,
+    getSalesMenuDaysLogic(tenantId, { reach, branchId: input.branchId || undefined, from: d(w.before.from), to: d(w.after.to) })
+  );
+  const menus = new Map<string, MenuMeta>(data.menus.map((m) => [m.id, m]));
+  const me = menus.get(input.menuId);
+  if (!me) return { ok: false, formError: "ไม่พบยอดขายของเมนูนี้ในช่วงนี้" };
+  const inCategory = new Set([...menus.values()].filter((m) => m.categoryKey === me.categoryKey).map((m) => m.id));
+  const side = (s: { from: string; to: string }) => promoSide(data.rows, input.menuId, inCategory, costAccess ? costs : null, s.from, s.to);
+
+  const before = side(w.before);
+  const during = side(w.during);
+  const afterSide = side(w.after);
+  return {
+    ok: true,
+    check: { before, during, after: afterSide.days > 0 ? afterSide : null, verdict: promoVerdict(before, during) },
+    menuName: me.name,
+    categoryName: me.categoryName,
+    canSeeCost: costAccess !== null,
+    costAsOf: thai(input.to),
   };
 }

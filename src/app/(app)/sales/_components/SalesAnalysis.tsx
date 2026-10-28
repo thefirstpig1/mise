@@ -33,6 +33,7 @@ import MenuChanges from "./MenuChanges";
 import MenuEngineering from "./MenuEngineering";
 import ComparePicker, { type CompareOption } from "./ComparePicker";
 import { MenuTable, SalesDailyChart, WeekdayChart } from "./SalesCharts";
+import { CategoryTrendCard, RangeControls, SalesTrendProvider } from "./SalesTrend";
 
 type MonthOpt = { key: string; label: string; from: string; to: string };
 
@@ -194,8 +195,11 @@ export default function SalesAnalysis({
 
   const options = useMemo(() => OPTIONS.filter((o) => o.key !== "profit" || canProfit), [canProfit]);
   const v = views[by] ?? views.net!;
+  // The category popup opens from สัดส่วนหมวดเมนู and from แนวโน้มรายหมวด.
+  const [catOpen, setCatOpen] = useState<string | null>(null);
 
   return (
+    <SalesTrendProvider endMonth={range.to.slice(0, 7)} branchId={branchId} categoryId={categoryId} canProfit={canProfit} metric={by} tones={tones}>
     <MenuInsightProvider
       from={range.from}
       to={range.to}
@@ -286,10 +290,24 @@ export default function SalesAnalysis({
               periodLabel={periodShort}
               categories={v.categories}
               menus={v.menus}
+              open={catOpen}
+              onOpenChange={setCatOpen}
               filterHref={Object.fromEntries(Object.entries(filterHref).map(([k, h]) => [k, withBy(h, by)]))}
             />
           </section>
         </div>
+
+        {/* ---------- month by month (Kong, 2026-10-28) ---------- */}
+        <section className="rounded-xl border border-border bg-surface p-5">
+          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h3 className="text-base font-semibold">แนวโน้มรายหมวด</h3>
+              <p className="mt-0.5 text-xs text-muted-foreground">เดือนไหนหมวดไหนขายดี · เฉลี่ยต่อวันที่มีข้อมูล · กดหมวดเพื่อดูกราฟของหมวดนั้น</p>
+            </div>
+            <RangeControls />
+          </div>
+          <CategoryTrendCard onOpenCategory={setCatOpen} />
+        </section>
 
         {/* ---------- question 1: which category sells on which day ---------- */}
         {!noMenuCategories && (
@@ -362,6 +380,7 @@ export default function SalesAnalysis({
         {profitError && !pending && by === "profit" && <ActionError message={profitError.message} stale={profitError.stale} />}
       </div>
     </MenuInsightProvider>
+    </SalesTrendProvider>
   );
 }
 
