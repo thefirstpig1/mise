@@ -60,6 +60,8 @@ export default function LabSheet(props: {
   draft: LabDraft | null;
   /** A new draft that reworks this dish ("เริ่มจากเมนูที่ขายอยู่แต่ยังไม่มีสูตร"). */
   startMenuId?: string | null;
+  /** The target the menu sheet was showing when it linked here — the helper starts on it. */
+  startTargetPct?: number | null;
   menus: LabMenu[];
   factDays: number;
   categories: Option[];
@@ -97,10 +99,16 @@ export default function LabSheet(props: {
   const [saved, setSaved] = useState({ lines: firstLines, servings: d0?.servings ?? 1, price: d0?.plannedPrice ?? null });
   const [servings, setServings] = useState(d0?.servings ?? 1);
   const [price, setPrice] = useState<string>(d0?.plannedPrice ? String(d0.plannedPrice) : "");
-  const [target, setTarget] = useState(() => readTarget(d0?.recipeId ?? null));
+  const [target, setTarget] = useState(() => (!d0 && props.startTargetPct ? props.startTargetPct : readTarget(d0?.recipeId ?? null)));
   const [branchId, setBranchId] = useState(props.defaultBranchId);
   const book = branchId ? (props.books[branchId] ?? null) : null;
   useEffect(() => props.needBook(branchId), [branchId]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Opened for a dish on sale (the menu sheet's "ลองราคาในทดลองเมนู", Kong
+  // 2026-10-29): start from the recipe in use, as picking that dish here would.
+  useEffect(() => {
+    if (d0 || !props.startMenuId || !branchId || !menu?.hasRecipe) return;
+    void menuSheet(props.startMenuId, branchId).then((r) => r.ok && r.sheet.recipe && setLines((ls) => (ls.length ? ls : r.sheet.recipe!.lines.map(toLine))));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // The recipe in use, for "แก้สูตรเมนูที่ขายอยู่": its lines are where the
   // draft starts and what publishing is compared against.
@@ -380,7 +388,7 @@ export default function LabSheet(props: {
       const res = await orStale(restoreMenuAction(restorable.id));
       if (!res.ok) return setFormError(res.error);
       // The dish exists again: this draft now edits it rather than making a second menu.
-      setExtraMenu({ id: res.menuId, name: restorable.name, posCode: null, category: null, qty: 0, net: 0, hasRecipe: restorable.recipeCount > 0 });
+      setExtraMenu({ id: res.menuId, name: restorable.name, posCode: null, category: null, qty: 0, net: 0, hasRecipe: restorable.recipeCount > 0, dupOf: null });
       setMenuId(res.menuId);
       setKind("edit");
       setRestorable(null);

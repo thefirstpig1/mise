@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { groupSuggestions, sameNameKey, type MergeMenuFacts } from "@/server/menu-merge-suggest";
+import { groupSuggestions, likelyDuplicateOf, sameNameKey, type MergeMenuFacts } from "@/server/menu-merge-suggest";
 
 const m = (id: string, name: string, pos: string | null, net = 0, extra: Partial<MergeMenuFacts> = {}): MergeMenuFacts => ({
   id,
@@ -57,5 +57,22 @@ describe("groupSuggestions", () => {
   it("marks a group near when the names differ beyond spacing", () => {
     const menus = [m("a", "หมูกรอบผัดพริกเกลือ", "ari"), m("b", "หมูกรอบพริกเกลือ", "lp")];
     expect(groupSuggestions(menus, [{ a: "a", b: "b", score: 0.7 }])[0].kind).toBe("near");
+  });
+});
+
+describe("likelyDuplicateOf", () => {
+  it("points each recipe-less copy at the best-selling member that has a recipe", () => {
+    const menus = [
+      m("a1", "กะเพรา", "ari", 900, { hasRecipe: true, posMenuCode: "A01" }),
+      m("x1", "กะเพรา", "lat", 400),
+      m("y1", "กะเพรา", "thong", 950, { hasRecipe: true, posMenuCode: "T01" }),
+    ];
+    const got = likelyDuplicateOf({ menus, suggestions: [{ kind: "exact", menuIds: ["a1", "x1", "y1"], net: 2250 }] });
+    expect(got).toEqual({ x1: { id: "y1", name: "กะเพรา", code: "T01" } });
+  });
+
+  it("names nobody when no member of the group has a recipe — that is a recipe to write", () => {
+    const menus = [m("x1", "ข้าวซอย", "ari", 500), m("x2", "ข้าวซอย", "lat", 300)];
+    expect(likelyDuplicateOf({ menus, suggestions: [{ kind: "exact", menuIds: ["x1", "x2"], net: 800 }] })).toEqual({});
   });
 });

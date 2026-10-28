@@ -8,7 +8,7 @@ import type { Route } from "next";
 // A small label, the figure in Prompt, and a line saying where it comes from
 // or what it is compared with — never a bare number. No data is "—" with a
 // reason in `sub`, never ฿0 (mise-ui-review §3). Give it `href` and the whole
-// card opens the detail or filters the page.
+// card opens the detail; `onClick` filters the page in place.
 // ============================================================
 
 export default function Stat({
@@ -17,6 +17,8 @@ export default function Stat({
   sub,
   tone,
   href,
+  onClick,
+  pressed,
 }: {
   label: ReactNode;
   value: ReactNode;
@@ -24,6 +26,9 @@ export default function Stat({
   /** Colour of the figure — only when the number itself is good or bad for the shop. */
   tone?: "good" | "bad" | "warn";
   href?: string;
+  onClick?: () => void;
+  /** With `onClick`: the filter this card applies is on. */
+  pressed?: boolean;
 }) {
   const body = (
     <>
@@ -39,6 +44,12 @@ export default function Stat({
     </>
   );
   const cls = "flex min-w-0 flex-col gap-0.5 rounded-2xl border border-border bg-surface px-3.5 py-3 text-left";
+  if (onClick)
+    return (
+      <button type="button" onClick={onClick} aria-pressed={pressed} className={`${cls} transition-colors hover:bg-surface-sunk ${pressed ? "border-primary ring-1 ring-primary" : ""}`}>
+        {body}
+      </button>
+    );
   return href ? (
     <Link href={href as Route} scroll={false} className={`${cls} transition-colors hover:bg-surface-sunk`}>
       {body}

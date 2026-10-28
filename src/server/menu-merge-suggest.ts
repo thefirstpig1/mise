@@ -123,6 +123,24 @@ export function groupSuggestions(menus: readonly MergeMenuFacts[], pairs: readon
 
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 
+/**
+ * Which recipe-less dishes are probably another branch's copy of a dish that
+ * HAS a recipe (Kong 2026-10-28/29): merging fixes those, writing a second
+ * recipe does not. Keyed by the copy; the value is the group's best-selling
+ * member with a recipe. A group where nobody has a recipe names nobody.
+ */
+export function likelyDuplicateOf(overview: Pick<MergeOverview, "menus" | "suggestions">): Record<string, { id: string; name: string; code: string | null }> {
+  const byId = new Map(overview.menus.map((m) => [m.id, m]));
+  const out: Record<string, { id: string; name: string; code: string | null }> = {};
+  for (const g of overview.suggestions) {
+    const members = g.menuIds.map((id) => byId.get(id)).filter((m): m is MergeMenuFacts => m !== undefined);
+    const main = members.filter((m) => m.hasRecipe).sort((a, b) => b.net - a.net)[0];
+    if (!main) continue;
+    for (const m of members) if (!m.hasRecipe) out[m.id] = { id: main.id, name: main.name, code: main.posMenuCode };
+  }
+  return out;
+}
+
 /** Every menu with the facts a merge decision needs, and the suggested groups. */
 export async function getMergeOverviewLogic(tenantId: string, client?: Tx): Promise<MergeOverview> {
   const run = async (tx: Tx): Promise<MergeOverview> => {

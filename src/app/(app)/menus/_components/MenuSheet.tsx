@@ -32,6 +32,7 @@ import { DELETE_MEANS_TH, RETIRE_MEANS_TH, RETIRE_NOT_IN_POS_TH } from "@/lib/va
 import type { IngredientOption, MenuSheet as SheetData, PriceBook, StandardUnit } from "@/server/menu-manager";
 import { Adder, appendLines, CostMix, lineCost as lineCostWith, lineFrom, materializeUnits, nextKey, priceOf, qtyOf, RecipeTable, signature, type Line } from "./recipe-editor";
 import { orStale } from "@/lib/stale-tab";
+import { saveMenuCostTargetAction } from "@/app/(app)/cost/actions";
 import type { MergeMenuView } from "./menu-merge-view";
 import type { MenuSuggestionRowView } from "./menu-view";
 import type { ManagerRow, Option, Perm } from "./MenuManager";
@@ -54,6 +55,8 @@ export default function MenuSheet(props: {
   posIntegrationId: string | null;
   spellings: MergeMenuView[];
   mergedIntoLabel: string | null;
+  /** The shop's food-cost target, % of price — what a dish without its own is held to. */
+  shopTargetPct: number;
   costHidden: boolean;
   perm: Perm;
   /** This branch's prices, loaded once by the list; null while it is coming. */
@@ -84,6 +87,10 @@ export default function MenuSheet(props: {
   const [eff, setEff] = useState(today);
   const [scope, setScope] = useState<string>("all");
   const [showNotes, setShowNotes] = useState(false);
+  // Kong 2026-10-29 (round 2, E): the dish's own food-cost target lives here,
+  // next to the cost it judges. Off = the shop's target.
+  const [ownTarget, setOwnTarget] = useState(menu.targetPct !== null);
+  const [targetText, setTargetText] = useState(menu.targetPct === null ? String(props.shopTargetPct) : String(menu.targetPct));
 
   const [confirm, setConfirm] = useState<ConfirmSpec | null>(null);
   const [ing, setIng] = useState<string | null>(null);
@@ -143,6 +150,8 @@ export default function MenuSheet(props: {
     if (categoryId !== (menu.menuCategoryId ?? "")) metaDirty.push("หมวด");
     if (props.departmentsEnabled && departmentId !== (menu.primaryDepartmentId ?? "")) metaDirty.push("แผนก");
     if (retired !== menu.isRetired) metaDirty.push("สถานะ");
+    const draftTarget = ownTarget ? Number(targetText) : null;
+    if (draftTarget === null ? menu.targetPct !== null : menu.targetPct === null || Math.abs(draftTarget - menu.targetPct) > 0.04) metaDirty.push("เป้าต้นทุน");
   }
   const recipeDirty = sheet !== null && signature(lines, servings) !== signature(baseLines, recipe?.servings ?? 1) || (sheet !== null && notes.trim() !== (recipe?.notes ?? "").trim());
   const dirty = [...metaDirty, ...(recipeDirty ? ["สูตร"] : [])];
@@ -169,6 +178,26 @@ export default function MenuSheet(props: {
   // the cost a floor and the profit a ceiling.
   const understated = !known || confidence === "LOW";
   const costWaiting = (sheet === null && !loadError) || (pricesPending && lines.length > 0);
+
+  // ---- the target (round 2, E) ----
+  const typedTarget = Number(targetText);
+  const target = ownTarget && Number.isFinite(typedTarget) && typedTarget >= 5 && typedTarget <= 95 ? typedTarget : ownTarget ? (menu.targetPct ?? props.shopTargetPct) : props.shopTargetPct;
+  const costPct = perPlate !== null && avg ? (perPlate / avg) * 100 : null;
+  const overBy = costPct === null ? null : costPct - target;
+  const priceForTarget = perPlate === null ? null : Math.ceil(perPlate / (target / 100));
+  const costForTarget = avg === null ? null : avg * (target / 100);
+  // The ingredient that carries the plate — where a cut would have to come from.
+  const heaviest = useMemo(() => {
+    if (perPlate === null || perPlate <= 0 || lines.length === 0) return null;
+    let top: { label: string; cost: number } | null = null;
+    for (const l of lines) {
+      const c = lineCost(l);
+      if (c !== null && (top === null || c > top.cost)) top = { label: l.label, cost: c };
+    }
+    return top === null ? null : { label: top.label, share: (top.cost / (servings || 1) / perPlate) * 100 };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lines, perPlate, servings, book]);
+  const targetLabel = `${Number.isInteger(target) ? target : target.toFixed(1)}%`;
 
   const facts = sheet?.facts ?? null;
   const stockLine = (l: Line) => {
@@ -227,7 +256,13 @@ export default function MenuSheet(props: {
   const doSave = (target: string) =>
     startSaving(async () => {
       setFormError(null);
-      if (metaDirty.some((d) => d !== "สถานะ")) {
+      if (metaDirty.includes("เป้าต้นทุน")) {
+        const pct = ownTarget ? Number(targetText) : null;
+        if (pct !== null && !(Number.isFinite(pct) && pct >= 5 && pct <= 95)) return setFormError("เป้าต้นทุนต้องอยู่ระหว่าง 5–95% ของราคาขาย");
+        const res = await orStale(saveMenuCostTargetAction(menu.id, pct));
+        if (!res.ok) return setFormError(res.formError);
+      }
+      if (metaDirty.some((d) => d !== "สถานะ" && d !== "เป้าต้นทุน")) {
         const fd = new FormData();
         fd.set("menuId", menu.id);
         fd.set("name", name.trim());
@@ -525,12 +560,96 @@ export default function MenuSheet(props: {
           {!costHidden && (
             <Tile
               k="ต้นทุน % · กำไรต่อจาน"
-              v={costWaiting ? "…" : perPlate !== null && avg ? atLeastTh(understated, `${((perPlate / avg) * 100).toFixed(1)}%`) : "—"}
-              s={costWaiting ? "กำลังคำนวณ…" : perPlate !== null && avg ? `กำไร ${atMostTh(understated, baht(avg - perPlate, 2))}/จาน` : perPlate === null ? "คิดได้เมื่อมีสูตร" : "ยังไม่มียอดขาย"}
+              v={costWaiting ? "…" : costPct !== null ? atLeastTh(understated, `${costPct.toFixed(1)}%`) : "—"}
+              s={
+                costWaiting
+                  ? "กำลังคำนวณ…"
+                  : costPct !== null && avg
+                    ? `${overBy! > 0.0001 ? `เกินเป้า ${overBy!.toFixed(1)} จุด` : `เป้า ${targetLabel}`} · กำไร ${atMostTh(understated, baht(avg - perPlate!, 2))}/จาน`
+                    : perPlate === null
+                      ? "คิดได้เมื่อมีสูตร"
+                      : "ยังไม่มียอดขาย"
+              }
               warn={costChanged || (perPlate !== null && understated)}
+              bad={!costWaiting && overBy !== null && overBy > 0.0001}
             />
           )}
         </div>
+
+        {/* Round 2, E (Kong 2026-10-29): the target this dish is held to, and the
+            two ways to reach it. Same arithmetic as the lab's price helper. */}
+        {!costHidden && !costWaiting && costPct !== null && priceForTarget !== null && costForTarget !== null && (
+          <section className={`space-y-3 rounded-2xl border bg-surface p-4 ${overBy! > 0.0001 ? "border-bad-border" : "border-border"}`}>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h4 className="font-semibold">เป้าต้นทุนของเมนูนี้</h4>
+              {perm.editMenu ? (
+                <div className="seg" role="group" aria-label="เป้าต้นทุนของเมนูนี้">
+                  <button type="button" onClick={() => setOwnTarget(false)} className={`seg-item ${!ownTarget ? "is-on" : ""}`}>
+                    ตามเป้าร้าน {Number.isInteger(props.shopTargetPct) ? props.shopTargetPct : props.shopTargetPct.toFixed(1)}%
+                  </button>
+                  <button type="button" onClick={() => setOwnTarget(true)} className={`seg-item ${ownTarget ? "is-on" : ""}`}>
+                    ตั้งเฉพาะเมนูนี้
+                  </button>
+                </div>
+              ) : (
+                <span className="text-sm text-muted-foreground">
+                  {menu.targetPct !== null ? "ตั้งเฉพาะเมนูนี้" : "ตามเป้าร้าน"} {targetLabel}
+                </span>
+              )}
+            </div>
+            {ownTarget && perm.editMenu && (
+              <label className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                เป้าของ{menu.name}
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  min={5}
+                  max={95}
+                  step={0.5}
+                  value={targetText}
+                  onChange={(e) => setTargetText(e.target.value)}
+                  className="input w-24 text-right"
+                  aria-label={`เป้าต้นทุนของ${menu.name} เป็น % ของราคาขาย`}
+                />
+                % ของราคาขาย · กดบันทึกด้านล่าง
+              </label>
+            )}
+            {overBy! <= 0.0001 ? (
+              <p className="text-sm text-good">
+                อยู่ในเป้า — ต้นทุน {costPct.toFixed(1)}% ต่ำกว่าเป้า {targetLabel} อยู่ {Math.abs(overBy!).toFixed(1)} จุด
+              </p>
+            ) : (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  ได้เป้า <b className="text-foreground">{targetLabel}</b> เมื่อทำอย่างใดอย่างหนึ่ง
+                </p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <div className="rounded-xl bg-surface-sunk p-3">
+                    <p className="text-xs text-muted-subtle">ขึ้นราคาเป็นประมาณ</p>
+                    <p className="font-display text-xl font-semibold tabular-nums">{atLeastTh(understated, baht(priceForTarget))}</p>
+                    <p className="text-xs text-muted-foreground">
+                      ต้นทุน {baht(perPlate!, 2)} ÷ {targetLabel} ·{" "}
+                      <a href={`/menus/lab?menu=${menu.id}&target=${target}`} className="font-medium text-primary underline underline-offset-2">
+                        ลองราคาในทดลองเมนู
+                      </a>
+                    </p>
+                  </div>
+                  <div className="rounded-xl bg-surface-sunk p-3">
+                    <p className="text-xs text-muted-subtle">หรือลดต้นทุนให้ไม่เกิน</p>
+                    <p className="font-display text-xl font-semibold tabular-nums">{baht(costForTarget, 2)}/จาน</p>
+                    <p className="text-xs text-muted-foreground">
+                      ราคาเฉลี่ย {baht(avg!)} × {targetLabel}
+                      {heaviest && heaviest.share >= 30 ? ` · ${heaviest.label}คิดเป็น ${heaviest.share.toFixed(0)}% ของจาน` : ""}
+                    </p>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  ถ้าราคาที่ได้เป้าสูงเกินจริง ตั้งเป้าเฉพาะเมนูนี้ได้ · ตารางและการ์ด “เกินเป้า” ในหน้าจัดการเมนูจะใช้เป้านี้แทนเป้าร้าน
+                </p>
+              </>
+            )}
+          </section>
+        )}
 
         {/* Rough sales by month (Kong, 2026-10-28) — the detail is on /sales. */}
         {perm.sales && <MenuSalesTrend menuId={menu.id} branchId={branch.id} branchName={branch.name} today={today} />}
@@ -819,11 +938,11 @@ export default function MenuSheet(props: {
   );
 }
 
-function Tile({ k, v, s, warn, title }: { k: string; v: string; s: string; warn?: boolean; title?: string }) {
+function Tile({ k, v, s, warn, bad, title }: { k: string; v: string; s: string; warn?: boolean; bad?: boolean; title?: string }) {
   return (
-    <div className="min-w-0 rounded-2xl border border-border bg-surface p-2.5" title={title}>
+    <div className={`min-w-0 rounded-2xl border bg-surface p-2.5 ${bad ? "border-bad-border" : "border-border"}`} title={title}>
       <p className="text-[11px] text-muted-subtle">{k}</p>
-      <p className={`font-display text-lg font-semibold tabular-nums transition-colors ${warn ? "text-warn" : ""}`}>{v}</p>
+      <p className={`font-display text-lg font-semibold tabular-nums transition-colors ${bad ? "text-bad" : warn ? "text-warn" : ""}`}>{v}</p>
       <p className="text-[11px] text-muted-foreground">{s}</p>
     </div>
   );

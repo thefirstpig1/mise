@@ -21,6 +21,7 @@ import { freshestCostBranch } from "@/server/menu-lab-read";
 import { getLabDraftsLogic, getMenuPriceBookLogic } from "@/server/menu-manager";
 import { getMenuListFactsLogic, MENU_FACT_DAYS } from "@/server/menu-list-facts";
 import { getMenuCategoriesLogic } from "@/server/menu";
+import { getMergeOverviewLogic, likelyDuplicateOf } from "@/server/menu-merge-suggest";
 import { computeBangkokToday } from "@/lib/bangkok-date";
 import LabManager, { type LabMenu } from "./_components/LabManager";
 
@@ -34,7 +35,7 @@ export default async function MenuLabPage({
   const params = await searchParams;
   const one = (k: string) => (Array.isArray(params[k]) ? params[k][0] : params[k]);
 
-  const [branches, freshest, drafts, facts, categories, menus] = await Promise.all([
+  const [branches, freshest, drafts, facts, categories, menus, overview] = await Promise.all([
     getBranchesLogic(tenantId, reach),
     freshestCostBranch(tenantId, reach).catch(() => null),
     getLabDraftsLogic(tenantId),
@@ -47,7 +48,11 @@ export default async function MenuLabPage({
         orderBy: { name: "asc" },
       })
     ),
+    // Round 2, F (Kong 2026-10-29): a dish that is another branch's copy of one
+    // WITH a recipe should be merged, not drafted a second recipe.
+    getMergeOverviewLogic(tenantId).catch(() => null),
   ]);
+  const dupOf = overview ? likelyDuplicateOf(overview) : {};
 
   // Started here and NOT awaited (Kong 2026-10-22, the /menus pattern): the
   // drafts' costs used to wait for the page to paint and hydrate first.
@@ -67,6 +72,7 @@ export default async function MenuLabPage({
       qty: f?.qty ?? 0,
       net: f?.net ?? 0,
       hasRecipe: (f?.recipeId ?? null) !== null,
+      dupOf: dupOf[m.id] ?? null,
     };
   });
 
@@ -83,9 +89,15 @@ export default async function MenuLabPage({
       costHidden={costAccess === null}
       canPublish={can("recipe:write") && canEditShared}
       canWrite={can("recipe:write")}
+      canMerge={can("master:write") && canEditShared}
       viewerId={membership.userId}
       openDraftId={one("draft") ?? null}
       openNew={one("new") === "1"}
+      openMenuId={one("menu") ?? null}
+      openTargetPct={(() => {
+        const t = Number(one("target"));
+        return Number.isFinite(t) && t >= 5 && t <= 90 ? t : null;
+      })()}
     />
   );
 }

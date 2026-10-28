@@ -24,7 +24,7 @@ import { getMenuCategoriesLogic, getMenusLogic, getPosIntegrationsLogic } from "
 import { getMenuMergesLogic } from "@/server/menu-merge-read";
 import { getMenuListFactsLogic, MENU_FACT_DAYS } from "@/server/menu-list-facts";
 import { periodLabelTh } from "@/lib/sales-insight";
-import { getMergeOverviewLogic } from "@/server/menu-merge-suggest";
+import { getMergeOverviewLogic, likelyDuplicateOf } from "@/server/menu-merge-suggest";
 import { getBranchesLogic } from "@/server/branch";
 import { freshestCostBranch } from "@/server/menu-lab-read";
 import { getMenuPriceBookLogic, getMenuRecipeStatusLogic } from "@/server/menu-manager";
@@ -89,10 +89,7 @@ export default async function MenusPage({
     // HAS one (Kong 2026-10-28): merging fixes them, writing a recipe does not.
     getMergeOverviewLogic(tenantId),
   ]);
-  const hasRecipe = new Set(overview.menus.filter((m) => m.hasRecipe).map((m) => m.id));
-  const likelyDuplicates = overview.suggestions.flatMap((g) =>
-    g.menuIds.some((id) => hasRecipe.has(id)) ? g.menuIds.filter((id) => !hasRecipe.has(id)) : []
-  );
+  const dupOf = likelyDuplicateOf(overview);
 
   const mergeRows = merges.map(toMenuMergeRowView);
   const spellingsByWinner = groupMergesByWinner(mergeRows);
@@ -119,6 +116,8 @@ export default async function MenusPage({
       recipeId: r?.recipeId ?? null,
       recipeOwn: r?.own ?? false,
       tone: (m.menuCategoryId && toneByCategory.get(m.menuCategoryId)) || "#AEB784",
+      // Kong 2026-10-24/29: a dish may carry its own food-cost target; null = the shop's.
+      targetPct: m.foodCostTargetPct === null ? null : Number(m.foodCostTargetPct),
     };
   });
 
@@ -126,7 +125,8 @@ export default async function MenusPage({
     <MenuManager
       rows={rows}
       factDays={MENU_FACT_DAYS}
-      likelyDuplicates={likelyDuplicates}
+      dupOf={dupOf}
+      shopTargetPct={Number(membership.tenant.foodCostTargetPct)}
       factRange={periodLabelTh(facts.from.toISOString().slice(0, 10), facts.to.toISOString().slice(0, 10))}
       spellingsByWinner={spellings}
       winnerOf={winnerOf}

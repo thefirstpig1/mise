@@ -29,6 +29,8 @@ export type LabMenu = {
   qty: number;
   net: number;
   hasRecipe: boolean;
+  /** Probably another branch's copy of this dish, which has a recipe — merge, do not draft. */
+  dupOf: { id: string; name: string; code: string | null } | null;
 };
 export type Option = { id: string; name: string };
 
@@ -60,14 +62,30 @@ export default function LabManager(props: {
   canPublish: boolean;
   /** Endorses, edits anyone's draft, applies at a branch in reach (ADR 0041). */
   canWrite: boolean;
+  /** May merge menus (master:write with shared reach). */
+  canMerge: boolean;
   viewerId: string;
   openDraftId: string | null;
   openNew: boolean;
+  /** From the menu sheet's "ลองราคาในทดลองเมนู": a draft for this dish. */
+  openMenuId: string | null;
+  /** With `openMenuId`: the target that sheet was holding the dish to. */
+  openTargetPct: number | null;
 }) {
   const { drafts, costHidden } = props;
   const router = useRouter();
   const [open, setOpen] = useState<{ id: string | null; n: number; menuId?: string } | null>(
-    props.openDraftId && drafts.some((d) => d.recipeId === props.openDraftId) ? { id: props.openDraftId, n: 0 } : props.openNew ? { id: null, n: 0 } : null
+    props.openDraftId && drafts.some((d) => d.recipeId === props.openDraftId)
+      ? { id: props.openDraftId, n: 0 }
+      : props.openMenuId && props.menus.some((m) => m.id === props.openMenuId)
+        ? // A draft already open for this dish is the one to continue.
+          (() => {
+            const d = drafts.find((x) => x.menuId === props.openMenuId);
+            return d ? { id: d.recipeId, n: 0 } : { id: null, n: 0, menuId: props.openMenuId! };
+          })()
+        : props.openNew
+          ? { id: null, n: 0 }
+          : null
   );
   const [toast, setToast] = useState<string | null>(null);
   useEffect(() => {
@@ -152,7 +170,10 @@ export default function LabManager(props: {
   // Dishes on sale with no recipe, best sellers first, minus any already being drafted.
   const drafted = new Set(drafts.map((d) => d.menuId));
   const unrecipied = props.menus.filter((m) => !m.hasRecipe && m.qty > 0);
-  const starts = unrecipied.filter((m) => !drafted.has(m.id)).sort((a, b) => b.net - a.net).slice(0, 3);
+  // Round 2, F: the copies go to "merge", never to "draft a recipe".
+  const starts = unrecipied.filter((m) => !drafted.has(m.id) && !m.dupOf).sort((a, b) => b.net - a.net).slice(0, 6);
+  const copies = unrecipied.filter((m) => m.dupOf).sort((a, b) => b.net - a.net);
+  const toWrite = unrecipied.length - copies.length;
   const unrecipiedNet = unrecipied.reduce((s, m) => s + m.net, 0);
   const mine = drafts.filter((d) => d.authorId === props.viewerId).length;
   const submitted = drafts.filter((d) => d.draftStatus === "SUBMITTED").length;
@@ -196,7 +217,9 @@ export default function LabManager(props: {
           <p className="text-xs text-muted-subtle">ขายอยู่แต่ยังไม่มีสูตร</p>
           <p className="font-display text-2xl font-semibold tabular-nums">{unrecipied.length} เมนู</p>
           <p className="text-xs text-muted-foreground">
-            {unrecipied.length > 0 ? `ขายไป ${baht(unrecipiedNet)} ใน ${props.factDays} วัน ที่ยังคิดต้นทุนไม่ได้` : "ทุกเมนูที่ขายอยู่มีสูตรแล้ว"}
+            {unrecipied.length > 0
+              ? `ขายไป ${baht(unrecipiedNet)} ใน ${props.factDays} วัน ที่ยังคิดต้นทุนไม่ได้${copies.length > 0 ? ` · ${copies.length} น่าจะซ้ำกับเมนูที่มีสูตรแล้ว` : ""}`
+              : "ทุกเมนูที่ขายอยู่มีสูตรแล้ว"}
           </p>
         </a>
       </div>
@@ -291,7 +314,9 @@ export default function LabManager(props: {
       {starts.length > 0 && (
         <section className="space-y-2">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <h3 className="font-semibold">เริ่มจากเมนูที่ขายอยู่แต่ยังไม่มีสูตร</h3>
+            <h3 className="font-semibold">
+              เริ่มจากเมนูที่ขายอยู่แต่ยังไม่มีสูตร{copies.length > 0 ? ` · ต้องเขียนจริง ${toWrite} เมนู` : ""}
+            </h3>
             <span className="text-xs text-muted-subtle">เรียงตามยอดขาย {props.factDays} วัน · เขียนตัวบนสุดก่อนคุ้มที่สุด</span>
           </div>
           <div className="grid gap-3 sm:grid-cols-3">
@@ -316,6 +341,41 @@ export default function LabManager(props: {
                   <span className="whitespace-nowrap rounded-full border border-dashed border-border-strong px-2.5 py-0.5 text-primary group-hover:border-primary">+ ร่างสูตร</span>
                 </span>
               </button>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {copies.length > 0 && (
+        <section className="space-y-2">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h3 className="font-semibold">น่าจะเป็นเมนูเดียวกับเมนูที่มีสูตรแล้ว · {copies.length} เมนู</h3>
+            <span className="text-xs text-muted-subtle">รวมเมนูแทนการเขียนสูตรใหม่ · รวมแล้วตัดสต๊อกด้วยสูตรของเมนูหลัก</span>
+          </div>
+          <div className="overflow-hidden rounded-2xl border border-border bg-surface">
+            {copies.map((m) => (
+              <div key={m.id} className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-border px-4 py-2.5 last:border-b-0">
+                <span className="min-w-0 flex-[1_1_220px]">
+                  <b className="font-semibold">{m.name}</b>
+                  {m.posCode && <span className="ml-1.5 text-xs tabular-nums text-muted-subtle">{m.posCode}</span>}
+                  <span className="block text-xs text-muted-foreground">ยังไม่มีสูตร</span>
+                </span>
+                <span aria-hidden="true" className="text-muted-subtle max-sm:hidden">→</span>
+                <span className="min-w-0 flex-[1_1_220px]">
+                  <b className="font-semibold">{m.dupOf!.name}</b>
+                  {m.dupOf!.code && <span className="ml-1.5 text-xs tabular-nums text-muted-subtle">{m.dupOf!.code}</span>}
+                  <span className="block text-xs text-muted-foreground">มีสูตรแล้ว</span>
+                </span>
+                <span className="text-right text-xs tabular-nums text-muted-subtle max-sm:hidden">
+                  ขาย {props.factDays} วัน
+                  <span className="block">{baht(m.net)}</span>
+                </span>
+                {props.canMerge && (
+                  <a href="/menus/merges" className="btn-secondary btn-sm">
+                    รวมเมนู
+                  </a>
+                )}
+              </div>
             ))}
           </div>
         </section>
@@ -353,6 +413,7 @@ export default function LabManager(props: {
           key={open.n}
           draft={openRow}
           startMenuId={open.id ? null : (open.menuId ?? null)}
+          startTargetPct={!open.id && open.menuId && open.menuId === props.openMenuId ? props.openTargetPct : null}
           menus={props.menus}
           factDays={props.factDays}
           categories={props.categories}
