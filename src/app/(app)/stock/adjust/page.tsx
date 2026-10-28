@@ -68,7 +68,7 @@ export default async function StockAdjustPage({ searchParams }: { searchParams: 
   const todayBangkok = computeBangkokToday().toISOString().slice(0, 10);
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-3xl space-y-6">
       <div>
         <h2 className="text-2xl font-semibold">ปรับสต๊อก</h2>
         {/* Part 17 Q4 retired ของเสีย/ของชำรุด from this form; this line still

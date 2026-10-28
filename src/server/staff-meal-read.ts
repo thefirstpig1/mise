@@ -15,6 +15,8 @@
 import { Prisma } from "@prisma/client";
 import type { StaffMealPriceSource } from "@prisma/client";
 import { withTenantContext } from "@/lib/db";
+import type { PrismaClient } from "@prisma/client";
+import { replayPairsInTx } from "@/server/stock-cost";
 import type {
   GetStaffMealQuery,
   GetStaffMembersQuery,
@@ -497,5 +499,152 @@ export async function getMyStaffMealTicketsLogic(
 export async function getStaffMealBranchIdLogic(tenantId: string, id: string): Promise<string | null> {
   return withTenantContext(tenantId, async (tx) =>
     (await tx.staffMeal.findFirst({ where: { tenantId, id }, select: { branchId: true } }))?.branchId ?? null
+  );
+}
+
+// ------------------------------------------------------------
+// The month, per person (Kong 2026-10-28, mockup RkKwhwCmh4akz2QvgeMcis)
+// ------------------------------------------------------------
+
+export type StaffMealSummaryPerson = {
+  /** null = the big pot nobody in particular ate from. */
+  staffMemberId: string | null;
+  name: string;
+  branchName: string | null;
+  meals: number;
+  /** Selling-price value, priced meals only — what the quota is measured in. */
+  value: number;
+  unpriced: number;
+  /** Days this person's approved meals went over their quota. null = no quota. */
+  overQuotaDays: number | null;
+  /** FIFO money the meals took out of stock. null = no cost access. */
+  cost: number | null;
+};
+
+export type StaffMealSummary = {
+  people: StaffMealSummaryPerson[];
+  meals: number;
+  days: number;
+  value: number;
+  cost: number | null;
+  /** Cost per business day, for the bar chart. Days with no meal are absent. */
+  costByDay: { day: string; cost: number }[];
+  rejected: number;
+  voided: number;
+};
+
+/**
+ * What the staff ate in a period, per person — the summary tab.
+ *
+ * ACTUAL COST is the money the FIFO walk says each meal's ingredients took out
+ * of stock: the same replay /cost runs (`replayPairsInTx`), read for the
+ * movements a staff meal posted (`sourceType = STAFF_MEAL`, `sourceId` = the
+ * meal's item). Nothing is stored (ADR 0014). A voided meal is left out whole:
+ * its reversal put the stock back at the price it left at, so the two cancel.
+ */
+export async function getStaffMealSummaryLogic(
+  tenantId: string,
+  params: { branchIds: string[]; from: Date; to: Date; withCost: boolean }
+): Promise<StaffMealSummary> {
+  return withTenantContext(
+    tenantId,
+    async (tx) => {
+      const where = { tenantId, branchId: { in: params.branchIds }, businessDate: { gte: params.from, lte: params.to } };
+      const [meals, tenant, rejected, voided] = await Promise.all([
+        tx.staffMeal.findMany({
+          where: { ...where, voidedAt: null, status: "APPROVED" },
+          select: {
+            id: true,
+            branchId: true,
+            businessDate: true,
+            servings: true,
+            frozenUnitPrice: true,
+            staffMemberId: true,
+            staffMember: { select: { name: true, dailyQuotaAmount: true, branch: { select: { name: true } } } },
+            items: { select: { id: true, productId: true } },
+          },
+        }),
+        tx.tenant.findUniqueOrThrow({ where: { id: tenantId }, select: { staffMealDailyQuota: true } }),
+        tx.staffMeal.count({ where: { ...where, status: "REJECTED" } }),
+        tx.staffMeal.count({ where: { ...where, voidedAt: { not: null } } }),
+      ]);
+
+      // ---- actual cost, per meal ----
+      const costByMeal = new Map<string, number>();
+      if (params.withCost && meals.length > 0) {
+        const mealOfItem = new Map(meals.flatMap((m) => m.items.map((i) => [i.id, m.id] as const)));
+        const productIds = [...new Set(meals.flatMap((m) => m.items.map((i) => i.productId)))];
+        const branchIds = [...new Set(meals.map((m) => m.branchId))];
+        const replayed = await replayPairsInTx(tx as unknown as PrismaClient, tenantId, productIds, branchIds);
+        const outflows = [...replayed.values()].flatMap((st) => st.outflows.filter((o) => o.sourceType === "STAFF_MEAL"));
+        const moves = outflows.length
+          ? await tx.stockMovement.findMany({ where: { tenantId, id: { in: outflows.map((o) => o.movementId) } }, select: { id: true, sourceId: true } })
+          : [];
+        const sourceOf = new Map(moves.map((m) => [m.id, m.sourceId]));
+        for (const o of outflows) {
+          const meal = mealOfItem.get(sourceOf.get(o.movementId) ?? "");
+          if (meal) costByMeal.set(meal, (costByMeal.get(meal) ?? 0) + Number(o.value));
+        }
+      }
+
+      // ---- per person ----
+      const tenantQuota = tenant.staffMealDailyQuota === null ? null : Number(tenant.staffMealDailyQuota);
+      const byPerson = new Map<string, StaffMealSummaryPerson & { daily: Map<string, number> }>();
+      const days = new Set<string>();
+      const costDay = new Map<string, number>();
+      for (const m of meals) {
+        const key = m.staffMemberId ?? "__pot__";
+        const day = m.businessDate.toISOString().slice(0, 10);
+        days.add(day);
+        let p = byPerson.get(key);
+        if (!p) {
+          p = {
+            staffMemberId: m.staffMemberId,
+            name: m.staffMember?.name ?? "หม้อใหญ่ (กินกันหลายคน)",
+            branchName: m.staffMember?.branch.name ?? null,
+            meals: 0,
+            value: 0,
+            unpriced: 0,
+            overQuotaDays: null,
+            cost: params.withCost ? 0 : null,
+            daily: new Map(),
+          };
+          byPerson.set(key, p);
+        }
+        p.meals += 1;
+        if (m.frozenUnitPrice === null) p.unpriced += 1;
+        else {
+          const v = Number(m.frozenUnitPrice) * Number(m.servings);
+          p.value += v;
+          p.daily.set(day, (p.daily.get(day) ?? 0) + v);
+        }
+        const c = costByMeal.get(m.id) ?? 0;
+        if (p.cost !== null) p.cost += c;
+        costDay.set(day, (costDay.get(day) ?? 0) + c);
+      }
+      for (const m of meals) {
+        if (!m.staffMemberId) continue;
+        const p = byPerson.get(m.staffMemberId)!;
+        const quota = m.staffMember?.dailyQuotaAmount != null ? Number(m.staffMember.dailyQuotaAmount) : tenantQuota;
+        p.overQuotaDays = quota === null ? null : [...p.daily.values()].filter((v) => v > quota + 1e-9).length;
+      }
+
+      const people = [...byPerson.values()]
+        .map(({ daily: _daily, ...rest }) => rest)
+        // The pot last; people by what they ate.
+        .sort((a, b) => Number(a.staffMemberId === null) - Number(b.staffMemberId === null) || b.value - a.value || b.meals - a.meals);
+
+      return {
+        people,
+        meals: meals.length,
+        days: days.size,
+        value: people.reduce((t, p) => t + p.value, 0),
+        cost: params.withCost ? people.reduce((t, p) => t + (p.cost ?? 0), 0) : null,
+        costByDay: [...costDay.entries()].map(([day, cost]) => ({ day, cost })).sort((a, b) => a.day.localeCompare(b.day)),
+        rejected,
+        voided,
+      };
+    },
+    { timeout: 30_000 }
   );
 }

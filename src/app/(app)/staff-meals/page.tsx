@@ -34,7 +34,8 @@ import {
   requestStaffMealAction,
   voidStaffMealAction,
 } from "./actions";
-import TicketBoard from "./_components/TicketBoard";
+import StaffMealsScreen, { type StaffMealTab } from "./_components/StaffMealsScreen";
+import PageHeader from "@/components/ui/PageHeader";
 import {
   toStaffMealQuotaView,
   toStaffMealRowView,
@@ -71,6 +72,7 @@ export default async function StaffMealsPage({
     from?: string;
     to?: string;
     day?: string;
+    tab?: string;
   }>;
 }) {
   const { tenantId, reach, can } = await requireTenant("staffmeal:write");
@@ -167,24 +169,17 @@ export default async function StaffMealsPage({
     baseUnitName: null,
   }));
 
-  return (
-    <div className="space-y-6">
-      <TicketBoard
-        branches={branches.map((b) => ({ id: b.id, name: b.name }))}
-        defaultBranchId={defaultBranchId}
-        menus={menuOptions}
-        todayIso={todayIso}
-        canBackdate={canBackdate}
-        initial={board}
-        request={requestStaffMealAction}
-        approve={approveStaffMealAction}
-        reject={rejectStaffMealAction}
-        refresh={getTicketBoardAction}
-      />
+  // Open on the tab the reader most likely came for (kit, Kong 2026-10-28).
+  const tabs = ["request", "pending", "pot", "summary"] as const;
+  const asked = tabs.find((t) => t === sp.tab && (t !== "pending" || isApprover));
+  const filtered = Boolean(sp.member || sp.branch || sp.from || sp.to || sp.voided);
+  const initialTab: StaffMealTab =
+    asked ?? (filtered ? "summary" : isApprover && (board.pending?.length ?? 0) > 0 ? "pending" : "request");
 
-      <h2 className="pt-2 text-base font-semibold">
-        {isApprover ? "บันทึกหม้อใหญ่ หรือบันทึกแทนพาร์ทไทม์" : "บันทึกหม้อใหญ่ (ทำกินเองจากของในร้าน)"}
-      </h2>
+  const potForm = (
+    <section className="card">
+      <h2 className="text-lg font-semibold">{isApprover ? "บันทึกหม้อใหญ่ หรือบันทึกแทนพาร์ทไทม์" : "บันทึกหม้อใหญ่ (ทำกินเองจากของในร้าน)"}</h2>
+      <p className="mb-4 mt-0.5 text-sm text-muted-foreground">ของที่ทำกินกันเองจากของในร้าน ตัดสต๊อกตามวัตถุดิบที่ใส่</p>
       <StaffMealEntryForm
         action={createStaffMealAction}
         branches={branches.map((b) => ({ id: b.id, name: b.name }))}
@@ -220,9 +215,14 @@ export default async function StaffMealsPage({
           lines: t.lines,
         }))}
       />
+    </section>
+  );
 
+  const historyPane = (
+    <div className="space-y-4">
       {/* --- filters --- */}
       <FilterForm className="flex flex-wrap items-end gap-2">
+        <input type="hidden" name="tab" value="summary" />
         <div>
           <label className="block text-xs text-muted-foreground" htmlFor="f-branch">
             สาขา
@@ -308,15 +308,15 @@ export default async function StaffMealsPage({
       )}
 
       {/* --- the list --- */}
-      <section className="space-y-2">
+      <section id="meal-list" className="space-y-2">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 className="text-base font-semibold">รายการมื้อพนักงาน</h2>
-          <p className="text-sm text-muted-foreground">
+          {rows.length > 0 && <p className="text-sm text-muted-foreground">
             รวมมูลค่าตามราคาขาย ฿{history.totalValue.toString()}
             {history.unpricedCount > 0 && (
               <> · อีก {history.unpricedCount} มื้อยังไม่มีราคา</>
             )}
-          </p>
+          </p>}
         </div>
 
         <p className="text-xs text-muted-foreground">
@@ -403,6 +403,33 @@ export default async function StaffMealsPage({
           </p>
         )}
       </section>
+    </div>
+  );
+
+  return (
+    <div className="space-y-5">
+      <PageHeader title="มื้อพนักงาน" description="พนักงานขอเบิกจากมือถือ หัวหน้าอนุมัติ ระบบตัดสต๊อกตามสูตร · เกินโควตาแค่เตือน ไม่บล็อก" />
+      <StaffMealsScreen
+        initialTab={initialTab}
+        isApprover={isApprover}
+        seesPeople={seesPeople}
+        branches={branches.map((b) => ({ id: b.id, name: b.name }))}
+        todayIso={todayIso}
+        ticket={{
+          branches: branches.map((b) => ({ id: b.id, name: b.name })),
+          defaultBranchId,
+          menus: menuOptions,
+          todayIso,
+          canBackdate,
+          initial: board,
+          request: requestStaffMealAction,
+          approve: approveStaffMealAction,
+          reject: rejectStaffMealAction,
+          refresh: getTicketBoardAction,
+        }}
+        potForm={potForm}
+        history={historyPane}
+      />
     </div>
   );
 }

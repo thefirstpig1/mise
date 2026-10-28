@@ -56,7 +56,7 @@ export default async function NewStockCountPage({
   const todayBangkok = computeBangkokToday().toISOString().slice(0, 10);
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-3xl space-y-6">
       <div>
         <a
           href="/stock-counts"

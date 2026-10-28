@@ -35,21 +35,21 @@ function newKey(): string {
 }
 
 const STATUS: Record<TicketView["status"], { label: string; cls: string }> = {
-  PENDING: { label: "รออนุมัติ", cls: "border-warn-border bg-warn-bg text-warn" },
-  APPROVED: { label: "อนุมัติแล้ว", cls: "border-good-border bg-good-bg text-good" },
-  REJECTED: { label: "ไม่อนุมัติ", cls: "border-bad-border bg-bad-bg text-bad" },
+  PENDING: { label: "รออนุมัติ", cls: "chip-warn" },
+  APPROVED: { label: "อนุมัติแล้ว", cls: "chip-good" },
+  REJECTED: { label: "ไม่อนุมัติ", cls: "chip-bad" },
 };
 
 function TicketCard({ t }: { t: TicketView }) {
   const s = STATUS[t.status];
   return (
-    <li className={`rounded-xl border-2 p-4 ${s.cls.split(" ")[0]} bg-surface`}>
+    <li className={`rounded-2xl border-[1.5px] border-dashed bg-surface p-4 ${t.status === "PENDING" ? "border-warn-border" : "border-border-strong"}`}>
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <p className="text-xs text-muted-foreground">ตั๋วเบิกอาหารพนักงาน</p>
           <p className="text-2xl font-bold tabular-nums">{t.ticketNo ?? "—"}</p>
         </div>
-        <span className={`rounded-full border px-3 py-1 text-sm font-medium ${s.cls}`}>{s.label}</span>
+        <span className={`chip ${s.cls}`}>{s.label}</span>
       </div>
       <p className="mt-2 text-lg font-semibold">
         {t.menuName}
@@ -100,7 +100,7 @@ function PendingRow({
 
   const q = t.quota;
   return (
-    <li className="rounded-xl border border-warn-border bg-surface p-3">
+    <li className="rounded-2xl border border-border bg-surface px-4 py-3">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="font-medium">
@@ -112,7 +112,8 @@ function PendingRow({
             {t.unitPrice !== null && ` · ฿${Number(t.unitPrice) * Number(t.servings)}`}
           </p>
           {q && (
-            <p className={`text-xs ${q.over ? "font-medium text-warn" : "text-muted-foreground"}`}>
+            <p className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+              {q.quota !== null && <span className={`chip ${q.over ? "chip-warn" : "chip-good"}`}>{q.over ? "เกินโควตา" : "ในโควตา"}</span>}
               {q.quota === null
                 ? `ใช้ไปวันนี้ ฿${q.used} (ร้านไม่ได้ตั้งโควตา)`
                 : `โควตาวันนี้ ใช้ไป ฿${q.used} จาก ฿${q.quota}${q.over ? " — เกินแล้ว" : ""}`}
@@ -124,14 +125,14 @@ function PendingRow({
           <p className="shrink-0 text-xs text-muted-foreground">ตั๋วของคุณเอง — ให้หัวหน้าคนอื่นอนุมัติ</p>
         ) : !rejecting && (
           <div className="flex shrink-0 gap-2">
-            <button type="button" className="btn" disabled={busy} onClick={() => run(() => approve(t.id))}>
+            <button type="button" className="btn btn-sm" disabled={busy} onClick={() => run(() => approve(t.id))}>
               {busy ? "กำลังบันทึก…" : "อนุมัติ"}
             </button>
             <button
               type="button"
               disabled={busy}
               onClick={() => setRejecting(true)}
-              className="btn-secondary"
+              className="btn-secondary btn-sm"
             >
               ไม่อนุมัติ
             </button>
@@ -151,7 +152,7 @@ function PendingRow({
             type="button"
             disabled={busy || reason.trim() === ""}
             onClick={() => run(() => reject(t.id, reason))}
-            className="rounded-lg bg-bad px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
+            className="btn-danger"
           >
             ยืนยันไม่อนุมัติ
           </button>
@@ -176,7 +177,13 @@ export default function TicketBoard({
   approve,
   reject,
   refresh,
+  view = "all",
+  onPendingCount,
 }: {
+  /** Which part to draw — the screen's tabs (kit, 2026-10-28). The board stays
+   *  mounted across "request" and "pending", so it polls once. */
+  view?: "all" | "request" | "pending";
+  onPendingCount?: (n: number) => void;
   branches: { id: string; name: string }[];
   defaultBranchId: string;
   menus: PickerProduct[];
@@ -220,12 +227,17 @@ export default function TicketBoard({
     };
   }, [reload]);
 
+  const pendingCount = board.pending?.length ?? 0;
+  useEffect(() => {
+    onPendingCount?.(pendingCount);
+  }, [pendingCount, onPendingCount]);
+
   const fieldErrors = state.ok === false ? state.fieldErrors : undefined;
   const branchName = branches.find((b) => b.id === branchId)?.name ?? "";
 
   return (
     <div className="space-y-6">
-      {board.pending && (
+      {board.pending && view !== "request" && (
         <section className="space-y-2">
           <h2 className="text-base font-semibold">
             รออนุมัติ{" "}
@@ -247,8 +259,10 @@ export default function TicketBoard({
         </section>
       )}
 
-      <section className="rounded-2xl border border-border bg-surface p-4">
-        <h2 className="text-base font-semibold">ขอเบิกอาหารพนักงาน</h2>
+      {view !== "pending" && (
+      <>
+      <section className="card mx-auto max-w-xl">
+        <h2 className="text-lg font-semibold">ขอเบิกอาหารพนักงาน</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           เลือกเมนูแล้วกดขอเบิก ระบบจะออกตั๋วให้ — นำตั๋วไปให้หัวหน้าหรือผู้จัดการกดอนุมัติ
         </p>
@@ -325,26 +339,28 @@ export default function TicketBoard({
             </div>
           </div>
           {state.ok === false && state.formError && <p className="text-sm text-bad">{state.formError}</p>}
-          <button type="submit" className="btn w-full py-3 text-base" disabled={pending || !menuId}>
-            {pending ? "กำลังออกตั๋ว…" : "ขอเบิก"}
+          <button type="submit" className="btn h-12 w-full text-base" disabled={pending || !menuId}>
+            {pending ? "กำลังออกตั๋ว…" : menuId ? "ขอเบิก" : "เลือกเมนูก่อน"}
           </button>
         </form>
       </section>
 
-      <section className="space-y-2">
-        <h2 className="text-base font-semibold">ตั๋วของฉัน</h2>
+      <section className="mx-auto max-w-xl space-y-2">
+        <h2 className="text-lg font-semibold">ตั๋วของฉัน</h2>
         {board.mine.length === 0 ? (
           <p className="rounded-2xl border border-border bg-surface p-3 text-sm text-muted-foreground">
             ยังไม่มีตั๋วตั้งแต่เมื่อวาน
           </p>
         ) : (
-          <ul className="grid gap-3 sm:grid-cols-2">
+          <ul className="grid gap-3">
             {board.mine.map((t) => (
               <TicketCard key={t.id} t={t} />
             ))}
           </ul>
         )}
       </section>
+      </>
+      )}
     </div>
   );
 }

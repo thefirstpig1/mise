@@ -42,7 +42,7 @@ export default async function NewTransferPage({
 
   if (branches.length < 2) {
     return (
-      <div className="space-y-4">
+      <div className="max-w-4xl space-y-4">
         <a href="/transfers" className="text-sm text-muted-foreground hover:underline">
           ← กลับรายการใบโอน
         </a>
@@ -88,7 +88,7 @@ export default async function NewTransferPage({
     : ordered;
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-4xl space-y-6">
       <a href="/transfers" className="text-sm text-muted-foreground hover:underline">
         ← กลับรายการใบโอน
       </a>

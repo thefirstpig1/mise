@@ -22,7 +22,7 @@ export default async function NewRecurringExpensePage() {
   const vatDefault = membership.tenant.defaultVatRatePercent.toString();
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-3xl space-y-6">
       <div>
         <Crumbs
           trail={[
