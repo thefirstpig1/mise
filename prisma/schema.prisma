@@ -358,6 +358,11 @@ model TenantMembership {
   /// โดยไม่ต้องตั้งค่า แต่ตั้งได้"); only matters for purchase:approve holders.
   notifyPurchaseReady Boolean @default(true) @map("notify_purchase_ready")
 
+  /// Kong 2026-10-28 — when this person hid the เริ่มต้นใช้งาน checklist on
+  /// the dashboard. Per membership so it follows the account across devices
+  /// and one co-owner hiding it does not hide it for another. NULL = showing.
+  onboardingDismissedAt DateTime? @map("onboarding_dismissed_at")
+
   /// Who last changed this person's role or reach, and when (ADR 0029 Q14).
   ///
   /// Not a log. A membership is a row that gets UPDATED, and the dispute a

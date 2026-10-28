@@ -16,7 +16,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
-import { auth } from "@/lib/auth";
+import { auth, signOut } from "@/lib/auth";
 import {
   findActiveMembershipForUser,
   listActiveMembershipsForUser,
@@ -59,6 +59,11 @@ async function chooseShop(formData: FormData) {
   redirect("/home");
 }
 
+async function signOutHere() {
+  "use server";
+  await signOut({ redirectTo: "/login" });
+}
+
 export default async function ChooseShopPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
@@ -70,36 +75,52 @@ export default async function ChooseShopPage() {
   if (memberships.length === 1) redirect("/home");
 
   return (
-    <main className="flex min-h-screen items-center justify-center px-4 py-8">
-      <div className="w-full max-w-md">
-        <div className="mb-7 flex items-center gap-3">
-          <Logo size={38} />
-          <span className="font-display text-2xl font-semibold text-primary">
-            คิดครัว
-          </span>
+    <main className="flex min-h-screen justify-center px-5 py-10">
+      <div className="w-full max-w-md space-y-6">
+        <div className="flex items-center gap-2.5">
+          <Logo size={36} />
+          <span className="font-display text-[22px] font-semibold text-primary">คิดครัว</span>
         </div>
-        <h1 className="mb-2 text-2xl font-bold">เลือกร้าน</h1>
-        <p className="mb-6 text-sm text-muted-foreground">
-          บัญชีของคุณอยู่ใน {memberships.length} ร้าน — เลือกร้านที่จะทำงานด้วยตอนนี้
-          เปลี่ยนทีหลังได้จากหน้าหลัก
-        </p>
+        <div>
+          <h1 className="text-2xl font-bold">เลือกร้าน</h1>
+          <p className="mt-1.5 text-sm text-muted-foreground">
+            บัญชีของคุณอยู่ใน {memberships.length} ร้าน เลือกร้านที่จะทำงานตอนนี้ · เปลี่ยนทีหลังได้ที่เมนูข้าง
+          </p>
+        </div>
 
-        <div className="space-y-2">
-          {memberships.map((m) => (
-            <form key={m.tenantId} action={chooseShop}>
-              <input type="hidden" name="tenant_id" value={m.tenantId} />
-              <button
-                type="submit"
-                className="w-full rounded-lg border border-border px-4 py-3 text-left hover:bg-muted/40"
-              >
-                <div className="font-medium">{m.tenant.name}</div>
-                <div className="text-xs text-muted-foreground">
-                  {ROLE_LABELS_TH[m.role as Role] ?? m.role}
-                </div>
-              </button>
-            </form>
-          ))}
+        <div className="space-y-2.5">
+          {memberships.map((m) => {
+            const branches = m.branchAccess.filter((a) => a.branch.deletedAt === null).map((a) => a.branch.name);
+            const reach = m.allBranches ? "ทุกสาขา" : branches.length ? branches.join(" · ") : "ยังไม่ได้กำหนดสาขา";
+            return (
+              <form key={m.tenantId} action={chooseShop}>
+                <input type="hidden" name="tenant_id" value={m.tenantId} />
+                <button
+                  type="submit"
+                  className="flex w-full items-center gap-3.5 rounded-2xl border border-border bg-surface p-4 text-left transition-colors hover:bg-muted/40"
+                >
+                  <span aria-hidden className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary-soft">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-primary">
+                      <path d="M4 10h16v10H4zM3 10l2-6h14l2 6M9 20v-5h6v5" />
+                    </svg>
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-base font-semibold">{m.tenant.name}</span>
+                    <span className="mt-0.5 block text-sm text-muted-foreground">
+                      {ROLE_LABELS_TH[m.role as Role] ?? m.role} · {reach}
+                    </span>
+                  </span>
+                </button>
+              </form>
+            );
+          })}
         </div>
+
+        <form action={signOutHere} className="text-center">
+          <button type="submit" className="h-11 text-sm font-semibold text-primary underline">
+            ออกจากระบบ
+          </button>
+        </form>
       </div>
     </main>
   );

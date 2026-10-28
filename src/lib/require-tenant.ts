@@ -242,7 +242,15 @@ export async function requireTenant(
 export async function listActiveMembershipsForUser(userId: string) {
   return prismaBypass.tenantMembership.findMany({
     where: { userId, isActive: true },
-    select: { tenantId: true, role: true, tenant: { select: { name: true } } },
+    // allBranches + branch names: the เลือกร้าน card says WHERE you work in
+    // each shop (review 2026-10-28). Still this user's own rows only.
+    select: {
+      tenantId: true,
+      role: true,
+      allBranches: true,
+      tenant: { select: { name: true } },
+      branchAccess: { select: { branch: { select: { name: true, deletedAt: true } } } },
+    },
     orderBy: { createdAt: "asc" },
   });
 }

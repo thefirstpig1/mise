@@ -12,7 +12,6 @@ import ResendLink from "./ResendLink";
 import {
   KitchenDoodle,
   MarkerUnderline,
-  CurlArrow,
   EnvelopeDoodle,
 } from "@/components/layout/Doodles";
 
@@ -110,7 +109,7 @@ export default async function LoginPage({
             </span>
           </h1>
           <p className="mb-8 text-muted-foreground">
-            ระบบจะส่งลิงก์ login ไปอีเมลของคุณ
+            ใส่อีเมลที่ใช้สมัคร ระบบจะส่งลิงก์เข้าสู่ระบบไปให้ ไม่ต้องใช้รหัสผ่าน
           </p>
 
           {notice ? (
@@ -129,7 +128,7 @@ export default async function LoginPage({
           {checkEmail ? (
             <div className="rounded-lg border border-border bg-muted/40 p-6 text-center">
               <EnvelopeDoodle className="mx-auto mb-3 w-28" />
-              <p className="mb-2 text-lg font-medium">เช็คอีเมลของคุณ</p>
+              <p className="mb-2 text-lg font-medium">ตรวจอีเมลของคุณ</p>
               {sentTo ? (
                 // Naming the address is where a typo becomes visible. Without it
                 // somebody who typed gmial.com sees a success screen and waits.
@@ -141,9 +140,20 @@ export default async function LoginPage({
                   คลิกลิงก์ในอีเมลเพื่อเข้าสู่ระบบ
                 </p>
               )}
-              <p className="mt-4 text-xs text-muted-foreground">
-                {checkEmailHintFor(mode)}
-              </p>
+              {mode === "send" ? (
+                // What people get wrong with a magic link (review 2026-10-28):
+                // opening it on another device signs THAT device in.
+                <ol className="mx-auto mt-4 max-w-xs space-y-2 text-left text-sm text-muted-foreground">
+                  {["เปิดอีเมลจาก คิดครัว แล้วกด “เข้าสู่ระบบ”", "กดลิงก์บนเครื่องที่จะใช้งาน ถ้าขอจากคอมแต่กดในมือถือ จะเข้าระบบบนมือถือ", checkEmailHintFor(mode)].map((t, i) => (
+                    <li key={i} className="flex gap-2.5">
+                      <span aria-hidden className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary-soft text-[11px] font-bold text-primary">{i + 1}</span>
+                      <span>{t}</span>
+                    </li>
+                  ))}
+                </ol>
+              ) : (
+                <p className="mt-4 text-xs text-muted-foreground">{checkEmailHintFor(mode)}</p>
+              )}
               {sentTo && mode === "send" ? (
                 // Only when a letter really goes out. In console mode the link
                 // is in the terminal already, and there is nothing to resend to.
@@ -155,9 +165,8 @@ export default async function LoginPage({
               ) : null}
               {sentTo ? (
                 <p className="mt-4 text-xs text-muted-foreground">
-                  หากอีเมลไม่ถูกต้อง{" "}
-                  <a href="/login" className="text-primary underline">
-                    กรอกอีเมลใหม่
+                  <a href="/login" className="font-semibold text-primary underline">
+                    ใช้อีเมลอื่น
                   </a>
                 </p>
               ) : null}
@@ -165,17 +174,9 @@ export default async function LoginPage({
           ) : (
             <form action={requestLink} className="space-y-4">
               <div>
-                <div className="mb-1 flex items-end justify-between">
-                  <label htmlFor="email" className="label">
-                    อีเมล
-                  </label>
-                  {/* A margin note, not an instruction — true of every
-                      sign-in, since the magic link is the only way in. */}
-                  <span className="flex items-end gap-1 text-xs text-muted-foreground">
-                    ไม่ต้องจำรหัสผ่าน
-                    <CurlArrow className="-mb-3 h-9 w-10" />
-                  </span>
-                </div>
+                <label htmlFor="email" className="label mb-1">
+                  อีเมล
+                </label>
                 <input
                   id="email"
                   name="email"
@@ -190,7 +191,7 @@ export default async function LoginPage({
                 type="submit"
                 className="w-full rounded-lg bg-primary py-2 font-medium text-primary-foreground hover:opacity-90"
               >
-                ส่งลิงก์ login
+                ส่งลิงก์เข้าสู่ระบบ
               </button>
             </form>
           )}

@@ -48,7 +48,7 @@ export default function ResendLink({
       {/* Spoken to a customer, not a colleague: polite particle-free Thai
           that asks rather than instructs (Kong, 2026-09-27). */}
       <p className="mb-2 text-xs text-muted-foreground">
-        หากยังไม่ได้รับอีเมล กรุณาตรวจสอบในกล่องจดหมายขยะ (Spam) หรือแท็บโปรโมชัน
+        ยังไม่ได้รับอีเมล ลองดูในจดหมายขยะ (Spam) หรือแท็บโปรโมชัน
       </p>
       <button
         type="submit"

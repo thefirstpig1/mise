@@ -1,5 +1,7 @@
 import { Suspense } from "react";
 import { requireTenant } from "@/lib/require-tenant";
+import { ONBOARDING_STEPS, getOnboardingLogic, type OnboardingStep } from "@/server/onboarding";
+import OnboardingCard, { type OnboardingStepView } from "./_components/OnboardingCard";
 import { withTenantContext } from "@/lib/db";
 import { computeBangkokToday } from "@/lib/bangkok-date";
 import { getBranchesLogic } from "@/server/branch";
@@ -59,6 +61,23 @@ const num = (d: { toString(): string } | null) => (d === null ? null : Number(d.
 const dateTh = (d: Date) =>
   d.toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 
+const SETUP_STEPS: Record<OnboardingStep, Omit<OnboardingStepView, "key" | "done">> = {
+  shop: { title: "ตรวจตั้งค่าร้าน", hint: "วิธีคิดกำไร บิลที่ยกเลิก และมื้อพนักงาน ให้ตรงกับที่ร้านทำ", cta: "ตรวจตั้งค่า", href: "/settings" },
+  supplier: { title: "เพิ่มผู้ขาย", hint: "ร้านที่ซื้อของประจำ พร้อมวิธีจ่ายเงิน", cta: "เพิ่มผู้ขาย", href: "/suppliers/new" },
+  product: { title: "เพิ่มสินค้าและวัตถุดิบ", hint: "พร้อมหน่วยที่ซื้อ เช่น ลัง 24 ขวด · กระสอบ 50 กก.", cta: "เพิ่มสินค้า", href: "/products/new" },
+  sales: { title: "นำเข้ายอดขายวันแรก", hint: "ไฟล์จาก POS ที่ร้านใช้ ตั้งครั้งเดียวแล้วใช้ได้ทุกวัน", cta: "นำเข้ายอดขาย", href: "/sales/import" },
+  count: { title: "นับสต๊อกครั้งแรก", hint: "จุดเริ่มต้นของต้นทุนและของหาย", cta: "เริ่มนับ", href: "/stock-counts/new" },
+  team: { title: "เชิญคนในร้าน", hint: "ครัว จัดซื้อ แคชเชียร์ แต่ละคนเห็นเฉพาะที่ต้องใช้", cta: "เชิญคน", href: "/settings/members" },
+};
+
+/** The checklist disappears for good once every step is done. */
+async function SetupChecklist({ tenantId, membershipId }: { tenantId: string; membershipId: string }) {
+  const o = await getOnboardingLogic(tenantId, membershipId);
+  if (o.doneCount === ONBOARDING_STEPS.length) return null;
+  const steps = ONBOARDING_STEPS.map((key) => ({ key, done: o.done[key], ...SETUP_STEPS[key] }));
+  return <OnboardingCard steps={steps} dismissed={o.dismissed} />;
+}
+
 export default async function DashboardPage({ searchParams }: { searchParams: SearchParams }) {
   const { membership, tenantId, reach, costAccess, can, canEditShared } = await requireTenant("any:member");
   const params = await searchParams;
@@ -81,6 +100,13 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
         <h1 className="text-2xl font-bold">ภาพรวม</h1>
         <p className="mt-1 text-sm text-muted-foreground">{membership.tenant.name}</p>
       </div>
+
+      {/* เริ่มต้นใช้งาน (Kong 2026-10-28): for whoever sets the shop up. */}
+      {can("settings:write") && (
+        <Suspense fallback={null}>
+          <SetupChecklist tenantId={tenantId} membershipId={membership.id} />
+        </Suspense>
+      )}
 
       {can("recipe:write") && (
         <Suspense fallback={null}>
