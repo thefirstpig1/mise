@@ -7,7 +7,7 @@ import PageFrame from "@/components/layout/PageFrame";
 // Part 35 L4: the header and "← กลับหน้าหลัก" moved into the sidebar.
 export default function CostLayout({ children }: { children: ReactNode }) {
   return (
-    <PageFrame title="ต้นทุน" width="5xl">
+    <PageFrame title="ต้นทุน">
       {children}
     </PageFrame>
   );

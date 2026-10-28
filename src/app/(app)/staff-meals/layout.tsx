@@ -6,7 +6,7 @@ import PageFrame from "@/components/layout/PageFrame";
 // Part 35 L4: the header and "← กลับหน้าหลัก" moved into the sidebar.
 export default function StaffMealsLayout({ children }: { children: ReactNode }) {
   return (
-    <PageFrame title="มื้อพนักงาน" width="3xl">
+    <PageFrame title="มื้อพนักงาน">
       {children}
     </PageFrame>
   );

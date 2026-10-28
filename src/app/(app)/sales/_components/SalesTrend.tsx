@@ -176,25 +176,9 @@ function useIsStale(ctx: Ctx) {
 // ------------------------------------------------------------
 // Small pieces
 // ------------------------------------------------------------
-export function Seg<K extends string>({ items, value, onChange, label }: { items: [K, string][]; value: K; onChange: (k: K) => void; label: string }) {
-  return (
-    <div role="group" aria-label={label} className="inline-flex rounded-full border border-border bg-muted/50 p-0.5">
-      {items.map(([k, l]) => (
-        <button
-          key={k}
-          type="button"
-          aria-pressed={k === value}
-          onClick={() => onChange(k)}
-          className={`h-8 whitespace-nowrap rounded-full px-3 text-[13px] transition-colors ${
-            k === value ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          {l}
-        </button>
-      ))}
-    </div>
-  );
-}
+// The segmented choice is the kit's one (src/components/ui/Seg.tsx).
+import Seg from "@/components/ui/Seg";
+export { Seg };
 
 export function DeltaChip({ pct, vs }: { pct: number | null; vs?: string }) {
   if (pct === null) return <span className="text-xs text-muted-foreground">{vs ? `ไม่มียอดของ ${vs} ให้เทียบ` : "—"}</span>;

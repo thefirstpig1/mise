@@ -23,6 +23,33 @@ you touch, **without being told page by page** — Kong: "อย่าให้�
 - If he asks "can the system answer X?" — answer from real data, and say
   honestly whether the SCREEN can answer it. Then propose what is missing.
 
+## 0b. The kit — one look for every screen (Kong 2026-10-28)
+Kong: "ดีไซน์ยังไม่เหมือนกับอันก่อนๆ … ปรับให้มันตรงกันทั้งแอป". The reference is
+artifact Tjr5K9RzEXyJ2Es8C6fh7Q. Build EVERY screen from these; never invent a
+new button, pill or badge string in a page.
+- **Width**: PageFrame is `max-w-6xl` for every section. A narrow form keeps an
+  inner `max-w-*` inside it; the frame never changes per page.
+- **Head**: `<PageHeader title description actions />` (src/components/ui).
+  Section name comes from PageFrame's title — never repeat it. One primary action.
+- **Buttons**: `.btn` (primary) · `.btn-secondary` (outlined) · `.btn-danger`
+  (red outline) — add `.btn-sm` for 34px. Nothing else. No ad-hoc
+  `rounded-lg border px-3 py-2` buttons.
+- **One-of-few choices / URL filters**: wrapper `.seg`, each item `.seg-item`
+  (+ `is-on`). Client state: `<Seg>` (src/components/ui/Seg.tsx). URL filter:
+  `<FilterLink className={`seg-item ${on ? "is-on" : ""}`}>` inside a `.seg`.
+- **Tabs** when different people use different parts of a page: `<Tabs>` or
+  `.tabs`/`.tab is-on`; a count on a tab = work waiting.
+- **Number cards**: `<Stat label value sub tone href>` in `<StatGrid>`. The sub
+  line always says the source or "เทียบ …". No data = "—" + why, never ฿0.
+- **Status / tags**: `.chip` + `.chip-good|warn|bad|brand`. Green good for the
+  shop, warn waiting on someone, bad money lost or a problem, plain neutral.
+- **Sections**: `.card` (rounded-2xl, p-5). Tables: wrapper `.data-table`
+  (header on cream, 12px muted; whole row clickable, see §1).
+- **Fields**: `.input` (42px, corner 12) + `.label` above; help/error text
+  under the field it belongs to. Products/menus always via ProductPicker (§2).
+- **Toast** for "saved"; field errors under the field, never in a toast.
+- Every page is checked at **desktop AND 390px** before it is called done.
+
 ## 1. Clickable things
 - **A row that opens something is clickable ANYWHERE on the row**, not just its
   name. Tables: stretched link — `<tr className="group relative … hover:bg-muted/50">`,

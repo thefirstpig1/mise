@@ -95,7 +95,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
   const activeIds = selected.length ? selected : branches.map((b) => b.id);
 
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-6 px-4 py-6 lg:px-8 lg:py-8">
+    <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-6 lg:px-8 lg:py-8">
       <div>
         <h1 className="text-2xl font-bold">ภาพรวม</h1>
         <p className="mt-1 text-sm text-muted-foreground">{membership.tenant.name}</p>

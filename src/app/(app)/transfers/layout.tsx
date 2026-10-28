@@ -8,7 +8,7 @@ export default function TransfersLayout({ children }: { children: ReactNode }) {
   // No section label: every page here names itself (a heading, or the
   // document header's "… › number" line) — Kong 2026-10-27, option A.
   return (
-    <PageFrame width="4xl">
+    <PageFrame>
       {children}
     </PageFrame>
   );

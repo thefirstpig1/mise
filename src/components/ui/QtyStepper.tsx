@@ -59,8 +59,8 @@ export default function QtyStepper({
   const btn = `${size === "sm" ? "w-8" : "w-9"} h-full shrink-0 text-lg leading-none text-foreground transition-colors hover:bg-muted disabled:cursor-default disabled:text-border-strong disabled:hover:bg-transparent`;
   return (
     <span
-      className={`inline-flex shrink-0 items-stretch overflow-hidden rounded-full border transition-colors focus-within:border-primary ${
-        size === "sm" ? "h-8 w-28" : "h-9 w-32"
+      className={`inline-flex shrink-0 items-stretch overflow-hidden rounded-xl border transition-colors focus-within:border-primary ${
+        size === "sm" ? "h-[34px] w-28" : "h-[42px] w-36"
       } ${tone === "warn" ? "border-warn-border bg-warn-bg" : "border-border-strong bg-surface"} ${className}`}
     >
       <button type="button" onClick={() => by(-step)} disabled={cur <= min || disabled} aria-label={`ลด ${label}`} className={btn}>

@@ -8,7 +8,7 @@ export default function ExpenseLayout({ children }: { children: ReactNode }) {
   return (
     // No section label: every expense page carries its own "ค่าใช้จ่าย › …"
     // line or heading, and the label repeated it (Kong 2026-10-27, option A).
-    <PageFrame width="5xl">
+    <PageFrame>
       {children}
     </PageFrame>
   );

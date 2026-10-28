@@ -6,7 +6,7 @@ import PageFrame from "@/components/layout/PageFrame";
 // Part 35 L4: the header and "← กลับหน้าหลัก" moved into the sidebar.
 export default function SalesLayout({ children }: { children: ReactNode }) {
   return (
-    <PageFrame title="ยอดขาย" width="5xl">
+    <PageFrame title="ยอดขาย">
       {children}
     </PageFrame>
   );

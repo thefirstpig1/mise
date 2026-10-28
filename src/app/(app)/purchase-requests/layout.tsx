@@ -6,7 +6,7 @@ import PageFrame from "@/components/layout/PageFrame";
 // side by side, and the cut sheet is a wide table of lines × suppliers × prices.
 export default function PurchaseRequestsLayout({ children }: { children: ReactNode }) {
   return (
-    <PageFrame width="7xl">
+    <PageFrame>
       {children}
     </PageFrame>
   );

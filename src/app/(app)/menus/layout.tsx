@@ -5,7 +5,7 @@ import PageFrame from "@/components/layout/PageFrame";
 // Part 35 L4: the header and "← กลับหน้าหลัก" moved into the sidebar.
 export default function MenusLayout({ children }: { children: ReactNode }) {
   return (
-    <PageFrame title="เมนู" width="4xl">
+    <PageFrame title="เมนู">
       {children}
     </PageFrame>
   );

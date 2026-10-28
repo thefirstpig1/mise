@@ -5,7 +5,7 @@ import PageFrame from "@/components/layout/PageFrame";
 // and /settings/members; the page used to carry its own header and back link.
 export default function SettingsLayout({ children }: { children: ReactNode }) {
   return (
-    <PageFrame title="ตั้งค่า" width="3xl">
+    <PageFrame title="ตั้งค่า">
       {children}
     </PageFrame>
   );

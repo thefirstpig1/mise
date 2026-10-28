@@ -32,11 +32,9 @@ export default function MetricSwitch({
 }) {
   const sm = size === "sm";
   return (
-    <div
-      role="radiogroup"
-      aria-label="ดูจาก"
-      className={`inline-flex rounded-full border border-border-strong bg-surface shadow-sm ${sm ? "p-0.5" : "p-1"}`}
-    >
+    // The kit's segmented look (globals.css `.seg`), so this switch and every
+    // filter on the page read as the same control.
+    <div role="radiogroup" aria-label="ดูจาก" className="seg">
       {options.map((o) => (
         <button
           key={o.key}
@@ -44,9 +42,7 @@ export default function MetricSwitch({
           role="radio"
           aria-checked={current === o.key}
           onClick={() => o.key !== current && onSelect(o.key)}
-          className={`inline-flex items-center gap-1.5 rounded-full font-medium transition-colors ${sm ? "px-3 py-1 text-xs" : "px-4 py-1.5 text-sm"} ${
-            current === o.key ? "bg-primary text-primary-foreground shadow" : "text-muted-foreground hover:bg-muted hover:text-foreground"
-          }`}
+          className={`seg-item gap-1.5 ${sm ? "h-7 text-xs" : ""} ${current === o.key ? "is-on" : ""}`}
         >
           {pending === o.key && (
             <span className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" aria-label="กำลังคำนวณ" />

@@ -4,16 +4,10 @@ import type { ReactNode } from "react";
 // title and its reading width. The "← กลับหน้าหลัก" link and the logo went
 // away with the header, because the sidebar is on every page now.
 //
-// Widths stay per section on purpose (purchase-orders/layout.tsx explains why
-// an order needs max-w-5xl where the stock screen reads best at 3xl).
-
-const WIDTH = {
-  "2xl": "max-w-2xl",
-  "3xl": "max-w-3xl",
-  "4xl": "max-w-4xl",
-  "5xl": "max-w-5xl",
-  "7xl": "max-w-7xl",
-} as const;
+// ONE width for every page (Kong 2026-10-28, kit Tjr5K9RzEXyJ2Es8C6fh7Q:
+// "ทุกหน้ากว้างเท่ากัน"). Sections used to choose 3xl–7xl, so moving between
+// pages made the content jump left and right. A narrow form now keeps its
+// own inner width inside the same frame.
 
 export default function PageFrame({
   title,
@@ -25,12 +19,13 @@ export default function PageFrame({
    * (expenses, Kong 2026-10-27: the label above "ค่าใช้จ่าย › …" said it twice).
    */
   title?: string;
-  width: keyof typeof WIDTH;
+  /** @deprecated Every page is the same width now; kept so old layouts compile. */
+  width?: string;
   children: ReactNode;
 }) {
   return (
-    <div className={`mx-auto w-full ${WIDTH[width]} px-4 py-6 lg:px-8 lg:py-8`}>
-      {title && <p className="mb-4 text-xs font-medium uppercase tracking-wider text-muted-foreground">{title}</p>}
+    <div className="mx-auto w-full max-w-6xl px-4 py-6 lg:px-8 lg:py-8">
+      {title && <p className="mb-2 text-xs font-medium text-muted-subtle">{title}</p>}
       {children}
     </div>
   );

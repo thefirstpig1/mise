@@ -10,7 +10,7 @@ export default function GoodsReceiptsLayout({ children }: { children: ReactNode 
   // No section label: every page here names itself (a heading, or the
   // document header's "… › number" line) — Kong 2026-10-27, option A.
   return (
-    <PageFrame width="5xl">
+    <PageFrame>
       {children}
     </PageFrame>
   );

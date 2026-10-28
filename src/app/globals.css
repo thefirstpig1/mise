@@ -101,13 +101,25 @@
       Write `class="input w-full"` where the form wants it.
    ============================================================ */
 @layer components {
+  /* 2026-10-28 (Kong: "ปรับให้มันตรงกันทั้งแอป", kit Tjr5K9RzEXyJ2Es8C6fh7Q):
+     42px tall (py-2.5 + text-sm + border), corner 12, the stronger border, and
+     a visible focus ring. Padding rather than a fixed height so a <textarea>
+     with this class still grows. */
   .input {
-    @apply rounded-lg border border-border bg-background px-3 py-2 text-sm;
-    @apply focus:border-primary focus:outline-none;
+    @apply rounded-xl border border-border-strong bg-surface px-3 py-2.5 text-sm text-foreground;
+    @apply placeholder:text-muted-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15;
+    @apply disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
+  /* Single-line fields are exactly 42px — a <select> with padding grows past
+     a text box beside it. <textarea> keeps the padding and grows. */
+  select.input,
+  input.input:not([type="checkbox"]):not([type="radio"]) {
+    @apply h-[42px] py-0;
   }
 
   .label {
-    @apply block text-sm font-medium;
+    @apply block text-sm font-semibold;
   }
 
   /* --------------------------------------------------------
@@ -137,7 +149,89 @@
         nothing. It stays raw until it is one thing.
      -------------------------------------------------------- */
   .btn {
-    @apply rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground;
-    @apply transition-colors hover:bg-primary-deep disabled:opacity-50;
+    @apply inline-flex h-[42px] items-center justify-center gap-1.5 whitespace-nowrap rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground;
+    @apply transition-colors hover:bg-primary-deep disabled:cursor-not-allowed disabled:opacity-45;
+  }
+
+  /* ============================================================
+     The kit (Kong 2026-10-28: "ปรับให้มันตรงกันทั้งแอป"; artifact
+     Tjr5K9RzEXyJ2Es8C6fh7Q). Every screen is built from these few
+     shapes, so a page written tomorrow matches by default.
+     ============================================================ */
+
+  /* The two other buttons — and only two. `.btn-sm` sizes any of the three. */
+  .btn-secondary {
+    @apply inline-flex h-[42px] items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-border-strong bg-surface px-4 text-sm font-semibold text-foreground;
+    @apply transition-colors hover:bg-surface-sunk disabled:cursor-not-allowed disabled:opacity-45;
+  }
+  .btn-danger {
+    @apply inline-flex h-[42px] items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-bad-border bg-surface px-4 text-sm font-semibold text-bad;
+    @apply transition-colors hover:bg-bad-bg disabled:cursor-not-allowed disabled:opacity-45;
+  }
+  .btn-sm {
+    @apply h-[34px] rounded-[10px] px-3 text-[13px];
+  }
+
+  /* One choice out of a few — filters, ranges, measures. The chosen one is
+     solid. Used on <a>/<FilterLink> and <button> alike; mark it `is-on`. */
+  .seg {
+    @apply inline-flex max-w-full flex-wrap gap-0.5 rounded-[20px] border border-border bg-muted p-[3px];
+  }
+  .seg-item {
+    @apply inline-flex h-8 items-center whitespace-nowrap rounded-full px-3 text-[13px] text-muted-foreground transition-colors hover:text-foreground;
+  }
+  .seg-item.is-on {
+    @apply bg-primary text-primary-foreground hover:text-primary-foreground;
+  }
+
+  /* Underlined tabs for a page used by different people for different jobs. */
+  .tabs {
+    @apply flex gap-0.5 overflow-x-auto border-b border-border;
+  }
+  .tab {
+    @apply -mb-px inline-flex h-11 shrink-0 items-center gap-2 whitespace-nowrap border-b-2 border-transparent px-3.5 font-semibold text-muted-subtle transition-colors hover:text-foreground;
+  }
+  .tab.is-on {
+    @apply border-foreground text-foreground;
+  }
+
+  /* A section of a page. */
+  .card {
+    @apply rounded-2xl border border-border bg-surface p-5;
+  }
+
+  /* A status, a tag, a count. Green = good for the shop, warn = waiting on
+     someone, bad = money lost or a problem, plain = neutral. */
+  .chip {
+    @apply inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-border-strong bg-surface px-2 py-px text-xs font-medium text-muted-foreground;
+  }
+  .chip-good {
+    @apply border-good-border bg-good-bg text-good;
+  }
+  .chip-warn {
+    @apply border-warn-border bg-warn-bg text-warn;
+  }
+  .chip-bad {
+    @apply border-bad-border bg-bad-bg text-bad;
+  }
+  .chip-brand {
+    @apply border-primary bg-primary text-primary-foreground;
+  }
+
+  /* Tables: the wrapper draws the frame and scrolls sideways on a phone. */
+  .data-table {
+    @apply overflow-x-auto rounded-2xl border border-border bg-surface;
+  }
+  .data-table table {
+    @apply w-full border-collapse text-sm;
+  }
+  .data-table th {
+    @apply whitespace-nowrap border-b border-border bg-surface-sunk px-3.5 py-2.5 text-left text-xs font-medium text-muted-subtle;
+  }
+  .data-table td {
+    @apply border-b border-border px-3.5 py-3;
+  }
+  .data-table tbody tr:last-child td {
+    @apply border-b-0;
   }
 }
