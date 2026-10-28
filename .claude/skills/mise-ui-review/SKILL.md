@@ -36,6 +36,25 @@ you touch, **without being told page by page** — Kong: "อย่าให้�
   style: dotted underline at rest, solid + brand colour on hover.
 - Pills that would wrap: `whitespace-nowrap`.
 
+## 1b. Filters never reload the page or jump to the top (Kong 2026-10-28)
+- "ตอนเปลี่ยนตัวกรองทำไมมันต้องรีเฟรชหน้าแล้วเด้งกลับขึ้นไปด้านบนด้วย
+  หงุดหงิดแทน user". A filter that changes the URL's query on the SAME page is
+  **never** a plain `<a href>` or a `<form method="get">` — both are a full
+  page load that lands at the top.
+- Use `FilterLink` (chips, month/branch pills, prev/next) and `FilterForm`
+  (selects/dates + กรอง) from `src/components/ui/FilterLink.tsx`. They push
+  through the router with `{ scroll: false }` inside a transition, keep the old
+  screen up, and dim the pressed control at once. `FilterLink` is still a real
+  `<a href>`, so open-in-new-tab keeps working.
+- A `<Link>` to the same page gets `scroll={false}`; a client
+  `router.push`/`replace` that only changes the query gets `{ scroll: false }`.
+- Links that go to a DIFFERENT page (open a document, another screen) keep the
+  normal behaviour — landing at the top of a new page is right.
+- Verify by scrolling down, pressing the filter, and reading `window.scrollY`
+  before/after (and `performance.getEntriesByType("navigation").length` stays
+  1 = no full reload). A filtered result shorter than one screen landing at 0
+  is correct.
+
 ## 2. Choosing an item (products, menus, orders)
 - **Never a `<select>` of every product/menu** ("หากันตาแตกถ้ามี 1000 รายการ").
   Use `ProductPicker` (`src/components/ui/ProductPicker.tsx`): type-to-search,
