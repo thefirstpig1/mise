@@ -15,6 +15,7 @@
 // is the L4/L5 view serializer's job (Pitfall #20).
 // ============================================================
 
+import type { BranchReach } from "@/lib/permissions/service";
 import {
   Prisma,
   type PrismaClient,
@@ -471,12 +472,16 @@ export type PurchaseOrderDetail = Prisma.PurchaseOrderGetPayload<{
  */
 export async function getPurchaseOrdersLogic(
   tenantId: string,
-  query: GetPurchaseOrdersQuery = {}
+  query: GetPurchaseOrdersQuery,
+  /** Rule A5 (2026-10-29): the list narrows to the reader's branches — the branch filter is optional, so asserting it guards nothing. */
+  reach: BranchReach
 ): Promise<PurchaseOrderListRow[]> {
   return withTenantContext(tenantId, (tx) =>
     tx.purchaseOrder.findMany({
       where: {
         tenantId,
+        // AND, not a `branchId` key: a later `...(query.branchId ? { branchId } : {})` would overwrite it.
+        ...(reach.allBranches ? {} : { AND: [{ branchId: { in: [...reach.allowedBranchIds] } }] }),
         deletedAt: null,
         ...(query.branchId ? { branchId: query.branchId } : {}),
         ...(query.supplierId ? { supplierId: query.supplierId } : {}),

@@ -497,7 +497,7 @@ describe("expense *Logic (every baht that leaves, in one place)", () => {
     await deleteExpenseLogic(tenantA, deleteExpenseInputSchema.parse({ id: created.id }));
 
     expect(await getExpenseByIdLogic(tenantA, created.id)).toBeNull();
-    const list = await getExpensesLogic(tenantA, getExpensesQuerySchema.parse({}));
+    const list = await getExpensesLogic(tenantA, getExpensesQuerySchema.parse({}), { allBranches: true, allowedBranchIds: [] });
     expect(list.some((e) => e.id === created.id)).toBe(false);
     const row = await withTenantContext(tenantA, (tx) =>
       tx.expense.findUnique({ where: { id: created.id } })
@@ -514,20 +514,20 @@ describe("expense *Logic (every baht that leaves, in one place)", () => {
 
     const byBranch = await getExpensesLogic(
       tenantA,
-      getExpensesQuerySchema.parse({ branchId: branchA2 })
+      getExpensesQuerySchema.parse({ branchId: branchA2 }), { allBranches: true, allowedBranchIds: [] }
     );
     expect(byBranch.every((e) => e.branchId === branchA2)).toBe(true);
     expect(byBranch.some((e) => e.id === other.id)).toBe(true);
 
     const paid = await getExpensesLogic(
       tenantA,
-      getExpensesQuerySchema.parse({ paymentStatus: "PAID" })
+      getExpensesQuerySchema.parse({ paymentStatus: "PAID" }), { allBranches: true, allowedBranchIds: [] }
     );
     expect(paid.every((e) => e.paymentStatus === "PAID")).toBe(true);
 
     const july = await getExpensesLogic(
       tenantA,
-      getExpensesQuerySchema.parse({ from: "2026-07-01", to: "2026-07-31" })
+      getExpensesQuerySchema.parse({ from: "2026-07-01", to: "2026-07-31" }), { allBranches: true, allowedBranchIds: [] }
     );
     expect(july.some((e) => e.id === other.id)).toBe(true);
     expect(july.every((e) => e.billDate <= new Date("2026-07-31"))).toBe(true);
@@ -550,7 +550,7 @@ describe("expense *Logic (every baht that leaves, in one place)", () => {
 
     const due = await getDueRecurringLogic(
       tenantA,
-      getDueRecurringQuerySchema.parse({ branchId: branchA })
+      getDueRecurringQuerySchema.parse({ branchId: branchA }), { allBranches: true, allowedBranchIds: [] }
     );
     const mine = due.find((d) => d.template.id === t.id);
     expect(mine?.duePeriods).toEqual([currentPeriod()]);
@@ -569,7 +569,7 @@ describe("expense *Logic (every baht that leaves, in one place)", () => {
     );
     expect(confirmed.recurringExpenseId).toBe(t.id);
 
-    const due = await getDueRecurringLogic(tenantA, { branchId: branchA });
+    const due = await getDueRecurringLogic(tenantA, { branchId: branchA }, { allBranches: true, allowedBranchIds: [] });
     expect(due.find((d) => d.template.id === t.id)).toBeUndefined();
 
     // The partial unique on the PAIR is what makes a double-submit one bill.
@@ -626,7 +626,7 @@ describe("expense *Logic (every baht that leaves, in one place)", () => {
       userA
     );
     expect(
-      (await getDueRecurringLogic(tenantA, { branchId: branchA })).find(
+      (await getDueRecurringLogic(tenantA, { branchId: branchA }, { allBranches: true, allowedBranchIds: [] })).find(
         (d) => d.template.id === t.id
       )
     ).toBeUndefined();
@@ -638,7 +638,7 @@ describe("expense *Logic (every baht that leaves, in one place)", () => {
 
     // A soft-deleted expense is not a confirmation — which is what makes the
     // mistake recoverable instead of lost.
-    const due = await getDueRecurringLogic(tenantA, { branchId: branchA });
+    const due = await getDueRecurringLogic(tenantA, { branchId: branchA }, { allBranches: true, allowedBranchIds: [] });
     expect(due.find((d) => d.template.id === t.id)?.duePeriods).toEqual([period]);
   });
 
@@ -651,7 +651,7 @@ describe("expense *Logic (every baht that leaves, in one place)", () => {
       })
     );
 
-    const due = await getDueRecurringLogic(tenantA, { branchId: branchA });
+    const due = await getDueRecurringLogic(tenantA, { branchId: branchA }, { allBranches: true, allowedBranchIds: [] });
     const mine = due.find((d) => d.template.id === t.id);
     // 24 months of unconfirmed rent is not a to-do list, it is a wall.
     expect(mine?.duePeriods).toHaveLength(DUE_LOOKBACK_MONTHS);
@@ -669,7 +669,7 @@ describe("expense *Logic (every baht that leaves, in one place)", () => {
       })
     );
 
-    const due = await getDueRecurringLogic(tenantA, { branchId: branchA });
+    const due = await getDueRecurringLogic(tenantA, { branchId: branchA }, { allBranches: true, allowedBranchIds: [] });
     const mine = due.find((d) => d.template.id === t.id);
     expect(mine?.duePeriods).toEqual([addPeriods(period, -3), addPeriods(period, -2)]);
   });

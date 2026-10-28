@@ -21,12 +21,12 @@ import Crumbs from "../_components/Crumbs";
 
 import EmptyState from "@/components/ui/EmptyState";
 export default async function RecurringExpensePage() {
-  const { tenantId, capabilities } = await requireTenant("expense:view");
+  const { tenantId, capabilities, reach } = await requireTenant("expense:view");
   const canWrite = capabilities.has("expense:write");
 
   const [templates, due] = await Promise.all([
     getRecurringExpensesLogic(tenantId).then((rows) => rows.map(toRecurringExpenseView)),
-    getDueRecurringLogic(tenantId),
+    getDueRecurringLogic(tenantId, {}, reach),
   ]);
   const dueOf = new Map(due.map((d) => [d.template.id, d.duePeriods]));
   /** Buttons shown per row, oldest first (the order someone works through them); the rest are counted. */

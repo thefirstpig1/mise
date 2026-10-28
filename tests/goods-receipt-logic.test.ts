@@ -877,7 +877,7 @@ describe("goods-receipt *Logic (PO → รับของ → ledger)", () => {
 
     await deleteGoodsReceiptDraftLogic(tenantA, gr.id);
     expect(await getGoodsReceiptByIdLogic(tenantA, gr.id)).toBeNull();
-    const list = await getGoodsReceiptsLogic(tenantA, {});
+    const list = await getGoodsReceiptsLogic(tenantA, {}, { allBranches: true, allowedBranchIds: [] });
     expect(list.some((r) => r.id === gr.id)).toBe(false);
   });
 

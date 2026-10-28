@@ -43,7 +43,7 @@ export default async function GoodsReceiptsPage({
   });
   const query = parsed.success ? parsed.data : {};
 
-  const receipts = (await getGoodsReceiptsLogic(tenantId, query)).map(
+  const receipts = (await getGoodsReceiptsLogic(tenantId, query, reach)).map(
     toGoodsReceiptListView
   );
 

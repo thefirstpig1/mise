@@ -745,7 +745,7 @@ async function WorkQueue({
   // wait for these two reads before anything appears.
   const [transfers, pulseRaw, requests, closeStatus] = await Promise.all([
     // Part 18 Q8: any truck still unconfirmed, whatever the chips say.
-    getTransfersLogic(tenantId, getTransfersQuerySchema.parse({ status: "SENT", includeReversalLines: "false" })),
+    getTransfersLogic(tenantId, getTransfersQuerySchema.parse({ status: "SENT", includeReversalLines: "false" }), reach),
     // Part 20a Q4 — "the shop runs blind between imports".
     showPulse && !dailyClose ? getPulseDashboardLogic(tenantId, reach) : Promise.resolve(null),
     // ADR 0036 Q9 — the purchaser learns a kitchen is ready without being told.
@@ -915,7 +915,7 @@ async function missingRecurring(tenantId: string, period: Period, branchIds: str
   const today = computeBangkokToday();
   const toKey = isoDay(period.to).slice(0, 7);
   const fromKey = isoDay(period.from).slice(0, 7);
-  const due = await getDueRecurringLogic(tenantId, { asOfPeriod: toKey }).catch(() => []);
+  const due = await getDueRecurringLogic(tenantId, { asOfPeriod: toKey }, { allBranches: false, allowedBranchIds: branchIds }).catch(() => []);
   const out: { description: string; periodLabel: string; amount: number }[] = [];
   for (const row of due) {
     if (!branchIds.includes(row.template.branch.id)) continue;

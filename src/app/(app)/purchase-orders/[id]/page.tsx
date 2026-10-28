@@ -61,7 +61,7 @@ export default async function PurchaseOrderDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { tenantId, membership, can, assertBranch } = await requireTenant("purchase:write");
+  const { tenantId, membership, can, assertBranch, reach } = await requireTenant("purchase:write");
   const { id } = await params;
 
   const order = await getPurchaseOrderByIdLogic(tenantId, id);
@@ -76,7 +76,7 @@ export default async function PurchaseOrderDetailPage({
   // "this arrived and was then reversed" is part of the order's story, and
   // hiding it would make qty_received look unexplained.
   const [receiptRows, promises] = await Promise.all([
-    getGoodsReceiptsForPurchaseOrderLogic(tenantId, po.id),
+    getGoodsReceiptsForPurchaseOrderLogic(tenantId, po.id, reach),
     getDeliveryPromisesLogic(tenantId, po.id),
   ]);
   const receipts = receiptRows.map(toGoodsReceiptListView);

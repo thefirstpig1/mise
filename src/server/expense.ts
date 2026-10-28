@@ -33,6 +33,7 @@
 // L3b, in goods-receipt.ts where the transaction already is.
 // ============================================================
 
+import type { BranchReach } from "@/lib/permissions/service";
 import { UNCATEGORISED } from "@/lib/category-seed";
 import { Prisma } from "@prisma/client";
 import type { PrismaClient, Expense, RecurringExpense } from "@prisma/client";
@@ -397,12 +398,16 @@ export type DueRecurringRow = {
 
 export async function getExpensesLogic(
   tenantId: string,
-  query: GetExpensesQuery = {}
+  query: GetExpensesQuery,
+  /** Rule A5 (2026-10-29): the list narrows to the reader's branches — the branch filter is optional, so asserting it guards nothing. */
+  reach: BranchReach
 ): Promise<ExpenseListRow[]> {
   return withTenantContext(tenantId, (tx) =>
     tx.expense.findMany({
       where: {
         tenantId,
+        // AND, not a `branchId` key: a later `...(query.branchId ? { branchId } : {})` would overwrite it.
+        ...(reach.allBranches ? {} : { AND: [{ branchId: { in: [...reach.allowedBranchIds] } }] }),
         deletedAt: null,
         ...(query.branchId ? { branchId: query.branchId } : {}),
         ...(query.supplierId ? { supplierId: query.supplierId } : {}),
@@ -579,7 +584,9 @@ export async function getRecurringExpenseByIdLogic(
  */
 export async function getDueRecurringLogic(
   tenantId: string,
-  query: GetDueRecurringQuery = {}
+  query: GetDueRecurringQuery,
+  /** Rule A5 (2026-10-29): the list narrows to the reader's branches — the branch filter is optional, so asserting it guards nothing. */
+  reach: BranchReach
 ): Promise<DueRecurringRow[]> {
   const asOf = query.asOfPeriod ?? currentPeriod();
   const floor = addPeriods(asOf, -(DUE_LOOKBACK_MONTHS - 1));
@@ -588,6 +595,8 @@ export async function getDueRecurringLogic(
     const templates = await tx.recurringExpense.findMany({
       where: {
         tenantId,
+        // AND, not a `branchId` key: a later `...(query.branchId ? { branchId } : {})` would overwrite it.
+        ...(reach.allBranches ? {} : { AND: [{ branchId: { in: [...reach.allowedBranchIds] } }] }),
         deletedAt: null,
         isActive: true,
         startPeriod: { lte: asOf },

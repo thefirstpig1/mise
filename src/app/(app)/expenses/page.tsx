@@ -73,8 +73,8 @@ export default async function ExpenseListPage({
   const [branches, suppliers, rows, due, spend] = await Promise.all([
     getBranchesLogic(tenantId, reach),
     getSuppliersLogic(tenantId),
-    getExpensesLogic(tenantId, query).then((list) => list.map(toExpenseListRowView)),
-    getDueRecurringLogic(tenantId, { branchId: query.branchId }).then((list) =>
+    getExpensesLogic(tenantId, query, reach).then((list) => list.map(toExpenseListRowView)),
+    getDueRecurringLogic(tenantId, { branchId: query.branchId }, reach).then((list) =>
       list.map(toDueRecurringView)
     ),
     getSpendBreakdownLogic(tenantId, { from: breakdownFrom, to: breakdownTo, branchId: query.branchId }, reach),

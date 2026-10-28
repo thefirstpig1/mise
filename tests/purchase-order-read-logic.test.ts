@@ -412,21 +412,29 @@ describe("purchase-order read *Logic (tenant-scoped, app-layer isolation)", () =
       qtyOrdered: 8,
     });
 
-    const all = await getPurchaseOrdersLogic(tenantA);
+    const all = await getPurchaseOrdersLogic(tenantA, {}, { allBranches: true, allowedBranchIds: [] });
     expect(all.length).toBeGreaterThanOrEqual(2);
     expect(all[0].createdAt.getTime()).toBeGreaterThanOrEqual(
       all[all.length - 1].createdAt.getTime()
     );
     expect(all[0]._count.items).toBe(1);
 
-    const sent = await getPurchaseOrdersLogic(tenantA, { status: "SENT" });
+    const sent = await getPurchaseOrdersLogic(tenantA, { status: "SENT" }, { allBranches: true, allowedBranchIds: [] });
     expect(sent.every((p) => p.status === "SENT")).toBe(true);
 
-    const byBranch = await getPurchaseOrdersLogic(tenantA, { branchId: branchA1 });
+    const byBranch = await getPurchaseOrdersLogic(tenantA, { branchId: branchA1 }, { allBranches: true, allowedBranchIds: [] });
     expect(byBranch.every((p) => p.branchId === branchA1)).toBe(true);
 
-    const bySupplier = await getPurchaseOrdersLogic(tenantA, { supplierId: supAlt });
+    const bySupplier = await getPurchaseOrdersLogic(tenantA, { supplierId: supAlt }, { allBranches: true, allowedBranchIds: [] });
     expect(bySupplier.every((p) => p.supplierId === supAlt)).toBe(true);
+
+    // Rule A5 (2026-10-29): a reader who reaches A1 only never sees A2's
+    // orders — not with no branch filter, and not by naming A2 in the URL.
+    const a1Only = { allBranches: false, allowedBranchIds: [branchA1] };
+    const mine = await getPurchaseOrdersLogic(tenantA, {}, a1Only);
+    expect(mine.length).toBeGreaterThan(0);
+    expect(mine.every((p) => p.branchId === branchA1)).toBe(true);
+    expect(await getPurchaseOrdersLogic(tenantA, { branchId: branchA2 }, a1Only)).toHaveLength(0);
   });
 
   it("P11: a soft-deleted DRAFT disappears from the list and from getById", async () => {
@@ -442,7 +450,7 @@ describe("purchase-order read *Logic (tenant-scoped, app-layer isolation)", () =
       deletedAt: new Date(),
     });
 
-    const list = await getPurchaseOrdersLogic(tenantA);
+    const list = await getPurchaseOrdersLogic(tenantA, {}, { allBranches: true, allowedBranchIds: [] });
     expect(list.map((p) => p.id)).not.toContain(dead.id);
     expect(await getPurchaseOrderByIdLogic(tenantA, dead.id)).toBeNull();
   });
@@ -481,7 +489,7 @@ describe("purchase-order read *Logic (tenant-scoped, app-layer isolation)", () =
     });
     expect(await getPurchaseOrderByIdLogic(tenantB, mine.id)).toBeNull();
     expect(
-      (await getPurchaseOrdersLogic(tenantB)).map((p) => p.id)
+      (await getPurchaseOrdersLogic(tenantB, {}, { allBranches: true, allowedBranchIds: [] })).map((p) => p.id)
     ).not.toContain(mine.id);
   });
 

@@ -24,6 +24,7 @@
 //     cannot tell them apart afterwards.
 // ============================================================
 
+import type { BranchReach } from "@/lib/permissions/service";
 import { Prisma } from "@prisma/client";
 import type { CostSource, PrismaClient, StockTransfer } from "@prisma/client";
 import { withTenantContext } from "@/lib/db";
@@ -183,7 +184,9 @@ export const MAX_TRANSFER_ROWS = 200;
 
 export async function getTransfersLogic(
   tenantId: string,
-  query: GetTransfersQuery
+  query: GetTransfersQuery,
+  /** Rule A5 (2026-10-29): the list narrows to the reader's branches — the branch filter is optional, so asserting it guards nothing. */
+  reach: BranchReach
 ): Promise<TransferDetail[]> {
   const { branchId, direction, status, productId, from, to } = query;
 
@@ -204,6 +207,9 @@ export async function getTransfersLogic(
     tx.stockTransfer.findMany({
       where: {
         tenantId,
+        ...(reach.allBranches
+          ? {}
+          : { AND: [{ OR: [{ fromBranchId: { in: [...reach.allowedBranchIds] } }, { toBranchId: { in: [...reach.allowedBranchIds] } }] }] }),
         ...branchWhere,
         ...(status ? { status } : {}),
         ...(productId ? { items: { some: { productId } } } : {}),

@@ -664,11 +664,11 @@ describe("transfer *Logic (the fifth writer, and the first at two branches)", ()
 
     const out = await getTransfersLogic(
       tenantA,
-      getTransfersQuerySchema.parse({ branchId: thonglor, direction: "OUT", productId: p.id })
+      getTransfersQuerySchema.parse({ branchId: thonglor, direction: "OUT", productId: p.id }), { allBranches: true, allowedBranchIds: [] }
     );
     const inbound = await getTransfersLogic(
       tenantA,
-      getTransfersQuerySchema.parse({ branchId: thonglor, direction: "IN", productId: p.id })
+      getTransfersQuerySchema.parse({ branchId: thonglor, direction: "IN", productId: p.id }), { allBranches: true, allowedBranchIds: [] }
     );
 
     expect(out.map((t) => t.id)).toContain(tf.id);

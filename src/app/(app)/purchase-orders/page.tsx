@@ -59,7 +59,7 @@ export default async function PurchaseOrdersPage({
 
   // Fetched for the BRANCH only: the number cards count every status, and the
   // status filter narrows the table in memory (one read instead of two).
-  const all = (await getPurchaseOrdersLogic(tenantId, { branchId: query.branchId })).map(toPurchaseOrderListView);
+  const all = (await getPurchaseOrdersLogic(tenantId, { branchId: query.branchId }, reach)).map(toPurchaseOrderListView);
   const orders = query.status ? all.filter((o) => o.status === query.status) : all;
 
   const today = computeBangkokToday().toISOString().slice(0, 10);

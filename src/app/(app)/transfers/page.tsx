@@ -57,7 +57,7 @@ export default async function TransfersPage({
   // Side by side (2026-10-01): the list never needed the branch list first.
   const [branches, transfers] = await Promise.all([
     getBranchesLogic(tenantId, reach),
-    query.success ? getTransfersLogic(tenantId, query.data) : Promise.resolve([]),
+    query.success ? getTransfersLogic(tenantId, query.data, reach) : Promise.resolve([]),
   ]);
   const fetched = transfers.map((t) => toTransferView(t, costAccess));
   const truncated = fetched.length > MAX_TRANSFER_ROWS;

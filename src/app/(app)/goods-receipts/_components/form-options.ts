@@ -39,7 +39,7 @@ export async function loadGoodsReceiptFormOptions(
     getProductsLogic(tenantId),
     getSuppliersLogic(tenantId),
     getBranchesLogic(tenantId, reach),
-    getPurchaseOrdersLogic(tenantId, {}),
+    getPurchaseOrdersLogic(tenantId, {}, reach),
     departmentPickerOptionsLogic(tenantId),
   ]);
   const departmentDefaults = departments.length > 0 ? await receiptDepartmentDefaultsLogic(tenantId) : {};
