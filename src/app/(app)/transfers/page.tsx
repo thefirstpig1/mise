@@ -28,6 +28,7 @@ import { toTransferView } from "./_components/transfer-view";
 
 import EmptyState from "@/components/ui/EmptyState";
 import { RowChevron } from "@/components/ui/ActionLink";
+import { FilterForm } from "@/components/ui/FilterLink";
 const STATUS_STYLE: Record<string, string> = {
   SENT: "border-warn-border bg-warn-bg text-warn",
   RECEIVED: "border-good-border bg-good-bg text-good",
@@ -90,10 +91,7 @@ export default async function TransfersPage({
         </div>
       )}
 
-      <form
-        method="get"
-        className="flex flex-wrap items-end gap-3 rounded-lg border border-border bg-surface p-4"
-      >
+      <FilterForm className="flex flex-wrap items-end gap-3 rounded-lg border border-border bg-surface p-4">
         <label className="text-sm">
           <span className="mb-1 block text-muted-foreground">สาขา</span>
           <select name="branch" defaultValue={sp.branch ?? ""} className="input">
@@ -139,7 +137,7 @@ export default async function TransfersPage({
         >
           กรอง
         </button>
-      </form>
+      </FilterForm>
 
       {waiting.length > 0 && (
         <div className="rounded-lg border border-warn-border bg-warn-bg p-4 text-sm text-warn">

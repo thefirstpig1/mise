@@ -5,6 +5,7 @@ import ExpenseDrill from "./_components/ExpenseDrill";
 import ActionLink from "@/components/ui/ActionLink";
 import { DailyBarsChart } from "@/app/(app)/dashboard/_components/Charts";
 import { recentMonths } from "@/app/(app)/dashboard/_components/dashboard-period";
+import FilterLink from "@/components/ui/FilterLink";
 
 // ============================================================
 // Mise — วิเคราะห์รายจ่าย (Part 35 B)
@@ -207,7 +208,7 @@ function FilterRow({ label, children }: { label: string; children: React.ReactNo
 
 function Pill({ href, active, children }: { href: string; active: boolean; children: React.ReactNode }) {
   return (
-    <a
+    <FilterLink
       href={href}
       aria-current={active ? "true" : undefined}
       className={`rounded-full border px-3 py-1 text-sm transition-colors ${
@@ -215,7 +216,7 @@ function Pill({ href, active, children }: { href: string; active: boolean; child
       }`}
     >
       {children}
-    </a>
+    </FilterLink>
   );
 }
 

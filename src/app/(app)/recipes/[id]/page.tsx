@@ -41,6 +41,7 @@ import CopyToBranchesForm, {
   type CopyBranchOption,
 } from "../_components/CopyToBranchesForm";
 import DeleteRecipeButton from "../_components/DeleteRecipeButton";
+import { FilterForm } from "@/components/ui/FilterLink";
 
 const BANGKOK_DATE = new Intl.DateTimeFormat("th-TH", {
   timeZone: "Asia/Bangkok",
@@ -204,7 +205,7 @@ export default async function RecipePage({
 
         <aside className="space-y-6">
           <div>
-            <form method="get" className="mb-3 flex items-center gap-2">
+            <FilterForm className="mb-3 flex items-center gap-2">
               <label className="text-xs text-muted-foreground">
                 คิดต้นทุนที่สาขา
               </label>
@@ -225,7 +226,7 @@ export default async function RecipePage({
               >
                 ดู
               </button>
-            </form>
+            </FilterForm>
 
             {costAccess === null ? (
               // The panel's own empty state means "this recipe cannot be

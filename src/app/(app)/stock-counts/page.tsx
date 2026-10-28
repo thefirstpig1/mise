@@ -23,6 +23,7 @@ import IncomingTransfers from "@/app/(app)/transfers/_components/IncomingTransfe
 
 import EmptyState from "@/components/ui/EmptyState";
 import { RowChevron } from "@/components/ui/ActionLink";
+import { FilterForm } from "@/components/ui/FilterLink";
 export default async function StockCountListPage({
   searchParams,
 }: {
@@ -92,7 +93,7 @@ export default async function StockCountListPage({
         </div>
       )}
 
-      <form method="get" className="flex flex-wrap items-end gap-3">
+      <FilterForm className="flex flex-wrap items-end gap-3">
         {branches.length > 1 && (
           <div>
             <label htmlFor="branch" className="label">
@@ -137,7 +138,7 @@ export default async function StockCountListPage({
         >
           กรอง
         </button>
-      </form>
+      </FilterForm>
 
       {rows.length === 0 ? (
         <EmptyState art="start">

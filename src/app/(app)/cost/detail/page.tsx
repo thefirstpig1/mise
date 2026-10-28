@@ -15,6 +15,7 @@ import { getBranchCostSummaryLogic } from "@/server/stock-cost";
 import { getBranchCostSummaryQuerySchema } from "@/lib/validations/stock-cost";
 import { toBranchCostSummaryView } from "../_components/cost-view";
 import BranchCostTable from "../_components/BranchCostTable";
+import { FilterForm } from "@/components/ui/FilterLink";
 
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 
@@ -63,7 +64,7 @@ export default async function CostOverviewPage({
         </div>
       )}
 
-      <form method="get" className="flex flex-wrap items-end gap-3">
+      <FilterForm className="flex flex-wrap items-end gap-3">
         <div>
           <label htmlFor="from" className="label">
             ตั้งแต่
@@ -94,7 +95,7 @@ export default async function CostOverviewPage({
         >
           ดูช่วงนี้
         </button>
-      </form>
+      </FilterForm>
 
       <BranchCostTable rows={rows} />
 

@@ -11,6 +11,7 @@ import { getBranchesLogic, liveliestBranchId } from "@/server/branch";
 import { getDailyCloseMonthLogic } from "@/server/daily-close";
 import MonthInsight from "./_components/MonthInsight";
 import { mixShares } from "@/lib/closing-insight";
+import FilterLink from "@/components/ui/FilterLink";
 
 const MTH = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
 const WD = ["อา.", "จ.", "อ.", "พ.", "พฤ.", "ศ.", "ส."];
@@ -100,23 +101,23 @@ export default async function ClosingMonthPage({ searchParams }: { searchParams:
       <div className="flex flex-wrap items-center gap-1.5">
         {branches.length > 1 &&
           branches.map((b) => (
-            <a
+            <FilterLink
               key={b.id}
               href={`/closing?branch=${b.id}&m=${m}`}
               className={`whitespace-nowrap rounded-full border px-3 py-1 text-sm ${b.id === branch.id ? "border-primary bg-primary text-primary-foreground" : "border-border-strong bg-surface hover:bg-muted"}`}
             >
               {b.name}
-            </a>
+            </FilterLink>
           ))}
         <span className="mx-1 h-5 w-px bg-border" />
         {[...months].reverse().map((k) => (
-          <a
+          <FilterLink
             key={k}
             href={`/closing?branch=${branch.id}&m=${k}`}
             className={`whitespace-nowrap rounded-full border px-3 py-1 text-sm ${k === m ? "border-primary bg-primary text-primary-foreground" : "border-border-strong bg-surface hover:bg-muted"}`}
           >
             {monthTh(k)}
-          </a>
+          </FilterLink>
         ))}
       </div>
 

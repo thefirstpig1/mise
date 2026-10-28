@@ -51,6 +51,7 @@ import ActionLink from "@/components/ui/ActionLink";
 import { recentMonths } from "@/app/(app)/dashboard/_components/dashboard-period";
 
 import EmptyState from "@/components/ui/EmptyState";
+import FilterLink from "@/components/ui/FilterLink";
 const baht = (v: string) =>
   Number(v).toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const bahtShort = (v: string) => Number(v).toLocaleString("th-TH", { maximumFractionDigits: 0 });
@@ -336,30 +337,30 @@ export default async function SalesPage({
         <div className="flex flex-wrap items-center gap-2">
           <span className="w-16 shrink-0 text-xs font-medium text-muted-foreground">เดือน</span>
           {months.map((m) => (
-            <a key={m.key} href={link({ from: m.from, to: m.to })} className={pill(fromIso === m.from && toIso === m.to)}>
+            <FilterLink key={m.key} href={link({ from: m.from, to: m.to })} className={pill(fromIso === m.from && toIso === m.to)}>
               {m.label}
-            </a>
+            </FilterLink>
           ))}
         </div>
         {branches.length > 1 ? (
           <div className="flex flex-wrap items-center gap-2">
             <span className="w-16 shrink-0 text-xs font-medium text-muted-foreground">สาขา</span>
-            <a href={link({ branch: undefined })} className={pill(!one("branch"))}>ทุกสาขา</a>
+            <FilterLink href={link({ branch: undefined })} className={pill(!one("branch"))}>ทุกสาขา</FilterLink>
             {branches.map((b) => (
-              <a key={b.id} href={link({ branch: one("branch") === b.id ? undefined : b.id })} className={pill(one("branch") === b.id)}>
+              <FilterLink key={b.id} href={link({ branch: one("branch") === b.id ? undefined : b.id })} className={pill(one("branch") === b.id)}>
                 {b.name}
-              </a>
+              </FilterLink>
             ))}
           </div>
         ) : null}
         {categories.length > 0 ? (
           <div className="flex flex-wrap items-center gap-2">
             <span className="w-16 shrink-0 text-xs font-medium text-muted-foreground">หมวดเมนู</span>
-            <a href={link({ category: undefined })} className={pill(!one("category"))}>ทุกหมวด</a>
+            <FilterLink href={link({ category: undefined })} className={pill(!one("category"))}>ทุกหมวด</FilterLink>
             {categories.map((c) => (
-              <a key={c.id} href={link({ category: one("category") === c.id ? undefined : c.id })} className={pill(one("category") === c.id)}>
+              <FilterLink key={c.id} href={link({ category: one("category") === c.id ? undefined : c.id })} className={pill(one("category") === c.id)}>
                 {c.name}
-              </a>
+              </FilterLink>
             ))}
           </div>
         ) : null}

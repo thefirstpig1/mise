@@ -24,6 +24,7 @@ import IncomingTransfers from "@/app/(app)/transfers/_components/IncomingTransfe
 import { MOVEMENT_TYPE_LABELS_TH, SOURCE_TYPE_LABELS_TH } from "@/lib/validations/stock-movement";
 import { PAR_RED } from "@/lib/par-alert";
 import { unitTh } from "@/app/(app)/menus/_components/manager-format";
+import FilterLink from "@/components/ui/FilterLink";
 
 const label = (m: Record<string, string>, k: string) => m[k] ?? k;
 const baht = (n: number) => `฿${Math.round(n).toLocaleString("th-TH")}`;
@@ -156,7 +157,7 @@ export default async function StockWorkPage({ searchParams }: { searchParams: Pr
         {branches.length > 1 && (
           <div className="flex flex-wrap gap-1.5">
             {branches.map((b) => (
-              <a
+              <FilterLink
                 key={b.id}
                 href={`/stock?branch=${b.id}`}
                 className={`whitespace-nowrap rounded-full border px-3 py-1 text-sm ${
@@ -164,7 +165,7 @@ export default async function StockWorkPage({ searchParams }: { searchParams: Pr
                 }`}
               >
                 {b.name}
-              </a>
+              </FilterLink>
             ))}
           </div>
         )}

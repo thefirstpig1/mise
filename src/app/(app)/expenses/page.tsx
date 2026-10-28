@@ -32,6 +32,7 @@ import EmptyState from "@/components/ui/EmptyState";
 import ActionLink from "@/components/ui/ActionLink";
 import { getSpendBreakdownLogic } from "@/server/pnl";
 import { computeBangkokToday } from "@/lib/bangkok-date";
+import { FilterForm } from "@/components/ui/FilterLink";
 const dateLabel = (iso: string) =>
   new Date(iso).toLocaleDateString("th-TH", { dateStyle: "medium" });
 
@@ -187,7 +188,7 @@ export default async function ExpenseListPage({
         <ActionLink href="/expenses/analysis">ดูแยกหมวดและผู้ขาย ›</ActionLink>
       </div>
 
-      <form method="get" className="flex flex-wrap items-end gap-3">
+      <FilterForm className="flex flex-wrap items-end gap-3">
         {branches.length > 1 && (
           <div>
             <label htmlFor="branch" className="label">
@@ -280,7 +281,7 @@ export default async function ExpenseListPage({
         >
           กรอง
         </button>
-      </form>
+      </FilterForm>
 
       {rows.length === 0 ? (
         <EmptyState art="start">

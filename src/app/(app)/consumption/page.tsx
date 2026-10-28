@@ -17,6 +17,7 @@ import { addDays, computeBangkokToday } from "@/lib/bangkok-date";
 import { getConsumptionDayStatusLogic } from "@/server/consumption-read";
 import { toConsumptionDayView } from "@/app/(app)/consumption/_components/consumption-view";
 import { ConsumptionDayTable } from "@/app/(app)/consumption/_components/ConsumptionDayTable";
+import { FilterForm } from "@/components/ui/FilterLink";
 
 /** The window a shop actually works in: this month and the one before it. */
 const DEFAULT_DAYS_BACK = 60;
@@ -71,7 +72,7 @@ export default async function ConsumptionPage({
         </p>
 
         {branches.length > 1 && (
-          <form method="get" className="flex flex-wrap items-end gap-3">
+          <FilterForm className="flex flex-wrap items-end gap-3">
             <label className="text-sm">
               สาขา
               <select
@@ -94,7 +95,7 @@ export default async function ConsumptionPage({
             >
               ดู
             </button>
-          </form>
+          </FilterForm>
         )}
 
         {stale > 0 && (

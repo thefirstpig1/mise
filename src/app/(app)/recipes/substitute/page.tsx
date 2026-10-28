@@ -22,6 +22,7 @@ import { toSubstitutionPlanView } from "../_components/recipe-view";
 import SubstitutionForm, {
   type ReplacementUnit,
 } from "../_components/SubstitutionForm";
+import { FilterForm } from "@/components/ui/FilterLink";
 
 
 export default async function SubstitutePage({
@@ -89,10 +90,7 @@ export default async function SubstitutePage({
         </p>
       </div>
 
-      <form
-        method="get"
-        className="flex flex-wrap items-end gap-3 rounded-xl border border-border bg-surface p-5"
-      >
+      <FilterForm className="flex flex-wrap items-end gap-3 rounded-xl border border-border bg-surface p-5">
         <div>
           <label className="label" htmlFor="from">
             เปลี่ยนจาก
@@ -146,7 +144,7 @@ export default async function SubstitutePage({
         >
           ดูว่าจะโดนสูตรไหนบ้าง
         </button>
-      </form>
+      </FilterForm>
 
       {!ready ? (
         <div className="rounded-lg border border-border bg-muted/30 p-6 text-sm text-muted-foreground">

@@ -44,6 +44,7 @@ import VoidStaffMealButton from "./_components/VoidStaffMealButton";
 
 
 import EmptyState from "@/components/ui/EmptyState";
+import { FilterForm } from "@/components/ui/FilterLink";
 /**
  * The list defaults to THIS MONTH, not to all of history — the same call /waste
  * made. A staff meal log grows every single day, and the month is the period a
@@ -221,7 +222,7 @@ export default async function StaffMealsPage({
       />
 
       {/* --- filters --- */}
-      <form method="get" className="flex flex-wrap items-end gap-2">
+      <FilterForm className="flex flex-wrap items-end gap-2">
         <div>
           <label className="block text-xs text-muted-foreground" htmlFor="f-branch">
             สาขา
@@ -270,7 +271,7 @@ export default async function StaffMealsPage({
         <a href="/staff-meals/people" className="py-2 text-sm underline">
           จัดการรายชื่อพนักงาน
         </a>
-      </form>
+      </FilterForm>
 
       {/* --- the quota standing, when one person is in view --- */}
       {sp.member && !seesPeople && (

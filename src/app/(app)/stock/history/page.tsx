@@ -24,6 +24,7 @@ import { toStockMovementView } from "../_components/stock-view";
 import StockMovementHistory, {
   type HistoryFilter,
 } from "../_components/StockMovementHistory";
+import FilterLink, { FilterForm } from "@/components/ui/FilterLink";
 
 
 export default async function StockHistoryPage({
@@ -122,11 +123,7 @@ export default async function StockHistoryPage({
         </div>
       )}
 
-      <form
-        method="get"
-        action="/stock/history"
-        className="flex flex-wrap items-end gap-3 rounded-lg border border-border bg-muted/20 p-3"
-      >
+      <FilterForm className="flex flex-wrap items-end gap-3 rounded-lg border border-border bg-muted/20 p-3">
         <div className="flex flex-col gap-1 text-xs text-muted-foreground">
           วัตถุดิบ
           <ProductFilter
@@ -196,13 +193,13 @@ export default async function StockHistoryPage({
         >
           กรอง
         </button>
-        <a
+        <FilterLink
           href="/stock/history"
           className="px-2 py-2 text-sm text-muted-foreground hover:text-foreground"
         >
           ล้าง
-        </a>
-      </form>
+        </FilterLink>
+      </FilterForm>
 
       {query.productId && !cardBranchId && (
         <p className="rounded-lg border border-border bg-muted/30 p-3 text-sm text-muted-foreground">เลือกสาขาเพื่อดูบัตรสต๊อกของวัตถุดิบนี้ (ยอดคงเหลือนับแยกสาขา)</p>

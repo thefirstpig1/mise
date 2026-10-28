@@ -23,6 +23,7 @@ import { toPurchaseOrderListView } from "./_components/purchase-order-view";
 import StatusBadge from "./_components/StatusBadge";
 
 import EmptyState from "@/components/ui/EmptyState";
+import FilterLink from "@/components/ui/FilterLink";
 const THB = new Intl.NumberFormat("th-TH", {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
@@ -98,29 +99,29 @@ export default async function PurchaseOrdersPage({
       )}
 
       <div className="flex flex-wrap gap-1">
-        <a href={linkFor({ status: "" })} className={chip(!query.status)}>
+        <FilterLink href={linkFor({ status: "" })} className={chip(!query.status)}>
           ทุกสถานะ
-        </a>
+        </FilterLink>
         {PURCHASE_ORDER_STATUS_VALUES.map((s) => (
-          <a key={s} href={linkFor({ status: s })} className={chip(query.status === s)}>
+          <FilterLink key={s} href={linkFor({ status: s })} className={chip(query.status === s)}>
             {PURCHASE_ORDER_STATUS_LABELS_TH[s]}
-          </a>
+          </FilterLink>
         ))}
       </div>
 
       {branches.length > 1 && (
         <div className="flex flex-wrap gap-1">
-          <a href={linkFor({ branch: "" })} className={chip(!query.branchId)}>
+          <FilterLink href={linkFor({ branch: "" })} className={chip(!query.branchId)}>
             ทุกสาขา
-          </a>
+          </FilterLink>
           {branches.map((b) => (
-            <a
+            <FilterLink
               key={b.id}
               href={linkFor({ branch: b.id })}
               className={chip(query.branchId === b.id)}
             >
               {b.name}
-            </a>
+            </FilterLink>
           ))}
         </div>
       )}

@@ -23,6 +23,7 @@ import { toGoodsReceiptListView } from "./_components/goods-receipt-view";
 import StatusBadge from "./_components/StatusBadge";
 
 import EmptyState from "@/components/ui/EmptyState";
+import FilterLink from "@/components/ui/FilterLink";
 export default async function GoodsReceiptsPage({
   searchParams,
 }: {
@@ -90,35 +91,35 @@ export default async function GoodsReceiptsPage({
       )}
 
       <div className="flex flex-wrap gap-1">
-        <a href={linkFor({ status: "", flagged: "" })} className={chip(!query.status && !query.discrepancyOnly)}>
+        <FilterLink href={linkFor({ status: "", flagged: "" })} className={chip(!query.status && !query.discrepancyOnly)}>
           ทั้งหมด
-        </a>
+        </FilterLink>
         {GOODS_RECEIPT_STATUS_VALUES.map((s) => (
-          <a key={s} href={linkFor({ status: s })} className={chip(query.status === s)}>
+          <FilterLink key={s} href={linkFor({ status: s })} className={chip(query.status === s)}>
             {GOODS_RECEIPT_STATUS_LABELS_TH[s]}
-          </a>
+          </FilterLink>
         ))}
-        <a
+        <FilterLink
           href={linkFor({ flagged: query.discrepancyOnly ? "" : "1" })}
           className={chip(Boolean(query.discrepancyOnly))}
         >
           ต้องตรวจสอบ
-        </a>
+        </FilterLink>
       </div>
 
       {branches.length > 1 && (
         <div className="flex flex-wrap gap-1">
-          <a href={linkFor({ branch: "" })} className={chip(!query.branchId)}>
+          <FilterLink href={linkFor({ branch: "" })} className={chip(!query.branchId)}>
             ทุกสาขา
-          </a>
+          </FilterLink>
           {branches.map((b) => (
-            <a
+            <FilterLink
               key={b.id}
               href={linkFor({ branch: b.id })}
               className={chip(query.branchId === b.id)}
             >
               {b.name}
-            </a>
+            </FilterLink>
           ))}
         </div>
       )}

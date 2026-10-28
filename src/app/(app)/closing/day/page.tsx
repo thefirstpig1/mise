@@ -16,6 +16,7 @@ import { cashDifference } from "@/lib/validations/daily-close";
 import CloseForm from "../_components/CloseForm";
 import { Comments, IssueList } from "../_components/IssuesAndComments";
 import { MixBar } from "../_components/mix";
+import FilterLink from "@/components/ui/FilterLink";
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 const baht = (n: number, d = 0) => `฿${n.toLocaleString("th-TH", { minimumFractionDigits: d, maximumFractionDigits: d })}`;
@@ -65,21 +66,21 @@ export default async function ClosingDayPage({ searchParams }: { searchParams: P
         <div className="flex flex-wrap items-center gap-1.5">
           {branches.length > 1 &&
             branches.map((b) => (
-              <a
+              <FilterLink
                 key={b.id}
                 href={link(date, b.id)}
                 className={`whitespace-nowrap rounded-full border px-3 py-1 text-sm ${b.id === branch.id ? "border-primary bg-primary text-primary-foreground" : "border-border-strong bg-surface hover:bg-muted"}`}
               >
                 {b.name}
-              </a>
+              </FilterLink>
             ))}
-          <a href={link(prev)} className="rounded-full border border-border-strong px-3 py-1 text-sm hover:bg-muted" aria-label="วันก่อนหน้า">
+          <FilterLink href={link(prev)} className="rounded-full border border-border-strong px-3 py-1 text-sm hover:bg-muted" aria-label="วันก่อนหน้า">
             ‹
-          </a>
+          </FilterLink>
           {date.getTime() < today.getTime() && (
-            <a href={link(next)} className="rounded-full border border-border-strong px-3 py-1 text-sm hover:bg-muted" aria-label="วันถัดไป">
+            <FilterLink href={link(next)} className="rounded-full border border-border-strong px-3 py-1 text-sm hover:bg-muted" aria-label="วันถัดไป">
               ›
-            </a>
+            </FilterLink>
           )}
         </div>
       </div>

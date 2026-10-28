@@ -32,6 +32,7 @@ import VoidWasteButton from "./_components/VoidWasteButton";
 
 
 import EmptyState from "@/components/ui/EmptyState";
+import { FilterForm } from "@/components/ui/FilterLink";
 /**
  * A serialized row's `reason` is a plain string (the view layer stays
  * structural), so the lookup falls back to the raw value rather than casting.
@@ -192,7 +193,7 @@ export default async function WastePage({
           </div>
 
           {/* GET form: the filters belong in the URL, not in component state. */}
-          <form method="get" className="flex flex-wrap items-center gap-2">
+          <FilterForm className="flex flex-wrap items-center gap-2">
             <input
               type="date"
               name="from"
@@ -247,7 +248,7 @@ export default async function WastePage({
             >
               กรอง
             </button>
-          </form>
+          </FilterForm>
         </div>
 
         {truncated && (

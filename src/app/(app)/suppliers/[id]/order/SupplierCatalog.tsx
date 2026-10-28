@@ -306,7 +306,7 @@ export default function SupplierCatalog({
             <span className="label">สั่งให้สาขา</span>
             <select
               value={branchId}
-              onChange={(e) => router.push(`/suppliers/${supplier.id}/order?branch=${e.target.value}`)}
+              onChange={(e) => router.push(`/suppliers/${supplier.id}/order?branch=${e.target.value}`, { scroll: false })}
               className="input mt-1"
             >
               {branches.map((b) => (
