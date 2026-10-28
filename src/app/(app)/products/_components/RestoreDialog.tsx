@@ -10,7 +10,7 @@
 //     already held by a LIVE product (hasSkuConflict); pre-filled "<sku>-restored".
 //   Section 2 (Q6/Q7) — a per-orphan price-review, ONLY when orphanMappingCount > 0.
 //     The FULL orphan list (not the typeahead's top-3 preview) is fetched on open
-//     via getOrphanMappingsForProductAction (Option A); each row is keep (default,
+//     over GET /api/products?what=orphans (Option A); each row is keep (default,
 //     C-sub-2) or update (reveals price/minQty/leadTime, pre-filled from the row).
 //   Neither → a plain restore confirmation.
 //
@@ -31,12 +31,9 @@
 
 import { useActionState, useEffect, useState } from "react";
 import { MeasureInput, MoneyInput } from "@/components/ui/NumberField";
-import {
-  restoreProductAction,
-  getOrphanMappingsForProductAction,
-  type RestoreActionState,
-  type OrphanMappingRow,
-} from "@/app/(app)/products/restore-actions";
+import { restoreProductAction, type RestoreActionState } from "@/app/(app)/products/restore-actions";
+import type { OrphanMappingRow } from "./restore-view";
+import { readApi } from "@/lib/read-api";
 import type { FuzzyMatchCandidate } from "@/server/product-restore";
 
 /** One orphan row's review decision (default keep, C-sub-2). */
@@ -87,11 +84,12 @@ export default function RestoreDialog({
     setOrphanRows(null);
     setLoadingOrphans(true);
     setLoadError(null);
-    getOrphanMappingsForProductAction(candidateId)
-      .then((rows) => {
+    readApi<{ ok: true; rows: OrphanMappingRow[] }>("/api/products", "orphans", candidateId)
+      .then((r) => {
         if (ignore) return;
-        setOrphanRows(rows);
-        setChoices(rows.map(() => "keep")); // default keep (C-sub-2)
+        if (!r.ok) throw new Error(r.formError);
+        setOrphanRows(r.rows);
+        setChoices(r.rows.map(() => "keep")); // default keep (C-sub-2)
       })
       .catch(() => {
         if (!ignore) setLoadError("โหลดรายการราคาไม่สำเร็จ — รบกวนปิดแล้วลองใหม่");

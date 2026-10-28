@@ -31,13 +31,9 @@ import type { ZodError } from "zod";
 import { requireTenant } from "@/lib/require-tenant";
 import {
   createStockAdjustmentInputSchema,
-  getStockBalanceQuerySchema,
-  getStockMovementHistoryQuerySchema,
 } from "@/lib/validations/stock-movement";
 import {
   createStockAdjustmentLogic,
-  getStockBalanceLogic,
-  getStockMovementHistoryLogic,
   MovementSourceConflictError,
   QtyRoundsToZeroError,
   StockUnitMismatchError,
@@ -49,12 +45,6 @@ import {
   CostDeclarationTargetError,
   CostUnitMismatchError,
 } from "@/server/cost-declaration";
-import {
-  toStockBalanceView,
-  toStockMovementView,
-  type StockBalanceView,
-  type StockMovementView,
-} from "./_components/stock-view";
 
 /**
  * Outcome of the adjust form, for React 19 useActionState.
@@ -75,8 +65,6 @@ const CROSS_TENANT_MESSAGE = "ข้อมูลอ้างอิงไม่�
 const UNIT_MISMATCH_MESSAGE = "หน่วยที่เลือกต้องเป็นหน่วยของวัตถุดิบนี้";
 /** Concurrent writer won the (source_type, source_id) race — see ADR 0011 Q4. */
 const CONFLICT_MESSAGE = "ระบบกำลังบันทึกรายการนี้อยู่ กรุณาลองอีกครั้ง";
-/** A read action whose query didn't validate (never user-typed — a caller bug). */
-const BAD_QUERY_MESSAGE = "เงื่อนไขการค้นหาไม่ถูกต้อง";
 /** Part 14: the cost was typed against a unit of some other product. */
 const COST_UNIT_MESSAGE = "หน่วยของต้นทุนต้องเป็นหน่วยของวัตถุดิบนี้";
 /** Part 14: a cost may only be attached to stock coming IN (ADR 0014 Q6). */
@@ -222,56 +210,4 @@ export async function createStockAdjustmentAction(
   }
 }
 
-/** Read result shared by the two read actions — a failure here is a caller bug. */
-export type StockReadState<T> =
-  | { ok: true; data: T }
-  | { ok: false; formError: string };
 
-/**
- * Current (or as-of) balance for one (product, branch).
- *
- * Called from the L5 adjust form to preview the post-write balance, so it takes
- * a plain object rather than FormData — there is no <form> behind it. The query
- * is still schema-parsed: it arrives from the client and reaches the DB.
- */
-export async function getStockBalanceAction(
-  query: unknown
-): Promise<StockReadState<StockBalanceView>> {
-  const { tenantId, assertBranch } = await requireTenant("any:member");
-
-  const parsed = getStockBalanceQuerySchema.safeParse(query);
-  if (!parsed.success) return { ok: false, formError: BAD_QUERY_MESSAGE };
-
-  assertBranch(parsed.data.branchId);
-
-  const balance = await getStockBalanceLogic(tenantId, parsed.data);
-  return { ok: true, data: toStockBalanceView(balance) };
-}
-
-/**
- * A page of ledger history, newest first. `nextCursor` is fed straight back as
- * `cursor` for the following page (null = last page).
- */
-export async function getStockMovementHistoryAction(
-  query: unknown
-): Promise<
-  StockReadState<{ rows: StockMovementView[]; nextCursor: string | null }>
-> {
-  const { tenantId, reach, assertBranch } = await requireTenant("any:member");
-
-  const parsed = getStockMovementHistoryQuerySchema.safeParse(query);
-  if (!parsed.success) return { ok: false, formError: BAD_QUERY_MESSAGE };
-
-  // Naming a branch is checked; naming none is narrowed inside the read, since
-  // omitting the filter must not widen the answer (ADR 0029 Q5).
-  if (parsed.data.branchId) assertBranch(parsed.data.branchId);
-
-  const page = await getStockMovementHistoryLogic(tenantId, parsed.data, reach);
-  return {
-    ok: true,
-    data: {
-      rows: page.rows.map(toStockMovementView),
-      nextCursor: page.nextCursor,
-    },
-  };
-}

@@ -40,7 +40,6 @@ import {
   MenuNotDeletedError,
   MenuRecipeWillBeDeletedError,
   deleteMenuLogic,
-  findDeletedMenuByNameLogic,
   restoreMenuLogic,
   setMenuActiveLogic,
 } from "@/server/menu-lifecycle";
@@ -93,10 +92,6 @@ export type MenuLifecycleActionState =
        */
       needsAcknowledgement?: { recipeCount: number };
     };
-
-export type DeletedMenuLookupState =
-  | { ok: true; found: { id: string; name: string; recipeCount: number } | null }
-  | { ok: false; error: string };
 
 /**
  * Every surface a lifecycle change moves.
@@ -205,20 +200,3 @@ export async function restoreMenuAction(
   }
 }
 
-/**
- * The Lab's offer: is there a deleted menu by exactly this name?
- *
- * Called as the person types the name of a dish they are about to create. It
- * returns `null` far more often than not, and a `null` is not an error — there
- * is simply nothing to offer.
- */
-export async function findDeletedMenuByNameAction(
-  name: string
-): Promise<DeletedMenuLookupState> {
-  const { tenantId } = await requireTenant("master:write");
-
-  if (typeof name !== "string") return { ok: true, found: null };
-
-  const found = await findDeletedMenuByNameLogic(tenantId, name);
-  return { ok: true, found };
-}

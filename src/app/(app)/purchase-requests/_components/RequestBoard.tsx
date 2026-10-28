@@ -27,6 +27,7 @@ import QtyStepper from "@/components/ui/QtyStepper";
 import { MeasureInput } from "@/components/ui/NumberField";
 import ProductThumb from "@/components/ui/ProductThumb";
 import { orStale } from "@/lib/stale-tab";
+import { readApi } from "@/lib/read-api";
 import { ModalShell } from "@/app/(app)/sales/_components/Breakdown";
 import type { BoardLine, CatalogStock, DuplicateLine, ParSuggestion, RequestBoard as Board } from "@/server/purchase-request";
 import type { RequestLineStatus } from "@/lib/purchase-request";
@@ -34,7 +35,6 @@ import type { POProductOption } from "@/app/(app)/purchase-orders/_components/Pu
 import {
   addRequestLineAction,
   deleteRequestLineAction,
-  getRequestMessagesAction,
   postRequestMessageAction,
   reopenRequestLineAction,
   requestShortfallAction,
@@ -938,7 +938,10 @@ function Chat({ line, onClose, onPosted }: { line: BoardLine; onClose: () => voi
   const [state, setState] = useState<MessagesActionState | null>(null);
   const [body, setBody] = useState("");
   const [busy, setBusy] = useState(false);
-  const load = useCallback(async () => setState(await orStale(getRequestMessagesAction({ lineId: line.id }))), [line.id]);
+  const load = useCallback(
+    async () => setState(await readApi<Extract<MessagesActionState, { ok: true }>>("/api/purchase-requests", "messages", { lineId: line.id })),
+    [line.id]
+  );
   useEffect(() => {
     void load();
   }, [load]);

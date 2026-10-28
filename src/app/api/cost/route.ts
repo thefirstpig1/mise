@@ -1,8 +1,15 @@
-// GET /api/cost?what=deptTrend&branch=&view=month|week — ต้นทุนตามแผนก's trend
-// (question 3), read after the page paints (mise-ui-review §5c). Same gate and
-// branch check as the page; the buckets are the server's own, never the client's.
+// GET /api/cost — cost reads after paint (mise-ui-review §5c), all behind cost:view:
+//   what=deptTrend&branch=&view=month|week  ต้นทุนตามแผนก's trend (question 3); the
+//     buckets are the server's own, never the client's
+//   what=productCost&q={productId,branchId} the cost a gain would take (adjust form)
+//   what=declarations&q="movementId"        one movement's cost declarations
+// The last two were Server Actions.
 
-import { guardRead } from "@/lib/read-api";
+import { guardRead, readInput } from "@/lib/read-api";
+import { getProductCostQuerySchema } from "@/lib/validations/stock-cost";
+import { getProductCostLogic } from "@/server/stock-cost";
+import { getCostDeclarationsLogic } from "@/server/cost-declaration";
+import { toCostDeclarationView, toProductCostView } from "@/app/(app)/cost/_components/cost-view";
 import { requireTenant } from "@/lib/require-tenant";
 import { computeBangkokToday } from "@/lib/bangkok-date";
 import { monthRanges, weekRanges } from "@/server/cost-overview";
@@ -16,9 +23,23 @@ const json = (body: unknown, status = 200) => Response.json(body, { status, head
 export function GET(req: Request) {
   return guardRead(async () => {
     const url = new URL(req.url);
+    const what = url.searchParams.get("what");
+    if (what === "productCost") {
+      const { tenantId, assertBranch } = await requireTenant("cost:view");
+      const parsed = getProductCostQuerySchema.safeParse(readInput(url));
+      if (!parsed.success) return json({ ok: false, formError: "เงื่อนไขการค้นหาไม่ถูกต้อง" });
+      assertBranch(parsed.data.branchId);
+      return json({ ok: true, data: toProductCostView(await getProductCostLogic(tenantId, parsed.data)) });
+    }
+    if (what === "declarations") {
+      const { tenantId } = await requireTenant("cost:view");
+      const id = String(readInput(url) ?? "");
+      if (!UUID.test(id)) return json({ ok: false, formError: "คำขอไม่ถูกต้อง" }, 400);
+      return json({ ok: true, data: (await getCostDeclarationsLogic(tenantId, id)).map(toCostDeclarationView) });
+    }
     const branchId = url.searchParams.get("branch") ?? "";
     const view = url.searchParams.get("view") === "week" ? "week" : "month";
-    if (url.searchParams.get("what") !== "deptTrend" || !UUID.test(branchId)) return json({ ok: false, error: "คำขอไม่ถูกต้อง" }, 400);
+    if (what !== "deptTrend" || !UUID.test(branchId)) return json({ ok: false, error: "คำขอไม่ถูกต้อง" }, 400);
     const { tenantId, assertBranch } = await requireTenant("cost:view");
     assertBranch(branchId);
     const today = computeBangkokToday();

@@ -18,35 +18,19 @@ import { requireTenant } from "@/lib/require-tenant";
 import { withTenantContext } from "@/lib/db";
 import {
   declareStockCostInputSchema,
-  getProductCostQuerySchema,
-  getBranchCostSummaryQuerySchema,
   STOCK_COST_FIELD_LABELS_TH,
 } from "@/lib/validations/stock-cost";
 import {
   CostDeclarationTargetError,
   CostUnitMismatchError,
   declareStockCostLogic,
-  getCostDeclarationsLogic,
 } from "@/server/cost-declaration";
-import {
-  getBranchCostSummaryLogic,
-  getProductCostLogic,
-} from "@/server/stock-cost";
-import {
-  toBranchCostSummaryView,
-  toCostDeclarationView,
-  toProductCostView,
-  type BranchCostSummaryView,
-  type CostDeclarationView,
-  type ProductCostView,
-} from "./_components/cost-view";
 
 /** The movement being priced is gone, foreign, or is not a stock GAIN. */
 const NOT_A_GAIN_MESSAGE =
   "ระบุต้นทุนได้เฉพาะของที่นับเจอเพิ่มเท่านั้น — ต้นทุนของใบรับของแก้ที่เอกสารนั้น";
 const TARGET_NOT_FOUND_MESSAGE = "ไม่พบรายการเคลื่อนไหวที่ต้องการระบุต้นทุน";
 const UNIT_MISMATCH_MESSAGE = "หน่วยที่เลือกต้องเป็นหน่วยของวัตถุดิบนี้";
-const BAD_QUERY_MESSAGE = "เงื่อนไขการค้นหาไม่ถูกต้อง";
 
 export type CostActionState =
   | { ok: true; declarationId: string }
@@ -121,55 +105,6 @@ export async function declareCostAction(
     }
     throw e;
   }
-}
-
-/** Read result shared by the read actions — a failure is a caller bug. */
-export type CostReadState<T> =
-  | { ok: true; data: T }
-  | { ok: false; formError: string };
-
-/**
- * Cost for one (product, branch).
- *
- * Called from the adjust form to show the default the server would apply, so the
- * user can judge it without opening the cost field at all. Takes a plain object
- * rather than FormData — there is no `<form>` behind it — and is still
- * schema-parsed, because it arrives from the client and reaches the database.
- */
-export async function getProductCostAction(
-  query: unknown
-): Promise<CostReadState<ProductCostView>> {
-  const { tenantId, assertBranch} = await requireTenant("cost:view");
-
-  const parsed = getProductCostQuerySchema.safeParse(query);
-  if (!parsed.success) return { ok: false, formError: BAD_QUERY_MESSAGE };
-
-  assertBranch(parsed.data.branchId);
-
-  const cost = await getProductCostLogic(tenantId, parsed.data);
-  return { ok: true, data: toProductCostView(cost) };
-}
-
-/** The declaration history behind one movement, newest first. */
-export async function getCostDeclarationsAction(
-  movementId: string
-): Promise<CostReadState<CostDeclarationView[]>> {
-  const { tenantId } = await requireTenant("cost:view");
-  const rows = await getCostDeclarationsLogic(tenantId, movementId);
-  return { ok: true, data: rows.map(toCostDeclarationView) };
-}
-
-/** Every branch side by side for a period — the business-wide view (Q9b). */
-export async function getBranchCostSummaryAction(
-  query: unknown
-): Promise<CostReadState<BranchCostSummaryView[]>> {
-  const { tenantId, reach } = await requireTenant("cost:view");
-
-  const parsed = getBranchCostSummaryQuerySchema.safeParse(query);
-  if (!parsed.success) return { ok: false, formError: BAD_QUERY_MESSAGE };
-
-  const rows = await getBranchCostSummaryLogic(tenantId, parsed.data, reach);
-  return { ok: true, data: rows.map(toBranchCostSummaryView) };
 }
 
 // ── /cost targets (Kong 2026-10-23) ──────────────────────────────────────────

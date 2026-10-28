@@ -31,21 +31,12 @@ import { revalidatePath } from "next/cache";
 import type { ZodError } from "zod";
 import { requireTenant } from "@/lib/require-tenant";
 import {
-  fuzzySearchSoftDeletedProductsLogic,
-  getOrphanMappingsForProductLogic,
   restoreProductLogic,
   ProductNotFoundError,
-  type FuzzyMatchCandidate,
 } from "@/server/product-restore";
 import { ProductSkuConflictError } from "@/server/product";
-import {
-  MappingNotFoundError,
-  type MappingWithRefs,
-} from "@/server/supplier-product-mapping";
-import {
-  fuzzySearchInputSchema,
-  restoreProductInputSchema,
-} from "@/lib/validations/product-restore";
+import { MappingNotFoundError } from "@/server/supplier-product-mapping";
+import { restoreProductInputSchema } from "@/lib/validations/product-restore";
 
 /**
  * Outcome of the restore submit, for React 19 useActionState:
@@ -145,23 +136,6 @@ function mappingUpdatesFromFormData(
 }
 
 /**
- * Debounced typeahead endpoint (finding D): fuzzy-search the tenant's soft-deleted
- * products by name/sku similarity (3+ chars). Returns the candidate array DIRECTLY
- * — sub-3-char / invalid terms return [] (the logic layer is defensive too; the
- * client enforces min-3 anyway).
- */
-export async function searchSoftDeletedProductsAction(
-  searchTerm: string
-): Promise<FuzzyMatchCandidate[]> {
-  const { tenantId } = await requireTenant("master:write");
-
-  const parsed = fuzzySearchInputSchema.safeParse({ searchTerm });
-  if (!parsed.success) return [];
-
-  return fuzzySearchSoftDeletedProductsLogic(tenantId, parsed.data.searchTerm);
-}
-
-/**
  * Restore a soft-deleted product (ADR 0010), optionally re-skuing it and applying
  * the per-orphan price review, then revalidate every view the restore touches.
  * Cross-view revalidation is aggressive (Part 9 decision ii — closes e4b4306): the
@@ -207,56 +181,4 @@ export async function restoreProductAction(
   } catch (e) {
     return toRestoreFormError(e, hasNewSku);
   }
-}
-
-/**
- * One LIVE orphan mapping of a soft-deleted product, serialized for the restore
- * dialog's price-review (L5b). The dialog needs MORE than the typeahead's top-3
- * MappingPreview (Q6): the FULL list, plus the editable terms (minOrderQty,
- * leadTimeDays) a row pre-fills when set to "update". Decimal currentUnitPrice/
- * minOrderQty are serialized to string HERE — no Decimal crosses to the Client
- * dialog (Pitfall #20); effectiveFrom is the ISO YYYY-MM-DD the UI shows verbatim
- * (the MappingHistoryViewer/MappingListSection precedent — no Intl/Buddhist era).
- */
-export type OrphanMappingRow = {
-  id: string;
-  supplierName: string;
-  effectiveFrom: string; // ISO date (YYYY-MM-DD), displayed as-is
-  currentUnitPrice: string | null;
-  minOrderQty: string | null;
-  leadTimeDays: number | null;
-  isPreferred: boolean;
-};
-
-/** Serialize one full orphan mapping → its dialog row (Decimal → string, Pitfall #20). */
-function toOrphanMappingRow(m: MappingWithRefs): OrphanMappingRow {
-  return {
-    id: m.id,
-    supplierName: m.supplier.nameFull,
-    effectiveFrom: m.effectiveFrom.toISOString().slice(0, 10),
-    currentUnitPrice:
-      m.currentUnitPrice === null ? null : m.currentUnitPrice.toString(),
-    minOrderQty: m.minOrderQty === null ? null : m.minOrderQty.toString(),
-    leadTimeDays: m.leadTimeDays,
-    isPreferred: m.isPreferred,
-  };
-}
-
-/**
- * Read action (finding D — returns the data DIRECTLY, not the useActionState shape):
- * the FULL live-orphan-mapping list of a product for the restore dialog's price-
- * review (L5b), fetched on dialog open ONLY when the candidate has orphans
- * (orphanMappingCount > 0 — the dialog skips this call otherwise). Wraps the L3a
- * read (getOrphanMappingsForProductLogic), which already orders isPreferred DESC
- * then effectiveFrom DESC — the SAME order as the L5a typeahead preview — so the
- * dialog rows line up with the dropdown the user just clicked; we only serialize
- * Decimal (no re-sort needed). `productId` is a candidate id (a real uuid), so no
- * zod guard here (thin glue; a malformed id surfaces as the logic's Prisma error).
- */
-export async function getOrphanMappingsForProductAction(
-  productId: string
-): Promise<OrphanMappingRow[]> {
-  const { tenantId } = await requireTenant("master:write");
-  const rows = await getOrphanMappingsForProductLogic(tenantId, productId);
-  return rows.map(toOrphanMappingRow);
 }

@@ -30,7 +30,7 @@ import { announceStale } from "@/lib/stale-tab";
 // ============================================================
 
 import { useEffect, useId, useRef, useState, useTransition } from "react";
-import { searchSoftDeletedProductsAction } from "@/app/(app)/products/restore-actions";
+import { readApi } from "@/lib/read-api";
 import type { FuzzyMatchCandidate } from "@/server/product-restore";
 
 const MIN_CHARS = 3; // Q3 — typeahead fires at 3+ chars
@@ -101,14 +101,14 @@ export default function RestoreSuggestionTypeahead({
     let ignore = false;
     const timer = setTimeout(() => {
       startTransition(async () => {
-        // A tab older than the server gets `undefined` (or a throw): no
+        // A GET read (§5c). A signed-out or refused answer is `stale`: no
         // suggestions, and the app frame asks for a refresh.
-        const res = await searchSoftDeletedProductsAction(term).catch(() => undefined);
-        if (!res) announceStale();
-        if (ignore || !res) return;
-        setResults(res);
+        const r = await readApi<{ ok: true; candidates: FuzzyMatchCandidate[] }>("/api/products", "restorable", term);
+        if (!r.ok && r.stale) announceStale();
+        if (ignore || !r.ok) return;
+        setResults(r.candidates);
         setShowExtended(false);
-        setOpen(res.length > 0); // Q1 — no dropdown on empty
+        setOpen(r.candidates.length > 0); // Q1 — no dropdown on empty
       });
     }, DEBOUNCE_MS);
     return () => {

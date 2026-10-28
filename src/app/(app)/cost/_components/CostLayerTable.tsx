@@ -1,7 +1,5 @@
 "use client";
 
-import { orStale } from "@/lib/stale-tab";
-
 // Sprint 2 Part 14 L5b — the layer stack behind one product's cost.
 //
 // This table is the answer to "why is the cost that number?", and it is the only
@@ -14,7 +12,7 @@ import { orStale } from "@/lib/stale-tab";
 // already decided a receipt is voided rather than edited.
 
 import { useState } from "react";
-import { getCostDeclarationsAction } from "../actions";
+import { readApi } from "@/lib/read-api";
 import { formatMoney, formatQty } from "./cost-view";
 import type { CostDeclarationView, CostLayerView } from "./cost-view";
 import DeclareCostForm, { type DeclareUnitOption } from "./DeclareCostForm";
@@ -56,7 +54,7 @@ export default function CostLayerTable({
     }
     setOpenFor(movementId);
     if (!history[movementId]) {
-      const res = await orStale(getCostDeclarationsAction(movementId));
+      const res = await readApi<{ ok: true; data: CostDeclarationView[] }>("/api/cost", "declarations", movementId);
       if (res.ok) setHistory((h) => ({ ...h, [movementId]: res.data }));
     }
   };

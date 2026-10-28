@@ -154,13 +154,13 @@ Kong: *"สิทธิ์อะไรต่างๆให้ร้านเข
 ใช้ skill `mise-ui-review` ทุกหน้า · checklist ย้ายมาจาก handoff 2026-09-30 เพื่อให้ตามไปทุกเครื่อง
 - ✅ รีวิวแล้ว: /dashboard · /sales · /purchase-orders · /goods-receipts · /suppliers (+ /order) · /products (รายการ) · /stock-counts · /transfers · /waste · /cost/prices · /expenses/analysis · /staff-meals · (/stock /expenses /recurring /recipes ได้แค่คลิกทั้งแถว ยังไม่รีวิวเต็ม)
 - ✅ 1. /categories — กล่องต่อกลุ่ม (ต้นทุนขาย / ค่าใช้จ่ายดำเนินงาน) ไม่มีตัวเลขนับทางขวา (`1c04b62`, 2026-09-30)
-- 🟡 2. เมนูและสูตร: ~~/menus~~ ✅ แคตตาล็อก + ป๊อปอัป (2026-10-02, รอ Kong ดู) · /menus/coverage · /menus/lab (+new, [id]) · /menus/merges · /recipes/[id] · /recipes/new · /recipes/substitute
-- ⬜ 3. ต้นทุน: /cost · /cost/[productId] · /cost/departments · /cost/leaks
-- ⬜ 4. สต๊อก: /stock (เต็ม) · /stock/adjust · /stock/history · /consumption
+- 🟡 2. เมนูและสูตร: ✅ /menus (รอบสอง 2026-10-29) · ✅ /menus/lab (2026-10-22) · ✅ /menus/merges (`6ad53e9`) · ✅ /recipes + /recipes/substitute (2026-10-28) — เหลือ /recipes/[id] · /recipes/new (/menus/coverage เลิกใช้แล้ว 2026-10-24 → พาไปทดลองเมนู)
+- 🟡 3. ต้นทุน: ✅ /cost (2026-10-23) · ✅ /cost/leaks + /cost/prices (2026-10-24) · ✅ /cost/departments (2026-10-25) — เหลือ /cost/detail (เดิม /cost/[productId])
+- ✅ 4. สต๊อก: งานสต๊อก · ปรับสต๊อก · ประวัติ/บัตรสต๊อก (`e336fed`) · ตัดสต๊อกตามยอดขายเป็นปุ่มในงานสต๊อก (2026-10-24)
 - ⬜ 5. นำเข้ายอดขาย: /sales/import · /sales/import/profiles/new
-- ⬜ 6. ใบขอซื้อ: /purchase-requests · /purchase-requests/cut
+- 🟡 6. ใบขอซื้อ: ✅ /purchase-requests แคตตาล็อก + รถเข็น (`3c5f09d`, 2026-10-28) — เหลือ /purchase-requests/cut
 - ⬜ 7. ฟอร์มและหน้ารายละเอียด: expenses new/[id]/edit · recurring new/edit · products/[id] + mappings · goods-receipts/[id]/edit · purchase-orders/[id]/edit
-- ⬜ 8. ตั้งค่า: /settings · /settings/branches · /settings/departments · /settings/members
+- ✅ 8. ตั้งค่า: ทุกหน้า (`0fba860`, 2026-10-28) + login/signup/หน้าแรก (`b0dd23c`)
 - ⬜ 9. ภาษาแบบพูดกับลูกค้าทั้งแอป (login/signup ด้วย)
 - ✅ **/sales รอบสอง (2026-10-03, Kong)** — การ์ด KPI 3 ใบ (ยอดขาย · จำนวนจาน · ราคาเฉลี่ยต่อจาน) ต่อวันเทียบช่วงที่เลือก + บรรทัดเล็ก "ตรวจกับใบสรุปปิดร้านของ POS" กางได้ (SI7) · กล่องเตือนไฟล์ย้ายขึ้นเป็นบรรทัด "ข้อมูลช่วงนี้" ใต้ตัวกรอง · ตารางรายวันและปุ่ม "ดูเมนู" ออก · ตาราง หมวด × วัน อ่านง่ายขึ้น + hover แถว/คอลัมน์ · **เมนูที่น่าจับตา = กราฟเดียว** ±5% ปกติ (SI5) พร้อมตัวเลือก **เทียบกับ** เดือนใดก็ได้/ช่วงเอง (SI4, `?vs` `?vsFrom&vsTo`) · **Menu engineering 2×2** (SI6) สัญลักษณ์ ★♞?✕ ปุ่ม ? เป็นบทเรียน 5 ขั้นที่ใช้ชื่อเมนูของร้านนั้นเอง · คนไม่เห็นต้นทุนได้ตารางเดิม
 - ✅ **Smart search กลางทั้งแอป** (`src/lib/smart-search.ts`, 2026-10-03) — จัดอันดับ ไม่ตัดรายการทิ้ง · รหัสค้นด้วยเลขได้ (02 → A02, 22 → P-0022) · ใช้แล้วที่ Menu engineering · ⬜ ใช้กับช่องค้นหาที่อื่นเมื่อรีวิวถึงหน้านั้น (ProductPicker, /menus ฯลฯ)

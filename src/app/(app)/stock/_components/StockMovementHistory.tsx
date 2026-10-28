@@ -1,12 +1,10 @@
 "use client";
 
-import { orStale } from "@/lib/stale-tab";
-
 // Sprint 2 Part 10 L5c — the ledger history feed.
 //
 // The first page is rendered on the server (so the list is there without JS and
 // the filters are a plain GET form); "โหลดเพิ่ม" continues from `nextCursor`
-// through getStockMovementHistoryAction. The same filter object the server used
+// over GET /api/stock?what=history. The same filter object the server used
 // is passed down and replayed with each cursor — otherwise page 2 would quietly
 // widen the query the user filtered.
 //
@@ -16,7 +14,7 @@ import { orStale } from "@/lib/stale-tab";
 // history is the audit trail, so hiding the mistake would defeat the point.
 
 import { useState } from "react";
-import { getStockMovementHistoryAction } from "@/app/(app)/stock/actions";
+import { readApi } from "@/lib/read-api";
 import {
   ADJUSTMENT_REASON_LABELS_TH,
   MOVEMENT_TYPE_LABELS_TH,
@@ -71,7 +69,7 @@ export default function StockMovementHistory({
     if (!cursor || loading) return;
     setLoading(true);
     setLoadError(null);
-    const res = await orStale(getStockMovementHistoryAction({ ...filter, cursor }));
+    const res = await readApi<{ ok: true; data: { rows: StockMovementView[]; nextCursor: string | null } }>("/api/stock", "history", { ...filter, cursor });
     if (res.ok) {
       setRows((prev) => [...prev, ...res.data.rows]);
       setCursor(res.data.nextCursor);

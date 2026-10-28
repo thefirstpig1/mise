@@ -41,7 +41,6 @@ import type { ZodError } from "zod";
 import { requireTenant } from "@/lib/require-tenant";
 import {
   MENU_MERGE_FIELD_LABELS_TH,
-  mergeCandidatesQuerySchema,
   mergeMenusInputSchema,
   revokeMergeInputSchema,
 } from "@/lib/validations/menu-merge";
@@ -54,14 +53,7 @@ import {
   mergeMenusLogic,
   revokeMergeLogic,
 } from "@/server/menu-merge";
-import { getMergeCandidatesLogic } from "@/server/menu-merge-read";
 import { MenuNotFoundError } from "@/server/menu";
-import {
-  toMergeCandidateRowView,
-  toMergeSubjectView,
-  type MergeCandidateRowView,
-  type MergeSubjectView,
-} from "@/app/(app)/menus/_components/menu-merge-view";
 
 // ------------------------------------------------------------
 // Thai messages
@@ -123,10 +115,6 @@ export type MenuMergeActionState =
        *  the way. */
       existingMerge?: { id: string; winningMenuId: string };
     };
-
-export type MergeCandidatesState =
-  | { ok: true; subject: MergeSubjectView; candidates: MergeCandidateRowView[] }
-  | { ok: false; error: string };
 
 /** Flatten zod issues to `{ fieldName: thaiMessage }`, first issue per field. */
 function toFieldErrors(error: ZodError): Record<string, string> {
@@ -287,44 +275,6 @@ export async function revokeMergeAction(
     return { ok: true, mergeId: merge.id };
   } catch (e) {
     return { ok: false, ...toFormError(e) };
-  }
-}
-
-/**
- * "What else might this dish be?" — reads only, writes nothing, and folds
- * nothing.
- *
- * No `revalidatePath`: nothing changed. A read that invalidates caches is a read
- * that will one day be blamed for a write.
- *
- * The result carries, per row, whether it may be the loser and whether it may be
- * the winner. `mergeMenusLogic` refuses the same two cases anyway; this is so
- * the screen can grey a row out instead of letting somebody pick it and be told
- * afterwards.
- */
-export async function getMergeCandidatesAction(
-  menuId: string,
-  limit?: number
-): Promise<MergeCandidatesState> {
-  const { tenantId } = await requireTenant("master:write");
-
-  const parsed = mergeCandidatesQuerySchema.safeParse({ menuId, limit });
-  if (!parsed.success) {
-    return { ok: false, error: INVALID_MENU_MESSAGE };
-  }
-
-  try {
-    const result = await getMergeCandidatesLogic(tenantId, parsed.data);
-    return {
-      ok: true,
-      subject: toMergeSubjectView(result.subject),
-      candidates: result.candidates.map(toMergeCandidateRowView),
-    };
-  } catch (e) {
-    if (e instanceof MenuNotFoundError) {
-      return { ok: false, error: MENU_NOT_FOUND_MESSAGE };
-    }
-    throw e;
   }
 }
 

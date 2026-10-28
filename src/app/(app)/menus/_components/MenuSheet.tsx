@@ -26,7 +26,8 @@ import { useActionState, useEffect, useMemo, useRef, useState, useTransition } f
 import QtyStepper from "@/components/ui/QtyStepper";
 import { dropPrefetched, menuSheet, ingredientInsight } from "./prefetch";
 import { createRecipeAction, deleteRecipeAction, saveRecipeForBranchAction, updateRecipeAction, type RecipeActionState } from "@/app/(app)/recipes/actions";
-import { confirmMenuAliasAction, getMenuSuggestionsAction, updateMenuAction, type MenuAliasActionState } from "@/app/(app)/menus/actions";
+import { confirmMenuAliasAction, updateMenuAction, type MenuAliasActionState } from "@/app/(app)/menus/actions";
+import { readApi } from "@/lib/read-api";
 import { deleteMenuAction, setMenuActiveAction } from "@/app/(app)/menus/lifecycle-actions";
 import { DELETE_MEANS_TH, RETIRE_MEANS_TH, RETIRE_NOT_IN_POS_TH } from "@/lib/validations/menu-lifecycle";
 import type { IngredientOption, MenuSheet as SheetData, PriceBook, StandardUnit } from "@/server/menu-manager";
@@ -967,7 +968,7 @@ function AliasBlock({ menu, posIntegrationId, fresh }: { menu: ManagerRow; posIn
           type="button"
           onClick={() =>
             startLooking(async () => {
-              const r = await orStale(getMenuSuggestionsAction(menu.posMenuName ?? menu.name));
+              const r = await readApi<{ ok: true; suggestions: MenuSuggestionRowView[] }>("/api/menus", "suggest", menu.posMenuName ?? menu.name);
               setSuggestions(r.ok ? r.suggestions : []);
             })
           }

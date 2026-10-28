@@ -5,12 +5,17 @@
 // what=sheet&id=     the editable part of one product's sheet
 // what=moves&id=&branch=  one product's last ledger rows at a branch (B6)
 // what=newform       the "+ เพิ่มสินค้า" sheet's choices (master:write)
+// what=restorable&q="term"  deleted products like this name (master:write, ADR 0010)
+// what=orphans&q="id"  a deleted product's open price rows, for the restore dialog
 // Same gates as the pages: membership to read, the branch asserted against
 // reach (rule A5), receipts' money only with the cost ticket.
 // ============================================================
 
 import { requireTenant } from "@/lib/require-tenant";
-import { guardRead } from "@/lib/read-api";
+import { guardRead, readInput } from "@/lib/read-api";
+import { fuzzySearchInputSchema } from "@/lib/validations/product-restore";
+import { fuzzySearchSoftDeletedProductsLogic, getOrphanMappingsForProductLogic } from "@/server/product-restore";
+import { toOrphanMappingRow } from "@/app/(app)/products/_components/restore-view";
 import { getNewProductFormLogic, getParDocsLogic, getProductListFactsLogic, getProductSheetFormLogic, getRecentMovementsLogic } from "@/server/product-list";
 
 export const dynamic = "force-dynamic";
@@ -22,6 +27,17 @@ export function GET(req: Request) {
   return guardRead(async () => {
     const url = new URL(req.url);
     const what = url.searchParams.get("what");
+    if (what === "restorable" || what === "orphans") {
+      // The restore flow (ADR 0010) — these two were Server Actions (§5c).
+      const { tenantId } = await requireTenant("master:write");
+      if (what === "restorable") {
+        const parsed = fuzzySearchInputSchema.safeParse({ searchTerm: readInput(url) });
+        return json({ ok: true, candidates: parsed.success ? await fuzzySearchSoftDeletedProductsLogic(tenantId, parsed.data.searchTerm) : [] });
+      }
+      const id = String(readInput(url) ?? "");
+      if (!UUID.test(id)) return json({ ok: false, formError: "ไม่พบสินค้านี้" }, 400);
+      return json({ ok: true, rows: (await getOrphanMappingsForProductLogic(tenantId, id)).map(toOrphanMappingRow) });
+    }
     if (what === "newform") {
       const { tenantId } = await requireTenant("master:write");
       return json({ ok: true, form: await getNewProductFormLogic(tenantId) });

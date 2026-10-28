@@ -33,14 +33,11 @@ import {
   findLivePostedDaysLogic,
   postConsumptionForDayLogic,
 } from "@/server/consumption-post";
-import { getConsumptionDayStatusLogic } from "@/server/consumption-read";
 import { CrossTenantReferenceError } from "@/server/product";
 import { RecipeMethodMissingError } from "@/server/recipe-graph";
 import {
-  toConsumptionDayView,
   toConsumptionSkipView,
   toPostedDaySummaryView,
-  type ConsumptionDayView,
   type PostedDayResultView,
   type PostedDaySummaryView,
 } from "@/app/(app)/consumption/_components/consumption-view";
@@ -206,24 +203,6 @@ export async function postConsumptionAction(
   } catch (e) {
     return { ok: false, ...toFormError(e) };
   }
-}
-
-// ------------------------------------------------------------
-// Reads
-// ------------------------------------------------------------
-
-export async function getConsumptionDaysAction(query: {
-  branchId?: string;
-  from: string;
-  to: string;
-}): Promise<ConsumptionDayView[]> {
-  const { tenantId } = await requireTenant("consumption:post");
-  const rows = await getConsumptionDayStatusLogic(tenantId, {
-    branchId: query.branchId,
-    from: new Date(`${query.from}T00:00:00.000Z`),
-    to: new Date(`${query.to}T00:00:00.000Z`),
-  });
-  return rows.map(toConsumptionDayView);
 }
 
 /**

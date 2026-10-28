@@ -8,13 +8,11 @@
 //
 // Four things specific to the lab, none of which the recipe actions have:
 //
-//   * **The what-if is an action that writes NOTHING.** `getLabWhatIfAction`
-//     exists because the arithmetic cannot happen in the browser: the cost
-//     comes from a FIFO replay in the database, and a ratio recomputed client
-//     side from a rounded string is a second answer waiting to disagree with
-//     the first. It takes the SAME FormData the save takes, so the number on
-//     screen is priced from the very rows Save would write — not from a
-//     hand-built copy of them that can drift by one field.
+//   * **The what-if is no longer an action.** While typing, the lab prices
+//     from the branch's price book (GET /api/menus); a saved draft is costed
+//     by the engine over GET /api/menus?what=lab (mise-ui-review §5c — a read
+//     is not a Server Action). `getLabWhatIfLogic` stays the engine behind
+//     both, and W1 still pins it.
 //   * **`submit_key` is read from the form, never minted here** — the rule the
 //     recipe, goods-receipt and waste actions already follow. A server-minted
 //     key is a fresh key on every retry, which is the double-POST it exists to
@@ -42,7 +40,6 @@ import { ingredientRowsFromFormData } from "@/lib/validations/recipe";
 import {
   discardDraftInputSchema,
   draftRecipeInputSchema,
-  labWhatIfQuerySchema,
   publishDraftInputSchema,
 } from "@/lib/validations/menu-lab";
 import {
@@ -74,9 +71,7 @@ import { RecipeMethodMissingError } from "@/server/recipe-graph";
 import { CrossTenantReferenceError } from "@/server/product";
 import {
   toDraftView,
-  toLabWhatIfView,
   type DraftView,
-  type LabWhatIfView,
 } from "@/app/(app)/menus/_components/menu-lab-view";
 
 // ------------------------------------------------------------
@@ -140,10 +135,6 @@ export type DraftActionState =
     };
 
 export type DiscardDraftActionState = { ok: true } | { ok: false; error: string };
-
-export type LabWhatIfState =
-  | { ok: true; whatIf: LabWhatIfView }
-  | { ok: false; formError?: string; fieldErrors?: Record<string, string> };
 
 /** Flatten zod issues to `{ fieldName: thaiMessage }`, first issue per field. */
 function toFieldErrors(error: ZodError): Record<string, string> {
@@ -380,42 +371,6 @@ export async function discardDraftAction(
       return { ok: false, error: NOT_YOUR_DRAFT_MESSAGE };
     }
     throw e;
-  }
-}
-
-/**
- * "฿89 or ฿99?" — the whole point of the lab, and it writes nothing.
- *
- * It takes the same FormData as Save so that the figure on screen is priced
- * from the rows Save would write. `ingredients` may be empty here and only
- * here: an empty calculator is a screen somebody just opened, and it answers
- * ฿0 at LOW confidence rather than a confident zero.
- *
- * No `revalidatePath` — nothing changed. A read that invalidates caches is a
- * read that will one day be blamed for a write.
- */
-export async function getLabWhatIfAction(
-  formData: FormData
-): Promise<LabWhatIfState> {
-  const { tenantId, reach, assertBranch} = await requireTenant("recipe:write");
-
-  const parsed = labWhatIfQuerySchema.safeParse({
-    branchId: formData.get("branch_id"),
-    servings: formData.get("servings") ?? 1,
-    plannedPrice: formData.get("planned_price"),
-    ingredients: ingredientRowsFromFormData(formData),
-  });
-  if (!parsed.success) {
-    return { ok: false, fieldErrors: toFieldErrors(parsed.error) };
-  }
-
-  if (parsed.data.branchId) assertBranch(parsed.data.branchId);
-
-  try {
-    const whatIf = await getLabWhatIfLogic(tenantId, parsed.data, reach);
-    return { ok: true, whatIf: toLabWhatIfView(whatIf) };
-  } catch (e) {
-    return { ok: false, ...toFormError(e) };
   }
 }
 

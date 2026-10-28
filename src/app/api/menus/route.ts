@@ -12,11 +12,14 @@
 //
 // Same gates as before: membership for every read, the branch asserted against
 // the reader's reach (rule A5), money only with the cost ticket (ADR 0029 Q12),
-// the adder's list only for someone who can write a recipe.
+// the adder's list only for someone who can write a recipe. `what=suggest`
+// (a POS name's look-alike menus, for the alias block) joined 2026-10-29.
 // ============================================================
 
 import { requireTenant } from "@/lib/require-tenant";
-import { guardRead } from "@/lib/read-api";
+import { guardRead, readInput } from "@/lib/read-api";
+import { suggestMenusLogic } from "@/server/menu";
+import { toMenuSuggestionRowView } from "@/app/(app)/menus/_components/menu-view";
 import { findDeletedMenuByNameLogic } from "@/server/menu-lifecycle";
 import {
   getIngredientInsightLogic,
@@ -45,6 +48,17 @@ async function read(req: Request): Promise<Response> {
     // Anyone who writes a recipe — a cook drafting one included (ADR 0041).
     const { tenantId } = await requireTenant("recipe:draft");
     return json({ ok: true, ...(await getIngredientOptionsLogic(tenantId)) });
+  }
+
+  if (what === "suggest") {
+    // "หาเมนูใกล้เคียง" under a POS name (ADR 0019 Q8) — was getMenuSuggestionsAction.
+    const { tenantId } = await requireTenant("master:write");
+    try {
+      const hits = await suggestMenusLogic(tenantId, String(readInput(url) ?? ""));
+      return json({ ok: true, suggestions: hits.map(toMenuSuggestionRowView) });
+    } catch {
+      return json({ ok: false, formError: "ค้นหาเมนูใกล้เคียงไม่สำเร็จ" });
+    }
   }
 
   if (what === "deleted-menu") {

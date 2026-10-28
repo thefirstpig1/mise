@@ -2,7 +2,7 @@
 //
 // Filters are a plain GET form: the state lives in the URL, so a filtered view
 // is linkable and the back button behaves. The first page is fetched here on the
-// server; the client component pages on from `nextCursor` via the L4 action,
+// server; the client component pages on from `nextCursor` over GET /api/stock,
 // replaying these same filters.
 //
 // `searchParams` is a Promise in Next 15 (see the login fix `a669e05`).

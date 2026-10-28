@@ -16,8 +16,7 @@ import { getBranchesLogic } from "@/server/branch";
 import { getRecentMovementsLogic } from "@/server/product-list";
 import { ADJUSTMENT_TYPE_LABELS_TH } from "@/lib/validations/stock-movement";
 import { unitTh } from "@/app/(app)/menus/_components/manager-format";
-import { createStockAdjustmentAction, getStockBalanceAction } from "../actions";
-import { getProductCostAction } from "@/app/(app)/cost/actions";
+import { createStockAdjustmentAction } from "../actions";
 import StockAdjustForm, {
   type StockBranchOption,
   type StockProductOption,
@@ -94,8 +93,7 @@ export default async function StockAdjustPage({ searchParams }: { searchParams: 
             products={productOptions}
             branches={branchOptions}
             todayBangkok={todayBangkok}
-            fetchBalance={getStockBalanceAction}
-            fetchCost={can("cost:view") ? getProductCostAction : null}
+            canSeeCost={can("cost:view")}
             initialBranchId={initialBranchId}
           />
           <aside className="h-fit rounded-2xl border border-border bg-surface p-4 text-sm">

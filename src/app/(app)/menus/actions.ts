@@ -32,13 +32,8 @@ import {
   PosIntegrationNotFoundError,
   confirmMenuAliasLogic,
   createMenuCategoryLogic,
-  suggestMenusLogic,
   updateMenuLogic,
 } from "@/server/menu";
-import {
-  toMenuSuggestionRowView,
-  type MenuSuggestionRowView,
-} from "./_components/menu-view";
 
 // --- Thai messages ---
 const MENU_NOT_FOUND_MESSAGE = "ไม่พบเมนูนี้";
@@ -58,10 +53,6 @@ export type MenuCategoryActionState =
 export type MenuAliasActionState =
   | { ok: true; menuId: string; normalizedName: string }
   | { ok: false; formError?: string; fieldErrors?: Record<string, string> };
-
-export type MenuSuggestionsState =
-  | { ok: true; suggestions: MenuSuggestionRowView[] }
-  | { ok: false; formError: string };
 
 function toFieldErrors(error: ZodError): Record<string, string> {
   const fieldErrors: Record<string, string> = {};
@@ -193,16 +184,3 @@ export async function confirmMenuAliasAction(
   }
 }
 
-/**
- * Candidates for a spelling. Read-only, and the caller must present them as a
- * choice — there is no code path here that picks one.
- */
-export async function getMenuSuggestionsAction(term: string): Promise<MenuSuggestionsState> {
-  const { tenantId } = await requireTenant("master:write");
-  try {
-    const hits = await suggestMenusLogic(tenantId, term);
-    return { ok: true, suggestions: hits.map(toMenuSuggestionRowView) };
-  } catch {
-    return { ok: false, formError: "ค้นหาเมนูใกล้เคียงไม่สำเร็จ" };
-  }
-}

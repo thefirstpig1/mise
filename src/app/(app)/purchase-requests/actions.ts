@@ -31,7 +31,6 @@ import {
   cutRoundLogic,
   deleteRequestLineLogic,
   getRequestLineBranchLogic,
-  getRequestMessagesLogic,
   KitchenNoteUnansweredError,
   postRequestMessageLogic,
   rejectRequestLineLogic,
@@ -211,18 +210,6 @@ export async function postRequestMessageAction(raw: unknown): Promise<RequestAct
 export type MessagesActionState =
   | { ok: true; messages: { id: string; body: string; at: string; author: { id: string; name: string } | null }[] }
   | { ok: false; formError: string };
-
-export async function getRequestMessagesAction(raw: unknown): Promise<MessagesActionState> {
-  const { t } = await viewer("purchase:request");
-  const parsed = lineIdSchema.safeParse(raw);
-  if (!parsed.success) return { ok: false, formError: "รายการไม่ถูกต้อง" };
-  try {
-    await assertLineReach(t, parsed.data.lineId);
-    return { ok: true, messages: await getRequestMessagesLogic(t.tenantId, parsed.data.lineId) };
-  } catch (e) {
-    return { ok: false, formError: thai(e) };
-  }
-}
 
 export async function reopenRequestLineAction(raw: unknown): Promise<RequestActionState> {
   const { t, v } = await viewer("purchase:request");
