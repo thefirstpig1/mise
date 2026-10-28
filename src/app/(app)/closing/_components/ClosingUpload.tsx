@@ -108,7 +108,7 @@ export default function ClosingUpload({
         </p>
       )}
       {p && (
-        <div className="space-y-2 rounded-xl border border-border bg-surface p-3 text-sm">
+        <div className="space-y-2 rounded-2xl border border-border bg-surface p-3 text-sm">
           <p>
             ไฟล์ครอบ <b>{p.coveredLabel}</b> · {p.rowCount.toLocaleString("th-TH")} แถว
             {p.replacedDays.length > 0 && ` · เข้าแทนข้อมูลเดิม ${p.replacedDays.length} วัน`}

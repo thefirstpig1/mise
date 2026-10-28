@@ -150,7 +150,7 @@ export default function MenuEngineering({
             type="button"
             aria-pressed={filter === g}
             onClick={() => setFilter(filter === g ? null : g)}
-            className="grid grid-cols-[auto_1fr] items-center gap-x-3 rounded-xl border border-border bg-surface px-3 py-2 text-left transition hover:border-border-strong"
+            className="grid grid-cols-[auto_1fr] items-center gap-x-3 rounded-2xl border border-border bg-surface px-3 py-2 text-left transition hover:border-border-strong"
             style={filter === g ? { boxShadow: `0 0 0 2px ${G[g].colour}`, borderColor: G[g].colour } : undefined}
           >
             <Sym g={g} size={30} />
@@ -334,7 +334,7 @@ function Chart({
   const hotItem = hot ? items.find((i) => i.id === hot) : null;
 
   return (
-    <div ref={box} className="min-w-0 rounded-xl border border-border bg-surface p-2" onMouseLeave={() => onHover(null, 0, 0)}>
+    <div ref={box} className="min-w-0 rounded-2xl border border-border bg-surface p-2" onMouseLeave={() => onHover(null, 0, 0)}>
       <svg viewBox={`0 0 ${w} ${H}`} width="100%" role="img" aria-label="Menu engineering">
         {quads.map(([g, x1, y1, x2, y2]) => {
           const on = !filter || filter === g;
@@ -423,7 +423,7 @@ function TipCard({ item, x, y }: { item: Row; x: number; y: number }) {
   const left = typeof window === "undefined" ? x : Math.min(Math.max(8, x + 14), window.innerWidth - 290);
   const top = typeof window === "undefined" ? y : y + 230 > window.innerHeight ? y - 230 : y + 14;
   return (
-    <div role="tooltip" className="pointer-events-none fixed z-40 w-[280px] animate-fade-in rounded-xl border border-border bg-surface p-3 text-xs shadow-card" style={{ left, top }}>
+    <div role="tooltip" className="pointer-events-none fixed z-40 w-[280px] animate-fade-in rounded-2xl border border-border bg-surface p-3 text-xs shadow-card" style={{ left, top }}>
       <p className="mb-1.5 flex items-center gap-2 font-display text-sm font-semibold">
         <Sym g={item.group} size={20} />
         {item.name}

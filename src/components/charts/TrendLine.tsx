@@ -296,7 +296,7 @@ export default function TrendLine(props: TrendLineProps) {
       {hover !== null && hv !== null && hv !== undefined && (
         <div
           ref={tipRef}
-          className="pointer-events-none absolute min-w-[11rem] rounded-xl border border-border bg-surface/95 px-3.5 py-2.5 text-sm shadow-lg backdrop-blur transition-[left,top] duration-75"
+          className="pointer-events-none absolute min-w-[11rem] rounded-2xl border border-border bg-surface/95 px-3.5 py-2.5 text-sm shadow-lg backdrop-blur transition-[left,top] duration-75"
           style={{ left: tipLeft, top: tipTop }}
         >
           <p className="text-xs text-muted-foreground">{props.titles?.[hover] ?? labels[hover]}</p>

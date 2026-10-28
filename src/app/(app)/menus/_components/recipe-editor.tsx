@@ -536,7 +536,7 @@ export function Adder({
         aria-label="เพิ่มวัตถุดิบ"
         className="w-full rounded-lg border border-dashed border-border-strong bg-surface-sunk px-3 py-1.5 text-sm focus:border-solid focus:bg-surface focus:outline-none focus:ring-2 focus:ring-primary"
       />
-      {open && <div className="absolute inset-x-0 top-full z-10 mt-1 max-h-72 overflow-y-auto rounded-xl border border-border bg-surface p-1 shadow-card">{list}</div>}
+      {open && <div className="absolute inset-x-0 top-full z-10 mt-1 max-h-72 overflow-y-auto rounded-2xl border border-border bg-surface p-1 shadow-card">{list}</div>}
     </div>
   );
 }

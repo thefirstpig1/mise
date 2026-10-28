@@ -107,7 +107,7 @@ export function ChartTooltip({
   rows: { label: string; value: string; color?: string }[];
 }) {
   return (
-    <div className="min-w-[10rem] rounded-xl border border-border bg-surface/95 px-3.5 py-2.5 text-sm shadow-lg backdrop-blur">
+    <div className="min-w-[10rem] rounded-2xl border border-border bg-surface/95 px-3.5 py-2.5 text-sm shadow-lg backdrop-blur">
       <p className="mb-1.5 font-display font-medium text-foreground">{title}</p>
       {rows.map((r) => (
         <p key={r.label} className="flex items-center gap-2 py-0.5 text-foreground">

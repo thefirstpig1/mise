@@ -459,7 +459,7 @@ export default function PurchaseOrderForm({
             one line = one row, and every column a FIXED width shared with the
             header, so capsules, units, prices and totals line up down the
             order however long a name is. On a phone the row folds in three. */}
-        <div className="rounded-xl border border-border bg-surface px-3 sm:px-4">
+        <div className="rounded-2xl border border-border bg-surface px-3 sm:px-4">
           <div className={`hidden gap-3 pb-1 pt-3 text-xs text-muted-subtle sm:grid ${LINE_GRID}`}>
             <span>วัตถุดิบ</span>
             <span className="text-center">จำนวน</span>

@@ -39,13 +39,13 @@ export default function StickyFilters({ summary, children }: { summary: string; 
 
   return (
     <>
-      <section ref={fullRef} className="space-y-3 rounded-xl border border-border bg-surface p-4 shadow-sm">
+      <section ref={fullRef} className="space-y-3 rounded-2xl border border-border bg-surface p-4 shadow-sm">
         {children}
       </section>
 
       <div className="sticky top-0 z-20 h-0 lg:top-2">
         {scrolledPast && (
-          <div className="rounded-xl border border-border bg-surface/95 shadow-md backdrop-blur">
+          <div className="rounded-2xl border border-border bg-surface/95 shadow-md backdrop-blur">
             <div className="flex items-center justify-between gap-3 px-4 py-2">
               <p className="min-w-0 truncate text-sm">
                 <span className="text-muted-foreground">กำลังดู </span>

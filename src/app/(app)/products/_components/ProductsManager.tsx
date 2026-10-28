@@ -430,7 +430,7 @@ export default function ProductsManager(props: {
         <EmptyState art="start">ยังไม่มีสินค้า — กด “เพิ่มสินค้า” เพื่อเริ่มต้น</EmptyState>
       ) : (
         <>
-          <div className="space-y-3 rounded-xl border border-border bg-surface p-4">
+          <div className="space-y-3 rounded-2xl border border-border bg-surface p-4">
             <div className="flex flex-wrap gap-2.5" role="group" aria-label="ตัวกรอง">
               {STATUS.map((s) => (
                 <button key={s.key} type="button" className={chip(status === s.key)} onClick={() => setStatus(s.key)}>
@@ -476,7 +476,7 @@ export default function ProductsManager(props: {
           {rows.length === 0 ? (
             <EmptyState art="none">{hasQuery(q) ? `ไม่พบสินค้าที่ตรงกับ “${q}”` : "ไม่มีสินค้าในตัวกรองนี้"}</EmptyState>
           ) : view === "table" ? (
-            <div className="overflow-x-auto rounded-xl border border-border bg-surface">
+            <div className="overflow-x-auto rounded-2xl border border-border bg-surface">
               <table className="w-full min-w-[760px] text-sm">
                 <thead className="border-b border-border text-left text-xs text-muted-foreground">
                   <tr>

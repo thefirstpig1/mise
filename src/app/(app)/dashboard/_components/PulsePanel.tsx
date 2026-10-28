@@ -61,7 +61,7 @@ export default function PulsePanel({
   // it), yesterday and the week sit underneath, and the long explanation folds
   // away behind "ตัวเลขนี้คืออะไร?". The three rules in the header still hold.
   return (
-    <section className="rounded-xl border border-border bg-surface p-5">
+    <section className="rounded-2xl border border-border bg-surface p-5">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <div>
           <h2 className="text-base font-semibold">คีย์ยอดปิดร้าน</h2>

@@ -134,7 +134,7 @@ export default function ExpenseDrill({ month, branch, total, sections, suppliers
   return (
     <>
       <div className="grid gap-6 xl:grid-cols-2">
-        <section className="rounded-xl border border-border bg-surface p-5">
+        <section className="rounded-2xl border border-border bg-surface p-5">
           <h3 className="font-semibold">แยกตามหมวด</h3>
           <p className="text-xs text-muted-foreground">% คือสัดส่วนของรายจ่ายที่กำลังดู · กดชิ้นหรือแถวเพื่อดูข้างใน</p>
           <div className="mt-3 grid items-center gap-4 sm:grid-cols-[200px_minmax(0,1fr)] xl:grid-cols-1 2xl:grid-cols-[200px_minmax(0,1fr)]">
@@ -142,7 +142,7 @@ export default function ExpenseDrill({ month, branch, total, sections, suppliers
             <Legend rows={secSlices} total={total} onPick={openSection} />
           </div>
         </section>
-        <section className="rounded-xl border border-border bg-surface p-5">
+        <section className="rounded-2xl border border-border bg-surface p-5">
           <h3 className="font-semibold">แยกตามผู้ขาย</h3>
           <p className="text-xs text-muted-foreground">กดชิ้นหรือแถวเพื่อดูบิลและสินค้าของผู้ขายนั้น</p>
           <div className="mt-3 grid items-center gap-4 sm:grid-cols-[200px_minmax(0,1fr)] xl:grid-cols-1 2xl:grid-cols-[200px_minmax(0,1fr)]">

@@ -184,11 +184,11 @@ export default function CutSheet({ sheet, branchId }: { sheet: Sheet; branchId: 
       </section>
 
       {sheet.lines.length === 0 ? (
-        <p className="rounded-xl border border-border bg-surface px-4 py-10 text-center text-sm text-muted-foreground">
+        <p className="rounded-2xl border border-border bg-surface px-4 py-10 text-center text-sm text-muted-foreground">
           ไม่มีรายการรอสั่ง
         </p>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-border bg-surface">
+        <div className="overflow-x-auto rounded-2xl border border-border bg-surface">
           <table className="w-full text-sm">
             <thead className="bg-surface-sunk text-left text-xs text-muted-foreground">
               <tr>

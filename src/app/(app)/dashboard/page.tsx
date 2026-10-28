@@ -395,7 +395,7 @@ async function topMenus(tenantId: string, period: Period, branchIds: string[]): 
 // ------------------------------------------------------------
 function Card({ title, hint, className = "", children }: { title: string; hint?: string; className?: string; children: React.ReactNode }) {
   return (
-    <section className={`rounded-xl border border-border bg-surface p-5 ${className}`}>
+    <section className={`rounded-2xl border border-border bg-surface p-5 ${className}`}>
       <h2 className="text-base font-semibold">{title}</h2>
       {hint ? <p className="mb-4 mt-0.5 text-xs text-muted-foreground">{hint}</p> : <div className="mb-4" />}
       {children}
@@ -437,7 +437,7 @@ function Kpi({
   extra?: React.ReactNode;
 }) {
   return (
-    <div className="rounded-xl border border-border bg-surface p-4">
+    <div className="rounded-2xl border border-border bg-surface p-4">
       <p className="text-sm text-muted-foreground">{label}</p>
       <p className={`mt-1 tabular-nums text-2xl font-semibold ${tone === "good" ? "text-good" : tone === "bad" ? "text-bad" : ""}`}>
         {value === null ? "—" : baht(value)}
@@ -612,7 +612,7 @@ function KpiRow({
 function GuestKpi({ now, prev, vs, canKey }: { now: GuestStats; prev: GuestStats; vs: string; canKey: boolean }) {
   if (!now.enough || now.perHead === null) {
     return (
-      <div className="rounded-xl border border-border bg-surface p-4">
+      <div className="rounded-2xl border border-border bg-surface p-4">
         <p className="text-sm text-muted-foreground">ยอดต่อหัว</p>
         <p className="mt-1 text-2xl font-semibold text-muted-subtle">—</p>
         <p className="mt-0.5 text-xs text-muted-foreground">
@@ -630,7 +630,7 @@ function GuestKpi({ now, prev, vs, canKey }: { now: GuestStats; prev: GuestStats
   }
   const diff = prev.enough && prev.perHead !== null ? now.perHead - prev.perHead : null;
   return (
-    <a href="/sales" className="block rounded-xl border border-border bg-surface p-4 transition hover:bg-muted/40">
+    <a href="/sales" className="block rounded-2xl border border-border bg-surface p-4 transition hover:bg-muted/40">
       <p className="text-sm text-muted-foreground">ยอดต่อหัว</p>
       <p className="mt-1 tabular-nums text-2xl font-semibold">{baht(now.perHead)}</p>
       <p className="mt-0.5 text-xs text-muted-foreground">
@@ -673,7 +673,7 @@ function UnknownNote({ pnl, seeGross }: { pnl: Pnl; seeGross: boolean }) {
 function BranchTable({ pnl }: { pnl: Pnl }) {
   const cell = (d: { toString(): string } | null) => (d === null ? "—" : baht(Number(d.toString())));
   return (
-    <section className="overflow-x-auto rounded-xl border border-border bg-surface">
+    <section className="overflow-x-auto rounded-2xl border border-border bg-surface">
       <table className="w-full text-sm">
         <thead className="bg-surface-sunk text-left text-muted-foreground">
           <tr>
@@ -709,12 +709,12 @@ function AnalyticsSkeleton() {
     <div className="space-y-6" aria-busy="true" aria-label="กำลังคำนวณตัวเลข">
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         {Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="h-28 animate-pulse rounded-xl border border-border bg-surface-sunk" />
+          <div key={i} className="h-28 animate-pulse rounded-2xl border border-border bg-surface-sunk" />
         ))}
       </div>
       <div className="grid gap-6 xl:grid-cols-5">
-        <div className="h-80 animate-pulse rounded-xl border border-border bg-surface-sunk xl:col-span-3" />
-        <div className="h-80 animate-pulse rounded-xl border border-border bg-surface-sunk xl:col-span-2" />
+        <div className="h-80 animate-pulse rounded-2xl border border-border bg-surface-sunk xl:col-span-3" />
+        <div className="h-80 animate-pulse rounded-2xl border border-border bg-surface-sunk xl:col-span-2" />
       </div>
     </div>
   );
@@ -761,7 +761,7 @@ async function WorkQueue({
       <h2 className="text-lg font-semibold">งานวันนี้</h2>
       {pulse ? <PulsePanel dashboard={pulse} todayIso={todayIso} /> : null}
       {closeStatus && dailyClose ? (
-        <div className="rounded-xl border border-border bg-surface p-4">
+        <div className="rounded-2xl border border-border bg-surface p-4">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h3 className="font-semibold">ปิดร้านประจำวัน</h3>
             <a href="/closing" className="text-xs text-primary hover:underline">
@@ -773,7 +773,7 @@ async function WorkQueue({
               const name = dailyClose.branches.find((x) => x.id === b.branchId)?.name ?? "";
               const href = `/closing/day?branch=${b.branchId}&date=${closeStatus.today}`;
               return (
-                <div key={b.branchId} className="space-y-2 rounded-xl border border-border bg-surface-sunk p-3">
+                <div key={b.branchId} className="space-y-2 rounded-2xl border border-border bg-surface-sunk p-3">
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-medium">{name}</span>
                     <span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] ${b.today ? "bg-good-bg text-good" : "bg-bad-bg text-bad"}`}>
@@ -853,7 +853,7 @@ async function WorkQueue({
 function RequestQueue({ rows }: { rows: RequestQueueRow[] }) {
   const sorted = [...rows].sort((a, b) => Number(b.allReady) - Number(a.allReady));
   return (
-    <div className="rounded-xl border border-border bg-surface p-4">
+    <div className="rounded-2xl border border-border bg-surface p-4">
       <p className="text-sm font-semibold">ใบขอซื้อรอตัดรอบ</p>
       <ul className="mt-3 divide-y divide-border overflow-hidden rounded-lg border border-border">
         {sorted.map((r) => (

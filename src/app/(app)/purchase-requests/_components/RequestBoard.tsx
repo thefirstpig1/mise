@@ -357,7 +357,7 @@ export default function RequestBoard({
           <section className="space-y-2">
             <h2 className="text-base font-semibold">{group ?? (term ? `ผลการค้นหา “${query.trim()}”` : "วัตถุดิบทั้งหมด")}</h2>
             {shown.length === 0 ? (
-              <p className="rounded-xl border border-border bg-surface px-4 py-8 text-center text-sm text-muted-foreground">
+              <p className="rounded-2xl border border-border bg-surface px-4 py-8 text-center text-sm text-muted-foreground">
                 ไม่พบวัตถุดิบ — ลองพิมพ์ส่วนอื่นของชื่อ
               </p>
             ) : (

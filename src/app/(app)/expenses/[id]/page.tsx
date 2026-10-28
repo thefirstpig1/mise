@@ -145,7 +145,7 @@ export default async function ExpenseDetailPage({
       </section>
 
       <div className="grid items-start gap-5 md:grid-cols-2">
-      <section className="rounded-xl border border-border bg-surface p-4 text-sm">
+      <section className="rounded-2xl border border-border bg-surface p-4 text-sm">
         <Row label="ยอดก่อน VAT" value={formatMoney(expense.subtotalExclVat)} />
         <Row
           label={

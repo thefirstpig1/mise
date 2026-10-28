@@ -147,7 +147,7 @@ export default async function StockCountListPage({
       ) : (
         // Kong (2026-09-28): the whole row opens the sheet, not just its number —
         // a number in plain text did not look pressable at all.
-        <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface">
+        <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-surface">
           <li
             aria-hidden
             className="hidden grid-cols-[8rem_1fr_9rem_5rem_6rem_6rem] gap-3 bg-muted/40 px-4 py-2 text-xs text-muted-foreground sm:grid"

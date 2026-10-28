@@ -240,7 +240,7 @@ export default function ProductSheet({
     <>
       <RecentMoves productId={product.id} branch={branch} unit={baseUnit} />
       {canEditPar && (
-        <section className="space-y-2 rounded-xl border border-border bg-surface p-4">
+        <section className="space-y-2 rounded-2xl border border-border bg-surface p-4">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h4 className="font-semibold">ขั้นต่ำที่ควรมี</h4>
             <span className="text-xs text-muted-foreground">ต่ำกว่านี้ขึ้นเตือนสีแดง และใช้เสนอจำนวนในใบขอซื้อ · เว้นว่าง = ไม่ตั้ง</span>
@@ -274,7 +274,7 @@ export default function ProductSheet({
         </section>
       )}
 
-      <section className="space-y-3 rounded-xl border border-border bg-surface p-4">
+      <section className="space-y-3 rounded-2xl border border-border bg-surface p-4">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h4 className="font-semibold">ข้อมูลสินค้า</h4>
           <span className="text-xs text-muted-foreground">รหัส {product.sku} (เปลี่ยนไม่ได้)</span>
@@ -489,7 +489,7 @@ function RecentMoves({ productId, branch, unit }: { productId: string; branch: {
   const fmt = (n: number) => `${n > 0 ? "+" : ""}${n.toLocaleString("th-TH", { maximumFractionDigits: 3 })}`;
   const day = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit", timeZone: "UTC" });
   return (
-    <section className="space-y-2 rounded-xl border border-border bg-surface p-4">
+    <section className="space-y-2 rounded-2xl border border-border bg-surface p-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h4 className="font-semibold">เคลื่อนไหวล่าสุด · {branch.name}</h4>
         <a href={`/stock/history?product=${productId}&branch=${branch.id}`} className="text-xs text-primary hover:underline">

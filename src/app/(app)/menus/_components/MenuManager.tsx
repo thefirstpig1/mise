@@ -376,7 +376,7 @@ export default function MenuManager(props: {
       ) : (
         <>
           <div className={`grid gap-3 ${costHidden ? "sm:grid-cols-2" : "sm:grid-cols-3"}`}>
-            <div className="rounded-xl border border-border bg-surface p-3">
+            <div className="rounded-2xl border border-border bg-surface p-3">
               <p className="text-xs text-muted-subtle">เมนูที่ขายอยู่</p>
               <p className="font-display text-2xl font-semibold tabular-nums">{selling.length}</p>
               <p className="text-xs text-muted-foreground">
@@ -391,7 +391,7 @@ export default function MenuManager(props: {
                 )}
               </p>
             </div>
-            <div className="rounded-xl border border-border bg-surface p-3">
+            <div className="rounded-2xl border border-border bg-surface p-3">
               <p className="text-xs text-muted-subtle">มีสูตรแล้ว คิดเป็นยอดขาย {factDays} วัน</p>
               <p className="font-display text-2xl font-semibold tabular-nums">{stats.coverage === null ? "—" : `${stats.coverage.toFixed(0)}%`}</p>
               {stats.coverage !== null && (
@@ -404,7 +404,7 @@ export default function MenuManager(props: {
               </p>
             </div>
             {!costHidden && (
-              <div className="rounded-xl border border-border bg-surface p-3">
+              <div className="rounded-2xl border border-border bg-surface p-3">
                 <p className="text-xs text-muted-subtle" title="ต้นทุนตามสูตรของเมนูที่ขาย คิดด้วยราคาวัตถุดิบวันนี้ — คนละตัวกับต้นทุนของที่ใช้ไปจริงในหน้าต้นทุนและแดชบอร์ด">ต้นทุนตามสูตร (ราคาวันนี้) เทียบยอดขาย</p>
                 <p className="font-display text-2xl font-semibold tabular-nums">
                   {pricesLoading ? <span className="inline-block h-7 w-20 animate-pulse rounded bg-muted align-middle" /> : stats.foodCost === null ? "—" : atLeastTh(stats.lowCount > 0, `${stats.foodCost.toFixed(1)}%`)}
@@ -422,7 +422,7 @@ export default function MenuManager(props: {
             )}
           </div>
 
-          <div className="space-y-3 rounded-xl border border-border bg-surface p-4">
+          <div className="space-y-3 rounded-2xl border border-border bg-surface p-4">
             <div className="flex flex-wrap items-center gap-2">
               <input
                 type="search"
@@ -494,7 +494,7 @@ export default function MenuManager(props: {
           {visible.length === 0 ? (
             <EmptyState art="none">ไม่พบเมนูที่ตรงกับตัวกรอง</EmptyState>
           ) : (
-            <div className="overflow-x-auto rounded-xl border border-border bg-surface">
+            <div className="overflow-x-auto rounded-2xl border border-border bg-surface">
               <table className="w-full text-sm">
                 <thead className="bg-surface-sunk text-left text-xs text-muted-foreground">
                   <tr>

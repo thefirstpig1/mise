@@ -277,7 +277,7 @@ export default function ProductPicker({
           ref={listRef}
           id={listId}
           role="listbox"
-          className="absolute z-30 mt-1 max-h-80 w-full overflow-y-auto rounded-xl border border-border bg-surface py-1 shadow-lg"
+          className="absolute z-30 mt-1 max-h-80 w-full overflow-y-auto rounded-2xl border border-border bg-surface py-1 shadow-lg"
         >
           {typing ? (
             results.length === 0 ? (

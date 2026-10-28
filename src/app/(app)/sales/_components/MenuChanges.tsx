@@ -169,7 +169,7 @@ export default function MenuChanges({
       {tip && (
         <div
           role="tooltip"
-          className="pointer-events-none fixed z-40 w-[270px] animate-fade-in rounded-xl border border-border bg-surface p-3 text-xs shadow-card"
+          className="pointer-events-none fixed z-40 w-[270px] animate-fade-in rounded-2xl border border-border bg-surface p-3 text-xs shadow-card"
           style={{ left: Math.min(tip.x + 14, (typeof window !== "undefined" ? window.innerWidth : 1200) - 280), top: tip.y + 14 }}
         >
           <p className="mb-1.5 font-display text-sm font-semibold">{tip.m.name}</p>

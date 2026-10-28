@@ -48,6 +48,9 @@ export type PurchaseOrderListView = {
   totalAmount: string;
   expectedDeliveryLabel: string;
   createdAtLabel: string;
+  /** ISO dates for the page's own arithmetic (overdue, this month). */
+  expectedDeliveryIso: string | null;
+  createdAtIso: string;
 };
 
 export type PurchaseOrderLineView = {
@@ -143,6 +146,8 @@ export function toPurchaseOrderListView(
     totalAmount: str(po.totalAmount),
     expectedDeliveryLabel: formatBangkokDate(po.expectedDeliveryDate),
     createdAtLabel: formatBangkokDate(po.createdAt),
+    expectedDeliveryIso: po.expectedDeliveryDate ? po.expectedDeliveryDate.toISOString().slice(0, 10) : null,
+    createdAtIso: new Date(po.createdAt.getTime() + 7 * 3_600_000).toISOString().slice(0, 10),
   };
 }
 

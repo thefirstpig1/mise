@@ -9,21 +9,19 @@
 
 import { PURCHASE_ORDER_STATUS_LABELS_TH } from "@/lib/validations/purchase-order";
 
+// The kit's chips (2026-10-28): waiting on someone = warn, done = good,
+// called off = bad, not out yet = plain.
 const STYLES: Record<string, string> = {
-  DRAFT: "border-border bg-muted/60 text-muted-foreground",
-  SENT: "border-border-strong bg-muted text-muted-foreground",
-  PARTIALLY_RECEIVED: "border-warn-border bg-warn-bg text-warn",
-  RECEIVED: "border-good-border bg-good-bg text-good",
-  CANCELLED: "border-bad-border bg-bad-bg text-bad",
+  DRAFT: "",
+  SENT: "chip-warn",
+  PARTIALLY_RECEIVED: "chip-warn",
+  RECEIVED: "chip-good",
+  CANCELLED: "chip-bad",
 };
 
 export default function StatusBadge({ status }: { status: string }) {
   return (
-    <span
-      className={`inline-block whitespace-nowrap rounded-full border px-2 py-0.5 text-xs font-medium ${
-        STYLES[status] ?? "border-border bg-muted/60 text-muted-foreground"
-      }`}
-    >
+    <span className={`chip ${STYLES[status] ?? ""}`}>
       {/* Fall back to the raw value so a status added in Sprint 3+ renders
           readably instead of blank (the Part 10 L5c rule). */}
       {PURCHASE_ORDER_STATUS_LABELS_TH[

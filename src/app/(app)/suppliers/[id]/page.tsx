@@ -228,7 +228,7 @@ export default async function SupplierPage({
           )}
         </div>
         {o.items.length === 0 ? (
-          <p className="rounded-xl border border-border bg-surface px-4 py-8 text-center text-sm text-muted-foreground">
+          <p className="rounded-2xl border border-border bg-surface px-4 py-8 text-center text-sm text-muted-foreground">
             ยังไม่เคยรับของจากผู้ขายนี้
           </p>
         ) : (
@@ -282,7 +282,7 @@ export default async function SupplierPage({
       {o.recent.length > 0 && (
         <section className="space-y-2">
           <h3 className="text-lg font-semibold">เอกสารล่าสุด</h3>
-          <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface">
+          <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-surface">
             {o.recent.map((d) => (
               <li key={d.id} className="group relative flex items-center justify-between gap-3 px-4 py-3 text-sm transition-colors hover:bg-muted/50">
                 <Link

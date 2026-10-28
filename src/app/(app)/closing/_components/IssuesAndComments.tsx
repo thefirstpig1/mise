@@ -23,7 +23,7 @@ export function IssueList({ issues, showForm }: { issues: DailyCloseDay["issues"
       {issues.map((i) => {
         const open = i.followUp && !i.resolvedAt;
         return (
-          <div key={i.id} className="space-y-1 rounded-xl border border-border bg-surface p-3 text-sm">
+          <div key={i.id} className="space-y-1 rounded-2xl border border-border bg-surface p-3 text-sm">
             <div className="flex items-center justify-between gap-2">
               <b>{DAILY_ISSUE_CATEGORY_LABELS_TH[i.category as DailyIssueCategoryValue] ?? i.category}</b>
               <span

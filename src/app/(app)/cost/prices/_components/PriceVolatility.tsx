@@ -49,7 +49,7 @@ export default function PriceVolatility({ data, canEditTargets }: { data: Promis
   if (d === null) return <div className="rounded-lg border border-warn-border bg-warn-bg p-4 text-sm text-warn">เปิดหน้านี้ไม่สำเร็จในครั้งนี้ กรุณารีเฟรชอีกครั้ง</div>;
   if (d.products.length === 0)
     return (
-      <div className="rounded-xl border border-border bg-surface p-6 text-sm">
+      <div className="rounded-2xl border border-border bg-surface p-6 text-sm">
         <h2 className="font-display text-lg font-semibold">ยังไม่มีใบรับของ</h2>
         <p className="mt-1 text-muted-foreground">หน้านี้คิดราคาจากใบรับของที่ยืนยันแล้ว ต้องมีการรับของอย่างน้อยสองช่วงจึงจะเห็นว่าราคาเปลี่ยนไปเท่าไร</p>
       </div>
@@ -207,7 +207,7 @@ function View({ d, canEditTargets }: { d: Data; canEditTargets: boolean }) {
       <p className="text-sm text-muted-foreground">ราคาเปลี่ยนไปเท่าไร และราคานี้เมนูที่ใช้ยังรับไหวไหม · ราคาต่อหน่วยไม่รวม VAT จากใบรับของที่ยืนยันแล้ว</p>
 
       {/* sticky slice control */}
-      <div className="sticky top-2 z-20 space-y-2 rounded-xl border border-border bg-surface px-3 py-2.5 shadow-card">
+      <div className="sticky top-2 z-20 space-y-2 rounded-2xl border border-border bg-surface px-3 py-2.5 shadow-card">
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <ModeBtn on={mode === "ref"} onClick={() => { setMode("ref"); setDrill(null); }} title="① เทียบกับช่วงอ้างอิง" sub="ขึ้นหรือลงกี่ % จากฐานที่เลือก" />
           <ModeBtn on={mode === "tgt"} onClick={() => { setMode("tgt"); setDrill(null); }} title="② เทียบกับราคาที่เมนูรับได้" sub="ราคาไม่เปลี่ยน ไม่ได้แปลว่าไม่ขาดทุน" />
@@ -248,7 +248,7 @@ function View({ d, canEditTargets }: { d: Data; canEditTargets: boolean }) {
       )}
 
       <QLabel n="2">{mode === "ref" ? `แนวโน้มราคา — ขึ้นหรือลงกี่ % จาก${refName[ref]}` : "แนวโน้ม — ราคาจริงเทียบราคาที่เมนูรับได้ (0% = พอดีเป้า)"}</QLabel>
-      <div className="rounded-xl border border-border bg-surface p-4">
+      <div className="rounded-2xl border border-border bg-surface p-4">
         <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2 text-xs text-muted-foreground">
           <span>
             {drill ? (
@@ -372,7 +372,7 @@ function QLabel({ n, children }: { n: string; children: ReactNode }) {
 }
 function Kpi({ k, v, s, tone }: { k: string; v: ReactNode; s?: ReactNode; tone?: "bad" | "good" }) {
   return (
-    <div className="flex flex-col gap-0.5 rounded-xl border border-border bg-surface p-3">
+    <div className="flex flex-col gap-0.5 rounded-2xl border border-border bg-surface p-3">
       <span className="text-xs text-muted-foreground">{k}</span>
       <b className={`font-display text-xl tabular-nums ${tone === "bad" ? "text-bad" : tone === "good" ? "text-good" : ""}`}>{v}</b>
       {s && <span className="text-xs text-muted-foreground">{s}</span>}
@@ -454,7 +454,7 @@ function Smalls({ rows, labels, color, mode, onOpen }: { rows: Row[]; labels: st
             key={r.name}
             type="button"
             onClick={() => onOpen(r)}
-            className="grid gap-0.5 rounded-xl border border-border bg-surface p-2.5 text-left transition-all hover:-translate-y-0.5 hover:border-border-strong hover:shadow-card"
+            className="grid gap-0.5 rounded-2xl border border-border bg-surface p-2.5 text-left transition-all hover:-translate-y-0.5 hover:border-border-strong hover:shadow-card"
           >
             <span className="flex items-baseline justify-between gap-2">
               <b className="truncate font-display text-sm font-semibold">{r.name}</b>
@@ -583,7 +583,7 @@ function Bars({ rows, mode, head, detail, onOpen }: { rows: Row[]; mode: Mode; h
   const top = rows.slice(0, 12);
   const mx = Math.max(1, ...top.map((r) => Math.abs(r.money)));
   return (
-    <div className="rounded-xl border border-border bg-surface p-3">
+    <div className="rounded-2xl border border-border bg-surface p-3">
       <div className="grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)_96px] gap-2.5 px-2 pb-1 text-xs text-muted-foreground">
         <span>{head}</span>
         <span className="text-right">{mode === "ref" ? "ประหยัด" : "เหลืองบ"} ←</span>
@@ -624,7 +624,7 @@ function Bars({ rows, mode, head, detail, onOpen }: { rows: Row[]; mode: Mode; h
 }
 
 function RefKpis({ d, mNow, mPrev, menus, ratio }: { d: Data; mNow: number | null; mPrev: number | null; menus: MenuCostRow[]; ratio: (pid: string) => number | null }) {
-  if (mNow === null || mPrev === null) return <p className="rounded-xl border border-border bg-surface p-3 text-sm text-muted-foreground">ต้องมีใบรับของอย่างน้อยสองเดือนจึงจะเทียบได้</p>;
+  if (mNow === null || mPrev === null) return <p className="rounded-2xl border border-border bg-surface p-3 text-sm text-muted-foreground">ต้องมีใบรับของอย่างน้อยสองเดือนจึงจะเทียบได้</p>;
   let up = 0, dn = 0, nu = 0, nd = 0, spendNow = 0;
   let topU: [string, number] | null = null, topD: [string, number] | null = null;
   for (const p of d.products) {
@@ -647,7 +647,7 @@ function RefKpis({ d, mNow, mPrev, menus, ratio }: { d: Data; mNow: number | nul
 }
 
 function TgtKpis({ allow, menus, byId, shopTarget, branch, salesLabel }: { allow: Map<string, Allowance>; menus: MenuCostRow[]; byId: Map<string, PvProduct>; shopTarget: number; branch: string | null; salesLabel: string | null }) {
-  if (menus.length === 0) return <p className="rounded-xl border border-border bg-surface p-3 text-sm text-muted-foreground">ยังไม่มีเมนูที่มีทั้งสูตรและยอดขาย จึงยังคิดราคาที่เมนูรับได้ไม่ได้</p>;
+  if (menus.length === 0) return <p className="rounded-2xl border border-border bg-surface p-3 text-sm text-muted-foreground">ยังไม่มีเมนูที่มีทั้งสูตรและยอดขาย จึงยังคิดราคาที่เมนูรับได้ไม่ได้</p>;
   const items = [...allow.entries()].filter(([, a]) => a.over > 0).sort((a, b) => b[1].over - a[1].over);
   const total = items.reduce((s, [, a]) => s + a.over, 0);
   const over = menus.filter((m) => (m.cost / m.price) * 100 > m.target).sort((a, b) => b.cost / b.price - a.cost / a.price);
@@ -696,13 +696,13 @@ function ShrimpCallout({ products, allow, menus }: { products: PvProduct[]; allo
 }
 
 function MenuImpact({ menus, ratio, byId, label }: { menus: MenuCostRow[]; ratio: (pid: string) => number | null; byId: Map<string, PvProduct>; label: string | null }) {
-  if (!label || menus.length === 0) return <p className="rounded-xl border border-border bg-surface p-3 text-sm text-muted-foreground">ต้องมีเมนูที่มีสูตรและราคาวัตถุดิบสองเดือนจึงจะคิดได้</p>;
+  if (!label || menus.length === 0) return <p className="rounded-2xl border border-border bg-surface p-3 text-sm text-muted-foreground">ต้องมีเมนูที่มีสูตรและราคาวัตถุดิบสองเดือนจึงจะคิดได้</p>;
   const rows = menus
     .map((m) => ({ m, ...menuCostDelta(m, ratio) }))
     .map((r) => ({ ...r, pt: (r.delta / r.m.price) * 100 }))
     .sort((a, b) => b.pt - a.pt);
   return (
-    <div className="overflow-x-auto rounded-xl border border-border bg-surface p-3">
+    <div className="overflow-x-auto rounded-2xl border border-border bg-surface p-3">
       <p className="mb-2 text-xs text-muted-foreground">
         {label} · ต้นทุนต่อจานเปลี่ยนเพราะราคาเฉลี่ยวัตถุดิบ · <b>จุด</b> = % ของราคาขาย (food cost % ขยับเท่านี้) · เน้นเมนูที่ขึ้นตั้งแต่ {FLAG} จุด
       </p>
@@ -756,7 +756,7 @@ function MenuImpact({ menus, ratio, byId, label }: { menus: MenuCostRow[]; ratio
 function Targets({ menus, shopTarget, canEdit, onSave, err, branch, salesLabel }: { menus: MenuCostRow[]; shopTarget: number; canEdit: boolean; onSave: (m: MenuCostRow, pct: number | null) => void; err: string | null; branch: string | null; salesLabel: string | null }) {
   const rows = [...menus].sort((a, b) => b.cost / b.price - a.cost / a.price);
   return (
-    <div className="overflow-x-auto rounded-xl border border-border bg-surface p-3">
+    <div className="overflow-x-auto rounded-2xl border border-border bg-surface p-3">
       <p className="mb-2 text-xs text-muted-foreground">
         ค่าเริ่มต้น = เป้าร้าน {shopTarget}% · เครื่องดื่มซื้อมาขายต่อ ร้านส่วนใหญ่ตั้งเป้าสูงกว่าอาหาร · ต้นทุนคิดที่{branch ?? "—"} · จาน{salesLabel ? ` ${salesLabel}` : ""}
         {canEdit ? " · แก้ตัวเลขแล้วทั้งหน้าคิดใหม่ทันที (บันทึกให้)" : " · เจ้าของหรือผู้ดูแลเป็นคนแก้เป้า"}

@@ -81,7 +81,7 @@ export default function DepartmentOverview(props: {
       </div>
 
       {/* sticky slice control */}
-      <div className="sticky top-2 z-20 space-y-2 rounded-xl border border-border bg-surface px-3 py-2.5 shadow-card">
+      <div className="sticky top-2 z-20 space-y-2 rounded-2xl border border-border bg-surface px-3 py-2.5 shadow-card">
         <div className="flex flex-wrap items-center gap-2">
           <Seg value={props.view} onChange={(v) => go({ view: v, p: null }, `v${v}`)} options={[["month", "รายเดือน"], ["week", "รายสัปดาห์"]]} />
           {props.branches.length > 1 &&

@@ -455,7 +455,7 @@ export default function ExpenseForm({
             return (
               <div
                 key={line.key}
-                className="grid gap-3 rounded-xl border border-border bg-surface p-4 sm:grid-cols-12"
+                className="grid gap-3 rounded-2xl border border-border bg-surface p-4 sm:grid-cols-12"
               >
                 <div className="sm:col-span-5">
                   <span className="label text-xs">
@@ -579,7 +579,7 @@ export default function ExpenseForm({
       </section>
 
       {/* ---------------- tax ---------------- */}
-      <section className="grid gap-5 rounded-xl border border-border bg-surface p-4 sm:grid-cols-2">
+      <section className="grid gap-5 rounded-2xl border border-border bg-surface p-4 sm:grid-cols-2">
         <div>
           <span className="label">
             VAT
@@ -689,7 +689,7 @@ export default function ExpenseForm({
           )}
         </div>
 
-        <div className="rounded-xl border border-border bg-surface-sunk p-4 text-sm">
+        <div className="rounded-2xl border border-border bg-surface-sunk p-4 text-sm">
           <div className="flex justify-between py-0.5">
             <span className="text-muted-foreground">ยอดก่อน VAT</span>
             <span className="tabular-nums">{money(subtotal)}</span>

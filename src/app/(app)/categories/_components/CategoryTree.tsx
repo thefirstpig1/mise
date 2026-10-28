@@ -108,7 +108,7 @@ export default function CategoryTree({
                 .map(({ account, sections }) => (
                   <section
                     key={account}
-                    className="animate-pop-in rounded-xl border border-border bg-surface p-5 shadow-card"
+                    className="animate-pop-in rounded-2xl border border-border bg-surface p-5 shadow-card"
                   >
                     <header className="mb-4 border-b border-border pb-3">
                       <h3 className="text-lg font-semibold">

@@ -654,7 +654,7 @@ export default function GoodsReceiptForm({
             the same one-row line as the purchase order, every column a fixed
             width shared with the header. "รับจริง" turns yellow when less than
             what is still owed arrived. */}
-        <div className="rounded-xl border border-border bg-surface px-3 sm:px-4">
+        <div className="rounded-2xl border border-border bg-surface px-3 sm:px-4">
           <div className={`hidden gap-3 pb-1 pt-3 text-xs text-muted-subtle sm:grid ${LINE_GRID}`}>
             <span>วัตถุดิบ</span>
             <span className="text-center">รับจริง</span>

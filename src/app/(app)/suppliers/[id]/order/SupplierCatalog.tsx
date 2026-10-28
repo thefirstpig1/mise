@@ -366,7 +366,7 @@ export default function SupplierCatalog({
           {groups.map(([heading, list]) => (
             <section key={heading} className="space-y-2">
               <h3 className="text-sm font-semibold text-muted-foreground">{heading}</h3>
-              <ul className="divide-y divide-border rounded-xl border border-border bg-surface">
+              <ul className="divide-y divide-border rounded-2xl border border-border bg-surface">
                 {list.map((item) => row(item))}
               </ul>
             </section>

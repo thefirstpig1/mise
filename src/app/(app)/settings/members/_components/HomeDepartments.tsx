@@ -24,7 +24,7 @@ export default function HomeDepartments({ rows, departments }: { rows: Row[]; de
   };
 
   return (
-    <section className="rounded-xl border border-border bg-surface p-5">
+    <section className="rounded-2xl border border-border bg-surface p-5">
       <h3 className="text-base font-semibold">แผนกหลักของแต่ละคน</h3>
       <p className="mt-0.5 text-xs text-muted-foreground">
         ของที่คนนี้เพิ่มเข้าใบขอซื้อจะเป็นของแผนกนี้โดยอัตโนมัติ (เปลี่ยนรายการเองได้) · ไม่ได้เพิ่มหรือลดสิทธิ์ใด ๆ

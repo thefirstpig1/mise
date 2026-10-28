@@ -177,7 +177,7 @@ export default function MergeScreen({
                   </div>
                   <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(auto-fit, minmax(13rem, 1fr))` }}>
                     {ms.map((m) => (
-                      <div key={m.id} className="flex min-w-0 flex-col gap-0.5 rounded-xl border border-border bg-surface-sunk px-3 py-2.5">
+                      <div key={m.id} className="flex min-w-0 flex-col gap-0.5 rounded-2xl border border-border bg-surface-sunk px-3 py-2.5">
                         {branchTag(m.branchId, m.branchName)}
                         <span className="break-words font-semibold">{m.name}</span>
                         <span className="flex flex-wrap gap-x-2.5 text-xs text-muted-foreground">
@@ -300,7 +300,7 @@ function MenuSearch({
         className="h-11 w-full rounded-xl border border-border-strong bg-surface pl-10 pr-3 text-sm"
       />
       {open && term && (
-        <div className="absolute left-0 right-0 top-12 z-30 max-h-80 overflow-y-auto rounded-xl border border-border bg-surface p-1.5 shadow-lg">
+        <div className="absolute left-0 right-0 top-12 z-30 max-h-80 overflow-y-auto rounded-2xl border border-border bg-surface p-1.5 shadow-lg">
           {list.length === 0 ? (
             <p className="p-2.5 text-sm text-muted-foreground">ไม่พบเมนูที่ชื่อหรือรหัสมี “{q.trim()}”</p>
           ) : (

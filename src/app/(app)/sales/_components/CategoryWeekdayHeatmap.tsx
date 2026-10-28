@@ -297,7 +297,7 @@ export default function CategoryWeekdayHeatmap({
         return (
           <div
             role="tooltip"
-            className="pointer-events-none fixed z-40 w-[300px] max-w-[calc(100vw-16px)] animate-fade-in rounded-xl border border-border bg-surface p-3 text-xs shadow-card"
+            className="pointer-events-none fixed z-40 w-[300px] max-w-[calc(100vw-16px)] animate-fade-in rounded-2xl border border-border bg-surface p-3 text-xs shadow-card"
             style={{ left: card.x, top: card.y, transform: card.above ? "translateY(-100%)" : undefined }}
           >
             <p className="mb-2 font-display text-sm font-semibold">

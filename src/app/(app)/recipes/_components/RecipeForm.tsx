@@ -162,7 +162,7 @@ export default function RecipeForm({
         <input type="hidden" name="output_product_id" value={target.id} />
       )}
 
-      <div className="rounded-xl border border-border bg-surface p-5">
+      <div className="rounded-2xl border border-border bg-surface p-5">
         <p className="text-xs text-muted-foreground">
           {target.kind === "menu" ? "สูตรของเมนู" : "สูตรผลิตของแปรรูป"}
         </p>

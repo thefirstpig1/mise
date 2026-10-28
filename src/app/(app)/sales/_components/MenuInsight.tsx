@@ -165,7 +165,7 @@ function Delta({ v, vs }: { v: number | null; vs: string }) {
 
 function Kpi({ label, value, sub, tone }: { label: string; value: string; sub?: ReactNode; tone?: string }) {
   return (
-    <div className="rounded-xl border border-border bg-surface p-3">
+    <div className="rounded-2xl border border-border bg-surface p-3">
       <p className="text-xs text-muted-foreground">{label}</p>
       <p className={`mt-1 font-display text-lg font-semibold tabular-nums ${tone ?? ""}`}>{value}</p>
       {sub ? <div className="mt-0.5">{sub}</div> : null}

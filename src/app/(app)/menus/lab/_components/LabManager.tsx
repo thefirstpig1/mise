@@ -178,7 +178,7 @@ export default function LabManager(props: {
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3">
-        <div className="rounded-xl border border-border bg-surface p-3">
+        <div className="rounded-2xl border border-border bg-surface p-3">
           <p className="text-xs text-muted-subtle">ร่างที่กำลังคิด</p>
           <p className="font-display text-2xl font-semibold tabular-nums">{drafts.length}</p>
           <p className="text-xs text-muted-foreground">
@@ -192,7 +192,7 @@ export default function LabManager(props: {
             {waiting > 0 ? (props.canPublish ? "รับรองหรือนำไปใช้จริง" : "ตรวจแล้วรับรอง หรือนำไปใช้จริงที่สาขาของคุณ") : "ไม่มีร่างที่รอคุณรับรองหรือนำไปใช้"}
           </p>
         </div>
-        <a href="/menus?filter=none" className="rounded-xl border border-border bg-surface p-3 transition-colors hover:border-border-strong">
+        <a href="/menus?filter=none" className="rounded-2xl border border-border bg-surface p-3 transition-colors hover:border-border-strong">
           <p className="text-xs text-muted-subtle">ขายอยู่แต่ยังไม่มีสูตร</p>
           <p className="font-display text-2xl font-semibold tabular-nums">{unrecipied.length} เมนู</p>
           <p className="text-xs text-muted-foreground">
@@ -300,7 +300,7 @@ export default function LabManager(props: {
                 key={m.id}
                 type="button"
                 onClick={() => openDraft(null, m.id)}
-                className="group grid gap-2 rounded-xl border border-border bg-surface p-3 text-left transition-colors hover:border-border-strong"
+                className="group grid gap-2 rounded-2xl border border-border bg-surface p-3 text-left transition-colors hover:border-border-strong"
               >
                 <span className="flex items-baseline justify-between gap-2">
                   <b className="font-medium">{m.name}</b>

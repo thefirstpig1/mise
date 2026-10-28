@@ -38,7 +38,7 @@ export default function RecurringHistory({
   let prev: { period: string; total: number } | null = null;
 
   return (
-    <section className="space-y-4 rounded-xl border border-border bg-surface p-5">
+    <section className="space-y-4 rounded-2xl border border-border bg-surface p-5">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h3 className="text-lg font-semibold">ยอดจริงแต่ละงวด</h3>
         <span className="text-sm text-muted-foreground">
