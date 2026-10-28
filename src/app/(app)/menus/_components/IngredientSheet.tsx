@@ -392,9 +392,9 @@ export default function IngredientSheet({
                 )}
                 <ReceiptPriceChart points={receipts.map((r) => ({ date: r.date, price: r.perBase, qty: r.qtyBase }))} months={months} />
                 <div className="overflow-x-auto">
-                  <table>
+                  <table className="w-full text-sm">
                     <caption className="pb-1 text-left text-xs text-muted-foreground">4 ใบล่าสุด</caption>
-                    <thead>
+                    <thead className="text-left text-xs text-muted-foreground">
                       <tr>
                         <th className="py-1 font-medium">วันที่รับ</th>
                         <th className="py-1 font-medium">ซัพพลายเออร์</th>

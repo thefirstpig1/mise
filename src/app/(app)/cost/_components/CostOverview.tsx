@@ -1118,7 +1118,7 @@ function Bench({
   ];
   return (
     <div className="overflow-x-auto rounded-2xl border border-border bg-surface p-3">
-      <table>
+      <table className="w-full text-sm">
         <thead>
           <tr className="text-xs text-muted-foreground">
             <th className="py-1 text-left font-normal">ตัวชี้วัด · {P[sel]?.label}</th>

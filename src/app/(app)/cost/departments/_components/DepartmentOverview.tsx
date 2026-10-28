@@ -255,8 +255,8 @@ export default function DepartmentOverview(props: {
               </p>
             ) : (
               <div className="overflow-x-auto">
-                <table>
-                  <thead>
+                <table className="w-full text-sm">
+                  <thead className="text-left text-xs text-muted-foreground">
                     <tr>
                       <th className="py-1.5 font-medium">แผนก</th>
                       <th className="py-1.5 text-right font-medium">รับของเข้า (ก่อน VAT)</th>

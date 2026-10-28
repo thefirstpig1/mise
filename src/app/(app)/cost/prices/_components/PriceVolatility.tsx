@@ -706,7 +706,7 @@ function MenuImpact({ menus, ratio, byId, label }: { menus: MenuCostRow[]; ratio
       <p className="mb-2 text-xs text-muted-foreground">
         {label} · ต้นทุนต่อจานเปลี่ยนเพราะราคาเฉลี่ยวัตถุดิบ · <b>จุด</b> = % ของราคาขาย (food cost % ขยับเท่านี้) · เน้นเมนูที่ขึ้นตั้งแต่ {FLAG} จุด
       </p>
-      <table>
+      <table className="w-full text-sm">
         <thead>
           <tr className="text-xs text-muted-foreground">
             <th className="py-1 text-left font-normal">เมนู</th>
@@ -762,7 +762,7 @@ function Targets({ menus, shopTarget, canEdit, onSave, err, branch, salesLabel }
         {canEdit ? " · แก้ตัวเลขแล้วทั้งหน้าคิดใหม่ทันที (บันทึกให้)" : " · เจ้าของหรือผู้ดูแลเป็นคนแก้เป้า"}
       </p>
       {err && <p className="mb-2 text-sm text-bad">{err}</p>}
-      <table>
+      <table className="w-full text-sm">
         <thead>
           <tr className="text-xs text-muted-foreground">
             <th className="py-1 text-left font-normal">เมนู</th>

@@ -128,7 +128,7 @@ export default function MappingListSection({
         <p className="text-sm text-muted-foreground">{copy.empty}</p>
       ) : (
         <div className="overflow-x-auto">
-          <table>
+          <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border text-left text-xs text-muted-foreground">
                 <th className="py-2 pr-4 font-medium">{copy.nameHeader}</th>

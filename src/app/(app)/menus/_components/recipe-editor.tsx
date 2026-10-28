@@ -182,8 +182,8 @@ export function RecipeTable({
   return (
     <>
       <div className="overflow-x-auto">
-        <table>
-          <thead>
+        <table className="w-full text-sm">
+          <thead className="text-left text-xs text-muted-foreground">
             <tr>
               <th className="py-1 font-medium">วัตถุดิบ</th>
               <th className="py-1 text-right font-medium">ปริมาณ</th>

@@ -451,7 +451,7 @@ export function CategoryTrendPane({ categoryKey, tone, onMenu }: { categoryKey: 
         />
       </div>
       <div className="max-h-80 overflow-y-auto">
-        <table>
+        <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border text-left text-xs text-muted-foreground">
               <th className="px-2 py-1.5 font-medium">เมนู</th>

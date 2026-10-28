@@ -248,7 +248,7 @@ export function MenuTable({ rows, total, by }: { rows: MenuRow[]; total: number;
         aria-label="ค้นหาเมนู"
       />
       <div className="max-h-[480px] overflow-auto rounded-lg border border-border">
-        <table>
+        <table className="w-full text-sm">
           <thead className="sticky top-0 z-10 bg-surface-sunk text-muted-foreground">
             <tr>
               {head("name", "เมนู")}
