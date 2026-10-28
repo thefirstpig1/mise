@@ -37,6 +37,10 @@ new button, pill or badge string in a page.
 - **One-of-few choices / URL filters**: wrapper `.seg`, each item `.seg-item`
   (+ `is-on`). Client state: `<Seg>` (src/components/ui/Seg.tsx). URL filter:
   `<FilterLink className={`seg-item ${on ? "is-on" : ""}`}>` inside a `.seg`.
+- **Many choices** (categories, months, sections): `.pill` (+ `is-on`), each on
+  its own. Never hand-write `border-primary bg-primary …` on/off colours.
+- A filter that only picks a status/branch/direction is a link, not a GET form
+  with a กรอง button. Keep the form only for date ranges.
 - **Tabs** when different people use different parts of a page: `<Tabs>` or
   `.tabs`/`.tab is-on`; a count on a tab = work waiting.
 - **Number cards**: `<Stat label value sub tone href>` in `<StatGrid>`. The sub
@@ -47,6 +51,9 @@ new button, pill or badge string in a page.
   (header on cream, 12px muted; whole row clickable, see §1).
 - **Fields**: `.input` (42px, corner 12) + `.label` above; help/error text
   under the field it belongs to. Products/menus always via ProductPicker (§2).
+  A `text-xs` hint inside a `.label` is normal weight by itself (globals.css).
+- **QtyStepper is 9rem wide** (w-36). A line grid gives its column 9rem, never
+  8rem — that overlapped the unit box on PO, GR, transfer and ticket forms.
 - **Toast** for "saved"; field errors under the field, never in a toast.
 - Every page is checked at **desktop AND 390px** before it is called done.
 
