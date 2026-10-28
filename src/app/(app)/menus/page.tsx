@@ -23,6 +23,8 @@ import { withTenantContext } from "@/lib/db";
 import { getMenuCategoriesLogic, getMenusLogic, getPosIntegrationsLogic } from "@/server/menu";
 import { getMenuMergesLogic } from "@/server/menu-merge-read";
 import { getMenuListFactsLogic, MENU_FACT_DAYS } from "@/server/menu-list-facts";
+import { periodLabelTh } from "@/lib/sales-insight";
+import { getMergeOverviewLogic } from "@/server/menu-merge-suggest";
 import { getBranchesLogic } from "@/server/branch";
 import { freshestCostBranch } from "@/server/menu-lab-read";
 import { getMenuPriceBookLogic, getMenuRecipeStatusLogic } from "@/server/menu-manager";
@@ -60,7 +62,7 @@ export default async function MenusPage({
       ? { branchId: branch.id, book: getMenuPriceBookLogic(tenantId, branch.id, costAccess).catch(() => null) }
       : null;
 
-  const [menus, categories, integrations, departments, merges, facts, recipeStatus] = await Promise.all([
+  const [menus, categories, integrations, departments, merges, facts, recipeStatus, overview] = await Promise.all([
     getMenusLogic(tenantId, {
       posIntegrationId: undefined,
       menuCategoryId: undefined,
@@ -83,7 +85,14 @@ export default async function MenusPage({
     // Which dishes have a recipe here — no prices. Prices (the slow part: the
     // recipe walk and the FIFO replay) are `initialBook` above, streamed.
     branch === null ? Promise.resolve({} as Record<string, { recipeId: string; own: boolean }>) : getMenuRecipeStatusLogic(tenantId, branch.id),
+    // Which no-recipe dishes are probably another branch's copy of a dish that
+    // HAS one (Kong 2026-10-28): merging fixes them, writing a recipe does not.
+    getMergeOverviewLogic(tenantId),
   ]);
+  const hasRecipe = new Set(overview.menus.filter((m) => m.hasRecipe).map((m) => m.id));
+  const likelyDuplicates = overview.suggestions.flatMap((g) =>
+    g.menuIds.some((id) => hasRecipe.has(id)) ? g.menuIds.filter((id) => !hasRecipe.has(id)) : []
+  );
 
   const mergeRows = merges.map(toMenuMergeRowView);
   const spellingsByWinner = groupMergesByWinner(mergeRows);
@@ -117,6 +126,8 @@ export default async function MenusPage({
     <MenuManager
       rows={rows}
       factDays={MENU_FACT_DAYS}
+      likelyDuplicates={likelyDuplicates}
+      factRange={periodLabelTh(facts.from.toISOString().slice(0, 10), facts.to.toISOString().slice(0, 10))}
       spellingsByWinner={spellings}
       winnerOf={winnerOf}
       categories={categories.map((c) => ({ id: c.id, name: c.name }))}

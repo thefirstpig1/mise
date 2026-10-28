@@ -310,7 +310,19 @@ export type MenuSheetRecipe = {
 export type MenuSheet = {
   recipe: MenuSheetRecipe | null;
   /** Every version of the line that applies here, newest first. */
-  history: { recipeId: string; effectiveFrom: string; isCurrent: boolean; isSuperseded: boolean }[];
+  history: {
+    recipeId: string;
+    effectiveFrom: string;
+    isCurrent: boolean;
+    isSuperseded: boolean;
+    /** Who saved this version (Kong 2026-10-28: "ใครแก้ เปลี่ยนอะไร"). */
+    savedBy: string | null;
+    savedAt: string;
+    notes: string | null;
+    servings: number;
+    /** The version's own lines — the sheet diffs and prices them in the browser. */
+    lines: SheetLine[];
+  }[];
   facts: IngredientFacts;
 };
 
@@ -350,7 +362,16 @@ export async function getMenuSheetLogic(
       }),
       tx.recipe.findMany({
         where: { tenantId, lineId: hit.lineId, deletedAt: null, isDraft: false },
-        select: { id: true, effectiveFrom: true, supersededAt: true },
+        select: {
+          id: true,
+          effectiveFrom: true,
+          supersededAt: true,
+          createdAt: true,
+          notes: true,
+          servings: true,
+          createdByUser: { select: { name: true, email: true } },
+          ingredients: { orderBy: { sortOrder: "asc" }, select: INGREDIENT_SELECT },
+        },
         orderBy: [{ effectiveFrom: "desc" }, { createdAt: "desc" }],
       }),
     ]);
@@ -384,6 +405,12 @@ export async function getMenuSheetLogic(
       effectiveFrom: isoDate(v.effectiveFrom),
       isSuperseded: v.supersededAt !== null,
       isCurrent: v.id === recipe.id,
+      savedBy: v.createdByUser?.name ?? v.createdByUser?.email?.split("@")[0] ?? null,
+      // The Bangkok day it was saved, not the UTC one.
+      savedAt: isoDate(new Date(v.createdAt.getTime() + 7 * 3_600_000)),
+      notes: v.notes,
+      servings: Number(v.servings),
+      lines: v.ingredients.map(toSheetLine),
     })),
     facts,
   };

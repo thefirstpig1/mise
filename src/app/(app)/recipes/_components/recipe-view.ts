@@ -211,6 +211,8 @@ export type RecipeUsageView = {
   qty: string;
   unitId: string | null;
   unitName: string | null;
+  menuId: string | null;
+  unitRatio: number | null;
 };
 
 export function toRecipeUsageView(u: RecipeUsageRow): RecipeUsageView {
@@ -225,6 +227,8 @@ export function toRecipeUsageView(u: RecipeUsageRow): RecipeUsageView {
     qty: str(u.qty),
     unitId: u.unitId,
     unitName: u.unitName,
+    menuId: u.menuId,
+    unitRatio: u.unitRatio,
   };
 }
 

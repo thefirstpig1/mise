@@ -76,6 +76,10 @@ function Marked({ text, marks }: { text: string; marks: readonly number[] }) {
 export default function MenuManager(props: {
   rows: ManagerRow[];
   factDays: number;
+  /** The days those figures cover — the latest 30 with sales, e.g. "28 ส.ค. 69 – 26 ก.ย. 69". */
+  factRange: string;
+  /** No-recipe dishes that look like another branch's copy of a dish with one. */
+  likelyDuplicates: string[];
   spellingsByWinner: Record<string, MergeMenuView[]>;
   winnerOf: Record<string, { id: string; label: string }>;
   categories: Option[];
@@ -188,6 +192,8 @@ export default function MenuManager(props: {
   const trial = rows.filter(isTrial);
   const selling = rows.filter((r) => !r.isRetired && !isTrial(r));
   const noRecipe = selling.filter((r) => r.recipeId === null);
+  const dupSet = new Set(props.likelyDuplicates);
+  const dupCount = noRecipe.filter((r) => dupSet.has(r.id)).length;
   const stubCount = selling.filter((r) => r.isPosStub).length;
 
   const stats = useMemo(() => {
@@ -325,11 +331,21 @@ export default function MenuManager(props: {
                 ? "ยังคิดต้นทุนเมนูเหล่านี้ไม่ได้"
                 : `ขายไป ${baht(stats.total - stats.covered)} ใน ${factDays} วันที่ยังคิดต้นทุนไม่ได้ และยังไม่ถูกตัดสต๊อก`}
             </p>
+            {dupCount > 0 && (
+              <p className="mt-0.5 text-sm text-foreground">
+                {dupCount} รายการในนี้น่าจะเป็นเมนูซ้ำจากสาขาอื่น ซึ่งเมนูหลักมีสูตรแล้ว รวมเมนูแล้วจะหายไปเอง
+              </p>
+            )}
           </div>
           <div className="flex flex-wrap gap-2">
             <button type="button" onClick={() => setStatus("none")} className="rounded-lg border border-bad-border bg-surface px-3 py-1.5 text-sm font-medium text-bad hover:bg-bad-bg">
               ดู {noRecipe.length} เมนูนี้
             </button>
+            {dupCount > 0 && props.perm.editMenu && (
+              <a href="/menus/merges" className="rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:brightness-95">
+                ดูเมนูที่น่าจะซ้ำ ({dupCount})
+              </a>
+            )}
             {props.perm.recipe && (
               <a href="/menus/lab" className="rounded-lg bg-bad px-3 py-1.5 text-sm font-medium text-bad-foreground hover:brightness-95">
                 เริ่มเขียนสูตร ›
@@ -471,7 +487,7 @@ export default function MenuManager(props: {
           </div>
 
           <p className="text-sm text-muted-foreground">
-            แสดง {visible.length} เมนู · ยอดขายและราคาเฉลี่ย {factDays} วันล่าสุด ไม่รวม VAT และ service charge
+            แสดง {visible.length} เมนู · ยอดขายและราคาเฉลี่ย {factDays} วันล่าสุดที่มีข้อมูล ({props.factRange}) ไม่รวม VAT และ service charge
             {status === "none" && " · เรียงตามยอดขาย เขียนสูตรเมนูบนสุดก่อนจะคุ้มที่สุด"}
           </p>
 
@@ -609,6 +625,7 @@ export default function MenuManager(props: {
           key={`${opened.id}-${branch.id}`}
           menu={opened}
           factDays={factDays}
+          factRange={props.factRange}
           branch={branch}
           branches={props.branches}
           today={props.today}

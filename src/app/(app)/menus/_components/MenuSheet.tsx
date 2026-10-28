@@ -39,10 +39,12 @@ import { atLeastTh, atMostTh, baht, confidenceHintTh, confidenceTh, newSubmitKey
 import { ConfirmDialog, type ConfirmSpec, PhotoSlot, Sheet } from "./sheet-parts";
 import IngredientSheet from "./IngredientSheet";
 import MenuSalesTrend from "./MenuSalesTrend";
+import RecipeHistory from "./RecipeHistory";
 
 export default function MenuSheet(props: {
   menu: ManagerRow;
   factDays: number;
+  factRange: string;
   branch: Option;
   branches: Option[];
   today: string;
@@ -497,7 +499,7 @@ export default function MenuSheet(props: {
         {props.mergedIntoLabel && <p className="text-sm text-muted-foreground">นับรวมเป็น “{props.mergedIntoLabel}” — รายการนี้ยังรับยอดขายใหม่ตามปกติ</p>}
 
         <div className={`grid gap-2 ${costHidden ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-4"}`}>
-          <Tile k={`ขาย ${props.factDays} วัน`} v={menu.qty > 0 ? `${menu.qty.toLocaleString("th-TH")} จาน` : "—"} s={menu.qty > 0 ? baht(menu.net) : "ยังไม่มียอดขาย"} />
+          <Tile k={`ขาย ${props.factDays} วันล่าสุดที่มีข้อมูล`} v={menu.qty > 0 ? `${menu.qty.toLocaleString("th-TH")} จาน` : "—"} s={menu.qty > 0 ? `${baht(menu.net)} · ${props.factRange}` : `ไม่มียอดใน ${props.factRange}`} />
           <Tile k="ราคาเฉลี่ยที่ขายจริง" v={avg === null ? "—" : baht(avg)} s="หลังส่วนลด ไม่รวม VAT" />
           {!costHidden && (
             <Tile
@@ -643,20 +645,7 @@ export default function MenuSheet(props: {
           )}
         </section>
 
-        {sheet && sheet.history.length > 0 && (
-          <details className="rounded-xl border border-border bg-surface p-4">
-            <summary className="cursor-pointer font-semibold">ประวัติสูตร ({sheet.history.length})</summary>
-            <ul className="mt-2 space-y-1 text-sm">
-              {sheet.history.map((h) => (
-                <li key={h.recipeId} className={`flex justify-between gap-2 ${h.isSuperseded ? "text-muted-subtle line-through" : ""}`}>
-                  <span>ตั้งแต่ {thDate(h.effectiveFrom)}</span>
-                  <span className="text-xs">{h.isCurrent ? <span className="text-good">● ใช้อยู่</span> : h.isSuperseded ? "แก้ทับแล้ว" : "เวอร์ชันก่อน"}</span>
-                </li>
-              ))}
-            </ul>
-            <p className="mt-2 text-xs text-muted-foreground">ทุกครั้งที่บันทึกสูตร ระบบเก็บเวอร์ชันใหม่ต่อท้าย วันก่อนหน้ายังคิดต้นทุนด้วยสูตรเดิม</p>
-          </details>
-        )}
+        {sheet && sheet.history.length > 0 && <RecipeHistory history={sheet.history} book={book} costHidden={costHidden} />}
 
         {props.spellings.length > 0 && (
           <section className="rounded-xl border border-border bg-surface p-4 text-sm">

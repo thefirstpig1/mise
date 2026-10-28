@@ -39,22 +39,35 @@ export async function getMenuListFactsLogic(
   tenantId: string,
   reach: BranchReach
 ): Promise<{ facts: Map<string, MenuListFact>; from: Date; to: Date }> {
-  const to = computeBangkokToday();
-  const from = addDays(to, -(MENU_FACT_DAYS - 1));
+  // The window ends on the LATEST day with sales, not today (Kong 2026-10-28):
+  // counted back from today, a shop whose last file was a month ago read
+  // "— ยังไม่มียอดขาย" on a dish that sold 1,115 plates. Never past today.
+  const today = computeBangkokToday();
+  let to = today;
+  let from = addDays(to, -(MENU_FACT_DAYS - 1));
+  const branchWhere = { deletedAt: null, ...branchScopeWhere(reach) };
 
   const [sold, recipes, fold] = await Promise.all([
-    withTenantContext(tenantId, (tx) =>
-      tx.salesLine.groupBy({
+    withTenantContext(tenantId, async (tx) => {
+      const latest = await tx.salesLine.aggregate({
+        where: { tenantId, supersededAt: null, businessDate: { lte: today }, branch: branchWhere },
+        _max: { businessDate: true },
+      });
+      if (latest._max.businessDate) {
+        to = latest._max.businessDate;
+        from = addDays(to, -(MENU_FACT_DAYS - 1));
+      }
+      return tx.salesLine.groupBy({
         by: ["menuId"],
         where: {
           tenantId,
           supersededAt: null,
           businessDate: { gte: from, lte: to },
-          branch: { deletedAt: null, ...branchScopeWhere(reach) },
+          branch: branchWhere,
         },
         _sum: { qty: true, netAmount: true },
-      })
-    ),
+      });
+    }),
     withTenantContext(tenantId, (tx) =>
       tx.recipe.findMany({
         where: { tenantId, deletedAt: null, supersededAt: null, menuId: { not: null } },

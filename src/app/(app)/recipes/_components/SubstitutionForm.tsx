@@ -28,7 +28,25 @@ import { MeasureInput, MoneyInput } from "@/components/ui/NumberField";
 import type { SubstitutionActionState } from "@/app/(app)/recipes/actions";
 import type { SubstitutionPlanRowView } from "@/app/(app)/recipes/_components/recipe-view";
 
-export type ReplacementUnit = { id: string; unitName: string; isBase: boolean };
+export type ReplacementUnit = { id: string; unitName: string; isBase: boolean; ratio: number };
+
+/**
+ * What the swap does to the cost of a plate (Kong 2026-10-28), priced from ONE
+ * branch's price book — null for someone who may not see cost.
+ */
+export type SubstitutionCosts = {
+  branchName: string;
+  factDays: number;
+  /** Baht per BASE unit of the old ingredient at that branch. */
+  fromPrice: number | null;
+  /** Baht per base unit of the replacement — per serving when it is a menu. */
+  toPrice: number | null;
+  /** Per dish: the recipe that branch follows, its cost per plate, plates sold. */
+  dishes: Record<string, { recipeId: string; perPlate: number | null; sold: number }>;
+};
+
+const money = (v: number) =>
+  `${v < 0 ? "−" : ""}฿${Math.abs(v).toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 
 function newSubmitKey(): string {
@@ -53,6 +71,7 @@ export default function SubstitutionForm({
   units,
   central,
   branch,
+  costs,
   todayBangkok,
 }: {
   action: (
@@ -69,6 +88,7 @@ export default function SubstitutionForm({
   units: ReplacementUnit[];
   central: SubstitutionPlanRowView[];
   branch: SubstitutionPlanRowView[];
+  costs: SubstitutionCosts | null;
   todayBangkok: string;
 }) {
   const [state, formAction, isPending] = useActionState(action, {
@@ -114,6 +134,29 @@ export default function SubstitutionForm({
     setRows((prev) => ({ ...prev, [id]: { ...prev[id], ...p } }));
 
   const checkedCount = Object.values(rows).filter((r) => r.checked).length;
+
+  // Cost per plate before → after, only where the price book speaks of THIS
+  // recipe (another branch's own recipe has no figure here, not a wrong one).
+  const priced = (r: SubstitutionPlanRowView) => {
+    if (!costs || !r.menuId) return null;
+    const dish = costs.dishes[r.menuId];
+    if (!dish || dish.recipeId !== r.recipeId || dish.perPlate === null || costs.fromPrice === null || r.unitRatio === null) return null;
+    const s = rows[r.recipeId];
+    const oldLine = Number(r.qty) * r.unitRatio * costs.fromPrice;
+    const ratio = toProductId === null ? 1 : units.find((u) => u.id === s.unitId)?.ratio;
+    const qty = Number(s.qty);
+    const newLine = costs.toPrice === null || ratio === undefined || s.qty === "" || !Number.isFinite(qty) ? null : qty * ratio * costs.toPrice;
+    return { before: dish.perPlate, after: newLine === null ? null : dish.perPlate - oldLine + newLine, sold: dish.sold };
+  };
+  const monthly = [...central, ...branch].reduce(
+    (t, r) => {
+      const c = rows[r.recipeId]?.checked ? priced(r) : null;
+      if (!c) return t;
+      if (c.after === null) return { ...t, unknown: true };
+      return { ...t, sum: t.sum + (c.after - c.before) * c.sold, any: true };
+    },
+    { sum: 0, any: false, unknown: false }
+  );
   const branchChecked = branch.filter((r) => rows[r.recipeId]?.checked).length;
 
   const group = (
@@ -203,6 +246,24 @@ export default function SubstitutionForm({
                     disabled={!s.checked}
                   />
                 )}
+
+                {costs && (() => {
+                  const c = priced(r);
+                  if (!c) return <span className="ml-auto text-xs text-muted-foreground">{r.isCentral ? "ยังไม่มีราคาให้คิด" : "สูตรของสาขานี้"}</span>;
+                  const d = c.after === null ? null : c.after - c.before;
+                  return (
+                    <span className="ml-auto flex flex-wrap items-baseline justify-end gap-2 text-sm">
+                      <span className="tabular-nums text-muted-subtle line-through">{money(c.before)}</span>
+                      <b className="tabular-nums">{c.after === null ? "—" : money(c.after)}</b>
+                      {d !== null && Math.abs(d) >= 0.005 && (
+                        <span className={`rounded-full border px-2 text-xs font-semibold tabular-nums ${d > 0 ? "border-bad-border bg-bad-bg text-bad" : "border-good-border bg-good-bg text-good"}`}>
+                          {d > 0 ? "+" : ""}
+                          {money(d)}
+                        </span>
+                      )}
+                    </span>
+                  );
+                })()}
 
                 {rowError ? (
                   <p className="w-full text-xs text-bad">{rowError}</p>
@@ -319,6 +380,20 @@ export default function SubstitutionForm({
           แก้แล้ว {state.changedCount} สูตร
         </p>
       ) : null}
+
+      {costs && (monthly.any || monthly.unknown) && (
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 rounded-2xl border border-border bg-surface-sunk px-4 py-3 text-sm">
+          <b className={`font-display text-xl tabular-nums ${monthly.sum > 0 ? "text-bad" : "text-good"}`}>
+            {monthly.sum > 0 ? "+" : ""}
+            {money(monthly.sum)}
+          </b>
+          <span className="text-muted-foreground">
+            ต้นทุนต่อเดือนโดยประมาณ (จานที่ขาย {costs.factDays} วันล่าสุด × ส่วนต่างต่อจาน)
+            {monthly.unknown ? " · ยังไม่รวมเมนูที่ยังไม่ได้กรอกปริมาณ" : ""}
+          </span>
+          <span className="w-full text-xs text-muted-foreground">ราคาวัตถุดิบที่{costs.branchName} ณ วันนี้</span>
+        </div>
+      )}
 
       <button
         type="submit"

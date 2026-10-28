@@ -55,6 +55,10 @@ export type RecipeUsageRow = {
   qty: Prisma.Decimal;
   unitId: string | null;
   unitName: string | null;
+  /** The dish the recipe makes — null for a production recipe. */
+  menuId: string | null;
+  /** This line's unit in the product's base unit — prices a line from a price book. */
+  unitRatio: number | null;
 };
 
 /**
@@ -106,10 +110,11 @@ async function usageRows(
       id: true,
       qty: true,
       productUnitId: true,
-      productUnit: { select: { unitName: true } },
+      productUnit: { select: { unitName: true, toBaseRatio: true } },
       recipe: {
         select: {
           id: true,
+          menuId: true,
           lineId: true,
           effectiveFrom: true,
           menu: { select: { name: true } },
@@ -175,6 +180,8 @@ async function usageRows(
       qty: l.qty,
       unitId: l.productUnitId,
       unitName: l.productUnit?.unitName ?? null,
+      menuId: l.recipe.menuId,
+      unitRatio: l.productUnit ? Number(l.productUnit.toBaseRatio) : null,
     };
   });
 
@@ -1048,5 +1055,26 @@ export async function getRecipeByIdLogic(
       isSuperseded: recipe.supersededAt !== null,
       branchNames: links.map((l) => l.branch.name).sort(),
     };
+  });
+}
+
+/**
+ * How many recipes name each product today — the "ใช้ใน N สูตร" beside a
+ * product in the substitution picker (Kong 2026-10-28). Counted per recipe
+ * LINE, over live non-draft versions, so a dish with three versions counts once.
+ */
+export async function getIngredientUseCountsLogic(tenantId: string): Promise<Record<string, number>> {
+  return withTenantContext(tenantId, async (tx) => {
+    const rows = await tx.recipeIngredient.findMany({
+      where: { tenantId, productId: { not: null }, recipe: { deletedAt: null, supersededAt: null, isDraft: false } },
+      select: { productId: true, recipe: { select: { lineId: true } } },
+    });
+    const lines = new Map<string, Set<string>>();
+    for (const r of rows) {
+      const set = lines.get(r.productId!) ?? new Set<string>();
+      set.add(r.recipe.lineId);
+      lines.set(r.productId!, set);
+    }
+    return Object.fromEntries([...lines].map(([id, set]) => [id, set.size]));
   });
 }
