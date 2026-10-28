@@ -132,10 +132,10 @@ function revalidateStockViews(countId: string): void {
 
 /** Who is acting, and whether they may act for the host (ADR 0034 Q5). */
 async function countActor(): Promise<{ tenantId: string; actor: CountActor }> {
-  const { tenantId, membership, can } = await requireTenant("count:write");
+  const { tenantId, membership, can, reach } = await requireTenant("count:write");
   return {
     tenantId,
-    actor: { userId: membership.userId, canCloseAny: can("count:close") },
+    actor: { userId: membership.userId, canCloseAny: can("count:close"), reach },
   };
 }
 
@@ -196,7 +196,7 @@ export async function confirmCountAction(input: {
   if (!parsed.success) return { ok: false, fieldErrors: toFieldErrors(parsed.error) };
 
   try {
-    const count = await saveStockCountLineLogic(tenantId, parsed.data, actor.userId);
+    const count = await saveStockCountLineLogic(tenantId, parsed.data, actor);
     return { ok: true, countId: count.id, detail: toStockCountDetailView(count) };
   } catch (e) {
     if (e instanceof CountLineTakenError) {
@@ -227,7 +227,7 @@ export async function editContributionAction(input: {
   if (!parsed.success) return { ok: false, fieldErrors: toFieldErrors(parsed.error) };
 
   try {
-    const count = await editStockCountContributionLogic(tenantId, parsed.data, actor.userId);
+    const count = await editStockCountContributionLogic(tenantId, parsed.data, actor);
     return { ok: true, countId: count.id, detail: toStockCountDetailView(count) };
   } catch (e) {
     return toFormError(e);
@@ -245,7 +245,7 @@ export async function deleteContributionAction(
       tenantId,
       stockCountId,
       contributionId,
-      actor.userId
+      actor
     );
     return { ok: true, countId: count.id, detail: toStockCountDetailView(count) };
   } catch (e) {

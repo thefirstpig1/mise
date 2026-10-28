@@ -28,6 +28,7 @@ import { createStockMovementLogic, toBaseQty } from "@/server/stock-movement";
 import { getProductCostsLogic } from "@/server/stock-cost";
 import { getProductCostsQuerySchema } from "@/lib/validations/stock-cost";
 import type { CostAccess } from "@/lib/permissions/cost-access";
+import type { BranchReach } from "@/lib/permissions/service";
 import type {
   CloseStockCountInput,
   EditStockCountContributionInput,
@@ -140,12 +141,23 @@ export class NotCountHostError extends Error {
 }
 
 /**
- * Who is acting on a sheet, and whether they may act on anyone's behalf. The
- * action computes `canCloseAny` from the role (`count:close`); the logic
- * decides with the sheet's `started_by` in hand. Required — a caller that
- * forgot to think about it does not compile.
+ * Who is acting on a sheet, whether they may act on anyone's behalf, and WHERE
+ * they may act. The action computes `canCloseAny` from the role (`count:close`)
+ * and `reach` from the membership; the logic decides with the sheet's
+ * `started_by` and `branch_id` in hand. Required — a caller that forgot to
+ * think about it does not compile.
+ *
+ * `reach` (rule A5, 2026-10-29): a counter with one branch saw and could write
+ * every branch's sheets, because nothing below the page asked. It is checked
+ * in the same query that finds the sheet, so it costs no round trip on the
+ * per-row ยืนยัน — and a sheet outside reach is NOT FOUND for that person,
+ * the way RLS makes another tenant's rows not exist.
  */
-export type CountActor = { userId: string; canCloseAny: boolean };
+export type CountActor = { userId: string; canCloseAny: boolean; reach: BranchReach };
+
+/** The sheets a reach covers, as a `stock_count` filter. */
+const inReach = (reach: BranchReach): Prisma.StockCountWhereInput =>
+  reach.allBranches ? {} : { branchId: { in: [...reach.allowedBranchIds] } };
 
 // ------------------------------------------------------------
 // Shapes
@@ -203,13 +215,16 @@ export type StockCountListRow = Prisma.StockCountGetPayload<{
 
 export async function getStockCountsLogic(
   tenantId: string,
-  query: GetStockCountsQuery = {}
+  query: GetStockCountsQuery,
+  /** Rule A5: the list narrows to the reader's branches — `branchId` is optional, so asserting it guards nothing. */
+  reach: BranchReach
 ): Promise<StockCountListRow[]> {
   return withTenantContext(tenantId, (tx) =>
     tx.stockCount.findMany({
       where: {
         tenantId,
         deletedAt: null,
+        ...inReach(reach),
         ...(query.branchId ? { branchId: query.branchId } : {}),
         ...(query.status ? { status: query.status } : {}),
       },
@@ -407,10 +422,10 @@ export async function openStockCountLogic(
  * milliseconds each, and every one of them is either added or told, in words,
  * that someone got there first (ADR 0034 Q3).
  */
-async function lockDraftSheet(tx: PrismaClient, tenantId: string, stockCountId: string) {
+async function lockDraftSheet(tx: PrismaClient, tenantId: string, stockCountId: string, reach: BranchReach) {
   await tx.$queryRaw`SELECT id FROM stock_count WHERE id = ${stockCountId}::uuid FOR UPDATE`;
   const count = await tx.stockCount.findFirst({
-    where: { id: stockCountId, tenantId, deletedAt: null },
+    where: { id: stockCountId, tenantId, deletedAt: null, ...inReach(reach) },
     select: { id: true, branchId: true, status: true, startedBy: true },
   });
   if (!count) throw new StockCountNotFoundError(stockCountId);
@@ -546,10 +561,11 @@ const detailOf = (tx: PrismaClient, tenantId: string, id: string) =>
 export async function saveStockCountLineLogic(
   tenantId: string,
   input: SaveStockCountLineInput,
-  countedBy: string
+  actor: CountActor
 ): Promise<StockCountDetail> {
+  const countedBy = actor.userId;
   return withTenantContext(tenantId, async (tx) => {
-    const count = await lockDraftSheet(tx, tenantId, input.stockCountId);
+    const count = await lockDraftSheet(tx, tenantId, input.stockCountId, actor.reach);
     await assertRefBelongsToTenant(tx, tenantId, "product", input.productId);
     await assertUnitsOfProduct(tx, input.productId, input.entries);
 
@@ -616,10 +632,11 @@ export async function saveStockCountLineLogic(
 export async function editStockCountContributionLogic(
   tenantId: string,
   input: EditStockCountContributionInput,
-  userId: string
+  actor: CountActor
 ): Promise<StockCountDetail> {
+  const userId = actor.userId;
   return withTenantContext(tenantId, async (tx) => {
-    const count = await lockDraftSheet(tx, tenantId, input.stockCountId);
+    const count = await lockDraftSheet(tx, tenantId, input.stockCountId, actor.reach);
     const contribution = await tx.stockCountContribution.findFirst({
       where: { id: input.contributionId, tenantId, item: { stockCountId: count.id } },
       select: {
@@ -651,10 +668,11 @@ export async function deleteStockCountContributionLogic(
   tenantId: string,
   stockCountId: string,
   contributionId: string,
-  userId: string
+  actor: CountActor
 ): Promise<StockCountDetail> {
+  const userId = actor.userId;
   return withTenantContext(tenantId, async (tx) => {
-    const count = await lockDraftSheet(tx, tenantId, stockCountId);
+    const count = await lockDraftSheet(tx, tenantId, stockCountId, actor.reach);
     const contribution = await tx.stockCountContribution.findFirst({
       where: { id: contributionId, tenantId, item: { stockCountId: count.id } },
       select: { id: true, countedBy: true, stockCountItemId: true },
@@ -681,7 +699,7 @@ export async function deleteStockCountLineLogic(
   actor: CountActor
 ): Promise<StockCountDetail> {
   return withTenantContext(tenantId, async (tx) => {
-    const count = await lockDraftSheet(tx, tenantId, stockCountId);
+    const count = await lockDraftSheet(tx, tenantId, stockCountId, actor.reach);
     if (!actor.canCloseAny && count.startedBy !== actor.userId) {
       throw new NotCountHostError(count.id);
     }
@@ -722,7 +740,7 @@ export async function closeStockCountLogic(
       // lines and posting them (ADR 0034 Q3).
       await tx.$queryRaw`SELECT id FROM stock_count WHERE id = ${input.id}::uuid FOR UPDATE`;
       const count = await tx.stockCount.findFirst({
-        where: { id: input.id, tenantId, deletedAt: null },
+        where: { id: input.id, tenantId, deletedAt: null, ...inReach(actor.reach) },
         include: { items: true },
       });
       if (!count) throw new StockCountNotFoundError(input.id);
@@ -787,7 +805,7 @@ export async function voidStockCountLogic(
     tenantId,
     async (tx) => {
       const count = await tx.stockCount.findFirst({
-        where: { id: input.id, tenantId, deletedAt: null },
+        where: { id: input.id, tenantId, deletedAt: null, ...inReach(actor.reach) },
         include: { items: true },
       });
       if (!count) throw new StockCountNotFoundError(input.id);
@@ -856,7 +874,7 @@ export async function deleteStockCountDraftLogic(
 ): Promise<StockCount> {
   return withTenantContext(tenantId, async (tx) => {
     const count = await tx.stockCount.findFirst({
-      where: { id, tenantId, deletedAt: null },
+      where: { id, tenantId, deletedAt: null, ...inReach(actor.reach) },
       select: { id: true, status: true, startedBy: true },
     });
     if (!count) throw new StockCountNotFoundError(id);

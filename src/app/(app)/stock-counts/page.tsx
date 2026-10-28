@@ -39,7 +39,7 @@ export default async function StockCountListPage({
   const parsed = getStockCountsQuerySchema.safeParse({ branchId: branch, status });
   const query = parsed.success ? parsed.data : {};
 
-  const rows = (await getStockCountsLogic(tenantId, query)).map(toStockCountListView);
+  const rows = (await getStockCountsLogic(tenantId, query, reach)).map(toStockCountListView);
   const openSheet = rows.find((r) => r.status === "DRAFT");
 
   // Part 18 Q7: counting a branch while a truck is still moving finds a shortage

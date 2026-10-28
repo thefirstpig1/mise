@@ -39,6 +39,8 @@ import {
   deleteStockCountLineLogic,
   editStockCountContributionLogic,
   getStockCountByIdLogic,
+  getStockCountsLogic,
+  StockCountNotFoundError,
   NotCountHostError,
   NotYourContributionError,
   getUncountedStockedCountLogic,
@@ -70,8 +72,12 @@ describe("stock count *Logic (the document that reconciles the ledger)", () => {
       })
     );
 
+  /** Every branch — the reach of the people in the tests that are not about reach. */
+  const ALL = { allBranches: true, allowedBranchIds: [] as string[] };
+  /** Who is acting (ADR 0034 Q5 + rule A5): a person, whether they hold count:close, and where they may act. */
+  const as = (userId: string, canCloseAny = false, reach = ALL) => ({ userId, canCloseAny, reach });
   /** userA opens every sheet in this file, so userA is its host (ADR 0034 Q5). */
-  const host = () => ({ userId: userA, canCloseAny: false });
+  const host = () => as(userA);
 
   const unitOf = (p: ProductWithUnits, name: string) =>
     p.productUnits.find((u) => u.unitName === name)!.id;
@@ -124,7 +130,7 @@ describe("stock count *Logic (the document that reconciles the ledger)", () => {
         })),
         notes: null,
       }),
-      by
+      as(by)
     );
 
   const balanceOf = async (p: ProductWithUnits, branchId = branchA) =>
@@ -470,7 +476,7 @@ describe("stock count *Logic (the document that reconciles the ledger)", () => {
           entries: [{ productUnitId: unitOf(other, "kg"), qtyInUnit: 1 }],
           notes: null,
         }),
-        userA
+        as(userA)
       )
     ).rejects.toBeInstanceOf(CountUnitMismatchError);
 
@@ -529,7 +535,7 @@ describe("stock count *Logic (the document that reconciles the ledger)", () => {
           entries: [{ productUnitId: unitOf(p, "kg"), qtyInUnit: 99 }],
           notes: null,
         }),
-        userA
+        as(userA)
       )
     ).rejects.toBeInstanceOf(NotYourContributionError);
 
@@ -541,7 +547,7 @@ describe("stock count *Logic (the document that reconciles the ledger)", () => {
         entries: [{ productUnitId: unitOf(p, "กระสอบ"), qtyInUnit: 1 }],
         notes: "ของเสีย 1 ถุง",
       }),
-      userA
+      as(userA)
     );
     const line = lineOf(edited, p);
     expect(num(line.qtyCounted)).toBe(27); // 1 กระสอบ (25) + 2 kg
@@ -557,10 +563,10 @@ describe("stock count *Logic (the document that reconciles the ledger)", () => {
     const mine = lineOf(first, p).contributions[0];
 
     await expect(
-      deleteStockCountContributionLogic(tenantA, sheet.id, mine.id, userB)
+      deleteStockCountContributionLogic(tenantA, sheet.id, mine.id, as(userB))
     ).rejects.toBeInstanceOf(NotYourContributionError);
 
-    const after = await deleteStockCountContributionLogic(tenantA, sheet.id, mine.id, userA);
+    const after = await deleteStockCountContributionLogic(tenantA, sheet.id, mine.id, as(userA));
     expect(after.items.filter((i) => i.productId === p.id)).toHaveLength(0);
 
     await deleteStockCountDraftLogic(tenantA, sheet.id, host());
@@ -599,8 +605,8 @@ describe("stock count *Logic (the document that reconciles the ledger)", () => {
     await seed(p, 10);
     const sheet = await openSheet(); // host = userA
     const saved = await countLine(sheet.id, p, [{ unit: "kg", qty: 7 }], "new", userB);
-    const cook = { userId: userB, canCloseAny: false };
-    const head = { userId: userB, canCloseAny: true };
+    const cook = as(userB);
+    const head = as(userB, true);
 
     await expect(
       deleteStockCountLineLogic(tenantA, sheet.id, lineOf(saved, p).id, cook)
@@ -645,5 +651,70 @@ describe("stock count *Logic (the document that reconciles the ledger)", () => {
 
     await closeStockCountLogic(tenantA, closeStockCountInputSchema.parse({ id: sheet.id }), host());
     expect(await balanceOf(p)).toBe(15); // matched — nothing posted
+  });
+
+  it("N18: a sheet outside the actor's branches is not there for them — not to read in the list, not to write (rule A5)", async () => {
+    const p = await freshProduct("N18");
+    const sheet = await openSheet(); // branchA, host = userA
+    const counted = await countLine(sheet.id, p, [{ unit: "kg", qty: 4 }]);
+    const line = lineOf(counted, p);
+    // Holds count:close, so the ONLY thing that can refuse them is reach.
+    const elsewhere = as(userB, true, { allBranches: false, allowedBranchIds: [branchA2] });
+
+    const listed = await getStockCountsLogic(tenantA, {}, elsewhere.reach);
+    expect(listed.some((c) => c.id === sheet.id)).toBe(false);
+    expect((await getStockCountsLogic(tenantA, {}, ALL)).some((c) => c.id === sheet.id)).toBe(true);
+
+    await expect(
+      saveStockCountLineLogic(
+        tenantA,
+        saveStockCountLineInputSchema.parse({
+          stockCountId: sheet.id,
+          productId: p.id,
+          mode: "add",
+          entries: [{ productUnitId: unitOf(p, "kg"), qtyInUnit: 1 }],
+          notes: null,
+        }),
+        elsewhere
+      )
+    ).rejects.toBeInstanceOf(StockCountNotFoundError);
+    await expect(
+      editStockCountContributionLogic(
+        tenantA,
+        editStockCountContributionInputSchema.parse({
+          stockCountId: sheet.id,
+          contributionId: line.contributions[0].id,
+          entries: [{ productUnitId: unitOf(p, "kg"), qtyInUnit: 9 }],
+          notes: null,
+        }),
+        elsewhere
+      )
+    ).rejects.toBeInstanceOf(StockCountNotFoundError);
+    await expect(
+      deleteStockCountContributionLogic(tenantA, sheet.id, line.contributions[0].id, elsewhere)
+    ).rejects.toBeInstanceOf(StockCountNotFoundError);
+    await expect(deleteStockCountLineLogic(tenantA, sheet.id, line.id, elsewhere)).rejects.toBeInstanceOf(
+      StockCountNotFoundError
+    );
+    await expect(deleteStockCountDraftLogic(tenantA, sheet.id, elsewhere)).rejects.toBeInstanceOf(
+      StockCountNotFoundError
+    );
+    await expect(
+      closeStockCountLogic(tenantA, closeStockCountInputSchema.parse({ id: sheet.id }), elsewhere)
+    ).rejects.toBeInstanceOf(StockCountNotFoundError);
+
+    await closeStockCountLogic(tenantA, closeStockCountInputSchema.parse({ id: sheet.id }), host());
+    await expect(
+      voidStockCountLogic(
+        tenantA,
+        voidStockCountInputSchema.parse({ id: sheet.id, voidReason: "ทดสอบ" }),
+        elsewhere
+      )
+    ).rejects.toBeInstanceOf(StockCountNotFoundError);
+    await voidStockCountLogic(
+      tenantA,
+      voidStockCountInputSchema.parse({ id: sheet.id, voidReason: "ทดสอบ" }),
+      host()
+    );
   });
 });

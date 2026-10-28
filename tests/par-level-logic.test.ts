@@ -168,12 +168,12 @@ describe("par level *Logic (knowing before you run out)", () => {
         entries: [{ productUnitId: unitOf(p, "kg"), qtyInUnit: qty }],
         notes: null,
       }),
-      userA
+      { userId: userA, canCloseAny: false, reach: { allBranches: true, allowedBranchIds: [] } }
     );
     return closeStockCountLogic(
       tenantA,
       closeStockCountInputSchema.parse({ id: sheet.id }),
-      { userId: userA, canCloseAny: false }
+      { userId: userA, canCloseAny: false, reach: { allBranches: true, allowedBranchIds: [] } }
     );
   };
 
