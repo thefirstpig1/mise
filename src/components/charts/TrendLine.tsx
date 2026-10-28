@@ -28,7 +28,8 @@ export type TrendLineProps = {
   values: (number | null)[];
   color: string;
   height?: number;
-  axis: (v: number) => string;
+  /** `step` is the gap between ticks, so a formatter can keep enough digits to tell them apart. */
+  axis: (v: number, step: number) => string;
   tip: (v: number) => string;
   rows?: (i: number) => { label: string; value: string; tone?: "good" | "bad" }[];
   onPick?: (i: number) => void;
@@ -192,7 +193,7 @@ export default function TrendLine(props: TrendLineProps) {
           <g key={t}>
             <line x1={L} x2={W - R} y1={y(t)} y2={y(t)} stroke={GRID} strokeWidth={1} />
             <text x={L - 8} y={y(t) + 4} textAnchor="end" fontSize={11} fill={INK_MUTED}>
-              {axis(t)}
+              {axis(t, step)}
             </text>
           </g>
         ))}
@@ -207,7 +208,7 @@ export default function TrendLine(props: TrendLineProps) {
           <g>
             <line x1={L} x2={W - R} y1={y(mean)} y2={y(mean)} stroke={INK_MUTED} strokeDasharray="4 4" opacity={0.55} />
             <text x={W - R} y={y(mean) - 6} textAnchor="end" fontSize={11} fill={INK_MUTED}>
-              เฉลี่ย {axis(mean)}
+              เฉลี่ย {axis(mean, step)}
             </text>
           </g>
         )}

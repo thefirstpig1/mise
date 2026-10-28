@@ -46,14 +46,18 @@ const shortMonth = (key: string) => {
   const label = monthLabelTh(key);
   return key.endsWith("-01") || key.endsWith("-12") ? label : label.replace(/\s\d{2}$/, "");
 };
-export const bahtCompact = (v: number) =>
-  Math.abs(v) >= 1000 ? `฿${(Math.round(v / 100) / 10).toLocaleString("th-TH")}K` : `฿${Math.round(v).toLocaleString("th-TH")}`;
+// "฿1.1K" only while ticks are ฿100 or more apart — closer ticks all round to
+// the same label (a ฿1,040–1,100 axis read ฿1.1K four times), so print them whole.
+export const bahtCompact = (v: number, step = Infinity) =>
+  Math.abs(v) >= 1000 && step >= 100
+    ? `฿${(Math.round(v / 100) / 10).toLocaleString("th-TH")}K`
+    : `฿${Math.round(v).toLocaleString("th-TH")}`;
 export const bahtFull = (v: number) => `฿${Math.round(v).toLocaleString("th-TH")}`;
 export const METRIC_TH: Record<TrendMetric, string> = { net: "ยอดขาย", qty: "จำนวนจาน", profit: "กำไร" };
 
 export function metricFmt(metric: TrendMetric) {
   return metric === "qty"
-    ? { axis: (v: number) => v.toFixed(0), tip: (v: number) => `${v.toFixed(1)} จาน/วัน`, big: (v: number) => v.toFixed(1), unit: "จาน/วัน" }
+    ? { axis: (v: number, step: number) => v.toFixed(step < 1 ? 1 : 0), tip: (v: number) => `${v.toFixed(1)} จาน/วัน`, big: (v: number) => v.toFixed(1), unit: "จาน/วัน" }
     : { axis: bahtCompact, tip: (v: number) => `${bahtFull(v)}/วัน`, big: bahtFull, unit: "/วัน" };
 }
 
