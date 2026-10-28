@@ -116,7 +116,7 @@ export default function MappingListSection({
           {perspective === "product" && productId && (
             <a
               href={`/products/${productId}/mappings/new`}
-              className="shrink-0 rounded-lg border border-border px-3 py-1.5 text-sm hover:bg-muted/40"
+              className="btn-secondary btn-sm shrink-0"
             >
               + เพิ่มรายการราคา
             </a>
@@ -128,7 +128,7 @@ export default function MappingListSection({
         <p className="text-sm text-muted-foreground">{copy.empty}</p>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table>
             <thead>
               <tr className="border-b border-border text-left text-xs text-muted-foreground">
                 <th className="py-2 pr-4 font-medium">{copy.nameHeader}</th>

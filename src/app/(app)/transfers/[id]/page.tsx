@@ -112,30 +112,30 @@ export default async function TransferDetailPage({
         </div>
       </dl>
 
-      <div className="overflow-x-auto rounded-lg border border-border">
-        <table className="w-full text-sm">
+      <div className="data-table">
+        <table>
           <thead className="bg-muted/40 text-left">
             <tr>
-              <th className="px-3 py-2 font-medium">วัตถุดิบ</th>
-              <th className="px-3 py-2 text-right font-medium">ส่ง</th>
-              <th className="px-3 py-2 text-right font-medium">รับจริง</th>
-              <th className="px-3 py-2 text-right font-medium">หาย</th>
-              <th className="px-3 py-2 text-right font-medium">มูลค่า (฿)</th>
+              <th>วัตถุดิบ</th>
+              <th className="text-right">ส่ง</th>
+              <th className="text-right">รับจริง</th>
+              <th className="text-right">หาย</th>
+              <th className="text-right">มูลค่า (฿)</th>
             </tr>
           </thead>
           <tbody>
             {liveLines.map((l) => (
-              <tr key={l.id} className="border-t border-border">
-                <td className="px-3 py-2">
+              <tr key={l.id}>
+                <td>
                   {l.product.name}
                   <span className="block text-xs text-muted-foreground">
                     {l.product.sku}
                   </span>
                 </td>
-                <td className="px-3 py-2 text-right">
+                <td className="text-right">
                   {l.qtySent} {l.inputUnitName}
                 </td>
-                <td className="px-3 py-2 text-right">
+                <td className="text-right">
                   {/* NULL and 0 must stay distinguishable all the way here: one
                       means nobody counted, the other means nothing arrived. */}
                   {l.qtyReceived === null ? (
@@ -151,7 +151,7 @@ export default async function TransferDetailPage({
                     `${l.qtyReceived} ${l.inputUnitName}`
                   )}
                 </td>
-                <td className="px-3 py-2 text-right">
+                <td className="text-right">
                   {l.qtyMissingBase !== null ? (
                     Number(l.qtyMissingBase) === 0 ? (
                       <span className="text-muted-foreground">—</span>
@@ -168,7 +168,7 @@ export default async function TransferDetailPage({
                     </span>
                   )}
                 </td>
-                <td className="px-3 py-2 text-right">
+                <td className="text-right">
                   {/* Blank would read as free, and ฿0 as free too — both are
                       claims about the goods. This is about the reader. */}
                   {l.costTotal === null ? (
@@ -189,10 +189,10 @@ export default async function TransferDetailPage({
           </tbody>
           <tfoot className="border-t border-border bg-muted/20">
             <tr>
-              <td className="px-3 py-2 font-medium" colSpan={4}>
+              <td colSpan={4}>
                 รวม {t.lineCount} รายการ
               </td>
-              <td className="px-3 py-2 text-right font-medium">
+              <td className="text-right">
                 {t.costHidden ? (
                   <span className="font-normal text-muted-foreground">
                     ไม่มีสิทธิ์ดู

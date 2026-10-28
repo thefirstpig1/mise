@@ -36,8 +36,8 @@ export default function SelectChip({
     <span
       onMouseEnter={m.start}
       onMouseLeave={m.stop}
-      className={`relative flex ${size === "sm" ? "h-8" : "h-9"} min-w-0 items-center rounded-full border pl-3 pr-7 text-sm transition-colors focus-within:border-primary ${
-        tone === "warn" ? "border-warn-border bg-warn-bg text-warn" : "border-border bg-surface-sunk hover:border-border-strong"
+      className={`relative flex ${size === "sm" ? "h-[34px] rounded-[10px]" : "h-[42px] rounded-xl"} min-w-0 items-center border pl-3 pr-7 text-sm transition-colors focus-within:border-primary ${
+        tone === "warn" ? "border-warn-border bg-warn-bg text-warn" : "border-border-strong bg-surface hover:border-primary"
       } ${selectProps?.disabled ? "opacity-60" : ""} ${className}`}
     >
       <Marquee marquee={m} title={label || placeholder} className={label ? "" : "text-muted-subtle"}>

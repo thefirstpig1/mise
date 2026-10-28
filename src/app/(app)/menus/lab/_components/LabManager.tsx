@@ -164,11 +164,11 @@ export default function LabManager(props: {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold">ทดลองเมนู</h2>
+          <h2 className="text-2xl font-semibold">ทดลองเมนู</h2>
           <p className="mt-1 text-sm text-muted-foreground">ลองคิดสูตรและราคาก่อนขายจริง ร่างยังไม่ตัดสต๊อกและยังไม่ถูกใช้คิดต้นทุนขาย จนกว่าจะกด “นำไปใช้จริง”</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <a href="/menus" className="whitespace-nowrap rounded-full border border-border-strong bg-surface px-3 py-1.5 text-sm hover:bg-muted">
+          <a href="/menus" className="btn-secondary btn-sm">
             จัดการเมนู
           </a>
           <button type="button" onClick={() => openDraft(null)} className="btn whitespace-nowrap">

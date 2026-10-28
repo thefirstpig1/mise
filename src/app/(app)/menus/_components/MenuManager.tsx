@@ -53,9 +53,7 @@ const STATUS: { key: Status; label: string }[] = [
 ];
 
 const chip = (on: boolean) =>
-  `whitespace-nowrap rounded-full border px-3 py-1 text-sm transition-colors ${
-    on ? "border-primary bg-primary text-primary-foreground" : "border-border-strong bg-surface hover:bg-muted"
-  }`;
+  `pill ${on ? "is-on" : ""}`;
 
 function Marked({ text, marks }: { text: string; marks: readonly number[] }) {
   return (
@@ -284,7 +282,7 @@ export default function MenuManager(props: {
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold">จัดการเมนู</h2>
+          <h2 className="text-2xl font-semibold">จัดการเมนู</h2>
           <p className="mt-1 text-sm text-muted-foreground">ทุกเมนูที่ร้านขาย พร้อมสูตรและต้นทุน กดที่แถวเพื่อดูและแก้ไขได้ในที่เดียว</p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -494,19 +492,19 @@ export default function MenuManager(props: {
           {visible.length === 0 ? (
             <EmptyState art="none">ไม่พบเมนูที่ตรงกับตัวกรอง</EmptyState>
           ) : (
-            <div className="overflow-x-auto rounded-2xl border border-border bg-surface">
-              <table className="w-full text-sm">
-                <thead className="bg-surface-sunk text-left text-xs text-muted-foreground">
+            <div className="data-table">
+              <table>
+                <thead>
                   <tr>
-                    <th className="px-4 py-2 font-medium">เมนู</th>
-                    <th className="px-4 py-2 text-right font-medium">ขาย {factDays} วัน</th>
-                    <th className="px-4 py-2 text-right font-medium">ราคาเฉลี่ย</th>
-                    {!costHidden && <th className="px-4 py-2 text-right font-medium">ต้นทุนต่อจาน</th>}
-                    {!costHidden && <th className="px-4 py-2 font-medium">ต้นทุน % ของราคา</th>}
-                    <th className="px-4 py-2 font-medium">สูตร</th>
+                    <th className="px-4 py-2">เมนู</th>
+                    <th className="px-4 py-2 text-right">ขาย {factDays} วัน</th>
+                    <th className="px-4 py-2 text-right">ราคาเฉลี่ย</th>
+                    {!costHidden && <th className="px-4 py-2 text-right">ต้นทุนต่อจาน</th>}
+                    {!costHidden && <th className="px-4 py-2">ต้นทุน % ของราคา</th>}
+                    <th className="px-4 py-2">สูตร</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border">
+                <tbody>
                   {visible.map((r, i) => {
                     const m = r.item;
                     const weak = searching && r.score < STRONG_MATCH;

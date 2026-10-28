@@ -24,8 +24,8 @@ type Props = Omit<InputHTMLAttributes<HTMLInputElement>, "type" | "size"> & {
 };
 
 const box = (tone: Props["tone"], disabled?: boolean, size: Props["size"] = "md") =>
-  `inline-flex ${size === "sm" ? "h-8 text-sm" : "h-9"} items-center gap-1.5 rounded-[10px] border px-2.5 transition-colors focus-within:border-primary ${
-    tone === "warn" ? "border-warn-border bg-warn-bg" : tone === "bad" ? "border-bad-border bg-bad-bg" : "border-border bg-background"
+  `inline-flex ${size === "sm" ? "h-[34px] rounded-[10px] text-sm" : "h-[42px] rounded-xl"} items-center gap-1.5 border px-3 transition-colors focus-within:border-primary ${
+    tone === "warn" ? "border-warn-border bg-warn-bg" : tone === "bad" ? "border-bad-border bg-bad-bg" : "border-border-strong bg-surface"
   } ${disabled ? "opacity-60" : ""}`;
 const field =
   "w-0 min-w-0 flex-1 bg-transparent text-right font-display tabular-nums text-foreground placeholder:text-muted-subtle focus:outline-none";

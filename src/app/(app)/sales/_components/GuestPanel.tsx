@@ -60,7 +60,7 @@ export default function GuestPanel({ rows, periodLabel }: { rows: GuestDay[]; pe
         <h3 className="font-semibold">จานต่อลูกค้า และต่อหัว รายสัปดาห์</h3>
         <p className="text-xs text-muted-subtle">ต่อหัวขึ้นเพราะสั่งเยอะขึ้น หรือเพราะราคาขึ้น — จานต่อคนแยกสองเรื่องนี้ออกจากกัน</p>
         <table className="mt-2 w-full text-sm">
-          <thead className="text-left text-xs text-muted-foreground">
+          <thead>
             <tr>
               <th className="py-1.5 font-medium">สัปดาห์</th>
               <th className="py-1.5 text-right font-medium">ลูกค้า/วัน</th>

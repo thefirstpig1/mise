@@ -70,7 +70,7 @@ const num = (s: string) => {
 const money = (v: number) =>
   v.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const chip = (active: boolean) =>
-  `rounded-full border px-3 py-1 text-sm transition-colors ${active ? "border-primary bg-primary text-primary-foreground" : "border-border-strong bg-surface hover:bg-muted"}`;
+  `pill ${active ? "is-on" : ""}`;
 
 export default function SupplierCatalog({
   supplier,
@@ -296,7 +296,7 @@ export default function SupplierCatalog({
 
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold">สั่งซื้อจาก {supplier.nameFull}</h2>
+          <h2 className="text-2xl font-semibold">สั่งซื้อจาก {supplier.nameFull}</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             เลือกจำนวนสินค้าที่ต้องการ แล้วกดสร้างใบสั่งซื้อ ระบบจะบันทึกเป็นร่างให้ตรวจก่อนส่ง
           </p>

@@ -69,7 +69,7 @@ export default async function TransfersPage({
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold">ใบโอน</h2>
+          <h2 className="text-2xl font-semibold">ใบโอน</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             ของถูกตัดจากสาขาต้นทางและเข้าสาขาปลายทางตั้งแต่กดส่ง — การกดรับคือการยืนยันว่ามีคนปลายทางนับของแล้ว
           </p>
@@ -133,7 +133,7 @@ export default async function TransfersPage({
 
         <button
           type="submit"
-          className="rounded-lg border border-border px-4 py-2 text-sm hover:bg-muted/40"
+          className="btn-secondary"
         >
           กรอง
         </button>

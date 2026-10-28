@@ -131,7 +131,7 @@ function PendingRow({
               type="button"
               disabled={busy}
               onClick={() => setRejecting(true)}
-              className="rounded-lg border border-border px-3 py-2 text-sm hover:bg-muted"
+              className="btn-secondary"
             >
               ไม่อนุมัติ
             </button>

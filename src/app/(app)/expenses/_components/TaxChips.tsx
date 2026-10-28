@@ -17,11 +17,7 @@
 import { PAYMENT_METHODS } from "@/lib/expense-labels";
 
 const chipCls = (on: boolean, disabled?: boolean) =>
-  `inline-flex h-10 items-center whitespace-nowrap rounded-full border px-4 text-sm transition-colors ${
-    on
-      ? "border-primary bg-primary text-primary-foreground"
-      : "border-border-strong bg-surface hover:border-primary-line"
-  } ${disabled ? "cursor-default opacity-60" : ""}`;
+  `pill h-10 px-4 text-sm ${on ? "is-on" : ""} ${disabled ? "cursor-default opacity-60" : ""}`;
 
 export function Chips<T extends string>({
   options,

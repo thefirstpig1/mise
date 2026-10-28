@@ -56,29 +56,29 @@ export default function StockCardTable({
           ))}
         </div>
       )}
-      <div className="overflow-x-auto rounded-2xl border border-border bg-surface">
+      <div className="data-table">
         <table className="w-full min-w-[640px] text-sm">
-          <thead className="border-b border-border text-left text-xs text-muted-foreground">
+          <thead>
             <tr>
-              <th className="px-3 py-2 font-medium">วันที่</th>
-              <th className="px-3 py-2 font-medium">เกิดจาก</th>
-              <th className="px-3 py-2 text-right font-medium">เข้า</th>
-              <th className="px-3 py-2 text-right font-medium">ออก</th>
-              <th className="px-3 py-2 text-right font-medium">คงเหลือ</th>
-              {showCost && <th className="px-3 py-2 text-right font-medium">มูลค่าที่ออก ฿</th>}
+              <th>วันที่</th>
+              <th>เกิดจาก</th>
+              <th className="text-right">เข้า</th>
+              <th className="text-right">ออก</th>
+              <th className="text-right">คงเหลือ</th>
+              {showCost && <th className="text-right">มูลค่าที่ออก ฿</th>}
             </tr>
           </thead>
-          <tbody className="divide-y divide-border tabular-nums">
+          <tbody className="tabular-nums">
             <tr className="bg-muted/30">
-              <td className="px-3 py-2 font-medium" colSpan={4}>
+              <td colSpan={4}>
                 ยอดยกมา {day(from)}
               </td>
-              <td className="px-3 py-2 text-right font-semibold">{q(card.opening)}</td>
+              <td className="text-right font-semibold">{q(card.opening)}</td>
               {showCost && <td />}
             </tr>
             {shown.map((r) => (
               <tr key={r.id} className="group relative hover:bg-muted/50">
-                <td className="px-3 py-2 whitespace-nowrap">
+                <td className="whitespace-nowrap">
                   {r.doc?.href ? (
                     <a href={r.doc.href} className="after:absolute after:inset-0 after:content-['']">
                       {day(r.date)}
@@ -87,22 +87,22 @@ export default function StockCardTable({
                     day(r.date)
                   )}
                 </td>
-                <td className="px-3 py-2">
+                <td>
                   {label(MOVEMENT_TYPE_LABELS_TH, r.type)}
                   <span className="ml-1.5 rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">{r.doc?.label ?? label(SOURCE_TYPE_LABELS_TH, r.sourceType)}</span>
                   {r.by && <span className="ml-1.5 text-xs text-muted-subtle">· {r.by}</span>}
                 </td>
-                <td className="px-3 py-2 text-right text-good">{r.qty > 0 ? `+${q(r.qty)}` : ""}</td>
-                <td className="px-3 py-2 text-right text-bad">{r.qty < 0 ? q(-r.qty) : ""}</td>
-                <td className="px-3 py-2 text-right font-semibold">{q(r.balance)}</td>
-                {showCost && <td className="px-3 py-2 text-right text-muted-foreground">{r.value === null ? "" : r.value.toLocaleString("th-TH", { maximumFractionDigits: 0 })}</td>}
+                <td className="text-right text-good">{r.qty > 0 ? `+${q(r.qty)}` : ""}</td>
+                <td className="text-right text-bad">{r.qty < 0 ? q(-r.qty) : ""}</td>
+                <td className="text-right font-semibold">{q(r.balance)}</td>
+                {showCost && <td className="text-right text-muted-foreground">{r.value === null ? "" : r.value.toLocaleString("th-TH", { maximumFractionDigits: 0 })}</td>}
               </tr>
             ))}
             <tr className="bg-muted/30">
-              <td className="px-3 py-2 font-medium" colSpan={4}>
+              <td colSpan={4}>
                 ยอดปลายช่วง {day(to)}
               </td>
-              <td className="px-3 py-2 text-right font-semibold">{q(card.closing)}</td>
+              <td className="text-right font-semibold">{q(card.closing)}</td>
               {showCost && <td />}
             </tr>
           </tbody>

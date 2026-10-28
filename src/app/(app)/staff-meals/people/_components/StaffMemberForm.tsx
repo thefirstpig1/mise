@@ -190,7 +190,7 @@ export function EditStaffMemberRow({
       <button
         type="submit"
         disabled={isPending}
-        className="rounded-lg border border-border px-3 py-2 text-sm hover:bg-muted disabled:opacity-50"
+        className="btn-secondary"
       >
         {isPending ? "…" : "บันทึก"}
       </button>

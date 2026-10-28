@@ -77,7 +77,7 @@ export default async function EditRecurringExpensePage({
           ]}
           here={template.description}
         />
-        <h2 className="mt-1 text-xl font-bold">{template.description}</h2>
+        <h2 className="mt-1 text-2xl font-semibold">{template.description}</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           {template.branchName} · ทุกวันที่ {template.dayOfMonth} · ยอดตั้งต้น ฿
           {formatMoney(template.defaultAmount)}

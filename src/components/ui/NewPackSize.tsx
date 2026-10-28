@@ -159,7 +159,7 @@ export default function NewPackSize({
           )}
           {error && <p className="text-sm text-bad">{error}</p>}
           <div className="flex justify-end gap-2 pt-1">
-            <button type="button" onClick={onClose} className="rounded-full border border-border-strong px-4 py-1.5 text-sm hover:bg-muted">
+            <button type="button" onClick={onClose} className="btn-secondary btn-sm">
               ยกเลิก
             </button>
             <button type="button" onClick={save} disabled={busy || !name || ratio === null || (needPrice && !(Number(price) >= 0 && price.trim() !== ""))} className="btn">

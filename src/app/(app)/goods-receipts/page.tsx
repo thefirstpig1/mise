@@ -61,17 +61,13 @@ export default async function GoodsReceiptsPage({
   };
 
   const chip = (active: boolean) =>
-    `rounded-lg border px-3 py-1.5 text-sm ${
-      active
-        ? "border-primary bg-primary/10 font-medium text-primary"
-        : "border-border text-muted-foreground hover:text-foreground"
-    }`;
+    `seg-item ${active ? "is-on" : ""}`;
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold">ใบรับสินค้า</h2>
+          <h2 className="text-2xl font-semibold">ใบรับสินค้า</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             ร่างยังไม่เข้าคลัง — กดยืนยันรับของแล้วสต๊อกจะเพิ่มทันที และแก้ไม่ได้อีก
           </p>
@@ -90,7 +86,7 @@ export default async function GoodsReceiptsPage({
         </div>
       )}
 
-      <div className="flex flex-wrap gap-1">
+      <div className="seg">
         <FilterLink href={linkFor({ status: "", flagged: "" })} className={chip(!query.status && !query.discrepancyOnly)}>
           ทั้งหมด
         </FilterLink>
@@ -108,7 +104,7 @@ export default async function GoodsReceiptsPage({
       </div>
 
       {branches.length > 1 && (
-        <div className="flex flex-wrap gap-1">
+        <div className="seg">
           <FilterLink href={linkFor({ branch: "" })} className={chip(!query.branchId)}>
             ทุกสาขา
           </FilterLink>
@@ -129,17 +125,17 @@ export default async function GoodsReceiptsPage({
           ยังไม่มีใบรับสินค้าตามเงื่อนไขนี้
         </EmptyState>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-border">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/40 text-left text-xs text-muted-foreground">
+        <div className="data-table">
+          <table>
+            <thead>
               <tr>
-                <th className="px-3 py-2 font-medium">เลขที่</th>
-                <th className="px-3 py-2 font-medium">ผู้ขาย</th>
-                <th className="px-3 py-2 font-medium">ใบสั่งซื้อ</th>
-                <th className="px-3 py-2 font-medium">สาขา</th>
-                <th className="px-3 py-2 text-right font-medium">รายการ</th>
-                <th className="px-3 py-2 font-medium">รับเมื่อ</th>
-                <th className="px-3 py-2 font-medium">สถานะ</th>
+                <th>เลขที่</th>
+                <th>ผู้ขาย</th>
+                <th>ใบสั่งซื้อ</th>
+                <th>สาขา</th>
+                <th className="text-right">รายการ</th>
+                <th>รับเมื่อ</th>
+                <th>สถานะ</th>
               </tr>
             </thead>
             <tbody>
@@ -148,12 +144,12 @@ export default async function GoodsReceiptsPage({
                 // link (its ::after covers the row) keeps the PO number its own link.
                 <tr
                   key={gr.id}
-                  className="group relative border-t border-border transition-colors hover:bg-muted/40"
+                  className="group relative transition-colors hover:bg-surface-sunk"
                 >
-                  <td className="px-3 py-2">
+                  <td>
                     <a
                       href={`/goods-receipts/${gr.id}`}
-                      className="font-medium text-primary after:absolute after:inset-0 after:content-['']"
+                      className="whitespace-nowrap font-semibold text-foreground after:absolute after:inset-0 after:content-['']"
                     >
                       {gr.grNumber}
                     </a>
@@ -163,13 +159,13 @@ export default async function GoodsReceiptsPage({
                       </div>
                     )}
                   </td>
-                  <td className="px-3 py-2">
+                  <td>
                     {gr.supplierName}
                     {gr.supplierDeleted && (
                       <span className="ml-1 text-xs text-warn">(ถูกลบแล้ว)</span>
                     )}
                   </td>
-                  <td className="px-3 py-2 text-muted-foreground">
+                  <td className="text-muted-foreground">
                     {gr.poNumber ? (
                       <a
                         href={`/purchase-orders/${gr.purchaseOrderId}`}
@@ -181,15 +177,15 @@ export default async function GoodsReceiptsPage({
                       <span title="รับของโดยไม่มีใบสั่งซื้อ">ซื้อสด</span>
                     )}
                   </td>
-                  <td className="px-3 py-2 text-muted-foreground">{gr.branchName}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">{gr.lineCount}</td>
-                  <td className="px-3 py-2 text-muted-foreground">
+                  <td className="text-muted-foreground">{gr.branchName}</td>
+                  <td className="text-right tabular-nums">{gr.lineCount}</td>
+                  <td className="text-muted-foreground">
                     {gr.receivedAtLabel}
                   </td>
                   <td className="space-x-1 px-3 py-2">
                     <StatusBadge status={gr.status} />
                     {gr.hasDiscrepancy && (
-                      <span className="inline-block whitespace-nowrap rounded-full border border-warn-border bg-warn-bg px-2 py-0.5 text-xs font-medium text-warn">
+                      <span className="chip chip-warn">
                         ต้องตรวจสอบ
                       </span>
                     )}

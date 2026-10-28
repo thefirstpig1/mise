@@ -70,7 +70,7 @@ export default async function StockAdjustPage({ searchParams }: { searchParams: 
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-bold">ปรับสต๊อก</h2>
+        <h2 className="text-2xl font-semibold">ปรับสต๊อก</h2>
         {/* Part 17 Q4 retired ของเสีย/ของชำรุด from this form; this line still
             advertised them, which is worse than a stale comment — it promises
             the user an option that is not in the dropdown below it. */}

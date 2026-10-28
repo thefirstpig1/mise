@@ -151,15 +151,15 @@ export function ConsumptionDayTable({
         )}
       </form>
 
-      <div className="overflow-x-auto rounded-lg border border-border">
-        <table className="w-full text-sm">
+      <div className="data-table">
+        <table>
           <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
             <tr>
-              <th className="px-3 py-2">วันขาย</th>
-              <th className="px-3 py-2 text-right">ยอดขาย</th>
-              <th className="px-3 py-2">สถานะ</th>
-              <th className="px-3 py-2 text-right">ครอบคลุม</th>
-              <th className="px-3 py-2" />
+              <th>วันขาย</th>
+              <th className="text-right">ยอดขาย</th>
+              <th>สถานะ</th>
+              <th className="text-right">ครอบคลุม</th>
+              <th />
             </tr>
           </thead>
           <tbody>
@@ -200,7 +200,7 @@ function DayRow({
   return (
     <>
       <tr className="border-t border-border align-top">
-        <td className="px-3 py-2">
+        <td>
           {day.businessDateLabel}
           {day.postedAtLabel && (
             <span className="block text-xs text-muted-foreground">
@@ -208,8 +208,8 @@ function DayRow({
             </span>
           )}
         </td>
-        <td className="px-3 py-2 text-right tabular-nums">{money(day.netAmount)}</td>
-        <td className="px-3 py-2">
+        <td className="text-right tabular-nums">{money(day.netAmount)}</td>
+        <td>
           <span
             className={`inline-block rounded border px-1.5 py-0.5 text-xs ${STATE_TONE[day.state]}`}
           >
@@ -219,10 +219,10 @@ function DayRow({
             {CONSUMPTION_DAY_STATE_HINTS_TH[day.state]}
           </span>
         </td>
-        <td className="px-3 py-2 text-right tabular-nums">
+        <td className="text-right tabular-nums">
           {day.coveragePercent === null ? "—" : `${day.coveragePercent}%`}
         </td>
-        <td className="px-3 py-2 text-right">
+        <td className="text-right">
           {hasDetail && (
             <button
               type="button"

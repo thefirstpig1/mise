@@ -70,9 +70,9 @@ export default function CostLayerTable({
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-border">
+    <div className="data-table">
       <table className="w-full min-w-[40rem]">
-        <thead className="border-b border-border bg-muted/40">
+        <thead>
           <tr>
             <th className={th}>เข้าเมื่อ</th>
             <th className={`${th} text-right`}>คงเหลือในล็อต</th>
@@ -81,7 +81,7 @@ export default function CostLayerTable({
             <th className={th}>ที่มาของราคา</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-border">
+        <tbody>
           {layers.map((l) => {
             const negative = Number(l.qty) < 0;
             const declarable = l.sourceType === "ADJUSTMENT";

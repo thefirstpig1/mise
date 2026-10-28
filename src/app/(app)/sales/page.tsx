@@ -171,7 +171,7 @@ export default async function SalesPage({
     label: new Date(`${m.key}-01T00:00:00Z`).toLocaleDateString("th-TH", { month: "short", year: "2-digit", timeZone: "UTC" }),
   }));
   const pill = (active: boolean) =>
-    `rounded-full border px-3 py-1 text-sm transition-colors ${active ? "border-primary bg-primary text-primary-foreground" : "border-border-strong bg-surface hover:bg-muted"}`;
+    `pill ${active ? "is-on" : ""}`;
   // What the one-line filter bar says once the full card has scrolled away.
   const monthPicked = months.find((m) => m.from === fromIso && m.to === toIso);
   const shortDate = (iso: string) =>
@@ -397,7 +397,7 @@ export default async function SalesPage({
             ))}
           </select>
         </label>
-        <button type="submit" className="rounded-lg border border-border px-4 py-2 text-sm">
+        <button type="submit" className="btn-secondary">
           ดู
         </button>
       </form>

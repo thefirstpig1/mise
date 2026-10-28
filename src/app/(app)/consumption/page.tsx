@@ -91,7 +91,7 @@ export default async function ConsumptionPage({
             <input type="hidden" name="to" value={to.toISOString().slice(0, 10)} />
             <button
               type="submit"
-              className="rounded-lg border border-border px-3 py-2 text-sm"
+              className="btn-secondary"
             >
               ดู
             </button>

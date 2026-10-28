@@ -37,7 +37,7 @@ export default async function RecurringExpensePage() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <Crumbs trail={[{ href: "/expenses", label: "ค่าใช้จ่าย" }]} here="รายการประจำ" />
-          <h2 className="mt-1 text-xl font-bold">รายการประจำ</h2>
+          <h2 className="mt-1 text-2xl font-semibold">รายการประจำ</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             ค่าใช้จ่ายที่มาทุกเดือน — ระบบจะเตือนว่าเดือนไหนยังไม่ได้บันทึก
             แต่ไม่บันทึกให้เอง เพราะยอดจริงแต่ละเดือนไม่เท่ากัน
@@ -56,18 +56,18 @@ export default async function RecurringExpensePage() {
           แล้วระบบจะเตือนทุกเดือน
         </EmptyState>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-border">
+        <div className="data-table">
           <table className="w-full min-w-[46rem]">
-            <thead className="border-b border-border bg-muted/40 text-left text-xs text-muted-foreground">
+            <thead>
               <tr>
-                <th className="px-3 py-2 font-medium">รายการ</th>
-                <th className="px-3 py-2 font-medium">หมวดบัญชี</th>
-                <th className="px-3 py-2 text-right font-medium">ยอดตั้งต้น</th>
-                <th className="px-3 py-2 font-medium">ครบกำหนด</th>
-                <th className="px-3 py-2 text-right font-medium">ยังไม่ได้บันทึก</th>
+                <th>รายการ</th>
+                <th>หมวดบัญชี</th>
+                <th className="text-right">ยอดตั้งต้น</th>
+                <th>ครบกำหนด</th>
+                <th className="text-right">ยังไม่ได้บันทึก</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
+            <tbody>
               {templates.map((t) => {
                 const periods = t.isActive ? (dueOf.get(t.id) ?? []) : [];
                 return (
@@ -75,10 +75,10 @@ export default async function RecurringExpensePage() {
                     key={t.id}
                     className={`group relative transition-colors hover:bg-muted/50 ${t.isActive ? "" : "opacity-60"}`}
                   >
-                    <td className="px-3 py-2">
+                    <td>
                       <a
                         href={`/expenses/recurring/${t.id}/edit`}
-                        className="font-medium text-primary after:absolute after:inset-0 after:content-['']"
+                        className="whitespace-nowrap font-semibold text-foreground after:absolute after:inset-0 after:content-['']"
                       >
                         {t.description}
                       </a>
@@ -88,14 +88,14 @@ export default async function RecurringExpensePage() {
                           : `ปิดใช้งานแล้ว · ${t.branchName}`}
                       </div>
                     </td>
-                    <td className="px-3 py-2 text-xs text-muted-foreground">
+                    <td className="text-xs text-muted-foreground">
                       {t.categoryLabel}
                     </td>
-                    <td className="px-3 py-2 text-right text-sm tabular-nums">
+                    <td className="text-right text-sm tabular-nums">
                       {formatMoney(t.defaultAmount)}
                     </td>
-                    <td className="px-3 py-2 text-sm">ทุกวันที่ {t.dayOfMonth}</td>
-                    <td className="px-3 py-2 text-right">
+                    <td className="text-sm">ทุกวันที่ {t.dayOfMonth}</td>
+                    <td className="text-right">
                       {!t.isActive ? (
                         <span className="text-xs text-muted-foreground">ไม่เตือนแล้ว</span>
                       ) : periods.length === 0 ? (

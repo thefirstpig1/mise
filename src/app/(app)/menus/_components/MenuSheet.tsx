@@ -677,12 +677,12 @@ export default function MenuSheet(props: {
             <h4 className="font-semibold">อื่น ๆ</h4>
             <div className="flex flex-wrap gap-2">
               {isOwnLine && perm.recipe && (
-                <button type="button" onClick={backToCentral} className="rounded-full border border-border-strong px-3 py-1 text-sm hover:bg-muted">
+                <button type="button" onClick={backToCentral} className="btn-secondary btn-sm">
                   กลับไปใช้สูตรกลาง
                 </button>
               )}
               {perm.editMenu && (
-                <a href={`/menus/merges?menu=${menu.id}`} className="rounded-full border border-border-strong px-3 py-1 text-sm hover:bg-muted">
+                <a href={`/menus/merges?menu=${menu.id}`} className="btn-secondary btn-sm">
                   รวมกับเมนูที่ซ้ำ
                 </a>
               )}
@@ -699,7 +699,7 @@ export default function MenuSheet(props: {
                       onGo: () => removeRecipe(false),
                     })
                   }
-                  className="rounded-full border border-bad-border px-3 py-1 text-sm text-bad hover:bg-bad-bg"
+                  className="btn-danger btn-sm"
                 >
                   ลบสูตร
                 </button>
@@ -717,7 +717,7 @@ export default function MenuSheet(props: {
                       onGo: () => removeMenu(false),
                     })
                   }
-                  className="rounded-full border border-bad-border px-3 py-1 text-sm text-bad hover:bg-bad-bg"
+                  className="btn-danger btn-sm"
                 >
                   ลบเมนู
                 </button>

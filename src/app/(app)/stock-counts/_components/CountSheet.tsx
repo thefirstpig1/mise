@@ -38,11 +38,7 @@ const NO_CATEGORY = "ไม่มีหมวด";
 type Show = "all" | "todo" | "done";
 
 const chip = (active: boolean, small = false) =>
-  `rounded-full border transition-colors ${small ? "px-2.5 py-0.5 text-xs" : "px-3 py-1 text-sm"} ${
-    active
-      ? "border-primary bg-primary text-primary-foreground"
-      : "border-border-strong bg-surface hover:bg-muted"
-  }`;
+  `pill ${small ? "h-7 px-2.5 text-xs" : ""} ${active ? "is-on" : ""}`;
 
 export default function CountSheet({
   initial,
@@ -528,7 +524,7 @@ export default function CountSheet({
                 >
                   {voiding ? "กำลังยกเลิก…" : "ยืนยันยกเลิก"}
                 </button>
-                <button type="button" onClick={() => setVoidOpen(false)} className="rounded-lg border border-border px-4 py-2 text-sm">
+                <button type="button" onClick={() => setVoidOpen(false)} className="btn-secondary">
                   ไม่ยกเลิก
                 </button>
               </div>

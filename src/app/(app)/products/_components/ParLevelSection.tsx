@@ -93,7 +93,7 @@ function BranchParForm({
           <button
             type="submit"
             disabled={setPending}
-            className="rounded-lg border border-border px-3 py-2 text-sm hover:bg-muted disabled:opacity-50"
+            className="btn-secondary"
           >
             {setPending ? "กำลังบันทึก…" : row.parLevelId ? "แก้ไข" : "ตั้งค่า"}
           </button>

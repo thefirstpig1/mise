@@ -21,7 +21,7 @@ export default async function EditCategoryPage({
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4">
-        <h2 className="text-xl font-bold">แก้ไขหมวดบัญชี</h2>
+        <h2 className="text-2xl font-semibold">แก้ไขหมวดบัญชี</h2>
         <DeleteCategoryButton id={category.id} />
       </div>
       <CategoryForm

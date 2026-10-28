@@ -499,7 +499,7 @@ export default function RequestBoard({
             >
               เพิ่มอีกรายการ
             </button>
-            <button type="button" className="rounded-lg border border-border px-4 py-2 text-sm" onClick={() => setDupes(null)}>
+            <button type="button" className="btn-secondary" onClick={() => setDupes(null)}>
               ไม่เพิ่ม
             </button>
           </div>
@@ -649,7 +649,7 @@ function Cart({
   return (
     <div className="mx-auto max-w-3xl space-y-4">
       <div>
-        <h2 className="text-xl font-bold">ใบขอซื้อ{deptName}</h2>
+        <h2 className="text-2xl font-semibold">ใบขอซื้อ{deptName}</h2>
         <p className="text-sm text-muted-foreground">รอบนี้ยังไม่ตัด · จัดซื้อเป็นคนเลือกผู้ขายและสั่ง</p>
       </div>
       <div role="tablist" aria-label="ใบขอซื้อ" className="flex rounded-xl bg-muted p-1">
@@ -1083,7 +1083,7 @@ function EditLine({
         <button type="button" className="btn" disabled={busy} onClick={save}>
           {busy ? "กำลังบันทึก…" : "บันทึก"}
         </button>
-        <button type="button" className="rounded-lg border border-border px-4 py-2 text-sm" onClick={onClose}>
+        <button type="button" className="btn-secondary" onClick={onClose}>
           ยกเลิก
         </button>
       </div>

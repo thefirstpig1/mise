@@ -68,7 +68,7 @@ export default async function NewExpensePage({
           ]}
           here={prefill ? `บันทึกงวด ${monthLabelTh(prefill.period)}` : "บันทึกค่าใช้จ่าย"}
         />
-        <h2 className="mt-1 text-xl font-bold">
+        <h2 className="mt-1 text-2xl font-semibold">
           {prefill ? `บันทึก${prefill.description} งวด ${monthLabelTh(prefill.period)}` : "บันทึกค่าใช้จ่าย"}
         </h2>
         {prefill && (

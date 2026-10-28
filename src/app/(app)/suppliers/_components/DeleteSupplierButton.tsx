@@ -64,7 +64,7 @@ export default function DeleteSupplierButton({
         type="button"
         onClick={handleDelete}
         disabled={isPending}
-        className="rounded-lg border border-bad-border px-4 py-2 text-sm text-bad hover:bg-bad-bg disabled:opacity-50"
+        className="btn-danger"
       >
         {isPending ? "กำลังลบ..." : "ลบ"}
       </button>

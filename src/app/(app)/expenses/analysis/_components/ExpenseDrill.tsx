@@ -248,8 +248,8 @@ function DrillPopup({
           {d.products.length > 0 && (
             <div className="overflow-x-auto">
               <p className="mb-1 font-display text-sm font-semibold">รายวัตถุดิบ</p>
-              <table className="w-full text-sm">
-                <thead className="text-left text-xs text-muted-foreground">
+              <table>
+                <thead>
                   <tr>
                     <th className="py-1 font-normal">วัตถุดิบ</th>
                     <th className="py-1 text-right font-normal">ซื้อ</th>
@@ -259,7 +259,7 @@ function DrillPopup({
                 </thead>
                 <tbody className="tabular-nums">
                   {d.products.slice(0, 15).map((p) => (
-                    <tr key={p.productId} className="border-t border-border">
+                    <tr key={p.productId}>
                       <td className="py-1.5">
                         <a href={`/products?product=${p.productId}`} className="hover:text-primary hover:underline">
                           {p.name}

@@ -627,7 +627,7 @@ export default function ProductForm({
           <button
             type="button"
             onClick={addRow}
-            className="shrink-0 rounded-lg border border-border px-3 py-1.5 text-sm hover:bg-muted/40"
+            className="btn-secondary btn-sm shrink-0"
           >
             + เพิ่มหน่วย
           </button>
@@ -783,7 +783,7 @@ export default function ProductForm({
         </button>
         <a
           href="/products"
-          className="rounded-lg border border-border px-6 py-2 text-sm hover:bg-muted/40"
+          className="btn-secondary"
         >
           ยกเลิก
         </a>

@@ -249,7 +249,7 @@ export default function CloseForm({
         <button
           type="button"
           onClick={() => setIssues((xs) => [...xs, { key: `n${++seq}`, id: null, category: "OTHER", body: "", followUp: false }])}
-          className="rounded-full border border-border-strong bg-surface px-3 py-1 text-sm hover:bg-muted"
+          className="btn-secondary btn-sm"
         >
           + เพิ่มปัญหา
         </button>

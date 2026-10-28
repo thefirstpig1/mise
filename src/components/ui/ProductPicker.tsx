@@ -154,7 +154,7 @@ export default function ProductPicker({
     return (
       <div className="mt-1">
         {hidden}
-        <div className="flex items-center gap-3 rounded-lg border border-border-strong bg-surface p-2 pr-3">
+        <div className="flex items-center gap-3 rounded-xl border border-border-strong bg-surface p-2 pr-3">
           {thumbs && <ProductThumb imageUrl={selected.imageUrl} name={selected.name} className="h-11 w-11" />}
           <div className="min-w-0 flex-1">
             {/* Cut with "…", and slides on hover to show the rest (Kong 2026-10-22). */}
@@ -269,7 +269,7 @@ export default function ProductPicker({
             setOpen(false);
           }
         }}
-        className={`input h-11 w-full text-base ${invalid ? "border-bad" : ""}`}
+        className={`input w-full ${invalid ? "border-bad" : ""}`}
       />
 
       {open && (

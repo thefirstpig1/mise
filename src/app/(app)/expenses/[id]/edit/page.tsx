@@ -46,7 +46,7 @@ export default async function EditExpensePage({
           ]}
           here="แก้ไข"
         />
-        <h2 className="mt-1 text-xl font-bold">แก้ไขค่าใช้จ่าย</h2>
+        <h2 className="mt-1 text-2xl font-semibold">แก้ไขค่าใช้จ่าย</h2>
       </div>
 
       <ExpenseForm

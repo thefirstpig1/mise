@@ -104,7 +104,7 @@ export default async function NewRecipePage({
       </a>
 
       <div>
-        <h2 className="text-xl font-bold">เขียนสูตรใหม่</h2>
+        <h2 className="text-2xl font-semibold">เขียนสูตรใหม่</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           สูตรนี้จะเป็น <strong>สูตรกลาง</strong> ที่ทุกสาขาใช้ร่วมกัน
           ถ้าสาขาไหนทำไม่เหมือน ค่อยคัดลอกไปแก้เฉพาะสาขานั้นทีหลัง

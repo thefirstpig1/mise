@@ -166,7 +166,7 @@ export default async function EditProductPage({
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4">
-        <h2 className="text-xl font-bold">แก้ไขสินค้า</h2>
+        <h2 className="text-2xl font-semibold">แก้ไขสินค้า</h2>
         <DeleteProductButton id={product.id} cascadeItems={cascadeItems} />
       </div>
       <ProductForm

@@ -248,7 +248,7 @@ export default function SupplierForm({
         </button>
         <a
           href="/suppliers"
-          className="rounded-lg border border-border px-6 py-2 text-sm hover:bg-muted/40"
+          className="btn-secondary"
         >
           ยกเลิก
         </a>

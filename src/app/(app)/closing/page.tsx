@@ -77,7 +77,7 @@ export default async function ClosingMonthPage({ searchParams }: { searchParams:
     <div className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold">ปิดร้านประจำวัน</h2>
+          <h2 className="text-2xl font-semibold">ปิดร้านประจำวัน</h2>
           <p className="mt-1 text-sm text-muted-foreground">ลูกค้า เงินสด ปัญหา และความเห็นของแต่ละวัน — ย้อนดูได้ไม่จำกัด</p>
         </div>
         {enabled && can("sales:import") && (
@@ -174,39 +174,39 @@ export default async function ClosingMonthPage({ searchParams }: { searchParams:
       {data.rows.length === 0 ? (
         <p className="rounded-xl border border-border bg-muted/30 p-6 text-sm text-muted-foreground">ยังไม่มีข้อมูลของเดือนนี้</p>
       ) : (
-        <div className="overflow-x-auto rounded-2xl border border-border bg-surface">
+        <div className="data-table">
           <table className="w-full min-w-[640px] text-sm">
-            <thead className="border-b border-border text-left text-xs text-muted-foreground">
+            <thead>
               <tr>
-                <th className="px-3 py-2 font-medium">วัน</th>
-                {seeMoney && <th className="px-3 py-2 text-right font-medium">ยอดขาย</th>}
-                <th className="px-3 py-2 text-right font-medium">ลูกค้า</th>
-                {seeMoney && <th className="px-3 py-2 text-right font-medium">ต่อหัว</th>}
-                {seeMoney && <th className="px-3 py-2 text-right font-medium">เงินสด</th>}
-                <th className="px-3 py-2 font-medium">ปัญหา</th>
-                <th className="px-3 py-2 text-right font-medium">ความเห็น</th>
+                <th>วัน</th>
+                {seeMoney && <th className="text-right">ยอดขาย</th>}
+                <th className="text-right">ลูกค้า</th>
+                {seeMoney && <th className="text-right">ต่อหัว</th>}
+                {seeMoney && <th className="text-right">เงินสด</th>}
+                <th>ปัญหา</th>
+                <th className="text-right">ความเห็น</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
+            <tbody>
               {data.rows.map((r) => {
                 const d = new Date(`${r.date}T00:00:00Z`);
                 return (
                   <tr key={r.date} className="group relative hover:bg-muted/50">
-                    <td className="px-3 py-2">
+                    <td>
                       <a href={dayLink(r.date)} className="after:absolute after:inset-0 after:content-['']">
                         {WD[d.getUTCDay()]} {d.getUTCDate()}
                       </a>
                       {!r.closed && <span className="ml-1.5 text-xs text-muted-subtle">ไม่ได้ปิดร้าน</span>}
                     </td>
-                    {seeMoney && <td className="px-3 py-2 text-right tabular-nums">{r.netRevenue === null ? "—" : r.netRevenue.toLocaleString("th-TH")}</td>}
-                    <td className="px-3 py-2 text-right tabular-nums">{r.guestCount ?? "—"}</td>
-                    {seeMoney && <td className="px-3 py-2 text-right tabular-nums">{r.perHead === null ? "—" : r.perHead.toFixed(1)}</td>}
+                    {seeMoney && <td className="text-right tabular-nums">{r.netRevenue === null ? "—" : r.netRevenue.toLocaleString("th-TH")}</td>}
+                    <td className="text-right tabular-nums">{r.guestCount ?? "—"}</td>
+                    {seeMoney && <td className="text-right tabular-nums">{r.perHead === null ? "—" : r.perHead.toFixed(1)}</td>}
                     {seeMoney && (
                       <td className={`px-3 py-2 text-right tabular-nums ${r.cashDiff === null ? "" : r.cashDiff < 0 ? "text-bad" : r.cashDiff > 0 ? "text-good" : ""}`}>
                         {r.cashDiff === null ? "—" : r.cashDiff === 0 ? "ตรง" : `${r.cashDiff > 0 ? "+" : "−"}${Math.abs(r.cashDiff).toLocaleString("th-TH")}`}
                       </td>
                     )}
-                    <td className="px-3 py-2">
+                    <td>
                       <span className="flex flex-wrap gap-1">
                         {r.issuesOpen > 0 && <span className="whitespace-nowrap rounded-full bg-bad-bg px-2 py-0.5 text-[11px] text-bad">ค้าง {r.issuesOpen}</span>}
                         {r.issuesResolved > 0 && <span className="whitespace-nowrap rounded-full bg-good-bg px-2 py-0.5 text-[11px] text-good">จัดการแล้ว {r.issuesResolved}</span>}
@@ -214,7 +214,7 @@ export default async function ClosingMonthPage({ searchParams }: { searchParams:
                         {r.issuesOpen + r.issuesResolved + r.issuesNoted === 0 && <span className="text-xs text-muted-subtle">—</span>}
                       </span>
                     </td>
-                    <td className="px-3 py-2 text-right tabular-nums">{r.comments || "—"}</td>
+                    <td className="text-right tabular-nums">{r.comments || "—"}</td>
                   </tr>
                 );
               })}

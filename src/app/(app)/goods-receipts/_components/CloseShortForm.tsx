@@ -52,7 +52,7 @@ export default function CloseShortForm({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="rounded-lg border border-border px-4 py-2 text-sm hover:bg-muted/40"
+        className="btn-secondary"
       >
         ปิดรับ (ไม่รอของส่วนที่ขาด)
       </button>
@@ -89,7 +89,7 @@ export default function CloseShortForm({
         <button
           type="button"
           onClick={() => setOpen(false)}
-          className="rounded-lg border border-border bg-background px-4 py-2 text-sm"
+          className="btn-secondary"
         >
           ไม่ปิดแล้ว
         </button>

@@ -704,17 +704,17 @@ export default function LabSheet(props: {
                 </button>
               ) : (
                 // Nothing saved yet, so nothing to throw away — a plain way out.
-                <button type="button" onClick={close} disabled={busy} className="rounded-full border border-border-strong px-4 py-1.5 text-sm hover:bg-muted">
+                <button type="button" onClick={close} disabled={busy} className="btn-secondary btn-sm">
                   ยกเลิก
                 </button>
               )}
-              <button type="button" onClick={doSave} disabled={busy || (!dirty && !!savedId)} className="rounded-full border border-border-strong px-4 py-1.5 text-sm hover:bg-muted disabled:opacity-50">
+              <button type="button" onClick={doSave} disabled={busy || (!dirty && !!savedId)} className="btn-secondary btn-sm">
                 {busy ? "กำลังบันทึก…" : "บันทึกร่าง"}
               </button>
             </>
           )}
           {canEndorse && (
-            <button type="button" onClick={endorse} disabled={busy || !targetReady || !linesReady} className="rounded-full border border-border-strong px-4 py-1.5 text-sm hover:bg-muted disabled:opacity-50">
+            <button type="button" onClick={endorse} disabled={busy || !targetReady || !linesReady} className="btn-secondary btn-sm">
               รับรอง
             </button>
           )}

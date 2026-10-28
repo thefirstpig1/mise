@@ -107,14 +107,14 @@ export default function PurchaseOrderActions({
     return (
       <>
         {isDraft && (
-          <a href={`/purchase-orders/${id}/edit`} className="rounded-xl border border-border-strong bg-surface px-4 py-2.5 text-sm font-medium hover:bg-muted/40">
+          <a href={`/purchase-orders/${id}/edit`} className="btn-secondary">
             แก้ไข
           </a>
         )}
         <button
           type="button"
           onClick={() => window.print()}
-          className="rounded-xl border border-border-strong bg-surface px-4 py-2.5 text-sm font-medium hover:bg-muted/40"
+          className="btn-secondary"
         >
           พิมพ์ / บันทึกภาพ
         </button>
@@ -139,7 +139,7 @@ export default function PurchaseOrderActions({
             type="button"
             onClick={() => setCancelling(true)}
             disabled={pending}
-            className="rounded-xl border border-bad-border bg-surface px-4 py-2 text-sm font-medium text-bad hover:bg-bad-bg disabled:opacity-50"
+            className="btn-danger"
           >
             ยกเลิกใบสั่งซื้อ
           </button>
@@ -185,7 +185,7 @@ export default function PurchaseOrderActions({
             <button
               type="button"
               onClick={() => setCancelling(false)}
-              className="rounded-lg border border-border bg-background px-4 py-2 text-sm"
+              className="btn-secondary"
             >
               ไม่ยกเลิกแล้ว
             </button>

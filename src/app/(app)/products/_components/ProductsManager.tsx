@@ -38,9 +38,7 @@ const NO_CATEGORY = "ไม่มีหมวด";
 const sectionOf = (p: ProductView) => p.category?.accountingSection ?? NO_CATEGORY;
 
 const chip = (on: boolean, small = false) =>
-  `relative whitespace-nowrap rounded-full border transition-colors ${small ? "px-2.5 py-0.5 text-xs" : "px-3 py-1 text-sm"} ${
-    on ? "border-primary bg-primary text-primary-foreground" : "border-border-strong bg-surface hover:bg-muted"
-  }`;
+  `pill relative ${small ? "h-7 px-2.5 text-xs" : ""} ${on ? "is-on" : ""}`;
 
 /** LINE-style count floating over a chip's top-right corner. */
 function Dot({ n, tone }: { n: number; tone: "red" | "yellow" }) {
@@ -392,7 +390,7 @@ export default function ProductsManager(props: {
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold">สินค้า/วัตถุดิบ</h2>
+          <h2 className="text-2xl font-semibold">สินค้า/วัตถุดิบ</h2>
           <p className="mt-0.5 text-sm text-muted-foreground">
             {active.length} รายการที่ใช้งาน · ของแปรรูป {active.filter((p) => p.type === "PREPPED").length}
             {list ? ` · ต่ำกว่าขั้นต่ำ ${lowCount} · ใกล้ขั้นต่ำ ${nearCount}` : ""}
@@ -476,22 +474,22 @@ export default function ProductsManager(props: {
           {rows.length === 0 ? (
             <EmptyState art="none">{hasQuery(q) ? `ไม่พบสินค้าที่ตรงกับ “${q}”` : "ไม่มีสินค้าในตัวกรองนี้"}</EmptyState>
           ) : view === "table" ? (
-            <div className="overflow-x-auto rounded-2xl border border-border bg-surface">
+            <div className="data-table">
               <table className="w-full min-w-[760px] text-sm">
-                <thead className="border-b border-border text-left text-xs text-muted-foreground">
+                <thead>
                   <tr>
-                    <th className="px-3 py-2 font-medium">สินค้า</th>
-                    <th className="px-3 py-2 text-right font-medium">คงเหลือ</th>
-                    {!costHidden && <th className="px-3 py-2 text-right font-medium">มูลค่า</th>}
-                    {!costHidden && <th className="px-3 py-2 text-right font-medium">ต้นทุนต่อหน่วย</th>}
-                    {!costHidden && <th className="px-3 py-2 text-right font-medium">ซื้อล่าสุด</th>}
-                    <th className="px-3 py-2 text-right font-medium">ใช้ใน</th>
+                    <th>สินค้า</th>
+                    <th className="text-right">คงเหลือ</th>
+                    {!costHidden && <th className="text-right">มูลค่า</th>}
+                    {!costHidden && <th className="text-right">ต้นทุนต่อหน่วย</th>}
+                    {!costHidden && <th className="text-right">ซื้อล่าสุด</th>}
+                    <th className="text-right">ใช้ใน</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border">
+                <tbody>
                   {rows.map(({ p, weak }) => (
                     <tr key={p.id} className={`cursor-pointer hover:bg-muted/50 ${weak ? "opacity-50" : ""}`} onClick={() => open(p.id)}>
-                      <td className="px-3 py-2.5">
+                      <td className=".5">
                         <div className="flex items-start gap-2.5">
                           <ProductThumb imageUrl={p.imageUrl} name={p.name} className="h-10 w-10 shrink-0 rounded-lg" />
                           <div className="min-w-0">
@@ -505,11 +503,11 @@ export default function ProductsManager(props: {
                           </div>
                         </div>
                       </td>
-                      <td className="px-3 py-2.5 text-right align-top">{stockCell(p)}</td>
-                      {!costHidden && <td className="px-3 py-2.5 text-right align-top">{valueCell(p)}</td>}
-                      {!costHidden && <td className="px-3 py-2.5 text-right align-top">{costCell(p)}</td>}
-                      {!costHidden && <td className="px-3 py-2.5 text-right align-top">{lastCell(p)}</td>}
-                      <td className="px-3 py-2.5 text-right align-top">{usedCell(p)}</td>
+                      <td className=".5 text-right align-top">{stockCell(p)}</td>
+                      {!costHidden && <td className=".5 text-right align-top">{valueCell(p)}</td>}
+                      {!costHidden && <td className=".5 text-right align-top">{costCell(p)}</td>}
+                      {!costHidden && <td className=".5 text-right align-top">{lastCell(p)}</td>}
+                      <td className=".5 text-right align-top">{usedCell(p)}</td>
                     </tr>
                   ))}
                 </tbody>

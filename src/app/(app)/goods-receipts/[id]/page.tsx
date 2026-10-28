@@ -190,7 +190,7 @@ export default async function GoodsReceiptDetailPage({
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table>
             <thead className="border-y border-border text-left text-xs text-muted-foreground">
               <tr>
                 <th className="py-2 pr-2 font-medium">#</th>
@@ -301,7 +301,7 @@ export default async function GoodsReceiptDetailPage({
         </summary>
         <div className="space-y-2 overflow-x-auto px-4 pb-4">
           <table className="w-full min-w-[32rem] text-sm">
-            <thead className="text-left text-xs text-muted-foreground">
+            <thead>
               <tr>
                 <th className="py-1.5 pr-2 font-medium">รายการ</th>
                 <th className="py-1.5 pr-2 font-medium">รับมา</th>

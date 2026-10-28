@@ -139,7 +139,7 @@ export default function CopyToBranchesForm({
       <button
         type="submit"
         disabled={isPending || selected.length === 0}
-        className="rounded-lg border border-border px-3 py-2 text-sm hover:bg-muted disabled:opacity-50"
+        className="btn-secondary"
       >
         {isPending ? "กำลังคัดลอก…" : "คัดลอกไปยังสาขาที่เลือก"}
       </button>

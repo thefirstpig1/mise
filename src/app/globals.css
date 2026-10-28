@@ -184,6 +184,15 @@
     @apply bg-primary text-primary-foreground hover:text-primary-foreground;
   }
 
+  /* A chip among many (categories, months) — the same language as `.seg`,
+     standing on its own when the choices are too many for one group. */
+  .pill {
+    @apply inline-flex h-8 items-center whitespace-nowrap rounded-full border border-border-strong bg-surface px-3 text-[13px] transition-colors hover:bg-muted;
+  }
+  .pill.is-on {
+    @apply border-primary bg-primary text-primary-foreground hover:bg-primary;
+  }
+
   /* Underlined tabs for a page used by different people for different jobs. */
   .tabs {
     @apply flex gap-0.5 overflow-x-auto border-b border-border;

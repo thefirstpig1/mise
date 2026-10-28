@@ -92,7 +92,7 @@ export default async function NewTransferPage({
       <a href="/transfers" className="text-sm text-muted-foreground hover:underline">
         ← กลับรายการใบโอน
       </a>
-      <h2 className="text-xl font-bold">สร้างใบโอน</h2>
+      <h2 className="text-2xl font-semibold">สร้างใบโอน</h2>
 
       <TransferDispatchForm
         action={dispatchTransferAction}

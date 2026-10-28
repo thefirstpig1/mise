@@ -45,7 +45,7 @@ export default async function EditMappingPage({
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4">
-        <h2 className="text-xl font-bold">แก้ไขรายการราคา</h2>
+        <h2 className="text-2xl font-semibold">แก้ไขรายการราคา</h2>
         <DeleteMappingButton mappingId={mapping.id} productId={product.id} />
       </div>
       <p className="text-sm text-muted-foreground">{product.name}</p>

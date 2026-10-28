@@ -34,7 +34,7 @@ export default function SupplierList({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-4">
-        <h2 className="text-xl font-bold">รายการซัพพลายเออร์</h2>
+        <h2 className="text-2xl font-semibold">รายการซัพพลายเออร์</h2>
         <Link
           href="/suppliers/new"
           className="btn"
@@ -70,15 +70,15 @@ export default function SupplierList({
           ไม่พบข้อมูลที่ค้นหา
         </EmptyState>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-border">
-          <table className="w-full text-sm">
+        <div className="data-table">
+          <table>
             <thead className="border-b border-border bg-muted/40 text-left text-muted-foreground">
               <tr>
-                <th className="px-4 py-2 font-medium">ชื่อ</th>
-                <th className="px-4 py-2 font-medium">รหัส</th>
-                <th className="px-4 py-2 font-medium">ผู้ติดต่อ</th>
-                <th className="px-4 py-2 font-medium">ภาษี</th>
-                <th className="px-4 py-2 font-medium">สถานะ</th>
+                <th className="px-4 py-2">ชื่อ</th>
+                <th className="px-4 py-2">รหัส</th>
+                <th className="px-4 py-2">ผู้ติดต่อ</th>
+                <th className="px-4 py-2">ภาษี</th>
+                <th className="px-4 py-2">สถานะ</th>
                 {canOrder && <th className="px-4 py-2" aria-label="สั่งซื้อ" />}
               </tr>
             </thead>
@@ -92,7 +92,7 @@ export default function SupplierList({
                   <td className="px-4 py-2">
                     <Link
                       href={`/suppliers/${s.id}`}
-                      className="font-medium text-primary after:absolute after:inset-0 after:content-['']"
+                      className="whitespace-nowrap font-semibold text-foreground after:absolute after:inset-0 after:content-['']"
                     >
                       {s.nameFull}
                     </Link>

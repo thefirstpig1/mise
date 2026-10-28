@@ -64,7 +64,7 @@ export default async function ExpenseDetailPage({
       <div>
         <Crumbs trail={[{ href: "/expenses", label: "ค่าใช้จ่าย" }]} here={title} />
         <div className="mt-1 flex flex-wrap items-center gap-3">
-          <h2 className="text-xl font-bold">{title}</h2>
+          <h2 className="text-2xl font-semibold">{title}</h2>
           <PaymentBadge status={expense.paymentStatus} />
           <span className="text-xs text-muted-foreground">
             {EXPENSE_SOURCE_LABELS_TH[expense.source]}
@@ -103,24 +103,24 @@ export default async function ExpenseDetailPage({
         </div>
       )}
 
-      <section className="overflow-x-auto rounded-lg border border-border">
+      <section className="data-table">
         <table className="w-full min-w-[34rem]">
-          <thead className="border-b border-border bg-muted/40 text-left text-xs text-muted-foreground">
+          <thead>
             <tr>
-              <th className="px-3 py-2 font-medium">#</th>
-              <th className="px-3 py-2 font-medium">รายละเอียด</th>
-              <th className="px-3 py-2 font-medium">หมวดบัญชี</th>
-              <th className="px-3 py-2 text-right font-medium">จำนวน</th>
-              <th className="px-3 py-2 text-right font-medium">ก่อน VAT</th>
+              <th>#</th>
+              <th>รายละเอียด</th>
+              <th>หมวดบัญชี</th>
+              <th className="text-right">จำนวน</th>
+              <th className="text-right">ก่อน VAT</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-border">
+          <tbody>
             {expense.items.map((item) => (
               <tr key={item.id}>
-                <td className="px-3 py-2 text-sm text-muted-foreground">
+                <td className="text-sm text-muted-foreground">
                   {item.lineNo}
                 </td>
-                <td className="px-3 py-2 text-sm">
+                <td className="text-sm">
                   {item.description}
                   {item.productName && (
                     <div className="text-xs text-muted-foreground">
@@ -129,13 +129,13 @@ export default async function ExpenseDetailPage({
                     </div>
                   )}
                 </td>
-                <td className="px-3 py-2 text-xs text-muted-foreground">
+                <td className="text-xs text-muted-foreground">
                   {item.categoryLabel}
                 </td>
-                <td className="px-3 py-2 text-right text-sm tabular-nums">
+                <td className="text-right text-sm tabular-nums">
                   {item.qty ? `${item.qty} ${item.unitName ?? ""}` : "—"}
                 </td>
-                <td className="px-3 py-2 text-right text-sm tabular-nums">
+                <td className="text-right text-sm tabular-nums">
                   {formatMoney(item.totalPrice)}
                 </td>
               </tr>
@@ -209,7 +209,7 @@ export default async function ExpenseDetailPage({
       <div className="flex flex-wrap items-start gap-3 border-t border-border pt-4">
         <a
           href={`/expenses/${expense.id}/edit`}
-          className="rounded-lg border border-border px-4 py-2 text-sm font-medium"
+          className="btn-secondary"
         >
           แก้ไข
         </a>

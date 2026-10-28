@@ -209,13 +209,13 @@ function RolesTab({
         <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-warn" />ร้านเปลี่ยนจากค่าเริ่มต้นของคิดครัว</span>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-border">
+      <div className="data-table">
         <table className="w-full min-w-[880px] border-collapse text-sm">
           <thead>
             <tr className="bg-surface-sunk">
               <th className="sticky left-0 z-10 min-w-[230px] bg-surface-sunk px-3 py-2 text-left text-xs font-medium text-muted-foreground">สิทธิ์</th>
               {data.roles.map((r) => (
-                <th key={r.id} className="px-1.5 py-2 align-bottom text-xs font-medium">
+                <th key={r.id} className="px-1.5 py-2 align-bottom text-xs">
                   <div className="grid justify-items-center gap-0.5">
                     <span className="whitespace-nowrap">{r.label}</span>
                     {r.locked ? (
@@ -241,7 +241,7 @@ function RolesTab({
             {data.groups.map((g) => (
               <GroupRows key={g.label} label={g.label} span={data.roles.length}>
                 {g.capabilities.map((c) => (
-                  <tr key={c.id} className="border-t border-border">
+                  <tr key={c.id}>
                     <td className="sticky left-0 z-10 bg-surface px-3 py-2">
                       <div className="font-medium">{c.label}</div>
                       {c.hint && <div className="text-xs text-muted-subtle">{c.hint}</div>}
@@ -275,7 +275,7 @@ function RolesTab({
             ))}
             <GroupRows label="ล็อกกับบทบาท ปรับไม่ได้" span={data.roles.length}>
               {data.locked.map((l) => (
-                <tr key={l.label} className="border-t border-border">
+                <tr key={l.label}>
                   <td className="sticky left-0 z-10 bg-surface px-3 py-2">
                     <div className="font-medium">🔒 {l.label}</div>
                     <div className="text-xs text-muted-subtle">{l.why}</div>

@@ -140,7 +140,7 @@ export default function CutSheet({ sheet, branchId }: { sheet: Sheet; branchId: 
           <button type="button" className="btn" disabled={busy} onClick={() => setConfirmSend(true)}>
             {busy ? "กำลังส่ง…" : "ส่งทั้งหมด"}
           </button>
-          <button type="button" className="rounded-lg border border-border px-4 py-2 text-sm" onClick={() => router.refresh()}>
+          <button type="button" className="btn-secondary" onClick={() => router.refresh()}>
             ตัดรอบต่อ
           </button>
         </div>
@@ -188,19 +188,19 @@ export default function CutSheet({ sheet, branchId }: { sheet: Sheet; branchId: 
           ไม่มีรายการรอสั่ง
         </p>
       ) : (
-        <div className="overflow-x-auto rounded-2xl border border-border bg-surface">
-          <table className="w-full text-sm">
-            <thead className="bg-surface-sunk text-left text-xs text-muted-foreground">
+        <div className="data-table">
+          <table>
+            <thead>
               <tr>
                 <th className="w-8 px-3 py-2" />
-                <th className="px-3 py-2">วัตถุดิบ · ครัวขอ</th>
-                <th className="px-3 py-2">ผู้ขาย</th>
-                <th className="px-3 py-2">จำนวน · หน่วย</th>
-                <th className="px-3 py-2">ราคา/หน่วย (ไม่รวม VAT)</th>
-                <th className="px-3 py-2" />
+                <th>วัตถุดิบ · ครัวขอ</th>
+                <th>ผู้ขาย</th>
+                <th>จำนวน · หน่วย</th>
+                <th>ราคา/หน่วย (ไม่รวม VAT)</th>
+                <th />
               </tr>
             </thead>
-            <tbody className="divide-y divide-border align-top">
+            <tbody className="align-top">
               {sheet.lines.map((l) => {
                 const row = rows[l.id];
                 const cheapest = [...l.prices].sort((a, b) => a.pricePerBase - b.pricePerBase)[0];
@@ -311,7 +311,7 @@ export default function CutSheet({ sheet, branchId }: { sheet: Sheet; branchId: 
             <button type="button" className="btn" disabled={!rejectReason.trim()} onClick={() => reject(rejecting, rejectReason)}>
               ไม่สั่งรายการนี้
             </button>
-            <button type="button" className="rounded-lg border border-border px-4 py-2 text-sm" onClick={() => setRejecting(null)}>
+            <button type="button" className="btn-secondary" onClick={() => setRejecting(null)}>
               กลับ
             </button>
           </div>

@@ -265,7 +265,7 @@ export default async function StaffMealsPage({
           <input type="checkbox" name="voided" value="true" defaultChecked={sp.voided === "true"} />
           แสดงรายการที่ยกเลิกแล้ว
         </label>
-        <button type="submit" className="rounded-lg border border-border px-3 py-2 text-sm hover:bg-muted">
+        <button type="submit" className="btn-secondary">
           กรอง
         </button>
         <a href="/staff-meals/people" className="py-2 text-sm underline">

@@ -148,7 +148,7 @@ export default async function WastePage({
   return (
     <div className="space-y-8">
       <div>
-        <h2 className="text-xl font-bold">บันทึกของเสีย</h2>
+        <h2 className="text-2xl font-semibold">บันทึกของเสีย</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           ของที่ทิ้งไปแล้วจริง ๆ — เน่าเสีย ตกแตก ทำไหม้ ลูกค้าตีกลับ
           บันทึกทีละอย่างแล้วตัดสต๊อกทันที
@@ -244,7 +244,7 @@ export default async function WastePage({
             </label>
             <button
               type="submit"
-              className="rounded-lg border border-border px-3 py-2 text-sm hover:bg-muted"
+              className="btn-secondary"
             >
               กรอง
             </button>

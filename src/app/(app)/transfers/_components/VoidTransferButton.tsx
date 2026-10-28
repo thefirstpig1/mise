@@ -81,7 +81,7 @@ export default function VoidTransferButton({
         <button
           type="submit"
           disabled={isPending}
-          className="rounded-lg border border-bad-border px-3 py-1.5 text-xs font-medium text-bad hover:bg-bad-bg disabled:opacity-50"
+          className="btn-danger btn-sm"
         >
           {isPending ? "กำลังยกเลิก…" : "ยืนยันการยกเลิก"}
         </button>

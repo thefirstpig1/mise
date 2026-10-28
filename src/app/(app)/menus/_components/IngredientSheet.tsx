@@ -392,9 +392,9 @@ export default function IngredientSheet({
                 )}
                 <ReceiptPriceChart points={receipts.map((r) => ({ date: r.date, price: r.perBase, qty: r.qtyBase }))} months={months} />
                 <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
+                  <table>
                     <caption className="pb-1 text-left text-xs text-muted-foreground">4 ใบล่าสุด</caption>
-                    <thead className="text-left text-xs text-muted-foreground">
+                    <thead>
                       <tr>
                         <th className="py-1 font-medium">วันที่รับ</th>
                         <th className="py-1 font-medium">ซัพพลายเออร์</th>
@@ -451,7 +451,7 @@ export default function IngredientSheet({
 
             <div className="flex flex-wrap gap-2">
               {stacked && (
-                <a href={`/products?product=${productId}`} className="rounded-full border border-border-strong px-3 py-1 text-sm hover:bg-muted">
+                <a href={`/products?product=${productId}`} className="btn-secondary btn-sm">
                   เปิดในหน้าสินค้า/วัตถุดิบ
                 </a>
               )}

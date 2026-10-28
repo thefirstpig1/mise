@@ -637,7 +637,7 @@ export default function GoodsReceiptForm({
             <button
               type="button"
               onClick={() => setRows((rs) => [...rs, newRow()])}
-              className="rounded-lg border border-border px-3 py-1.5 text-sm"
+              className="btn-secondary btn-sm"
             >
               + เพิ่มรายการ
             </button>
@@ -854,7 +854,7 @@ export default function GoodsReceiptForm({
         </button>
         <a
           href="/goods-receipts"
-          className="rounded-lg border border-border px-4 py-2 text-sm"
+          className="btn-secondary"
         >
           ยกเลิก
         </a>

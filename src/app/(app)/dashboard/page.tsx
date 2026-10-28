@@ -673,19 +673,19 @@ function UnknownNote({ pnl, seeGross }: { pnl: Pnl; seeGross: boolean }) {
 function BranchTable({ pnl }: { pnl: Pnl }) {
   const cell = (d: { toString(): string } | null) => (d === null ? "—" : baht(Number(d.toString())));
   return (
-    <section className="overflow-x-auto rounded-2xl border border-border bg-surface">
-      <table className="w-full text-sm">
+    <section className="data-table">
+      <table>
         <thead className="bg-surface-sunk text-left text-muted-foreground">
           <tr>
-            <th className="px-4 py-2 font-medium">สาขา</th>
-            <th className="px-4 py-2 text-right font-medium">ยอดขาย</th>
-            <th className="px-4 py-2 text-right font-medium">ต้นทุนขาย</th>
-            <th className="px-4 py-2 text-right font-medium">กำไรขั้นต้น</th>
-            <th className="px-4 py-2 text-right font-medium">ค่าใช้จ่าย</th>
-            <th className="px-4 py-2 text-right font-medium">กำไรสุทธิ</th>
+            <th className="px-4 py-2">สาขา</th>
+            <th className="px-4 py-2 text-right">ยอดขาย</th>
+            <th className="px-4 py-2 text-right">ต้นทุนขาย</th>
+            <th className="px-4 py-2 text-right">กำไรขั้นต้น</th>
+            <th className="px-4 py-2 text-right">ค่าใช้จ่าย</th>
+            <th className="px-4 py-2 text-right">กำไรสุทธิ</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-border tabular-nums">
+        <tbody className="tabular-nums">
           {pnl.branches.map((b) => (
             <tr key={b.branchId}>
               <td className="px-4 py-2">{b.branchName}</td>

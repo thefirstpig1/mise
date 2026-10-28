@@ -130,7 +130,7 @@ export default function CategoryForm({
         </button>
         <a
           href="/categories"
-          className="rounded-lg border border-border px-6 py-2 text-sm hover:bg-muted/40"
+          className="btn-secondary"
         >
           ยกเลิก
         </a>

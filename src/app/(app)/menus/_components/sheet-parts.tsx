@@ -153,7 +153,7 @@ export function ConfirmDialog({ spec, onClose }: { spec: ConfirmSpec; onClose: (
         {spec.money && <p className="rounded-lg bg-warn-bg px-3 py-2 text-sm tabular-nums">{spec.money}</p>}
         {spec.who && <p className="text-xs text-muted-foreground">{spec.who}</p>}
         <div className="flex flex-wrap justify-end gap-2 pt-1">
-          <button ref={back} autoFocus type="button" onClick={onClose} className="rounded-full border border-border-strong px-4 py-1.5 text-sm hover:bg-muted">
+          <button ref={back} autoFocus type="button" onClick={onClose} className="btn-secondary btn-sm">
             {spec.back ?? "กลับไปแก้"}
           </button>
           {spec.alt && (
@@ -163,7 +163,7 @@ export function ConfirmDialog({ spec, onClose }: { spec: ConfirmSpec; onClose: (
                 onClose();
                 spec.alt!.onGo();
               }}
-              className="rounded-full border border-border-strong px-4 py-1.5 text-sm hover:bg-muted"
+              className="btn-secondary btn-sm"
             >
               {spec.alt.label}
             </button>

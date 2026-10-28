@@ -105,7 +105,7 @@ export default async function ExpenseListPage({
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold">ค่าใช้จ่าย</h2>
+          <h2 className="text-2xl font-semibold">ค่าใช้จ่าย</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             ทุกบาทที่ออกจากร้าน — ทั้งค่าของและค่าใช้จ่ายอื่น รวมอยู่ที่เดียว
           </p>
@@ -113,7 +113,7 @@ export default async function ExpenseListPage({
         <div className="flex gap-2">
           <a
             href="/expenses/recurring"
-            className="rounded-lg border border-border px-4 py-2 text-sm font-medium"
+            className="btn-secondary"
           >
             รายการประจำ
           </a>
@@ -277,7 +277,7 @@ export default async function ExpenseListPage({
         </div>
         <button
           type="submit"
-          className="rounded-lg border border-border px-4 py-2 text-sm font-medium"
+          className="btn-secondary"
         >
           กรอง
         </button>
@@ -302,29 +302,29 @@ export default async function ExpenseListPage({
             </div>
           )}
 
-          <div className="overflow-x-auto rounded-lg border border-border">
+          <div className="data-table">
             <table className="w-full min-w-[46rem]">
-              <thead className="border-b border-border bg-muted/40 text-left text-xs text-muted-foreground">
+              <thead>
                 <tr>
-                  <th className="px-3 py-2 font-medium">วันที่บิล</th>
-                  <th className="px-3 py-2 font-medium">รายละเอียด</th>
-                  <th className="px-3 py-2 font-medium">สาขา</th>
-                  <th className="px-3 py-2 font-medium">ที่มา</th>
-                  <th className="px-3 py-2 text-right font-medium">ยอดรวม</th>
-                  <th className="px-3 py-2 text-right font-medium">จ่ายจริง</th>
-                  <th className="px-3 py-2 font-medium">สถานะ</th>
+                  <th>วันที่บิล</th>
+                  <th>รายละเอียด</th>
+                  <th>สาขา</th>
+                  <th>ที่มา</th>
+                  <th className="text-right">ยอดรวม</th>
+                  <th className="text-right">จ่ายจริง</th>
+                  <th>สถานะ</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border">
+              <tbody>
                 {rows.map((r) => (
                   <tr key={r.id} className="group relative transition-colors hover:bg-muted/50">
-                    <td className="px-3 py-2 text-sm text-muted-foreground">
+                    <td className="text-sm text-muted-foreground">
                       {dateLabel(r.billDate)}
                     </td>
-                    <td className="px-3 py-2">
+                    <td>
                       <a
                         href={`/expenses/${r.id}`}
-                        className="font-medium text-primary after:absolute after:inset-0 after:content-['']"
+                        className="whitespace-nowrap font-semibold text-foreground after:absolute after:inset-0 after:content-['']"
                       >
                         {expenseTitle(r)}
                       </a>
@@ -334,17 +334,17 @@ export default async function ExpenseListPage({
                         {r.period && ` · งวด ${monthLabelTh(r.period)}`}
                       </div>
                     </td>
-                    <td className="px-3 py-2 text-sm">{r.branchName}</td>
-                    <td className="px-3 py-2 text-xs text-muted-foreground">
+                    <td className="text-sm">{r.branchName}</td>
+                    <td className="text-xs text-muted-foreground">
                       {EXPENSE_SOURCE_LABELS_TH[r.source]}
                     </td>
-                    <td className="px-3 py-2 text-right text-sm tabular-nums">
+                    <td className="text-right text-sm tabular-nums">
                       {formatMoney(r.totalAmount)}
                     </td>
-                    <td className="px-3 py-2 text-right text-sm tabular-nums">
+                    <td className="text-right text-sm tabular-nums">
                       {formatMoney(r.netPaymentAmount)}
                     </td>
-                    <td className="px-3 py-2">
+                    <td>
                       <PaymentBadge status={r.paymentStatus} />
                     </td>
                   </tr>

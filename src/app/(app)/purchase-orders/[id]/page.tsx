@@ -228,7 +228,7 @@ export default async function PurchaseOrderDetailPage({
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table>
             <thead className="border-y border-border text-left text-xs text-muted-foreground">
               <tr>
                 <th className="py-2 pr-2 font-medium">#</th>

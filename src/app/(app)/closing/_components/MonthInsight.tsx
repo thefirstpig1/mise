@@ -159,8 +159,8 @@ export default function MonthInsight({
             <p className="text-xs text-muted-subtle">
               ยอดขายจริง ÷ ลูกค้าจริง ของวันที่กลุ่มนั้นเกินครึ่ง (ตามที่คนปิดร้านประเมิน) · ต้องมีอย่างน้อย {DOMINANT_MIN_DAYS} วันถึงจะแสดง
             </p>
-            <table className="w-full text-sm">
-              <thead className="text-left text-xs text-muted-foreground">
+            <table>
+              <thead>
                 <tr>
                   <th className="py-1.5 font-medium">วันที่กลุ่มนี้เกินครึ่ง</th>
                   <th className="py-1.5 text-right font-medium">วัน</th>

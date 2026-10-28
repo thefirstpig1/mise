@@ -1120,7 +1120,7 @@ function Bench({
   ];
   return (
     <div className="overflow-x-auto rounded-2xl border border-border bg-surface p-3">
-      <table className="w-full text-sm">
+      <table>
         <thead>
           <tr className="text-xs text-muted-foreground">
             <th className="py-1 text-left font-normal">ตัวชี้วัด · {P[sel]?.label}</th>
@@ -1141,7 +1141,7 @@ function Bench({
             const comparable = vs.filter((x) => x.v !== null && !x.thin);
             const best = comparable.length > 1 ? comparable.reduce((p, q) => ((q.v ?? 0) < (p.v ?? 0) ? q : p)).id : null;
             return (
-              <tr key={r.key} className="border-t border-border">
+              <tr key={r.key}>
                 <td className="py-1.5 pr-2">{r.label}</td>
                 {vs.map((x) => (
                   <td
@@ -1357,7 +1357,7 @@ function TargetsPopup({ targets, onClose, onSaved }: { targets: CostTargets; onC
       </div>
       {err && <p className="mt-3 text-sm text-bad">{err}</p>}
       <div className="mt-4 flex justify-end gap-2">
-        <button type="button" className="rounded-lg border border-border-strong px-4 py-2 text-sm hover:bg-muted" onClick={onClose}>
+        <button type="button" className="btn-secondary" onClick={onClose}>
           ยกเลิก
         </button>
         <button type="button" className="btn" disabled={busy} onClick={save}>

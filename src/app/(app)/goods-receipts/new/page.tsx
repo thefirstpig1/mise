@@ -70,7 +70,7 @@ export default async function NewGoodsReceiptPage({
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-bold">รับสินค้า</h2>
+        <h2 className="text-2xl font-semibold">รับสินค้า</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           เลือกใบสั่งซื้อเพื่อดึงรายการที่ค้างรับ หรือรับแบบซื้อสดโดยไม่มีใบสั่งซื้อก็ได้
         </p>

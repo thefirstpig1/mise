@@ -45,7 +45,7 @@ export default function RetireRecurringButton({
         type="button"
         onClick={() => setAsking(true)}
         disabled={isPending}
-        className="rounded-lg border border-bad-border bg-surface px-4 py-2 text-sm font-medium text-bad hover:bg-bad-bg disabled:opacity-60"
+        className="btn-danger"
       >
         {isPending ? "กำลังเลิกใช้…" : "เลิกใช้รายการประจำนี้"}
       </button>

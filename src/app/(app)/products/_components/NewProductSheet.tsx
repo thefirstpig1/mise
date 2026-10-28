@@ -380,7 +380,7 @@ export default function NewProductSheet({
                 </div>
               ))}
               <div className="flex flex-wrap items-center gap-2">
-                <button type="button" onClick={addPack} className="rounded-full border border-border-strong px-3 py-1 text-sm hover:bg-muted">
+                <button type="button" onClick={addPack} className="btn-secondary btn-sm">
                   + เพิ่มขนาด
                 </button>
                 {d.packs.length > 0 && (
@@ -419,10 +419,10 @@ export default function NewProductSheet({
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border bg-surface px-5 py-3">
         <span className="text-xs">{error ? <span className="text-bad">{error}</span> : <span className="text-muted-foreground">ยังไม่ได้บันทึก</span>}</span>
         <span className="flex flex-wrap justify-end gap-2">
-          <button type="button" onClick={close} disabled={busy} className="rounded-full border border-border-strong px-4 py-1.5 text-sm hover:bg-muted">
+          <button type="button" onClick={close} disabled={busy} className="btn-secondary btn-sm">
             ยกเลิก
           </button>
-          <button type="button" onClick={() => save(true)} disabled={busy || !form} className="rounded-full border border-border-strong px-4 py-1.5 text-sm hover:bg-muted disabled:opacity-50">
+          <button type="button" onClick={() => save(true)} disabled={busy || !form} className="btn-secondary btn-sm">
             บันทึกแล้วเพิ่มอีก
           </button>
           <button type="button" onClick={() => save(false)} disabled={busy || !form} className="btn disabled:opacity-50">

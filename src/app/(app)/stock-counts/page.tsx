@@ -62,7 +62,7 @@ export default async function StockCountListPage({
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold">ใบนับสต๊อก</h2>
+          <h2 className="text-2xl font-semibold">ใบนับสต๊อก</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             นับของจริงบนชั้น แล้วให้ระบบปรับส่วนต่างเข้าคลัง
           </p>
@@ -134,7 +134,7 @@ export default async function StockCountListPage({
         </div>
         <button
           type="submit"
-          className="rounded-lg border border-border px-4 py-2 text-sm font-medium"
+          className="btn-secondary"
         >
           กรอง
         </button>

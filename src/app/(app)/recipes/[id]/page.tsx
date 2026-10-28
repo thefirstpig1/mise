@@ -146,7 +146,7 @@ export default async function RecipePage({
           >
             ← กลับรายการสูตร
           </a>
-          <h2 className="mt-1 text-xl font-bold">{recipe.targetName}</h2>
+          <h2 className="mt-1 text-2xl font-semibold">{recipe.targetName}</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             {isBranchRecipe
               ? `สูตรเฉพาะของ ${recipe.branchNames.join(" · ")}`
@@ -256,20 +256,20 @@ export default async function RecipePage({
       {comparisonView !== null && comparisonView.groups.length > 1 ? (
         <section className="space-y-3">
           <h3 className="text-lg font-semibold">เมนูนี้แต่ละสาขาทำไม่เหมือนกัน</h3>
-          <div className="overflow-x-auto rounded-2xl border border-border bg-surface">
+          <div className="data-table">
             <table className="w-full min-w-[32rem]">
-              <thead className="bg-muted/40">
+              <thead>
                 <tr>
-                  <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">
+                  <th className="text-left text-xs font-medium text-muted-foreground">
                     สูตร
                   </th>
-                  <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">
+                  <th className="text-left text-xs font-medium text-muted-foreground">
                     สาขาที่ใช้
                   </th>
-                  <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">
+                  <th className="text-right text-xs font-medium text-muted-foreground">
                     วัตถุดิบ
                   </th>
-                  <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">
+                  <th className="text-right text-xs font-medium text-muted-foreground">
                     ต้นทุน/จาน (บาท)
                   </th>
                 </tr>
@@ -282,7 +282,7 @@ export default async function RecipePage({
                       g.recipeId === recipe.id ? "bg-muted/30" : ""
                     }`}
                   >
-                    <td className="px-3 py-2 text-sm">
+                    <td className="text-sm">
                       <a
                         href={`/recipes/${g.recipeId}`}
                         className="text-primary hover:underline"
@@ -290,15 +290,15 @@ export default async function RecipePage({
                         {g.isCentral ? "สูตรกลาง" : `สูตรของ ${g.branchNames[0]}`}
                       </a>
                     </td>
-                    <td className="px-3 py-2 text-sm text-muted-foreground">
+                    <td className="text-sm text-muted-foreground">
                       {g.isCentral
                         ? `${g.branchCount} สาขาที่ตามสูตรกลาง`
                         : g.branchNames.join(" · ")}
                     </td>
-                    <td className="px-3 py-2 text-right text-sm tabular-nums text-muted-foreground">
+                    <td className="text-right text-sm tabular-nums text-muted-foreground">
                       {g.ingredientCount}
                     </td>
-                    <td className="px-3 py-2 text-right text-sm tabular-nums">
+                    <td className="text-right text-sm tabular-nums">
                       {/* Before the em dash, which here would claim the recipe
                           cannot be priced rather than that you may not see it. */}
                       {comparisonView.costHidden ? (
@@ -347,28 +347,28 @@ export default async function RecipePage({
       {/* Rule R8's home: here the date IS the content. */}
       <section className="space-y-3">
         <h3 className="text-lg font-semibold">ประวัติการแก้สูตร</h3>
-        <div className="overflow-x-auto rounded-2xl border border-border bg-surface">
+        <div className="data-table">
           <table className="w-full min-w-[28rem]">
-            <thead className="bg-muted/40">
+            <thead>
               <tr>
-                <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">
+                <th className="text-left text-xs font-medium text-muted-foreground">
                   มีผลตั้งแต่
                 </th>
-                <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">
+                <th className="text-right text-xs font-medium text-muted-foreground">
                   วัตถุดิบ
                 </th>
-                <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">
+                <th className="text-left text-xs font-medium text-muted-foreground">
                   สถานะ
                 </th>
-                <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">
+                <th className="text-left text-xs font-medium text-muted-foreground">
                   บันทึกเมื่อ
                 </th>
               </tr>
             </thead>
             <tbody>
               {versions.map((v) => (
-                <tr key={v.recipeId} className="border-t border-border">
-                  <td className="px-3 py-2 text-sm">
+                <tr key={v.recipeId}>
+                  <td className="text-sm">
                     <a
                       href={`/recipes/${v.recipeId}`}
                       className={`hover:underline ${
@@ -380,10 +380,10 @@ export default async function RecipePage({
                       {v.effectiveFromLabel}
                     </a>
                   </td>
-                  <td className="px-3 py-2 text-right text-sm tabular-nums text-muted-foreground">
+                  <td className="text-right text-sm tabular-nums text-muted-foreground">
                     {v.ingredientCount}
                   </td>
-                  <td className="px-3 py-2 text-sm">
+                  <td className="text-sm">
                     {v.isSuperseded ? (
                       <span className="text-xs text-muted-foreground">
                         แก้ทิ้ง (กรอกผิด)
@@ -401,7 +401,7 @@ export default async function RecipePage({
                       </span>
                     )}
                   </td>
-                  <td className="px-3 py-2 text-sm text-muted-foreground">
+                  <td className="text-sm text-muted-foreground">
                     {v.createdAtLabel}
                   </td>
                 </tr>

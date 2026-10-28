@@ -150,11 +150,11 @@ export default function ParDocsPopup({
               })}
               <div className="flex justify-end gap-2 px-3 py-2.5">
                 {d.kind === "PO" && d.lateDays > 0 && (
-                  <a href={`/goods-receipts/new?po=${d.id}`} className="rounded-full border border-border-strong px-3 py-1 text-sm hover:bg-muted">
+                  <a href={`/goods-receipts/new?po=${d.id}`} className="btn-secondary btn-sm">
                     รับของ
                   </a>
                 )}
-                <a href={d.kind === "PO" ? `/purchase-orders/${d.id}` : "/purchase-requests"} className="rounded-full border border-border-strong px-3 py-1 text-sm hover:bg-muted">
+                <a href={d.kind === "PO" ? `/purchase-orders/${d.id}` : "/purchase-requests"} className="btn-secondary btn-sm">
                   {d.kind === "PO" ? "เปิดใบสั่งซื้อ" : "เปิดใบขอซื้อ"}
                 </a>
               </div>

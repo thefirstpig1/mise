@@ -64,7 +64,7 @@ export default async function NewStockCountPage({
         >
           ← กลับไปรายการใบนับ
         </a>
-        <h2 className="mt-1 text-xl font-bold">เปิดใบนับใหม่</h2>
+        <h2 className="mt-1 text-2xl font-semibold">เปิดใบนับใหม่</h2>
       </div>
 
       <OpenCountForm

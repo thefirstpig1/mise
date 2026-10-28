@@ -7,7 +7,7 @@ export default async function NewCategoryPage() {
   await requireTenant("master:write"); // auth gate; tenantId resolved inside the action
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-bold">เพิ่มหมวดบัญชี</h2>
+      <h2 className="text-2xl font-semibold">เพิ่มหมวดบัญชี</h2>
       <CategoryForm action={createCategory} submitLabel="บันทึก" />
     </div>
   );

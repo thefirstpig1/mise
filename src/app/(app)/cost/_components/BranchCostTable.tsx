@@ -80,9 +80,9 @@ export default function BranchCostTable({
 
   return (
     <div className="space-y-4">
-      <div className="overflow-x-auto rounded-lg border border-border">
+      <div className="data-table">
         <table className="w-full min-w-[54rem]">
-          <thead className="border-b border-border bg-muted/40">
+          <thead>
             <tr>
               <th className={th}>สาขา</th>
               <th className={`${th} text-right`}>ต้นทุนวัตถุดิบ</th>
@@ -97,7 +97,7 @@ export default function BranchCostTable({
               <th className={`${th} text-right`}>กำไรขั้นต้น</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-border">
+          <tbody>
             {rows.map((r) => {
               const waste = Number(r.wasteValue);
               const variance = Number(r.varianceValue);

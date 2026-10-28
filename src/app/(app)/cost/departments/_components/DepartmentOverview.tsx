@@ -76,7 +76,7 @@ export default function DepartmentOverview(props: {
   return (
     <div className="space-y-5">
       <div>
-        <h2 className="text-xl font-bold">ต้นทุนตามแผนก</h2>
+        <h2 className="text-2xl font-semibold">ต้นทุนตามแผนก</h2>
         <p className="mt-1 text-sm text-muted-foreground">แผนกไหนทำเงิน ต้นทุนอยู่ในเป้าของแผนกไหม ดีขึ้นหรือแย่ลง และอะไรดันต้นทุน</p>
       </div>
 
@@ -250,8 +250,8 @@ export default function DepartmentOverview(props: {
               </p>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="text-left text-xs text-muted-foreground">
+                <table>
+                  <thead>
                     <tr>
                       <th className="py-1.5 font-medium">แผนก</th>
                       <th className="py-1.5 text-right font-medium">รับของเข้า (ก่อน VAT)</th>

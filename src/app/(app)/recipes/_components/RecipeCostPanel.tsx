@@ -112,25 +112,25 @@ export default function RecipeCostPanel({
         </div>
       ) : null}
 
-      <div className="overflow-x-auto rounded-2xl border border-border bg-surface">
+      <div className="data-table">
         <table className="w-full min-w-[24rem]">
-          <thead className="bg-muted/40">
+          <thead>
             <tr>
-              <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">
+              <th className="text-left text-xs font-medium text-muted-foreground">
                 ส่วนประกอบ
               </th>
-              <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">
+              <th className="text-right text-xs font-medium text-muted-foreground">
                 จำนวน
               </th>
-              <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">
+              <th className="text-right text-xs font-medium text-muted-foreground">
                 ต้นทุนต่อครั้ง (บาท)
               </th>
             </tr>
           </thead>
           <tbody>
             {cost.lines.map((l) => (
-              <tr key={l.ingredientId} className="border-t border-border">
-                <td className="px-3 py-2 text-sm">
+              <tr key={l.ingredientId}>
+                <td className="text-sm">
                   {l.label}
                   {l.confidence !== "HIGH" ? (
                     <span className="ml-2 text-[10px] text-muted-foreground">
@@ -138,10 +138,10 @@ export default function RecipeCostPanel({
                     </span>
                   ) : null}
                 </td>
-                <td className="px-3 py-2 text-right text-sm tabular-nums text-muted-foreground">
+                <td className="text-right text-sm tabular-nums text-muted-foreground">
                   {l.qty} {l.unitName ?? "จาน"}
                 </td>
-                <td className="px-3 py-2 text-right text-sm tabular-nums">
+                <td className="text-right text-sm tabular-nums">
                   {l.cost}
                 </td>
               </tr>
@@ -149,10 +149,10 @@ export default function RecipeCostPanel({
           </tbody>
           <tfoot className="border-t-2 border-border bg-muted/30">
             <tr>
-              <td className="px-3 py-2 text-sm font-medium" colSpan={2}>
+              <td className="text-sm" colSpan={2}>
                 รวมต่อครั้ง
               </td>
-              <td className="px-3 py-2 text-right text-sm font-medium tabular-nums">
+              <td className="text-right text-sm font-medium tabular-nums">
                 {cost.costPerBatch}
               </td>
             </tr>

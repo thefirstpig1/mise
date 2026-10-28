@@ -182,8 +182,8 @@ export function RecipeTable({
   return (
     <>
       <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="text-left text-xs text-muted-foreground">
+        <table>
+          <thead>
             <tr>
               <th className="py-1 font-medium">วัตถุดิบ</th>
               <th className="py-1 text-right font-medium">ปริมาณ</th>
@@ -379,7 +379,7 @@ function NewUnitDialog({
         </div>
         {error && <p className="text-sm text-bad">{error}</p>}
         <div className="flex justify-end gap-2 pt-1">
-          <button type="button" onClick={onClose} className="rounded-full border border-border-strong px-4 py-1.5 text-sm hover:bg-muted">
+          <button type="button" onClick={onClose} className="btn-secondary btn-sm">
             ยกเลิก
           </button>
           <button type="button" onClick={save} disabled={busy} className="btn">

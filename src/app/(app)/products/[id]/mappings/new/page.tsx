@@ -40,7 +40,7 @@ export default async function NewMappingPage({
 
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-bold">เพิ่มรายการราคา</h2>
+      <h2 className="text-2xl font-semibold">เพิ่มรายการราคา</h2>
       <p className="text-sm text-muted-foreground">{product.name}</p>
       <MappingForm
         action={createMappingAction}

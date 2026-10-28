@@ -129,7 +129,7 @@ export default function QuickRequest({
           )}
           {error && <p className="text-sm text-bad">{error}</p>}
           <div className="flex justify-end gap-2 pt-1">
-            <button type="button" onClick={onClose} className="rounded-full border border-border-strong px-4 py-1.5 text-sm hover:bg-muted">
+            <button type="button" onClick={onClose} className="btn-secondary btn-sm">
               ยกเลิก
             </button>
             <button type="button" onClick={() => send(false)} disabled={busy || !(Number(qty) > 0) || !unitId} className="btn">

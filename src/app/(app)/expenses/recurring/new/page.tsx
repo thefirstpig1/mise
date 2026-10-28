@@ -31,7 +31,7 @@ export default async function NewRecurringExpensePage() {
           ]}
           here="เพิ่มรายการประจำ"
         />
-        <h2 className="mt-1 text-xl font-bold">เพิ่มรายการประจำ</h2>
+        <h2 className="mt-1 text-2xl font-semibold">เพิ่มรายการประจำ</h2>
       </div>
 
       <RecurringExpenseForm
