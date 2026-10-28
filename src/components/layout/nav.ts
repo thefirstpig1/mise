@@ -66,8 +66,9 @@ export const NAV_GROUPS: readonly NavGroup[] = [
   {
     label: "การเงิน",
     items: [
-      { href: "/expenses", label: "ค่าใช้จ่าย", need: "expense:view" },
+      // Kong 2026-10-28: the analysis is what an owner opens this section for — first.
       { href: "/expenses/analysis", label: "วิเคราะห์รายจ่าย", need: "expense:view" },
+      { href: "/expenses", label: "ค่าใช้จ่าย", need: "expense:view" },
       { href: "/cost", label: "ต้นทุน", need: "cost:view" },
       { href: "/cost/departments", label: "ต้นทุนตามแผนก", need: "cost:view" },
       { href: "/cost/leaks", label: "ของหายไปไหน", need: "cost:view" },
