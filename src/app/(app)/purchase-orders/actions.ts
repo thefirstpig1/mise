@@ -29,6 +29,7 @@
 import { revalidatePath } from "next/cache";
 import type { ZodError } from "zod";
 import { requireTenant } from "@/lib/require-tenant";
+import { getDocumentBranchLogic } from "@/server/document-branch";
 import { deliveryPromiseInputSchema } from "@/lib/validations/purchase-request";
 import {
   cancelPurchaseOrderInputSchema,
@@ -234,7 +235,7 @@ export async function updatePurchaseOrderAction(
   _prevState: PurchaseOrderActionState,
   formData: FormData
 ): Promise<PurchaseOrderActionState> {
-  const { tenantId, assertBranch} = await requireTenant("purchase:write");
+  const { tenantId, assertBranch } = await requireTenant("purchase:write");
 
   const id = String(formData.get("id") ?? "");
   if (!id) return { ok: false, formError: NOT_FOUND_MESSAGE };
@@ -245,6 +246,10 @@ export async function updatePurchaseOrderAction(
   }
 
   assertBranch(parsed.data.branchId);
+
+  // Rule A5: the document's own branch must be within reach (a form may also name a new one).
+  const docBranch = await getDocumentBranchLogic(tenantId, "purchaseOrder", id);
+  if (docBranch) assertBranch(docBranch);
 
   try {
     const po = await updatePurchaseOrderLogic(tenantId, id, parsed.data);
@@ -263,7 +268,11 @@ export async function updatePurchaseOrderAction(
 export async function sendPurchaseOrderAction(
   id: string
 ): Promise<PurchaseOrderActionState> {
-  const { tenantId, membership } = await requireTenant("purchase:approve");
+  const { tenantId, membership, assertBranch } = await requireTenant("purchase:approve");
+  // Rule A5: the document's own branch must be within reach (a form may also name a new one).
+  const docBranch = await getDocumentBranchLogic(tenantId, "purchaseOrder", id);
+  if (docBranch) assertBranch(docBranch);
+
   try {
     const po = await sendPurchaseOrderLogic(tenantId, id, membership.userId);
     revalidatePurchaseOrderViews(po.id);
@@ -278,7 +287,7 @@ export async function cancelPurchaseOrderAction(
   _prevState: PurchaseOrderActionState,
   formData: FormData
 ): Promise<PurchaseOrderActionState> {
-  const { tenantId, membership } = await requireTenant("purchase:approve");
+  const { tenantId, membership, assertBranch } = await requireTenant("purchase:approve");
 
   const parsed = cancelPurchaseOrderInputSchema.safeParse({
     id: formData.get("id"),
@@ -287,6 +296,10 @@ export async function cancelPurchaseOrderAction(
   if (!parsed.success) {
     return { ok: false, fieldErrors: toFieldErrors(parsed.error) };
   }
+
+  // Rule A5: the document's own branch must be within reach (a form may also name a new one).
+  const docBranch = await getDocumentBranchLogic(tenantId, "purchaseOrder", parsed.data.id);
+  if (docBranch) assertBranch(docBranch);
 
   try {
     const po = await cancelPurchaseOrderLogic(
@@ -305,7 +318,11 @@ export async function cancelPurchaseOrderAction(
 export async function deletePurchaseOrderDraftAction(
   id: string
 ): Promise<PurchaseOrderActionState> {
-  const { tenantId } = await requireTenant("purchase:write");
+  const { tenantId, assertBranch } = await requireTenant("purchase:write");
+  // Rule A5: the document's own branch must be within reach (a form may also name a new one).
+  const docBranch = await getDocumentBranchLogic(tenantId, "purchaseOrder", id);
+  if (docBranch) assertBranch(docBranch);
+
   try {
     const po = await deletePurchaseOrderDraftLogic(tenantId, id);
     revalidatePurchaseOrderViews();

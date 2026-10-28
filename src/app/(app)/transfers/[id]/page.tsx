@@ -17,6 +17,7 @@
 
 import { notFound } from "next/navigation";
 import { requireTenant } from "@/lib/require-tenant";
+import { canAccessBranch } from "@/lib/permissions/service";
 import { getTransferByIdLogic } from "@/server/transfer";
 import { receiveTransferAction, voidTransferAction } from "../actions";
 import { toTransferView } from "../_components/transfer-view";
@@ -35,11 +36,13 @@ export default async function TransferDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { tenantId, costAccess} = await requireTenant("any:member");
+  const { tenantId, costAccess, assertBranch, reach } = await requireTenant("any:member");
   const { id } = await params;
 
   const found = await getTransferByIdLogic(tenantId, id);
   if (!found) notFound();
+  // Rule A5: reachable by URL, so the document's branch is checked here too.
+  if (!canAccessBranch(reach, found.fromBranchId)) assertBranch(found.toBranchId); // either end may read it
   const t = toTransferView(found, costAccess);
 
   const liveLines = t.lines.filter((l) => !l.isReversal);

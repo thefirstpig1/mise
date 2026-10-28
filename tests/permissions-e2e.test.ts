@@ -48,6 +48,11 @@ const { createStaffMealAction, createStaffMemberAction } = await import(
   "@/app/(app)/staff-meals/actions"
 );
 const { openStockCountAction } = await import("@/app/(app)/stock-counts/actions");
+const { deletePurchaseOrderDraftAction } = await import("@/app/(app)/purchase-orders/actions");
+const { supplierInputSchema } = await import("@/lib/validations/supplier");
+const { createSupplierLogic } = await import("@/server/supplier");
+const { purchaseOrderInputSchema } = await import("@/lib/validations/purchase-order");
+const { createPurchaseOrderLogic } = await import("@/server/purchase-order");
 
 type ProductWithUnits = Awaited<ReturnType<typeof createProductLogic>>;
 
@@ -103,6 +108,7 @@ describe("the gate, pressed (ADR 0029 Part 28 L6)", () => {
   let silom: string;
   let pork: ProductWithUnits;
   let somchai: string;
+  let supplier: string;
 
   const today = computeBangkokToday();
   const todayIso = today.toISOString().slice(0, 10);
@@ -182,6 +188,12 @@ describe("the gate, pressed (ADR 0029 Part 28 L6)", () => {
       });
     });
 
+    // E5's order needs a supplier and the default department a line falls to.
+    await withRlsBypass((tx) =>
+      tx.department.create({ data: { tenantId: tenantA, name: "ครัว", code: "MAIN" } })
+    );
+    supplier = (await createSupplierLogic(tenantA, supplierInputSchema.parse({ nameFull: "GP ผู้ขาย" }))).id;
+
     pork = await createProductLogic(
       tenantA,
       productInputSchema.parse({
@@ -214,6 +226,11 @@ describe("the gate, pressed (ADR 0029 Part 28 L6)", () => {
       await tx.staffMeal.deleteMany({ where: { tenantId: tenantA } });
       await tx.staffMember.deleteMany({ where: { tenantId: tenantA } });
       await tx.stockMovement.deleteMany({ where: { tenantId: tenantA } });
+      await tx.purchaseOrderItemAllocation.deleteMany({ where: { tenantId: tenantA } });
+      await tx.purchaseOrderItem.deleteMany({ where: { tenantId: tenantA } });
+      await tx.purchaseOrder.deleteMany({ where: { tenantId: tenantA } });
+      await tx.supplier.deleteMany({ where: { tenantId: tenantA } });
+      await tx.department.deleteMany({ where: { tenantId: tenantA } });
       await tx.userBranchAccess.deleteMany({
         where: { membership: { tenantId: tenantA } },
       });
@@ -289,5 +306,42 @@ describe("the gate, pressed (ADR 0029 Part 28 L6)", () => {
     }
     expect(redirectTarget(thrown)).toContain("/login");
     expect(await movementCount()).toBe(before);
+  });
+
+  it("E5 — a manager at อโศก cannot act BY ID on a document at สีลม (rule A5); the owner can", async () => {
+    // Before 2026-10-29 every by-id write checked the capability and never the
+    // branch the document already had. One representative press here; the
+    // other sixteen go through the same getDocumentBranchLogic + assertBranch.
+    const po = await createPurchaseOrderLogic(
+      tenantA,
+      purchaseOrderInputSchema.parse({
+        branchId: silom,
+        supplierId: supplier,
+        expectedDeliveryDate: "",
+        vatRatePercent: "",
+        notes: null,
+        lines: [
+          {
+            productId: pork.id,
+            orderUnitId: pork.productUnits.find((u) => u.isBase)!.id,
+            qtyOrdered: 2,
+            unitPrice: 100,
+            supplierProductMappingId: null,
+            notes: null,
+          },
+        ],
+      }),
+      ownerId
+    );
+
+    actingAs(managerId);
+    await expectDenied(() => deletePurchaseOrderDraftAction(po.id), "branch");
+    const still = await withRlsBypass((tx) => tx.purchaseOrder.findUnique({ where: { id: po.id } }));
+    expect(still?.deletedAt ?? null).toBeNull();
+
+    // The positive control: the same press by someone who reaches สีลม.
+    actingAs(ownerId);
+    const done = await deletePurchaseOrderDraftAction(po.id);
+    expect(done.ok, JSON.stringify(done)).toBe(true);
   });
 });

@@ -29,6 +29,7 @@
 import { revalidatePath } from "next/cache";
 import type { ZodError } from "zod";
 import { requireTenant } from "@/lib/require-tenant";
+import { getDocumentBranchLogic } from "@/server/document-branch";
 import {
   closePurchaseOrderShortInputSchema,
   goodsReceiptInputSchema,
@@ -342,7 +343,7 @@ export async function updateGoodsReceiptAction(
   _prevState: GoodsReceiptActionState,
   formData: FormData
 ): Promise<GoodsReceiptActionState> {
-  const { tenantId, assertBranch} = await requireTenant("receive:write");
+  const { tenantId, assertBranch } = await requireTenant("receive:write");
 
   const id = String(formData.get("id") ?? "");
   if (!id) return { ok: false, formError: NOT_FOUND_MESSAGE };
@@ -353,6 +354,10 @@ export async function updateGoodsReceiptAction(
   }
 
   assertBranch(parsed.data.branchId);
+
+  // Rule A5: the document's own branch must be within reach (a form may also name a new one).
+  const docBranch = await getDocumentBranchLogic(tenantId, "goodsReceipt", id);
+  if (docBranch) assertBranch(docBranch);
 
   try {
     const gr = await updateGoodsReceiptLogic(tenantId, id, parsed.data);
@@ -372,7 +377,11 @@ export async function updateGoodsReceiptAction(
 export async function confirmGoodsReceiptAction(
   id: string
 ): Promise<GoodsReceiptPostActionState> {
-  const { tenantId, membership } = await requireTenant("receive:write");
+  const { tenantId, membership, assertBranch } = await requireTenant("receive:write");
+  // Rule A5: the document's own branch must be within reach (a form may also name a new one).
+  const docBranch = await getDocumentBranchLogic(tenantId, "goodsReceipt", id);
+  if (docBranch) assertBranch(docBranch);
+
   try {
     const result = await confirmGoodsReceiptLogic(tenantId, id, membership.userId);
     revalidateGoodsReceiptViews(result.receipt.id, result.receipt.purchaseOrderId);
@@ -387,7 +396,7 @@ export async function voidGoodsReceiptAction(
   _prevState: GoodsReceiptPostActionState,
   formData: FormData
 ): Promise<GoodsReceiptPostActionState> {
-  const { tenantId, membership } = await requireTenant("receive:write");
+  const { tenantId, membership, assertBranch } = await requireTenant("receive:write");
 
   const parsed = voidGoodsReceiptInputSchema.safeParse({
     id: formData.get("id"),
@@ -396,6 +405,10 @@ export async function voidGoodsReceiptAction(
   if (!parsed.success) {
     return { ok: false, fieldErrors: toFieldErrors(parsed.error) };
   }
+
+  // Rule A5: the document's own branch must be within reach (a form may also name a new one).
+  const docBranch = await getDocumentBranchLogic(tenantId, "goodsReceipt", parsed.data.id);
+  if (docBranch) assertBranch(docBranch);
 
   try {
     const result = await voidGoodsReceiptLogic(
@@ -414,7 +427,11 @@ export async function voidGoodsReceiptAction(
 export async function deleteGoodsReceiptDraftAction(
   id: string
 ): Promise<GoodsReceiptActionState> {
-  const { tenantId } = await requireTenant("receive:write");
+  const { tenantId, assertBranch } = await requireTenant("receive:write");
+  // Rule A5: the document's own branch must be within reach (a form may also name a new one).
+  const docBranch = await getDocumentBranchLogic(tenantId, "goodsReceipt", id);
+  if (docBranch) assertBranch(docBranch);
+
   try {
     const gr = await deleteGoodsReceiptDraftLogic(tenantId, id);
     revalidateGoodsReceiptViews(undefined, gr.purchaseOrderId);
@@ -433,7 +450,7 @@ export async function closePurchaseOrderShortAction(
   _prevState: GoodsReceiptActionState,
   formData: FormData
 ): Promise<GoodsReceiptActionState> {
-  const { tenantId, membership } = await requireTenant("purchase:approve");
+  const { tenantId, membership, assertBranch } = await requireTenant("purchase:approve");
 
   const parsed = closePurchaseOrderShortInputSchema.safeParse({
     id: formData.get("id"),
@@ -442,6 +459,10 @@ export async function closePurchaseOrderShortAction(
   if (!parsed.success) {
     return { ok: false, fieldErrors: toFieldErrors(parsed.error) };
   }
+
+  // Rule A5: the document's own branch must be within reach (a form may also name a new one).
+  const docBranch = await getDocumentBranchLogic(tenantId, "purchaseOrder", parsed.data.id);
+  if (docBranch) assertBranch(docBranch);
 
   try {
     const po = await closePurchaseOrderShortLogic(

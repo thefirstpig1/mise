@@ -36,7 +36,7 @@ export default async function EditRecurringExpensePage({
 }: {
   params: Promise<{ recurringId: string }>;
 }) {
-  const { tenantId, reach, membership } = await requireTenant("expense:write");
+  const { tenantId, reach, membership, assertBranch } = await requireTenant("expense:write");
   const { recurringId } = await params;
 
   // The six months the history shows: up to this month (or the template's
@@ -50,6 +50,8 @@ export default async function EditRecurringExpensePage({
     getSupplierLastCategoriesLogic(tenantId),
   ]);
   if (!row) notFound();
+  // Rule A5: reachable by URL, so the document's branch is checked here too.
+  assertBranch(row.branchId);
   const template = toRecurringExpenseView(row);
   const vatDefault = membership.tenant.defaultVatRatePercent.toString();
 

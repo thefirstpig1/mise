@@ -24,6 +24,7 @@
 import { revalidatePath } from "next/cache";
 import type { ZodError } from "zod";
 import { requireTenant } from "@/lib/require-tenant";
+import { getDocumentBranchLogic } from "@/server/document-branch";
 import {
   createWasteInputSchema,
   voidWasteInputSchema,
@@ -177,7 +178,7 @@ export async function voidWasteAction(
   _prevState: VoidWasteActionState,
   formData: FormData
 ): Promise<VoidWasteActionState> {
-  const { tenantId, membership } = await requireTenant("waste:write");
+  const { tenantId, membership, assertBranch } = await requireTenant("waste:write");
 
   const parsed = voidWasteInputSchema.safeParse({
     id: formData.get("id"),
@@ -186,6 +187,10 @@ export async function voidWasteAction(
   if (!parsed.success) {
     return { ok: false, fieldErrors: toFieldErrors(parsed.error) };
   }
+
+  // Rule A5: the document's own branch must be within reach (a form may also name a new one).
+  const docBranch = await getDocumentBranchLogic(tenantId, "wasteLog", parsed.data.id);
+  if (docBranch) assertBranch(docBranch);
 
   try {
     const voided = await voidWasteLogic(tenantId, parsed.data, membership.userId);

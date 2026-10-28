@@ -29,6 +29,8 @@
 import { revalidatePath } from "next/cache";
 import type { ZodError } from "zod";
 import { requireTenant } from "@/lib/require-tenant";
+import { canAccessBranch } from "@/lib/permissions/service";
+import { getTransferBranchesLogic } from "@/server/document-branch";
 import {
   dispatchTransferInputSchema,
   receiveTransferInputSchema,
@@ -236,7 +238,7 @@ export async function receiveTransferAction(
   _prevState: TransferActionState,
   formData: FormData
 ): Promise<TransferActionState> {
-  const { tenantId, membership } = await requireTenant("stock:write");
+  const { tenantId, membership, assertBranch } = await requireTenant("stock:write");
 
   // One triple per counted amount (Kong 2026-10-27): a line may be counted in
   // several units, so the form posts entries, grouped here by line. A line with
@@ -264,6 +266,11 @@ export async function receiveTransferAction(
     return { ok: false, fieldErrors: toFieldErrors(parsed.error) };
   }
 
+  // Rule A5: the document's own branch must be within reach (a form may also name a new one).
+  const sides = await getTransferBranchesLogic(tenantId, parsed.data.id);
+  // Receiving is the receiving branch's act.
+  if (sides) assertBranch(sides.toBranchId);
+
   try {
     const transfer = await receiveTransferLogic(
       tenantId,
@@ -289,7 +296,7 @@ export async function voidTransferAction(
   _prevState: TransferActionState,
   formData: FormData
 ): Promise<TransferActionState> {
-  const { tenantId, membership } = await requireTenant("stock:write");
+  const { tenantId, membership, assertBranch, reach } = await requireTenant("stock:write");
 
   const parsed = voidTransferInputSchema.safeParse({
     id: formData.get("id"),
@@ -298,6 +305,11 @@ export async function voidTransferAction(
   if (!parsed.success) {
     return { ok: false, fieldErrors: toFieldErrors(parsed.error) };
   }
+
+  // Rule A5: the document's own branch must be within reach (a form may also name a new one).
+  const sides = await getTransferBranchesLogic(tenantId, parsed.data.id);
+  // Either end of the transfer may void it; someone at neither end may not.
+  if (sides && !canAccessBranch(reach, sides.fromBranchId)) assertBranch(sides.toBranchId);
 
   try {
     const transfer = await voidTransferLogic(

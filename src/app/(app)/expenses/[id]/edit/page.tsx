@@ -22,7 +22,7 @@ export default async function EditExpensePage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { tenantId, reach, membership } = await requireTenant("expense:write");
+  const { tenantId, reach, membership, assertBranch } = await requireTenant("expense:write");
   const { id } = await params;
 
   const [row, branches, suppliers, categories, lastCategories] = await Promise.all([
@@ -34,6 +34,8 @@ export default async function EditExpensePage({
   ]);
   const vatDefault = membership.tenant.defaultVatRatePercent.toString();
   if (!row) notFound();
+  // Rule A5: reachable by URL, so the document's branch is checked here too.
+  assertBranch(row.branchId);
   const expense = toExpenseDetailView(row);
 
   return (

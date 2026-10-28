@@ -42,11 +42,13 @@ export default async function GoodsReceiptDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { tenantId, membership } = await requireTenant("receive:write");
+  const { tenantId, membership, assertBranch } = await requireTenant("receive:write");
   const { id } = await params;
 
   const row = await getGoodsReceiptByIdLogic(tenantId, id);
   if (!row) notFound();
+  // Rule A5: reachable by URL, so the document's branch is checked here too.
+  assertBranch(row.branchId);
 
   const gr = toGoodsReceiptDetailView(row);
   const tenant = membership.tenant;

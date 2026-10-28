@@ -20,11 +20,13 @@ export default async function EditPurchaseOrderPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { tenantId, membership, reach} = await requireTenant("purchase:write");
+  const { tenantId, membership, reach, assertBranch } = await requireTenant("purchase:write");
   const { id } = await params;
 
   const order = await getPurchaseOrderByIdLogic(tenantId, id);
   if (!order) notFound();
+  // Rule A5: reachable by URL, so the document's branch is checked here too.
+  assertBranch(order.branchId);
 
   const view = toPurchaseOrderDetailView(order);
 

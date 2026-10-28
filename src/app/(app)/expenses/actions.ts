@@ -22,6 +22,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { ZodError } from "zod";
 import { requireTenant } from "@/lib/require-tenant";
+import { getDocumentBranchLogic } from "@/server/document-branch";
 import {
   deleteExpenseInputSchema,
   deleteRecurringExpenseInputSchema,
@@ -267,7 +268,7 @@ export async function updateExpenseAction(
   _prevState: ExpenseActionState,
   formData: FormData
 ): Promise<ExpenseActionState> {
-  const { tenantId, assertBranch} = await requireTenant("expense:write");
+  const { tenantId, assertBranch } = await requireTenant("expense:write");
 
   const parsed = updateExpenseInputSchema.safeParse({
     ...expenseFromFormData(formData),
@@ -278,6 +279,10 @@ export async function updateExpenseAction(
   }
 
   assertBranch(parsed.data.branchId);
+
+  // Rule A5: the document's own branch must be within reach (a form may also name a new one).
+  const docBranch = await getDocumentBranchLogic(tenantId, "expense", parsed.data.id);
+  if (docBranch) assertBranch(docBranch);
 
   try {
     const expense = await updateExpenseLogic(tenantId, parsed.data);
@@ -293,7 +298,7 @@ export async function setExpensePaymentAction(
   _prevState: ExpenseActionState,
   formData: FormData
 ): Promise<ExpenseActionState> {
-  const { tenantId } = await requireTenant("expense:write");
+  const { tenantId, assertBranch } = await requireTenant("expense:write");
 
   const parsed = setExpensePaymentInputSchema.safeParse({
     id: formData.get("id"),
@@ -308,6 +313,10 @@ export async function setExpensePaymentAction(
     return { ok: false, fieldErrors: toFieldErrors(parsed.error, EXPENSE_FIELD_LABELS_TH) };
   }
 
+  // Rule A5: the document's own branch must be within reach (a form may also name a new one).
+  const docBranch = await getDocumentBranchLogic(tenantId, "expense", parsed.data.id);
+  if (docBranch) assertBranch(docBranch);
+
   try {
     const expense = await setExpensePaymentLogic(tenantId, parsed.data);
     revalidateExpenseViews(expense.id);
@@ -321,12 +330,16 @@ export async function deleteExpenseAction(
   _prevState: ExpenseActionState,
   formData: FormData
 ): Promise<ExpenseActionState> {
-  const { tenantId } = await requireTenant("expense:write");
+  const { tenantId, assertBranch } = await requireTenant("expense:write");
 
   const parsed = deleteExpenseInputSchema.safeParse({ id: formData.get("id") });
   if (!parsed.success) {
     return { ok: false, fieldErrors: toFieldErrors(parsed.error, EXPENSE_FIELD_LABELS_TH) };
   }
+
+  // Rule A5: the document's own branch must be within reach (a form may also name a new one).
+  const docBranch = await getDocumentBranchLogic(tenantId, "expense", parsed.data.id);
+  if (docBranch) assertBranch(docBranch);
 
   try {
     const expense = await deleteExpenseLogic(tenantId, parsed.data);
@@ -396,7 +409,7 @@ export async function updateRecurringExpenseAction(
   _prevState: RecurringExpenseActionState,
   formData: FormData
 ): Promise<RecurringExpenseActionState> {
-  const { tenantId, assertBranch} = await requireTenant("expense:write");
+  const { tenantId, assertBranch } = await requireTenant("expense:write");
 
   const parsed = updateRecurringExpenseInputSchema.safeParse({
     ...recurringFromFormData(formData),
@@ -410,6 +423,10 @@ export async function updateRecurringExpenseAction(
   }
 
   if (parsed.data.branchId) assertBranch(parsed.data.branchId);
+
+  // Rule A5: the document's own branch must be within reach (a form may also name a new one).
+  const docBranch = await getDocumentBranchLogic(tenantId, "recurringExpense", parsed.data.id);
+  if (docBranch) assertBranch(docBranch);
 
   try {
     const template = await updateRecurringExpenseLogic(tenantId, parsed.data);
@@ -429,7 +446,7 @@ export async function deleteRecurringExpenseAction(
   _prevState: RecurringExpenseActionState,
   formData: FormData
 ): Promise<RecurringExpenseActionState> {
-  const { tenantId } = await requireTenant("expense:write");
+  const { tenantId, assertBranch } = await requireTenant("expense:write");
 
   const parsed = deleteRecurringExpenseInputSchema.safeParse({ id: formData.get("id") });
   if (!parsed.success) {
@@ -438,6 +455,10 @@ export async function deleteRecurringExpenseAction(
       fieldErrors: toFieldErrors(parsed.error, RECURRING_EXPENSE_FIELD_LABELS_TH),
     };
   }
+
+  // Rule A5: the document's own branch must be within reach (a form may also name a new one).
+  const docBranch = await getDocumentBranchLogic(tenantId, "recurringExpense", parsed.data.id);
+  if (docBranch) assertBranch(docBranch);
 
   try {
     await deleteRecurringExpenseLogic(tenantId, parsed.data);

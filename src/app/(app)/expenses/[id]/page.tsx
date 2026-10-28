@@ -48,12 +48,14 @@ export default async function ExpenseDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { tenantId, capabilities } = await requireTenant("expense:view");
+  const { tenantId, capabilities, assertBranch } = await requireTenant("expense:view");
   const canWrite = capabilities.has("expense:write");
   const { id } = await params;
 
   const row = await getExpenseByIdLogic(tenantId, id);
   if (!row) notFound();
+  // Rule A5: reachable by URL, so the document's branch is checked here too.
+  assertBranch(row.branchId);
   const expense = toExpenseDetailView(row);
   const title = expenseTitle(expense);
   const period = expense.period ? monthLabelTh(expense.period) : null;
