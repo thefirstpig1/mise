@@ -267,18 +267,6 @@ export async function removeStockCountLineAction(
   }
 }
 
-/**
- * The poll every open device makes (ADR 0034 Q7). One read of the sheet with
- * its lines and contributions — no cost engine, no product list.
- */
-export async function getCountSheetAction(
-  stockCountId: string
-): Promise<StockCountDetailView | null> {
-  const { tenantId } = await requireTenant("count:write");
-  const count = await getStockCountByIdLogic(tenantId, stockCountId);
-  return count ? toStockCountDetailView(count) : null;
-}
-
 // ------------------------------------------------------------
 // Closing, voiding, discarding
 // ------------------------------------------------------------

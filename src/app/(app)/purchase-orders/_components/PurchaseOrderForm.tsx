@@ -1,7 +1,5 @@
 "use client";
 
-import { orStale } from "@/lib/stale-tab";
-
 // Sprint 2 Part 11 L5b — the order form (shared by create and edit).
 //
 // Driven by React 19 useActionState. Input `name=` attributes are snake_case to
@@ -29,6 +27,7 @@ import { orStale } from "@/lib/stale-tab";
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import type { PurchaseOrderActionState } from "../actions";
 import type { ResolvedPriceView } from "./purchase-order-view";
+import { readApi } from "@/lib/read-api";
 import ProductPicker from "@/components/ui/ProductPicker";
 import QtyStepper from "@/components/ui/QtyStepper";
 import SelectChip from "@/components/ui/SelectChip";
@@ -103,9 +102,11 @@ export type PurchaseOrderFormInitial = {
 
 const errorClass = "mt-1 text-xs text-bad";
 
-let rowSeq = 0;
-const newRow = (): LineRow => ({
-  key: `r${rowSeq++}`,
+// A row's key reaches the page (`data-row`), so the rows the server renders
+// get keys from their position: a module-level counter kept counting across
+// requests on the server and failed hydration ("r1" vs "r0").
+const newRow = (key: string): LineRow => ({
+  key,
   productId: "",
   orderUnitId: "",
   qty: "",
@@ -131,6 +132,14 @@ const nf = (v: number) => v.toLocaleString("th-TH", { maximumFractionDigits: 3 }
 const fmt = (v: number) =>
   v.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+// GET reads (mise-ui-review §5c) — these were Server Actions the page handed down.
+/** Today's price for a (product, supplier, branch) — the form's autofill. */
+const resolvePrice = (q: { productId: string; supplierId: string; branchId: string }) =>
+  readApi<{ ok: true; data: ResolvedPriceView | null }>("/api/purchase-orders", "price", q);
+/** Which products the chosen supplier carries at the chosen branch. */
+const supplierCarries = (q: { supplierId: string; branchId: string }) =>
+  readApi<{ ok: true; productIds: string[] }>("/api/purchase-orders", "carries", q);
+
 export default function PurchaseOrderForm({
   action,
   products: productsIn,
@@ -138,8 +147,6 @@ export default function PurchaseOrderForm({
   branches,
   tenantDefaultVatRate,
   initial,
-  resolvePrice,
-  supplierCarries,
 }: {
   action: (
     prev: PurchaseOrderActionState,
@@ -151,19 +158,6 @@ export default function PurchaseOrderForm({
   tenantDefaultVatRate: string;
   /** Present = edit mode; the order id travels in a hidden field. */
   initial?: PurchaseOrderFormInitial;
-  /** Resolve today's price — the bound L4 action. */
-  resolvePrice?: (query: {
-    productId: string;
-    supplierId: string;
-    branchId: string;
-  }) => Promise<
-    { ok: true; data: ResolvedPriceView | null } | { ok: false; formError: string }
-  >;
-  /** Which products the chosen supplier carries at the chosen branch. */
-  supplierCarries?: (query: {
-    supplierId: string;
-    branchId: string;
-  }) => Promise<{ ok: true; productIds: string[] } | { ok: false; formError: string }>;
 }) {
   const [state, formAction, isPending] = useActionState(
     action,
@@ -182,8 +176,8 @@ export default function PurchaseOrderForm({
   const [inclusive, setInclusive] = useState(initial?.pricesIncludeVat ?? false);
   const [rows, setRows] = useState<LineRow[]>(() =>
     initial?.lines.length
-      ? initial.lines.map((l) => ({
-          ...newRow(),
+      ? initial.lines.map((l, i) => ({
+          ...newRow(`r${i}`),
           productId: l.productId,
           orderUnitId: l.orderUnitId,
           qty: l.qtyOrdered,
@@ -192,7 +186,7 @@ export default function PurchaseOrderForm({
           notes: l.notes ?? "",
           requestLineId: l.purchaseRequestLineId ?? "",
         }))
-      : [newRow()]
+      : [newRow("r0")]
   );
 
   const isEdit = Boolean(initial);
@@ -222,9 +216,9 @@ export default function PurchaseOrderForm({
   const carriedKey = `${supplierId}|${branchId}`;
   useEffect(() => {
     setShowAll(false);
-    if (!supplierCarries || !supplierId || !branchId) return;
+    if (!supplierId || !branchId) return;
     let live = true;
-    void orStale(supplierCarries({ supplierId, branchId })).then((r) => {
+    void supplierCarries({ supplierId, branchId }).then((r) => {
       if (live && r.ok) setCarried({ key: carriedKey, ids: new Set(r.productIds) });
     });
     return () => {
@@ -251,8 +245,10 @@ export default function PurchaseOrderForm({
     const t = window.setTimeout(() => pickerRefs.current.get(focusKey)?.focus({ preventScroll: true }), 250);
     return () => window.clearTimeout(t);
   }, [focusKey]);
+  // Rows added on the client continue after the ones the server rendered.
+  const rowSeq = useRef(initial?.lines.length || 1);
   const addRow = () => {
-    const r = newRow();
+    const r = newRow(`r${rowSeq.current++}`);
     setRows((rs) => [...rs, r]);
     setFocusKey(r.key);
   };
@@ -262,8 +258,8 @@ export default function PurchaseOrderForm({
 
   /** Ask the server for today's price and fill the row in (Q5 handles "none"). */
   const autofill = async (key: string, productId: string) => {
-    if (!resolvePrice || !productId || !supplierId || !branchId) return;
-    const res = await orStale(resolvePrice({ productId, supplierId, branchId }));
+    if (!productId || !supplierId || !branchId) return;
+    const res = await resolvePrice({ productId, supplierId, branchId });
     if (!res.ok) return;
     if (!res.data) {
       patch(key, { priceScope: "none", mappingId: "", minOrderQty: null });

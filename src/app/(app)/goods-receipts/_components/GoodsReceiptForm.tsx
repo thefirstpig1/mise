@@ -30,6 +30,7 @@
 import { useActionState, useEffect, useId, useMemo, useState } from "react";
 import type { GoodsReceiptActionState } from "../actions";
 import type { ReceivablePurchaseOrderView } from "./goods-receipt-view";
+import { readApi } from "@/lib/read-api";
 import ProductPicker, { type PickerProduct } from "@/components/ui/ProductPicker";
 import QtyStepper from "@/components/ui/QtyStepper";
 import SelectChip from "@/components/ui/SelectChip";
@@ -156,13 +157,16 @@ const LINE_GRID_MOBILE = "grid-cols-[9rem_minmax(0,1fr)_auto] [grid-template-are
 /** Trim trailing zeros so "4.000" reads as "4". */
 const trimQty = (s: string) => (s.includes(".") ? s.replace(/\.?0+$/, "") : s);
 
+/** An order's outstanding lines for the prefill — a GET read (§5c). */
+const loadPurchaseOrder = (id: string) =>
+  readApi<{ ok: true; data: ReceivablePurchaseOrderView | null }>("/api/goods-receipts", "po", id);
+
 export default function GoodsReceiptForm({
   action,
   products: productsIn,
   suppliers,
   branches,
   purchaseOrders,
-  loadPurchaseOrder,
   nowLocal,
   minLocal,
   maxLocal,
@@ -179,11 +183,6 @@ export default function GoodsReceiptForm({
   suppliers: GrSupplierOption[];
   branches: GrBranchOption[];
   purchaseOrders: GrPurchaseOrderOption[];
-  /** The bound L4 action that fetches an order's outstanding lines. */
-  loadPurchaseOrder: (id: string) => Promise<
-    | { ok: true; data: ReceivablePurchaseOrderView | null }
-    | { ok: false; formError: string }
-  >;
   /** All three computed on the SERVER in Bangkok — a device in another timezone
    *  would otherwise be offered a time the server rejects (Decision #60). */
   nowLocal: string;

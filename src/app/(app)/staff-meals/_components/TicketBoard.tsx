@@ -16,12 +16,9 @@ import QtyStepper from "@/components/ui/QtyStepper";
 
 import { useActionState, useCallback, useEffect, useState } from "react";
 import ProductPicker, { type PickerProduct } from "@/components/ui/ProductPicker";
-import type {
-  RequestStaffMealActionState,
-  TicketActionState,
-  TicketBoard as Board,
-  TicketView,
-} from "../actions";
+import type { RequestStaffMealActionState, TicketActionState } from "../actions";
+import type { TicketBoard as Board, TicketView } from "../ticket-board-read";
+import { readApi } from "@/lib/read-api";
 
 const POLL_MS = 10_000;
 
@@ -176,7 +173,6 @@ export default function TicketBoard({
   request,
   approve,
   reject,
-  refresh,
   view = "all",
   onPendingCount,
 }: {
@@ -193,7 +189,6 @@ export default function TicketBoard({
   request: (prev: RequestStaffMealActionState, fd: FormData) => Promise<RequestStaffMealActionState>;
   approve: (id: string) => Promise<TicketActionState>;
   reject: (id: string, reason: string) => Promise<TicketActionState>;
-  refresh: () => Promise<Board>;
 }) {
   const [board, setBoard] = useState(initial);
   const [state, formAction, pending] = useActionState(request, { ok: false } as RequestStaffMealActionState);
@@ -202,9 +197,9 @@ export default function TicketBoard({
   const [branchId, setBranchId] = useState(defaultBranchId);
 
   const reload = useCallback(async () => {
-    const next = await refresh().catch(() => null);
-    if (next) setBoard(next);
-  }, [refresh]);
+    const r = await readApi<{ ok: true; board: Board }>("/api/staff-meals", "board");
+    if (r.ok) setBoard(r.board);
+  }, []);
 
   // A ticket just issued: show it, clear the form, mint the next key.
   useEffect(() => {

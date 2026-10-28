@@ -19,7 +19,6 @@ import {
   MAX_BACKDATE_DAYS,
 } from "@/lib/validations/goods-receipt";
 import {
-  getReceivablePurchaseOrderAction,
   updateGoodsReceiptAction,
 } from "../../actions";
 import GoodsReceiptForm from "../../_components/GoodsReceiptForm";
@@ -96,7 +95,6 @@ export default async function EditGoodsReceiptPage({
         suppliers={suppliers}
         branches={branches}
         purchaseOrders={purchaseOrders}
-        loadPurchaseOrder={getReceivablePurchaseOrderAction}
         nowLocal={nowLocal}
         minLocal={minLocal}
         maxLocal={maxLocal}

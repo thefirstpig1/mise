@@ -23,10 +23,7 @@ import {
   MAX_BACKDATE_DAYS,
   RECEIVABLE_PO_STATUSES,
 } from "@/lib/validations/goods-receipt";
-import {
-  createGoodsReceiptAction,
-  getReceivablePurchaseOrderAction,
-} from "../actions";
+import { createGoodsReceiptAction } from "../actions";
 import GoodsReceiptForm from "../_components/GoodsReceiptForm";
 import { loadGoodsReceiptFormOptions } from "../_components/form-options";
 import {
@@ -90,7 +87,6 @@ export default async function NewGoodsReceiptPage({
           suppliers={suppliers}
           branches={branches}
           purchaseOrders={purchaseOrders}
-          loadPurchaseOrder={getReceivablePurchaseOrderAction}
           nowLocal={nowLocal}
           minLocal={minLocal}
           maxLocal={maxLocal}

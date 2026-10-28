@@ -29,12 +29,12 @@ import { STAFF_MEAL_PRICE_SOURCE_LABELS_TH } from "@/lib/validations/staff-meal"
 import {
   approveStaffMealAction,
   createStaffMealAction,
-  getTicketBoardAction,
   rejectStaffMealAction,
   requestStaffMealAction,
   voidStaffMealAction,
 } from "./actions";
 import StaffMealsScreen, { type StaffMealTab } from "./_components/StaffMealsScreen";
+import { readTicketBoard } from "./ticket-board-read";
 import PageHeader from "@/components/ui/PageHeader";
 import {
   toStaffMealQuotaView,
@@ -75,7 +75,7 @@ export default async function StaffMealsPage({
     tab?: string;
   }>;
 }) {
-  const { tenantId, reach, can } = await requireTenant("staffmeal:write");
+  const { tenantId, membership, reach, can } = await requireTenant("staffmeal:write");
 
   // Recording a meal and reading back how much ONE NAMED PERSON has eaten
   // are different questions, and only the first is kitchen work. The page
@@ -149,7 +149,7 @@ export default async function StaffMealsPage({
           businessDate: new Date(`${todayIso}T00:00:00Z`),
         })
       : Promise.resolve(null),
-    getTicketBoardAction(),
+    readTicketBoard({ tenantId, userId: membership.userId, reach, canApprove: can("staffmeal:approve") }),
   ]);
 
   const defaultBranchId = sp.branch || branches[0]?.id || "";
@@ -425,7 +425,6 @@ export default async function StaffMealsPage({
           request: requestStaffMealAction,
           approve: approveStaffMealAction,
           reject: rejectStaffMealAction,
-          refresh: getTicketBoardAction,
         }}
         potForm={potForm}
         history={historyPane}

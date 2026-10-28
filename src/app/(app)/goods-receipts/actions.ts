@@ -44,7 +44,6 @@ import {
   GoodsReceiptPoMismatchError,
   GoodsReceiptTransitionError,
   GrAllocationSumMismatchError,
-  getReceivablePurchaseOrderLogic,
   OverReceiptNoteRequiredError,
   PurchaseOrderNotReceivableError,
   ReceivedUnitMismatchError,
@@ -62,11 +61,6 @@ import {
   MovementSourceConflictError,
   QtyRoundsToZeroError,
 } from "@/server/stock-movement";
-import {
-  toReceivablePurchaseOrderView,
-  type ReceivablePurchaseOrderView,
-} from "./_components/goods-receipt-view";
-import { RECEIVABLE_PO_STATUSES } from "@/lib/validations/goods-receipt";
 
 /**
  * Outcome of the receipt form, for React 19 useActionState.
@@ -462,32 +456,3 @@ export async function closePurchaseOrderShortAction(
   }
 }
 
-/**
- * The order a receipt is about to be written against, for the form's prefill.
- *
- * A DRAFT / CANCELLED order comes back with `receivable: false` rather than an
- * error: the user picked something from a list, and telling them why it cannot be
- * received is more useful than refusing to render.
- */
-export async function getReceivablePurchaseOrderAction(
-  purchaseOrderId: string
-): Promise<
-  | { ok: true; data: ReceivablePurchaseOrderView | null }
-  | { ok: false; formError: string }
-> {
-  const { tenantId } = await requireTenant("receive:write");
-  if (!purchaseOrderId) {
-    return { ok: false, formError: PO_NOT_FOUND_MESSAGE };
-  }
-
-  const po = await getReceivablePurchaseOrderLogic(tenantId, purchaseOrderId);
-  if (!po) return { ok: true, data: null };
-
-  return {
-    ok: true,
-    data: toReceivablePurchaseOrderView(
-      po,
-      RECEIVABLE_PO_STATUSES.includes(po.status as never)
-    ),
-  };
-}

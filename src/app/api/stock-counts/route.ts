@@ -1,0 +1,32 @@
+// ============================================================
+// Mise — นับสต๊อก's read, as GET (mise-ui-review §5c)
+// ============================================================
+// what=sheet&q="countId"  the sheet every open device polls (ADR 0034 Q7)
+// This was getCountSheetAction, handed to the sheet as a prop. A poll through
+// the Server Action queue waits behind — and holds up — the counter's own
+// saves on the same device; a GET runs beside them.
+// Gate: count:write, and the count's branch within reach (rule A5).
+// ============================================================
+
+import { requireTenant } from "@/lib/require-tenant";
+import { guardRead, readInput } from "@/lib/read-api";
+import { getStockCountByIdLogic } from "@/server/stock-count";
+import { toStockCountDetailView } from "@/app/(app)/stock-counts/_components/stock-count-view";
+
+export const dynamic = "force-dynamic";
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const json = (body: unknown, status = 200) => Response.json(body, { status, headers: { "Cache-Control": "no-store" } });
+
+export function GET(req: Request) {
+  return guardRead(async () => {
+    const url = new URL(req.url);
+    const id = String(readInput(url) ?? "");
+    if (url.searchParams.get("what") !== "sheet" || !UUID.test(id)) return json({ ok: false, formError: "คำขอไม่ถูกต้อง" }, 400);
+    const { tenantId, assertBranch } = await requireTenant("count:write");
+    const count = await getStockCountByIdLogic(tenantId, id);
+    if (!count) return json({ ok: true, detail: null });
+    assertBranch(count.branchId);
+    return json({ ok: true, detail: toStockCountDetailView(count) });
+  });
+}

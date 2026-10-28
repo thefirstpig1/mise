@@ -30,6 +30,7 @@ import StatusBadge from "./StatusBadge";
 import CountRow, { type CountProduct, type RowSubmit } from "./CountRow";
 import { formatMoney, formatQty } from "./stock-count-view";
 import type { StockCountDetailView } from "./stock-count-view";
+import { readApi } from "@/lib/read-api";
 import EmptyState from "@/components/ui/EmptyState";
 import { Portal, useTopLayer } from "@/app/(app)/menus/_components/sheet-parts";
 
@@ -39,6 +40,12 @@ type Show = "all" | "todo" | "done";
 
 const chip = (active: boolean, small = false) =>
   `pill ${small ? "h-7 px-2.5 text-xs" : ""} ${active ? "is-on" : ""}`;
+
+/** The poll (ADR 0034 Q7) — a GET, so it never queues behind this device's saves (§5c). */
+async function poll(countId: string): Promise<StockCountDetailView | null> {
+  const r = await readApi<{ ok: true; detail: StockCountDetailView | null }>("/api/stock-counts", "sheet", countId);
+  return r.ok ? r.detail : null;
+}
 
 export default function CountSheet({
   initial,
@@ -51,7 +58,6 @@ export default function CountSheet({
   editContribution,
   deleteContribution,
   removeLine,
-  poll,
   close,
   voidCount,
 }: {
@@ -81,7 +87,6 @@ export default function CountSheet({
   }) => Promise<StockCountActionState>;
   deleteContribution: (countId: string, contributionId: string) => Promise<StockCountActionState>;
   removeLine: (countId: string, itemId: string) => Promise<StockCountActionState>;
-  poll: (countId: string) => Promise<StockCountDetailView | null>;
   close: (prev: StockCountActionState, fd: FormData) => Promise<StockCountActionState>;
   voidCount: (prev: StockCountActionState, fd: FormData) => Promise<StockCountActionState>;
 }) {
@@ -123,7 +128,7 @@ export default function CountSheet({
     if (inFlight.current > 0) return;
     const fresh = await poll(detail.id).catch(() => null);
     if (fresh && inFlight.current === 0) setDetail(fresh);
-  }, [poll, detail.id]);
+  }, [detail.id]);
 
   useEffect(() => {
     if (!isDraft) return;

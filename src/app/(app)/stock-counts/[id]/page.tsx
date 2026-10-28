@@ -27,7 +27,6 @@ import {
   confirmCountAction,
   deleteContributionAction,
   editContributionAction,
-  getCountSheetAction,
   removeStockCountLineAction,
   voidStockCountAction,
 } from "../actions";
@@ -37,11 +36,13 @@ export default async function StockCountDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { tenantId, membership, can, costAccess } = await requireTenant("count:write");
+  const { tenantId, membership, can, costAccess, assertBranch } = await requireTenant("count:write");
   const { id } = await params;
 
   const count = await getStockCountByIdLogic(tenantId, id);
   if (!count) notFound();
+  // A count is its branch's (rule A5) — reachable by URL, so checked here too.
+  assertBranch(count.branchId);
 
   const detail = toStockCountDetailView(count);
 
@@ -85,7 +86,6 @@ export default async function StockCountDetailPage({
       editContribution={editContributionAction}
       deleteContribution={deleteContributionAction}
       removeLine={removeStockCountLineAction}
-      poll={getCountSheetAction}
       close={closeStockCountAction}
       voidCount={voidStockCountAction}
     />

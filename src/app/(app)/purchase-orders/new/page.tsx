@@ -7,8 +7,6 @@
 import { requireTenant } from "@/lib/require-tenant";
 import {
   createPurchaseOrderAction,
-  getSupplierCarriesAction,
-  resolveSupplierPriceAction,
 } from "../actions";
 import PurchaseOrderForm from "../_components/PurchaseOrderForm";
 import { loadPurchaseOrderFormOptions } from "../_components/form-options";
@@ -49,8 +47,6 @@ export default async function NewPurchaseOrderPage() {
           suppliers={suppliers}
           branches={branches}
           tenantDefaultVatRate={membership.tenant.defaultVatRatePercent.toString()}
-          resolvePrice={resolveSupplierPriceAction}
-          supplierCarries={getSupplierCarriesAction}
         />
       )}
     </div>
