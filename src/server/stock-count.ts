@@ -155,9 +155,14 @@ export class NotCountHostError extends Error {
  */
 export type CountActor = { userId: string; canCloseAny: boolean; reach: BranchReach };
 
-/** The sheets a reach covers, as a `stock_count` filter. */
+/**
+ * The sheets a reach covers, as a `stock_count` filter. An AND clause, not a
+ * `branchId` key: the list's own `...(query.branchId ? { branchId } : {})`
+ * spreads after it and would overwrite the key (found 2026-10-29 in the
+ * order list, where `?branch=` of another branch still listed it).
+ */
 const inReach = (reach: BranchReach): Prisma.StockCountWhereInput =>
-  reach.allBranches ? {} : { branchId: { in: [...reach.allowedBranchIds] } };
+  reach.allBranches ? {} : { AND: [{ branchId: { in: [...reach.allowedBranchIds] } }] };
 
 // ------------------------------------------------------------
 // Shapes

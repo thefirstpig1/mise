@@ -663,6 +663,8 @@ describe("stock count *Logic (the document that reconciles the ledger)", () => {
 
     const listed = await getStockCountsLogic(tenantA, {}, elsewhere.reach);
     expect(listed.some((c) => c.id === sheet.id)).toBe(false);
+    // Naming the branch in the URL does not bring it back.
+    expect(await getStockCountsLogic(tenantA, { branchId: branchA }, elsewhere.reach)).toHaveLength(0);
     expect((await getStockCountsLogic(tenantA, {}, ALL)).some((c) => c.id === sheet.id)).toBe(true);
 
     await expect(
