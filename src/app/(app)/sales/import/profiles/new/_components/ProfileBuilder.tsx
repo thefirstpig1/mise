@@ -19,8 +19,9 @@
 // they are radio buttons with no preselection: an unanswered question must not
 // arrive looking like "no".
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import FileDrop from "@/components/ui/FileDrop";
+import { suggestColumnMap } from "@/lib/sales-column-suggest";
 import {
   createSalesImportProfileAction,
   inspectSalesFileAction,
@@ -74,7 +75,26 @@ export default function ProfileBuilder({ posOptions }: { posOptions: PosOption[]
 
   const header = inspectState?.ok ? inspectState.header : null;
 
+  // A freshly read header starts from a careful guess (exact names only —
+  // src/lib/sales-column-suggest.ts). Each guessed field says so until the
+  // person touches it; a header that did not decode guesses nothing.
+  const [guessed, setGuessed] = useState<Set<ColumnMapField>>(new Set());
+  const [garbled, setGarbled] = useState(false);
+  useEffect(() => {
+    if (!header) return;
+    const s = suggestColumnMap(header);
+    setColumnMap(s.map);
+    setGuessed(new Set(Object.keys(s.map) as ColumnMapField[]));
+    setGarbled(s.garbled);
+  }, [header]);
+
   const setField = (field: ColumnMapField, value: string) => {
+    setGuessed((g) => {
+      if (!g.has(field)) return g;
+      const next = new Set(g);
+      next.delete(field);
+      return next;
+    });
     setColumnMap((prev) => {
       const next = { ...prev };
       if (value === "") delete next[field];
@@ -170,6 +190,16 @@ export default function ProfileBuilder({ posOptions }: { posOptions: PosOption[]
             </table>
           </div>
 
+          {garbled ? (
+            <p className="mt-4 rounded-lg border border-warn-border bg-warn-bg p-3 text-sm text-warn">
+              หัวตารางยังอ่านไม่ออก (ตัวอักษรเพี้ยน) ระบบจึงไม่เดาคอลัมน์ให้ — ลองเปลี่ยนการเข้ารหัสไฟล์เป็น TIS-620 แล้วกด “อ่านหัวตาราง” อีกครั้ง
+            </p>
+          ) : guessed.size > 0 ? (
+            <p className="mt-4 text-sm text-muted-foreground">
+              ระบบเลือกให้ {guessed.size} ช่องจากชื่อหัวตารางที่ตรงกันพอดี — ตรวจกับตัวอย่างข้างบนก่อนบันทึก ช่องที่ชื่อกำกวมระบบไม่เดา
+            </p>
+          ) : null}
+
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             {COLUMN_MAP_FIELDS.map((field) => (
               <label key={field} className="block text-sm">
@@ -187,6 +217,7 @@ export default function ProfileBuilder({ posOptions }: { posOptions: PosOption[]
                     </option>
                   ))}
                 </select>
+                {guessed.has(field) && <span className="mt-1 block text-xs text-muted-foreground">ระบบเลือกให้ — ตรวจอีกครั้ง</span>}
               </label>
             ))}
           </div>
