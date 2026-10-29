@@ -18,6 +18,7 @@
 // Nothing here forces anyone to weigh anything (Q3).
 // ============================================================
 
+import { randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import type { PrismaClient, Production, ProductionItem } from "@prisma/client";
 import { withTenantContext } from "@/lib/db";
@@ -627,4 +628,134 @@ export async function produceShortfallInTx(
   });
 
   return tx.production.findUniqueOrThrow({ where: { id: doc.id }, include: { items: true } });
+}
+
+// ------------------------------------------------------------
+// ADR 0040 Q5 — a late or voided production re-posts the days it changes
+// ------------------------------------------------------------
+
+/** One day the re-post looked at, and what happened to it. */
+export type RepostedDay = {
+  businessDate: Date;
+  /** Re-posted; or kept as it was, with the reason. */
+  outcome: "REPOSTED" | "KEPT_OUTSIDE_WINDOW" | "KEPT_FAILED";
+  /** For KEPT_FAILED: the error's message, logged, never shown raw. */
+  error?: string;
+};
+
+/**
+ * Re-post every standing day at `branchId` from `fromDate` on that the
+ * products in question touched — either cut from their recipe instead (a
+ * `prepped_shortfall`), or taken off their shelf (a consumption item).
+ *
+ * Q5: "ระบบตัดสต๊อกใหม่เองทุกวันที่ได้รับผล" — with the mechanism ADR 0022
+ * already has, void + post the whole day. Each day is its own transaction and
+ * computes before it swaps: a day that cannot be re-posted keeps what it had
+ * and is reported, so no day is ever left "not cut". Oldest first, because a
+ * day may take only what the days after it have not used (D2), and the days
+ * after it are about to be re-posted too.
+ *
+ * A day outside the ledger's backdate window is KEPT and reported: re-posting
+ * it would void its run and post nothing, which erases a day instead of
+ * correcting it.
+ */
+export async function repostAffectedDaysLogic(
+  tenantId: string,
+  params: { branchId: string; productIds: string[]; fromDate: Date },
+  actor: string
+): Promise<RepostedDay[]> {
+  const { branchId, productIds, fromDate } = params;
+  if (productIds.length === 0) return [];
+  const days = await withTenantContext(tenantId, async (tx) => {
+    const runs = await tx.salesConsumptionRun.findMany({
+      where: {
+        tenantId,
+        branchId,
+        voidedAt: null,
+        businessDate: { gte: fromDate },
+        OR: [
+          { preppedShortfalls: { some: { productId: { in: productIds } } } },
+          { items: { some: { productId: { in: productIds }, reversalOfItemId: null } } },
+        ],
+      },
+      select: { businessDate: true },
+      orderBy: { businessDate: "asc" },
+    });
+    return runs.map((r) => r.businessDate);
+  });
+
+  // Imported lazily: the consumption modules reach the waste and transfer
+  // writers, which import this one.
+  const { postConsumptionForDayLogic } = await import("@/server/consumption-post");
+  const { isWithinBackdateWindow } = await import("@/server/consumption");
+  const out: RepostedDay[] = [];
+  for (const businessDate of days) {
+    if (!isWithinBackdateWindow(businessDate)) {
+      out.push({ businessDate, outcome: "KEPT_OUTSIDE_WINDOW" });
+      continue;
+    }
+    try {
+      await postConsumptionForDayLogic(
+        tenantId,
+        { submitKey: randomUUID(), branchId, businessDate, acknowledgeRepost: true },
+        actor
+      );
+      out.push({ businessDate, outcome: "REPOSTED" });
+    } catch (e) {
+      console.error("[production] re-post failed", businessDate.toISOString().slice(0, 10), e);
+      out.push({ businessDate, outcome: "KEPT_FAILED", error: e instanceof Error ? e.message : String(e) });
+    }
+  }
+  return out;
+}
+
+/** The Bangkok day a production happened on. */
+const productionDay = (p: { producedAt: Date }) => bangkokDayOf(p.producedAt);
+
+/**
+ * Record a production and re-post the days it changes (Q5). The production
+ * commits FIRST — re-posting reads the shelf it creates — and the days follow,
+ * each in its own transaction.
+ */
+export async function recordProductionLogic(
+  tenantId: string,
+  input: CreateProductionInput,
+  recordedBy: string
+): Promise<{ production: ProductionWithItems; reposted: RepostedDay[] }> {
+  const production = await createProductionLogic(tenantId, input, recordedBy);
+  const reposted = await repostAffectedDaysLogic(
+    tenantId,
+    {
+      branchId: production.branchId,
+      productIds: production.items.filter((i) => i.role === "OUTPUT").map((i) => i.productId),
+      fromDate: productionDay(production),
+    },
+    recordedBy
+  );
+  return { production, reposted };
+}
+
+/**
+ * Void a production and re-post the days that took its output off the shelf
+ * (Q5: "ยกเลิกการผลิตย้อนหลังใช้กลไกเดียวกัน") — those days must now cut the
+ * recipe instead, or the shelf goes negative for soup that never existed.
+ */
+export async function voidProductionAndRepostLogic(
+  tenantId: string,
+  input: VoidProductionInput,
+  voidedBy: string
+): Promise<{ production: ProductionWithItems; reposted: RepostedDay[] }> {
+  const production = await voidProductionLogic(tenantId, input, voidedBy);
+  const reposted = await repostAffectedDaysLogic(
+    tenantId,
+    {
+      branchId: production.branchId,
+      productIds: production.items
+        .filter((i) => i.role === "OUTPUT" && i.reversalOfItemId === null)
+        .map((i) => i.productId),
+      fromDate: productionDay(production),
+    },
+    voidedBy
+  );
+  return { production, reposted };
 }
