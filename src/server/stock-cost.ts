@@ -25,6 +25,7 @@ import type { GrossProfitMethod } from "@prisma/client";
 import type { CostSource, PrismaClient, SourceType } from "@prisma/client";
 import { withTenantContext } from "@/lib/db";
 import { bangkokDayEndUtc, isDayValue } from "@/lib/bangkok-date";
+import type { GrossProfitBlocker } from "@/lib/gross-profit-blocker";
 import { occurredAtFilter } from "@/server/stock-movement";
 import { replayChain, type ProductionOutputShares } from "@/server/fifo-chain";
 import {
@@ -727,6 +728,15 @@ export type BranchCostSummary = {
   /** Which method produced (or refused to produce) the figure above. */
   grossProfitMethod: GrossProfitMethod;
   /**
+   * Why the นับสต๊อก figure is null although the branch sold (rule PG1, Kong
+   * 2026-10-30). A new shop's dashboard read "กำไรสุทธิ 100% ของยอดขาย": opening
+   * ฿0 + purchases ฿0 − closing ฿0, because nobody had counted before the period
+   * and the stock counted since had no price. That is arithmetic, not a
+   * measurement, so it is withheld and the reason travels with the null.
+   * Always null under สูตรอาหาร, which never values the shelf.
+   */
+  grossProfitBlocker: GrossProfitBlocker | null;
+  /**
    * Cost of goods SOLD for the period, under PERIODIC_INVENTORY:
    * opening inventory + purchases − closing inventory. Null under the other
    * method, and null when there is no revenue to set it against.
@@ -935,7 +945,22 @@ async function loadPeriodFacts(tenantId: string, reach: BranchReach, from: Date,
       _max: { closedAt: true },
     });
 
-    return { revenueRows, expenseLines, receiptMovements, rmItems, coverageRuns, salesDayRows, lastCounts };
+    // Rule PG1: was this period's OPENING ever measured? Only by a closed count
+    // with a line counted before the period began — the same instant the
+    // opening replay cuts at, so a count it includes is a count that counts.
+    const openingCounts = await tx.stockCount.findMany({
+      where: {
+        tenantId,
+        branchId: { in: branchIds },
+        status: "CLOSED",
+        deletedAt: null,
+        items: { some: { countedAt: { lt: periodBounds.gte }, reversalOfItemId: null } },
+      },
+      select: { branchId: true },
+      distinct: ["branchId"],
+    });
+
+    return { revenueRows, expenseLines, receiptMovements, rmItems, coverageRuns, salesDayRows, lastCounts, openingCounts };
   });
 }
 
@@ -1047,7 +1072,8 @@ function assembleCostSummary(
   opts: { alwaysOpening?: boolean } = {}
 ): BranchCostSummary[] {
   const { branches, productIds, grossProfitMethod, isVatRegistered, costRows, consumptionItems } = ledger;
-  const { revenueRows, expenseLines, receiptMovements, rmItems, coverageRuns, salesDayRows, lastCounts } = period;
+  const { revenueRows, expenseLines, receiptMovements, rmItems, coverageRuns, salesDayRows, lastCounts, openingCounts } = period;
+  const openingCounted = new Set(openingCounts.map((c) => c.branchId));
   const periodBounds = occurredAtFilter(from, to) as { gte: Date; lt: Date };
 
 
@@ -1225,6 +1251,9 @@ function assembleCostSummary(
     let varianceValue = ZERO;
     let negativeStockProducts = 0;
     let unpricedProducts = 0;
+    // Rule PG1: products unpriced at EITHER end of the period. `unpricedProducts`
+    // keeps meaning the close alone, which is what month-end reports.
+    const unpricedEitherEnd = new Set<string>();
 
     for (const productId of productIds) {
       const state = replayed.get(keyOf(productId, branch.id));
@@ -1232,7 +1261,10 @@ function assembleCostSummary(
 
       inventoryValue = inventoryValue.plus(state.inventoryValue);
       if (state.negativeStock) negativeStockProducts += 1;
-      if (state.hasUnpricedLayers) unpricedProducts += 1;
+      if (state.hasUnpricedLayers) {
+        unpricedProducts += 1;
+        unpricedEitherEnd.add(productId);
+      }
 
       for (const out of state.outflows) {
         // Part 18: this line is also what keeps a TRANSFER off both columns.
@@ -1274,7 +1306,9 @@ function assembleCostSummary(
     if (openingReplayed) {
       for (const productId of productIds) {
         const opening = openingReplayed.get(keyOf(productId, branch.id));
-        if (opening) openingInventoryValue = openingInventoryValue.plus(opening.inventoryValue);
+        if (!opening) continue;
+        openingInventoryValue = openingInventoryValue.plus(opening.inventoryValue);
+        if (opening.hasUnpricedLayers) unpricedEitherEnd.add(productId);
       }
     }
 
@@ -1300,11 +1334,27 @@ function assembleCostSummary(
     // number is shown — with its coverage beside it, never bare — since ADR
     // 0019 already settled that an imperfect figure is printed with its
     // freshness attached rather than withheld.
+    //
+    // Rule PG1 (Kong 2026-10-30): นับสต๊อก answers only when its two ends are
+    // worth something — an opening somebody counted, and no shelf valued at ฿0
+    // because nobody priced it. Either gap made the identity print a profit
+    // the shop never earned.
+    const grossProfitBlocker: GrossProfitBlocker | null =
+      revenue === null || grossProfitMethod !== "PERIODIC_INVENTORY"
+        ? null
+        : !openingCounted.has(branch.id)
+          ? { kind: "NO_OPENING_COUNT" }
+          : unpricedEitherEnd.size > 0
+            ? { kind: "UNPRICED_STOCK", products: unpricedEitherEnd.size }
+            : null;
+
     const cogsSold =
       revenue === null
         ? null
         : grossProfitMethod === "PERIODIC_INVENTORY"
-          ? openingInventoryValue.plus(purchasesAtCost).minus(inventoryValue)
+          ? grossProfitBlocker
+            ? null
+            : openingInventoryValue.plus(purchasesAtCost).minus(inventoryValue)
           : daysPosted > 0
             ? (consumptionValueByBranch.get(branch.id) ?? ZERO)
             : null;
@@ -1324,6 +1374,7 @@ function assembleCostSummary(
       unpricedProducts,
       revenue,
       grossProfit: revenue !== null && cogsSold !== null ? revenue.minus(cogsSold) : null,
+      grossProfitBlocker,
       consumptionCoveredNetAmount: coveredByBranch.get(branch.id) ?? ZERO,
       consumptionDaysPosted: daysPosted,
       salesDaysInPeriod: salesDaysByBranch.get(branch.id) ?? 0,

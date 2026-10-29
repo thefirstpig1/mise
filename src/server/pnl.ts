@@ -33,6 +33,7 @@
 // ============================================================
 
 import { Prisma } from "@prisma/client";
+import type { GrossProfitBlocker } from "@/lib/gross-profit-blocker";
 import { withTenantContext } from "@/lib/db";
 import { branchScopeWhere, type BranchReach } from "@/lib/permissions/service";
 import {
@@ -69,6 +70,8 @@ export interface PnlBranchRow {
   waste: Prisma.Decimal;
   /** Gone with no document (count shortages, losses) — /cost's ไม่ตรงกับระบบ. */
   shortage: Prisma.Decimal;
+  /** Rule PG1: why นับสต๊อก withheld this branch's gross profit, when it did. */
+  grossProfitBlocker: GrossProfitBlocker | null;
 }
 
 export interface PnlSection {
@@ -122,6 +125,7 @@ function rowFrom(b: BranchCostSummary): PnlBranchRow {
     netProfit: b.grossProfit !== null ? b.grossProfit.minus(b.opexSpend) : null,
     waste: b.wasteValue,
     shortage: b.varianceValue,
+    grossProfitBlocker: b.grossProfitBlocker,
   };
 }
 

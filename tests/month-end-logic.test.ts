@@ -246,10 +246,22 @@ describe("month-end close (rules ME1–ME6)", () => {
           vatAmount: 0,
         },
       });
+      // Rule PG1: นับสต๊อก answers only for a period whose opening was counted.
+      // The shelf was empty the day before and somebody looked — no variance,
+      // so no movement; only the fact of the count.
+      const before = new Date(on(prevMonth, 1).getTime() - 86_400_000);
+      const sc = await tx.stockCount.create({
+        data: { tenantId: tenant, branchId: thonglor, scNumber: "THL-SC-9001", countDate: before, status: "CLOSED", startedBy: user, closedAt: before, closedBy: user },
+        select: { id: true },
+      });
+      await tx.stockCountItem.create({
+        data: { tenantId: tenant, stockCountId: sc.id, productId: rice.id, lineNo: 1, qtyCounted: 0, qtyExpected: 0, countedAt: before, countedBy: user },
+      });
     });
     const rows = await getBranchCostSummaryLogic(tenant, monthBounds(prevMonth), EVERY_BRANCH);
     const t = rows.find((r) => r.branchId === thonglor)!;
     expect(t.grossProfitMethod).toBe("PERIODIC_INVENTORY");
+    expect(t.grossProfitBlocker).toBeNull();
     expect(Number(t.cogsSpend)).toBe(2000); // spend before tax — unchanged (H8)
     expect(Number(t.purchasesAtCost)).toBe(2140); // what the stock carries
     // Nothing was used: cost of sales is 0, not −140, and gross profit is the whole ฿500.

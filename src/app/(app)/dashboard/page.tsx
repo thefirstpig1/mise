@@ -26,6 +26,7 @@ import { SERIES } from "@/components/charts/chart-theme";
 import { MonthlyTrend, type MenuBar, type RevenueRow } from "./_components/Charts";
 import { DailySalesBars, TopMenusCard } from "./_components/DashboardParts";
 import { isoDay, parseBranchParam, parsePreset, periodFor, type Period } from "./_components/dashboard-period";
+import { grossProfitBlockerShort } from "@/lib/gross-profit-blocker";
 
 // ============================================================
 // Mise — แดชบอร์ด (rewritten in Part 35 L5)
@@ -382,11 +383,27 @@ async function Analytics({
   const branchRows = pnl.branches.filter((b) => num(b.revenue));
   const branchFood = (b: PnlBranchRow) => (num(b.revenue) && b.cogs !== null ? (num(b.cogs)! / num(b.revenue)!) * 100 : null);
   const branchNet = (b: PnlBranchRow) => (num(b.revenue) && b.netProfit !== null ? (num(b.netProfit)! / num(b.revenue)!) * 100 : null);
+  // Rule PG1: when นับสต๊อก withheld a branch's profit, say what is missing
+  // there and send the reader to fix THAT — counting, or pricing stock.
+  const blocked = pnl.branches.filter((b) => b.revenue !== null && b.grossProfit === null && b.grossProfitBlocker);
+  const blockerWhy = blocked.length
+    ? multi
+      ? blocked.map((b) => `${short(b.branchName)} ${grossProfitBlockerShort(b.grossProfitBlocker!)}`).join(" · ")
+      : grossProfitBlockerShort(blocked[0].grossProfitBlocker!)
+    : null;
+  const allBlocked = blockerWhy !== null && blocked.length === pnl.branchesMissingGrossProfit.length;
+  const blockerFix = blocked.some((b) => b.grossProfitBlocker!.kind === "NO_OPENING_COUNT")
+    ? { href: "/stock-counts/new", action: "นับสต๊อก" }
+    : blocked.length
+      ? { href: "/cost", action: "ใส่ราคาทุน" }
+      : { href: "/cost", action: "ดูที่หน้าต้นทุน" };
   const unknownWhy =
     pnl.unknownReason === "GROSS_PROFIT_UNKNOWN"
-      ? `${pnl.branchesMissingGrossProfit.map(short).join(", ")} ยังคิดไม่ได้: มียอดขายแต่ยังหาต้นทุนขายไม่ได้${
-          pnl.recipeCoverage !== null ? ` · ตัดสต๊อกตามสูตรแล้ว ${Math.round(pnl.recipeCoverage * 100)}% ของยอดขายทั้งร้าน` : ""
-        }`
+      ? allBlocked
+        ? blockerWhy
+        : `${pnl.branchesMissingGrossProfit.map(short).join(", ")} ยังคิดไม่ได้: มียอดขายแต่ยังหาต้นทุนขายไม่ได้${
+            pnl.recipeCoverage !== null ? ` · ตัดสต๊อกตามสูตรแล้ว ${Math.round(pnl.recipeCoverage * 100)}% ของยอดขายทั้งร้าน` : ""
+          }`
       : pnl.unknownReason === "NO_SALES"
         ? "ยังไม่มียอดขายในช่วงนี้"
         : null;
@@ -462,7 +479,7 @@ async function Analytics({
               pnl.unknownReason === "NO_SALES" ? (
                 <Why href="/sales/import" action="นำเข้าไฟล์ยอดขาย">{unknownWhy}</Why>
               ) : (
-                <Why href="/cost" action="ดูที่หน้าต้นทุน">{unknownWhy}</Why>
+                <Why href={blockerFix.href} action={blockerFix.action}>{unknownWhy}</Why>
               )
             ) : null}
           </Kpi>
@@ -489,7 +506,9 @@ async function Analytics({
             </p>
             {multi || net === null ? <MiniBars rows={branchRows.map((b) => ({ name: short(b.branchName), value: branchNet(b), note: b.netProfit === null ? null : baht(num(b.netProfit)!) }))} scale={100} /> : null}
             {net !== null && revenue ? <p className="text-xs text-muted-subtle">{pct1((net / revenue) * 100)} ของยอดขาย{missing.length > 0 && " · ยังไม่หักบิลประจำที่ค้าง"}</p> : null}
-            {net === null && unknownWhy ? <Why>{"ทั้งร้านยังคิดไม่ได้ — " + unknownWhy}</Why> : missingNote ? <Why href="/expenses" action="บันทึกบิล">ยังไม่หักบิลประจำที่ค้าง — สูงกว่าจริง</Why> : null}
+            {net === null && unknownWhy && allBlocked ? (
+              <Why href={blockerFix.href} action={blockerFix.action}>{multi ? `ทั้งร้านยังคิดไม่ได้ — ${unknownWhy}` : unknownWhy}</Why>
+            ) : net === null && unknownWhy ? <Why>{"ทั้งร้านยังคิดไม่ได้ — " + unknownWhy}</Why> : missingNote ? <Why href="/expenses" action="บันทึกบิล">ยังไม่หักบิลประจำที่ค้าง — สูงกว่าจริง</Why> : null}
           </Kpi>
         ) : null}
       </div>

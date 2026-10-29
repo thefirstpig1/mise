@@ -34,6 +34,7 @@ type MetricKey = "prime" | "food" | "var" | "waste";
 type Agg = {
   rev: number | null;
   cogs: number | null;
+  cogsWhy: string | null;
   coverage: number | null;
   labor: number | null;
   laborMissing: string | null;
@@ -44,7 +45,7 @@ type Agg = {
 
 function agg(p: CostPeriod | undefined, branchIds: string[]): Agg {
   const cells = branchIds.map((b) => p?.cells[b]).filter((c): c is CostCell => !!c && c.revenue !== null);
-  if (!p || cells.length === 0) return { rev: null, cogs: null, coverage: null, labor: null, laborMissing: null, waste: 0, daysPosted: 0, salesDays: 0 };
+  if (!p || cells.length === 0) return { rev: null, cogs: null, cogsWhy: null, coverage: null, labor: null, laborMissing: null, waste: 0, daysPosted: 0, salesDays: 0 };
   const rev = cells.reduce((s, c) => s + (c.revenue ?? 0), 0);
   const cogsKnown = cells.every((c) => c.cogs !== null);
   const covKnown = cells.every((c) => c.coverage !== null);
@@ -52,6 +53,7 @@ function agg(p: CostPeriod | undefined, branchIds: string[]): Agg {
   return {
     rev,
     cogs: cogsKnown ? cells.reduce((s, c) => s + (c.cogs ?? 0), 0) : null,
+    cogsWhy: cells.find((c) => c.cogs === null)?.cogsWhy ?? null,
     coverage: covKnown && rev > 0 ? cells.reduce((s, c) => s + (c.coverage ?? 0) * (c.revenue ?? 0), 0) / rev : null,
     labor: laborKnown ? cells.reduce((s, c) => s + (c.labor ?? 0), 0) : null,
     laborMissing: cells.find((c) => c.labor === null)?.laborMissing ?? null,
@@ -79,7 +81,7 @@ const METRICS: Record<Exclude<MetricKey, "var">, Metric> = {
     baht: (a) => (a.rev === null || a.cogs === null || a.labor === null ? null : a.cogs + a.labor),
     target: (t) => t.prime,
     bound: lowerBound,
-    why: (a) => (a.rev === null ? "ไม่มียอดขาย" : a.cogs === null ? "ยังไม่ได้ตัดสต๊อก" : a.laborMissing ?? "ยังไม่มีค่าแรง"),
+    why: (a) => (a.rev === null ? "ไม่มียอดขาย" : a.cogs === null ? a.cogsWhy ?? "ยังไม่ได้ตัดสต๊อก" : a.laborMissing ?? "ยังไม่มีค่าแรง"),
   },
   food: {
     tab: "ต้นทุนอาหาร",
@@ -87,7 +89,7 @@ const METRICS: Record<Exclude<MetricKey, "var">, Metric> = {
     baht: (a) => (a.rev === null ? null : a.cogs),
     target: (t) => t.food,
     bound: lowerBound,
-    why: (a) => (a.rev === null ? "ไม่มียอดขาย" : "ยังไม่ได้ตัดสต๊อก"),
+    why: (a) => (a.rev === null ? "ไม่มียอดขาย" : a.cogsWhy ?? "ยังไม่ได้ตัดสต๊อก"),
   },
   waste: {
     tab: "ทิ้ง",

@@ -50,6 +50,8 @@ describe("gross profit by สูตรอาหาร (ADR 0022 Part 22 L3d)", (
   let menuId: string;
 
   let pork: ProductWithUnits;
+  let salt: ProductWithUnits;
+  let openingCountId: string;
 
   const today = computeBangkokToday();
   const D_A = addDays(today, -2);
@@ -269,6 +271,8 @@ describe("gross profit by สูตรอาหาร (ADR 0022 Part 22 L3d)", (
   afterAll(async () => {
     await withRlsBypass(async (tx) => {
       await tx.stockMovement.deleteMany({ where: { tenantId: tenantA } });
+      await tx.stockCountItem.deleteMany({ where: { tenantId: tenantA } });
+      await tx.stockCount.deleteMany({ where: { tenantId: tenantA } });
       await tx.salesConsumptionItem.deleteMany({
         where: { tenantId: tenantA, reversalOfItemId: { not: null } },
       });
@@ -404,23 +408,125 @@ describe("gross profit by สูตรอาหาร (ADR 0022 Part 22 L3d)", (
   // The other method is untouched
   // ------------------------------------------------------------
 
-  it("G-08 นับสต๊อก still answers its own way, and ignores the postings", async () => {
+  // Kong 2026-10-30 (rule PG1): a new shop's dashboard read "กำไรสุทธิ 100% ของ
+  // ยอดขาย" — opening 0 + purchases 0 − closing ฿0 (the counted stock had no
+  // price) is arithmetic, not a measurement. นับสต๊อก now answers only when the
+  // period's opening was COUNTED and nothing in the stock it values is unpriced.
+
+  it("G-08 นับสต๊อก with no count before the period is '—', not a figure", async () => {
     await setMethod("PERIODIC_INVENTORY");
     const s = await summary();
+    expect(s.grossProfitMethod).toBe("PERIODIC_INVENTORY");
+    expect(s.revenue?.toString()).toBe("1600");
+    expect(s.cogsSold).toBeNull();
+    expect(s.grossProfit).toBeNull();
+    expect(s.grossProfitBlocker).toEqual({ kind: "NO_OPENING_COUNT" });
 
+    const v = await view();
+    expect(v.grossProfit).toBeNull();
+    expect(v.grossProfitNote).toContain("ยังไม่ได้นับสต๊อกต้นงวด");
+    await setMethod("RECIPE_CONSUMPTION");
+  });
+
+  it("G-09 a count closed before the period makes นับสต๊อก answer", async () => {
+    // Twenty kilos counted the day before the period, exactly what the ledger
+    // held — no variance, so no movement, only the fact that someone looked.
+    await withRlsBypass(async (tx) => {
+      const sc = await tx.stockCount.create({
+        data: {
+          tenantId: tenantA,
+          branchId: branchA,
+          scNumber: "THL-SC-0001",
+          countDate: addDays(FROM, -1),
+          status: "CLOSED",
+          startedBy: userA,
+          closedAt: new Date(addDays(FROM, -1).getTime() + 12 * 3_600_000),
+          closedBy: userA,
+        },
+        select: { id: true },
+      });
+      openingCountId = sc.id;
+      await tx.stockCountItem.create({
+        data: {
+          tenantId: tenantA,
+          stockCountId: sc.id,
+          productId: pork.id,
+          lineNo: 1,
+          qtyCounted: 20,
+          qtyExpected: 20,
+          countedAt: new Date(addDays(FROM, -1).getTime() + 10 * 3_600_000),
+          countedBy: userA,
+        },
+      });
+    });
+
+    await setMethod("PERIODIC_INVENTORY");
+    const s = await summary();
     // opening (20 kg × ฿100 = 2,000) + purchases in period (0) − closing.
     // Twelve kilos are left, so closing is ฿1,200 and cogsSold is ฿800 — the
     // same answer by a different road, because this fixture has no waste and no
     // count variance to make the two disagree.
+    expect(s.grossProfitBlocker).toBeNull();
     expect(s.cogsSold?.toString()).toBe("800");
-    expect(s.grossProfitMethod).toBe("PERIODIC_INVENTORY");
-
-    const v = await view();
-    // The นับสต๊อก note this branch gets is the harsher one, and rightly: it has
-    // never closed a count, so its closing inventory is a belief rather than a
-    // measurement (ADR 0019's freshness rule). The สูตรอาหาร path never depends
-    // on a count, which is the whole reason a shop chooses it.
-    expect(v.grossProfitNote).toContain("ยังไม่เคยปิดการนับสต๊อก");
+    expect(s.grossProfit?.toString()).toBe("800");
     await setMethod("RECIPE_CONSUMPTION");
+  });
+
+  it("G-10 stock nobody has priced keeps นับสต๊อก at '—', and says how many", async () => {
+    // Salt found on the shelf at that count and never bought here: a gain with
+    // no price is a layer worth ฿0 that is really worth something.
+    salt = await createProductLogic(
+      tenantA,
+      productInputSchema.parse({
+        name: `GP-salt-${randomUUID().slice(0, 6)}`,
+        primaryDimension: "WEIGHT",
+        baseUnitName: "kg",
+        additionalUnits: [],
+        defaultBuyUnitName: "kg",
+      })
+    );
+    await withRlsBypass(async (tx) => {
+      const at = new Date(addDays(FROM, -1).getTime() + 10 * 3_600_000);
+      const item = await tx.stockCountItem.create({
+        data: {
+          tenantId: tenantA,
+          stockCountId: openingCountId,
+          productId: salt.id,
+          lineNo: 2,
+          qtyCounted: 5,
+          qtyExpected: 0,
+          countedAt: at,
+          countedBy: userA,
+        },
+        select: { id: true },
+      });
+      await tx.stockMovement.create({
+        data: {
+          tenantId: tenantA,
+          productId: salt.id,
+          branchId: branchA,
+          qty: 5,
+          type: "ADJUST_GAIN",
+          sourceType: "STOCK_COUNT",
+          sourceId: item.id,
+          occurredAt: at,
+          createdBy: userA,
+        },
+      });
+    });
+
+    await setMethod("PERIODIC_INVENTORY");
+    const s = await summary();
+    expect(s.cogsSold).toBeNull();
+    expect(s.grossProfit).toBeNull();
+    expect(s.grossProfitBlocker).toEqual({ kind: "UNPRICED_STOCK", products: 1 });
+    const v = await view();
+    expect(v.grossProfitNote).toContain("1 รายการยังไม่มีราคา");
+
+    // The สูตรอาหาร method never valued the shelf, so salt does not stop it.
+    await setMethod("RECIPE_CONSUMPTION");
+    const r = await summary();
+    expect(r.grossProfitBlocker).toBeNull();
+    expect(r.grossProfit).not.toBeNull();
   });
 });

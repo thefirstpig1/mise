@@ -20,6 +20,7 @@ import {
 import type { LayerPricing } from "@/server/fifo-replay";
 import type { ProductCost, BranchCostSummary } from "@/server/stock-cost";
 import type { CostDeclarationRecord } from "@/server/cost-declaration";
+import { grossProfitBlockerNote } from "@/lib/gross-profit-blocker";
 
 const BANGKOK = "Asia/Bangkok";
 
@@ -220,6 +221,8 @@ function grossProfitNote(row: BranchCostSummary): string {
       : `คิดจากสูตรอาหาร — ตัดสต๊อกแล้ว ${posted} จาก ${days} วันที่มียอดขาย${share} · วันที่เหลือยังไม่ถูกนับเป็นต้นทุน ตัวเลขจึงดูดีเกินจริง`;
   }
 
+  // Rule PG1: the figure is withheld, and this is the reason it is.
+  if (row.grossProfitBlocker) return grossProfitBlockerNote(row.grossProfitBlocker);
   if (row.lastCountedAt === null) {
     return "สาขานี้ยังไม่เคยปิดการนับสต๊อก — ตัวเลขนี้จึงมาจากยอดคงเหลือที่ระบบเชื่อ ไม่ใช่ของที่นับจริง และมักดูดีเกินจริง";
   }

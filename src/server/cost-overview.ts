@@ -16,6 +16,7 @@
 // age of the oldest lot still on the shelf (CO-AGE).
 
 import { Prisma } from "@prisma/client";
+import { grossProfitBlockerShort } from "@/lib/gross-profit-blocker";
 import type { PrismaClient } from "@prisma/client";
 import { withTenantContext } from "@/lib/db";
 import { addDays, computeBangkokToday } from "@/lib/bangkok-date";
@@ -62,6 +63,8 @@ export type CostCell = {
    * figure is the accounting identity and coverage does not apply.
    */
   coverage: number | null;
+  /** Rule PG1: why `cogs` is null under นับสต๊อก ("ยังไม่ได้นับสต๊อกต้นงวด"). */
+  cogsWhy: string | null;
   daysPosted: number;
   salesDays: number;
   /** Rule CO-LABOR. `null` when a month the period touches has no labour recorded. */
@@ -201,6 +204,7 @@ export async function getCostOverviewLogic(tenantId: string, reach: BranchReach)
         revenue,
         cogs: row.cogsSold === null ? null : round2(num(row.cogsSold)),
         coverage: coveredMethod && revenue ? Math.min(1, num(row.consumptionCoveredNetAmount) / revenue) : null,
+        cogsWhy: row.grossProfitBlocker ? grossProfitBlockerShort(row.grossProfitBlocker) : null,
         daysPosted: row.consumptionDaysPosted,
         salesDays: row.salesDaysInPeriod,
         labor: lab.labor,
