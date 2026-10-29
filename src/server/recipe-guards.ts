@@ -401,6 +401,23 @@ export async function assertMethodExclusivityForRecipe(
   if (product.parentProductId !== null) {
     throw new RecipeMethodConflictError(product.id, product.name);
   }
+  // ADR 0040 Consequence 2: a part of a trim recipe is the third way, and
+  // still only one way may make a product.
+  await assertNotTrimPart(tx, tenantId, product.id, product.name);
+}
+
+/** ADR 0040: refuse a second way to make a product that a trim recipe cuts. */
+async function assertNotTrimPart(
+  tx: PrismaClient,
+  tenantId: string,
+  productId: string,
+  productName: string
+): Promise<void> {
+  const part = await tx.trimRecipePart.findFirst({
+    where: { tenantId, productId, deletedAt: null, trimRecipe: { deletedAt: null } },
+    select: { id: true },
+  });
+  if (part !== null) throw new RecipeMethodConflictError(productId, productName);
 }
 
 /**
@@ -430,6 +447,7 @@ export async function assertNoProductionRecipeFor(
   if (recipe !== null) {
     throw new RecipeMethodConflictError(productId, productName);
   }
+  await assertNotTrimPart(tx, tenantId, productId, productName);
 }
 
 // ------------------------------------------------------------
