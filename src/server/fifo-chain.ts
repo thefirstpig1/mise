@@ -83,15 +83,28 @@ export function allocateProduced(
   return out;
 }
 
+/** Every output line of one production: its item id and frozen % share. */
+export type ProductionOutputShares = Map<
+  string,
+  { id: string; share: Prisma.Decimal | null | undefined }[]
+>;
+
 /**
  * Replay every pile, handing each production's input money to its outputs.
  *
  * @param rowsByKey  ledger rows per pile, each list in costing order — exactly
  *                   what `replayFifoLayers` takes. Not mutated.
+ * @param outputShares  EVERY output line of each production (item id → share),
+ *                   whether or not its pile was loaded. Without it the split
+ *                   sees only the outputs in `rowsByKey`, and a caller asking
+ *                   for the fillet alone would hand the fillet the whole fish.
+ *                   The loader always passes it; pure tests that load every
+ *                   output may leave it out.
  * @returns          one state per key, in the input map's key order.
  */
 export function replayChain(
-  rowsByKey: Map<string, CostMovement[]>
+  rowsByKey: Map<string, CostMovement[]>,
+  outputShares?: ProductionOutputShares
 ): Map<string, ReplayState> {
   // Which production each leg belongs to, and which piles hold its inputs and
   // its outputs.
@@ -133,10 +146,14 @@ export function replayChain(
     const cached = allocations.get(productionId);
     if (cached) return cached;
     const total = inputMoney.get(productionId)?.value ?? ZERO;
-    const shares = (outputRows.get(productionId) ?? []).map((r) => ({
-      id: r.id,
-      share: r.valueSharePct,
-    }));
+    // Keyed by the OUTPUT ITEM (the movement's source), so a split computed
+    // from the full list of lines lands on the right pile.
+    const shares =
+      outputShares?.get(productionId) ??
+      (outputRows.get(productionId) ?? []).map((r) => ({
+        id: r.sourceId,
+        share: r.valueSharePct,
+      }));
     const split = allocateProduced(total, shares);
     allocations.set(productionId, split);
     return split;
@@ -149,7 +166,7 @@ export function replayChain(
       const took = inputMoney.get(r.productionId);
       return {
         ...r,
-        producedValue: allocationFor(r.productionId).get(r.id) ?? ZERO,
+        producedValue: allocationFor(r.productionId).get(r.sourceId) ?? ZERO,
         producedPricing:
           took && !took.value.isZero() ? took.pricing : ("UNPRICED" as const),
       };

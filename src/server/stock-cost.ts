@@ -26,7 +26,7 @@ import type { CostSource, PrismaClient, SourceType } from "@prisma/client";
 import { withTenantContext } from "@/lib/db";
 import { bangkokDayEndUtc, isDayValue } from "@/lib/bangkok-date";
 import { occurredAtFilter } from "@/server/stock-movement";
-import { replayChain } from "@/server/fifo-chain";
+import { replayChain, type ProductionOutputShares } from "@/server/fifo-chain";
 import {
   type CostLayer,
   type CostMovement,
@@ -254,6 +254,7 @@ export async function loadCostMovements(
     }
   >();
   const helperKeys = new Set<string>();
+  const outputShares: ProductionOutputShares = new Map();
   const loadedKeys = new Set(movements.map((m) => keyOf(m.productId, m.branchId)));
   const seenProductions = new Set<string>();
   let pending = movements.filter((m) => m.sourceType === "PRODUCTION");
@@ -279,10 +280,27 @@ export async function loadCostMovements(
     for (const id of producing) seenProductions.add(id);
     if (producing.length === 0) break;
 
-    const inputs = await tx.productionItem.findMany({
-      where: { tenantId, productionId: { in: producing }, role: "INPUT" },
-      select: { productId: true, production: { select: { branchId: true } } },
+    // Every original line of those productions: the inputs, to load their
+    // piles, and the outputs, so the money is split over ALL of them even when
+    // the caller asked for one part of a fish (fifo-chain's `outputShares`).
+    const lines = await tx.productionItem.findMany({
+      where: { tenantId, productionId: { in: producing }, reversalOfItemId: null },
+      select: {
+        id: true,
+        productionId: true,
+        productId: true,
+        role: true,
+        valueSharePct: true,
+        production: { select: { branchId: true } },
+      },
     });
+    for (const l of lines) {
+      if (l.role !== "OUTPUT") continue;
+      const list = outputShares.get(l.productionId) ?? [];
+      list.push({ id: l.id, share: l.valueSharePct });
+      outputShares.set(l.productionId, list);
+    }
+    const inputs = lines.filter((l) => l.role === "INPUT");
     const missing = inputs.filter(
       (i) => !loadedKeys.has(keyOf(i.productId, i.production.branchId))
     );
@@ -469,16 +487,20 @@ export async function loadCostMovements(
     else grouped.set(key, [row]);
   }
 
-  if (helperKeys.size > 0) HELPER_KEYS.set(grouped, helperKeys);
+  if (seenProductions.size > 0) PRODUCTION_EXTRAS.set(grouped, { helperKeys, outputShares });
   return grouped;
 }
 
 /**
- * The piles `loadCostMovements` fetched only so a production's money could be
- * handed over (ADR 0040). Kept beside the map rather than inside it, so the
- * map stays the plain `key → rows` every caller and test already builds.
+ * What `loadCostMovements` learned about productions (ADR 0040): the piles it
+ * fetched only so a production's money could be handed over, and every output
+ * line's share. Kept beside the map rather than inside it, so the map stays
+ * the plain `key → rows` every caller and test already builds.
  */
-const HELPER_KEYS = new WeakMap<Map<string, CostMovement[]>, Set<string>>();
+const PRODUCTION_EXTRAS = new WeakMap<
+  Map<string, CostMovement[]>,
+  { helperKeys: Set<string>; outputShares: ProductionOutputShares }
+>();
 
 /**
  * The walk half: replay what `loadCostMovements` fetched, optionally stopping
@@ -506,8 +528,9 @@ export function replayLoaded(
   // `replayFifoLayers` per pile, exactly as before. openingStack stays empty;
   // it exists so a snapshot can be handed in without touching the engine
   // (risk R2).
-  const states = replayChain(cut);
-  const helpers = HELPER_KEYS.get(grouped);
+  const extras = PRODUCTION_EXTRAS.get(grouped);
+  const states = replayChain(cut, extras?.outputShares);
+  const helpers = extras?.helperKeys;
   const result = new Map<string, ProductCost>();
   for (const [key, state] of states) {
     if (helpers?.has(key)) continue;
