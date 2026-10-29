@@ -518,6 +518,23 @@ export type BranchCostSummary = {
    */
   cogsSpend: Prisma.Decimal;
   /**
+   * The same materials bills at what they COST the shop (rule ME2, Kong
+   * 2026-10-29): net of the VAT it can reclaim, GROSS of the VAT it cannot.
+   *
+   * `cogsSpend` above stays net on purpose — it is what was spent before tax,
+   * and H8 pins it. But stock carries the VAT an unregistered shop cannot
+   * reclaim (ADR 0016 Q2), so the นับสต๊อก identity opening + purchases −
+   * closing needs purchases valued the way the stock is. With `cogsSpend` in
+   * it, a non-registered shop's month of deliveries and no cooking showed a
+   * NEGATIVE cost of sales, and every month's gross profit was overstated by
+   * the VAT on what it bought.
+   *
+   * Reclaimable: a receipt's bill uses that receipt's own `vat_reclaimable`
+   * (frozen at confirm, as its stock layer was); a bill typed by hand uses the
+   * shop's registration. The bill's VAT is shared over its lines pro rata.
+   */
+  purchasesAtCost: Prisma.Decimal;
+  /**
    * Everything else — rent, utilities, wages, the accountant. *"Materials 60,000,
    * everything else 40,000"* is a sentence an owner acts on, where a single spend
    * total is not; and when revenue lands in Sprint 4 the first half becomes food
@@ -648,9 +665,10 @@ async function loadLedgerChain(tenantId: string, reach: BranchReach, to: Date) {
 
     const tenantRow = await tx.tenant.findUniqueOrThrow({
       where: { id: tenantId },
-      select: { grossProfitMethod: true },
+      select: { grossProfitMethod: true, isVatRegistered: true },
     });
     const grossProfitMethod = tenantRow.grossProfitMethod;
+    const isVatRegistered = tenantRow.isVatRegistered;
 
     // ONE fetch of the ledger serves both replays below — closing here, opening
     // further down (see loadCostMovements).
@@ -678,7 +696,7 @@ async function loadLedgerChain(tenantId: string, reach: BranchReach, to: Date) {
         })
       : [];
 
-    return { branches, productIds, grossProfitMethod, costRows, replayed, consumptionItems };
+    return { branches, productIds, grossProfitMethod, isVatRegistered, costRows, replayed, consumptionItems };
   });
 }
 
@@ -732,7 +750,14 @@ async function loadPeriodFacts(tenantId: string, reach: BranchReach, from: Date,
       select: {
         totalPrice: true,
         category: { select: { account: true } },
-        expense: { select: { branchId: true } },
+        expense: {
+          select: {
+            branchId: true,
+            subtotalExclVat: true,
+            vatAmount: true,
+            sourceGr: { select: { vatReclaimable: true } },
+          },
+        },
       },
     });
 
@@ -897,7 +922,7 @@ function assembleCostSummary(
    */
   opts: { alwaysOpening?: boolean } = {}
 ): BranchCostSummary[] {
-  const { branches, productIds, grossProfitMethod, costRows, consumptionItems } = ledger;
+  const { branches, productIds, grossProfitMethod, isVatRegistered, costRows, consumptionItems } = ledger;
   const { revenueRows, expenseLines, receiptMovements, rmItems, coverageRuns, salesDayRows, lastCounts } = period;
   const periodBounds = occurredAtFilter(from, to) as { gte: Date; lt: Date };
 
@@ -908,6 +933,7 @@ function assembleCostSummary(
 
   const cogsByBranch = new Map<string, Prisma.Decimal>();
   const opexByBranch = new Map<string, Prisma.Decimal>();
+  const purchasesAtCostByBranch = new Map<string, Prisma.Decimal>();
   for (const line of expenseLines) {
     // The 3-tier tree has carried `account` since Sprint 1, so the split is
     // free. Anything not marked COGS is treated as operating cost: a category
@@ -915,6 +941,15 @@ function assembleCostSummary(
     const target = line.category.account === "COGS" ? cogsByBranch : opexByBranch;
     const branchId = line.expense.branchId;
     target.set(branchId, (target.get(branchId) ?? ZERO).plus(line.totalPrice));
+    if (line.category.account === "COGS") {
+      const e = line.expense;
+      const reclaimable = e.sourceGr ? e.sourceGr.vatReclaimable : isVatRegistered;
+      const atCost =
+        !reclaimable && e.subtotalExclVat.greaterThan(0) && e.vatAmount.greaterThan(0)
+          ? line.totalPrice.plus(e.vatAmount.mul(line.totalPrice).div(e.subtotalExclVat))
+          : line.totalPrice;
+      purchasesAtCostByBranch.set(branchId, (purchasesAtCostByBranch.get(branchId) ?? ZERO).plus(atCost));
+    }
   }
 
   // --- what each branch paid per base unit, per product, in the period ---
@@ -1120,6 +1155,7 @@ function assembleCostSummary(
     }
 
     const cogsSpend = cogsByBranch.get(branch.id) ?? ZERO;
+    const purchasesAtCost = purchasesAtCostByBranch.get(branch.id) ?? ZERO;
     const revenue = revenueByBranch.get(branch.id) ?? null;
 
     // COGS SOLD = opening + purchases − closing. The accounting identity, and
@@ -1129,6 +1165,8 @@ function assembleCostSummary(
     // Two methods, and the second one arrived in Part 22.
     //
     // นับสต๊อก: opening + purchases − closing, the accounting identity, and the
+    //   (purchases valued as the stock is — `purchasesAtCost`, rule ME2 — so a
+    //   shop that cannot reclaim VAT does not see its VAT turn into profit)
     //   only gross profit available to a shop with no recipes.
     // สูตรอาหาร: what the recipes say the sold dishes actually consumed.
     //
@@ -1142,7 +1180,7 @@ function assembleCostSummary(
       revenue === null
         ? null
         : grossProfitMethod === "PERIODIC_INVENTORY"
-          ? openingInventoryValue.plus(cogsSpend).minus(inventoryValue)
+          ? openingInventoryValue.plus(purchasesAtCost).minus(inventoryValue)
           : daysPosted > 0
             ? (consumptionValueByBranch.get(branch.id) ?? ZERO)
             : null;
@@ -1152,6 +1190,7 @@ function assembleCostSummary(
       branchName: branch.name,
       branchCode: branch.code,
       cogsSpend,
+      purchasesAtCost,
       opexSpend: opexByBranch.get(branch.id) ?? ZERO,
       inventoryValue,
       wasteValue,

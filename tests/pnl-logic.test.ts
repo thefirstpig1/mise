@@ -26,6 +26,7 @@ function row(over: Partial<BranchCostSummary> & { branchId: string }): BranchCos
     branchName: over.branchId,
     branchCode: null,
     cogsSpend: D(0),
+    purchasesAtCost: D(0),
     opexSpend: D(0),
     inventoryValue: D(0),
     wasteValue: D(0),

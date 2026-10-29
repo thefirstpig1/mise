@@ -143,26 +143,6 @@ export async function getMonthEndLogic(
         select: { isVatRegistered: true, grossProfitMethod: true },
       });
 
-      // ME2 — the bills the accountant books, with the VAT the shop cannot reclaim.
-      const purchaseLines = await tx.expenseItem.findMany({
-        where: {
-          tenantId,
-          category: { account: "COGS" },
-          expense: { tenantId, deletedAt: null, branchId: { in: branchIds }, billDate: { gte: from, lte: to } },
-        },
-        select: {
-          totalPrice: true,
-          expense: {
-            select: {
-              branchId: true,
-              subtotalExclVat: true,
-              vatAmount: true,
-              sourceGr: { select: { vatReclaimable: true } },
-            },
-          },
-        },
-      });
-
       // ME4 — transfer legs, valued at the line's frozen money.
       const transferMoves = await tx.stockMovement.findMany({
         where: { tenantId, branchId: { in: branchIds }, type: { in: TRANSFER_TYPES }, occurredAt: wide },
@@ -230,25 +210,13 @@ export async function getMonthEndLogic(
           })
         : [];
 
-      return { branches, tenant, purchaseLines, transferMoves, transferItems, inTransit, drafts, counts, products, billCount, bills };
+      return { branches, tenant, transferMoves, transferItems, inTransit, drafts, counts, products, billCount, bills };
     }),
   ]);
   if (ledger === null) return null;
 
   const { tenant } = facts;
   const nameOfBranch = new Map(facts.branches.map((b) => [b.id, b.name]));
-
-  // ME2
-  const purchases = new Map<string, Prisma.Decimal>();
-  for (const line of facts.purchaseLines) {
-    const e = line.expense;
-    const reclaimable = e.sourceGr ? e.sourceGr.vatReclaimable : tenant.isVatRegistered;
-    let value = line.totalPrice;
-    if (!reclaimable && e.subtotalExclVat.greaterThan(0) && e.vatAmount.greaterThan(0)) {
-      value = value.plus(e.vatAmount.mul(line.totalPrice).div(e.subtotalExclVat));
-    }
-    purchases.set(e.branchId, (purchases.get(e.branchId) ?? ZERO).plus(value));
-  }
 
   // ME4
   const costOfItem = new Map(facts.transferItems.map((i) => [i.id, i.costTotal]));
@@ -291,7 +259,9 @@ export async function getMonthEndLogic(
 
   const branches: MonthEndBranch[] = ledger.summaries.map((s) => {
     const opening = baht(s.openingInventoryValue);
-    const p = baht(purchases.get(s.branchId));
+    // ME2 — the bills the accountant books, at what they cost the shop; the
+    // same figure /cost's นับสต๊อก gross profit stands on.
+    const p = baht(s.purchasesAtCost);
     const ti = baht(tIn.get(s.branchId));
     const to_ = baht(tOut.get(s.branchId));
     const closing = baht(s.inventoryValue);

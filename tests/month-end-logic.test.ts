@@ -29,7 +29,8 @@ import { createWasteLogic } from "@/server/waste";
 import { createWasteInputSchema } from "@/lib/validations/waste";
 import { dispatchTransferLogic } from "@/server/transfer";
 import { dispatchTransferInputSchema } from "@/lib/validations/transfer";
-import { getMonthEndLogic, lastClosedMonth, type MonthEndBranch } from "@/server/month-end";
+import { getMonthEndLogic, lastClosedMonth, monthBounds, type MonthEndBranch } from "@/server/month-end";
+import { getBranchCostSummaryLogic } from "@/server/stock-cost";
 import { getAccountingExportSettingsLogic, saveAccountingExportSettingsLogic } from "@/server/accounting-export-settings";
 import { sweepTestTenants } from "./support/sweep";
 import { EVERY_BRANCH, onlyBranches } from "./support/reach";
@@ -202,6 +203,58 @@ describe("month-end close (rules ME1–ME6)", () => {
     expect(t.purchases).toBe(2140);
     expect(t.closing).toBe(2140);
     expect(t.cogs).toBe(0);
+  });
+
+  it("ME2 on /cost: a shop that cannot reclaim VAT does not see it as profit (นับสต๊อก gross profit, Kong 2026-10-29)", async () => {
+    // A day of sales last month, so the summary prints a gross profit at all.
+    await withRlsBypass(async (tx) => {
+      const integ = await tx.posIntegration.create({ data: { tenantId: tenant, branchId: thonglor, posType: "CUSTOM", name: "POS" }, select: { id: true } });
+      const prof = await tx.salesImportProfile.create({
+        data: {
+          tenantId: tenant,
+          posIntegrationId: integ.id,
+          name: "รายวัน",
+          fileKind: "DAILY_SUMMARY",
+          dateFormat: "yyyy-MM-dd",
+          columnMap: {},
+          headerSignature: "x",
+          amountsIncludeVat: false,
+          amountsIncludeServiceCharge: false,
+        },
+        select: { id: true },
+      });
+      const batch = await tx.salesImportBatch.create({
+        data: { tenantId: tenant, branchId: thonglor, posIntegrationId: integ.id, profileId: prof.id, status: "COMMITTED", fileName: "day.csv", uploadedBy: user, committedAt: new Date() },
+        select: { id: true },
+      });
+      const menu = await tx.menu.create({ data: { tenantId: tenant, source: "MISE", name: "ข้าวผัด" }, select: { id: true } });
+      const businessDate = monthBounds(prevMonth).to;
+      const day = await tx.salesDay.create({ data: { tenantId: tenant, branchId: thonglor, businessDate, currentBatchId: batch.id }, select: { id: true } });
+      await tx.salesLine.create({
+        data: {
+          tenantId: tenant,
+          branchId: thonglor,
+          businessDate,
+          salesDayId: day.id,
+          importBatchId: batch.id,
+          menuId: menu.id,
+          qty: 10,
+          grossAmount: 500,
+          discountAmount: 0,
+          netAmount: 500,
+          serviceChargeAmount: 0,
+          vatAmount: 0,
+        },
+      });
+    });
+    const rows = await getBranchCostSummaryLogic(tenant, monthBounds(prevMonth), EVERY_BRANCH);
+    const t = rows.find((r) => r.branchId === thonglor)!;
+    expect(t.grossProfitMethod).toBe("PERIODIC_INVENTORY");
+    expect(Number(t.cogsSpend)).toBe(2000); // spend before tax — unchanged (H8)
+    expect(Number(t.purchasesAtCost)).toBe(2140); // what the stock carries
+    // Nothing was used: cost of sales is 0, not −140, and gross profit is the whole ฿500.
+    expect(Number(t.cogsSold)).toBe(0);
+    expect(Number(t.grossProfit)).toBe(500);
   });
 
   it("ME1 this month's opening stock is last month's closing, to the satang", async () => {
