@@ -99,6 +99,13 @@ const METRICS: Record<Exclude<MetricKey, "var">, Metric> = {
     why: () => "ไม่มียอดขาย",
   },
 };
+// Kong 2026-10-30: under นับสต๊อก no sale takes stock out, so what a count finds
+// short of the ledger is what the shop USED — sold and lost together, never
+// separable. It is named for that, with no target and no alarm (the month-end
+// close already says "ใช้ไปทั้งหมด" for the same reason).
+const VAR_NAME_PERIODIC = "ใช้ไปตามการนับ";
+const VAR_TIP_PERIODIC =
+  "ร้านนี้คิดกำไรแบบนับสต๊อก ยอดขายไม่ตัดสต๊อก ส่วนที่นับได้น้อยกว่าระบบจึงคือของที่ใช้ไปทั้งช่วง (ขายและขาดรวมกัน แยกกันไม่ได้) · อยากเห็นของหายจริงต้องคิดกำไรแบบสูตรอาหาร";
 const VAR_TIP =
   "นับได้ไม่ตรงกับที่ระบบคำนวณว่าควรเหลือ (รับเข้า − ตัดตามสูตรที่ขาย − ที่บันทึกว่าทิ้งและของเสียแล้ว) · ส่วนที่ต่างคือของที่ไม่มีใครบันทึกว่าไปไหน · สาเหตุที่พบบ่อย: ตักเกินสูตร ทิ้งแต่ไม่ได้บันทึก รับของไม่ครบ นับหรือหน่วยผิด ของถูกหยิบไป";
 
@@ -149,8 +156,9 @@ function Overview({ data, canEditTargets }: { data: Overview; canEditTargets: bo
   const [sel, setSel] = useState(() => lastWithSales(data.week));
   // B5 (Kong 2026-10-24): a count opens ของหายไปไหน at that count — the deep
   // page with causes and a checklist — instead of a shorter popup of the same list.
+  // Under นับสต๊อก that page cannot tell loss from usage, so a count opens its own sheet.
   const openCount = (c: CountEvent) => {
-    window.location.href = `/cost/leaks?count=${c.countId}`;
+    window.location.href = data.method === "PERIODIC_INVENTORY" ? `/stock-counts/${c.countId}` : `/cost/leaks?count=${c.countId}`;
   };
   const [editTargets, setEditTargets] = useState(false);
   const [stockView, setStockView] = useState<"age" | "left">("age");
@@ -161,6 +169,8 @@ function Overview({ data, canEditTargets }: { data: Overview; canEditTargets: bo
   const multi = data.branches.length > 1;
   const isPct = unit === "pct";
   const covGate = targets.coverageMin;
+  const periodic = data.method === "PERIODIC_INVENTORY";
+  const varName = periodic ? VAR_NAME_PERIODIC : "ไม่ตรงกับระบบ";
 
   const switchGran = (g: Gran) => {
     setGran(g);
@@ -198,7 +208,7 @@ function Overview({ data, canEditTargets }: { data: Overview; canEditTargets: bo
           กำลังดู{" "}
           <b className="text-foreground">
             {periodWord}
-            {P[sel]?.label} · {branch === "ALL" ? "ทุกสาขา" : nameOf.get(branch)} · {metric === "var" ? "ไม่ตรงกับระบบ" : METRICS[metric].tab}
+            {P[sel]?.label} · {branch === "ALL" ? "ทุกสาขา" : nameOf.get(branch)} · {metric === "var" ? varName : METRICS[metric].tab}
           </b>
         </span>
         <span className="flex flex-wrap gap-2">
@@ -215,7 +225,13 @@ function Overview({ data, canEditTargets }: { data: Overview; canEditTargets: bo
           className={`rounded-full border border-border bg-surface px-3 py-1 text-sm ${canEditTargets ? "hover:border-border-strong" : "cursor-default"}`}
           title={canEditTargets ? "แก้เป้าของร้าน" : "เจ้าของร้านหรือผู้ดูแลเป็นผู้ตั้งเป้า"}
         >
-          เป้าของร้าน: อาหาร <b>≤{targets.food}%</b> · prime <b>≤{targets.prime}%</b> · ไม่ตรงกับระบบ <b>≤{targets.variance}%</b>
+          เป้าของร้าน: อาหาร <b>≤{targets.food}%</b> · prime <b>≤{targets.prime}%</b>
+          {!periodic && (
+            <>
+              {" "}
+              · ไม่ตรงกับระบบ <b>≤{targets.variance}%</b>
+            </>
+          )}
           {canEditTargets && " ✎"}
         </button>
       </div>
@@ -258,7 +274,7 @@ function Overview({ data, canEditTargets }: { data: Overview; canEditTargets: bo
               return inP.length ? inP.reduce((x, c) => x + c.value, 0) : null;
             });
             return (
-              <Tab key={k} on={metric === k} onClick={() => setMetric(k)} title="ไม่ตรงกับระบบ" tip={VAR_TIP} spark={spark} sel={sel}>
+              <Tab key={k} on={metric === k} onClick={() => setMetric(k)} title={varName} tip={periodic ? VAR_TIP_PERIODIC : VAR_TIP} spark={spark} sel={sel}>
                 {cs.length === 0 ? (
                   <>
                     <TabValue muted>ยังไม่ได้นับ</TabValue>
@@ -270,8 +286,9 @@ function Overview({ data, canEditTargets }: { data: Overview; canEditTargets: bo
                     {s.pct === null ? (
                       <Tag tone="muted">ยังเทียบยอดขายไม่ได้</Tag>
                     ) : (
-                      <Tag tone={s.pct > targets.variance ? "bad" : "ok"}>
-                        {isPct ? `฿${f0(s.v)}` : `${s.pct.toFixed(2)}% ของยอดขาย`} · เป้า ≤{targets.variance}%
+                      <Tag tone={periodic ? "muted" : s.pct > targets.variance ? "bad" : "ok"}>
+                        {isPct ? `฿${f0(s.v)}` : `${s.pct.toFixed(2)}% ของยอดขาย`}
+                        {!periodic && ` · เป้า ≤${targets.variance}%`}
                       </Tag>
                     )}
                     <TabSub>นับล่าสุด {cs.map((c) => (cs.length > 1 ? `${(nameOf.get(c.branchId) ?? "").replace(/^สาขา/, "")} ${c.dateLabel}` : c.dateLabel)).join(" · ")}</TabSub>
@@ -337,13 +354,17 @@ function Overview({ data, canEditTargets }: { data: Overview; canEditTargets: bo
 
       <div className="rounded-2xl border border-border bg-surface p-4">
         <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-          <h3 className="text-sm font-semibold">{metric === "var" ? "ไม่ตรงกับระบบ" : METRICS[metric].tab}</h3>
+          <h3 className="text-sm font-semibold">{metric === "var" ? varName : METRICS[metric].tab}</h3>
           <span className="text-xs text-muted-foreground">
-            {metric === "var" ? "นับได้ไม่ตรงกับที่ระบบคำนวณ หลังหักที่บันทึกว่าทิ้งและของเสียแล้ว · รู้ได้ตอนนับสต๊อกเท่านั้น" : METRICS[metric].hint}
+            {metric === "var"
+              ? periodic
+                ? "ยอดขายไม่ตัดสต๊อก ส่วนที่นับได้น้อยกว่าระบบคือของที่ใช้ไป (ขายและขาดรวมกัน) · รู้ได้ตอนนับสต๊อกเท่านั้น"
+                : "นับได้ไม่ตรงกับที่ระบบคำนวณ หลังหักที่บันทึกว่าทิ้งและของเสียแล้ว · รู้ได้ตอนนับสต๊อกเท่านั้น"
+              : METRICS[metric].hint}
           </span>
         </div>
         {metric === "var" ? (
-          <CountsChart P={P} sel={sel} counts={data.counts.filter((c) => bs.includes(c.branchId))} colorOf={colorOf} nameOf={nameOf} targets={targets} onOpen={openCount} />
+          <CountsChart P={P} sel={sel} counts={data.counts.filter((c) => bs.includes(c.branchId))} colorOf={colorOf} nameOf={nameOf} targets={targets} onOpen={openCount} varName={varName} periodic={periodic} />
         ) : (
           <BarChart
             P={P}
@@ -373,13 +394,14 @@ function Overview({ data, canEditTargets }: { data: Overview; canEditTargets: bo
         onCount={openCount}
         missingSales={bs.filter((b) => agg(P[sel], [b]).rev === null).map((b) => nameOf.get(b) ?? "")}
         multi={multi}
+        periodic={periodic}
       />
 
       <div className={`grid gap-5 ${multi ? "lg:grid-cols-2" : ""}`}>
         {multi && (
           <div className="space-y-2">
             <QLabel n="8">สาขาไหนดี สาขาไหนแย่</QLabel>
-            <Bench P={P} sel={sel} branches={data.branches} colorOf={colorOf} branch={branch} latestCounts={latestCounts} covGate={covGate} />
+            <Bench P={P} sel={sel} branches={data.branches} colorOf={colorOf} branch={branch} latestCounts={latestCounts} covGate={covGate} varName={varName} />
           </div>
         )}
         <div className="space-y-2">
@@ -810,6 +832,8 @@ function CountsChart({
   nameOf,
   targets,
   onOpen,
+  varName,
+  periodic,
 }: {
   P: CostPeriod[];
   sel: number;
@@ -818,6 +842,8 @@ function CountsChart({
   nameOf: Map<string, string>;
   targets: CostTargets;
   onOpen: (c: CountEvent) => void;
+  varName: string;
+  periodic: boolean;
 }) {
   const [ref, width] = useWidth<HTMLDivElement>();
   const [hover, setHover] = useState<CountEvent | null>(null);
@@ -883,7 +909,7 @@ function CountsChart({
               className="cursor-pointer outline-none"
               tabIndex={0}
               role="button"
-              aria-label={`${nameOf.get(c.branchId)} นับ ${c.dateLabel} ไม่ตรงกับระบบ ฿${f0(c.value)}`}
+              aria-label={`${nameOf.get(c.branchId)} นับ ${c.dateLabel} ${varName} ฿${f0(c.value)}`}
               onMouseEnter={() => setHover(c)}
               onMouseLeave={() => setHover(null)}
               onFocus={() => setHover(c)}
@@ -920,18 +946,18 @@ function CountsChart({
             {nameOf.get(hover.branchId)} · นับ {hover.dateLabel}
           </b>
           <div className="mt-1 flex justify-between gap-2">
-            <span>ไม่ตรงกับระบบ</span>
+            <span>{varName}</span>
             <b>฿{f2(hover.value)}</b>
           </div>
           {hover.sinceRevenue && (
             <div className="flex justify-between gap-2">
               <span>% ของยอดขาย{hover.sinceLabel}</span>
               <b className="whitespace-nowrap">
-                {((hover.value / hover.sinceRevenue) * 100).toFixed(2)}% (เป้า ≤{targets.variance}%)
+                {((hover.value / hover.sinceRevenue) * 100).toFixed(2)}%{!periodic && ` (เป้า ≤${targets.variance}%)`}
               </b>
             </div>
           )}
-          <div className="mt-1 opacity-75">กดเพื่อเปิดหน้าของหายไปไหน</div>
+          <div className="mt-1 opacity-75">{periodic ? "กดเพื่อเปิดใบนับ" : "กดเพื่อเปิดหน้าของหายไปไหน"}</div>
         </div>
       )}
       <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
@@ -941,7 +967,7 @@ function CountsChart({
             {nameOf.get(b)}
           </span>
         ))}
-        <span>ลายเส้น = ช่วงที่ไม่ได้นับ (ไม่รู้ ไม่ใช่ ฿0) · จุด = การนับแต่ละครั้ง กดเพื่อดูว่าอะไรไม่ตรง</span>
+        <span>ลายเส้น = ช่วงที่ไม่ได้นับ (ไม่รู้ ไม่ใช่ ฿0) · จุด = การนับแต่ละครั้ง {periodic ? "กดเพื่อดูใบนับ" : "กดเพื่อดูว่าอะไรไม่ตรง"}</span>
       </div>
       <style>{`@keyframes co-pop{from{transform:scale(0)}to{transform:scale(1)}}`}</style>
     </div>
@@ -960,6 +986,7 @@ function Todo({
   onCount,
   missingSales,
   multi,
+  periodic,
 }: {
   period: CostPeriod | undefined;
   cur: Agg;
@@ -968,9 +995,11 @@ function Todo({
   onCount: (c: CountEvent) => void;
   missingSales: string[];
   multi: boolean;
+  /** นับสต๊อก: a count's shortfall is usage, not something to go and fix. */
+  periodic: boolean;
 }) {
   const items: TodoItem[] = [];
-  for (const c of counts) {
+  for (const c of periodic ? [] : counts) {
     for (const it of c.items.slice(0, 3)) {
       if (it.value <= 0) continue;
       items.push({
@@ -1091,6 +1120,7 @@ function Bench({
   branch,
   latestCounts,
   covGate,
+  varName,
 }: {
   P: CostPeriod[];
   sel: number;
@@ -1099,6 +1129,7 @@ function Bench({
   branch: string;
   latestCounts: (ids: string[]) => CountEvent[];
   covGate: number;
+  varName: string;
 }) {
   type Row = { key: string; label: string; val: (b: string) => number | null; fmt: (v: number) => string; why: (b: string) => string; cost: boolean };
   const a = (b: string) => agg(P[sel], [b]);
@@ -1107,7 +1138,7 @@ function Bench({
     { key: "food", label: "ต้นทุนอาหาร %", val: (b) => pctOf(METRICS.food.baht(a(b)), a(b).rev), fmt: (v) => `${v.toFixed(1)}%`, why: (b) => METRICS.food.why(a(b)), cost: true },
     {
       key: "var",
-      label: "ไม่ตรงกับระบบ % ของยอดขาย (นับล่าสุด)",
+      label: `${varName} % ของยอดขาย (นับล่าสุด)`,
       val: (b) => {
         const c = latestCounts([b])[0];
         return c && c.sinceRevenue ? (c.value / c.sinceRevenue) * 100 : null;

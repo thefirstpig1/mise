@@ -488,7 +488,10 @@ async function Analytics({
         ? { who: short(wfBranch.branchName), revenue: num(wfBranch.revenue)!, cogs: num(wfBranch.cogs)!, opex: num(wfBranch.opex)!, net: num(wfBranch.netProfit)! }
         : null;
 
-  const shortage = pnl.branches.reduce((s, b) => s + Number(b.shortage.toString()), 0);
+  // Kong 2026-10-30: under นับสต๊อก a count's shortfall is what the shop USED
+  // (no sale takes stock out), so it is not something to watch — it is already
+  // the cost of sales on the food-cost card. /cost names it ใช้ไปตามการนับ.
+  const shortage = pnl.method === "PERIODIC_INVENTORY" ? 0 : pnl.branches.reduce((s, b) => s + Number(b.shortage.toString()), 0);
   const waste = pnl.branches.reduce((s, b) => s + Number(b.waste.toString()), 0);
   const worstShort = [...pnl.branches].sort((a, b) => Number(b.shortage.toString()) - Number(a.shortage.toString()))[0];
   const priceUps = (prices?.products ?? []).filter((p) => (p.changePct ?? 0) >= 3).sort((a, b) => (b.changePct ?? 0) - (a.changePct ?? 0)).slice(0, 3);
