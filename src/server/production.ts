@@ -24,7 +24,8 @@ import type { PrismaClient, Production, ProductionItem } from "@prisma/client";
 import { withTenantContext } from "@/lib/db";
 import { bangkokDayStartUtc, computeBangkokToday, isDayValue } from "@/lib/bangkok-date";
 import type { ProductionOrigin } from "@prisma/client";
-import { explodeToRaw, productKey } from "@/server/recipe-graph";
+import { explodeToRaw, productKey, reachable } from "@/server/recipe-graph";
+import { costKeyOf, replayPairsInTx } from "@/server/stock-cost";
 import { loadRecipeGraph } from "@/server/recipe-resolve";
 import {
   hasMethod,
@@ -416,59 +417,74 @@ export async function voidProductionLogic(
   input: VoidProductionInput,
   voidedBy: string
 ): Promise<ProductionWithItems> {
-  return withTenantContext(tenantId, async (tx) => {
-    const doc = await tx.production.findFirst({
-      where: { tenantId, id: input.id },
-      include: { items: true },
-    });
-    if (!doc) throw new ProductionNotFoundError(input.id);
-    if (doc.voidedAt) throw new ProductionAlreadyVoidedError(input.id);
+  return withTenantContext(
+    tenantId,
+    (tx) => voidProductionInTx(tx, tenantId, input, voidedBy),
+    PRODUCTION_TX_OPTIONS
+  );
+}
 
-    // A concurrent void waits here and then sees voided_at; the partial unique
-    // on reversal_of_item_id is the backstop.
-    const locked = await tx.production.updateMany({
-      where: { tenantId, id: input.id, voidedAt: null },
-      data: { voidedAt: new Date(), voidedBy, voidReason: input.reason ?? null },
-    });
-    if (locked.count === 0) throw new ProductionAlreadyVoidedError(input.id);
+/**
+ * The void, inside the caller's transaction — so voiding a COUNT can take back
+ * the productions that count wrote (Q2) in the same act.
+ */
+export async function voidProductionInTx(
+  tx: PrismaClient,
+  tenantId: string,
+  input: VoidProductionInput,
+  voidedBy: string
+): Promise<ProductionWithItems> {
+  const doc = await tx.production.findFirst({
+    where: { tenantId, id: input.id },
+    include: { items: true },
+  });
+  if (!doc) throw new ProductionNotFoundError(input.id);
+  if (doc.voidedAt) throw new ProductionAlreadyVoidedError(input.id);
 
-    const now = new Date();
-    const originals = doc.items.filter((i) => i.reversalOfItemId === null);
-    // Outputs come off the shelf first, then inputs go back — the mirror of
-    // the making, so a replay never sees the soup outlive its own void.
-    const ordered = [
-      ...originals.filter((i) => i.role === "OUTPUT"),
-      ...originals.filter((i) => i.role === "INPUT"),
-    ];
-    for (const orig of ordered) {
-      const rev = await tx.productionItem.create({
-        data: {
-          tenantId,
-          productionId: doc.id,
-          productId: orig.productId,
-          role: orig.role,
-          qty: orig.qty,
-          reversalOfItemId: orig.id,
-        },
-      });
-      await createStockMovementLogic(tx, {
+  // A concurrent void waits here and then sees voided_at; the partial unique
+  // on reversal_of_item_id is the backstop.
+  const locked = await tx.production.updateMany({
+    where: { tenantId, id: input.id, voidedAt: null },
+    data: { voidedAt: new Date(), voidedBy, voidReason: input.reason ?? null },
+  });
+  if (locked.count === 0) throw new ProductionAlreadyVoidedError(input.id);
+
+  const now = new Date();
+  const originals = doc.items.filter((i) => i.reversalOfItemId === null);
+  // Outputs come off the shelf first, then inputs go back — the mirror of
+  // the making, so a replay never sees the soup outlive its own void.
+  const ordered = [
+    ...originals.filter((i) => i.role === "OUTPUT"),
+    ...originals.filter((i) => i.role === "INPUT"),
+  ];
+  for (const orig of ordered) {
+    const rev = await tx.productionItem.create({
+      data: {
         tenantId,
+        productionId: doc.id,
         productId: orig.productId,
-        branchId: doc.branchId,
-        qty: orig.role === "OUTPUT" ? orig.qty.negated() : orig.qty,
-        type: orig.role === "OUTPUT" ? "PRODUCTION_IN_REVERSAL" : "PRODUCTION_OUT_REVERSAL",
-        sourceType: "PRODUCTION",
-        sourceId: rev.id,
-        occurredAt: now,
-        createdBy: voidedBy,
-      });
-    }
-
-    return tx.production.findUniqueOrThrow({
-      where: { id: doc.id },
-      include: { items: true },
+        role: orig.role,
+        qty: orig.qty,
+        reversalOfItemId: orig.id,
+      },
     });
-  }, PRODUCTION_TX_OPTIONS);
+    await createStockMovementLogic(tx, {
+      tenantId,
+      productId: orig.productId,
+      branchId: doc.branchId,
+      qty: orig.role === "OUTPUT" ? orig.qty.negated() : orig.qty,
+      type: orig.role === "OUTPUT" ? "PRODUCTION_IN_REVERSAL" : "PRODUCTION_OUT_REVERSAL",
+      sourceType: "PRODUCTION",
+      sourceId: rev.id,
+      occurredAt: now,
+      createdBy: voidedBy,
+    });
+  }
+
+  return tx.production.findUniqueOrThrow({
+    where: { id: doc.id },
+    include: { items: true },
+  });
 }
 
 // ------------------------------------------------------------
@@ -516,7 +532,7 @@ export async function produceShortfallInTx(
     /** Positive, in base units: how much the document is about to take. */
     qty: Prisma.Decimal;
     at: Date;
-    origin: Exclude<ProductionOrigin, "MANUAL">;
+    origin: Exclude<ProductionOrigin, "MANUAL" | "STOCK_COUNT">;
     originId: string;
     recordedBy: string;
   }
@@ -543,9 +559,45 @@ export async function produceShortfallInTx(
   );
   if (!hasMethod(graph, productId)) return null;
 
-  // One level down, then the same shelf rule for what that needs: stock on
-  // the stock shelf is used before the bones under it.
-  const oneLevel = explodeToRaw(graph, productKey(productId), short, { stopAtPrepped: true });
+  const written = await writeSystemProductionInTx(tx, tenantId, {
+    graph,
+    branchId,
+    productId,
+    makeQty: short,
+    at,
+    origin: params.origin,
+    originId: params.originId,
+    recordedBy: params.recordedBy,
+  });
+  return written?.production ?? null;
+}
+
+/**
+ * Write a production the SYSTEM is recording — the shortfall of a waste or a
+ * transfer (Q9), the excess of a count (Q2). `makeQty` of `productId` from its
+ * recipe: one level down, then the shelf rule for what that needs (stock on
+ * the stock shelf is used before the bones under it).
+ *
+ * Returns what each input used, so a count can lower those lines' ledger
+ * figures before it compares them (Q2: "แล้วจึงเทียบยอดนับวัตถุดิบดิบ").
+ */
+export async function writeSystemProductionInTx(
+  tx: PrismaClient,
+  tenantId: string,
+  params: {
+    graph: Awaited<ReturnType<typeof loadRecipeGraph>>;
+    branchId: string;
+    productId: string;
+    makeQty: Prisma.Decimal;
+    at: Date;
+    origin: Exclude<ProductionOrigin, "MANUAL">;
+    originId: string;
+    recordedBy: string;
+    inputsUnconfirmed?: boolean;
+  }
+): Promise<{ production: ProductionWithItems; used: Map<string, Prisma.Decimal> } | null> {
+  const { graph, branchId, productId, makeQty, at } = params;
+  const oneLevel = explodeToRaw(graph, productKey(productId), makeQty, { stopAtPrepped: true });
   const preppedBelow = oneLevel
     .map((l) => l.productId)
     .filter((id) => graph.products.get(id)?.type === "PREPPED");
@@ -578,10 +630,12 @@ export async function produceShortfallInTx(
       originId: params.originId,
       producedAt: at,
       recipeId: node?.productionRecipe?.id ?? null,
+      inputsUnconfirmed: params.inputsUnconfirmed ?? false,
       recordedBy: params.recordedBy,
     },
   });
 
+  const used = new Map<string, Prisma.Decimal>();
   for (const line of inputs) {
     const item = await tx.productionItem.create({
       data: {
@@ -603,8 +657,9 @@ export async function produceShortfallInTx(
       occurredAt: at,
       createdBy: params.recordedBy,
     });
+    used.set(line.productId, line.qty);
   }
-  const outQty = short.toDecimalPlaces(3);
+  const outQty = makeQty.toDecimalPlaces(3);
   const out = await tx.productionItem.create({
     data: {
       tenantId,
@@ -627,7 +682,11 @@ export async function produceShortfallInTx(
     createdBy: params.recordedBy,
   });
 
-  return tx.production.findUniqueOrThrow({ where: { id: doc.id }, include: { items: true } });
+  const production = await tx.production.findUniqueOrThrow({
+    where: { id: doc.id },
+    include: { items: true },
+  });
+  return { production, used };
 }
 
 // ------------------------------------------------------------
@@ -758,4 +817,182 @@ export async function voidProductionAndRepostLogic(
     voidedBy
   );
   return { production, reposted };
+}
+
+// ------------------------------------------------------------
+// ADR 0040 Q2 — counting more prepped stock than the ledger holds
+// ------------------------------------------------------------
+
+/**
+ * Q2: the system asks the counter to check an ingredient only when it is at
+ * least this share of what the batch cost. Seasoning is cut by the recipe and
+ * never asked about.
+ */
+export const MAIN_INPUT_SHARE = new Prisma.Decimal("0.10");
+
+/**
+ * Which of these inputs are "main": worth at least 10% of the batch at FIFO
+ * cost as of `at`. When nothing is priced there is no way to rank them, so
+ * every input counts as main — asking too much beats silently asking nothing.
+ */
+export async function mainInputsInTx(
+  tx: PrismaClient,
+  tenantId: string,
+  branchId: string,
+  inputs: { productId: string; qty: Prisma.Decimal }[],
+  at: Date
+): Promise<Set<string>> {
+  if (inputs.length === 0) return new Set();
+  const replayed = await replayPairsInTx(
+    tx,
+    tenantId,
+    inputs.map((i) => i.productId),
+    [branchId],
+    at
+  );
+  const values = inputs.map((i) => ({
+    id: i.productId,
+    value: i.qty.mul(replayed.get(costKeyOf(i.productId, branchId))?.costPerBaseUnit ?? 0),
+  }));
+  const total = values.reduce((a, v) => a.plus(v.value), new Prisma.Decimal(0));
+  if (total.isZero()) return new Set(inputs.map((i) => i.productId));
+  return new Set(values.filter((v) => v.value.div(total).greaterThanOrEqualTo(MAIN_INPUT_SHARE)).map((v) => v.id));
+}
+
+/**
+ * Before a count posts its differences: every prepped line counted ABOVE the
+ * ledger becomes a production of the excess (origin STOCK_COUNT), and every
+ * line's ledger figure is lowered by what those productions used — so the
+ * bones are compared against "58 in the ledger − 50 made into soup", not 58.
+ *
+ * Q2's reasons, in the ADR's words: counted soup is soup that was made, not
+ * "found"; turning it back into 60 kg of bones would be "งงกันวายป่วง". A line
+ * counted BELOW the ledger is an ordinary loss and is left alone.
+ *
+ * Parents first: soup made from stock is written before stock's own excess,
+ * so stock's figure already accounts for what the soup used. A production
+ * whose main ingredients (≥ 10% of its cost) are not on this sheet is marked
+ * `inputs_unconfirmed` — posted by the recipe, never blocked (Q2).
+ *
+ * Mutates the sheet's `qty_expected` on the lines it touches, so the variance
+ * the caller then posts is the one that remains.
+ */
+export async function settleCountedPreppedInTx(
+  tx: PrismaClient,
+  tenantId: string,
+  count: {
+    id: string;
+    branchId: string;
+    items: {
+      id: string;
+      productId: string;
+      qtyCounted: Prisma.Decimal;
+      qtyExpected: Prisma.Decimal;
+      countedAt: Date;
+      reversalOfItemId: string | null;
+    }[];
+  },
+  closedBy: string
+): Promise<ProductionWithItems[]> {
+  const lines = count.items.filter((i) => i.reversalOfItemId === null);
+  if (lines.length === 0) return [];
+  const types = await tx.product.findMany({
+    where: { tenantId, id: { in: lines.map((l) => l.productId) } },
+    select: { id: true, type: true },
+  });
+  const preppedIds = new Set(types.filter((t) => t.type === "PREPPED").map((t) => t.id));
+  const prepped = lines.filter((l) => preppedIds.has(l.productId));
+  // Nothing over, nothing to make — and nothing below can change either.
+  if (!prepped.some((l) => l.qtyCounted.greaterThan(l.qtyExpected))) return [];
+
+  const day = bangkokDayOf(prepped[0].countedAt);
+  const graph = await loadRecipeGraph(
+    tx,
+    tenantId,
+    prepped.map((l) => ({ kind: "product" as const, id: l.productId })),
+    count.branchId,
+    day
+  );
+
+  // Parents before children: p before q whenever q is somewhere below p.
+  const below = new Map(
+    prepped.map((l) => [
+      l.productId,
+      new Set(
+        [...reachable(graph, productKey(l.productId))]
+          .filter((k) => k !== productKey(l.productId))
+          .map((k) => k.slice(2))
+      ),
+    ])
+  );
+  // A comparator cannot sort a partial order reliably, so peel it instead:
+  // take any line nothing remaining sits above, until none are left.
+  const order: typeof prepped = [];
+  let remaining = [...prepped];
+  while (remaining.length > 0) {
+    const top =
+      remaining.find((l) => !remaining.some((o) => o !== l && below.get(o.productId)!.has(l.productId))) ??
+      remaining[0]; // a cycle cannot pass the recipe guards; never loop forever on one
+    order.push(top);
+    remaining = remaining.filter((l) => l !== top);
+  }
+
+  const counted = new Set(lines.map((l) => l.productId));
+  const used = new Map<string, Prisma.Decimal>();
+  const made: ProductionWithItems[] = [];
+  const expectedNow = new Map(lines.map((l) => [l.id, l.qtyExpected]));
+
+  for (const line of order) {
+    const expected = line.qtyExpected.minus(used.get(line.productId) ?? 0);
+    const over = line.qtyCounted.minus(expected);
+    if (over.greaterThan(0) && hasMethod(graph, line.productId)) {
+      const written = await writeSystemProductionInTx(tx, tenantId, {
+        graph,
+        branchId: count.branchId,
+        productId: line.productId,
+        makeQty: over,
+        at: line.countedAt,
+        origin: "STOCK_COUNT",
+        originId: count.id,
+        recordedBy: closedBy,
+      });
+      if (written) {
+        for (const [id, q] of written.used) used.set(id, (used.get(id) ?? new Prisma.Decimal(0)).plus(q));
+        const main = await mainInputsInTx(
+          tx,
+          tenantId,
+          count.branchId,
+          [...written.used.entries()].map(([productId, qty]) => ({ productId, qty })),
+          line.countedAt
+        );
+        if ([...main].some((id) => !counted.has(id))) {
+          await tx.production.update({
+            where: { id: written.production.id },
+            data: { inputsUnconfirmed: true },
+          });
+          written.production.inputsUnconfirmed = true;
+        }
+        made.push(written.production);
+        // The production put the excess on the ledger, so the line now agrees.
+        expectedNow.set(line.id, line.qtyCounted);
+        continue;
+      }
+    }
+    expectedNow.set(line.id, expected);
+  }
+
+  // Every other line: lower its ledger figure by what the productions used.
+  for (const line of lines) {
+    if (preppedIds.has(line.productId)) continue;
+    const u = used.get(line.productId);
+    if (u) expectedNow.set(line.id, line.qtyExpected.minus(u));
+  }
+
+  for (const line of lines) {
+    const next = expectedNow.get(line.id)!;
+    if (!next.equals(line.qtyExpected)) {
+      await tx.stockCountItem.update({ where: { id: line.id }, data: { qtyExpected: next } });
+    }
+  }
+  return made;
 }

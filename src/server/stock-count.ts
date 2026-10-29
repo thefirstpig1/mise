@@ -29,6 +29,7 @@ import { getProductCostsLogic } from "@/server/stock-cost";
 import { getProductCostsQuerySchema } from "@/lib/validations/stock-cost";
 import type { CostAccess } from "@/lib/permissions/cost-access";
 import type { BranchReach } from "@/lib/permissions/service";
+import { settleCountedPreppedInTx, voidProductionInTx } from "@/server/production";
 import type {
   CloseStockCountInput,
   EditStockCountContributionInput,
@@ -757,7 +758,15 @@ export async function closeStockCountLogic(
         throw new NotCountHostError(count.id);
       }
 
-      for (const item of count.items) {
+      // ADR 0040 Q2: prepped stock counted above the ledger was MADE — write
+      // those productions first and lower every line's ledger figure by what
+      // they used, then post only the difference that remains.
+      const made = await settleCountedPreppedInTx(tx, tenantId, count, closedBy);
+      const items = made.length
+        ? await tx.stockCountItem.findMany({ where: { tenantId, stockCountId: count.id } })
+        : count.items;
+
+      for (const item of items) {
         const variance = item.qtyCounted.minus(item.qtyExpected);
         if (variance.isZero()) continue;
 
@@ -859,6 +868,16 @@ export async function voidStockCountLogic(
           createdBy: voidedBy,
           notes: input.voidReason,
         });
+      }
+
+      // ADR 0040 Q2: the productions this count wrote for prepped stock it
+      // found above the ledger stand or fall with it.
+      const madeByCount = await tx.production.findMany({
+        where: { tenantId, origin: "STOCK_COUNT", originId: count.id, voidedAt: null },
+        select: { id: true },
+      });
+      for (const p of madeByCount) {
+        await voidProductionInTx(tx, tenantId, { id: p.id, reason: input.voidReason }, voidedBy);
       }
 
       return tx.stockCount.update({
