@@ -12,6 +12,7 @@ import {
   type SettingsActionState,
 } from "@/app/(app)/settings/branches/actions";
 import SettingsModal from "@/app/(app)/settings/_components/SettingsModal";
+import { useKeepForm } from "@/lib/keep-form";
 
 export type BranchRowView = {
   id: string;
@@ -55,6 +56,7 @@ function FieldError({ state, name }: { state: SettingsActionState; name: string 
 /** Add (row = null) or edit one branch. Closes itself once the save went through. */
 function BranchDialog({ row, onClose }: { row: BranchRowView | null; onClose: () => void }) {
   const [state, action, pending] = useActionState(row ? updateBranchAction : createBranchAction, IDLE);
+  const actionKeep = useKeepForm(action, state);
   useEffect(() => {
     if (state.ok) onClose();
   }, [state, onClose]);
@@ -62,7 +64,7 @@ function BranchDialog({ row, onClose }: { row: BranchRowView | null; onClose: ()
 
   return (
     <SettingsModal title={title} onClose={onClose}>
-      <form action={action} className="space-y-4">
+      <form {...actionKeep} className="space-y-4">
         {row && <input type="hidden" name="id" value={row.id} />}
         <div className="grid gap-3 sm:grid-cols-[2fr_1fr]">
           <div>

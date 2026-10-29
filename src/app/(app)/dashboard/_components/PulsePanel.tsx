@@ -29,6 +29,7 @@ import {
 } from "@/app/(app)/sales/pulse-actions";
 import ActionLink from "@/components/ui/ActionLink";
 import type { PulseDashboardView } from "@/app/(app)/sales/_components/sales-view";
+import { useKeepForm } from "@/lib/keep-form";
 
 
 const baht = (v: string | null) =>
@@ -50,6 +51,7 @@ export default function PulsePanel({
     recordSalesPulseAction,
     null
   );
+  const actionKeep = useKeepForm(action, state);
 
   if (dashboard.branches.length === 0) return null;
 
@@ -91,7 +93,7 @@ export default function PulsePanel({
                 )}
               </p>
               {keying ? (
-                <form action={action} className="mt-1 space-y-2">
+                <form {...actionKeep} className="mt-1 space-y-2">
                   <input type="hidden" name="branchId" value={b.branchId} />
                   <label className="block text-xs text-muted-foreground">
                     ของวันที่

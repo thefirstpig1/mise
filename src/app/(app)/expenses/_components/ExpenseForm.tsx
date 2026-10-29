@@ -29,6 +29,7 @@ import { ACCOUNT_TH, categoryLabelTh } from "@/lib/expense-labels";
 import type { ExpenseActionState } from "../actions";
 import type { ExpenseDetailView, ExpenseSupplierOption } from "./expense-view";
 import { Chips, MethodChips, VatChips, WhtChips } from "./TaxChips";
+import { useKeepForm } from "@/lib/keep-form";
 
 export type CategoryOption = {
   id: string;
@@ -109,6 +110,7 @@ export default function ExpenseForm({
     action,
     { ok: false } as ExpenseActionState
   );
+  const formActionKeep = useKeepForm(formAction, state);
 
   const locked = existing?.source === "FROM_GOODS_RECEIPT";
 
@@ -264,7 +266,8 @@ export default function ExpenseForm({
 
   return (
     <form
-      action={formAction}
+      ref={formActionKeep.ref}
+      action={formActionKeep.action}
       onSubmit={(e) => {
         const gap = !branchId
           ? "กรุณาเลือกสาขา"
@@ -276,7 +279,9 @@ export default function ExpenseForm({
           e.preventDefault();
           // The message sits at the top; the button is at the bottom.
           window.scrollTo({ top: 0, behavior: "smooth" });
+          return;
         }
+        formActionKeep.onSubmit(e);
       }}
       className="space-y-6"
     >

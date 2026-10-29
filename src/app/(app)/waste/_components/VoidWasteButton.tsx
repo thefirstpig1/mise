@@ -16,6 +16,7 @@
 
 import { useActionState } from "react";
 import type { VoidWasteActionState } from "@/app/(app)/waste/actions";
+import { useKeepForm } from "@/lib/keep-form";
 
 export default function VoidWasteButton({
   action,
@@ -33,6 +34,7 @@ export default function VoidWasteButton({
   const [state, formAction, isPending] = useActionState(action, {
     ok: false,
   } as VoidWasteActionState);
+  const formActionKeep = useKeepForm(formAction, state);
 
   const formError = state.ok === false ? state.formError : undefined;
   const fieldError =
@@ -44,7 +46,7 @@ export default function VoidWasteButton({
         ยกเลิกรายการนี้
       </summary>
 
-      <form action={formAction} className="mt-2 space-y-2">
+      <form {...formActionKeep} className="mt-2 space-y-2">
         <input type="hidden" name="id" value={wasteId} />
         <p className="text-xs text-muted-foreground">
           คืน {label} เข้าสต๊อก — รายการเดิมจะยังอยู่ให้เห็น พร้อมเหตุผลที่ยกเลิก

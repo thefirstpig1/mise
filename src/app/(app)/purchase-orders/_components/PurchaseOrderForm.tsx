@@ -33,6 +33,7 @@ import QtyStepper from "@/components/ui/QtyStepper";
 import SelectChip from "@/components/ui/SelectChip";
 import { MeasureInput, MoneyInput } from "@/components/ui/NumberField";
 import NewPackSize, { NEW_PACK_SIZE, containerGuess, packInUse, useAddedUnits } from "@/components/ui/NewPackSize";
+import { useKeepForm } from "@/lib/keep-form";
 
 export type POUnitOption = {
   id: string;
@@ -165,6 +166,7 @@ export default function PurchaseOrderForm({
     action,
     { ok: false } as PurchaseOrderActionState
   );
+  const formActionKeep = useKeepForm(formAction, state);
   // "+ ขนาดใหม่…" (Kong 2026-10-21): sizes added here are selectable at once.
   const [products, addUnit] = useAddedUnits(productsIn);
   const [sizeFor, setSizeFor] = useState<{ rowKey: string; productId: string } | null>(null);
@@ -348,7 +350,7 @@ export default function PurchaseOrderForm({
   const err = (key: string) => fieldErrors?.[key];
 
   return (
-    <form action={formAction} className="space-y-6">
+    <form {...formActionKeep} className="space-y-6">
       {isEdit && <input type="hidden" name="id" value={initial!.id} />}
 
       {state.ok && (

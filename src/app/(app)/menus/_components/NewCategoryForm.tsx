@@ -8,6 +8,7 @@
 
 import { useActionState } from "react";
 import { createMenuCategoryAction, type MenuCategoryActionState } from "@/app/(app)/menus/actions";
+import { useKeepForm } from "@/lib/keep-form";
 
 
 export default function NewCategoryForm() {
@@ -15,9 +16,10 @@ export default function NewCategoryForm() {
     createMenuCategoryAction,
     null
   );
+  const actionKeep = useKeepForm(action, state);
 
   return (
-    <form action={action} className="mt-3 flex flex-wrap items-end gap-3">
+    <form {...actionKeep} className="mt-3 flex flex-wrap items-end gap-3">
       <label className="text-sm">
         ชื่อหมวด
         <input name="name" className={"input mt-1 block"} placeholder="เช่น ของหวาน" />

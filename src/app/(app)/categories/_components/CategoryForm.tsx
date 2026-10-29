@@ -15,6 +15,7 @@ import {
   ACCOUNT_LABELS_TH,
   CATEGORY_FIELD_LABELS_TH,
 } from "@/lib/validations/category";
+import { useKeepForm } from "@/lib/keep-form";
 
 
 export default function CategoryForm({
@@ -34,6 +35,7 @@ export default function CategoryForm({
     action,
     { ok: false } as CategoryActionState
   );
+  const formActionKeep = useKeepForm(formAction, state);
 
   useEffect(() => {
     if (state.ok) router.push("/categories");
@@ -45,7 +47,7 @@ export default function CategoryForm({
   const err = (key: string) => fieldErrors?.[key];
 
   return (
-    <form action={formAction} className="space-y-6">
+    <form {...formActionKeep} className="space-y-6">
       {formError && (
         <div className="rounded-lg border border-bad-border bg-bad-bg p-4 text-sm text-bad">
           {formError}

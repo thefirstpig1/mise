@@ -33,6 +33,7 @@ import {
   WASTE_REASON_VALUES,
 } from "@/lib/validations/waste";
 import ProductPicker, { type PickerProduct } from "@/components/ui/ProductPicker";
+import { useKeepForm } from "@/lib/keep-form";
 
 export type WasteProductOption = PickerProduct & {
   units: { id: string; unitName: string; isBase: boolean }[];
@@ -78,6 +79,7 @@ export default function WasteEntryForm({
   const [state, formAction, isPending] = useActionState(action, {
     ok: false,
   } as WasteActionState);
+  const formActionKeep = useKeepForm(formAction, state);
 
   const [submitKey, setSubmitKey] = useState(newSubmitKey);
   const [productId, setProductId] = useState("");
@@ -124,7 +126,7 @@ export default function WasteEntryForm({
   const baseUnitLabel = product?.baseUnitName ?? "";
 
   return (
-    <form action={formAction} className="space-y-5">
+    <form {...formActionKeep} className="space-y-5">
       <input type="hidden" name="submit_key" value={submitKey} />
 
       {state.ok && (

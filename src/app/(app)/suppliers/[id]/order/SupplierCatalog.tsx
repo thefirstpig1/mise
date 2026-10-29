@@ -28,6 +28,7 @@ import QtyStepper from "@/components/ui/QtyStepper";
 import SelectChip from "@/components/ui/SelectChip";
 import { MoneyInput } from "@/components/ui/NumberField";
 import NewPackSize, { NEW_PACK_SIZE, containerGuess, packInUse, useAddedUnits } from "@/components/ui/NewPackSize";
+import { useKeepForm } from "@/lib/keep-form";
 
 export type CatalogItemView = {
   productId: string;
@@ -91,6 +92,7 @@ export default function SupplierCatalog({
   // A size added on this page is selectable at once, before the refresh lands.
   const [items, addUnit] = useAddedUnits(itemsIn.map((i) => ({ ...i, id: i.productId })));
   const [state, formAction, isPending] = useActionState(action, { ok: false } as PurchaseOrderActionState);
+  const formActionKeep = useKeepForm(formAction, state);
   // Suggested lines start filled in (and ticked).
   const [picks, setPicks] = useState<Record<string, Pick>>(() =>
     Object.fromEntries(
@@ -276,7 +278,7 @@ export default function SupplierCatalog({
   const fieldErrors = state.ok === false && state.fieldErrors ? Object.values(state.fieldErrors) : [];
 
   return (
-    <form action={formAction} className="space-y-5 pb-28">
+    <form {...formActionKeep} className="space-y-5 pb-28">
       <input type="hidden" name="supplier_id" value={supplier.id} />
       <input type="hidden" name="branch_id" value={branchId} />
       <input type="hidden" name="vat_rate_percent" value={vatRate} />

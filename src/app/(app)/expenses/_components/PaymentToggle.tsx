@@ -13,6 +13,7 @@ import { useActionState, useState } from "react";
 import { orStale } from "@/lib/stale-tab";
 import type { ExpenseActionState } from "../actions";
 import { MethodChips } from "./TaxChips";
+import { useKeepForm } from "@/lib/keep-form";
 
 export default function PaymentToggle({
   action,
@@ -44,13 +45,14 @@ export default function PaymentToggle({
     (prev: ExpenseActionState, fd: FormData) => orStale(action(prev, fd)),
     { ok: false } as ExpenseActionState
   );
+  const formActionKeep = useKeepForm(formAction, state);
   const [method, setMethod] = useState(paymentMethod ?? "");
   const formError = state.ok === false ? state.formError : undefined;
 
   if (paymentStatus === "PAID") {
     return (
       <form
-        action={formAction}
+        {...formActionKeep}
         className="space-y-2 rounded-xl border border-good-border bg-good-bg p-4"
       >
         <input type="hidden" name="id" value={expenseId} />
@@ -78,7 +80,7 @@ export default function PaymentToggle({
 
   return (
     <form
-      action={formAction}
+      {...formActionKeep}
       className="space-y-4 rounded-xl border border-border-strong bg-surface p-4"
     >
       <input type="hidden" name="id" value={expenseId} />

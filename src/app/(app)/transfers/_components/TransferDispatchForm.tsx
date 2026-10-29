@@ -25,6 +25,7 @@ import SelectChip from "@/components/ui/SelectChip";
 import ProductPicker, { type PickerProduct } from "@/components/ui/ProductPicker";
 import type { DispatchTransferActionState } from "@/app/(app)/transfers/actions";
 import { MAX_BACKDATE_DAYS } from "@/lib/validations/stock-movement";
+import { useKeepForm } from "@/lib/keep-form";
 
 /** Searched with ProductPicker (Kong 2026-10-22: never a <select> of every product). */
 export type TransferProductOption = PickerProduct & {
@@ -75,6 +76,7 @@ export default function TransferDispatchForm({
   const [state, formAction, isPending] = useActionState(action, {
     ok: false,
   } as DispatchTransferActionState);
+  const formActionKeep = useKeepForm(formAction, state);
 
   const [submitKey, setSubmitKey] = useState(newSubmitKey);
   const [fromBranchId, setFromBranchId] = useState(branches[0]?.id ?? "");
@@ -106,7 +108,7 @@ export default function TransferDispatchForm({
     setLines((ls) => ls.map((l) => (l.key === key ? { ...l, ...patch } : l)));
 
   return (
-    <form action={formAction} className="space-y-6">
+    <form {...formActionKeep} className="space-y-6">
       <input type="hidden" name="submit_key" value={submitKey} />
 
       {succeeded && (

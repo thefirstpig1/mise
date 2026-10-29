@@ -42,6 +42,7 @@ import { ConfirmDialog, type ConfirmSpec, PhotoSlot, Sheet } from "./sheet-parts
 import IngredientSheet from "./IngredientSheet";
 import MenuSalesTrend from "./MenuSalesTrend";
 import RecipeHistory from "./RecipeHistory";
+import { useKeepForm } from "@/lib/keep-form";
 
 export default function MenuSheet(props: {
   menu: ManagerRow;
@@ -956,6 +957,7 @@ function Tile({ k, v, s, warn, bad, title }: { k: string; v: string; s: string; 
 /** ADR 0019 Q8 — "this name from the file is a dish we already have". */
 function AliasBlock({ menu, posIntegrationId, fresh }: { menu: ManagerRow; posIntegrationId: string; fresh: boolean }) {
   const [state, action, saving] = useActionState<MenuAliasActionState | null, FormData>(confirmMenuAliasAction, null);
+  const actionKeep = useKeepForm(action, state);
   const [suggestions, setSuggestions] = useState<MenuSuggestionRowView[] | null>(null);
   const [looking, startLooking] = useTransition();
   return (
@@ -981,7 +983,7 @@ function AliasBlock({ menu, posIntegrationId, fresh }: { menu: ManagerRow; posIn
       ) : suggestions.filter((s) => s.id !== menu.id).length === 0 ? (
         <p className="mt-2 text-sm text-muted-foreground">ไม่พบเมนูใกล้เคียง</p>
       ) : (
-        <form action={action} className="mt-2 space-y-2">
+        <form {...actionKeep} className="mt-2 space-y-2">
           <input type="hidden" name="posIntegrationId" value={posIntegrationId} />
           <input type="hidden" name="rawName" value={menu.posMenuName ?? ""} />
           <select name="menuId" className="input w-full" defaultValue="">

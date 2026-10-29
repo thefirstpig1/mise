@@ -37,6 +37,7 @@ import SelectChip from "@/components/ui/SelectChip";
 import Marquee from "@/components/ui/Marquee";
 import { MeasureInput, MoneyInput } from "@/components/ui/NumberField";
 import NewPackSize, { NEW_PACK_SIZE, containerGuess, packInUse, useAddedUnits } from "@/components/ui/NewPackSize";
+import { useKeepForm } from "@/lib/keep-form";
 
 export type GrUnitOption = {
   id: string;
@@ -200,6 +201,7 @@ export default function GoodsReceiptForm({
     action,
     { ok: false } as GoodsReceiptActionState
   );
+  const formActionKeep = useKeepForm(formAction, state);
 
   const isEdit = Boolean(initial);
   // One key per MOUNTED form — never regenerated on re-render, or the double-POST
@@ -391,7 +393,7 @@ export default function GoodsReceiptForm({
   const poMode = Boolean(poId);
 
   return (
-    <form action={formAction} className="space-y-6">
+    <form {...formActionKeep} className="space-y-6">
       {isEdit && <input type="hidden" name="id" value={initial!.id} />}
       <input type="hidden" name="submit_key" value={submitKey} />
       <input type="hidden" name="purchase_order_id" value={poId} />

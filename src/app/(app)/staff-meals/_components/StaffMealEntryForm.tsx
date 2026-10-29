@@ -23,6 +23,7 @@ import type { StaffMealActionState } from "@/app/(app)/staff-meals/actions";
 import { MAX_BACKDATE_DAYS } from "@/lib/validations/stock-movement";
 import { STAFF_MEAL_PRICE_SOURCE_LABELS_TH } from "@/lib/validations/staff-meal";
 import ProductPicker, { type PickerProduct } from "@/components/ui/ProductPicker";
+import { useKeepForm } from "@/lib/keep-form";
 
 export type StaffMealBranchOption = { id: string; name: string };
 export type StaffMealMemberOption = { id: string; name: string };
@@ -89,6 +90,7 @@ export default function StaffMealEntryForm({
   const [state, formAction, isPending] = useActionState(action, {
     ok: false,
   } as StaffMealActionState);
+  const formActionKeep = useKeepForm(formAction, state);
 
   const [submitKey, setSubmitKey] = useState(newId);
   // A menu meal for yourself is a ticket (TicketBoard); here it only exists as
@@ -132,7 +134,7 @@ export default function StaffMealEntryForm({
   const productOf = (id: string) => products.find((p) => p.id === id);
 
   return (
-    <form action={formAction} className="space-y-4 rounded-2xl border border-border bg-surface p-4">
+    <form {...formActionKeep} className="space-y-4 rounded-2xl border border-border bg-surface p-4">
       <input type="hidden" name="submit_key" value={submitKey} />
 
       {/* --- the double-deduction warning (Q6): shown, never blocking --- */}

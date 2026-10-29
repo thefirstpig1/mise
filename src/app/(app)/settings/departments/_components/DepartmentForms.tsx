@@ -16,6 +16,7 @@ import {
 import type { SettingsActionState } from "@/app/(app)/settings/branches/actions";
 import SettingsModal from "@/app/(app)/settings/_components/SettingsModal";
 import { orStale } from "@/lib/stale-tab";
+import { useKeepForm } from "@/lib/keep-form";
 
 export type DepartmentRowView = {
   id: string;
@@ -88,13 +89,14 @@ function ActiveControl({ row, onDone }: { row: DepartmentRowView; onDone: () => 
 
 function DepartmentDialog({ row, onClose }: { row: DepartmentRowView | null; onClose: () => void }) {
   const [state, action, pending] = useActionState(row ? updateDepartmentAction : createDepartmentAction, IDLE);
+  const actionKeep = useKeepForm(action, state);
   useEffect(() => {
     if (state.ok) onClose();
   }, [state, onClose]);
 
   return (
     <SettingsModal title={row ? `แก้แผนก${row.name}` : "เพิ่มแผนก"} sub={row && !row.isActive ? "แผนกนี้ปิดใช้งานอยู่" : undefined} onClose={onClose}>
-      <form action={action} className="space-y-4">
+      <form {...actionKeep} className="space-y-4">
         {row && <input type="hidden" name="id" value={row.id} />}
         <div className="grid gap-3 sm:grid-cols-[2fr_1fr]">
           <div>

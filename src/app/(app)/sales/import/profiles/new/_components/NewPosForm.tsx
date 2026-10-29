@@ -12,6 +12,7 @@ import {
   type PosIntegrationActionState,
 } from "@/app/(app)/sales/actions";
 import { POS_TYPE_VALUES } from "@/lib/validations/sales-import";
+import { useKeepForm } from "@/lib/keep-form";
 
 
 const POS_TYPE_LABELS: Record<string, string> = {
@@ -32,9 +33,10 @@ export default function NewPosForm({
     createPosIntegrationAction,
     null
   );
+  const actionKeep = useKeepForm(action, state);
 
   return (
-    <form action={action} className="space-y-4 rounded-lg border border-border bg-surface p-4">
+    <form {...actionKeep} className="space-y-4 rounded-lg border border-border bg-surface p-4">
       <label className="block text-sm">
         สาขา
         <select name="branchId" className={"input w-full mt-1"}>

@@ -18,6 +18,7 @@
 import { useActionState } from "react";
 import QtyStepper from "@/components/ui/QtyStepper";
 import type { ParLevelActionState } from "@/app/(app)/stock/par-level-actions";
+import { useKeepForm } from "@/lib/keep-form";
 
 export type ParUnitOption = { id: string; unitName: string; isBase: boolean };
 
@@ -54,9 +55,11 @@ function BranchParForm({
   const [setState, setFormAction, setPending] = useActionState(setAction, {
     ok: false,
   } as ParLevelActionState);
+  const setFormActionKeep = useKeepForm(setFormAction, setState);
   const [delState, delFormAction, delPending] = useActionState(deleteAction, {
     ok: false,
   } as ParLevelActionState);
+  const delFormActionKeep = useKeepForm(delFormAction, delState);
 
   const errors = [setState, delState]
     .map((s) => (s.ok === false ? (s.formError ?? Object.values(s.fieldErrors ?? {})[0]) : undefined))
@@ -70,7 +73,7 @@ function BranchParForm({
       <div className="flex flex-wrap items-end gap-2">
         <span className="min-w-24 text-sm font-medium">{row.branchName}</span>
 
-        <form action={setFormAction} className="flex flex-wrap items-end gap-2">
+        <form {...setFormActionKeep} className="flex flex-wrap items-end gap-2">
           <input type="hidden" name="product_id" value={productId} />
           <input type="hidden" name="branch_id" value={row.branchId} />
           <QtyStepper
@@ -100,7 +103,7 @@ function BranchParForm({
         </form>
 
         {row.parLevelId && (
-          <form action={delFormAction}>
+          <form {...delFormActionKeep}>
             <input type="hidden" name="id" value={row.parLevelId} />
             <button
               type="submit"

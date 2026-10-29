@@ -40,6 +40,7 @@ import type {
 import type { FuzzyMatchCandidate } from "@/server/product-restore";
 import RestoreSuggestionTypeahead from "./RestoreSuggestionTypeahead";
 import RestoreDialog from "./RestoreDialog";
+import { useKeepForm } from "@/lib/keep-form";
 
 type CategoryOption = {
   id: string;
@@ -106,6 +107,7 @@ export default function ProductForm({
     action,
     { ok: false } as ProductActionState
   );
+  const formActionKeep = useKeepForm(formAction, state);
 
   // Part 8.5 L5c — restore-on-recreate (CREATE flow only; hooks declared
   // unconditionally per Rules of Hooks, but only WIRED when showRestoreSuggestion).
@@ -259,7 +261,7 @@ export default function ProductForm({
 
   return (
     <>
-      <form action={formAction} className="space-y-6">
+      <form {...formActionKeep} className="space-y-6">
       {formError && (
         <div className="rounded-lg border border-bad-border bg-bad-bg p-4 text-sm text-bad">
           {formError}

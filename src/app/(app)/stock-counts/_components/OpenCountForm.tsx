@@ -12,6 +12,7 @@
 import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { StockCountActionState } from "../actions";
+import { useKeepForm } from "@/lib/keep-form";
 
 
 export default function OpenCountForm({
@@ -46,6 +47,7 @@ export default function OpenCountForm({
     action,
     { ok: false } as StockCountActionState
   );
+  const formActionKeep = useKeepForm(formAction, state);
 
   const firstFree = branches.find((b) => !openByBranch[b.id]) ?? branches[0];
   const [branchId, setBranchId] = useState(
@@ -61,7 +63,7 @@ export default function OpenCountForm({
   const fieldErrors = state.ok === false ? state.fieldErrors : undefined;
 
   return (
-    <form action={formAction} className="max-w-lg space-y-5">
+    <form {...formActionKeep} className="max-w-lg space-y-5">
       {formError && (
         <div className="rounded-lg border border-bad-border bg-bad-bg p-3 text-sm text-bad">
           {formError}

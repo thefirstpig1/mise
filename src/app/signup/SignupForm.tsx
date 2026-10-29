@@ -7,6 +7,7 @@
 
 import { useActionState, useEffect, useRef, useState } from "react";
 import { signupAction, type SignupState } from "./actions";
+import { useKeepForm } from "@/lib/keep-form";
 
 const IDLE: SignupState = { ok: false };
 
@@ -33,6 +34,7 @@ export default function SignupForm({ signedInEmail }: { signedInEmail: string | 
   const [late, setLate] = useState(false);
   const [missing, setMissing] = useState<Record<string, string>>({});
   const form = useRef<HTMLFormElement>(null);
+  const actionKeep = useKeepForm(action, state, form);
 
   // A server refusal reopens the step that holds the wrong field.
   useEffect(() => {
@@ -55,7 +57,7 @@ export default function SignupForm({ signedInEmail }: { signedInEmail: string | 
   const input = (n: string) => `input h-12 w-full text-base ${err(n) ? "border-bad ring-1 ring-bad" : ""}`;
 
   return (
-    <form ref={form} action={action} className="space-y-6" noValidate>
+    <form {...actionKeep} className="space-y-6" noValidate>
       <div>
         <p className="text-[13px] font-semibold text-[#8B6A1E]">ขั้น {step} จาก 2</p>
         <div aria-hidden className="mt-2 grid grid-cols-2 gap-1.5">

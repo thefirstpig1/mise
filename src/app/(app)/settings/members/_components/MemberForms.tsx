@@ -26,6 +26,7 @@ import {
   updateMemberAction,
   type MemberActionState,
 } from "@/app/(app)/settings/members/actions";
+import { useKeepForm } from "@/lib/keep-form";
 
 type BranchOption = { id: string; name: string };
 type RoleOption = { value: string; label: string; hint: string };
@@ -147,6 +148,7 @@ function InviteDialog({
   onClose: () => void;
 }) {
   const [state, action, pending] = useActionState(inviteMemberAction, IDLE);
+  const actionKeep = useKeepForm(action, state);
   const [round, setRound] = useState(0);
 
   return (
@@ -164,7 +166,7 @@ function InviteDialog({
           </div>
         </div>
       ) : (
-        <form key={round} action={action} className="space-y-4">
+        <form key={round} {...actionKeep} className="space-y-4">
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
               <label htmlFor="invite-email" className="mb-1 label">อีเมล</label>
@@ -226,7 +228,9 @@ function EditDialog({
   onClose: () => void;
 }) {
   const [editState, editAction, editPending] = useActionState(updateMemberAction, IDLE);
+  const editActionKeep = useKeepForm(editAction, editState);
   const [activeState, activeAction, activePending] = useActionState(setMemberActiveAction, IDLE);
+  const activeActionKeep = useKeepForm(activeAction, activeState);
   const [asking, setAsking] = useState(false);
   useEffect(() => {
     if (editState.ok || activeState.ok) onClose();
@@ -234,7 +238,7 @@ function EditDialog({
 
   return (
     <SettingsModal title={row.name ?? row.email} sub={[row.name ? row.email : null, row.changedLine].filter(Boolean).join(" · ") || undefined} onClose={onClose}>
-      <form action={editAction} className="space-y-4">
+      <form {...editActionKeep} className="space-y-4">
         <input type="hidden" name="membership_id" value={row.membershipId} />
         <RoleCards roleOptions={roleOptions} defaultValue={row.role} idPrefix={`role-${row.membershipId}`} />
         <ReachFields branches={branches} canGrantAllBranches={canGrantAllBranches} defaultAllBranches={row.allBranches} defaultBranchIds={currentBranchIds} />
@@ -249,7 +253,7 @@ function EditDialog({
         </div>
       </form>
 
-      <form action={activeAction} className="mt-3 border-t border-border pt-3">
+      <form {...activeActionKeep} className="mt-3 border-t border-border pt-3">
         <input type="hidden" name="membership_id" value={row.membershipId} />
         <input type="hidden" name="is_active" value={row.isActive ? "false" : "true"} />
         {!row.isActive ? (

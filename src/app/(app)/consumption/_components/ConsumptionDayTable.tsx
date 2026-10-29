@@ -26,6 +26,7 @@ import {
   CONSUMPTION_SKIP_REASON_HINTS_TH,
   CONSUMPTION_SKIP_REASON_LABELS_TH,
 } from "@/lib/validations/consumption";
+import { useKeepForm } from "@/lib/keep-form";
 
 /** Same local helper the recipe forms use — no lib for one line. */
 function newSubmitKey(): string {
@@ -63,6 +64,7 @@ export function ConsumptionDayTable({
     postConsumptionAction,
     POST_CONSUMPTION_INIT
   );
+  const formActionKeep = useKeepForm(formAction, state);
   const [open, setOpen] = useState<string | null>(null);
 
   // A day past the backdate window can never post, so it is never offered — a
@@ -122,7 +124,7 @@ export function ConsumptionDayTable({
         </div>
       )}
 
-      <form action={formAction} className="space-y-3">
+      <form {...formActionKeep} className="space-y-3">
         <input type="hidden" name="submit_key" value={submitKey} />
         <input type="hidden" name="branch_id" value={branchId} />
         {postable.map((d) => (

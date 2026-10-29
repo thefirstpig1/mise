@@ -27,6 +27,7 @@ import { useActionState, useState } from "react";
 import { MeasureInput, MoneyInput } from "@/components/ui/NumberField";
 import type { SubstitutionActionState } from "@/app/(app)/recipes/actions";
 import type { SubstitutionPlanRowView } from "@/app/(app)/recipes/_components/recipe-view";
+import { useKeepForm } from "@/lib/keep-form";
 
 export type ReplacementUnit = { id: string; unitName: string; isBase: boolean; ratio: number };
 
@@ -94,6 +95,7 @@ export default function SubstitutionForm({
   const [state, formAction, isPending] = useActionState(action, {
     ok: false,
   } as SubstitutionActionState);
+  const formActionKeep = useKeepForm(formAction, state);
 
   const [submitKey, setSubmitKey] = useState(newSubmitKey);
   const [backdating, setBackdating] = useState(false);
@@ -276,7 +278,7 @@ export default function SubstitutionForm({
     );
 
   return (
-    <form action={formAction} className="space-y-6">
+    <form {...formActionKeep} className="space-y-6">
       <input type="hidden" name="submit_key" value={submitKey} />
       <input type="hidden" name="from_product_id" value={fromProductId} />
       <input type="hidden" name="to_product_id" value={toProductId ?? ""} />

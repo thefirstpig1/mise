@@ -26,6 +26,7 @@ import type { CategoryOption } from "./ExpenseForm";
 import type { ExpenseSupplierOption, RecurringExpenseView } from "./expense-view";
 import MonthPicker from "./MonthPicker";
 import { Chips, VatChips, WhtChips } from "./TaxChips";
+import { useKeepForm } from "@/lib/keep-form";
 
 
 export default function RecurringExpenseForm({
@@ -51,6 +52,7 @@ export default function RecurringExpenseForm({
     action,
     { ok: false } as RecurringExpenseActionState
   );
+  const formActionKeep = useKeepForm(formAction, state);
   const [branchId, setBranchId] = useState(
     existing?.branchId ?? (branches.length === 1 ? branches[0].id : "")
   );
@@ -102,7 +104,8 @@ export default function RecurringExpenseForm({
 
   return (
     <form
-      action={formAction}
+      ref={formActionKeep.ref}
+      action={formActionKeep.action}
       onSubmit={(e) => {
         const gap = !branchId ? "กรุณาเลือกสาขา" : !categoryId ? "กรุณาเลือกหมวดบัญชี" : null;
         setMissing(gap);
@@ -110,7 +113,9 @@ export default function RecurringExpenseForm({
           e.preventDefault();
           // The message sits at the top; the button is at the bottom.
           window.scrollTo({ top: 0, behavior: "smooth" });
+          return;
         }
+        formActionKeep.onSubmit(e);
       }}
       className="space-y-5"
     >

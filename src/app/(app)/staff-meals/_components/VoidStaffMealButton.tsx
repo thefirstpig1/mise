@@ -12,6 +12,7 @@
 
 import { useActionState } from "react";
 import type { VoidStaffMealActionState } from "@/app/(app)/staff-meals/actions";
+import { useKeepForm } from "@/lib/keep-form";
 
 export default function VoidStaffMealButton({
   action,
@@ -29,6 +30,7 @@ export default function VoidStaffMealButton({
   const [state, formAction, isPending] = useActionState(action, {
     ok: false,
   } as VoidStaffMealActionState);
+  const formActionKeep = useKeepForm(formAction, state);
 
   const formError = state.ok === false ? state.formError : undefined;
   const fieldError =
@@ -40,7 +42,7 @@ export default function VoidStaffMealButton({
         ยกเลิกรายการนี้
       </summary>
 
-      <form action={formAction} className="mt-2 space-y-2">
+      <form {...formActionKeep} className="mt-2 space-y-2">
         <input type="hidden" name="id" value={staffMealId} />
         <p className="text-xs text-muted-foreground">
           คืนวัตถุดิบของ {label} เข้าสต๊อก ตามราคาที่มันออกไป —

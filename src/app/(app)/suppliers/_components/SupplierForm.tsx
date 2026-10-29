@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import type { SupplierActionState } from "@/app/(app)/suppliers/actions";
 import { SUPPLIER_FIELD_LABELS_TH } from "@/lib/validations/supplier";
 import type { SupplierView } from "./supplier-view";
+import { useKeepForm } from "@/lib/keep-form";
 
 
 function TextField({
@@ -66,6 +67,7 @@ export default function SupplierForm({
     action,
     { ok: false } as SupplierActionState
   );
+  const formActionKeep = useKeepForm(formAction, state);
 
   // On success the action returns ok:true → leave the form for the list (Q7).
   useEffect(() => {
@@ -89,7 +91,7 @@ export default function SupplierForm({
   const err = (key: string) => fieldErrors?.[key];
 
   return (
-    <form action={formAction} className="space-y-6">
+    <form {...formActionKeep} className="space-y-6">
       {formError && (
         <div className="rounded-lg border border-bad-border bg-bad-bg p-4 text-sm text-bad">
           {formError}

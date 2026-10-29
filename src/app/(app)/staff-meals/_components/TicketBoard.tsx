@@ -19,6 +19,7 @@ import ProductPicker, { type PickerProduct } from "@/components/ui/ProductPicker
 import type { RequestStaffMealActionState, TicketActionState } from "../actions";
 import type { TicketBoard as Board, TicketView } from "../ticket-board-read";
 import { readApi } from "@/lib/read-api";
+import { useKeepForm } from "@/lib/keep-form";
 
 const POLL_MS = 10_000;
 
@@ -192,6 +193,7 @@ export default function TicketBoard({
 }) {
   const [board, setBoard] = useState(initial);
   const [state, formAction, pending] = useActionState(request, { ok: false } as RequestStaffMealActionState);
+  const formActionKeep = useKeepForm(formAction, state);
   const [submitKey, setSubmitKey] = useState(newKey);
   const [menuId, setMenuId] = useState("");
   const [branchId, setBranchId] = useState(defaultBranchId);
@@ -261,7 +263,7 @@ export default function TicketBoard({
         <p className="mt-1 text-sm text-muted-foreground">
           เลือกเมนูแล้วกดขอเบิก ระบบจะออกตั๋วให้ — นำตั๋วไปให้หัวหน้าหรือผู้จัดการกดอนุมัติ
         </p>
-        <form action={formAction} className="mt-3 space-y-3">
+        <form {...formActionKeep} className="mt-3 space-y-3">
           <input type="hidden" name="submit_key" value={submitKey} />
           <div className="grid gap-3 sm:grid-cols-2">
             <div>

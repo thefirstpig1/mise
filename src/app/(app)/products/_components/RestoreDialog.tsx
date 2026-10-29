@@ -35,6 +35,7 @@ import { restoreProductAction, type RestoreActionState } from "@/app/(app)/produ
 import type { OrphanMappingRow } from "./restore-view";
 import { readApi } from "@/lib/read-api";
 import type { FuzzyMatchCandidate } from "@/server/product-restore";
+import { useKeepForm } from "@/lib/keep-form";
 
 /** One orphan row's review decision (default keep, C-sub-2). */
 type MappingChoice = "keep" | "update";
@@ -57,6 +58,7 @@ export default function RestoreDialog({
     restoreProductAction,
     INITIAL_STATE
   );
+  const formActionKeep = useKeepForm(formAction, state);
 
   // Full orphan list (Q6/Q7), Option A. null = not loaded yet; [] = loaded, none.
   const [orphanRows, setOrphanRows] = useState<OrphanMappingRow[] | null>(null);
@@ -140,7 +142,7 @@ export default function RestoreDialog({
           </p>
         )}
 
-        <form action={formAction} className="space-y-4">
+        <form {...formActionKeep} className="space-y-4">
           <input type="hidden" name="product_id" value={candidate.id} />
 
           {/* Section 1 — newSku, ONLY on a live-sku conflict (Q5). */}

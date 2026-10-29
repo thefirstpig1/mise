@@ -15,6 +15,7 @@
 import { useActionState, useEffect, useRef } from "react";
 import { MeasureInput, MoneyInput } from "@/components/ui/NumberField";
 import type { StaffMemberActionState } from "@/app/(app)/staff-meals/actions";
+import { useKeepForm } from "@/lib/keep-form";
 
 
 export type BranchOption = { id: string; name: string };
@@ -37,6 +38,7 @@ export function CreateStaffMemberForm({
   const [state, formAction, isPending] = useActionState(action, {
     ok: false,
   } as StaffMemberActionState);
+  const formActionKeep = useKeepForm(formAction, state);
   const nameRef = useRef<HTMLInputElement>(null);
 
   // Several people get added in a row on the day a shop sets this up.
@@ -52,7 +54,7 @@ export function CreateStaffMemberForm({
 
   return (
     <form
-      action={formAction}
+      {...formActionKeep}
       className="space-y-3 rounded-2xl border border-border bg-surface p-4"
     >
       <div className="grid gap-3 sm:grid-cols-3">
@@ -142,11 +144,12 @@ export function EditStaffMemberRow({
   const [state, formAction, isPending] = useActionState(action, {
     ok: false,
   } as StaffMemberActionState);
+  const formActionKeep = useKeepForm(formAction, state);
   const fieldErrors = state.ok === false ? state.fieldErrors : undefined;
 
   return (
     <form
-      action={formAction}
+      {...formActionKeep}
       className={`grid gap-2 rounded-xl border p-3 sm:grid-cols-[2fr_1.5fr_1fr_auto_auto] sm:items-center ${
         member.isActive ? "border-border" : "border-dashed border-border opacity-70"
       }`}

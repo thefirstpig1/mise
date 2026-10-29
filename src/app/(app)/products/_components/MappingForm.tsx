@@ -25,6 +25,7 @@ import { MeasureInput, MoneyInput } from "@/components/ui/NumberField";
 import { useRouter } from "next/navigation";
 import type { MappingActionState } from "@/app/(app)/supplier-product-mappings/actions";
 import type { MappingView } from "./mapping-view";
+import { useKeepForm } from "@/lib/keep-form";
 
 export type SupplierOption = { id: string; nameFull: string };
 export type BranchOption = { id: string; name: string };
@@ -70,6 +71,7 @@ export default function MappingForm({
     action,
     { ok: false } as MappingActionState
   );
+  const formActionKeep = useKeepForm(formAction, state);
 
   // --- branch selector state (create only; edit locks the branch) ---
   const [branchMode, setBranchMode] = useState<BranchMode>(
@@ -107,7 +109,7 @@ export default function MappingForm({
   const branchDisplay = initial?.branch ? initial.branch.name : "ทุกสาขา";
 
   return (
-    <form action={formAction} className="space-y-6">
+    <form {...formActionKeep} className="space-y-6">
       {formError && (
         <div className="rounded-lg border border-bad-border bg-bad-bg p-4 text-sm text-bad">
           {formError}

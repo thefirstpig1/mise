@@ -46,6 +46,7 @@ import {
 } from "@/lib/validations/stock-movement";
 import type { StockBalanceView } from "./stock-view";
 import { readApi } from "@/lib/read-api";
+import { useKeepForm } from "@/lib/keep-form";
 
 /** One selectable unit of a product. `toBaseRatio` is a STRING (Pitfall #20). */
 export type ProductUnitOption = {
@@ -124,6 +125,7 @@ export default function StockAdjustForm({
     action,
     { ok: false } as StockAdjustmentActionState
   );
+  const formActionKeep = useKeepForm(formAction, state);
 
   // One key per submission — NOT per render, or the row id would change between
   // the POST and its retry and the dedupe would have nothing to match on.
@@ -268,7 +270,7 @@ export default function StockAdjustForm({
   const blockedByNegative = willGoNegative && !confirmedNegative;
 
   return (
-    <form action={formAction} className="space-y-6">
+    <form {...formActionKeep} className="space-y-6">
       <input type="hidden" name="submit_key" value={submitKey} />
 
       {state.ok && (

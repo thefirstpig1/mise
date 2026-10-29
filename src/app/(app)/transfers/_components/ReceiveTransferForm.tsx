@@ -23,6 +23,7 @@ import QtyStepper from "@/components/ui/QtyStepper";
 import { orStale } from "@/lib/stale-tab";
 import type { TransferActionState } from "@/app/(app)/transfers/actions";
 import type { TransferLineView } from "./transfer-view";
+import { useKeepForm } from "@/lib/keep-form";
 
 type Entry = { unitId: string; qty: string };
 
@@ -44,6 +45,7 @@ export default function ReceiveTransferForm({
     (prev: TransferActionState, fd: FormData) => orStale(action(prev, fd)),
     { ok: false } as TransferActionState
   );
+  const formActionKeep = useKeepForm(formAction, state);
   // Each line starts with one empty box in the unit it was sent in.
   const [entries, setEntries] = useState<Record<string, Entry[]>>(() =>
     Object.fromEntries(lines.map((l) => [l.id, [{ unitId: l.inputUnitId, qty: "" }]]))
@@ -59,7 +61,7 @@ export default function ReceiveTransferForm({
   let missingTotal = 0;
 
   return (
-    <form action={formAction} className="space-y-4">
+    <form {...formActionKeep} className="space-y-4">
       <input type="hidden" name="id" value={transferId} />
 
       <p className="text-sm text-muted-foreground">

@@ -14,6 +14,7 @@ import { useActionState, useEffect, useState } from "react";
 import { MeasureInput, MoneyInput } from "@/components/ui/NumberField";
 import { declareCostAction, type CostActionState } from "../actions";
 import type { CostDeclarationView } from "./cost-view";
+import { useKeepForm } from "@/lib/keep-form";
 
 export type DeclareUnitOption = {
   id: string;
@@ -40,6 +41,7 @@ export default function DeclareCostForm({
     declareCostAction,
     { ok: false } as CostActionState
   );
+  const formActionKeep = useKeepForm(formAction, state);
 
   const [unitId, setUnitId] = useState(
     () => units.find((u) => u.isBase)?.id ?? units[0]?.id ?? ""
@@ -54,7 +56,7 @@ export default function DeclareCostForm({
 
   return (
     <div className="space-y-4 rounded-lg border border-border bg-muted/20 p-4">
-      <form action={formAction} className="space-y-3">
+      <form {...formActionKeep} className="space-y-3">
         <input type="hidden" name="movement_id" value={movementId} />
 
         <p className="text-xs text-muted-foreground">

@@ -15,6 +15,7 @@
 
 import { useActionState } from "react";
 import type { TransferActionState } from "@/app/(app)/transfers/actions";
+import { useKeepForm } from "@/lib/keep-form";
 
 export default function VoidTransferButton({
   action,
@@ -38,6 +39,7 @@ export default function VoidTransferButton({
   const [state, formAction, isPending] = useActionState(action, {
     ok: false,
   } as TransferActionState);
+  const formActionKeep = useKeepForm(formAction, state);
 
   const formError = state.ok === false ? state.formError : undefined;
   const fieldError = state.ok === false ? state.fieldErrors?.voidReason : undefined;
@@ -63,7 +65,7 @@ export default function VoidTransferButton({
         </p>
       </div>
 
-      <form action={formAction} className="mt-3 space-y-2">
+      <form {...formActionKeep} className="mt-3 space-y-2">
         <input type="hidden" name="id" value={transferId} />
         <p className="text-xs text-muted-foreground">
           ใบ {tfNumber} จะยังอยู่ให้เห็น พร้อมรายการกลับรายการต่อท้ายและเหตุผลที่ยกเลิก

@@ -34,6 +34,7 @@ import { readApi } from "@/lib/read-api";
 import EmptyState from "@/components/ui/EmptyState";
 import { Portal, useTopLayer } from "@/app/(app)/menus/_components/sheet-parts";
 import type { PreppedHint } from "@/server/production-read";
+import { useKeepForm } from "@/lib/keep-form";
 
 const POLL_MS = 5_000;
 const NO_CATEGORY = "ไม่มีหมวด";
@@ -110,7 +111,9 @@ export default function CountSheet({
   const [voidOpen, setVoidOpen] = useState(false);
 
   const [closeState, closeAction, closing] = useActionState(close, { ok: false } as StockCountActionState);
+  const closeActionKeep = useKeepForm(closeAction, closeState);
   const [voidState, voidAction, voiding] = useActionState(voidCount, { ok: false } as StockCountActionState);
+  const voidActionKeep = useKeepForm(voidAction, voidState);
 
   // A close or void returns the new document; adopt it.
   useEffect(() => {
@@ -591,7 +594,7 @@ export default function CountSheet({
               ยกเลิกใบนับนี้
             </button>
           ) : (
-            <form action={voidAction} className="space-y-3">
+            <form {...voidActionKeep} className="space-y-3">
               <input type="hidden" name="id" value={detail.id} />
               <h3 className="text-sm font-medium">ยกเลิกใบนับ</h3>
               <p className="text-sm text-muted-foreground">
@@ -655,7 +658,7 @@ export default function CountSheet({
       )}
       {isDraft && canClose && closeOpen && (
         <CloseSheet onClose={() => setCloseOpen(false)}>
-          <form action={closeAction} className="space-y-4">
+          <form {...closeActionKeep} className="space-y-4">
             <input type="hidden" name="id" value={detail.id} />
             <h3 id="close-title" className="text-lg font-semibold">
               ปิดใบนับ {detail.scNumber}?

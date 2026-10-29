@@ -39,6 +39,7 @@ import {
   type ColumnMapField,
 } from "@/lib/validations/sales-import";
 import { SALES_DATE_FORMATS } from "@/lib/sales-file";
+import { useKeepForm } from "@/lib/keep-form";
 
 export type PosOption = { id: string; label: string };
 
@@ -69,8 +70,13 @@ export default function ProfileBuilder({ posOptions }: { posOptions: PosOption[]
     createSalesImportProfileAction,
     null
   );
+  const saveActionKeep = useKeepForm(saveAction, saveState);
   // The sample file lives in state: FileDrop's own input carries no name (Thai picker, Kong 2026-10-25).
   const [sample, setSample] = useState<File | null>(null);
+  const inspectKeep = useKeepForm((fd) => {
+    if (sample) fd.set("file", sample);
+    inspectAction(fd);
+  }, inspectState);
   const [columnMap, setColumnMap] = useState<Partial<Record<ColumnMapField, number>>>({});
 
   const header = inspectState?.ok ? inspectState.header : null;
@@ -121,10 +127,7 @@ export default function ProfileBuilder({ posOptions }: { posOptions: PosOption[]
     <div className="space-y-6">
       {/* ---------- 1. read a real file ---------- */}
       <form
-        action={(fd) => {
-          if (sample) fd.set("file", sample);
-          inspectAction(fd);
-        }}
+        {...inspectKeep}
         className="rounded-lg border border-border bg-surface p-4"
       >
         <h2 className="text-sm font-medium">1. อัปไฟล์ตัวอย่างจาก POS</h2>
@@ -162,7 +165,7 @@ export default function ProfileBuilder({ posOptions }: { posOptions: PosOption[]
 
       {/* ---------- 2. map it ---------- */}
       {inspectState?.ok && header && (
-        <form action={saveAction} className="rounded-lg border border-border bg-surface p-4">
+        <form {...saveActionKeep} className="rounded-lg border border-border bg-surface p-4">
           <h2 className="text-sm font-medium">2. จับคู่คอลัมน์</h2>
 
           <div className="mt-3 overflow-x-auto">
