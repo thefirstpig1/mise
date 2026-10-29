@@ -308,7 +308,13 @@ export default function IngredientSheet({
           <>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               {data.product.type === "PREPPED" ? (
-                <Tile k="คงเหลือ" v="—" s="ยังไม่มีการบันทึกการผลิต" />
+                // ADR 0040: prepped stock is real now — made, bought or counted.
+                // An empty shelf is not an alarm: sales cut the recipe instead (Q1).
+                fact && fact.onHand > 0 ? (
+                  <Tile k="คงเหลือ" v={qtyFmt(fact.onHand, baseUnit)} s="บนชั้น · ขายแล้วตัดจากชั้นก่อน" />
+                ) : (
+                  <Tile k="คงเหลือ" v="—" s="ยังไม่มีบนชั้น · ขายแล้วระบบตัดวัตถุดิบตามสูตรแทน" />
+                )
               ) : (
                 <>
                   <Tile k="คงเหลือ" v={fact ? qtyFmt(fact.onHand, baseUnit) : "—"} s={data.facts.postedThrough ? `ตามระบบ · ตัดสต๊อกถึง ${thDate(data.facts.postedThrough, false)}` : "ยังไม่มีการตัดสต๊อกตามยอดขาย"} />
@@ -518,10 +524,6 @@ export default function IngredientSheet({
                 </ul>
               )}
             </section>
-
-            {data.product.type === "PREPPED" && (
-              <p className="text-xs text-muted-foreground">⚠️ ระบบยังไม่มีการบันทึกการผลิต นับสต๊อกของแปรรูปเมื่อไรจะขึ้นเป็นของเกินเสมอ</p>
-            )}
 
             {extra?.sections}
 

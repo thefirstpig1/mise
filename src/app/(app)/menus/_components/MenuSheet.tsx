@@ -203,8 +203,9 @@ export default function MenuSheet(props: {
   const facts = sheet?.facts ?? null;
   const stockLine = (l: Line) => {
     if (l.kind === "menu") return null;
-    if (l.prepped) return <span>คงเหลือ: ยังไม่รู้ (ยังไม่มีการบันทึกการผลิต)</span>;
     const f = l.productId ? facts?.facts[l.productId] : undefined;
+    // ADR 0040: an empty prepped shelf means the recipe is cut instead (Q1).
+    if (l.prepped && (!f || f.onHand <= 0)) return <span>ยังไม่มีบนชั้น · ขายแล้วตัดวัตถุดิบตามสูตรแทน</span>;
     if (!f) return null;
     return (
       <span className={f.belowPar ? "text-warn" : ""}>

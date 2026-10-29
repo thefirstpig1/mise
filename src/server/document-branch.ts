@@ -19,7 +19,7 @@ import { withTenantContext } from "@/lib/db";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export type BranchedDocument = "purchaseOrder" | "goodsReceipt" | "expense" | "recurringExpense" | "wasteLog";
+export type BranchedDocument = "purchaseOrder" | "goodsReceipt" | "expense" | "recurringExpense" | "wasteLog" | "production";
 
 export async function getDocumentBranchLogic(
   tenantId: string,
@@ -38,7 +38,9 @@ export async function getDocumentBranchLogic(
             ? await tx.expense.findFirst(args)
             : kind === "recurringExpense"
               ? await tx.recurringExpense.findFirst(args)
-              : await tx.wasteLog.findFirst(args);
+              : kind === "production"
+                ? await tx.production.findFirst(args)
+                : await tx.wasteLog.findFirst(args);
     return row?.branchId ?? null;
   });
 }

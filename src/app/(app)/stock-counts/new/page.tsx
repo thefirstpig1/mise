@@ -21,7 +21,7 @@ export default async function NewStockCountPage({
 }: {
   searchParams: Promise<{ branch?: string }>;
 }) {
-  const { tenantId, reach} = await requireTenant("count:write");
+  const { tenantId, reach, membership } = await requireTenant("count:write");
   const [branches, { branch: branchParam }] = await Promise.all([
     getBranchesLogic(tenantId, reach),
     searchParams,
@@ -77,6 +77,7 @@ export default async function NewStockCountPage({
         preselectBranchId={
           branches.some((b) => b.id === branchParam) ? branchParam : undefined
         }
+        showExpectedDefault={membership.tenant.countShowExpectedDefault}
       />
     </div>
   );

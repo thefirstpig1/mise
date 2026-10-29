@@ -65,6 +65,8 @@ export async function saveStockSectionAction(formData: FormData): Promise<Sectio
   const cancelledSalePolicy =
     formData.get("cancelled_sale_policy") === "TREAT_AS_NOT_COOKED" ? "TREAT_AS_NOT_COOKED" : "TREAT_AS_COOKED";
   const staffMealStockSource = formData.get("staff_meal_stock_source") === "POS" ? "POS" : "SYSTEM";
+  // ADR 0040 Q2: where a new count sheet starts — the shop's call, not ours.
+  const countShowExpectedDefault = formData.get("count_show_expected_default") !== "BLIND";
   // Rule PAR-2: 0–30 whole days.
   const parWarningDays = numIn(formData, "par_warning_days", 0, 30, true);
   const countCycleDays = numIn(formData, "count_cycle_days", 1, 365, true);
@@ -74,8 +76,8 @@ export async function saveStockSectionAction(formData: FormData): Promise<Sectio
   if (Object.keys(fieldErrors).length) return { ok: false, formError: "ยังบันทึกไม่ได้ กรุณาแก้ช่องที่มีข้อความสีแดง", fieldErrors };
 
   return write(
-    { cancelledSalePolicy, staffMealStockSource, parWarningDays, countCycleDays },
-    ["/dashboard", "/consumption", "/staff-meals", "/products", "/stock"]
+    { cancelledSalePolicy, staffMealStockSource, parWarningDays, countCycleDays, countShowExpectedDefault },
+    ["/dashboard", "/consumption", "/staff-meals", "/products", "/stock", "/stock-counts"]
   );
 }
 

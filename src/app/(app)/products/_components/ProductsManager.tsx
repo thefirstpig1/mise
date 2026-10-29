@@ -315,8 +315,10 @@ export default function ProductsManager(props: {
   };
   const stockCell = (p: ProductView) => {
     if (list === null) return pulse;
-    if (p.type === "PREPPED") return <span className="text-xs text-muted-subtle">ยังไม่มีการบันทึกการผลิต</span>;
     const f = factOf(p);
+    // ADR 0040: an empty prepped shelf is the normal case for a shop that does
+    // not record production — say so instead of an alarming 0.
+    if (p.type === "PREPPED" && (!f || f.onHand <= 0)) return <span className="text-xs text-muted-subtle">ยังไม่มีบนชั้น</span>;
     if (!f) return <span className="text-xs text-muted-subtle">—</span>;
     return (
       <>
@@ -588,6 +590,7 @@ export default function ProductsManager(props: {
           perm={props.perm}
           canEditInfo={props.canEditInfo}
           canEditPar={props.canEditPar}
+          allProducts={props.products}
           book={book}
           options={options}
           standards={standards}

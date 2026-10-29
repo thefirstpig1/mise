@@ -20,6 +20,7 @@ export default function OpenCountForm({
   openByBranch,
   todayBangkok,
   preselectBranchId,
+  showExpectedDefault = true,
 }: {
   action: (
     prev: StockCountActionState,
@@ -37,6 +38,8 @@ export default function OpenCountForm({
    * better than silently landing them somewhere else would.
    */
   preselectBranchId?: string;
+  /** ADR 0040 Q2: where the shop said a new sheet starts (ตั้งค่าร้าน). */
+  showExpectedDefault?: boolean;
 }) {
   const router = useRouter();
   const [state, formAction, isPending] = useActionState(
@@ -123,7 +126,7 @@ export default function OpenCountForm({
           <input
             type="checkbox"
             name="show_expected"
-            defaultChecked
+            defaultChecked={showExpectedDefault}
             className="mt-0.5"
           />
           <span>

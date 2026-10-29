@@ -494,7 +494,7 @@ export async function voidProductionInTx(
 const BANGKOK_OFFSET_MS = 7 * 3600 * 1000;
 
 /** The Bangkok business day an instant falls on, as a day value. */
-function bangkokDayOf(at: Date): Date {
+export function bangkokDayOf(at: Date): Date {
   if (isDayValue(at)) return at;
   const bkk = new Date(at.getTime() + BANGKOK_OFFSET_MS);
   return new Date(Date.UTC(bkk.getUTCFullYear(), bkk.getUTCMonth(), bkk.getUTCDate()));
@@ -573,6 +573,41 @@ export async function produceShortfallInTx(
 }
 
 /**
+ * What making `makeQty` of `productId` would use, without writing anything:
+ * one level down its recipe, then the shelf rule for what that needs (stock on
+ * the stock shelf before the bones under it). Shared by the write below and by
+ * the count's prompt (Q2), so the hint and the posting are one calculation.
+ */
+export async function planSystemProductionInTx(
+  tx: PrismaClient,
+  tenantId: string,
+  params: {
+    graph: Awaited<ReturnType<typeof loadRecipeGraph>>;
+    branchId: string;
+    productId: string;
+    makeQty: Prisma.Decimal;
+    at: Date;
+  }
+): Promise<{ productId: string; qty: Prisma.Decimal }[]> {
+  const { graph, branchId, productId, makeQty, at } = params;
+  const oneLevel = explodeToRaw(graph, productKey(productId), makeQty, { stopAtPrepped: true });
+  const preppedBelow = oneLevel
+    .map((l) => l.productId)
+    .filter((id) => graph.products.get(id)?.type === "PREPPED");
+  const available = preppedBelow.length
+    ? await preppedAvailableInTx(tx, tenantId, branchId, [...new Set(preppedBelow)], at)
+    : new Map<string, Prisma.Decimal>();
+  const settled = settlePreppedDemand(
+    graph,
+    new Map(oneLevel.map((l) => [l.productId, l.qty])),
+    available
+  );
+  return [...settled.demand.entries()]
+    .map(([id, q]) => ({ productId: id, qty: q.toDecimalPlaces(3) }))
+    .filter((l) => l.qty.greaterThan(0));
+}
+
+/**
  * Write a production the SYSTEM is recording — the shortfall of a waste or a
  * transfer (Q9), the excess of a count (Q2). `makeQty` of `productId` from its
  * recipe: one level down, then the shelf rule for what that needs (stock on
@@ -597,21 +632,7 @@ export async function writeSystemProductionInTx(
   }
 ): Promise<{ production: ProductionWithItems; used: Map<string, Prisma.Decimal> } | null> {
   const { graph, branchId, productId, makeQty, at } = params;
-  const oneLevel = explodeToRaw(graph, productKey(productId), makeQty, { stopAtPrepped: true });
-  const preppedBelow = oneLevel
-    .map((l) => l.productId)
-    .filter((id) => graph.products.get(id)?.type === "PREPPED");
-  const available = preppedBelow.length
-    ? await preppedAvailableInTx(tx, tenantId, branchId, [...new Set(preppedBelow)], at)
-    : new Map<string, Prisma.Decimal>();
-  const settled = settlePreppedDemand(
-    graph,
-    new Map(oneLevel.map((l) => [l.productId, l.qty])),
-    available
-  );
-  const inputs = [...settled.demand.entries()]
-    .map(([id, q]) => ({ productId: id, qty: q.toDecimalPlaces(3) }))
-    .filter((l) => l.qty.greaterThan(0));
+  const inputs = await planSystemProductionInTx(tx, tenantId, { graph, branchId, productId, makeQty, at });
   if (inputs.length === 0) return null;
 
   const branch = await tx.branch.findUniqueOrThrow({

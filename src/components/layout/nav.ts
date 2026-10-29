@@ -49,6 +49,8 @@ export const NAV_GROUPS: readonly NavGroup[] = [
       { href: "/stock", label: "งานสต๊อก", need: "any:member" },
       { href: "/stock-counts", label: "นับสต๊อก", need: "count:write" },
       { href: "/waste", label: "ของเสีย", need: "waste:write" },
+      // ADR 0040: what the kitchen made — the cook who made it records it (Q6).
+      { href: "/production", label: "การผลิต", need: "stock:write" },
       { href: "/transfers", label: "โอนของระหว่างสาขา", need: "any:member" },
       { href: "/staff-meals", label: "มื้อพนักงาน", need: "staffmeal:write" },
     ],

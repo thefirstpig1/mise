@@ -25,6 +25,10 @@ import ProductThumb from "@/components/ui/ProductThumb";
 import QtyStepper from "@/components/ui/QtyStepper";
 import { formatQty } from "./stock-count-view";
 import type { StockCountItemView } from "./stock-count-view";
+import type { PreppedHint } from "@/server/production-read";
+
+/** A number, rounded the way the ledger stores it (3 dp), in the sheet's format. */
+const fmtN = (v: number) => formatQty(String(Math.round(v * 1000) / 1000));
 
 export type CountProduct = {
   id: string;
@@ -235,6 +239,11 @@ export default function CountRow({
   onSubmit,
   onDeleteContribution,
   onRemoveLine,
+  hint,
+  hintPending = false,
+  usedFor,
+  onConfirmHint,
+  onGoTo,
 }: {
   product: CountProduct;
   /** The line on the sheet, or undefined when nobody has counted it yet. */
@@ -248,6 +257,21 @@ export default function CountRow({
   onSubmit: (s: RowSubmit) => Promise<boolean>;
   onDeleteContribution: (contributionId: string) => void;
   onRemoveLine: (itemId: string) => void;
+  /**
+   * ADR 0040 Q2: this prepped line was counted ABOVE the ledger — the excess
+   * becomes a production at close, and these are its main ingredients to check.
+   */
+  hint?: PreppedHint;
+  /** The prompt is being worked out — say so instead of staying silent. */
+  hintPending?: boolean;
+  /**
+   * ADR 0040 Q2: how much of THIS product the prepped excesses on the sheet
+   * will use when the sheet closes — the ledger figure shown is lowered by it,
+   * the same subtraction the close makes (rule PR-11).
+   */
+  usedFor?: { qty: number; by: string[] };
+  onConfirmHint?: (productId: string, unitId: string, qty: number) => void;
+  onGoTo?: (productId: string) => void;
 }) {
   // What is open under a counted row: nothing, "add more", or editing one of mine.
   const [open, setOpen] = useState<null | "add" | string>(null);
@@ -287,7 +311,7 @@ export default function CountRow({
 
   if (!counted) {
     return (
-      <li className={`space-y-2 px-4 py-3 transition-colors ${busy ? "bg-good-bg/25" : ""}`}>
+      <li id={`count-row-${product.id}`} className={`scroll-mt-60 space-y-2 px-4 py-3 transition-colors ${busy ? "bg-good-bg/25" : ""}`}>
         {editable ? (
           <EntryEditor
             product={product}
@@ -306,6 +330,17 @@ export default function CountRow({
     );
   }
 
+  // What the ledger will hold when this line is compared: lowered by what the
+  // sheet's prepped excesses use (PR-11). Without that, the bones a counted
+  // pot of soup used would read as a surplus here and a loss at close.
+  const used = usedFor?.qty ?? 0;
+  const expected = Number(item.qtyExpected) - used;
+  const diff = Math.round((Number(item.qtyCounted) - expected) * 1000) / 1000;
+  const diffZero = Math.abs(diff) < 0.0005;
+  const diffShort = diff < 0 && !diffZero;
+  // A prepped line counted over is a production, not a surplus (Q2): neutral.
+  const diffTone = diffZero || (product.prepped && !diffShort) ? "" : diffShort ? "font-medium text-bad" : "font-medium text-warn";
+
   const mineFirst = item.contributions.find((c) => c.countedByUserId === currentUserId);
   const who =
     item.contributions.length > 1
@@ -315,7 +350,7 @@ export default function CountRow({
         : `${item.contributions[0]?.countedBy ?? "—"} ${item.contributions[0]?.countedAtTime ?? ""}`;
 
   return (
-    <li className="bg-good-bg/60">
+    <li id={`count-row-${product.id}`} className="scroll-mt-60 bg-good-bg/60">
       <button
         type="button"
         onClick={() => setExpanded((x) => !x)}
@@ -334,15 +369,7 @@ export default function CountRow({
           <span className="font-semibold tabular-nums">{formatQty(item.qtyCounted)}</span> {base}
           {/* A closed sheet is read for its variances: show them without a tap. */}
           {!editable && showExpected ? (
-            <span
-              className={`block text-xs ${
-                item.varianceIsZero || product.prepped
-                  ? "text-muted-foreground"
-                  : item.varianceIsShort
-                    ? "font-medium text-bad"
-                    : "font-medium text-warn"
-              }`}
-            >
+            <span className={`block text-xs ${diffTone || "text-muted-foreground"}`}>
               {item.varianceIsZero
                 ? "ตรงกับระบบ"
                 : `${item.varianceIsShort ? "" : "+"}${formatQty(item.variance)} จากระบบ`}
@@ -355,27 +382,35 @@ export default function CountRow({
 
       {message && <p className="px-4 pb-2 text-sm text-warn">{message}</p>}
 
+      {editable && !hint && hintPending && product.prepped && !diffZero && !diffShort && (
+        <p className="mx-4 mb-3 animate-pulse rounded-xl bg-primary/10 p-3 text-xs text-muted-foreground">
+          นับได้มากกว่าในระบบ — กำลังดูว่าใช้วัตถุดิบอะไรทำไปบ้าง…
+        </p>
+      )}
+
+      {editable && hint && (
+        <PreppedPrompt hint={hint} productName={product.name} base={base} showExpected={showExpected} onConfirmHint={onConfirmHint} onGoTo={onGoTo} />
+      )}
+
       {expanded && (
         <div className="space-y-2 px-4 pb-3 pl-11">
           {showExpected && (
             <p className="text-sm">
-              ระบบว่ามี {formatQty(item.qtyExpected)} {base} ·{" "}
-              <span
-                className={
-                  item.varianceIsZero || product.prepped
-                    ? ""
-                    : item.varianceIsShort
-                      ? "font-medium text-bad"
-                      : "font-medium text-warn"
-                }
-              >
-                {item.varianceIsZero ? "ตรง" : `${item.varianceIsShort ? "" : "+"}${formatQty(item.variance)}`}
-              </span>
+              ระบบว่ามี {fmtN(expected)} {base}
+              {used > 0 && (
+                <span className="text-xs text-muted-foreground">
+                  {" "}
+                  ({fmtN(Number(item.qtyExpected))} − {fmtN(used)} ใช้ทำ{usedFor!.by.join(" ")})
+                </span>
+              )}{" "}
+              · <span className={diffTone}>{diffZero ? "ตรง" : `${diffShort ? "" : "+"}${fmtN(diff)}`}</span>
             </p>
           )}
-          {showExpected && product.prepped && !item.varianceIsZero && (
-            <p className="text-xs text-warn">
-              ส่วนต่างนี้ไม่ได้แปลว่าของหายหรือเกิน — ระบบยังไม่ได้บันทึกการผลิตของแปรรูป
+          {showExpected && product.prepped && !diffZero && (
+            <p className="text-xs text-muted-foreground">
+              {diffShort
+                ? "นับได้น้อยกว่าในระบบ = ของหาย ลงตามปกติตอนปิดใบ"
+                : "นับได้มากกว่าในระบบ = ทำเพิ่มแต่ไม่ได้บันทึก ตอนปิดใบระบบลงเป็นการผลิตตามสูตร"}
             </p>
           )}
           <ul className="space-y-1 text-sm">
@@ -472,5 +507,86 @@ export default function CountRow({
         </div>
       )}
     </li>
+  );
+}
+
+/**
+ * ADR 0040 Q2: "เกิน 6 ลิตร = ทำเพิ่มแต่ไม่ได้บันทึก" — and, for each main
+ * ingredient (≥ 10% of the batch's cost), what should be left of it. A blind
+ * sheet asks to count it without giving the number (ADR 0015 Q7). Never blocks:
+ * an unchecked ingredient only marks the production "ไม่ได้ยืนยันวัตถุดิบ".
+ */
+function PreppedPrompt({
+  hint,
+  productName,
+  base,
+  showExpected,
+  onConfirmHint,
+  onGoTo,
+}: {
+  hint: PreppedHint;
+  productName: string;
+  base: string;
+  showExpected: boolean;
+  onConfirmHint?: (productId: string, unitId: string, qty: number) => void;
+  onGoTo?: (productId: string) => void;
+}) {
+  return (
+    <div className="mx-4 mb-3 space-y-2 rounded-xl bg-primary/10 p-3 text-xs text-muted-foreground">
+      <p className="text-sm font-semibold text-primary">
+        {showExpected ? `เกิน ${fmtN(hint.over)} ${base} = ทำเพิ่มแต่ไม่ได้บันทึก` : "นับได้มากกว่าในระบบ = ทำเพิ่มแต่ไม่ได้บันทึก"}
+      </p>
+      <p>
+        {hint.canProduce
+          ? `ตอนปิดใบ ระบบลงเป็นการผลิต${showExpected ? ` ${fmtN(hint.over)} ${base}` : ""} ตามสูตร`
+          : `${productName}ยังไม่มีวิธีทำ — ตอนปิดใบลงเป็นยอดเกินตามปกติ`}
+      </p>
+      {hint.inputs.map((i) => (
+        <div key={i.productId} className="space-y-1 rounded-lg border border-border-strong bg-surface p-2.5 text-sm text-foreground">
+          {i.counted !== null ? (
+            <p>
+              นับ<b>{i.name}</b>ในใบนี้แล้ว
+              {showExpected && (
+                <span className="text-xs text-muted-foreground">
+                  {" "}
+                  · ควรเหลือ ~{fmtN(i.left)} {i.unitName} นับได้ {fmtN(i.counted)}
+                </span>
+              )}{" "}
+              ✓
+            </p>
+          ) : (
+            <>
+              {showExpected ? (
+                <>
+                  <p>
+                    ช่วยเช็ก <b>{i.name}</b> — ควรเหลือ <b className="tabular-nums">~{fmtN(Math.max(i.left, 0))} {i.unitName}</b>
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    ระบบมี {fmtN(i.systemQty)} − ใช้ทำ{productName} {fmtN(i.used)}
+                  </p>
+                </>
+              ) : (
+                <p>
+                  ช่วยนับ <b>{i.name}</b> ด้วย — ใช้ทำ{productName}ที่นับเกิน
+                </p>
+              )}
+              <div className="flex flex-wrap gap-2">
+                <button type="button" onClick={() => onGoTo?.(i.productId)} className="btn-secondary btn-sm">
+                  ไปนับ
+                </button>
+                {showExpected && i.left >= 0 && i.baseUnitId && (
+                  <button type="button" onClick={() => onConfirmHint?.(i.productId, i.baseUnitId, i.left)} className="btn-secondary btn-sm">
+                    ยืนยันตามนี้
+                  </button>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      ))}
+      {hint.inputs.length > 0 && (
+        <p>ถามเฉพาะวัตถุดิบที่มีมูลค่า ≥10% ของ{productName} · ไม่เช็กก็ปิดใบได้ ใบผลิตจะติดป้าย “ไม่ได้ยืนยันวัตถุดิบ”</p>
+      )}
+    </div>
   );
 }

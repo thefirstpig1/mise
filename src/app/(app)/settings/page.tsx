@@ -209,6 +209,28 @@ export default async function SettingsPage() {
           hint="หน้างานสต๊อกเตือนเมื่อนับครั้งล่าสุดเก่ากว่านี้"
           control={<Days name="count_cycle_days" value={tenant.countCycleDays} min={1} max={365} label="นับสต๊อกทุกกี่วัน" />}
         />
+        {/* ADR 0040 Q2 (Kong 2026-10-29: "เอาตามแนะนำ" — starts as it always was) */}
+        <Row title="ใบนับเริ่มต้น" hint="ใบนับที่เปิดใหม่เริ่มแบบนี้ · ตอนเปิดใบยังเลือกเปลี่ยนรายใบได้">
+          <div className="mt-3 flex flex-wrap gap-2.5">
+            <Option
+              name="count_show_expected_default"
+              value="SHOW"
+              checked={tenant.countShowExpectedDefault}
+              title="บอกตัวเลขที่ระบบมี"
+              example="นับเร็ว และช่วยใบ้ “กระดูกควรเหลือ ~8 กก.” เวลานับของแปรรูปได้เกิน"
+            />
+            <Option
+              name="count_show_expected_default"
+              value="BLIND"
+              checked={!tenant.countShowExpectedDefault}
+              title="ปิดตา — ไม่บอกตัวเลข"
+              example="กันการเขียนตามตัวเลขในระบบ · ยังขอให้นับวัตถุดิบหลัก แต่ไม่บอกว่าควรเหลือเท่าไร"
+            />
+          </div>
+          <More>
+            <p>ใบ้ช่วยลดภาระคนนับ แต่ก็บอกคนที่ไม่ซื่อว่าควรเขียนเลขอะไร ร้านเลือกเองว่าแบบไหนเหมาะกับร้าน</p>
+          </More>
+        </Row>
       </SectionForm>
 
       {/* ---------- 3 · profit + targets ---------- */}

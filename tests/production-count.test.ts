@@ -32,6 +32,7 @@ import {
   voidStockCountLogic,
 } from "@/server/stock-count";
 import { getProductCostLogic } from "@/server/stock-cost";
+import { getCountPreppedHintsLogic } from "@/server/production-read";
 import { EVERY_BRANCH } from "./support/reach";
 import { sweepTestTenants } from "./support/sweep";
 
@@ -177,6 +178,15 @@ describe("a count that finds prepped stock the ledger never saw made (ADR 0040 Q
     const sc = await sheet(branch);
     await count(sc.id, soup, 10);
     await count(sc.id, bones, 45); // the ledger had 50; the soup used 4; 1 kg is missing
+
+    // What the open sheet shows BEFORE closing must be what the close does:
+    // "ledger 50 − 4 used for the soup" and "should have ~46 left".
+    const [hint] = await getCountPreppedHintsLogic(tenant, sc.id);
+    expect(hint.productId).toBe(soup.id);
+    expect(hint.over).toBe(10);
+    expect(hint.allUsed).toEqual([{ productId: bones.id, qty: 4 }]);
+    expect(hint.inputs).toMatchObject([{ productId: bones.id, systemQty: 50, used: 4, left: 46, counted: 45 }]);
+
     await close(sc.id);
 
     const made = await madeBy(sc.id);

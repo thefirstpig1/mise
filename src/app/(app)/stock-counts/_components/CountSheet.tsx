@@ -33,6 +33,7 @@ import type { StockCountDetailView } from "./stock-count-view";
 import { readApi } from "@/lib/read-api";
 import EmptyState from "@/components/ui/EmptyState";
 import { Portal, useTopLayer } from "@/app/(app)/menus/_components/sheet-parts";
+import type { PreppedHint } from "@/server/production-read";
 
 const POLL_MS = 5_000;
 const NO_CATEGORY = "ไม่มีหมวด";
@@ -45,6 +46,12 @@ const chip = (active: boolean, small = false) =>
 async function poll(countId: string): Promise<StockCountDetailView | null> {
   const r = await readApi<{ ok: true; detail: StockCountDetailView | null }>("/api/stock-counts", "sheet", countId);
   return r.ok ? r.detail : null;
+}
+
+/** ADR 0040 Q2: the prompts for prepped lines counted above the ledger. */
+async function readHints(countId: string): Promise<PreppedHint[] | null> {
+  const r = await readApi<{ ok: true; hints: PreppedHint[] }>("/api/stock-counts", "prepped", countId);
+  return r.ok ? r.hints : null;
 }
 
 export default function CountSheet({
@@ -200,6 +207,85 @@ export default function CountSheet({
     return m;
   }, [detail.items]);
 
+  // ---------- ADR 0040 Q2: prepped lines counted above the ledger ----------
+  // Asked again only when what was counted changes — not on every poll — and
+  // only while some prepped line is actually over.
+  const preppedIds = useMemo(() => new Set(products.filter((p) => p.prepped).map((p) => p.id)), [products]);
+  const countedSig = detail.items
+    .filter((i) => !i.isReversal)
+    .map((i) => `${i.productId}:${i.qtyCounted}`)
+    .sort()
+    .join("|");
+  const anyPreppedOver = detail.items.some(
+    (i) => !i.isReversal && preppedIds.has(i.productId) && Number(i.qtyCounted) > Number(i.qtyExpected)
+  );
+  const [hints, setHints] = useState<PreppedHint[]>([]);
+  // A few seconds to work out (a recipe walk and a cost replay): the row says
+  // it is looking, rather than sitting silent (mise-ui-review §5b).
+  const [hintsLoading, setHintsLoading] = useState(false);
+  useEffect(() => {
+    if (!isDraft || !anyPreppedOver) {
+      setHints([]);
+      return;
+    }
+    let on = true;
+    setHintsLoading(true);
+    void readHints(detail.id).then((h) => {
+      if (!on) return;
+      setHintsLoading(false);
+      if (h) setHints(h);
+    });
+    return () => {
+      on = false;
+    };
+  }, [detail.id, isDraft, anyPreppedOver, countedSig]);
+  const hintOf = useMemo(() => new Map(hints.map((h) => [h.productId, h])), [hints]);
+  const nameOf = useMemo(() => new Map(products.map((p) => [p.id, p.name])), [products]);
+  const usedFor = useMemo(() => {
+    const m = new Map<string, { qty: number; by: string[] }>();
+    for (const h of hints) {
+      for (const u of h.allUsed) {
+        const cur = m.get(u.productId) ?? { qty: 0, by: [] };
+        cur.qty += u.qty;
+        const by = nameOf.get(h.productId) ?? "";
+        if (by && !cur.by.includes(by)) cur.by.push(by);
+        m.set(u.productId, cur);
+      }
+    }
+    return m;
+  }, [hints, nameOf]);
+
+  const confirmHint = (productId: string, unitId: string, qty: number) =>
+    void run(productId, () =>
+      confirmCount({
+        stockCountId: detail.id,
+        productId,
+        mode: "new",
+        entries: [{ productUnitId: unitId, qtyInUnit: String(qty) }],
+        notes: "ยืนยันตามที่ระบบคำนวณ (หักส่วนที่ใช้ทำของแปรรูปแล้ว)",
+      })
+    );
+
+  // "ไปนับ": clear the filters, then scroll once the row is actually on screen
+  // — after the render the cleared filters cause, not on a guessed timer.
+  const [goToId, setGoToId] = useState<string | null>(null);
+  const goTo = (productId: string) => {
+    setSection(null);
+    setGroup(null);
+    setShow("all");
+    setSearch("");
+    setGoToId(productId);
+  };
+  useEffect(() => {
+    if (!goToId) return;
+    const el = document.getElementById(`count-row-${goToId}`);
+    if (!el) return;
+    // `scroll-mt-60` on the row keeps it clear of the sticky header above.
+    el.scrollIntoView({ block: "start" });
+    el.querySelector<HTMLInputElement>("input")?.focus({ preventScroll: true });
+    setGoToId(null);
+  });
+
   // A line whose product was since deleted still has to show.
   const rows: CountProduct[] = useMemo(() => {
     const known = new Set(products.map((p) => p.id));
@@ -257,7 +343,7 @@ export default function CountSheet({
   }, [shown]);
 
   const countedCount = [...lineByProduct.keys()].length;
-  // ADR 0021 Q11 — say it on screen until production is recorded.
+  // ADR 0040: prepped lines are named on screen — their surplus is a production.
   const preppedRows = rows.filter((p) => p.prepped);
   const preppedCounted = preppedRows.filter((p) => lineByProduct.has(p.id)).length;
   const uncountedStocked = stockedProductIds.filter((id) => !lineByProduct.has(id)).length;
@@ -320,7 +406,7 @@ export default function CountSheet({
             className="block w-full text-left text-xs text-muted-foreground"
           >
             กรอกจำนวนแล้วกดยืนยัน · ไม่ได้นับไม่ต้องใส่
-            {preppedRows.length > 0 && <span className="text-warn"> · ของแปรรูปส่วนต่างยังเชื่อไม่ได้</span>}{" "}
+            {preppedRows.length > 0 && <span> · ของแปรรูปที่นับได้เกิน ลงเป็นการผลิต</span>}{" "}
             <span className="underline">{helpOpen ? "ย่อ" : "อ่านต่อ"}</span>
           </button>
         )}
@@ -331,9 +417,9 @@ export default function CountSheet({
             </p>
             {preppedRows.length > 0 && (
               <p>
-                ของแปรรูป (ป้ายเหลือง): ระบบยังไม่มีบันทึกการผลิต ยอดในระบบจึงไม่เพิ่มตอนทำ และไม่ลดตอนขาย
-                ยอดเปลี่ยนตอนนับ ลงของเสีย หรือโอนของ — <strong>นับครั้งแรกจึงขึ้นว่าเกินเสมอ</strong>
-                และครั้งต่อ ๆ ไปส่วนต่างก็ไม่ได้แปลว่าของหายหรือเกิน
+                ของแปรรูป (ป้าย “ของแปรรูป”): นับได้<strong>มากกว่า</strong>ในระบบ = ทำเพิ่มแต่ไม่ได้บันทึก — ตอนปิดใบระบบลงเป็นการผลิตตามสูตร
+                และหักวัตถุดิบที่ใช้ทำออกจากยอดในระบบก่อนเทียบ · นับได้<strong>น้อยกว่า</strong> = ของหายตามปกติ ·
+                ระบบจะขอให้ช่วยเช็กวัตถุดิบหลัก ไม่เช็กก็ปิดใบได้
               </p>
             )}
           </div>
@@ -409,10 +495,12 @@ export default function CountSheet({
           {detail.closedBy && ` โดย ${detail.closedBy}`} — ส่วนต่างถูกบันทึกเข้าคลังเรียบร้อย
         </div>
       )}
-      {!isDraft && preppedCounted > 0 && (
-        <div className="rounded-lg border border-warn-border bg-warn-bg p-3 text-sm text-warn">
-          ใบนี้มีของแปรรูป {preppedCounted} รายการ — ส่วนต่างของรายการเหล่านั้นเชื่อไม่ได้
-          เพราะระบบยังไม่มีบันทึกการผลิต
+      {detail.status === "CLOSED" && preppedCounted > 0 && (
+        <div className="rounded-lg border border-border bg-surface-sunk p-3 text-sm text-muted-foreground">
+          ของแปรรูปที่นับได้เกินในใบนี้ถูกลงเป็นการผลิตแล้ว —{" "}
+          <a href="/production" className="text-primary underline decoration-dotted underline-offset-4">
+            ดูในหน้าการผลิต
+          </a>
         </div>
       )}
       {sheetError && (
@@ -453,6 +541,11 @@ export default function CountSheet({
               onSubmit={submitRow(p.id)}
               onDeleteContribution={(cid) => void run(p.id, () => deleteContribution(detail.id, cid))}
               onRemoveLine={(itemId) => void run(p.id, () => removeLine(detail.id, itemId))}
+              hint={hintOf.get(p.id)}
+              hintPending={hintsLoading}
+              usedFor={usedFor.get(p.id)}
+              onConfirmHint={confirmHint}
+              onGoTo={goTo}
             />
                   ))}
                 </ul>
@@ -475,7 +568,7 @@ export default function CountSheet({
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
               คนละหน่วยกัน — ดูเป็นรายรายการด้านบน
-              {preppedCounted > 0 && ` · รวมของแปรรูป ${preppedCounted} รายการ ซึ่งส่วนต่างยังเชื่อไม่ได้`}
+              {preppedCounted > 0 && ` · ของแปรรูปที่เกินลงเป็นการผลิต ไม่ใช่ของเกิน`}
             </p>
           </div>
           {varianceValue !== null && (

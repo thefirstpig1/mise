@@ -29,6 +29,7 @@ import { unitTh } from "@/app/(app)/menus/_components/manager-format";
 import { ConfirmDialog, type ConfirmSpec } from "@/app/(app)/menus/_components/sheet-parts";
 import type { ProductView } from "./product-view";
 import { composePackName, packRatio, partsOf, sizeUnitsFor } from "@/lib/pack-unit";
+import ProductionSection from "@/app/(app)/production/_components/ProductionSection";
 
 /**
  * Kong 2026-10-21: a pack unit is typed as container + size + size unit and
@@ -59,6 +60,7 @@ export default function ProductSheet({
   perm,
   canEditInfo,
   canEditPar,
+  allProducts,
   book,
   options,
   standards,
@@ -75,6 +77,8 @@ export default function ProductSheet({
   perm: Perm;
   canEditInfo: boolean;
   canEditPar: boolean;
+  /** Every product — the trim editor picks its parts from the prepped ones (ADR 0040). */
+  allProducts: ProductView[];
   book: PriceBook | null;
   options: IngredientOption[] | null;
   standards: StandardUnit[];
@@ -238,6 +242,38 @@ export default function ProductSheet({
 
   const sections = (
     <>
+      {/* ADR 0040: how it is made and cut, and the door to record it.
+          Recording is stock:write — the same capability par levels use (Q6). */}
+      <ProductionSection
+        product={{
+          id: product.id,
+          name: product.name,
+          type: product.type,
+          sku: product.sku,
+          baseUnitName: product.baseUnitName,
+          section: product.category?.accountingSection ?? null,
+          group: product.category?.groupName ?? null,
+        }}
+        branch={branch}
+        branches={branches}
+        today={today}
+        costHidden={costHidden}
+        canProduce={canEditPar}
+        canEditTrim={perm.recipeShared}
+        partOptions={allProducts
+          .filter((p) => p.type === "PREPPED" && p.isActive)
+          .map((p) => ({
+            id: p.id,
+            name: p.name,
+            sku: p.sku,
+            imageUrl: p.imageUrl,
+            section: p.category?.accountingSection ?? null,
+            group: p.category?.groupName ?? null,
+            baseUnitName: p.baseUnitName,
+          }))}
+        onToast={onToast}
+        onChanged={onSaved}
+      />
       <RecentMoves productId={product.id} branch={branch} unit={baseUnit} />
       {canEditPar && (
         <section className="space-y-2 rounded-2xl border border-border bg-surface p-4">
