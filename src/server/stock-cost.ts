@@ -24,8 +24,8 @@ import { branchScopeWhere, type BranchReach } from "@/lib/permissions/service";
 import type { GrossProfitMethod } from "@prisma/client";
 import type { CostSource, PrismaClient, SourceType } from "@prisma/client";
 import { withTenantContext } from "@/lib/db";
-import { bangkokDayEndUtc, isDayValue } from "@/lib/bangkok-date";
-import type { GrossProfitBlocker } from "@/lib/gross-profit-blocker";
+import { bangkokDayEndUtc, computeBangkokToday, isDayValue } from "@/lib/bangkok-date";
+import { countWindows, type GrossProfitBlocker } from "@/lib/gross-profit-blocker";
 import { occurredAtFilter } from "@/server/stock-movement";
 import { replayChain, type ProductionOutputShares } from "@/server/fifo-chain";
 import {
@@ -945,26 +945,88 @@ async function loadPeriodFacts(tenantId: string, reach: BranchReach, from: Date,
       _max: { closedAt: true },
     });
 
-    // Rule PG1: was this period's OPENING ever measured? Only by a closed count
-    // with a line counted before the period began — the same instant the
-    // opening replay cuts at, so a count it includes is a count that counts.
-    const openingCounts = await tx.stockCount.findMany({
-      where: {
-        tenantId,
-        branchId: { in: branchIds },
-        status: "CLOSED",
-        deletedAt: null,
-        items: { some: { countedAt: { lt: periodBounds.gte }, reversalOfItemId: null } },
-      },
-      select: { branchId: true },
-      distinct: ["branchId"],
-    });
+    // Rules PG1 + PG2: were this period's two ends measured? A closed count
+    // with a line counted inside each window (see countWindows).
+    const windows = countWindows(periodBounds, bangkokDayEndUtc(computeBangkokToday()));
+    const branchesCountedIn = (window: { gte: Date; lt: Date }) =>
+      tx.stockCount.findMany({
+        where: {
+          tenantId,
+          branchId: { in: branchIds },
+          status: "CLOSED",
+          deletedAt: null,
+          items: { some: { countedAt: window, reversalOfItemId: null } },
+        },
+        select: { branchId: true },
+        distinct: ["branchId"],
+      });
+    const openingCounts = await branchesCountedIn(windows.opening);
+    const closingCounts = await branchesCountedIn(windows.closing);
 
-    return { revenueRows, expenseLines, receiptMovements, rmItems, coverageRuns, salesDayRows, lastCounts, openingCounts };
+    return { revenueRows, expenseLines, receiptMovements, rmItems, coverageRuns, salesDayRows, lastCounts, openingCounts, closingCounts };
   });
 }
 
 type PeriodFacts = NonNullable<Awaited<ReturnType<typeof loadPeriodFacts>>>;
+
+/**
+ * Rule PG2's fallback (Kong 2026-10-30): while a month runs, นับสต๊อก cannot
+ * name its gross profit, so the dashboard shows the latest month it CAN — the
+ * latest calendar month before today's whose two ends were counted at every
+ * branch in reach that sold anything in it. null when none in the past year.
+ *
+ * Cheap on purpose: two windows checked against each count's first and last
+ * line, no replay. The month it names is then costed the ordinary way, and if
+ * that still withholds the figure (stock nobody priced) the screen shows nothing.
+ */
+export async function latestCountedMonthLogic(
+  tenantId: string,
+  reach: BranchReach,
+  today: Date = computeBangkokToday()
+): Promise<{ from: Date; to: Date } | null> {
+  const y = today.getUTCFullYear();
+  const m = today.getUTCMonth();
+  const since = new Date(Date.UTC(y, m - 12, 1));
+  const thisMonth = new Date(Date.UTC(y, m, 1));
+  const facts = await withTenantContext(tenantId, async (tx) => {
+    const branchIds = (await branchesIn(tx, tenantId, reach)).map((b) => b.id);
+    const counts = await tx.stockCount.findMany({
+      where: { tenantId, branchId: { in: branchIds }, status: "CLOSED", deletedAt: null, countDate: { gte: new Date(since.getTime() - 10 * 86_400_000) } },
+      select: { id: true, branchId: true },
+    });
+    const spans = counts.length
+      ? await tx.stockCountItem.groupBy({
+          by: ["stockCountId"],
+          where: { tenantId, stockCountId: { in: counts.map((c) => c.id) }, reversalOfItemId: null },
+          _min: { countedAt: true },
+          _max: { countedAt: true },
+        })
+      : [];
+    const sold = await tx.salesDay.findMany({
+      where: { tenantId, branchId: { in: branchIds }, businessDate: { gte: since, lt: thisMonth } },
+      select: { branchId: true, businessDate: true },
+    });
+    return { counts, spans, sold };
+  });
+
+  const branchOf = new Map(facts.counts.map((c) => [c.id, c.branchId]));
+  const spans = facts.spans
+    .filter((s) => s._min.countedAt && s._max.countedAt)
+    .map((s) => ({ branchId: branchOf.get(s.stockCountId)!, first: s._min.countedAt!.getTime(), last: s._max.countedAt!.getTime() }));
+  const counted = (branchId: string, w: { gte: Date; lt: Date }) =>
+    spans.some((s) => s.branchId === branchId && s.first < w.lt.getTime() && s.last >= w.gte.getTime());
+  const todayEnd = bangkokDayEndUtc(today);
+
+  for (let back = 1; back <= 12; back++) {
+    const from = new Date(Date.UTC(y, m - back, 1));
+    const to = new Date(Date.UTC(y, m - back + 1, 0));
+    const selling = new Set(facts.sold.filter((d) => d.businessDate >= from && d.businessDate <= to).map((d) => d.branchId));
+    if (selling.size === 0) continue;
+    const w = countWindows(occurredAtFilter(from, to) as { gte: Date; lt: Date }, todayEnd);
+    if ([...selling].every((b) => counted(b, w.opening) && counted(b, w.closing))) return { from, to };
+  }
+  return null;
+}
 
 /**
  * Every branch, side by side, for one period.
@@ -1072,8 +1134,9 @@ function assembleCostSummary(
   opts: { alwaysOpening?: boolean } = {}
 ): BranchCostSummary[] {
   const { branches, productIds, grossProfitMethod, isVatRegistered, costRows, consumptionItems } = ledger;
-  const { revenueRows, expenseLines, receiptMovements, rmItems, coverageRuns, salesDayRows, lastCounts, openingCounts } = period;
+  const { revenueRows, expenseLines, receiptMovements, rmItems, coverageRuns, salesDayRows, lastCounts, openingCounts, closingCounts } = period;
   const openingCounted = new Set(openingCounts.map((c) => c.branchId));
+  const closingCounted = new Set(closingCounts.map((c) => c.branchId));
   const periodBounds = occurredAtFilter(from, to) as { gte: Date; lt: Date };
 
 
@@ -1335,18 +1398,22 @@ function assembleCostSummary(
     // 0019 already settled that an imperfect figure is printed with its
     // freshness attached rather than withheld.
     //
-    // Rule PG1 (Kong 2026-10-30): นับสต๊อก answers only when its two ends are
-    // worth something — an opening somebody counted, and no shelf valued at ฿0
-    // because nobody priced it. Either gap made the identity print a profit
-    // the shop never earned.
+    // Rules PG1 + PG2 (Kong 2026-10-30): นับสต๊อก answers only when its two
+    // ends are worth something — both counted near the boundary, and no shelf
+    // valued at ฿0 because nobody priced it. Any gap made the identity print a
+    // profit the shop never earned: with no closing count the system believes
+    // every purchase is still on the shelf, and the first month after an
+    // opening count read close to 100%.
     const grossProfitBlocker: GrossProfitBlocker | null =
       revenue === null || grossProfitMethod !== "PERIODIC_INVENTORY"
         ? null
         : !openingCounted.has(branch.id)
           ? { kind: "NO_OPENING_COUNT" }
-          : unpricedEitherEnd.size > 0
-            ? { kind: "UNPRICED_STOCK", products: unpricedEitherEnd.size }
-            : null;
+          : !closingCounted.has(branch.id)
+            ? { kind: "NO_CLOSING_COUNT" }
+            : unpricedEitherEnd.size > 0
+              ? { kind: "UNPRICED_STOCK", products: unpricedEitherEnd.size }
+              : null;
 
     const cogsSold =
       revenue === null

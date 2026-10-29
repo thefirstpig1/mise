@@ -1,26 +1,32 @@
 // ============================================================
 // Mise — เริ่มต้นใช้งาน: the new shop's setup checklist (Kong 2026-10-28)
 // ============================================================
-// Mockup GG5e43SSLmNFxEHfa5RQJH. Six steps, each ticked by what the shop has
+// Mockup GG5e43SSLmNFxEHfa5RQJH. Each step is ticked by what the shop has
 // actually DONE in the system — never by a box somebody clicked — so the
 // checklist cannot say "done" about something that is not:
-//   shop     — settings saved at least once after signup (tenant.updated_at
-//              moved past created_at; signup itself writes both together)
+//   shop     — settings saved, or confirmed as they are, after signup
+//              (tenant.updated_at moved past created_at)
+//   team     — someone besides the founder belongs to the shop
 //   supplier — a live supplier exists
 //   product  — a live product exists
 //   sales    — a POS file has been imported for any day
+//   recipe   — a live recipe exists (สูตรอาหาร shops only)
 //   count    — a stock count has been closed
-//   team     — someone besides the founder belongs to the shop
+// 2026-10-30 (proposal CuT6DJRf5X7A6N2h8BfuKG D): ordered as the setup flow
+// runs — the list complete BEFORE the first count, the count last, on the
+// month's last night, because that count is the next month's opening.
 // Hiding it is per membership (onboarding_dismissed_at), and it disappears by
-// itself once all six are done.
+// itself once every step is done.
 // ============================================================
 
 import { withTenantContext } from "@/lib/db";
 
-export const ONBOARDING_STEPS = ["shop", "supplier", "product", "sales", "count", "team"] as const;
+export const ONBOARDING_STEPS = ["shop", "team", "supplier", "product", "sales", "recipe", "count"] as const;
 export type OnboardingStep = (typeof ONBOARDING_STEPS)[number];
 
 export type Onboarding = {
+  /** The steps that apply to this shop, in order — `recipe` only under สูตรอาหาร. */
+  steps: OnboardingStep[];
   done: Record<OnboardingStep, boolean>;
   doneCount: number;
   dismissed: boolean;
@@ -41,26 +47,30 @@ export function shopSettingsReviewed(t: { createdAt: Date; updatedAt: Date }): b
 
 export async function getOnboardingLogic(tenantId: string, membershipId: string): Promise<Onboarding> {
   return withTenantContext(tenantId, async (tx) => {
-    const [tenant, membership, supplier, product, sales, count, members] = await Promise.all([
-      tx.tenant.findUniqueOrThrow({ where: { id: tenantId }, select: { createdAt: true, updatedAt: true } }),
+    const [tenant, membership, supplier, product, sales, count, members, recipe] = await Promise.all([
+      tx.tenant.findUniqueOrThrow({ where: { id: tenantId }, select: { createdAt: true, updatedAt: true, grossProfitMethod: true } }),
       tx.tenantMembership.findUniqueOrThrow({ where: { id: membershipId }, select: { onboardingDismissedAt: true } }),
       tx.supplier.findFirst({ where: { tenantId, deletedAt: null }, select: { id: true } }),
       tx.product.findFirst({ where: { tenantId, deletedAt: null }, select: { id: true } }),
       tx.salesDay.findFirst({ where: { tenantId }, select: { id: true } }),
       tx.stockCount.findFirst({ where: { tenantId, status: "CLOSED", deletedAt: null }, select: { id: true } }),
       tx.tenantMembership.count({ where: { tenantId, isActive: true } }),
+      tx.recipe.findFirst({ where: { tenantId, menuId: { not: null }, isDraft: false, supersededAt: null }, select: { id: true } }),
     ]);
     const done: Record<OnboardingStep, boolean> = {
       shop: shopSettingsReviewed(tenant),
+      team: members > 1,
       supplier: supplier !== null,
       product: product !== null,
       sales: sales !== null,
+      recipe: recipe !== null,
       count: count !== null,
-      team: members > 1,
     };
+    const steps = ONBOARDING_STEPS.filter((s) => s !== "recipe" || tenant.grossProfitMethod === "RECIPE_CONSUMPTION");
     return {
+      steps,
       done,
-      doneCount: ONBOARDING_STEPS.filter((s) => done[s]).length,
+      doneCount: steps.filter((s) => done[s]).length,
       dismissed: membership.onboardingDismissedAt !== null,
     };
   });

@@ -52,6 +52,7 @@ describe("gross profit by สูตรอาหาร (ADR 0022 Part 22 L3d)", (
   let pork: ProductWithUnits;
   let salt: ProductWithUnits;
   let openingCountId: string;
+  let openingItemId: string;
 
   const today = computeBangkokToday();
   const D_A = addDays(today, -2);
@@ -412,6 +413,9 @@ describe("gross profit by สูตรอาหาร (ADR 0022 Part 22 L3d)", (
   // ยอดขาย" — opening 0 + purchases 0 − closing ฿0 (the counted stock had no
   // price) is arithmetic, not a measurement. นับสต๊อก now answers only when the
   // period's opening was COUNTED and nothing in the stock it values is unpriced.
+  // Rule PG2 (same day): and when its END was counted too, each within 7 days
+  // of its boundary — with no closing count the system believes every purchase
+  // is still on the shelf, and the first month after an opening count read ~100%.
 
   it("G-08 นับสต๊อก with no count before the period is '—', not a figure", async () => {
     await setMethod("PERIODIC_INVENTORY");
@@ -428,7 +432,7 @@ describe("gross profit by สูตรอาหาร (ADR 0022 Part 22 L3d)", (
     await setMethod("RECIPE_CONSUMPTION");
   });
 
-  it("G-09 a count closed before the period makes นับสต๊อก answer", async () => {
+  it("G-09 an opening count alone is not enough — the period's end was never counted (PG2)", async () => {
     // Twenty kilos counted the day before the period, exactly what the ledger
     // held — no variance, so no movement, only the fact that someone looked.
     await withRlsBypass(async (tx) => {
@@ -446,7 +450,7 @@ describe("gross profit by สูตรอาหาร (ADR 0022 Part 22 L3d)", (
         select: { id: true },
       });
       openingCountId = sc.id;
-      await tx.stockCountItem.create({
+      const item = await tx.stockCountItem.create({
         data: {
           tenantId: tenantA,
           stockCountId: sc.id,
@@ -457,6 +461,38 @@ describe("gross profit by สูตรอาหาร (ADR 0022 Part 22 L3d)", (
           countedAt: new Date(addDays(FROM, -1).getTime() + 10 * 3_600_000),
           countedBy: userA,
         },
+        select: { id: true },
+      });
+      openingItemId = item.id;
+    });
+
+    await setMethod("PERIODIC_INVENTORY");
+    const s = await summary();
+    expect(s.cogsSold).toBeNull();
+    expect(s.grossProfitBlocker).toEqual({ kind: "NO_CLOSING_COUNT" });
+    const v = await view();
+    expect(v.grossProfitNote).toContain("ยังไม่ได้นับสต๊อกปิดงวด");
+    await setMethod("RECIPE_CONSUMPTION");
+  });
+
+  it("G-09b counted at both ends, นับสต๊อก answers", async () => {
+    // Today, twelve kilos — again exactly what the ledger holds.
+    await withRlsBypass(async (tx) => {
+      const sc = await tx.stockCount.create({
+        data: {
+          tenantId: tenantA,
+          branchId: branchA,
+          scNumber: "THL-SC-0002",
+          countDate: today,
+          status: "CLOSED",
+          startedBy: userA,
+          closedAt: new Date(),
+          closedBy: userA,
+        },
+        select: { id: true },
+      });
+      await tx.stockCountItem.create({
+        data: { tenantId: tenantA, stockCountId: sc.id, productId: pork.id, lineNo: 1, qtyCounted: 12, qtyExpected: 12, countedAt: new Date(), countedBy: userA },
       });
     });
 
@@ -470,6 +506,23 @@ describe("gross profit by สูตรอาหาร (ADR 0022 Part 22 L3d)", (
     expect(s.cogsSold?.toString()).toBe("800");
     expect(s.grossProfit?.toString()).toBe("800");
     await setMethod("RECIPE_CONSUMPTION");
+  });
+
+  it("G-11 an opening count more than 7 days before the boundary day does not open the period (PG2)", async () => {
+    // The boundary day is FROM−1; the window is FROM−8 … FROM−1, the same days
+    // that would close the month before — one count closes one month and opens the next.
+    const moveTo = (day: Date) =>
+      withRlsBypass((tx) => tx.stockCountItem.update({ where: { id: openingItemId }, data: { countedAt: new Date(day.getTime() + 10 * 3_600_000) } }));
+    await setMethod("PERIODIC_INVENTORY");
+    try {
+      await moveTo(addDays(FROM, -9));
+      expect((await summary()).grossProfitBlocker).toEqual({ kind: "NO_OPENING_COUNT" });
+      await moveTo(addDays(FROM, -8));
+      expect((await summary()).grossProfitBlocker).toBeNull();
+    } finally {
+      await moveTo(addDays(FROM, -1));
+      await setMethod("RECIPE_CONSUMPTION");
+    }
   });
 
   it("G-10 stock nobody has priced keeps นับสต๊อก at '—', and says how many", async () => {

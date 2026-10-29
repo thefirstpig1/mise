@@ -24,11 +24,12 @@ import type { PrismaClient, StockCount, StockCountStatus } from "@prisma/client"
 import { withTenantContext } from "@/lib/db";
 import { assertRefBelongsToTenant } from "@/server/product";
 import { acquireCounterLock } from "@/server/counter-lock";
-import { createStockMovementLogic, toBaseQty } from "@/server/stock-movement";
+import { createStockMovementLogic, occurredAtFilter, toBaseQty } from "@/server/stock-movement";
+import { countWindows } from "@/lib/gross-profit-blocker";
 import { getProductCostsLogic } from "@/server/stock-cost";
 import { getProductCostsQuerySchema } from "@/lib/validations/stock-cost";
 import type { CostAccess } from "@/lib/permissions/cost-access";
-import type { BranchReach } from "@/lib/permissions/service";
+import { branchScopeWhere, type BranchReach } from "@/lib/permissions/service";
 import { settleCountedPreppedInTx, voidProductionInTx } from "@/server/production";
 import type {
   CloseStockCountInput,
@@ -913,5 +914,49 @@ export async function deleteStockCountDraftLogic(
       where: { id: count.id },
       data: { deletedAt: new Date() },
     });
+  });
+}
+
+/**
+ * Rule PG2's reminder (Kong 2026-10-30, proposal E): on the month's last two
+ * days, a นับสต๊อก shop is told to count tonight (or tomorrow night) — the
+ * count its gross profit for the month cannot be worked out without. Lists the
+ * branches in reach with no closed count inside the month's closing window
+ * yet; null when the reminder does not apply (another method, not the last two
+ * days, or nothing to count).
+ */
+export async function monthEndCountDueLogic(
+  tenantId: string,
+  reach: BranchReach,
+  today: Date
+): Promise<{ lastDay: Date; branches: { id: string; name: string }[] } | null> {
+  const lastDay = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 1, 0));
+  const daysLeft = Math.round((lastDay.getTime() - today.getTime()) / 86_400_000);
+  if (daysLeft > 1) return null;
+  const month = occurredAtFilter(new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1)), lastDay) as { gte: Date; lt: Date };
+  const { closing } = countWindows(month, month.lt);
+  return withTenantContext(tenantId, async (tx) => {
+    const tenant = await tx.tenant.findUniqueOrThrow({ where: { id: tenantId }, select: { grossProfitMethod: true } });
+    if (tenant.grossProfitMethod !== "PERIODIC_INVENTORY") return null;
+    if (!(await tx.product.findFirst({ where: { tenantId, deletedAt: null }, select: { id: true } }))) return null;
+    const branches = await tx.branch.findMany({
+      where: { tenantId, deletedAt: null, ...branchScopeWhere(reach) },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    });
+    const counted = await tx.stockCount.findMany({
+      where: {
+        tenantId,
+        branchId: { in: branches.map((b) => b.id) },
+        status: "CLOSED",
+        deletedAt: null,
+        items: { some: { countedAt: closing, reversalOfItemId: null } },
+      },
+      select: { branchId: true },
+      distinct: ["branchId"],
+    });
+    const done = new Set(counted.map((c) => c.branchId));
+    const due = branches.filter((b) => !done.has(b.id));
+    return due.length ? { lastDay, branches: due } : null;
   });
 }

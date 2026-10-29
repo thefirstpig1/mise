@@ -1,12 +1,14 @@
 import { Suspense, type ReactNode } from "react";
 import { requireTenant } from "@/lib/require-tenant";
-import { ONBOARDING_STEPS, getOnboardingLogic, type OnboardingStep } from "@/server/onboarding";
+import { getOnboardingLogic, type OnboardingStep } from "@/server/onboarding";
 import OnboardingCard, { type OnboardingStepView } from "./_components/OnboardingCard";
 import { withTenantContext } from "@/lib/db";
 import { computeBangkokToday } from "@/lib/bangkok-date";
 import { getBranchesLogic } from "@/server/branch";
 import { getPnlLogic, getRevenueByDayLogic, narrowReach, type Pnl, type PnlBranchRow } from "@/server/pnl";
+import { latestCountedMonthLogic } from "@/server/stock-cost";
 import { getDueRecurringLogic } from "@/server/expense";
+import { monthEndCountDueLogic } from "@/server/stock-count";
 import { getSalesSummaryLogic } from "@/server/sales";
 import { getPriceWatchLogic } from "@/server/price-watch";
 import { LABOR_SECTIONS } from "@/server/cost-overview";
@@ -26,7 +28,7 @@ import { SERIES } from "@/components/charts/chart-theme";
 import { MonthlyTrend, type MenuBar, type RevenueRow } from "./_components/Charts";
 import { DailySalesBars, TopMenusCard } from "./_components/DashboardParts";
 import { isoDay, parseBranchParam, parsePreset, periodFor, type Period } from "./_components/dashboard-period";
-import { grossProfitBlockerShort } from "@/lib/gross-profit-blocker";
+import { grossProfitBlockerShort, isCountBlocker, purchasesLookLow } from "@/lib/gross-profit-blocker";
 
 // ============================================================
 // Mise — แดชบอร์ด (rewritten in Part 35 L5)
@@ -62,14 +64,35 @@ const num = (d: { toString(): string } | null) => (d === null ? null : Number(d.
 const pct1 = (n: number) => `${n.toFixed(1)}%`;
 const short = (name: string) => name.replace(/^สาขา/, "");
 
-const SETUP_STEPS: Record<OnboardingStep, Omit<OnboardingStepView, "key" | "done">> = {
-  shop: { title: "ตรวจตั้งค่าร้าน", hint: "วิธีคิดกำไร บิลที่ยกเลิก และมื้อพนักงาน ให้ตรงกับที่ร้านทำ", cta: "ตรวจตั้งค่า", href: "/settings" },
-  supplier: { title: "เพิ่มผู้ขาย", hint: "ร้านที่ซื้อของประจำ พร้อมวิธีจ่ายเงิน", cta: "เพิ่มผู้ขาย", href: "/suppliers/new" },
-  product: { title: "เพิ่มสินค้าและวัตถุดิบ", hint: "พร้อมหน่วยที่ซื้อ เช่น ลัง 24 ขวด · กระสอบ 50 กก.", cta: "เพิ่มสินค้า", href: "/products/new" },
-  sales: { title: "นำเข้ายอดขายวันแรก", hint: "ไฟล์จาก POS ที่ร้านใช้ ตั้งครั้งเดียวแล้วใช้ได้ทุกวัน", cta: "นำเข้ายอดขาย", href: "/sales/import" },
-  count: { title: "นับสต๊อกครั้งแรก", hint: "จุดเริ่มต้นของต้นทุนและของหาย", cta: "เริ่มนับ", href: "/stock-counts/new" },
-  team: { title: "เชิญคนในร้าน", hint: "ครัว จัดซื้อ แคชเชียร์ แต่ละคนเห็นเฉพาะที่ต้องใช้", cta: "เชิญคน", href: "/settings/members" },
-};
+// Ordered as the setup flow runs (src/server/onboarding.ts). The count step
+// names its night: the month's last, after closing — that count is the next
+// month's opening stock (rule PG2).
+function setupStep(key: OnboardingStep, today: Date): Omit<OnboardingStepView, "key" | "done"> {
+  switch (key) {
+    case "shop":
+      return { title: "ตรวจตั้งค่าร้าน", hint: "วิธีคิดกำไร บิลที่ยกเลิก และมื้อพนักงาน ให้ตรงกับที่ร้านทำ", cta: "ตรวจตั้งค่า", href: "/settings" };
+    case "team":
+      return { title: "เชิญคนในร้าน", hint: "ครัว จัดซื้อ แคชเชียร์ แต่ละคนเห็นเฉพาะที่ต้องใช้", cta: "เชิญคน", href: "/settings/members" };
+    case "supplier":
+      return { title: "เพิ่มผู้ขาย", hint: "ร้านที่ซื้อของประจำ พร้อมวิธีจ่ายเงิน", cta: "เพิ่มผู้ขาย", href: "/suppliers/new" };
+    case "product":
+      return { title: "เพิ่มวัตถุดิบให้ครบทุกตัวที่จะนับ", hint: "พร้อมหน่วยที่ซื้อ เช่น ลัง 24 ขวด · ของที่ไม่อยู่ในรายการจะไม่ถูกนับ", cta: "เพิ่มวัตถุดิบ", href: "/products/new" };
+    case "sales":
+      return { title: "นำเข้ายอดขาย", hint: "ไฟล์จาก POS ที่ร้านใช้ ย้อนหลังได้ ตั้งครั้งเดียวแล้วใช้ได้ทุกวัน", cta: "นำเข้ายอดขาย", href: "/sales/import" };
+    case "recipe":
+      return { title: "เขียนสูตรเมนูขายดี", hint: "ร้านนี้คิดกำไรจากสูตร เริ่มจากเมนูที่ขายมากที่สุดก่อน", cta: "เขียนสูตร", href: "/menus" };
+    case "count": {
+      const last = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 1, 0));
+      const night = last.toLocaleDateString("th-TH", { day: "numeric", month: "short", timeZone: "UTC" });
+      return {
+        title: last.getTime() === today.getTime() ? `นับเปิดระบบ คืนนี้ (${night})` : `นับเปิดระบบ คืนวันที่ ${night}`,
+        hint: "หลังปิดร้าน ทุกรายการพร้อมราคาทุน · ยอดที่นับคืนนั้นเป็นสต๊อกต้นงวดของเดือนถัดไป",
+        cta: "เริ่มนับ",
+        href: "/stock-counts/new",
+      };
+    }
+  }
+}
 
 /** A setup nearly done shrinks to one chip in the strip; a new shop still gets the whole checklist. */
 const SETUP_CHIP_FROM = 4;
@@ -118,6 +141,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
             membership.tenant.dailyCloseEnabled ? { branches: branches.map((b) => ({ id: b.id, name: b.name })), canFill: can("sales:import") } : null
           }
           purchaseBranches={can("purchase:approve") ? branches.map((b) => ({ id: b.id, name: b.name })) : []}
+          monthCount={can("count:write")}
         />
       </Suspense>
 
@@ -165,6 +189,7 @@ async function TodayStrip({
   pulse,
   dailyClose,
   purchaseBranches,
+  monthCount,
 }: {
   tenantId: string;
   reach: Awaited<ReturnType<typeof requireTenant>>["reach"];
@@ -179,9 +204,11 @@ async function TodayStrip({
   pulse: boolean;
   dailyClose: { branches: { id: string; name: string }[]; canFill: boolean } | null;
   purchaseBranches: { id: string; name: string }[];
+  /** Rule PG2 — this reader may count, so remind them on the month's last two days. */
+  monthCount: boolean;
 }) {
   const today = computeBangkokToday();
-  const [transfers, pulseRaw, requests, closeStatus, onboarding, draftCount, overdue] = await Promise.all([
+  const [transfers, pulseRaw, requests, closeStatus, onboarding, draftCount, overdue, countDue] = await Promise.all([
     // Part 18 Q8: any truck still unconfirmed, whatever the chips say.
     getTransfersLogic(tenantId, getTransfersQuerySchema.parse({ status: "SENT", includeReversalLines: "false" }), reach),
     pulse ? getPulseDashboardLogic(tenantId, reach) : Promise.resolve(null),
@@ -192,9 +219,23 @@ async function TodayStrip({
     drafts ? draftsWaiting(tenantId, userId, drafts.shared) : Promise.resolve(0),
     // C2: every recurring bill already due and not recorded, up to today.
     expenses ? missingRecurring(tenantId, { from: new Date(Date.UTC(2000, 0, 1)), to: today }, expenses) : Promise.resolve([]),
+    monthCount ? monthEndCountDueLogic(tenantId, reach, today) : Promise.resolve(null),
   ]);
 
   const items: StripItem[] = [];
+  if (countDue) {
+    // Rule PG2: without tonight's count the month's gross profit stays "—".
+    const tonight = countDue.lastDay.getTime() === today.getTime();
+    const month = countDue.lastDay.toLocaleDateString("th-TH", { month: "short", year: "2-digit", timeZone: "UTC" });
+    items.push({
+      key: "month-count",
+      n: String(countDue.branches.length),
+      label: tonight ? "คืนนี้นับปิดเดือน" : "พรุ่งนี้นับปิดเดือน",
+      detail: `${countDue.branches.length > 1 ? `${countDue.branches.map((b) => short(b.name)).join(" · ")} — ` : ""}หลังปิดร้าน · ใช้คิดกำไรของ ${month}`,
+      href: "/stock-counts/new",
+      tone: tonight ? "do" : "soft",
+    });
+  }
   if (closeStatus && dailyClose) {
     const nameOf = (id: string) => short(dailyClose.branches.find((b) => b.id === id)?.name ?? "");
     const open = closeStatus.branches.filter((b) => !b.today);
@@ -255,11 +296,11 @@ async function TodayStrip({
   }
   if (draftCount > 0) items.push({ key: "drafts", n: String(draftCount), label: "ร่างสูตรรอคุณ", detail: "ในทดลองเมนู", href: "/menus/lab", tone: "soft" });
 
-  const setupSteps = onboarding ? ONBOARDING_STEPS.map((key) => ({ key, done: onboarding.done[key], ...SETUP_STEPS[key] })) : [];
-  const setupOpen = onboarding && !onboarding.dismissed && onboarding.doneCount < ONBOARDING_STEPS.length;
+  const setupSteps = onboarding ? onboarding.steps.map((key) => ({ key, done: onboarding.done[key], ...setupStep(key, today) })) : [];
+  const setupOpen = onboarding && !onboarding.dismissed && onboarding.doneCount < onboarding.steps.length;
   if (onboarding && setupOpen && onboarding.doneCount >= SETUP_CHIP_FROM) {
     const next = setupSteps.find((s) => !s.done)!;
-    items.push({ key: "setup", n: `${onboarding.doneCount}/${ONBOARDING_STEPS.length}`, label: "เริ่มต้นใช้งาน", detail: `เหลือ${next.title}`, href: next.href, tone: "soft" });
+    items.push({ key: "setup", n: `${onboarding.doneCount}/${onboarding.steps.length}`, label: "เริ่มต้นใช้งาน", detail: `เหลือ${next.title}`, href: next.href, tone: "soft" });
   }
 
   const pulseView = pulseRaw ? toPulseDashboardView(pulseRaw) : null;
@@ -383,7 +424,7 @@ async function Analytics({
   const branchRows = pnl.branches.filter((b) => num(b.revenue));
   const branchFood = (b: PnlBranchRow) => (num(b.revenue) && b.cogs !== null ? (num(b.cogs)! / num(b.revenue)!) * 100 : null);
   const branchNet = (b: PnlBranchRow) => (num(b.revenue) && b.netProfit !== null ? (num(b.netProfit)! / num(b.revenue)!) * 100 : null);
-  // Rule PG1: when นับสต๊อก withheld a branch's profit, say what is missing
+  // Rules PG1/PG2: when นับสต๊อก withheld a branch's profit, say what is missing
   // there and send the reader to fix THAT — counting, or pricing stock.
   const blocked = pnl.branches.filter((b) => b.revenue !== null && b.grossProfit === null && b.grossProfitBlocker);
   const blockerWhy = blocked.length
@@ -392,11 +433,33 @@ async function Analytics({
       : grossProfitBlockerShort(blocked[0].grossProfitBlocker!)
     : null;
   const allBlocked = blockerWhy !== null && blocked.length === pnl.branchesMissingGrossProfit.length;
-  const blockerFix = blocked.some((b) => b.grossProfitBlocker!.kind === "NO_OPENING_COUNT")
+  const blockerFix = blocked.some((b) => isCountBlocker(b.grossProfitBlocker))
     ? { href: "/stock-counts/new", action: "นับสต๊อก" }
     : blocked.length
       ? { href: "/cost", action: "ใส่ราคาทุน" }
       : { href: "/cost", action: "ดูที่หน้าต้นทุน" };
+  // Rule PG2: นับสต๊อก answers month by month, so while this one runs (or was
+  // never counted) show the latest month that WAS counted at both ends —
+  // named, never passed off as this period. Streamed: the cards paint first.
+  const countGap = pnl.unknownReason === "GROSS_PROFIT_UNKNOWN" && allBlocked && blocked.every((b) => isCountBlocker(b.grossProfitBlocker));
+  const countedP: Promise<Counted | null> =
+    seeGross && countGap
+      ? latestCountedMonthLogic(tenantId, narrowReach(reach, selected))
+          .then(async (m) => (m && m.from.getTime() !== period.from.getTime() ? { from: m.from, to: m.to, pnl: await getPnlLogic(tenantId, { ...m, branchIds: selected }, reach) } : null))
+          .catch((e) => {
+            console.error("[dashboard] counted-month P&L failed", e);
+            return null;
+          })
+      : Promise.resolve(null);
+  const countedQs = selected.length ? `&b=${selected.join(",")}` : "";
+  // Rule PG3: judged on the whole shop only — a branch fed by a central
+  // kitchen's transfers buys little of its own and would be flagged wrongly.
+  const purchases = pnl.branches.reduce((s, b) => s + Number(b.purchases.toString()), 0);
+  const buyingLow =
+    seeGross &&
+    period.preset !== "7d" &&
+    (selected.length === 0 || selected.length === chips.length) &&
+    purchasesLookLow({ purchases, revenue, salesDays: days.cur, foodTargetPct: targets.food });
   const unknownWhy =
     pnl.unknownReason === "GROSS_PROFIT_UNKNOWN"
       ? allBlocked
@@ -475,6 +538,19 @@ async function Analytics({
               {foodPct !== null && ` · ${foodPct > targets.food ? `เกินเป้า ${(foodPct - targets.food).toFixed(1)} จุด` : `ต่ำกว่าเป้า ${(targets.food - foodPct).toFixed(1)} จุด`}`}
               {primePct !== null && ` · Prime cost (รวมค่าแรง) ${pct1(primePct)} เป้า ${pct1(targets.prime)}`}
             </p>
+            {countGap ? (
+              <Suspense fallback={null}>
+                <CountedMonth p={countedP} show="food" qs={countedQs} />
+              </Suspense>
+            ) : null}
+            {buyingLow && revenue ? (
+              <Why href="/my-advances" action="ซื้อเอง / สำรองจ่าย">
+                {purchases > 0
+                  ? `บันทึกซื้อวัตถุดิบช่วงนี้ ${baht(purchases)} = ${pct1((purchases / revenue) * 100)} ของยอดขาย ไม่ถึงครึ่งของเป้าต้นทุนอาหาร ${pct1(targets.food)}`
+                  : "ช่วงนี้มียอดขายแต่ยังไม่มีบิลซื้อวัตถุดิบเลย"}{" "}
+                — ถ้าซื้อเงินสดจากตลาดด้วย บันทึกไว้ ต้นทุนจะได้ไม่ต่ำกว่าจริง
+              </Why>
+            ) : null}
             {unknownWhy ? (
               pnl.unknownReason === "NO_SALES" ? (
                 <Why href="/sales/import" action="นำเข้าไฟล์ยอดขาย">{unknownWhy}</Why>
@@ -506,6 +582,11 @@ async function Analytics({
             </p>
             {multi || net === null ? <MiniBars rows={branchRows.map((b) => ({ name: short(b.branchName), value: branchNet(b), note: b.netProfit === null ? null : baht(num(b.netProfit)!) }))} scale={100} /> : null}
             {net !== null && revenue ? <p className="text-xs text-muted-subtle">{pct1((net / revenue) * 100)} ของยอดขาย{missing.length > 0 && " · ยังไม่หักบิลประจำที่ค้าง"}</p> : null}
+            {countGap ? (
+              <Suspense fallback={null}>
+                <CountedMonth p={countedP} show="net" qs={countedQs} />
+              </Suspense>
+            ) : null}
             {net === null && unknownWhy && allBlocked ? (
               <Why href={blockerFix.href} action={blockerFix.action}>{multi ? `ทั้งร้านยังคิดไม่ได้ — ${unknownWhy}` : unknownWhy}</Why>
             ) : net === null && unknownWhy ? <Why>{"ทั้งร้านยังคิดไม่ได้ — " + unknownWhy}</Why> : missingNote ? <Why href="/expenses" action="บันทึกบิล">ยังไม่หักบิลประจำที่ค้าง — สูงกว่าจริง</Why> : null}
@@ -676,6 +757,31 @@ function DeltaChip({ pct, goodWhenUp }: { pct: number; goodWhenUp: boolean }) {
 }
 
 /** "ส.ค. 69 ฿172,330" — joins the line when the previous period arrives. */
+type Counted = { from: Date; to: Date; pnl: Pnl };
+
+/** Rule PG2: the latest month นับสต๊อก could answer for, named and one click away. */
+async function CountedMonth({ p, show, qs }: { p: Promise<Counted | null>; show: "food" | "net"; qs: string }) {
+  const c = await p;
+  if (!c) return null;
+  const revenue = num(c.pnl.revenue);
+  const figure =
+    show === "food"
+      ? revenue && c.pnl.cogs !== null
+        ? `ต้นทุนอาหาร ${pct1((num(c.pnl.cogs)! / revenue) * 100)}`
+        : null
+      : c.pnl.netProfit !== null
+        ? `กำไรสุทธิ ${baht(num(c.pnl.netProfit)!)}${revenue ? ` · ${pct1((num(c.pnl.netProfit)! / revenue) * 100)} ของยอดขาย` : ""}`
+        : null;
+  if (!figure) return null;
+  return (
+    <p className="text-xs text-muted-foreground">
+      <a href={`/dashboard?p=${isoDay(c.from).slice(0, 7)}${qs}`} className="hover:text-primary hover:underline">
+        {periodLabelTh(isoDay(c.from), isoDay(c.to))} (เดือนล่าสุดที่นับสต๊อกครบ): {figure} ›
+      </a>
+    </p>
+  );
+}
+
 async function PrevAmount({ prevP, vs, pick }: { prevP: Promise<Pnl | null>; vs: string; pick: (p: Pnl) => number | null }) {
   const prev = await prevP;
   const v = prev ? pick(prev) : null;

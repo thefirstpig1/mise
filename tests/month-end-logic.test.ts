@@ -30,7 +30,8 @@ import { createWasteInputSchema } from "@/lib/validations/waste";
 import { dispatchTransferLogic } from "@/server/transfer";
 import { dispatchTransferInputSchema } from "@/lib/validations/transfer";
 import { getMonthEndLogic, lastClosedMonth, monthBounds, type MonthEndBranch } from "@/server/month-end";
-import { getBranchCostSummaryLogic } from "@/server/stock-cost";
+import { getBranchCostSummaryLogic, latestCountedMonthLogic } from "@/server/stock-cost";
+import { monthEndCountDueLogic } from "@/server/stock-count";
 import { getAccountingExportSettingsLogic, saveAccountingExportSettingsLogic } from "@/server/accounting-export-settings";
 import { sweepTestTenants } from "./support/sweep";
 import { EVERY_BRANCH, onlyBranches } from "./support/reach";
@@ -193,9 +194,11 @@ describe("month-end close (rules ME1–ME6)", () => {
     };
   }, 120_000);
 
+  // The sweep walks every tenant-scoped table; under a full parallel run it
+  // passed the default 10 s (2026-10-30), as the other ledger specs' do.
   afterAll(async () => {
     await sweepTestTenants(prismaBypass, { ids: [tenant] });
-  });
+  }, 180_000);
 
   it("ME2 a month of deliveries with nothing used costs nothing — purchases carry the VAT the stock carries", async () => {
     const prev = await getMonthEndLogic(tenant, prevMonth, EVERY_BRANCH);
@@ -257,6 +260,15 @@ describe("month-end close (rules ME1–ME6)", () => {
       await tx.stockCountItem.create({
         data: { tenantId: tenant, stockCountId: sc.id, productId: rice.id, lineNo: 1, qtyCounted: 0, qtyExpected: 0, countedAt: before, countedBy: user },
       });
+      // Rule PG2: and its end — the month's last day, 50 kg on the shelf, as the ledger says.
+      const last = monthBounds(prevMonth).to;
+      const close = await tx.stockCount.create({
+        data: { tenantId: tenant, branchId: thonglor, scNumber: "THL-SC-9002", countDate: last, status: "CLOSED", startedBy: user, closedAt: last, closedBy: user },
+        select: { id: true },
+      });
+      await tx.stockCountItem.create({
+        data: { tenantId: tenant, stockCountId: close.id, productId: rice.id, lineNo: 1, qtyCounted: 50, qtyExpected: 50, countedAt: last, countedBy: user },
+      });
     });
     const rows = await getBranchCostSummaryLogic(tenant, monthBounds(prevMonth), EVERY_BRANCH);
     const t = rows.find((r) => r.branchId === thonglor)!;
@@ -267,6 +279,32 @@ describe("month-end close (rules ME1–ME6)", () => {
     // Nothing was used: cost of sales is 0, not −140, and gross profit is the whole ฿500.
     expect(Number(t.cogsSold)).toBe(0);
     expect(Number(t.grossProfit)).toBe(500);
+  });
+
+  it("PG2 fallback: the dashboard names the latest month counted at both ends — and only while both counts stand", async () => {
+    // Ari sold nothing that month, so only Thonglor needs its two counts.
+    const m = await latestCountedMonthLogic(tenant, EVERY_BRANCH);
+    expect(m).toEqual(monthBounds(prevMonth));
+
+    // The closing count moved nine days before the month's last day no longer closes it.
+    const last = monthBounds(prevMonth).to;
+    const where = { tenantId: tenant, stockCount: { scNumber: "THL-SC-9002" } };
+    await withRlsBypass((tx) => tx.stockCountItem.updateMany({ where, data: { countedAt: addDays(last, -9) } }));
+    try {
+      expect(await latestCountedMonthLogic(tenant, EVERY_BRANCH)).toBeNull();
+    } finally {
+      await withRlsBypass((tx) => tx.stockCountItem.updateMany({ where, data: { countedAt: last } }));
+    }
+  });
+
+  it("PG2 reminder: the month's last two days name the branches still to count, and no other day does", async () => {
+    const last = monthBounds(prevMonth).to;
+    // Thonglor counted on the last day; Ari never did.
+    const onLast = await monthEndCountDueLogic(tenant, EVERY_BRANCH, last);
+    expect(onLast?.lastDay).toEqual(last);
+    expect(onLast?.branches.map((b) => b.id)).toEqual([ari]);
+    expect((await monthEndCountDueLogic(tenant, EVERY_BRANCH, addDays(last, -1)))?.branches.map((b) => b.id)).toEqual([ari]);
+    expect(await monthEndCountDueLogic(tenant, EVERY_BRANCH, addDays(last, -2))).toBeNull();
   });
 
   it("ME1 this month's opening stock is last month's closing, to the satang", async () => {

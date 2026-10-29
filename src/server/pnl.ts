@@ -72,6 +72,8 @@ export interface PnlBranchRow {
   shortage: Prisma.Decimal;
   /** Rule PG1: why นับสต๊อก withheld this branch's gross profit, when it did. */
   grossProfitBlocker: GrossProfitBlocker | null;
+  /** Materials bought in the period at what they cost the shop (/cost's purchasesAtCost) — rule PG3's measure. */
+  purchases: Prisma.Decimal;
 }
 
 export interface PnlSection {
@@ -126,6 +128,7 @@ function rowFrom(b: BranchCostSummary): PnlBranchRow {
     waste: b.wasteValue,
     shortage: b.varianceValue,
     grossProfitBlocker: b.grossProfitBlocker,
+    purchases: b.purchasesAtCost,
   };
 }
 

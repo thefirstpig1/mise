@@ -26,8 +26,10 @@ describe("onboarding checklist", () => {
   it("O1 — a brand-new shop has done nothing, even though signup wrote the tenant", async () => {
     const { tenantId, membershipId } = await newShop();
     const o = await getOnboardingLogic(tenantId, membershipId);
-    expect(o.done).toEqual({ shop: false, supplier: false, product: false, sales: false, count: false, team: false });
+    expect(o.done).toEqual({ shop: false, team: false, supplier: false, product: false, sales: false, recipe: false, count: false });
     expect(o.doneCount).toBe(0);
+    // In the order the setup runs, the count last; no recipe step under นับสต๊อก (the default).
+    expect(o.steps).toEqual(["shop", "team", "supplier", "product", "sales", "count"]);
     expect(o.dismissed).toBe(false);
   });
 
@@ -41,6 +43,14 @@ describe("onboarding checklist", () => {
     expect(o.done.shop).toBe(true);
     expect(o.done.product).toBe(false);
     expect(o.doneCount).toBe(2);
+  });
+
+  it("O4 — a shop that costs by recipe has a recipe step before the count", async () => {
+    const { tenantId, membershipId } = await newShop();
+    await prismaBypass.tenant.update({ where: { id: tenantId }, data: { grossProfitMethod: "RECIPE_CONSUMPTION" } });
+    const o = await getOnboardingLogic(tenantId, membershipId);
+    expect(o.steps).toEqual(["shop", "team", "supplier", "product", "sales", "recipe", "count"]);
+    expect(o.done.recipe).toBe(false);
   });
 
   it("O3 — hiding is per membership and can be undone", async () => {
