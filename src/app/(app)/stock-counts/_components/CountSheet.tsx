@@ -35,6 +35,7 @@ import EmptyState from "@/components/ui/EmptyState";
 import { Portal, useTopLayer } from "@/app/(app)/menus/_components/sheet-parts";
 import type { PreppedHint } from "@/server/production-read";
 import { useKeepForm } from "@/lib/keep-form";
+import OpeningPrices, { type OpeningPrice } from "./OpeningPrices";
 
 const POLL_MS = 5_000;
 const NO_CATEGORY = "ไม่มีหมวด";
@@ -68,8 +69,11 @@ export default function CountSheet({
   removeLine,
   close,
   voidCount,
+  opening,
 }: {
   initial: StockCountDetailView;
+  /** Rule PG4: the branch's first count — what it finds is the stock it starts from (ยอดยกมา). */
+  opening: boolean;
   products: CountProduct[];
   /**
    * Cost per base unit, as a string, for valuing a variance (ADR 0015 Q4).
@@ -109,6 +113,7 @@ export default function CountSheet({
   const [closeOpen, setCloseOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [voidOpen, setVoidOpen] = useState(false);
+  const [prices, setPrices] = useState<OpeningPrice[]>([]);
 
   const [closeState, closeAction, closing] = useActionState(close, { ok: false } as StockCountActionState);
   const closeActionKeep = useKeepForm(closeAction, closeState);
@@ -377,6 +382,7 @@ export default function CountSheet({
             <h2 className="flex flex-wrap items-center gap-2 text-lg font-bold leading-tight">
               {detail.scNumber}
               <StatusBadge status={detail.status} />
+              {opening && <span className="inline-block whitespace-nowrap rounded-full border border-primary-line bg-primary-soft px-2 py-0.5 text-xs font-normal text-primary">นับเปิดระบบ</span>}
             </h2>
             <p className="truncate text-xs text-muted-foreground">
               {detail.branchName} · {detail.countDateLabel}
@@ -408,7 +414,7 @@ export default function CountSheet({
             aria-expanded={helpOpen}
             className="block w-full text-left text-xs text-muted-foreground"
           >
-            กรอกจำนวนแล้วกดยืนยัน · ไม่ได้นับไม่ต้องใส่
+            {opening && "ใบนับแรกของสาขา = สต๊อกตั้งต้น (ยอดยกมา) · "}กรอกจำนวนแล้วกดยืนยัน · ไม่ได้นับไม่ต้องใส่
             {preppedRows.length > 0 && <span> · ของแปรรูปที่นับได้เกิน ลงเป็นการผลิต</span>}{" "}
             <span className="underline">{helpOpen ? "ย่อ" : "อ่านต่อ"}</span>
           </button>
@@ -495,7 +501,7 @@ export default function CountSheet({
       {detail.status === "CLOSED" && (
         <div className="rounded-lg border border-good-border bg-good-bg p-3 text-sm text-good">
           ปิดใบแล้วเมื่อ {detail.closedAtLabel}
-          {detail.closedBy && ` โดย ${detail.closedBy}`} — ส่วนต่างถูกบันทึกเข้าคลังเรียบร้อย
+          {detail.closedBy && ` โดย ${detail.closedBy}`} — {opening ? "ยอดยกมาถูกบันทึกเข้าคลังเรียบร้อย" : "ส่วนต่างถูกบันทึกเข้าคลังเรียบร้อย"}
         </div>
       )}
       {detail.status === "CLOSED" && preppedCounted > 0 && (
@@ -562,7 +568,7 @@ export default function CountSheet({
       {detail.showExpected && countedCount > 0 && (
         <div className={`grid gap-3 ${varianceValue !== null ? "sm:grid-cols-2" : ""}`}>
           <div className="rounded-lg border border-border p-4">
-            <p className="text-xs text-muted-foreground">ขาด / เกิน (จำนวน)</p>
+            <p className="text-xs text-muted-foreground">{opening ? "ต่างจากระบบ · ส่วนที่เกินคือยอดยกมา" : "ขาด / เกิน (จำนวน)"}</p>
             <p className="mt-1 text-lg font-semibold tabular-nums">
               {/* Over is warn, not good: a surplus is evidence the ledger was wrong. */}
               <span className="text-bad">−{formatQty(detail.totalShortQty)}</span>
@@ -576,7 +582,7 @@ export default function CountSheet({
           </div>
           {varianceValue !== null && (
             <div className="rounded-lg border border-border p-4">
-              <p className="text-xs text-muted-foreground">มูลค่าส่วนต่าง (ประมาณ)</p>
+              <p className="text-xs text-muted-foreground">{opening ? "มูลค่าส่วนต่างจากระบบ (ประมาณ)" : "มูลค่าส่วนต่าง (ประมาณ)"}</p>
               <p className={`mt-1 text-2xl font-semibold tabular-nums ${varianceValue < 0 ? "text-bad" : ""}`}>
                 {formatMoney(String(varianceValue))}
               </p>
@@ -660,9 +666,16 @@ export default function CountSheet({
         <CloseSheet onClose={() => setCloseOpen(false)}>
           <form {...closeActionKeep} className="space-y-4">
             <input type="hidden" name="id" value={detail.id} />
+            {opening && costByProduct && <input type="hidden" name="prices" value={JSON.stringify(prices)} />}
             <h3 id="close-title" className="text-lg font-semibold">
-              ปิดใบนับ {detail.scNumber}?
+              {opening ? "ปิดใบนับเปิดระบบ" : "ปิดใบนับ"} {detail.scNumber}?
             </h3>
+            {opening && (
+              <p className="text-sm text-muted-foreground">
+                ยอดที่นับได้คือสต๊อกตั้งต้นของสาขา (ยอดยกมา) ไม่ใช่ของเกิน
+                {!costByProduct && " · ระบบใส่ราคาให้จากต้นทุนที่มีและราคาที่ตั้งไว้กับผู้ขาย รายการที่ยังไม่มีราคา คนที่ดูต้นทุนได้ใส่ภายหลังที่หน้าต้นทุน"}
+              </p>
+            )}
             <p className="flex items-baseline gap-2">
               <span className="text-3xl font-semibold tabular-nums">{countedCount}</span>
               <span className="text-muted-foreground">จาก {rows.length} รายการที่นับแล้ว</span>
@@ -683,8 +696,9 @@ export default function CountSheet({
                 </button>
               </div>
             )}
+            {opening && costByProduct && <OpeningPrices countId={detail.id} onChange={setPrices} />}
             <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
-              <li>ปิดแล้วระบบบันทึกส่วนต่างเข้าคลังทันที และแก้ใบนี้ไม่ได้อีก</li>
+              <li>{opening ? "ปิดแล้วระบบบันทึกยอดยกมาพร้อมราคาเข้าคลังทันที และแก้ใบนี้ไม่ได้อีก" : "ปิดแล้วระบบบันทึกส่วนต่างเข้าคลังทันที และแก้ใบนี้ไม่ได้อีก"}</li>
               <li>ถ้าปิดผิด ยกเลิกทั้งใบได้ ระบบจะคืนสต๊อกให้เหมือนเดิม</li>
             </ul>
             {closeError && (
@@ -692,7 +706,7 @@ export default function CountSheet({
             )}
             <div className="space-y-2">
               <button type="submit" disabled={closing} className="btn h-12 w-full text-base">
-                {closing ? "กำลังปิด…" : "ปิดใบนับและบันทึกส่วนต่าง"}
+                {closing ? "กำลังปิด…" : opening ? "ปิดใบนับและบันทึกยอดยกมา" : "ปิดใบนับและบันทึกส่วนต่าง"}
               </button>
               <button
                 type="button"

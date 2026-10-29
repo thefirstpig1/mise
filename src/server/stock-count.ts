@@ -31,6 +31,7 @@ import { getProductCostsQuerySchema } from "@/lib/validations/stock-cost";
 import type { CostAccess } from "@/lib/permissions/cost-access";
 import { branchScopeWhere, type BranchReach } from "@/lib/permissions/service";
 import { settleCountedPreppedInTx, voidProductionInTx } from "@/server/production";
+import { writeCostDeclaration } from "@/server/cost-declaration";
 import type {
   CloseStockCountInput,
   EditStockCountContributionInput,
@@ -759,6 +760,12 @@ export async function closeStockCountLogic(
         throw new NotCountHostError(count.id);
       }
 
+      // Rule PG4: the branch's first count is its OPENING — what it finds is
+      // the stock it starts from, and each gain carries the price typed (or
+      // filled in) at close, so the shelf is not worth ฿0.
+      const opening = await isOpeningCountInTx(tx, tenantId, count);
+      const priceOf = new Map((opening ? (input.prices ?? []) : []).map((p) => [p.productId, p]));
+
       // ADR 0040 Q2: prepped stock counted above the ledger was MADE — write
       // those productions first and lower every line's ledger figure by what
       // they used, then post only the difference that remains.
@@ -771,7 +778,7 @@ export async function closeStockCountLogic(
         const variance = item.qtyCounted.minus(item.qtyExpected);
         if (variance.isZero()) continue;
 
-        await createStockMovementLogic(tx, {
+        const movement = await createStockMovementLogic(tx, {
           tenantId,
           productId: item.productId,
           branchId: count.branchId,
@@ -783,6 +790,17 @@ export async function closeStockCountLogic(
           createdBy: closedBy,
           notes: item.notes,
         });
+        const price = priceOf.get(item.productId);
+        if (price && movement.type === "ADJUST_GAIN") {
+          await writeCostDeclaration(tx, {
+            tenantId,
+            movementId: movement.id,
+            productId: item.productId,
+            movementType: movement.type,
+            body: { unitCost: price.unitCost, unitId: price.unitId, note: "นับเปิดระบบ" },
+            declaredBy: closedBy,
+          });
+        }
       }
 
       return tx.stockCount.update({
@@ -960,3 +978,142 @@ export async function monthEndCountDueLogic(
     return due.length ? { lastDay, branches: due } : null;
   });
 }
+
+// ------------------------------------------------------------
+// Rule PG4 — the opening count (นับเปิดระบบ)
+// ------------------------------------------------------------
+
+/**
+ * A branch's FIRST closed count is its opening count: what it finds is the
+ * stock the branch starts from (ยอดยกมา), not stock the ledger lost or
+ * gained. Derived from history, never a flag somebody ticks — a voided first
+ * count hands the role to the next one.
+ */
+export async function isOpeningCountInTx(
+  tx: PrismaClient,
+  tenantId: string,
+  count: { id: string; branchId: string; status: StockCountStatus; closedAt: Date | null }
+): Promise<boolean> {
+  if (count.status === "VOIDED") return false;
+  const earlier = await tx.stockCount.count({
+    where: {
+      tenantId,
+      branchId: count.branchId,
+      status: "CLOSED",
+      deletedAt: null,
+      id: { not: count.id },
+      ...(count.closedAt ? { closedAt: { lt: count.closedAt } } : {}),
+    },
+  });
+  return earlier === 0;
+}
+
+export async function isOpeningCountLogic(tenantId: string, countId: string): Promise<boolean> {
+  return withTenantContext(tenantId, async (tx) => {
+    const count = await tx.stockCount.findFirst({
+      where: { id: countId, tenantId, deletedAt: null },
+      select: { id: true, branchId: true, status: true, closedAt: true },
+    });
+    return count ? isOpeningCountInTx(tx, tenantId, count) : false;
+  });
+}
+
+export type OpeningPriceLine = {
+  productId: string;
+  productName: string;
+  /** What will enter the ledger, in base units (counted − expected). */
+  qty: string;
+  baseUnitName: string | null;
+  units: { id: string; unitName: string; toBaseRatio: string }[];
+  /** The filled-in price and the unit it is per; null when nothing is known. */
+  unitId: string | null;
+  unitCost: string | null;
+  /** LEDGER = what the cost engine already holds; SUPPLIER = the price set on a supplier. */
+  source: "LEDGER" | "SUPPLIER" | null;
+};
+
+/**
+ * Rule PG4: the lines of an OPEN opening count that will enter stock, each
+ * with the price the close sheet fills in — the cost the ledger already knows
+ * for this branch, else the price set on a supplier (branch override first,
+ * then the preferred supplier, then the newest), else nothing. null when the
+ * sheet is not an open opening count.
+ *
+ * Ungated on purpose: the close action uses it to price for a closer who
+ * cannot see cost. What reaches a SCREEN is gated by the caller (cost:view).
+ */
+export async function getOpeningPricesLogic(tenantId: string, countId: string): Promise<OpeningPriceLine[] | null> {
+  const today = new Date();
+  const facts = await withTenantContext(tenantId, async (tx) => {
+    const count = await tx.stockCount.findFirst({
+      where: { id: countId, tenantId, deletedAt: null },
+      include: {
+        items: {
+          where: { reversalOfItemId: null },
+          orderBy: { lineNo: "asc" },
+          include: {
+            product: {
+              select: { name: true, productUnits: { select: { id: true, unitName: true, toBaseRatio: true, isBase: true }, orderBy: { toBaseRatio: "asc" } } },
+            },
+          },
+        },
+      },
+    });
+    if (!count || count.status !== "DRAFT") return null;
+    if (!(await isOpeningCountInTx(tx, tenantId, count))) return null;
+    const gains = count.items.filter((i) => i.qtyCounted.greaterThan(i.qtyExpected));
+    const mappings = gains.length
+      ? await tx.supplierProductMapping.findMany({
+          where: {
+            tenantId,
+            productId: { in: gains.map((g) => g.productId) },
+            deletedAt: null,
+            currentUnitPrice: { not: null },
+            OR: [{ branchId: null }, { branchId: count.branchId }],
+            AND: [{ OR: [{ effectiveTo: null }, { effectiveTo: { gte: today } }] }],
+          },
+          select: { productId: true, orderUnitId: true, currentUnitPrice: true, branchId: true, isPreferred: true, effectiveFrom: true },
+        })
+      : [];
+    return { branchId: count.branchId, gains, mappings };
+  });
+  if (!facts) return null;
+  if (facts.gains.length === 0) return [];
+
+  const costs = await getProductCostsLogic(
+    tenantId,
+    getProductCostsQuerySchema.parse({ productIds: facts.gains.map((g) => g.productId), branchId: facts.branchId })
+  );
+  const rank = (m: (typeof facts.mappings)[number]) => [m.branchId ? 0 : 1, m.isPreferred ? 0 : 1, -m.effectiveFrom.getTime()];
+  const bestMapping = new Map<string, (typeof facts.mappings)[number]>();
+  for (const m of facts.mappings) {
+    const cur = bestMapping.get(m.productId);
+    if (!cur || compareRank(rank(m), rank(cur)) < 0) bestMapping.set(m.productId, m);
+  }
+
+  return facts.gains.map((g) => {
+    const base = g.product.productUnits.find((u) => u.isBase) ?? null;
+    const units = g.product.productUnits.map((u) => ({ id: u.id, unitName: u.unitName, toBaseRatio: u.toBaseRatio.toString() }));
+    const ledger = costs.get(g.productId)?.costPerBaseUnit ?? ZERO;
+    const mapping = bestMapping.get(g.productId);
+    const price: Pick<OpeningPriceLine, "unitId" | "unitCost" | "source"> =
+      ledger.greaterThan(0) && base
+        ? { unitId: base.id, unitCost: ledger.toDecimalPlaces(2).toString(), source: "LEDGER" }
+        : mapping?.currentUnitPrice && (mapping.orderUnitId ?? base?.id)
+          ? { unitId: (mapping.orderUnitId ?? base!.id), unitCost: mapping.currentUnitPrice.toString(), source: "SUPPLIER" }
+          : { unitId: base?.id ?? null, unitCost: null, source: null };
+    return {
+      productId: g.productId,
+      productName: g.product.name,
+      qty: g.qtyCounted.minus(g.qtyExpected).toString(),
+      baseUnitName: base?.unitName ?? null,
+      units,
+      ...price,
+    };
+  });
+}
+
+const compareRank = (a: number[], b: number[]) => {
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return a[i] - b[i];
+  return 0;
+};

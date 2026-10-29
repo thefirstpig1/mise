@@ -32,6 +32,7 @@ import {
 } from "@/lib/validations/stock-count";
 import {
   closeStockCountLogic,
+  getOpeningPricesLogic,
   CountLineTakenError,
   CountUnitMismatchError,
   deleteStockCountContributionLogic,
@@ -276,8 +277,26 @@ export async function closeStockCountAction(
   formData: FormData
 ): Promise<StockCountActionState> {
   const { tenantId, actor } = await countActor();
+  const { can } = await requireTenant("count:write");
 
-  const parsed = closeStockCountInputSchema.safeParse({ id: formData.get("id") });
+  // Rule PG4: prices typed on an opening count's close sheet. Only someone who
+  // may see cost was shown that sheet (rule A1); for anyone else the server
+  // fills in what it knows, exactly as the sheet would have.
+  let prices: unknown = undefined;
+  if (can("cost:view")) {
+    try {
+      const raw = formData.get("prices");
+      prices = typeof raw === "string" && raw ? JSON.parse(raw) : undefined;
+    } catch {
+      return { ok: false, formError: "ราคาที่ใส่อ่านไม่ได้ — ลองกดปิดใบอีกครั้ง" };
+    }
+  } else {
+    const id = String(formData.get("id") ?? "");
+    const filled = /^[0-9a-f-]{36}$/i.test(id) ? await getOpeningPricesLogic(tenantId, id) : null;
+    prices = filled?.filter((l) => l.unitId && l.unitCost !== null).map((l) => ({ productId: l.productId, unitId: l.unitId, unitCost: l.unitCost }));
+  }
+
+  const parsed = closeStockCountInputSchema.safeParse({ id: formData.get("id"), prices });
   if (!parsed.success) return { ok: false, fieldErrors: toFieldErrors(parsed.error) };
 
   try {

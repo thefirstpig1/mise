@@ -19,6 +19,7 @@
 // ============================================================
 
 import { z } from "zod";
+import { costDeclarationBodySchema } from "./stock-cost";
 import type { StockCountStatus } from "@prisma/client";
 
 /** Blank → null. Same helper as every other validations file. */
@@ -187,6 +188,21 @@ export type EditStockCountContributionInput = z.infer<
  */
 export const closeStockCountInputSchema = z.object({
   id: z.string().uuid("ใบนับสต๊อกไม่ถูกต้อง"),
+  /**
+   * Rule PG4: on an OPENING count, the price of each line that enters stock,
+   * in the unit it was typed in. Ignored on any other count — its gains are
+   * the ledger being wrong, and their cost belongs to the cost engine.
+   */
+  prices: z
+    .array(
+      z.object({
+        productId: z.string().uuid("สินค้าไม่ถูกต้อง"),
+        unitId: costDeclarationBodySchema.shape.unitId,
+        unitCost: costDeclarationBodySchema.shape.unitCost,
+      })
+    )
+    .max(5000)
+    .optional(),
 });
 
 export type CloseStockCountInput = z.infer<typeof closeStockCountInputSchema>;

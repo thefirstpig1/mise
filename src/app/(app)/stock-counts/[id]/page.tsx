@@ -18,6 +18,7 @@ import {
   getCountVarianceCostsLogic,
   getStockCountByIdLogic,
   getStockedProductIdsLogic,
+  isOpeningCountLogic,
 } from "@/server/stock-count";
 import { getProductsLogic } from "@/server/product";
 import { toStockCountDetailView } from "../_components/stock-count-view";
@@ -46,9 +47,10 @@ export default async function StockCountDetailPage({
 
   const detail = toStockCountDetailView(count);
 
-  const [allProducts, stockedProductIds] = await Promise.all([
+  const [allProducts, stockedProductIds, opening] = await Promise.all([
     getProductsLogic(tenantId),
     detail.status === "DRAFT" ? getStockedProductIdsLogic(tenantId, detail.branchId) : Promise.resolve([]),
+    isOpeningCountLogic(tenantId, id),
   ]);
 
   // Live, active products are what a counter can count; a soft-deleted product
@@ -88,6 +90,7 @@ export default async function StockCountDetailPage({
       removeLine={removeStockCountLineAction}
       close={closeStockCountAction}
       voidCount={voidStockCountAction}
+      opening={opening}
     />
   );
 }
