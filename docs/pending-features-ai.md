@@ -2,6 +2,7 @@
 
 **Status:** NOTED — captured 2026-09-22 from a conversation with Kong. **NOT designed, NOT scheduled.**
 **Ordering:** nothing here comes before Part 34 (deploy) closes and the first pilot shops exist. This document is a parking lot so the ideas are not re-derived from scratch later — it is not a proposal to pull any of them forward.
+**See also:** `docs/pending-feature-monthly-report.md` — รายงานสรุปรายเดือน + ส่งออกข้อมูลให้ AI ของร้าน (Kong 2026-10-30) ซึ่งรวมกับ "ชุดตรวจสอบ" ด้านล่างเป็นฟีเจอร์เดียว
 **Dependencies every feature below shares:** `@anthropic-ai/sdk` (new dependency), `ANTHROPIC_API_KEY` in `.env` and in `fly secrets` (an `.env` edit). Both are 🛑 items in CLAUDE.md, so **the first AI Part opens with a stop-and-ask, whichever feature it is.** No feature below needs a migration if it is built the way this document describes.
 
 ---
@@ -86,6 +87,28 @@ From a menu name ("ผัดกะเพราหมูสับ") plus the shop
 
 ### What must be true
 The draft carries its provenance ("ร่างโดย AI, ยังไม่ตรวจ") until a person edits or publishes it, so nobody mistakes an unreviewed draft for a shop's recipe. Cost confidence (Part 21) already covers the numeric side.
+
+---
+
+## Feature A4b: นำเข้าสูตรจากไฟล์ — ร้านใช้ AI ของตัวเองแปลง sheet (Kong, 2026-10-30)
+
+### Concept
+ร้านส่วนใหญ่มีสูตรอยู่ใน Google Sheets/Excel อยู่แล้ว Kong เสนอ: ให้ prompt กับร้าน ร้านเอาไปคุยกับ AI ของตัวเอง ให้แปลงสูตรเป็นรูปแบบของเรา แล้วบันทึกทีละเมนูทีเดียว · ข้อกังวลที่ Kong ยกเอง: ภาษา ชื่อเมนูพิมพ์ผิด และต้องมีเมนูครบก่อน
+
+### ความเสี่ยงถ้าให้ AI ของร้านเขียนข้อมูลลงระบบตรง ๆ — สูง
+- **AI เติมตัวเลขที่ไม่มีใน sheet เอง** (ปริมาณ หน่วย จำนวนที่ได้ต่อสูตร) และดูน่าเชื่อ — อันตรายที่สุด เพราะไม่มีใครรู้ว่าตัวไหนเดา
+- ชื่อเมนู/วัตถุดิบไม่ตรงกับในระบบ (พิมพ์ผิด เว้นวรรค ไทย/อังกฤษปน) → สร้างของซ้ำ หรือผูกผิดตัว
+- หน่วยครัว (ช้อน ทัพพี กำมือ) และสูตรต่อหม้อ vs ต่อจาน → ต้นทุนผิดเป็นเท่าตัว
+- ของแปรรูป/สูตรย่อย (น้ำซุป ซอส) ถูกแตกเป็นวัตถุดิบดิบปนกัน
+
+### แผนที่แนะนำแทน — AI ของร้านแค่ "จัดรูป" ส่วนการจับคู่และตรวจอยู่ในระบบเรา
+1. เราให้ **แม่แบบไฟล์** (รหัส POS, ชื่อเมนู, ชื่อวัตถุดิบ, ปริมาณ, หน่วย, ทำได้กี่จาน, หมายเหตุ) + **prompt** ที่สั่ง AI ว่า *ห้ามเดาตัวเลข — ไม่รู้ให้เว้นว่าง* และเก็บชื่อเดิมจาก sheet ไว้อีกคอลัมน์
+2. หน้า **"นำเข้าสูตรจากไฟล์"** แบบเดียวกับนำเข้าไฟล์ POS: อ่านไฟล์ → **พรีวิว** → จับคู่เมนูด้วยรหัส POS ก่อน แล้วชื่อ (pg_trgm แนะนำ คนกดยืนยัน — กฎเดิม) → จับคู่วัตถุดิบ / สร้างใหม่เมื่อคนกด → แปลงหน่วย → แสดงต้นทุนต่อจานทันที
+3. ช่องว่าง/ไม่ตรง = ขึ้นสีให้แก้ ไม่บันทึกเงียบ ๆ
+4. บันทึกเป็น **สูตรร่าง (`is_draft`)** แล้วค่อยกดใช้จริง (ADR 0025) — สูตรผิดจึงยังไม่ตัดสต๊อก
+5. ต้องนำเข้าไฟล์ POS ก่อน เพื่อให้มีเมนูและรหัส — ตรงกับ flow เริ่มใช้งาน
+
+ความเสี่ยงที่เหลือ: ต่ำ–กลาง · ใช้ตัวนำเข้าเดียวกับ "เพิ่มวัตถุดิบทีละหลายรายการ" (คิวงานข้อ 5) → ทำวัตถุดิบก่อน แล้วต่อยอดเป็นสูตร
 
 ---
 
