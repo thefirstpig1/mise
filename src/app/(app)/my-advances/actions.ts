@@ -34,9 +34,10 @@ function refresh() {
 }
 
 export async function recordSelfPurchaseAction(input: unknown): Promise<AdvanceResult> {
-  const { tenantId, user, reach } = await requireTenant("purchase:self");
+  const { tenantId, user, reach, assertBranch } = await requireTenant("purchase:self");
   const parsed = selfPurchaseInputSchema.safeParse(input);
   if (!parsed.success) return { ok: false, formError: firstIssue(parsed.error) };
+  assertBranch(parsed.data.branchId);
   try {
     await recordSelfPurchaseLogic(tenantId, { userId: user.id!, reach }, parsed.data);
   } catch (e) {
