@@ -31,6 +31,8 @@ import {
   reachable,
 } from "@/server/recipe-graph";
 import { loadRecipeGraph, resolveRecipeIds } from "@/server/recipe-resolve";
+import type { RecipeGraph } from "@/server/recipe-graph";
+import { preppedAvailableInTx, settlePreppedDemand } from "@/server/prepped-first";
 
 /** The ledger stores 3 dp; every quantity that reaches it is rounded here. */
 const QTY_SCALE = 3;
@@ -109,6 +111,26 @@ export type ConsumptionDemand = {
   skipped: ConsumptionSkip[];
   /** The policy this answer was computed under, so the caller can freeze it. */
   cancelledSalePolicy: CancelledSalePolicy;
+  /**
+   * ADR 0040 Q1 — "ระบบตัดแทน": prepped products the day needed that were not
+   * on the shelf, so their recipe was cut instead. Positive base units. The
+   * posting records them (`prepped_shortfall`); a replayed run has none to
+   * report, because it was not recomputed.
+   */
+  preppedShortfalls: { productId: string; qty: Prisma.Decimal }[];
+};
+
+/** One dish's demand as posting sees it (ADR 0040), kept until the day is settled. */
+type MenuVector = {
+  sale: MenuSales;
+  /** Positive demand, stopped at prepped products. */
+  own: Map<string, Prisma.Decimal>;
+  /**
+   * Prepped products with no way to make them that this dish reaches. If the
+   * day is short of one, the dish is held back whole (rule N2), as every dish
+   * reaching one was before ADR 0040 — unless the shelf covers it (Q10).
+   */
+  methodless: Set<string>;
 };
 
 // ------------------------------------------------------------
@@ -270,6 +292,7 @@ export async function computeConsumptionForDayLogic(
     menusSkipped: skipped.length,
     skipped,
     cancelledSalePolicy,
+    preppedShortfalls: [],
   });
 
   if (sales.length === 0) return empty([]);
@@ -308,23 +331,112 @@ export async function computeConsumptionForDayLogic(
     branchId,
     resolutionDate: businessDate,
     names,
+    stopAtPrepped: true,
   });
 
-  const { lines, byMenu, coveredNetAmount, menusPosted } = exploded;
-  const skipped = exploded.skipped;
+  const skipped = [...exploded.skipped];
+
+  // ADR 0040 Q1: the day's prepped demand comes off the shelf first. What a
+  // posting at this day may take is the lowest balance from the end of the day
+  // on (D2), not counting this day's own earlier posting, which the caller has
+  // just taken back and is about to replace.
+  const preppedIds = [...exploded.graph.products.values()]
+    .filter((p) => p.type === "PREPPED")
+    .map((p) => p.id);
+  let available = new Map<string, Prisma.Decimal>();
+  if (preppedIds.length > 0) {
+    const ownItems = await tx.salesConsumptionItem.findMany({
+      where: { tenantId, run: { branchId, businessDate } },
+      select: { id: true },
+    });
+    available = await preppedAvailableInTx(tx, tenantId, branchId, preppedIds, businessDate, {
+      sourceType: "SALES_CONSUMPTION",
+      sourceIds: new Set(ownItems.map((i) => i.id)),
+    });
+  }
+
+  const settled = settleDay(exploded.graph, exploded.vectors, available);
+  for (const v of settled.heldBack) {
+    skipped.push({
+      menuId: v.sale.menuId,
+      menuName: nameOf(v.sale.menuId),
+      qty: v.sale.qty,
+      netAmount: v.sale.netAmount,
+      reason: "RECIPE_UNRESOLVABLE",
+      // The product's id for now; `nameUnresolved` below turns it into a name.
+      detail: v.blocking,
+    });
+  }
+  if (settled.heldBack.length > 0) await nameUnresolved(tx, tenantId, names, skipped);
+
+  const posted = exploded.vectors.filter((v) => !settled.heldBack.some((h) => h.sale === v.sale));
+  const coveredNetAmount = posted.reduce((acc, v) => acc.plus(v.sale.netAmount), ZERO);
 
   return {
     branchId,
     businessDate,
-    lines,
-    byMenu,
+    lines: settled.lines,
+    byMenu: exploded.byMenu.filter((m) => posted.some((v) => v.sale.menuId === m.menuId)),
     coveredNetAmount: coveredNetAmount.toDecimalPlaces(MONEY_SCALE),
     totalNetAmount,
-    menusPosted,
+    menusPosted: posted.length,
     menusSkipped: skipped.length,
     skipped,
     cancelledSalePolicy,
+    preppedShortfalls: settled.shortfalls,
   };
+}
+
+/**
+ * Settle a day's dishes against the prepped shelves (ADR 0040 Q1).
+ *
+ * A prepped product with no way to make it that the day is short of holds back
+ * every dish that reaches it — whole, rule N2 — and the day is settled again
+ * without them, until nothing more is held back. That is exactly what happened
+ * to such a dish before ADR 0040 (the shelf was always empty then), except that
+ * now a shelf that DOES cover it lets the dish post: a bought prepped product
+ * is stock like any other (Q10).
+ */
+function settleDay(
+  graph: RecipeGraph,
+  vectors: MenuVector[],
+  available: Map<string, Prisma.Decimal>
+): {
+  lines: ConsumptionLine[];
+  shortfalls: { productId: string; qty: Prisma.Decimal }[];
+  heldBack: (MenuVector & { blocking: string })[];
+} {
+  const heldBack: (MenuVector & { blocking: string })[] = [];
+  let active = vectors;
+  for (;;) {
+    const totals = new Map<string, Prisma.Decimal>();
+    for (const v of active) {
+      for (const [id, q] of v.own) totals.set(id, (totals.get(id) ?? ZERO).plus(q));
+    }
+    const r = settlePreppedDemand(graph, totals, available);
+    const newlyHeld = active
+      .map((v) => ({ v, blocking: [...v.methodless].find((id) => r.unmakeable.has(id)) }))
+      .filter((x) => x.blocking !== undefined);
+    if (newlyHeld.length === 0) {
+      const lines: ConsumptionLine[] = [...r.demand.entries()]
+        .map(([productId, qty]) => ({
+          productId,
+          // What the recipe says was CONSUMED becomes what the ledger records
+          // as LEAVING. Rounded after summing, never per dish.
+          qty: qty.negated().toDecimalPlaces(QTY_SCALE),
+        }))
+        .filter((l) => !l.qty.isZero())
+        .sort((a, b) => (a.productId < b.productId ? -1 : 1));
+      const shortfalls = [...r.shortfalls.entries()]
+        .map(([productId, qty]) => ({ productId, qty: qty.toDecimalPlaces(QTY_SCALE) }))
+        .filter((x) => x.qty.greaterThan(0))
+        .sort((a, b) => (a.productId < b.productId ? -1 : 1));
+      return { lines, shortfalls, heldBack };
+    }
+    for (const x of newlyHeld) heldBack.push({ ...x.v, blocking: x.blocking! });
+    const held = new Set(newlyHeld.map((x) => x.v));
+    active = active.filter((v) => !held.has(v));
+  }
 }
 
 // ------------------------------------------------------------
@@ -457,6 +569,15 @@ export async function explodeMenuSalesLogic(
     resolutionDate: Date;
     /** Menu id -> name, already fetched by the caller for its own skips. */
     names: Map<string, string>;
+    /**
+     * ADR 0040: the POSTING path. Each dish is still validated by the full walk
+     * (so a cycle or a missing method holds it back exactly as before), but its
+     * demand stops at prepped products so the day can take them off the shelf,
+     * and a prepped product with no method no longer holds the dish back here —
+     * the day decides, once it knows what is on the shelf. Reporting (the
+     * department split) leaves this off and gets the raw walk it always had.
+     */
+    stopAtPrepped?: boolean;
   }
 ): Promise<{
   lines: ConsumptionLine[];
@@ -464,6 +585,17 @@ export async function explodeMenuSalesLogic(
   coveredNetAmount: Prisma.Decimal;
   menusPosted: number;
   skipped: ConsumptionSkip[];
+  /** ADR 0040: the graph the day was walked on, and each dish's demand. */
+  graph: RecipeGraph;
+  vectors: MenuVector[];
+  /**
+   * ADR 0040: how much of each PREPPED product every dish passes through on
+   * its way down, as if no shelf held any (negative, like `byMenu`). The
+   * department split needs it: soup taken off the shelf is a CONSUMPTION of
+   * soup, and only the menus that use soup can say whose cost it was. Kept
+   * apart from `byMenu` so that one still sums line for line to `lines`.
+   */
+  preppedByMenu: MenuProductDemand[];
 }> {
   const { sales: sold, branchId, names } = params;
   const businessDate = params.resolutionDate;
@@ -503,6 +635,9 @@ export async function explodeMenuSalesLogic(
       coveredNetAmount: ZERO,
       menusPosted: 0,
       skipped,
+      graph: { products: new Map(), menus: new Map() },
+      vectors: [],
+      preppedByMenu: [],
     };
   }
 
@@ -519,6 +654,8 @@ export async function explodeMenuSalesLogic(
 
   const totals = new Map<string, Prisma.Decimal>();
   const byMenu: MenuProductDemand[] = [];
+  const vectors: MenuVector[] = [];
+  const preppedByMenu: MenuProductDemand[] = [];
   let coveredNetAmount = ZERO;
   let menusPosted = 0;
 
@@ -576,9 +713,10 @@ export async function explodeMenuSalesLogic(
     // /cost reports negative stock on a product nobody can restock. The dish is
     // held back instead, under the reason whose hint already describes this
     // exact setup.
-    const prepped = leaves.find(
+    const methodless = leaves.filter(
       (l) => graph.products.get(l.productId)?.type === "PREPPED"
     );
+    const prepped = params.stopAtPrepped ? undefined : methodless[0];
     if (prepped !== undefined) {
       skipped.push({
         menuId: s.menuId,
@@ -592,6 +730,28 @@ export async function explodeMenuSalesLogic(
         detail: prepped.productId,
       });
       continue;
+    }
+
+    // ADR 0040: posting stops at prepped products; the day settles them.
+    const stopped = explodeToRaw(graph, root, s.qty, { stopAtPrepped: true });
+    if (params.stopAtPrepped) leaves = stopped;
+
+    // Every prepped product this dish passes through, with nothing on any
+    // shelf: an empty settle reports each one's whole demand as its shortfall,
+    // and a prepped product with no method stays in the demand itself.
+    const walked = settlePreppedDemand(graph, new Map(stopped.map((l) => [l.productId, l.qty])), new Map());
+    const preppedUse = new Map(walked.shortfalls);
+    for (const [id, q] of walked.demand) {
+      if (graph.products.get(id)?.type === "PREPPED") preppedUse.set(id, (preppedUse.get(id) ?? ZERO).plus(q));
+    }
+    if (preppedUse.size > 0) {
+      preppedByMenu.push({
+        menuId: s.menuId,
+        lines: [...preppedUse.entries()]
+          .map(([productId, qty]) => ({ productId, qty: qty.negated().toDecimalPlaces(QTY_SCALE) }))
+          .filter((l) => !l.qty.isZero())
+          .sort((a, b) => (a.productId < b.productId ? -1 : 1)),
+      });
     }
 
     const own = new Map<string, Prisma.Decimal>();
@@ -616,6 +776,11 @@ export async function explodeMenuSalesLogic(
         .filter((l) => !l.qty.isZero())
         .sort((a, b) => (a.productId < b.productId ? -1 : 1)),
     });
+    vectors.push({
+      sale: s,
+      own,
+      methodless: new Set(methodless.map((l) => l.productId)),
+    });
     coveredNetAmount = coveredNetAmount.plus(s.netAmount);
     menusPosted += 1;
   }
@@ -638,5 +803,5 @@ export async function explodeMenuSalesLogic(
     // and `sales_consumption_item_qty_check` would refuse the row anyway.
     .filter((l) => !l.qty.isZero())
     .sort((a, b) => (a.productId < b.productId ? -1 : 1));
-  return { lines, byMenu, coveredNetAmount, menusPosted, skipped };
+  return { lines, byMenu, coveredNetAmount, menusPosted, skipped, graph, vectors, preppedByMenu };
 }

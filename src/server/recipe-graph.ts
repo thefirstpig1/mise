@@ -97,6 +97,19 @@ export type GraphProduct = {
   parentProductId: string | null;
   /** PREPPED only, and only on the production-recipe half of Q1. */
   productionRecipe: GraphRecipe | null;
+  /**
+   * ADR 0040 Q7/Q8: this product is a PART of a trim recipe — the fillet of a
+   * whole fish. The third way to make a prepped product (Consequence 2), used
+   * only when the other two are absent. Optional so every graph built before
+   * ADR 0040 (and every test fixture) need not mention it.
+   */
+  trimPart?: {
+    parentProductId: string;
+    /** % of the whole thing's weight this part is (> 0). */
+    weightPct: Prisma.Decimal;
+    /** % of the whole thing's cost this part carries. */
+    valuePct: Prisma.Decimal;
+  } | null;
 };
 
 export type GraphMenu = {
@@ -190,7 +203,9 @@ export function edgesOf(graph: RecipeGraph, key: NodeKey): NodeKey[] {
     if (p.productionRecipe !== null) {
       return ingredientKeys(p.productionRecipe);
     }
-    return p.parentProductId === null ? [] : [productKey(p.parentProductId)];
+    if (p.parentProductId !== null) return [productKey(p.parentProductId)];
+    // ADR 0040: a trimmed part expands into the whole thing it was cut from.
+    return p.trimPart ? [productKey(p.trimPart.parentProductId)] : [];
   }
 
   const m = graph.menus.get(keyId(key));
@@ -336,7 +351,17 @@ export type LeafDemand = {
 export function explodeToRaw(
   graph: RecipeGraph,
   root: NodeKey,
-  multiplier: Prisma.Decimal = new Prisma.Decimal(1)
+  multiplier: Prisma.Decimal = new Prisma.Decimal(1),
+  opts: {
+    /**
+     * ADR 0040 Q1: stop at every PREPPED product below the root and report it
+     * as a leaf, instead of walking through it. The posting path asks this,
+     * then decides how much of each prepped product comes off the shelf and
+     * walks only the shortfall further (`prepped-first.ts`). The ROOT itself
+     * is always walked — that is how a shortfall is exploded one level.
+     */
+    stopAtPrepped?: boolean;
+  } = {}
 ): LeafDemand[] {
   const totals = new Map<string, Prisma.Decimal>();
   const onPath = new Set<NodeKey>();
@@ -353,7 +378,7 @@ export function explodeToRaw(
       const p = graph.products.get(keyId(key));
       if (p === undefined) throw new GraphNodeMissingError(key);
 
-      if (p.type === "RAW") {
+      if (p.type === "RAW" || (opts.stopAtPrepped && key !== root)) {
         totals.set(p.id, (totals.get(p.id) ?? new Prisma.Decimal(0)).plus(qty));
         return;
       }
@@ -372,6 +397,16 @@ export function explodeToRaw(
           throw new RecipeMethodMissingError(p.id);
         }
         visit(productKey(p.parentProductId), qty.div(pct.div(100)));
+      } else if (p.trimPart) {
+        // ADR 0040 Q8: a part used when nobody recorded the cutting. By weight
+        // alone a fish head (12% of the weight) would cost a whole fish per
+        // 0.6 kg; multiplying by the part's % of the VALUE charges each part
+        // its own share, so using every part once uses the fish exactly once.
+        const { parentProductId, weightPct, valuePct } = p.trimPart;
+        visit(
+          productKey(parentProductId),
+          qty.div(weightPct.div(100)).mul(valuePct.div(100))
+        );
       } else {
         // A PREPPED product with NEITHER method. Reachable for real: Q1 lets a
         // product be made by a production recipe, so there is a window between

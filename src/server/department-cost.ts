@@ -194,7 +194,9 @@ export async function departmentDemandForPeriodLogic(
 
     for (const s of exploded.skipped) skippedMenuIds.add(s.menuId);
 
-    for (const m of exploded.byMenu) {
+    // ADR 0040: a prepped product that came off the shelf is consumed AS
+    // ITSELF, so the menus that pass through it are what splits it.
+    for (const m of [...exploded.byMenu, ...exploded.preppedByMenu]) {
       const departmentId = departmentOf.get(m.menuId) ?? null;
       for (const line of m.lines) {
         const list = demand.get(line.productId) ?? [];

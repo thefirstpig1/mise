@@ -35,6 +35,7 @@ import {
   RecipeMethodMissingError,
 } from "@/server/recipe-graph";
 import { loadRecipeGraph, resolveRecipeIds } from "@/server/recipe-resolve";
+import { preppedAvailableInTx, settlePreppedDemand } from "@/server/prepped-first";
 import {
   StockUnitMismatchError,
   QtyRoundsToZeroError,
@@ -217,6 +218,26 @@ export async function explodeStaffMealMenuLogic(
   tenantId: string,
   params: { menuId: string; branchId: string; businessDate: Date; servings: Prisma.Decimal }
 ): Promise<StaffMealDemandLine[]> {
+  return (await explodeStaffMealMenuSettledLogic(tx, tenantId, params)).lines;
+}
+
+/**
+ * The same explosion, settled against the prepped shelves (ADR 0040 Q1): soup
+ * that is on the shelf is taken as soup; what is not is cut from its recipe,
+ * and that shortfall is returned so the posting can record it ("ระบบตัดแทน").
+ *
+ * A prepped product with no way to make it still refuses the meal — but only
+ * when the shelf cannot cover it. Before ADR 0040 the shelf was always empty,
+ * so it always refused; a bought prepped product is stock like any other (Q10).
+ */
+export async function explodeStaffMealMenuSettledLogic(
+  tx: PrismaClient,
+  tenantId: string,
+  params: { menuId: string; branchId: string; businessDate: Date; servings: Prisma.Decimal }
+): Promise<{
+  lines: StaffMealDemandLine[];
+  shortfalls: { productId: string; qty: Prisma.Decimal }[];
+}> {
   const { menuId, branchId, businessDate, servings } = params;
 
   const resolved = await resolveRecipeIds(
@@ -256,22 +277,63 @@ export async function explodeStaffMealMenuLogic(
     throw e;
   }
 
-  const prepped = leaves.find(
+  const methodless = leaves.filter(
     (l) => graph.products.get(l.productId)?.type === "PREPPED"
   );
-  if (prepped !== undefined) {
-    throw new StaffMealPreppedIngredientError(menuId, prepped.productId);
+
+  // ADR 0040: stop at prepped products and take them off the shelf first.
+  const stopped = explodeToRaw(graph, root, servings, { stopAtPrepped: true });
+  const preppedIds = [...graph.products.values()]
+    .filter((p) => p.type === "PREPPED")
+    .map((p) => p.id);
+  const available = preppedIds.length
+    ? await preppedAvailableInTx(tx, tenantId, branchId, preppedIds, businessDate)
+    : new Map<string, Prisma.Decimal>();
+  const settled = settlePreppedDemand(
+    graph,
+    new Map(stopped.map((l) => [l.productId, l.qty])),
+    available
+  );
+
+  const blocking = methodless.find((l) => settled.unmakeable.has(l.productId));
+  if (blocking !== undefined) {
+    throw new StaffMealPreppedIngredientError(menuId, blocking.productId);
   }
 
   // A leaf that rounds to nothing at 3dp is dropped, not posted: a zero item is
   // noise with a stock movement attached, and `staff_meal_item_qty_check`
   // refuses it anyway. A garnish measured in milligrams is the ordinary case.
-  return leaves
-    .map((l) => ({
-      productId: l.productId,
-      qty: l.qty.toDecimalPlaces(QTY_SCALE),
+  const lines = [...settled.demand.entries()]
+    .map(([productId, qty]) => ({
+      productId,
+      qty: qty.toDecimalPlaces(QTY_SCALE),
     }))
-    .filter((l) => !l.qty.isZero());
+    .filter((l) => !l.qty.isZero())
+    .sort((a, b) => (a.productId < b.productId ? -1 : 1));
+  const shortfalls = [...settled.shortfalls.entries()]
+    .map(([productId, qty]) => ({ productId, qty: qty.toDecimalPlaces(QTY_SCALE) }))
+    .filter((x) => x.qty.greaterThan(0));
+  return { lines, shortfalls };
+}
+
+/** ADR 0040 Q1: what a staff meal cut from a recipe instead of the shelf. */
+async function recordStaffMealShortfalls(
+  tx: PrismaClient,
+  tenantId: string,
+  meal: { id: string; branchId: string; businessDate: Date },
+  shortfalls: { productId: string; qty: Prisma.Decimal }[]
+) {
+  if (shortfalls.length === 0) return;
+  await tx.preppedShortfall.createMany({
+    data: shortfalls.map((s) => ({
+      tenantId,
+      branchId: meal.branchId,
+      productId: s.productId,
+      businessDate: meal.businessDate,
+      qty: s.qty,
+      staffMealId: meal.id,
+    })),
+  });
 }
 
 // ------------------------------------------------------------
@@ -509,6 +571,7 @@ export async function createStaffMealLogic(
 
       // --- what left the shelf -------------------------------------------
       let lines: StaffMealDemandLine[];
+      let shortfalls: { productId: string; qty: Prisma.Decimal }[] = [];
       let price: StaffMealPrice = { unitPrice: null, source: "NONE" };
 
       // A pot always posts; a menu meal posts unless the POS already does (Q4).
@@ -517,14 +580,18 @@ export async function createStaffMealLogic(
 
       if (input.menuId !== null) {
         await assertRefBelongsToTenant(tx, tenantId, "menu", input.menuId);
-        lines = posts
-          ? await explodeStaffMealMenuLogic(tx, tenantId, {
-              menuId: input.menuId,
-              branchId: input.branchId,
-              businessDate: input.businessDate,
-              servings,
-            })
-          : [];
+        if (posts) {
+          const exploded = await explodeStaffMealMenuSettledLogic(tx, tenantId, {
+            menuId: input.menuId,
+            branchId: input.branchId,
+            businessDate: input.businessDate,
+            servings,
+          });
+          lines = exploded.lines;
+          shortfalls = exploded.shortfalls;
+        } else {
+          lines = [];
+        }
         price = await resolveStaffMealPriceLogic(
           tx,
           tenantId,
@@ -609,6 +676,7 @@ export async function createStaffMealLogic(
           input.menuId === null ? input.items : null,
           recordedBy
         );
+        await recordStaffMealShortfalls(tx, tenantId, meal, shortfalls);
       }
 
       return {
@@ -869,13 +937,14 @@ export async function approveStaffMealLogic(
       const posts = (await stockSourceOf(tx, tenantId)) === "SYSTEM";
       let itemCount = 0;
       if (posts && meal.menuId) {
-        const lines = await explodeStaffMealMenuLogic(tx, tenantId, {
+        const { lines, shortfalls } = await explodeStaffMealMenuSettledLogic(tx, tenantId, {
           menuId: meal.menuId,
           branchId: meal.branchId,
           businessDate: meal.businessDate,
           servings: meal.servings,
         });
         await postStaffMealLines(tx, tenantId, meal, lines, null, approverUserId);
+        await recordStaffMealShortfalls(tx, tenantId, meal, shortfalls);
         itemCount = lines.length;
       }
 

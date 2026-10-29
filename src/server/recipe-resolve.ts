@@ -357,6 +357,7 @@ export async function loadRecipeGraph(
       if (recipe !== null) next.push(...ingredientTargets(recipe));
     }
 
+    const neitherMethod: string[] = [];
     for (const p of productRows) {
       const node = products.get(p.id);
       if (node === undefined || node.type !== "PREPPED") continue;
@@ -366,6 +367,38 @@ export async function loadRecipeGraph(
         next.push(...ingredientTargets(node.productionRecipe));
       } else if (node.parentProductId !== null) {
         next.push({ kind: "product", id: node.parentProductId });
+      } else {
+        neitherMethod.push(p.id);
+      }
+    }
+
+    // ADR 0040 Q8: the third way, asked only of the prepped products the first
+    // two left without a method — so a shop with no trim recipes pays no extra
+    // round trip on any recipe page.
+    if (neitherMethod.length > 0) {
+      const parts = await tx.trimRecipePart.findMany({
+        where: {
+          tenantId,
+          productId: { in: neitherMethod },
+          deletedAt: null,
+          trimRecipe: { deletedAt: null },
+        },
+        select: {
+          productId: true,
+          weightPct: true,
+          valuePct: true,
+          trimRecipe: { select: { parentProductId: true } },
+        },
+      });
+      for (const part of parts) {
+        const node = products.get(part.productId!);
+        if (node === undefined) continue;
+        node.trimPart = {
+          parentProductId: part.trimRecipe.parentProductId,
+          weightPct: part.weightPct,
+          valuePct: part.valuePct,
+        };
+        next.push({ kind: "product", id: part.trimRecipe.parentProductId });
       }
     }
 

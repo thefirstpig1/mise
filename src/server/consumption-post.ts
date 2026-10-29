@@ -214,6 +214,22 @@ export async function postConsumptionForDayLogic(
         });
       }
 
+      // ADR 0040 Q1: what the day cut from a recipe because the prepped product
+      // was not on the shelf. Recorded with the run, so a re-post or a re-import
+      // that voids the run takes these out of every report with it.
+      if (demand.preppedShortfalls.length > 0) {
+        await tx.preppedShortfall.createMany({
+          data: demand.preppedShortfalls.map((s) => ({
+            tenantId,
+            branchId: input.branchId,
+            productId: s.productId,
+            businessDate: input.businessDate,
+            qty: s.qty,
+            salesConsumptionRunId: run.id,
+          })),
+        });
+      }
+
       return { run, items, voidedRunId: live?.id ?? null, demand };
     },
     POST_TX_OPTIONS
@@ -447,6 +463,9 @@ function demandOf(
     byMenu: [],
     coveredNetAmount: run.coveredNetAmount,
     totalNetAmount: run.totalNetAmount,
+    // A replay does not recompute (see above), so it has no shortfall to
+    // report; what was recorded stays on `prepped_shortfall` (ADR 0040).
+    preppedShortfalls: [],
     menusPosted: run.menusPosted,
     menusSkipped: run.menusSkipped,
     skipped,
