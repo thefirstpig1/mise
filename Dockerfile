@@ -110,6 +110,10 @@ RUN groupadd --system --gid 1001 nodejs \
 # copied separately — a missing static/ is a site with no CSS and no error.
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+# public/ — the front page's screenshots (public/landing/) and anything else
+# served as-is. Missing, the site works and every <img> is a 404 (found on
+# kitkrua.com 2026-10-30: the landing page arrived after the first deploy).
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
 # Prisma's query engine, kept by hand as a belt-and-braces copy.
 #

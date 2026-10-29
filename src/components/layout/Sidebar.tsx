@@ -136,6 +136,18 @@ export default function Sidebar({
         </div>
       </div>
 
+      {/* ADR 0043 — Kong 2026-10-30 could not find it at the bottom, next to
+          ออกจากระบบ (on a phone, behind ☰ as well). The operator's door goes
+          first, where the eye starts. */}
+      {isPlatformAdmin ? (
+        <a
+          href="/platform"
+          className="mx-3 mb-3 flex items-center justify-between rounded-xl border border-primary/30 bg-primary-soft px-3 py-2 text-sm font-semibold text-primary hover:bg-primary hover:text-primary-foreground"
+        >
+          ผู้ดูแลระบบ <span aria-hidden>›</span>
+        </a>
+      ) : null}
+
       {/* Kong (2026-09-28): the group heading was SMALLER than the items under
           it, so nothing read as a heading at all. Now a heading is the
           largest, darkest text in its block, and its items hang off a rule
@@ -194,11 +206,6 @@ export default function Sidebar({
           {canSwitchShop ? (
             <a href="/choose-shop" className="text-primary hover:underline">
               เปลี่ยนร้าน
-            </a>
-          ) : null}
-          {isPlatformAdmin ? (
-            <a href="/platform" className="text-primary hover:underline">
-              ผู้ดูแลระบบ
             </a>
           ) : null}
           {signOutSlot}
