@@ -207,7 +207,7 @@ async function Analytics({
     see.sales
       ? getRevenueByDayLogic(tenantId, { from: period.prevFrom, to: period.prevTo, branchIds: selected }, reach, activeIds).catch(() => [])
       : Promise.resolve([]),
-    see.sales ? topMenus(tenantId, period, activeIds) : Promise.resolve([] as MenuBar[]),
+    see.sales ? topMenus(tenantId, period, activeIds, new Map(chips.map((c) => [c.id, c.name]))) : Promise.resolve([] as MenuBar[]),
   ]);
   // Customers per head (Kong 2026-10-25): the card exists when the shop keys
   // guests (the add-on) or the data already holds some.
@@ -362,7 +362,7 @@ async function Analytics({
   );
 }
 
-async function topMenus(tenantId: string, period: Period, branchIds: string[]): Promise<MenuBar[]> {
+async function topMenus(tenantId: string, period: Period, branchIds: string[], branchName: Map<string, string>): Promise<MenuBar[]> {
   // One summary per branch — getSalesSummaryLogic already folds merged menus
   // (ADR 0026: reporting folds retroactively and always), so summing its rows
   // by menu id keeps that fold across branches too.
@@ -378,16 +378,25 @@ async function topMenus(tenantId: string, period: Period, branchIds: string[]): 
       )
     )
   );
-  const by = new Map<string, MenuBar>();
-  for (const s of summaries) {
+  const by = new Map<string, MenuBar & { branchId: string }>();
+  summaries.forEach((s, i) => {
     for (const m of s.topMenus) {
-      const cur = by.get(m.menuId) ?? { name: m.name, net: 0, qty: 0 };
+      const cur = by.get(m.menuId) ?? { id: m.menuId, name: m.name, net: 0, qty: 0, branchId: branchIds[i] };
       cur.net += Number(m.net.toString());
       cur.qty += Number(m.qty.toString());
       by.set(m.menuId, cur);
     }
-  }
-  return [...by.values()].sort((a, b) => b.net - a.net).slice(0, 10);
+  });
+  const top = [...by.values()].sort((a, b) => b.net - a.net).slice(0, 10);
+  // Two branches' POS menus for one dish stay two menus until someone merges
+  // them (ADR 0026: a person decides). Two bars both reading
+  // "กะเพราหมูสับไข่ดาว" told the owner nothing — and collided as chart keys —
+  // so a name that appears twice says whose it is (2026-10-29).
+  const seen = new Map<string, number>();
+  for (const m of top) seen.set(m.name, (seen.get(m.name) ?? 0) + 1);
+  return top.map(({ branchId, ...m }) =>
+    (seen.get(m.name) ?? 0) > 1 ? { ...m, name: `${m.name} · ${(branchName.get(branchId) ?? "").replace(/^สาขา/, "")}` } : m
+  );
 }
 
 // ------------------------------------------------------------

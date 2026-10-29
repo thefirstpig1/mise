@@ -438,7 +438,7 @@ export function DailyBarsChart({ rows, label }: { rows: { day: string; amount: n
 // ------------------------------------------------------------
 // 4. Best sellers
 // ------------------------------------------------------------
-export type MenuBar = { name: string; net: number; qty: number };
+export type MenuBar = { id: string; name: string; net: number; qty: number };
 
 export function TopMenusChart({ rows }: { rows: MenuBar[] }) {
   if (rows.length === 0) {
@@ -470,7 +470,7 @@ export function TopMenusChart({ rows }: { rows: MenuBar[] }) {
           <Bar dataKey="net" radius={[0, 6, 6, 0]} {...ANIM}>
             {/* The best seller is what this chart exists to point at. */}
             {rows.map((r, i) => (
-              <Cell key={r.name} fill={grad(i === 0 ? "clay" : "olive", "h")} />
+              <Cell key={r.id} fill={grad(i === 0 ? "clay" : "olive", "h")} />
             ))}
             <LabelList
               dataKey="net"
