@@ -1205,5 +1205,7 @@ export async function createStockAdjustmentLogic(
     });
 
     return { adjustment, movement, postBalance: agg._sum.qty ?? ZERO };
-  });
+    // ADR 0040 Q9: a write-down beyond the shelf writes a production first —
+    // the same 30 s a transfer dispatch has.
+  }, { maxWait: 10_000, timeout: 30_000 });
 }

@@ -307,7 +307,10 @@ export async function createWasteLogic(
     });
 
     return { waste, movement, postBalance: await balanceOf(tx, tenantId, waste) };
-  });
+    // ADR 0040 Q9: throwing away more soup than the shelf holds writes a whole
+    // production first (recipe walk + FIFO), so this needs the time a transfer
+    // dispatch has — the default 5 s ran out under a loaded test run.
+  }, { maxWait: 10_000, timeout: 30_000 });
 }
 
 /**
