@@ -63,6 +63,11 @@ export const MOVEMENT_TYPE_VALUES = [
   // took, at the values it took them at (Q6).
   "CONSUMPTION",
   "CONSUMPTION_REVERSAL",
+  // ADR 0040: making prepped stock inside one branch.
+  "PRODUCTION_OUT",
+  "PRODUCTION_IN",
+  "PRODUCTION_OUT_REVERSAL",
+  "PRODUCTION_IN_REVERSAL",
 ] as const;
 
 /** Polymorphic source discriminator (Q3). */
@@ -92,6 +97,7 @@ export const SOURCE_TYPE_VALUES = [
   // left to be cooked and eaten, told apart by WHO ate it rather than by a type
   // of its own. Same reason the item is the source and the document is not.
   "STAFF_MEAL",
+  "PRODUCTION",
   "SYSTEM_INITIAL",
 ] as const;
 
@@ -185,6 +191,12 @@ export const MOVEMENT_TYPE_LABELS_TH: Record<
   // "ปรับลด" would send the reader looking for a mistake that is not there.
   CONSUMPTION: "ตัดสต๊อกตามยอดขาย",
   CONSUMPTION_REVERSAL: "ยกเลิกการตัดสต๊อก",
+  // ADR 0040: worded as the kitchen making something, not as a loss or a gain.
+  // The bones did not go missing; they became soup.
+  PRODUCTION_OUT: "ใช้ทำของแปรรูป",
+  PRODUCTION_IN: "ผลิตได้",
+  PRODUCTION_OUT_REVERSAL: "ยกเลิกการผลิต (คืนวัตถุดิบ)",
+  PRODUCTION_IN_REVERSAL: "ยกเลิกการผลิต (นำของที่ได้ออก)",
 };
 
 /** Thai gloss per source — answers "รายการนี้มาจากไหน" in the history view. */
@@ -206,6 +218,7 @@ export const SOURCE_TYPE_LABELS_TH: Record<
   // screen that tells them apart — the movement says stock left to be cooked,
   // the source says nobody paid for it.
   STAFF_MEAL: "มื้อพนักงาน",
+  PRODUCTION: "บันทึกการผลิต",
   SYSTEM_INITIAL: "ยอดยกมา",
 };
 

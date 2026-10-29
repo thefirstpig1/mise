@@ -226,6 +226,12 @@ ALTER TABLE "tenant_membership" FORCE ROW LEVEL SECURITY;
 ALTER TABLE "user_branch_access" FORCE ROW LEVEL SECURITY;
 ALTER TABLE "user_department_assignment" FORCE ROW LEVEL SECURITY;
 ALTER TABLE "waste_log" FORCE ROW LEVEL SECURITY;
+-- ADR 0040
+ALTER TABLE "production" FORCE ROW LEVEL SECURITY;
+ALTER TABLE "production_item" FORCE ROW LEVEL SECURITY;
+ALTER TABLE "trim_recipe" FORCE ROW LEVEL SECURITY;
+ALTER TABLE "trim_recipe_part" FORCE ROW LEVEL SECURITY;
+ALTER TABLE "prepped_shortfall" FORCE ROW LEVEL SECURITY;
 
 -- ============================================================
 -- 4. Policies that refuse to be polite about a missing context
@@ -313,6 +319,12 @@ ALTER POLICY tenant_isolation ON "user_department_assignment" USING ((EXISTS ( S
    FROM tenant_membership tm
   WHERE ((tm.id = user_department_assignment.tenant_membership_id) AND (tm.tenant_id = (current_setting('app.current_tenant_id'::text))::uuid)))));
 ALTER POLICY tenant_isolation ON "waste_log" USING ((tenant_id = (current_setting('app.current_tenant_id'::text))::uuid));
+-- ADR 0040
+ALTER POLICY tenant_isolation ON "production" USING ((tenant_id = (current_setting('app.current_tenant_id'::text))::uuid));
+ALTER POLICY tenant_isolation ON "production_item" USING ((tenant_id = (current_setting('app.current_tenant_id'::text))::uuid));
+ALTER POLICY tenant_isolation ON "trim_recipe" USING ((tenant_id = (current_setting('app.current_tenant_id'::text))::uuid));
+ALTER POLICY tenant_isolation ON "trim_recipe_part" USING ((tenant_id = (current_setting('app.current_tenant_id'::text))::uuid));
+ALTER POLICY tenant_isolation ON "prepped_shortfall" USING ((tenant_id = (current_setting('app.current_tenant_id'::text))::uuid));
 
 -- ============================================================
 -- 5. Verify — run these and read them, do not assume

@@ -596,3 +596,36 @@ USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 -- ============================================================
 -- End ADR 0038 RLS
 -- ============================================================
+
+-- ============================================================
+-- ADR 0040 — production, trim recipes, prepped shortfall
+-- ============================================================
+
+ALTER TABLE production ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON production;
+CREATE POLICY tenant_isolation ON production
+USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+ALTER TABLE production_item ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON production_item;
+CREATE POLICY tenant_isolation ON production_item
+USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+ALTER TABLE trim_recipe ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON trim_recipe;
+CREATE POLICY tenant_isolation ON trim_recipe
+USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+ALTER TABLE trim_recipe_part ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON trim_recipe_part;
+CREATE POLICY tenant_isolation ON trim_recipe_part
+USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+ALTER TABLE prepped_shortfall ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON prepped_shortfall;
+CREATE POLICY tenant_isolation ON prepped_shortfall
+USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+-- ============================================================
+-- End ADR 0040 RLS
+-- ============================================================

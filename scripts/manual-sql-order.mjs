@@ -48,6 +48,7 @@ export const MANUAL_SQL_ORDER = [
   "menu_merge_unique.sql",
   "product_sku_unique.sql",
   "product_trgm_idx.sql",
+  "production_unique.sql",
   "purchase_order_number_unique.sql",
   "sales_consumption_unique.sql",
   "sales_unique.sql",

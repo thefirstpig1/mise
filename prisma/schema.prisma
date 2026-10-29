@@ -96,19 +96,24 @@ model Tenant {
   /// /cost (Kong 2026-10-23). The shop's own targets, in % of sales. Defaults
   /// are common restaurant rules of thumb; a shop edits them on /cost or in
   /// ตั้งค่าร้าน, and every status chip on /cost reads against them.
-  foodCostTargetPct      Decimal @default(35) @map("food_cost_target_pct") @db.Decimal(4, 1)
-  primeCostTargetPct     Decimal @default(65) @map("prime_cost_target_pct") @db.Decimal(4, 1)
-  countVarianceTargetPct Decimal @default(2) @map("count_variance_target_pct") @db.Decimal(4, 1)
+  foodCostTargetPct        Decimal @default(35) @map("food_cost_target_pct") @db.Decimal(4, 1)
+  primeCostTargetPct       Decimal @default(65) @map("prime_cost_target_pct") @db.Decimal(4, 1)
+  countVarianceTargetPct   Decimal @default(2) @map("count_variance_target_pct") @db.Decimal(4, 1)
   /// Rule CO-COV: below this share of sales posted to stock, a recipe-method
   /// cost % is too incomplete to compare with a target or the period before
   /// (fewer recipes posted = less cost = a % that reads as good news).
-  costCoverageMinPct     Int     @default(90) @map("cost_coverage_min_pct")
+  costCoverageMinPct       Int     @default(90) @map("cost_coverage_min_pct")
   /// Stock whose oldest remaining lot is older than this is "ค้างนาน".
-  slowStockDays          Int     @default(45) @map("slow_stock_days")
+  slowStockDays            Int     @default(45) @map("slow_stock_days")
   /// Kong 2026-10-25: how often the shop means to count (days); the hub warns past it.
-  countCycleDays         Int     @default(30) @map("count_cycle_days")
+  countCycleDays           Int     @default(30) @map("count_cycle_days")
   /// Kong 2026-10-25 (ADR 0042): the ปิดร้านประจำวัน add-on. Off = the dashboard keys the till total as before.
-  dailyCloseEnabled      Boolean @default(false) @map("daily_close_enabled")
+  dailyCloseEnabled        Boolean @default(false) @map("daily_close_enabled")
+  /// ADR 0040 Q2: whether a new count sheet shows the ledger's figure. The
+  /// shop's call, not ours — a hint saves the counter time, and also tells a
+  /// dishonest one exactly what number to write. ADR 0015 Q7 still lets each
+  /// sheet change it; this is only where a new sheet starts.
+  countShowExpectedDefault Boolean @default(true) @map("count_show_expected_default")
 
   /// The two staff-meal controls (ADR 0028 Q9). Both nullable, and null means
   /// NOT CHECKED rather than zero — a shop with no policy must not read as a
@@ -198,6 +203,12 @@ model Tenant {
   dailyIssues                   DailyIssue[]
   dailyComments                 DailyComment[]
 
+  productions       Production[]
+  productionItems   ProductionItem[]
+  trimRecipes       TrimRecipe[]
+  trimRecipeParts   TrimRecipePart[]
+  preppedShortfalls PreppedShortfall[]
+
   @@map("tenant")
 }
 
@@ -260,6 +271,9 @@ model Branch {
   purchaseRequestLines    PurchaseRequestLine[]
   purchaseRequestReadies  PurchaseRequestReady[]
   dailyCloses             DailyClose[]
+
+  productions       Production[]
+  preppedShortfalls PreppedShortfall[]
 
   @@index([tenantId])
   @@map("branch")
@@ -334,6 +348,9 @@ model User {
   roleOverridesChanged       RoleCapabilityOverride[]       @relation("RoleOverrideChangedBy")
   membershipOverridesChanged MembershipCapabilityOverride[] @relation("MembershipOverrideChangedBy")
   permissionChangesMade      PermissionChangeLog[]          @relation("PermissionChangeActor")
+
+  productionsRecorded Production[] @relation("ProductionRecordedBy")
+  productionsVoided   Production[] @relation("ProductionVoidedBy")
 
   @@map("app_user")
 }
@@ -636,8 +653,6 @@ model Product {
   densityGPerMlOverride   Decimal? @map("density_g_per_ml_override") @db.Decimal(15, 6)
   yieldPercent            Decimal? @map("yield_percent") @db.Decimal(5, 2)
   parentProductId         String?  @map("parent_product_id") @db.Uuid
-  expectedYieldG          Decimal? @map("expected_yield_g") @db.Decimal(15, 6)
-  targetMarketPrice       Decimal? @map("target_market_price") @db.Decimal(15, 4)
   imageUrl                String?  @map("image_url")
   isActive                Boolean  @default(true) @map("is_active")
 
@@ -670,6 +685,11 @@ model Product {
   /// NOTE: per-tenant sku uniqueness is a PARTIAL unique index (WHERE deleted_at
   /// IS NULL) in prisma/manual/product_sku_unique.sql — NOT a Prisma @@unique,
   /// which Prisma 5.22 can only express as a FULL index (Pitfall #23). See sku field.
+  productionItems     ProductionItem[]
+  trimRecipesAsParent TrimRecipe[]
+  trimRecipeParts     TrimRecipePart[]
+  preppedShortfalls   PreppedShortfall[]
+
   @@index([tenantId])
   @@map("product")
 }
@@ -699,6 +719,8 @@ model ProductUnit {
   recipeIngredients       RecipeIngredient[]
   staffMealItems          StaffMealItem[]
   purchaseRequestLines    PurchaseRequestLine[]
+
+  productionItems ProductionItem[]
 
   @@unique([productId, unitName])
   @@index([productId])
@@ -799,6 +821,18 @@ enum MovementType {
   /// that approximation; a month of sales cannot.
   CONSUMPTION_REVERSAL
 
+  /// ADR 0040 Q3/Q4. Making prepped stock out of other stock, inside ONE
+  /// branch: the inputs leave as PRODUCTION_OUT and what was made arrives as
+  /// PRODUCTION_IN, both pointing at a `production_item`. Types of their own
+  /// rather than ADJUST_* for the reason TRANSFER_* gave (ADR 0018 Q4): FIFO
+  /// has to hand the money the inputs took to the output's new layer, and a
+  /// reversal must cut ITS OWN layer (ADR 0014 Q8). Nothing was bought, wasted
+  /// or found — so none of /cost's existing columns may count these.
+  PRODUCTION_OUT // -  OUT — an input used up by the making
+  PRODUCTION_IN // +  IN  — what the making produced
+  PRODUCTION_OUT_REVERSAL // +  IN  — a void gives an input back
+  PRODUCTION_IN_REVERSAL // -  OUT — a void takes the output back off the shelf
+
   @@map("movement_type")
 }
 
@@ -854,6 +888,12 @@ enum SourceType {
   /// leaving to be cooked and eaten is what `CONSUMPTION` already means, and who
   /// ate it is what a source type is for.
   STAFF_MEAL
+  /// -> production_item (ADR 0040). The ITEM is the source, not the document:
+  /// one production has several inputs (and a trim several outputs), and
+  /// stock_movement_source_unique keys on the PAIR (source_type, source_id).
+  /// Each item posts exactly one movement, so one value covers both legs —
+  /// the direction is the movement TYPE, as it is for CONSUMPTION.
+  PRODUCTION
   SYSTEM_INITIAL // reserved: onboarding initial stock (no writer in Part 10)
 
   @@map("source_type")
@@ -2189,7 +2229,7 @@ model StockTransferItem {
 
   /// Quantity IN THE ENTERED UNIT. Positive on a normal line, NEGATIVE on a
   /// reversal line — stock_transfer_item_sign_check. Mirrors goods_receipt_item.
-  qtySent     Decimal  @map("qty_sent") @db.Decimal(15, 3)
+  qtySent         Decimal  @map("qty_sent") @db.Decimal(15, 3)
   /// NULL until a human at the far end counts (Q2). Deliberately nullable rather
   /// than defaulting to qty_sent: the absence of a number is not a zero and it is
   /// not agreement either — the same reasoning that made par_qty refuse 0. A
@@ -2198,7 +2238,7 @@ model StockTransferItem {
   /// (stock_transfer_item_received_le_sent_check): a surplus has no posting, no
   /// cost and no meaning as a transfer — one of the two counts is simply wrong,
   /// and that is a conversation, not a ledger entry.
-  qtyReceived Decimal? @map("qty_received") @db.Decimal(15, 3)
+  qtyReceived     Decimal? @map("qty_received") @db.Decimal(15, 3)
   /// What arrived, in the BASE unit, exactly (Kong 2026-10-27, option A). The
   /// receiver may count in any unit or several ("1 แพ็ค + 11 ขวด"); the
   /// shortage is sent-in-base minus this. NULL on lines received before it
@@ -3022,6 +3062,8 @@ model Recipe {
   ingredients    RecipeIngredient[]
   branches       RecipeBranch[]
 
+  productions Production[]
+
   @@index([tenantId])
   @@index([lineId, effectiveFrom], map: "recipe_line_effective_idx")
   @@index([menuId], map: "recipe_menu_idx")
@@ -3230,6 +3272,8 @@ model SalesConsumptionRun {
   voidedByUser User?                  @relation("ConsumptionVoidedBy", fields: [voidedBy], references: [id])
   items        SalesConsumptionItem[]
 
+  preppedShortfalls PreppedShortfall[]
+
   @@index([tenantId])
   @@index([branchId, businessDate], map: "sales_consumption_run_branch_date_idx")
   @@map("sales_consumption_run")
@@ -3437,6 +3481,8 @@ model StaffMeal {
   approvedByUser User?           @relation("StaffMealApprovedBy", fields: [approvedBy], references: [id])
   items          StaffMealItem[]
 
+  preppedShortfalls PreppedShortfall[]
+
   @@index([tenantId])
   @@index([branchId, businessDate], map: "staff_meal_branch_date_idx")
   @@index([staffMemberId, businessDate], map: "staff_meal_member_date_idx")
@@ -3629,4 +3675,244 @@ model DailyComment {
   @@index([tenantId])
   @@index([dailyCloseId, createdAt], map: "daily_comment_close_idx")
   @@map("daily_comment")
+}
+
+// ============================================================
+// ADR 0040 — making prepped stock, and trim recipes
+// ============================================================
+
+/// What a production document records (ADR 0040 Q3 / Q7).
+enum ProductionKind {
+  /// Many inputs, one output: a production recipe, or a parent + yield.
+  PRODUCE
+  /// One input, many outputs: a trim recipe (the butcher's yield test, Q7).
+  TRIM
+
+  @@map("production_kind")
+}
+
+/// Who or what wrote the document. Everything but MANUAL is the system saying
+/// "this was made and nobody recorded it" (Q2, Q9) — the document exists so
+/// that saying it leaves a trace a person can open, rather than a number that
+/// moved by itself.
+enum ProductionOrigin {
+  MANUAL
+  /// More prepped stock was counted than the ledger held (Q2).
+  STOCK_COUNT
+  /// More prepped stock was wasted than was on hand (Q9).
+  WASTE
+  /// A manual adjustment took more prepped stock than was on hand (Q9).
+  ADJUSTMENT
+  /// More was sent to another branch than was on hand: the sender made it
+  /// without recording it, and the receiver gets it at the right value (Q9).
+  TRANSFER
+
+  @@map("production_origin")
+}
+
+enum ProductionItemRole {
+  INPUT
+  OUTPUT
+
+  @@map("production_item_role")
+}
+
+/// One act of making prepped stock at one branch (ADR 0040). `id` IS the form's
+/// `submit_key` (Part 13.5): a double-tap collides on the primary key.
+///
+/// NOTHING ABOUT MONEY IS STORED (Q4, ADR 0014). What the output is worth is
+/// what FIFO says the inputs cost, replayed fresh every time — so correcting a
+/// bone price last Tuesday moves the soup made from it. A transfer freezes its
+/// money because another branch must know it on arrival (ADR 0018 Q5); a
+/// production never leaves its branch, so it has no reason to.
+model Production {
+  id       String           @id @default(uuid()) @db.Uuid
+  tenantId String           @map("tenant_id") @db.Uuid
+  branchId String           @map("branch_id") @db.Uuid
+  /// {BRANCH_CODE}-PD-#### under withCounterLock; the full unique is the backstop.
+  pdNumber String           @map("pd_number")
+  kind     ProductionKind
+  origin   ProductionOrigin @default(MANUAL)
+  /// The stock_count / waste_log / stock_adjustment / stock_transfer that made
+  /// the system write this document. Polymorphic like the ledger's own source
+  /// pointer (ADR 0011 Q3), so no FK. NULL exactly when origin = MANUAL.
+  originId String?          @map("origin_id") @db.Uuid
+
+  /// Business time of every leg. Backdatable 7 days (Q5) — a day value is the
+  /// START of that Bangkok day, so what was made that morning is on the shelf
+  /// for the same day's sales.
+  producedAt DateTime @map("produced_at")
+
+  /// The production recipe the inputs were filled from (PRODUCE). NULL for a
+  /// parent + yield, and for TRIM.
+  recipeId     String? @map("recipe_id") @db.Uuid
+  /// The trim recipe the outputs were split by (TRIM).
+  trimRecipeId String? @map("trim_recipe_id") @db.Uuid
+
+  /// Q2: the count asked someone to check the main inputs and nobody did. The
+  /// production still posted by the recipe; this says it was not confirmed.
+  inputsUnconfirmed Boolean @default(false) @map("inputs_unconfirmed")
+
+  recordedBy String  @map("recorded_by")
+  notes      String?
+
+  voidedAt   DateTime? @map("voided_at")
+  voidedBy   String?   @map("voided_by")
+  voidReason String?   @map("void_reason")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant         Tenant           @relation(fields: [tenantId], references: [id])
+  branch         Branch           @relation(fields: [branchId], references: [id])
+  recipe         Recipe?          @relation(fields: [recipeId], references: [id])
+  trimRecipe     TrimRecipe?      @relation(fields: [trimRecipeId], references: [id])
+  recordedByUser User             @relation("ProductionRecordedBy", fields: [recordedBy], references: [id])
+  voidedByUser   User?            @relation("ProductionVoidedBy", fields: [voidedBy], references: [id])
+  items          ProductionItem[]
+
+  @@unique([tenantId, pdNumber], map: "production_number_unique")
+  @@index([tenantId])
+  @@index([branchId, producedAt], map: "production_branch_time_idx")
+  @@map("production")
+}
+
+/// One input used, or one output made. Each posts exactly ONE movement
+/// (source_type = PRODUCTION, source_id = this id); a void appends reversal
+/// items into the same document (the staff_meal_item shape).
+model ProductionItem {
+  id           String             @id @default(uuid()) @db.Uuid
+  tenantId     String             @map("tenant_id") @db.Uuid
+  productionId String             @map("production_id") @db.Uuid
+  productId    String             @map("product_id") @db.Uuid
+  role         ProductionItemRole
+
+  /// Positive magnitude in BASE units; the movement type carries the sign.
+  qty         Decimal  @db.Decimal(15, 3)
+  /// As the person entered it (2 หม้อ, 3 ถุง), so the document reads back in
+  /// their words. Both NULL for a line the system wrote.
+  inputQty    Decimal? @map("input_qty") @db.Decimal(15, 3)
+  inputUnitId String?  @map("input_unit_id") @db.Uuid
+
+  /// OUTPUT only: the share of the inputs' money this output takes, in percent.
+  /// 100 for a PRODUCE; the trim recipe's % มูลค่า for a TRIM (Q7). Frozen on
+  /// the line because it is a DECISION made when the fish was cut — editing the
+  /// trim recipe next month must not re-split last month's fish. The money it
+  /// multiplies is never stored (Q4).
+  valueSharePct Decimal? @map("value_share_pct") @db.Decimal(7, 4)
+
+  reversalOfItemId String? @map("reversal_of_item_id") @db.Uuid
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant     Tenant           @relation(fields: [tenantId], references: [id])
+  production Production       @relation(fields: [productionId], references: [id])
+  product    Product          @relation(fields: [productId], references: [id])
+  inputUnit  ProductUnit?     @relation(fields: [inputUnitId], references: [id])
+  reversalOf ProductionItem?  @relation("ProductionItemReversal", fields: [reversalOfItemId], references: [id])
+  reversals  ProductionItem[] @relation("ProductionItemReversal")
+
+  @@index([tenantId])
+  @@index([productionId], map: "production_item_production_idx")
+  @@index([productId], map: "production_item_product_idx")
+  @@map("production_item")
+}
+
+/// How one whole thing bought is cut into parts (ADR 0040 Q7) — whole fish into
+/// fillet, belly, head, bones. Set once, used by every TRIM production and, when
+/// nobody records the cutting, by the explosion (Q8).
+///
+/// A parent + yield (ADR 0007) is the same thing with one part and is computed
+/// by the same code (Consequence 2) — so it is NOT migrated into this table.
+model TrimRecipe {
+  id              String  @id @default(uuid()) @db.Uuid
+  tenantId        String  @map("tenant_id") @db.Uuid
+  parentProductId String  @map("parent_product_id") @db.Uuid
+  name            String
+  notes           String?
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  tenant        Tenant           @relation(fields: [tenantId], references: [id])
+  parentProduct Product          @relation(fields: [parentProductId], references: [id])
+  parts         TrimRecipePart[]
+  productions   Production[]
+
+  @@index([tenantId])
+  @@index([parentProductId], map: "trim_recipe_parent_idx")
+  @@map("trim_recipe")
+}
+
+/// One part of a trim recipe. `productId` NULL is the part that is thrown away
+/// (scales, guts): it has a weight and a value of 0, and nothing to put on a shelf.
+///
+/// A product is a part of at most ONE live trim recipe (partial unique in
+/// prisma/manual/production_unique.sql): the explosion walks from a part back to
+/// its parent, and two parents would make that walk a guess (ADR 0021 Q1's
+/// "one way to make it", extended by ADR 0040 Consequence 2). `deletedAt` is
+/// written with the recipe's, in one act, so that index can see it.
+model TrimRecipePart {
+  id           String  @id @default(uuid()) @db.Uuid
+  tenantId     String  @map("tenant_id") @db.Uuid
+  trimRecipeId String  @map("trim_recipe_id") @db.Uuid
+  productId    String? @map("product_id") @db.Uuid
+  /// Name for a thrown-away part; a kept part reads its product's name.
+  label        String?
+  /// % of the whole thing's weight this part is.
+  weightPct    Decimal @map("weight_pct") @db.Decimal(7, 4)
+  /// % of the whole thing's cost this part carries. Defaults to the weight
+  /// share among KEPT parts; the shop may type over any line (Q7).
+  valuePct     Decimal @map("value_pct") @db.Decimal(7, 4)
+  /// The shop pressed 🔒 on this line: re-balancing never moves it (Q7). The
+  /// system never sets this itself.
+  valueLocked  Boolean @default(false) @map("value_locked")
+  sortOrder    Int     @default(0) @map("sort_order")
+
+  deletedAt DateTime? @map("deleted_at")
+
+  tenant     Tenant     @relation(fields: [tenantId], references: [id])
+  trimRecipe TrimRecipe @relation(fields: [trimRecipeId], references: [id])
+  product    Product?   @relation(fields: [productId], references: [id])
+
+  @@index([tenantId])
+  @@index([trimRecipeId], map: "trim_recipe_part_recipe_idx")
+  @@map("trim_recipe_part")
+}
+
+/// "ระบบตัดแทน" (ADR 0040 Q1): a sale or a staff meal needed prepped stock that
+/// was not on the shelf, so the explosion went on down the recipe and cut the
+/// raw ingredients instead. One row per (document, prepped product).
+///
+/// Recorded, not recomputed, because two things ask it later: the report that
+/// tells a shop which prepped items keep being cut for it (Q1), and the re-post
+/// a backdated production triggers (Q5), which must find the days that cut
+/// INSTEAD of the stock it has just put on the shelf. The document it belongs
+/// to may be voided later — readers keep only the rows of documents that stand.
+model PreppedShortfall {
+  id           String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  branchId     String   @map("branch_id") @db.Uuid
+  productId    String   @map("product_id") @db.Uuid
+  businessDate DateTime @map("business_date") @db.Date
+  /// Base units the system cut from the recipe instead of from the shelf.
+  qty          Decimal  @db.Decimal(15, 3)
+
+  /// Exactly one of these is set (CHECK in the migration).
+  salesConsumptionRunId String? @map("sales_consumption_run_id") @db.Uuid
+  staffMealId           String? @map("staff_meal_id") @db.Uuid
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant              Tenant               @relation(fields: [tenantId], references: [id])
+  branch              Branch               @relation(fields: [branchId], references: [id])
+  product             Product              @relation(fields: [productId], references: [id])
+  salesConsumptionRun SalesConsumptionRun? @relation(fields: [salesConsumptionRunId], references: [id])
+  staffMeal           StaffMeal?           @relation(fields: [staffMealId], references: [id])
+
+  @@index([tenantId])
+  @@index([branchId, productId, businessDate], map: "prepped_shortfall_branch_product_date_idx")
+  @@index([salesConsumptionRunId], map: "prepped_shortfall_run_idx")
+  @@index([staffMealId], map: "prepped_shortfall_staff_meal_idx")
+  @@map("prepped_shortfall")
 }
