@@ -30,7 +30,6 @@ import { revalidatePath } from "next/cache";
 import type { ZodError } from "zod";
 import { requireTenant } from "@/lib/require-tenant";
 import {
-  copyRecipeToBranchesInputSchema,
   deleteRecipeInputSchema,
   ingredientRowsFromFormData,
   recipeInputSchema,
@@ -47,7 +46,6 @@ import {
   SubstitutionDuplicateError,
   SubstitutionTargetStaleError,
   SubstitutionTouchesBranchRecipesError,
-  copyRecipeToBranchesLogic,
   createRecipeLogic,
   RecipeBranchOwnsLineError,
   recipeLineBranchIdsLogic,
@@ -465,42 +463,6 @@ export async function deleteRecipeAction(
       };
     }
     throw e;
-  }
-}
-
-/**
- * Give the named branches their own copy (Q8) — the moment those branches stop
- * following central, and the reason the second pass has to carry proof the
- * person saw whose recipe is being displaced.
- */
-export async function copyRecipeToBranchesAction(
-  _prevState: RecipeActionState,
-  formData: FormData
-): Promise<RecipeActionState> {
-  const { tenantId, membership, assertBranch} = await requireTenant("recipe:write");
-
-  const parsed = copyRecipeToBranchesInputSchema.safeParse({
-    submitKey: formData.get("submit_key"),
-    sourceRecipeId: formData.get("source_recipe_id"),
-    branchIds: formData.getAll("branch_id"),
-    acknowledgeOverwrite: formData.get("acknowledge_overwrite") === "on",
-  });
-  if (!parsed.success) {
-    return { ok: false, fieldErrors: toFieldErrors(parsed.error) };
-  }
-
-  for (const id of parsed.data.branchIds) assertBranch(id);
-
-  try {
-    const copy = await copyRecipeToBranchesLogic(
-      tenantId,
-      parsed.data,
-      membership.userId
-    );
-    revalidateRecipeViews(copy.id);
-    return { ok: true, recipe: toRecipeView(copy) };
-  } catch (e) {
-    return { ok: false, ...toFormError(e) };
   }
 }
 
