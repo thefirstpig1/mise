@@ -31,6 +31,11 @@ import { PrismaClient, Prisma } from "@prisma/client";
  * quietly for a sprint.
  */
 export const TENANT_SCOPED_DELETE_ORDER = [
+  // ADR 0037 Q5–Q6: files point at payments, refunds and bills; payments at
+  // refunds and bills — so files, then payments, then refunds.
+  "StoredFile",
+  "ExpensePayment",
+  "StaffRefund",
   "PurchaseRequestMessage",
   "PurchaseRequestReady",
   "PurchaseOrderDeliveryPromise",

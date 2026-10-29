@@ -629,3 +629,23 @@ USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 -- ============================================================
 -- End ADR 0040 RLS
 -- ============================================================
+
+-- ============================================================
+-- ADR 0037 Q5–Q6 — staff advances (stored files, payments, refunds)
+-- ============================================================
+
+ALTER TABLE stored_file ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON stored_file;
+CREATE POLICY tenant_isolation ON stored_file
+USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+ALTER TABLE expense_payment ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON expense_payment;
+CREATE POLICY tenant_isolation ON expense_payment
+USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+ALTER TABLE staff_refund ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON staff_refund;
+CREATE POLICY tenant_isolation ON staff_refund
+USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+

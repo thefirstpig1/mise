@@ -232,6 +232,10 @@ ALTER TABLE "production_item" FORCE ROW LEVEL SECURITY;
 ALTER TABLE "trim_recipe" FORCE ROW LEVEL SECURITY;
 ALTER TABLE "trim_recipe_part" FORCE ROW LEVEL SECURITY;
 ALTER TABLE "prepped_shortfall" FORCE ROW LEVEL SECURITY;
+-- ADR 0037 Q5–Q6
+ALTER TABLE "stored_file" FORCE ROW LEVEL SECURITY;
+ALTER TABLE "expense_payment" FORCE ROW LEVEL SECURITY;
+ALTER TABLE "staff_refund" FORCE ROW LEVEL SECURITY;
 
 -- ============================================================
 -- 4. Policies that refuse to be polite about a missing context
@@ -325,6 +329,10 @@ ALTER POLICY tenant_isolation ON "production_item" USING ((tenant_id = (current_
 ALTER POLICY tenant_isolation ON "trim_recipe" USING ((tenant_id = (current_setting('app.current_tenant_id'::text))::uuid));
 ALTER POLICY tenant_isolation ON "trim_recipe_part" USING ((tenant_id = (current_setting('app.current_tenant_id'::text))::uuid));
 ALTER POLICY tenant_isolation ON "prepped_shortfall" USING ((tenant_id = (current_setting('app.current_tenant_id'::text))::uuid));
+-- ADR 0037 Q5–Q6
+ALTER POLICY tenant_isolation ON "stored_file" USING ((tenant_id = (current_setting('app.current_tenant_id'::text))::uuid));
+ALTER POLICY tenant_isolation ON "expense_payment" USING ((tenant_id = (current_setting('app.current_tenant_id'::text))::uuid));
+ALTER POLICY tenant_isolation ON "staff_refund" USING ((tenant_id = (current_setting('app.current_tenant_id'::text))::uuid));
 
 -- ============================================================
 -- 5. Verify — run these and read them, do not assume

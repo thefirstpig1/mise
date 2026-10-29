@@ -67,18 +67,18 @@ model VerificationToken {
 // ============================================================
 
 model Tenant {
-  id                   String  @id @default(uuid()) @db.Uuid
+  id                   String    @id @default(uuid()) @db.Uuid
   name                 String
-  legalName            String? @map("legal_name")
-  taxId                String? @map("tax_id")
-  timezone             String  @default("Asia/Bangkok")
-  currency             String  @default("THB")
-  fiscalYearStartMonth Int     @default(1) @map("fiscal_year_start_month")
+  legalName            String?   @map("legal_name")
+  taxId                String?   @map("tax_id")
+  timezone             String    @default("Asia/Bangkok")
+  currency             String    @default("THB")
+  fiscalYearStartMonth Int       @default(1) @map("fiscal_year_start_month")
   /// Which package the shop is on (Kong 2026-10-29): "trial" until the platform
   /// sets it, "standard" once agreed. A CHECK in the migration keeps it to those
   /// two — the operator's script is the only writer, and a typo there would
   /// otherwise reach the shop's settings page as an unknown plan.
-  plan                 String  @default("trial")
+  plan                 String    @default("trial")
   /// The day the shop stops being free, INCLUSIVE. Null = no date agreed yet.
   /// Nothing is locked when it passes — collecting money and what happens to a
   /// shop that does not pay are decided before the first free year ends.
@@ -107,24 +107,30 @@ model Tenant {
   /// /cost (Kong 2026-10-23). The shop's own targets, in % of sales. Defaults
   /// are common restaurant rules of thumb; a shop edits them on /cost or in
   /// ตั้งค่าร้าน, and every status chip on /cost reads against them.
-  foodCostTargetPct        Decimal @default(35) @map("food_cost_target_pct") @db.Decimal(4, 1)
-  primeCostTargetPct       Decimal @default(65) @map("prime_cost_target_pct") @db.Decimal(4, 1)
-  countVarianceTargetPct   Decimal @default(2) @map("count_variance_target_pct") @db.Decimal(4, 1)
+  foodCostTargetPct        Decimal  @default(35) @map("food_cost_target_pct") @db.Decimal(4, 1)
+  primeCostTargetPct       Decimal  @default(65) @map("prime_cost_target_pct") @db.Decimal(4, 1)
+  countVarianceTargetPct   Decimal  @default(2) @map("count_variance_target_pct") @db.Decimal(4, 1)
   /// Rule CO-COV: below this share of sales posted to stock, a recipe-method
   /// cost % is too incomplete to compare with a target or the period before
   /// (fewer recipes posted = less cost = a % that reads as good news).
-  costCoverageMinPct       Int     @default(90) @map("cost_coverage_min_pct")
+  costCoverageMinPct       Int      @default(90) @map("cost_coverage_min_pct")
   /// Stock whose oldest remaining lot is older than this is "ค้างนาน".
-  slowStockDays            Int     @default(45) @map("slow_stock_days")
+  slowStockDays            Int      @default(45) @map("slow_stock_days")
   /// Kong 2026-10-25: how often the shop means to count (days); the hub warns past it.
-  countCycleDays           Int     @default(30) @map("count_cycle_days")
+  countCycleDays           Int      @default(30) @map("count_cycle_days")
   /// Kong 2026-10-25 (ADR 0042): the ปิดร้านประจำวัน add-on. Off = the dashboard keys the till total as before.
-  dailyCloseEnabled        Boolean @default(false) @map("daily_close_enabled")
+  dailyCloseEnabled        Boolean  @default(false) @map("daily_close_enabled")
   /// ADR 0040 Q2: whether a new count sheet shows the ledger's figure. The
   /// shop's call, not ours — a hint saves the counter time, and also tells a
   /// dishonest one exactly what number to write. ADR 0015 Q7 still lets each
   /// sheet change it; this is only where a new sheet starts.
-  countShowExpectedDefault Boolean @default(true) @map("count_show_expected_default")
+  countShowExpectedDefault Boolean  @default(true) @map("count_show_expected_default")
+  /// ADR 0037 Q5–Q6 (Kong 2026-10-29, both off by default): before a staff
+  /// member is repaid, must someone holding `purchase:approve` approve the bill?
+  /// `refund_approval_all` = every bill; otherwise `refund_approval_over` = only
+  /// bills above this amount (null = none). Proof is always required either way.
+  refundApprovalAll        Boolean  @default(false) @map("refund_approval_all")
+  refundApprovalOver       Decimal? @map("refund_approval_over") @db.Decimal(15, 2)
 
   /// The two staff-meal controls (ADR 0028 Q9). Both nullable, and null means
   /// NOT CHECKED rather than zero — a shop with no policy must not read as a
@@ -220,6 +226,10 @@ model Tenant {
   trimRecipeParts   TrimRecipePart[]
   preppedShortfalls PreppedShortfall[]
 
+  storedFiles     StoredFile[]
+  expensePayments ExpensePayment[]
+  staffRefunds    StaffRefund[]
+
   @@map("tenant")
 }
 
@@ -285,6 +295,7 @@ model Branch {
 
   productions       Production[]
   preppedShortfalls PreppedShortfall[]
+  expensePayments   ExpensePayment[]
 
   @@index([tenantId])
   @@map("branch")
@@ -362,6 +373,16 @@ model User {
 
   productionsRecorded Production[] @relation("ProductionRecordedBy")
   productionsVoided   Production[] @relation("ProductionVoidedBy")
+
+  filesUploaded    StoredFile[]     @relation("StoredFileUploadedBy")
+  paymentsPaid     ExpensePayment[] @relation("PaymentPaidBy")
+  paymentsRecorded ExpensePayment[] @relation("PaymentRecordedBy")
+  paymentsEndorsed ExpensePayment[] @relation("PaymentEndorsedBy")
+  paymentsApproved ExpensePayment[] @relation("PaymentApprovedBy")
+  paymentsVoided   ExpensePayment[] @relation("PaymentVoidedBy")
+  refundsReceived  StaffRefund[]    @relation("RefundTo")
+  refundsMade      StaffRefund[]    @relation("RefundBy")
+  refundsVoided    StaffRefund[]    @relation("RefundVoidedBy")
 
   @@map("app_user")
 }
@@ -602,6 +623,12 @@ model Supplier {
   taxId                 String?  @map("tax_id")
   paymentTerms          String?  @map("payment_terms")
   isActive              Boolean  @default(true) @map("is_active")
+  /// ADR 0037 Q6: the one supplier per shop that stands for "a place with no
+  /// supplier record" — a market stall a staff member bought from. A goods
+  /// receipt needs a supplier (ADR 0013), and staff cannot add suppliers, so a
+  /// self-purchase of stock lands here and names the place in
+  /// `expense.vendor_name`. At most one per tenant (partial unique, prisma/manual).
+  isWalkIn              Boolean  @default(false) @map("is_walk_in")
   isVatRegistered       Boolean  @default(false) @map("is_vat_registered")
   /// ADR 0036 Q7 — this supplier quotes prices INCLUDING VAT (a Makro shelf
   /// price), rather than adding VAT at the bottom. The default for its orders
@@ -1537,6 +1564,8 @@ model PurchaseRequestLine {
   rejectedByUser  User?                    @relation("PrLineRejectedBy", fields: [rejectedBy], references: [id])
   messages        PurchaseRequestMessage[]
   orderItems      PurchaseOrderItem[]
+  /// ADR 0037 Q6: bought by a staff member on a self-purchase.
+  boughtItems     GoodsReceiptItem[]
 
   @@index([tenantId])
   @@index([branchId, deletedAt], map: "pr_line_branch_idx")
@@ -1729,8 +1758,12 @@ model GoodsReceiptItem {
 
   /// Quantity IN THE RECEIVED UNIT. Positive on a normal line, NEGATIVE on a
   /// reversal line — bound by goods_receipt_item_sign_check.
-  qtyReceivedActual Decimal @map("qty_received_actual") @db.Decimal(15, 3)
-  receivedUnitId    String  @map("received_unit_id") @db.Uuid
+  /// ADR 0037 Q6: a self-purchase ticks the purchase-request line it bought,
+  /// so the purchaser does not order it again. Null on every PO receipt — those
+  /// reach the request through the PO line.
+  purchaseRequestLineId String? @map("purchase_request_line_id") @db.Uuid
+  qtyReceivedActual     Decimal @map("qty_received_actual") @db.Decimal(15, 3)
+  receivedUnitId        String  @map("received_unit_id") @db.Uuid
 
   /// --- snapshot ---
   /// For a PO-based line these are COPIED FROM THE PO LINE'S FROZEN VALUES
@@ -1760,14 +1793,15 @@ model GoodsReceiptItem {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  tenant            Tenant                       @relation(fields: [tenantId], references: [id])
-  goodsReceipt      GoodsReceipt                 @relation(fields: [goodsReceiptId], references: [id], onDelete: Cascade)
-  purchaseOrderItem PurchaseOrderItem?           @relation(fields: [purchaseOrderItemId], references: [id])
-  product           Product                      @relation(fields: [productId], references: [id])
-  receivedUnit      ProductUnit                  @relation(fields: [receivedUnitId], references: [id])
-  reversalOfItem    GoodsReceiptItem?            @relation("GrLineReversal", fields: [reversalOfItemId], references: [id])
-  reversedBy        GoodsReceiptItem[]           @relation("GrLineReversal")
-  allocations       GoodsReceiptItemAllocation[]
+  tenant              Tenant                       @relation(fields: [tenantId], references: [id])
+  goodsReceipt        GoodsReceipt                 @relation(fields: [goodsReceiptId], references: [id], onDelete: Cascade)
+  purchaseOrderItem   PurchaseOrderItem?           @relation(fields: [purchaseOrderItemId], references: [id])
+  purchaseRequestLine PurchaseRequestLine?         @relation(fields: [purchaseRequestLineId], references: [id])
+  product             Product                      @relation(fields: [productId], references: [id])
+  receivedUnit        ProductUnit                  @relation(fields: [receivedUnitId], references: [id])
+  reversalOfItem      GoodsReceiptItem?            @relation("GrLineReversal", fields: [reversalOfItemId], references: [id])
+  reversedBy          GoodsReceiptItem[]           @relation("GrLineReversal")
+  allocations         GoodsReceiptItemAllocation[]
 
   @@unique([goodsReceiptId, lineNo], map: "goods_receipt_item_line_unique")
   @@index([tenantId])
@@ -1882,6 +1916,10 @@ model Expense {
 
   paymentMethod String?              @map("payment_method")
   paymentStatus ExpensePaymentStatus @default(UNPAID) @map("payment_status")
+  /// ADR 0037 Q6: where a staff member bought it when there is no supplier
+  /// record for the place — a market stall ("ตลาด อ.ต.ก."). Shown as the
+  /// vendor wherever `supplier` is null or the shop's walk-in supplier.
+  vendorName    String?              @map("vendor_name")
   paidAt        DateTime?            @map("paid_at")
 
   notes String?
@@ -1898,6 +1936,8 @@ model Expense {
   recurring     RecurringExpense? @relation(fields: [recurringExpenseId], references: [id])
   createdByUser User              @relation(fields: [createdBy], references: [id])
   items         ExpenseItem[]
+  payments      ExpensePayment[]
+  files         StoredFile[]
 
   @@index([tenantId])
   @@index([branchId, billDate], map: "expense_branch_date_idx")
@@ -3926,4 +3966,179 @@ model PreppedShortfall {
   @@index([salesConsumptionRunId], map: "prepped_shortfall_run_idx")
   @@index([staffMealId], map: "prepped_shortfall_staff_meal_idx")
   @@map("prepped_shortfall")
+}
+
+// ============================================================
+// STAFF ADVANCES — สำรองจ่าย / เบิกคืน (ADR 0037 Q5–Q6, Kong 2026-10-29)
+// ============================================================
+// A staff member buys something with their own money, photographs the bill and
+// the slip, and the shop pays them back. Three things are kept apart because
+// they happen at different times and by different people:
+//   * the BILL — an ordinary `expense` (plus a goods receipt for stock lines),
+//     with its photos as `stored_file` rows;
+//   * how it was PAID — `expense_payment`, one live row per bill (Q5: no
+//     paying several bills at once). Paid by a staff member = the shop now
+//     owes that person;
+//   * the REPAYMENT — `staff_refund`, one transfer back to one person covering
+//     any number of their payments, with its own slip.
+// What a claim's status IS (ขาดหลักฐาน / รอบัญชีรับรอง / รออนุมัติ / รอคืนเงิน /
+// คืนแล้ว) is never stored: it is read from these rows and the shop's settings.
+// ============================================================
+
+enum StoredFileKind {
+  /// A photo (or PDF) of the bill or receipt.
+  BILL
+  /// Proof the bill was paid: the transfer slip.
+  PAYMENT_SLIP
+  /// Proof the shop paid the staff member back.
+  REFUND_SLIP
+
+  @@map("stored_file_kind")
+}
+
+/// One file kept in object storage (Tigris in production, a local folder in
+/// dev). The bytes are never in Postgres. The full original is kept — the
+/// shop's accountant files it — and every read goes through a route that
+/// checks who is asking; the bucket is private.
+model StoredFile {
+  id           String         @id @default(uuid()) @db.Uuid
+  tenantId     String         @map("tenant_id") @db.Uuid
+  kind         StoredFileKind
+  /// Where the bytes live inside the bucket: "<tenant>/<yyyy-mm>/<id>.<ext>".
+  storageKey   String         @map("storage_key")
+  contentType  String         @map("content_type")
+  byteSize     Int            @map("byte_size")
+  /// Hex SHA-256 of the bytes: the same bill photographed and claimed twice is
+  /// found by equality, not by eye.
+  sha256       String
+  originalName String?        @map("original_name")
+
+  /// The document it belongs to — at most one (CHECK). Null between the upload
+  /// and the save, because the camera opens before the form is filled.
+  expenseId        String? @map("expense_id") @db.Uuid
+  expensePaymentId String? @map("expense_payment_id") @db.Uuid
+  staffRefundId    String? @map("staff_refund_id") @db.Uuid
+
+  uploadedBy String    @map("uploaded_by")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  deletedAt  DateTime? @map("deleted_at")
+
+  tenant         Tenant          @relation(fields: [tenantId], references: [id])
+  expense        Expense?        @relation(fields: [expenseId], references: [id])
+  expensePayment ExpensePayment? @relation(fields: [expensePaymentId], references: [id])
+  staffRefund    StaffRefund?    @relation(fields: [staffRefundId], references: [id])
+  uploadedByUser User            @relation("StoredFileUploadedBy", fields: [uploadedBy], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, sha256], map: "stored_file_sha_idx")
+  @@index([expenseId], map: "stored_file_expense_idx")
+  @@index([expensePaymentId], map: "stored_file_payment_idx")
+  @@index([staffRefundId], map: "stored_file_refund_idx")
+  @@map("stored_file")
+}
+
+enum PaymentPayer {
+  /// The shop's own money — petty cash, the shop's card or account.
+  SHOP
+  /// A staff member's own money: the shop owes them until a staff_refund.
+  STAFF
+
+  @@map("payment_payer")
+}
+
+enum PaymentMethod {
+  TRANSFER
+  CASH
+  CARD
+  OTHER
+
+  @@map("payment_method")
+}
+
+/// How one bill was paid (ADR 0037 Q5). One live row per expense (partial
+/// unique on expense_id WHERE voided_at IS NULL); a correction voids and
+/// writes again, never edits.
+model ExpensePayment {
+  id        String @id @default(uuid()) @db.Uuid
+  tenantId  String @map("tenant_id") @db.Uuid
+  /// Denormalised from the expense: who may see and act on it is decided by
+  /// branch reach, and that question should not need a join.
+  branchId  String @map("branch_id") @db.Uuid
+  expenseId String @map("expense_id") @db.Uuid
+
+  payer        PaymentPayer
+  /// STAFF only, and always the account that recorded it — never a typed name
+  /// (Kong 2026-10-27: the logged-in person is responsible). CHECK.
+  paidByUserId String?       @map("paid_by_user_id")
+  method       PaymentMethod
+  paidAt       DateTime      @map("paid_at")
+  /// = the bill's net payment when recorded, frozen: what the shop owes back.
+  amount       Decimal       @db.Decimal(15, 2)
+
+  /// Cash with no slip (Q6): the payer's reason, which the accountant weighs.
+  noSlipReason String?   @map("no_slip_reason")
+  /// The accountant's acceptance of a claim with no slip, case by case (Q6).
+  endorsedAt   DateTime? @map("endorsed_at")
+  endorsedBy   String?   @map("endorsed_by")
+  endorseNote  String?   @map("endorse_note")
+  /// Only when the shop asks for approval (tenant.refund_approval_*).
+  approvedAt   DateTime? @map("approved_at")
+  approvedBy   String?   @map("approved_by")
+
+  /// Set when the shop pays this back. STAFF only (CHECK).
+  staffRefundId String? @map("staff_refund_id") @db.Uuid
+
+  recordedBy String    @map("recorded_by")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  voidedAt   DateTime? @map("voided_at")
+  voidedBy   String?   @map("voided_by")
+  voidReason String?   @map("void_reason")
+
+  tenant         Tenant       @relation(fields: [tenantId], references: [id])
+  branch         Branch       @relation(fields: [branchId], references: [id])
+  expense        Expense      @relation(fields: [expenseId], references: [id])
+  staffRefund    StaffRefund? @relation(fields: [staffRefundId], references: [id])
+  paidByUser     User?        @relation("PaymentPaidBy", fields: [paidByUserId], references: [id])
+  recordedByUser User         @relation("PaymentRecordedBy", fields: [recordedBy], references: [id])
+  endorsedByUser User?        @relation("PaymentEndorsedBy", fields: [endorsedBy], references: [id])
+  approvedByUser User?        @relation("PaymentApprovedBy", fields: [approvedBy], references: [id])
+  voidedByUser   User?        @relation("PaymentVoidedBy", fields: [voidedBy], references: [id])
+  files          StoredFile[]
+
+  @@index([tenantId])
+  @@index([tenantId, paidByUserId], map: "expense_payment_payer_idx")
+  @@index([staffRefundId], map: "expense_payment_refund_idx")
+  @@map("expense_payment")
+}
+
+/// The shop paying one staff member back, for one or more of their payments
+/// (the accountant ticks several bills of the same person and attaches one
+/// slip). `amount` is the sum of those payments, frozen.
+model StaffRefund {
+  id         String        @id @default(uuid()) @db.Uuid
+  tenantId   String        @map("tenant_id") @db.Uuid
+  toUserId   String        @map("to_user_id")
+  amount     Decimal       @db.Decimal(15, 2)
+  method     PaymentMethod
+  refundedAt DateTime      @map("refunded_at")
+  refundedBy String        @map("refunded_by")
+  note       String?
+
+  createdAt  DateTime  @default(now()) @map("created_at")
+  /// A refund recorded by mistake is voided, never deleted; its payments go
+  /// back to "รอคืนเงิน".
+  voidedAt   DateTime? @map("voided_at")
+  voidedBy   String?   @map("voided_by")
+  voidReason String?   @map("void_reason")
+
+  tenant         Tenant           @relation(fields: [tenantId], references: [id])
+  toUser         User             @relation("RefundTo", fields: [toUserId], references: [id])
+  refundedByUser User             @relation("RefundBy", fields: [refundedBy], references: [id])
+  voidedByUser   User?            @relation("RefundVoidedBy", fields: [voidedBy], references: [id])
+  payments       ExpensePayment[]
+  files          StoredFile[]
+
+  @@index([tenantId])
+  @@index([tenantId, toUserId], map: "staff_refund_to_idx")
+  @@map("staff_refund")
 }

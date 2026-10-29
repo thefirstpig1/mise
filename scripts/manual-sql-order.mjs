@@ -52,6 +52,7 @@ export const MANUAL_SQL_ORDER = [
   "purchase_order_number_unique.sql",
   "sales_consumption_unique.sql",
   "sales_unique.sql",
+  "staff_advance_unique.sql",
   "staff_meal_unique.sql",
   "stock_cost_declaration_live_unique.sql",
   "stock_count_unique.sql",
