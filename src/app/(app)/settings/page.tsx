@@ -21,6 +21,7 @@ import CustomerTypes from "./_components/DailyCloseSettings";
 import { ChangedNote, FieldError, SectionForm, SectionNav, UnsavedGuard } from "./_components/settings-form";
 import {
   saveAddonsSectionAction,
+  saveAdvanceSectionAction,
   saveProfitSectionAction,
   saveShopSectionAction,
   saveStockSectionAction,
@@ -31,6 +32,7 @@ const SECTIONS = [
   { id: "stock", label: "สต๊อกและยอดขาย" },
   { id: "profit", label: "กำไรและเป้าต้นทุน" },
   { id: "addons", label: "แผนกและส่วนเสริม" },
+  { id: "advances", label: "เงินสำรองจ่าย" },
 ];
 
 /** One setting: what it is on the left, the control on the right (stacked on a phone). */
@@ -336,6 +338,37 @@ export default async function SettingsPage() {
             </div>
           )}
         </Row>
+      </SectionForm>
+
+      {/* ---------- 5 · staff advances (ADR 0037 Q5–Q6) ---------- */}
+      <SectionForm id="advances" title="เงินสำรองจ่าย" action={saveAdvanceSectionAction}>
+        <Row
+          title="ต้องอนุมัติก่อนคืนเงินพนักงานทุกบิล"
+          hint="ปิดไว้ = บิลที่มีรูปบิลและสลิปครบ (หรือบัญชีรับรองแล้ว) คืนเงินได้เลย · เปิด = ต้องให้คนที่มีสิทธิ์ส่งใบสั่งซื้อกดอนุมัติก่อนทุกบิล"
+          control={<Switch name="refund_approval_all" defaultChecked={tenant.refundApprovalAll} label="ต้องอนุมัติทุกบิล" />}
+          inline
+        />
+        <Row
+          title="บิลที่เกินยอดนี้ต้องอนุมัติ"
+          htmlFor="refund_approval_over"
+          hint="เว้นว่าง = ไม่มีเพดาน · ใช้เมื่อไม่ได้เปิดอนุมัติทุกบิล เช่น ใส่ 1,000 = บิลเกิน ฿1,000 ต้องอนุมัติก่อนคืนเงิน"
+          control={
+            <div>
+              <MeasureInput
+                id="refund_approval_over"
+                name="refund_approval_over"
+                unit="บาท"
+                min={1}
+                step={1}
+                inputMode="numeric"
+                defaultValue={tenant.refundApprovalOver === null ? undefined : Number(tenant.refundApprovalOver)}
+                aria-label="บิลที่เกินยอดนี้ต้องอนุมัติ"
+                boxClassName="w-36"
+              />
+              <FieldError name="refund_approval_over" />
+            </div>
+          }
+        />
       </SectionForm>
     </div>
   );

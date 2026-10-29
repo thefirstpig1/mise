@@ -264,14 +264,7 @@ export async function recordSelfPurchaseLogic(
 
 export type ClaimStatus = "NO_BILL" | "NO_SLIP" | "NEEDS_ENDORSE" | "NEEDS_APPROVAL" | "READY" | "REFUNDED";
 
-export const CLAIM_STATUS_TH: Record<ClaimStatus, string> = {
-  NO_BILL: "ขาดรูปบิล",
-  NO_SLIP: "ขาดสลิป",
-  NEEDS_ENDORSE: "รอบัญชีรับรอง",
-  NEEDS_APPROVAL: "รออนุมัติ",
-  READY: "รอคืนเงิน",
-  REFUNDED: "คืนแล้ว",
-};
+// The words for each status live in src/lib/advance-labels.ts (shared with the screens).
 
 /** A slip is expected for a transfer or a card; cash and "other" are endorsed instead (Q6). */
 export const methodHasSlip = (m: PaymentMethod) => m === "TRANSFER" || m === "CARD";

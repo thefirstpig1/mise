@@ -105,6 +105,22 @@ export async function saveProfitSectionAction(formData: FormData): Promise<Secti
   return write(data, ["/dashboard", "/cost", "/products"]);
 }
 
+/**
+ * ADR 0037 Q5–Q6 (mockup decisions 2–3, Kong 2026-10-29: "เอาตามแนะนำ"):
+ * approval before a staff member is paid back. Off by default; a shop turns it
+ * on for every bill, or only for bills above an amount. Proof is required
+ * either way — this adds a person, it never removes the photos.
+ */
+export async function saveAdvanceSectionAction(formData: FormData): Promise<SectionState> {
+  const refundApprovalAll = formData.get("refund_approval_all") === "on";
+  const raw = String(formData.get("refund_approval_over") ?? "").trim();
+  const over = raw === "" ? null : numIn(formData, "refund_approval_over", 1, 10_000_000);
+  if (over === undefined) {
+    return { ok: false, formError: "ยังบันทึกไม่ได้ กรุณาแก้ช่องที่มีข้อความสีแดง", fieldErrors: { refund_approval_over: "ใส่ยอดเป็นบาท ตั้งแต่ 1 ขึ้นไป หรือเว้นว่าง" } };
+  }
+  return write({ refundApprovalAll, refundApprovalOver: over }, ["/advances", "/my-advances"]);
+}
+
 export async function saveAddonsSectionAction(formData: FormData): Promise<SectionState> {
   const res = await write({ enableDepartments: formData.get("enable_departments") === "on" }, [
     "/dashboard",

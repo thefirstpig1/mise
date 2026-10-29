@@ -36,6 +36,7 @@ const NOT_COST: Record<string, string> = {
   settings: "explanatory copy (the VAT threshold, a ฿0 sale)",
   suppliers: "explanatory copy on the supplier form (a shelf price example)",
   "recipes/substitute": "imports recipe-view.ts for the substitution plan, which carries no cost — the ฿ belongs to that file's other views",
+  "my-advances": "the person's OWN claims — what they paid at the stall and typed in themselves, and what the shop owes them back (ADR 0037 Q6)",
 };
 
 function filesUnder(dir: string, depth: number): string[] {

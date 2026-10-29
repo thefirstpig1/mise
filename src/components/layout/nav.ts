@@ -40,6 +40,8 @@ export const NAV_GROUPS: readonly NavGroup[] = [
       { href: "/suppliers", label: "ผู้ขาย", need: "any:member" },
       { href: "/purchase-orders", label: "ใบสั่งซื้อ", need: "purchase:write" },
       { href: "/goods-receipts", label: "รับสินค้า", need: "receive:write" },
+      // ADR 0037 Q6: what a staff member bought with their own money, and whether it was paid back.
+      { href: "/my-advances", label: "ซื้อเอง / สำรองจ่าย", need: "purchase:self" },
     ],
   },
   {
@@ -71,6 +73,8 @@ export const NAV_GROUPS: readonly NavGroup[] = [
       // Kong 2026-10-28: the analysis is what an owner opens this section for — first.
       { href: "/expenses/analysis", label: "วิเคราะห์รายจ่าย", need: "expense:view" },
       { href: "/expenses", label: "ค่าใช้จ่าย", need: "expense:view" },
+      // ADR 0037 Q5: what the shop owes its staff — endorse, approve, pay back.
+      { href: "/advances", label: "ค้างคืนพนักงาน", need: "refund:pay" },
       { href: "/cost", label: "ต้นทุน", need: "cost:view" },
       { href: "/cost/departments", label: "ต้นทุนตามแผนก", need: "cost:view" },
       { href: "/cost/leaks", label: "ของหายไปไหน", need: "cost:view" },
