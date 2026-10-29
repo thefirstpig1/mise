@@ -145,7 +145,15 @@ export async function getMenuPriceBookLogic(
     if (c.costSource !== "UNPRICED" && !(productId in book.products)) book.products[productId] = Number(c.costPerBaseUnit);
   }
   for (const p of walked.prepped) {
-    if (p.id in book.products && !walked.resolved.has(`product:${p.id}`)) delete book.products[p.id]; // FIFO of a prepped item is not its price yet
+    // ADR 0040 Q10: prepped stock on the shelf is priced at what IT cost — the
+    // number a sale will actually take — and only an empty shelf falls back to
+    // the recipe. Bought or made, it is one FIFO pile.
+    const shelf = replayed.get(`${p.id}|${branchId}`);
+    if (shelf && shelf.qtyOnHand.greaterThan(0) && shelf.costSource !== "UNPRICED") {
+      book.products[p.id] = Number(shelf.costPerBaseUnit);
+      continue;
+    }
+    if (p.id in book.products && !walked.resolved.has(`product:${p.id}`)) delete book.products[p.id]; // an empty shelf's last price is not the recipe's
     if (!(p.id in book.products) && p.parentProductId && p.yieldPercent) {
       const parent = book.products[p.parentProductId];
       if (parent !== undefined) book.products[p.id] = parent / (Number(p.yieldPercent) / 100);

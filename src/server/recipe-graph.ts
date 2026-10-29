@@ -361,6 +361,13 @@ export function explodeToRaw(
      * is always walked — that is how a shortfall is exploded one level.
      */
     stopAtPrepped?: boolean;
+    /**
+     * ADR 0040 Q10: these products are leaves wherever they appear BELOW the
+     * root — a recipe is costed at the price of the prepped stock that is on
+     * the shelf, and walked down only where the shelf is empty. The root is
+     * always walked: a production recipe's own page prices its recipe.
+     */
+    stopAt?: ReadonlySet<string>;
   } = {}
 ): LeafDemand[] {
   const totals = new Map<string, Prisma.Decimal>();
@@ -378,7 +385,10 @@ export function explodeToRaw(
       const p = graph.products.get(keyId(key));
       if (p === undefined) throw new GraphNodeMissingError(key);
 
-      if (p.type === "RAW" || (opts.stopAtPrepped && key !== root)) {
+      if (
+        p.type === "RAW" ||
+        (key !== root && (opts.stopAtPrepped || opts.stopAt?.has(p.id)))
+      ) {
         totals.set(p.id, (totals.get(p.id) ?? new Prisma.Decimal(0)).plus(qty));
         return;
       }

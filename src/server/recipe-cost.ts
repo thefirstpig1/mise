@@ -236,6 +236,26 @@ export async function getRecipeCostsLogic(
 }
 
 /** A replay the caller ran, completed with any leaf it did not cover. */
+/** Every prepped product the graph reaches. */
+function preppedIdsOf(graph: RecipeGraph): string[] {
+  return [...graph.products.values()].filter((p) => p.type === "PREPPED").map((p) => p.id);
+}
+
+/**
+ * ADR 0040 Q10: the prepped products with stock on the shelf at this branch.
+ * "สต๊อกเป็นศูนย์จึงคิดจากสูตร" — any stock at all means the recipe is
+ * priced at the stock's own cost, which is what posting a sale will take.
+ */
+function inStock(
+  costs: Map<string, ProductCost>,
+  preppedIds: string[],
+  branchId: string
+): Set<string> {
+  return new Set(
+    preppedIds.filter((id) => (costs.get(costKeyOf(id, branchId))?.qtyOnHand ?? ZERO).greaterThan(0))
+  );
+}
+
 async function withMissingReplayed(
   tx: PrismaClient,
   tenantId: string,
@@ -358,15 +378,38 @@ export async function recipeCostsInTx(
   });
 
   // --- one batched replay for every leaf of every root (Q7) ---
+  // ADR 0040 Q10: and every prepped product in the graph, in the SAME replay,
+  // so the walk can stop at the ones that are on the shelf without a second
+  // round trip.
+  const preppedIds = preppedIdsOf(graph);
+  const rawLeafIds = [
+    ...new Set(walked.flatMap((w) => [...(w.demand?.keys() ?? [])])),
+  ];
+  const wanted = [...new Set([...rawLeafIds, ...preppedIds])];
+  const costs =
+    wanted.length === 0
+      ? new Map<string, ProductCost>()
+      : opts?.replayed
+        ? // A caller's replay already covers the branch: a prepped product it
+          // does not hold has no ledger rows there, so it has no shelf either.
+          await withMissingReplayed(tx, tenantId, await opts.replayed, rawLeafIds, branchId, asOf)
+        : await replayPairsInTx(tx, tenantId, wanted, [branchId], asOf);
+
+  const stopAt = inStock(costs, preppedIds, branchId);
+  if (stopAt.size > 0) {
+    for (const w of walked) {
+      if (w.demand === null) continue;
+      w.demand = new Map(
+        explodeToRaw(graph, rootKeyOf(w.root), w.root.servings, { stopAt }).map((l) => [
+          l.productId,
+          l.qty,
+        ])
+      );
+    }
+  }
   const leafProductIds = [
     ...new Set(walked.flatMap((w) => [...(w.demand?.keys() ?? [])])),
   ];
-  const costs =
-    leafProductIds.length === 0
-      ? new Map<string, ProductCost>()
-      : opts?.replayed
-        ? await withMissingReplayed(tx, tenantId, await opts.replayed, leafProductIds, branchId, asOf)
-        : await replayPairsInTx(tx, tenantId, leafProductIds, [branchId], asOf);
 
   // --- names for everything that might have to be NAMED (Q6) ---
   const names = await loadNames(tx, tenantId, graph, leafProductIds);
@@ -389,6 +432,7 @@ export async function recipeCostsInTx(
         lineRows: linesByRecipe.get(w.root.id) ?? [],
         branchId,
         asOf,
+        stopAt,
       })
     );
   }
@@ -576,11 +620,21 @@ export async function getWhatIfCostLogic(
       else throw e;
     }
 
-    const leafProductIds = [...(demand?.keys() ?? [])];
+    // ADR 0040 Q10, exactly as the saved recipe does it (rule W1): one replay
+    // that includes every prepped product, then stop at the ones in stock.
+    const preppedIds = preppedIdsOf(graph);
+    const wanted = [...new Set([...(demand?.keys() ?? []), ...preppedIds])];
     const costs =
-      leafProductIds.length === 0
+      wanted.length === 0
         ? new Map<string, ProductCost>()
-        : await replayPairsInTx(tx, tenantId, leafProductIds, [branchId], asOf);
+        : await replayPairsInTx(tx, tenantId, wanted, [branchId], asOf);
+    const stopAt = inStock(costs, preppedIds, branchId);
+    if (demand !== null && stopAt.size > 0) {
+      demand = new Map(
+        explodeToRaw(graph, menuKey(virtualId), servings, { stopAt }).map((l) => [l.productId, l.qty])
+      );
+    }
+    const leafProductIds = [...(demand?.keys() ?? [])];
 
     const names = await loadNames(tx, tenantId, graph, leafProductIds);
 
@@ -676,6 +730,8 @@ function assemble(args: {
   lineRows: LineRow[];
   branchId: string;
   asOf: Date;
+  /** ADR 0040 Q10: prepped products priced as themselves (on the shelf). */
+  stopAt?: ReadonlySet<string>;
 }): RecipeCost {
   const { root, demand, problem, graph, costs, names, dimensions, lineRows } = args;
   const { branchId, asOf } = args;
@@ -770,7 +826,13 @@ function assemble(args: {
 
     let cost = ZERO;
     let lineConfidence: RecipeConfidence = "HIGH";
-    for (const leaf of explodeToRaw(graph, child, multiplier)) {
+    // A line that IS a prepped product on the shelf is priced as itself, the
+    // same stop the total made, so the lines still add up to it.
+    const lineLeaves =
+      row.productId !== null && args.stopAt?.has(row.productId)
+        ? [{ productId: row.productId, qty: multiplier }]
+        : explodeToRaw(graph, child, multiplier, { stopAt: args.stopAt });
+    for (const leaf of lineLeaves) {
       const state = costs.get(costKeyOf(leaf.productId, branchId));
       cost = cost.plus(leaf.qty.mul(state?.costPerBaseUnit ?? ZERO));
       lineConfidence = weakest(
