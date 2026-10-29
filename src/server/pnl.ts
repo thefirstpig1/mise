@@ -65,6 +65,10 @@ export interface PnlBranchRow {
   grossProfit: Prisma.Decimal | null;
   opex: Prisma.Decimal;
   netProfit: Prisma.Decimal | null;
+  /** Thrown away with a waste log, at cost — the same figure /cost prints. */
+  waste: Prisma.Decimal;
+  /** Gone with no document (count shortages, losses) — /cost's ไม่ตรงกับระบบ. */
+  shortage: Prisma.Decimal;
 }
 
 export interface PnlSection {
@@ -116,6 +120,8 @@ function rowFrom(b: BranchCostSummary): PnlBranchRow {
     grossProfit: b.grossProfit,
     opex: b.opexSpend,
     netProfit: b.grossProfit !== null ? b.grossProfit.minus(b.opexSpend) : null,
+    waste: b.wasteValue,
+    shortage: b.varianceValue,
   };
 }
 

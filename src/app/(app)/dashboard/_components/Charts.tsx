@@ -20,15 +20,11 @@ import type { MonthlyTrendResult } from "../trend-read";
 import { readApi } from "@/lib/read-api";
 import { STALE_TAB_MESSAGE, announceStale } from "@/lib/stale-tab";
 import {
-  Area,
-  AreaChart,
   Bar,
   BarChart,
   CartesianGrid,
   Cell,
   ComposedChart,
-  LabelList,
-  Legend,
   Line,
   ResponsiveContainer,
   Tooltip,
@@ -42,9 +38,6 @@ import {
   ChartTooltip,
   GOOD,
   GRID,
-  INK,
-  INK_MUTED,
-  NEUTRAL,
   axis,
   cursorFill,
   grad,
@@ -91,136 +84,11 @@ export function clickableBar(onIndex: (i: number) => void) {
 const TooltipBox = ChartTooltip;
 
 // ------------------------------------------------------------
-// 1. Revenue per day, one line per branch
+// Shapes the dashboard's daily-sales bars take (DashboardParts.tsx)
 // ------------------------------------------------------------
 export type RevenueSeries = { branchId: string; name: string; color: string };
 export type RevenueRow = { day: string } & Record<string, number | string>;
 
-export function RevenueTrendChart({ rows, series }: { rows: RevenueRow[]; series: RevenueSeries[] }) {
-  const [hidden, setHidden] = useState<Set<string>>(new Set());
-  const toggle = (id: string) =>
-    setHidden((h) => {
-      const n = new Set(h);
-      if (n.has(id)) n.delete(id);
-      else n.add(id);
-      return n;
-    });
-
-  return (
-    <div className="h-72 w-full">
-      <ResponsiveContainer>
-        <AreaChart key={rows.length} data={rows} margin={{ top: 8, right: 12, bottom: 0, left: 4 }}>
-          <defs>
-            {series.map((s) => (
-              <linearGradient key={s.branchId} id={`rev-${s.branchId}`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={s.color} stopOpacity={0.3} />
-                <stop offset="100%" stopColor={s.color} stopOpacity={0.02} />
-              </linearGradient>
-            ))}
-          </defs>
-          <CartesianGrid stroke={GRID} vertical={false} />
-          <XAxis dataKey="day" tickFormatter={dayLabel} minTickGap={24} {...axis} />
-          <YAxis tickFormatter={compact} width={48} {...axis} axisLine={false} />
-          <Tooltip
-            cursor={{ stroke: NEUTRAL, strokeDasharray: "3 3" }}
-            content={({ active, payload, label }) =>
-              active && payload?.length ? (
-                <TooltipBox
-                  title={dayLabel(String(label))}
-                  rows={payload.map((p) => ({ label: String(p.name), value: baht(Number(p.value)), color: String(p.color) }))}
-                />
-              ) : null
-            }
-          />
-          {series.length > 1 ? (
-            <Legend
-              verticalAlign="top"
-              height={32}
-              onClick={(e) => toggle(String((e as { dataKey?: unknown }).dataKey))}
-              formatter={(value, entry) => (
-                <span
-                  className="cursor-pointer text-sm"
-                  style={{ color: hidden.has(String((entry as { dataKey?: unknown }).dataKey)) ? NEUTRAL : INK }}
-                >
-                  {value}
-                </span>
-              )}
-            />
-          ) : null}
-          {series.map((s) => (
-            <Area
-              key={s.branchId}
-              type="monotone"
-              dataKey={s.branchId}
-              name={s.name}
-              stroke={s.color}
-              strokeWidth={2.5}
-              fill={`url(#rev-${s.branchId})`}
-              dot={false}
-              activeDot={{ r: 6, stroke: "#FFFFFF", strokeWidth: 2.5 }}
-              hide={hidden.has(s.branchId)}
-              {...ANIM}
-            />
-          ))}
-        </AreaChart>
-      </ResponsiveContainer>
-    </div>
-  );
-}
-
-// ------------------------------------------------------------
-// 3. From sales to profit — a waterfall
-// ------------------------------------------------------------
-export type WaterfallInput = { revenue: number; cogs: number; opex: number; net: number };
-
-export function PnlWaterfallChart({ data }: { data: WaterfallInput }) {
-  const { revenue, cogs, opex, net } = data;
-  const gross = revenue - cogs;
-  // Each bar is a RANGE [low, high], so a step floats at the level the money
-  // reached — and a loss simply reaches below zero. (A transparent stacked
-  // base cannot do that: Recharts stacks negatives from zero separately.)
-  const span = (a: number, b: number): [number, number] => [Math.min(a, b), Math.max(a, b)];
-  const rows = [
-    { name: "ยอดขาย", range: span(0, revenue), color: grad("olive"), shown: revenue },
-    { name: "ต้นทุนขาย", range: span(revenue, gross), color: grad("bad"), shown: -cogs },
-    { name: "ค่าใช้จ่าย", range: span(gross, net), color: grad("clay"), shown: -opex },
-    { name: "กำไรสุทธิ", range: span(0, net), color: grad(net >= 0 ? "good" : "bad"), shown: net },
-  ];
-
-  return (
-    <div className="h-64 w-full">
-      <ResponsiveContainer>
-        <BarChart key={`${revenue}-${net}`} data={rows} margin={{ top: 24, right: 12, bottom: 0, left: 4 }} barCategoryGap="28%">
-          <ChartGradients />
-          <CartesianGrid stroke={GRID} vertical={false} />
-          <XAxis dataKey="name" {...axis} />
-          <YAxis tickFormatter={compact} width={48} {...axis} axisLine={false} />
-          <Tooltip
-            cursor={cursorFill}
-            content={({ active, payload }) => {
-              const r = active && payload?.length ? (payload[0].payload as (typeof rows)[number]) : null;
-              return r ? <TooltipBox title={r.name} rows={[{ label: "จำนวน", value: baht(r.shown) }]} /> : null;
-            }}
-          />
-          <Bar dataKey="range" radius={6} maxBarSize={88} {...ANIM}>
-            {rows.map((r) => (
-              <Cell key={r.name} fill={r.color} />
-            ))}
-            <LabelList
-              dataKey="shown"
-              position="top"
-              formatter={(v: unknown) => compact(Number(v))}
-              style={{ fill: INK, fontSize: 12, fontWeight: 600 }}
-            />
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
-    </div>
-  );
-}
-
-// ------------------------------------------------------------
-// 3b. Month by month — revenue vs expenses, with net profit as a line
 // ------------------------------------------------------------
 // From Kong's own "Finance Dashboard" (2026-09-28): the chart he already
 // reads every month. Kept: bars for money in and out, a line for what is
@@ -436,51 +304,7 @@ export function DailyBarsChart({ rows, label }: { rows: { day: string; amount: n
 }
 
 // ------------------------------------------------------------
-// 4. Best sellers
+// Best sellers (drawn by TopMenusCard in DashboardParts.tsx)
 // ------------------------------------------------------------
 export type MenuBar = { id: string; name: string; net: number; qty: number };
 
-export function TopMenusChart({ rows }: { rows: MenuBar[] }) {
-  if (rows.length === 0) {
-    return <p className="py-16 text-center text-sm text-muted-foreground">ยังไม่มียอดขายในช่วงนี้</p>;
-  }
-  return (
-    <div className="w-full" style={{ height: Math.max(160, rows.length * 34 + 16) }}>
-      <ResponsiveContainer>
-        <BarChart key={rows.length} data={rows} layout="vertical" margin={{ top: 0, right: 56, bottom: 0, left: 0 }} barCategoryGap={6}>
-          <ChartGradients />
-          <CartesianGrid stroke={GRID} horizontal={false} />
-          <XAxis type="number" tickFormatter={compact} {...axis} />
-          <YAxis type="category" dataKey="name" width={150} {...axis} axisLine={false} tick={{ fill: INK, fontSize: 12 }} />
-          <Tooltip
-            cursor={cursorFill}
-            content={({ active, payload }) => {
-              const r = active && payload?.length ? (payload[0].payload as MenuBar) : null;
-              return r ? (
-                <TooltipBox
-                  title={r.name}
-                  rows={[
-                    { label: "ยอดขาย", value: baht(r.net) },
-                    { label: "จำนวนที่ขาย", value: r.qty.toLocaleString("th-TH") },
-                  ]}
-                />
-              ) : null;
-            }}
-          />
-          <Bar dataKey="net" radius={[0, 6, 6, 0]} {...ANIM}>
-            {/* The best seller is what this chart exists to point at. */}
-            {rows.map((r, i) => (
-              <Cell key={r.id} fill={grad(i === 0 ? "clay" : "olive", "h")} />
-            ))}
-            <LabelList
-              dataKey="net"
-              position="right"
-              formatter={(v: unknown) => compact(Number(v))}
-              style={{ fill: INK_MUTED, fontSize: 12, fontWeight: 500 }}
-            />
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
-    </div>
-  );
-}

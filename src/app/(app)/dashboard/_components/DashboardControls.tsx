@@ -53,32 +53,26 @@ export default function DashboardControls({
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-x-6 gap-y-3" aria-busy={pending}>
-      <div className="flex flex-wrap items-center gap-1 rounded-lg border border-border bg-surface p-1" role="group" aria-label="ช่วงเวลา">
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2" aria-busy={pending}>
+      <div className="seg" role="group" aria-label="ช่วงเวลา">
         {PERIOD_PRESETS.map((p) => (
-          <button
-            key={p}
-            type="button"
-            onClick={() => go({ p })}
-            aria-pressed={p === shownPreset}
-            className={`rounded-md px-3 py-1.5 text-sm transition-colors ${
-              p === shownPreset ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-muted"
-            }`}
-          >
+          <button key={p} type="button" onClick={() => go({ p })} aria-pressed={p === shownPreset} className={`seg-item ${p === shownPreset ? "is-on" : ""}`}>
             {PERIOD_LABELS_TH[p]}
           </button>
         ))}
       </div>
-      <span className="text-sm text-muted-foreground">
-        {pending ? (
-          <span className="inline-flex items-center gap-1.5">
-            <span aria-hidden className="h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-            กำลังคำนวณ…
-          </span>
-        ) : (
-          rangeLabel
-        )}
-      </span>
+      {pending || rangeLabel ? (
+        <span className="text-sm text-muted-foreground">
+          {pending ? (
+            <span className="inline-flex items-center gap-1.5">
+              <span aria-hidden className="h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              กำลังคำนวณ…
+            </span>
+          ) : (
+            rangeLabel
+          )}
+        </span>
+      ) : null}
 
       {branches.length > 1 ? (
         <div className="flex flex-wrap items-center gap-2" role="group" aria-label="สาขา">
