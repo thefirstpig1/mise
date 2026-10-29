@@ -101,6 +101,29 @@ export type CostMovement = {
    * to survive a journey.
    */
   transferPricing: LayerPricing | null;
+  /**
+   * `PRODUCTION_IN` only (ADR 0040 Q4): this output's share of the money its
+   * inputs took out of THEIR piles, in the same document.
+   *
+   * The walk of one pile cannot know it — soup's value lives in the bones'
+   * walk — so the driver (`fifo-chain.ts`) replays the inputs first and fills
+   * this in before soup is walked. Nothing stores it: correct a bone price
+   * and the next replay hands the soup a different number, which is the
+   * whole of Q4. Optional so the many callers that never see a production
+   * need not mention it.
+   */
+  producedValue?: Prisma.Decimal | null;
+  /** How well the inputs' money was known — the worst of what they took. */
+  producedPricing?: LayerPricing | null;
+  /**
+   * `PRODUCTION_*` only, read by the DRIVER and never by the walk: which
+   * production document this leg belongs to, so the driver can hand an
+   * output the money its own inputs took, and order the piles so the inputs
+   * are walked first.
+   */
+  productionId?: string | null;
+  /** `PRODUCTION_IN` only, for the driver: the output's frozen % of the money. */
+  valueSharePct?: Prisma.Decimal | null;
 };
 
 export type ReplayState = {
@@ -181,12 +204,33 @@ export type OutflowEntry = {
    * manager (ADR 0015 Q5).
    */
   sourceType: SourceType;
+  /** The document line behind the movement (a `production_item.id`, …). */
+  sourceId: string;
   occurredAt: Date;
   /** Positive magnitude in base units. */
   qty: Prisma.Decimal;
   /** Money that left the pile for it. */
   value: Prisma.Decimal;
+  /**
+   * How well that money was known: the WORST of the layers it was taken from
+   * (a debt counts as last-known, or unpriced at a zero cost). Read by the
+   * production driver (ADR 0040), because soup made from bones nobody priced
+   * is soup nobody priced — confidence must survive the cooking the way a
+   * transfer carries it across a branch boundary.
+   */
+  pricing: LayerPricing;
 };
+
+const PRICING_RANK: Record<LayerPricing, number> = {
+  DOCUMENT: 0,
+  DECLARED: 1,
+  LAST_KNOWN: 2,
+  UNPRICED: 3,
+};
+
+/** The less certain of two pricings. */
+export const worsePricing = (a: LayerPricing, b: LayerPricing): LayerPricing =>
+  PRICING_RANK[a] >= PRICING_RANK[b] ? a : b;
 
 const unitCostOf = (layer: CostLayer): Prisma.Decimal =>
   layer.qty.isZero() ? ZERO : layer.value.div(layer.qty);
@@ -233,6 +277,15 @@ export function replayFifoLayers(
     string,
     { qty: Prisma.Decimal; value: Prisma.Decimal }
   >();
+
+  // ADR 0040: the same two memories for a production. An input given back must
+  // return the money it LEFT with (a void after a price correction must not
+  // conjure value), and an output taken back must cut the layer IT pushed.
+  const productionCostOut = new Map<
+    string,
+    { qty: Prisma.Decimal; value: Prisma.Decimal }
+  >();
+  const producedUnitCost = new Map<string, Prisma.Decimal>();
 
   /** The debt layer, if the pile is currently negative (invariant: at most one). */
   const debtLayer = (): CostLayer | null =>
@@ -302,9 +355,11 @@ export function replayFifoLayers(
   ): Prisma.Decimal => {
     let remaining = qty;
     let costOut = ZERO;
+    let pricing: LayerPricing = "DOCUMENT";
 
     while (remaining.greaterThan(0) && stack.length > 0 && stack[0].qty.greaterThan(0)) {
       const front = stack[0];
+      pricing = worsePricing(pricing, front.pricing);
       const taken = Prisma.Decimal.min(front.qty, remaining);
       // Exact on full consumption, proportional otherwise, with the rounding
       // remainder left behind in the layer so no satang is created or destroyed.
@@ -326,9 +381,11 @@ export function replayFifoLayers(
         movementId: origin.movementId,
         type: origin.type,
         sourceType: origin.sourceType,
+        sourceId: origin.sourceId,
         occurredAt: origin.occurredAt,
         qty,
         value: costOut,
+        pricing,
       });
 
     if (remaining.lessThanOrEqualTo(0)) {
@@ -354,6 +411,7 @@ export function replayFifoLayers(
     }
     totalOut = totalOut.plus(debtValue);
     costOut = costOut.plus(debtValue);
+    pricing = worsePricing(pricing, unitCost.isZero() ? "UNPRICED" : "LAST_KNOWN");
     record();
     return costOut;
   };
@@ -595,6 +653,88 @@ export function replayFifoLayers(
           sourceType: m.sourceType,
           value: value.negated(),
         });
+        break;
+      }
+
+      case "PRODUCTION_OUT": {
+        // ADR 0040: an input used up by the making. An ordinary FIFO outflow —
+        // what this case adds is the REMEMBERING, exactly as CONSUMPTION's
+        // does: a void must give back the money that left, and the driver
+        // reads this outflow's value to price what was made.
+        const takenValue = consume(m.qty.negated(), lastKnownUnitCost ?? ZERO, {
+          movementId: m.id,
+          type: m.type,
+          sourceType: m.sourceType,
+          sourceId: m.sourceId,
+          occurredAt: m.occurredAt,
+        });
+        productionCostOut.set(m.sourceId, { qty: m.qty.negated(), value: takenValue });
+        break;
+      }
+
+      case "PRODUCTION_OUT_REVERSAL": {
+        // A void gives the input back carrying the money it left with — the
+        // CONSUMPTION_REVERSAL rule, and the same accepted approximation: the
+        // layer re-enters at the BACK of the queue. Value is exact.
+        const original = m.reversalOfItemId
+          ? productionCostOut.get(m.reversalOfItemId)
+          : undefined;
+        const value =
+          original !== undefined && original.qty.greaterThan(0)
+            ? m.qty.equals(original.qty)
+              ? original.value
+              : money(original.value.mul(m.qty).div(original.qty))
+            : money(m.qty.mul(lastKnownUnitCost ?? ZERO));
+        totalIn = totalIn.plus(value);
+        push({
+          movementId: m.id,
+          sourceType: m.sourceType,
+          sourceId: m.sourceId,
+          occurredAt: m.occurredAt,
+          qty: m.qty,
+          value,
+          pricing: value.isZero() ? "UNPRICED" : "LAST_KNOWN",
+        });
+        break;
+      }
+
+      case "PRODUCTION_IN": {
+        // ADR 0040 Q4: what was made arrives carrying the money its inputs
+        // took, handed over by the driver. Like TRANSFER_IN, never priced at
+        // this pile's own last-known cost — soup's history says nothing about
+        // what today's bones cost.
+        const value = money(m.producedValue ?? ZERO);
+        const unit = m.qty.isZero() ? ZERO : value.div(m.qty);
+        producedUnitCost.set(m.sourceId, unit);
+        // A production is a document: it teaches this pile a cost — but only
+        // when it carried money. Soup made from unpriced bones teaches nothing.
+        if (!m.qty.isZero() && !value.isZero()) lastKnownUnitCost = unit;
+        totalIn = totalIn.plus(value);
+        push({
+          movementId: m.id,
+          sourceType: m.sourceType,
+          sourceId: m.sourceId,
+          occurredAt: m.occurredAt,
+          qty: m.qty,
+          value,
+          pricing: m.producedPricing ?? (value.isZero() ? "UNPRICED" : "LAST_KNOWN"),
+        });
+        break;
+      }
+
+      case "PRODUCTION_IN_REVERSAL": {
+        // Q8's rule: take back the layer THIS production pushed, not the head
+        // of the queue. Whatever of it was already used goes negative rather
+        // than being smoothed away — "you voided soup you had already served"
+        // is a thing to go and look at.
+        const targetId = m.reversalOfItemId;
+        reverseOwnLayer(
+          m,
+          targetId,
+          (targetId ? producedUnitCost.get(targetId) : undefined) ??
+            lastKnownUnitCost ??
+            ZERO
+        );
         break;
       }
 

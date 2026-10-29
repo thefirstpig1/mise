@@ -753,7 +753,10 @@ const isInboundType = (type: MovementType): boolean =>
   // stock ARRIVING. `CONSUMPTION` itself is outbound and needs no line here —
   // this list names the exceptions — but its reversal does, and forgetting it
   // was caught only because the DB CHECK and this function must agree.
-  type === "CONSUMPTION_REVERSAL";
+  type === "CONSUMPTION_REVERSAL" ||
+  // ADR 0040: what a production made arrives; a void gives an input back.
+  type === "PRODUCTION_IN" ||
+  type === "PRODUCTION_OUT_REVERSAL";
 
 /**
  * Q3 guard: the source row must exist before the ledger points at it — and it
@@ -895,6 +898,25 @@ async function assertSourceExists(
                           ? { productId: r.productId, branchId: r.staffMeal.branchId }
                           : null
                       )
+                  : sourceType === "PRODUCTION"
+                    ? // ADR 0040: the production ITEM is the source — one
+                      // document has several inputs (and a trim several
+                      // outputs), and each item posts exactly one movement.
+                      // The branch is the document's: a production happens at
+                      // one place, and never crosses to another (Q6).
+                      await tx.productionItem
+                        .findFirst({
+                          where: { id: sourceId, tenantId },
+                          select: {
+                            productId: true,
+                            production: { select: { branchId: true } },
+                          },
+                        })
+                        .then((r) =>
+                          r
+                            ? { productId: r.productId, branchId: r.production.branchId }
+                            : null
+                        )
                   : // SYSTEM_INITIAL: reserved, no table and no writer (Q10).
                     (() => {
                       throw new UnsupportedSourceTypeError(sourceType);

@@ -26,8 +26,8 @@ import type { CostSource, PrismaClient, SourceType } from "@prisma/client";
 import { withTenantContext } from "@/lib/db";
 import { bangkokDayEndUtc, isDayValue } from "@/lib/bangkok-date";
 import { occurredAtFilter } from "@/server/stock-movement";
+import { replayChain } from "@/server/fifo-chain";
 import {
-  replayFifoLayers,
   type CostLayer,
   type CostMovement,
   type LayerPricing,
@@ -208,28 +208,100 @@ export async function loadCostMovements(
 
   const occurredAt = occurredAtFilter(undefined, asOf);
 
-  const movements = await tx.stockMovement.findMany({
-    where: {
-      tenantId,
-      productId: { in: productIds },
-      branchId: { in: branchIds },
-      ...(occurredAt ? { occurredAt } : {}),
-    },
-    select: {
-      id: true,
-      productId: true,
-      branchId: true,
-      qty: true,
-      type: true,
-      sourceType: true,
-      sourceId: true,
-      occurredAt: true,
-      createdAt: true,
-    },
-    orderBy: [{ occurredAt: "asc" }, { createdAt: "asc" }, { id: "asc" }],
-  });
+  const fetchMovements = (pIds: string[], bIds: string[]) =>
+    tx.stockMovement.findMany({
+      where: {
+        tenantId,
+        productId: { in: pIds },
+        branchId: { in: bIds },
+        ...(occurredAt ? { occurredAt } : {}),
+      },
+      select: {
+        id: true,
+        productId: true,
+        branchId: true,
+        qty: true,
+        type: true,
+        sourceType: true,
+        sourceId: true,
+        occurredAt: true,
+        createdAt: true,
+      },
+      orderBy: [{ occurredAt: "asc" }, { createdAt: "asc" }, { id: "asc" }],
+    });
+
+  const movements = await fetchMovements(productIds, branchIds);
 
   if (movements.length === 0) return grouped;
+
+  // ADR 0040: what a produced item is worth lives in its INPUTS' piles (Q4),
+  // and the caller may have asked for the soup alone — a transfer freezing the
+  // soup it sends, a stock card, a recipe cost. So the inputs of every
+  // production that put something on a loaded shelf are loaded too, and so on
+  // down (stock made from bones, soup made from stock) until nothing new
+  // appears. They are HELPERS: walked so the money can be handed over, then
+  // left out of what `replayLoaded` returns, so no caller ever sees a pile it
+  // did not ask for. One extra round trip per level, and none at all for a
+  // ledger with no production in it.
+  const productionItemById = new Map<
+    string,
+    {
+      id: string;
+      productionId: string;
+      role: "INPUT" | "OUTPUT";
+      valueSharePct: Prisma.Decimal | null;
+      reversalOfItemId: string | null;
+    }
+  >();
+  const helperKeys = new Set<string>();
+  const loadedKeys = new Set(movements.map((m) => keyOf(m.productId, m.branchId)));
+  const seenProductions = new Set<string>();
+  let pending = movements.filter((m) => m.sourceType === "PRODUCTION");
+  while (pending.length > 0) {
+    const ids = pending.map((m) => m.sourceId).filter((id) => !productionItemById.has(id));
+    const items = ids.length
+      ? await tx.productionItem.findMany({
+          where: { tenantId, id: { in: ids } },
+          select: {
+            id: true,
+            productionId: true,
+            role: true,
+            valueSharePct: true,
+            reversalOfItemId: true,
+          },
+        })
+      : [];
+    for (const i of items) productionItemById.set(i.id, i);
+
+    const producing = [
+      ...new Set(items.filter((i) => i.role === "OUTPUT").map((i) => i.productionId)),
+    ].filter((id) => !seenProductions.has(id));
+    for (const id of producing) seenProductions.add(id);
+    if (producing.length === 0) break;
+
+    const inputs = await tx.productionItem.findMany({
+      where: { tenantId, productionId: { in: producing }, role: "INPUT" },
+      select: { productId: true, production: { select: { branchId: true } } },
+    });
+    const missing = inputs.filter(
+      (i) => !loadedKeys.has(keyOf(i.productId, i.production.branchId))
+    );
+    if (missing.length === 0) break;
+
+    const extra = (
+      await fetchMovements(
+        [...new Set(missing.map((i) => i.productId))],
+        [...new Set(missing.map((i) => i.production.branchId))]
+      )
+    ).filter((m) => !loadedKeys.has(keyOf(m.productId, m.branchId)));
+    for (const m of extra) {
+      const k = keyOf(m.productId, m.branchId);
+      helperKeys.add(k);
+      loadedKeys.add(k);
+    }
+    movements.push(...extra);
+    pending = extra.filter((m) => m.sourceType === "PRODUCTION");
+  }
 
   // Re-ordered by the COSTING instant, not the stored one (see costSortKey). The
   // index already returned a total order; this only moves same-day date-only
@@ -371,13 +443,25 @@ export async function loadCostMovements(
           ? (consumptionById.get(m.sourceId)?.reversalOfItemId ?? null)
           : m.sourceType === "STAFF_MEAL"
             ? (staffMealById.get(m.sourceId)?.reversalOfItemId ?? null)
-            : null),
+            : m.sourceType === "PRODUCTION"
+              ? (productionItemById.get(m.sourceId)?.reversalOfItemId ?? null)
+              : null),
       declaredUnitCost: declaredByMovement.get(m.id) ?? null,
       // Stored SIGNED on the line (negative on a reversal line, to keep the
       // document's own sums honest); the walk wants a magnitude, because it is
       // told the direction by the movement type.
       transferValue: tf ? tf.costTotal.abs() : null,
       transferPricing: tf ? LAYER_PRICING_BY_COST_SOURCE[tf.costSource] : null,
+      // ADR 0040: for the driver, never the walk — which document this leg
+      // belongs to, and an output's frozen share of its inputs' money.
+      productionId:
+        m.sourceType === "PRODUCTION"
+          ? (productionItemById.get(m.sourceId)?.productionId ?? null)
+          : null,
+      valueSharePct:
+        m.sourceType === "PRODUCTION"
+          ? (productionItemById.get(m.sourceId)?.valueSharePct ?? null)
+          : null,
     };
     const key = keyOf(m.productId, m.branchId);
     const list = grouped.get(key);
@@ -385,8 +469,16 @@ export async function loadCostMovements(
     else grouped.set(key, [row]);
   }
 
+  if (helperKeys.size > 0) HELPER_KEYS.set(grouped, helperKeys);
   return grouped;
 }
+
+/**
+ * The piles `loadCostMovements` fetched only so a production's money could be
+ * handed over (ADR 0040). Kept beside the map rather than inside it, so the
+ * map stays the plain `key → rows` every caller and test already builds.
+ */
+const HELPER_KEYS = new WeakMap<Map<string, CostMovement[]>, Set<string>>();
 
 /**
  * The walk half: replay what `loadCostMovements` fetched, optionally stopping
@@ -404,14 +496,23 @@ export function replayLoaded(
   asOf?: Date
 ): Map<string, ProductCost> {
   const bound = asOf ? (occurredAtFilter(undefined, asOf)!.lt as Date).getTime() : null;
-  const result = new Map<string, ProductCost>();
+  const cut = new Map<string, CostMovement[]>();
   for (const [key, all] of grouped) {
     const rows = bound === null ? all : all.filter((r) => r.occurredAt.getTime() < bound);
-    if (rows.length === 0) continue;
+    if (rows.length > 0) cut.set(key, rows);
+  }
+  // ADR 0040: piles walked in an order that puts every production's inputs
+  // before what they were made into. With no production loaded this is one
+  // `replayFifoLayers` per pile, exactly as before. openingStack stays empty;
+  // it exists so a snapshot can be handed in without touching the engine
+  // (risk R2).
+  const states = replayChain(cut);
+  const helpers = HELPER_KEYS.get(grouped);
+  const result = new Map<string, ProductCost>();
+  for (const [key, state] of states) {
+    if (helpers?.has(key)) continue;
     const [productId, branchId] = key.split("|");
-    // openingStack stays empty here; it exists so a snapshot can be handed in
-    // without touching the engine (risk R2).
-    result.set(key, { productId, branchId, ...replayFifoLayers(rows) });
+    result.set(key, { productId, branchId, ...state });
   }
   return result;
 }
