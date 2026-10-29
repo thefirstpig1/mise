@@ -24,6 +24,7 @@ import type { PrismaClient, StockMovement, WasteLog } from "@prisma/client";
 import { withTenantContext } from "@/lib/db";
 import { addDays, computeBangkokToday } from "@/lib/bangkok-date";
 import { assertRefBelongsToTenant } from "@/server/product";
+import { produceShortfallInTx } from "@/server/production";
 import { recipeDepartmentMajorityInTx } from "@/server/department-defaults";
 import {
   QtyRoundsToZeroError,
@@ -275,6 +276,19 @@ export async function createWasteLogic(
         departmentId: input.departmentId ?? null,
         notes: input.notes,
       },
+    });
+
+    // ADR 0040 Q9: prepped stock thrown away beyond what the shelf held was
+    // made without a record — write that production first, so the bin gets
+    // soup at the bones' price and the shelf never goes below zero.
+    await produceShortfallInTx(tx, tenantId, {
+      branchId,
+      productId,
+      qty: magnitude,
+      at: occurredAt,
+      origin: "WASTE",
+      originId: waste.id,
+      recordedBy: wastedBy,
     });
 
     const movement = await createStockMovementLogic(tx, {

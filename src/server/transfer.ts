@@ -31,6 +31,7 @@ import { withTenantContext } from "@/lib/db";
 import { assertRefBelongsToTenant } from "@/server/product";
 import { acquireCounterLock } from "@/server/counter-lock";
 import { costKeyOf, replayPairsInTx } from "@/server/stock-cost";
+import { produceShortfallInTx } from "@/server/production";
 import {
   QtyRoundsToZeroError,
   StockUnitMismatchError,
@@ -272,6 +273,16 @@ export async function getIncomingTransfersLogic(
  * replay returns the document that already exists rather than moving the same
  * goods a second time, which here would be wrong at two branches at once.
  */
+/**
+ * A dispatch writes every line twice, replays the sender's ledger twice to
+ * freeze the money, and since ADR 0040 may write the production of prepped
+ * stock nobody recorded making (Q9). Measured at 5–6 s for one line under a
+ * loaded test run, which is the default limit — so it gets the posting paths'
+ * longer one. A transaction that is merely slow pins a connection; one that is
+ * cut off mid-dispatch fails a good document.
+ */
+const DISPATCH_TX_OPTIONS = { maxWait: 10_000, timeout: 30_000 } as const;
+
 export async function dispatchTransferLogic(
   tenantId: string,
   input: DispatchTransferInput,
@@ -325,6 +336,23 @@ export async function dispatchTransferLogic(
       }
 
       prepared.push({ line: l, unit, baseQty });
+    }
+
+    // ADR 0040 Q9: prepped stock sent beyond what the sender's shelf holds was
+    // made there without a record. Written FIRST — before the cost the line
+    // will carry is read — so the soup leaves priced by the bones it was made
+    // from, and the receiving branch gets the right value. The transfer's id
+    // is its submit key, which is also what the production points back at.
+    for (const p of prepared) {
+      await produceShortfallInTx(tx, tenantId, {
+        branchId: fromBranchId,
+        productId: p.line.productId,
+        qty: p.baseQty,
+        at: dispatchedAt,
+        origin: "TRANSFER",
+        originId: input.submitKey,
+        recordedBy: dispatchedBy,
+      });
     }
 
     // How well the SENDING branch knows its own cost, read BEFORE the outflow is
@@ -446,7 +474,7 @@ export async function dispatchTransferLogic(
       where: { id: transfer.id, tenantId },
       include: DETAIL_INCLUDE,
     });
-  });
+  }, DISPATCH_TX_OPTIONS);
 }
 
 /**

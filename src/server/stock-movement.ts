@@ -1151,6 +1151,23 @@ export async function createStockAdjustmentLogic(
       },
     });
 
+    // ADR 0040 Q9: a write-down of prepped stock beyond what the shelf holds
+    // means it was made without a record. Imported lazily: production.ts
+    // imports this module for the movement writer, and a static import back
+    // would make the two load each other.
+    if (type === "ADJUST_LOSS") {
+      const { produceShortfallInTx } = await import("@/server/production");
+      await produceShortfallInTx(tx, tenantId, {
+        branchId,
+        productId,
+        qty: magnitude,
+        at: occurredAt,
+        origin: "ADJUSTMENT",
+        originId: adjustment.id,
+        recordedBy: createdBy,
+      });
+    }
+
     const movement = await createStockMovementLogic(tx, {
       tenantId,
       productId,

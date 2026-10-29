@@ -316,6 +316,47 @@ export async function explodeStaffMealMenuSettledLogic(
   return { lines, shortfalls };
 }
 
+/**
+ * ADR 0040 Q9 for a pot: settle typed lines against the prepped shelves. Lines
+ * with no prepped product pass through untouched (and cost no query).
+ */
+async function settlePotLines(
+  tx: PrismaClient,
+  tenantId: string,
+  branchId: string,
+  businessDate: Date,
+  lines: StaffMealDemandLine[]
+): Promise<{ lines: StaffMealDemandLine[]; shortfalls: { productId: string; qty: Prisma.Decimal }[] }> {
+  if (lines.length === 0) return { lines, shortfalls: [] };
+  const prepped = await tx.product.findMany({
+    where: { tenantId, id: { in: lines.map((l) => l.productId) }, type: "PREPPED" },
+    select: { id: true },
+  });
+  if (prepped.length === 0) return { lines, shortfalls: [] };
+
+  const graph = await loadRecipeGraph(
+    tx,
+    tenantId,
+    prepped.map((p) => ({ kind: "product" as const, id: p.id })),
+    branchId,
+    businessDate
+  );
+  const preppedIds = [...graph.products.values()].filter((p) => p.type === "PREPPED").map((p) => p.id);
+  const available = await preppedAvailableInTx(tx, tenantId, branchId, preppedIds, businessDate);
+  // Summed, not mapped: two lines of one product must not lose one.
+  const demand = new Map<string, Prisma.Decimal>();
+  for (const l of lines) demand.set(l.productId, (demand.get(l.productId) ?? new Prisma.Decimal(0)).plus(l.qty));
+  const settled = settlePreppedDemand(graph, demand, available);
+  return {
+    lines: [...settled.demand.entries()]
+      .map(([productId, qty]) => ({ productId, qty: qty.toDecimalPlaces(QTY_SCALE) }))
+      .filter((l) => !l.qty.isZero()),
+    shortfalls: [...settled.shortfalls.entries()]
+      .map(([productId, qty]) => ({ productId, qty: qty.toDecimalPlaces(QTY_SCALE) }))
+      .filter((x) => x.qty.greaterThan(0)),
+  };
+}
+
 /** ADR 0040 Q1: what a staff meal cut from a recipe instead of the shelf. */
 async function recordStaffMealShortfalls(
   tx: PrismaClient,
@@ -628,6 +669,14 @@ export async function createStaffMealLogic(
           }
           lines.push({ productId: item.productId, qty: magnitude });
         }
+
+        // ADR 0040 Q9: a pot names its products, so prepped ones come off the
+        // shelf first and what is not there is cut from the recipe — the same
+        // settle a menu meal gets. A product typed by hand that has no way to
+        // be made stays as typed: somebody says they ate it.
+        const pot = await settlePotLines(tx, tenantId, input.branchId, input.businessDate, lines);
+        lines = pot.lines;
+        shortfalls = pot.shortfalls;
       }
 
       // A menu that explodes to nothing at all is not a meal. It cannot happen

@@ -21,7 +21,15 @@
 import { Prisma } from "@prisma/client";
 import type { PrismaClient, Production, ProductionItem } from "@prisma/client";
 import { withTenantContext } from "@/lib/db";
-import { bangkokDayStartUtc, computeBangkokToday } from "@/lib/bangkok-date";
+import { bangkokDayStartUtc, computeBangkokToday, isDayValue } from "@/lib/bangkok-date";
+import type { ProductionOrigin } from "@prisma/client";
+import { explodeToRaw, productKey } from "@/server/recipe-graph";
+import { loadRecipeGraph } from "@/server/recipe-resolve";
+import {
+  hasMethod,
+  preppedAvailableInTx,
+  settlePreppedDemand,
+} from "@/server/prepped-first";
 import { acquireCounterLock } from "@/server/counter-lock";
 import { assertRefBelongsToTenant } from "@/server/product";
 import {
@@ -37,6 +45,13 @@ import type {
 } from "@/lib/validations/production";
 
 const HUNDRED = new Prisma.Decimal(100);
+
+/**
+ * Up to 50 inputs, each written as a line and a movement (~5 round trips to
+ * Singapore apiece): the default 5 s would cut a large batch off half-written.
+ * The posting paths' limit, for the same reason they have it.
+ */
+const PRODUCTION_TX_OPTIONS = { maxWait: 10_000, timeout: 30_000 } as const;
 const SHARE_SCALE = 4;
 
 export class ProductionNotFoundError extends Error {
@@ -383,7 +398,7 @@ export async function createProductionLogic(
       where: { id: input.submitKey },
       include: { items: true },
     });
-  });
+  }, PRODUCTION_TX_OPTIONS);
 }
 
 /**
@@ -452,5 +467,164 @@ export async function voidProductionLogic(
       where: { id: doc.id },
       include: { items: true },
     });
+  }, PRODUCTION_TX_OPTIONS);
+}
+
+// ------------------------------------------------------------
+// ADR 0040 Q9 — what was used beyond the shelf was made, unrecorded
+// ------------------------------------------------------------
+
+const BANGKOK_OFFSET_MS = 7 * 3600 * 1000;
+
+/** The Bangkok business day an instant falls on, as a day value. */
+function bangkokDayOf(at: Date): Date {
+  if (isDayValue(at)) return at;
+  const bkk = new Date(at.getTime() + BANGKOK_OFFSET_MS);
+  return new Date(Date.UTC(bkk.getUTCFullYear(), bkk.getUTCMonth(), bkk.getUTCDate()));
+}
+
+/**
+ * Before a document takes a prepped product off the shelf BY NAME — waste, a
+ * write-down, a transfer — make up whatever the shelf cannot cover.
+ *
+ * Q9: "โอนซุปที่ครัวกลางมีไม่พอ = ครัวกลางผลิตโดยไม่บันทึก". The soup that was
+ * thrown away, or sent to another branch, existed; if the ledger never saw it
+ * made, it was made without a record. Writing that production is what lets
+ * the named product leave in full at the right value — the receiving branch
+ * gets soup priced by the bones it was made from, and the waste report shows
+ * soup, not a scatter of raw ingredients nobody threw away.
+ *
+ * A dish is different (`prepped-first.ts`): a sale names a MENU, and the
+ * system infers what went into it, so there the shortfall walks down the
+ * recipe directly. Here a person named the prepped product itself.
+ *
+ * Does nothing for a RAW product, for a prepped product the shelf covers (D2:
+ * the lowest balance from `at` on), or for one with no way to be made — that
+ * one leaves as itself and may go negative, the way a raw product does when a
+ * receipt is missing (ADR 0014 Q7).
+ *
+ * Call it BEFORE posting the outflow: the production's legs are written first
+ * at the same instant, so the replay puts the making ahead of the using.
+ */
+export async function produceShortfallInTx(
+  tx: PrismaClient,
+  tenantId: string,
+  params: {
+    branchId: string;
+    productId: string;
+    /** Positive, in base units: how much the document is about to take. */
+    qty: Prisma.Decimal;
+    at: Date;
+    origin: Exclude<ProductionOrigin, "MANUAL">;
+    originId: string;
+    recordedBy: string;
+  }
+): Promise<ProductionWithItems | null> {
+  const { branchId, productId, qty, at } = params;
+  const product = await tx.product.findFirst({
+    where: { tenantId, id: productId },
+    select: { type: true },
   });
+  if (!product || product.type !== "PREPPED" || qty.lessThanOrEqualTo(0)) return null;
+
+  const onShelf =
+    (await preppedAvailableInTx(tx, tenantId, branchId, [productId], at)).get(productId) ??
+    new Prisma.Decimal(0);
+  const short = qty.minus(onShelf);
+  if (short.lessThanOrEqualTo(0)) return null;
+
+  const graph = await loadRecipeGraph(
+    tx,
+    tenantId,
+    [{ kind: "product", id: productId }],
+    branchId,
+    bangkokDayOf(at)
+  );
+  if (!hasMethod(graph, productId)) return null;
+
+  // One level down, then the same shelf rule for what that needs: stock on
+  // the stock shelf is used before the bones under it.
+  const oneLevel = explodeToRaw(graph, productKey(productId), short, { stopAtPrepped: true });
+  const preppedBelow = oneLevel
+    .map((l) => l.productId)
+    .filter((id) => graph.products.get(id)?.type === "PREPPED");
+  const available = preppedBelow.length
+    ? await preppedAvailableInTx(tx, tenantId, branchId, [...new Set(preppedBelow)], at)
+    : new Map<string, Prisma.Decimal>();
+  const settled = settlePreppedDemand(
+    graph,
+    new Map(oneLevel.map((l) => [l.productId, l.qty])),
+    available
+  );
+  const inputs = [...settled.demand.entries()]
+    .map(([id, q]) => ({ productId: id, qty: q.toDecimalPlaces(3) }))
+    .filter((l) => l.qty.greaterThan(0));
+  if (inputs.length === 0) return null;
+
+  const branch = await tx.branch.findUniqueOrThrow({
+    where: { id: branchId },
+    select: { code: true },
+  });
+  const pdNumber = await generatePdNumber(tx, tenantId, branch.code);
+  const node = graph.products.get(productId);
+  const doc = await tx.production.create({
+    data: {
+      tenantId,
+      branchId,
+      pdNumber,
+      kind: "PRODUCE",
+      origin: params.origin,
+      originId: params.originId,
+      producedAt: at,
+      recipeId: node?.productionRecipe?.id ?? null,
+      recordedBy: params.recordedBy,
+    },
+  });
+
+  for (const line of inputs) {
+    const item = await tx.productionItem.create({
+      data: {
+        tenantId,
+        productionId: doc.id,
+        productId: line.productId,
+        role: "INPUT",
+        qty: line.qty,
+      },
+    });
+    await createStockMovementLogic(tx, {
+      tenantId,
+      productId: line.productId,
+      branchId,
+      qty: line.qty.negated(),
+      type: "PRODUCTION_OUT",
+      sourceType: "PRODUCTION",
+      sourceId: item.id,
+      occurredAt: at,
+      createdBy: params.recordedBy,
+    });
+  }
+  const outQty = short.toDecimalPlaces(3);
+  const out = await tx.productionItem.create({
+    data: {
+      tenantId,
+      productionId: doc.id,
+      productId,
+      role: "OUTPUT",
+      qty: outQty,
+      valueSharePct: HUNDRED,
+    },
+  });
+  await createStockMovementLogic(tx, {
+    tenantId,
+    productId,
+    branchId,
+    qty: outQty,
+    type: "PRODUCTION_IN",
+    sourceType: "PRODUCTION",
+    sourceId: out.id,
+    occurredAt: at,
+    createdBy: params.recordedBy,
+  });
+
+  return tx.production.findUniqueOrThrow({ where: { id: doc.id }, include: { items: true } });
 }
