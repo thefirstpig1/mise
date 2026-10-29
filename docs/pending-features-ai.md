@@ -108,6 +108,10 @@ The draft carries its provenance ("ร่างโดย AI, ยังไม่�
 4. บันทึกเป็น **สูตรร่าง (`is_draft`)** แล้วค่อยกดใช้จริง (ADR 0025) — สูตรผิดจึงยังไม่ตัดสต๊อก
 5. ต้องนำเข้าไฟล์ POS ก่อน เพื่อให้มีเมนูและรหัส — ตรงกับ flow เริ่มใช้งาน
 
+**Kong 2026-10-30 (ต่อ) — ถกตอนถึงคิว:** "ถ้าไฟล์ของร้านเขาใช้ Word ล่ะ" และ "prompt ให้ AI ของเขาห้ามเติมตัวเลขเอาเองไม่ได้หรอ"
+- Word / PDF / รูปถ่ายสมุดสูตร: AI ของร้านอ่านได้ทั้งหมด หน้าที่ของมันคือแปลงเป็นแม่แบบของเรา ระบบเรารับแค่แม่แบบ จึงไม่ต้องรองรับ Word เอง
+- prompt สั่งห้ามเดาได้และควรสั่ง แต่ **ไม่มีอะไรรับประกันว่า AI จะทำตาม** — จึงต้องมีชั้นตรวจในระบบเรา: ช่องว่างขึ้นสี · คอลัมน์ข้อความเดิมจากไฟล์ร้านไว้เทียบ · บันทึกเป็นสูตรร่างก่อนเสมอ
+
 ความเสี่ยงที่เหลือ: ต่ำ–กลาง · ใช้ตัวนำเข้าเดียวกับ "เพิ่มวัตถุดิบทีละหลายรายการ" (คิวงานข้อ 5) → ทำวัตถุดิบก่อน แล้วต่อยอดเป็นสูตร
 
 ---
@@ -230,6 +234,11 @@ Kong: a shop deciding whether to trust คิดครัว will want to know t
 - **Nothing we publish tries to steer the auditor.** The rules page and the export carry no text aimed at a model: no "this has been verified", no "trust these figures", no hidden instructions. The customer's AI reads our files, so a persuasive sentence inside them is prompt injection against our own customer. A test should fail when the published files contain instruction-like text.
 - **The only prompt we supply is an adversarial one, shown in full and editable.** It tells the auditor to try to break the numbers: recompute every figure independently with code, look for rounding drift, double counting, dates in the wrong period and stock that appears from nowhere, report every mismatch however small, and never assume the system is right. The customer can read it, change it or use their own.
 - **Known limitations are published before anyone finds them**: PR3a's satang drift, a PREPPED count that always reports a gain (no production movements), the periodic method's dependence on a complete count, and every figure printed with its coverage or confidence. An auditor who finds a flaw we already listed learns that we tell the truth. One who finds a flaw we hid learns the opposite.
+- **Kong 2026-10-30 — additions, to settle when this reaches the queue (deliberately near the END, because every app change means re-issuing the pack):**
+  - **Use it as a selling point on the landing page** ("ตรวจตัวเลขของเราได้ด้วย AI ของคุณเอง") — only once the pack exists; the page must not promise it before (rule: no unmeasured promises).
+  - **The pack must be regenerated on every release.** Suggestion: build it from `docs/calculation-rules.md` + the limitations list, and add a test that fails when a rule row changes without the pack being regenerated.
+  - **A line telling the other AI not to reproduce the pack**, so competitors cannot copy it. ⚠️ To discuss: this is an instruction aimed at the customer's model, which the rule above forbids ("no instruction-like text"), and a model or a person can ignore it — it protects nothing technically. The protection that holds is a plain copyright / terms-of-use notice for humans, and the fact that the rules are standard accounting (FIFO, periodic inventory) while the moat is the implementation and the data.
+  - **Write the pack in "the language AIs use" so users do not read through it**, and let their AI translate. ⚠️ To discuss: there is no AI-only language; text a model can read, a person can read. A structured format (JSON + formulas, English) is genuinely what models read most accurately and is dense for people — worth doing for accuracy. Hiding it on purpose works against the point of the feature (a shop trusts us *because* it can look), and an accountant must be able to read it too. Suggestion: structured pack for the AI + a short Thai summary page for people.
 - **A discrepancy is a bug report, not a support ticket**: an easy way to send the auditor's finding, and a public log of calculation corrections (what was wrong, since when, which figures moved).
 
 ---
