@@ -52,3 +52,6 @@ logs/
 # Temp
 *.tmp
 .cache/
+
+# Dev photo storage (src/lib/storage.ts) — production uses Tigris
+/.storage/

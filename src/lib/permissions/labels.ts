@@ -32,6 +32,8 @@ export const CAPABILITY_LABELS_TH: Partial<Record<Capability, { label: string; h
   "consumption:post": { label: "ตัดสต๊อกตามยอดขาย", hint: "ตัดให้อัตโนมัติหลังอัปโหลด ถ้ามีสิทธิ์นี้" },
   "expense:write": { label: "บันทึกค่าใช้จ่าย", hint: "รวมค่าใช้จ่ายประจำ" },
   "staffmeal:approve": { label: "อนุมัติมื้อพนักงาน", hint: "ของคนอื่นเท่านั้น ไม่ใช่ของตัวเอง" },
+  "purchase:self": { label: "บันทึกของที่ซื้อเอง", hint: "ถ่ายรูปบิล บอกว่าจ่ายยังไง — เงินตัวเองเป็นสำรองจ่าย" },
+  "refund:pay": { label: "คืนเงินพนักงาน", hint: "รับรองบิลเงินสดที่ไม่มีสลิป และโอนคืน — ไม่ใช่ของตัวเอง" },
 };
 
 export const capabilityLabelTh = (c: string) => CAPABILITY_LABELS_TH[c as Capability]?.label ?? c;

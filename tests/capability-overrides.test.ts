@@ -55,7 +55,7 @@ describe("effectiveCapabilities", () => {
     const caps = effectiveCapabilities("viewer", [on("member:manage", "viewer")], [on("settings:write"), on("cost:veiw")]);
     expect(caps.size).toBe(0);
     expect(ADJUSTABLE_CAPABILITIES.has("member:manage")).toBe(false);
-    expect(ADJUSTABLE_CAPABILITIES.size).toBe(16);
+    expect(ADJUSTABLE_CAPABILITIES.size).toBe(18); // +purchase:self, refund:pay (ADR 0037 Q5–Q6)
   });
 
   it("E6 — a capability that prints money is dropped when its pair is missing (closed, never open)", () => {

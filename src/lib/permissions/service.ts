@@ -67,6 +67,12 @@ export type Capability =
   | "purchase:approve"
   /** Receive goods against an order, confirm and void receipts. */
   | "receive:write"
+  /**
+   * Record something you bought yourself, with the bill photo and how it was
+   * paid (ADR 0037 Q6) — a staff advance when it was your own money. The
+   * claim is always in the name of the logged-in account.
+   */
+  | "purchase:self"
   /** Adjustments, par levels, inter-branch transfers. */
   | "stock:write"
   /**
@@ -83,6 +89,11 @@ export type Capability =
   | "count:close"
   /** Expenses and recurring expense templates. */
   | "expense:write"
+  /**
+   * Pay staff back for what they paid for the shop, and accept a cash bill
+   * that has no slip, case by case (ADR 0037 Q5–Q6). Never your own claim.
+   */
+  | "refund:pay"
   /** Import a POS export, record the daily pulse, configure an integration. */
   | "sales:import"
   /** Post (and void) a day's consumption from sales. */
@@ -132,11 +143,13 @@ export const ALL_CAPABILITIES = [
   "purchase:write",
   "purchase:approve",
   "receive:write",
+  "purchase:self",
   "stock:write",
   "waste:write",
   "count:write",
   "count:close",
   "expense:write",
+  "refund:pay",
   "sales:import",
   "consumption:post",
   "recipe:draft",
@@ -212,11 +225,13 @@ const MANAGER: readonly Capability[] = [
   "purchase:write",
   "purchase:approve",
   "receive:write",
+  "purchase:self",
   "stock:write",
   "waste:write",
   "count:write",
   "count:close",
   "expense:write",
+  "refund:pay",
   "sales:import",
   "consumption:post",
   "recipe:draft",
@@ -241,6 +256,7 @@ const PURCHASER: readonly Capability[] = [
   "purchase:write",
   "purchase:approve",
   "receive:write",
+  "purchase:self",
   "cost:view",
 ];
 
@@ -261,6 +277,9 @@ const KITCHEN_STAFF: readonly Capability[] = [
   // Kong 2026-10-05: a cook may draft and propose a recipe; a manager
   // endorses it and someone allowed applies it (ADR 0041).
   "recipe:draft",
+  // ADR 0037 Q6 default: "พนักงานครัว หัวหน้าแผนก และสูงกว่า" — the person
+  // who runs to the market. A shop that does not want this takes it away.
+  "purchase:self",
 ];
 
 /**
@@ -289,6 +308,8 @@ const CASHIER: readonly Capability[] = ["sales:import", "consumption:post", "was
  */
 const ACCOUNTANT: readonly Capability[] = [
   "expense:write",
+  // ADR 0037 Q5–Q6: the accountant pays staff back and endorses cash bills.
+  "refund:pay",
   "sales:import",
   "cost:view",
   "expense:view",
@@ -352,7 +373,7 @@ export interface CapabilityOverride {
 }
 
 /**
- * The sixteen a shop may change (ADR 0038 Amendment Q4), in the four groups
+ * The eighteen a shop may change (ADR 0038 Amendment Q4; +2 by ADR 0037 Q5–Q6), in the four groups
  * the settings screen shows. The basics every working role needs
  * (`purchase:request`, `count:write`, `staffmeal:write`, `recipe:draft`) and
  * the two structural ones (`member:manage`, `settings:write` — Q1.2: opening
@@ -361,9 +382,9 @@ export interface CapabilityOverride {
  */
 export const ADJUSTABLE_CAPABILITY_GROUPS = [
   { key: "money", capabilities: ["cost:view", "sales:view", "expense:view", "staff:view"] },
-  { key: "buying", capabilities: ["purchase:write", "purchase:approve", "receive:write", "master:write"] },
+  { key: "buying", capabilities: ["purchase:write", "purchase:approve", "receive:write", "master:write", "purchase:self"] },
   { key: "stock", capabilities: ["stock:write", "waste:write", "count:close", "recipe:write"] },
-  { key: "books", capabilities: ["sales:import", "consumption:post", "expense:write", "staffmeal:approve"] },
+  { key: "books", capabilities: ["sales:import", "consumption:post", "expense:write", "staffmeal:approve", "refund:pay"] },
 ] as const satisfies readonly { key: string; capabilities: readonly Capability[] }[];
 
 export const ADJUSTABLE_CAPABILITIES: ReadonlySet<Capability> = new Set(
@@ -394,6 +415,8 @@ export const CAPABILITY_NEEDS: Readonly<Partial<Record<Capability, Capability>>>
   "receive:write": "cost:view",
   "master:write": "cost:view",
   "expense:write": "expense:view",
+  // Paying people back prints what they paid for — the shop's spending.
+  "refund:pay": "expense:view",
 };
 
 const isAdjustable = (c: string): c is Capability => ADJUSTABLE_CAPABILITIES.has(c as Capability);
