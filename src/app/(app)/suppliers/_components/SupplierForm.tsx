@@ -54,6 +54,7 @@ export default function SupplierForm({
   action,
   initial,
   submitLabel,
+  shopVatRate,
 }: {
   action: (
     prev: SupplierActionState,
@@ -61,6 +62,8 @@ export default function SupplierForm({
   ) => Promise<SupplierActionState>;
   initial?: SupplierView;
   submitLabel: string;
+  /** A new supplier who charges VAT almost always charges the shop's rate (setup trial 2026-10-30). */
+  shopVatRate?: string;
 }) {
   const router = useRouter();
   const [state, formAction, isPending] = useActionState(
@@ -206,7 +209,7 @@ export default function SupplierForm({
             <label htmlFor="default_vat_rate_percent" className="mb-1 label">
               {L.defaultVatRatePercent}
             </label>
-            <MeasureInput id="default_vat_rate_percent" name="default_vat_rate_percent" unit="%" defaultValue={initial?.defaultVatRatePercent ?? ""} boxClassName="w-28" />
+            <MeasureInput id="default_vat_rate_percent" name="default_vat_rate_percent" unit="%" defaultValue={initial?.defaultVatRatePercent ?? shopVatRate ?? ""} boxClassName="w-28" />
             {err("defaultVatRatePercent") && <p className="mt-1 text-sm text-bad">{err("defaultVatRatePercent")}</p>}
           </div>
         )}

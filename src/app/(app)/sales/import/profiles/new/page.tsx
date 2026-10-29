@@ -27,7 +27,7 @@ const POS_TYPE_LABELS: Record<string, string> = {
 };
 
 export default async function NewProfilePage() {
-  const { tenantId, reach} = await requireTenant("sales:import");
+  const { tenantId, reach, membership } = await requireTenant("sales:import");
   const [integrations, branches] = await Promise.all([
     getPosIntegrationsLogic(tenantId),
     getBranchesLogic(tenantId, reach),
@@ -59,7 +59,7 @@ export default async function NewProfilePage() {
           ทำครั้งเดียวต่อรูปแบบไฟล์หนึ่งแบบ — ครั้งต่อไปอัปไฟล์หน้าตาเดิม ระบบอ่านเองไม่ถามอะไรอีก
         </p>
       </div>
-      <ProfileBuilder posOptions={posOptions} />
+      <ProfileBuilder posOptions={posOptions} shopVatRegistered={membership.tenant.isVatRegistered} />
     </div>
   );
 }

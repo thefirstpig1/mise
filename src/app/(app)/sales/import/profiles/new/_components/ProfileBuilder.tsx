@@ -40,6 +40,7 @@ import {
 } from "@/lib/validations/sales-import";
 import { SALES_DATE_FORMATS } from "@/lib/sales-file";
 import { useKeepForm } from "@/lib/keep-form";
+import SalesImportWizard, { type ImportProfileOption } from "@/app/(app)/sales/import/_components/SalesImportWizard";
 
 export type PosOption = { id: string; label: string };
 
@@ -61,7 +62,17 @@ const FIELD_LABELS_TH: Record<ColumnMapField, { label: string; required?: boolea
   billId: { label: "เลขบิล" },
 };
 
-export default function ProfileBuilder({ posOptions }: { posOptions: PosOption[] }) {
+/** The 4-digit year in a sample date says which calendar the file uses. */
+function yearHint(sample: string | undefined): string | null {
+  const y = sample?.match(/(?<!\d)(\d{4})(?!\d)/)?.[1];
+  if (!y) return null;
+  const n = Number(y);
+  if (n >= 2400 && n <= 2700) return `ตัวอย่างในไฟล์ “${sample}” — ปี ${y} เป็น พ.ศ.`;
+  if (n >= 1900 && n <= 2200) return `ตัวอย่างในไฟล์ “${sample}” — ปี ${y} เป็น ค.ศ.`;
+  return null;
+}
+
+export default function ProfileBuilder({ posOptions, shopVatRegistered }: { posOptions: PosOption[]; shopVatRegistered: boolean }) {
   const [inspectState, inspectAction, inspecting] = useActionState<InspectFileState | null, FormData>(
     inspectSalesFileAction,
     null
@@ -70,7 +81,20 @@ export default function ProfileBuilder({ posOptions }: { posOptions: PosOption[]
     createSalesImportProfileAction,
     null
   );
-  const saveActionKeep = useKeepForm(saveAction, saveState);
+  // What was submitted, so a saved profile can import the sample straight away.
+  const [submitted, setSubmitted] = useState<Omit<ImportProfileOption, "id"> | null>(null);
+  const saveActionKeep = useKeepForm((fd) => {
+    const [branchName, ...pos] = (posOptions.find((p) => p.id === fd.get("posIntegrationId"))?.label ?? "").split(" · ");
+    const kind = String(fd.get("fileKind") ?? "") as (typeof SALES_FILE_KIND_VALUES)[number];
+    setSubmitted({
+      name: String(fd.get("name") ?? ""),
+      branchName,
+      posName: pos.join(" · "),
+      fileKindLabel: SALES_FILE_KIND_LABELS_TH[kind] ?? "",
+      encodingLabel: FILE_ENCODING_LABELS_TH[String(fd.get("encoding")) as (typeof FILE_ENCODING_VALUES)[number]] ?? "",
+    });
+    saveAction(fd);
+  }, saveState);
   // The sample file lives in state: FileDrop's own input carries no name (Thai picker, Kong 2026-10-25).
   const [sample, setSample] = useState<File | null>(null);
   const inspectKeep = useKeepForm((fd) => {
@@ -109,16 +133,32 @@ export default function ProfileBuilder({ posOptions }: { posOptions: PosOption[]
     });
   };
 
+  // A row is a bill when the file names its bills or times; otherwise it is a
+  // day's summary. A starting point the person can change, not an answer.
+  const inferredKind: (typeof SALES_FILE_KIND_VALUES)[number] =
+    columnMap.billId !== undefined || columnMap.soldAt !== undefined ? "BILL_DETAIL" : "DAILY_SUMMARY";
+  const [kindChosen, setKindChosen] = useState<string | null>(null);
+  const dateSample =
+    inspectState?.ok && columnMap.businessDate !== undefined ? inspectState.sampleRows[0]?.[columnMap.businessDate] : undefined;
+
   if (saveState?.ok) {
     return (
-      <div className="rounded-lg border border-primary bg-primary/5 p-6 text-sm">
-        <p className="font-medium">บันทึกรูปแบบไฟล์แล้ว</p>
-        <p className="mt-2 text-muted-foreground">
-          ครั้งต่อไปอัปไฟล์หน้าตาเดิม ระบบจะอ่านได้เองโดยไม่ถามอะไรอีก
-        </p>
-        <a href="/sales/import" className={"btn mt-4 inline-block"}>
-          ไปหน้านำเข้ายอดขาย
-        </a>
+      <div className="space-y-4">
+        <div className="rounded-lg border border-primary bg-primary/5 p-6 text-sm">
+          <p className="font-medium">บันทึกรูปแบบไฟล์แล้ว</p>
+          <p className="mt-2 text-muted-foreground">
+            ครั้งต่อไปอัปไฟล์หน้าตาเดิม ระบบจะอ่านได้เองโดยไม่ถามอะไรอีก
+            {sample && submitted ? " · ไฟล์ที่อัปไว้ด้านบนนำเข้าต่อได้เลยข้างล่าง ไม่ต้องเลือกไฟล์ใหม่" : ""}
+          </p>
+          {!(sample && submitted) && (
+            <a href="/sales/import" className="btn mt-4">
+              ไปหน้านำเข้ายอดขาย
+            </a>
+          )}
+        </div>
+        {sample && submitted && (
+          <SalesImportWizard profiles={[{ id: saveState.profileId, ...submitted }]} initialFile={sample} />
+        )}
       </div>
     );
   }
@@ -252,7 +292,12 @@ export default function ProfileBuilder({ posOptions }: { posOptions: PosOption[]
 
             <label className="block text-sm">
               หนึ่งแถวคืออะไร
-              <select name="fileKind" className={"input w-full mt-1"}>
+              <select
+                name="fileKind"
+                value={kindChosen ?? inferredKind}
+                onChange={(e) => setKindChosen(e.target.value)}
+                className={"input w-full mt-1"}
+              >
                 {SALES_FILE_KIND_VALUES.map((k) => (
                   <option key={k} value={k}>
                     {SALES_FILE_KIND_LABELS_TH[k]}
@@ -299,12 +344,14 @@ export default function ProfileBuilder({ posOptions }: { posOptions: PosOption[]
               question="ปีในไฟล์เป็นแบบไหน"
               yes="พ.ศ. (2568)"
               no="ค.ศ. (2025)"
+              hint={yearHint(dateSample)}
             />
             <RadioRow
               name="amountsIncludeVat"
               question="ตัวเลขเงินในไฟล์ รวม VAT แล้วหรือยัง"
               yes="รวมแล้ว"
               no="ยังไม่รวม"
+              hint={shopVatRegistered ? null : "ร้านยังไม่ได้จด VAT — ถ้า POS ไม่ได้บวก VAT ลงในราคา ให้ตอบ “ยังไม่รวม”"}
             />
             <RadioRow
               name="amountsIncludeServiceCharge"
@@ -341,15 +388,19 @@ function RadioRow({
   question,
   yes,
   no,
+  hint = null,
 }: {
   name: string;
   question: string;
   yes: string;
   no: string;
+  /** Evidence to answer by — shown, never preselected (rule P10). */
+  hint?: string | null;
 }) {
   return (
     <div className="mt-3 text-sm">
       <p>{question}</p>
+      {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
       <div className="mt-1 flex gap-4 text-sm">
         <label className="flex items-center gap-1">
           <input type="radio" name={name} value="true" /> {yes}

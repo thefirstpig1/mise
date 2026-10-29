@@ -486,7 +486,7 @@ export function Adder({
       </small>
     );
   };
-  const row = (o: IngredientOption, marks: { field: number | null; marks: number[] }, weak = false) => (
+  const row = (o: IngredientOption, marks: { field: number | null; marks: number[] }, weak = false, top = false) => (
     <button
       key={`${o.kind}-${o.id}`}
       type="button"
@@ -495,18 +495,24 @@ export function Adder({
         setQ("");
         setOpen(false);
       }}
-      className={`flex w-full items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-left text-sm hover:bg-muted ${weak ? "opacity-45" : ""}`}
+      className={`flex w-full items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-left text-sm hover:bg-muted ${weak ? "opacity-45" : ""} ${top ? "bg-muted" : ""}`}
     >
       <span className="min-w-0">
         {marks.field === 0 ? <Marked text={o.name} marks={marks.marks} /> : o.name}{" "}
         {o.sku && <small className="text-xs tabular-nums text-muted-subtle">{marks.field === 1 ? <Marked text={o.sku} marks={marks.marks} /> : o.sku}</small>}
         {o.prepped && <span className="ml-1 rounded border border-warn-border bg-warn-bg px-1 text-[10px] text-warn">ของแปรรูป</span>}
       </span>
-      {price(o)}
+      <span className="flex shrink-0 items-center gap-2">
+        {price(o)}
+        {top && <kbd className="rounded border border-border px-1 font-sans text-[10px] text-muted-subtle">Enter</kbd>}
+      </span>
     </button>
   );
 
   let list: ReactNode;
+  // Enter takes the best match, as a search box does (setup trial 2026-10-30:
+  // typing "กะเพรา" then Enter did nothing and the next keys landed in the box).
+  let first: IngredientOption | null = null;
   if (options === null) list = <p className="px-2 py-2 text-xs text-muted-subtle">กำลังโหลดรายการ…</p>;
   else if (!hasQuery(q)) {
     const plain = { field: null, marks: [] as number[] };
@@ -527,10 +533,18 @@ export function Adder({
     const ranked = rankBySearch(items, q, fields);
     const strong = ranked.filter((r) => r.score >= STRONG_MATCH);
     const rest = ranked.filter((r) => r.score < STRONG_MATCH);
+    // Only an ingredient, never a menu: a new shop typing "ข้าว" before it has a
+    // rice product would otherwise put another dish inside this one by accident.
+    // A set menu's component is still one click away.
+    const strongProducts = strong.filter((r) => r.item.kind === "product");
+    const strongMenus = strong.filter((r) => r.item.kind === "menu");
+    first = strongProducts[0]?.item ?? null;
     list = (
       <>
-        {strong.length === 0 && <p className="px-2 py-1 text-xs text-muted-subtle">ไม่มีที่ตรงกับ “{q}” · ถ้าเป็นวัตถุดิบใหม่ เพิ่มที่หน้าวัตถุดิบ</p>}
-        {strong.map((r) => row(r.item, r))}
+        {strongProducts.length === 0 && <p className="px-2 py-1 text-xs text-muted-subtle">ไม่มีวัตถุดิบที่ตรงกับ “{q}” · ถ้าเป็นวัตถุดิบใหม่ เพิ่มที่หน้าวัตถุดิบ</p>}
+        {strongProducts.map((r) => row(r.item, r, false, r.item === first))}
+        {strongMenus.length > 0 && <p className="px-2 pt-1 font-display text-[11px] text-muted-subtle">เมนู (สำหรับเซ็ต)</p>}
+        {strongMenus.map((r) => row(r.item, r))}
         {rest.length > 0 && <p className="px-2 pt-1 font-display text-[11px] text-muted-subtle">รายการอื่น</p>}
         {rest.map((r) => row(r.item, r, true))}
       </>
@@ -546,6 +560,20 @@ export function Adder({
           setOpen(true);
         }}
         onFocus={() => setOpen(true)}
+        onKeyDown={(e) => {
+          // Esc closes the list first; only a second Esc reaches the sheet,
+          // which closes and drops the unsaved recipe.
+          if (e.key === "Escape" && open) {
+            e.stopPropagation();
+            setOpen(false);
+          }
+          if (e.key !== "Enter") return;
+          e.preventDefault();
+          if (!first) return;
+          onPick(first);
+          setQ("");
+          setOpen(false);
+        }}
         placeholder="+ เพิ่มวัตถุดิบ พิมพ์ชื่อหรือรหัส"
         aria-label="เพิ่มวัตถุดิบ"
         className="w-full rounded-lg border border-dashed border-border-strong bg-surface-sunk px-3 py-1.5 text-sm focus:border-solid focus:bg-surface focus:outline-none focus:ring-2 focus:ring-primary"

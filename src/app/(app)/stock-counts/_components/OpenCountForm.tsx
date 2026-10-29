@@ -71,24 +71,35 @@ export default function OpenCountForm({
       )}
 
       <div>
-        <label htmlFor="branch_id" className="label">
-          สาขา <span className="text-bad">*</span>
-        </label>
-        <select
-          id="branch_id"
-          name="branch_id"
-          value={branchId}
-          onChange={(e) => setBranchId(e.target.value)}
-          className={"input w-full mt-1"}
-          required
-        >
-          {branches.map((b) => (
-            <option key={b.id} value={b.id}>
-              {b.name}
-              {openByBranch[b.id] ? " — กำลังนับอยู่" : ""}
-            </option>
-          ))}
-        </select>
+        {/* One branch is not a choice — plain text, not a picker (UI rule §2). */}
+        {branches.length === 1 ? (
+          <>
+            <p className="label">สาขา</p>
+            <p className="mt-1 font-medium">{branches[0].name}</p>
+            <input type="hidden" name="branch_id" value={branches[0].id} />
+          </>
+        ) : (
+          <>
+            <label htmlFor="branch_id" className="label">
+              สาขา <span className="text-bad">*</span>
+            </label>
+            <select
+              id="branch_id"
+              name="branch_id"
+              value={branchId}
+              onChange={(e) => setBranchId(e.target.value)}
+              className={"input w-full mt-1"}
+              required
+            >
+              {branches.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                  {openByBranch[b.id] ? " — กำลังนับอยู่" : ""}
+                </option>
+              ))}
+            </select>
+          </>
+        )}
         {fieldErrors?.branchId && (
           <p className="mt-1 text-xs text-bad">{fieldErrors.branchId}</p>
         )}

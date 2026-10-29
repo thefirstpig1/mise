@@ -323,7 +323,11 @@ export default function MenuSheet(props: {
       costHidden || perPlate === null
         ? null
         : basePerPlate === null
-          ? `ต้นทุนต่อจาน ${baht(perPlate, 2)}${known ? "" : " (บางตัวยังไม่มีราคา)"}`
+          ? known
+            ? `ต้นทุนต่อจาน ${baht(perPlate, 2)}`
+            : lines.every((l) => priceOf(l, book) === null)
+              ? "ต้นทุนต่อจาน — (วัตถุดิบยังไม่มีราคา)"
+              : `ต้นทุนต่อจานอย่างน้อย ${baht(perPlate, 2)} (บางตัวยังไม่มีราคา)`
           : `ต้นทุนต่อจาน ${baht(basePerPlate, 2)} → ${baht(perPlate, 2)} (${perPlate >= basePerPlate ? "+" : "−"}${baht(Math.abs(perPlate - basePerPlate), 2)})`;
     // Same date as the version being edited = a correction of THAT version. Only
     // true when the save lands on the same line — saving for one branch starts
@@ -738,7 +742,10 @@ export default function MenuSheet(props: {
               {!costHidden && perPlate !== null && (
                 <p className="flex justify-between gap-2">
                   <span>รวมต้นทุนต่อจาน · ราคาวัตถุดิบที่{branch.name} ณ วันนี้</span>
-                  <b className="font-display text-sm text-foreground tabular-nums">{baht(perPlate, 2)}</b>
+                  {/* Never ฿0.00 for "no price yet" (UI rule §3); a partial sum is a floor, said as one. */}
+                  <b className="font-display text-sm text-foreground tabular-nums">
+                    {known ? baht(perPlate, 2) : lines.every((l) => priceOf(l, book) === null) ? "—" : `อย่างน้อย ${baht(perPlate, 2)}`}
+                  </b>
                 </p>
               )}
               {!costHidden && book && unpriced.length > 0 && (
@@ -888,6 +895,12 @@ export default function MenuSheet(props: {
                       )}
                       {" · มีผลตั้งแต่ "}
                       <input type="date" value={eff} max={today} onChange={(e) => setEff(e.target.value)} className="rounded border border-border-strong bg-surface px-1 py-0.5 text-foreground" aria-label="วันที่สูตรใหม่มีผล" />
+                      {/* A first recipe can reach back over the sales already imported. */}
+                      {recipe === null && menu.firstSaleDate && menu.firstSaleDate < eff && (
+                        <button type="button" onClick={() => setEff(menu.firstSaleDate!)} className="ml-1 text-primary underline decoration-dotted underline-offset-4">
+                          ให้มีผลตั้งแต่วันแรกที่มียอดขาย ({thDate(menu.firstSaleDate)})
+                        </button>
+                      )}
                     </>
                   )}
                 </>

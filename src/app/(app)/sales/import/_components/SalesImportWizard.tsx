@@ -56,10 +56,13 @@ const baht = (v: string) =>
 
 export default function SalesImportWizard({
   profiles,
+  initialFile = null,
 }: {
   profiles: ImportProfileOption[];
+  /** The sample just used to build a profile — nobody should have to pick it twice (setup trial 2026-10-30). */
+  initialFile?: File | null;
 }) {
-  const [file, setFile] = useState<File | null>(null);
+  const [file, setFile] = useState<File | null>(initialFile);
   const [profileId, setProfileId] = useState(profiles[0]?.id ?? "");
   const [batchId, setBatchId] = useState(newBatchId);
   const [previewState, setPreviewState] = useState<SalesImportPreviewState | null>(null);
@@ -113,7 +116,7 @@ export default function SalesImportWizard({
           ก่อนนำเข้ายอดขายครั้งแรก ต้องบอกระบบก่อนว่าไฟล์จาก POS ของคุณ
           คอลัมน์ไหนคืออะไร ทำครั้งเดียว ครั้งต่อไประบบจำได้เอง
         </p>
-        <a href="/sales/import/profiles/new" className={"btn mt-4 inline-block"}>
+        <a href="/sales/import/profiles/new" className="btn mt-4">
           ตั้งค่ารูปแบบไฟล์
         </a>
       </div>

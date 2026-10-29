@@ -97,7 +97,7 @@ function ReachFields({
         ))}
         {branches.length === 0 && (
           <p className="text-xs text-muted-foreground">
-            คุณเข้าถึงสาขาใดอยู่ จึงยังมอบสิทธิ์สาขาให้ใครไม่ได้
+            คุณยังไม่มีสาขาที่เข้าถึงได้ จึงยังมอบสิทธิ์สาขาให้ใครไม่ได้
           </p>
         )}
       </div>
@@ -184,7 +184,8 @@ function InviteDialog({
             </div>
           </div>
           <RoleCards roleOptions={roleOptions} defaultValue="kitchen_staff" idPrefix="invite-role" />
-          <ReachFields branches={branches} canGrantAllBranches={canGrantAllBranches} defaultAllBranches={false} defaultBranchIds={[]} />
+          {/* A one-branch shop has one possible answer; ticking it was a step people missed (setup trial 2026-10-30). */}
+          <ReachFields branches={branches} canGrantAllBranches={canGrantAllBranches} defaultAllBranches={false} defaultBranchIds={branches.length === 1 ? [branches[0].id] : []} />
           {!state.ok && state.formError && <p className="text-sm text-bad">{state.formError}</p>}
           <div className="flex justify-end gap-2 border-t border-border pt-4">
             <button type="button" className={ghost} onClick={onClose}>

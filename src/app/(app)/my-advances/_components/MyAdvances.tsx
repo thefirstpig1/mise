@@ -64,7 +64,7 @@ export default function MyAdvances({ claims, today, storageReady, ...options }: 
       </div>
 
       {!storageReady && (
-        <p className="rounded-xl border border-warn-border bg-warn-bg p-3 text-sm text-warn">ระบบเก็บรูปยังไม่พร้อม จึงยังบันทึกบิลใหม่ไม่ได้ — กรุณาแจ้งทีมคิดครัว</p>
+        <p className="rounded-xl border border-warn-border bg-warn-bg p-3 text-sm text-warn">ระบบเก็บรูปยังไม่พร้อม จึงยังบันทึกบิลใหม่ไม่ได้ — กรุณาแจ้งคิดครัว</p>
       )}
 
       <section className="rounded-2xl bg-primary px-5 py-4 text-primary-foreground">

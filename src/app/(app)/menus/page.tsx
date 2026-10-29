@@ -62,7 +62,7 @@ export default async function MenusPage({
       ? { branchId: branch.id, book: getMenuPriceBookLogic(tenantId, branch.id, costAccess).catch(() => null) }
       : null;
 
-  const [menus, categories, integrations, departments, merges, facts, recipeStatus, overview] = await Promise.all([
+  const [menus, categories, integrations, departments, merges, facts, recipeStatus, overview, firstSales] = await Promise.all([
     getMenusLogic(tenantId, {
       posIntegrationId: undefined,
       menuCategoryId: undefined,
@@ -88,7 +88,14 @@ export default async function MenusPage({
     // Which no-recipe dishes are probably another branch's copy of a dish that
     // HAS one (Kong 2026-10-28): merging fixes them, writing a recipe does not.
     getMergeOverviewLogic(tenantId),
+    // A dish's first sale: a new shop imports weeks of sales and then writes
+    // recipes, which by default start today — leaving every imported day with no
+    // recipe to deduct by (setup trial 2026-10-30). The sheet offers this date.
+    withTenantContext(tenantId, (tx) =>
+      tx.salesLine.groupBy({ by: ["menuId"], where: { tenantId, supersededAt: null }, _min: { businessDate: true } })
+    ),
   ]);
+  const firstSaleOf = new Map(firstSales.map((r) => [r.menuId, r._min.businessDate?.toISOString().slice(0, 10) ?? null]));
   const dupOf = likelyDuplicateOf(overview);
 
   const mergeRows = merges.map(toMenuMergeRowView);
@@ -118,6 +125,7 @@ export default async function MenusPage({
       tone: (m.menuCategoryId && toneByCategory.get(m.menuCategoryId)) || "#AEB784",
       // Kong 2026-10-24/29: a dish may carry its own food-cost target; null = the shop's.
       targetPct: m.foodCostTargetPct === null ? null : Number(m.foodCostTargetPct),
+      firstSaleDate: firstSaleOf.get(m.id) ?? null,
     };
   });
 

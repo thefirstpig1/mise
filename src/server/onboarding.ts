@@ -26,8 +26,18 @@ export type Onboarding = {
   dismissed: boolean;
 };
 
-/** Signup writes created_at and updated_at in the same instant; a save later moves updated_at. */
-const SAVED_AFTER_SIGNUP_MS = 60_000;
+/**
+ * Signup writes created_at and updated_at in the same instant; a save later moves
+ * updated_at. Was 60 s — the setup trial (2026-10-30) saved settings 52 s after
+ * signing up and the step stayed unticked. Signup's own writes land within a few
+ * seconds; nobody opens settings and saves inside 15.
+ */
+const SAVED_AFTER_SIGNUP_MS = 15_000;
+
+/** Has the owner been through ตั้งค่าร้าน since signing up? (step "shop") */
+export function shopSettingsReviewed(t: { createdAt: Date; updatedAt: Date }): boolean {
+  return t.updatedAt.getTime() - t.createdAt.getTime() > SAVED_AFTER_SIGNUP_MS;
+}
 
 export async function getOnboardingLogic(tenantId: string, membershipId: string): Promise<Onboarding> {
   return withTenantContext(tenantId, async (tx) => {
@@ -41,7 +51,7 @@ export async function getOnboardingLogic(tenantId: string, membershipId: string)
       tx.tenantMembership.count({ where: { tenantId, isActive: true } }),
     ]);
     const done: Record<OnboardingStep, boolean> = {
-      shop: tenant.updatedAt.getTime() - tenant.createdAt.getTime() > SAVED_AFTER_SIGNUP_MS,
+      shop: shopSettingsReviewed(tenant),
       supplier: supplier !== null,
       product: product !== null,
       sales: sales !== null,

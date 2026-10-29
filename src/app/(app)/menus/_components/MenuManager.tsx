@@ -46,6 +46,8 @@ export type ManagerRow = MenuRowView & {
   tone: string;
   /** This dish's own food-cost target in % of its price; null = the shop's. */
   targetPct: number | null;
+  /** First business day with a live sale (YYYY-MM-DD), or null — offered as a first recipe's start. */
+  firstSaleDate: string | null;
 };
 
 export type Perm = { editMenu: boolean; deleteMenu: boolean; recipe: boolean; recipeShared: boolean; yield: boolean; /** Sees the sales block in the sheet. */ sales?: boolean };

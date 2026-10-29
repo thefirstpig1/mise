@@ -51,7 +51,7 @@ export async function POST(req: Request) {
       ? new Uint8Array(await thumbField.arrayBuffer())
       : null;
 
-  if (!storageReady()) return refuse("ระบบเก็บรูปยังไม่พร้อม กรุณาแจ้งทีมคิดครัว", 503);
+  if (!storageReady()) return refuse("ระบบเก็บรูปยังไม่พร้อม กรุณาแจ้งคิดครัว", 503);
   try {
     const result = await recordUploadLogic(tenantId, user.id!, {
       kind: kind as Kind,
@@ -62,7 +62,7 @@ export async function POST(req: Request) {
     });
     return json({ ok: true, ...result });
   } catch (e) {
-    if (e instanceof StorageNotConfiguredError) return refuse("ระบบเก็บรูปยังไม่พร้อม กรุณาแจ้งทีมคิดครัว", 503);
+    if (e instanceof StorageNotConfiguredError) return refuse("ระบบเก็บรูปยังไม่พร้อม กรุณาแจ้งคิดครัว", 503);
     console.error("[files] upload failed", e);
     return refuse("อัปโหลดไม่สำเร็จ กรุณาลองใหม่", 500);
   }

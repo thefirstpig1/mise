@@ -52,7 +52,7 @@ export default async function SupplierPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const { tenantId, can, reach } = await requireTenant("master:write");
+  const { tenantId, can, reach, membership } = await requireTenant("master:write");
   const seeCost = can("cost:view");
   const seeBills = can("expense:view");
 
@@ -315,6 +315,7 @@ export default async function SupplierPage({
             action={updateSupplier.bind(null, supplier.id)}
             initial={toSupplierView(supplier)}
             submitLabel="บันทึกการแก้ไข"
+            shopVatRate={membership.tenant.defaultVatRatePercent.toString()}
           />
           <MappingListSection mappings={mappingViews} perspective="supplier" />
           <MappingHistoryViewer series={series} perspective="supplier" />

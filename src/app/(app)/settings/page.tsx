@@ -18,6 +18,8 @@ import { computeBangkokToday } from "@/lib/bangkok-date";
 import { getDailyCloseSettingsLogic } from "@/server/daily-close";
 import { DEFAULT_DEPARTMENT_CODE, getDepartmentsForAdminLogic } from "@/server/department";
 import CustomerTypes from "./_components/DailyCloseSettings";
+import ConfirmShopSettings from "./_components/ConfirmShopSettings";
+import { shopSettingsReviewed } from "@/server/onboarding";
 import { ChangedNote, FieldError, SectionForm, SectionNav, UnsavedGuard } from "./_components/settings-form";
 import {
   saveAddonsSectionAction,
@@ -101,10 +103,10 @@ function PlanCard({ plan, freeUntil, note }: { plan: string; freeUntil: Date | n
       </div>
       <p className="text-sm text-muted-foreground">
         {freeUntil === null || daysLeft === null
-          ? "ยังไม่มีค่าบริการ · ทีมคิดครัวจะติดต่อเรื่องแพ็กเกจก่อนเริ่มคิดค่าบริการ"
+          ? "ยังไม่มีค่าบริการ · ก่อนเริ่มคิดค่าบริการ คิดครัวจะแจ้งให้ทราบล่วงหน้า"
           : daysLeft >= 0
-            ? `อีก ${daysLeft.toLocaleString("th-TH")} วัน · ก่อนครบกำหนดทีมคิดครัวจะแจ้งรายละเอียดค่าบริการ`
-            : `ช่วงใช้ฟรีสิ้นสุดเมื่อ ${thDate(freeUntil)} · ทีมคิดครัวจะติดต่อเรื่องค่าบริการ`}
+            ? `อีก ${daysLeft.toLocaleString("th-TH")} วัน · ก่อนครบกำหนด คิดครัวจะแจ้งรายละเอียดค่าบริการ`
+            : `ช่วงใช้ฟรีสิ้นสุดเมื่อ ${thDate(freeUntil)} · คิดครัวจะติดต่อเรื่องค่าบริการ`}
       </p>
     </section>
   );
@@ -144,6 +146,7 @@ export default async function SettingsPage() {
         <h1 className="text-2xl font-semibold leading-tight">ตั้งค่าร้าน</h1>
         <p className="mt-1 text-sm text-muted-foreground">แต่ละหมวดบันทึกแยกกัน · แก้แล้วยังไม่บันทึก ระบบจะถามก่อนออกจากหน้า</p>
       </header>
+      {!shopSettingsReviewed(tenant) && <ConfirmShopSettings />}
 
       <PlanCard plan={tenant.plan} freeUntil={tenant.planFreeUntil} note={tenant.planNote} />
 

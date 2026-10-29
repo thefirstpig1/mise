@@ -45,6 +45,15 @@ function numIn(formData: FormData, name: string, lo: number, hi: number, int = f
   return Number.isFinite(v) && v >= lo && v <= hi && (!int || Number.isInteger(v)) ? v : undefined;
 }
 
+/**
+ * "ใช้ค่าตามนี้" — the defaults were already right, so there was nothing to save
+ * and the setup step "ตรวจตั้งค่าร้าน" could never tick (setup trial 2026-10-30).
+ * Touching updated_at is exactly what a save would have done to it.
+ */
+export async function confirmShopSettingsAction(): Promise<SectionState> {
+  return write({ updatedAt: new Date() }, ["/dashboard"]);
+}
+
 export async function saveShopSectionAction(formData: FormData): Promise<SectionState> {
   const name = String(formData.get("name") ?? "").trim();
   const vatRate = numIn(formData, "default_vat_rate_percent", 0, 30);

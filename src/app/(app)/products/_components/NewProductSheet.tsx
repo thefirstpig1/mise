@@ -179,6 +179,9 @@ export default function NewProductSheet({
 
   const preview = buyPack && packName(buyPack) ? `${packName(buyPack)} (= ${Number(packRatioOf(buyPack))} ${base})` : base || "—";
 
+  const norm = (t: string) => t.trim().replace(/\s+/g, " ").toLowerCase();
+  const sameName = d.name.trim() ? (products.find((p) => norm(p.name) === norm(d.name)) ?? null) : null;
+
   return (
     <Sheet onClose={close} labelledBy="new-product-title">
       <div className="relative flex gap-4 border-b border-border bg-surface px-5 py-4 max-sm:flex-none sm:items-start">
@@ -208,6 +211,14 @@ export default function NewProductSheet({
               inputClassName="input w-full text-base font-semibold"
             />
           </label>
+          {/* Setup trial 2026-10-30: two "กุ้งขาว" were created without a word,
+              and every picker after showed both. Warned, not blocked — a shop
+              can mean two things — but never silent. */}
+          {sameName && (
+            <p className="pl-2.5 text-xs text-warn">
+              มี “{sameName.name}” อยู่แล้ว ({sameName.sku}) · ถ้าเป็นของคนละอย่าง ตั้งชื่อให้ต่างกัน เช่น “{sameName.name} (แช่แข็ง)”
+            </p>
+          )}
           <label className="grid gap-0.5">
             <span className="pl-2.5 text-[11px] text-muted-subtle">ชื่อภาษาอังกฤษ (ไม่บังคับ)</span>
             <input value={d.nameEn} onChange={(e) => set({ nameEn: e.target.value })} placeholder="เช่น Garlic" className="input w-full py-1 text-sm" />
