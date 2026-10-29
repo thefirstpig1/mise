@@ -74,7 +74,18 @@ model Tenant {
   timezone             String  @default("Asia/Bangkok")
   currency             String  @default("THB")
   fiscalYearStartMonth Int     @default(1) @map("fiscal_year_start_month")
-  plan                 String  @default("trial") // trial, basic, pro, enterprise
+  /// Which package the shop is on (Kong 2026-10-29): "trial" until the platform
+  /// sets it, "standard" once agreed. A CHECK in the migration keeps it to those
+  /// two — the operator's script is the only writer, and a typo there would
+  /// otherwise reach the shop's settings page as an unknown plan.
+  plan                 String  @default("trial")
+  /// The day the shop stops being free, INCLUSIVE. Null = no date agreed yet.
+  /// Nothing is locked when it passes — collecting money and what happens to a
+  /// shop that does not pay are decided before the first free year ends.
+  planFreeUntil        DateTime? @map("plan_free_until") @db.Date
+  /// What was agreed, in words the shop may read ("ร้านแรก ใช้ฟรี 1 ปี").
+  planNote             String?   @map("plan_note")
+  planUpdatedAt        DateTime? @map("plan_updated_at")
 
   /// Which way this shop wants gross profit worked out (ADR 0019 Q17). Two shops
   /// can honestly disagree: one counts stock, the other keeps recipes, and the

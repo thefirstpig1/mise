@@ -146,6 +146,8 @@ COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modul
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/apply-manual-sql.mjs ./scripts/apply-manual-sql.mjs
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/manual-sql-order.mjs ./scripts/manual-sql-order.mjs
+# The operator's billing commands (Kong 2026-10-29) — run with `fly ssh console -C "node scripts/plan.mjs list"`.
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/plan.mjs ./scripts/plan.mjs
 
 USER nextjs
 EXPOSE 3000

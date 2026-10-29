@@ -14,6 +14,7 @@ import { MeasureInput } from "@/components/ui/NumberField";
 import Switch from "@/components/ui/Switch";
 import { RECOMMENDED_CANCELLED_SALE_POLICY } from "@/lib/validations/consumption";
 import { requireTenant } from "@/lib/require-tenant";
+import { computeBangkokToday } from "@/lib/bangkok-date";
 import { getDailyCloseSettingsLogic } from "@/server/daily-close";
 import { DEFAULT_DEPARTMENT_CODE, getDepartmentsForAdminLogic } from "@/server/department";
 import CustomerTypes from "./_components/DailyCloseSettings";
@@ -76,6 +77,37 @@ function More({ children }: { children: ReactNode }) {
   );
 }
 
+/**
+ * Kong 2026-10-29: the shop's package and the day it stops being free. Set by
+ * the platform (scripts/plan.mjs), never here — so it reads, it does not edit.
+ * Nothing is locked when the date passes; that is decided with billing.
+ */
+function PlanCard({ plan, freeUntil, note }: { plan: string; freeUntil: Date | null; note: string | null }) {
+  const name = plan === "standard" ? "แพ็กเกจมาตรฐาน" : "ช่วงทดลองใช้";
+  const today = computeBangkokToday();
+  const daysLeft = freeUntil ? Math.round((freeUntil.getTime() - today.getTime()) / 86_400_000) : null;
+  const thDate = (d: Date) => d.toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+  return (
+    <section className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 rounded-2xl border border-border bg-surface px-5 py-4 sm:px-6">
+      <div className="min-w-0">
+        <p className="text-xs text-muted-foreground">แพ็กเกจของร้าน</p>
+        <p className="font-semibold">
+          {name}
+          {freeUntil && daysLeft !== null && daysLeft >= 0 && <span className="font-normal"> · ใช้ฟรีถึง {thDate(freeUntil)}</span>}
+        </p>
+        {note && <p className="text-sm text-muted-foreground">{note}</p>}
+      </div>
+      <p className="text-sm text-muted-foreground">
+        {freeUntil === null || daysLeft === null
+          ? "ยังไม่มีค่าบริการ · ทีมคิดครัวจะติดต่อเรื่องแพ็กเกจก่อนเริ่มคิดค่าบริการ"
+          : daysLeft >= 0
+            ? `อีก ${daysLeft.toLocaleString("th-TH")} วัน · ก่อนครบกำหนดทีมคิดครัวจะแจ้งรายละเอียดค่าบริการ`
+            : `ช่วงใช้ฟรีสิ้นสุดเมื่อ ${thDate(freeUntil)} · ทีมคิดครัวจะติดต่อเรื่องค่าบริการ`}
+      </p>
+    </section>
+  );
+}
+
 function Days({ name, value, min, max, label }: { name: string; value: number; min: number; max: number; label: string }) {
   return (
     <div>
@@ -110,6 +142,8 @@ export default async function SettingsPage() {
         <h1 className="text-2xl font-semibold leading-tight">ตั้งค่าร้าน</h1>
         <p className="mt-1 text-sm text-muted-foreground">แต่ละหมวดบันทึกแยกกัน · แก้แล้วยังไม่บันทึก ระบบจะถามก่อนออกจากหน้า</p>
       </header>
+
+      <PlanCard plan={tenant.plan} freeUntil={tenant.planFreeUntil} note={tenant.planNote} />
 
       <SectionNav sections={SECTIONS} />
       <UnsavedGuard />
