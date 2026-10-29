@@ -73,6 +73,8 @@ export const NAV_GROUPS: readonly NavGroup[] = [
       { href: "/cost/departments", label: "ต้นทุนตามแผนก", need: "cost:view" },
       { href: "/cost/leaks", label: "ของหายไปไหน", need: "cost:view" },
       { href: "/cost/prices", label: "การผันผวนราคาวัตถุดิบ", need: "cost:view" },
+      // Kong 2026-10-29: the month's stock and cost of sales, in the accounting program's own file.
+      { href: "/month-end", label: "ปิดเดือน · ส่งให้บัญชี", need: "cost:view" },
     ],
   },
   {

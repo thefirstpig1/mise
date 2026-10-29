@@ -122,7 +122,7 @@ export default function CostOverview({ overview, canEditTargets }: { overview: P
   if (data === null) {
     return (
       <div className="rounded-lg border border-warn-border bg-warn-bg p-4 text-sm text-warn">
-        คำนวณต้นทุนไม่สำเร็จในครั้งนี้ กรุณารีเฟรชหน้าอีกครั้ง · ถ้ายังไม่ได้ ดู<a href="/cost/detail" className="underline">ตารางต้นทุนละเอียด</a>แทนได้
+        คำนวณต้นทุนไม่สำเร็จในครั้งนี้ กรุณารีเฟรชหน้าอีกครั้ง
       </div>
     );
   }
@@ -391,9 +391,9 @@ function Overview({ data, canEditTargets }: { data: Overview; canEditTargets: bo
       <Trust data={data} bs={bs} cur={cur} nameOf={nameOf} periodEnd={periodEnd} />
 
       <p className="text-xs text-muted-foreground">
-        ต้องการตัวเลขทุกช่องของทุกสาขา (ซื้อ ใช้ไป คงเหลือ ส่วนต่าง)?{" "}
-        <a href="/cost/detail" className="text-primary hover:underline">
-          ดูตารางต้นทุนละเอียด
+        สิ้นเดือนต้องส่งสต๊อกและต้นทุนขายให้นักบัญชี?{" "}
+        <a href="/month-end" className="text-primary hover:underline">
+          ปิดเดือน · ส่งให้บัญชี
         </a>
       </p>
 

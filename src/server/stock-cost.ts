@@ -859,6 +859,29 @@ export async function getBranchCostSummariesLogic(
   });
 }
 
+/**
+ * One period's summary for the month-end close (rule ME1) — the same figures
+ * getBranchCostSummaryLogic answers, with opening stock replayed under EITHER
+ * method, plus the closing replay itself so the close can list stock product
+ * by product without walking the ledger a second time.
+ */
+export async function getMonthEndLedgerLogic(
+  tenantId: string,
+  query: GetBranchCostSummaryQuery,
+  reach: BranchReach
+): Promise<{ summaries: BranchCostSummary[]; closing: Map<string, ProductCost> } | null> {
+  const { from, to } = query;
+  const [ledger, period] = await Promise.all([
+    loadLedgerChain(tenantId, reach, to),
+    loadPeriodFacts(tenantId, reach, from, to),
+  ]);
+  if (ledger === null || period === null) return null;
+  return {
+    summaries: assembleCostSummary(ledger, period, from, to, ledger.replayed, { alwaysOpening: true }),
+    closing: ledger.replayed,
+  };
+}
+
 /** The arithmetic half — pure, from what the two loaders fetched. */
 function assembleCostSummary(
   ledger: LedgerChain,
@@ -866,7 +889,13 @@ function assembleCostSummary(
   from: Date,
   to: Date,
   /** Closing replay for THIS period: the ledger cut at `to`. */
-  replayed: Map<string, ProductCost>
+  replayed: Map<string, ProductCost>,
+  /**
+   * Opening stock is normally replayed only for the นับสต๊อก method, the one
+   * gross-profit figure that needs it. The month-end close needs it whatever
+   * the method (rule ME1), so it asks; nobody else pays for the extra walk.
+   */
+  opts: { alwaysOpening?: boolean } = {}
 ): BranchCostSummary[] {
   const { branches, productIds, grossProfitMethod, costRows, consumptionItems } = ledger;
   const { revenueRows, expenseLines, receiptMovements, rmItems, coverageRuns, salesDayRows, lastCounts } = period;
@@ -1017,7 +1046,7 @@ function assembleCostSummary(
 
   const dayBeforeFrom = new Date(from.getTime() - 86_400_000);
   const openingReplayed =
-    grossProfitMethod === "PERIODIC_INVENTORY"
+    grossProfitMethod === "PERIODIC_INVENTORY" || opts.alwaysOpening
       ? replayLoaded(costRows, dayBeforeFrom)
       : null;
 

@@ -6,7 +6,7 @@
 // client, which paints its frame at once and fills in when it lands. Branch,
 // period, week/month and baht/% are all switched in the browser: every figure
 // for every choice arrives in that one read, so no press goes back to the
-// server. The old branch table lives on at /cost/detail.
+// server. The old branch table became the month-end close at /month-end.
 
 import { Suspense } from "react";
 import { requireTenant } from "@/lib/require-tenant";

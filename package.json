@@ -27,6 +27,7 @@
     "@auth/prisma-adapter": "^2.7.4",
     "@prisma/client": "^5.22.0",
     "clsx": "^2.1.1",
+    "exceljs": "4.4.0",
     "lucide-react": "^0.460.0",
     "next": "15.0.8",
     "next-auth": "5.0.0-beta.25",
