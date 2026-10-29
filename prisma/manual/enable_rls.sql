@@ -649,3 +649,12 @@ DROP POLICY IF EXISTS tenant_isolation ON staff_refund;
 CREATE POLICY tenant_isolation ON staff_refund
 USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
+-- ============================================================
+-- ADR 0043 — platform audit log: RLS ON, and NO policy on purpose.
+-- With row security enabled and no policy, every row is refused to any role
+-- that does not bypass RLS — so the app role cannot read or write the operator's
+-- record at all. Only src/server/platform.ts reaches it, through db-admin.
+-- ============================================================
+
+ALTER TABLE platform_audit_log ENABLE ROW LEVEL SECURITY;
+

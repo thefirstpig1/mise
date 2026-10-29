@@ -4,6 +4,7 @@ import { requireTenant } from "@/lib/require-tenant";
 import Sidebar from "@/components/layout/Sidebar";
 import VersionBanner from "@/components/layout/VersionBanner";
 import { NAV_GROUPS } from "@/components/layout/nav";
+import { isPlatformAdminEmail } from "@/lib/platform-admin";
 
 // ============================================================
 // Mise — the frame around every signed-in page (Part 35 L4)
@@ -36,6 +37,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
         shopName={membership.tenant.name}
         userLabel={user.name ?? user.email ?? ""}
         canSwitchShop={membershipCount > 1}
+        isPlatformAdmin={isPlatformAdminEmail(user.email)}
         signOutSlot={
           <form action={doSignOut}>
             <button type="submit" className="text-muted-foreground hover:text-foreground">

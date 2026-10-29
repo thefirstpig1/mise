@@ -21,7 +21,7 @@ import { join, relative, sep } from "node:path";
 /**
  * Files permitted to reach for the bypassing connection, and why.
  *
- * ONE entry. Keeping it at one was the reason `db-admin.ts` is a module rather
+ * TWO entries (the second by ADR 0043). Keeping it this short was the reason `db-admin.ts` is a module rather
  * than a function in `db.ts` — a general-purpose door collects callers, and an
  * allowlist that grows is an allowlist that has stopped meaning anything.
  *
@@ -31,6 +31,11 @@ import { join, relative, sep } from "node:path";
 const ALLOWED: Record<string, string> = {
   "src/lib/require-tenant.ts":
     "membership discovery is keyed on userId because it is the query that FINDS the tenant; a policy keyed on the current tenant has nothing to match before that answer exists",
+  // ADR 0043 (Kong 2026-10-30): the operator's screens list EVERY shop — there
+  // is no tenant to name. Every export takes a PlatformActor, which only
+  // requirePlatformAdmin() can produce. A THIRD entry needs an ADR of its own.
+  "src/server/platform.ts":
+    "the platform admin's view of every shop is cross-tenant by definition; each function demands a PlatformActor and every write is logged in the same transaction",
 };
 
 const ROOTS = ["src/app", "src/server", "src/lib"];
@@ -67,7 +72,7 @@ describe("the RLS bypass stays out of request paths (ADR 0030 Q2)", () => {
     expect(files.some((f) => f.file === "src/lib/db-admin.ts")).toBe(true);
   });
 
-  it("X2 — nothing imports db-admin except the one allowlisted file", () => {
+  it("X2 — nothing imports db-admin except the allowlisted files", () => {
     const offenders = files
       .filter((f) => f.file !== "src/lib/db-admin.ts")
       .filter((f) => /from ["'](?:@\/lib\/db-admin|\.\/db-admin|\.\.\/lib\/db-admin)["']/.test(f.text))

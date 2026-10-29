@@ -236,6 +236,8 @@ ALTER TABLE "prepped_shortfall" FORCE ROW LEVEL SECURITY;
 ALTER TABLE "stored_file" FORCE ROW LEVEL SECURITY;
 ALTER TABLE "expense_payment" FORCE ROW LEVEL SECURITY;
 ALTER TABLE "staff_refund" FORCE ROW LEVEL SECURITY;
+-- ADR 0043: forced, and no policy at all (the app role is refused every row)
+ALTER TABLE "platform_audit_log" FORCE ROW LEVEL SECURITY;
 
 -- ============================================================
 -- 4. Policies that refuse to be polite about a missing context

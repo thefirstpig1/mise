@@ -52,12 +52,15 @@ export default function Sidebar({
   shopName,
   userLabel,
   canSwitchShop,
+  isPlatformAdmin = false,
   signOutSlot,
 }: {
   groups: readonly NavGroup[];
   shopName: string;
   userLabel: string;
   canSwitchShop: boolean;
+  /** ADR 0043: the operator's door. Hiding it is tidiness — /platform checks for itself. */
+  isPlatformAdmin?: boolean;
   signOutSlot: ReactNode;
 }) {
   const pathname = usePathname();
@@ -191,6 +194,11 @@ export default function Sidebar({
           {canSwitchShop ? (
             <a href="/choose-shop" className="text-primary hover:underline">
               เปลี่ยนร้าน
+            </a>
+          ) : null}
+          {isPlatformAdmin ? (
+            <a href="/platform" className="text-primary hover:underline">
+              ผู้ดูแลระบบ
             </a>
           ) : null}
           {signOutSlot}

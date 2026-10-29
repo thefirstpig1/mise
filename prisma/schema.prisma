@@ -4142,3 +4142,27 @@ model StaffRefund {
   @@index([tenantId, toUserId], map: "staff_refund_to_idx")
   @@map("staff_refund")
 }
+
+/// ADR 0043 Q4 — every change made from the platform screens (/platform).
+/// NOT tenant-scoped and deliberately without a FK to `tenant`: the record of
+/// what the operator did must outlive the shop it was done to. RLS is enabled
+/// and FORCED with no policy, so the app role `mise_app` can neither read nor
+/// write it — only `src/server/platform.ts`, through the bypass connection.
+model PlatformAuditLog {
+  id             String   @id @default(uuid()) @db.Uuid
+  /// The operator, as they were at the time (their account may change later).
+  actorUserId    String   @map("actor_user_id")
+  actorEmail     String   @map("actor_email")
+  /// What was done: "set_plan".
+  action         String
+  targetTenantId String?  @map("target_tenant_id") @db.Uuid
+  /// The shop's name at the time — the row stays readable if the shop is gone.
+  targetName     String?  @map("target_name")
+  before         Json?
+  after          Json?
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@index([targetTenantId], map: "platform_audit_target_idx")
+  @@index([createdAt], map: "platform_audit_created_idx")
+  @@map("platform_audit_log")
+}
