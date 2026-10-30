@@ -24,6 +24,9 @@ import StatusBadge from "./_components/StatusBadge";
 
 import EmptyState from "@/components/ui/EmptyState";
 import FilterLink from "@/components/ui/FilterLink";
+import ExportButton from "@/components/ExportButton";
+import { exportBranchScope } from "@/lib/validations/raw-export";
+import { computeBangkokToday } from "@/lib/bangkok-date";
 export default async function GoodsReceiptsPage({
   searchParams,
 }: {
@@ -60,6 +63,8 @@ export default async function GoodsReceiptsPage({
     return qs ? `/goods-receipts?${qs}` : "/goods-receipts";
   };
 
+  const exportBranch = exportBranchScope(branches, query.branchId);
+
   const chip = (active: boolean) =>
     `seg-item ${active ? "is-on" : ""}`;
 
@@ -86,6 +91,7 @@ export default async function GoodsReceiptsPage({
         </div>
       )}
 
+      <div className="flex flex-wrap items-center justify-between gap-2">
       <div className="seg">
         <FilterLink href={linkFor({ status: "", flagged: "" })} className={chip(!query.status && !query.discrepancyOnly)}>
           ทั้งหมด
@@ -101,6 +107,18 @@ export default async function GoodsReceiptsPage({
         >
           ต้องตรวจสอบ
         </FilterLink>
+      </div>
+        <ExportButton
+          dataset="goods-receipts"
+          params={{ branch: query.branchId, status: query.status, flagged: query.discrepancyOnly ? "1" : undefined }}
+          scope={[
+            exportBranch.line,
+            ...(query.status ? [`สถานะ: ${GOODS_RECEIPT_STATUS_LABELS_TH[query.status]}`] : []),
+            ...(query.discrepancyOnly ? ["เฉพาะใบที่ต้องตรวจสอบ"] : []),
+          ]}
+          branchName={exportBranch.name}
+          today={computeBangkokToday().toISOString().slice(0, 10)}
+        />
       </div>
 
       {branches.length > 1 && (

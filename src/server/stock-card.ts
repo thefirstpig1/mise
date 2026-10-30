@@ -15,6 +15,7 @@
 // here (their money is on the document they link to).
 // ============================================================
 
+import { movementDocumentsInTx } from "@/server/movement-documents";
 import type { PrismaClient, SourceType } from "@prisma/client";
 import { withTenantContext } from "@/lib/db";
 import { replayPairsInTx } from "./stock-cost";
@@ -75,61 +76,13 @@ export async function getStockCardLogic(
       const outValue = new Map<string, number>();
       if (replayed) for (const c of replayed.values()) for (const o of c.outflows) outValue.set(o.movementId, num(o.value));
 
-      // The document behind each row, one lookup per kind.
-      const ids = (t: SourceType) => moves.filter((m) => m.sourceType === t).map((m) => m.sourceId);
-      const [gr, sc, tf, run, meal] = await Promise.all([
-        ids("GR_LINE").length
-          ? tx.goodsReceiptItem.findMany({ where: { id: { in: ids("GR_LINE") } }, select: { id: true, goodsReceipt: { select: { id: true, grNumber: true } } } })
-          : [],
-        ids("STOCK_COUNT").length
-          ? tx.stockCountItem.findMany({ where: { id: { in: ids("STOCK_COUNT") } }, select: { id: true, stockCount: { select: { id: true, scNumber: true } } } })
-          : [],
-        [...ids("TRANSFER_OUT"), ...ids("TRANSFER_IN"), ...ids("TRANSFER_SHORTAGE")].length
-          ? tx.stockTransferItem.findMany({
-              where: { id: { in: [...ids("TRANSFER_OUT"), ...ids("TRANSFER_IN"), ...ids("TRANSFER_SHORTAGE")] } },
-              select: { id: true, stockTransfer: { select: { id: true, tfNumber: true } } },
-            })
-          : [],
-        ids("SALES_CONSUMPTION").length
-          ? tx.salesConsumptionItem.findMany({ where: { id: { in: ids("SALES_CONSUMPTION") } }, select: { id: true, run: { select: { businessDate: true } } } })
-          : [],
-        ids("STAFF_MEAL").length
-          ? tx.staffMealItem.findMany({ where: { id: { in: ids("STAFF_MEAL") } }, select: { id: true, staffMeal: { select: { businessDate: true } } } })
-          : [],
-      ]);
+      // The document behind each row — the same lookup the raw Excel export
+      // uses, so the file and the card name a row's document alike.
+      const docs = await movementDocumentsInTx(
+        tx,
+        moves.map((m) => ({ id: m.id, sourceType: m.sourceType, sourceId: m.sourceId, branchId: q.branchId, productId: q.productId }))
+      );
       const iso = (d: Date) => d.toISOString().slice(0, 10);
-      const MTH = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
-      const th = (d: Date) => `${d.getUTCDate()} ${MTH[d.getUTCMonth()]}`;
-      const docOf = (t: SourceType, id: string): StockCardRow["doc"] => {
-        switch (t) {
-          case "GR_LINE": {
-            const g = gr.find((x) => x.id === id)?.goodsReceipt;
-            return g ? { label: g.grNumber, href: `/goods-receipts/${g.id}` } : null;
-          }
-          case "STOCK_COUNT": {
-            const c = sc.find((x) => x.id === id)?.stockCount;
-            return c ? { label: c.scNumber, href: `/stock-counts/${c.id}` } : null;
-          }
-          case "TRANSFER_OUT":
-          case "TRANSFER_IN":
-          case "TRANSFER_SHORTAGE": {
-            const f = tf.find((x) => x.id === id)?.stockTransfer;
-            return f ? { label: f.tfNumber, href: `/transfers/${f.id}` } : null;
-          }
-          case "SALES_CONSUMPTION": {
-            const d = run.find((x) => x.id === id)?.run.businessDate;
-            return d ? { label: `ยอดขาย ${th(d)}`, href: `/sales?branch=${q.branchId}&from=${iso(d)}&to=${iso(d)}&day=${iso(d)}` } : null;
-          }
-          case "STAFF_MEAL": {
-            const d = meal.find((x) => x.id === id)?.staffMeal.businessDate;
-            return d ? { label: `มื้อพนักงาน ${th(d)}`, href: `/staff-meals` } : null;
-          }
-          case "WASTE_LOG":
-            return { label: "ของเสีย", href: `/waste?branch=${q.branchId}&product=${q.productId}` };
-          default:
-            return null;
-        }
-      };
 
       const opening = r3(num(before._sum.qty));
       let bal = opening;
@@ -154,7 +107,7 @@ export async function getStockCardLogic(
           balance: bal,
           value: qty < 0 && outValue.has(m.id) ? Math.round(outValue.get(m.id)! * 100) / 100 : null,
           by: m.createdByUser?.name ?? m.createdByUser?.email?.split("@")[0] ?? null,
-          doc: docOf(m.sourceType, m.sourceId),
+          doc: docs.get(m.id) ?? null,
         };
       });
       return {

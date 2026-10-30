@@ -24,6 +24,9 @@ import IncomingTransfers from "@/app/(app)/transfers/_components/IncomingTransfe
 import EmptyState from "@/components/ui/EmptyState";
 import { RowChevron } from "@/components/ui/ActionLink";
 import FilterLink from "@/components/ui/FilterLink";
+import ExportButton from "@/components/ExportButton";
+import { exportBranchScope } from "@/lib/validations/raw-export";
+import { computeBangkokToday } from "@/lib/bangkok-date";
 export default async function StockCountListPage({
   searchParams,
 }: {
@@ -127,6 +130,13 @@ export default async function StockCountListPage({
             ))}
           </div>
         )}
+        <ExportButton
+          dataset="stock-counts"
+          params={{ branch: query.branchId, status: query.status }}
+          scope={[exportBranchScope(branches, query.branchId).line, ...(query.status ? [`สถานะ: ${STOCK_COUNT_STATUS_LABELS_TH[query.status]}`] : [])]}
+          branchName={exportBranchScope(branches, query.branchId).name}
+          today={computeBangkokToday().toISOString().slice(0, 10)}
+        />
       </div>
 
       {rows.length === 0 ? (

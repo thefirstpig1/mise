@@ -25,6 +25,8 @@ import StockMovementHistory, {
   type HistoryFilter,
 } from "../_components/StockMovementHistory";
 import FilterLink, { FilterForm } from "@/components/ui/FilterLink";
+import ExportButton from "@/components/ExportButton";
+import { exportBranchScope } from "@/lib/validations/raw-export";
 
 
 export default async function StockHistoryPage({
@@ -199,6 +201,24 @@ export default async function StockHistoryPage({
         >
           ล้าง
         </FilterLink>
+        <div className="ml-auto self-center">
+          <ExportButton
+            dataset="stock-movements"
+            params={{ branch: query.branchId, product: query.productId, type: query.type, origin: query.origin, stype: query.origin ? undefined : query.sourceType }}
+            period={
+              query.dateFrom || query.productId
+                ? { from: asDateValue(query.dateFrom ?? cardFrom), to: asDateValue(query.dateTo ?? cardTo) }
+                : undefined
+            }
+            scope={[
+              exportBranchScope(branches, query.branchId).line,
+              ...(cardProduct ? [`วัตถุดิบ: ${cardProduct.name}`] : []),
+              ...(query.origin ? [`เกิดจาก: ${MOVEMENT_ORIGINS[query.origin].label}`] : []),
+            ]}
+            branchName={exportBranchScope(branches, query.branchId).name}
+            today={today.toISOString().slice(0, 10)}
+          />
+        </div>
       </FilterForm>
 
       {query.productId && !cardBranchId && (

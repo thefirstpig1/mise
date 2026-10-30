@@ -33,6 +33,8 @@ import ActionLink from "@/components/ui/ActionLink";
 import { getSpendBreakdownLogic } from "@/server/pnl";
 import { computeBangkokToday } from "@/lib/bangkok-date";
 import { FilterForm } from "@/components/ui/FilterLink";
+import ExportButton from "@/components/ExportButton";
+import { exportBranchScope } from "@/lib/validations/raw-export";
 const dateLabel = (iso: string) =>
   new Date(iso).toLocaleDateString("th-TH", { dateStyle: "medium" });
 
@@ -281,6 +283,21 @@ export default async function ExpenseListPage({
         >
           กรอง
         </button>
+        <div className="ml-auto self-center">
+          <ExportButton
+            dataset="expenses"
+            params={{ branch: query.branchId, supplier: query.supplierId, source: query.source, status: query.paymentStatus }}
+            period={{ from: breakdownFrom.toISOString().slice(0, 10), to: breakdownTo.toISOString().slice(0, 10) }}
+            scope={[
+              exportBranchScope(branches, query.branchId).line,
+              ...(query.supplierId ? [`ผู้ขาย: ${suppliers.find((x) => x.id === query.supplierId)?.nameFull ?? "—"}`] : []),
+              ...(query.source ? [`ที่มา: ${EXPENSE_SOURCE_LABELS_TH[query.source]}`] : []),
+              ...(query.paymentStatus ? [`การจ่ายเงิน: ${EXPENSE_PAYMENT_STATUS_LABELS_TH[query.paymentStatus]}`] : []),
+            ]}
+            branchName={exportBranchScope(branches, query.branchId).name}
+            today={today.toISOString().slice(0, 10)}
+          />
+        </div>
       </FilterForm>
 
       {rows.length === 0 ? (

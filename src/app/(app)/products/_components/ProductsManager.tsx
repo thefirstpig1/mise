@@ -31,6 +31,7 @@ import ProductSheet from "./ProductSheet";
 import NewProductSheet from "./NewProductSheet";
 import ParDocsPopup from "./ParDocsPopup";
 import QuickRequest from "./QuickRequest";
+import ExportButton from "@/components/ExportButton";
 import { PAR_RED } from "@/lib/par-alert";
 
 type Status = "active" | "raw" | "prepped" | "low" | "near" | "out" | "idle" | "inactive" | "all";
@@ -461,6 +462,15 @@ export default function ProductsManager(props: {
                 ))}
               </select>
             </label>
+          )}
+          {products.length > 0 && (
+            <ExportButton
+              dataset="products"
+              params={{}}
+              scope={[costHidden ? "สินค้าทุกตัวในร้าน พร้อมหน่วย" : "สินค้าทุกตัวในร้าน พร้อมหน่วย และราคาที่จ่ายล่าสุดของผู้ขายแต่ละราย"]}
+              branchName={null}
+              today={props.today}
+            />
           )}
           {props.canEditInfo && (
             <a href="/products/import" className="btn-secondary">

@@ -48,6 +48,8 @@ import { getGuestDaysLogic } from "@/server/daily-close";
 import { GUEST_COVERAGE_MIN, guestStats } from "@/lib/guest-stats";
 import Link from "next/link";
 import ActionLink from "@/components/ui/ActionLink";
+import ExportButton from "@/components/ExportButton";
+import { exportBranchScope } from "@/lib/validations/raw-export";
 import { recentMonths } from "@/app/(app)/dashboard/_components/dashboard-period";
 
 import EmptyState from "@/components/ui/EmptyState";
@@ -327,9 +329,22 @@ export default async function SalesPage({
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-2xl font-semibold">ยอดขาย</h2>
-        <ActionLink href="/sales/import">นำเข้ายอดขาย</ActionLink>
+        <div className="flex flex-wrap items-center gap-3">
+          <ExportButton
+            dataset="sales"
+            params={{ branch: query.branchId, category: one("category") }}
+            period={{ from: isoFrom, to: isoTo }}
+            scope={[
+              exportBranchScope(branches, query.branchId).line,
+              ...(one("category") ? [`หมวดเมนู: ${categories.find((c) => c.id === one("category"))?.name ?? "—"}`] : []),
+            ]}
+            branchName={exportBranchScope(branches, query.branchId).name}
+            today={computeBangkokToday().toISOString().slice(0, 10)}
+          />
+          <ActionLink href="/sales/import">นำเข้ายอดขาย</ActionLink>
+        </div>
       </div>
 
       {/* ---------- filters (Part 35 C: pills, sticky, like Kong's sheet) ---------- */}
