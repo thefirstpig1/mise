@@ -127,7 +127,7 @@ describe("staff advances against the database (ADR 0037 Q5–Q6)", () => {
       stockLines: [{ productId: pork.id, unitId: unit(pork), qty: 4, lineTotal: 520 }],
       otherLines: [{ categoryId: opexCategory, description: "ถุงพลาสติก", lineTotal: 80 }],
     });
-    const e = await withRlsBypass((tx) => tx.expense.findUniqueOrThrow({ where: { id: expenseId }, include: { items: true, payments: true, files: true } }));
+    const e = await withRlsBypass((tx) => tx.expense.findUniqueOrThrow({ where: { id: expenseId }, include: { items: { orderBy: { lineNo: "asc" } }, payments: true, files: true } }));
     expect(e.sourceGrId).toBe(submitKey);
     expect(Number(e.netPaymentAmount)).toBe(600);
     expect(e.items.map((i) => [i.description.startsWith("หมูสับ"), Number(i.totalPrice)])).toEqual([

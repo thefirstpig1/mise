@@ -10,6 +10,11 @@ export default defineConfig({
     // clean up after itself.
     globalSetup: ["./tests/support/global-sweep.ts"],
     testTimeout: 30_000,
+    // A beforeAll seeds and an afterAll sweeps a whole tenant — as many round
+    // trips to Neon as the tests themselves — yet ran on vitest's 10 s default.
+    // Under a full parallel run they ran out first (2026-10-30: production-count's
+    // sweep, after three sibling specs had each been given 180_000 by hand).
+    hookTimeout: 180_000,
   },
   resolve: {
     alias: {
