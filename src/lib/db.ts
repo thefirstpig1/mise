@@ -212,6 +212,18 @@ export type TenantContextOptions = {
 const DEFAULT_MAX_WAIT_MS = 10_000;
 
 /**
+ * TESTS ONLY — a floor under every transaction's `timeout`, read from
+ * `MISE_TX_TIMEOUT_FLOOR_MS`, which only tests/setup.ts sets (Kong 2026-10-30,
+ * "เอาตามแนะนำ"). Unset everywhere else, so the app keeps the 5 s above.
+ *
+ * Why: the suite was tuned on a machine ~32 ms from Neon; from the Mac it is
+ * ~70 ms, and three purchase orders queued on one branch's advisory lock
+ * (W17) put the third past 5 s while it waited — a distance, not a bug, and
+ * one the server in Singapore never sees.
+ */
+const TX_TIMEOUT_FLOOR_MS = Number(process.env.MISE_TX_TIMEOUT_FLOOR_MS ?? 0);
+
+/**
  * Report how long each transaction took to START, when `MISE_TX_TRACE=1`.
  *
  * Kept deliberately (ADR 0023 Q6). This instrumentation is what identified the
@@ -301,7 +313,11 @@ async function runTenantTransaction<T>(
 
       return await callback(tx as unknown as PrismaClient);
     },
-    { maxWait: DEFAULT_MAX_WAIT_MS, ...options }
+    {
+      maxWait: DEFAULT_MAX_WAIT_MS,
+      ...options,
+      ...(TX_TIMEOUT_FLOOR_MS > 0 ? { timeout: Math.max(options?.timeout ?? 5_000, TX_TIMEOUT_FLOOR_MS) } : {}),
+    }
   );
 }
 
