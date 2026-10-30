@@ -862,6 +862,27 @@ export async function setPreppedYieldLogic(
   });
 }
 
+/**
+ * Turn a RAW product into one the shop makes itself (Kong 2026-10-30: น้ำซุป was
+ * imported as an ingredient, then turned out to have a recipe of its own). The
+ * narrow half of `updateProductLogic`'s type change — nothing else on the row is
+ * touched — with the same Part 21 Q13 recheck afterwards: every recipe using
+ * this product gains a level. A product already PREPPED is left as it is.
+ * Returns false when there is no such product.
+ */
+export async function convertToPreppedInTx(tx: PrismaClient, tenantId: string, productId: string): Promise<boolean> {
+  const before = await tx.product.findFirst({ where: { id: productId, tenantId, deletedAt: null }, select: { type: true } });
+  if (before === null) return false;
+  if (before.type === "PREPPED") return true;
+  await assertTypeChangeAllowed(tx, tenantId, productId, before.type, "PREPPED");
+  await tx.product.updateMany({
+    where: { id: productId, tenantId, deletedAt: null },
+    data: { type: "PREPPED", parentProductId: null, yieldPercent: null },
+  });
+  await assertUsersStillWithinDepth(tx, tenantId, productId);
+  return true;
+}
+
 export async function updateProductLogic(
   tenantId: string,
   id: string,

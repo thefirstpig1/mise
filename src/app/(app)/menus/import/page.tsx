@@ -1,7 +1,8 @@
 // /menus/import — นำเข้าสูตรจากไฟล์ (คิวงานข้อ 5d, Kong 2026-10-30; the
 // recipes tab of mockup https://claude.ai/artifact/R3vZEuvaWr2gWQosAgYfkA).
-// The same file the ingredient import reads, sheet "สูตร". Every recipe is
-// saved as a DRAFT — nothing moves until "ใช้สูตร" in ทดลองเมนู.
+// The same file the ingredient import reads, sheet "สูตร". A dish is saved as a
+// DRAFT — nothing moves until "ใช้สูตร" in ทดลองเมนู; something the shop makes
+// for its dishes (น้ำซุป) as a live production recipe (Kong 2026-10-30).
 
 import Link from "next/link";
 import { requireTenant } from "@/lib/require-tenant";
@@ -34,7 +35,7 @@ export default async function RecipeImportPage() {
           </p>
           <h2 className="text-2xl font-semibold">นำเข้าสูตรจากไฟล์</h2>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            บันทึกเป็น <b className="font-medium text-foreground">สูตรร่าง</b> ทั้งหมด ยังไม่ตัดสต๊อกจนกว่าจะกด “ใช้สูตร” ทีละเมนูที่หน้าทดลองเมนู
+            เมนูที่ขายบันทึกเป็น <b className="font-medium text-foreground">สูตรร่าง</b> ยังไม่ตัดสต๊อกจนกว่าจะกด “ใช้สูตร” ที่หน้าทดลองเมนู · ของที่ร้านทำเอง (น้ำซุป น้ำจิ้ม) บันทึกเป็นสูตรผลิตที่ใช้ได้ทันที
           </p>
         </div>
         <ImportGuide prompt={prompt} kind="recipes" />

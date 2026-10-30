@@ -5,17 +5,36 @@
 // The write is ONE transaction: products the person chose to create, units the
 // recipes used, MISE menus for dishes not in the POS yet, and the recipes —
 // every one a DRAFT (Part 24): it resolves on no day, so it moves no stock and
-// no cost until the shop presses "ใช้สูตร" for that dish in ทดลองเมนู.
+// no cost until the shop presses "ใช้สูตร" for that dish in ทดลองเมนู. A
+// shop-made component's recipe (น้ำซุป) is a production recipe instead, written
+// LIVE through `createRecipeInTx` so every guard the recipe form runs still runs
+// (Kong 2026-10-30, "เอาตามที่แนะนำ").
 // ============================================================
 
 import { randomUUID } from "node:crypto";
 import { Prisma, type PrismaClient } from "@prisma/client";
 import { prisma, withTenantContext } from "@/lib/db";
-import { computeBangkokToday } from "@/lib/bangkok-date";
+import { addDays, computeBangkokToday } from "@/lib/bangkok-date";
+import { MAX_BACKDATE_DAYS } from "@/lib/validations/stock-movement";
+import { recipeInputSchema } from "@/lib/validations/recipe";
 import { RECIPE_SHEET, splitPastedTable, nameKey } from "@/lib/product-import";
 import { readRecipeTable, type RecipeContext, type RecipeSave, type RecipeTableResult } from "@/lib/recipe-import";
-import { ensureProductUnitInTx } from "@/server/product";
+import { convertToPreppedInTx, ensureProductUnitInTx } from "@/server/product";
+import { createRecipeInTx } from "@/server/recipe";
 import { importProductsInTx, loadImportGrids } from "@/server/product-import";
+
+/**
+ * The day a shop-made recipe starts: the shop's first sales day, so a month of
+ * sales imported before the recipes can be posted against it — never earlier
+ * than the ledger accepts (ADR 0011 Q5), and today for a shop with no sales.
+ */
+async function madeFromDay(tx: PrismaClient, tenantId: string): Promise<Date> {
+  const today = computeBangkokToday();
+  const first = await tx.salesDay.findFirst({ where: { tenantId }, orderBy: { businessDate: "asc" }, select: { businessDate: true } });
+  if (first === null) return today;
+  const floor = addDays(today, -MAX_BACKDATE_DAYS);
+  return first.businessDate < floor ? floor : first.businessDate > today ? today : first.businessDate;
+}
 
 export async function getRecipeContextLogic(tenantId: string, canCreateProducts: boolean): Promise<RecipeContext> {
   const [facts, templates] = await Promise.all([
@@ -31,21 +50,35 @@ export async function getRecipeContextLogic(tenantId: string, canCreateProducts:
         (await tx.menuMerge.findMany({ where: { tenantId, revokedAt: null }, select: { losingMenuId: true } })).map((m) => m.losingMenuId)
       );
       const recipes = await tx.recipe.findMany({
-        where: { tenantId, deletedAt: null, menuId: { not: null }, supersededAt: null },
-        select: { menuId: true, isDraft: true },
+        where: { tenantId, deletedAt: null, supersededAt: null },
+        select: { menuId: true, outputProductId: true, isDraft: true },
       });
       const products = await tx.product.findMany({
         where: { tenantId, deletedAt: null },
-        select: { id: true, name: true, sku: true, primaryDimension: true, productUnits: { select: { id: true, unitName: true, toBaseRatio: true, isBase: true } } },
+        select: {
+          id: true,
+          name: true,
+          sku: true,
+          type: true,
+          parentProductId: true,
+          primaryDimension: true,
+          productUnits: { select: { id: true, unitName: true, toBaseRatio: true, isBase: true } },
+        },
         orderBy: { name: "asc" },
       });
-      return { menus: menus.filter((m) => !losers.has(m.id)), recipes, products };
+      // ADR 0040: a part of a trim recipe is made one way already.
+      const trimParts = await tx.trimRecipePart.findMany({ where: { tenantId, deletedAt: null, trimRecipe: { deletedAt: null } }, select: { productId: true } });
+      const madeFrom = await madeFromDay(tx, tenantId);
+      return { menus: menus.filter((m) => !losers.has(m.id)), recipes, products, trimParts, madeFrom };
     }),
     prisma.unitTemplate.findMany({ select: { unitName: true, unitDimension: true, toSiRatio: true } }),
   ]);
-  const live = new Set(facts.recipes.filter((r) => !r.isDraft).map((r) => r.menuId!));
+  const menuRecipes = facts.recipes.filter((r) => r.menuId !== null);
+  const live = new Set(menuRecipes.filter((r) => !r.isDraft).map((r) => r.menuId!));
   const drafts = new Map<string, number>();
-  for (const r of facts.recipes) if (r.isDraft) drafts.set(r.menuId!, (drafts.get(r.menuId!) ?? 0) + 1);
+  for (const r of menuRecipes) if (r.isDraft) drafts.set(r.menuId!, (drafts.get(r.menuId!) ?? 0) + 1);
+  const produced = new Set(facts.recipes.filter((r) => r.outputProductId !== null && !r.isDraft).map((r) => r.outputProductId!));
+  const trimmed = new Set(facts.trimParts.map((t) => t.productId));
   return {
     menus: facts.menus.map((m) => ({ id: m.id, name: m.name, code: m.posMenuId, hasRecipe: live.has(m.id), drafts: drafts.get(m.id) ?? 0 })),
     products: facts.products.map((p) => ({
@@ -53,10 +86,13 @@ export async function getRecipeContextLogic(tenantId: string, canCreateProducts:
       name: p.name,
       sku: p.sku,
       dimension: p.primaryDimension,
+      type: p.type === "PREPPED" ? "PREPPED" : "RAW",
+      made: produced.has(p.id) ? "RECIPE" : p.parentProductId !== null || trimmed.has(p.id) ? "TRIM" : null,
       units: p.productUnits.map((u) => ({ id: u.id, unitName: u.unitName, toBaseRatio: Number(u.toBaseRatio), isBase: u.isBase })),
     })),
     templates: templates.map((t) => ({ unitName: t.unitName, unitDimension: t.unitDimension, toSiRatio: t.toSiRatio === null ? null : Number(t.toSiRatio) })),
     canCreateProducts,
+    madeFrom: facts.madeFrom.toISOString().slice(0, 10),
   };
 }
 
@@ -87,22 +123,38 @@ export class RecipeImportRefError extends Error {
   }
 }
 
-export type RecipeImportOutcome = { drafts: number; menusCreated: number; productsCreated: number; unitsAdded: number };
+export type RecipeImportOutcome = {
+  drafts: number;
+  /** Production recipes written live, and the day they start. */
+  made: number;
+  madeFrom: string;
+  menusCreated: number;
+  productsCreated: number;
+  productsConverted: number;
+  unitsAdded: number;
+};
 
 export async function importRecipesLogic(tenantId: string, save: RecipeSave, createdBy: string): Promise<RecipeImportOutcome> {
   return withTenantContext(tenantId, (tx) => importRecipesInTx(tx, tenantId, save, createdBy), { timeout: 60_000 });
 }
 
 async function importRecipesInTx(tx: PrismaClient, tenantId: string, save: RecipeSave, createdBy: string): Promise<RecipeImportOutcome> {
-  // 1. Products chosen to be created from a recipe line.
+  // 1. Products chosen to be created from a recipe line, and the shop-made
+  // things a recipe in the file makes (PREPPED).
   let productsCreated = 0;
   if (save.newProducts.length > 0) {
     const out = await importProductsInTx(
       tx,
       tenantId,
-      save.newProducts.map((p) => ({ name: p.name, baseUnitName: p.baseUnitName, categoryId: null, extraUnit: null }))
+      save.newProducts.map((p) => ({ name: p.name, baseUnitName: p.baseUnitName, categoryId: null, extraUnit: null, prepped: p.prepped }))
     );
     productsCreated = out.created.length;
+  }
+  // An ingredient that turned out to have a recipe of its own.
+  let productsConverted = 0;
+  for (const id of save.convert) {
+    if (!(await convertToPreppedInTx(tx, tenantId, id))) throw new RecipeImportRefError("product");
+    productsConverted++;
   }
   const products = await tx.product.findMany({
     where: { tenantId, deletedAt: null },
@@ -129,7 +181,7 @@ async function importRecipesInTx(tx: PrismaClient, tenantId: string, save: Recip
   // 3. Units the recipes measured in that the product does not have yet.
   let unitsAdded = 0;
   const unitIdOf = new Map<string, string>();
-  for (const r of save.recipes) {
+  for (const r of [...save.recipes, ...save.made]) {
     for (const l of r.lines) {
       const p = productOf(l.product);
       const key = `${p.id}|${l.unitName}`;
@@ -195,5 +247,45 @@ async function importRecipesInTx(tx: PrismaClient, tenantId: string, save: Recip
     ),
   });
 
-  return { drafts: save.recipes.length, menusCreated, productsCreated, unitsAdded };
+  // 5. The shop-made recipes, live, one at a time through the recipe form's own
+  // write — the output must be PREPPED and made one way only, and the graph
+  // must stay acyclic and within depth.
+  const madeFrom = await madeFromDay(tx, tenantId);
+  for (const m of save.made) {
+    const output = productOf(m.output);
+    await createRecipeInTx(
+      tx,
+      tenantId,
+      recipeInputSchema.parse({
+        submitKey: randomUUID(),
+        menuId: null,
+        outputProductId: output.id,
+        servings: m.servings,
+        effectiveFrom: madeFrom,
+        ingredients: m.lines.map((l, i) => {
+          const p = productOf(l.product);
+          return {
+            productId: p.id,
+            componentMenuId: null,
+            qty: Math.round(l.qty * 1000) / 1000,
+            productUnitId: unitIdOf.get(`${p.id}|${l.unitName}`)!,
+            sortOrder: i,
+            notes: l.note,
+          };
+        }),
+        notes: `นำเข้าจากไฟล์ ${stamp}`,
+      }),
+      createdBy
+    );
+  }
+
+  return {
+    drafts: save.recipes.length,
+    made: save.made.length,
+    madeFrom: madeFrom.toISOString().slice(0, 10),
+    menusCreated,
+    productsCreated,
+    productsConverted,
+    unitsAdded,
+  };
 }

@@ -331,7 +331,7 @@ export default function ProductsManager(props: {
   const costCell = (p: ProductView) => {
     if (book === null) return pulse;
     const c = book.products[p.id];
-    return c === undefined ? <span className="text-xs text-muted-subtle">ยังไม่เคยซื้อที่สาขานี้</span> : (
+    return c === undefined ? <span className="text-xs text-muted-subtle">{p.type === "PREPPED" ? "ยังคิดต้นทุนไม่ได้" : "ยังไม่เคยซื้อที่สาขานี้"}</span> : (
       <>
         <span className="tabular-nums">{baht(c, 2)}</span>
         <span className="text-xs text-muted-subtle">/{base(p)}</span>

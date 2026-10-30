@@ -515,7 +515,37 @@ function LineRow({
   );
 }
 
+/**
+ * The size box sits AFTER the verdict, in one place for both states: inside the
+ * "ต้องบอกขนาด" state it vanished on the first digit (the line turned ready), so
+ * "1 แพ็ค = 12 ฟอง" could only ever be typed as 1.
+ */
 function LineVerdictView({ l, v, base, onEdit }: { l: LineDraft; v: LineVerdict; base: string | null; onEdit: (p: Partial<LineDraft>) => void }) {
+  const askRatio = (v.kind === "NEED" && v.why === "RATIO") || (v.kind === "PRICE" && v.unitIsNew && !v.flags.includes("UNIT_CONVERTED"));
+  return (
+    <>
+      <LineVerdictBody l={l} v={v} onEdit={onEdit} />
+      {askRatio && (
+        <label className="flex flex-wrap items-center gap-1.5 text-[13px] text-muted-foreground">
+          1 {l.unit} =
+          <input
+            type="number"
+            inputMode="decimal"
+            min="0"
+            step="any"
+            value={l.ratio ?? ""}
+            onChange={(e) => onEdit({ ratio: e.target.value === "" ? null : Number(e.target.value) })}
+            aria-label={`1 ${l.unit} เท่ากับกี่ ${base ?? "หน่วยนับ"}`}
+            className={`input h-8 w-20 px-2 py-1 ${v.kind === "NEED" ? "border-bad" : ""}`}
+          />
+          {base} · จำไว้เป็นหน่วยของวัตถุดิบนี้
+        </label>
+      )}
+    </>
+  );
+}
+
+function LineVerdictBody({ l, v, onEdit }: { l: LineDraft; v: LineVerdict; onEdit: (p: Partial<LineDraft>) => void }) {
   const choice = (on: boolean) =>
     `rounded-lg border px-2.5 py-0.5 text-[12.5px] transition-colors ${on ? "border-primary bg-primary text-primary-foreground" : "border-border-strong bg-surface hover:bg-muted"}`;
   const skipBtn = (
@@ -544,22 +574,6 @@ function LineVerdictView({ l, v, base, onEdit }: { l: LineDraft; v: LineVerdict;
     return (
       <>
         <span className="chip chip-bad whitespace-normal">{NEED_TH[v.why]}</span>
-        {v.why === "RATIO" && (
-          <label className="flex flex-wrap items-center gap-1.5 text-[13px] text-muted-foreground">
-            1 {l.unit} =
-            <input
-              type="number"
-              inputMode="decimal"
-              min="0"
-              step="any"
-              value={l.ratio ?? ""}
-              onChange={(e) => onEdit({ ratio: e.target.value === "" ? null : Number(e.target.value) })}
-              aria-label={`1 ${l.unit} เท่ากับกี่ ${base ?? "หน่วยนับ"}`}
-              className="input h-8 w-20 border-bad px-2 py-1"
-            />
-            {base} · จำไว้เป็นหน่วยของวัตถุดิบนี้
-          </label>
-        )}
         {skipBtn}
       </>
     );
@@ -573,7 +587,7 @@ function LineVerdictView({ l, v, base, onEdit }: { l: LineDraft; v: LineVerdict;
       <span className={`chip ${clean ? "chip-good" : "chip-warn"} whitespace-normal`}>{clean ? "ราคาใหม่" : [how, ...labels].filter(Boolean).join(" · ") || "ควรตรวจ"}</span>
       <span className="text-[12.5px] text-muted-foreground">
         {baht(v.unitPrice)} /{v.unitName}
-        {v.unitIsNew && v.ratio !== null ? ` · เพิ่มหน่วย ${v.unitName} = ${v.ratio.toLocaleString("th-TH", { maximumFractionDigits: 4 })}` : ""}
+        {v.unitIsNew && v.ratio !== null && v.flags.includes("UNIT_CONVERTED") ? ` · เพิ่มหน่วย ${v.unitName} = ${v.ratio.toLocaleString("th-TH", { maximumFractionDigits: 4 })}` : ""}
       </span>
       {v.flags.includes("FIGURES_DISAGREE") && l.qty !== null && l.unitPrice !== null && derived !== null && (
         <>

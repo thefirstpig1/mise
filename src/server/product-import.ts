@@ -234,7 +234,7 @@ export async function importProductsInTx(tx: PrismaClient, tenantId: string, row
       tenantId,
       sku: skus[i],
       name: r.name,
-      type: "RAW",
+      type: r.prepped ? "PREPPED" : "RAW",
       primaryDimension: dimensionOf.get(r.baseUnitName)!,
       categoryId: r.categoryId,
       isActive: true,

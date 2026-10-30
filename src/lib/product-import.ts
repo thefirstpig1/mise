@@ -440,6 +440,8 @@ export type ImportCreate = {
   baseUnitName: string;
   categoryId: string | null;
   extraUnit: { unitName: string; toBaseRatio: number } | null;
+  /** Made in the shop's own kitchen (น้ำซุป) — a PREPPED product, not bought. */
+  prepped?: boolean;
 };
 
 export function toCreate(d: ImportDraft): ImportCreate {

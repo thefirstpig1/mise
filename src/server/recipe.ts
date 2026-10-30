@@ -283,48 +283,58 @@ export async function createRecipeLogic(
   input: RecipeInput,
   createdBy: string
 ): Promise<RecipeWithIngredients> {
-  return withTenantContext(
-    tenantId,
-    async (tx) => {
-      const replay = await tx.recipe.findFirst({
-        where: { tenantId, id: input.submitKey },
-        include: { ingredients: true },
-      });
-      if (replay !== null) return replay;
+  return withTenantContext(tenantId, (tx) => createRecipeInTx(tx, tenantId, input, createdBy), {
+    timeout: RECIPE_WRITE_TIMEOUT_MS,
+  });
+}
 
-      await assertWriteRefsValid(tx, tenantId, input);
+/**
+ * The same write inside a transaction the caller holds — the recipe import
+ * (Kong 2026-10-30) writes a shop's production recipes alongside the products
+ * they make, and every guard here must still run on them.
+ */
+export async function createRecipeInTx(
+  tx: PrismaClient,
+  tenantId: string,
+  input: RecipeInput,
+  createdBy: string
+): Promise<RecipeWithIngredients> {
+  const replay = await tx.recipe.findFirst({
+    where: { tenantId, id: input.submitKey },
+    include: { ingredients: true },
+  });
+  if (replay !== null) return replay;
 
-      const target = targetOf(input);
-      const existing = await liveLinesFor(tx, tenantId, target);
-      const central = existing.find((r) => !r.hasBranches);
-      if (central !== undefined) {
-        throw new RecipeAlreadyExistsError(target, central.id);
-      }
+  await assertWriteRefsValid(tx, tenantId, input);
 
-      const recipe = await tx.recipe.create({
-        data: {
-          id: input.submitKey,
-          tenantId,
-          lineId: randomUUID(),
-          menuId: input.menuId,
-          outputProductId: input.outputProductId,
-          servings: new Prisma.Decimal(input.servings),
-          effectiveFrom: input.effectiveFrom,
-          notes: input.notes,
-          createdBy,
-          ingredients: { create: ingredientRowsFor(tenantId, input) },
-        },
-        include: { ingredients: true },
-      });
+  const target = targetOf(input);
+  const existing = await liveLinesFor(tx, tenantId, target);
+  const central = existing.find((r) => !r.hasBranches);
+  if (central !== undefined) {
+    throw new RecipeAlreadyExistsError(target, central.id);
+  }
 
-      // AFTER the write, so the walk sees the recipe it is judging. A throw here
-      // rolls the whole thing back — `withTenantContext` is a real transaction.
-      await assertRecipeGraphValid(tx, tenantId, target, input.effectiveFrom);
-
-      return recipe;
+  const recipe = await tx.recipe.create({
+    data: {
+      id: input.submitKey,
+      tenantId,
+      lineId: randomUUID(),
+      menuId: input.menuId,
+      outputProductId: input.outputProductId,
+      servings: new Prisma.Decimal(input.servings),
+      effectiveFrom: input.effectiveFrom,
+      notes: input.notes,
+      createdBy,
+      ingredients: { create: ingredientRowsFor(tenantId, input) },
     },
-    { timeout: RECIPE_WRITE_TIMEOUT_MS }
-  );
+    include: { ingredients: true },
+  });
+
+  // AFTER the write, so the walk sees the recipe it is judging. A throw here
+  // rolls the whole thing back — `withTenantContext` is a real transaction.
+  await assertRecipeGraphValid(tx, tenantId, target, input.effectiveFrom);
+
+  return recipe;
 }
 
 // ------------------------------------------------------------

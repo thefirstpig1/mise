@@ -28,7 +28,7 @@ describe("publishing drafts on a chosen day", () => {
 
   const menu = (name: string) => withRlsBypass((tx) => tx.menu.create({ data: { tenantId: tenant, source: "MISE", name: `${name}-${randomUUID().slice(0, 4)}` }, select: { id: true } }));
   const draftFor = async (menuId: string) => {
-    await importRecipesLogic(tenant, { newMenus: [], newProducts: [], recipes: [{ menu: { id: menuId }, servings: 1, lines: [{ product: { id: pork }, unitName: "kg", ratio: null, qty: 0.2, note: null }] }] }, user);
+    await importRecipesLogic(tenant, { newMenus: [], newProducts: [], convert: [], made: [], recipes: [{ menu: { id: menuId }, servings: 1, lines: [{ product: { id: pork }, unitName: "kg", ratio: null, qty: 0.2, note: null }] }] }, user);
     return (await prismaBypass.recipe.findFirstOrThrow({ where: { tenantId: tenant, menuId, isDraft: true }, select: { id: true } })).id;
   };
   const liveFrom = (menuId: string, from: Date) =>

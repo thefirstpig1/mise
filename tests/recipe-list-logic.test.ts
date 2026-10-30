@@ -637,10 +637,14 @@ describe("recipe list reads (ADR 0021 Part 21 L5a)", () => {
         });
         expect(status[m.targetId]).toEqual({ recipeId: m.recipeId, own: m.isBranchOwn });
       }
-      // A production recipe's cost per serving is its price per base unit.
+      // A production recipe's cost per serving is its price per base unit —
+      // except one with nothing priced in it yet: the list carries that 0 beside
+      // its confidence, the book has no confidence to carry, so ฿0 would read as
+      // "free" (2026-10-30). It is left unknown there.
       for (const p of list.prepped) {
         if (p.recipeId !== null && p.costPerServing !== null) {
-          expect(book.products[p.targetId]).toBeCloseTo(Number(p.costPerServing), 6);
+          if (p.costPerServing.isZero() && p.confidence === "LOW") expect(book.products[p.targetId]).not.toBe(0);
+          else expect(book.products[p.targetId]).toBeCloseTo(Number(p.costPerServing), 6);
         }
       }
     }

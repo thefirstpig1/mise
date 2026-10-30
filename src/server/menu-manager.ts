@@ -131,9 +131,11 @@ export async function getMenuPriceBookLogic(
         costPerServing: c?.costPerServing == null ? null : Number(c.costPerServing),
         confidence: c?.confidence ?? null,
       };
-    } else if (c?.costPerServing != null) {
+    } else if (c?.costPerServing != null && !(c.costPerServing.isZero() && c.unpriced.length > 0)) {
       // A production recipe's servings are its OUTPUT in base units, so its
-      // cost per serving IS its cost per base unit.
+      // cost per serving IS its cost per base unit. A recipe none of whose
+      // ingredients has a price yet costs "unknown", never ฿0 (an imported
+      // น้ำราดหน้า showed ฿0.00/l, 2026-10-30).
       book.products[key.slice(8)] = Number(c.costPerServing);
     }
   }
