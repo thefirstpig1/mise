@@ -210,7 +210,7 @@ describe("posting takes prepped stock first (ADR 0040 Q1, D2)", () => {
   afterAll(async () => {
     await sweepTestTenants(prismaBypass, { ids: [tenant] });
     await withRlsBypass((tx) => tx.user.deleteMany({ where: { id: user } }));
-  });
+  }, 180_000);
 
   it("PF1: an empty shelf cuts the bones, exactly as before ADR 0040 — and records the shortfall", async () => {
     const { bones, soup, noodle } = await world("PF1");

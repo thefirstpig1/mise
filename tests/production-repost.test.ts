@@ -205,7 +205,7 @@ describe("re-posting after a late or voided production (ADR 0040 Q5)", () => {
   afterAll(async () => {
     await sweepTestTenants(prismaBypass, { ids: [tenant] });
     await withRlsBypass((tx) => tx.user.deleteMany({ where: { id: user } }));
-  });
+  }, 180_000);
 
   it("R1: soup recorded late is taken by the day that cut the bones instead", async () => {
     const { bones, soup, noodle } = await world("R1");

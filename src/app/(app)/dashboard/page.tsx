@@ -80,7 +80,7 @@ function setupStep(key: OnboardingStep, today: Date): Omit<OnboardingStepView, "
     case "sales":
       return { title: "นำเข้ายอดขาย", hint: "ไฟล์จาก POS ที่ร้านใช้ ย้อนหลังได้ ตั้งครั้งเดียวแล้วใช้ได้ทุกวัน", cta: "นำเข้ายอดขาย", href: "/sales/import" };
     case "recipe":
-      return { title: "เขียนสูตรเมนูขายดี", hint: "ร้านนี้คิดกำไรจากสูตร เริ่มจากเมนูที่ขายมากที่สุดก่อน", cta: "เขียนสูตร", href: "/menus" };
+      return { title: "สูตรของเมนู", hint: "ร้านนี้คิดกำไรจากสูตร · นำเข้าจากไฟล์เดียวกับวัตถุดิบได้ แล้วกดใช้สูตรทีละเมนู หรือเขียนเองเริ่มจากเมนูขายดี", cta: "นำเข้าสูตร", href: "/menus/import" };
     case "count": {
       const last = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 1, 0));
       const night = last.toLocaleDateString("th-TH", { day: "numeric", month: "short", timeZone: "UTC" });

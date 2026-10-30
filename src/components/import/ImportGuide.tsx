@@ -11,7 +11,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
-export type GuideKind = "products" | "bills";
+export type GuideKind = "products" | "bills" | "recipes";
 
 export default function ImportGuide({ prompt, kind }: { prompt: string; kind: GuideKind }) {
   const SEEN_KEY = `kitkrua:import-guide-seen:${kind}`;
@@ -411,7 +411,9 @@ const STEPS = (prompt: string, kind: GuideKind): { title: string; body: ReactNod
             <FileChip kind="XLSX" name={kind === "bills" ? "คิดครัว-บิลซื้อ.xlsx" : "คิดครัว-นำเข้า.xlsx"} />
           </div>
         </Ill>
-        <p className={fine}>ระบบจะอ่านข้อมูลแล้วแสดงหน้าตรวจทานทันที ยังไม่มีการบันทึก</p>
+        <p className={fine}>
+          {kind === "recipes" ? "ใช้ไฟล์เดียวกับตอนนำเข้าวัตถุดิบได้ ระบบอ่านแผ่น “สูตร” แล้วแสดงหน้าตรวจทานทันที ยังไม่มีการบันทึก" : "ระบบจะอ่านข้อมูลแล้วแสดงหน้าตรวจทานทันที ยังไม่มีการบันทึก"}
+        </p>
       </>
     ),
   },
@@ -422,7 +424,9 @@ const STEPS = (prompt: string, kind: GuideKind): { title: string; body: ReactNod
         <p className={say}>
           {kind === "bills"
             ? "ทุกบรรทัดแสดงข้อความจากบิลไว้ให้เทียบ ระบบเช็กว่าจำนวน × ราคา ตรงกับยอดรวม ตรวจเฉพาะแถวที่มีสีก็เพียงพอ"
-            : "ทุกแถวแสดงข้อความต้นฉบับของร้านไว้ให้เทียบ ตรวจเฉพาะแถวที่มีสีก็เพียงพอ"}
+            : kind === "recipes"
+              ? "แต่ละเมนูจับคู่กับเมนูจากไฟล์ยอดขาย วัตถุดิบจับคู่กับรายการของร้าน หน่วยครัว (ทัพพี ช้อน) ถามขนาดครั้งเดียวแล้วจำไว้"
+              : "ทุกแถวแสดงข้อความต้นฉบับของร้านไว้ให้เทียบ ตรวจเฉพาะแถวที่มีสีก็เพียงพอ"}
         </p>
         <Ill>
           <div className="grid w-full max-w-[400px] gap-1.5">
@@ -432,7 +436,13 @@ const STEPS = (prompt: string, kind: GuideKind): { title: string; body: ReactNod
                   ["ไข่ไก่ 3 × 120 ≠ 380", "ตัวเลขไม่ลงกัน", "chip-warn"],
                   ["พริกแห้ง 1 ถุง", "ต้องบอกขนาด", "chip-bad"],
                 ]
-              : [
+              : kind === "recipes"
+                ? [
+                    ["ข้าวผัดหมู", "ตรงกับเมนู", "chip-good"],
+                    ["น้ำมันหอย 1 ช้อนโต๊ะ", "พบในวิธีทำ", "chip-warn"],
+                    ["ข้าว 1 ทัพพี", "ต้องบอกขนาด", "chip-bad"],
+                  ]
+                : [
                   ["กระเพรา", "ชื่อใกล้ของเดิม", "chip-warn"],
                   ["น้ำมันหอย", "พบในวิธีทำ", "chip-warn"],
                   ["(อ่านชื่อไม่ออก)", "ต้องแก้", "chip-bad"],
@@ -453,7 +463,11 @@ const STEPS = (prompt: string, kind: GuideKind): { title: string; body: ReactNod
             <>
               <b className="font-semibold text-foreground">สีแดง</b> ต้องแก้ไขหรือกดข้ามก่อนบันทึก
             </>,
-            kind === "bills" ? "เก็บแค่ราคาและผู้ขาย ไม่ลงสต๊อก ไม่ลงค่าใช้จ่าย" : "ข้อมูลจะเข้าระบบเมื่อกดปุ่มบันทึกเท่านั้น",
+            kind === "bills"
+              ? "เก็บแค่ราคาและผู้ขาย ไม่ลงสต๊อก ไม่ลงค่าใช้จ่าย"
+              : kind === "recipes"
+                ? "บันทึกเป็นสูตรร่าง ยังไม่ตัดสต๊อกจนกว่าจะกด “ใช้สูตร” ที่หน้าทดลองเมนู"
+                : "ข้อมูลจะเข้าระบบเมื่อกดปุ่มบันทึกเท่านั้น",
           ]}
         />
       </>

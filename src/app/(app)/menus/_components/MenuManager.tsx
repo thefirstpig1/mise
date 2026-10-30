@@ -631,6 +631,11 @@ export default function MenuManager(props: {
               </a>
             )}
             {perm.recipe && (
+              <a href="/menus/import" className="btn-secondary">
+                นำเข้าสูตรจากไฟล์
+              </a>
+            )}
+            {perm.recipe && (
               <a href="/menus/lab/new" className="btn">
                 + ทดลองเมนูใหม่
               </a>

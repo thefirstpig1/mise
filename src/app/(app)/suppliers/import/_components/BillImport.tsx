@@ -144,6 +144,9 @@ export default function BillImport({ prompt, productCount }: { prompt: string; p
 // Review
 // ------------------------------------------------------------
 
+const measureKey = (l: LineDraft) =>
+  l.unit === null ? null : l.choice.kind === "PRODUCT" ? `p:${l.choice.id}|${l.unit}` : l.choice.kind === "NEW" ? `n:${l.choice.name.trim().toLowerCase()}|${l.unit}` : null;
+
 function bucket(v: LineVerdict): Exclude<Filter, "all"> {
   if (v.kind === "SKIP") return "skip";
   if (v.kind === "NEED") return "need";
@@ -193,8 +196,16 @@ function Review({
   );
 
   const editBill = (bi: number, patch: Partial<BillDraft>) => setBills((all) => all.map((b, k) => (k === bi ? { ...b, ...patch } : b)));
+  // A bag's size is asked ONCE: it fills every line of every bill that buys
+  // that product by that unit.
   const editLine = (bi: number, li: number, patch: Partial<LineDraft>) =>
-    setBills((all) => all.map((b, k) => (k === bi ? { ...b, lines: b.lines.map((l, j) => (j === li ? { ...l, ...patch } : l)) } : b)));
+    setBills((all) => {
+      const shareKey = "ratio" in patch ? measureKey(all[bi].lines[li]) : null;
+      return all.map((b, k) => ({
+        ...b,
+        lines: b.lines.map((l, j) => (k === bi && j === li ? { ...l, ...patch } : shareKey !== null && measureKey(l) === shareKey ? { ...l, ratio: patch.ratio ?? null } : l)),
+      }));
+    });
 
   const FILTERS: { key: Filter; label: string; n: number }[] = [
     { key: "all", label: "ทั้งหมด", n: counts.need + counts.review + counts.ready + counts.skip },

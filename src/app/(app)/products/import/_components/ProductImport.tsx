@@ -220,7 +220,10 @@ function Review({
       </div>
       {recipeMenus > 0 && (
         <p className="border-b border-border px-4 py-2.5 text-[13px] text-muted-foreground">
-          ไฟล์นี้มีแผ่นสูตร {recipeMenus.toLocaleString("th-TH")} เมนูด้วย — ตอนนี้นำเข้าเฉพาะวัตถุดิบ
+          ไฟล์นี้มีแผ่นสูตร {recipeMenus.toLocaleString("th-TH")} เมนูด้วย — บันทึกวัตถุดิบก่อน แล้วใช้ไฟล์เดียวกันที่{" "}
+          <a href="/menus/import" className="text-foreground underline decoration-dotted underline-offset-4 hover:text-warn">
+            นำเข้าสูตร
+          </a>
         </p>
       )}
 
@@ -471,7 +474,14 @@ function Done({ done, recipeMenus, onAgain }: { done: { created: number; skipped
       <ul className="grid gap-1 text-sm text-muted-foreground">
         <li>· ยังไม่มีราคา ราคาจะเข้ามาเองเมื่อรับของตามใบสั่งซื้อ</li>
         <li>· ผู้ขายเพิ่มได้ที่หน้าผู้ขาย แล้วค่อยผูกกับวัตถุดิบภายหลัง</li>
-        {recipeMenus > 0 && <li>· ไฟล์นี้มีแผ่นสูตร {recipeMenus.toLocaleString("th-TH")} เมนูด้วย — ตอนนี้นำเข้าเฉพาะวัตถุดิบ</li>}
+        {recipeMenus > 0 && (
+          <li>
+            · ไฟล์นี้มีแผ่นสูตร {recipeMenus.toLocaleString("th-TH")} เมนูด้วย — ใช้ไฟล์เดียวกันที่{" "}
+            <a href="/menus/import" className="text-foreground underline decoration-dotted underline-offset-4 hover:text-warn">
+              นำเข้าสูตร
+            </a>
+          </li>
+        )}
       </ul>
       <div className="flex flex-wrap gap-2 pt-1">
         <Link href="/products" className="btn">

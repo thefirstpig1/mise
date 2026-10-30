@@ -114,7 +114,7 @@ describe("using prepped stock beyond the shelf (ADR 0040 Q9)", () => {
   afterAll(async () => {
     await sweepTestTenants(prismaBypass, { ids: [tenant] });
     await withRlsBypass((tx) => tx.user.deleteMany({ where: { id: user } }));
-  });
+  }, 180_000);
 
   it("Q9-1: throwing away soup nobody recorded making writes the production first", async () => {
     const { bones, soup } = await world("W");
