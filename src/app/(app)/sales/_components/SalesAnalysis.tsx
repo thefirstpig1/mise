@@ -345,7 +345,7 @@ export default function SalesAnalysis({
 
         {canProfit ? (
           <section className="rounded-2xl border border-border bg-surface p-5">
-            <h3 className="text-base font-semibold">เมนูไหนควรทำอะไร</h3>
+            <h3 className="text-base font-semibold">เมนูแต่ละกลุ่ม: ขายได้มากน้อย × กำไรต่อจาน</h3>
             <p className="mb-4 mt-0.5 text-xs text-muted-foreground">
               ขายได้กี่จาน × กำไรต่อจาน · กดวงหรือรายชื่อเพื่อดู insight
             </p>

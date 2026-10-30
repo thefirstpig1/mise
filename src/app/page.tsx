@@ -161,7 +161,7 @@ export default async function HomePage() {
             </span>
             <span className="lp-line">
               <span style={d(0.1)}>
-                <Phrases t="แต่บอกว่าเกิดจากอะไร และควรทำอะไรต่อ" />
+                <Phrases t="แต่ชี้ให้เห็นว่าเกิดจากอะไร และจุดไหนน่าสังเกต" />
               </span>
             </span>
           </h2>

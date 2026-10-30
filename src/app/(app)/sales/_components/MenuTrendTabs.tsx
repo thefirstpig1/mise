@@ -165,7 +165,7 @@ const VERDICT: Record<PromoVerdict, { cls: string; icon: string; title: string; 
     cls: "border-bad-border bg-bad-bg text-bad",
     icon: "×",
     title: "ขายเพิ่ม แต่กำไรของหมวดลดลง",
-    body: "ส่วนลดกินกำไรต่อจานมากกว่าที่ขายเพิ่มได้ ลองลดส่วนลด หรือเปลี่ยนเป็นของแถม",
+    body: "กำไรที่หายไปจากส่วนลดมากกว่ากำไรจากจานที่ขายเพิ่ม",
   },
   no_lift: {
     cls: "border-border bg-muted/50 text-foreground",

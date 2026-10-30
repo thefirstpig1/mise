@@ -1,7 +1,9 @@
 "use client";
 
 // ============================================================
-// Mise — เมนูไหนควรทำอะไร: menu engineering (Kong, 2026-10-03)
+// Mise — เมนูแต่ละกลุ่ม: menu engineering (Kong, 2026-10-03). Each group is
+// described by what it IS, never by what to do about it (Kong 2026-10-30:
+// the app points out what is notable; the shop decides).
 // ============================================================
 // Kasavana & Smith's matrix, the restaurant trade's standard way of reading a
 // menu: across = plates sold, up = profit per plate (price after discount −
@@ -35,11 +37,11 @@ import { ModalShell } from "./Breakdown";
 import { useMenuInsight } from "./insight-context";
 import { atMostTh, isUnderstated } from "@/lib/cost-bound";
 
-const G: Record<EngineeringGroup, { name: string; sym: string; colour: string; short: string; todo: string }> = {
-  star: { name: "ดาวเด่น", sym: "★", colour: "#5A7333", short: "ขายดี · กำไรดี", todo: "รักษาคุณภาพ วางตำแหน่งเด่นในเมนู" },
-  plowhorse: { name: "ม้างาน", sym: "♞", colour: "#A87C1C", short: "ขายดี · กำไรต่ำ", todo: "ลองปรับราคาเล็กน้อย หรือลดต้นทุนสูตร" },
-  puzzle: { name: "ปริศนา", sym: "?", colour: "#3E8077", short: "ขายน้อย · กำไรดี", todo: "ลองแนะนำ โปรโมต หรือย้ายตำแหน่งในเมนู" },
-  dog: { name: "ทบทวน", sym: "✕", colour: "#A83A22", short: "ขายน้อย · กำไรต่ำ", todo: "พิจารณาปรับสูตร ราคา หรือเอาออก" },
+const G: Record<EngineeringGroup, { name: string; sym: string; colour: string; short: string; note: string }> = {
+  star: { name: "ดาวเด่น", sym: "★", colour: "#5A7333", short: "ขายดี · กำไรดี", note: "ขายได้มากกว่าเส้นขายดี และกำไรต่อจานสูงกว่าค่าเฉลี่ยของร้าน" },
+  plowhorse: { name: "ม้างาน", sym: "♞", colour: "#A87C1C", short: "ขายดี · กำไรต่ำ", note: "ขายได้มากกว่าเส้นขายดี แต่กำไรต่อจานต่ำกว่าค่าเฉลี่ยของร้าน" },
+  puzzle: { name: "ปริศนา", sym: "?", colour: "#3E8077", short: "ขายน้อย · กำไรดี", note: "กำไรต่อจานสูงกว่าค่าเฉลี่ยของร้าน แต่ขายได้น้อยกว่าเส้นขายดี" },
+  dog: { name: "ทบทวน", sym: "✕", colour: "#A83A22", short: "ขายน้อย · กำไรต่ำ", note: "ขายได้น้อยกว่าเส้นขายดี และกำไรต่อจานต่ำกว่าค่าเฉลี่ยของร้าน" },
 };
 const ORDER: EngineeringGroup[] = ["star", "plowhorse", "puzzle", "dog"];
 const SYM_FONT = "'Apple Symbols','Segoe UI Symbol','Noto Sans Symbols 2',sans-serif";
@@ -446,7 +448,7 @@ function TipCard({ item, x, y }: { item: Row; x: number; y: number }) {
         <dt className="text-muted-subtle">กำไรรวม</dt>
         <dd className="text-right">{atMostTh(isUnderstated(item.confidence), baht(item.profit))}</dd>
       </dl>
-      <p className="mt-1.5 border-t border-border pt-1.5 text-muted-foreground">{g.todo} · กดเพื่อดู insight</p>
+      <p className="mt-1.5 border-t border-border pt-1.5 text-muted-foreground">{g.note} · กดเพื่อดู insight</p>
     </div>
   );
 }
@@ -484,7 +486,7 @@ function Lesson({
     {
       title: "ตารางนี้คืออะไร",
       ill: <IllIntro />,
-      say: "Menu engineering คือเครื่องมือที่ร้านอาหารทั่วโลกใช้ตอบคำถามว่า \"เมนูไหนควรทำอะไร\" โดยดูสองเรื่องพร้อมกัน คือขายได้มากแค่ไหน และได้กำไรต่อจานเท่าไร แล้วจัดทุกเมนูเป็นสี่กลุ่ม แต่ละกลุ่มมีสิ่งที่ควรทำชัดเจน",
+      say: "Menu engineering คือวิธีที่ร้านอาหารทั่วโลกใช้ดูเมนูทั้งร้านพร้อมกันสองมุม คือขายได้มากแค่ไหน และได้กำไรต่อจานเท่าไร แล้วจัดทุกเมนูเป็นสี่กลุ่ม ให้เห็นว่าแต่ละเมนูอยู่ตรงไหนเมื่อเทียบกับเมนูอื่นในร้าน",
       ex: (
         <>
           มี {items.length} เมนูที่คิดกำไรได้: ★ ดาวเด่น {counts.star} · ♞ ม้างาน {counts.plowhorse} · ? ปริศนา {counts.puzzle} · ✕ ทบทวน {counts.dog} — ขั้นถัดไปจะพาดูว่าอ่านกราฟยังไง
@@ -748,7 +750,7 @@ function IllPair({ a, b }: { a: EngineeringGroup; b: EngineeringGroup }) {
         {G[g].name}
       </text>
       <text x={105} y={y + 14} fontSize={12} fill={INK}>
-        {G[g].short} → {G[g].todo}
+        {G[g].short}
       </text>
     </>
   );
