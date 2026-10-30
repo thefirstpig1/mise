@@ -136,6 +136,8 @@ const config: Config = {
        */
       keyframes: {
         "grow-x": { from: { transform: "scaleX(0)" }, to: { transform: "scaleX(1)" } },
+        /** A column rising from its baseline (put origin-bottom on it). */
+        "grow-y": { from: { transform: "scaleY(0)" }, to: { transform: "scaleY(1)" } },
         "fade-in": { from: { opacity: "0" }, to: { opacity: "1" } },
         /** A line drawn left to right — the path carries pathLength=1. */
         "draw-line": { from: { strokeDasharray: "1", strokeDashoffset: "1" }, to: { strokeDasharray: "1", strokeDashoffset: "0" } },
@@ -147,6 +149,7 @@ const config: Config = {
       },
       animation: {
         "grow-x": "grow-x 0.75s cubic-bezier(0.22, 1, 0.36, 1) both",
+        "grow-y": "grow-y 0.75s cubic-bezier(0.22, 1, 0.36, 1) both",
         "fade-in": "fade-in 0.18s ease-out both",
         "draw-line": "draw-line 0.85s ease-out both",
         "slide-in-right": "slide-in-right 0.26s cubic-bezier(0.22, 1, 0.36, 1) both",

@@ -34,6 +34,7 @@ import { readApi } from "@/lib/read-api";
 import EmptyState from "@/components/ui/EmptyState";
 import { Portal, useTopLayer } from "@/app/(app)/menus/_components/sheet-parts";
 import type { PreppedHint } from "@/server/production-read";
+import type { CountSalesReadiness } from "@/server/deduction-accuracy";
 import { useKeepForm } from "@/lib/keep-form";
 import OpeningPrices, { type OpeningPrice } from "./OpeningPrices";
 import OpeningPricesLater from "./OpeningPricesLater";
@@ -55,6 +56,62 @@ async function poll(countId: string): Promise<StockCountDetailView | null> {
 async function readHints(countId: string): Promise<PreppedHint[] | null> {
   const r = await readApi<{ ok: true; hints: PreppedHint[] }>("/api/stock-counts", "prepped", countId);
   return r.ok ? r.hints : null;
+}
+
+const TH_MONTHS = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+const thDate = (isoDay: string) => {
+  const [y, m, d] = isoDay.split("-").map(Number);
+  return `${d} ${TH_MONTHS[m - 1]} ${String((y + 543) % 100).padStart(2, "0")}`;
+};
+const dayBefore = (isoDay: string) => new Date(Date.parse(`${isoDay}T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10);
+
+/**
+ * Kong 2026-10-31: a count closed before the sales it stands on were deducted
+ * reads the unsold-yet-not-deducted stock as gone, and the next count finds it
+ * again as a gain. Said before closing, never refused — the shop may simply
+ * not have sold on those days.
+ */
+function SalesReadiness({ countId }: { countId: string }) {
+  const [r, setR] = useState<CountSalesReadiness | null>(null);
+  useEffect(() => {
+    let on = true;
+    void readApi<{ ok: true; readiness: CountSalesReadiness | null }>("/api/stock-counts", "sales", countId).then((res) => {
+      if (on && res.ok) setR(res.readiness);
+    });
+    return () => {
+      on = false;
+    };
+  }, [countId]);
+  if (!r || !r.usesDeduction) return null;
+  const yesterday = dayBefore(r.countDate);
+  const behind = r.lastSalesDate !== null && r.lastSalesDate < yesterday;
+  if (!behind && r.unposted.length === 0) return null;
+  return (
+    <div className="space-y-1 rounded-xl border border-warn-border bg-warn-bg p-3 text-sm text-warn">
+      {behind && (
+        <p>
+          ยอดขายของสาขานี้นำเข้าถึง <strong>{thDate(r.lastSalesDate!)}</strong> · ใบนับนี้วันที่ {thDate(r.countDate)} — ถ้าร้านขายของหลังวันนั้น
+          ของที่ขายไปยังไม่ถูกตัด ส่วนต่างในใบนี้จะรวมของที่ขายไปแล้ว และใบนับครั้งถัดไปจะเห็นเป็นของเกินเท่ากัน
+        </p>
+      )}
+      {r.unposted.length > 0 && (
+        <p>
+          ยอดขาย <strong>{r.unposted.length} วัน</strong>นำเข้าแล้วแต่ยังไม่ได้ตัดสต๊อก ({r.unposted.slice(0, 3).map(thDate).join(" · ")}
+          {r.unposted.length > 3 ? " …" : ""})
+        </p>
+      )}
+      <p className="text-xs">
+        ปิดต่อได้ตามปกติ ·{" "}
+        <a href="/sales/import" className="font-semibold underline">
+          นำเข้ายอดขาย
+        </a>{" "}
+        ·{" "}
+        <a href="/consumption" className="font-semibold underline">
+          ตัดสต๊อกตามยอดขาย
+        </a>
+      </p>
+    </div>
+  );
 }
 
 export default function CountSheet({
@@ -718,6 +775,7 @@ export default function CountSheet({
                 </button>
               </div>
             )}
+            <SalesReadiness countId={detail.id} />
             {opening && costByProduct && <OpeningPrices countId={detail.id} onChange={setPrices} />}
             <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
               <li>{opening ? "ปิดแล้วระบบบันทึกยอดยกมาพร้อมราคาเข้าคลังทันที และแก้ใบนี้ไม่ได้อีก" : "ปิดแล้วระบบบันทึกส่วนต่างเข้าคลังทันที และแก้ใบนี้ไม่ได้อีก"}</li>

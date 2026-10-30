@@ -448,7 +448,7 @@ function Trust({ c }: { c: LeakCount }) {
   const t = c.trust;
   const chips: [tone: "ok" | "warn", label: string, value: React.ReactNode][] = [
     [t.counted >= t.stocked ? "ok" : "warn", "นับ", `${t.counted} จาก ${t.stocked} รายการที่มีในสต๊อกก่อนวันนับ`],
-    [t.salesDays === 0 || t.postedDays >= t.salesDays ? "ok" : "warn", "ตัดสต๊อกก่อนนับ", t.salesDays === 0 ? "ไม่มียอดขายในช่วงนี้" : `${t.postedDays} จาก ${t.salesDays} วันที่มียอดขาย`],
+    [t.salesDays === 0 || t.postedDays >= t.salesDays ? "ok" : "warn", "ตัดสต๊อกก่อนนับ", t.salesDays === 0 ? "ไม่มียอดขายก่อนวันนับ" : `${t.postedDays} จาก ${t.salesDays} วันที่มียอดขายก่อนวันนับ`],
     [
       t.noRecipe.count === 0 ? "ok" : "warn",
       "เมนูขายแต่ไม่มีสูตร",
@@ -475,12 +475,16 @@ function Trust({ c }: { c: LeakCount }) {
       ))}
       {t.postedDays < t.salesDays && (
         <p className="w-full text-xs text-muted-foreground">
-          วันที่ยังไม่ได้ตัดสต๊อก ของที่ขายไปแล้วยังไม่ถูกหัก จึงดูเหมือนหาย ·{" "}
-          <a href="/consumption" className="text-primary hover:underline">
-            ไปตัดสต๊อก ›
+          วันที่ยังไม่ได้ตัดสต๊อกตอนปิดใบนับ ของที่ขายไปแล้วยังไม่ถูกหัก จึงดูเหมือนหาย และใบนับครั้งถัดไปจะเห็นเป็นของเกินเท่ากัน ·{" "}
+          <a href={`/consumption?branch=${c.branchId}`} className="text-primary hover:underline">
+            ดูหน้าตัดสต๊อกตามยอดขาย ›
           </a>
         </p>
       )}
+      {/* Kong 2026-10-31: the same count, read as "did the recipes match the shelf". */}
+      <a href={`/consumption?branch=${c.branchId}&count=${c.id}#accuracy`} className="w-full text-xs text-primary hover:underline">
+        ระบบตัดตามสูตรเทียบกับที่ใช้จริง ในใบนับนี้ ›
+      </a>
     </div>
   );
 }

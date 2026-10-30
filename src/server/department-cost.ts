@@ -103,6 +103,30 @@ async function resolutionBoundaries(
   return out.sort((a, b) => a.getTime() - b.getTime());
 }
 
+/**
+ * The period cut at every date on which recipe resolution could change, so
+ * each segment explodes against ONE resolution. Shared with the deduction
+ * accuracy breakdown (2026-10-31), which must name the same menus posting did.
+ */
+export async function periodSegments(
+  tx: PrismaClient,
+  tenantId: string,
+  from: Date,
+  to: Date
+): Promise<{ start: Date; end: Date }[]> {
+  const boundaries = await resolutionBoundaries(tx, tenantId, from, to);
+  const segments: { start: Date; end: Date }[] = [];
+  let cursor = from;
+  for (const b of boundaries) {
+    if (b.getTime() > cursor.getTime()) {
+      segments.push({ start: cursor, end: addDays(b, -1) });
+    }
+    cursor = b;
+  }
+  segments.push({ start: cursor, end: to });
+  return segments;
+}
+
 export async function departmentDemandForPeriodLogic(
   tx: PrismaClient,
   tenantId: string,
@@ -130,17 +154,7 @@ export async function departmentDemandForPeriodLogic(
 ): Promise<PeriodDemandResult> {
   const { branchId, from, to, cancelledSalePolicy, onlyDates } = params;
 
-  const boundaries = await resolutionBoundaries(tx, tenantId, from, to);
-
-  const segments: { start: Date; end: Date }[] = [];
-  let cursor = from;
-  for (const b of boundaries) {
-    if (b.getTime() > cursor.getTime()) {
-      segments.push({ start: cursor, end: addDays(b, -1) });
-    }
-    cursor = b;
-  }
-  segments.push({ start: cursor, end: to });
+  const segments = await periodSegments(tx, tenantId, from, to);
 
   const demand: PeriodDemand = new Map();
   // A SET: a menu with no recipe is skipped once per segment, and the page

@@ -11,6 +11,8 @@ import { Portal, useTopLayer } from "@/app/(app)/menus/_components/sheet-parts";
 import { orStale } from "@/lib/stale-tab";
 import { shortDate } from "@/lib/advance-labels";
 import type { ShopDetail, ShopRow } from "@/server/platform";
+import type { ShopAccuracy } from "@/server/deduction-accuracy";
+import { readApi } from "@/lib/read-api";
 import { setShopPlanAction } from "../actions";
 
 const PLAN_LABEL: Record<string, string> = { trial: "ทดลองใช้", standard: "มาตรฐาน" };
@@ -45,6 +47,18 @@ export default function ShopsTable({ shops, today }: { shops: ShopRow[]; today: 
   const [q, setQ] = useState("");
   const [toast, setToast] = useState<string | null>(null);
   const [, startRefresh] = useTransition();
+  // Each shop's figure is a FIFO replay, so the table paints first and the
+  // column fills in after (mise-ui-review §5c). undefined = still counting.
+  const [accuracy, setAccuracy] = useState<Record<string, ShopAccuracy | null> | undefined>(undefined);
+  useEffect(() => {
+    let on = true;
+    void readApi<{ ok: true; shops: Record<string, ShopAccuracy | null> }>("/api/platform", "accuracy").then((r) => {
+      if (on) setAccuracy(r.ok ? r.shops : {});
+    });
+    return () => {
+      on = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!toast) return;
@@ -86,13 +100,14 @@ export default function ShopsTable({ shops, today }: { shops: ShopRow[]; today: 
       <input className="input w-full max-w-sm" placeholder="ค้นหาชื่อร้านหรืออีเมลเจ้าของ" value={q} onChange={(e) => setQ(e.target.value)} />
 
       <div className="overflow-x-auto rounded-2xl border border-border bg-surface">
-        <table className="data-table w-full min-w-[820px]">
+        <table className="data-table w-full min-w-[920px]">
           <thead>
             <tr>
               <th>ร้าน</th>
               <th>เจ้าของ</th>
               <th className="text-right">สาขา · คน</th>
               <th>ใช้งานล่าสุด</th>
+              <th title="ระบบตัดตามสูตร เทียบกับที่ใช้จริงตามการนับครั้งล่าสุดที่เทียบได้">ตัดสต๊อกเทียบการนับ</th>
               <th>แพ็กเกจ</th>
               <th>ใช้ฟรีถึง</th>
               <th></th>
@@ -112,6 +127,9 @@ export default function ShopsTable({ shops, today }: { shops: ShopRow[]; today: 
                     {s.branches} · {s.members}
                   </td>
                   <td className="text-sm">{s.lastActivity ? `${shortDate(day(s.lastActivity))} (${daysBetween(day(s.lastActivity), today) === 0 ? "วันนี้" : `${daysBetween(day(s.lastActivity), today)} วันก่อน`})` : "ยังไม่ได้ใช้"}</td>
+                  <td className="text-sm">
+                    <AccuracyCell a={accuracy === undefined ? undefined : accuracy[s.id] ?? null} />
+                  </td>
                   <td>
                     <span className={s.plan === "standard" ? "chip chip-good" : "chip"}>{PLAN_LABEL[s.plan] ?? s.plan}</span>
                     {s.planNote && <span className="block max-w-[14rem] truncate text-xs text-muted-subtle" title={s.planNote}>{s.planNote}</span>}
@@ -134,7 +152,7 @@ export default function ShopsTable({ shops, today }: { shops: ShopRow[]; today: 
             })}
             {shown.length === 0 && (
               <tr>
-                <td colSpan={7} className="py-8 text-center text-sm text-muted-foreground">
+                <td colSpan={8} className="py-8 text-center text-sm text-muted-foreground">
                   ไม่พบร้าน
                 </td>
               </tr>
@@ -164,6 +182,19 @@ export default function ShopsTable({ shops, today }: { shops: ShopRow[]; today: 
         </Portal>
       )}
     </div>
+  );
+}
+
+function AccuracyCell({ a }: { a: ShopAccuracy | null | undefined }) {
+  if (a === undefined) return <span className="text-xs text-muted-subtle">กำลังคำนวณ…</span>;
+  if (a === null) return <span className="text-xs text-muted-subtle">ยังไม่มีการนับที่เทียบได้</span>;
+  return (
+    <span title={`ใบนับ ${fullDate(a.date)} · ${a.branchName} · ต่างไม่เกิน 2%: ${a.near} จาก ${a.measured} รายการ`}>
+      <b className="font-display font-semibold tabular-nums">{a.gapPct === null ? "—" : `${a.gapPct.toLocaleString("th-TH", { maximumFractionDigits: 1 })}%`}</b>
+      <span className="block text-xs text-muted-subtle">
+        {a.near}/{a.measured} รายการ · {shortDate(a.date)}
+      </span>
+    </span>
   );
 }
 

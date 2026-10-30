@@ -12,6 +12,9 @@
 // what=unpriced&q="countId" rule PG6: a CLOSED opening count's gains still
 //                          without a price, each with its first later
 //                          receipt's price. cost:view only, as above.
+// what=sales&q="countId"   2026-10-31: the last day sales came in and the days
+//                          imported but not deducted, for the close sheet's
+//                          warning (src/server/deduction-accuracy.ts)
 // This was getCountSheetAction, handed to the sheet as a prop. A poll through
 // the Server Action queue waits behind — and holds up — the counter's own
 // saves on the same device; a GET runs beside them.
@@ -22,6 +25,7 @@ import { requireTenant } from "@/lib/require-tenant";
 import { guardRead, readInput } from "@/lib/read-api";
 import { getOpeningPricesLogic, getStockCountByIdLogic, getUnpricedOpeningLogic } from "@/server/stock-count";
 import { getCountPreppedHintsLogic } from "@/server/production-read";
+import { getCountSalesReadinessLogic } from "@/server/deduction-accuracy";
 import { toStockCountDetailView } from "@/app/(app)/stock-counts/_components/stock-count-view";
 
 export const dynamic = "force-dynamic";
@@ -34,12 +38,14 @@ export function GET(req: Request) {
     const url = new URL(req.url);
     const id = String(readInput(url) ?? "");
     const what = url.searchParams.get("what");
-    if ((what !== "sheet" && what !== "prepped" && what !== "opening" && what !== "unpriced") || !UUID.test(id)) return json({ ok: false, formError: "คำขอไม่ถูกต้อง" }, 400);
+    if ((what !== "sheet" && what !== "prepped" && what !== "opening" && what !== "unpriced" && what !== "sales") || !UUID.test(id)) return json({ ok: false, formError: "คำขอไม่ถูกต้อง" }, 400);
     const { tenantId, assertBranch, can } = await requireTenant("count:write");
     const count = await getStockCountByIdLogic(tenantId, id);
     if (!count) return json(what === "sheet" ? { ok: true, detail: null } : what === "opening" || what === "unpriced" ? { ok: true, lines: null } : { ok: true, hints: [] });
     assertBranch(count.branchId);
     if (what === "prepped") return json({ ok: true, hints: await getCountPreppedHintsLogic(tenantId, id) });
+    // Kong 2026-10-31: before closing, have the sales this count stands on been deducted?
+    if (what === "sales") return json({ ok: true, readiness: await getCountSalesReadinessLogic(tenantId, id) });
     if (what === "opening") return json({ ok: true, lines: can("cost:view") ? await getOpeningPricesLogic(tenantId, id) : null });
     if (what === "unpriced") return json({ ok: true, lines: can("cost:view") ? await getUnpricedOpeningLogic(tenantId, id) : null });
     return json({ ok: true, detail: toStockCountDetailView(count) });

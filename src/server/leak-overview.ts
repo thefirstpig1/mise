@@ -120,6 +120,7 @@ export async function getLeakOverviewLogic(tenantId: string, reach: BranchReach)
           scNumber: true,
           branchId: true,
           countDate: true,
+          closedAt: true,
           items: {
             where: { reversalOfItemId: null },
             select: { productId: true, qtyExpected: true, countedByName: true, countedByUser: { select: { name: true, email: true } } },
@@ -149,9 +150,12 @@ export async function getLeakOverviewLogic(tenantId: string, reach: BranchReach)
           where: { tenantId, supersededAt: null, branchId: { in: branchIds } },
           _sum: { netAmount: true, qty: true },
         }),
+        // Every run, voided ones included (2026-10-31): the chip asks whether a
+        // day had been deducted WHEN THE COUNT CLOSED, and a day posted before
+        // the count and re-posted after it was.
         tx.salesConsumptionRun.findMany({
-          where: { tenantId, branchId: { in: branchIds }, voidedAt: null },
-          select: { branchId: true, businessDate: true },
+          where: { tenantId, branchId: { in: branchIds } },
+          select: { branchId: true, businessDate: true, postedAt: true },
         }),
         tx.recipe.findMany({
           where: { tenantId, deletedAt: null, isDraft: false, supersededAt: null },
@@ -240,8 +244,16 @@ export async function getLeakOverviewLogic(tenantId: string, reach: BranchReach)
         // sales in the window: revenue, days, menus without a recipe
         const sales = revenueDays.filter((r) => r.branchId === c.branchId && inWindow(r.businessDate));
         const sinceRevenue = sales.reduce((s, r) => s + num(r._sum.netAmount), 0);
-        const salesDays = new Set(sales.map((r) => iso(r.businessDate)));
-        const postedDays = new Set(runs.filter((r) => r.branchId === c.branchId && inWindow(r.businessDate)).map((r) => iso(r.businessDate)));
+        // "ตัดสต๊อกก่อนนับ" — the days BEFORE the count date, deducted by the
+        // time the count closed. Not the count day: whether its sales came
+        // before or after the counting depends on when the shop counts.
+        // Counting runs that exist today said "posted" for a day imported a
+        // week after the count, which is exactly the case this chip is for.
+        const closedAt = (c.closedAt ?? new Date()).getTime();
+        const salesDays = new Set(sales.filter((r) => r.businessDate.getTime() < hi).map((r) => iso(r.businessDate)));
+        const postedDays = new Set(
+          runs.filter((r) => r.branchId === c.branchId && inWindow(r.businessDate) && r.postedAt.getTime() <= closedAt).map((r) => iso(r.businessDate))
+        );
         const noRecipe = new Map<string, { qty: number; revenue: number }>();
         for (const r of sales) {
           if (!r.menuId || menusWithRecipe.has(r.menuId)) continue;

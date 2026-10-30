@@ -14,6 +14,7 @@
 import { Prisma } from "@prisma/client";
 import { prismaBypass } from "@/lib/db-admin";
 import type { PlatformActor } from "@/lib/platform-admin";
+import { getShopAccuracySnapshotLogic, type ShopAccuracy } from "@/server/deduction-accuracy";
 
 export const PLANS = { trial: "ทดลองใช้", standard: "มาตรฐาน" } as const;
 export type PlanCode = keyof typeof PLANS;
@@ -70,6 +71,31 @@ export async function listShopsLogic(_actor: PlatformActor): Promise<ShopRow[]> 
     freeUntil: ymd(t.planFreeUntil),
     planNote: t.planNote,
   }));
+}
+
+/**
+ * Kong 2026-10-31 (accuracy mockup, question 2): one number per shop — how far
+ * its latest comparable count was from what the recipes deducted. Read inside
+ * each shop's own tenant context (RLS applies as for the shop itself); no
+ * product, no money leaves it. A few shops at a time: each is a FIFO replay.
+ */
+export async function listShopAccuracyLogic(_actor: PlatformActor): Promise<Record<string, ShopAccuracy | null>> {
+  const tenants = await prismaBypass.tenant.findMany({ where: { deletedAt: null }, select: { id: true } });
+  const out: Record<string, ShopAccuracy | null> = {};
+  const queue = tenants.map((t) => t.id);
+  await Promise.all(
+    Array.from({ length: Math.min(3, queue.length) }, async () => {
+      for (let id = queue.shift(); id !== undefined; id = queue.shift()) {
+        try {
+          out[id] = await getShopAccuracySnapshotLogic(id);
+        } catch (e) {
+          console.error(`[platform] accuracy for ${id} failed`, e);
+          out[id] = null;
+        }
+      }
+    })
+  );
+  return out;
 }
 
 export type ShopDetail = {
