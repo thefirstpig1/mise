@@ -26,7 +26,7 @@ import { assertRefBelongsToTenant } from "@/server/product";
 import { acquireCounterLock } from "@/server/counter-lock";
 import { createStockMovementLogic, occurredAtFilter, toBaseQty } from "@/server/stock-movement";
 import { countWindows } from "@/lib/gross-profit-blocker";
-import { getProductCostsLogic } from "@/server/stock-cost";
+import { getProductCostsLogic, layerValueOf } from "@/server/stock-cost";
 import { getProductCostsQuerySchema } from "@/lib/validations/stock-cost";
 import type { CostAccess } from "@/lib/permissions/cost-access";
 import { branchScopeWhere, type BranchReach } from "@/lib/permissions/service";
@@ -1117,3 +1117,198 @@ const compareRank = (a: number[], b: number[]) => {
   for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return a[i] - b[i];
   return 0;
 };
+
+// ------------------------------------------------------------
+// Rule PG6 — opening stock still unpriced takes its first receipt's price
+// ------------------------------------------------------------
+// A shop that closes its opening count without a price for something leaves
+// that stock at "ยังไม่มีราคา", and no later bill reaches back to price it —
+// cost only ever uses what happened BEFORE (ADR 0014). Once the thing is
+// received for the first time after the count, its price is the best evidence
+// of what the counted stock was worth, so the count offers it. Never silently:
+// the shop confirms each line (or all of them), may change the figure, and the
+// price is written as the ordinary cost declaration on the opening gain
+// (ADR 0014 Q6) — the same statement a person can make by hand on /cost.
+// Kong 2026-10-30, "อนุมัติการเพิ่มกฎคำนวณ".
+
+export type UnpricedOpeningLine = {
+  /** The opening gain this price would be declared on. */
+  movementId: string;
+  productId: string;
+  productName: string;
+  /** What entered stock, in base units. */
+  qty: string;
+  baseUnitName: string;
+  units: { id: string; unitName: string; toBaseRatio: string }[];
+  /** The first receipt at this branch after the count began, priced as the ledger prices it; null when none yet. */
+  suggestion: {
+    unitId: string;
+    unitName: string;
+    /** Per `unitId`, VAT included when the shop could not reclaim it — what the receipt's layer costs. */
+    unitCost: string;
+    receivedAt: string;
+    grNumber: string;
+    supplierName: string;
+  } | null;
+};
+
+/**
+ * The opening gains of a CLOSED opening count that still have no price, each
+ * with what its first later receipt suggests. null when the count is not a
+ * closed opening count.
+ */
+export async function getUnpricedOpeningLogic(tenantId: string, countId: string): Promise<UnpricedOpeningLine[] | null> {
+  return withTenantContext(tenantId, async (tx) => {
+    const count = await tx.stockCount.findFirst({
+      where: { id: countId, tenantId, deletedAt: null },
+      include: { items: { where: { reversalOfItemId: null }, select: { id: true, countedAt: true } } },
+    });
+    if (!count || count.status !== "CLOSED") return null;
+    if (!(await isOpeningCountInTx(tx, tenantId, count))) return null;
+    const itemIds = count.items.map((i) => i.id);
+    if (itemIds.length === 0) return [];
+
+    const gains = await tx.stockMovement.findMany({
+      where: { tenantId, sourceType: "STOCK_COUNT", sourceId: { in: itemIds }, type: "ADJUST_GAIN" },
+      select: {
+        id: true,
+        productId: true,
+        qty: true,
+        product: {
+          select: { name: true, productUnits: { select: { id: true, unitName: true, toBaseRatio: true, isBase: true }, orderBy: { toBaseRatio: "asc" } } },
+        },
+      },
+    });
+    const priced = new Set(
+      (await tx.stockCostDeclaration.findMany({ where: { tenantId, movementId: { in: gains.map((g) => g.id) }, supersededAt: null }, select: { movementId: true } })).map(
+        (d) => d.movementId
+      )
+    );
+    const unpriced = gains.filter((g) => !priced.has(g.id));
+    if (unpriced.length === 0) return [];
+
+    // "After the count" is after counting began — a delivery that morning,
+    // before anyone counted, is already in what the count found.
+    const began = count.items.reduce((min, i) => (i.countedAt < min ? i.countedAt : min), count.items[0].countedAt);
+    const receipts = await tx.goodsReceiptItem.findMany({
+      where: {
+        tenantId,
+        productId: { in: unpriced.map((g) => g.productId) },
+        reversalOfItemId: null,
+        qtyReceivedActual: { gt: 0 },
+        goodsReceipt: { branchId: count.branchId, status: "CONFIRMED", voidedAt: null, deletedAt: null, receivedAt: { gte: began } },
+      },
+      select: {
+        productId: true,
+        qtyReceivedActual: true,
+        receivedUnitId: true,
+        receivedUnitName: true,
+        lineTotalActual: true,
+        lineTotalQuoted: true,
+        goodsReceipt: {
+          select: { grNumber: true, receivedAt: true, vatRatePercent: true, vatReclaimable: true, pricesIncludeVat: true, supplier: { select: { nameFull: true } } },
+        },
+      },
+      orderBy: [{ goodsReceipt: { receivedAt: "asc" } }, { lineNo: "asc" }],
+    });
+    const first = new Map<string, (typeof receipts)[number]>();
+    for (const r of receipts) if (!first.has(r.productId)) first.set(r.productId, r);
+
+    return unpriced
+      .map((g): UnpricedOpeningLine => {
+        const base = g.product.productUnits.find((u) => u.isBase);
+        const r = first.get(g.productId);
+        return {
+          movementId: g.id,
+          productId: g.productId,
+          productName: g.product.name,
+          qty: g.qty.toString(),
+          baseUnitName: base?.unitName ?? "",
+          units: g.product.productUnits.map((u) => ({ id: u.id, unitName: u.unitName, toBaseRatio: u.toBaseRatio.toString() })),
+          suggestion: r
+            ? {
+                unitId: r.receivedUnitId,
+                unitName: r.receivedUnitName,
+                unitCost: layerValueOf(r).div(r.qtyReceivedActual).toDecimalPlaces(2).toString(),
+                receivedAt: r.goodsReceipt.receivedAt.toISOString(),
+                grNumber: r.goodsReceipt.grNumber,
+                supplierName: r.goodsReceipt.supplier.nameFull,
+              }
+            : null,
+        };
+      })
+      .sort((a, b) => a.productName.localeCompare(b.productName, "th"));
+  });
+}
+
+export class OpeningPriceTargetError extends Error {
+  constructor(public readonly movementId: string) {
+    super(`Movement "${movementId}" is not an opening gain of this count`);
+    this.name = "OpeningPriceTargetError";
+  }
+}
+
+/**
+ * Declare the prices the shop confirmed, all in one transaction. Each movement
+ * must be an opening gain of THIS count — the page's list is a convenience, the
+ * check is here.
+ */
+export async function declareOpeningPricesLogic(
+  tenantId: string,
+  input: { countId: string; lines: { movementId: string; unitId: string; unitCost: number; note: string }[] },
+  declaredBy: string
+): Promise<number> {
+  return withTenantContext(
+    tenantId,
+    async (tx) => {
+      const count = await tx.stockCount.findFirst({
+        where: { id: input.countId, tenantId, deletedAt: null },
+        include: { items: { where: { reversalOfItemId: null }, select: { id: true } } },
+      });
+      if (!count || count.status !== "CLOSED" || !(await isOpeningCountInTx(tx, tenantId, count))) throw new OpeningPriceTargetError(input.lines[0]?.movementId ?? "");
+      const gains = await tx.stockMovement.findMany({
+        where: { tenantId, sourceType: "STOCK_COUNT", sourceId: { in: count.items.map((i) => i.id) }, type: "ADJUST_GAIN", id: { in: input.lines.map((l) => l.movementId) } },
+        select: { id: true, productId: true, type: true },
+      });
+      const byId = new Map(gains.map((g) => [g.id, g]));
+      for (const l of input.lines) {
+        const g = byId.get(l.movementId);
+        if (!g) throw new OpeningPriceTargetError(l.movementId);
+        await writeCostDeclaration(tx, {
+          tenantId,
+          movementId: g.id,
+          productId: g.productId,
+          movementType: g.type,
+          body: { unitCost: l.unitCost, unitId: l.unitId, note: l.note },
+          declaredBy,
+        });
+      }
+      return input.lines.length;
+    },
+    { timeout: 30_000 }
+  );
+}
+
+/**
+ * Rule PG6 on the dashboard: each branch whose opening count has unpriced
+ * stock that a receipt can now price. Asked through `getUnpricedOpeningLogic`
+ * so the strip and the count page can never disagree about what is waiting.
+ */
+export async function openingPricesWaitingLogic(
+  tenantId: string,
+  reach: BranchReach
+): Promise<{ countId: string; branchName: string; ready: number }[]> {
+  // A branch's earliest closed count is its opening count (rule PG4).
+  const counts = await withTenantContext(tenantId, (tx) =>
+    tx.stockCount.findMany({
+      where: { tenantId, status: "CLOSED", deletedAt: null, branch: branchScopeWhere(reach) },
+      orderBy: { closedAt: "asc" },
+      distinct: ["branchId"],
+      select: { id: true, branch: { select: { name: true } } },
+    })
+  );
+  const waiting = await Promise.all(
+    counts.map(async (c) => ({ countId: c.id, branchName: c.branch.name, ready: ((await getUnpricedOpeningLogic(tenantId, c.id)) ?? []).filter((l) => l.suggestion !== null).length }))
+  );
+  return waiting.filter((w) => w.ready > 0);
+}

@@ -8,7 +8,7 @@ import { getBranchesLogic } from "@/server/branch";
 import { getPnlLogic, getRevenueByDayLogic, narrowReach, type Pnl, type PnlBranchRow } from "@/server/pnl";
 import { latestCountedMonthLogic } from "@/server/stock-cost";
 import { getDueRecurringLogic } from "@/server/expense";
-import { monthEndCountDueLogic } from "@/server/stock-count";
+import { monthEndCountDueLogic, openingPricesWaitingLogic } from "@/server/stock-count";
 import { getSalesSummaryLogic } from "@/server/sales";
 import { getPriceWatchLogic } from "@/server/price-watch";
 import { LABOR_SECTIONS } from "@/server/cost-overview";
@@ -208,7 +208,7 @@ async function TodayStrip({
   monthCount: boolean;
 }) {
   const today = computeBangkokToday();
-  const [transfers, pulseRaw, requests, closeStatus, onboarding, draftCount, overdue, countDue] = await Promise.all([
+  const [transfers, pulseRaw, requests, closeStatus, onboarding, draftCount, overdue, countDue, openingWaiting] = await Promise.all([
     // Part 18 Q8: any truck still unconfirmed, whatever the chips say.
     getTransfersLogic(tenantId, getTransfersQuerySchema.parse({ status: "SENT", includeReversalLines: "false" }), reach),
     pulse ? getPulseDashboardLogic(tenantId, reach) : Promise.resolve(null),
@@ -220,9 +220,22 @@ async function TodayStrip({
     // C2: every recurring bill already due and not recorded, up to today.
     expenses ? missingRecurring(tenantId, { from: new Date(Date.UTC(2000, 0, 1)), to: today }, expenses) : Promise.resolve([]),
     monthCount ? monthEndCountDueLogic(tenantId, reach, today) : Promise.resolve(null),
+    // Rule PG6: opening stock a receipt can now price — prices are cost, so cost:view.
+    costAccess ? openingPricesWaitingLogic(tenantId, reach).catch(() => []) : Promise.resolve([]),
   ]);
 
   const items: StripItem[] = [];
+  if (openingWaiting.length > 0) {
+    const ready = openingWaiting.reduce((s, w) => s + w.ready, 0);
+    items.push({
+      key: "opening-prices",
+      n: String(ready),
+      label: "ราคาสต๊อกยกมารอยืนยัน",
+      detail: `${openingWaiting.length > 1 ? `${openingWaiting.map((w) => short(w.branchName)).join(" · ")} — ` : ""}รับของแล้ว ใช้ราคาจากใบรับของได้`,
+      href: `/stock-counts/${openingWaiting[0].countId}`,
+      tone: "soft",
+    });
+  }
   if (countDue) {
     // Rule PG2: without tonight's count the month's gross profit stays "—".
     const tonight = countDue.lastDay.getTime() === today.getTime();

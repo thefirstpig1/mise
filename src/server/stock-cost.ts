@@ -65,7 +65,7 @@ const money = (d: Prisma.Decimal) =>
  * before Part 16 carry no rate and are returned unchanged, which is exactly the
  * old behaviour: **no backfill, no migration of history.**
  */
-const layerValueOf = (item: {
+export const layerValueOf = (item: {
   lineTotalActual: Prisma.Decimal;
   lineTotalQuoted: Prisma.Decimal | null;
   goodsReceipt: { vatRatePercent: Prisma.Decimal | null; vatReclaimable: boolean; pricesIncludeVat: boolean };

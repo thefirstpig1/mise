@@ -20,7 +20,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import type { ZodError } from "zod";
+import { z, type ZodError } from "zod";
 import { requireTenant } from "@/lib/require-tenant";
 import {
   closeStockCountInputSchema,
@@ -32,7 +32,9 @@ import {
 } from "@/lib/validations/stock-count";
 import {
   closeStockCountLogic,
+  declareOpeningPricesLogic,
   getOpeningPricesLogic,
+  OpeningPriceTargetError,
   CountLineTakenError,
   CountUnitMismatchError,
   deleteStockCountContributionLogic,
@@ -52,6 +54,8 @@ import {
   type CountActor,
 } from "@/server/stock-count";
 import { CrossTenantReferenceError } from "@/server/product";
+import { CostUnitMismatchError } from "@/server/cost-declaration";
+import { declareStockCostInputSchema } from "@/lib/validations/stock-cost";
 import {
   toStockCountDetailView,
   type StockCountDetailView,
@@ -343,5 +347,43 @@ export async function discardStockCountAction(
     return { ok: true, countId: count.id };
   } catch (e) {
     return toFormError(e);
+  }
+}
+
+/**
+ * Rule PG6 (Kong 2026-10-30): the prices the shop confirmed for opening stock
+ * that was closed without one — usually the first receipt's, perhaps changed.
+ * Declaring a cost is the /cost page's own gate (cost:view); the count's branch
+ * must be in reach (rule A5).
+ */
+const openingPricesSchema = z.object({
+  countId: z.string().uuid(),
+  lines: z.array(declareStockCostInputSchema).min(1).max(500),
+});
+
+export async function declareOpeningPricesAction(input: unknown): Promise<{ ok: true; declared: number } | { ok: false; error: string }> {
+  const { tenantId, membership, assertBranch } = await requireTenant("cost:view");
+  const parsed = openingPricesSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "ราคาไม่ถูกต้อง" };
+  const count = await getStockCountByIdLogic(tenantId, parsed.data.countId);
+  if (!count) return { ok: false, error: "ไม่พบใบนับนี้" };
+  assertBranch(count.branchId);
+  try {
+    const declared = await declareOpeningPricesLogic(
+      tenantId,
+      { countId: parsed.data.countId, lines: parsed.data.lines.map((l) => ({ movementId: l.movementId, unitId: l.unitId, unitCost: l.unitCost, note: l.note ?? "" })) },
+      membership.userId
+    );
+    // Cost is derived on every read: a price changes every page that shows one.
+    revalidatePath(`/stock-counts/${parsed.data.countId}`);
+    revalidatePath("/cost");
+    revalidatePath("/stock");
+    revalidatePath("/dashboard");
+    return { ok: true, declared };
+  } catch (e) {
+    if (e instanceof OpeningPriceTargetError) return { ok: false, error: "รายการนี้ไม่ใช่ยอดยกมาของใบนับนี้ — กรุณารีเฟรชหน้า" };
+    if (e instanceof CostUnitMismatchError) return { ok: false, error: "หน่วยไม่ใช่หน่วยของสินค้านี้ — กรุณารีเฟรชหน้า" };
+    console.error("[stock-counts] declare opening prices failed", e);
+    return { ok: false, error: "บันทึกราคาไม่สำเร็จ ยังไม่มีอะไรเปลี่ยน — กรุณาลองใหม่" };
   }
 }

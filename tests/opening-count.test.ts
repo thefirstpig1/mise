@@ -15,12 +15,18 @@ import { createStockAdjustmentLogic } from "@/server/stock-movement";
 import { createStockAdjustmentInputSchema } from "@/lib/validations/stock-movement";
 import { closeStockCountInputSchema, openStockCountInputSchema, saveStockCountLineInputSchema } from "@/lib/validations/stock-count";
 import {
+  OpeningPriceTargetError,
   closeStockCountLogic,
+  declareOpeningPricesLogic,
   getOpeningPricesLogic,
+  getUnpricedOpeningLogic,
   isOpeningCountLogic,
   openStockCountLogic,
+  openingPricesWaitingLogic,
   saveStockCountLineLogic,
 } from "@/server/stock-count";
+import { goodsReceiptInputSchema } from "@/lib/validations/goods-receipt";
+import { confirmGoodsReceiptLogic, createGoodsReceiptLogic } from "@/server/goods-receipt";
 import { getProductCostsLogic } from "@/server/stock-cost";
 import { getProductCostsQuerySchema } from "@/lib/validations/stock-cost";
 import { sweepTestTenants } from "./support/sweep";
@@ -148,5 +154,83 @@ describe("rule PG4 — the opening count", () => {
     await count(sheet.id, pork, 5);
     const p = (await getOpeningPricesLogic(tenant, sheet.id))!.find((l) => l.productId === pork.id)!;
     expect(p).toMatchObject({ qty: "3", unitId: unit(pork, "kg"), unitCost: "180", source: "LEDGER" });
+  });
+
+  // ----------------------------------------------------------
+  // Rule PG6 — opening stock left unpriced takes its first receipt's price,
+  // when the shop says so (Kong 2026-10-30)
+  // ----------------------------------------------------------
+  const receive = async (branchId: string, p: ProductWithUnits, unitName: string, qty: number, price: number, receivedAt: Date) => {
+    // A receipt lands on a department (the default one).
+    if ((await prismaBypass.department.count({ where: { tenantId: tenant } })) === 0) {
+      await withRlsBypass((tx) => tx.department.create({ data: { tenantId: tenant, name: "ครัว", code: "MAIN" } }));
+    }
+    const supplierId = (await prismaBypass.supplier.findFirstOrThrow({ where: { tenantId: tenant } })).id;
+    const gr = await createGoodsReceiptLogic(
+      tenant,
+      goodsReceiptInputSchema.parse({
+        submitKey: randomUUID(),
+        branchId,
+        supplierId,
+        purchaseOrderId: null,
+        invoiceNo: null,
+        receivedAt,
+        notes: null,
+        lines: [{ purchaseOrderItemId: null, productId: p.id, receivedUnitId: unit(p, unitName), qtyReceivedActual: qty, unitPriceActual: price, notes: null }],
+      }),
+      user
+    );
+    await confirmGoodsReceiptLogic(tenant, gr.id, user);
+  };
+  const thonglorOpening = async () => (await prismaBypass.stockCount.findFirstOrThrow({ where: { tenantId: tenant, branchId: thonglor, status: "CLOSED" }, orderBy: { closedAt: "asc" } })).id;
+
+  it("PG6-1 opening stock left unpriced waits for its first receipt — not one from before the count, nor another branch's", async () => {
+    const opening = await thonglorOpening();
+    const before = (await getUnpricedOpeningLogic(tenant, opening))!;
+    // Salt was closed without a price in PG4-2; rice was priced.
+    expect(before.map((l) => [l.productId, l.qty, l.suggestion])).toEqual([[salt.id, "3", null]]);
+    expect(await openingPricesWaitingLogic(tenant, ALL)).toEqual([]);
+
+    await receive(thonglor, salt, "kg", 1, 99, new Date(Date.now() - 3 * 86_400_000)); // before the count
+    await receive(ari, salt, "kg", 1, 77, new Date(Date.now() - 2_000)); // another branch
+    await receive(thonglor, salt, "กระสอบ", 2, 500, new Date(Date.now() - 1_000)); // the first here after it
+    await receive(thonglor, salt, "kg", 1, 30, new Date()); // later still
+
+    const after = (await getUnpricedOpeningLogic(tenant, opening))!;
+    expect(after[0].suggestion).toMatchObject({ unitId: unit(salt, "กระสอบ"), unitName: "กระสอบ", unitCost: "500" });
+    expect(await openingPricesWaitingLogic(tenant, ALL)).toEqual([{ countId: opening, branchName: "ทองหล่อ", ready: 1 }]);
+    // A count that is not the opening one is not asked.
+    const second = (await prismaBypass.stockCount.findFirstOrThrow({ where: { tenantId: tenant, branchId: thonglor, status: "CLOSED", id: { not: opening } } })).id;
+    expect(await getUnpricedOpeningLogic(tenant, second)).toBeNull();
+  });
+
+  it("PG6-2 the confirmed price is declared on the opening gain — and only an opening gain of THAT count, all or nothing", async () => {
+    const opening = await thonglorOpening();
+    const [line] = (await getUnpricedOpeningLogic(tenant, opening))!;
+    // PG4-3's gain is a found-stock gain, not opening stock.
+    const notOpening = await prismaBypass.stockMovement.findFirstOrThrow({
+      where: { tenantId: tenant, productId: salt.id, branchId: thonglor, type: "ADJUST_GAIN", id: { not: line.movementId } },
+    });
+    await expect(
+      declareOpeningPricesLogic(
+        tenant,
+        {
+          countId: opening,
+          lines: [
+            { movementId: line.movementId, unitId: unit(salt, "กระสอบ"), unitCost: 500, note: "ยอดยกมา" },
+            { movementId: notOpening.id, unitId: unit(salt, "kg"), unitCost: 20, note: "ยอดยกมา" },
+          ],
+        },
+        user
+      )
+    ).rejects.toBeInstanceOf(OpeningPriceTargetError);
+    expect(await prismaBypass.stockCostDeclaration.count({ where: { tenantId: tenant, movement: { productId: salt.id } } })).toBe(0);
+
+    expect(await declareOpeningPricesLogic(tenant, { countId: opening, lines: [{ movementId: line.movementId, unitId: unit(salt, "กระสอบ"), unitCost: 500, note: "ยอดยกมา · ราคารับของครั้งแรก" }] }, user)).toBe(1);
+    const declared = await prismaBypass.stockCostDeclaration.findFirstOrThrow({ where: { tenantId: tenant, movementId: line.movementId, supersededAt: null } });
+    // ฿500 a 25 kg sack is ฿20 a kilo.
+    expect(declared.unitCost.toString()).toBe("20");
+    expect(await getUnpricedOpeningLogic(tenant, opening)).toEqual([]);
+    expect(await openingPricesWaitingLogic(tenant, ALL)).toEqual([]);
   });
 });

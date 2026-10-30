@@ -36,6 +36,7 @@ import { Portal, useTopLayer } from "@/app/(app)/menus/_components/sheet-parts";
 import type { PreppedHint } from "@/server/production-read";
 import { useKeepForm } from "@/lib/keep-form";
 import OpeningPrices, { type OpeningPrice } from "./OpeningPrices";
+import OpeningPricesLater from "./OpeningPricesLater";
 
 const POLL_MS = 5_000;
 const NO_CATEGORY = "ไม่มีหมวด";
@@ -504,6 +505,8 @@ export default function CountSheet({
           {detail.closedBy && ` โดย ${detail.closedBy}`} — {opening ? "ยอดยกมาถูกบันทึกเข้าคลังเรียบร้อย" : "ส่วนต่างถูกบันทึกเข้าคลังเรียบร้อย"}
         </div>
       )}
+      {/* Rule PG6: opening stock closed without a price, priced from its first receipt when the shop says so. */}
+      {detail.status === "CLOSED" && opening && costByProduct && <OpeningPricesLater countId={detail.id} />}
       {detail.status === "CLOSED" && preppedCounted > 0 && (
         <div className="rounded-lg border border-border bg-surface-sunk p-3 text-sm text-muted-foreground">
           ของแปรรูปที่นับได้เกินในใบนี้ถูกลงเป็นการผลิตแล้ว —{" "}
