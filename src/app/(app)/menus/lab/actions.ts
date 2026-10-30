@@ -36,14 +36,18 @@
 import { revalidatePath } from "next/cache";
 import type { ZodError } from "zod";
 import { requireTenant } from "@/lib/require-tenant";
+import { withTenantContext } from "@/lib/db";
+import { thDate } from "../_components/manager-format";
 import { ingredientRowsFromFormData } from "@/lib/validations/recipe";
 import {
   discardDraftInputSchema,
   draftRecipeInputSchema,
   publishDraftInputSchema,
+  publishDraftsInputSchema,
 } from "@/lib/validations/menu-lab";
 import {
   CannotEndorseOwnDraftError,
+  DraftBeforeLiveRecipeError,
   DraftReplacesLiveRecipeError,
   MenuCategoryNotFoundError,
   NotADraftError,
@@ -53,6 +57,7 @@ import {
   discardDraftLogic,
   endorseDraftLogic,
   publishDraftLogic,
+  publishDraftsLogic,
   submitDraftLogic,
   updateDraftLogic,
 } from "@/server/menu-lab";
@@ -188,6 +193,9 @@ function toFormError(e: unknown): {
         "เมนูนี้มีสูตรกลางใช้งานอยู่แล้ว — นำร่างนี้ไปใช้จริงจะใช้สูตรใหม่ตั้งแต่วันนี้ ส่วนยอดของวันก่อนหน้ายังคิดด้วยสูตรเดิม",
       needsAcknowledgement: { liveRecipeId: e.liveRecipeId },
     };
+  }
+  if (e instanceof DraftBeforeLiveRecipeError) {
+    return { formError: `เมนูนี้มีสูตรที่ใช้อยู่ตั้งแต่ ${thDate(e.liveFrom.toISOString().slice(0, 10))} — เลือกวันนั้นหรือหลังจากนั้น` };
   }
   if (e instanceof RecipeCycleError) return { formError: CYCLE_MESSAGE };
   if (e instanceof RecipeDepthExceededError) return { formError: DEPTH_MESSAGE };
@@ -339,6 +347,48 @@ export async function publishDraftAction(
   } catch (e) {
     return { ok: false, ...toFormError(e) };
   }
+}
+
+export type PublishDraftsState =
+  | {
+      ok: true;
+      results: { recipeId: string; menuName: string; outcome: "PUBLISHED" | "NEEDS_ACK" | "LIVE_IS_LATER" | "FAILED"; detail: string | null }[];
+      /** Days from the chosen date whose stock was already cut WITHOUT these recipes. */
+      postedDays: number;
+    }
+  | { ok: false; formError: string };
+
+/**
+ * Kong 2026-10-30: use several drafts at once, from a chosen day — the shop
+ * that imported a month of sales before its recipes wants them true from that
+ * month's first day. Same gate as publishing one.
+ */
+export async function publishDraftsAction(input: { recipeIds: string[]; effectiveFrom: string; acknowledgeReplace: boolean }): Promise<PublishDraftsState> {
+  const { tenantId, assertShared } = await requireTenant("recipe:write");
+  assertShared();
+  const parsed = publishDraftsInputSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, formError: parsed.error.issues[0]?.message ?? "ข้อมูลไม่ถูกต้อง" };
+  const out = await publishDraftsLogic(tenantId, parsed.data);
+  const posted = out.some((r) => r.outcome === "PUBLISHED")
+    ? await withTenantContext(tenantId, (tx) =>
+        tx.salesConsumptionRun.findMany({
+          where: { tenantId, voidedAt: null, businessDate: { gte: parsed.data.effectiveFrom } },
+          select: { businessDate: true },
+          distinct: ["businessDate"],
+        })
+      )
+    : [];
+  revalidateLabViews();
+  return {
+    ok: true,
+    postedDays: posted.length,
+    results: out.map((r) => ({
+      recipeId: r.recipeId,
+      menuName: r.menuName,
+      outcome: r.outcome,
+      detail: r.outcome === "LIVE_IS_LATER" ? r.liveFrom : r.outcome === "FAILED" ? (toFormError(r.error).formError ?? "นำไปใช้ไม่สำเร็จ") : null,
+    })),
+  };
 }
 
 /**

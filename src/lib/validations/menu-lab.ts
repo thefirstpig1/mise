@@ -18,9 +18,11 @@
 //   recipeCoverage which dishes have no recipe, ranked by revenue (Q5)
 //
 // What is NOT here, deliberately:
-//   - `effectiveFrom`. A draft is true on NO day; publishing stamps today. The
-//     form never asks, and a draft carrying a date would be a recipe that merely
-//     forgot to be resolved.
+//   - `effectiveFrom` on a DRAFT. A draft is true on no day, and a draft
+//     carrying a date would be a recipe that merely forgot to be resolved. The
+//     date belongs to PUBLISHING: today by default, or a past day within the
+//     ledger's window (Kong 2026-10-30 — a shop that imported a month of sales
+//     before its recipes wants them true from that month's first day).
 //   - `outputProductId`. Menu Lab designs DISHES. A production recipe for a
 //     PREPPED product is entered on the recipe screen, where ADR 0021 Q1's
 //     method exclusivity is already enforced.
@@ -38,6 +40,8 @@ import {
   recipeIngredientInputSchema,
 } from "@/lib/validations/recipe";
 import { MAX_MENU_NAME_LENGTH } from "@/lib/validations/sales-import";
+import { addDays, computeBangkokToday } from "@/lib/bangkok-date";
+import { MAX_BACKDATE_DAYS } from "@/lib/validations/stock-movement";
 
 /** Blank → null. Same helper as every other validations file. */
 const blankToNull = (v: unknown) =>
@@ -266,10 +270,28 @@ export type DraftRecipeInput = z.infer<typeof draftRecipeInputSchema>;
  * since a recipe that is already published has nothing left to change. Same
  * reasoning as `deleteRecipeInputSchema`.
  */
+/** A day a published recipe may start on: not the future, not past the ledger's window. */
+const publishDay = z.coerce
+  .date({ invalid_type_error: "วันที่มีผลไม่ถูกต้อง" })
+  .refine((d) => d.getTime() < addDays(computeBangkokToday(), 1).getTime(), { message: "วันที่มีผลต้องไม่เป็นอนาคต" })
+  .refine((d) => d.getTime() >= addDays(computeBangkokToday(), -MAX_BACKDATE_DAYS).getTime(), {
+    message: `ย้อนหลังได้ไม่เกิน ${MAX_BACKDATE_DAYS} วัน`,
+  });
+
 export const publishDraftInputSchema = z.object({
   recipeId: z.string().uuid("สูตรไม่ถูกต้อง"),
   acknowledgeReplace: z.preprocess(flagPreprocess, z.boolean()).default(false),
+  /** Omitted = today, as it always was. */
+  effectiveFrom: z.preprocess(blankToNull, publishDay.nullable()).default(null),
 });
+
+/** Several drafts at once, all from one day (Kong 2026-10-30). */
+export const publishDraftsInputSchema = z.object({
+  recipeIds: z.array(z.string().uuid("สูตรไม่ถูกต้อง")).min(1, "ยังไม่ได้เลือกร่าง").max(300),
+  effectiveFrom: publishDay,
+  acknowledgeReplace: z.boolean().default(false),
+});
+export type PublishDraftsInput = z.infer<typeof publishDraftsInputSchema>;
 
 export type PublishDraftInput = z.infer<typeof publishDraftInputSchema>;
 

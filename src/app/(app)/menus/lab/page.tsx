@@ -22,7 +22,8 @@ import { getLabDraftsLogic, getMenuPriceBookLogic } from "@/server/menu-manager"
 import { getMenuListFactsLogic, MENU_FACT_DAYS } from "@/server/menu-list-facts";
 import { getMenuCategoriesLogic } from "@/server/menu";
 import { getMergeOverviewLogic, likelyDuplicateOf } from "@/server/menu-merge-suggest";
-import { computeBangkokToday } from "@/lib/bangkok-date";
+import { addDays, computeBangkokToday } from "@/lib/bangkok-date";
+import { MAX_BACKDATE_DAYS } from "@/lib/validations/stock-movement";
 import LabManager, { type LabMenu } from "./_components/LabManager";
 
 export default async function MenuLabPage({
@@ -35,7 +36,7 @@ export default async function MenuLabPage({
   const params = await searchParams;
   const one = (k: string) => (Array.isArray(params[k]) ? params[k][0] : params[k]);
 
-  const [branches, freshest, drafts, facts, categories, menus, overview] = await Promise.all([
+  const [branches, freshest, drafts, facts, categories, menus, overview, firstSale] = await Promise.all([
     getBranchesLogic(tenantId, reach),
     freshestCostBranch(tenantId, reach).catch(() => null),
     getLabDraftsLogic(tenantId),
@@ -51,6 +52,8 @@ export default async function MenuLabPage({
     // Round 2, F (Kong 2026-10-29): a dish that is another branch's copy of one
     // WITH a recipe should be merged, not drafted a second recipe.
     getMergeOverviewLogic(tenantId).catch(() => null),
+    // The day imported recipes usually start from (Kong 2026-10-30).
+    withTenantContext(tenantId, (tx) => tx.salesDay.findFirst({ where: { tenantId }, orderBy: { businessDate: "asc" }, select: { businessDate: true } })),
   ]);
   const dupOf = overview ? likelyDuplicateOf(overview) : {};
 
@@ -86,6 +89,8 @@ export default async function MenuLabPage({
       defaultBranchId={bookBranch}
       initialBook={initialBook}
       today={computeBangkokToday().toISOString().slice(0, 10)}
+      firstSalesDay={firstSale ? firstSale.businessDate.toISOString().slice(0, 10) : null}
+      earliestDay={addDays(computeBangkokToday(), -MAX_BACKDATE_DAYS).toISOString().slice(0, 10)}
       costHidden={costAccess === null}
       canPublish={can("recipe:write") && canEditShared}
       canWrite={can("recipe:write")}

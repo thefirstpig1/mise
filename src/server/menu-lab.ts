@@ -58,6 +58,7 @@ import type {
   DiscardDraftInput,
   DraftRecipeInput,
   PublishDraftInput,
+  PublishDraftsInput,
 } from "@/lib/validations/menu-lab";
 
 // ------------------------------------------------------------
@@ -93,6 +94,20 @@ export class DraftReplacesLiveRecipeError extends Error {
       `Publishing draft "${draftId}" replaces live recipe "${liveRecipeId}"`
     );
     this.name = "DraftReplacesLiveRecipeError";
+  }
+}
+
+/**
+ * Publishing on a day BEFORE the dish's standing recipe began: the days between
+ * would read a version nobody wrote for them. Choose that day or a later one.
+ */
+export class DraftBeforeLiveRecipeError extends Error {
+  constructor(
+    public readonly draftId: string,
+    public readonly liveFrom: Date
+  ) {
+    super(`Draft "${draftId}" would start before the live recipe (from ${liveFrom.toISOString().slice(0, 10)})`);
+    this.name = "DraftBeforeLiveRecipeError";
   }
 }
 
@@ -344,7 +359,7 @@ export async function updateDraftLogic(
  */
 export async function publishDraftLogic(
   tenantId: string,
-  input: PublishDraftInput
+  input: Omit<PublishDraftInput, "effectiveFrom"> & { effectiveFrom?: Date | null }
 ): Promise<RecipeWithIngredients> {
   return withTenantContext(
     tenantId,
@@ -353,7 +368,8 @@ export async function publishDraftLogic(
       if (!draft.isDraft) return draft;
 
       const target = targetOf(draft);
-      const today = computeBangkokToday();
+      // Today unless the person chose a past day (validated against the ledger's window).
+      const from = input.effectiveFrom ?? computeBangkokToday();
 
       await assertWriteRefsValid(tx, tenantId, {
         menuId: draft.menuId,
@@ -378,12 +394,18 @@ export async function publishDraftLogic(
               select: { id: true, lineId: true, effectiveFrom: true },
             });
 
+      // A version cannot be slipped in BEFORE the one standing today: the days
+      // between would then read a recipe nobody wrote for them.
+      if (existing !== null && existing.effectiveFrom.getTime() > from.getTime()) {
+        throw new DraftBeforeLiveRecipeError(draft.id, existing.effectiveFrom);
+      }
+
       const published = await tx.recipe.update({
         where: { id: draft.id },
         data: {
           isDraft: false,
           draftStatus: null,
-          effectiveFrom: today,
+          effectiveFrom: from,
           ...(existing === null ? {} : { lineId: existing.lineId }),
         },
         include: DRAFT_INCLUDE,
@@ -391,7 +413,7 @@ export async function publishDraftLogic(
 
       if (
         existing !== null &&
-        existing.effectiveFrom.getTime() === today.getTime()
+        existing.effectiveFrom.getTime() === from.getTime()
       ) {
         await tx.recipe.update({
           where: { id: existing.id },
@@ -399,12 +421,55 @@ export async function publishDraftLogic(
         });
       }
 
-      await assertRecipeGraphValid(tx, tenantId, target, today);
+      await assertRecipeGraphValid(tx, tenantId, target, from);
 
       return published;
     },
     { timeout: RECIPE_WRITE_TIMEOUT_MS }
   );
+}
+
+/**
+ * Several drafts on one day (Kong 2026-10-30): the shop that imported its
+ * recipes wants them true from the first day of the sales it imported. Each
+ * draft publishes in its OWN transaction, exactly as one pressed alone would —
+ * one dish's refusal (a recipe it would replace, a graph problem) must not
+ * hold back the other forty — and the outcome of every one is reported.
+ */
+export type PublishOutcome =
+  | { recipeId: string; menuName: string; outcome: "PUBLISHED" | "NEEDS_ACK" }
+  | { recipeId: string; menuName: string; outcome: "LIVE_IS_LATER"; liveFrom: string }
+  | { recipeId: string; menuName: string; outcome: "FAILED"; error: unknown };
+
+const PUBLISH_PARALLEL = 4;
+
+export async function publishDraftsLogic(tenantId: string, input: PublishDraftsInput): Promise<PublishOutcome[]> {
+  const names = new Map(
+    (
+      await withTenantContext(tenantId, (tx) =>
+        tx.recipe.findMany({ where: { tenantId, id: { in: input.recipeIds } }, select: { id: true, menu: { select: { name: true } } } })
+      )
+    ).map((r) => [r.id, r.menu?.name ?? ""])
+  );
+  const out: PublishOutcome[] = new Array(input.recipeIds.length);
+  let next = 0;
+  async function worker() {
+    while (next < input.recipeIds.length) {
+      const i = next++;
+      const recipeId = input.recipeIds[i];
+      const menuName = names.get(recipeId) ?? "";
+      try {
+        await publishDraftLogic(tenantId, { recipeId, acknowledgeReplace: input.acknowledgeReplace, effectiveFrom: input.effectiveFrom });
+        out[i] = { recipeId, menuName, outcome: "PUBLISHED" };
+      } catch (e) {
+        if (e instanceof DraftReplacesLiveRecipeError) out[i] = { recipeId, menuName, outcome: "NEEDS_ACK" };
+        else if (e instanceof DraftBeforeLiveRecipeError) out[i] = { recipeId, menuName, outcome: "LIVE_IS_LATER", liveFrom: e.liveFrom.toISOString().slice(0, 10) };
+        else out[i] = { recipeId, menuName, outcome: "FAILED", error: e };
+      }
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(PUBLISH_PARALLEL, input.recipeIds.length) }, worker));
+  return out;
 }
 
 // ------------------------------------------------------------

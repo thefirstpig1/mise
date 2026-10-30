@@ -9,7 +9,7 @@
 // Money comes from the default branch's price book, which the SERVER starts
 // with the page (`initialBook`) — never ฿0 while it comes.
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
 import type { IngredientOption, LabDraft, PriceBook, StandardUnit } from "@/server/menu-manager";
@@ -19,6 +19,8 @@ import { atLeastTh, baht, thDate } from "../../_components/manager-format";
 import { CostMix, lineCost } from "../../_components/recipe-editor";
 import { PhotoSlot, Portal } from "../../_components/sheet-parts";
 import LabSheet, { readTarget } from "./LabSheet";
+import { orStale } from "@/lib/stale-tab";
+import { publishDraftsAction, type PublishDraftsState } from "../actions";
 
 export type LabMenu = {
   id: string;
@@ -71,8 +73,18 @@ export default function LabManager(props: {
   openMenuId: string | null;
   /** With `openMenuId`: the target that sheet was holding the dish to. */
   openTargetPct: number | null;
+  /** The first day of sales the shop imported — the day imported recipes usually start. */
+  firstSalesDay: string | null;
+  /** The oldest day a recipe may start (the ledger's backdate window). */
+  earliestDay: string;
 }) {
-  const { drafts, costHidden } = props;
+  const { costHidden } = props;
+  // Drafts published from this screen leave the list at once — not when the
+  // page's refresh happens to land (a second press, the replace confirmation,
+  // was seen to leave its dish on screen until a reload).
+  const [gone, setGone] = useState<Set<string>>(new Set());
+  // Memoised: effects below key on `drafts`, and a fresh array every render loops them.
+  const drafts = useMemo(() => props.drafts.filter((d) => !gone.has(d.recipeId)), [props.drafts, gone]);
   const router = useRouter();
   const [open, setOpen] = useState<{ id: string | null; n: number; menuId?: string } | null>(
     props.openDraftId && drafts.some((d) => d.recipeId === props.openDraftId)
@@ -162,6 +174,39 @@ export default function LabManager(props: {
 
   const waiting = drafts.filter((d) => waitsFor(d, props)).length;
 
+  // ---- use several drafts at once, from a chosen day (Kong 2026-10-30) ----
+  const [picking, setPicking] = useState(false);
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [fromDay, setFromDay] = useState(props.today);
+  const [publishing, setPublishing] = useState(false);
+  const [published, setPublished] = useState<Extract<PublishDraftsState, { ok: true }> | null>(null);
+  const [publishError, setPublishError] = useState<string | null>(null);
+  const togglePick = (id: string) =>
+    setPicked((s) => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+  const publishPicked = async (ids: string[], acknowledgeReplace: boolean) => {
+    setPublishing(true);
+    setPublishError(null);
+    const res = await orStale(publishDraftsAction({ recipeIds: ids, effectiveFrom: fromDay, acknowledgeReplace }));
+    setPublishing(false);
+    if (!res.ok) return setPublishError(res.formError);
+    setPublished((prev) =>
+      // A second press (the replace confirmation) adds to what the first did.
+      prev && acknowledgeReplace
+        ? { ok: true, postedDays: Math.max(prev.postedDays, res.postedDays), results: [...prev.results.filter((r) => !ids.includes(r.recipeId)), ...res.results] }
+        : res
+    );
+    setGone((g) => new Set([...g, ...res.results.filter((r) => r.outcome === "PUBLISHED").map((r) => r.recipeId)]));
+    setPicked(new Set(res.results.filter((r) => r.outcome === "NEEDS_ACK").map((r) => r.recipeId)));
+    if (!res.results.some((r) => r.outcome === "NEEDS_ACK")) setPicking(false);
+    router.refresh();
+  };
+  const salesStart = props.firstSalesDay && props.firstSalesDay < props.today ? (props.firstSalesDay < props.earliestDay ? props.earliestDay : props.firstSalesDay) : null;
+
   // Each draft's target %, kept per viewer by the sheet; read after mount so
   // the server's first paint and the browser's agree.
   const [targets, setTargets] = useState<Record<string, number>>({});
@@ -224,11 +269,29 @@ export default function LabManager(props: {
         </a>
       </div>
 
+      {/* Outside the drafts list: when the last draft is used, the list goes and this stays. */}
+      {published && <PublishSummary state={published} fromDay={fromDay} />}
+
       {drafts.length > 0 && (
         <section className="space-y-2">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h3 className="font-semibold">ร่างที่กำลังคิด</h3>
-            {!costHidden && branchName && <span className="text-xs text-muted-subtle">ต้นทุนคิดที่{branchName} ณ วันนี้ · เปิดร่างเพื่อเปลี่ยนสาขา</span>}
+            <span className="flex flex-wrap items-baseline gap-3">
+              {!costHidden && branchName && <span className="text-xs text-muted-subtle">ต้นทุนคิดที่{branchName} ณ วันนี้ · เปิดร่างเพื่อเปลี่ยนสาขา</span>}
+              {props.canPublish && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPicking((v) => !v);
+                    setPicked(new Set());
+                    setPublished(null);
+                  }}
+                  className="btn-secondary btn-sm"
+                >
+                  {picking ? "ยกเลิกการเลือก" : "เลือกหลายร่างเพื่อนำไปใช้จริง"}
+                </button>
+              )}
+            </span>
           </div>
           <div className="space-y-2">
             {drafts.map((d) => {
@@ -251,12 +314,23 @@ export default function LabManager(props: {
                 // A div, not a <button>: the card holds blocks (the photo, the bar).
                 <div
                   key={d.recipeId}
-                  role="button"
+                  role={picking ? "checkbox" : "button"}
+                  aria-checked={picking ? picked.has(d.recipeId) : undefined}
                   tabIndex={0}
-                  onClick={() => openDraft(d.recipeId)}
-                  onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), openDraft(d.recipeId))}
-                  className="grid w-full cursor-pointer grid-cols-1 gap-4 rounded-2xl border border-border bg-surface p-3.5 text-left transition-all hover:border-border-strong hover:shadow-card sm:grid-cols-[112px_minmax(0,1fr)_220px] sm:items-center"
+                  onClick={() => (picking ? togglePick(d.recipeId) : openDraft(d.recipeId))}
+                  onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), picking ? togglePick(d.recipeId) : openDraft(d.recipeId))}
+                  className={`grid w-full cursor-pointer grid-cols-1 gap-4 rounded-2xl border bg-surface p-3.5 text-left transition-all hover:border-border-strong hover:shadow-card sm:items-center ${
+                    picking ? "sm:grid-cols-[28px_112px_minmax(0,1fr)_220px]" : "sm:grid-cols-[112px_minmax(0,1fr)_220px]"
+                  } ${picking && picked.has(d.recipeId) ? "border-primary ring-1 ring-primary" : "border-border"}`}
                 >
+                  {picking && (
+                    <span
+                      aria-hidden="true"
+                      className={`grid h-6 w-6 place-items-center rounded-md border text-sm font-bold ${picked.has(d.recipeId) ? "border-primary bg-primary text-primary-foreground" : "border-border-strong bg-surface"}`}
+                    >
+                      {picked.has(d.recipeId) ? "✓" : ""}
+                    </span>
+                  )}
                   <PhotoSlot label="รูปเมนู" className="hidden aspect-[4/3] w-[112px] sm:grid" />
                   <div className="min-w-0 space-y-2">
                     <span className="flex flex-wrap items-center gap-2">
@@ -308,6 +382,66 @@ export default function LabManager(props: {
               );
             })}
           </div>
+          {picking && (
+            <div className="sticky bottom-0 z-10 grid gap-2 rounded-2xl border border-border-strong bg-surface/95 p-3 shadow-card backdrop-blur">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <span className="flex flex-wrap items-center gap-2 text-sm">
+                  <b className="font-semibold">เลือก {picked.size} ร่าง</b>
+                  <button
+                    type="button"
+                    onClick={() => setPicked(picked.size === drafts.length ? new Set() : new Set(drafts.map((d) => d.recipeId)))}
+                    className="text-[13px] underline decoration-dotted underline-offset-4 hover:text-warn"
+                  >
+                    {picked.size === drafts.length ? "ไม่เลือกเลย" : "เลือกทั้งหมด"}
+                  </button>
+                </span>
+                <span className="flex flex-wrap items-center gap-2 text-sm">
+                  <label className="flex items-center gap-1.5">
+                    มีผลตั้งแต่
+                    <input
+                      type="date"
+                      value={fromDay}
+                      min={props.earliestDay}
+                      max={props.today}
+                      onChange={(e) => e.target.value && setFromDay(e.target.value)}
+                      className="input h-9 w-[150px] py-1"
+                    />
+                  </label>
+                  {salesStart && (
+                    <button type="button" onClick={() => setFromDay(salesStart)} className={`pill ${fromDay === salesStart ? "is-on" : ""}`}>
+                      {salesStart === props.firstSalesDay ? `วันแรกของยอดขาย (${thDate(salesStart)})` : `ย้อนได้สุด (${thDate(salesStart)})`}
+                    </button>
+                  )}
+                  <button type="button" onClick={() => setFromDay(props.today)} className={`pill ${fromDay === props.today ? "is-on" : ""}`}>
+                    วันนี้
+                  </button>
+                  <button type="button" className="btn btn-sm" disabled={publishing || picked.size === 0} onClick={() => publishPicked([...picked], false)}>
+                    {publishing ? "กำลังนำไปใช้…" : `นำไปใช้จริง ${picked.size} เมนู`}
+                  </button>
+                </span>
+              </div>
+              <p className="text-[12.5px] text-muted-foreground">
+                สูตรจะมีผลตั้งแต่วันที่เลือก ยอดขายก่อนหน้านั้นยังคิดด้วยสูตรเดิม (หรือไม่มีสูตร) · ย้อนหลังได้ไม่เกิน 90 วัน
+                {salesStart && salesStart !== props.firstSalesDay ? " · ยอดขายที่เก่ากว่านั้นไม่ได้ถูกตัดสต๊อกอยู่แล้ว" : ""}
+              </p>
+              {published && published.results.some((r) => r.outcome === "NEEDS_ACK") && (
+                <div className="grid gap-2 rounded-xl border border-warn-border bg-warn-bg p-3 text-sm text-warn">
+                  <span>
+                    {published.results.filter((r) => r.outcome === "NEEDS_ACK").length} เมนูมีสูตรที่ใช้อยู่แล้ว:{" "}
+                    {published.results
+                      .filter((r) => r.outcome === "NEEDS_ACK")
+                      .map((r) => r.menuName)
+                      .join(", ")}{" "}
+                    — นำไปใช้จะแทนสูตรเดิมตั้งแต่วันที่เลือก ยอดของวันก่อนหน้ายังคิดด้วยสูตรเดิม
+                  </span>
+                  <button type="button" className="btn btn-sm justify-self-start" disabled={publishing} onClick={() => publishPicked(published.results.filter((r) => r.outcome === "NEEDS_ACK").map((r) => r.recipeId), true)}>
+                    ยืนยันแทนสูตรเดิม {published.results.filter((r) => r.outcome === "NEEDS_ACK").length} เมนู
+                  </button>
+                </div>
+              )}
+              {publishError && <p role="alert" className="text-[13px] text-bad">{publishError}</p>}
+            </div>
+          )}
         </section>
       )}
 
@@ -501,4 +635,39 @@ export function StatusChip({ status }: { status: LabDraft["draftStatus"] }) {
 export function waitsFor(d: LabDraft, v: { canWrite: boolean; canPublish: boolean; viewerId: string }): boolean {
   if (!v.canWrite || d.authorId === v.viewerId) return false;
   return d.draftStatus === "SUBMITTED" || (d.draftStatus === "ENDORSED" && v.canPublish);
+}
+
+/** What the last "นำไปใช้จริง" did, dish by dish — nothing is reported as done that was not. */
+function PublishSummary({ state, fromDay }: { state: Extract<PublishDraftsState, { ok: true }>; fromDay: string }) {
+  const done = state.results.filter((r) => r.outcome === "PUBLISHED");
+  const later = state.results.filter((r) => r.outcome === "LIVE_IS_LATER");
+  const failed = state.results.filter((r) => r.outcome === "FAILED");
+  if (done.length === 0 && later.length === 0 && failed.length === 0) return null;
+  return (
+    <div className="grid gap-1.5 rounded-2xl border border-border bg-surface p-3 text-sm">
+      {done.length > 0 && (
+        <p>
+          <b className="font-semibold text-good">นำไปใช้จริงแล้ว {done.length} เมนู</b> มีผลตั้งแต่ {thDate(fromDay)}: {done.map((r) => r.menuName).join(", ")}
+        </p>
+      )}
+      {later.map((r) => (
+        <p key={r.recipeId} className="text-warn">
+          {r.menuName}: มีสูตรที่ใช้อยู่ตั้งแต่ {thDate(r.detail ?? "")} — เลือกวันนั้นหรือหลังจากนั้น
+        </p>
+      ))}
+      {failed.map((r) => (
+        <p key={r.recipeId} className="text-bad">
+          {r.menuName}: {r.detail}
+        </p>
+      ))}
+      {state.postedDays > 0 && (
+        <p className="text-muted-foreground">
+          มี {state.postedDays} วันตั้งแต่ {thDate(fromDay)} ที่ตัดสต๊อกไปแล้วโดยยังไม่มีสูตรเหล่านี้ —{" "}
+          <a href="/consumption" className="underline decoration-dotted underline-offset-4 hover:text-foreground">
+            ตัดสต๊อกใหม่ได้ที่หน้าตัดสต๊อกตามยอดขาย
+          </a>
+        </p>
+      )}
+    </div>
+  );
 }
