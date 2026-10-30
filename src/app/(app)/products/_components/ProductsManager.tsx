@@ -419,6 +419,11 @@ export default function ProductsManager(props: {
             </label>
           )}
           {props.canEditInfo && (
+            <a href="/products/import" className="btn-secondary">
+              นำเข้าจากไฟล์
+            </a>
+          )}
+          {props.canEditInfo && (
             <button type="button" onClick={() => (setOpenId(null), setAdding(true))} className="btn">
               + เพิ่มสินค้า
             </button>
@@ -427,7 +432,7 @@ export default function ProductsManager(props: {
       </div>
 
       {products.length === 0 ? (
-        <EmptyState art="start">ยังไม่มีสินค้า — กด “เพิ่มสินค้า” เพื่อเริ่มต้น</EmptyState>
+        <EmptyState art="start">ยังไม่มีสินค้า — กด “นำเข้าจากไฟล์” เพื่อเพิ่มทั้งรายการทีเดียว หรือ “เพิ่มสินค้า” ทีละรายการ</EmptyState>
       ) : (
         <>
           <div className="space-y-3 rounded-2xl border border-border bg-surface p-4">

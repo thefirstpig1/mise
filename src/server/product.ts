@@ -470,6 +470,15 @@ async function templateNamesForDimension(
  * index stays as the backstop; this is now the guard.
  */
 async function generateSku(tx: PrismaClient, tenantId: string): Promise<string> {
+  return (await reserveSkus(tx, tenantId, 1))[0];
+}
+
+/**
+ * `count` consecutive P-#### skus, under the same lock and the same scan as a
+ * single create — the file import (คิวงานข้อ 5) creates a whole list in one
+ * transaction and must not scan once per row.
+ */
+export async function reserveSkus(tx: PrismaClient, tenantId: string, count: number): Promise<string[]> {
   await acquireCounterLock(tx, `product_sku:${tenantId}`);
 
   const rows = await tx.product.findMany({
@@ -481,7 +490,7 @@ async function generateSku(tx: PrismaClient, tenantId: string): Promise<string> 
     const m = /^P-(\d+)$/.exec(sku);
     if (m) max = Math.max(max, parseInt(m[1], 10));
   }
-  return `P-${String(max + 1).padStart(4, "0")}`;
+  return Array.from({ length: count }, (_, i) => `P-${String(max + 1 + i).padStart(4, "0")}`);
 }
 
 /**
