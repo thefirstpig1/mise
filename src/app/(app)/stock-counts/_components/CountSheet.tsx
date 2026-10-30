@@ -356,11 +356,17 @@ export default function CountSheet({
   const preppedRows = rows.filter((p) => p.prepped);
   const preppedCounted = preppedRows.filter((p) => lineByProduct.has(p.id)).length;
   const uncountedStocked = stockedProductIds.filter((id) => !lineByProduct.has(id)).length;
-  const varianceValue =
-    costByProduct &&
-    detail.items
-      .filter((i) => !i.isReversal)
-      .reduce((sum, i) => sum + Number(i.variance) * Number(costByProduct[i.productId] ?? 0), 0);
+  // Lines with a difference, valued only where a cost is known: an unpriced
+  // line is counted and named, never valued at ฿0 (Kong 2026-10-30).
+  const variance = (() => {
+    if (!costByProduct) return null;
+    const lines = detail.items.filter((i) => !i.isReversal && Number(i.variance) !== 0);
+    const priced = lines.filter((i) => costByProduct[i.productId] !== undefined);
+    return {
+      value: priced.length > 0 ? priced.reduce((sum, i) => sum + Number(i.variance) * Number(costByProduct[i.productId]), 0) : lines.length === 0 ? 0 : null,
+      unpriced: lines.length - priced.length,
+    };
+  })();
 
   const closeError = closeState.ok === false ? closeState.formError : undefined;
   const voidError = voidState.ok === false ? voidState.formError : undefined;
@@ -569,27 +575,40 @@ export default function CountSheet({
 
       {/* --- summary (money computed, never stored — ADR 0015 Q4) --- */}
       {detail.showExpected && countedCount > 0 && (
-        <div className={`grid gap-3 ${varianceValue !== null ? "sm:grid-cols-2" : ""}`}>
+        <div className={`grid gap-3 ${variance !== null ? "sm:grid-cols-2" : ""}`}>
           <div className="rounded-lg border border-border p-4">
             <p className="text-xs text-muted-foreground">{opening ? "ต่างจากระบบ · ส่วนที่เกินคือยอดยกมา" : "ขาด / เกิน (จำนวน)"}</p>
             <p className="mt-1 text-lg font-semibold tabular-nums">
               {/* Over is warn, not good: a surplus is evidence the ledger was wrong. */}
-              <span className="text-bad">−{formatQty(detail.totalShortQty)}</span>
+              {/* A side with nothing on it is a plain 0, not a red "−0". */}
+              <span className={Number(detail.totalShortQty) > 0 ? "text-bad" : "text-muted-foreground"}>
+                {Number(detail.totalShortQty) > 0 ? "−" : ""}
+                {formatQty(detail.totalShortQty)}
+              </span>
               {" / "}
-              <span className="text-warn">+{formatQty(detail.totalOverQty)}</span>
+              <span className={Number(detail.totalOverQty) > 0 ? "text-warn" : "text-muted-foreground"}>
+                {Number(detail.totalOverQty) > 0 ? "+" : ""}
+                {formatQty(detail.totalOverQty)}
+              </span>
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
               คนละหน่วยกัน — ดูเป็นรายรายการด้านบน
               {preppedCounted > 0 && ` · ของแปรรูปที่เกินลงเป็นการผลิต ไม่ใช่ของเกิน`}
             </p>
           </div>
-          {varianceValue !== null && (
+          {variance !== null && (
             <div className="rounded-lg border border-border p-4">
               <p className="text-xs text-muted-foreground">{opening ? "มูลค่าส่วนต่างจากระบบ (ประมาณ)" : "มูลค่าส่วนต่าง (ประมาณ)"}</p>
-              <p className={`mt-1 text-2xl font-semibold tabular-nums ${varianceValue < 0 ? "text-bad" : ""}`}>
-                {formatMoney(String(varianceValue))}
+              <p className={`mt-1 text-2xl font-semibold tabular-nums ${variance.value !== null && variance.value < 0 ? "text-bad" : ""}`}>
+                {variance.value === null ? "—" : formatMoney(String(variance.value))}
               </p>
-              <p className="mt-1 text-xs text-muted-foreground">คิดจากต้นทุนล่าสุด · ตัวเลขจริงดูที่หน้าต้นทุน</p>
+              <p className={`mt-1 text-xs ${variance.unpriced > 0 ? "text-warn" : "text-muted-foreground"}`}>
+                {variance.unpriced === 0
+                  ? "คิดจากต้นทุนล่าสุด · ตัวเลขจริงดูที่หน้าต้นทุน"
+                  : variance.value === null
+                    ? `ยังไม่มีราคา ${variance.unpriced} รายการ จึงยังคิดมูลค่าไม่ได้`
+                    : `ไม่รวม ${variance.unpriced} รายการที่ยังไม่มีราคา · คิดจากต้นทุนล่าสุด`}
+              </p>
             </div>
           )}
         </div>

@@ -343,7 +343,9 @@ export async function getCountVarianceCostsLogic(
     getProductCostsQuerySchema.parse({ productIds: [...productIds], branchId })
   );
   const out: Record<string, string> = {};
-  for (const [productId, state] of costs) out[productId] = state.costPerBaseUnit.toString();
+  // A product nobody has priced is left OUT, not sent as 0 — the card would
+  // otherwise print ฿0.00 for stock whose value is unknown (Kong 2026-10-30).
+  for (const [productId, state] of costs) if (state.costSource !== "UNPRICED") out[productId] = state.costPerBaseUnit.toString();
   return out;
 }
 

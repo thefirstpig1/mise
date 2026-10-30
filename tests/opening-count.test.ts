@@ -18,6 +18,7 @@ import {
   OpeningPriceTargetError,
   closeStockCountLogic,
   declareOpeningPricesLogic,
+  getCountVarianceCostsLogic,
   getOpeningPricesLogic,
   getUnpricedOpeningLogic,
   isOpeningCountLogic,
@@ -30,6 +31,7 @@ import { confirmGoodsReceiptLogic, createGoodsReceiptLogic } from "@/server/good
 import { getProductCostsLogic } from "@/server/stock-cost";
 import { getProductCostsQuerySchema } from "@/lib/validations/stock-cost";
 import { sweepTestTenants } from "./support/sweep";
+import { costAccessFor } from "@/lib/permissions/cost-access";
 
 describe("rule PG4 — the opening count", () => {
   let tenant: string;
@@ -132,6 +134,12 @@ describe("rule PG4 — the opening count", () => {
     // Salt was left unpriced: the warning was a warning, and the shelf says so.
     expect((await costAt(salt, thonglor)).hasUnpricedLayers).toBe(true);
     expect(await isOpeningCountLogic(tenant, sheet)).toBe(true);
+  });
+
+  it("PG4-2b the count's money card leaves a product nobody priced OUT — it is unknown, not ฿0 (Kong 2026-10-30)", async () => {
+    const costs = (await getCountVarianceCostsLogic(tenant, costAccessFor("owner"), thonglor, [rice.id, salt.id]))!;
+    expect(costs[rice.id]).toBe("50");
+    expect(salt.id in costs).toBe(false);
   });
 
   it("PG4-3 the next count is not an opening — prices sent with it are ignored", async () => {
