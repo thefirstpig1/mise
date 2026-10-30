@@ -27,6 +27,7 @@ import {
   createProductLogic,
   updateProductLogic,
   deleteProductLogic,
+  convertToPreppedLogic,
   ProductSkuConflictError,
   ProductUnitNameConflictError,
   InvalidBaseUnitError,
@@ -336,6 +337,27 @@ export async function updateProduct(
   } catch (e) {
     return toFormError(e);
   }
+}
+
+/**
+ * Kong 2026-10-30: an ingredient the recipes use and nobody ever bought is
+ * probably made in the kitchen. Turning it shop-made is the type change the
+ * edit form already allows, on its own — the sheet opens next for its recipe.
+ */
+export async function convertToPreppedAction(productId: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const { tenantId } = await requireTenant("master:write");
+  if (typeof productId !== "string" || !/^[0-9a-f-]{36}$/i.test(productId)) return { ok: false, error: "ไม่พบสินค้านี้" };
+  try {
+    if (!(await convertToPreppedLogic(tenantId, productId))) return { ok: false, error: "ไม่พบสินค้านี้" };
+  } catch (e) {
+    const known = toFormError(e);
+    if (!known.ok && known.formError) return { ok: false, error: known.formError };
+    if (!known.ok && known.fieldErrors?.type) return { ok: false, error: known.fieldErrors.type };
+    console.error("[products] convert to prepped failed", e);
+    return { ok: false, error: "เปลี่ยนไม่สำเร็จ — กรุณาลองใหม่" };
+  }
+  revalidatePath("/products");
+  return { ok: true };
 }
 
 /**

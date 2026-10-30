@@ -32,6 +32,8 @@ export const PRODUCT_COLUMNS = {
   buyUnit: "ซื้อเป็น",
   packQty: "บรรจุ",
   packUnit: "หน่วยในบรรจุ",
+  /** "ใช่" for something the shop makes itself (น้ำซุป) — Kong 2026-10-30. */
+  made: "ทำเอง",
   original: "ข้อความเดิม",
   unsure: "ไม่แน่ใจ",
 } as const;
@@ -53,6 +55,8 @@ const HEADER_ALIASES: Record<string, ProductColumn> = {
   หน่วยที่ซื้อ: "buyUnit",
   บรรจุ: "packQty",
   หน่วยในบรรจุ: "packUnit",
+  ทำเอง: "made",
+  ร้านทำเอง: "made",
   ข้อความเดิม: "original",
   ไม่แน่ใจ: "unsure",
 };
@@ -81,7 +85,8 @@ ${Object.values(PRODUCT_COLUMNS).join(" | ")}
 ${RECIPE_COLUMNS.join(" | ")}
 
 ตัวอย่าง (ไม่ต้องใส่ในไฟล์):
-ข้าวหอมมะลิ | ของแห้งและเครื่องปรุง | กระสอบ | 15 | กก. | ข้าวหอมมะลิ กระสอบ 15 กก. 650 |
+ข้าวหอมมะลิ | ของแห้งและเครื่องปรุง | กระสอบ | 15 | กก. |  | ข้าวหอมมะลิ กระสอบ 15 กก. 650 |
+น้ำซุปกระดูก |  | ลิตร |  |  | ใช่ | น้ำซุปต้มเอง |
 ข้าวผัดหมู | 1 | จาน | หมูสับ | 1 | ขีด | หมูสับ 1 ขีด |
 
 กฎ ข้อมูลถูกสำคัญกว่าข้อมูลครบ:
@@ -94,7 +99,7 @@ ${RECIPE_COLUMNS.join(" | ")}
 7. สูตรที่มีวิธีทำปนมา ไม่ต้องคัดลอกวิธีทำ แต่ต้องอ่านวิธีทำทุกบรรทัด วัตถุดิบที่เขียนไว้เฉพาะในวิธีทำ (ไม่อยู่ในรายการวัตถุดิบของเมนูนั้น) ให้เพิ่มเป็นแถวด้วย ใส่ปริมาณถ้าเขียนไว้ และเขียนในคอลัมน์ "ไม่แน่ใจ" ว่า "${FROM_METHOD_MARK}" วัตถุดิบที่อยู่ในรายการแล้วไม่ต้องเพิ่มซ้ำ ถ้าวิธีทำบอกให้ใส่เพิ่มอีก ให้จดไว้ใน "ไม่แน่ใจ"
 8. ห้ามรวมแถว ห้ามข้ามแถว ห้ามเพิ่มของที่ไม่มีในข้อมูลของร้าน ชื่อซ้ำก็คงไว้ทุกแถว
 9. วัตถุดิบที่อยู่ในสูตร (รวมที่พบในวิธีทำ) แต่ไม่อยู่ในรายการวัตถุดิบ ให้เพิ่มในแผ่น "${PRODUCT_SHEET}" ด้วย ช่องที่ไม่รู้เว้นว่าง
-10. ของที่ร้านทำเอง เช่น น้ำซุป ซอสผัด ใส่เป็นวัตถุดิบหนึ่งแถวในเมนูที่ใช้ ถ้ามีสูตรของมันด้วย ให้เขียนเป็นเมนูของมันเอง
+10. ของที่ร้านทำเองจากวัตถุดิบอื่น เช่น น้ำซุป ซอสผัด น้ำจิ้ม ให้มีหนึ่งแถวในแผ่น "${PRODUCT_SHEET}" คอลัมน์ "ทำเอง" ใส่ "ใช่" และ "ซื้อเป็น" ใส่หน่วยที่ร้านนับ (เช่น ลิตร) ของที่ซื้อมาเว้นช่อง "ทำเอง" ว่าง · ในเมนูที่ใช้ ใส่เป็นวัตถุดิบหนึ่งแถว ถ้ามีสูตรของมันด้วย ให้เขียนในแผ่น "${RECIPE_SHEET}" เป็นเมนูของมันเอง
 11. "หมวด" เลือกจากรายการนี้เท่านั้น ไม่แน่ใจให้เว้นว่าง: ${cats}
 12. ห้ามย่อ ห้ามใช้ "..." แทนแถวที่เหลือ ถ้าส่งไม่หมดในครั้งเดียว ให้บอกว่าหยุดที่แถวไหน แล้วรอให้พิมพ์ "ต่อ"
 13. ไม่มีข้อมูลสูตร ให้ส่งเฉพาะแผ่น "${PRODUCT_SHEET}"`;
@@ -137,6 +142,7 @@ export type RawProductRow = {
   buyUnit: string;
   packQty: string;
   packUnit: string;
+  made: string;
   original: string;
   unsure: string;
 };
@@ -187,6 +193,7 @@ export function readProductTable(grid: string[][]): TableResult {
       buyUnit: cell(cells, "buyUnit"),
       packQty: cell(cells, "packQty"),
       packUnit: cell(cells, "packUnit"),
+      made: cell(cells, "made"),
       original: cell(cells, "original"),
       unsure: cell(cells, "unsure"),
     });
@@ -196,22 +203,24 @@ export function readProductTable(grid: string[][]): TableResult {
   return { ok: true, rows };
 }
 
-/** How many menus a recipes table names — shown, not imported, until the recipe import exists. */
-export function countRecipeMenus(grid: string[][]): number {
-  let at = -1;
+/** The names a recipes table gives its dishes, as name keys. */
+export function recipeMenuKeys(grid: string[][]): Set<string> {
   for (let r = 0; r < grid.length; r++) {
-    const i = grid[r].map((c) => cleanHeader(String(c ?? ""))).indexOf(RECIPE_COLUMNS[0]);
-    if (i !== -1) {
-      at = i;
-      const names = new Set<string>();
-      for (let k = r + 1; k < grid.length; k++) {
-        const v = String(grid[k][at] ?? "").trim();
-        if (v !== "") names.add(nameKey(v));
-      }
-      return names.size;
+    const at = grid[r].map((c) => cleanHeader(String(c ?? ""))).indexOf(RECIPE_COLUMNS[0]);
+    if (at === -1) continue;
+    const names = new Set<string>();
+    for (let k = r + 1; k < grid.length; k++) {
+      const v = String(grid[k][at] ?? "").trim();
+      if (v !== "") names.add(nameKey(v));
     }
+    return names;
   }
-  return 0;
+  return new Set();
+}
+
+/** How many menus a recipes table names — the ingredient import points at the recipe import for them. */
+export function countRecipeMenus(grid: string[][]): number {
+  return recipeMenuKeys(grid).size;
 }
 
 export const TABLE_ERROR_TH: Record<Exclude<TableResult, { ok: true }>["reason"], string> = {
@@ -330,10 +339,14 @@ export type ImportDraft = {
   skip: boolean;
   /** For a close name: true = it IS the existing product (skip), false = create a new one. */
   sameAsSimilar: boolean;
+  /** Made in the shop's own kitchen (น้ำซุป): created PREPPED. */
+  prepped: boolean;
 };
 
+const YES = /^(ใช่|ทำเอง|y|yes|true|1|✓|✔|x)$/i;
+
 /** Read one raw row into the draft the review screen starts from. */
-export function draftFromRaw(raw: RawProductRow, ctx: { templates: UnitTemplate[]; categories: CategoryOption[] }): ImportDraft {
+export function draftFromRaw(raw: RawProductRow, ctx: { templates: UnitTemplate[]; categories: CategoryOption[]; madeKeys?: Set<string> }): ImportDraft {
   const isTemplate = (u: string | null) => u !== null && ctx.templates.some((t) => t.unitName === u);
   const buy = normalizeUnit(raw.buyUnit);
   const packUnit = normalizeUnit(raw.packUnit);
@@ -376,6 +389,8 @@ export function draftFromRaw(raw: RawProductRow, ctx: { templates: UnitTemplate[
     packUnreadable,
     skip: false,
     sameAsSimilar: true,
+    // Said so in the file, or the file's own recipes sheet has a recipe by this name.
+    prepped: YES.test(raw.made.trim()) || (ctx.madeKeys?.has(nameKey(raw.name)) ?? false),
   };
 }
 
@@ -451,5 +466,6 @@ export function toCreate(d: ImportDraft): ImportCreate {
     baseUnitName: d.baseUnit ?? "",
     categoryId: d.categoryId,
     extraUnit: keepExtra ? { unitName: d.extraUnit!, toBaseRatio: d.extraRatio! } : null,
+    prepped: d.prepped,
   };
 }

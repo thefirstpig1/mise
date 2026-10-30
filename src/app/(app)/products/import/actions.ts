@@ -20,6 +20,7 @@ const rowSchema = z.object({
       toBaseRatio: z.number().positive().max(1_000_000),
     })
     .nullable(),
+  prepped: z.boolean().default(false),
 });
 const inputSchema = z.array(rowSchema).min(1).max(MAX_IMPORT_ROWS);
 

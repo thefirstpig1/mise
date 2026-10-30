@@ -16,6 +16,7 @@ import {
   RECIPE_COLUMNS,
   RECIPE_SHEET,
   countRecipeMenus,
+  recipeMenuKeys,
   nameKey,
   readProductTable,
   splitPastedTable,
@@ -71,10 +72,10 @@ export async function getUnitTemplatesForImport(): Promise<UnitTemplate[]> {
 // Reading what the person gave us
 // ------------------------------------------------------------
 
-export type ReadResult = { table: TableResult; recipeMenus: number };
+export type ReadResult = { table: TableResult; recipeMenus: number; madeKeys: string[] };
 
 function readGrid(grid: string[][]): ReadResult {
-  return { table: readProductTable(grid), recipeMenus: countRecipeMenus(grid) };
+  return { table: readProductTable(grid), recipeMenus: countRecipeMenus(grid), madeKeys: [...recipeMenuKeys(grid)] };
 }
 
 /** Pasted text: whatever the AI answered, copied off the screen. */
@@ -123,13 +124,15 @@ export async function readImportFile(bytes: Uint8Array, fileName: string): Promi
   // The products sheet by name; otherwise the first sheet that holds a products table.
   const named = grids.find((g) => g.name === PRODUCT_SHEET);
   const recipes = grids.find((g) => g.name === RECIPE_SHEET);
-  const recipeMenus = recipes ? countRecipeMenus(recipes.grid) : grids.reduce((n, g) => Math.max(n, countRecipeMenus(g.grid)), 0);
-  if (named) return { table: readProductTable(named.grid), recipeMenus };
+  const keys = recipes ? recipeMenuKeys(recipes.grid) : grids.map((g) => recipeMenuKeys(g.grid)).reduce((a, b) => (b.size > a.size ? b : a), new Set<string>());
+  const recipeMenus = keys.size;
+  const madeKeys = [...keys];
+  if (named) return { table: readProductTable(named.grid), recipeMenus, madeKeys };
   for (const g of grids) {
     const table = readProductTable(g.grid);
-    if (table.ok) return { table, recipeMenus };
+    if (table.ok) return { table, recipeMenus, madeKeys };
   }
-  return { table: readProductTable(grids[0]?.grid ?? []), recipeMenus };
+  return { table: readProductTable(grids[0]?.grid ?? []), recipeMenus, madeKeys };
 }
 
 function sheetGrid(ws: ExcelJS.Worksheet): string[][] {

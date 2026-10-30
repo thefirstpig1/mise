@@ -40,7 +40,7 @@ export default function ProductImport({ prompt }: { prompt: string }) {
   const [recipeMenus, setRecipeMenus] = useState(0);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [done, setDone] = useState<{ created: number; skipped: string[] } | null>(null);
+  const [done, setDone] = useState<{ created: number; skipped: string[]; prepped: number } | null>(null);
 
   async function send(body: FormData, label: string) {
     setBusy(true);
@@ -52,14 +52,15 @@ export default function ProductImport({ prompt }: { prompt: string }) {
         return;
       }
       const data = (await res.json()) as
-        | { ok: true; rows: RawProductRow[]; recipeMenus: number; context: Context }
+        | { ok: true; rows: RawProductRow[]; recipeMenus: number; madeKeys: string[]; context: Context }
         | { ok: false; formError: string };
       if (!data.ok) {
         setError(data.formError);
         return;
       }
       setCtx(data.context);
-      setDrafts(data.rows.map((r) => draftFromRaw(r, data.context)));
+      const madeKeys = new Set(data.madeKeys);
+      setDrafts(data.rows.map((r) => draftFromRaw(r, { ...data.context, madeKeys })));
       setRecipeMenus(data.recipeMenus);
       setSource(label);
       setDone(null);
@@ -89,7 +90,7 @@ export default function ProductImport({ prompt }: { prompt: string }) {
       setSaveError(res.formError);
       return;
     }
-    setDone({ created: res.created, skipped: res.skipped });
+    setDone({ created: res.created, skipped: res.skipped, prepped: creates.filter((c) => c.prepped).length });
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -365,6 +366,11 @@ function ReviewRow({
             </optgroup>
           ))}
         </select>
+        {/* Kong 2026-10-30: the shop says what it makes itself (น้ำซุป) — it becomes ของแปรรูป. */}
+        <label className="flex items-center gap-1.5 text-[12.5px] text-muted-foreground">
+          <input type="checkbox" checked={d.prepped} onChange={(e) => onEdit({ prepped: e.target.checked })} aria-label={`ร้านทำเอง แถว ${d.line}`} />
+          ร้านทำเอง
+        </label>
       </div>
 
       <div className="grid min-w-0 content-start gap-1 max-lg:order-5">
@@ -461,7 +467,7 @@ function Verdict({ d, m, s, onEdit }: { d: ImportDraft; m: DraftMatch; s: DraftS
 // After the save
 // ------------------------------------------------------------
 
-function Done({ done, recipeMenus, onAgain }: { done: { created: number; skipped: string[] }; recipeMenus: number; onAgain: () => void }) {
+function Done({ done, recipeMenus, onAgain }: { done: { created: number; skipped: string[]; prepped: number }; recipeMenus: number; onAgain: () => void }) {
   return (
     <section className="card grid gap-3">
       <h3 className="text-xl font-semibold">เพิ่มวัตถุดิบแล้ว {done.created.toLocaleString("th-TH")} รายการ</h3>
@@ -474,6 +480,7 @@ function Done({ done, recipeMenus, onAgain }: { done: { created: number; skipped
       <ul className="grid gap-1 text-sm text-muted-foreground">
         <li>· ยังไม่มีราคา ราคาจะเข้ามาเองเมื่อรับของตามใบสั่งซื้อ</li>
         <li>· ผู้ขายเพิ่มได้ที่หน้าผู้ขาย แล้วค่อยผูกกับวัตถุดิบภายหลัง</li>
+        {done.prepped > 0 && <li>· ในนี้เป็นของที่ร้านทำเอง {done.prepped.toLocaleString("th-TH")} รายการ — สูตรของมันนำเข้าพร้อมสูตรเมนู หรือเขียนได้ที่หน้าสินค้า ตัวกรองของแปรรูป</li>}
         {recipeMenus > 0 && (
           <li>
             · ไฟล์นี้มีแผ่นสูตร {recipeMenus.toLocaleString("th-TH")} เมนูด้วย — ใช้ไฟล์เดียวกันที่{" "}

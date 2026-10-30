@@ -42,6 +42,7 @@ const raw = (over: Partial<RawProductRow>): RawProductRow => ({
   name: "",
   category: "",
   buyUnit: "",
+  made: "",
   packQty: "",
   packUnit: "",
   original: "",
@@ -100,7 +101,7 @@ describe("one row, decided", () => {
   it("I-5 a sack of 15 kg is counted in kg and bought by the sack", () => {
     const d = draft({ name: "ข้าวหอมมะลิ", buyUnit: "กระสอบ", packQty: "15", packUnit: "กก.", category: "ของแห้งและเครื่องปรุง" });
     expect(d).toMatchObject({ baseUnit: "kg", extraUnit: "กระสอบ", extraRatio: 15, categoryId: "c-dry", categoryText: "" });
-    expect(toCreate(d)).toEqual({ name: "ข้าวหอมมะลิ", baseUnitName: "kg", categoryId: "c-dry", extraUnit: { unitName: "กระสอบ", toBaseRatio: 15 } });
+    expect(toCreate(d)).toEqual({ name: "ข้าวหอมมะลิ", baseUnitName: "kg", categoryId: "c-dry", extraUnit: { unitName: "กระสอบ", toBaseRatio: 15 }, prepped: false });
   });
 
   it("I-6 a unit the system does not know is a question, not a guess", () => {
@@ -184,18 +185,26 @@ describe("the server side", () => {
   it("I-13 an .xlsx is read from its products sheet, and its recipes sheet is counted", async () => {
     const wb = new ExcelJS.Workbook();
     const p = wb.addWorksheet("วัตถุดิบ");
-    p.addRow(["ชื่อ", "หมวด", "ซื้อเป็น", "บรรจุ", "หน่วยในบรรจุ", "ข้อความเดิม", "ไม่แน่ใจ"]);
-    p.addRow(["น้ำปลา", "ของแห้งและเครื่องปรุง", "ลัง", 12, "ขวด", "น้ำปลา ลัง 12 ขวด", ""]);
+    p.addRow(["ชื่อ", "หมวด", "ซื้อเป็น", "บรรจุ", "หน่วยในบรรจุ", "ทำเอง", "ข้อความเดิม", "ไม่แน่ใจ"]);
+    p.addRow(["น้ำปลา", "ของแห้งและเครื่องปรุง", "ลัง", 12, "ขวด", "", "น้ำปลา ลัง 12 ขวด", ""]);
+    p.addRow(["น้ำซุปกระดูก", "", "ลิตร", "", "", "", "", ""]);
     const r = wb.addWorksheet("สูตร");
     r.addRow(["ชื่อเมนู", "ได้", "หน่วยที่ได้", "วัตถุดิบ", "ปริมาณ", "หน่วย", "ข้อความเดิม", "ไม่แน่ใจ"]);
     r.addRow(["ข้าวผัดหมู", 1, "จาน", "หมูสับ", 1, "ขีด", "", ""]);
     r.addRow(["ข้าวผัดหมู", 1, "จาน", "ข้าว", 1, "ทัพพี", "", ""]);
     r.addRow(["กะเพราหมู", 1, "จาน", "หมูสับ", 1, "ขีด", "", ""]);
+    r.addRow(["น้ำซุปกระดูก", 10, "ลิตร", "กระดูกหมู", 2, "กก.", "", ""]);
     const read = await readImportFile(new Uint8Array(await wb.xlsx.writeBuffer()), "จาก-ai.xlsx");
     expect("error" in read).toBe(false);
     if ("error" in read) return;
-    expect(read.recipeMenus).toBe(2);
+    expect(read.recipeMenus).toBe(3);
     expect(read.table.ok && read.table.rows[0]).toMatchObject({ name: "น้ำปลา", buyUnit: "ลัง", packQty: "12", packUnit: "ขวด" });
+    // Kong 2026-10-30: a thing the file's own recipes sheet makes is shop-made, ticked for the shop.
+    const ctx = { templates: TEMPLATES, categories: CATS, madeKeys: new Set(read.madeKeys) };
+    expect(read.table.ok && read.table.rows.map((row) => [row.name, draftFromRaw(row, ctx).prepped])).toEqual([
+      ["น้ำปลา", false],
+      ["น้ำซุปกระดูก", true],
+    ]);
   });
 
   it("I-14 the reviewed list is created in one go: units, the buy unit as default, skus in order", async () => {
@@ -246,5 +255,11 @@ describe("the server side", () => {
   it("I-16 the units the review offers are the system's templates", async () => {
     const units = await getUnitTemplatesForImport();
     expect(units.map((u) => u.unitName)).toEqual(expect.arrayContaining(["kg", "g", "ml", "l", "ขวด", "มัด"]));
+  });
+  it("I-13b the AI's ทำเอง column ticks it too, and a ticked row is created PREPPED", async () => {
+    expect(draftFromRaw(raw({ name: "น้ำจิ้มซีฟู้ด", buyUnit: "ml", made: "ใช่" }), { templates: TEMPLATES, categories: CATS }).prepped).toBe(true);
+    expect(draftFromRaw(raw({ name: "น้ำปลา", buyUnit: "ขวด", made: "" }), { templates: TEMPLATES, categories: CATS }).prepped).toBe(false);
+    const out = await importProductsLogic(tenant, [{ name: "น้ำจิ้มซีฟู้ด", baseUnitName: "ml", categoryId: null, extraUnit: null, prepped: true }]);
+    expect((await prismaBypass.product.findUniqueOrThrow({ where: { id: out.created[0].id } })).type).toBe("PREPPED");
   });
 });

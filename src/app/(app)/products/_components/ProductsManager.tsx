@@ -16,6 +16,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { ProductView } from "./product-view";
 import type { ProductListFacts } from "@/server/product-list";
+import type { MadeHint } from "@/server/product";
+import { orStale } from "@/lib/stale-tab";
+import { convertToPreppedAction } from "../actions";
 import type { IngredientOption, PriceBook, StandardUnit } from "@/server/menu-manager";
 import type { Option, Perm } from "@/app/(app)/menus/_components/MenuManager";
 import { ingredientOptions, priceBook, dropPrefetched } from "@/app/(app)/menus/_components/prefetch";
@@ -83,6 +86,8 @@ export default function ProductsManager(props: {
   initialNew: boolean;
   initialStatus: Status;
   initialSort?: Sort;
+  /** Ingredients the recipes use that nobody ever bought — maybe made in the kitchen. */
+  madeHints: Promise<MadeHint[]>;
 }) {
   const { products, branches, costHidden } = props;
   const router = useRouter();
@@ -170,6 +175,45 @@ export default function ProductsManager(props: {
     needOptions();
     setOpenId(id);
     setAddress(id);
+  };
+
+  // ---- "อาจเป็นของที่ร้านทำเอง" (Kong 2026-10-30) ----
+  const [hints, setHints] = useState<MadeHint[]>([]);
+  const [hintsOpen, setHintsOpen] = useState(false);
+  const [hintBusy, setHintBusy] = useState<string | null>(null);
+  const [hintError, setHintError] = useState<string | null>(null);
+  // "ซื้อมา ไม่ใช่ทำเอง" is remembered in this browser only — a convenience, not a record.
+  const NO_KEY = "kitkrua:made-hint-no";
+  const [saidNo, setSaidNo] = useState<string[]>([]);
+  useEffect(() => {
+    void props.madeHints.then(setHints);
+    try {
+      setSaidNo(JSON.parse(localStorage.getItem(NO_KEY) ?? "[]") as string[]);
+    } catch {
+      /* private window: show them all */
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const shownHints = hints.filter((h) => !saidNo.includes(h.id));
+  const sayNo = (id: string) => {
+    const next = [...saidNo, id];
+    setSaidNo(next);
+    try {
+      localStorage.setItem(NO_KEY, JSON.stringify(next));
+    } catch {
+      /* not remembered — fine */
+    }
+  };
+  const makeMade = async (id: string) => {
+    setHintBusy(id);
+    setHintError(null);
+    const res = await orStale(convertToPreppedAction(id));
+    setHintBusy(null);
+    if (!res.ok) return setHintError(res.error);
+    setHints((all) => all.filter((h) => h.id !== id));
+    dropPrefetched();
+    router.refresh();
+    setToast("เปลี่ยนเป็นของที่ร้านทำเองแล้ว · เขียนสูตรผลิตได้ในแผงที่เปิดอยู่");
+    open(id);
   };
   useEffect(() => {
     if (openId) needOptions();
@@ -477,6 +521,42 @@ export default function ProductsManager(props: {
               </div>
             </div>
           </div>
+
+          {props.canEditInfo && shownHints.length > 0 && (status === "active" || status === "raw" || status === "prepped") && (
+            <section className="rounded-2xl border border-warn-border bg-warn-bg/40 px-4 py-3 text-sm">
+              <button type="button" onClick={() => setHintsOpen((v) => !v)} className="flex w-full flex-wrap items-center justify-between gap-2 text-left">
+                <span>
+                  <b className="font-semibold">วัตถุดิบ {shownHints.length} รายการถูกใช้ในสูตร แต่ร้านไม่เคยซื้อ</b>{" "}
+                  <span className="text-muted-foreground">— อาจเป็นของที่ร้านทำเอง เช่น น้ำซุป น้ำจิ้ม</span>
+                </span>
+                <span className="text-[12.5px] underline decoration-dotted underline-offset-4">{hintsOpen ? "ซ่อน" : "ดูรายการ"}</span>
+              </button>
+              {hintsOpen && (
+                <ul className="mt-2 divide-y divide-border">
+                  {shownHints.map((h) => (
+                    <li key={h.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+                      <span>
+                        <b className="font-medium">{h.name}</b> <span className="text-muted-foreground">· ใช้ใน {h.recipes.toLocaleString("th-TH")} สูตร</span>
+                      </span>
+                      <span className="flex flex-wrap gap-2">
+                        <button type="button" onClick={() => sayNo(h.id)} className="btn-secondary btn-sm">
+                          ซื้อมา ไม่ใช่ทำเอง
+                        </button>
+                        <button type="button" onClick={() => void makeMade(h.id)} disabled={hintBusy !== null} className="btn btn-sm disabled:opacity-50">
+                          {hintBusy === h.id ? "กำลังเปลี่ยน…" : "เปลี่ยนเป็นของที่ร้านทำเอง"}
+                        </button>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {hintError && (
+                <p role="alert" className="mt-1 text-[13px] text-bad">
+                  {hintError}
+                </p>
+              )}
+            </section>
+          )}
 
           {rows.length === 0 ? (
             <EmptyState art="none">{hasQuery(q) ? `ไม่พบสินค้าที่ตรงกับ “${q}”` : "ไม่มีสินค้าในตัวกรองนี้"}</EmptyState>

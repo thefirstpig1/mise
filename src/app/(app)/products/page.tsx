@@ -8,7 +8,7 @@
 // `searchParams` is a PROMISE in Next 15.
 
 import { requireTenant } from "@/lib/require-tenant";
-import { getProductsLogic } from "@/server/product";
+import { getMadeHintsLogic, getProductsLogic } from "@/server/product";
 import { getProductListFactsLogic } from "@/server/product-list";
 import { getMenuPriceBookLogic } from "@/server/menu-manager";
 import { getBranchesLogic } from "@/server/branch";
@@ -62,6 +62,7 @@ export default async function ProductsPage({
         sales: can("sales:view"),
       }}
       canEditInfo={can("master:write")}
+      madeHints={can("master:write") ? getMadeHintsLogic(tenantId).catch(() => []) : Promise.resolve([])}
       canEditPar={can("stock:write")}
       canRequest={can("purchase:request")}
       initialProductId={one("product") ?? null}

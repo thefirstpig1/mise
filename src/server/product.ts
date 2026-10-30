@@ -883,6 +883,41 @@ export async function convertToPreppedInTx(tx: PrismaClient, tenantId: string, p
   return true;
 }
 
+/** The same change on its own — the products page's "เปลี่ยนเป็นของที่ร้านทำเอง". */
+export async function convertToPreppedLogic(tenantId: string, productId: string): Promise<boolean> {
+  return withTenantContext(tenantId, (tx) => convertToPreppedInTx(tx, tenantId, productId), { timeout: 20_000 });
+}
+
+export type MadeHint = { id: string; name: string; recipes: number };
+
+/**
+ * Ingredients a recipe uses that nobody has ever bought — no supplier price,
+ * no order, no receipt, no bill line. The shop may well make them itself
+ * (Kong 2026-10-30: "น้ำซุป ไม่มีสูตร … ต้องไปไล่ในส่วนของวัตถุดิบ"). A
+ * suggestion for a person to confirm, never a change made for them.
+ */
+export async function getMadeHintsLogic(tenantId: string): Promise<MadeHint[]> {
+  const inUse = { recipe: { deletedAt: null, supersededAt: null } };
+  const rows = await withTenantContext(tenantId, (tx) =>
+    tx.product.findMany({
+      where: {
+        tenantId,
+        deletedAt: null,
+        type: "RAW",
+        usedInRecipes: { some: inUse },
+        supplierProductMappings: { none: { deletedAt: null } },
+        purchaseOrderItems: { none: {} },
+        goodsReceiptItems: { none: {} },
+        expenseItems: { none: {} },
+      },
+      select: { id: true, name: true, usedInRecipes: { where: inUse, select: { recipeId: true } } },
+      orderBy: { name: "asc" },
+      take: 50,
+    })
+  );
+  return rows.map((r) => ({ id: r.id, name: r.name, recipes: new Set(r.usedInRecipes.map((u) => u.recipeId)).size }));
+}
+
 export async function updateProductLogic(
   tenantId: string,
   id: string,

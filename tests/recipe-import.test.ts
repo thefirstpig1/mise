@@ -14,7 +14,7 @@ import { splitPastedTable } from "@/lib/product-import";
 import { draftRecipes, judgeIngredient, judgeRecipe, madeOutputs, readRecipeTable, toRecipeSave, type RawRecipeRow, type RecipeContext, type RecipeDraftRow } from "@/lib/recipe-import";
 import { addDays, computeBangkokToday } from "@/lib/bangkok-date";
 import { RecipeImportRefError, getRecipeContextLogic, importRecipesLogic } from "@/server/recipe-import";
-import { UnitNeedsRatioError } from "@/server/product";
+import { UnitNeedsRatioError, convertToPreppedLogic, getMadeHintsLogic } from "@/server/product";
 import { sweepTestTenants } from "./support/sweep";
 
 const CTX: RecipeContext = {
@@ -301,5 +301,19 @@ describe("the write", () => {
     const ctx = await getRecipeContextLogic(tenant, true);
     expect(ctx.products.find((p) => p.id === stock)).toMatchObject({ type: "PREPPED", made: "RECIPE" });
     expect(ctx.madeFrom).toBe(firstSale.toISOString().slice(0, 10));
+  });
+
+  it("R-11 the products page names what the recipes use and nobody ever bought — a price from a supplier counts as bought", async () => {
+    const names = async () => (await getMadeHintsLogic(tenant)).map((h) => h.name);
+    // Drafts count: an imported recipe is a draft until it is published.
+    expect(await names()).toEqual(expect.arrayContaining(["หมูสับ", "ข้าวสวย"]));
+    // น้ำซุป is shop-made since R-10 — no longer a question.
+    expect(await names()).not.toContain("น้ำซุป");
+    const supplier = await withRlsBypass((tx) => tx.supplier.create({ data: { tenantId: tenant, nameFull: "ตลาดสด" } }));
+    await withRlsBypass((tx) => tx.supplierProductMapping.create({ data: { tenantId: tenant, supplierId: supplier.id, productId: pork, effectiveFrom: computeBangkokToday() } }));
+    expect(await names()).not.toContain("หมูสับ");
+    // Pressing "เปลี่ยนเป็นของที่ร้านทำเอง" takes it off the list.
+    expect(await convertToPreppedLogic(tenant, rice)).toBe(true);
+    expect(await names()).not.toContain("ข้าวสวย");
   });
 });

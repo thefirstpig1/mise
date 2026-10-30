@@ -75,7 +75,7 @@ export async function POST(req: Request) {
   if (!read.table.ok) return refuse(TABLE_ERROR_TH[read.table.reason]);
   try {
     const context = await getImportContextLogic(tenantId);
-    return json({ ok: true, rows: read.table.rows, recipeMenus: read.recipeMenus, context });
+    return json({ ok: true, rows: read.table.rows, recipeMenus: read.recipeMenus, madeKeys: read.madeKeys, context });
   } catch (e) {
     console.error("[products/import] context failed", e);
     return refuse("อ่านข้อมูลร้านไม่สำเร็จ กรุณาลองใหม่", 500);
