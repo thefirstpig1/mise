@@ -38,6 +38,9 @@ import type { ZodError } from "zod";
 import { requireTenant } from "@/lib/require-tenant";
 import { withTenantContext } from "@/lib/db";
 import { thDate } from "../_components/manager-format";
+import { deleteMenuLogic } from "@/server/menu-lifecycle";
+import { RecipeMethodConflictError } from "@/server/recipe-guards";
+import { ImportUnitError } from "@/server/product-import";
 import { ingredientRowsFromFormData } from "@/lib/validations/recipe";
 import {
   discardDraftInputSchema,
@@ -49,12 +52,16 @@ import {
   CannotEndorseOwnDraftError,
   DraftBeforeLiveRecipeError,
   DraftReplacesLiveRecipeError,
+  MadeAlreadyError,
+  MadeFromMenuError,
+  MadeYieldUnitError,
   MenuCategoryNotFoundError,
   NotADraftError,
   NotYourDraftError,
   applyDraftToBranchLogic,
   createDraftLogic,
   discardDraftLogic,
+  draftToMadeLogic,
   endorseDraftLogic,
   publishDraftLogic,
   publishDraftsLogic,
@@ -389,6 +396,53 @@ export async function publishDraftsAction(input: { recipeIds: string[]; effectiv
       detail: r.outcome === "LIVE_IS_LATER" ? r.liveFrom : r.outcome === "FAILED" ? (toFormError(r.error).formError ?? "นำไปใช้ไม่สำเร็จ") : null,
     })),
   };
+}
+
+export type DraftToMadeState =
+  | { ok: true; productName: string; madeFrom: string; menuName: string; menuRemoved: boolean | null }
+  | { ok: false; formError: string };
+
+/**
+ * Kong 2026-10-30: "ถ้าเผลอบันทึกเป็นเมนูไปแล้วจะทำยังไงดี" — a draft that is
+ * really something the shop makes for its dishes (น้ำซุป) becomes a live
+ * production recipe, and the dish it created goes too when nothing ever sold
+ * under it — through Part 27's own refusals, never forced.
+ */
+export async function draftToMadeAction(input: { recipeId: string; yieldQty: number; unitName: string; menuName: string }): Promise<DraftToMadeState> {
+  const { tenantId, membership, can, assertShared } = await requireTenant("recipe:write");
+  assertShared();
+  if (!can("master:write")) return { ok: false, formError: "บัญชีนี้สร้างหรือแก้สินค้าไม่ได้ — ให้เจ้าของร้านทำ" };
+  const recipeId = typeof input.recipeId === "string" ? input.recipeId : "";
+  const yieldQty = Number(input.yieldQty);
+  const unitName = typeof input.unitName === "string" ? input.unitName.trim() : "";
+  if (!/^[0-9a-f-]{36}$/i.test(recipeId) || !(yieldQty > 0) || yieldQty > 1_000_000 || unitName === "" || unitName.length > 40) {
+    return { ok: false, formError: "ใส่ว่าทำครั้งหนึ่งได้เท่าไร และเลือกหน่วย" };
+  }
+  try {
+    const out = await draftToMadeLogic(tenantId, { recipeId, yieldQty, unitName }, membership.userId);
+    let menuRemoved: boolean | null = null;
+    if (out.menuGoes) {
+      try {
+        await deleteMenuLogic(tenantId, { menuId: out.menuId, acknowledgeRecipe: false });
+        menuRemoved = true;
+      } catch {
+        menuRemoved = false;
+      }
+    }
+    revalidateLabViews();
+    revalidatePath("/products");
+    return { ok: true, productName: out.productName, madeFrom: out.madeFrom, menuName: input.menuName, menuRemoved };
+  } catch (e) {
+    if (e instanceof MadeAlreadyError) return { ok: false, formError: `“${e.productName}” มีสูตรผลิตอยู่แล้ว — แก้ที่หน้าสินค้า แล้วทิ้งร่างนี้` };
+    if (e instanceof RecipeMethodConflictError) return { ok: false, formError: `“${e.productName}” ตัดแต่งจากของอื่นอยู่แล้ว — ของหนึ่งอย่างทำได้วิธีเดียว` };
+    if (e instanceof MadeFromMenuError) return { ok: false, formError: "สูตรนี้มีเมนูอื่นเป็นส่วนประกอบ — สูตรของที่ร้านทำเองใช้ได้แต่วัตถุดิบ" };
+    if (e instanceof MadeYieldUnitError) return { ok: false, formError: `หน่วย “${e.unitName}” แปลงเป็น ${e.baseUnitName} ไม่ได้ — เลือกหน่วยที่สินค้านี้นับ` };
+    if (e instanceof ImportUnitError) return { ok: false, formError: "เลือกหน่วยนับจากรายการ" };
+    const known = toFormError(e);
+    if (known.formError) return { ok: false, formError: known.formError };
+    console.error("[menus/lab] draft to made failed", e);
+    return { ok: false, formError: "ย้ายไม่สำเร็จ ยังไม่มีอะไรเปลี่ยน — กรุณาลองใหม่" };
+  }
 }
 
 /**

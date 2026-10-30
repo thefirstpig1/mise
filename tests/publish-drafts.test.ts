@@ -13,7 +13,7 @@ import { addDays, computeBangkokToday } from "@/lib/bangkok-date";
 import { recipeInputSchema } from "@/lib/validations/recipe";
 import { publishDraftInputSchema, publishDraftsInputSchema } from "@/lib/validations/menu-lab";
 import { createRecipeLogic } from "@/server/recipe";
-import { DraftBeforeLiveRecipeError, publishDraftLogic, publishDraftsLogic } from "@/server/menu-lab";
+import { DraftBeforeLiveRecipeError, MadeAlreadyError, draftMadePreviewLogic, draftToMadeLogic, publishDraftLogic, publishDraftsLogic } from "@/server/menu-lab";
 import { importRecipesLogic } from "@/server/recipe-import";
 import { sweepTestTenants } from "./support/sweep";
 
@@ -29,7 +29,7 @@ describe("publishing drafts on a chosen day", () => {
   const menu = (name: string) => withRlsBypass((tx) => tx.menu.create({ data: { tenantId: tenant, source: "MISE", name: `${name}-${randomUUID().slice(0, 4)}` }, select: { id: true } }));
   const draftFor = async (menuId: string) => {
     await importRecipesLogic(tenant, { newMenus: [], newProducts: [], convert: [], made: [], recipes: [{ menu: { id: menuId }, servings: 1, lines: [{ product: { id: pork }, unitName: "kg", ratio: null, qty: 0.2, note: null }] }] }, user);
-    return (await prismaBypass.recipe.findFirstOrThrow({ where: { tenantId: tenant, menuId, isDraft: true }, select: { id: true } })).id;
+    return (await prismaBypass.recipe.findFirstOrThrow({ where: { tenantId: tenant, menuId, isDraft: true, deletedAt: null }, select: { id: true } })).id;
   };
   const liveFrom = (menuId: string, from: Date) =>
     createRecipeLogic(
@@ -107,5 +107,43 @@ describe("publishing drafts on a chosen day", () => {
     expect(publishDraftInputSchema.safeParse({ recipeId: randomUUID(), effectiveFrom: iso(day(1)) }).success).toBe(false);
     expect(publishDraftsInputSchema.safeParse({ recipeIds: [randomUUID()], effectiveFrom: iso(day(-91)) }).success).toBe(false);
     expect(publishDraftsInputSchema.safeParse({ recipeIds: [randomUUID()], effectiveFrom: iso(day(-90)) }).success).toBe(true);
+  });
+
+  it("D-5 a draft that is really น้ำซุป becomes a live production recipe: the ingredient of that name turns shop-made, the draft is gone", async () => {
+    const stock = await withRlsBypass(async (tx) => {
+      const p = await tx.product.create({ data: { tenantId: tenant, sku: "STOCK-D5", name: "น้ำซุปหมู", type: "RAW", primaryDimension: "VOLUME" } });
+      await tx.productUnit.create({ data: { productId: p.id, unitName: "ml", unitDimension: "VOLUME", toBaseRatio: 1, isBase: true } });
+      return p.id;
+    });
+    const m = await withRlsBypass((tx) => tx.menu.create({ data: { tenantId: tenant, source: "MISE", name: "น้ำซุปหมู" }, select: { id: true } }));
+    const d = await draftFor(m.id);
+    const preview = await draftMadePreviewLogic(tenant, d);
+    expect(preview).toMatchObject({ menuName: "น้ำซุปหมู", product: { id: stock, type: "RAW", blocked: null }, menuGoes: true, fromMenu: false });
+
+    // 5 litres, stated in a size the system knows; the stock is counted in ml.
+    const out = await draftToMadeLogic(tenant, { recipeId: d, yieldQty: 5, unitName: "l" }, user);
+    expect(out).toMatchObject({ productId: stock, menuId: m.id, menuGoes: true });
+    const made = await prismaBypass.recipe.findFirstOrThrow({ where: { tenantId: tenant, outputProductId: stock }, include: { ingredients: true, outputProduct: true } });
+    expect(made).toMatchObject({ isDraft: false, menuId: null });
+    expect(Number(made.servings)).toBe(5000);
+    expect(made.outputProduct?.type).toBe("PREPPED");
+    expect(made.ingredients.map((i) => [i.productId, Number(i.qty)])).toEqual([[pork, 0.2]]);
+    expect((await prismaBypass.recipe.findUniqueOrThrow({ where: { id: d } })).deletedAt).not.toBeNull();
+
+    // Again, for another draft of it: the product is made by a recipe now — not written over.
+    const again = await draftFor(m.id);
+    expect((await draftMadePreviewLogic(tenant, again))?.product?.blocked).toBe("RECIPE");
+    await expect(draftToMadeLogic(tenant, { recipeId: again, yieldQty: 1, unitName: "ml" }, user)).rejects.toBeInstanceOf(MadeAlreadyError);
+  });
+
+  it("D-6 with no product of that name, one is made, counted in the unit the yield was given in", async () => {
+    const m = await withRlsBypass((tx) => tx.menu.create({ data: { tenantId: tenant, source: "MISE", name: `น้ำจิ้ม-${randomUUID().slice(0, 4)}` }, select: { id: true, name: true } }));
+    const d = await draftFor(m.id);
+    expect((await draftMadePreviewLogic(tenant, d))?.product).toBeNull();
+    const out = await draftToMadeLogic(tenant, { recipeId: d, yieldQty: 2, unitName: "kg" }, user);
+    const p = await prismaBypass.product.findUniqueOrThrow({ where: { id: out.productId }, include: { productUnits: true } });
+    expect(p).toMatchObject({ name: m.name, type: "PREPPED", primaryDimension: "WEIGHT" });
+    expect(p.productUnits.map((u) => [u.unitName, u.isBase])).toEqual([["kg", true]]);
+    expect(Number((await prismaBypass.recipe.findFirstOrThrow({ where: { outputProductId: p.id } })).servings)).toBe(2);
   });
 });

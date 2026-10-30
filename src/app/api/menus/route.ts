@@ -13,7 +13,8 @@
 // Same gates as before: membership for every read, the branch asserted against
 // the reader's reach (rule A5), money only with the cost ticket (ADR 0029 Q12),
 // the adder's list only for someone who can write a recipe. `what=suggest`
-// (a POS name's look-alike menus, for the alias block) joined 2026-10-29.
+// (a POS name's look-alike menus, for the alias block) joined 2026-10-29;
+// `what=made` (what "นี่คือของที่ร้านทำเอง" would do to a draft) 2026-10-30.
 // ============================================================
 
 import { requireTenant } from "@/lib/require-tenant";
@@ -21,6 +22,7 @@ import { guardRead, readInput } from "@/lib/read-api";
 import { suggestMenusLogic } from "@/server/menu";
 import { toMenuSuggestionRowView } from "@/app/(app)/menus/_components/menu-view";
 import { findDeletedMenuByNameLogic } from "@/server/menu-lifecycle";
+import { draftMadePreviewLogic } from "@/server/menu-lab";
 import {
   getIngredientInsightLogic,
   getIngredientOptionsLogic,
@@ -66,6 +68,16 @@ async function read(req: Request): Promise<Response> {
     const { tenantId } = await requireTenant("master:write");
     const name = (url.searchParams.get("name") ?? "").trim();
     return json({ ok: true, found: name === "" ? null : await findDeletedMenuByNameLogic(tenantId, name) });
+  }
+
+  if (what === "made") {
+    // The same gate as the write: a live, shared production recipe.
+    const { tenantId, canEditShared } = await requireTenant("recipe:write");
+    const recipeId = url.searchParams.get("recipe") ?? "";
+    if (!UUID.test(recipeId)) return json({ ok: false, error: "คำขอไม่ถูกต้อง" }, 400);
+    if (!canEditShared) return json({ ok: false, error: "ต้องเป็นผู้ดูแลทุกสาขา" }, 403);
+    const preview = await draftMadePreviewLogic(tenantId, recipeId);
+    return preview === null ? json({ ok: false, error: "ไม่พบร่างนี้" }, 404) : json({ ok: true, preview });
   }
 
   if (what === "lab") {

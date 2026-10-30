@@ -37,13 +37,18 @@
 import { randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import type { PrismaClient } from "@prisma/client";
-import { withTenantContext } from "@/lib/db";
+import { prisma, withTenantContext } from "@/lib/db";
 import { computeBangkokToday } from "@/lib/bangkok-date";
-import { assertRefBelongsToTenant } from "@/server/product";
-import { assertRecipeGraphValid } from "@/server/recipe-guards";
+import { nameKey } from "@/lib/product-import";
+import { recipeInputSchema } from "@/lib/validations/recipe";
+import { assertRefBelongsToTenant, convertToPreppedInTx } from "@/server/product";
+import { importProductsInTx } from "@/server/product-import";
+import { madeFromDay } from "@/server/recipe-import";
+import { RecipeMethodConflictError, assertRecipeGraphValid } from "@/server/recipe-guards";
 import {
   RECIPE_WRITE_TIMEOUT_MS,
   RecipeBranchOwnsLineError,
+  createRecipeInTx,
   RecipeNotFoundError,
   saveRecipeForBranchLogic,
   updateRecipeLogic,
@@ -590,4 +595,195 @@ export async function applyDraftToBranchLogic(
     tx.recipe.update({ where: { id: draft.id }, data: { deletedAt: new Date() } })
   );
   return { recipeId: applied.id, menuId: draft.menuId };
+}
+
+// ------------------------------------------------------------
+// "นี่คือของที่ร้านทำเอง" — a draft that was never a dish (Kong 2026-10-30)
+// ------------------------------------------------------------
+// A recipe imported as a dish (or drafted as one) turns out to be น้ำซุป:
+// something the shop makes FOR its dishes. In this system that is a PREPPED
+// product with a production recipe (ADR 0021 Q1), so the draft's lines move
+// onto a live production recipe for the product of the same name — an
+// existing ingredient is turned PREPPED, else one is made — and the draft is
+// discarded. The dish the draft created is the action's to remove, through
+// Part 27's own refusals, never here.
+
+/** A production recipe already makes it — the lab does not write over one. */
+export class MadeAlreadyError extends Error {
+  constructor(public readonly productName: string) {
+    super(`"${productName}" already has a production recipe`);
+    this.name = "MadeAlreadyError";
+  }
+}
+
+/** A line is another dish; a production recipe is made of products. */
+export class MadeFromMenuError extends Error {
+  constructor() {
+    super("a production recipe cannot use a menu as an ingredient");
+    this.name = "MadeFromMenuError";
+  }
+}
+
+/** The yield's unit means nothing for the product it makes (litres of a thing counted in kg). */
+export class MadeYieldUnitError extends Error {
+  constructor(
+    public readonly unitName: string,
+    public readonly baseUnitName: string
+  ) {
+    super(`"${unitName}" does not convert to "${baseUnitName}"`);
+    this.name = "MadeYieldUnitError";
+  }
+}
+
+type MadeCandidate = {
+  id: string;
+  name: string;
+  type: "RAW" | "PREPPED";
+  blocked: "RECIPE" | "TRIM" | null;
+  units: { unitName: string; toBaseRatio: number; isBase: boolean }[];
+};
+
+/** The product named like the dish, if the shop has one, and whether it is free to be made by a recipe. */
+async function madeCandidateInTx(tx: PrismaClient, tenantId: string, name: string): Promise<MadeCandidate | null> {
+  const key = nameKey(name);
+  const all = await tx.product.findMany({ where: { tenantId, deletedAt: null }, select: { id: true, name: true } });
+  const hit = all.find((p) => nameKey(p.name) === key);
+  if (!hit) return null;
+  const [p, recipe, trim] = await Promise.all([
+    tx.product.findFirstOrThrow({
+      where: { id: hit.id },
+      select: { type: true, parentProductId: true, productUnits: { select: { unitName: true, toBaseRatio: true, isBase: true } } },
+    }),
+    tx.recipe.findFirst({ where: { tenantId, outputProductId: hit.id, isDraft: false, deletedAt: null, supersededAt: null }, select: { id: true } }),
+    tx.trimRecipePart.findFirst({ where: { tenantId, productId: hit.id, deletedAt: null, trimRecipe: { deletedAt: null } }, select: { id: true } }),
+  ]);
+  return {
+    id: hit.id,
+    name: hit.name,
+    type: p.type === "PREPPED" ? "PREPPED" : "RAW",
+    blocked: recipe !== null ? "RECIPE" : p.parentProductId !== null || trim !== null ? "TRIM" : null,
+    units: p.productUnits.map((u) => ({ unitName: u.unitName, toBaseRatio: Number(u.toBaseRatio), isBase: u.isBase })),
+  };
+}
+
+export type MadePreview = {
+  menuName: string;
+  /** The product it will make, when the shop already has one by that name. */
+  product: MadeCandidate | null;
+  templates: { unitName: string; unitDimension: string }[];
+  /** ISO day the production recipe starts. */
+  madeFrom: string;
+  /** The lab made this dish and nothing ever sold under it — it can go. */
+  menuGoes: boolean;
+  /** A line is another dish: refused. */
+  fromMenu: boolean;
+};
+
+export async function draftMadePreviewLogic(tenantId: string, recipeId: string): Promise<MadePreview | null> {
+  const [facts, templates] = await Promise.all([
+    withTenantContext(tenantId, async (tx) => {
+      const d = await tx.recipe.findFirst({
+        where: { id: recipeId, tenantId, isDraft: true, deletedAt: null, menuId: { not: null } },
+        select: { menu: { select: { id: true, name: true, source: true, posMenuId: true } }, ingredients: { select: { componentMenuId: true } } },
+      });
+      if (d === null || d.menu === null) return null;
+      const [product, sold, madeFrom] = await Promise.all([
+        madeCandidateInTx(tx, tenantId, d.menu.name),
+        tx.salesLine.findFirst({ where: { tenantId, menuId: d.menu.id }, select: { id: true } }),
+        madeFromDay(tx, tenantId),
+      ]);
+      return {
+        menuName: d.menu.name,
+        product,
+        madeFrom: madeFrom.toISOString().slice(0, 10),
+        menuGoes: d.menu.source === "MISE" && d.menu.posMenuId === null && sold === null,
+        fromMenu: d.ingredients.some((i) => i.componentMenuId !== null),
+      };
+    }),
+    prisma.unitTemplate.findMany({ select: { unitName: true, unitDimension: true } }),
+  ]);
+  return facts === null ? null : { ...facts, templates };
+}
+
+export async function draftToMadeLogic(
+  tenantId: string,
+  input: { recipeId: string; yieldQty: number; unitName: string },
+  createdBy: string
+): Promise<{ productId: string; productName: string; menuId: string; menuGoes: boolean; madeFrom: string }> {
+  return withTenantContext(
+    tenantId,
+    async (tx) => {
+      const d = await tx.recipe.findFirst({
+        where: { id: input.recipeId, tenantId, isDraft: true, deletedAt: null, menuId: { not: null } },
+        select: {
+          id: true,
+          notes: true,
+          menu: { select: { id: true, name: true, source: true, posMenuId: true } },
+          ingredients: { select: { productId: true, componentMenuId: true, qty: true, productUnitId: true, sortOrder: true, notes: true }, orderBy: { sortOrder: "asc" } },
+        },
+      });
+      if (d === null || d.menu === null) throw new NotADraftError(input.recipeId);
+      if (d.ingredients.some((i) => i.componentMenuId !== null)) throw new MadeFromMenuError();
+
+      const found = await madeCandidateInTx(tx, tenantId, d.menu.name);
+      if (found?.blocked === "RECIPE") throw new MadeAlreadyError(found.name);
+      if (found?.blocked === "TRIM") throw new RecipeMethodConflictError(found.id, found.name);
+      let productId: string;
+      let units: MadeCandidate["units"];
+      if (found !== null) {
+        await convertToPreppedInTx(tx, tenantId, found.id);
+        productId = found.id;
+        units = found.units;
+      } else {
+        const made = await importProductsInTx(tx, tenantId, [{ name: d.menu.name, baseUnitName: input.unitName, categoryId: null, extraUnit: null, prepped: true }]);
+        productId = made.created[0].id;
+        units = [{ unitName: input.unitName, toBaseRatio: 1, isBase: true }];
+      }
+
+      // 1 yield unit = ? base units: one of the product's own units, else two
+      // sizes the system knows in the same dimension.
+      const base = units.find((u) => u.isBase)!;
+      let ratio = units.find((u) => u.unitName === input.unitName)?.toBaseRatio ?? null;
+      if (ratio === null) {
+        const t = await tx.unitTemplate.findMany({ where: { unitName: { in: [input.unitName, base.unitName] } }, select: { unitName: true, unitDimension: true, toSiRatio: true } });
+        const a = t.find((x) => x.unitName === input.unitName);
+        const b = t.find((x) => x.unitName === base.unitName);
+        if (a && b && a.unitDimension === b.unitDimension && a.toSiRatio && b.toSiRatio) ratio = Number(a.toSiRatio) / Number(b.toSiRatio);
+      }
+      if (ratio === null) throw new MadeYieldUnitError(input.unitName, base.unitName);
+
+      const madeFrom = await madeFromDay(tx, tenantId);
+      await createRecipeInTx(
+        tx,
+        tenantId,
+        recipeInputSchema.parse({
+          submitKey: randomUUID(),
+          menuId: null,
+          outputProductId: productId,
+          servings: Math.round(input.yieldQty * ratio * 1000) / 1000,
+          effectiveFrom: madeFrom,
+          ingredients: d.ingredients.map((i) => ({
+            productId: i.productId,
+            componentMenuId: null,
+            qty: Number(i.qty),
+            productUnitId: i.productUnitId,
+            sortOrder: i.sortOrder,
+            notes: i.notes,
+          })),
+          notes: d.notes,
+        }),
+        createdBy
+      );
+      await tx.recipe.update({ where: { id: d.id }, data: { deletedAt: new Date() } });
+      const sold = await tx.salesLine.findFirst({ where: { tenantId, menuId: d.menu.id }, select: { id: true } });
+      return {
+        productId,
+        productName: found?.name ?? d.menu.name,
+        menuId: d.menu.id,
+        menuGoes: d.menu.source === "MISE" && d.menu.posMenuId === null && sold === null,
+        madeFrom: madeFrom.toISOString().slice(0, 10),
+      };
+    },
+    { timeout: RECIPE_WRITE_TIMEOUT_MS }
+  );
 }

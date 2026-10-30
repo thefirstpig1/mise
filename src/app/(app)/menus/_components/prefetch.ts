@@ -6,6 +6,7 @@
 
 import type { IngredientInsight, IngredientOption, MenuSheet, PriceBook, StandardUnit } from "@/server/menu-manager";
 import type { RecipeConfidence } from "@/server/recipe-cost";
+import type { MadePreview } from "@/server/menu-lab";
 
 type Res<K extends string, T> = ({ ok: true } & { [P in K]: T }) | { ok: false; error: string };
 
@@ -32,6 +33,8 @@ export type LabCost = { costPerServing: number; confidence: RecipeConfidence; un
 export const labDraftCost = (recipeId: string, branchId: string) => read<"cost", LabCost>({ what: "lab", recipe: recipeId, branch: branchId });
 export type DeletedMenu = { id: string; name: string; recipeCount: number } | null;
 export const deletedMenuNamed = (name: string) => read<"found", DeletedMenu>({ what: "deleted-menu", name });
+/** What "นี่คือของที่ร้านทำเอง" would do to this draft (Kong 2026-10-30). */
+export const madePreview = (recipeId: string) => read<"preview", MadePreview>({ what: "made", recipe: recipeId });
 
 type SheetRes = Res<"sheet", MenuSheet>;
 type InsightRes = Res<"insight", IngredientInsight>;

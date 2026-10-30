@@ -28,6 +28,7 @@ import { Adder, appendLines, CostMix, lineCost, lineFrom, materializeUnits, next
 import { atLeastTh, baht, confidenceHintTh, confidenceTh, newSubmitKey, thDate, unitTh } from "../../_components/manager-format";
 import { ConfirmDialog, type ConfirmSpec, PhotoSlot, Sheet } from "../../_components/sheet-parts";
 import { DraftSteps, STATUS_TH, type LabMenu, type Option } from "./LabManager";
+import MadeDialog from "./MadeDialog";
 
 const DEFAULT_TARGET = 30;
 const targetKey = (id: string) => `mise.lab.target.${id}`;
@@ -263,6 +264,9 @@ export default function LabSheet(props: {
       onToast(del.ok ? `ทิ้งร่างและลบ “${menu?.name ?? name}” แล้ว` : `ทิ้งร่างแล้ว · ยังไม่ได้ลบเมนู: ${del.error} — ลบได้ที่หน้าจัดการเมนู`);
       props.onGone();
     });
+
+  // Kong 2026-10-30: a draft that is really น้ำซุป moves to a production recipe.
+  const [makingMade, setMakingMade] = useState(false);
 
   const askDiscard = () => {
     if (!savedId) return props.onClose();
@@ -706,6 +710,11 @@ export default function LabSheet(props: {
         <span className="flex flex-wrap justify-end gap-2">
           {canEdit && (
             <>
+              {savedId && props.canPublish && !dirty && (
+                <button type="button" onClick={() => setMakingMade(true)} disabled={busy} className="btn-secondary btn-sm">
+                  นี่คือของที่ร้านทำเอง
+                </button>
+              )}
               {savedId ? (
                 <button type="button" onClick={askDiscard} disabled={busy} className="btn-danger btn-sm">
                   ทิ้งร่าง
@@ -747,6 +756,18 @@ export default function LabSheet(props: {
       </div>
 
       {confirm && <ConfirmDialog spec={confirm} onClose={() => setConfirm(null)} />}
+      {makingMade && savedId && (
+        <MadeDialog
+          recipeId={savedId}
+          menuName={menu?.name ?? name}
+          onClose={() => setMakingMade(false)}
+          onDone={(message) => {
+            setMakingMade(false);
+            onToast(message);
+            props.onGone();
+          }}
+        />
+      )}
     </Sheet>
   );
 }

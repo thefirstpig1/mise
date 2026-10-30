@@ -28,7 +28,7 @@ import { importProductsInTx, loadImportGrids } from "@/server/product-import";
  * sales imported before the recipes can be posted against it — never earlier
  * than the ledger accepts (ADR 0011 Q5), and today for a shop with no sales.
  */
-async function madeFromDay(tx: PrismaClient, tenantId: string): Promise<Date> {
+export async function madeFromDay(tx: PrismaClient, tenantId: string): Promise<Date> {
   const today = computeBangkokToday();
   const first = await tx.salesDay.findFirst({ where: { tenantId }, orderBy: { businessDate: "asc" }, select: { businessDate: true } });
   if (first === null) return today;
