@@ -1,7 +1,9 @@
 "use client";
 
 // The "?" walkthrough (Kong 2026-10-30: "มีปุ่ม?เพื่อเป็นป๊อปอัพขั้นตอนการทำ
-// ทีละขั้น"). Six steps, round 3 of the mockup R3vZEuvaWr2gWQosAgYfkA.
+// ทีละขั้น"). Six steps, round 3 of the mockup R3vZEuvaWr2gWQosAgYfkA; the
+// same six for every import, with the attaching and the review told for what
+// is being imported (ingredients, or bills).
 // Every step is laid into the same grid cell, so the window is as tall as its
 // tallest step and ย้อนกลับ / ถัดไป never move. Opens by itself on the first
 // visit; after that only from the button.
@@ -9,9 +11,10 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
-const SEEN_KEY = "kitkrua:import-guide-seen";
+export type GuideKind = "products" | "bills";
 
-export default function ImportGuide({ prompt }: { prompt: string }) {
+export default function ImportGuide({ prompt, kind }: { prompt: string; kind: GuideKind }) {
+  const SEEN_KEY = `kitkrua:import-guide-seen:${kind}`;
   const [open, setOpen] = useState(false);
   const opener = useRef<HTMLButtonElement>(null);
 
@@ -21,7 +24,7 @@ export default function ImportGuide({ prompt }: { prompt: string }) {
     } catch {
       /* storage blocked — the button still works */
     }
-  }, []);
+  }, [SEEN_KEY]);
 
   const close = useCallback(() => {
     setOpen(false);
@@ -31,7 +34,7 @@ export default function ImportGuide({ prompt }: { prompt: string }) {
       /* ignore */
     }
     opener.current?.focus();
-  }, []);
+  }, [SEEN_KEY]);
 
   return (
     <>
@@ -47,16 +50,16 @@ export default function ImportGuide({ prompt }: { prompt: string }) {
         </span>
         วิธีนำเข้าทีละขั้น
       </button>
-      {open && <GuideWindow prompt={prompt} onClose={close} />}
+      {open && <GuideWindow prompt={prompt} kind={kind} onClose={close} />}
     </>
   );
 }
 
-function GuideWindow({ prompt, onClose }: { prompt: string; onClose: () => void }) {
+function GuideWindow({ prompt, kind, onClose }: { prompt: string; kind: GuideKind; onClose: () => void }) {
   const [at, setAt] = useState(0);
   const [ready, setReady] = useState(false);
   const win = useRef<HTMLDivElement>(null);
-  const steps = STEPS(prompt);
+  const steps = STEPS(prompt, kind);
   const last = steps.length - 1;
 
   useEffect(() => setReady(true), []);
@@ -252,7 +255,7 @@ function CopyPrompt({ prompt }: { prompt: string }) {
   );
 }
 
-const STEPS = (prompt: string): { title: string; body: ReactNode }[] => [
+const STEPS = (prompt: string, kind: GuideKind): { title: string; body: ReactNode }[] => [
   {
     title: "เปิดโปรแกรม AI ที่ร้านใช้",
     body: (
@@ -272,16 +275,30 @@ const STEPS = (prompt: string): { title: string; body: ReactNode }[] => [
     ),
   },
   {
-    title: "แนบไฟล์ข้อมูลของร้าน",
+    title: kind === "bills" ? "แนบรูปบิลหรือใบเสร็จ" : "แนบไฟล์ข้อมูลของร้าน",
     body: (
       <>
-        <p className={say}>กดปุ่ม + ข้างช่องพิมพ์ข้อความ แล้วเลือกไฟล์ของร้าน แนบได้หลายไฟล์พร้อมกัน</p>
+        <p className={say}>
+          {kind === "bills"
+            ? "กดปุ่ม + ข้างช่องพิมพ์ข้อความ แล้วเลือกรูปบิลหรือใบเสร็จ แนบได้หลายใบพร้อมกัน"
+            : "กดปุ่ม + ข้างช่องพิมพ์ข้อความ แล้วเลือกไฟล์ของร้าน แนบได้หลายไฟล์พร้อมกัน"}
+        </p>
         <Ill tip>
           <ChatWindow>
             <div className="flex flex-wrap gap-1.5 px-3 py-2.5">
-              <FileChip kind="XLSX" name="รายการของ.xlsx" />
-              <FileChip kind="DOCX" name="สูตรร้าน.docx" />
-              <FileChip kind="JPG" name="สมุดสูตร-หน้า1.jpg" />
+              {kind === "bills" ? (
+                <>
+                  <FileChip kind="JPG" name="บิล-เจ๊ใหญ่.jpg" />
+                  <FileChip kind="JPG" name="ใบเสร็จ-แม็คโคร.jpg" />
+                  <FileChip kind="PDF" name="ใบกำกับ-ตุลาคม.pdf" />
+                </>
+              ) : (
+                <>
+                  <FileChip kind="XLSX" name="รายการของ.xlsx" />
+                  <FileChip kind="DOCX" name="สูตรร้าน.docx" />
+                  <FileChip kind="JPG" name="สมุดสูตร-หน้า1.jpg" />
+                </>
+              )}
             </div>
             <div className="mx-2 mb-2 flex items-center gap-2 rounded-[14px] bg-muted py-1.5 pl-2 pr-1.5">
               <span className="relative inline-grid shrink-0">
@@ -297,7 +314,11 @@ const STEPS = (prompt: string): { title: string; body: ReactNode }[] => [
             </div>
           </ChatWindow>
         </Ill>
-        <Bullets items={[<>รองรับไฟล์ <b className="font-semibold text-foreground">Excel, Word, PDF และรูปถ่าย</b></>, "รูปถ่ายสมุด: ถ่ายตรงทีละหน้า ให้ตัวอักษรชัดเจน"]} />
+        {kind === "bills" ? (
+          <Bullets items={["ถ่ายทีละใบ ให้เห็นชื่อร้านที่หัวบิล วันที่ และทุกบรรทัด", "บิลยาวถ่ายเป็นหลายรูปได้ ตัวอักษรต้องชัด"]} />
+        ) : (
+          <Bullets items={[<>รองรับไฟล์ <b className="font-semibold text-foreground">Excel, Word, PDF และรูปถ่าย</b></>, "รูปถ่ายสมุด: ถ่ายตรงทีละหน้า ให้ตัวอักษรชัดเจน"]} />
+        )}
         <p className="rounded-xl bg-muted px-3 py-2 text-[13px] text-muted-foreground">
           ไฟล์ที่แนบจะส่งไปที่ AI ของร้านเท่านั้น คิดครัวได้รับข้อมูลเมื่อร้านอัปโหลดในขั้นที่ 5
         </p>
@@ -313,14 +334,25 @@ const STEPS = (prompt: string): { title: string; body: ReactNode }[] => [
         <Ill tip>
           <ChatWindow>
             <div className="flex flex-wrap gap-1.5 px-3 py-2.5">
-              <FileChip kind="XLSX" name="รายการของ.xlsx" />
-              <FileChip kind="JPG" name="สมุดสูตร-หน้า1.jpg" />
+              {kind === "bills" ? (
+                <>
+                  <FileChip kind="JPG" name="บิล-เจ๊ใหญ่.jpg" />
+                  <FileChip kind="JPG" name="ใบเสร็จ-แม็คโคร.jpg" />
+                </>
+              ) : (
+                <>
+                  <FileChip kind="XLSX" name="รายการของ.xlsx" />
+                  <FileChip kind="JPG" name="สมุดสูตร-หน้า1.jpg" />
+                </>
+              )}
             </div>
             <div className="mx-2 mb-2 flex items-center gap-2 rounded-[14px] bg-muted py-1.5 pl-2 pr-1.5">
               <span aria-hidden="true" className={ico}>
                 +
               </span>
-              <span className="min-w-0 flex-1 truncate text-[13px]">ช่วยแปลงข้อมูลวัตถุดิบและสูตรอาหารของร้านที่แนบมา…</span>
+              <span className="min-w-0 flex-1 truncate text-[13px]">
+                {kind === "bills" ? "ช่วยอ่านบิลและใบเสร็จซื้อของของร้านที่แนบมา…" : "ช่วยแปลงข้อมูลวัตถุดิบและสูตรอาหารของร้านที่แนบมา…"}
+              </span>
               <span className="relative inline-grid shrink-0">
                 <span aria-hidden="true" className={`${icoGo} ${pulse}`}>
                   ↑
@@ -343,9 +375,9 @@ const STEPS = (prompt: string): { title: string; body: ReactNode }[] => [
           <ChatWindow>
             <div className="grid grid-cols-[minmax(0,1fr)] px-3 py-2.5">
               <div className="grid max-w-[92%] justify-self-start gap-2 rounded-[14px] rounded-bl-[4px] bg-muted px-2.5 py-2 text-[12.5px]">
-                เรียบร้อยแล้ว แผ่น “วัตถุดิบ” 47 แถว แผ่น “สูตร” 12 เมนู
+                {kind === "bills" ? "เรียบร้อยแล้ว อ่านได้ 12 บิล 86 บรรทัด" : "เรียบร้อยแล้ว แผ่น “วัตถุดิบ” 47 แถว แผ่น “สูตร” 12 เมนู"}
                 <span className="relative inline-grid justify-self-start">
-                  <FileChip kind="XLSX" name="คิดครัว-นำเข้า.xlsx ⤓" hl />
+                  <FileChip kind="XLSX" name={kind === "bills" ? "คิดครัว-บิลซื้อ.xlsx ⤓" : "คิดครัว-นำเข้า.xlsx ⤓"} hl />
                   <Callout side="left">กดเพื่อดาวน์โหลด</Callout>
                 </span>
               </div>
@@ -376,7 +408,7 @@ const STEPS = (prompt: string): { title: string; body: ReactNode }[] => [
         <Ill>
           <div className="grid w-full max-w-[400px] justify-items-center gap-1.5 rounded-[14px] border-2 border-dashed border-warn bg-surface p-4 text-center">
             <b className="font-display text-sm font-semibold">ลากไฟล์มาวางที่นี่</b>
-            <FileChip kind="XLSX" name="คิดครัว-นำเข้า.xlsx" />
+            <FileChip kind="XLSX" name={kind === "bills" ? "คิดครัว-บิลซื้อ.xlsx" : "คิดครัว-นำเข้า.xlsx"} />
           </div>
         </Ill>
         <p className={fine}>ระบบจะอ่านข้อมูลแล้วแสดงหน้าตรวจทานทันที ยังไม่มีการบันทึก</p>
@@ -387,14 +419,25 @@ const STEPS = (prompt: string): { title: string; body: ReactNode }[] => [
     title: "ตรวจทาน แล้วกดบันทึก",
     body: (
       <>
-        <p className={say}>ทุกแถวแสดงข้อความต้นฉบับของร้านไว้ให้เทียบ ตรวจเฉพาะแถวที่มีสีก็เพียงพอ</p>
+        <p className={say}>
+          {kind === "bills"
+            ? "ทุกบรรทัดแสดงข้อความจากบิลไว้ให้เทียบ ระบบเช็กว่าจำนวน × ราคา ตรงกับยอดรวม ตรวจเฉพาะแถวที่มีสีก็เพียงพอ"
+            : "ทุกแถวแสดงข้อความต้นฉบับของร้านไว้ให้เทียบ ตรวจเฉพาะแถวที่มีสีก็เพียงพอ"}
+        </p>
         <Ill>
           <div className="grid w-full max-w-[400px] gap-1.5">
-            {[
-              ["กระเพรา", "ชื่อใกล้ของเดิม", "chip-warn"],
-              ["น้ำมันหอย", "พบในวิธีทำ", "chip-warn"],
-              ["(อ่านชื่อไม่ออก)", "ต้องแก้", "chip-bad"],
-            ].map(([n, t, c]) => (
+            {(kind === "bills"
+              ? [
+                  ["Sweet Syrup → น้ำเชื่อม", "AI แนะนำ", "chip-warn"],
+                  ["ไข่ไก่ 3 × 120 ≠ 380", "ตัวเลขไม่ลงกัน", "chip-warn"],
+                  ["พริกแห้ง 1 ถุง", "ต้องบอกขนาด", "chip-bad"],
+                ]
+              : [
+                  ["กระเพรา", "ชื่อใกล้ของเดิม", "chip-warn"],
+                  ["น้ำมันหอย", "พบในวิธีทำ", "chip-warn"],
+                  ["(อ่านชื่อไม่ออก)", "ต้องแก้", "chip-bad"],
+                ]
+            ).map(([n, t, c]) => (
               <div key={n} className="flex items-center justify-between gap-2 rounded-[10px] border border-border bg-surface px-2.5 py-1.5 text-[13px]">
                 <span>{n}</span>
                 <span className={`chip ${c}`}>{t}</span>
@@ -410,7 +453,7 @@ const STEPS = (prompt: string): { title: string; body: ReactNode }[] => [
             <>
               <b className="font-semibold text-foreground">สีแดง</b> ต้องแก้ไขหรือกดข้ามก่อนบันทึก
             </>,
-            "ข้อมูลจะเข้าระบบเมื่อกดปุ่มบันทึกเท่านั้น",
+            kind === "bills" ? "เก็บแค่ราคาและผู้ขาย ไม่ลงสต๊อก ไม่ลงค่าใช้จ่าย" : "ข้อมูลจะเข้าระบบเมื่อกดปุ่มบันทึกเท่านั้น",
           ]}
         />
       </>

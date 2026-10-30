@@ -7,7 +7,8 @@
 // with the same functions, so what turns red here is what it would refuse.
 
 import Link from "next/link";
-import { useMemo, useRef, useState, type DragEvent } from "react";
+import { useMemo, useState } from "react";
+import { PromptCard, UploadCard } from "@/components/import/ImportParts";
 import { orStale } from "@/lib/stale-tab";
 import {
   FROM_METHOD_MARK,
@@ -98,8 +99,13 @@ export default function ProductImport({ prompt }: { prompt: string }) {
     <div className="grid gap-4">
       {ctx === null ? (
         <div className="grid gap-3 lg:grid-cols-[1.15fr_1fr]">
-          <PromptCard prompt={prompt} />
-          <UploadCard busy={busy} error={error} onSend={send} />
+          <PromptCard
+            prompt={prompt}
+            title="ขั้น 1 · เตรียมไฟล์ด้วย AI ของร้าน"
+            sub="คัดลอกคำสั่งนี้ไปใช้กับ AI ที่ร้านใช้ พร้อมแนบไฟล์ Excel, Word, PDF หรือรูปถ่ายสมุดสูตร"
+            templateHref="/api/products/import?what=template"
+          />
+          <UploadCard busy={busy} error={error} onSend={send} pasteHint="ถ้าได้มาสองตาราง วางทั้งหมดได้เลย ระบบอ่านเฉพาะตารางวัตถุดิบ" />
         </div>
       ) : (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border bg-surface px-4 py-3">
@@ -126,168 +132,6 @@ export default function ProductImport({ prompt }: { prompt: string }) {
         />
       )}
     </div>
-  );
-}
-
-// ------------------------------------------------------------
-// Step 1 — the prompt
-// ------------------------------------------------------------
-
-function PromptCard({ prompt }: { prompt: string }) {
-  const [open, setOpen] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const pre = useRef<HTMLPreElement>(null);
-  return (
-    <section className="card grid content-start gap-3 !p-4 sm:!p-5">
-      <span className="font-display text-[12.5px] font-semibold tracking-[0.08em] text-warn">ขั้น 1 · เตรียมไฟล์ด้วย AI ของร้าน</span>
-      <p className="text-sm text-muted-foreground">คัดลอกคำสั่งนี้ไปใช้กับ AI ที่ร้านใช้ พร้อมแนบไฟล์ Excel, Word, PDF หรือรูปถ่ายสมุดสูตร</p>
-      <pre
-        ref={pre}
-        className={`m-0 whitespace-pre-wrap rounded-xl border border-border bg-surface-sunk px-3.5 py-3 font-sans text-[13.5px] leading-relaxed ${
-          open ? "max-h-[420px] overflow-auto" : "max-h-[150px] overflow-hidden [mask-image:linear-gradient(#000_55%,transparent)]"
-        }`}
-      >
-        {prompt}
-      </pre>
-      <div className="flex flex-wrap items-center gap-3">
-        <button
-          type="button"
-          className="btn btn-sm"
-          onClick={() =>
-            navigator.clipboard.writeText(prompt).then(
-              () => {
-                setCopied(true);
-                window.setTimeout(() => setCopied(false), 2400);
-              },
-              () => {
-                // The browser refused the clipboard: select the text instead.
-                setOpen(true);
-                const r = document.createRange();
-                if (pre.current) r.selectNodeContents(pre.current);
-                const sel = window.getSelection();
-                sel?.removeAllRanges();
-                sel?.addRange(r);
-              }
-            )
-          }
-        >
-          คัดลอกคำสั่ง
-        </button>
-        <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} className="text-sm underline decoration-dotted underline-offset-4 hover:text-warn">
-          {open ? "ย่อคำสั่ง" : "ดูคำสั่งทั้งหมด"}
-        </button>
-        {copied && (
-          <span role="status" className="text-[13px] text-good">
-            คัดลอกแล้ว
-          </span>
-        )}
-      </div>
-      <p className="text-[13px] text-muted-foreground">
-        ไม่ใช้ AI ก็ได้:{" "}
-        <a href="/api/products/import?what=template" className="text-foreground underline decoration-dotted underline-offset-4 hover:text-warn">
-          ดาวน์โหลดแม่แบบ Excel
-        </a>{" "}
-        แล้วกรอกเอง
-      </p>
-    </section>
-  );
-}
-
-// ------------------------------------------------------------
-// Step 2 — the file, or a pasted table
-// ------------------------------------------------------------
-
-function UploadCard({ busy, error, onSend }: { busy: boolean; error: string | null; onSend: (b: FormData, label: string) => void }) {
-  const [over, setOver] = useState(false);
-  const [pasting, setPasting] = useState(false);
-  const [text, setText] = useState("");
-  const input = useRef<HTMLInputElement>(null);
-
-  const sendFile = (f: File | undefined) => {
-    if (!f) return;
-    const b = new FormData();
-    b.set("file", f);
-    onSend(b, f.name);
-  };
-  const onDrop = (e: DragEvent) => {
-    e.preventDefault();
-    setOver(false);
-    sendFile(e.dataTransfer.files[0]);
-  };
-
-  return (
-    <section className="card grid content-start gap-3 !p-4 sm:!p-5">
-      <span className="font-display text-[12.5px] font-semibold tracking-[0.08em] text-warn">ขั้น 2 · อัปโหลดผลลัพธ์</span>
-      <div
-        onDragOver={(e) => {
-          e.preventDefault();
-          setOver(true);
-        }}
-        onDragLeave={() => setOver(false)}
-        onDrop={onDrop}
-        className={`grid justify-items-center gap-1.5 rounded-2xl border-2 border-dashed px-4 py-6 text-center transition-colors ${
-          over ? "border-warn bg-warn-bg" : "border-border-strong bg-surface-sunk"
-        }`}
-      >
-        <b className="font-display font-semibold">{busy ? "กำลังอ่านไฟล์…" : "ลากไฟล์มาวางที่นี่"}</b>
-        <span className="text-[13.5px] text-muted-foreground">หรือ</span>
-        <button type="button" disabled={busy} onClick={() => input.current?.click()} className="btn-secondary btn-sm">
-          เลือกไฟล์
-        </button>
-        <span className="text-[13.5px] text-muted-foreground">Excel (.xlsx) หรือ CSV</span>
-        <input
-          ref={input}
-          type="file"
-          accept=".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-          className="hidden"
-          onChange={(e) => {
-            sendFile(e.target.files?.[0]);
-            e.target.value = "";
-          }}
-        />
-      </div>
-      <button
-        type="button"
-        onClick={() => setPasting((v) => !v)}
-        aria-expanded={pasting}
-        className="justify-self-center text-sm underline decoration-dotted underline-offset-4 hover:text-warn"
-      >
-        ได้ผลลัพธ์เป็นตาราง? วางตารางแทน
-      </button>
-      {pasting && (
-        <div className="grid gap-2">
-          <textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            rows={5}
-            autoFocus
-            aria-label="วางตารางจาก AI"
-            placeholder="เลือกตารางที่ AI ตอบมา คัดลอก แล้ววางที่นี่ (Ctrl+V)"
-            className="input min-h-[110px] resize-y font-sans"
-          />
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              disabled={busy || text.trim() === ""}
-              onClick={() => {
-                const b = new FormData();
-                b.set("text", text);
-                onSend(b, "ตารางที่วาง");
-              }}
-              className="btn btn-sm"
-            >
-              {busy ? "กำลังอ่าน…" : "อ่านตาราง"}
-            </button>
-            <span className="text-[13px] text-muted-foreground">ถ้าได้มาสองตาราง วางทั้งหมดได้เลย ระบบอ่านเฉพาะตารางวัตถุดิบ</span>
-          </div>
-        </div>
-      )}
-      {error && (
-        <p role="alert" className="rounded-xl border border-bad-border bg-bad-bg px-3 py-2 text-sm text-bad">
-          {error}
-        </p>
-      )}
-    </section>
   );
 }
 
@@ -633,8 +477,8 @@ function Done({ done, recipeMenus, onAgain }: { done: { created: number; skipped
         <Link href="/products" className="btn">
           ดูรายการวัตถุดิบ
         </Link>
-        <Link href="/dashboard" className="btn-secondary">
-          ไปขั้นต่อไปของการตั้งร้าน
+        <Link href="/suppliers/import" className="btn-secondary">
+          ต่อไป: นำเข้าบิลซื้อย้อนหลัง
         </Link>
         <button type="button" onClick={onAgain} className="btn-secondary">
           นำเข้าไฟล์อื่น

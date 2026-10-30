@@ -8,7 +8,7 @@ import Link from "next/link";
 import { requireTenant } from "@/lib/require-tenant";
 import { buildProductImportPrompt } from "@/lib/product-import";
 import { getImportCategoriesLogic } from "@/server/product-import";
-import ImportGuide from "./_components/ImportGuide";
+import ImportGuide from "@/components/import/ImportGuide";
 import ProductImport from "./_components/ProductImport";
 
 export default async function ProductImportPage() {
@@ -34,7 +34,7 @@ export default async function ProductImportPage() {
             </Link>
           </p>
         </div>
-        <ImportGuide prompt={prompt} />
+        <ImportGuide prompt={prompt} kind="products" />
       </div>
       <ProductImport prompt={prompt} />
     </div>

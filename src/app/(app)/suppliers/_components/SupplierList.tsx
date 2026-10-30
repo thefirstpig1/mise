@@ -38,12 +38,17 @@ export default function SupplierList({
           <h2 className="text-2xl font-semibold">รายชื่อผู้ขาย</h2>
           <p className="mt-1 text-sm text-muted-foreground">ซัพพลายเออร์ทุกรายที่ร้านซื้อของด้วย — ร้านค้าส่ง ฟาร์ม แผงในตลาด</p>
         </div>
-        <Link
-          href="/suppliers/new"
-          className="btn"
-        >
-          + เพิ่มผู้ขาย
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <a href="/suppliers/import" className="btn-secondary">
+            นำเข้าบิลซื้อย้อนหลัง
+          </a>
+          <Link
+            href="/suppliers/new"
+            className="btn"
+          >
+            + เพิ่มผู้ขาย
+          </Link>
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-4">
@@ -66,7 +71,7 @@ export default function SupplierList({
 
       {suppliers.length === 0 ? (
         <EmptyState art="start">
-          ยังไม่มีผู้ขาย — กด &quot;เพิ่มผู้ขาย&quot; เพื่อเริ่มต้น
+          ยังไม่มีผู้ขาย — กด &quot;นำเข้าบิลซื้อย้อนหลัง&quot; ได้ผู้ขายและราคาจากบิลเก่าในครั้งเดียว หรือ &quot;เพิ่มผู้ขาย&quot; ทีละราย
         </EmptyState>
       ) : filtered.length === 0 ? (
         <EmptyState art="none">

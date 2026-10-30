@@ -21,7 +21,9 @@
 
 import { withTenantContext } from "@/lib/db";
 
-export const ONBOARDING_STEPS = ["shop", "team", "supplier", "product", "sales", "recipe", "count"] as const;
+// Kong 2026-10-30: ingredients come before suppliers — the bill import (the
+// supplier step's door) matches each bill line against the ingredient list.
+export const ONBOARDING_STEPS = ["shop", "team", "product", "supplier", "sales", "recipe", "count"] as const;
 export type OnboardingStep = (typeof ONBOARDING_STEPS)[number];
 
 export type Onboarding = {

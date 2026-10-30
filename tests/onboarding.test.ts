@@ -29,7 +29,7 @@ describe("onboarding checklist", () => {
     expect(o.done).toEqual({ shop: false, team: false, supplier: false, product: false, sales: false, recipe: false, count: false });
     expect(o.doneCount).toBe(0);
     // In the order the setup runs, the count last; no recipe step under นับสต๊อก (the default).
-    expect(o.steps).toEqual(["shop", "team", "supplier", "product", "sales", "count"]);
+    expect(o.steps).toEqual(["shop", "team", "product", "supplier", "sales", "count"]);
     expect(o.dismissed).toBe(false);
   });
 
@@ -49,7 +49,7 @@ describe("onboarding checklist", () => {
     const { tenantId, membershipId } = await newShop();
     await prismaBypass.tenant.update({ where: { id: tenantId }, data: { grossProfitMethod: "RECIPE_CONSUMPTION" } });
     const o = await getOnboardingLogic(tenantId, membershipId);
-    expect(o.steps).toEqual(["shop", "team", "supplier", "product", "sales", "recipe", "count"]);
+    expect(o.steps).toEqual(["shop", "team", "product", "supplier", "sales", "recipe", "count"]);
     expect(o.done.recipe).toBe(false);
   });
 

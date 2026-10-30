@@ -17,12 +17,20 @@
 // in it, the documents this order led to as chips, an overdue delivery said in
 // days, ordered / received / outstanding in the order's own table, the unit
 // details folded, and cancelling at the bottom.
+//
+// Kong 2026-10-30: the order a supplier receives names each item the way THAT
+// supplier does ("หมูบดอนามัย", remembered from imported bills), with a switch
+// back to the shop's own names for checking it in-house (`?names=shop`). A
+// label only — every quantity and price is the line's own frozen value.
 
+import Link from "next/link";
+import type { Route } from "next";
 import { notFound } from "next/navigation";
 import { requireTenant } from "@/lib/require-tenant";
 import { getDeliveryPromisesLogic, getPurchaseOrderByIdLogic } from "@/server/purchase-order";
 import { getGoodsReceiptsForPurchaseOrderLogic } from "@/server/goods-receipt";
 import { getExpenseByGoodsReceiptLogic } from "@/server/expense";
+import { getSupplierItemNamesLogic } from "@/server/supplier-product-mapping";
 import { computeBangkokToday } from "@/lib/bangkok-date";
 import { DocHeader, HeaderChip, RelatedDocs, type RelatedDoc } from "@/components/ui/DocHeader";
 import {
@@ -58,11 +66,14 @@ function qty(value: string): string {
 
 export default async function PurchaseOrderDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ names?: string }>;
 }) {
   const { tenantId, membership, can, assertBranch, reach } = await requireTenant("purchase:write");
   const { id } = await params;
+  const shopNames = (await searchParams).names === "shop";
 
   const order = await getPurchaseOrderByIdLogic(tenantId, id);
   if (!order) notFound();
@@ -75,10 +86,13 @@ export default async function PurchaseOrderDetailPage({
   // Part 13: the receiving side of the order. VOIDED receipts are shown too —
   // "this arrived and was then reversed" is part of the order's story, and
   // hiding it would make qty_received look unexplained.
-  const [receiptRows, promises] = await Promise.all([
+  const [receiptRows, promises, supplierNames] = await Promise.all([
     getGoodsReceiptsForPurchaseOrderLogic(tenantId, po.id, reach),
     getDeliveryPromisesLogic(tenantId, po.id),
+    getSupplierItemNamesLogic(tenantId, order.supplierId, [...new Set(po.lines.map((l) => l.productId))], order.branchId, order.sentAt ?? order.createdAt),
   ]);
+  const namedBySupplier = po.lines.filter((l) => supplierNames.has(l.productId)).length;
+  const useSupplierNames = namedBySupplier > 0 && !shopNames;
   const receipts = receiptRows.map(toGoodsReceiptListView);
   // The bill each confirmed receipt wrote (ADR 0016 Q7) — the link the page
   // never had: an order did not say what it ended up costing on the books.
@@ -175,6 +189,23 @@ export default async function PurchaseOrderDetailPage({
         </div>
       )}
 
+      {namedBySupplier > 0 && (
+        <div className="flex flex-wrap items-center gap-2 text-sm print:hidden">
+          <span className="text-muted-foreground">ชื่อรายการในใบสั่งซื้อ</span>
+          <div className="seg" role="group" aria-label="ชื่อรายการในใบสั่งซื้อ">
+            <Link href={`/purchase-orders/${po.id}` as Route} replace scroll={false} className={`seg-item ${useSupplierNames ? "is-on" : ""}`}>
+              ชื่อที่ผู้ขายใช้
+            </Link>
+            <Link href={`/purchase-orders/${po.id}?names=shop` as Route} replace scroll={false} className={`seg-item ${useSupplierNames ? "" : "is-on"}`}>
+              ชื่อในร้าน
+            </Link>
+          </div>
+          <span className="text-[13px] text-muted-subtle">
+            ผู้ขายรายนี้มีชื่อเรียก {namedBySupplier} จาก {po.lines.length} รายการ (จำจากบิลที่นำเข้า) · รายการที่เหลือใช้ชื่อในร้าน
+          </span>
+        </div>
+      )}
+
       {/* ---------- the document ---------- */}
       <article className="rounded-lg border border-border bg-surface p-6 print:border-0 print:p-0">
         <header className="flex flex-wrap items-start justify-between gap-4 border-b border-border pb-4">
@@ -256,9 +287,10 @@ export default async function PurchaseOrderDetailPage({
                     {l.lineNo}
                   </td>
                   <td className="py-2 pr-2">
-                    <div className="font-medium">{l.productName}</div>
+                    <div className="font-medium">{(useSupplierNames && supplierNames.get(l.productId)) || l.productName}</div>
                     <div className="text-xs text-muted-foreground">
-                      {l.productSku}
+                      {/* The order is screenshotted into LINE — in the supplier's names it carries none of ours. */}
+                      {useSupplierNames && supplierNames.has(l.productId) ? null : l.productSku}
                       {l.productDeleted && (
                         <span className="ml-1 text-warn">(ถูกลบแล้ว)</span>
                       )}

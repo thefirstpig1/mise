@@ -74,7 +74,7 @@ function setupStep(key: OnboardingStep, today: Date): Omit<OnboardingStepView, "
     case "team":
       return { title: "เชิญคนในร้าน", hint: "ครัว จัดซื้อ แคชเชียร์ แต่ละคนเห็นเฉพาะที่ต้องใช้", cta: "เชิญคน", href: "/settings/members" };
     case "supplier":
-      return { title: "เพิ่มผู้ขาย", hint: "ร้านที่ซื้อของประจำ พร้อมวิธีจ่ายเงิน", cta: "เพิ่มผู้ขาย", href: "/suppliers/new" };
+      return { title: "ผู้ขายและราคา", hint: "นำเข้าบิลซื้อย้อนหลัง ได้ผู้ขายและราคาของแต่ละวัตถุดิบในครั้งเดียว · ราคานี้ใช้ตอนนับเปิดระบบ", cta: "นำเข้าบิลซื้อ", href: "/suppliers/import" };
     case "product":
       return { title: "เพิ่มวัตถุดิบให้ครบทุกตัวที่จะนับ", hint: "นำเข้าจากไฟล์ได้ทีเดียวทั้งรายการ ให้ AI ของร้านจัดไฟล์ให้ · ของที่ไม่อยู่ในรายการจะไม่ถูกนับ", cta: "นำเข้าวัตถุดิบ", href: "/products/import" };
     case "sales":

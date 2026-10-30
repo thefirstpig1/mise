@@ -7,6 +7,7 @@
 // ============================================================
 
 import ExcelJS from "exceljs";
+import type { PrismaClient } from "@prisma/client";
 import { prisma, withTenantContext } from "@/lib/db";
 import { decodeSalesFile, looksLikeUtf8Bom, parseCsv } from "@/lib/sales-file";
 import {
@@ -81,11 +82,15 @@ export function readPastedText(text: string): ReadResult {
   return readGrid(splitPastedTable(text));
 }
 
+export type SheetGrid = { name: string; grid: string[][] };
+
 /**
- * An uploaded file. CSV is decoded the way a Thai Excel writes it: a BOM means
- * UTF-8, otherwise UTF-8 if the bytes are valid UTF-8, else TIS-620.
+ * An uploaded file as grids of text, one per sheet (a CSV is one unnamed
+ * sheet). CSV is decoded the way a Thai Excel writes it: a BOM means UTF-8,
+ * otherwise UTF-8 if the bytes are valid UTF-8, else TIS-620. Shared by every
+ * import (products, bills).
  */
-export async function readImportFile(bytes: Uint8Array, fileName: string): Promise<ReadResult | { error: "UNREADABLE" | "UNSUPPORTED" }> {
+export async function loadImportGrids(bytes: Uint8Array, fileName: string): Promise<SheetGrid[] | { error: "UNREADABLE" | "UNSUPPORTED" }> {
   const lower = fileName.toLowerCase();
   if (lower.endsWith(".csv") || lower.endsWith(".txt") || lower.endsWith(".tsv")) {
     let text: string;
@@ -97,7 +102,7 @@ export async function readImportFile(bytes: Uint8Array, fileName: string): Promi
         text = decodeSalesFile(bytes, "TIS620");
       }
     }
-    return lower.endsWith(".csv") ? readGrid(parseCsv(text)) : readPastedText(text);
+    return [{ name: "", grid: lower.endsWith(".csv") ? parseCsv(text) : splitPastedTable(text) }];
   }
   if (!lower.endsWith(".xlsx")) return { error: "UNSUPPORTED" };
 
@@ -107,7 +112,14 @@ export async function readImportFile(bytes: Uint8Array, fileName: string): Promi
   } catch {
     return { error: "UNREADABLE" };
   }
-  const grids = wb.worksheets.map((ws) => ({ name: ws.name.trim(), grid: sheetGrid(ws) }));
+  return wb.worksheets.map((ws) => ({ name: ws.name.trim(), grid: sheetGrid(ws) }));
+}
+
+/** An uploaded products file. */
+export async function readImportFile(bytes: Uint8Array, fileName: string): Promise<ReadResult | { error: "UNREADABLE" | "UNSUPPORTED" }> {
+  const grids = await loadImportGrids(bytes, fileName);
+  if ("error" in grids) return grids;
+  if (grids.length === 1 && grids[0].name === "") return readGrid(grids[0].grid);
   // The products sheet by name; otherwise the first sheet that holds a products table.
   const named = grids.find((g) => g.name === PRODUCT_SHEET);
   const recipes = grids.find((g) => g.name === RECIPE_SHEET);
@@ -126,7 +138,11 @@ function sheetGrid(ws: ExcelJS.Worksheet): string[][] {
   for (let r = 1; r <= ws.rowCount; r++) {
     const row = ws.getRow(r);
     const cells: string[] = [];
-    for (let c = 1; c <= width; c++) cells.push(row.getCell(c).text ?? "");
+    for (let c = 1; c <= width; c++) {
+      const cell = row.getCell(c);
+      // A date cell's text is locale-formatted; its value is the fact.
+      cells.push(cell.value instanceof Date ? cell.value.toISOString().slice(0, 10) : (cell.text ?? ""));
+    }
     grid.push(cells);
   }
   return grid;
@@ -176,93 +192,92 @@ export type ImportOutcome = {
  * convenience, the server is the rule.
  */
 export async function importProductsLogic(tenantId: string, rows: ImportCreate[]): Promise<ImportOutcome> {
-  return withTenantContext(
-    tenantId,
-    async (tx) => {
-      const templates = await tx.unitTemplate.findMany({ select: { unitName: true, unitDimension: true } });
-      const dimensionOf = new Map(templates.map((t) => [t.unitName, t.unitDimension]));
-      const templateNames = new Map<string, Set<string>>();
-      for (const t of templates) {
-        if (!templateNames.has(t.unitDimension)) templateNames.set(t.unitDimension, new Set());
-        templateNames.get(t.unitDimension)!.add(t.unitName);
-      }
+  return withTenantContext(tenantId, (tx) => importProductsInTx(tx, tenantId, rows), { timeout: 30_000 });
+}
 
-      const categoryIds = [...new Set(rows.map((r) => r.categoryId).filter((v): v is string => v !== null))];
-      if (categoryIds.length > 0) {
-        const found = await tx.category.count({ where: { tenantId, deletedAt: null, id: { in: categoryIds } } });
-        if (found !== categoryIds.length) throw new ImportCategoryError();
-      }
+/** The same list, inside a transaction the caller holds (the bill import creates products in its own). */
+export async function importProductsInTx(tx: PrismaClient, tenantId: string, rows: ImportCreate[]): Promise<ImportOutcome> {
+  const templates = await tx.unitTemplate.findMany({ select: { unitName: true, unitDimension: true } });
+  const dimensionOf = new Map(templates.map((t) => [t.unitName, t.unitDimension]));
+  const templateNames = new Map<string, Set<string>>();
+  for (const t of templates) {
+    if (!templateNames.has(t.unitDimension)) templateNames.set(t.unitDimension, new Set());
+    templateNames.get(t.unitDimension)!.add(t.unitName);
+  }
 
-      const taken = new Set(
-        (await tx.product.findMany({ where: { tenantId, deletedAt: null }, select: { name: true } })).map((p) => nameKey(p.name))
-      );
-      const skipped: string[] = [];
-      const todo: ImportCreate[] = [];
-      for (const r of rows) {
-        const key = nameKey(r.name);
-        if (taken.has(key)) {
-          skipped.push(r.name);
-          continue;
-        }
-        if (!dimensionOf.has(r.baseUnitName)) throw new ImportUnitError(r.baseUnitName);
-        taken.add(key);
-        todo.push(r);
-      }
-      if (todo.length === 0) return { created: [], skipped };
+  const categoryIds = [...new Set(rows.map((r) => r.categoryId).filter((v): v is string => v !== null))];
+  if (categoryIds.length > 0) {
+    const found = await tx.category.count({ where: { tenantId, deletedAt: null, id: { in: categoryIds } } });
+    if (found !== categoryIds.length) throw new ImportCategoryError();
+  }
 
-      const skus = await reserveSkus(tx, tenantId, todo.length);
-      const created = await tx.product.createManyAndReturn({
-        data: todo.map((r, i) => ({
-          tenantId,
-          sku: skus[i],
-          name: r.name,
-          type: "RAW",
-          primaryDimension: dimensionOf.get(r.baseUnitName)!,
-          categoryId: r.categoryId,
-          isActive: true,
-        })),
-        select: { id: true, name: true, sku: true },
-      });
-      const idOf = new Map(created.map((p) => [p.sku, p.id]));
-
-      await tx.productUnit.createMany({
-        data: todo.flatMap((r, i) => {
-          const productId = idOf.get(skus[i])!;
-          const dimension = dimensionOf.get(r.baseUnitName)!;
-          const extra = r.extraUnit !== null && r.extraUnit.unitName !== r.baseUnitName ? r.extraUnit : null;
-          const units = [
-            {
-              productId,
-              unitName: r.baseUnitName,
-              unitDimension: dimension,
-              toBaseRatio: 1,
-              isBase: true,
-              // The unit the shop buys in is the one an order should default to.
-              isDefaultBuyUnit: extra === null,
-              source: "system",
-              displayOrder: 0,
-            },
-          ];
-          if (extra !== null) {
-            units.push({
-              productId,
-              unitName: extra.unitName,
-              unitDimension: dimension,
-              toBaseRatio: extra.toBaseRatio,
-              isBase: false,
-              isDefaultBuyUnit: true,
-              source: templateNames.get(dimension)?.has(extra.unitName) ? "system" : "custom",
-              displayOrder: 1,
-            });
-          }
-          return units;
-        }),
-      });
-
-      // Back in the order the person saw them.
-      const bySku = new Map(created.map((p) => [p.sku, p]));
-      return { created: skus.map((s) => bySku.get(s)!), skipped };
-    },
-    { timeout: 30_000 }
+  const taken = new Set(
+    (await tx.product.findMany({ where: { tenantId, deletedAt: null }, select: { name: true } })).map((p) => nameKey(p.name))
   );
+  const skipped: string[] = [];
+  const todo: ImportCreate[] = [];
+  for (const r of rows) {
+    const key = nameKey(r.name);
+    if (taken.has(key)) {
+      skipped.push(r.name);
+      continue;
+    }
+    if (!dimensionOf.has(r.baseUnitName)) throw new ImportUnitError(r.baseUnitName);
+    taken.add(key);
+    todo.push(r);
+  }
+  if (todo.length === 0) return { created: [], skipped };
+
+  const skus = await reserveSkus(tx, tenantId, todo.length);
+  const created = await tx.product.createManyAndReturn({
+    data: todo.map((r, i) => ({
+      tenantId,
+      sku: skus[i],
+      name: r.name,
+      type: "RAW",
+      primaryDimension: dimensionOf.get(r.baseUnitName)!,
+      categoryId: r.categoryId,
+      isActive: true,
+    })),
+    select: { id: true, name: true, sku: true },
+  });
+  const idOf = new Map(created.map((p) => [p.sku, p.id]));
+
+  await tx.productUnit.createMany({
+    data: todo.flatMap((r, i) => {
+      const productId = idOf.get(skus[i])!;
+      const dimension = dimensionOf.get(r.baseUnitName)!;
+      const extra = r.extraUnit !== null && r.extraUnit.unitName !== r.baseUnitName ? r.extraUnit : null;
+      const units = [
+        {
+          productId,
+          unitName: r.baseUnitName,
+          unitDimension: dimension,
+          toBaseRatio: 1,
+          isBase: true,
+          // The unit the shop buys in is the one an order should default to.
+          isDefaultBuyUnit: extra === null,
+          source: "system",
+          displayOrder: 0,
+        },
+      ];
+      if (extra !== null) {
+        units.push({
+          productId,
+          unitName: extra.unitName,
+          unitDimension: dimension,
+          toBaseRatio: extra.toBaseRatio,
+          isBase: false,
+          isDefaultBuyUnit: true,
+          source: templateNames.get(dimension)?.has(extra.unitName) ? "system" : "custom",
+          displayOrder: 1,
+        });
+      }
+      return units;
+    }),
+  });
+
+  // Back in the order the person saw them.
+  const bySku = new Map(created.map((p) => [p.sku, p]));
+  return { created: skus.map((s) => bySku.get(s)!), skipped };
 }

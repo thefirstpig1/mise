@@ -278,6 +278,27 @@ export function nameSimilarity(a: string, b: string): number {
 /** ADR 0010's threshold for "probably the same thing" — reused, not re-tuned. */
 export const SIMILAR_AT = 0.4;
 
+/**
+ * The closest name in a list, with its trigrams computed once — for a screen
+ * that matches hundreds of lines against hundreds of names.
+ */
+export function nameIndex<T extends { name: string }>(items: T[]) {
+  const grams = items.map((p) => trigrams(p.name));
+  return (name: string, min = SIMILAR_AT): { item: T; score: number } | null => {
+    const mine = trigrams(name);
+    let best: T | null = null;
+    let score = 0;
+    for (let i = 0; i < items.length; i++) {
+      const s = jaccard(mine, grams[i]);
+      if (s > score) {
+        score = s;
+        best = items[i];
+      }
+    }
+    return best !== null && score >= min ? { item: best, score } : null;
+  };
+}
+
 export type ExistingProduct = { id: string; name: string; sku: string };
 
 // ------------------------------------------------------------

@@ -445,3 +445,53 @@ export async function getPriceHistoryLogic(
     })
   );
 }
+
+/**
+ * The supplier's own wording for each product — remembered from imported bills
+ * (คิวงานข้อ 5c) on `supplier_item_name` — as of `onDate`, for a purchase
+ * order that speaks the supplier's language (Kong 2026-10-30: "ใบสั่งซื้อที่
+ * ออกไปให้ makro จะเป็น หมูบดอนามัย"). A row in force that day beats one that
+ * is not, a branch's own row beats the shop-wide one, and the newest wins the
+ * rest. A product the supplier has never named is simply absent.
+ */
+export async function getSupplierItemNamesLogic(
+  tenantId: string,
+  supplierId: string,
+  productIds: string[],
+  branchId: string,
+  onDate: Date
+): Promise<Map<string, string>> {
+  if (productIds.length === 0) return new Map();
+  const rows = await withTenantContext(tenantId, (tx) =>
+    tx.supplierProductMapping.findMany({
+      where: {
+        tenantId,
+        supplierId,
+        productId: { in: productIds },
+        deletedAt: null,
+        supplierItemName: { not: null },
+        OR: [{ branchId }, { branchId: null }],
+      },
+      select: { productId: true, branchId: true, supplierItemName: true, effectiveFrom: true, effectiveTo: true },
+    })
+  );
+  const day = new Date(Date.UTC(onDate.getUTCFullYear(), onDate.getUTCMonth(), onDate.getUTCDate()));
+  const rank = (r: (typeof rows)[number]) => [
+    r.effectiveFrom <= day && (r.effectiveTo === null || r.effectiveTo >= day) ? 0 : 1,
+    r.branchId === branchId ? 0 : 1,
+    -r.effectiveFrom.getTime(),
+  ];
+  const best = new Map<string, (typeof rows)[number]>();
+  for (const r of rows) {
+    const have = best.get(r.productId);
+    if (!have) {
+      best.set(r.productId, r);
+      continue;
+    }
+    const a = rank(r);
+    const b = rank(have);
+    const i = a.findIndex((v, k) => v !== b[k]);
+    if (i !== -1 && a[i] < b[i]) best.set(r.productId, r);
+  }
+  return new Map([...best].map(([id, r]) => [id, r.supplierItemName!]));
+}
