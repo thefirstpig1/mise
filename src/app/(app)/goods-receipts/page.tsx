@@ -143,7 +143,37 @@ export default async function GoodsReceiptsPage({
           ยังไม่มีใบรับสินค้าตามเงื่อนไขนี้
         </EmptyState>
       ) : (
-        <div className="data-table">
+        <>
+        {/* Queue item 9 (Kong 2026-10-31): on a phone the seven columns squeezed
+            every name into a stack of syllables — each receipt is a card there,
+            the whole card opening it, as on the transfer list. */}
+        <ul className="space-y-2 sm:hidden">
+          {receipts.map((gr) => (
+            <li key={gr.id}>
+              <a
+                href={`/goods-receipts/${gr.id}`}
+                className="block rounded-[18px] border border-border/70 bg-surface p-3.5 shadow-card active:bg-surface-sunk"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <span className="font-semibold">{gr.grNumber}</span>
+                  <span className="flex flex-wrap justify-end gap-1">
+                    <StatusBadge status={gr.status} />
+                    {gr.hasDiscrepancy && <span className="chip chip-warn">ต้องตรวจสอบ</span>}
+                  </span>
+                </div>
+                <p className="mt-1 text-sm">
+                  {gr.supplierName}
+                  {gr.supplierDeleted && <span className="ml-1 text-xs text-warn">(ถูกลบแล้ว)</span>}
+                </p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {gr.branchName} · {gr.receivedAtLabel} · {gr.lineCount} รายการ · {gr.poNumber ?? "ซื้อสด"}
+                  {gr.invoiceNo ? ` · ใบส่งของ ${gr.invoiceNo}` : ""}
+                </p>
+              </a>
+            </li>
+          ))}
+        </ul>
+        <div className="data-table hidden sm:block">
           <table>
             <thead>
               <tr>
@@ -213,6 +243,7 @@ export default async function GoodsReceiptsPage({
             </tbody>
           </table>
         </div>
+        </>
       )}
     </div>
   );

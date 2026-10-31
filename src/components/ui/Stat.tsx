@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import type { Route } from "next";
+import type { LucideIcon } from "lucide-react";
+import IconTile from "@/components/ui/IconTile";
 
 // ============================================================
 // คิดครัว — a number card (kit, Kong 2026-10-28)
@@ -19,6 +21,7 @@ export default function Stat({
   href,
   onClick,
   pressed,
+  icon,
 }: {
   label: ReactNode;
   value: ReactNode;
@@ -29,10 +32,15 @@ export default function Stat({
   onClick?: () => void;
   /** With `onClick`: the filter this card applies is on. */
   pressed?: boolean;
+  /** Queue item 9: the figure's line icon, as on the dashboard. */
+  icon?: LucideIcon;
 }) {
   const body = (
     <>
-      <span className="text-xs text-muted-foreground">{label}</span>
+      <span className="flex items-center gap-2 text-xs text-muted-foreground">
+        {icon && <IconTile icon={icon} />}
+        {label}
+      </span>
       <span
         className={`font-display text-[22px] font-semibold leading-tight tabular-nums ${
           tone === "good" ? "text-good" : tone === "bad" ? "text-bad" : tone === "warn" ? "text-warn" : ""

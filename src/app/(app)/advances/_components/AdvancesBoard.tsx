@@ -463,7 +463,7 @@ function RefundDialog({
           {slips.map((id) => (
             <PhotoThumb key={id} id={id} label="สลิปคืนเงิน" />
           ))}
-          <PhotoButton kind="REFUND_SLIP" label={slips.length ? "＋ อีกรูป" : "📷 แนบสลิป"} onUploaded={(r) => setSlips((s) => [...s, r.file.id])} onError={onError} />
+          <PhotoButton kind="REFUND_SLIP" label={slips.length ? "＋ อีกรูป" : "แนบสลิป"} onUploaded={(r) => setSlips((s) => [...s, r.file.id])} onError={onError} />
         </div>
       </div>
       <label className="block space-y-1">

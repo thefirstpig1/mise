@@ -78,9 +78,40 @@ export default function SupplierList({
           ไม่พบข้อมูลที่ค้นหา
         </EmptyState>
       ) : (
-        <div className="data-table">
+        <>
+        {/* Queue item 9 (Kong 2026-10-31): six columns on a phone wrapped every
+            phone number a syllable a line — a card per supplier there, the whole
+            card opening it and สั่งซื้อ sitting above the stretched link. */}
+        <ul className="space-y-2 sm:hidden">
+          {filtered.map((s) => (
+            <li key={s.id} className="relative rounded-[18px] border border-border/70 bg-surface p-3.5 shadow-card active:bg-surface-sunk">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <Link href={`/suppliers/${s.id}`} className="font-semibold text-foreground after:absolute after:inset-0 after:content-['']">
+                    {s.nameFull}
+                  </Link>
+                  {s.nameShort && <span className="ml-1.5 text-xs text-muted-foreground">({s.nameShort})</span>}
+                </div>
+                {canOrder && s.isActive && (
+                  <ActionLink href={`/suppliers/${s.id}/order`} className="relative z-10">
+                    สั่งซื้อ
+                  </ActionLink>
+                )}
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {[s.code, s.contactName, s.contactPhone].filter(Boolean).join(" · ") || "ไม่มีผู้ติดต่อ"}
+              </p>
+              <div className="mt-1.5 flex flex-wrap gap-1">
+                {s.isVatRegistered && <span className="chip">VAT</span>}
+                {s.defaultSubjectToWht && <span className="chip chip-warn">หัก ณ ที่จ่าย</span>}
+                {!s.isActive && <span className="chip">ไม่ใช้งาน</span>}
+              </div>
+            </li>
+          ))}
+        </ul>
+        <div className="data-table hidden sm:block">
           <table>
-            <thead className="border-b border-border bg-muted/40 text-left text-muted-foreground">
+            <thead>
               <tr>
                 <th className="px-4 py-2">ชื่อ</th>
                 <th className="px-4 py-2">รหัส</th>
@@ -155,6 +186,7 @@ export default function SupplierList({
             </tbody>
           </table>
         </div>
+        </>
       )}
     </div>
   );

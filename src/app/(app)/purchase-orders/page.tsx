@@ -12,6 +12,7 @@
 // Decimal string back into a number.
 
 import { requireTenant } from "@/lib/require-tenant";
+import { CalendarClock, FilePen, ShoppingCart, Truck } from "lucide-react";
 import { getBranchesLogic } from "@/server/branch";
 import { getPurchaseOrdersLogic } from "@/server/purchase-order";
 import {
@@ -103,10 +104,11 @@ export default async function PurchaseOrdersPage({
       )}
 
       <StatGrid>
-        <Stat label="ร่าง ยังไม่ส่ง" value={`${drafts.length} ใบ`} sub={drafts.length ? baht(sum(drafts)) : "ไม่มีใบค้าง"} href={linkFor({ status: "DRAFT" })} />
-        <Stat label="รอรับของ" value={`${waiting.length} ใบ`} sub={waiting.length ? baht(sum(waiting)) : "ไม่มีของค้างส่ง"} href={linkFor({ status: "SENT" })} />
+        <Stat label="ร่าง ยังไม่ส่ง" icon={FilePen} value={`${drafts.length} ใบ`} sub={drafts.length ? baht(sum(drafts)) : "ไม่มีใบค้าง"} href={linkFor({ status: "DRAFT" })} />
+        <Stat label="รอรับของ" icon={Truck} value={`${waiting.length} ใบ`} sub={waiting.length ? baht(sum(waiting)) : "ไม่มีของค้างส่ง"} href={linkFor({ status: "SENT" })} />
         <Stat
           label="เลยกำหนดรับ"
+          icon={CalendarClock}
           value={`${overdue.length} ใบ`}
           tone={overdue.length ? "bad" : undefined}
           sub={
@@ -119,6 +121,7 @@ export default async function PurchaseOrdersPage({
         />
         <Stat
           label="สั่งซื้อเดือนนี้"
+          icon={ShoppingCart}
           value={thisMonth.length ? baht(sum(thisMonth)) : "—"}
           sub={thisMonth.length ? `${thisMonth.length} ใบ · ไม่นับร่างและที่ยกเลิก` : "ยังไม่มีใบที่ส่งในเดือนนี้"}
         />

@@ -6,6 +6,7 @@
 // "not recorded".
 
 import { useMemo, useState, useTransition } from "react";
+import { Camera } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { orStale } from "@/lib/stale-tab";
 import { saveDailyCloseAction } from "../actions";
@@ -153,7 +154,10 @@ export default function CloseForm({
           </div>
         )}
         <input value={cashNote} onChange={(e) => setCashNote(e.target.value)} maxLength={200} placeholder="หมายเหตุส่วนต่าง เช่น ทอนผิดโต๊ะ 7" className="input w-full text-sm" />
-        <div className="rounded-xl border border-dashed border-border-strong p-2.5 text-center text-xs text-muted-subtle">📷 แนบรูปเงินที่นับ — เร็ว ๆ นี้</div>
+        <div className="flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-border-strong p-2.5 text-center text-xs text-muted-subtle">
+          <Camera aria-hidden className="h-3.5 w-3.5" strokeWidth={1.8} />
+          แนบรูปเงินที่นับ — เร็ว ๆ นี้
+        </div>
         <p className="text-xs text-muted-subtle">เว้นช่องไหนไว้ = ไม่มีข้อมูล ไม่ใช่ 0 · กรอกไม่ครบสามช่อง ระบบไม่คิดขาด/เกิน</p>
       </section>
 

@@ -7,6 +7,7 @@
 // so pressing ส่ง again after an error finishes the same claim, never a second.
 
 import { useMemo, useState } from "react";
+import { Camera } from "lucide-react";
 import { Sheet } from "@/app/(app)/menus/_components/sheet-parts";
 import ProductPicker, { type PickerProduct } from "@/components/ui/ProductPicker";
 import { orStale } from "@/lib/stale-tab";
@@ -128,7 +129,9 @@ export default function SelfPurchaseSheet({
             {/* ---- the bill photo, first ---- */}
             {bills.length === 0 ? (
               <div className="grid place-items-center gap-2 rounded-2xl border-2 border-dashed border-border-strong bg-surface-sunk px-4 py-7 text-center">
-                <span className="grid h-12 w-12 place-items-center rounded-2xl bg-primary text-2xl text-primary-foreground">📷</span>
+                <span className="grid h-12 w-12 place-items-center rounded-2xl bg-primary text-primary-foreground">
+                  <Camera aria-hidden className="h-6 w-6" strokeWidth={1.8} />
+                </span>
                 <p className="font-display font-semibold">ถ่ายรูปบิลก่อน</p>
                 <p className="text-xs text-muted-foreground">บัญชีคืนเงินได้เมื่อมีรูปบิล · ไม่มีบิลก็บันทึกไว้ก่อนได้ แล้วค่อยเพิ่ม</p>
                 <PhotoButton kind="BILL" label="ถ่ายรูป / เลือกรูป" className="btn btn-sm" onUploaded={onBill} onError={setError} />
@@ -325,7 +328,7 @@ export default function SelfPurchaseSheet({
                   {slips.map((id) => (
                     <PhotoThumb key={id} id={id} label="สลิป" />
                   ))}
-                  <PhotoButton kind="PAYMENT_SLIP" label={slips.length ? "＋ อีกรูป" : "📷 แนบสลิป"} onUploaded={(r) => setSlips((s) => [...s, r.file.id])} onError={setError} />
+                  <PhotoButton kind="PAYMENT_SLIP" label={slips.length ? "＋ อีกรูป" : "แนบสลิป"} onUploaded={(r) => setSlips((s) => [...s, r.file.id])} onError={setError} />
                 </div>
                 {slips.length === 0 && <p className="text-xs text-muted-foreground">ยังไม่มีสลิปก็ส่งได้ — บิลจะขึ้น “ขาดสลิป” จนกว่าจะแนบ</p>}
               </div>

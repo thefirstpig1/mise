@@ -4,6 +4,7 @@
 // photo you can open full size or download, and a camera button that uploads.
 
 import { useRef, useState } from "react";
+import { Camera } from "lucide-react";
 import { CLAIM_STATUS_CHIP, CLAIM_STATUS_LABEL } from "@/lib/advance-labels";
 import { fileUrl, uploadPhoto, type PhotoKind, type UploadResult } from "@/lib/upload-photo";
 import type { ClaimStatus } from "@/server/staff-advance";
@@ -79,6 +80,9 @@ export function PhotoButton({
         }}
       />
       <button type="button" disabled={busy || disabled} onClick={() => input.current?.click()} className={className}>
+        {/* Queue item 9: the app's line camera, not an emoji — a first photo
+            shows it; "＋ อีกรูป" already says what it does. */}
+        {!busy && !label.startsWith("＋") && <Camera aria-hidden className="h-4 w-4 shrink-0" strokeWidth={1.9} />}
         {busy ? "กำลังอัปโหลด…" : label}
       </button>
     </>

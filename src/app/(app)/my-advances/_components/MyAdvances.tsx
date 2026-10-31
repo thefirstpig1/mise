@@ -6,6 +6,7 @@
 // tapped to add the photo; nothing here can change an amount once sent.
 
 import { useEffect, useMemo, useState, useTransition } from "react";
+import { Camera } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Portal, useTopLayer } from "@/app/(app)/menus/_components/sheet-parts";
 import { orStale } from "@/lib/stale-tab";
@@ -55,11 +56,12 @@ export default function MyAdvances({ claims, today, storageReady, ...options }: 
     <div className="max-w-xl space-y-4 pb-28">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-semibold">สำรองจ่ายของฉัน</h2>
+          <h1 className="text-[1.75rem] font-semibold leading-tight tracking-[-0.005em]">สำรองจ่ายของฉัน</h1>
           <p className="mt-1 text-sm text-muted-foreground">ของที่คุณซื้อให้ร้าน — ถ่ายบิลและสลิป แล้วติดตามว่าร้านคืนเงินหรือยัง</p>
         </div>
         <button type="button" onClick={() => setRecording(true)} className="btn max-sm:hidden" disabled={!storageReady}>
-          📷 บันทึกที่ซื้อเอง
+          <Camera aria-hidden className="h-4 w-4 shrink-0" strokeWidth={1.9} />
+          บันทึกที่ซื้อเอง
         </button>
       </div>
 
@@ -137,7 +139,8 @@ export default function MyAdvances({ claims, today, storageReady, ...options }: 
         disabled={!storageReady}
         className="btn fixed inset-x-4 bottom-[calc(1rem+env(safe-area-inset-bottom,0px))] z-30 h-12 text-base shadow-xl sm:hidden"
       >
-        📷 บันทึกที่ซื้อเอง
+        <Camera aria-hidden className="h-4 w-4 shrink-0" strokeWidth={1.9} />
+          บันทึกที่ซื้อเอง
       </button>
 
       {recording && <SelfPurchaseSheet {...options} today={today} onClose={() => setRecording(false)} onDone={done} />}
@@ -214,7 +217,7 @@ function ClaimDetail({ claim: c, onClose, onChanged, onError }: { claim: ClaimVi
               ))}
               {c.billPhotoIds.length === 0 && <MissingPhoto label="ไม่มี" />}
             </div>
-            {editable && <PhotoButton kind="BILL" label={c.billPhotoIds.length ? "＋ เพิ่มรูปบิล" : "📷 ถ่ายรูปบิล"} onUploaded={(r) => add("BILL", r.file.id)} onError={onError} />}
+            {editable && <PhotoButton kind="BILL" label={c.billPhotoIds.length ? "＋ เพิ่มรูปบิล" : "ถ่ายรูปบิล"} onUploaded={(r) => add("BILL", r.file.id)} onError={onError} />}
           </div>
 
           <div className="space-y-2">
@@ -225,7 +228,7 @@ function ClaimDetail({ claim: c, onClose, onChanged, onError }: { claim: ClaimVi
               ))}
               {c.slipIds.length === 0 && <span className="text-sm text-muted-foreground">{c.noSlipReason ? `ไม่มีสลิป — “${c.noSlipReason}”` : "ยังไม่มี"}</span>}
             </div>
-            {editable && <PhotoButton kind="PAYMENT_SLIP" label={c.slipIds.length ? "＋ เพิ่มสลิป" : "📷 แนบสลิป"} onUploaded={(r) => add("PAYMENT_SLIP", r.file.id)} onError={onError} />}
+            {editable && <PhotoButton kind="PAYMENT_SLIP" label={c.slipIds.length ? "＋ เพิ่มสลิป" : "แนบสลิป"} onUploaded={(r) => add("PAYMENT_SLIP", r.file.id)} onError={onError} />}
           </div>
 
           {c.refund && c.refund.slipIds.length > 0 && (
