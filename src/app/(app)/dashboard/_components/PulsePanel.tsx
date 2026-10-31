@@ -138,7 +138,7 @@ export default function PulsePanel({
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">7 วันล่าสุด</p>
-                  <p className="tabular-nums text-sm font-medium">{baht(b.last7Total)}</p>
+                  <p className="tabular-nums text-sm font-medium">{b.last7DaysWithFigure === 0 ? "—" : baht(b.last7Total)}</p>
                   <p className="text-[11px] text-muted-subtle">
                     {b.last7DaysWithFigure === 0 ? "ยังไม่มีข้อมูล" : `มีข้อมูล ${b.last7DaysWithFigure} จาก 7 วัน`}
                   </p>

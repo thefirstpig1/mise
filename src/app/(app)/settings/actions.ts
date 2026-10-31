@@ -17,6 +17,7 @@ import { revalidatePath } from "next/cache";
 import { withTenantContext } from "@/lib/db";
 import { requireTenant } from "@/lib/require-tenant";
 import { setDailyCloseEnabledLogic } from "@/server/daily-close";
+import { settingsSavedAt } from "@/server/onboarding";
 
 export type SectionState = { ok: true } | { ok: false; formError: string; fieldErrors?: Record<string, string> };
 
@@ -25,9 +26,11 @@ type Data = Record<string, unknown>;
 async function write(data: Data, paths: string[]): Promise<SectionState> {
   // Re-authenticate inside the action — server actions are independent
   // requests, so nothing is trusted from the render that drew the form.
-  const { tenantId } = await requireTenant("settings:write");
+  const { tenantId, membership } = await requireTenant("settings:write");
+  // Every save ticks the setup step ตั้งค่าร้าน, even seconds after signup.
+  const updatedAt = settingsSavedAt(membership.tenant.createdAt);
   try {
-    await withTenantContext(tenantId, (tx) => tx.tenant.update({ where: { id: tenantId }, data }));
+    await withTenantContext(tenantId, (tx) => tx.tenant.update({ where: { id: tenantId }, data: { ...data, updatedAt } }));
   } catch (e) {
     console.error("[settings] tenant update failed", e);
     return { ok: false, formError: "บันทึกไม่สำเร็จ กรุณาลองใหม่อีกครั้ง" };
@@ -51,7 +54,7 @@ function numIn(formData: FormData, name: string, lo: number, hi: number, int = f
  * Touching updated_at is exactly what a save would have done to it.
  */
 export async function confirmShopSettingsAction(): Promise<SectionState> {
-  return write({ updatedAt: new Date() }, ["/dashboard"]);
+  return write({}, ["/dashboard"]);
 }
 
 export async function saveShopSectionAction(formData: FormData): Promise<SectionState> {

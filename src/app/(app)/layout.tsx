@@ -1,10 +1,12 @@
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
 import { signOut } from "@/lib/auth";
 import { requireTenant } from "@/lib/require-tenant";
 import Sidebar from "@/components/layout/Sidebar";
 import VersionBanner from "@/components/layout/VersionBanner";
 import { NAV_GROUPS } from "@/components/layout/nav";
 import { isPlatformAdminEmail } from "@/lib/platform-admin";
+import SetupBar from "@/components/layout/SetupBar";
+import { getOnboardingForRequest } from "@/server/onboarding";
 
 // ============================================================
 // Mise — the frame around every signed-in page (Part 35 L4)
@@ -15,7 +17,18 @@ import { isPlatformAdminEmail } from "@/lib/platform-admin";
 //
 // `any:member` because the frame itself asks nothing more than membership;
 // every page inside still names its own capability.
+//
+// 2026-10-31 (friend's-shop feedback): the setup bar rides on every page for
+// whoever may change settings, until setup is done or they hide it. It is
+// read in its own Suspense so it never holds the page back; a hidden bar
+// costs nothing, because the hide is on the membership requireTenant loaded.
 // ============================================================
+
+async function SetupBarSlot({ tenantId, membershipId }: { tenantId: string; membershipId: string }) {
+  const o = await getOnboardingForRequest(tenantId, membershipId);
+  if (o.dismissed || o.doneCount >= o.steps.length) return null;
+  return <SetupBar steps={o.steps.map((key) => ({ key, done: o.done[key] }))} teamDone={o.done.team} method={o.method} />;
+}
 
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const { user, membership, can, membershipCount } = await requireTenant("any:member");
@@ -48,6 +61,11 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       />
       <div className="min-w-0 flex-1">
         <VersionBanner />
+        {can("settings:write") && membership.onboardingDismissedAt === null ? (
+          <Suspense fallback={null}>
+            <SetupBarSlot tenantId={membership.tenantId} membershipId={membership.id} />
+          </Suspense>
+        ) : null}
         {children}
       </div>
     </div>

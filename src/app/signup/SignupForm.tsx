@@ -4,10 +4,14 @@
 // (1) you and the shop, (2) what kind of shop it is. Both steps are ONE form —
 // step 1's fields are only hidden on step 2, so they still post — and the
 // server decides; this file only stops "ถัดไป" when step 1 is visibly empty.
+// Friend's-shop feedback (Kong 2026-10-31): each question in the words a shop
+// answers, with the "?" of src/lib/setting-help.ts where a choice moves numbers.
 
 import { useActionState, useEffect, useRef, useState } from "react";
 import { signupAction, type SignupState } from "./actions";
 import { useKeepForm } from "@/lib/keep-form";
+import FieldHelp from "@/components/ui/FieldHelp";
+import { SETTING_HELP } from "@/lib/setting-help";
 
 const IDLE: SignupState = { ok: false };
 
@@ -103,32 +107,42 @@ export default function SignupForm({ signedInEmail }: { signedInEmail: string | 
       <div className={step === 2 ? "space-y-6" : "hidden"}>
         <div>
           <h1 className="text-[28px] font-semibold">ร้านของคุณเป็นแบบไหน</h1>
-          <p className="mt-1.5 text-muted-foreground">ตอบให้ตรงกับร้าน ตัวเลขจะถูกต้องตั้งแต่วันแรก · แก้ภายหลังได้ที่ตั้งค่าร้าน</p>
+          <p className="mt-1.5 text-muted-foreground">ตอบให้ตรงกับร้าน ระบบจะคิดตัวเลขตามแบบของร้าน · แก้ภายหลังได้ที่ตั้งค่าร้าน</p>
         </div>
         <div>
           <label htmlFor="branch_name" className="label mb-1.5">สาขาแรกชื่ออะไร</label>
           <input id="branch_name" name="branch_name" defaultValue="สาขาหลัก" className="input h-12 w-full text-base" />
+          <p className="mt-1.5 text-sm text-muted-foreground">เช่น สาขาหลัก หรือชื่อย่าน · เพิ่มสาขาอื่นทีหลังได้</p>
         </div>
         <fieldset className="space-y-2.5">
-          <legend className="mb-2.5 font-semibold">ร้านจดทะเบียน VAT ไหม</legend>
+          <legend className="mb-1 flex items-start gap-2 font-semibold">
+            {SETTING_HELP.is_vat_registered.title}
+            <FieldHelp help={SETTING_HELP.is_vat_registered} />
+          </legend>
+          <p className="text-sm text-muted-foreground">ร้านที่รายได้เกิน ฿1.8 ล้านต่อปีต้องจด</p>
           <div className="flex flex-wrap gap-2.5">
-            <Choice name="is_vat_registered" value="yes" title="จดแล้ว" hint="ต้นทุนของไม่รวม VAT เพราะขอคืนได้" />
-            <Choice name="is_vat_registered" value="no" title="ยังไม่จด" hint="VAT ที่จ่ายไปนับเป็นต้นทุนของ · รายได้เกิน ฿1.8 ล้าน/ปี ต้องจด" />
+            <Choice name="is_vat_registered" value="yes" title="จดแล้ว" hint="VAT ที่จ่ายตอนซื้อของ ขอคืนได้ จึงไม่นับเป็นต้นทุน" />
+            <Choice name="is_vat_registered" value="no" title="ยังไม่จด" hint="VAT ที่จ่ายตอนซื้อของ นับเป็นต้นทุนของร้าน" />
           </div>
           <Err state={state} name="is_vat_registered" />
         </fieldset>
         <fieldset className="space-y-2.5" onChange={(e) => setLate((e.target as HTMLInputElement).value === "yes")}>
-          <legend className="mb-2.5 font-semibold">ร้านเปิดเลยเที่ยงคืนไหม</legend>
+          <legend className="mb-2.5 font-semibold">ร้านปิดหลังเที่ยงคืนไหม</legend>
           <div className="flex flex-wrap gap-2.5">
-            <Choice name="open_past_midnight" value="no" title="ปิดก่อนเที่ยงคืน" hint="ยอดของวันไหนก็เป็นของวันนั้น" />
-            <Choice name="open_past_midnight" value="yes" title="เปิดเลยเที่ยงคืน" hint="บิลหลังเที่ยงคืนยังนับเป็นยอดของคืนนั้น" />
+            <Choice name="open_past_midnight" value="no" title="ปิดก่อนเที่ยงคืน" hint="ยอดขายของวันไหนเป็นของวันนั้น" />
+            <Choice name="open_past_midnight" value="yes" title="ปิดหลังเที่ยงคืน" hint="บิลหลังเที่ยงคืนยังนับเป็นยอดของคืนนั้น" />
           </div>
           <Err state={state} name="open_past_midnight" />
           {late && (
             <div className="rounded-[18px] border border-border/70 bg-surface shadow-card px-4 py-3.5">
-              <label htmlFor="sales_day_cutoff" className="label mb-1.5">นับเป็นวันใหม่ตั้งแต่กี่โมง</label>
+              <div className="mb-1.5 flex items-start gap-2">
+                <label htmlFor="sales_day_cutoff" className="label">
+                  {SETTING_HELP.sales_day_cutoff.title}
+                </label>
+                <FieldHelp help={SETTING_HELP.sales_day_cutoff} />
+              </div>
               <input id="sales_day_cutoff" name="sales_day_cutoff" type="time" min="00:00" max="12:00" defaultValue="05:00" className="input h-12 w-36 text-base tabular-nums" />
-              <p className="mt-1.5 text-sm text-muted-foreground">บิลก่อนเวลานี้นับเป็นยอดของเมื่อวาน · ร้านปิดตีสอง ใช้ 05:00 ได้เลย</p>
+              <p className="mt-1.5 text-sm text-muted-foreground">เช่น ร้านปิดตีสอง ใส่ 05:00</p>
             </div>
           )}
         </fieldset>

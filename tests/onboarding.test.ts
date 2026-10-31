@@ -6,7 +6,7 @@ import { describe, it, expect, afterAll } from "vitest";
 import { prismaBypass } from "@/lib/db-admin";
 import { sweepTestTenants } from "./support/sweep";
 import { createTenant } from "@/server/tenant-init";
-import { getOnboardingLogic, setOnboardingDismissedLogic } from "@/server/onboarding";
+import { getOnboardingLogic, setOnboardingDismissedLogic, settingsSavedAt, shopSettingsReviewed } from "@/server/onboarding";
 
 const created: string[] = [];
 afterAll(async () => {
@@ -29,7 +29,8 @@ describe("onboarding checklist", () => {
     expect(o.done).toEqual({ shop: false, team: false, supplier: false, product: false, sales: false, recipe: false, count: false });
     expect(o.doneCount).toBe(0);
     // In the order the setup runs, the count last; no recipe step under นับสต๊อก (the default).
-    expect(o.steps).toEqual(["shop", "team", "product", "supplier", "sales", "count"]);
+    // `team` is not a step (2026-10-31) — it can happen any time — but is still reported.
+    expect(o.steps).toEqual(["shop", "sales", "product", "supplier", "count"]);
     expect(o.dismissed).toBe(false);
   });
 
@@ -49,8 +50,19 @@ describe("onboarding checklist", () => {
     const { tenantId, membershipId } = await newShop();
     await prismaBypass.tenant.update({ where: { id: tenantId }, data: { grossProfitMethod: "RECIPE_CONSUMPTION" } });
     const o = await getOnboardingLogic(tenantId, membershipId);
-    expect(o.steps).toEqual(["shop", "team", "product", "supplier", "sales", "recipe", "count"]);
+    expect(o.steps).toEqual(["shop", "sales", "product", "supplier", "recipe", "count"]);
     expect(o.done.recipe).toBe(false);
+  });
+
+  it("O5 — a settings save seconds after signup still ticks ตั้งค่าร้าน", () => {
+    const createdAt = new Date("2026-10-31T10:00:00Z");
+    const eightSecondsLater = new Date(createdAt.getTime() + 8_000);
+    // What a bare `new Date()` wrote before 2026-10-31: inside the window, unticked.
+    expect(shopSettingsReviewed({ createdAt, updatedAt: eightSecondsLater })).toBe(false);
+    expect(shopSettingsReviewed({ createdAt, updatedAt: settingsSavedAt(createdAt, eightSecondsLater) })).toBe(true);
+    // A save long after signup writes the time it happened.
+    const later = new Date(createdAt.getTime() + 3_600_000);
+    expect(settingsSavedAt(createdAt, later)).toEqual(later);
   });
 
   it("O3 — hiding is per membership and can be undone", async () => {

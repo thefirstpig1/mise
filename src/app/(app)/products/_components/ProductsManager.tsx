@@ -442,7 +442,8 @@ export default function ProductsManager(props: {
             {active.length} รายการที่ใช้งาน · ของแปรรูป {active.filter((p) => p.type === "PREPPED").length}
             {list ? ` · ต่ำกว่าขั้นต่ำ ${lowCount} · ใกล้ขั้นต่ำ ${nearCount}` : ""}
           </p>
-          {!costHidden && (
+          {/* A shop with nothing on the list has no stock to value — not ฿0 of it. */}
+          {!costHidden && active.length > 0 && (
             <p className="mt-1 text-sm">
               มูลค่าสต๊อก{branchName}{" "}
               {stockValue === null ? pulse : <strong className="font-display tabular-nums">{baht(stockValue, 0)}</strong>}

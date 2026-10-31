@@ -17,8 +17,8 @@ export default function ConfirmShopSettings() {
   return (
     <section className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-primary-line bg-primary-soft px-5 py-4">
       <div className="min-w-0">
-        <p className="font-semibold">ตรวจการตั้งค่าแล้วใช่ไหม</p>
-        <p className="text-sm text-muted-foreground">ถ้าค่าข้างล่างถูกกับร้านอยู่แล้ว กดใช้ค่าตามนี้ได้เลย ไม่ต้องแก้อะไร · เปลี่ยนภายหลังได้เสมอ</p>
+        <p className="font-semibold">ค่าด้านล่างตรงกับร้านแล้วหรือยัง</p>
+        <p className="text-sm text-muted-foreground">ถ้าตรงแล้ว กด “ใช้ค่าตามนี้” ได้เลย ไม่ต้องแก้อะไร · เปลี่ยนภายหลังได้เสมอ</p>
         {error && <p className="mt-1 text-sm text-bad">{error}</p>}
       </div>
       <button

@@ -152,7 +152,9 @@ export default async function StockWorkPage({ searchParams }: { searchParams: Pr
           ? `${hub.staleDays} วันควรตัดใหม่ (สูตรเปลี่ยน)`
           : hub.unpostedDays > 0
             ? `${hub.unpostedDays} วันยังไม่ได้ตัด`
-            : "ตัดครบแล้ว · ตัดให้เองตอนนำเข้า",
+            : hub.salesDays === 0
+              ? "ยังไม่มียอดขายใน 30 วันนี้"
+              : "ตัดครบแล้ว · ตัดให้เองตอนนำเข้า",
       show: can("consumption:post"),
       alert: hub.staleDays > 0 || hub.unpostedDays > 0,
       daily: true,

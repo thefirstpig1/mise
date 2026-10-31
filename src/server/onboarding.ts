@@ -17,21 +17,31 @@
 // month's last night, because that count is the next month's opening.
 // Hiding it is per membership (onboarding_dismissed_at), and it disappears by
 // itself once every step is done.
+//
+// 2026-10-31 (friend's-shop feedback, mockup 1wgaH9Jfx8L7CxqfNHtdn3): sales
+// moved up to second — it needs nothing before it and is the first thing that
+// puts numbers on the dashboard — and `team` left the count: a one-person shop
+// was told setup was unfinished for ever, and inviting people blocks nothing.
+// It is still reported in `done`, as the "ทำเมื่อไรก็ได้" row. The words for
+// each step live in src/lib/setup-steps.ts.
 // ============================================================
 
+import { cache } from "react";
 import { withTenantContext } from "@/lib/db";
+import { SETUP_STEPS, type SetupKey, type SetupStep } from "@/lib/setup-steps";
 
 // Kong 2026-10-30: ingredients come before suppliers — the bill import (the
 // supplier step's door) matches each bill line against the ingredient list.
-export const ONBOARDING_STEPS = ["shop", "team", "product", "supplier", "sales", "recipe", "count"] as const;
-export type OnboardingStep = (typeof ONBOARDING_STEPS)[number];
+export const ONBOARDING_STEPS = SETUP_STEPS;
+export type OnboardingStep = SetupKey;
 
 export type Onboarding = {
-  /** The steps that apply to this shop, in order — `recipe` only under สูตรอาหาร. */
-  steps: OnboardingStep[];
+  /** The steps that count, in order — `recipe` only under สูตรอาหาร; `team` never. */
+  steps: SetupStep[];
   done: Record<OnboardingStep, boolean>;
   doneCount: number;
   dismissed: boolean;
+  method: "PERIODIC_INVENTORY" | "RECIPE_CONSUMPTION";
 };
 
 /**
@@ -41,6 +51,16 @@ export type Onboarding = {
  * seconds; nobody opens settings and saves inside 15.
  */
 const SAVED_AFTER_SIGNUP_MS = 15_000;
+
+/**
+ * The updated_at a settings save writes. Never inside the signup window: a
+ * shop that signs up and presses "ใช้ค่าตามนี้" within seconds (the setup walk
+ * 2026-10-31 did it in 8) has still been through its settings, and without
+ * this the step stayed unticked and the button did nothing visible.
+ */
+export function settingsSavedAt(createdAt: Date, now: Date = new Date()): Date {
+  return new Date(Math.max(now.getTime(), createdAt.getTime() + SAVED_AFTER_SIGNUP_MS + 1000));
+}
 
 /** Has the owner been through ตั้งค่าร้าน since signing up? (step "shop") */
 export function shopSettingsReviewed(t: { createdAt: Date; updatedAt: Date }): boolean {
@@ -74,9 +94,13 @@ export async function getOnboardingLogic(tenantId: string, membershipId: string)
       done,
       doneCount: steps.filter((s) => done[s]).length,
       dismissed: membership.onboardingDismissedAt !== null,
+      method: tenant.grossProfitMethod,
     };
   });
 }
+
+/** Once per request: the frame's setup bar and the dashboard's checklist share it. */
+export const getOnboardingForRequest = cache(getOnboardingLogic);
 
 export async function setOnboardingDismissedLogic(tenantId: string, membershipId: string, dismissed: boolean) {
   await withTenantContext(tenantId, (tx) =>

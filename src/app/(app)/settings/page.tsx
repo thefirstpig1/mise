@@ -6,12 +6,20 @@
 // the shop chooses between two legitimate readings, so each option shows what
 // choosing it DOES — but the long version now folds under "อ่านเพิ่ม" and the
 // line that stays is the one a person needs to choose.
+//
+// Friend's-shop feedback (Kong 2026-10-31, mockup 1wgaH9Jfx8L7CxqfNHtdn3):
+// every setting is now the QUESTION a shop can answer ("ค่าวัตถุดิบไม่ควรเกิน
+// กี่ % ของยอดขาย", not "ต้นทุนอาหาร ไม่เกิน"), with an example under it, and
+// the "?" beside it says what it is and which pages it moves
+// (src/lib/setting-help.ts). "อ่านเพิ่ม" moved into the "?".
 // ============================================================
 
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { MeasureInput } from "@/components/ui/NumberField";
 import Switch from "@/components/ui/Switch";
+import FieldHelp from "@/components/ui/FieldHelp";
+import { SETTING_HELP, type SettingHelp } from "@/lib/setting-help";
 import { RECOMMENDED_CANCELLED_SALE_POLICY } from "@/lib/validations/consumption";
 import { requireTenant } from "@/lib/require-tenant";
 import { computeBangkokToday } from "@/lib/bangkok-date";
@@ -38,18 +46,41 @@ const SECTIONS = [
 ];
 
 /** One setting: what it is on the left, the control on the right (stacked on a phone). */
-function Row({ title, htmlFor, hint, control, inline = false, children }: { title: string; htmlFor?: string; hint?: ReactNode; control?: ReactNode; inline?: boolean; children?: ReactNode }) {
+function Row({
+  title,
+  htmlFor,
+  hint,
+  control,
+  inline = false,
+  help,
+  children,
+}: {
+  title: string;
+  htmlFor?: string;
+  hint?: ReactNode;
+  control?: ReactNode;
+  inline?: boolean;
+  help?: SettingHelp;
+  children?: ReactNode;
+}) {
   // A switch is small enough to stay beside its words on a phone too.
   return (
     <div className={`flex gap-3 px-5 py-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6 sm:px-6 ${inline ? "flex-row items-start justify-between" : "flex-col"}`}>
       <div className="min-w-0 flex-1">
-        {htmlFor ? (
-          <label htmlFor={htmlFor} className="font-semibold">
-            {title}
-          </label>
-        ) : (
-          <p className="font-semibold">{title}</p>
-        )}
+        <div className="flex items-start gap-2">
+          {htmlFor ? (
+            <label htmlFor={htmlFor} className="font-semibold">
+              {title}
+            </label>
+          ) : (
+            <p className="font-semibold">{title}</p>
+          )}
+          {help && (
+            <span className="mt-px">
+              <FieldHelp help={help} />
+            </span>
+          )}
+        </div>
         {hint && <p className="mt-0.5 text-sm text-muted-foreground">{hint}</p>}
         {children}
       </div>
@@ -69,15 +100,6 @@ function Option({ name, value, checked, title, example, recommended }: { name: s
         <span className="mt-0.5 block text-xs text-muted-foreground">{example}</span>
       </span>
     </label>
-  );
-}
-
-function More({ children }: { children: ReactNode }) {
-  return (
-    <details className="mt-1.5 text-sm">
-      <summary className="cursor-pointer font-semibold text-primary">อ่านเพิ่ม</summary>
-      <div className="mt-1.5 space-y-1 text-muted-foreground">{children}</div>
-    </details>
   );
 }
 
@@ -131,12 +153,21 @@ export default async function SettingsPage() {
   const active = departments.filter((d) => d.isActive);
   const defaultDept = departments.find((d) => d.code === DEFAULT_DEPARTMENT_CODE);
 
+  // [field, under-the-question example, unit, value, min, max, step]
   const targets = [
-    ["food_cost_target_pct", "ต้นทุนอาหาร ไม่เกิน", "% ของยอดขาย", Number(tenant.foodCostTargetPct), 5, 90, 0.5],
-    ["prime_cost_target_pct", "ต้นทุนอาหาร + ค่าแรง ไม่เกิน", "% ของยอดขาย", Number(tenant.primeCostTargetPct), 10, 99, 0.5],
-    ["count_variance_target_pct", "นับได้ไม่ตรงระบบ ไม่เกิน", "% ของยอดขาย", Number(tenant.countVarianceTargetPct), 0, 20, 0.1],
-    ["cost_coverage_min_pct", "เทียบเป้าเมื่อตัดสต๊อกแล้วอย่างน้อย", "% ของยอดขาย", tenant.costCoverageMinPct, 50, 100, 1],
-    ["slow_stock_days", "ของค้างนาน เมื่อล็อตเก่าสุดเก่ากว่า", "วัน", tenant.slowStockDays, 7, 365, 1],
+    ["food_cost_target_pct", "เช่น ขายได้ ฿100 ใช้วัตถุดิบไป ฿35 = 35%", "% ของยอดขาย", Number(tenant.foodCostTargetPct), 5, 90, 0.5],
+    ["prime_cost_target_pct", "สองก้อนนี้คือค่าใช้จ่ายที่ใหญ่ที่สุดของร้าน · บางที่เรียกว่า prime cost", "% ของยอดขาย", Number(tenant.primeCostTargetPct), 10, 99, 0.5],
+    ["count_variance_target_pct", "เช่น ขาย ฿100,000 นับแล้วหายไป ฿1,500 = 1.5%", "% ของยอดขาย", Number(tenant.countVarianceTargetPct), 0, 20, 0.1],
+    [
+      "cost_coverage_min_pct",
+      "เมนูที่ยังไม่มีสูตรไม่ถูกหักวัตถุดิบ ต้นทุนจึงดูต่ำเกินจริง · ใช้กับร้านที่คิดต้นทุนจากสูตร",
+      "% ของยอดขาย",
+      tenant.costCoverageMinPct,
+      50,
+      100,
+      1,
+    ],
+    ["slow_stock_days", "ดูจากของรอบที่ซื้อเก่าที่สุดที่ยังเหลืออยู่", "วัน", tenant.slowStockDays, 7, 365, 1],
   ] as const;
 
   return (
@@ -167,9 +198,14 @@ export default async function SettingsPage() {
           }
         />
         <Row
-          title="จดทะเบียน VAT"
-          hint={tenant.isVatRegistered ? "จดแล้ว · ต้นทุนของไม่รวม VAT เพราะขอคืนได้" : "ไม่จด · VAT ที่จ่ายไปนับเป็นต้นทุนของ"}
-          control={<Switch name="is_vat_registered" defaultChecked={tenant.isVatRegistered} label="จดทะเบียน VAT" />}
+          title={SETTING_HELP.is_vat_registered.title}
+          hint={
+            tenant.isVatRegistered
+              ? "เปิด = จดแล้ว · VAT ที่จ่ายตอนซื้อของขอคืนได้ จึงไม่นับเป็นต้นทุน"
+              : "ปิด = ยังไม่จด · VAT ที่จ่ายตอนซื้อของนับเป็นต้นทุนของร้าน · ร้านที่รายได้เกิน ฿1.8 ล้านต่อปีต้องจด"
+          }
+          control={<Switch name="is_vat_registered" defaultChecked={tenant.isVatRegistered} label="จดทะเบียน VAT แล้ว" />}
+          help={SETTING_HELP.is_vat_registered}
           inline
         >
           <ChangedNote
@@ -178,15 +214,12 @@ export default async function SettingsPage() {
             whenOn="มีผลกับใบรับของใบถัดไป: ต้นทุนของจะไม่รวม VAT · ใบที่ยืนยันไปแล้วไม่เปลี่ยน"
             whenOff="มีผลกับใบรับของใบถัดไป: VAT จะนับเป็นต้นทุนของ · ใบที่ยืนยันไปแล้วไม่เปลี่ยน"
           />
-          <More>
-            <p>ร้านที่จด VAT ขอคืนภาษีซื้อได้ ต้นทุนสต๊อกจึงไม่รวม VAT · ร้านที่ไม่จดจ่าย VAT แล้วจบ ระบบจึงรวม VAT เป็นต้นทุนของ · ต้องจดเมื่อรายได้เกิน ฿1.8 ล้านต่อปี</p>
-            <p>ค่านี้ถูกบันทึกติดไปกับใบรับของแต่ละใบตอนกดยืนยัน จึงไม่ย้อนไปตีมูลค่าของเก่าใหม่ เพราะตอนนั้นร้านจ่าย VAT ไปแบบนั้นจริง</p>
-          </More>
         </Row>
         <Row
-          title="อัตรา VAT"
+          title={SETTING_HELP.default_vat_rate_percent.title}
           htmlFor="default_vat_rate_percent"
-          hint="ใช้เติมให้ในใบสั่งซื้อและบิลค่าใช้จ่าย แก้รายใบได้"
+          hint="ปกติ 7% · แก้ได้ทีละใบ"
+          help={SETTING_HELP.default_vat_rate_percent}
           control={
             <div>
               <MeasureInput id="default_vat_rate_percent" name="default_vat_rate_percent" unit="%" min={0} max={30} step={0.01} inputMode="decimal" defaultValue={Number(tenant.defaultVatRatePercent)} boxClassName="w-28" />
@@ -199,119 +232,116 @@ export default async function SettingsPage() {
       {/* ---------- 2 · stock + sales ---------- */}
       <SectionForm id="stock" title="สต๊อกและยอดขาย" action={saveStockSectionAction}>
         {/* ADR 0022 Q3 · rule N12 */}
-        <Row title="บิลที่ถูกยกเลิก ตัดสต๊อกไหม" hint="ไฟล์ POS ไม่ได้บอกว่าครัวทำไปแล้วหรือยัง ร้านคุณรู้ดีกว่าระบบว่าแบบไหนเกิดบ่อยกว่า">
+        <Row
+          title={SETTING_HELP.cancelled_sale_policy.title}
+          hint="ไฟล์ POS ไม่บอกว่าครัวทำไปแล้วหรือยัง เลือกแบบที่ร้านเจอบ่อยกว่า · ใช้กับเมนูที่มีสูตร"
+          help={SETTING_HELP.cancelled_sale_policy}
+        >
           <div className="mt-3 flex flex-wrap gap-2.5">
             <Option
               name="cancelled_sale_policy"
               value="TREAT_AS_COOKED"
               checked={tenant.cancelledSalePolicy === "TREAT_AS_COOKED"}
               recommended={RECOMMENDED_CANCELLED_SALE_POLICY === "TREAT_AS_COOKED"}
-              title="ทำไปแล้ว ตัดสต๊อก"
-              example="ขาย 12 ยกเลิก 1 → ตัด 12 จาน · ถ้าเดาผิดจะเห็นเป็นของเกินตอนนับ"
+              title="ส่วนใหญ่ทำไปแล้ว"
+              example="หักวัตถุดิบด้วย · สั่ง 12 ยกเลิก 1 → หัก 12 จาน"
             />
             <Option
               name="cancelled_sale_policy"
               value="TREAT_AS_NOT_COOKED"
               checked={tenant.cancelledSalePolicy === "TREAT_AS_NOT_COOKED"}
               recommended={RECOMMENDED_CANCELLED_SALE_POLICY === "TREAT_AS_NOT_COOKED"}
-              title="ยังไม่ได้ทำ ไม่ตัด"
-              example="ขาย 12 ยกเลิก 1 → ตัด 11 จาน · ถ้าเดาผิดจะเห็นเป็นของขาด เหมือนของหาย"
+              title="ส่วนใหญ่ยังไม่ได้ทำ"
+              example="ไม่หักจานที่ยกเลิก · สั่ง 12 ยกเลิก 1 → หัก 11 จาน"
             />
           </div>
-          <More>
-            <p>ที่แนะนำแบบ “ทำไปแล้ว” เพราะถ้าเดาผิด ความผิดพลาดจะโผล่ตอนนับสต๊อกเป็นของเกิน ซึ่งมองเห็นและสืบกลับได้ · อีกทางจะโผล่เป็นของขาด ซึ่งหน้าตาเหมือนของหายหรือถูกขโมย</p>
-          </More>
         </Row>
         {/* ADR 0035 Q4 */}
-        <Row title="มื้อพนักงาน (เมนูในร้าน) ใครตัดสต๊อก" hint="ถ้าร้านคีย์มื้อพนักงานเข้า POS แล้วระบบตัดอีก สต๊อกจะถูกตัดซ้ำสองครั้ง">
+        <Row title={SETTING_HELP.staff_meal_stock_source.title} help={SETTING_HELP.staff_meal_stock_source}>
           <div className="mt-3 flex flex-wrap gap-2.5">
-            <Option name="staff_meal_stock_source" value="SYSTEM" checked={tenant.staffMealStockSource === "SYSTEM"} title="ระบบตัดให้ ตอนหัวหน้าอนุมัติ" example="สำหรับร้านที่ไม่ได้คีย์มื้อพนักงานเข้า POS · ตัดตามสูตรของเมนูนั้น" />
-            <Option name="staff_meal_stock_source" value="POS" checked={tenant.staffMealStockSource === "POS"} title="POS ตัดแล้ว ระบบไม่ต้องตัด" example="สำหรับร้านที่คีย์เข้า POS เป็นยอด ฿0 อยู่แล้ว · ตั๋วในระบบใช้คุมโควตาและเป็นหลักฐาน" />
+            <Option name="staff_meal_stock_source" value="SYSTEM" checked={tenant.staffMealStockSource === "SYSTEM"} title="ไม่ได้กดใน POS" example="คิดครัวหักวัตถุดิบตามสูตร เมื่อหัวหน้าอนุมัติใบเบิก" />
+            <Option name="staff_meal_stock_source" value="POS" checked={tenant.staffMealStockSource === "POS"} title="กดใน POS เป็นยอด ฿0" example="คิดครัวไม่หักซ้ำ · ใบเบิกใช้คุมโควตาและเป็นหลักฐาน" />
           </div>
-          <More>
-            <p>ค่านี้ถูกบันทึกติดไปกับตั๋วแต่ละใบตอนกดอนุมัติ เปลี่ยนแล้วมีผลกับตั๋วใบถัดไป ไม่ย้อนไปแก้ของเก่า · แบบ “ทำกินเองจากของในร้าน” ระบบตัดเสมอ เพราะไม่มีใน POS</p>
-          </More>
         </Row>
         <Row
-          title="เตือนของใกล้หมดล่วงหน้า"
+          title={SETTING_HELP.par_warning_days.title}
           htmlFor="par_warning_days"
-          hint="ขึ้นสีเหลืองเมื่อจะถึงขั้นต่ำภายในกี่วัน ตามที่ใช้จริง · 0 = เตือนเมื่อต่ำกว่าขั้นต่ำแล้วเท่านั้น"
+          hint="ใส่ 0 = เตือนเมื่อต่ำกว่าขั้นต่ำแล้วเท่านั้น"
           control={<Days name="par_warning_days" value={tenant.parWarningDays} min={0} max={30} label="เตือนล่วงหน้ากี่วัน" />}
-        >
-          <More>
-            <p>คิดจากปริมาณที่ใช้จริงต่อวัน (จากการตัดสต๊อกตามยอดขาย) · ของที่ยังไม่รู้อัตราการใช้ เตือนเมื่อเหลือไม่ถึง 20% เหนือขั้นต่ำ · ผู้ขายส่งของช้า ตั้งให้มากกว่าจำนวนวันที่รอของ</p>
-          </More>
-        </Row>
+          help={SETTING_HELP.par_warning_days}
+        />
         <Row
-          title="นับสต๊อกทุก"
+          title={SETTING_HELP.count_cycle_days.title}
           htmlFor="count_cycle_days"
-          hint="หน้างานสต๊อกเตือนเมื่อนับครั้งล่าสุดเก่ากว่านี้"
+          hint="หน้างานสต๊อกเตือนเมื่อไม่ได้นับเกินจำนวนวันนี้"
+          help={SETTING_HELP.count_cycle_days}
           control={<Days name="count_cycle_days" value={tenant.countCycleDays} min={1} max={365} label="นับสต๊อกทุกกี่วัน" />}
         />
         {/* ADR 0040 Q2 (Kong 2026-10-29: "เอาตามแนะนำ" — starts as it always was) */}
-        <Row title="ใบนับเริ่มต้น" hint="ใบนับที่เปิดใหม่เริ่มแบบนี้ · ตอนเปิดใบยังเลือกเปลี่ยนรายใบได้">
+        <Row
+          title={SETTING_HELP.count_show_expected_default.title}
+          hint="เป็นค่าเริ่มต้นของใบนับใหม่ · เลือกใหม่ได้ทีละใบตอนเปิดใบนับ"
+          help={SETTING_HELP.count_show_expected_default}
+        >
           <div className="mt-3 flex flex-wrap gap-2.5">
             <Option
               name="count_show_expected_default"
               value="SHOW"
               checked={tenant.countShowExpectedDefault}
-              title="บอกตัวเลขที่ระบบมี"
-              example="นับเร็ว และช่วยใบ้ “กระดูกควรเหลือ ~8 กก.” เวลานับของแปรรูปได้เกิน"
+              title="ให้เห็น"
+              example="นับเร็วขึ้น เห็นทันทีว่าตัวไหนต่างจากระบบ"
             />
             <Option
               name="count_show_expected_default"
               value="BLIND"
               checked={!tenant.countShowExpectedDefault}
-              title="ปิดตา — ไม่บอกตัวเลข"
-              example="กันการเขียนตามตัวเลขในระบบ · ยังขอให้นับวัตถุดิบหลัก แต่ไม่บอกว่าควรเหลือเท่าไร"
+              title="ไม่ให้เห็น"
+              example="กันการเขียนตามตัวเลขในระบบ"
             />
           </div>
-          <More>
-            <p>ใบ้ช่วยลดภาระคนนับ แต่ก็บอกคนที่ไม่ซื่อว่าควรเขียนเลขอะไร ร้านเลือกเองว่าแบบไหนเหมาะกับร้าน</p>
-          </More>
         </Row>
       </SectionForm>
 
       {/* ---------- 3 · profit + targets ---------- */}
       <SectionForm id="profit" title="กำไรและเป้าต้นทุน" action={saveProfitSectionAction}>
         {/* ADR 0019 Q17 */}
-        <Row title="วิธีคิดกำไรขั้นต้น" hint="ถูกทั้งสองแบบ เลือกตามที่ร้านทำอยู่เป็นประจำ · เปลี่ยนแล้วทุกหน้าที่โชว์กำไรขั้นต้นเปลี่ยนตาม">
+        <Row
+          title={SETTING_HELP.gross_profit_method.title}
+          hint="ถูกทั้งสองแบบ เลือกแบบที่ร้านทำได้เป็นประจำ · เปลี่ยนภายหลังได้"
+          help={SETTING_HELP.gross_profit_method}
+        >
           <div className="mt-3 flex flex-wrap gap-2.5">
-            <Option name="gross_profit_method" value="PERIODIC_INVENTORY" checked={tenant.grossProfitMethod === "PERIODIC_INVENTORY"} title="จากการนับสต๊อก" example="ต้นงวด + ซื้อ − ปลายงวด · ไม่ต้องมีสูตร · แม่นเท่าที่นับจริง" />
-            <Option name="gross_profit_method" value="RECIPE_CONSUMPTION" checked={tenant.grossProfitMethod === "RECIPE_CONSUMPTION"} title="จากสูตรอาหาร" example="วัตถุดิบที่สูตรบอกว่าใช้ · ไม่ต้องรอนับ · ต้องมีสูตรและตัดสต๊อกแล้ว" />
+            <Option name="gross_profit_method" value="PERIODIC_INVENTORY" checked={tenant.grossProfitMethod === "PERIODIC_INVENTORY"} title="จากการนับสต๊อก" example="ไม่ต้องมีสูตร · ต้นทุน = ของที่มีต้นเดือน + ที่ซื้อเข้า − ของที่เหลือสิ้นเดือน" />
+            <Option name="gross_profit_method" value="RECIPE_CONSUMPTION" checked={tenant.grossProfitMethod === "RECIPE_CONSUMPTION"} title="จากสูตรของเมนู" example="เห็นต้นทุนทุกวันตามยอดขาย · ต้องเขียนสูตรของเมนู" />
           </div>
-          <More>
-            <p>กำไรขั้นต้น = รายได้ − ต้นทุนของที่ขายไป ซึ่งไม่เท่ากับของที่ซื้อเข้ามา</p>
-            <p>จากการนับสต๊อก: ถ้าไม่เคยนับ ระบบจะบอกกำกับไว้ว่าตัวเลขนั้นมักดูดีเกินจริง</p>
-            <p>จากสูตรอาหาร: ช่องกำไรขั้นต้นบอกทุกครั้งว่าตัดสต๊อกไปแล้วกี่วันจากกี่วัน และครอบคลุมยอดขายกี่เปอร์เซ็นต์ · วันที่ยังไม่ได้ตัดยังไม่ถูกนับเป็นต้นทุน</p>
-          </More>
         </Row>
-        <Row title="เป้าของร้าน" hint="หน้าต้นทุนบอกว่าอยู่ในเป้าหรือเกินเป้าตามตัวเลขนี้ · ค่าเริ่มต้นมาจากเกณฑ์ร้านอาหารทั่วไป">
-          <div className="mt-3 grid gap-x-6 gap-y-3 sm:grid-cols-2">
-            {targets.map(([name, label, unit, value, min, max, step]) => (
-              <div key={name} className="flex flex-wrap items-center justify-between gap-2">
-                <label htmlFor={name} className="text-sm">
-                  {label}
-                </label>
-                <div>
-                  <MeasureInput id={name} name={name} unit={unit} min={min} max={max} step={step} inputMode="decimal" defaultValue={value} boxClassName="w-40" />
-                  <FieldError name={name} />
-                </div>
+        {/* The targets: each its own question now ("ต้นทุนอาหาร ไม่เกิน __%" left
+            the shop asking "% of what?"). Defaults come from restaurants in general. */}
+        {targets.map(([name, hint, unit, value, min, max, step]) => (
+          <Row
+            key={name}
+            title={SETTING_HELP[name].title}
+            htmlFor={name}
+            hint={hint}
+            help={SETTING_HELP[name]}
+            control={
+              <div>
+                <MeasureInput id={name} name={name} unit={unit} min={min} max={max} step={step} inputMode="decimal" defaultValue={value} boxClassName="w-40" />
+                <FieldError name={name} />
               </div>
-            ))}
-          </div>
-          <p className="mt-3 text-xs text-muted-foreground">
-            ตัดสต๊อกตามยอดขายได้ไม่ถึงเกณฑ์ ต้นทุนยังไม่ครบและดูดีเกินจริง ระบบจึงแสดงเป็น “อย่างน้อย” และไม่บอกว่าอยู่ในเป้า
-          </p>
-        </Row>
+            }
+          />
+        ))}
       </SectionForm>
 
       {/* ---------- 4 · departments + add-ons ---------- */}
       <SectionForm id="addons" title="แผนกและส่วนเสริม" action={saveAddonsSectionAction}>
         <Row
-          title="แยกต้นทุนและยอดขายตามแผนก"
+          title={SETTING_HELP.enable_departments.title}
+          help={SETTING_HELP.enable_departments}
           hint={
             <>
+              เปิดแล้ว ใบขอซื้อและใบรับสินค้าเลือกแผนกได้ ·{" "}
               {active.length > 0 ? `ตอนนี้มี ${active.length} แผนก: ${active.map((d) => d.name).join(" · ")}` : "ยังไม่มีแผนก"} ·{" "}
               <Link href="/settings/departments" className="font-semibold text-primary hover:underline">
                 จัดการแผนก ›
@@ -330,8 +360,9 @@ export default async function SettingsPage() {
         </Row>
         {/* ADR 0042 */}
         <Row
-          title="รายงานปิดร้านประจำวัน"
-          hint="ไม่บังคับ · แคชเชียร์กรอกยอด เงินสด ลูกค้า และปัญหาของวันในใบเดียว · ปิดไว้ = คีย์ยอดปิดร้านที่แดชบอร์ดเหมือนเดิม"
+          title={SETTING_HELP.daily_close_enabled.title}
+          hint="แคชเชียร์กรอกยอด เงินสด จำนวนลูกค้า และปัญหาของวันในใบเดียว"
+          help={SETTING_HELP.daily_close_enabled}
           control={<Switch name="daily_close_enabled" defaultChecked={dailyClose.enabled} label="รายงานปิดร้านประจำวัน" />}
           inline
         >
@@ -346,15 +377,16 @@ export default async function SettingsPage() {
       {/* ---------- 5 · staff advances (ADR 0037 Q5–Q6) ---------- */}
       <SectionForm id="advances" title="เงินสำรองจ่าย" action={saveAdvanceSectionAction}>
         <Row
-          title="ต้องอนุมัติก่อนคืนเงินพนักงานทุกบิล"
-          hint="ปิดไว้ = บิลที่มีรูปบิลและสลิปครบ (หรือบัญชีรับรองแล้ว) คืนเงินได้เลย · เปิด = ต้องให้คนที่มีสิทธิ์ส่งใบสั่งซื้อกดอนุมัติก่อนทุกบิล"
+          title={SETTING_HELP.refund_approval_all.title}
+          hint="ปิด = ไม่ต้อง บิลที่มีรูปบิลและสลิปครบ หรือบัญชีรับรองแล้ว คืนเงินได้เลย · เปิด = ต้องอนุมัติทุกบิล คนที่มีสิทธิ์ส่งใบสั่งซื้อกดอนุมัติก่อน"
+          help={SETTING_HELP.refund_approval_all}
           control={<Switch name="refund_approval_all" defaultChecked={tenant.refundApprovalAll} label="ต้องอนุมัติทุกบิล" />}
           inline
         />
         <Row
-          title="บิลที่เกินยอดนี้ต้องอนุมัติ"
+          title="หรืออนุมัติเฉพาะบิลที่เกินกี่บาท"
           htmlFor="refund_approval_over"
-          hint="เว้นว่าง = ไม่มีเพดาน · ใช้เมื่อไม่ได้เปิดอนุมัติทุกบิล เช่น ใส่ 1,000 = บิลเกิน ฿1,000 ต้องอนุมัติก่อนคืนเงิน"
+          hint="เว้นว่าง = ไม่มีเพดาน · เช่น ใส่ 1,000 = บิลเกิน ฿1,000 ต้องอนุมัติก่อนคืนเงิน"
           control={
             <div>
               <MeasureInput

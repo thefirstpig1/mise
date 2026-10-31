@@ -13,6 +13,8 @@ import {
 } from "@/app/(app)/settings/branches/actions";
 import SettingsModal from "@/app/(app)/settings/_components/SettingsModal";
 import { useKeepForm } from "@/lib/keep-form";
+import FieldHelp from "@/components/ui/FieldHelp";
+import { SETTING_HELP } from "@/lib/setting-help";
 
 export type BranchRowView = {
   id: string;
@@ -30,18 +32,13 @@ export type BranchRowView = {
 export function CutoffField({ id, defaultValue, error }: { id: string; defaultValue: string; error?: string }) {
   return (
     <div>
-      <label htmlFor={id} className="label mb-1">เวลาตัดวันขาย</label>
+      <div className="mb-1 flex items-start gap-2">
+        <label htmlFor={id} className="label">{SETTING_HELP.sales_day_cutoff.title}</label>
+        <FieldHelp help={SETTING_HELP.sales_day_cutoff} />
+      </div>
       <input id={id} name="sales_day_cutoff" type="time" min="00:00" max="12:00" defaultValue={defaultValue} required className="input w-36 tabular-nums" />
       {error ? <p className="mt-1 text-xs text-bad">{error}</p> : null}
-      <p className="mt-1 text-xs text-muted-foreground">
-        บิลก่อนเวลานี้นับเป็นยอดของวันก่อน · ร้านเปิดถึงตีสอง ตั้ง 05:00 แล้วบิลตีหนึ่งจะอยู่ในยอดเมื่อวาน
-      </p>
-      <details className="mt-1 text-xs">
-        <summary className="cursor-pointer font-semibold text-primary">อ่านเพิ่ม</summary>
-        <p className="mt-1 text-muted-foreground">
-          ใช้กับไฟล์ POS ที่มีเวลาขายแต่ไม่บอกวันขาย (ไฟล์ที่บอกวันมาแล้วใช้วันตามไฟล์) · แก้แล้วมีผลกับการนำเข้าครั้งถัดไป ถ้าจะแก้วันเก่าให้นำเข้าวันนั้นใหม่
-        </p>
-      </details>
+      <p className="mt-1 text-xs text-muted-foreground">เช่น ร้านปิดตีสอง ใส่ 05:00 · ร้านที่ปิดก่อนเที่ยงคืน ใช้ 05:00 ได้เหมือนกัน</p>
     </div>
   );
 }

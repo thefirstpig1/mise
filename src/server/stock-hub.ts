@@ -19,6 +19,8 @@ export type StockHubFacts = {
   unpostedDays: number;
   /** Posted days a recipe written afterwards now contradicts (rule N11). */
   staleDays: number;
+  /** Days with sales in the last 30 days — 0 means there is nothing to post yet. */
+  salesDays: number;
 };
 
 const BKK_MS = 7 * 3_600_000;
@@ -43,5 +45,6 @@ export async function getStockHubFactsLogic(tenantId: string, branchId: string):
     wasteThisMonth: waste,
     unpostedDays: days.filter((d) => d.runId === null && d.withinWindow).length,
     staleDays: days.filter((d) => d.runId !== null && d.recipeChangedSincePosting).length,
+    salesDays: days.length,
   };
 }

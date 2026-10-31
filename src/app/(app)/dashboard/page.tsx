@@ -3,7 +3,8 @@ import SectionEyebrow from "@/components/layout/SectionEyebrow";
 import IconTile from "@/components/ui/IconTile";
 import { ChartColumn, Coins, Receipt, Soup, type LucideIcon } from "lucide-react";
 import { requireTenant } from "@/lib/require-tenant";
-import { getOnboardingLogic, type OnboardingStep } from "@/server/onboarding";
+import { getOnboardingForRequest, type OnboardingStep } from "@/server/onboarding";
+import { setupCopy } from "@/lib/setup-steps";
 import OnboardingCard, { type OnboardingStepView } from "./_components/OnboardingCard";
 import { withTenantContext } from "@/lib/db";
 import { computeBangkokToday } from "@/lib/bangkok-date";
@@ -67,34 +68,25 @@ const num = (d: { toString(): string } | null) => (d === null ? null : Number(d.
 const pct1 = (n: number) => `${n.toFixed(1)}%`;
 const short = (name: string) => name.replace(/^สาขา/, "");
 
-// Ordered as the setup flow runs (src/server/onboarding.ts). The count step
+// Ordered as the setup flow runs (src/server/onboarding.ts); the words are
+// src/lib/setup-steps.ts, shared with the bar on every page. The count step
 // names its night: the month's last, after closing — that count is the next
 // month's opening stock (rule PG2).
-function setupStep(key: OnboardingStep, today: Date): Omit<OnboardingStepView, "key" | "done"> {
-  switch (key) {
-    case "shop":
-      return { title: "ตรวจตั้งค่าร้าน", hint: "วิธีคิดกำไร บิลที่ยกเลิก และมื้อพนักงาน ให้ตรงกับที่ร้านทำ", cta: "ตรวจตั้งค่า", href: "/settings" };
-    case "team":
-      return { title: "เชิญคนในร้าน", hint: "ครัว จัดซื้อ แคชเชียร์ แต่ละคนเห็นเฉพาะที่ต้องใช้", cta: "เชิญคน", href: "/settings/members" };
-    case "supplier":
-      return { title: "ผู้ขายและราคา", hint: "นำเข้าบิลซื้อย้อนหลัง ได้ผู้ขายและราคาของแต่ละวัตถุดิบในครั้งเดียว · ราคานี้ใช้ตอนนับเปิดระบบ", cta: "นำเข้าบิลซื้อ", href: "/suppliers/import" };
-    case "product":
-      return { title: "เพิ่มวัตถุดิบให้ครบทุกตัวที่จะนับ", hint: "นำเข้าจากไฟล์ได้ทีเดียวทั้งรายการ ให้ AI ของร้านจัดไฟล์ให้ · ของที่ไม่อยู่ในรายการจะไม่ถูกนับ", cta: "นำเข้าวัตถุดิบ", href: "/products/import" };
-    case "sales":
-      return { title: "นำเข้ายอดขาย", hint: "ไฟล์จาก POS ที่ร้านใช้ ย้อนหลังได้ ตั้งครั้งเดียวแล้วใช้ได้ทุกวัน", cta: "นำเข้ายอดขาย", href: "/sales/import" };
-    case "recipe":
-      return { title: "สูตรของเมนู", hint: "ร้านนี้คิดกำไรจากสูตร · นำเข้าจากไฟล์เดียวกับวัตถุดิบได้ แล้วกดใช้สูตรทีละเมนู หรือเขียนเองเริ่มจากเมนูขายดี", cta: "นำเข้าสูตร", href: "/menus/import" };
-    case "count": {
-      const last = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 1, 0));
-      const night = last.toLocaleDateString("th-TH", { day: "numeric", month: "short", timeZone: "UTC" });
-      return {
-        title: last.getTime() === today.getTime() ? `นับเปิดระบบ คืนนี้ (${night})` : `นับเปิดระบบ คืนวันที่ ${night}`,
-        hint: "หลังปิดร้าน ทุกรายการพร้อมราคาทุน · ยอดที่นับคืนนั้นเป็นสต๊อกต้นงวดของเดือนถัดไป",
-        cta: "เริ่มนับ",
-        href: "/stock-counts/new",
-      };
-    }
-  }
+function setupStep(
+  key: OnboardingStep,
+  method: "PERIODIC_INVENTORY" | "RECIPE_CONSUMPTION",
+  today: Date
+): Omit<OnboardingStepView, "key" | "done"> {
+  const c = setupCopy(key, method);
+  if (key !== "count") return { title: c.title, gets: c.gets, cta: c.cta, href: c.href };
+  const last = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 1, 0));
+  const night = last.toLocaleDateString("th-TH", { day: "numeric", month: "short", timeZone: "UTC" });
+  return {
+    title: `${c.title} · ${last.getTime() === today.getTime() ? `คืนนี้ (${night})` : `คืนวันที่ ${night}`}`,
+    gets: c.gets,
+    cta: c.cta,
+    href: c.href,
+  };
 }
 
 /** A setup nearly done shrinks to one chip in the strip; a new shop still gets the whole checklist. */
@@ -219,7 +211,7 @@ async function TodayStrip({
     // ADR 0036 Q9 — the purchaser learns a kitchen is ready without being told.
     getRequestQueueLogic(tenantId, purchaseBranches),
     dailyClose ? getCloseStatusLogic(tenantId, dailyClose.branches.map((b) => b.id)) : Promise.resolve(null),
-    setup ? getOnboardingLogic(tenantId, membershipId) : Promise.resolve(null),
+    setup ? getOnboardingForRequest(tenantId, membershipId) : Promise.resolve(null),
     drafts ? draftsWaiting(tenantId, userId, drafts.shared) : Promise.resolve(0),
     // C2: every recurring bill already due and not recorded, up to today.
     expenses ? missingRecurring(tenantId, { from: new Date(Date.UTC(2000, 0, 1)), to: today }, expenses) : Promise.resolve([]),
@@ -313,17 +305,22 @@ async function TodayStrip({
   }
   if (draftCount > 0) items.push({ key: "drafts", n: String(draftCount), label: "ร่างสูตรรอคุณ", detail: "ในทดลองเมนู", href: "/menus/lab", tone: "soft" });
 
-  const setupSteps = onboarding ? onboarding.steps.map((key) => ({ key, done: onboarding.done[key], ...setupStep(key, today) })) : [];
-  const setupOpen = onboarding && !onboarding.dismissed && onboarding.doneCount < onboarding.steps.length;
+  const setupSteps = onboarding ? onboarding.steps.map((key) => ({ key, done: onboarding.done[key], ...setupStep(key, onboarding.method, today) })) : [];
+  const team = onboarding ? { key: "team", done: onboarding.done.team, ...setupStep("team", onboarding.method, today) } : null;
+  const setupUnfinished = onboarding !== null && onboarding.doneCount < onboarding.steps.length;
+  const setupOpen = setupUnfinished && !onboarding.dismissed;
   if (onboarding && setupOpen && onboarding.doneCount >= SETUP_CHIP_FROM) {
     const next = setupSteps.find((s) => !s.done)!;
-    items.push({ key: "setup", n: `${onboarding.doneCount}/${onboarding.steps.length}`, label: "เริ่มต้นใช้งาน", detail: `เหลือ${next.title}`, href: next.href, tone: "soft" });
+    items.push({ key: "setup", n: `${onboarding.doneCount}/${onboarding.steps.length}`, label: "ตั้งร้าน", detail: `เหลือ${next.title}`, href: next.href, tone: "soft" });
   }
 
   const pulseView = pulseRaw ? toPulseDashboardView(pulseRaw) : null;
   return (
     <div className="space-y-3">
-      {onboarding && setupOpen && onboarding.doneCount < SETUP_CHIP_FROM ? <OnboardingCard steps={setupSteps} dismissed={false} /> : null}
+      {/* Hidden, it stays one press from coming back (the bar on every page with it). */}
+      {onboarding && setupUnfinished && (onboarding.dismissed || onboarding.doneCount < SETUP_CHIP_FROM) ? (
+        <OnboardingCard steps={setupSteps} team={team} dismissed={onboarding.dismissed} />
+      ) : null}
       <section className="flex flex-col gap-2 rounded-[18px] border border-border/70 bg-surface px-3 py-2.5 shadow-card sm:flex-row sm:items-center sm:gap-3" aria-label="ต้องทำวันนี้">
         <h2 className="shrink-0 pl-1 font-display text-sm font-semibold">ต้องทำวันนี้</h2>
         {items.length === 0 ? (
