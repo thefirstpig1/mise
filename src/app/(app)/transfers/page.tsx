@@ -29,10 +29,11 @@ import { toTransferView } from "./_components/transfer-view";
 import EmptyState from "@/components/ui/EmptyState";
 import { RowChevron } from "@/components/ui/ActionLink";
 import FilterLink from "@/components/ui/FilterLink";
+// The kit's chips (queue item 9, 2026-10-31): the same pill and dot as every other status.
 const STATUS_STYLE: Record<string, string> = {
-  SENT: "border-warn-border bg-warn-bg text-warn",
-  RECEIVED: "border-good-border bg-good-bg text-good",
-  VOIDED: "border-border bg-muted/40 text-muted-foreground",
+  SENT: "chip-warn",
+  RECEIVED: "chip-good",
+  VOIDED: "",
 };
 
 export default async function TransfersPage({
@@ -162,7 +163,7 @@ export default async function TransfersPage({
                   its number — a number in plain text did not look pressable. */}
               <a
                 href={`/transfers/${t.id}`}
-                className={`group block rounded-lg border bg-surface p-4 transition hover:border-primary-line hover:shadow-md ${t.status === "SENT" ? "border-warn-border" : "border-border"}`}
+                className={`group block rounded-[18px] border bg-surface p-4 shadow-card transition hover:border-primary-line ${t.status === "SENT" ? "border-warn-border" : "border-border/70"}`}
               >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
@@ -173,7 +174,7 @@ export default async function TransfersPage({
                 </div>
                 <div className="flex items-center gap-2">
                   <span
-                    className={`rounded-full border px-2.5 py-0.5 text-xs ${STATUS_STYLE[t.status] ?? ""}`}
+                    className={`chip ${STATUS_STYLE[t.status] ?? ""}`}
                   >
                     {t.statusLabel}
                   </span>
@@ -192,10 +193,10 @@ export default async function TransfersPage({
                 {t.costHidden ? (
                   <span className="text-muted-foreground">ไม่มีสิทธิ์ดู</span>
                 ) : (
-                  <>{t.totalCost} ฿</>
+                  <>฿{Number(t.totalCost).toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</>
                 )}
                 {t.hasShortage && (
-                  <span className="ml-2 rounded-full border border-bad-border bg-bad-bg px-2 py-0.5 text-xs text-bad">
+                  <span className="chip chip-bad ml-2">
                     ของมาไม่ครบ
                   </span>
                 )}

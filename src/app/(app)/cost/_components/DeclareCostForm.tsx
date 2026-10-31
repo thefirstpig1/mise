@@ -143,7 +143,7 @@ export default function DeclareCostForm({
                 className={`text-xs ${h.superseded ? "text-muted-foreground line-through decoration-muted-foreground/40" : ""}`}
               >
                 <span className="font-medium tabular-nums">
-                  {h.inputUnitCost} ฿ / {h.inputUnitName}
+                  ฿{h.inputUnitCost} / {h.inputUnitName}
                 </span>
                 {" · "}
                 {h.declaredByName}

@@ -126,7 +126,7 @@ export default function CostLayerTable({
                         movementId={l.movementId}
                         units={units}
                         history={history[l.movementId] ?? []}
-                        currentLabel={`${formatMoney(l.unitCost)} ฿ / ${baseUnitName || "หน่วย"} (${PRICING_LABEL[l.pricing] ?? l.pricing})`}
+                        currentLabel={`฿${formatMoney(l.unitCost)} / ${baseUnitName || "หน่วย"} (${PRICING_LABEL[l.pricing] ?? l.pricing})`}
                         onDone={() => setOpenFor(null)}
                       />
                     </div>

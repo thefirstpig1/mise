@@ -149,7 +149,7 @@ export default async function ExpenseListPage({
                 <span className="font-medium">{d.template.description}</span>
                 <span className="ml-2 text-xs">
                   {d.template.branchName} · ทุกวันที่ {d.template.dayOfMonth} ·
-                  ตั้งต้น {formatMoney(d.template.defaultAmount)} ฿
+                  ตั้งต้น ฿{formatMoney(d.template.defaultAmount)}
                 </span>
                 <div className="mt-1 flex flex-wrap gap-2">
                   {d.duePeriods.map((period) => (
@@ -311,7 +311,7 @@ export default async function ExpenseListPage({
             <div className="rounded-lg border border-border bg-muted/30 px-4 py-2 text-sm">
               ยังไม่จ่าย{" "}
               <span className="font-medium tabular-nums">
-                {formatMoney(String(unpaidTotal))} ฿
+                ฿{formatMoney(String(unpaidTotal))}
               </span>{" "}
               <span className="text-xs text-muted-foreground">
                 (ยอดสุทธิหลังหักภาษี ณ ที่จ่าย ตามที่กรองอยู่)

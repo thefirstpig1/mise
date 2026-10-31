@@ -25,6 +25,7 @@ import { MOVEMENT_TYPE_LABELS_TH, SOURCE_TYPE_LABELS_TH } from "@/lib/validation
 import { PAR_RED } from "@/lib/par-alert";
 import { unitTh } from "@/app/(app)/menus/_components/manager-format";
 import FilterLink from "@/components/ui/FilterLink";
+import { ArrowLeftRight, ClipboardCheck, ClipboardList, History, PackageMinus, SlidersHorizontal, Trash2, Utensils, type LucideIcon } from "lucide-react";
 
 const label = (m: Record<string, string>, k: string) => m[k] ?? k;
 const baht = (n: number) => `฿${Math.round(n).toLocaleString("th-TH")}`;
@@ -97,10 +98,12 @@ export default async function StockWorkPage({ searchParams }: { searchParams: Pr
   // Kong 2026-10-25: this is also the kitchen's home page (homeFor). For people
   // who see no money, it is "งานครัว", and asking for stock comes first.
   const kitchenView = !can("sales:view") && can("purchase:request");
-  const tiles: { href: string; title: string; sub: string; show: boolean; main?: boolean; alert?: boolean; daily?: boolean }[] = [
+  // Queue item 9: each task carries the icon its page has in the sidebar.
+  const tiles: { href: string; title: string; icon: LucideIcon; sub: string; show: boolean; main?: boolean; alert?: boolean; daily?: boolean }[] = [
     {
       href: `/purchase-requests?b=${branch.id}`,
       title: "ขอซื้อของ",
+      icon: ClipboardList,
       sub: low + near > 0 ? `ต่ำกว่า/ใกล้ขั้นต่ำ ${low + near} รายการ` : "ใส่ของที่ต้องการ · แผนกกดพร้อม",
       show: kitchenView,
       main: true,
@@ -110,6 +113,7 @@ export default async function StockWorkPage({ searchParams }: { searchParams: Pr
     {
       href: `/stock-counts/new?branch=${branch.id}`,
       title: "นับสต๊อก",
+      icon: ClipboardCheck,
       sub: countSub,
       show: can("count:write"),
       main: !kitchenView,
@@ -119,6 +123,7 @@ export default async function StockWorkPage({ searchParams }: { searchParams: Pr
     {
       href: "/waste",
       title: "บันทึกของเสีย",
+      icon: Trash2,
       // Nothing thrown away is said in words, never "฿0 · 0 รายการ" (kit).
       sub:
         hub.wasteThisMonth === 0
@@ -129,17 +134,19 @@ export default async function StockWorkPage({ searchParams }: { searchParams: Pr
       show: can("waste:write"),
       daily: true,
     },
-    { href: `/stock/adjust?branch=${branch.id}`, title: "ปรับสต๊อก", sub: "ของเกิน/ขาดที่รู้สาเหตุ", show: can("stock:write") },
+    { href: `/stock/adjust?branch=${branch.id}`, title: "ปรับสต๊อก", icon: SlidersHorizontal, sub: "ของเกิน/ขาดที่รู้สาเหตุ", show: can("stock:write") },
     {
       href: `/transfers/new?from=${branch.id}`,
       title: "โอนไปสาขาอื่น",
+      icon: ArrowLeftRight,
       sub: incoming.length > 0 ? `มีของกำลังมาส่ง ${incoming.length} ใบ` : "ไม่มีของกำลังมาส่ง",
       show: branches.length > 1 || reach.allBranches,
     },
-    { href: "/staff-meals", title: "มื้อพนักงาน", sub: "ของที่พนักงานกิน", show: can("stock:write") },
+    { href: "/staff-meals", title: "มื้อพนักงาน", icon: Utensils, sub: "ของที่พนักงานกิน", show: can("stock:write") },
     {
       href: `/consumption?branch=${branch.id}`,
       title: "ตัดสต๊อกตามยอดขาย",
+      icon: PackageMinus,
       sub:
         hub.staleDays > 0
           ? `${hub.staleDays} วันควรตัดใหม่ (สูตรเปลี่ยน)`
@@ -150,14 +157,14 @@ export default async function StockWorkPage({ searchParams }: { searchParams: Pr
       alert: hub.staleDays > 0 || hub.unpostedDays > 0,
       daily: true,
     },
-    { href: `/stock/history?branch=${branch.id}`, title: "ประวัติ / บัตรสต๊อก", sub: "ทุกรายการ พร้อมยอดคงเหลือ", show: true },
+    { href: `/stock/history?branch=${branch.id}`, title: "ประวัติ / บัตรสต๊อก", icon: History, sub: "ทุกรายการ พร้อมยอดคงเหลือ", show: true },
   ];
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-semibold">{kitchenView ? "งานครัว" : "งานสต๊อก"}</h2>
+          <h1 className="text-[1.75rem] font-semibold leading-tight tracking-[-0.005em]">{kitchenView ? "งานครัว" : "งานสต๊อก"}</h1>
           <p className="mt-1 text-sm text-muted-foreground">ของเข้า-ออกที่ไม่ได้มาจากการซื้อหรือการขาย บันทึกที่นี่ · ดูรายการสินค้าและยอดคงเหลือที่หน้าสินค้า/วัตถุดิบ</p>
         </div>
         {branches.length > 1 && (
@@ -166,9 +173,7 @@ export default async function StockWorkPage({ searchParams }: { searchParams: Pr
               <FilterLink
                 key={b.id}
                 href={`/stock?branch=${b.id}`}
-                className={`whitespace-nowrap rounded-full border px-3 py-1 text-sm ${
-                  b.id === branch.id ? "border-primary bg-primary text-primary-foreground" : "border-border-strong bg-surface hover:bg-muted"
-                }`}
+                className={`pill ${b.id === branch.id ? "is-on" : ""}`}
               >
                 {b.name}
               </FilterLink>
@@ -194,11 +199,14 @@ export default async function StockWorkPage({ searchParams }: { searchParams: Pr
                 <a
                   key={t.title}
                   href={t.href}
-                  className={`grid gap-0.5 rounded-2xl border p-3.5 transition hover:-translate-y-px hover:shadow-card ${
-                    t.main ? "border-primary bg-primary text-primary-foreground" : "border-border bg-surface hover:bg-muted/40"
+                  className={`grid gap-0.5 rounded-[18px] border p-3.5 shadow-card transition hover:-translate-y-px ${
+                    t.main ? "border-primary bg-primary text-primary-foreground" : "border-border/70 bg-surface hover:bg-muted/40"
                   }`}
                 >
-                  <span className="font-display font-semibold">{t.title}</span>
+                  <span className="flex items-center gap-2 font-display font-semibold">
+                    <t.icon aria-hidden className={`h-[18px] w-[18px] shrink-0 ${t.main ? "text-gold" : "text-muted-subtle"}`} strokeWidth={1.8} />
+                    {t.title}
+                  </span>
                   <span
                     className={`text-xs ${
                       t.main ? (t.alert ? "font-semibold text-[#F2C66D]" : "text-primary-foreground/80") : t.alert ? "font-medium text-warn" : "text-muted-subtle"

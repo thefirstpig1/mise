@@ -587,7 +587,7 @@ export default function StockAdjustForm({
             <p className="text-xs text-muted-foreground">
               ระบบจะใช้ต้นทุน{" "}
               <strong className="tabular-nums">
-                {defaultCost.costPerBaseUnit} ฿ / {baseUnitLabel}
+                ฿{defaultCost.costPerBaseUnit} / {baseUnitLabel}
               </strong>{" "}
               ({defaultCost.costSourceLabel})
             </p>

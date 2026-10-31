@@ -25,10 +25,11 @@ import ReceiveTransferForm from "../_components/ReceiveTransferForm";
 import VoidTransferButton from "../_components/VoidTransferButton";
 import { DocHeader, HeaderChip, RelatedDocs } from "@/components/ui/DocHeader";
 
+// The kit's chips (queue item 9, 2026-10-31): the same pill and dot as every other status.
 const STATUS_STYLE: Record<string, string> = {
-  SENT: "border-warn-border bg-warn-bg text-warn",
-  RECEIVED: "border-good-border bg-good-bg text-good",
-  VOIDED: "border-border bg-muted/40 text-muted-foreground",
+  SENT: "chip-warn",
+  RECEIVED: "chip-good",
+  VOIDED: "",
 };
 
 export default async function TransferDetailPage({
@@ -54,7 +55,7 @@ export default async function TransferDetailPage({
         trail={{ href: "/transfers", label: "โอนของระหว่างสาขา" }}
         number={t.tfNumber}
         badges={
-          <span className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${STATUS_STYLE[t.status] ?? ""}`}>
+          <span className={`chip ${STATUS_STYLE[t.status] ?? ""}`}>
             {t.statusLabel}
           </span>
         }
@@ -220,7 +221,7 @@ export default async function TransferDetailPage({
             {reversalLines.map((l) => (
               <li key={l.id}>
                 {l.product.name}: {l.qtySent} {l.inputUnitName}
-                {l.costTotal !== null && ` · ${l.costTotal} ฿`}
+                {l.costTotal !== null && ` · ฿${l.costTotal}`}
               </li>
             ))}
           </ul>
