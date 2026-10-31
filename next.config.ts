@@ -63,6 +63,16 @@ const BUILD_ID = process.env.MISE_BUILD_ID || String(Date.now());
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  /**
+   * The self-hosted fonts (src/app/fonts.css, 2026-10-31). Next serves
+   * public/ with `max-age=0`, which would revalidate 24 font files on every
+   * first visit; their names carry the font's version, so a changed file is a
+   * new name and the old one may be cached for good — what next/font's
+   * /_next/static/media URLs had.
+   */
+  async headers() {
+    return [{ source: "/fonts/:file*", headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }] }];
+  },
   env: { MISE_BUILD_ID: BUILD_ID },
   ...(standalone ? { output: "standalone" as const } : {}),
   experimental: {

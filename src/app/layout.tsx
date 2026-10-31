@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { Prompt, Noto_Sans_Thai, IBM_Plex_Mono } from "next/font/google";
+import { preload } from "react-dom";
+import "./fonts.css";
 import "./globals.css";
 import NumberFieldBehaviour from "@/components/NumberFieldBehaviour";
 
@@ -32,26 +33,12 @@ import NumberFieldBehaviour from "@/components/NumberFieldBehaviour";
 // face. That is one rule in one file rather than a class on every heading.
 // ============================================================
 
-const display = Prompt({
-  subsets: ["thai", "latin"],
-  weight: ["300", "400", "500", "600", "700"],
-  variable: "--font-display",
-  display: "swap",
-});
-
-const sans = Noto_Sans_Thai({
-  subsets: ["thai", "latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-sans",
-  display: "swap",
-});
-
-const mono = IBM_Plex_Mono({
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
-  variable: "--font-mono",
-  display: "swap",
-});
+// The faces themselves live in ./fonts.css, served from /public/fonts
+// (2026-10-31 — next/font/google failed builds at random; see that file).
+// Preloaded: the Thai body face and the Thai heading weight every page opens
+// with, the two a first paint cannot do without — what next/font preloaded
+// for us before.
+const PRELOAD = ["/fonts/noto-sans-thai-v29-thai.woff2", "/fonts/prompt-v12-600-thai.woff2"];
 
 export const metadata: Metadata = {
   title: "คิดครัว — ระบบหลังร้านสำหรับร้านอาหาร",
@@ -63,11 +50,9 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  for (const href of PRELOAD) preload(href, { as: "font", type: "font/woff2", crossOrigin: "anonymous" });
   return (
-    <html
-      lang="th"
-      className={`${sans.variable} ${display.variable} ${mono.variable}`}
-    >
+    <html lang="th">
       <body className="min-h-screen bg-background font-sans antialiased">
         <NumberFieldBehaviour />
         {children}

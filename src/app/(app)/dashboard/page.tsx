@@ -1,5 +1,6 @@
 import { Suspense, type ReactNode } from "react";
 import SectionEyebrow from "@/components/layout/SectionEyebrow";
+import IconTile from "@/components/ui/IconTile";
 import { ChartColumn, Coins, Receipt, Soup, type LucideIcon } from "lucide-react";
 import { requireTenant } from "@/lib/require-tenant";
 import { getOnboardingLogic, type OnboardingStep } from "@/server/onboarding";
@@ -740,9 +741,7 @@ function Kpi({ label, icon: Icon, href, link, children }: { label: string; icon:
     <section className="flex min-w-0 flex-col gap-1.5 rounded-[18px] border border-border/70 bg-surface p-4 shadow-card">
       <div className="flex items-center justify-between gap-2 text-sm text-muted-foreground">
         <span className="flex min-w-0 items-center gap-2">
-          <span aria-hidden className="grid h-7 w-7 shrink-0 place-items-center rounded-[9px] bg-surface-sunk ring-1 ring-border">
-            <Icon className="h-4 w-4 text-primary" strokeWidth={1.8} />
-          </span>
+          <IconTile icon={Icon} />
           <span className="min-w-0">{label}</span>
         </span>
         <a href={href} className="shrink-0 text-xs text-primary hover:underline">

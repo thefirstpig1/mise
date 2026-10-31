@@ -18,6 +18,8 @@
 // type-checks under `pnpm tsc` and fails `pnpm build` (Sprint 0's fix).
 
 import { requireTenant } from "@/lib/require-tenant";
+import { ChartColumn, Tag, UserRound, Users, Utensils, type LucideIcon } from "lucide-react";
+import IconTile from "@/components/ui/IconTile";
 import { computeBangkokToday } from "@/lib/bangkok-date";
 import { getBranchesLogic } from "@/server/branch";
 import { getSalesDaysLogic, getSalesMenuDaysWithComparisonLogic, getSalesTotalsLogic } from "@/server/sales";
@@ -232,6 +234,7 @@ export default async function SalesPage({
   const kpis: KpiProps[] = [
     {
       label: "ยอดขาย",
+      icon: ChartColumn,
       note: "ไม่รวม VAT และ SC",
       value: `฿${bahtShort(s.totals.net)}`,
       cur: nowStats.perDay.net,
@@ -241,6 +244,7 @@ export default async function SalesPage({
     },
     {
       label: "จำนวนจาน",
+      icon: Utensils,
       note: `${s.totals.days} วันที่มีข้อมูล`,
       value: Number(s.totals.qty).toLocaleString("th-TH"),
       cur: nowStats.perDay.qty,
@@ -250,6 +254,7 @@ export default async function SalesPage({
     },
     {
       label: "ราคาเฉลี่ยต่อจาน",
+      icon: Tag,
       note: "ยอดขาย หาร จำนวนจาน",
       value: avgPrice(nowStats) === null ? "—" : `฿${Math.round(avgPrice(nowStats)!).toLocaleString("th-TH")}`,
       cur: avgPrice(nowStats),
@@ -267,6 +272,7 @@ export default async function SalesPage({
     kpis.push(
       {
         label: "ลูกค้า",
+        icon: Users,
         note: gNow.enough ? `ครบ ${gNow.guestDays} จาก ${gNow.salesDays} วันขาย` : gap,
         value: gNow.enough ? gNow.guests.toLocaleString("th-TH") : "—",
         cur: gNow.enough ? gNow.guestsPerDay : null,
@@ -276,6 +282,7 @@ export default async function SalesPage({
       },
       {
         label: "ต่อหัว",
+        icon: UserRound,
         note: gNow.enough && gNow.platesPerGuest !== null ? `${gNow.platesPerGuest.toFixed(2)} จาน/คน · ยอดขาย ÷ ลูกค้า` : "ยอดขาย ÷ ลูกค้า",
         value: gNow.enough && gNow.perHead !== null ? `฿${Math.round(gNow.perHead).toLocaleString("th-TH")}` : "—",
         cur: gNow.enough ? gNow.perHead : null,
@@ -430,7 +437,7 @@ export default async function SalesPage({
         const keyed = dayGroups.filter((g) => g.pulseAmount !== null || g.pulseKeyedCount > 0).length;
         const notes = [s.availability.billNotice, s.availability.timeNotice].filter(Boolean);
         return (
-          <div className="-mt-4 space-y-1 rounded-lg bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+          <div className="note -mt-4 space-y-1 px-3 py-2 text-xs">
             {notes.length > 0 && <p>ข้อมูลช่วงนี้: {notes.join(" · ")}</p>}
             {mismatch.length > 0 ? (
               <p className="font-medium text-bad">
@@ -573,6 +580,8 @@ export default async function SalesPage({
 
 type KpiProps = {
   label: string;
+  /** Queue item 9: the figure card's icon, as on the dashboard. */
+  icon: LucideIcon;
   note: string;
   value: string;
   cur: number | null;
@@ -581,14 +590,17 @@ type KpiProps = {
   perDay: boolean;
 };
 
-function Kpi({ label, note, value, cur, prev, fmt, perDay, curLabel, prevLabel }: KpiProps & { curLabel: string; prevLabel: string }) {
+function Kpi({ label, icon, note, value, cur, prev, fmt, perDay, curLabel, prevLabel }: KpiProps & { curLabel: string; prevLabel: string }) {
   const change = cur !== null && prev ? (cur - prev) / prev : null;
   const tone = change === null || Math.abs(change) < 0.005 ? "bg-muted text-muted-foreground" : change > 0 ? "bg-good-bg text-good" : "bg-bad-bg text-bad";
   return (
     <div className="grid content-start gap-2 rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
-      <p className="flex items-baseline justify-between gap-2 text-sm text-muted-foreground">
-        <span>{label}</span>
-        <span className="text-[11px] text-muted-subtle">{note}</span>
+      <p className="flex items-center justify-between gap-2 text-sm text-muted-foreground">
+        <span className="flex min-w-0 items-center gap-2">
+          <IconTile icon={icon} />
+          {label}
+        </span>
+        <span className="text-right text-[11px] text-muted-subtle">{note}</span>
       </p>
       <p className="font-display text-2xl font-semibold tabular-nums leading-tight">{value}</p>
       {change === null ? (

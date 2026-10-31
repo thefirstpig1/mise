@@ -386,7 +386,7 @@ export default function SalesAnalysis({
 
 function UncategorisedHint() {
   return (
-    <p className="mb-4 rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+    <p className="note mb-4 px-3 py-2 text-xs">
       เมนูยังไม่ได้จัดหมวด จึงแยกยอดตามหมวดไม่ได้ —{" "}
       <a href="/menus" className="font-medium text-primary underline">
         จัดหมวดที่หน้าเมนู
