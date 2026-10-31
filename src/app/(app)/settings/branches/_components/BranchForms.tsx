@@ -34,7 +34,7 @@ export function CutoffField({ id, defaultValue, error }: { id: string; defaultVa
     <div>
       <div className="mb-1 flex items-start gap-2">
         <label htmlFor={id} className="label">{SETTING_HELP.sales_day_cutoff.title}</label>
-        <FieldHelp help={SETTING_HELP.sales_day_cutoff} />
+        <FieldHelp name="sales_day_cutoff" />
       </div>
       <input id={id} name="sales_day_cutoff" type="time" min="00:00" max="12:00" defaultValue={defaultValue} required className="input w-36 tabular-nums" />
       {error ? <p className="mt-1 text-xs text-bad">{error}</p> : null}

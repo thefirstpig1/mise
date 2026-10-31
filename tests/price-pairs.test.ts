@@ -33,6 +33,7 @@ const NOT_COST: Record<string, string> = {
   "staff-meals": "selling prices and the shop's quota — what a dish sells for, not what it costs",
   "staff-meals/people": "the per-person quota the shop sets",
   "sales/import": "the file's total for the day the cashier just keyed (ADR 0038 Amendment, Kong 2026-10-26)",
+  "sales/import/profiles/new": "the same file's totals, read back before the format is saved (Kong 2026-11-01) — what the person is importing, never a cost",
   settings: "explanatory copy (the VAT threshold, a ฿0 sale)",
   suppliers: "explanatory copy on the supplier form (a shelf price example)",
   "recipes/substitute": "imports recipe-view.ts for the substitution plan, which carries no cost — the ฿ belongs to that file's other views",

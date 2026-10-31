@@ -358,6 +358,21 @@ describe("sales file parse + stage (Part 19 L3a)", () => {
     expect(r.largestConsistencyDelta).toBeCloseTo(159.3, 2);
   });
 
+  it("K22b: a file with no gross column has nothing to tie out, so nothing is flagged", () => {
+    // Without the column gross reads as 0, and every row "missed" by its whole
+    // amount — the setup walk 2026-11-01 warned on all five rows of a clean file.
+    const { grossAmount: _g, ...noGross } = COLUMN_MAP;
+    const r = parseSalesFileLogic(
+      csv([HEADER, dataRow({ 3: "2", 5: "10", 6: "120", 7: "0", 8: "0" })]),
+      profile({ columnMap: noGross }),
+      OPTS
+    );
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.rows[0].netAmount).toBe(120);
+    expect(r.inconsistentRows).toBe(0);
+  });
+
   // ------------------------------------------------------------
   // Identity and channel
   // ------------------------------------------------------------

@@ -19,7 +19,7 @@ import Link from "next/link";
 import { MeasureInput } from "@/components/ui/NumberField";
 import Switch from "@/components/ui/Switch";
 import FieldHelp from "@/components/ui/FieldHelp";
-import { SETTING_HELP, type SettingHelp } from "@/lib/setting-help";
+import { SETTING_HELP, type HelpKey } from "@/lib/setting-help";
 import { RECOMMENDED_CANCELLED_SALE_POLICY } from "@/lib/validations/consumption";
 import { requireTenant } from "@/lib/require-tenant";
 import { computeBangkokToday } from "@/lib/bangkok-date";
@@ -60,7 +60,7 @@ function Row({
   hint?: ReactNode;
   control?: ReactNode;
   inline?: boolean;
-  help?: SettingHelp;
+  help?: HelpKey;
   children?: ReactNode;
 }) {
   // A switch is small enough to stay beside its words on a phone too.
@@ -77,7 +77,7 @@ function Row({
           )}
           {help && (
             <span className="mt-px">
-              <FieldHelp help={help} />
+              <FieldHelp name={help} />
             </span>
           )}
         </div>
@@ -205,7 +205,7 @@ export default async function SettingsPage() {
               : "ปิด = ยังไม่จด · VAT ที่จ่ายตอนซื้อของนับเป็นต้นทุนของร้าน · ร้านที่รายได้เกิน ฿1.8 ล้านต่อปีต้องจด"
           }
           control={<Switch name="is_vat_registered" defaultChecked={tenant.isVatRegistered} label="จดทะเบียน VAT แล้ว" />}
-          help={SETTING_HELP.is_vat_registered}
+          help="is_vat_registered"
           inline
         >
           <ChangedNote
@@ -219,7 +219,7 @@ export default async function SettingsPage() {
           title={SETTING_HELP.default_vat_rate_percent.title}
           htmlFor="default_vat_rate_percent"
           hint="ปกติ 7% · แก้ได้ทีละใบ"
-          help={SETTING_HELP.default_vat_rate_percent}
+          help="default_vat_rate_percent"
           control={
             <div>
               <MeasureInput id="default_vat_rate_percent" name="default_vat_rate_percent" unit="%" min={0} max={30} step={0.01} inputMode="decimal" defaultValue={Number(tenant.defaultVatRatePercent)} boxClassName="w-28" />
@@ -235,7 +235,7 @@ export default async function SettingsPage() {
         <Row
           title={SETTING_HELP.cancelled_sale_policy.title}
           hint="ไฟล์ POS ไม่บอกว่าครัวทำไปแล้วหรือยัง เลือกแบบที่ร้านเจอบ่อยกว่า · ใช้กับเมนูที่มีสูตร"
-          help={SETTING_HELP.cancelled_sale_policy}
+          help="cancelled_sale_policy"
         >
           <div className="mt-3 flex flex-wrap gap-2.5">
             <Option
@@ -257,7 +257,7 @@ export default async function SettingsPage() {
           </div>
         </Row>
         {/* ADR 0035 Q4 */}
-        <Row title={SETTING_HELP.staff_meal_stock_source.title} help={SETTING_HELP.staff_meal_stock_source}>
+        <Row title={SETTING_HELP.staff_meal_stock_source.title} help="staff_meal_stock_source">
           <div className="mt-3 flex flex-wrap gap-2.5">
             <Option name="staff_meal_stock_source" value="SYSTEM" checked={tenant.staffMealStockSource === "SYSTEM"} title="ไม่ได้กดใน POS" example="คิดครัวหักวัตถุดิบตามสูตร เมื่อหัวหน้าอนุมัติใบเบิก" />
             <Option name="staff_meal_stock_source" value="POS" checked={tenant.staffMealStockSource === "POS"} title="กดใน POS เป็นยอด ฿0" example="คิดครัวไม่หักซ้ำ · ใบเบิกใช้คุมโควตาและเป็นหลักฐาน" />
@@ -268,20 +268,20 @@ export default async function SettingsPage() {
           htmlFor="par_warning_days"
           hint="ใส่ 0 = เตือนเมื่อต่ำกว่าขั้นต่ำแล้วเท่านั้น"
           control={<Days name="par_warning_days" value={tenant.parWarningDays} min={0} max={30} label="เตือนล่วงหน้ากี่วัน" />}
-          help={SETTING_HELP.par_warning_days}
+          help="par_warning_days"
         />
         <Row
           title={SETTING_HELP.count_cycle_days.title}
           htmlFor="count_cycle_days"
           hint="หน้างานสต๊อกเตือนเมื่อไม่ได้นับเกินจำนวนวันนี้"
-          help={SETTING_HELP.count_cycle_days}
+          help="count_cycle_days"
           control={<Days name="count_cycle_days" value={tenant.countCycleDays} min={1} max={365} label="นับสต๊อกทุกกี่วัน" />}
         />
         {/* ADR 0040 Q2 (Kong 2026-10-29: "เอาตามแนะนำ" — starts as it always was) */}
         <Row
           title={SETTING_HELP.count_show_expected_default.title}
           hint="เป็นค่าเริ่มต้นของใบนับใหม่ · เลือกใหม่ได้ทีละใบตอนเปิดใบนับ"
-          help={SETTING_HELP.count_show_expected_default}
+          help="count_show_expected_default"
         >
           <div className="mt-3 flex flex-wrap gap-2.5">
             <Option
@@ -308,7 +308,7 @@ export default async function SettingsPage() {
         <Row
           title={SETTING_HELP.gross_profit_method.title}
           hint="ถูกทั้งสองแบบ เลือกแบบที่ร้านทำได้เป็นประจำ · เปลี่ยนภายหลังได้"
-          help={SETTING_HELP.gross_profit_method}
+          help="gross_profit_method"
         >
           <div className="mt-3 flex flex-wrap gap-2.5">
             <Option name="gross_profit_method" value="PERIODIC_INVENTORY" checked={tenant.grossProfitMethod === "PERIODIC_INVENTORY"} title="จากการนับสต๊อก" example="ไม่ต้องมีสูตร · ต้นทุน = ของที่มีต้นเดือน + ที่ซื้อเข้า − ของที่เหลือสิ้นเดือน" />
@@ -323,7 +323,7 @@ export default async function SettingsPage() {
             title={SETTING_HELP[name].title}
             htmlFor={name}
             hint={hint}
-            help={SETTING_HELP[name]}
+            help={name}
             control={
               <div>
                 <MeasureInput id={name} name={name} unit={unit} min={min} max={max} step={step} inputMode="decimal" defaultValue={value} boxClassName="w-40" />
@@ -338,7 +338,7 @@ export default async function SettingsPage() {
       <SectionForm id="addons" title="แผนกและส่วนเสริม" action={saveAddonsSectionAction}>
         <Row
           title={SETTING_HELP.enable_departments.title}
-          help={SETTING_HELP.enable_departments}
+          help="enable_departments"
           hint={
             <>
               เปิดแล้ว ใบขอซื้อและใบรับสินค้าเลือกแผนกได้ ·{" "}
@@ -362,7 +362,7 @@ export default async function SettingsPage() {
         <Row
           title={SETTING_HELP.daily_close_enabled.title}
           hint="แคชเชียร์กรอกยอด เงินสด จำนวนลูกค้า และปัญหาของวันในใบเดียว"
-          help={SETTING_HELP.daily_close_enabled}
+          help="daily_close_enabled"
           control={<Switch name="daily_close_enabled" defaultChecked={dailyClose.enabled} label="รายงานปิดร้านประจำวัน" />}
           inline
         >
@@ -379,7 +379,7 @@ export default async function SettingsPage() {
         <Row
           title={SETTING_HELP.refund_approval_all.title}
           hint="ปิด = ไม่ต้อง บิลที่มีรูปบิลและสลิปครบ หรือบัญชีรับรองแล้ว คืนเงินได้เลย · เปิด = ต้องอนุมัติทุกบิล คนที่มีสิทธิ์ส่งใบสั่งซื้อกดอนุมัติก่อน"
-          help={SETTING_HELP.refund_approval_all}
+          help="refund_approval_all"
           control={<Switch name="refund_approval_all" defaultChecked={tenant.refundApprovalAll} label="ต้องอนุมัติทุกบิล" />}
           inline
         />

@@ -30,10 +30,13 @@ import { requireTenant } from "@/lib/require-tenant";
 import {
   MAX_SALES_FILE_BYTES,
   commitSalesImportInputSchema,
-  posIntegrationInputSchema,
-  salesImportProfileInputSchema,
+  salesFileDraftSchema,
+  salesFileSetupInputSchema,
   uploadSalesFileInputSchema,
 } from "@/lib/validations/sales-import";
+import { UNREADABLE_XLSX_MESSAGE, readSalesTable } from "@/server/sales-table";
+import { setupSalesFileLogic, trialReadSalesFileLogic, type TrialRead } from "@/server/sales-setup";
+import { BranchNotFoundError } from "@/server/branch";
 import {
   SalesImportAlreadyCommittedError,
   SalesImportBatchNotFoundError,
@@ -43,18 +46,8 @@ import {
   commitSalesImportLogic,
   previewSalesImportLogic,
 } from "@/server/sales-import";
-import {
-  PosIntegrationNotFoundError,
-  createPosIntegrationLogic,
-  createSalesImportProfileLogic,
-} from "@/server/menu";
-import {
-  computeHeaderSignature,
-  decodeSalesFile,
-  looksLikeUtf8Bom,
-  parseCsv,
-  type FileEncodingValue,
-} from "@/lib/sales-file";
+import { PosIntegrationNotFoundError } from "@/server/menu";
+import { computeHeaderSignature, looksLikeUtf8Bom, type FileEncodingValue } from "@/lib/sales-file";
 import {
   toImportPreviewView,
   toSalesRowErrorView,
@@ -105,14 +98,6 @@ export type SalesImportCommitState =
     }
   | { ok: false; formError?: string; fieldErrors?: Record<string, string> };
 
-export type ProfileActionState =
-  | { ok: true; profileId: string }
-  | { ok: false; formError?: string; fieldErrors?: Record<string, string> };
-
-export type PosIntegrationActionState =
-  | { ok: true; posIntegrationId: string }
-  | { ok: false; formError?: string; fieldErrors?: Record<string, string> };
-
 /** Flatten zod issues to `{ fieldName: thaiMessage }`, first issue per field. */
 function toFieldErrors(error: ZodError): Record<string, string> {
   const fieldErrors: Record<string, string> = {};
@@ -133,6 +118,9 @@ function toFormError(e: unknown): {
   }
   if (e instanceof PosIntegrationNotFoundError) {
     return { fieldErrors: { posIntegrationId: POS_NOT_FOUND_MESSAGE } };
+  }
+  if (e instanceof BranchNotFoundError) {
+    return { formError: "ไม่พบสาขานี้ กรุณาเลือกใหม่" };
   }
   if (e instanceof SalesImportBatchNotFoundError) {
     return { formError: BATCH_NOT_FOUND_MESSAGE };
@@ -175,19 +163,37 @@ export type InspectFileState =
       headerSignature: string;
       /** The first few rows, so a person maps columns against real values. */
       sampleRows: string[][];
+      /** The encoding the text was read with — what the format will store. */
       suggestedEncoding: FileEncodingValue;
+      /** An Excel workbook: there is no encoding to choose. */
+      excel: boolean;
+      /** Data rows under the header, blank ones included. */
+      rowCount: number;
     }
   | { ok: false; formError: string };
 
 const SAMPLE_ROWS = 5;
 
 /**
- * Read a file's header so the profile builder can be filled in against what is
- * actually there.
- *
- * Writes nothing. The encoding is a SUGGESTION from the BOM, and the person
- * still states it — a guess that is right most of the time is exactly the kind
- * of thing that goes wrong silently on the file that matters (rule P13).
+ * The encoding to read a CSV with when the person has not said: a BOM says
+ * UTF-8; bytes that are valid UTF-8 are UTF-8; anything else is the TIS-620 a
+ * Thai Excel writes. The person still SEES the decoded Thai on the next page
+ * and can switch (rule P13) — this only chooses what they look at first.
+ */
+function encodingFor(bytes: Uint8Array, declared: FormDataEntryValue | null): FileEncodingValue {
+  if (declared === "TIS620" || declared === "UTF8") return declared;
+  if (looksLikeUtf8Bom(bytes)) return "UTF8";
+  try {
+    new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+    return "UTF8";
+  } catch {
+    return "TIS620";
+  }
+}
+
+/**
+ * Read a file's header so a format can be filled in against what is actually
+ * there. CSV or Excel (Kong 2026-11-01). Writes nothing.
  */
 export async function inspectSalesFileAction(
   _prev: InspectFileState | null,
@@ -198,10 +204,10 @@ export async function inspectSalesFileAction(
   const read = await readUploadedFile(formData);
   if (!read.ok) return { ok: false, formError: read.message };
 
-  const declared = formData.get("encoding");
-  const encoding: FileEncodingValue = declared === "TIS620" ? "TIS620" : "UTF8";
-
-  const table = parseCsv(decodeSalesFile(read.bytes, encoding));
+  const encoding = encodingFor(read.bytes, formData.get("encoding"));
+  const t = await readSalesTable(read.bytes, encoding);
+  if (!t.ok) return { ok: false, formError: UNREADABLE_XLSX_MESSAGE };
+  const table = t.table;
   if (table.length === 0) return { ok: false, formError: "ไฟล์ว่าง ไม่มีข้อมูล" };
 
   return {
@@ -209,8 +215,94 @@ export async function inspectSalesFileAction(
     header: table[0],
     headerSignature: computeHeaderSignature(table[0]),
     sampleRows: table.slice(1, 1 + SAMPLE_ROWS),
-    suggestedEncoding: looksLikeUtf8Bom(read.bytes) ? "UTF8" : encoding,
+    suggestedEncoding: encoding,
+    excel: t.excel,
+    rowCount: table.length - 1,
   };
+}
+
+// ------------------------------------------------------------
+// 1b. The first-import wizard: try the format, then save it with its POS
+// ------------------------------------------------------------
+
+export type TrialReadState = { ok: true; trial: TrialRead } | { ok: false; formError?: string; fieldErrors?: Record<string, string> };
+
+/** The wizard's fields, as the zod schemas below expect them. */
+function draftFields(formData: FormData) {
+  let columnMap: unknown = {};
+  try {
+    const raw = formData.get("columnMap");
+    columnMap = typeof raw === "string" ? JSON.parse(raw) : {};
+  } catch {
+    columnMap = null;
+  }
+  return {
+    branchId: formData.get("branchId"),
+    fileKind: formData.get("fileKind"),
+    encoding: formData.get("encoding"),
+    dateFormat: formData.get("dateFormat"),
+    isBuddhistYear: formData.get("isBuddhistYear"),
+    columnMap,
+    amountsIncludeVat: formData.get("amountsIncludeVat"),
+    amountsIncludeServiceCharge: formData.get("amountsIncludeServiceCharge"),
+    defaultChannel: formData.get("defaultChannel"),
+  };
+}
+
+/** What an unsaved format makes of the sample — the wizard's last page. Writes nothing. */
+export async function trialReadSalesFileAction(formData: FormData): Promise<TrialReadState> {
+  const { tenantId, assertBranch } = await requireTenant("sales:import");
+  const read = await readUploadedFile(formData);
+  if (!read.ok) return { ok: false, formError: read.message };
+
+  const parsed = salesFileDraftSchema.safeParse(draftFields(formData));
+  if (!parsed.success) return { ok: false, fieldErrors: toFieldErrors(parsed.error) };
+  assertBranch(parsed.data.branchId);
+
+  const t = await readSalesTable(read.bytes, parsed.data.encoding);
+  if (!t.ok) return { ok: false, formError: UNREADABLE_XLSX_MESSAGE };
+  try {
+    const { branchId, ...draft } = parsed.data;
+    return { ok: true, trial: await trialReadSalesFileLogic(tenantId, branchId, draft, t.table) };
+  } catch (e) {
+    return { ok: false, ...toFormError(e) };
+  }
+}
+
+export type SalesFileSetupState =
+  | { ok: true; profileId: string; posIntegrationId: string }
+  | { ok: false; formError?: string; fieldErrors?: Record<string, string> };
+
+/**
+ * The wizard's one save: the POS and the file format together. The header
+ * fingerprint is taken from the file again here, never from the browser.
+ */
+export async function setupSalesFileAction(formData: FormData): Promise<SalesFileSetupState> {
+  const { tenantId, assertBranch } = await requireTenant("sales:import");
+  const read = await readUploadedFile(formData);
+  if (!read.ok) return { ok: false, formError: read.message };
+
+  const parsed = salesFileSetupInputSchema.safeParse({
+    ...draftFields(formData),
+    posIntegrationId: formData.get("posIntegrationId"),
+    posType: formData.get("posType"),
+    posName: formData.get("posName"),
+  });
+  if (!parsed.success) return { ok: false, fieldErrors: toFieldErrors(parsed.error) };
+  assertBranch(parsed.data.branchId);
+
+  const t = await readSalesTable(read.bytes, parsed.data.encoding);
+  if (!t.ok) return { ok: false, formError: UNREADABLE_XLSX_MESSAGE };
+  if (t.table.length === 0) return { ok: false, formError: "ไฟล์ว่าง ไม่มีข้อมูล" };
+
+  try {
+    const saved = await setupSalesFileLogic(tenantId, { ...parsed.data, headerSignature: computeHeaderSignature(t.table[0]) });
+    revalidatePath("/sales/import");
+    revalidatePath("/settings");
+    return { ok: true, ...saved };
+  } catch (e) {
+    return { ok: false, ...toFormError(e) };
+  }
 }
 
 // ------------------------------------------------------------
@@ -333,73 +425,6 @@ export async function commitSalesImportAction(
         formError: "ไฟล์ที่ส่งมาตอนยืนยันอ่านไม่ได้ กรุณาเลือกไฟล์แล้วตรวจใหม่อีกครั้ง",
       };
     }
-    return { ok: false, ...toFormError(e) };
-  }
-}
-
-// ------------------------------------------------------------
-// 4. POS integration and profile
-// ------------------------------------------------------------
-
-export async function createPosIntegrationAction(
-  _prev: PosIntegrationActionState | null,
-  formData: FormData
-): Promise<PosIntegrationActionState> {
-  const { tenantId, assertBranch} = await requireTenant("sales:import");
-
-  const parsed = posIntegrationInputSchema.safeParse({
-    branchId: formData.get("branchId"),
-    posType: formData.get("posType"),
-    name: formData.get("name"),
-  });
-  if (!parsed.success) return { ok: false, fieldErrors: toFieldErrors(parsed.error) };
-
-  assertBranch(parsed.data.branchId);
-
-  try {
-    const created = await createPosIntegrationLogic(tenantId, parsed.data);
-    revalidatePath("/sales/import");
-    revalidatePath("/settings");
-    return { ok: true, posIntegrationId: created.id };
-  } catch (e) {
-    return { ok: false, ...toFormError(e) };
-  }
-}
-
-export async function createSalesImportProfileAction(
-  _prev: ProfileActionState | null,
-  formData: FormData
-): Promise<ProfileActionState> {
-  const { tenantId } = await requireTenant("sales:import");
-
-  const rawColumnMap = formData.get("columnMap");
-  let columnMap: unknown;
-  try {
-    columnMap = typeof rawColumnMap === "string" ? JSON.parse(rawColumnMap) : {};
-  } catch {
-    return { ok: false, fieldErrors: { columnMap: "การจับคู่คอลัมน์ไม่ถูกต้อง" } };
-  }
-
-  const parsed = salesImportProfileInputSchema.safeParse({
-    posIntegrationId: formData.get("posIntegrationId"),
-    name: formData.get("name"),
-    fileKind: formData.get("fileKind"),
-    encoding: formData.get("encoding"),
-    dateFormat: formData.get("dateFormat"),
-    isBuddhistYear: formData.get("isBuddhistYear"),
-    headerSignature: formData.get("headerSignature"),
-    columnMap,
-    amountsIncludeVat: formData.get("amountsIncludeVat"),
-    amountsIncludeServiceCharge: formData.get("amountsIncludeServiceCharge"),
-    defaultChannel: formData.get("defaultChannel"),
-  });
-  if (!parsed.success) return { ok: false, fieldErrors: toFieldErrors(parsed.error) };
-
-  try {
-    const created = await createSalesImportProfileLogic(tenantId, parsed.data);
-    revalidatePath("/sales/import");
-    return { ok: true, profileId: created.id };
-  } catch (e) {
     return { ok: false, ...toFormError(e) };
   }
 }

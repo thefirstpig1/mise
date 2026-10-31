@@ -49,6 +49,7 @@ import {
   type FileEncodingValue,
   type SalesDateFormat,
 } from "@/lib/sales-file";
+import { UNREADABLE_XLSX_MESSAGE, isXlsxBytes, readSalesTable, readXlsxSalesTable } from "@/server/sales-table";
 import {
   MAX_SALES_FILE_ROWS,
   SALES_CHANNEL_VALUES,
@@ -190,14 +191,21 @@ function resolveChannel(raw: string): SalesChannelValue | null {
 // The parse
 // ------------------------------------------------------------
 
+/** A CSV's bytes, decoded by the profile's encoding. Excel goes through `readSalesTable`. */
 export function parseSalesFileLogic(
   bytes: Uint8Array,
   profile: ParseProfile,
   opts: ParseOptions
 ): ParseSalesFileResult {
-  const text = decodeSalesFile(bytes, profile.encoding);
-  const table = parseCsv(text);
+  return parseSalesTableLogic(parseCsv(decodeSalesFile(bytes, profile.encoding)), profile, opts);
+}
 
+/** The parse proper, on cells — the same for a CSV and an Excel sheet (src/server/sales-table.ts). */
+export function parseSalesTableLogic(
+  table: string[][],
+  profile: ParseProfile,
+  opts: ParseOptions
+): ParseSalesFileResult {
   if (table.length === 0 || (table.length === 1 && table[0].every((c) => c.trim() === ""))) {
     return { ok: false, errors: [{ rowNumber: 1, field: null, message: "ไฟล์ว่าง ไม่มีข้อมูล" }] };
   }
@@ -451,10 +459,15 @@ export function parseSalesFileLogic(
   let coveredTo = rows[0].businessDate;
   let inconsistentRows = 0;
   let largestConsistencyDelta = 0;
+  // Only a file that STATES its gross can fail to tie out. Without the column,
+  // gross reads as 0 and every sale "missed" by its whole amount — the first
+  // sales import of the setup walk (2026-11-01) warned on all five rows of a
+  // file with nothing wrong in it.
+  const canTieOut = map.grossAmount !== undefined;
   for (const r of rows) {
     if (r.businessDate < coveredFrom) coveredFrom = r.businessDate;
     if (r.businessDate > coveredTo) coveredTo = r.businessDate;
-    if (r.consistencyDelta > CONSISTENCY_TOLERANCE) {
+    if (canTieOut && r.consistencyDelta > CONSISTENCY_TOLERANCE) {
       inconsistentRows++;
       if (r.consistencyDelta > largestConsistencyDelta) {
         largestConsistencyDelta = r.consistencyDelta;
@@ -710,9 +723,10 @@ export async function previewSalesImportLogic(
   const profile = await withTenantContext(tenantId, (tx) =>
     loadProfileLogic(tx, tenantId, input.profileId)
   );
-  const parsed = parseSalesFileLogic(bytes, profile.parse, {
-    salesDayCutoffMinutes: profile.salesDayCutoffMinutes,
-  });
+  const read = await readSalesTable(bytes, profile.parse.encoding);
+  const parsed: ParseSalesFileResult = read.ok
+    ? parseSalesTableLogic(read.table, profile.parse, { salesDayCutoffMinutes: profile.salesDayCutoffMinutes })
+    : { ok: false, errors: [{ rowNumber: 1, field: null, message: UNREADABLE_XLSX_MESSAGE }] };
 
   // --- 2. record the attempt, in a transaction of its OWN ---
   //
@@ -959,6 +973,10 @@ export async function commitSalesImportLogic(
   },
   bytes: Uint8Array
 ): Promise<CommitSalesImportResult> {
+  // An Excel file is opened BEFORE the transaction: unzipping is the slow part,
+  // and a transaction that is open holds a pgbouncer connection (ADR 0023).
+  // undefined = a CSV, read inside by the profile's encoding; null = unreadable.
+  const excelTable = isXlsxBytes(bytes) ? await readXlsxSalesTable(bytes) : undefined;
   return withTenantContext(
     tenantId,
     async (tx) => {
@@ -971,9 +989,12 @@ export async function commitSalesImportLogic(
       }
 
       const profile = await loadProfileLogic(tx, tenantId, batch.profileId);
-      const parsed = parseSalesFileLogic(bytes, profile.parse, {
-        salesDayCutoffMinutes: profile.salesDayCutoffMinutes,
-      });
+      const parsed: ParseSalesFileResult =
+        excelTable === undefined
+          ? parseSalesFileLogic(bytes, profile.parse, { salesDayCutoffMinutes: profile.salesDayCutoffMinutes })
+          : excelTable === null
+            ? { ok: false, errors: [{ rowNumber: 1, field: null, message: UNREADABLE_XLSX_MESSAGE }] }
+            : parseSalesTableLogic(excelTable, profile.parse, { salesDayCutoffMinutes: profile.salesDayCutoffMinutes });
       if (!parsed.ok) throw new SalesImportFileRejectedError(parsed.errors);
 
       const plan = await planMenuResolutionLogic(

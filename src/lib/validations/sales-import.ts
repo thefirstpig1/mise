@@ -241,138 +241,185 @@ export type ColumnMap = z.infer<typeof columnMapSchema>;
 // ------------------------------------------------------------
 
 export const MAX_PROFILE_NAME_LENGTH = 100;
+export const MAX_POS_NAME_LENGTH = 100;
+
+/** What a file format says, wherever it is said: saved, tried out, or set up with its POS. */
+const profileDraftFields = {
+  fileKind: z.enum(SALES_FILE_KIND_VALUES, {
+    errorMap: () => ({ message: "ต้องระบุว่าไฟล์เป็นรายบิลหรือสรุปรายวัน" }),
+  }),
+  encoding: z.enum(FILE_ENCODING_VALUES, {
+    errorMap: () => ({ message: "การเข้ารหัสไฟล์ไม่ถูกต้อง" }),
+  }),
+  dateFormat: z.enum(SALES_DATE_FORMATS, {
+    errorMap: () => ({ message: "รูปแบบวันที่ไม่ถูกต้อง" }),
+  }),
+  isBuddhistYear: explicitBoolean("ต้องระบุว่าปีในไฟล์เป็น พ.ศ. หรือ ค.ศ."),
+  headerSignature: z
+    .string()
+    .trim()
+    .min(1, "ไม่พบลายเซ็นหัวตาราง"),
+  columnMap: columnMapSchema,
+  amountsIncludeVat: explicitBoolean("ต้องระบุว่าตัวเลขในไฟล์รวม VAT แล้วหรือยัง"),
+  amountsIncludeServiceCharge: explicitBoolean(
+    "ต้องระบุว่าตัวเลขในไฟล์รวม Service charge แล้วหรือยัง"
+  ),
+  defaultChannel: z.preprocess(
+    blankToNull,
+    z.enum(SALES_CHANNEL_VALUES).nullable()
+  ),
+};
+
+type ProfileDraft = {
+  fileKind: SalesFileKindValue;
+  columnMap: ColumnMap;
+  amountsIncludeVat: boolean;
+  amountsIncludeServiceCharge: boolean;
+};
+
+/** The rules a column map must keep, shared by every schema below. */
+function refineProfile(v: ProfileDraft, ctx: z.RefinementCtx) {
+  const map = v.columnMap;
+
+  // --- every row must carry its own date (rule P2) ---
+  // A file summarised over a whole period cannot be split back into days, so
+  // the graphs it produces would be wrong in a way nobody could see. Refused
+  // at the profile, before any file is ever read.
+  if (map.businessDate === undefined && map.soldAt === undefined) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["columnMap", "businessDate"],
+      message: "ต้องมีคอลัมน์วันที่ หรือคอลัมน์วันเวลา — ไฟล์ที่รวบทั้งช่วงใช้ไม่ได้",
+    });
+  }
+
+  // --- a sale must name its dish somehow (Q7) ---
+  if (map.menuName === undefined && map.menuCode === undefined) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["columnMap", "menuName"],
+      message: "ต้องมีคอลัมน์ชื่อเมนู หรือรหัสเมนู อย่างน้อยหนึ่งอย่าง",
+    });
+  }
+
+  for (const required of ["qty", "netAmount"] as const) {
+    if (map[required] === undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["columnMap", required],
+        message:
+          required === "qty" ? "ต้องมีคอลัมน์จำนวน" : "ต้องมีคอลัมน์ยอดสุทธิ",
+      });
+    }
+  }
+
+  // --- a flag with nothing to subtract is a mis-set profile ---
+  // Saying "these amounts include VAT" while mapping no VAT column leaves the
+  // normaliser with nothing to remove, so revenue would silently stay 7% high
+  // on every row — the failure this flag exists to prevent.
+  if (v.amountsIncludeVat && map.vatAmount === undefined) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["columnMap", "vatAmount"],
+      message: "บอกว่าตัวเลขรวม VAT แล้ว แต่ไม่ได้ระบุคอลัมน์ VAT",
+    });
+  }
+  if (v.amountsIncludeServiceCharge && map.serviceChargeAmount === undefined) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["columnMap", "serviceChargeAmount"],
+      message: "บอกว่าตัวเลขรวม Service charge แล้ว แต่ไม่ได้ระบุคอลัมน์ Service charge",
+    });
+  }
+
+  // --- a daily summary has no bills and no times ---
+  if (v.fileKind === "DAILY_SUMMARY") {
+    if (map.billId !== undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["columnMap", "billId"],
+        message: "ไฟล์สรุปรายวันไม่มีเลขบิล",
+      });
+    }
+    if (map.soldAt !== undefined && map.businessDate === undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["columnMap", "soldAt"],
+        message: "ไฟล์สรุปรายวันไม่มีเวลาขาย — ใช้คอลัมน์วันที่แทน",
+      });
+    }
+  }
+
+  // --- two fields cannot read the same column ---
+  // Almost always a slip while dragging the mapper, and it produces numbers
+  // that are individually plausible: discount equal to VAT, say.
+  const seen = new Map<number, ColumnMapField>();
+  for (const field of COLUMN_MAP_FIELDS) {
+    const idx = map[field];
+    if (idx === undefined) continue;
+    const clash = seen.get(idx);
+    if (clash !== undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["columnMap", field],
+        message: `คอลัมน์ที่ ${idx + 1} ถูกใช้ไปแล้วโดย "${clash}"`,
+      });
+    } else {
+      seen.set(idx, field);
+    }
+  }
+}
 
 export const salesImportProfileInputSchema = z
   .object({
-      posIntegrationId: z.string().uuid("เครื่อง POS ไม่ถูกต้อง"),
-      name: z
-        .string()
-        .trim()
-        .min(1, "ต้องระบุชื่อรูปแบบไฟล์")
-        .max(MAX_PROFILE_NAME_LENGTH, "ชื่อต้องไม่เกิน 100 ตัวอักษร"),
-      fileKind: z.enum(SALES_FILE_KIND_VALUES, {
-        errorMap: () => ({ message: "ต้องระบุว่าไฟล์เป็นรายบิลหรือสรุปรายวัน" }),
-      }),
-      encoding: z.enum(FILE_ENCODING_VALUES, {
-        errorMap: () => ({ message: "การเข้ารหัสไฟล์ไม่ถูกต้อง" }),
-      }),
-      dateFormat: z.enum(SALES_DATE_FORMATS, {
-        errorMap: () => ({ message: "รูปแบบวันที่ไม่ถูกต้อง" }),
-      }),
-      isBuddhistYear: explicitBoolean("ต้องระบุว่าปีในไฟล์เป็น พ.ศ. หรือ ค.ศ."),
-      headerSignature: z
-        .string()
-        .trim()
-        .min(1, "ไม่พบลายเซ็นหัวตาราง"),
-      columnMap: columnMapSchema,
-      amountsIncludeVat: explicitBoolean("ต้องระบุว่าตัวเลขในไฟล์รวม VAT แล้วหรือยัง"),
-      amountsIncludeServiceCharge: explicitBoolean(
-        "ต้องระบุว่าตัวเลขในไฟล์รวม Service charge แล้วหรือยัง"
-      ),
-      defaultChannel: z.preprocess(
-        blankToNull,
-        z.enum(SALES_CHANNEL_VALUES).nullable()
-      ),
-    })
-    .superRefine((v, ctx) => {
-      const map = v.columnMap;
+    posIntegrationId: z.string().uuid("เครื่อง POS ไม่ถูกต้อง"),
+    name: z
+      .string()
+      .trim()
+      .min(1, "ต้องระบุชื่อรูปแบบไฟล์")
+      .max(MAX_PROFILE_NAME_LENGTH, "ชื่อต้องไม่เกิน 100 ตัวอักษร"),
+    ...profileDraftFields,
+  })
+  .superRefine(refineProfile);
 
-      // --- every row must carry its own date (rule P2) ---
-      // A file summarised over a whole period cannot be split back into days, so
-      // the graphs it produces would be wrong in a way nobody could see. Refused
-      // at the profile, before any file is ever read.
-      if (map.businessDate === undefined && map.soldAt === undefined) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["columnMap", "businessDate"],
-          message: "ต้องมีคอลัมน์วันที่ หรือคอลัมน์วันเวลา — ไฟล์ที่รวบทั้งช่วงใช้ไม่ได้",
-        });
-      }
+/**
+ * A format the first-import wizard reads the sample file with BEFORE anything
+ * is saved (Kong 2026-11-01: "ตรวจว่าระบบอ่านถูก แล้วกดบันทึก"). The header
+ * fingerprint is taken from the file itself on the server, never sent.
+ */
+export const salesFileDraftSchema = z
+  .object({
+    branchId: z.string().uuid("สาขาไม่ถูกต้อง"),
+    ...(({ headerSignature: _h, ...rest }) => rest)(profileDraftFields),
+  })
+  .superRefine(refineProfile);
+export type SalesFileDraftInput = z.infer<typeof salesFileDraftSchema>;
 
-      // --- a sale must name its dish somehow (Q7) ---
-      if (map.menuName === undefined && map.menuCode === undefined) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["columnMap", "menuName"],
-          message: "ต้องมีคอลัมน์ชื่อเมนู หรือรหัสเมนู อย่างน้อยหนึ่งอย่าง",
-        });
-      }
-
-      for (const required of ["qty", "netAmount"] as const) {
-        if (map[required] === undefined) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            path: ["columnMap", required],
-            message:
-              required === "qty" ? "ต้องมีคอลัมน์จำนวน" : "ต้องมีคอลัมน์ยอดสุทธิ",
-          });
-        }
-      }
-
-      // --- a flag with nothing to subtract is a mis-set profile ---
-      // Saying "these amounts include VAT" while mapping no VAT column leaves the
-      // normaliser with nothing to remove, so revenue would silently stay 7% high
-      // on every row — the failure this flag exists to prevent.
-      if (v.amountsIncludeVat && map.vatAmount === undefined) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["columnMap", "vatAmount"],
-          message: "บอกว่าตัวเลขรวม VAT แล้ว แต่ไม่ได้ระบุคอลัมน์ VAT",
-        });
-      }
-      if (v.amountsIncludeServiceCharge && map.serviceChargeAmount === undefined) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["columnMap", "serviceChargeAmount"],
-          message: "บอกว่าตัวเลขรวม Service charge แล้ว แต่ไม่ได้ระบุคอลัมน์ Service charge",
-        });
-      }
-
-      // --- a daily summary has no bills and no times ---
-      if (v.fileKind === "DAILY_SUMMARY") {
-        if (map.billId !== undefined) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            path: ["columnMap", "billId"],
-            message: "ไฟล์สรุปรายวันไม่มีเลขบิล",
-          });
-        }
-        if (map.soldAt !== undefined && map.businessDate === undefined) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            path: ["columnMap", "soldAt"],
-            message: "ไฟล์สรุปรายวันไม่มีเวลาขาย — ใช้คอลัมน์วันที่แทน",
-          });
-        }
-      }
-
-      // --- two fields cannot read the same column ---
-      // Almost always a slip while dragging the mapper, and it produces numbers
-      // that are individually plausible: discount equal to VAT, say.
-      const seen = new Map<number, ColumnMapField>();
-      for (const field of COLUMN_MAP_FIELDS) {
-        const idx = map[field];
-        if (idx === undefined) continue;
-        const clash = seen.get(idx);
-        if (clash !== undefined) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            path: ["columnMap", field],
-            message: `คอลัมน์ที่ ${idx + 1} ถูกใช้ไปแล้วโดย "${clash}"`,
-          });
-        } else {
-          seen.set(idx, field);
-        }
-      }
+/**
+ * The wizard's one save: the POS (an existing one of the branch, or a new
+ * brand) and the format, together — nothing is written on the pages before.
+ */
+export const salesFileSetupInputSchema = z
+  .object({
+    branchId: z.string().uuid("สาขาไม่ถูกต้อง"),
+    posIntegrationId: z.preprocess(blankToNull, z.string().uuid("เครื่อง POS ไม่ถูกต้อง").nullable()),
+    posType: z.preprocess(blankToNull, z.enum(POS_TYPE_VALUES).nullable()),
+    posName: z.preprocess(blankToNull, z.string().trim().max(MAX_POS_NAME_LENGTH, "ชื่อต้องไม่เกิน 100 ตัวอักษร").nullable()),
+    ...(({ headerSignature: _h, ...rest }) => rest)(profileDraftFields),
+  })
+  .superRefine((v, ctx) => {
+    refineProfile(v, ctx);
+    if (v.posIntegrationId === null && (v.posType === null || !v.posName)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["posType"], message: "เลือกยี่ห้อ POS ก่อน" });
+    }
   });
+export type SalesFileSetupInput = z.infer<typeof salesFileSetupInputSchema>;
 
 export type SalesImportProfileInput = z.infer<typeof salesImportProfileInputSchema>;
 
 // ------------------------------------------------------------
 // 5. POS integration
 // ------------------------------------------------------------
-
-export const MAX_POS_NAME_LENGTH = 100;
 
 export const posIntegrationInputSchema = z.object({
   branchId: z.string().uuid("สาขาไม่ถูกต้อง"),

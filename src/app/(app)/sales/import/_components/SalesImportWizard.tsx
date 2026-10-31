@@ -23,7 +23,7 @@ import { orStale } from "@/lib/stale-tab";
 // file, and "import failed" tells them nothing, so every row error is shown with
 // its Excel row number and the column that went wrong.
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import FileDrop from "@/components/ui/FileDrop";
 import {
   commitSalesImportAction,
@@ -57,10 +57,16 @@ const baht = (v: string) =>
 export default function SalesImportWizard({
   profiles,
   initialFile = null,
+  autoPreview = false,
+  newProfileHref = "/sales/import/profiles/new",
 }: {
   profiles: ImportProfileOption[];
   /** The sample just used to build a profile — nobody should have to pick it twice (setup trial 2026-10-30). */
   initialFile?: File | null;
+  /** Check `initialFile` at once: the first-import wizard has already shown what is in it. */
+  autoPreview?: boolean;
+  /** Where "set up a format" goes — the branch's own wizard when there is one. */
+  newProfileHref?: string;
 }) {
   const [file, setFile] = useState<File | null>(initialFile);
   const [profileId, setProfileId] = useState(profiles[0]?.id ?? "");
@@ -87,6 +93,16 @@ export default function SalesImportWizard({
     });
   };
 
+  // The first-import wizard hands over a file it has already read back: go
+  // straight to "ตรวจก่อนบันทึก" rather than asking for another press.
+  const autoRan = useRef(false);
+  useEffect(() => {
+    if (!autoPreview || !initialFile || autoRan.current) return;
+    autoRan.current = true;
+    runPreview();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const runCommit = () => {
     if (!file || !preview) return;
     const fd = new FormData();
@@ -111,13 +127,13 @@ export default function SalesImportWizard({
   if (profiles.length === 0) {
     return (
       <div className="rounded-lg border border-border bg-surface p-6 text-sm">
-        <p className="font-medium">ยังไม่ได้ตั้งค่ารูปแบบไฟล์</p>
+        <p className="font-medium">ยังไม่ได้ตั้ง POS และรูปแบบไฟล์</p>
         <p className="mt-2 text-muted-foreground">
-          ก่อนนำเข้ายอดขายครั้งแรก ต้องบอกระบบก่อนว่าไฟล์จาก POS ของคุณ
+          ก่อนนำเข้ายอดขายครั้งแรก บอกระบบว่าร้านใช้ POS ยี่ห้อไหน และไฟล์ของ POS
           คอลัมน์ไหนคืออะไร ทำครั้งเดียว ครั้งต่อไประบบจำได้เอง
         </p>
-        <a href="/sales/import/profiles/new" className="btn mt-4">
-          ตั้งค่ารูปแบบไฟล์
+        <a href={newProfileHref} className="btn mt-4">
+          เริ่มตั้ง POS ›
         </a>
       </div>
     );
@@ -188,9 +204,9 @@ export default function SalesImportWizard({
         <div className="mt-4 text-sm">
           <p className="mb-1">ไฟล์จาก POS</p>
           <FileDrop
-            accept=".csv,text/csv,text/plain"
+            accept=".csv,.xlsx,text/csv,text/plain"
             fileName={file?.name ?? null}
-            hint="ไฟล์ .csv จากหลังบ้าน POS"
+            hint="ไฟล์ .csv หรือ Excel (.xlsx) จากหลังบ้าน POS"
             onFile={(f) => {
               setFile(f);
               setPreviewState(null);

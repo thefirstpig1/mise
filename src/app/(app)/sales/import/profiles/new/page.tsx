@@ -1,65 +1,48 @@
-// Sprint 4 Part 19 L5 — /sales/import/profiles/new: teach Mise one file shape.
+// /sales/import/profiles/new — teach Mise one POS file shape, for one branch.
 //
-// Server Component; the builder itself is a client form because it reads a file
-// in the browser and maps columns against what it finds.
+// Round 2 of the friend's-shop feedback (Kong 2026-11-01, mockup
+// 225p68BDqKAZTpd9MqDeph): the old page was two forms — a POS form that saved
+// the moment a brand was picked, then a long builder with thirteen dropdowns
+// over a raw table. It is now one wizard of five pages with Back on each, and
+// nothing is written until its last page (FirstImportWizard).
 //
-// A shop with no POS registered yet cannot map anything, so the page offers that
-// step first rather than showing an empty dropdown. Registering a POS asks for
-// three things and NO credentials — there is nothing to connect to (ADR 0019
-// Q2), the POS entry exists to say which branch a file belongs to and to give
-// its menus a namespace.
+// `?branch=` opens it on that branch: each branch keeps its own POS and its own
+// formats, because a shop's branches need not run the same brand (Kong: "ร้าน
+// เดียวกัน ต่างสาขาอาจจะใช้ POS ไม่เหมือนกันได้"). A branch id outside the
+// reader's reach is ignored, never trusted (rule A5).
 
 import { requireTenant } from "@/lib/require-tenant";
 import { getBranchesLogic } from "@/server/branch";
 import { getPosIntegrationsLogic } from "@/server/menu";
-import { POS_TYPE_VALUES } from "@/lib/validations/sales-import";
-import NewPosForm from "./_components/NewPosForm";
-import ProfileBuilder, { type PosOption } from "./_components/ProfileBuilder";
+import PageHeader from "@/components/ui/PageHeader";
+import FirstImportWizard, { type WizardBranch } from "./_components/FirstImportWizard";
 
+const hhmm = (minutes: number) => `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
 
-const POS_TYPE_LABELS: Record<string, string> = {
-  FOODSTORY: "FoodStory",
-  WONGNAI: "Wongnai POS",
-  OCHA: "Ocha",
-  STOREHUB: "StoreHub",
-  LOYVERSE: "Loyverse",
-  CUSTOM: "อื่น ๆ / ไม่ระบุ",
-};
+export default async function NewProfilePage({ searchParams }: { searchParams: Promise<{ branch?: string }> }) {
+  const [{ tenantId, reach, membership }, sp] = await Promise.all([requireTenant("sales:import"), searchParams]);
+  const [integrations, branches] = await Promise.all([getPosIntegrationsLogic(tenantId), getBranchesLogic(tenantId, reach)]);
 
-export default async function NewProfilePage() {
-  const { tenantId, reach, membership } = await requireTenant("sales:import");
-  const [integrations, branches] = await Promise.all([
-    getPosIntegrationsLogic(tenantId),
-    getBranchesLogic(tenantId, reach),
-  ]);
-
-  if (integrations.length === 0) {
-    return (
-      <div className="space-y-4">
-        <h2 className="text-2xl font-semibold">ลงทะเบียนเครื่อง POS ก่อน</h2>
-        <p className="text-sm text-muted-foreground">
-          บอกระบบว่าไฟล์ยอดขายมาจากสาขาไหน — ไม่ต้องกรอกรหัสผ่านหรือเชื่อมต่ออะไรทั้งสิ้น
-          คิดครัวไม่เคยเข้าไปแตะ POS ของคุณ
-        </p>
-        <NewPosForm branches={branches.map((b) => ({ id: b.id, name: b.name }))} />
-      </div>
-    );
-  }
-
-  const posOptions: PosOption[] = integrations.map((i) => ({
-    id: i.id,
-    label: `${i.branch.name} · ${i.name}`,
+  const list: WizardBranch[] = branches.map((b) => ({
+    id: b.id,
+    name: b.name,
+    cutoff: hhmm(b.salesDayCutoffMinutes),
+    pos: integrations.filter((i) => i.branchId === b.id).map((i) => ({ id: i.id, name: i.name, formats: i.profiles.length })),
   }));
+  const initial = list.find((b) => b.id === sp.branch)?.id ?? null;
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-semibold">ตั้งค่ารูปแบบไฟล์</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          ทำครั้งเดียวต่อรูปแบบไฟล์หนึ่งแบบ — ครั้งต่อไปอัปไฟล์หน้าตาเดิม ระบบอ่านเองไม่ถามอะไรอีก
-        </p>
-      </div>
-      <ProfileBuilder posOptions={posOptions} shopVatRegistered={membership.tenant.isVatRegistered} />
+      <PageHeader
+        title="ตั้ง POS และรูปแบบไฟล์"
+        description="ทำครั้งเดียวต่อรูปแบบไฟล์ ครั้งต่อไปอัปไฟล์หน้าตาเดิม ระบบอ่านเองไม่ถามอีก"
+        actions={
+          <a href="/sales/import" className="btn-secondary">
+            ‹ หน้านำเข้ายอดขาย
+          </a>
+        }
+      />
+      <FirstImportWizard key={initial ?? "none"} branches={list} initialBranchId={initial} shopVatRegistered={membership.tenant.isVatRegistered} />
     </div>
   );
 }

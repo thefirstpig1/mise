@@ -130,7 +130,7 @@ export default function SignupForm({
         <fieldset className="space-y-2.5">
           <legend className="mb-1 flex items-start gap-2 font-semibold">
             {SETTING_HELP.is_vat_registered.title}
-            <FieldHelp help={SETTING_HELP.is_vat_registered} />
+            <FieldHelp name="is_vat_registered" />
           </legend>
           <p className="text-sm text-muted-foreground">ร้านที่รายได้เกิน ฿1.8 ล้านต่อปีต้องจด</p>
           <div className="flex flex-wrap gap-2.5">
@@ -152,7 +152,7 @@ export default function SignupForm({
                 <label htmlFor="sales_day_cutoff" className="label">
                   {SETTING_HELP.sales_day_cutoff.title}
                 </label>
-                <FieldHelp help={SETTING_HELP.sales_day_cutoff} />
+                <FieldHelp name="sales_day_cutoff" />
               </div>
               <input id="sales_day_cutoff" name="sales_day_cutoff" type="time" min="00:00" max="12:00" defaultValue="05:00" className="input h-12 w-36 text-base tabular-nums" />
               <p className="mt-1.5 text-sm text-muted-foreground">เช่น ร้านปิดตีสอง ใส่ 05:00</p>
