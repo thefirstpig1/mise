@@ -13,6 +13,8 @@
 
 import { use, useEffect, useMemo, useState } from "react";
 import { ModalShell } from "@/app/(app)/sales/_components/Breakdown";
+import { PackagePlus, Percent, ScanSearch, Target, type LucideIcon } from "lucide-react";
+import IconTile from "@/components/ui/IconTile";
 import type { LeakCount, LeakItem, LeakOverview as Overview } from "@/server/leak-overview";
 
 const f0 = (n: number) => Math.round(n).toLocaleString("th-TH");
@@ -127,8 +129,11 @@ function View({ data, initialCountId }: { data: Overview; initialCountId: string
 
   return (
     <div className="space-y-5">
-      <h2 className="font-display text-xl font-semibold">ของหายไปไหน</h2>
-      <p className="text-sm text-muted-foreground">นับได้ไม่ตรงกับที่ระบบคำนวณ หลังหักที่บันทึกว่าทิ้งและของเสียแล้ว · หายเพราะอะไร ต้องไปตามที่ไหน</p>
+      {/* Queue item 9: the page's own heading, at every page's size. */}
+      <div>
+        <h1 className="text-[1.75rem] font-semibold leading-tight tracking-[-0.005em]">ของหายไปไหน</h1>
+        <p className="mt-1 text-sm text-muted-foreground">นับได้ไม่ตรงกับที่ระบบคำนวณ หลังหักที่บันทึกว่าทิ้งและของเสียแล้ว · หายเพราะอะไร ต้องไปตามที่ไหน</p>
+      </div>
 
       <div className="space-y-2 rounded-[18px] border border-border/70 bg-surface shadow-card px-3 py-2.5">
         <div className="flex flex-wrap items-center gap-1.5">
@@ -161,13 +166,13 @@ function View({ data, initialCountId }: { data: Overview; initialCountId: string
 
       <QLabel n="1">หายไปเท่าไร · เกินเป้าไหม</QLabel>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Kpi k="ไม่ตรงกับระบบ (นับได้น้อยกว่า)">
+        <Kpi k="ไม่ตรงกับระบบ (นับได้น้อยกว่า)" icon={ScanSearch}>
           <b className={`font-display text-2xl tabular-nums ${c.value > 0 ? "text-bad" : ""}`}>฿{f0(c.value)}</b>
           <span className="text-xs text-muted-foreground">
             {c.short.length} รายการ{prevPct !== null && ` · ครั้งก่อน ${prevPct.toFixed(2)}%`}
           </span>
         </Kpi>
-        <Kpi k={`% ของยอดขาย ${c.sinceLabel}`}>
+        <Kpi k={`% ของยอดขาย ${c.sinceLabel}`} icon={Percent}>
           <b className="font-display text-2xl tabular-nums">{pct === null ? "—" : `${pct.toFixed(2)}%`}</b>
           <Tag tone={tone}>{word}</Tag>
           {pct !== null && (
@@ -188,13 +193,13 @@ function View({ data, initialCountId }: { data: Overview; initialCountId: string
             </>
           )}
         </Kpi>
-        <Kpi k="เงินส่วนใหญ่ (80%) มาจาก">
+        <Kpi k="เงินส่วนใหญ่ (80%) มาจาก" icon={Target}>
           <b className="font-display text-base leading-snug">{c.value > 0 ? sorted.slice(0, n80).map((s) => s.name).join(" + ") : "—"}</b>
           <span className="text-xs text-muted-foreground">
             {c.value > 0 ? `${n80} จาก ${sorted.length} รายการ = ${Math.round((acc / c.value) * 100)}% ของทั้งหมด` : "การนับนี้ไม่พบของที่นับได้น้อยกว่า"}
           </span>
         </Kpi>
-        <Kpi k="นับได้มากกว่าระบบ">
+        <Kpi k="นับได้มากกว่าระบบ" icon={PackagePlus}>
           <b className="font-display text-xl tabular-nums">{c.over.length} รายการ</b>
           <span className="text-xs text-muted-foreground">
             {c.over.length === 0 ? "ไม่มี" : overKnown.length === c.over.length ? `≈ ฿${f0(overKnown.reduce((s, o) => s + (o.value ?? 0), 0))}` : "บางรายการยังไม่มีราคา"} · ไม่นำมาหักลบ
@@ -290,10 +295,13 @@ function QLabel({ n, children }: { n: string; children: React.ReactNode }) {
     </h3>
   );
 }
-function Kpi({ k, children }: { k: string; children: React.ReactNode }) {
+function Kpi({ k, icon, children }: { k: string; icon?: LucideIcon; children: React.ReactNode }) {
   return (
-    <div className="flex flex-col gap-0.5 rounded-[18px] border border-border/70 bg-surface shadow-card p-3">
-      <span className="text-xs text-muted-foreground">{k}</span>
+    <div className="flex flex-col gap-0.5 rounded-[18px] border border-border/70 bg-surface shadow-card p-3.5">
+      <span className="mb-1 flex items-center gap-2 text-xs text-muted-foreground">
+        {icon && <IconTile icon={icon} />}
+        {k}
+      </span>
       {children}
     </div>
   );

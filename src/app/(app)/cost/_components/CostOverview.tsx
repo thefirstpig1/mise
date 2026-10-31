@@ -18,6 +18,8 @@ import { use, useEffect, useMemo, useRef, useState, type ReactNode } from "react
 import { ModalShell } from "@/app/(app)/sales/_components/Breakdown";
 import { SERIES, BAD, TONES } from "@/components/charts/chart-theme";
 import { orStale } from "@/lib/stale-tab";
+import { Coins, ScanSearch, Soup, Trash2, type LucideIcon } from "lucide-react";
+import IconTile from "@/components/ui/IconTile";
 import { saveCostTargetsAction } from "../actions";
 import type { CostCell, CostOverview as Overview, CostPeriod, CostTargets, CountEvent, StockItem } from "@/server/cost-overview";
 
@@ -202,6 +204,29 @@ function Overview({ data, canEditTargets }: { data: Overview; canEditTargets: bo
 
   return (
     <div className="space-y-5">
+      {/* Queue item 9: the page names itself, as every page does (it opened on the sticky bar). */}
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-[1.75rem] font-semibold leading-tight tracking-[-0.005em]">ต้นทุน</h1>
+          <p className="mt-1 text-sm text-muted-foreground">ร้านแข็งแรงไหม ดีขึ้นหรือแย่ลง และต้องจัดการอะไรก่อน</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => canEditTargets && setEditTargets(true)}
+          className={`rounded-2xl border border-border bg-surface px-3 py-1 text-left text-sm ${canEditTargets ? "hover:border-border-strong" : "cursor-default"}`}
+          title={canEditTargets ? "แก้เป้าของร้าน" : "เจ้าของร้านหรือผู้ดูแลเป็นผู้ตั้งเป้า"}
+        >
+          เป้าของร้าน: อาหาร <b>≤{targets.food}%</b> · prime <b>≤{targets.prime}%</b>
+          {!periodic && (
+            <>
+              {" "}
+              · ไม่ตรงกับระบบ <b>≤{targets.variance}%</b>
+            </>
+          )}
+          {canEditTargets && " ✎"}
+        </button>
+      </div>
+
       {/* sticky "what am I looking at" + the switches that change everything */}
       <div className="sticky top-0 z-20 -mx-1 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border bg-surface/95 px-3 py-2 text-sm shadow-card backdrop-blur">
         <span className="text-muted-foreground">
@@ -215,25 +240,6 @@ function Overview({ data, canEditTargets }: { data: Overview; canEditTargets: bo
           <Seg value={gran} onChange={switchGran} options={[["week", "รายสัปดาห์"], ["month", "รายเดือน"]]} label="ช่วง" />
           <Seg value={unit} onChange={setUnit} options={[["baht", "เงิน"], ["pct", "% ของยอดขาย"]]} label="หน่วย" />
         </span>
-      </div>
-
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <p className="text-sm text-muted-foreground">ร้านแข็งแรงไหม ดีขึ้นหรือแย่ลง และต้องจัดการอะไรก่อน</p>
-        <button
-          type="button"
-          onClick={() => canEditTargets && setEditTargets(true)}
-          className={`rounded-full border border-border bg-surface px-3 py-1 text-sm ${canEditTargets ? "hover:border-border-strong" : "cursor-default"}`}
-          title={canEditTargets ? "แก้เป้าของร้าน" : "เจ้าของร้านหรือผู้ดูแลเป็นผู้ตั้งเป้า"}
-        >
-          เป้าของร้าน: อาหาร <b>≤{targets.food}%</b> · prime <b>≤{targets.prime}%</b>
-          {!periodic && (
-            <>
-              {" "}
-              · ไม่ตรงกับระบบ <b>≤{targets.variance}%</b>
-            </>
-          )}
-          {canEditTargets && " ✎"}
-        </button>
       </div>
 
       <div className="space-y-2 rounded-[18px] border border-border/70 bg-surface shadow-card px-3 py-2.5">
@@ -274,7 +280,7 @@ function Overview({ data, canEditTargets }: { data: Overview; canEditTargets: bo
               return inP.length ? inP.reduce((x, c) => x + c.value, 0) : null;
             });
             return (
-              <Tab key={k} on={metric === k} onClick={() => setMetric(k)} title={varName} tip={periodic ? VAR_TIP_PERIODIC : VAR_TIP} spark={spark} sel={sel}>
+              <Tab key={k} on={metric === k} onClick={() => setMetric(k)} title={varName} icon={ScanSearch} tip={periodic ? VAR_TIP_PERIODIC : VAR_TIP} spark={spark} sel={sel}>
                 {cs.length === 0 ? (
                   <>
                     <TabValue muted>ยังไม่ได้นับ</TabValue>
@@ -336,7 +342,7 @@ function Overview({ data, canEditTargets }: { data: Overview; canEditTargets: bo
             } else delta = `เทียบ ${P[sel - 1].label} ไม่ได้`;
           }
           return (
-            <Tab key={k} on={metric === k} onClick={() => setMetric(k)} title={m.tab} spark={spark} sel={sel}>
+            <Tab key={k} on={metric === k} onClick={() => setMetric(k)} title={m.tab} icon={METRIC_ICON[k]} spark={spark} sel={sel}>
               {v === null ? (
                 <TabValue muted>{m.why(cur)}</TabValue>
               ) : (
@@ -491,10 +497,14 @@ function TabSub({ children }: { children: ReactNode }) {
   return <span className="text-[0.72rem] text-muted-foreground">{children}</span>;
 }
 
+/** Queue item 9: each figure card carries the icon its page has elsewhere. */
+const METRIC_ICON: Record<Exclude<MetricKey, "var">, LucideIcon> = { prime: Coins, food: Soup, waste: Trash2 };
+
 function Tab({
   on,
   onClick,
   title,
+  icon,
   tip,
   spark,
   sel,
@@ -503,6 +513,7 @@ function Tab({
   on: boolean;
   onClick: () => void;
   title: string;
+  icon: LucideIcon;
   tip?: string;
   spark: (number | null)[];
   sel: number;
@@ -516,11 +527,12 @@ function Tab({
       role="tab"
       aria-selected={on}
       onClick={onClick}
-      className={`flex flex-col items-start gap-1 rounded-xl border p-3 text-left transition-all ${
-        on ? "border-primary bg-surface shadow-card ring-1 ring-primary-line" : "border-border bg-surface hover:-translate-y-0.5 hover:border-border-strong"
+      className={`flex flex-col items-start gap-1 rounded-[18px] border p-3.5 text-left shadow-card transition-all ${
+        on ? "border-primary bg-surface ring-1 ring-primary-line" : "border-border/70 bg-surface hover:-translate-y-0.5 hover:border-border-strong"
       }`}
     >
-      <span className="text-xs text-muted-foreground" title={tip}>
+      <span className="flex items-center gap-2 text-xs text-muted-foreground" title={tip}>
+        <IconTile icon={icon} />
         {title}
         {tip && (
           <span className="ml-1 inline-grid h-4 w-4 place-items-center rounded-full border border-border text-[10px]" aria-label={tip}>

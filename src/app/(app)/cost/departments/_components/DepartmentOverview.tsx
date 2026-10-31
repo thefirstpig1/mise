@@ -247,7 +247,7 @@ export default function DepartmentOverview(props: {
           <section className="space-y-2 rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
             <Q n="6" title="แผนกสั่งของมากกว่าที่ใช้ไหม" sub={selLabel} />
             {!data.anyOrderedByDept ? (
-              <p className="rounded-xl border border-warn-border bg-warn-bg p-3 text-sm text-warn">
+              <p className="note p-3">
                 ใบรับของในช่วงนี้ลงแผนกตั้งต้นทั้งหมด จึงยังเทียบของที่แผนกสั่งกับที่แผนกใช้ไม่ได้ · ตอนนี้เลือกแผนกที่บรรทัดของใบรับของได้แล้ว (ระบบเลือกไว้ให้ตามเมนูที่ใช้วัตถุดิบนั้น) — ใบใหม่จะขึ้นที่นี่เอง ·{" "}
                 <a href="/goods-receipts/new" className="underline">
                   รับสินค้า
@@ -288,7 +288,7 @@ export default function DepartmentOverview(props: {
           <section className="space-y-2 rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
             <Q n="7" title="หักค่าแรงแผนกแล้วเหลือเท่าไร" sub={selLabel} />
             {Object.keys(data.labor).length === 0 ? (
-              <p className="rounded-xl border border-border bg-muted/40 p-3 text-sm text-muted-foreground">
+              <p className="note p-3">
                 {data.laborUnassigned > 0 ? `ค่าแรง ${baht(data.laborUnassigned)} ในช่วงนี้เป็นส่วนกลางทั้งหมด` : "ยังไม่มีค่าแรงในช่วงนี้"} — ถ้าบันทึกเงินเดือนแยกแผนก (เลือกแผนกที่บรรทัดค่าใช้จ่าย) ตรงนี้จะขึ้นกำไรขั้นต้น − ค่าแรงของแต่ละแผนก ·{" "}
                 <a href="/expenses" className="text-primary underline">
                   บันทึกค่าใช้จ่าย

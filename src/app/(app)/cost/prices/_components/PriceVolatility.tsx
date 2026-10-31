@@ -7,6 +7,8 @@
 // period and ② against the price the menus can bear.
 
 import { use, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { BookOpen, Scale, TrendingDown, TrendingUp, type LucideIcon } from "lucide-react";
+import IconTile from "@/components/ui/IconTile";
 import { ModalShell } from "@/app/(app)/sales/_components/Breakdown";
 import { orStale } from "@/lib/stale-tab";
 import ReceiptPriceChart from "@/components/charts/ReceiptPriceChart";
@@ -203,8 +205,11 @@ function View({ d, canEditTargets }: { d: Data; canEditTargets: boolean }) {
 
   return (
     <div className="space-y-5">
-      <h2 className="font-display text-xl font-semibold">การผันผวนราคาวัตถุดิบ</h2>
-      <p className="text-sm text-muted-foreground">ราคาเปลี่ยนไปเท่าไร และราคานี้เมนูที่ใช้ยังรับไหวไหม · ราคาต่อหน่วยไม่รวม VAT จากใบรับของที่ยืนยันแล้ว</p>
+      {/* Queue item 9: the page's own heading, at every page's size. */}
+      <div>
+        <h1 className="text-[1.75rem] font-semibold leading-tight tracking-[-0.005em]">การผันผวนราคาวัตถุดิบ</h1>
+        <p className="mt-1 text-sm text-muted-foreground">ราคาเปลี่ยนไปเท่าไร และราคานี้เมนูที่ใช้ยังรับไหวไหม · ราคาต่อหน่วยไม่รวม VAT จากใบรับของที่ยืนยันแล้ว</p>
+      </div>
 
       {/* sticky slice control */}
       <div className="sticky top-2 z-20 space-y-2 rounded-2xl border border-border bg-surface px-3 py-2.5 shadow-card">
@@ -370,10 +375,13 @@ function QLabel({ n, children }: { n: string; children: ReactNode }) {
     </h3>
   );
 }
-function Kpi({ k, v, s, tone }: { k: string; v: ReactNode; s?: ReactNode; tone?: "bad" | "good" }) {
+function Kpi({ k, v, s, tone, icon }: { k: string; v: ReactNode; s?: ReactNode; tone?: "bad" | "good"; icon?: LucideIcon }) {
   return (
-    <div className="flex flex-col gap-0.5 rounded-[18px] border border-border/70 bg-surface shadow-card p-3">
-      <span className="text-xs text-muted-foreground">{k}</span>
+    <div className="flex flex-col gap-0.5 rounded-[18px] border border-border/70 bg-surface shadow-card p-3.5">
+      <span className="mb-1 flex items-center gap-2 text-xs text-muted-foreground">
+        {icon && <IconTile icon={icon} />}
+        {k}
+      </span>
       <b className={`font-display text-xl tabular-nums ${tone === "bad" ? "text-bad" : tone === "good" ? "text-good" : ""}`}>{v}</b>
       {s && <span className="text-xs text-muted-foreground">{s}</span>}
     </div>
@@ -638,10 +646,10 @@ function RefKpis({ d, mNow, mPrev, menus, ratio }: { d: Data; mNow: number | nul
   const flagged = menus.filter((m) => (menuCostDelta(m, ratio).delta / m.price) * 100 >= FLAG);
   return (
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-      <Kpi k="จ่ายเพิ่มจากของที่แพงขึ้น" v={`฿${f0(up)}`} tone="bad" s={`${nu} รายการ${topU ? ` · มากสุด ${topU[0]}` : ""}`} />
-      <Kpi k="ประหยัดจากของที่ถูกลง" v={`฿${f0(-dn)}`} tone="good" s={`${nd} รายการ${topD ? ` · มากสุด ${topD[0]}` : ""}`} />
-      <Kpi k="สุทธิ" v={`${up + dn < 0 ? "ประหยัด" : "จ่ายเพิ่ม"} ฿${f0(Math.abs(up + dn))}`} s={spendNow ? `${(((up + dn) / spendNow) * 100).toFixed(2)}% ของยอดซื้อ ${d.months[mNow].label} ฿${f0(spendNow)}` : undefined} />
-      <Kpi k={`เมนูที่ต้นทุนขึ้นตั้งแต่ ${FLAG} จุด`} v={`${flagged.length} เมนู`} s={flagged.map((m) => m.name).join(" · ") || "ไม่มี"} />
+      <Kpi k="จ่ายเพิ่มจากของที่แพงขึ้น" icon={TrendingUp} v={`฿${f0(up)}`} tone="bad" s={`${nu} รายการ${topU ? ` · มากสุด ${topU[0]}` : ""}`} />
+      <Kpi k="ประหยัดจากของที่ถูกลง" icon={TrendingDown} v={`฿${f0(-dn)}`} tone="good" s={`${nd} รายการ${topD ? ` · มากสุด ${topD[0]}` : ""}`} />
+      <Kpi k="สุทธิ" icon={Scale} v={`${up + dn < 0 ? "ประหยัด" : "จ่ายเพิ่ม"} ฿${f0(Math.abs(up + dn))}`} s={spendNow ? `${(((up + dn) / spendNow) * 100).toFixed(2)}% ของยอดซื้อ ${d.months[mNow].label} ฿${f0(spendNow)}` : undefined} />
+      <Kpi k={`เมนูที่ต้นทุนขึ้นตั้งแต่ ${FLAG} จุด`} icon={BookOpen} v={`${flagged.length} เมนู`} s={flagged.map((m) => m.name).join(" · ") || "ไม่มี"} />
     </div>
   );
 }
@@ -845,7 +853,7 @@ function Suppliers({ products }: { products: PvProduct[] }) {
   const big = products.slice(0, 3);
   return (
     <div className="grid gap-3 lg:grid-cols-2">
-      <div className="rounded-xl border border-dashed border-border-strong p-3 text-sm text-muted-foreground">
+      <div className="note p-3">
         <b className="text-foreground">เจ้าไหนถูกกว่า:</b>{" "}
         {multi.length ? (
           `${multi.length} รายการซื้อจากมากกว่าหนึ่งเจ้า: ${multi.slice(0, 4).map((p) => p.name).join(" · ")} — กดสินค้าเพื่อดูราคาแต่ละใบ`
@@ -858,7 +866,7 @@ function Suppliers({ products }: { products: PvProduct[] }) {
           </>
         )}
       </div>
-      <div className="rounded-xl border border-dashed border-border-strong p-3 text-sm text-muted-foreground">
+      <div className="note p-3">
         <b className="text-foreground">บิลตรงราคาที่สั่งไหม:</b> เมื่อรับของจากใบสั่งซื้อ ระบบจะเทียบราคาในบิลกับราคาที่สั่งไว้ทีละบรรทัด — ยังไม่มีในหน้านี้
       </div>
     </div>
