@@ -8,19 +8,17 @@
 
 import { GOODS_RECEIPT_STATUS_LABELS_TH } from "@/lib/validations/goods-receipt";
 
+// The kit's chips (queue item 9, 2026-10-31) — the same pill and dot as every
+// other status in the app, as purchase orders already did.
 const STYLES: Record<string, string> = {
-  DRAFT: "border-border bg-muted/60 text-muted-foreground",
-  CONFIRMED: "border-good-border bg-good-bg text-good",
-  VOIDED: "border-bad-border bg-bad-bg text-bad",
+  DRAFT: "",
+  CONFIRMED: "chip-good",
+  VOIDED: "chip-bad",
 };
 
 export default function StatusBadge({ status }: { status: string }) {
   return (
-    <span
-      className={`inline-block whitespace-nowrap rounded-full border px-2 py-0.5 text-xs font-medium ${
-        STYLES[status] ?? "border-border bg-muted/60 text-muted-foreground"
-      }`}
-    >
+    <span className={`chip ${STYLES[status] ?? ""}`}>
       {/* Fall back to the raw value so a status added later renders readably
           instead of blank (the Part 10 L5c rule). */}
       {GOODS_RECEIPT_STATUS_LABELS_TH[

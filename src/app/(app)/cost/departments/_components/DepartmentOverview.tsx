@@ -228,12 +228,12 @@ export default function DepartmentOverview(props: {
           {focus && (
             <div className="grid gap-4 lg:grid-cols-2">
               {/* ---------- 4 ---------- */}
-              <section className="space-y-2 rounded-2xl border border-border bg-surface p-4">
+              <section className="space-y-2 rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
                 <Q n="4" title={`เมนูไหนดันต้นทุน${nameOf(focus)}`} sub={`${selLabel} · เรียงตามเงินที่เกินเป้าของเมนู · ราคาวัตถุดิบวันนี้`} />
                 <MenuList rows={data.menus.filter((m) => m.dept === focus)} />
               </section>
               {/* ---------- 5 ---------- */}
-              <section className="space-y-2 rounded-2xl border border-border bg-surface p-4">
+              <section className="space-y-2 rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
                 <Q n="5" title={`วัตถุดิบไหนกินเงิน${nameOf(focus)}มากที่สุด`} sub={`${selLabel} · ต้นทุนในจาน × จานที่ขาย`} />
                 <Bars rows={data.ingredients[focus] ?? []} tone={toneOf(focus)} />
                 <a href="/cost/prices" className="text-xs text-primary hover:underline">
@@ -244,7 +244,7 @@ export default function DepartmentOverview(props: {
           )}
 
           {/* ---------- 6 ---------- */}
-          <section className="space-y-2 rounded-2xl border border-border bg-surface p-4">
+          <section className="space-y-2 rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
             <Q n="6" title="แผนกสั่งของมากกว่าที่ใช้ไหม" sub={selLabel} />
             {!data.anyOrderedByDept ? (
               <p className="rounded-xl border border-warn-border bg-warn-bg p-3 text-sm text-warn">
@@ -285,7 +285,7 @@ export default function DepartmentOverview(props: {
           </section>
 
           {/* ---------- 7 ---------- */}
-          <section className="space-y-2 rounded-2xl border border-border bg-surface p-4">
+          <section className="space-y-2 rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
             <Q n="7" title="หักค่าแรงแผนกแล้วเหลือเท่าไร" sub={selLabel} />
             {Object.keys(data.labor).length === 0 ? (
               <p className="rounded-xl border border-border bg-muted/40 p-3 text-sm text-muted-foreground">
@@ -317,7 +317,7 @@ export default function DepartmentOverview(props: {
           </section>
 
           {/* ---------- 8 ---------- */}
-          <section className="space-y-1 rounded-2xl border border-border bg-surface p-4 text-sm">
+          <section className="space-y-1 rounded-[18px] border border-border/70 bg-surface shadow-card p-4 text-sm">
             <Q n="8" title="ตัวเลขเชื่อได้แค่ไหน" sub={selLabel} />
             <p>
               ตัดสต๊อกตามยอดขายครอบคลุม <b>{data.coverage === null ? "—" : `${Math.round(data.coverage * 100)}%`}</b> ของยอดขาย ({data.postedDays} วันที่ตัดแล้ว) · เกณฑ์ {props.coverageMin}%
@@ -403,7 +403,7 @@ function Spark({
   const y = (v: number) => 8 + (H - B - 8) * (1 - (v - lo) / (hi - lo));
   const path = vals.map((v, i) => (v === null ? null : `${x(i)},${y(v)}`)).filter(Boolean).join(" ");
   return (
-    <div className="rounded-2xl border border-border bg-surface p-3">
+    <div className="rounded-[18px] border border-border/70 bg-surface shadow-card p-3">
       <p className="mb-1 inline-flex items-center gap-2 text-sm font-semibold">
         <i className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: tone }} />
         {name}

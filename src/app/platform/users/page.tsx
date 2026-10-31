@@ -33,7 +33,7 @@ export default async function PlatformUsersPage({ searchParams }: { searchParams
         </button>
       </form>
       {q.trim().length >= 2 && (
-        <div className="overflow-x-auto rounded-2xl border border-border bg-surface">
+        <div className="overflow-x-auto rounded-[18px] border border-border/70 bg-surface shadow-card">
           <table className="data-table w-full min-w-[640px]">
             <thead>
               <tr>

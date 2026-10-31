@@ -17,7 +17,7 @@ export default async function LeakPage({ searchParams }: { searchParams: Promise
   // when sales deduct stock — anything else would paint the whole shop red.
   if (membership.tenant.grossProfitMethod === "PERIODIC_INVENTORY") {
     return (
-      <div className="max-w-2xl space-y-3 rounded-2xl border border-border bg-surface p-6 text-sm">
+      <div className="max-w-2xl space-y-3 rounded-[18px] border border-border/70 bg-surface shadow-card p-6 text-sm">
         <h2 className="font-display text-lg font-semibold">ร้านนี้คิดกำไรแบบนับสต๊อก หน้านี้จึงยังบอกไม่ได้ว่าของหายไปไหน</h2>
         <p className="text-muted-foreground">
           วิธีนับสต๊อก ยอดขายไม่ตัดสต๊อก ทุกครั้งที่นับ ส่วนที่นับได้น้อยกว่าระบบจึงคือของที่ใช้ไปทั้งช่วง — ขายและขาดรวมกัน แยกกันไม่ได้ ระบบเรียกตัวเลขนี้ว่า “ใช้ไปตามการนับ” และใช้เป็นต้นทุนขายของเดือน

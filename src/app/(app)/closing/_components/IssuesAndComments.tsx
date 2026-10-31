@@ -23,7 +23,7 @@ export function IssueList({ issues, showForm }: { issues: DailyCloseDay["issues"
       {issues.map((i) => {
         const open = i.followUp && !i.resolvedAt;
         return (
-          <div key={i.id} className="space-y-1 rounded-2xl border border-border bg-surface p-3 text-sm">
+          <div key={i.id} className="space-y-1 rounded-[18px] border border-border/70 bg-surface shadow-card p-3 text-sm">
             <div className="flex items-center justify-between gap-2">
               <b>{DAILY_ISSUE_CATEGORY_LABELS_TH[i.category as DailyIssueCategoryValue] ?? i.category}</b>
               <span
@@ -69,7 +69,7 @@ export function Comments({ closeId, comments }: { closeId: string; comments: Dai
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   return (
-    <section className="space-y-3 rounded-2xl border border-border bg-surface p-4">
+    <section className="space-y-3 rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
       <div>
         <h3 className="font-semibold">ความเห็น</h3>
         <p className="text-xs text-muted-subtle">เขียนต่อได้ตลอด แก้/ลบไม่ได้ · เก็บไว้ย้อนดูได้ไม่จำกัด</p>

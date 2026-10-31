@@ -97,7 +97,7 @@ export default async function ChooseShopPage() {
                 <input type="hidden" name="tenant_id" value={m.tenantId} />
                 <button
                   type="submit"
-                  className="flex w-full items-center gap-3.5 rounded-2xl border border-border bg-surface p-4 text-left transition-colors hover:bg-muted/40"
+                  className="flex w-full items-center gap-3.5 rounded-[18px] border border-border/70 bg-surface shadow-card p-4 text-left transition-colors hover:bg-muted/40"
                 >
                   <span aria-hidden className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary-soft">
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-primary">

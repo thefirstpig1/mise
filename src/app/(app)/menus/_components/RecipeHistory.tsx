@@ -71,7 +71,7 @@ export default function RecipeHistory({ history, book, costHidden }: { history: 
   const prevOf = (i: number) => versions.slice(i + 1).find((v) => !v.h.isSuperseded) ?? null;
 
   return (
-    <details className="group rounded-2xl border border-border bg-surface p-4" open={history.length > 1}>
+    <details className="group rounded-[18px] border border-border/70 bg-surface shadow-card p-4" open={history.length > 1}>
       <summary className="flex cursor-pointer list-none items-center justify-between gap-2 [&::-webkit-details-marker]:hidden">
         <span className="font-semibold">
           ประวัติสูตร · {history.length} เวอร์ชัน <span className="ml-1 text-xs font-normal text-muted-foreground">กดเวอร์ชันเพื่อดูว่าเปลี่ยนอะไร</span>

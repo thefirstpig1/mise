@@ -112,7 +112,7 @@ export default function StaffMealSummary({
           <div className="h-48 animate-pulse rounded-2xl bg-muted" />
         </div>
       ) : !r.ok ? (
-        <p className="rounded-2xl border border-border bg-surface p-5 text-sm text-muted-foreground">{r.formError}</p>
+        <p className="rounded-[18px] border border-border/70 bg-surface shadow-card p-5 text-sm text-muted-foreground">{r.formError}</p>
       ) : s && s.meals === 0 ? (
         <div className="rounded-2xl border border-dashed border-border-strong p-8 text-center text-sm text-muted-foreground">
           ยังไม่มีมื้อพนักงานที่อนุมัติแล้วใน {monthLabel(month)}

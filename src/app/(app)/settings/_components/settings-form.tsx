@@ -141,7 +141,7 @@ export function SectionForm({
         onSubmit={submit}
         onInput={recheck}
         onChange={recheck}
-        className="scroll-mt-36 overflow-hidden rounded-2xl border border-border bg-surface lg:scroll-mt-20"
+        className="scroll-mt-36 overflow-hidden rounded-[18px] border border-border/70 bg-surface shadow-card lg:scroll-mt-20"
       >
         <div className="flex items-center justify-between gap-3 px-5 pb-1 pt-4 sm:px-6">
           <h2 className="text-lg font-semibold">{title}</h2>

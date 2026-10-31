@@ -63,7 +63,7 @@ export default function MonthInsight({
 
   return (
     <div className="space-y-4">
-      <section className="rounded-2xl border border-border bg-surface p-4">
+      <section className="rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h3 className="font-semibold">ลูกค้าต่อวัน{seeMoney ? " และยอดต่อหัว" : ""} · {monthLabel}</h3>
           <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
@@ -136,7 +136,7 @@ export default function MonthInsight({
       </section>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <section className="space-y-3 rounded-2xl border border-border bg-surface p-4">
+        <section className="space-y-3 rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
           <div>
             <h3 className="font-semibold">
               ลูกค้าส่วนใหญ่เป็นใคร <span className="rounded-full border border-warn-border bg-warn-bg px-2 py-0.5 text-[11px] font-normal text-warn">ประมาณ</span>
@@ -154,7 +154,7 @@ export default function MonthInsight({
         </section>
 
         {seeMoney && (
-          <section className="space-y-2 rounded-2xl border border-border bg-surface p-4">
+          <section className="space-y-2 rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
             <h3 className="font-semibold">วันที่กลุ่มไหนเยอะ ร้านได้ต่อหัวเท่าไหร่</h3>
             <p className="text-xs text-muted-subtle">
               ยอดขายจริง ÷ ลูกค้าจริง ของวันที่กลุ่มนั้นเกินครึ่ง (ตามที่คนปิดร้านประเมิน) · ต้องมีอย่างน้อย {DOMINANT_MIN_DAYS} วันถึงจะแสดง
@@ -202,7 +202,7 @@ export default function MonthInsight({
         )}
       </div>
 
-      <section className="space-y-2 rounded-2xl border border-border bg-surface p-4">
+      <section className="space-y-2 rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
         <h3 className="font-semibold">
           สัดส่วนประเภทลูกค้าย้อนหลัง <span className="rounded-full border border-warn-border bg-warn-bg px-2 py-0.5 text-[11px] font-normal text-warn">ประมาณ</span>
         </h3>

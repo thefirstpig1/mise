@@ -232,7 +232,7 @@ export default async function TransferDetailPage({
       )}
 
       {t.status === "SENT" && (
-        <section id="receive" className="scroll-mt-20 rounded-2xl border border-border bg-surface p-4">
+        <section id="receive" className="scroll-mt-20 rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
           <h3 className="mb-3 text-lg font-semibold">รับของที่{t.toBranch.name}</h3>
           <ReceiveTransferForm
             action={receiveTransferAction}

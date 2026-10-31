@@ -86,7 +86,7 @@ export default function WasteSummaryPanel({ data, canSeeCost }: { data: Promise<
   ];
 
   return (
-    <section className="rounded-2xl border border-border bg-surface p-4 space-y-3">
+    <section className="rounded-[18px] border border-border/70 bg-surface shadow-card p-4 space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h3 className="text-lg font-semibold">สรุปของเสีย</h3>

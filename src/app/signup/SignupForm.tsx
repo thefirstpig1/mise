@@ -18,7 +18,7 @@ function Err({ state, name }: { state: SignupState; name: string }) {
 
 function Choice({ name, value, title, hint }: { name: string; value: string; title: string; hint: string }) {
   return (
-    <label className="flex min-w-0 flex-1 basis-48 cursor-pointer flex-col gap-0.5 rounded-2xl border border-border bg-surface px-4 py-3.5 transition-colors hover:bg-muted/40 has-[:checked]:border-primary has-[:checked]:bg-primary-soft has-[:checked]:ring-1 has-[:checked]:ring-primary">
+    <label className="flex min-w-0 flex-1 basis-48 cursor-pointer flex-col gap-0.5 rounded-[18px] border border-border/70 bg-surface shadow-card px-4 py-3.5 transition-colors hover:bg-muted/40 has-[:checked]:border-primary has-[:checked]:bg-primary-soft has-[:checked]:ring-1 has-[:checked]:ring-primary">
       <span className="flex items-center gap-2">
         <input type="radio" name={name} value={value} className="h-4 w-4 accent-primary" />
         <span className="font-semibold">{title}</span>
@@ -125,7 +125,7 @@ export default function SignupForm({ signedInEmail }: { signedInEmail: string | 
           </div>
           <Err state={state} name="open_past_midnight" />
           {late && (
-            <div className="rounded-2xl border border-border bg-surface px-4 py-3.5">
+            <div className="rounded-[18px] border border-border/70 bg-surface shadow-card px-4 py-3.5">
               <label htmlFor="sales_day_cutoff" className="label mb-1.5">นับเป็นวันใหม่ตั้งแต่กี่โมง</label>
               <input id="sales_day_cutoff" name="sales_day_cutoff" type="time" min="00:00" max="12:00" defaultValue="05:00" className="input h-12 w-36 text-base tabular-nums" />
               <p className="mt-1.5 text-sm text-muted-foreground">บิลก่อนเวลานี้นับเป็นยอดของเมื่อวาน · ร้านปิดตีสอง ใช้ 05:00 ได้เลย</p>

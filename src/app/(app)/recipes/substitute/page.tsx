@@ -118,7 +118,7 @@ export default async function SubstitutePage({
         </p>
       </div>
 
-      <section className="rounded-2xl border border-border bg-surface p-5">
+      <section className="rounded-[18px] border border-border/70 bg-surface shadow-card p-5">
         <SubstitutePickers
           initialFrom={fromProduct?.id ?? ""}
           initialTo={sp.to ?? ""}

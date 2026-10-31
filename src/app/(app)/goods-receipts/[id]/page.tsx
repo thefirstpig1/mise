@@ -295,7 +295,7 @@ export default async function GoodsReceiptDetailPage({
       </article>
 
       {/* ---------- what entered stock, in the shop's words, folded ---------- */}
-      <details className="group rounded-2xl border border-border bg-surface print:hidden">
+      <details className="group rounded-[18px] border border-border/70 bg-surface shadow-card print:hidden">
         <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-semibold">
           ของเข้าคลังเท่าไร (แปลงหน่วยแล้ว)
           <span className="text-xs font-normal text-muted-foreground group-open:hidden">กดเพื่อดู</span>

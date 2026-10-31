@@ -134,7 +134,7 @@ export default function StaffMealEntryForm({
   const productOf = (id: string) => products.find((p) => p.id === id);
 
   return (
-    <form {...formActionKeep} className="space-y-4 rounded-2xl border border-border bg-surface p-4">
+    <form {...formActionKeep} className="space-y-4 rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
       <input type="hidden" name="submit_key" value={submitKey} />
 
       {/* --- the double-deduction warning (Q6): shown, never blocking --- */}

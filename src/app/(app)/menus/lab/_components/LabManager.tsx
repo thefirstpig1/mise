@@ -244,7 +244,7 @@ export default function LabManager(props: {
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3">
-        <div className="rounded-2xl border border-border bg-surface p-3">
+        <div className="rounded-[18px] border border-border/70 bg-surface shadow-card p-3">
           <p className="text-xs text-muted-subtle">ร่างที่กำลังคิด</p>
           <p className="font-display text-2xl font-semibold tabular-nums">{drafts.length}</p>
           <p className="text-xs text-muted-foreground">
@@ -258,7 +258,7 @@ export default function LabManager(props: {
             {waiting > 0 ? (props.canPublish ? "รับรองหรือนำไปใช้จริง" : "ตรวจแล้วรับรอง หรือนำไปใช้จริงที่สาขาของคุณ") : "ไม่มีร่างที่รอคุณรับรองหรือนำไปใช้"}
           </p>
         </div>
-        <a href="/menus?filter=none" className="rounded-2xl border border-border bg-surface p-3 transition-colors hover:border-border-strong">
+        <a href="/menus?filter=none" className="rounded-[18px] border border-border/70 bg-surface shadow-card p-3 transition-colors hover:border-border-strong">
           <p className="text-xs text-muted-subtle">ขายอยู่แต่ยังไม่มีสูตร</p>
           <p className="font-display text-2xl font-semibold tabular-nums">{unrecipied.length} เมนู</p>
           <p className="text-xs text-muted-foreground">
@@ -459,7 +459,7 @@ export default function LabManager(props: {
                 key={m.id}
                 type="button"
                 onClick={() => openDraft(null, m.id)}
-                className="group grid gap-2 rounded-2xl border border-border bg-surface p-3 text-left transition-colors hover:border-border-strong"
+                className="group grid gap-2 rounded-[18px] border border-border/70 bg-surface shadow-card p-3 text-left transition-colors hover:border-border-strong"
               >
                 <span className="flex items-baseline justify-between gap-2">
                   <b className="font-medium">{m.name}</b>
@@ -486,7 +486,7 @@ export default function LabManager(props: {
             <h3 className="font-semibold">น่าจะเป็นเมนูเดียวกับเมนูที่มีสูตรแล้ว · {copies.length} เมนู</h3>
             <span className="text-xs text-muted-subtle">รวมเมนูแทนการเขียนสูตรใหม่ · รวมแล้วตัดสต๊อกด้วยสูตรของเมนูหลัก</span>
           </div>
-          <div className="overflow-hidden rounded-2xl border border-border bg-surface">
+          <div className="overflow-hidden rounded-[18px] border border-border/70 bg-surface shadow-card">
             {copies.map((m) => (
               <div key={m.id} className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-border px-4 py-2.5 last:border-b-0">
                 <span className="min-w-0 flex-[1_1_220px]">
@@ -644,7 +644,7 @@ function PublishSummary({ state, fromDay }: { state: Extract<PublishDraftsState,
   const failed = state.results.filter((r) => r.outcome === "FAILED");
   if (done.length === 0 && later.length === 0 && failed.length === 0) return null;
   return (
-    <div className="grid gap-1.5 rounded-2xl border border-border bg-surface p-3 text-sm">
+    <div className="grid gap-1.5 rounded-[18px] border border-border/70 bg-surface shadow-card p-3 text-sm">
       {done.length > 0 && (
         <p>
           <b className="font-semibold text-good">นำไปใช้จริงแล้ว {done.length} เมนู</b> มีผลตั้งแต่ {thDate(fromDay)}: {done.map((r) => r.menuName).join(", ")}

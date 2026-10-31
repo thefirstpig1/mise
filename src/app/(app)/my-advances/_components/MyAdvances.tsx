@@ -106,7 +106,7 @@ export default function MyAdvances({ claims, today, storageReady, ...options }: 
               <button
                 type="button"
                 onClick={() => setOpenId(c.paymentId)}
-                className="grid w-full grid-cols-[3.5rem_minmax(0,1fr)_auto] items-center gap-3 rounded-2xl border border-border bg-surface p-3 text-left transition-colors hover:bg-muted/50"
+                className="grid w-full grid-cols-[3.5rem_minmax(0,1fr)_auto] items-center gap-3 rounded-[18px] border border-border/70 bg-surface shadow-card p-3 text-left transition-colors hover:bg-muted/50"
               >
                 {c.billPhotoIds[0] ? (
                   // eslint-disable-next-line @next/next/no-img-element -- a private route

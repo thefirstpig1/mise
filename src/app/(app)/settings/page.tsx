@@ -92,7 +92,7 @@ function PlanCard({ plan, freeUntil, note }: { plan: string; freeUntil: Date | n
   const daysLeft = freeUntil ? Math.round((freeUntil.getTime() - today.getTime()) / 86_400_000) : null;
   const thDate = (d: Date) => d.toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
   return (
-    <section className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 rounded-2xl border border-border bg-surface px-5 py-4 sm:px-6">
+    <section className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 rounded-[18px] border border-border/70 bg-surface shadow-card px-5 py-4 sm:px-6">
       <div className="min-w-0">
         <p className="text-xs text-muted-foreground">แพ็กเกจของร้าน</p>
         <p className="font-semibold">

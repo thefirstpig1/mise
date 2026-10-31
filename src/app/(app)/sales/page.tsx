@@ -462,7 +462,7 @@ export default async function SalesPage({
           </p>
           <a
             href="/sales/import"
-            className="btn mt-4 inline-block"
+            className="btn mt-4"
           >
             นำเข้ายอดขาย
           </a>
@@ -585,7 +585,7 @@ function Kpi({ label, note, value, cur, prev, fmt, perDay, curLabel, prevLabel }
   const change = cur !== null && prev ? (cur - prev) / prev : null;
   const tone = change === null || Math.abs(change) < 0.005 ? "bg-muted text-muted-foreground" : change > 0 ? "bg-good-bg text-good" : "bg-bad-bg text-bad";
   return (
-    <div className="grid content-start gap-2 rounded-2xl border border-border bg-surface p-4">
+    <div className="grid content-start gap-2 rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
       <p className="flex items-baseline justify-between gap-2 text-sm text-muted-foreground">
         <span>{label}</span>
         <span className="text-[11px] text-muted-subtle">{note}</span>

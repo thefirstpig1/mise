@@ -71,7 +71,7 @@ export default function ProductionSection({
   return (
     <>
       {isPrepped && (
-        <section className="space-y-2 rounded-2xl border border-border bg-surface p-4">
+        <section className="space-y-2 rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h4 className="font-semibold">การผลิต · {branch.name}</h4>
             {info?.lastProduced && (
@@ -126,7 +126,7 @@ export default function ProductionSection({
       )}
 
       {info && (info.trimRecipeCount > 0 || (trimOpen && canEditTrim && !isPrepped)) && (
-        <section className="space-y-2 rounded-2xl border border-border bg-surface p-4">
+        <section className="space-y-2 rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h4 className="font-semibold">ตัดแต่งเป็น</h4>
             {canProduce && info.trimRecipeCount > 0 && (

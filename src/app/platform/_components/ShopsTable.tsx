@@ -99,7 +99,7 @@ export default function ShopsTable({ shops, today }: { shops: ShopRow[]; today: 
 
       <input className="input w-full max-w-sm" placeholder="ค้นหาชื่อร้านหรืออีเมลเจ้าของ" value={q} onChange={(e) => setQ(e.target.value)} />
 
-      <div className="overflow-x-auto rounded-2xl border border-border bg-surface">
+      <div className="overflow-x-auto rounded-[18px] border border-border/70 bg-surface shadow-card">
         <table className="data-table w-full min-w-[920px]">
           <thead>
             <tr>

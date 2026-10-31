@@ -122,7 +122,7 @@ export default async function ClosingMonthPage({ searchParams }: { searchParams:
       </div>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <div className="rounded-2xl border border-border bg-surface p-3.5">
+        <div className="rounded-[18px] border border-border/70 bg-surface shadow-card p-3.5">
           <span className="text-xs text-muted-subtle">ลูกค้าต่อวัน</span>
           <b className="block font-display text-2xl tabular-nums">{avgGuests === null ? "—" : Math.round(avgGuests).toLocaleString("th-TH")}</b>
           <span className="text-xs text-muted-subtle">{withGuests.length ? `เฉลี่ย ${withGuests.length} วันที่มีจำนวนลูกค้า` : "ยังไม่มีวันที่กรอกจำนวนลูกค้า"}</span>
@@ -133,7 +133,7 @@ export default async function ClosingMonthPage({ searchParams }: { searchParams:
           )}
         </div>
         {seeMoney && (
-          <div className="rounded-2xl border border-border bg-surface p-3.5">
+          <div className="rounded-[18px] border border-border/70 bg-surface shadow-card p-3.5">
             <span className="text-xs text-muted-subtle">ต่อหัว</span>
             <b className="block font-display text-2xl tabular-nums">{perHead === null ? "—" : baht(perHead, 1)}</b>
             <span className="text-xs text-muted-subtle">ยอดขาย ÷ ลูกค้า ของวันที่มีทั้งสองอย่าง</span>
@@ -145,7 +145,7 @@ export default async function ClosingMonthPage({ searchParams }: { searchParams:
           </div>
         )}
         {seeMoney && (
-          <div className="rounded-2xl border border-border bg-surface p-3.5">
+          <div className="rounded-[18px] border border-border/70 bg-surface shadow-card p-3.5">
             <span className="text-xs text-muted-subtle">เงินขาด/เกินสะสม</span>
             <b className={`block font-display text-2xl tabular-nums ${cashTotal < 0 ? "text-bad" : ""}`}>
               {cashRows.length === 0 ? "—" : cashTotal === 0 ? "ตรง" : cashTotal < 0 ? `ขาด ${baht(-cashTotal, 2)}` : `เกิน ${baht(cashTotal, 2)}`}
@@ -153,7 +153,7 @@ export default async function ClosingMonthPage({ searchParams }: { searchParams:
             <span className="text-xs text-muted-subtle">{cashRows.length ? `ขาด ${shortDays} วัน · เกิน ${overDays} วัน · จาก ${cashRows.length} วันที่นับ` : "ยังไม่มีวันที่นับเงินครบ"}</span>
           </div>
         )}
-        <div className="rounded-2xl border border-border bg-surface p-3.5">
+        <div className="rounded-[18px] border border-border/70 bg-surface shadow-card p-3.5">
           <span className="text-xs text-muted-subtle">ปัญหาที่ยังค้าง</span>
           <b className={`block font-display text-2xl tabular-nums ${open > 0 ? "text-bad" : ""}`}>{open}</b>
           <span className="text-xs text-muted-subtle">จาก {allIssues} ที่บันทึกเดือนนี้</span>

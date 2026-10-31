@@ -305,7 +305,7 @@ export default function MemberForms({
 
   return (
     <>
-      <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-surface">
+      <ul className="divide-y divide-border overflow-hidden rounded-[18px] border border-border/70 bg-surface shadow-card">
         {rows.map((row) => {
           const body = (
             <>

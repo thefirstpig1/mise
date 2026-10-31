@@ -105,7 +105,7 @@ export default function CloseForm({
         <span className="text-sm text-muted-foreground">{dateLabel}</span>
       </div>
 
-      <section className="space-y-2 rounded-2xl border border-border bg-surface p-4">
+      <section className="space-y-2 rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
         <Sec n={1} title="ยอดขายวันนี้" />
         <div className="flex items-center justify-between gap-3 text-sm">
           <label htmlFor="pulse">
@@ -124,7 +124,7 @@ export default function CloseForm({
         </p>
       </section>
 
-      <section className="space-y-2 rounded-2xl border border-border bg-surface p-4">
+      <section className="space-y-2 rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
         <Sec n={2} title="เงินสด" optional />
         {(
           [
@@ -157,7 +157,7 @@ export default function CloseForm({
         <p className="text-xs text-muted-subtle">เว้นช่องไหนไว้ = ไม่มีข้อมูล ไม่ใช่ 0 · กรอกไม่ครบสามช่อง ระบบไม่คิดขาด/เกิน</p>
       </section>
 
-      <section className="space-y-3 rounded-2xl border border-border bg-surface p-4">
+      <section className="space-y-3 rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
         <Sec n={3} title="ลูกค้า" optional />
         <div className="flex items-center justify-between gap-3 text-sm">
           <label htmlFor="guests">
@@ -211,7 +211,7 @@ export default function CloseForm({
         <p className="text-xs text-muted-subtle">ช่องทาง (นั่งร้าน/กลับบ้าน/Grab…) ไม่ต้องกรอก — มาจากไฟล์ POS เมื่อไฟล์มีคอลัมน์ช่องทาง</p>
       </section>
 
-      <section className="space-y-2 rounded-2xl border border-border bg-surface p-4">
+      <section className="space-y-2 rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
         <Sec n={4} title="ปัญหาวันนี้" optional />
         {issues.map((i) => (
           <div key={i.key} className="space-y-1.5 rounded-xl border border-border p-2.5">
@@ -256,7 +256,7 @@ export default function CloseForm({
         {err("issues")}
       </section>
 
-      <section className="space-y-1 rounded-2xl border border-border bg-surface p-4 text-sm">
+      <section className="space-y-1 rounded-[18px] border border-border/70 bg-surface shadow-card p-4 text-sm">
         <h3 className="font-semibold">ระบบเติมให้ <span className="text-xs font-normal text-muted-subtle">ไม่ต้องกรอก</span></h3>
         <ul className="divide-y divide-border">
           <li className="flex justify-between py-1.5">
@@ -281,7 +281,7 @@ export default function CloseForm({
       </button>
       <p className="text-center text-xs text-muted-subtle">แก้ได้ถึงเที่ยงคืนของวันถัดไป · หลังจากนั้นเขียนความเห็นต่อได้ แต่ตัวเลขไม่เปลี่ยน</p>
 
-      <section className="space-y-2 rounded-2xl border border-border bg-surface p-4">
+      <section className="space-y-2 rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
         <Sec n={5} title="อัปโหลดไฟล์ยอดขายจาก POS" />
         <p className="text-xs text-muted-subtle">หลังบันทึกยอดปิดร้านแล้ว — ระบบเทียบไฟล์กับยอดที่คีย์ให้ทันที แล้วตัดสต๊อกตามสูตร</p>
         <ClosingUpload profiles={profiles} businessDate={day.businessDate} pulseSaved={day.pulseAmount !== null || day.pulseLocked} pulseLocked={day.pulseLocked} />

@@ -43,7 +43,7 @@ export default function Stat({
       {sub && <span className="text-xs text-muted-foreground">{sub}</span>}
     </>
   );
-  const cls = "flex min-w-0 flex-col gap-0.5 rounded-2xl border border-border bg-surface px-3.5 py-3 text-left";
+  const cls = "flex min-w-0 flex-col gap-0.5 rounded-[18px] border border-border/70 bg-surface shadow-card px-3.5 py-3 text-left";
   if (onClick)
     return (
       <button type="button" onClick={onClick} aria-pressed={pressed} className={`${cls} transition-colors hover:bg-surface-sunk ${pressed ? "border-primary ring-1 ring-primary" : ""}`}>

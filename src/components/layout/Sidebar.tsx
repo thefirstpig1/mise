@@ -17,6 +17,81 @@ import type { Route } from "next";
 import Logo from "@/components/layout/Logo";
 import { currentNavHref, type NavGroup } from "@/components/layout/nav";
 import { NAV_BADGES_EVENT } from "@/lib/nav-badges";
+import {
+  ArrowLeftRight,
+  BookOpen,
+  Boxes,
+  Building2,
+  CalendarCheck,
+  ChartColumn,
+  ChartPie,
+  ClipboardCheck,
+  ClipboardList,
+  Coins,
+  CookingPot,
+  FileSpreadsheet,
+  FlaskConical,
+  HandCoins,
+  LayoutGrid,
+  Network,
+  Package,
+  PackageCheck,
+  PackageMinus,
+  Receipt,
+  ScanSearch,
+  Settings,
+  ShieldCheck,
+  ShoppingCart,
+  Split,
+  Store,
+  Tags,
+  Trash2,
+  TrendingUp,
+  Users,
+  Utensils,
+  Wallet,
+  type LucideIcon,
+} from "lucide-react";
+
+/**
+ * One line icon per door (queue item 9, Kong 2026-10-31: "ใส่") — the landing
+ * page's icon language, so a list of thirty reads by shape as well as by word.
+ * Keyed by href; a door without one simply has none.
+ */
+const ICONS: Record<string, LucideIcon> = {
+  "/dashboard": LayoutGrid,
+  "/purchase-requests": ClipboardList,
+  "/suppliers": Store,
+  "/purchase-orders": ShoppingCart,
+  "/goods-receipts": PackageCheck,
+  "/my-advances": HandCoins,
+  "/products": Package,
+  "/stock": Boxes,
+  "/stock-counts": ClipboardCheck,
+  "/waste": Trash2,
+  "/production": CookingPot,
+  "/transfers": ArrowLeftRight,
+  "/staff-meals": Utensils,
+  "/sales": ChartColumn,
+  "/closing": CalendarCheck,
+  "/menus": BookOpen,
+  "/menus/lab": FlaskConical,
+  "/consumption": PackageMinus,
+  "/expenses/analysis": ChartPie,
+  "/expenses": Receipt,
+  "/advances": Wallet,
+  "/cost": Coins,
+  "/cost/departments": Network,
+  "/cost/leaks": ScanSearch,
+  "/cost/prices": TrendingUp,
+  "/month-end": FileSpreadsheet,
+  "/settings": Settings,
+  "/settings/branches": Building2,
+  "/settings/departments": Split,
+  "/categories": Tags,
+  "/settings/members": Users,
+  "/settings/permissions": ShieldCheck,
+};
 
 type Badge = { low: number; near: number };
 
@@ -149,13 +224,16 @@ export default function Sidebar({
       ) : null}
 
       {/* Kong (2026-09-28): the group heading was SMALLER than the items under
-          it, so nothing read as a heading at all. Now a heading is the
-          largest, darkest text in its block, and its items hang off a rule
-          beneath it — hierarchy by size, weight AND position, not by colour. */}
+          it, so nothing read as a heading at all. Queue item 9 (2026-10-31,
+          approved from the mockup) makes it the landing page's eyebrow: gold,
+          spaced, in the display face — it reads as a label by colour, spacing
+          and the gap above it, and every item now carries an icon. */}
       <div className="flex-1 space-y-4 overflow-y-auto px-3 pb-4">
         {groups.map((g) => {
-          const link = (item: NavGroup["items"][number], nested: boolean) => {
+          const link = (item: NavGroup["items"][number]) => {
             const active = item.href === current;
+            const on = pressed ? pressed === item.href : active;
+            const Icon = ICONS[item.href];
             // <Link>, not <a> (Kong 2026-09-29: "อยากให้ลื่นไหลทุกหน้า"): a plain
             // anchor reloaded the whole document — scripts, sidebar and all —
             // on every press. A Link swaps only the page, keeps this frame,
@@ -168,28 +246,24 @@ export default function Sidebar({
                 onClick={(e) => {
                   if (!e.ctrlKey && !e.metaKey && !e.shiftKey && e.button === 0) setPressed(item.href);
                 }}
-                className={`relative block rounded-md py-1.5 pr-2 transition-colors ${nested ? "pl-3 text-sm" : "px-2 text-[15px] font-semibold"} ${
-                  (pressed ? pressed === item.href : active)
-                    ? "bg-primary font-medium text-primary-foreground"
-                    : "text-foreground hover:bg-muted"
+                className={`relative flex items-center gap-2.5 rounded-[10px] px-2.5 py-[7px] text-[14.5px] transition-colors ${
+                  on ? "bg-primary font-medium text-primary-foreground shadow-[0_6px_14px_-8px_rgb(35_36_12/0.6)]" : "text-foreground hover:bg-muted"
                 }`}
               >
-                {item.label}
+                {Icon ? <Icon aria-hidden className={`h-[17px] w-[17px] shrink-0 ${on ? "text-gold" : "text-muted-subtle"}`} strokeWidth={1.8} /> : null}
+                <span className="min-w-0">{item.label}</span>
                 <Badges b={badges[item.href]} />
               </Link>
             );
           };
           // A one-item group is just a link; a heading over one line is noise.
-          if (g.items.length === 1) return <div key={g.label}>{link(g.items[0], false)}</div>;
-          const open = g.items.some((i) => i.href === current);
+          if (g.items.length === 1) return <div key={g.label}>{link(g.items[0])}</div>;
           return (
             <div key={g.label}>
-              <p className={`px-2 pb-1.5 text-[15px] font-semibold ${open ? "text-primary" : "text-foreground"}`}>
-                {g.label}
-              </p>
-              <ul className="ml-3 space-y-0.5 border-l border-border-strong pl-1.5">
+              <p className="eyebrow px-2.5 pb-1 text-[12px]">{g.label}</p>
+              <ul className="space-y-0.5">
                 {g.items.map((item) => (
-                  <li key={item.href}>{link(item, true)}</li>
+                  <li key={item.href}>{link(item)}</li>
                 ))}
               </ul>
             </div>

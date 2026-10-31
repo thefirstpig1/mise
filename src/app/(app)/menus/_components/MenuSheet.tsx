@@ -665,7 +665,7 @@ export default function MenuSheet(props: {
         {perm.sales && <MenuSalesTrend menuId={menu.id} branchId={branch.id} branchName={branch.name} today={today} />}
 
         {/* ---------------- recipe ---------------- */}
-        <section className="space-y-3 rounded-2xl border border-border bg-surface p-4">
+        <section className="space-y-3 rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h4 className="font-semibold">สูตร</h4>
             {sheet && (
@@ -780,7 +780,7 @@ export default function MenuSheet(props: {
         {sheet && sheet.history.length > 0 && <RecipeHistory history={sheet.history} book={book} costHidden={costHidden} />}
 
         {props.spellings.length > 0 && (
-          <section className="rounded-2xl border border-border bg-surface p-4 text-sm">
+          <section className="rounded-[18px] border border-border/70 bg-surface shadow-card p-4 text-sm">
             <p className="font-medium">ชื่ออื่นที่รวมเข้ากับเมนูนี้แล้ว</p>
             <ul className="mt-1 space-y-0.5 border-l-2 border-border pl-3">
               {props.spellings.map((s) => (
@@ -805,7 +805,7 @@ export default function MenuSheet(props: {
         {canAlias && (menu.isPosStub || aliasOpen) && <AliasBlock menu={menu} posIntegrationId={props.posIntegrationId!} fresh={menu.isPosStub} />}
 
         {(perm.editMenu || perm.deleteMenu || isOwnLine) && (
-          <section className="space-y-2 rounded-2xl border border-border bg-surface p-4">
+          <section className="space-y-2 rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
             <h4 className="font-semibold">อื่น ๆ</h4>
             <div className="flex flex-wrap gap-2">
               {isOwnLine && perm.recipe && (

@@ -7,17 +7,16 @@
 import type { StockCountStatus } from "@prisma/client";
 import { STOCK_COUNT_STATUS_LABELS_TH } from "@/lib/validations/stock-count";
 
+// The kit's chips (queue item 9, 2026-10-31): the same pill and dot as every other status.
 const CLASS: Record<StockCountStatus, string> = {
-  DRAFT: "border-warn-border bg-warn-bg text-warn",
-  CLOSED: "border-good-border bg-good-bg text-good",
-  VOIDED: "border-border bg-muted text-muted-foreground line-through",
+  DRAFT: "chip-warn",
+  CLOSED: "chip-good",
+  VOIDED: "line-through",
 };
 
 export default function StatusBadge({ status }: { status: StockCountStatus }) {
   return (
-    <span
-      className={`inline-block rounded-full border px-2 py-0.5 text-xs ${CLASS[status]}`}
-    >
+    <span className={`chip ${CLASS[status]}`}>
       {STOCK_COUNT_STATUS_LABELS_TH[status]}
     </span>
   );

@@ -180,7 +180,7 @@ export default async function SupplierPage({
             )}
           </div>
         )}
-        <div className="space-y-1 rounded-2xl border border-border bg-surface p-4">
+        <div className="space-y-1 rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
           <p className="text-sm text-muted-foreground">ของค้างส่ง</p>
           <p className="text-2xl font-semibold">{o.openOrders.length ? `${o.openOrders.length} ใบ` : "ไม่มี"}</p>
           {o.openOrders.slice(0, 2).map((po) => (
@@ -192,7 +192,7 @@ export default async function SupplierPage({
           {o.draftCount > 0 && <p className="text-xs text-muted-foreground">+ ร่าง {o.draftCount} ใบ ยังไม่ได้ส่ง</p>}
         </div>
         {seeCost && (
-          <div className="space-y-1 rounded-2xl border border-border bg-surface p-4">
+          <div className="space-y-1 rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
             <p className="text-sm text-muted-foreground">{thisMonth ? `ซื้อเดือน ${monthLabelTh(thisMonth.period)}` : "ยอดซื้อ"}</p>
             <p className="text-2xl font-semibold tabular-nums">{thisMonth ? baht(thisMonth.total) : "—"}</p>
             <p className="text-xs text-muted-foreground">
@@ -202,7 +202,7 @@ export default async function SupplierPage({
             </p>
           </div>
         )}
-        <div className="space-y-1 rounded-2xl border border-border bg-surface p-4">
+        <div className="space-y-1 rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
           <p className="text-sm text-muted-foreground">ส่งตรงนัด</p>
           {o.onTime ? (
             <>
@@ -228,7 +228,7 @@ export default async function SupplierPage({
           )}
         </div>
         {o.items.length === 0 ? (
-          <p className="rounded-2xl border border-border bg-surface px-4 py-8 text-center text-sm text-muted-foreground">
+          <p className="rounded-[18px] border border-border/70 bg-surface shadow-card px-4 py-8 text-center text-sm text-muted-foreground">
             ยังไม่เคยรับของจากผู้ขายนี้
           </p>
         ) : (
@@ -236,7 +236,7 @@ export default async function SupplierPage({
             {o.items.map((it) => {
               const change = it.prevPrice ? ((it.lastPrice - it.prevPrice) / it.prevPrice) * 100 : null;
               return (
-                <li key={`${it.productId}|${it.unitName}`} className="flex flex-col overflow-hidden rounded-2xl border border-border bg-surface">
+                <li key={`${it.productId}|${it.unitName}`} className="flex flex-col overflow-hidden rounded-[18px] border border-border/70 bg-surface shadow-card">
                   <ProductThumb imageUrl={it.imageUrl} name={it.productName} className="aspect-[4/3] w-full rounded-none" />
                   <div className="flex flex-1 flex-col gap-0.5 p-3 [&>a]:mt-2">
                     <p className="font-semibold">{it.productName}</p>
@@ -282,7 +282,7 @@ export default async function SupplierPage({
       {o.recent.length > 0 && (
         <section className="space-y-2">
           <h3 className="text-lg font-semibold">เอกสารล่าสุด</h3>
-          <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-surface">
+          <ul className="divide-y divide-border overflow-hidden rounded-[18px] border border-border/70 bg-surface shadow-card">
             {o.recent.map((d) => (
               <li key={d.id} className="group relative flex items-center justify-between gap-3 px-4 py-3 text-sm transition-colors hover:bg-muted/50">
                 <Link
@@ -304,7 +304,7 @@ export default async function SupplierPage({
         </section>
       )}
 
-      <details className="group rounded-2xl border border-border bg-surface">
+      <details className="group rounded-[18px] border border-border/70 bg-surface shadow-card">
         <summary className="flex cursor-pointer list-none items-center justify-between px-5 py-4 font-semibold">
           ข้อมูลผู้ขาย (ชื่อ ติดต่อ ภาษี เงื่อนไขชำระ · รายการราคา)
           <span className="text-sm font-normal text-muted-foreground group-open:hidden">กดเพื่อแก้</span>

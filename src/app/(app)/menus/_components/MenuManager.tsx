@@ -958,14 +958,14 @@ export default function MenuManager(props: {
 
             <div className="space-y-3">
               {visible.length === 0 ? (
-                <div className="flex flex-col items-center gap-2.5 rounded-2xl border border-border bg-surface px-5 py-9 text-center text-sm text-muted-foreground">
+                <div className="flex flex-col items-center gap-2.5 rounded-[18px] border border-border/70 bg-surface shadow-card px-5 py-9 text-center text-sm text-muted-foreground">
                   <p className="font-display text-base font-semibold text-foreground">ไม่มีเมนูตรงกับตัวกรอง</p>
                   <button type="button" onClick={() => (setStatus("every"), setCategory(null))} className="btn-secondary btn-sm">
                     ดูทุกสถานะและทุกหมวด
                   </button>
                 </div>
               ) : mode === "flat" ? (
-                <div className="overflow-hidden rounded-2xl border border-border bg-surface">
+                <div className="overflow-hidden rounded-[18px] border border-border/70 bg-surface shadow-card">
                   {[...visible].sort(rankOrder).map((h, i, all) => (
                     <Fragment key={h.item.id}>
                       {searching && h.score === 0 && i > 0 && all[i - 1].score > 0 && <OtherLine />}
@@ -998,7 +998,7 @@ export default function MenuManager(props: {
                       ? `${hits.length} จาก ${g.count} เมนู`
                       : `${g.count} เมนู${g.withoutRecipe ? ` · ไม่มีสูตร ${g.withoutRecipe}` : ""}`;
                   return (
-                    <section key={g.name} className="rounded-2xl border border-border bg-surface">
+                    <section key={g.name} className="rounded-[18px] border border-border/70 bg-surface shadow-card">
                       <button
                         type="button"
                         onClick={toggle}

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import SectionEyebrow from "@/components/layout/SectionEyebrow";
 
 // Part 35 L4 — what each section's layout keeps once the sidebar exists: its
 // title and its reading width. The "← กลับหน้าหลัก" link and the logo went
@@ -15,8 +16,9 @@ export default function PageFrame({
   children,
 }: {
   /**
-   * Omit when every page in the section names itself with its own breadcrumb
-   * (expenses, Kong 2026-10-27: the label above "ค่าใช้จ่าย › …" said it twice).
+   * Only for a page the sidebar does not list (/recipes): every listed page
+   * shows its sidebar GROUP instead (SectionEyebrow, queue item 9), which can
+   * never repeat the page's own heading or breadcrumb (Kong 2026-10-27).
    */
   title?: string;
   /** @deprecated Every page is the same width now; kept so old layouts compile. */
@@ -25,7 +27,9 @@ export default function PageFrame({
 }) {
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-6 lg:px-8 lg:py-8">
-      {title && <p className="mb-2 text-xs font-medium text-muted-subtle">{title}</p>}
+      {/* Queue item 9: the sidebar group, in gold, on every page; `title` is
+          only the fallback for a page the sidebar does not list. */}
+      <SectionEyebrow fallback={title} className="mb-1.5" />
       {children}
     </div>
   );

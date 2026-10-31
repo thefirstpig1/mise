@@ -349,7 +349,7 @@ export default function IngredientSheet({
             )}
 
             {made?.how === "recipe" && lines && (
-              <section className="space-y-2 rounded-2xl border border-border bg-surface p-4">
+              <section className="space-y-2 rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <h4 className="font-semibold">สูตรผลิต</h4>
                   {isNewRecipe ? (
@@ -399,7 +399,7 @@ export default function IngredientSheet({
             {made?.how === "recipe" && made.history.length > 0 && <RecipeHistory history={made.history} book={book} costHidden={costHidden} />}
 
             {made?.how === "yield" && (
-              <section className="space-y-2 rounded-2xl border border-border bg-surface p-4">
+              <section className="space-y-2 rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <h4 className="font-semibold">ทำจาก</h4>
                   <span className="text-xs text-muted-foreground">สินค้าแม่ตัวเดียว + % ผลผลิต</span>
@@ -444,7 +444,7 @@ export default function IngredientSheet({
             )}
 
             {inThisDish && (
-              <section className="space-y-1 rounded-2xl border border-border bg-surface p-4">
+              <section className="space-y-1 rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
                 <h4 className="font-semibold">ใน{inThisDish.dishName}</h4>
                 <p className="text-sm tabular-nums">
                   ใช้ {qtyFmt(inThisDish.qty / inThisDish.servings, inThisDish.unitName)} ต่อจาน
@@ -461,7 +461,7 @@ export default function IngredientSheet({
             )}
 
             {!costHidden && receipts && receipts.length > 0 && (
-              <section className="space-y-2 rounded-2xl border border-border bg-surface p-4">
+              <section className="space-y-2 rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <h4 className="font-semibold">ราคาที่รับเข้า</h4>
                   <span className="text-xs text-muted-foreground">ซื้อจาก {[...new Set(receipts.map((r) => r.supplier))].join(", ")}</span>
@@ -501,7 +501,7 @@ export default function IngredientSheet({
               </section>
             )}
 
-            <section className="space-y-1 rounded-2xl border border-border bg-surface p-4">
+            <section className="space-y-1 rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
               <div className="flex items-center justify-between">
                 <h4 className="font-semibold">ใช้ในเมนู</h4>
                 <span className="text-xs text-muted-foreground">{data.usedIn.length} สูตร</span>
@@ -575,7 +575,7 @@ export default function IngredientSheet({
 
 function Tile({ k, v, s, warn, bad }: { k: string; v: string; s: string; warn?: boolean; bad?: boolean }) {
   return (
-    <div className="min-w-0 rounded-2xl border border-border bg-surface p-2.5">
+    <div className="min-w-0 rounded-[18px] border border-border/70 bg-surface shadow-card p-2.5">
       <p className="text-[11px] text-muted-subtle">{k}</p>
       <p className={`font-display text-lg font-semibold tabular-nums ${bad ? "text-bad" : warn ? "text-warn" : ""}`}>{v}</p>
       <p className="text-[11px] text-muted-foreground">{s}</p>

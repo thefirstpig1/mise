@@ -121,7 +121,7 @@ export function BranchList({ rows }: { rows: BranchRowView[] }) {
   const [open, setOpen] = useState<BranchRowView | null>(null);
   return (
     <>
-      <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-surface">
+      <ul className="divide-y divide-border overflow-hidden rounded-[18px] border border-border/70 bg-surface shadow-card">
         {rows.map((r) => (
           <li key={r.id}>
             <button type="button" onClick={() => setOpen(r)} className="block w-full px-5 py-4 text-left transition-colors hover:bg-muted/50">

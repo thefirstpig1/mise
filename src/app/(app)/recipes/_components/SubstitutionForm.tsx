@@ -288,7 +288,7 @@ export default function SubstitutionForm({
         value={toComponentMenuId ?? ""}
       />
 
-      <div className="rounded-2xl border border-border bg-surface p-4 text-sm">
+      <div className="rounded-[18px] border border-border/70 bg-surface shadow-card p-4 text-sm">
         เปลี่ยน <strong>{fromLabel}</strong> เป็น <strong>{toLabel}</strong> ใน
         สูตรที่ติ๊กไว้ · เลือกแล้ว {checkedCount} สูตร
       </div>

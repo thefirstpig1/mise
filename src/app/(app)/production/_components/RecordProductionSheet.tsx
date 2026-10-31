@@ -458,7 +458,7 @@ export default function RecordProductionSheet({
                   </ul>
                 </div>
                 {!costHidden && wholeCost !== null && (
-                  <div className="space-y-1.5 rounded-2xl border border-border bg-surface p-3 text-sm">
+                  <div className="space-y-1.5 rounded-[18px] border border-border/70 bg-surface shadow-card p-3 text-sm">
                     <p className="text-muted-foreground">ต้นทุนชิ้นนี้ {baht(wholeCost, 0)} แบ่งตาม % มูลค่า</p>
                     {parts
                       .filter((p) => p.productId && p.valuePct > 0)

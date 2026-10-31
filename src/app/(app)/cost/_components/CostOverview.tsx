@@ -236,7 +236,7 @@ function Overview({ data, canEditTargets }: { data: Overview; canEditTargets: bo
         </button>
       </div>
 
-      <div className="space-y-2 rounded-2xl border border-border bg-surface px-3 py-2.5">
+      <div className="space-y-2 rounded-[18px] border border-border/70 bg-surface shadow-card px-3 py-2.5">
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="w-12 text-xs text-muted-foreground">ช่วง</span>
           {P.map((p, i) => (
@@ -352,7 +352,7 @@ function Overview({ data, canEditTargets }: { data: Overview; canEditTargets: bo
         })}
       </div>
 
-      <div className="rounded-2xl border border-border bg-surface p-4">
+      <div className="rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
         <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
           <h3 className="text-sm font-semibold">{metric === "var" ? varName : METRICS[metric].tab}</h3>
           <span className="text-xs text-muted-foreground">
@@ -1053,7 +1053,7 @@ function Todo({
     );
 
   return (
-    <div className="rounded-2xl border border-border bg-surface p-3">
+    <div className="rounded-[18px] border border-border/70 bg-surface shadow-card p-3">
       {shown.length === 0 ? (
         <p className="px-1 py-3 text-sm text-muted-foreground">ช่วงนี้ยังไม่มีเรื่องที่เป็นเงิน — ยังไม่ได้นับสต๊อก ไม่มีราคาที่ขึ้น และไม่มีของที่บันทึกว่าทิ้ง</p>
       ) : (
@@ -1150,7 +1150,7 @@ function Bench({
     { key: "waste", label: "ทิ้ง % ของยอดขาย", val: (b) => pctOf(a(b).rev === null ? null : a(b).waste, a(b).rev), fmt: (v) => `${v.toFixed(2)}%`, why: () => "ไม่มียอดขาย", cost: false },
   ];
   return (
-    <div className="overflow-x-auto rounded-2xl border border-border bg-surface p-3">
+    <div className="overflow-x-auto rounded-[18px] border border-border/70 bg-surface shadow-card p-3">
       <table className="w-full text-sm">
         <thead>
           <tr className="text-xs text-muted-foreground">
@@ -1247,7 +1247,7 @@ function Stock({
   const mx = Math.max(1, ...rows.map((r) => r.value));
   const slow = all.filter((i) => (i.ageDays ?? 0) >= slowDays);
   return (
-    <div className="rounded-2xl border border-border bg-surface p-3">
+    <div className="rounded-[18px] border border-border/70 bg-surface shadow-card p-3">
       <div className="flex items-baseline justify-between gap-2">
         <span className="text-xs text-muted-foreground">มูลค่าของในสต๊อก ณ วันนี้ · {branchLabel}</span>
         <b className="font-display text-xl tabular-nums">฿{f0(total)}</b>

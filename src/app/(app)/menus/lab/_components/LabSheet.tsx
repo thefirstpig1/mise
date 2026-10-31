@@ -527,7 +527,7 @@ export default function LabSheet(props: {
         </div>
 
         {!costHidden && suggested !== null && perPlate !== null && (
-          <section className="space-y-2 rounded-2xl border border-border bg-surface p-4">
+          <section className="space-y-2 rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h4 className="font-semibold">ลองราคา</h4>
               <span className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
@@ -586,7 +586,7 @@ export default function LabSheet(props: {
         )}
 
         {!costHidden && kind === "edit" && menu && live && (
-          <section className="space-y-2 rounded-2xl border border-border bg-surface p-4">
+          <section className="space-y-2 rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
               <h4 className="font-semibold">เทียบกับสูตรที่ใช้อยู่</h4>
               <span className="text-xs text-muted-foreground">{menu.qty > 0 ? `ขายไป ${menu.qty.toLocaleString("th-TH")} จานใน ${props.factDays} วัน` : `ยังไม่มียอดขายใน ${props.factDays} วัน`}</span>
@@ -618,7 +618,7 @@ export default function LabSheet(props: {
           </section>
         )}
 
-        <section className="space-y-2 rounded-2xl border border-border bg-surface p-4">
+        <section className="space-y-2 rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h4 className="font-semibold">สูตร</h4>
             <span className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
@@ -689,7 +689,7 @@ export default function LabSheet(props: {
               { done: priceN !== null, t: "ลองราคาที่ตั้งใจ", s: costHidden ? "ราคาที่คิดไว้สำหรับจานนี้" : `ดูต้นทุน % เทียบเป้า ${target}%` },
               { done: false, t: "บันทึกร่าง แล้วนำไปใช้จริงเมื่อพร้อม", s: "ก่อนนำไปใช้จริง ร่างไม่ตัดสต๊อก" },
             ].map((c) => (
-              <div key={c.t} className="flex items-start gap-3 rounded-2xl border border-border bg-surface px-3 py-2.5 text-sm">
+              <div key={c.t} className="flex items-start gap-3 rounded-[18px] border border-border/70 bg-surface shadow-card px-3 py-2.5 text-sm">
                 <span className={`mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full border-[1.5px] text-[11px] transition-colors ${c.done ? "border-primary bg-primary text-primary-foreground" : "border-border-strong"}`} aria-hidden>
                   {c.done ? "✓" : ""}
                 </span>
@@ -774,7 +774,7 @@ export default function LabSheet(props: {
 
 function Tile({ k, title, children }: { k: string; title?: string; children: React.ReactNode }) {
   return (
-    <div className="min-w-0 rounded-2xl border border-border bg-surface p-2.5" title={title}>
+    <div className="min-w-0 rounded-[18px] border border-border/70 bg-surface shadow-card p-2.5" title={title}>
       <p className="text-[11px] text-muted-subtle">{k}</p>
       {children}
     </div>

@@ -163,7 +163,7 @@ export default async function WastePage({
           </a>
         </EmptyState>
       ) : (
-        <section className="rounded-2xl border border-border bg-surface p-5">
+        <section className="rounded-[18px] border border-border/70 bg-surface shadow-card p-5">
           <WasteEntryForm
             action={createWasteAction}
             products={productOptions}

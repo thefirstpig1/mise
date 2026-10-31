@@ -80,7 +80,7 @@ export default function ReceiveTransferForm({
           const base = l.product.baseUnitName ?? "";
           const unused = l.product.units.find((u) => !list.some((e) => e.unitId === u.id));
           return (
-            <div key={l.id} className="space-y-2 rounded-2xl border border-border bg-surface p-3">
+            <div key={l.id} className="space-y-2 rounded-[18px] border border-border/70 bg-surface shadow-card p-3">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <p className="font-medium">{l.product.name}</p>
                 <p className="text-sm text-muted-foreground">

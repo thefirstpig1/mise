@@ -460,7 +460,7 @@ export default function ExpenseForm({
             return (
               <div
                 key={line.key}
-                className="grid gap-3 rounded-2xl border border-border bg-surface p-4 sm:grid-cols-12"
+                className="grid gap-3 rounded-[18px] border border-border/70 bg-surface shadow-card p-4 sm:grid-cols-12"
               >
                 <div className="sm:col-span-5">
                   <span className="label text-xs">
@@ -584,7 +584,7 @@ export default function ExpenseForm({
       </section>
 
       {/* ---------------- tax ---------------- */}
-      <section className="grid gap-5 rounded-2xl border border-border bg-surface p-4 sm:grid-cols-2">
+      <section className="grid gap-5 rounded-[18px] border border-border/70 bg-surface shadow-card p-4 sm:grid-cols-2">
         <div>
           <span className="label">
             VAT

@@ -353,7 +353,7 @@ export default function RequestBoard({
           <section className="space-y-2">
             <h2 className="text-base font-semibold">{group ?? (term ? `ผลการค้นหา “${query.trim()}”` : "วัตถุดิบทั้งหมด")}</h2>
             {shown.length === 0 ? (
-              <p className="rounded-2xl border border-border bg-surface px-4 py-8 text-center text-sm text-muted-foreground">
+              <p className="rounded-[18px] border border-border/70 bg-surface shadow-card px-4 py-8 text-center text-sm text-muted-foreground">
                 ไม่พบวัตถุดิบ — ลองพิมพ์ส่วนอื่นของชื่อ
               </p>
             ) : (
@@ -364,7 +364,7 @@ export default function RequestBoard({
                   const st = stock[p.id];
                   const low = st?.parBase != null && st.onHandBase < st.parBase;
                   return (
-                    <li key={p.id} className="relative flex flex-col overflow-hidden rounded-2xl border border-border bg-surface">
+                    <li key={p.id} className="relative flex flex-col overflow-hidden rounded-[18px] border border-border/70 bg-surface shadow-card">
                       <ProductThumb imageUrl={p.imageUrl} name={p.name} className="aspect-[4/3] w-full rounded-none" />
                       <div className="absolute right-2 top-2">
                         {line ? (
@@ -671,7 +671,7 @@ function Cart({
       {tab === "now" ? (
         <>
           {myLines.length === 0 ? (
-            <div className="rounded-2xl border border-border bg-surface px-4 py-10 text-center text-sm text-muted-foreground">
+            <div className="rounded-[18px] border border-border/70 bg-surface shadow-card px-4 py-10 text-center text-sm text-muted-foreground">
               ยังไม่มีของในรอบนี้ ·{" "}
               <button type="button" onClick={onBack} className="font-semibold text-primary underline">
                 กลับไปเลือกของ
@@ -683,7 +683,7 @@ function Cart({
                 const p = productById.get(l.product.id);
                 const qty = qtyOf(l);
                 return (
-                  <li key={l.id} className="space-y-2 rounded-2xl border border-border bg-surface p-3">
+                  <li key={l.id} className="space-y-2 rounded-[18px] border border-border/70 bg-surface shadow-card p-3">
                     <div className="flex gap-3">
                       <ProductThumb imageUrl={p?.imageUrl ?? null} name={l.product.name} className="h-14 w-14" />
                       <div className="min-w-0 flex-1">
@@ -849,7 +849,7 @@ function Cart({
           </div>
         </>
       ) : pastLines.length === 0 ? (
-        <p className="rounded-2xl border border-border bg-surface px-4 py-10 text-center text-sm text-muted-foreground">
+        <p className="rounded-[18px] border border-border/70 bg-surface shadow-card px-4 py-10 text-center text-sm text-muted-foreground">
           ยังไม่มีของที่ขอในรอบก่อน ๆ
         </p>
       ) : (
@@ -857,7 +857,7 @@ function Cart({
           const rows = pastLines.filter((l) => g.kinds.includes(l.status.kind));
           if (rows.length === 0) return null;
           return (
-            <section key={g.key} className="rounded-2xl border border-border bg-surface">
+            <section key={g.key} className="rounded-[18px] border border-border/70 bg-surface shadow-card">
               <h3 className="flex items-baseline justify-between border-b border-border px-4 py-3 text-sm font-semibold">
                 {g.title}
                 <span className="text-xs font-normal text-muted-foreground">{rows.length} รายการ</span>

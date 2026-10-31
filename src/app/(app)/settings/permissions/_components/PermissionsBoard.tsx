@@ -197,7 +197,7 @@ function RolesTab({
     [...capById.keys()].some((c) => (data.roleTable[r]?.includes(c) ?? false) !== (data.defaults[r]?.includes(c) ?? false));
 
   return (
-    <div className="space-y-3 rounded-2xl border border-border bg-surface p-4">
+    <div className="space-y-3 rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
       <p className="text-sm text-muted-foreground">
         {data.isOwner
           ? "ติ๊กเพื่อเปลี่ยนค่าของทั้งบทบาท ทุกคนในบทบาทนั้นได้ตาม ยกเว้นคนที่ตั้งไว้รายคน"
@@ -362,7 +362,7 @@ function PeopleTab({
   const open = data.members.find((m) => m.id === openId) ?? null;
 
   return (
-    <div className="space-y-3 rounded-2xl border border-border bg-surface p-4">
+    <div className="space-y-3 rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
       <div className="flex flex-wrap gap-2">
         {MONEY.map((c) => {
           const n = data.members.filter((m) => m.effective.includes(c)).length;
@@ -467,7 +467,7 @@ function PersonSheet({
         </button>
       </div>
       <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4">
-        <div className="space-y-2 rounded-2xl border border-border bg-surface p-3 text-sm">
+        <div className="space-y-2 rounded-[18px] border border-border/70 bg-surface shadow-card p-3 text-sm">
           <h4 className="text-xs font-medium text-muted-foreground">สิทธิ์จริงของคนนี้</h4>
           <div className="grid grid-cols-[84px_minmax(0,1fr)] gap-2"><span className="text-muted-subtle">เห็นเงิน</span><MoneyTags m={m} capById={capById} /></div>
           <div className="grid grid-cols-[84px_minmax(0,1fr)] gap-2"><span className="text-muted-subtle">ทำได้</span><span>{doing.map((c) => capById.get(c)?.label).join(" · ") || "ไม่มีข้อในตารางนี้"}</span></div>
@@ -480,7 +480,7 @@ function PersonSheet({
         {m.locked && <p className="rounded-lg bg-warn-bg px-3 py-2 text-sm">{m.locked}</p>}
         {error && <p className="text-sm text-bad">{error}</p>}
 
-        <div className="overflow-hidden rounded-2xl border border-border bg-surface">
+        <div className="overflow-hidden rounded-[18px] border border-border/70 bg-surface shadow-card">
           {data.groups.map((g) => (
             <div key={g.label}>
               <div className="bg-muted px-3 py-1.5 text-xs font-medium text-muted-foreground">{g.label}</div>
@@ -555,7 +555,7 @@ function TriButton({
 
 function LogTab({ data }: { data: BoardData }) {
   return (
-    <div className="space-y-3 rounded-2xl border border-border bg-surface p-4">
+    <div className="space-y-3 rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
       <p className="text-sm text-muted-foreground">ทุกการเปลี่ยนสิทธิ์ ทั้งของบทบาทและรายคน เก็บไว้ตลอด ลบไม่ได้</p>
       {data.log.length === 0 ? (
         <p className="rounded-xl border border-dashed border-border-strong px-4 py-6 text-center text-sm text-muted-foreground">

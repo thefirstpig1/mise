@@ -62,10 +62,10 @@ export default function LeakOverview({ overview, initialCountId }: { overview: P
     return <div className="rounded-lg border border-warn-border bg-warn-bg p-4 text-sm text-warn">เปิดรายงานไม่สำเร็จในครั้งนี้ กรุณารีเฟรชหน้าอีกครั้ง</div>;
   if (data.counts.length === 0)
     return (
-      <div className="space-y-2 rounded-2xl border border-border bg-surface p-6 text-sm">
+      <div className="space-y-2 rounded-[18px] border border-border/70 bg-surface shadow-card p-6 text-sm">
         <h2 className="font-display text-lg font-semibold">ยังไม่มีการนับสต๊อกที่ปิดแล้ว</h2>
         <p className="text-muted-foreground">หน้านี้เทียบของที่นับได้จริงกับที่ระบบคำนวณว่าควรเหลือ จึงต้องนับสต๊อกอย่างน้อยหนึ่งครั้งก่อน</p>
-        <a href="/stock-counts/new" className="btn inline-block">
+        <a href="/stock-counts/new" className="btn">
           เริ่มนับสต๊อก
         </a>
       </div>
@@ -130,7 +130,7 @@ function View({ data, initialCountId }: { data: Overview; initialCountId: string
       <h2 className="font-display text-xl font-semibold">ของหายไปไหน</h2>
       <p className="text-sm text-muted-foreground">นับได้ไม่ตรงกับที่ระบบคำนวณ หลังหักที่บันทึกว่าทิ้งและของเสียแล้ว · หายเพราะอะไร ต้องไปตามที่ไหน</p>
 
-      <div className="space-y-2 rounded-2xl border border-border bg-surface px-3 py-2.5">
+      <div className="space-y-2 rounded-[18px] border border-border/70 bg-surface shadow-card px-3 py-2.5">
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="w-14 text-xs text-muted-foreground">การนับ</span>
           {[...data.counts].reverse().map((x) => (
@@ -205,7 +205,7 @@ function View({ data, initialCountId }: { data: Overview; initialCountId: string
       <QLabel n="2–4">
         ตัวไหน · น่าจะเพราะอะไร · ต้องไปดูที่ไหน <span className="text-xs font-normal text-muted-foreground">เรียงตามเงิน · กดแถวเพื่อดูรายการตรวจ</span>
       </QLabel>
-      <div className="rounded-2xl border border-border bg-surface p-3">
+      <div className="rounded-[18px] border border-border/70 bg-surface shadow-card p-3">
         {sorted.length === 0 ? (
           <p className="p-2 text-sm text-muted-foreground">การนับครั้งนี้ไม่พบของที่นับได้น้อยกว่าระบบ{c.over.length ? " · มีแต่ของที่นับได้มากกว่า (ดูด้านล่าง)" : ""}</p>
         ) : (
@@ -292,7 +292,7 @@ function QLabel({ n, children }: { n: string; children: React.ReactNode }) {
 }
 function Kpi({ k, children }: { k: string; children: React.ReactNode }) {
   return (
-    <div className="flex flex-col gap-0.5 rounded-2xl border border-border bg-surface p-3">
+    <div className="flex flex-col gap-0.5 rounded-[18px] border border-border/70 bg-surface shadow-card p-3">
       <span className="text-xs text-muted-foreground">{k}</span>
       {children}
     </div>
@@ -321,7 +321,7 @@ function Trend({ series, sel, onSel, target }: { series: LeakCount[]; sel: strin
   const [hover, setHover] = useState<number | null>(null);
   if (series.length < 2) {
     return (
-      <div className="rounded-2xl border border-border bg-surface p-4 text-sm">
+      <div className="rounded-[18px] border border-border/70 bg-surface shadow-card p-4 text-sm">
         <p className="font-display font-semibold">
           {series[0]?.branchName}นับมาแล้ว {series.length} ครั้ง
         </p>
@@ -333,7 +333,7 @@ function Trend({ series, sel, onSel, target }: { series: LeakCount[]; sel: strin
   const mx = Math.max(target, ...pcts.filter((p): p is number => p !== null)) * 1.3;
   const W = 100 / series.length;
   return (
-    <div className="relative rounded-2xl border border-border bg-surface p-4">
+    <div className="relative rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
       <p className="mb-2 text-xs text-muted-foreground">% ของยอดขาย ต่อการนับแต่ละครั้งของ{series[0].branchName} · เส้นประ = เป้า {target}% · กดแท่งเพื่อดูครั้งนั้น</p>
       <div className="relative h-40">
         <div className="absolute inset-x-0 border-t border-dashed border-bad" style={{ bottom: `${(target / mx) * 100}%` }} />
@@ -377,7 +377,7 @@ function Spot({ c }: { c: LeakCount }) {
   // Large against what was expected, or a real share of this count's money — never a ฿50 item at 2.3%.
   const items = c.short.filter((s) => (shareOf(s) ?? 0) >= LARGE || ((shareOf(s) ?? 0) >= ORDINARY && (s.value ?? 0) >= c.value * 0.05)).slice(0, 4);
   return (
-    <div className="rounded-2xl border border-border bg-surface p-4 text-sm">
+    <div className="rounded-[18px] border border-border/70 bg-surface shadow-card p-4 text-sm">
       {items.length === 0 ? (
         <p className="text-muted-foreground">ยังไม่มีรายการที่ต้องนับถี่ขึ้น</p>
       ) : (
@@ -404,11 +404,11 @@ function Spot({ c }: { c: LeakCount }) {
 }
 
 function Over({ c }: { c: LeakCount }) {
-  if (c.over.length === 0) return <div className="rounded-2xl border border-border bg-surface p-3 text-sm text-muted-foreground">ไม่มี</div>;
+  if (c.over.length === 0) return <div className="rounded-[18px] border border-border/70 bg-surface shadow-card p-3 text-sm text-muted-foreground">ไม่มี</div>;
   const mx = Math.max(1, ...c.over.map((o) => o.value ?? 0));
   const none = c.over.some((o) => o.expected === 0);
   return (
-    <div className="rounded-2xl border border-border bg-surface p-3 text-sm">
+    <div className="rounded-[18px] border border-border/70 bg-surface shadow-card p-3 text-sm">
       <p className="mb-2 text-xs text-muted-foreground">
         มักเป็น <b>รับของแล้วไม่ได้บันทึก</b> · สูตรตัดเกินจริง · หรือนับผิด — และเป็นสัญญาณว่าการนับครั้งนี้มีความคลาดเคลื่อน
         {none && (

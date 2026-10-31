@@ -601,7 +601,7 @@ export default function CountSheet({
                     </span>
                   )}
                 </h3>
-                <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-surface">
+                <ul className="divide-y divide-border overflow-hidden rounded-[18px] border border-border/70 bg-surface shadow-card">
                   {list.map((p) => (
             <CountRow
               key={p.id}

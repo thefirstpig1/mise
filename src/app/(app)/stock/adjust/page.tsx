@@ -96,7 +96,7 @@ export default async function StockAdjustPage({ searchParams }: { searchParams: 
             canSeeCost={can("cost:view")}
             initialBranchId={initialBranchId}
           />
-          <aside className="h-fit rounded-2xl border border-border bg-surface p-4 text-sm">
+          <aside className="h-fit rounded-[18px] border border-border/70 bg-surface shadow-card p-4 text-sm">
             <h3 className="font-semibold">ปรับล่าสุด · {branches.find((b) => b.id === initialBranchId)?.name}</h3>
             {recent.length === 0 ? (
               <p className="mt-1 text-muted-foreground">ยังไม่เคยปรับสต๊อกที่สาขานี้</p>

@@ -156,7 +156,7 @@ export default function MergeScreen({
               const ms = g.menuIds.map((id) => byId.get(id)!);
               const branches = new Set(ms.map((m) => m.branchId)).size;
               return (
-                <article key={g.menuIds.join()} className="space-y-3 rounded-2xl border border-border bg-surface p-4">
+                <article key={g.menuIds.join()} className="space-y-3 rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="min-w-0">
                       <h3 className="text-lg font-semibold">{ms[0].name}</h3>
@@ -566,7 +566,7 @@ function MergedList({
       {groups.size === 0 ? (
         <div className="rounded-2xl border border-dashed border-border-strong p-8 text-center text-sm text-muted-foreground">ยังไม่มีการรวมเมนู</div>
       ) : (
-        <div className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-surface">
+        <div className="divide-y divide-border overflow-hidden rounded-[18px] border border-border/70 bg-surface shadow-card">
           {[...groups.entries()].map(([winnerId, rows]) => (
             <div key={winnerId} className="flex flex-wrap items-start justify-between gap-3 px-4 py-3.5">
               <div className="min-w-0 space-y-1.5">

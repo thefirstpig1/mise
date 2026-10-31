@@ -124,7 +124,7 @@ export default function BillImport({ prompt, productCount }: { prompt: string; p
           <UploadCard busy={busy} error={error} onSend={send} pasteHint="ระบบอ่านเฉพาะตารางบิลซื้อ" />
         </div>
       ) : (
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border bg-surface px-4 py-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-[18px] border border-border/70 bg-surface shadow-card px-4 py-3">
           <p className="text-sm">
             <span className="text-muted-foreground">อ่านจาก </span>
             <b className="font-semibold">{source}</b>
@@ -216,7 +216,7 @@ function Review({
   ];
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-border bg-surface">
+    <section className="overflow-hidden rounded-[18px] border border-border/70 bg-surface shadow-card">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-surface-sunk px-4 py-3">
         <div className="flex flex-wrap items-center gap-2">
           <span className="font-display text-[12.5px] font-semibold tracking-[0.08em] text-warn">ขั้น 3 · ตรวจทาน</span>

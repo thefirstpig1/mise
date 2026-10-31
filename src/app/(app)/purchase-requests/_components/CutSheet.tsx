@@ -188,7 +188,7 @@ export default function CutSheet({ sheet, branchId }: { sheet: Sheet; branchId: 
       )}
 
       {sheet.lines.length === 0 ? (
-        <p className="rounded-2xl border border-border bg-surface px-4 py-10 text-center text-sm text-muted-foreground">
+        <p className="rounded-[18px] border border-border/70 bg-surface shadow-card px-4 py-10 text-center text-sm text-muted-foreground">
           ไม่มีรายการรอสั่ง — รอบนี้ยังไม่มีแผนกไหนขอของ
         </p>
       ) : (

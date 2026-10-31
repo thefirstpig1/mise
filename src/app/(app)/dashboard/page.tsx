@@ -1,4 +1,6 @@
 import { Suspense, type ReactNode } from "react";
+import SectionEyebrow from "@/components/layout/SectionEyebrow";
+import { ChartColumn, Coins, Receipt, Soup, type LucideIcon } from "lucide-react";
 import { requireTenant } from "@/lib/require-tenant";
 import { getOnboardingLogic, type OnboardingStep } from "@/server/onboarding";
 import OnboardingCard, { type OnboardingStepView } from "./_components/OnboardingCard";
@@ -117,7 +119,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
     <div className="mx-auto w-full max-w-6xl space-y-5 px-4 py-6 lg:px-8 lg:py-8">
       <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
         <div className="min-w-0">
-          <h1 className="text-2xl font-semibold leading-tight">ภาพรวม</h1>
+          <SectionEyebrow className="mb-1.5" />
+          <h1 className="text-[1.75rem] font-semibold leading-tight tracking-[-0.005em]">ภาพรวม</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {membership.tenant.name}
             {seeMoney && ` · ${label}`}
@@ -126,7 +129,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
         {seeMoney ? <DashboardControls preset={period.preset} branches={chips} selected={selected} rangeLabel="" /> : null}
       </header>
 
-      <Suspense fallback={<div className="h-14 animate-pulse rounded-2xl border border-border bg-surface-sunk" />}>
+      <Suspense fallback={<div className="h-14 animate-pulse rounded-[18px] bg-surface-sunk" />}>
         <TodayStrip
           tenantId={tenantId}
           reach={reach}
@@ -320,7 +323,7 @@ async function TodayStrip({
   return (
     <div className="space-y-3">
       {onboarding && setupOpen && onboarding.doneCount < SETUP_CHIP_FROM ? <OnboardingCard steps={setupSteps} dismissed={false} /> : null}
-      <section className="flex flex-col gap-2 rounded-2xl border border-border bg-surface px-3 py-2.5 sm:flex-row sm:items-center sm:gap-3" aria-label="ต้องทำวันนี้">
+      <section className="flex flex-col gap-2 rounded-[18px] border border-border/70 bg-surface px-3 py-2.5 shadow-card sm:flex-row sm:items-center sm:gap-3" aria-label="ต้องทำวันนี้">
         <h2 className="shrink-0 pl-1 font-display text-sm font-semibold">ต้องทำวันนี้</h2>
         {items.length === 0 ? (
           <p className="text-sm text-muted-foreground">ไม่มีงานค้าง ✓</p>
@@ -520,7 +523,7 @@ async function Analytics({
     <div className="space-y-5">
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {see.sales ? (
-          <Kpi label="ยอดขายต่อวัน" href={`/sales?${salesQs}`} link="ยอดขาย">
+          <Kpi label="ยอดขายต่อวัน" icon={ChartColumn} href={`/sales?${salesQs}`} link="ยอดขาย">
             <p className="font-display text-[1.7rem] font-semibold leading-tight tabular-nums">{perDay === null ? "—" : baht(perDay)}</p>
             {perDay !== null && prevPerDay ? (
               <p className="flex flex-wrap items-center gap-1.5 text-xs">
@@ -543,7 +546,7 @@ async function Analytics({
         ) : null}
 
         {seeGross ? (
-          <Kpi label="ต้นทุนอาหาร % ของยอดขาย" href="/cost" link="ต้นทุน">
+          <Kpi label="ต้นทุนอาหาร % ของยอดขาย" icon={Soup} href="/cost" link="ต้นทุน">
             <p className="font-display text-[1.7rem] font-semibold leading-tight tabular-nums">
               {foodPct === null ? "—" : pct1(foodPct)}
               {foodPct === null && multi ? <span className="ml-1.5 text-sm font-medium text-muted-subtle">ทั้งร้าน</span> : null}
@@ -578,7 +581,7 @@ async function Analytics({
         ) : null}
 
         {see.expense ? (
-          <Kpi label="ค่าใช้จ่ายดำเนินงาน" href="/expenses/analysis" link="รายจ่าย">
+          <Kpi label="ค่าใช้จ่ายดำเนินงาน" icon={Receipt} href="/expenses/analysis" link="รายจ่าย">
             <p className="font-display text-[1.7rem] font-semibold leading-tight tabular-nums">{num(pnl.opex) ? baht(num(pnl.opex)!) : "—"}</p>
             <p className="text-xs text-muted-subtle">
               {!num(pnl.opex) ? "ยังไม่มีบิลในช่วงนี้" : revenue ? `${pct1((num(pnl.opex)! / revenue) * 100)} ของยอดขาย` : "ยังไม่มียอดขายให้เทียบ"}
@@ -591,7 +594,7 @@ async function Analytics({
         ) : null}
 
         {seeNet ? (
-          <Kpi label="กำไรสุทธิ" href="/cost" link="กำไร">
+          <Kpi label="กำไรสุทธิ" icon={Coins} href="/cost" link="กำไร">
             <p className={`font-display text-[1.7rem] font-semibold leading-tight tabular-nums ${net === null ? "" : net >= 0 ? "text-good" : "text-bad"}`}>
               {net === null ? "—" : baht(net)}
               {net === null && multi ? <span className="ml-1.5 text-sm font-medium text-muted-subtle">ทั้งร้าน</span> : null}
@@ -721,7 +724,7 @@ async function topMenus(tenantId: string, period: Period, branchIds: string[], b
 // ------------------------------------------------------------
 function Card({ title, meta, className = "", children }: { title: string; meta?: string; className?: string; children: ReactNode }) {
   return (
-    <section className={`min-w-0 rounded-2xl border border-border bg-surface p-4 sm:p-5 ${className}`}>
+    <section className={`min-w-0 rounded-[18px] border border-border/70 bg-surface p-4 shadow-card sm:p-5 ${className}`}>
       <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
         <h2 className="font-display text-base font-semibold">{title}</h2>
         {meta ? <span className="text-xs text-muted-subtle">{meta}</span> : null}
@@ -731,11 +734,17 @@ function Card({ title, meta, className = "", children }: { title: string; meta?:
   );
 }
 
-function Kpi({ label, href, link, children }: { label: string; href: string; link: string; children: ReactNode }) {
+/** Queue item 9: the landing page's stat card — a soft card, and the same line icon its page has in the sidebar. */
+function Kpi({ label, icon: Icon, href, link, children }: { label: string; icon: LucideIcon; href: string; link: string; children: ReactNode }) {
   return (
-    <section className="flex min-w-0 flex-col gap-1.5 rounded-2xl border border-border bg-surface p-4">
-      <div className="flex items-baseline justify-between gap-2 text-sm text-muted-foreground">
-        <span>{label}</span>
+    <section className="flex min-w-0 flex-col gap-1.5 rounded-[18px] border border-border/70 bg-surface p-4 shadow-card">
+      <div className="flex items-center justify-between gap-2 text-sm text-muted-foreground">
+        <span className="flex min-w-0 items-center gap-2">
+          <span aria-hidden className="grid h-7 w-7 shrink-0 place-items-center rounded-[9px] bg-surface-sunk ring-1 ring-border">
+            <Icon className="h-4 w-4 text-primary" strokeWidth={1.8} />
+          </span>
+          <span className="min-w-0">{label}</span>
+        </span>
         <a href={href} className="shrink-0 text-xs text-primary hover:underline">
           {link} ›
         </a>
@@ -938,12 +947,12 @@ function AnalyticsSkeleton() {
     <div className="space-y-5" aria-busy="true" aria-label="กำลังคำนวณตัวเลข">
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="h-40 animate-pulse rounded-2xl border border-border bg-surface-sunk" />
+          <div key={i} className="h-40 animate-pulse rounded-[18px] bg-surface-sunk" />
         ))}
       </div>
       <div className="grid gap-4 lg:grid-cols-12">
-        <div className="h-80 animate-pulse rounded-2xl border border-border bg-surface-sunk lg:col-span-8" />
-        <div className="h-80 animate-pulse rounded-2xl border border-border bg-surface-sunk lg:col-span-4" />
+        <div className="h-80 animate-pulse rounded-[18px] bg-surface-sunk lg:col-span-8" />
+        <div className="h-80 animate-pulse rounded-[18px] bg-surface-sunk lg:col-span-4" />
       </div>
     </div>
   );

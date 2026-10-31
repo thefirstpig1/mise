@@ -170,7 +170,7 @@ export default async function ExpenseListPage({
 
       {/* B4 (Kong 2026-10-24): the breakdown by category lives on วิเคราะห์รายจ่าย,
           which drills further; this page records and finds bills. */}
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border bg-surface px-4 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-[18px] border border-border/70 bg-surface shadow-card px-4 py-3">
         {/* Never ฿0 for "nothing recorded yet" (mise-ui-review §3): say so, and
             point at the recurring months that are the usual reason. */}
         <p className="text-sm">

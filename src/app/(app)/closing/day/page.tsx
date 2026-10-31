@@ -88,7 +88,7 @@ export default async function ClosingDayPage({ searchParams }: { searchParams: P
       {editing ? (
         <CloseForm day={day} branchName={branch.name} dateLabel={longDate(date)} profiles={branchProfiles} />
       ) : (
-        <section className="space-y-4 rounded-2xl border border-border bg-surface p-4">
+        <section className="space-y-4 rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <div>
               <h2 className="text-lg font-bold">

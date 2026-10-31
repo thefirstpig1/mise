@@ -214,7 +214,7 @@ export default async function StockWorkPage({ searchParams }: { searchParams: Pr
       )}
 
       <div className="grid gap-4 lg:grid-cols-[1.3fr_1fr]">
-        <section className="rounded-2xl border border-border bg-surface p-4">
+        <section className="rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
           <div className="flex items-baseline justify-between gap-2">
             <h3 className="font-semibold">เคลื่อนไหวล่าสุดของ{branch.name}</h3>
             <a href={`/stock/history?branch=${branch.id}`} className="text-xs text-primary hover:underline">
@@ -248,13 +248,13 @@ export default async function StockWorkPage({ searchParams }: { searchParams: Pr
 
         <div className="grid content-start gap-4">
           {value !== null && (
-            <a href="/products?sort=value" className="block rounded-2xl border border-border bg-surface p-4 hover:bg-muted/40">
+            <a href="/products?sort=value" className="block rounded-[18px] border border-border/70 bg-surface shadow-card p-4 hover:bg-muted/40">
               <span className="text-xs text-muted-subtle">มูลค่าสต๊อก{branch.name} · ตามราคาทุน (FIFO)</span>
               <span className="block font-display text-2xl font-semibold tabular-nums">{baht(value)}</span>
               <span className="text-xs text-primary">ดูรายการเรียงตามมูลค่า ›</span>
             </a>
           )}
-          <section className="rounded-2xl border border-border bg-surface p-4">
+          <section className="rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
             <h3 className="font-semibold">ต้องดู</h3>
             <div className="mt-2 flex flex-wrap gap-2">
               {stock.negative.length > 0 ? (

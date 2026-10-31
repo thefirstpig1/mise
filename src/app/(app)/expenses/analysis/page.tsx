@@ -128,7 +128,7 @@ export default async function ExpenseAnalysisPage({ searchParams }: { searchPara
       </div>
 
       {total === 0 ? (
-        <div className="rounded-2xl border border-border bg-surface p-10 text-center text-sm text-muted-foreground">
+        <div className="rounded-[18px] border border-border/70 bg-surface shadow-card p-10 text-center text-sm text-muted-foreground">
           ไม่มีรายจ่ายที่ตรงกับเงื่อนไขนี้ ·{" "}
           <ActionLink href={href({ account: undefined, section: undefined, group: undefined, supplier: undefined })} className="ml-1">ล้างตัวกรอง</ActionLink>
         </div>
@@ -222,7 +222,7 @@ function Pill({ href, active, children }: { href: string; active: boolean; child
 
 function Stat({ label, value, sub, small }: { label: string; value: string; sub?: string; small?: boolean }) {
   return (
-    <div className="rounded-2xl border border-border bg-surface p-4">
+    <div className="rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
       <p className="text-sm text-muted-foreground">{label}</p>
       <p className={`mt-1 font-semibold ${small ? "truncate text-lg" : "tabular-nums text-2xl"}`} title={value}>{value}</p>
       {sub ? <p className="mt-0.5 tabular-nums text-xs text-muted-foreground">{sub}</p> : null}
@@ -232,7 +232,7 @@ function Stat({ label, value, sub, small }: { label: string; value: string; sub?
 
 function Card({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-2xl border border-border bg-surface p-5">
+    <section className="rounded-[18px] border border-border/70 bg-surface shadow-card p-5">
       <h2 className="text-base font-semibold">{title}</h2>
       {hint ? <p className="mb-4 mt-0.5 text-xs text-muted-foreground">{hint}</p> : <div className="mb-4" />}
       {children}

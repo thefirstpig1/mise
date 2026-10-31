@@ -489,7 +489,7 @@ export default function ProductsManager(props: {
         <EmptyState art="start">ยังไม่มีสินค้า — กด “นำเข้าจากไฟล์” เพื่อเพิ่มทั้งรายการทีเดียว หรือ “เพิ่มสินค้า” ทีละรายการ</EmptyState>
       ) : (
         <>
-          <div className="space-y-3 rounded-2xl border border-border bg-surface p-4">
+          <div className="space-y-3 rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
             <div className="flex flex-wrap gap-2.5" role="group" aria-label="ตัวกรอง">
               {STATUS.map((s) => (
                 <button key={s.key} type="button" className={chip(status === s.key)} onClick={() => setStatus(s.key)}>

@@ -232,7 +232,7 @@ export default function NewProductSheet({
       <div className="space-y-4 px-5 py-4 max-sm:flex-none sm:flex-1 sm:overflow-y-auto">
         {loadError && <p className="text-sm text-bad">{loadError}</p>}
 
-        <section className="space-y-2 rounded-2xl border border-border bg-surface p-4">
+        <section className="space-y-2 rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
           <h4 className="font-semibold">เป็นของแบบไหน</h4>
           <div className="grid gap-2 sm:grid-cols-2">
             {(
@@ -286,7 +286,7 @@ export default function NewProductSheet({
           )}
         </section>
 
-        <section className="space-y-2.5 rounded-2xl border border-border bg-surface p-4">
+        <section className="space-y-2.5 rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h4 className="font-semibold">นับสต๊อกเป็น</h4>
             <span className="text-xs text-muted-foreground">หน่วยที่นับ · ต้นทุนคิดต่อหน่วยนี้ · เปลี่ยนภายหลังยาก</span>
@@ -345,7 +345,7 @@ export default function NewProductSheet({
           )}
         </section>
 
-        <section className="space-y-2 rounded-2xl border border-border bg-surface p-4">
+        <section className="space-y-2 rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h4 className="font-semibold">ซื้อมาเป็น</h4>
             <span className="text-xs text-muted-foreground">ใช้ตอนสั่งซื้อ รับของ และนับ</span>
@@ -426,7 +426,7 @@ export default function NewProductSheet({
           )}
         </section>
 
-        <section className="space-y-3 rounded-2xl border border-border bg-surface p-4">
+        <section className="space-y-3 rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
           <label className="grid max-w-sm gap-0.5">
             <span className="pl-2.5 text-[11px] text-muted-subtle">หมวด</span>
             <select value={d.categoryId} onChange={(e) => set({ categoryId: e.target.value })} className="w-full rounded-full border border-border bg-surface px-2.5 py-1 text-sm">

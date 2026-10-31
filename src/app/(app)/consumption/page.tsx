@@ -136,9 +136,14 @@ export default async function ConsumptionPage({
           <ConsumptionDayTable days={days} branchId={branchId} />
         )}
 
+        {/* Kong 2026-10-31 ("จัดมาตามนั้น"): the old note said prepped goods had
+            no stock of their own "until production is recorded" — ADR 0040
+            built that. What posting does now (rule PF1–PF3): */}
         <p className="text-xs text-muted-foreground">
-          ของแปรรูปยังไม่มีสต๊อกของตัวเอง — การขายจะระเบิดทะลุไปถึงวัตถุดิบดิบเสมอ
-          และการนับของแปรรูปจะเจอ “ของเกิน” ทุกครั้ง จนกว่าจะมีระบบบันทึกการผลิต
+          ของแปรรูปที่มีอยู่บนชั้น ระบบตัดตัวของแปรรูปก่อน ถ้าไม่พอจึงตัดวัตถุดิบตามสูตรการทำแทน ·{" "}
+          <a href="/production" className="text-primary hover:underline">
+            บันทึกการผลิต
+          </a>
         </p>
       </div>
     </PageFrame>

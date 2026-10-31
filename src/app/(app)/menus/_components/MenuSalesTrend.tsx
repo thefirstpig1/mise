@@ -57,7 +57,7 @@ export default function MenuSalesTrend({ menuId, branchId, branchName, today }: 
       <Seg label="ช่วงเวลา" value={n} onChange={setN} items={[["3", "3 เดือน"], ["6", "6 เดือน"], ["12", "12 เดือน"]]} />
     </div>
   );
-  const frame = (body: React.ReactNode) => <section className="space-y-2 rounded-2xl border border-border bg-surface p-4">{head}{body}</section>;
+  const frame = (body: React.ReactNode) => <section className="space-y-2 rounded-[18px] border border-border/70 bg-surface shadow-card p-4">{head}{body}</section>;
 
   if (res === null) return frame(<div aria-busy className="h-[150px] animate-pulse rounded-lg bg-muted" />);
   if (!res.ok) return frame(<p className="py-4 text-sm text-muted-foreground">เปิดยอดขายไม่ได้ในตอนนี้ — {res.formError}</p>);

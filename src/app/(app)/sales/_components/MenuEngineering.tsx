@@ -152,7 +152,7 @@ export default function MenuEngineering({
             type="button"
             aria-pressed={filter === g}
             onClick={() => setFilter(filter === g ? null : g)}
-            className="grid grid-cols-[auto_1fr] items-center gap-x-3 rounded-2xl border border-border bg-surface px-3 py-2 text-left transition hover:border-border-strong"
+            className="grid grid-cols-[auto_1fr] items-center gap-x-3 rounded-[18px] border border-border/70 bg-surface shadow-card px-3 py-2 text-left transition hover:border-border-strong"
             style={filter === g ? { boxShadow: `0 0 0 2px ${G[g].colour}`, borderColor: G[g].colour } : undefined}
           >
             <Sym g={g} size={30} />
@@ -336,7 +336,7 @@ function Chart({
   const hotItem = hot ? items.find((i) => i.id === hot) : null;
 
   return (
-    <div ref={box} className="min-w-0 rounded-2xl border border-border bg-surface p-2" onMouseLeave={() => onHover(null, 0, 0)}>
+    <div ref={box} className="min-w-0 rounded-[18px] border border-border/70 bg-surface shadow-card p-2" onMouseLeave={() => onHover(null, 0, 0)}>
       <svg viewBox={`0 0 ${w} ${H}`} width="100%" role="img" aria-label="Menu engineering">
         {quads.map(([g, x1, y1, x2, y2]) => {
           const on = !filter || filter === g;

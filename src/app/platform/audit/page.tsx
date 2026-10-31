@@ -24,7 +24,7 @@ export default async function PlatformAuditPage() {
         <h1 className="text-2xl font-semibold">บันทึกการแก้ไข</h1>
         <p className="mt-1 text-sm text-muted-foreground">ทุกการแก้จากหน้าผู้ดูแลระบบ — ใคร แก้ร้านไหน จากอะไรเป็นอะไร · ลบหรือแก้บันทึกไม่ได้</p>
       </div>
-      <div className="overflow-x-auto rounded-2xl border border-border bg-surface">
+      <div className="overflow-x-auto rounded-[18px] border border-border/70 bg-surface shadow-card">
         <table className="data-table w-full min-w-[760px]">
           <thead>
             <tr>

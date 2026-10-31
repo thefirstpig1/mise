@@ -98,7 +98,7 @@ function PendingRow({
 
   const q = t.quota;
   return (
-    <li className="rounded-2xl border border-border bg-surface px-4 py-3">
+    <li className="rounded-[18px] border border-border/70 bg-surface shadow-card px-4 py-3">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="font-medium">
@@ -243,7 +243,7 @@ export default function TicketBoard({
             </span>
           </h2>
           {board.pending.length === 0 ? (
-            <p className="rounded-2xl border border-border bg-surface p-3 text-sm text-muted-foreground">
+            <p className="rounded-[18px] border border-border/70 bg-surface shadow-card p-3 text-sm text-muted-foreground">
               ไม่มีตั๋วรออนุมัติ
             </p>
           ) : (
@@ -345,7 +345,7 @@ export default function TicketBoard({
       <section className="mx-auto max-w-xl space-y-2">
         <h2 className="text-lg font-semibold">ตั๋วของฉัน</h2>
         {board.mine.length === 0 ? (
-          <p className="rounded-2xl border border-border bg-surface p-3 text-sm text-muted-foreground">
+          <p className="rounded-[18px] border border-border/70 bg-surface shadow-card p-3 text-sm text-muted-foreground">
             ยังไม่มีตั๋วตั้งแต่เมื่อวาน
           </p>
         ) : (

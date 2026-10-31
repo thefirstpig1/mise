@@ -79,6 +79,14 @@ const config: Config = {
         /** #AEB784 exactly. Only ever used through `highlight` below. */
         sage: "#AEB784",
 
+        /** The landing page's gold (Kong 2026-10-31, queue item 9): the section
+         *  label above every heading and the sidebar's group names. `ink` is the
+         *  readable one on cream and white; DEFAULT is for marks, not text. */
+        gold: {
+          DEFAULT: "#D9AC42",
+          ink: "#9A6B12",
+        },
+
         /**
          * THE HIGHLIGHT. Translucent on purpose — the grid lines and the
          * surface underneath show THROUGH it. It is not a gradient and it is
