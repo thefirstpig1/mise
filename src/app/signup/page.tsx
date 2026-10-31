@@ -4,6 +4,7 @@
 
 import Link from "next/link";
 import { auth } from "@/lib/auth";
+import { listActiveMembershipsForUser } from "@/lib/require-tenant";
 import Logo from "@/components/layout/Logo";
 import SignupForm from "./SignupForm";
 import { signOutToUseAnotherEmail } from "./actions";
@@ -11,6 +12,9 @@ import { signOutToUseAnotherEmail } from "./actions";
 export default async function SignupPage() {
   const session = await auth();
   const signedInEmail = session?.user?.email ?? null;
+  // Kong 2026-10-31: an owner opening a second shop (another brand) comes
+  // here too — same form, but it says so and offers the way back.
+  const shopsAlready = session?.user?.id ? (await listActiveMembershipsForUser(session.user.id)).length : 0;
 
   return (
     <main className="flex min-h-screen justify-center px-5 py-10">
@@ -20,9 +24,15 @@ export default async function SignupPage() {
           <span className="font-display text-[22px] font-semibold text-primary">คิดครัว</span>
         </Link>
 
-        <SignupForm signedInEmail={signedInEmail} />
+        <SignupForm signedInEmail={signedInEmail} anotherShop={shopsAlready > 0} userName={session?.user?.name ?? ""} />
 
-        {signedInEmail ? (
+        {shopsAlready > 0 ? (
+          <p className="text-center text-sm text-muted-foreground">
+            <Link href="/dashboard" className="font-semibold text-primary underline">
+              ‹ กลับไปร้านเดิม
+            </Link>
+          </p>
+        ) : signedInEmail ? (
           // 🔴 NOT a link to /login. A signed-in person with no shop is
           // bounced /login → /dashboard → /signup, straight back here, so
           // "เข้าสู่ระบบ" was a button that did nothing (Kong, 2026-09-27).

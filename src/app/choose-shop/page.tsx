@@ -116,6 +116,16 @@ export default async function ChooseShopPage() {
           })}
         </div>
 
+        {/* Kong 2026-10-31: another brand on the same account — owners only. */}
+        {memberships.some((m) => m.role === "owner") ? (
+          <a
+            href="/signup"
+            className="flex h-12 w-full items-center justify-center rounded-[18px] border border-dashed border-primary-line text-sm font-semibold text-primary hover:bg-primary-soft"
+          >
+            + เปิดร้านใหม่
+          </a>
+        ) : null}
+
         <form action={signOutHere} className="text-center">
           <button type="submit" className="h-11 text-sm font-semibold text-primary underline">
             ออกจากระบบ

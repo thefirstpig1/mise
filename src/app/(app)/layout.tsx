@@ -50,6 +50,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
         shopName={membership.tenant.name}
         userLabel={user.name ?? user.email ?? ""}
         canSwitchShop={membershipCount > 1}
+        canOpenShop={membership.role === "owner"}
         isPlatformAdmin={isPlatformAdminEmail(user.email)}
         signOutSlot={
           <form action={doSignOut}>

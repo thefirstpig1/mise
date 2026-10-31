@@ -32,7 +32,16 @@ function Choice({ name, value, title, hint }: { name: string; value: string; tit
   );
 }
 
-export default function SignupForm({ signedInEmail }: { signedInEmail: string | null }) {
+export default function SignupForm({
+  signedInEmail,
+  anotherShop = false,
+  userName = "",
+}: {
+  signedInEmail: string | null;
+  /** Already in a shop: this opens another one (another brand) on the same account. */
+  anotherShop?: boolean;
+  userName?: string;
+}) {
   const [state, action, pending] = useActionState(signupAction, IDLE);
   const [step, setStep] = useState<1 | 2>(1);
   const [late, setLate] = useState(false);
@@ -73,12 +82,16 @@ export default function SignupForm({ signedInEmail }: { signedInEmail: string | 
       {/* ---------- step 1 ---------- */}
       <div className={step === 1 ? "space-y-5" : "hidden"}>
         <div>
-          <h1 className="text-[28px] font-semibold">สมัครใช้งานคิดครัว</h1>
-          <p className="mt-1.5 text-muted-foreground">ข้อมูลของคุณและร้าน</p>
+          <h1 className="text-[28px] font-semibold">{anotherShop ? "เปิดร้านใหม่" : "สมัครใช้งานคิดครัว"}</h1>
+          <p className="mt-1.5 text-muted-foreground">
+            {anotherShop
+              ? "ร้านใหม่แยกข้อมูลจากร้านเดิมทั้งหมด เช่น อีกแบรนด์หนึ่ง · สลับร้านได้ที่ “เปลี่ยนร้าน” ในเมนูข้าง"
+              : "ข้อมูลของคุณและร้าน"}
+          </p>
         </div>
         <div>
           <label htmlFor="name" className="label mb-1.5">ชื่อของคุณ</label>
-          <input id="name" name="name" autoComplete="name" className={input("name")} aria-invalid={!!err("name")} />
+          <input id="name" name="name" autoComplete="name" defaultValue={userName} className={input("name")} aria-invalid={!!err("name")} />
           {err("name") && <p className="mt-1.5 text-sm text-bad">{err("name")}</p>}
         </div>
         <div>
@@ -152,7 +165,7 @@ export default function SignupForm({ signedInEmail }: { signedInEmail: string | 
             ย้อนกลับ
           </button>
           <button type="submit" disabled={pending} className="btn h-12 flex-1 text-base">
-            {pending ? "กำลังสร้างร้าน…" : "สร้างร้าน"}
+            {pending ? "กำลังสร้างร้าน…" : anotherShop ? "เปิดร้านนี้" : "สร้างร้าน"}
           </button>
         </div>
         {!signedInEmail && <p className="text-center text-sm text-muted-foreground">กดแล้วระบบจะส่งลิงก์เข้าสู่ระบบไปที่อีเมลของคุณ</p>}

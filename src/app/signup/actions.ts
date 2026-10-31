@@ -6,6 +6,9 @@
 // wrong. Everything else is the Part 31 flow, unchanged — read the 🔴 below.
 
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
+import { revalidatePath } from "next/cache";
+import { ACTIVE_TENANT_COOKIE, ACTIVE_TENANT_COOKIE_MAX_AGE } from "@/lib/active-tenant";
 import { prisma } from "@/lib/db";
 import { createTenant } from "@/server/tenant-init";
 import { salesDayCutoffSchema } from "@/lib/validations/branch";
@@ -61,7 +64,7 @@ export async function signupAction(_prev: SignupState, formData: FormData): Prom
   });
 
   // 2. Create tenant with full init
-  await createTenant({
+  const created = await createTenant({
     ownerUserId: user.id,
     tenantName,
     isVatRegistered: vat === "yes",
@@ -69,7 +72,21 @@ export async function signupAction(_prev: SignupState, formData: FormData): Prom
     firstBranchSalesDayCutoffMinutes,
   });
 
-  if (signedInEmail) redirect("/dashboard");
+  if (signedInEmail) {
+    // Kong 2026-10-31: one owner, several shops (another brand, not a branch).
+    // A signed-in person who opens another shop lands IN it, not back in the
+    // one they came from. The id is the shop just made for this very user —
+    // the cookie still only ever names one of their own memberships (rule A9).
+    const jar = await cookies();
+    jar.set(ACTIVE_TENANT_COOKIE, created.tenant.id, {
+      httpOnly: true,
+      sameSite: "lax",
+      path: "/",
+      maxAge: ACTIVE_TENANT_COOKIE_MAX_AGE,
+    });
+    revalidatePath("/", "layout");
+    redirect("/dashboard");
+  }
 
   // 3. Send magic link to login
   //

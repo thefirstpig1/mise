@@ -127,6 +127,7 @@ export default function Sidebar({
   shopName,
   userLabel,
   canSwitchShop,
+  canOpenShop = false,
   isPlatformAdmin = false,
   signOutSlot,
 }: {
@@ -134,6 +135,8 @@ export default function Sidebar({
   shopName: string;
   userLabel: string;
   canSwitchShop: boolean;
+  /** An owner may open another shop (another brand) on the same account (Kong 2026-10-31). */
+  canOpenShop?: boolean;
   /** ADR 0043: the operator's door. Hiding it is tidiness — /platform checks for itself. */
   isPlatformAdmin?: boolean;
   signOutSlot: ReactNode;
@@ -275,11 +278,16 @@ export default function Sidebar({
         <p className="truncate text-muted-foreground" title={userLabel}>
           {userLabel}
         </p>
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
           {/* Only when there is somewhere to switch TO (ADR 0029 Q3). */}
           {canSwitchShop ? (
             <a href="/choose-shop" className="text-primary hover:underline">
               เปลี่ยนร้าน
+            </a>
+          ) : null}
+          {canOpenShop ? (
+            <a href="/signup" className="text-primary hover:underline">
+              + เปิดร้านใหม่
             </a>
           ) : null}
           {signOutSlot}
