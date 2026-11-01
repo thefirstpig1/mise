@@ -27,8 +27,8 @@
 
 import { headers } from "next/headers";
 import NextAuth from "next-auth";
-import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "./db";
+import { sessionTolerantAdapter } from "./auth-adapter";
 import { decideEmailDelivery, isProductionRuntime } from "./email/delivery";
 import { isEmailConfigured, sendEmail } from "./email/transport";
 import { magicLinkEmail } from "./email/templates";
@@ -39,7 +39,7 @@ import { clientIpFrom, tooManySendsFromIp } from "./email/ip-rate-limit";
 const MAGIC_LINK_MAX_AGE_SECONDS = 24 * 60 * 60;
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
-  adapter: PrismaAdapter(prisma),
+  adapter: sessionTolerantAdapter(prisma),
   session: {
     strategy: "database",
     maxAge: 30 * 24 * 60 * 60, // 30 days
