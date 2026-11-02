@@ -172,6 +172,8 @@ function InviteDialog({
               <label htmlFor="invite-email" className="mb-1 label">อีเมล</label>
               <input id="invite-email" name="email" type="email" required autoFocus placeholder="name@example.com" className="input w-full" />
               {!state.ok && state.fieldErrors?.email && <p className="mt-1 text-xs text-bad">{state.fieldErrors.email}</p>}
+              {/* Kong 2026-11-02: the shop's shared address belongs here, with a role that sees no money — never as the owner. */}
+              <p className="mt-1 text-xs text-muted-foreground">เครื่องในร้านที่พนักงานใช้ร่วมกัน ให้เชิญอีเมลกลางของร้านเป็น “แคชเชียร์” หรือ “พนักงานครัว” สองบทบาทนี้ไม่เห็นต้นทุนและกำไร</p>
             </div>
             <div>
               <label htmlFor="invite-name" className="mb-1 label">

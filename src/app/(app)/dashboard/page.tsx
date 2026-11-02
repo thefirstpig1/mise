@@ -9,6 +9,7 @@ import OnboardingCard, { type OnboardingStepView } from "./_components/Onboardin
 import { withTenantContext } from "@/lib/db";
 import { computeBangkokToday } from "@/lib/bangkok-date";
 import { getBranchesLogic } from "@/server/branch";
+import { hasShopActivityLogic } from "@/server/shop-activity";
 import { getPnlLogic, getRevenueByDayLogic, narrowReach, type Pnl, type PnlBranchRow } from "@/server/pnl";
 import { latestCountedMonthLogic } from "@/server/stock-cost";
 import { getDueRecurringLogic } from "@/server/expense";
@@ -101,7 +102,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
   const seeNet = see.sales && see.cost && see.expense;
 
   const period = periodFor(parsePreset(params.p));
-  const branches = await getBranchesLogic(tenantId, reach);
+  // A shop with no sales, purchases, expenses or counts has no figures to
+  // compute: skip every P&L and chart below (Kong 2026-11-02, see shop-activity.ts).
+  const [branches, active] = await Promise.all([getBranchesLogic(tenantId, reach), seeMoney ? hasShopActivityLogic(tenantId) : Promise.resolve(false)]);
   // Colour follows the branch, never its position among the ones switched on.
   const chips: BranchChip[] = branches.map((b, i) => ({ id: b.id, name: b.name, color: SERIES[i % SERIES.length] }));
   const selected = parseBranchParam(params.b, branches.map((b) => b.id));
@@ -116,10 +119,10 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
           <h1 className="text-[1.75rem] font-semibold leading-tight tracking-[-0.005em]">ภาพรวม</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {membership.tenant.name}
-            {seeMoney && ` · ${label}`}
+            {seeMoney && active && ` · ${label}`}
           </p>
         </div>
-        {seeMoney ? <DashboardControls preset={period.preset} branches={chips} selected={selected} rangeLabel="" /> : null}
+        {seeMoney && active ? <DashboardControls preset={period.preset} branches={chips} selected={selected} rangeLabel="" /> : null}
       </header>
 
       <Suspense fallback={<div className="h-14 animate-pulse rounded-[18px] bg-surface-sunk" />}>
@@ -141,7 +144,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
         />
       </Suspense>
 
-      {seeMoney ? (
+      {seeMoney && !active ? <NoFiguresYet canImport={can("sales:import")} /> : null}
+
+      {seeMoney && active ? (
         <Suspense key={`${period.preset}|${activeIds.join(",")}`} fallback={<AnalyticsSkeleton />}>
           <Analytics
             tenantId={tenantId}
@@ -157,7 +162,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
         </Suspense>
       ) : null}
 
-      {seeNet ? (
+      {seeNet && active ? (
         // Fetched by the chart itself, once per branch choice — a period
         // click only moves its highlight (see dashboard/trend-read.ts).
         <Card title="6 เดือนล่าสุด" meta="กดที่เดือนเพื่อดูทั้งหน้าเป็นเดือนนั้น · เดือนปัจจุบันนับถึงวันนี้">
@@ -729,6 +734,22 @@ function Card({ title, meta, className = "", children }: { title: string; meta?:
       </div>
       {children}
     </section>
+  );
+}
+
+/** A brand-new shop: nothing to sum yet — say what makes the figures appear, never a row of ฿0. */
+function NoFiguresYet({ canImport }: { canImport: boolean }) {
+  return (
+    <Card title="ตัวเลขของร้าน">
+      <p className="text-sm text-muted-foreground">
+        ยังไม่มีตัวเลขให้สรุป · ยอดขาย ต้นทุน และกำไร จะขึ้นที่นี่เมื่อมีไฟล์ยอดขาย บิลซื้อ ค่าใช้จ่าย หรือการนับสต๊อกเข้าระบบ
+      </p>
+      {canImport ? (
+        <a href="/sales/import" className="mt-3 inline-block text-sm font-medium text-primary hover:underline">
+          นำเข้ายอดขาย ›
+        </a>
+      ) : null}
+    </Card>
   );
 }
 

@@ -95,7 +95,7 @@ export default function SignupForm({
           {err("name") && <p className="mt-1.5 text-sm text-bad">{err("name")}</p>}
         </div>
         <div>
-          <label htmlFor="email" className="label mb-1.5">อีเมล</label>
+          <label htmlFor="email" className="label mb-1.5">อีเมลของเจ้าของร้าน</label>
           {signedInEmail ? (
             <p className="rounded-xl border border-border bg-muted/40 px-4 py-3 text-base">{signedInEmail}</p>
           ) : (
@@ -104,7 +104,10 @@ export default function SignupForm({
               {err("email") && <p className="mt-1.5 text-sm text-bad">{err("email")}</p>}
             </>
           )}
-          <p className="mt-1.5 text-sm text-muted-foreground">ใช้อีเมลนี้เข้าสู่ระบบทุกครั้ง ไม่ต้องตั้งรหัสผ่าน</p>
+          {/* Kong 2026-11-02: people signed up with the shop's shared address, which then sees every figure. */}
+          <p className="mt-1.5 text-sm text-muted-foreground">
+            บัญชีนี้เห็นตัวเลขทุกอย่างของร้าน ทั้งยอดขาย ต้นทุน และกำไร จึงควรเป็นอีเมลส่วนตัวของเจ้าของ หรือคนที่เจ้าของมอบหมาย ไม่ใช่อีเมลกลางที่ล็อกอินค้างไว้ที่เครื่องในร้าน · พนักงานเพิ่มทีหลังได้ที่ ตั้งค่า → คนในร้าน
+          </p>
         </div>
         <div>
           <label htmlFor="tenant_name" className="label mb-1.5">ชื่อร้าน</label>
