@@ -30,6 +30,7 @@ import {
   updateRecurringExpenseAction,
 } from "../../../actions";
 import RetireRecurringButton from "../../../_components/RetireRecurringButton";
+import { uuidParams } from "@/lib/route-params";
 
 export default async function EditRecurringExpensePage({
   params,
@@ -37,7 +38,7 @@ export default async function EditRecurringExpensePage({
   params: Promise<{ recurringId: string }>;
 }) {
   const { tenantId, reach, membership, assertBranch } = await requireTenant("expense:write");
-  const { recurringId } = await params;
+  const { recurringId } = await uuidParams(params);
 
   // The six months the history shows: up to this month (or the template's
   // last), never before it started. Known before any read, so it runs alongside.

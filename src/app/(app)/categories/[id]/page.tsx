@@ -5,6 +5,7 @@ import { getCategoryByIdLogic } from "@/server/category";
 import { updateCategory } from "../actions";
 import CategoryForm from "../_components/CategoryForm";
 import DeleteCategoryButton from "../_components/DeleteCategoryButton";
+import { uuidParams } from "@/lib/route-params";
 
 // Next 15: route params are async (await before use).
 export default async function EditCategoryPage({
@@ -12,7 +13,7 @@ export default async function EditCategoryPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = await params;
+  const { id } = await uuidParams(params);
   const { tenantId } = await requireTenant("master:write");
 
   const category = await getCategoryByIdLogic(tenantId, id);

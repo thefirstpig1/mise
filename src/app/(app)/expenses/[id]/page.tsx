@@ -18,6 +18,7 @@ import PaymentBadge from "../_components/PaymentBadge";
 import PaymentToggle from "../_components/PaymentToggle";
 import DeleteExpenseButton from "../_components/DeleteExpenseButton";
 import { deleteExpenseAction, setExpensePaymentAction } from "../actions";
+import { uuidParams } from "@/lib/route-params";
 
 const dateLabel = (iso: string) =>
   new Date(iso).toLocaleDateString("th-TH", { dateStyle: "medium" });
@@ -50,7 +51,7 @@ export default async function ExpenseDetailPage({
 }) {
   const { tenantId, capabilities, assertBranch } = await requireTenant("expense:view");
   const canWrite = capabilities.has("expense:write");
-  const { id } = await params;
+  const { id } = await uuidParams(params);
 
   const row = await getExpenseByIdLogic(tenantId, id);
   if (!row) notFound();

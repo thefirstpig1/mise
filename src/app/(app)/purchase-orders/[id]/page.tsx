@@ -46,6 +46,7 @@ import { toPurchaseOrderDetailView } from "../_components/purchase-order-view";
 import PurchaseOrderActions from "../_components/PurchaseOrderActions";
 import StatusBadge from "../_components/StatusBadge";
 import DeliveryPromise from "../_components/DeliveryPromise";
+import { uuidParams } from "@/lib/route-params";
 
 const THB = new Intl.NumberFormat("th-TH", {
   minimumFractionDigits: 2,
@@ -72,7 +73,7 @@ export default async function PurchaseOrderDetailPage({
   searchParams: Promise<{ names?: string }>;
 }) {
   const { tenantId, membership, can, assertBranch, reach } = await requireTenant("purchase:write");
-  const { id } = await params;
+  const { id } = await uuidParams(params);
   const shopNames = (await searchParams).names === "shop";
 
   const order = await getPurchaseOrderByIdLogic(tenantId, id);

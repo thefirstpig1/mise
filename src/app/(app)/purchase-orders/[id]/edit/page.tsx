@@ -14,6 +14,7 @@ import { updatePurchaseOrderAction } from "../../actions";
 import PurchaseOrderForm from "../../_components/PurchaseOrderForm";
 import { loadPurchaseOrderFormOptions } from "../../_components/form-options";
 import { toPurchaseOrderDetailView } from "../../_components/purchase-order-view";
+import { uuidParams } from "@/lib/route-params";
 
 export default async function EditPurchaseOrderPage({
   params,
@@ -21,7 +22,7 @@ export default async function EditPurchaseOrderPage({
   params: Promise<{ id: string }>;
 }) {
   const { tenantId, membership, reach, assertBranch } = await requireTenant("purchase:write");
-  const { id } = await params;
+  const { id } = await uuidParams(params);
 
   const order = await getPurchaseOrderByIdLogic(tenantId, id);
   if (!order) notFound();

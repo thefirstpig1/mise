@@ -13,10 +13,11 @@ import { notFound, redirect } from "next/navigation";
 import type { Route } from "next";
 import { requireTenant } from "@/lib/require-tenant";
 import { getRecipeByIdLogic } from "@/server/recipe-read";
+import { uuidParams } from "@/lib/route-params";
 
 export default async function RecipeRetired({ params }: { params: Promise<{ id: string }> }) {
   const { tenantId } = await requireTenant("any:member");
-  const { id } = await params;
+  const { id } = await uuidParams(params);
   const recipe = await getRecipeByIdLogic(tenantId, id);
   if (recipe === null) notFound();
   if (recipe.menuId !== null) redirect(`/menus?menu=${recipe.menuId}` as Route);
