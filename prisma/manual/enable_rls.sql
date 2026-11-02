@@ -649,6 +649,13 @@ DROP POLICY IF EXISTS tenant_isolation ON staff_refund;
 CREATE POLICY tenant_isolation ON staff_refund
 USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
+-- ADR 0044 — problem reports. The shop's own rows; who within the shop may read
+-- one (the reporter alone) is the application's narrower rule, not RLS's.
+ALTER TABLE problem_report ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON problem_report;
+CREATE POLICY tenant_isolation ON problem_report
+USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
 -- ============================================================
 -- ADR 0043 — platform audit log: RLS ON, and NO policy on purpose.
 -- With row security enabled and no policy, every row is refused to any role

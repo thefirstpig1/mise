@@ -36,6 +36,8 @@ export const TENANT_SCOPED_DELETE_ORDER = [
   "StoredFile",
   "ExpensePayment",
   "StaffRefund",
+  // ADR 0044: a report's screenshots go first (StoredFile above).
+  "ProblemReport",
   "PurchaseRequestMessage",
   "PurchaseRequestReady",
   "PurchaseOrderDeliveryPromise",

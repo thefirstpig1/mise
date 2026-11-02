@@ -236,6 +236,7 @@ ALTER TABLE "prepped_shortfall" FORCE ROW LEVEL SECURITY;
 ALTER TABLE "stored_file" FORCE ROW LEVEL SECURITY;
 ALTER TABLE "expense_payment" FORCE ROW LEVEL SECURITY;
 ALTER TABLE "staff_refund" FORCE ROW LEVEL SECURITY;
+ALTER TABLE "problem_report" FORCE ROW LEVEL SECURITY;
 -- ADR 0043: forced, and no policy at all (the app role is refused every row)
 ALTER TABLE "platform_audit_log" FORCE ROW LEVEL SECURITY;
 
@@ -335,6 +336,7 @@ ALTER POLICY tenant_isolation ON "prepped_shortfall" USING ((tenant_id = (curren
 ALTER POLICY tenant_isolation ON "stored_file" USING ((tenant_id = (current_setting('app.current_tenant_id'::text))::uuid));
 ALTER POLICY tenant_isolation ON "expense_payment" USING ((tenant_id = (current_setting('app.current_tenant_id'::text))::uuid));
 ALTER POLICY tenant_isolation ON "staff_refund" USING ((tenant_id = (current_setting('app.current_tenant_id'::text))::uuid));
+ALTER POLICY tenant_isolation ON "problem_report" USING ((tenant_id = (current_setting('app.current_tenant_id'::text))::uuid));
 
 -- ============================================================
 -- 5. Verify — run these and read them, do not assume

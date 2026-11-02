@@ -82,7 +82,7 @@ export async function attachFilesInTx(
   tenantId: string,
   userId: string,
   fileIds: string[],
-  owner: { expenseId: string } | { expensePaymentId: string } | { staffRefundId: string }
+  owner: { expenseId: string } | { expensePaymentId: string } | { staffRefundId: string } | { problemReportId: string }
 ): Promise<void> {
   if (fileIds.length === 0) return;
   const res = await tx.storedFile.updateMany({
@@ -94,6 +94,7 @@ export async function attachFilesInTx(
       expenseId: null,
       expensePaymentId: null,
       staffRefundId: null,
+      problemReportId: null,
     },
     data: owner,
   });

@@ -10,7 +10,7 @@
 // not security (rule A7): every page still refuses on its own.
 // ============================================================
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import type { Route } from "next";
@@ -18,6 +18,8 @@ import Logo from "@/components/layout/Logo";
 import ShopSwitcher from "@/components/layout/ShopSwitcher";
 import { currentNavHref, type NavGroup } from "@/components/layout/nav";
 import { NAV_BADGES_EVENT } from "@/lib/nav-badges";
+import { OPEN_REPORT_EVENT } from "@/lib/problem-report";
+import ReportDialog from "@/components/reports/ReportDialog";
 import {
   ArrowLeftRight,
   BookOpen,
@@ -31,6 +33,7 @@ import {
   Coins,
   CookingPot,
   FileSpreadsheet,
+  Flag,
   FlaskConical,
   HandCoins,
   LayoutGrid,
@@ -162,6 +165,8 @@ export default function Sidebar({
   // ~1 s of database work on EVERY page change, competing with the page's own
   // reads, while it almost never moves between two clicks).
   const [badges, setBadges] = useState<Record<string, Badge>>({});
+  // ADR 0044: answers to this person's own problem reports they have not opened.
+  const [replies, setReplies] = useState(0);
   const badgesAt = useRef(0);
   const submitted = useRef(false);
   useEffect(() => {
@@ -180,6 +185,7 @@ export default function Sidebar({
           if (live && j?.ok) {
             badgesAt.current = Date.now();
             setBadges(j.badges);
+            setReplies(typeof j.reportReplies === "number" ? j.reportReplies : 0);
           }
         })
         .catch(() => undefined);
@@ -202,6 +208,16 @@ export default function Sidebar({
   }, [pathname]);
   const anyLow = Object.values(badges).some((b) => b.low > 0);
   const anyNear = Object.values(badges).some((b) => b.near > 0);
+
+  // The one report form in the frame — /reports opens it through an event.
+  const [reporting, setReporting] = useState(false);
+  const closeReport = useCallback(() => setReporting(false), []);
+  useEffect(() => {
+    const onOpen = () => setReporting(true);
+    window.addEventListener(OPEN_REPORT_EVENT, onOpen);
+    return () => window.removeEventListener(OPEN_REPORT_EVENT, onOpen);
+  }, []);
+  const pageLabel = groups.flatMap((g) => g.items).find((i) => i.href === current)?.label;
 
   const panel = (
     <nav aria-label="เมนูหลัก" className="flex h-full flex-col">
@@ -265,7 +281,28 @@ export default function Sidebar({
         })}
       </div>
 
-      <div className="space-y-2 border-t border-border px-5 py-4 text-sm">
+      {/* ADR 0044 (Kong 2026-11-03): at the foot of the menu on every page, the
+          same place inside ☰ on a phone. The clay count = answers not yet read. */}
+      <div className="border-t border-border px-3 pt-2">
+        <button
+          type="button"
+          onClick={() => {
+            setOpen(false);
+            setReporting(true);
+          }}
+          className="flex w-full items-center gap-2.5 rounded-[10px] px-2.5 py-[7px] text-left text-[14px] text-muted-foreground transition-colors hover:bg-primary-soft hover:text-foreground"
+        >
+          <Flag aria-hidden className="h-[17px] w-[17px] shrink-0 text-[#7D8550]" strokeWidth={1.8} />
+          <span className="min-w-0 flex-1">แจ้งปัญหาหรือเสนอแนะ</span>
+          {replies > 0 ? (
+            <span className="inline-grid h-[18px] min-w-[18px] place-items-center rounded-full bg-[#C9734F] px-1.5 text-[11px] font-bold leading-none text-white tabular-nums animate-pop-in" title={`มีคำตอบใหม่ ${replies} เรื่อง`}>
+              {replies > 99 ? "99+" : replies}
+            </span>
+          ) : null}
+        </button>
+      </div>
+
+      <div className="space-y-2 px-5 pb-4 pt-2 text-sm">
         <p className="truncate text-muted-foreground" title={userLabel}>
           {userLabel}
         </p>
@@ -288,10 +325,10 @@ export default function Sidebar({
           aria-expanded={open}
           className="relative rounded-md p-1.5 hover:bg-muted"
         >
-          {anyLow || anyNear ? (
+          {anyLow || anyNear || replies > 0 ? (
             <span
               aria-hidden
-              className={`absolute right-0.5 top-0.5 h-2.5 w-2.5 rounded-full border-2 border-surface ${anyLow ? "bg-[#E5484D]" : "bg-[#F5C542]"}`}
+              className={`absolute right-0.5 top-0.5 h-2.5 w-2.5 rounded-full border-2 border-surface ${anyLow ? "bg-[#E5484D]" : anyNear ? "bg-[#F5C542]" : "bg-[#C9734F]"}`}
             />
           ) : null}
           <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
@@ -313,6 +350,8 @@ export default function Sidebar({
           <div className="absolute inset-y-0 left-0 w-72 max-w-[85vw] bg-surface shadow-xl">{panel}</div>
         </div>
       ) : null}
+
+      <ReportDialog open={reporting} onClose={closeReport} shopName={shopName} userLabel={userLabel} pageLabel={pageLabel} newReplies={replies} />
 
       {/* Desktop: always there. */}
       <aside className="sticky top-0 hidden h-screen w-60 shrink-0 border-r border-border bg-surface lg:block">

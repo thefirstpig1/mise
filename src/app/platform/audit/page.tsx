@@ -2,8 +2,9 @@
 
 import { requirePlatformAdmin } from "@/lib/platform-admin";
 import { listAuditLogic } from "@/server/platform";
+import { STATUS_FOR_OPERATOR, type ReportStatus } from "@/lib/problem-report";
 
-const ACTION: Record<string, string> = { set_plan: "แก้แพ็กเกจ" };
+const ACTION: Record<string, string> = { set_plan: "แก้แพ็กเกจ", "problem_report.update": "เรื่องที่แจ้ง" };
 const PLAN: Record<string, string> = { trial: "Free", standard: "Standard" };
 
 type PlanState = { plan?: string; freeUntil?: string | null; note?: string | null } | null;
@@ -12,6 +13,10 @@ const thDate = (ymd: string) => `${Number(ymd.slice(8, 10))} ${MONTH[Number(ymd.
 const describe = (s: unknown) => {
   const p = s as PlanState;
   if (!p) return "—";
+  // ADR 0044 — a report's status and the answer the reporter reads.
+  const r = s as { status?: string; reply?: string | null };
+  if (r.status && r.status in STATUS_FOR_OPERATOR)
+    return [STATUS_FOR_OPERATOR[r.status as ReportStatus], r.reply ? `ตอบ “${r.reply.length > 60 ? `${r.reply.slice(0, 60)}…` : r.reply}”` : null].filter(Boolean).join(" · ");
   return [PLAN[p.plan ?? ""] ?? p.plan, p.freeUntil ? `ฟรีถึง ${thDate(p.freeUntil)}` : "ไม่กำหนดวัน", p.note ? `“${p.note}”` : null].filter(Boolean).join(" · ");
 };
 

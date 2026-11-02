@@ -8,7 +8,7 @@
 // the server then serves the original for both.
 // ============================================================
 
-export type PhotoKind = "BILL" | "PAYMENT_SLIP" | "REFUND_SLIP";
+export type PhotoKind = "BILL" | "PAYMENT_SLIP" | "REFUND_SLIP" | "REPORT_SCREENSHOT";
 
 export type UploadResult =
   | {

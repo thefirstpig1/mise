@@ -229,6 +229,7 @@ model Tenant {
   storedFiles     StoredFile[]
   expensePayments ExpensePayment[]
   staffRefunds    StaffRefund[]
+  problemReports  ProblemReport[]
 
   @@map("tenant")
 }
@@ -296,6 +297,7 @@ model Branch {
   productions       Production[]
   preppedShortfalls PreppedShortfall[]
   expensePayments   ExpensePayment[]
+  problemReports    ProblemReport[]
 
   @@index([tenantId])
   @@map("branch")
@@ -383,6 +385,7 @@ model User {
   refundsReceived  StaffRefund[]    @relation("RefundTo")
   refundsMade      StaffRefund[]    @relation("RefundBy")
   refundsVoided    StaffRefund[]    @relation("RefundVoidedBy")
+  problemReports   ProblemReport[]  @relation("ProblemReportedBy")
 
   @@map("app_user")
 }
@@ -3992,6 +3995,8 @@ enum StoredFileKind {
   PAYMENT_SLIP
   /// Proof the shop paid the staff member back.
   REFUND_SLIP
+  /// A screenshot attached to a problem report (ADR 0044).
+  REPORT_SCREENSHOT
 
   @@map("stored_file_kind")
 }
@@ -4018,6 +4023,7 @@ model StoredFile {
   expenseId        String? @map("expense_id") @db.Uuid
   expensePaymentId String? @map("expense_payment_id") @db.Uuid
   staffRefundId    String? @map("staff_refund_id") @db.Uuid
+  problemReportId  String? @map("problem_report_id") @db.Uuid
 
   uploadedBy String    @map("uploaded_by")
   createdAt  DateTime  @default(now()) @map("created_at")
@@ -4027,6 +4033,7 @@ model StoredFile {
   expense        Expense?        @relation(fields: [expenseId], references: [id])
   expensePayment ExpensePayment? @relation(fields: [expensePaymentId], references: [id])
   staffRefund    StaffRefund?    @relation(fields: [staffRefundId], references: [id])
+  problemReport  ProblemReport?  @relation(fields: [problemReportId], references: [id])
   uploadedByUser User            @relation("StoredFileUploadedBy", fields: [uploadedBy], references: [id])
 
   @@index([tenantId])
@@ -4034,6 +4041,7 @@ model StoredFile {
   @@index([expenseId], map: "stored_file_expense_idx")
   @@index([expensePaymentId], map: "stored_file_payment_idx")
   @@index([staffRefundId], map: "stored_file_refund_idx")
+  @@index([problemReportId], map: "stored_file_report_idx")
   @@map("stored_file")
 }
 
@@ -4165,4 +4173,84 @@ model PlatformAuditLog {
   @@index([targetTenantId], map: "platform_audit_target_idx")
   @@index([createdAt], map: "platform_audit_created_idx")
   @@map("platform_audit_log")
+}
+
+// ============================================================
+// ADR 0044 — problem reports (Kong 2026-11-03: "อนุมัติ")
+// ============================================================
+// A person in a shop tells คิดครัว something is wrong, wanted, or unclear,
+// from inside the app — "โดยไม่ต้องติดต่อโดยตรงมาถึงผม". The shop's own table,
+// under the same tenant RLS as every other; who may read a row is narrower than
+// the tenant (the reporter, and the platform operator through the bypass door),
+// and that narrowing lives in src/server/problem-report.ts.
+// ============================================================
+
+enum ProblemReportKind {
+  /// พบปัญหา — something does not work or a figure looks wrong.
+  PROBLEM
+  /// ข้อเสนอแนะ — something to add or change. Never built without Kong's yes.
+  IDEA
+  /// สอบถามวิธีใช้ — how do I…
+  QUESTION
+
+  @@map("problem_report_kind")
+}
+
+enum ProblemReportStatus {
+  /// ใหม่ (the reporter reads: ได้รับเรื่องแล้ว)
+  NEW
+  /// กำลังดู (กำลังตรวจสอบ)
+  LOOKING
+  /// แก้แล้ว รอขึ้นเว็บ (แก้ไขแล้ว รอเปิดใช้)
+  FIXED_PENDING
+  /// ขึ้นเว็บแล้ว (แก้ไขเรียบร้อย) — the one status that e-mails the reporter.
+  FIXED_LIVE
+  /// รับไว้พิจารณา
+  CONSIDERING
+  /// ปิดเรื่อง
+  CLOSED
+
+  @@map("problem_report_status")
+}
+
+model ProblemReport {
+  id         String  @id @default(uuid()) @db.Uuid
+  tenantId   String  @map("tenant_id") @db.Uuid
+  /// The shop's own running number, shown as R-0001 (advisory-lock counter).
+  number     Int
+  branchId   String? @map("branch_id") @db.Uuid
+  reporterId String  @map("reporter_id")
+
+  kind    ProblemReportKind
+  message String
+
+  /// What the app attached by itself, shown to the reporter before sending.
+  pagePath    String  @map("page_path")
+  buildId     String? @map("build_id")
+  userAgent   String? @map("user_agent")
+  viewport    String?
+  /// The error page's digest — the thread to `fly logs`.
+  errorDigest String? @map("error_digest")
+
+  status       ProblemReportStatus @default(NEW)
+  /// คิดครัว's answer, shown on the reporter's "เรื่องที่ฉันแจ้ง".
+  reply        String?
+  repliedAt    DateTime?           @map("replied_at")
+  /// When the reporter last opened their list — what the badge counts from.
+  seenAt       DateTime?           @map("seen_at")
+  /// Kong and Claude only. Never shown to the shop.
+  internalNote String?             @map("internal_note")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant   Tenant       @relation(fields: [tenantId], references: [id])
+  branch   Branch?      @relation(fields: [branchId], references: [id])
+  reporter User         @relation("ProblemReportedBy", fields: [reporterId], references: [id])
+  files    StoredFile[]
+
+  @@unique([tenantId, number], map: "problem_report_number_key")
+  @@index([tenantId, reporterId], map: "problem_report_reporter_idx")
+  @@index([status, createdAt], map: "problem_report_status_idx")
+  @@map("problem_report")
 }

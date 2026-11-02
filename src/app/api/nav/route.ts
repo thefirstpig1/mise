@@ -8,13 +8,15 @@
 import { requireTenant } from "@/lib/require-tenant";
 import { guardRead } from "@/lib/read-api";
 import { getParAlertCountsLogic } from "@/server/menu-manager";
+import { unseenReplyCountLogic } from "@/server/problem-report";
 
 export const dynamic = "force-dynamic";
 
 export function GET() {
   return guardRead(async () => {
-    const { tenantId, reach } = await requireTenant("any:member");
-    const products = await getParAlertCountsLogic(tenantId, reach);
-    return Response.json({ ok: true, badges: { "/products": products } }, { headers: { "Cache-Control": "no-store" } });
+    const { tenantId, reach, user } = await requireTenant("any:member");
+    const [products, reportReplies] = await Promise.all([getParAlertCountsLogic(tenantId, reach), unseenReplyCountLogic(tenantId, user.id!)]);
+    // ADR 0044: answers to this person's own problem reports they have not opened yet.
+    return Response.json({ ok: true, badges: { "/products": products }, reportReplies }, { headers: { "Cache-Control": "no-store" } });
   });
 }

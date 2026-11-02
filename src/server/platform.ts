@@ -15,6 +15,7 @@ import { Prisma } from "@prisma/client";
 import { prismaBypass } from "@/lib/db-admin";
 import type { PlatformActor } from "@/lib/platform-admin";
 import { getShopAccuracySnapshotLogic, type ShopAccuracy } from "@/server/deduction-accuracy";
+import type { ReportKind, ReportStatus, UpdateReportInput } from "@/lib/problem-report";
 
 export const PLANS = { trial: "Free", standard: "Standard" } as const;
 export type PlanCode = keyof typeof PLANS;
@@ -226,4 +227,146 @@ export async function listAuditLogic(_actor: PlatformActor, limit = 100): Promis
     before: r.before as Prisma.JsonValue,
     after: r.after as Prisma.JsonValue,
   }));
+}
+
+// ------------------------------------------------------------
+// ADR 0044 — problem reports, the operator's side (every function takes the PlatformActor)
+// ------------------------------------------------------------
+
+export type PlatformReport = {
+  id: string;
+  number: number;
+  kind: ReportKind;
+  status: ReportStatus;
+  message: string;
+  reply: string | null;
+  internalNote: string | null;
+  shopName: string;
+  branchName: string | null;
+  reporter: string;
+  reporterRole: string | null;
+  pagePath: string;
+  buildId: string | null;
+  userAgent: string | null;
+  viewport: string | null;
+  errorDigest: string | null;
+  createdAt: string;
+  fileIds: string[];
+};
+
+export async function listPlatformReportsLogic(_actor: PlatformActor, limit = 200): Promise<PlatformReport[]> {
+  const rows = await prismaBypass.problemReport.findMany({
+    orderBy: { createdAt: "desc" },
+    take: limit,
+    select: {
+      id: true,
+      tenantId: true,
+      number: true,
+      kind: true,
+      status: true,
+      message: true,
+      reply: true,
+      internalNote: true,
+      pagePath: true,
+      buildId: true,
+      userAgent: true,
+      viewport: true,
+      errorDigest: true,
+      createdAt: true,
+      reporterId: true,
+      tenant: { select: { name: true } },
+      branch: { select: { name: true } },
+      reporter: { select: { name: true, email: true } },
+      files: { where: { deletedAt: null }, select: { id: true } },
+    },
+  });
+  const roles = await prismaBypass.tenantMembership.findMany({
+    where: { OR: rows.map((r) => ({ tenantId: r.tenantId, userId: r.reporterId })) },
+    select: { tenantId: true, userId: true, role: true },
+  });
+  const roleOf = new Map(roles.map((m) => [`${m.tenantId}|${m.userId}`, m.role]));
+  return rows.map((r) => ({
+    id: r.id,
+    number: r.number,
+    kind: r.kind,
+    status: r.status,
+    message: r.message,
+    reply: r.reply,
+    internalNote: r.internalNote,
+    shopName: r.tenant.name,
+    branchName: r.branch?.name ?? null,
+    reporter: r.reporter.name ?? r.reporter.email ?? "",
+    reporterRole: roleOf.get(`${r.tenantId}|${r.reporterId}`) ?? null,
+    pagePath: r.pagePath,
+    buildId: r.buildId,
+    userAgent: r.userAgent,
+    viewport: r.viewport,
+    errorDigest: r.errorDigest,
+    createdAt: r.createdAt.toISOString(),
+    fileIds: r.files.map((f) => f.id),
+  }));
+}
+
+/** How many reports nobody has looked at yet — the tab's count. */
+export async function newReportCountLogic(_actor: PlatformActor): Promise<number> {
+  return prismaBypass.problemReport.count({ where: { status: "NEW" } });
+}
+
+export type ReportUpdated = {
+  /** The status just became FIXED_LIVE: write to the reporter (after this returns). */
+  tellReporter: { to: string; number: number; message: string; reply: string | null } | null;
+};
+
+/**
+ * Status, the answer to the reporter, the internal note. A changed reply stamps
+ * `repliedAt` (the reporter's badge). Logged to platform_audit_log like every
+ * platform write (ADR 0043 Q4) — the note is not, it is Kong's own scratchpad.
+ */
+export async function updatePlatformReportLogic(actor: PlatformActor, input: UpdateReportInput): Promise<ReportUpdated | null> {
+  return prismaBypass.$transaction(async (tx) => {
+    const before = await tx.problemReport.findUnique({
+      where: { id: input.id },
+      select: { status: true, reply: true, number: true, message: true, tenantId: true, tenant: { select: { name: true } }, reporter: { select: { email: true } } },
+    });
+    if (!before) return null;
+    const reply = input.reply === undefined ? before.reply : input.reply || null;
+    const replyChanged = reply !== before.reply;
+    await tx.problemReport.update({
+      where: { id: input.id },
+      data: {
+        status: input.status,
+        reply,
+        ...(replyChanged && reply ? { repliedAt: new Date() } : {}),
+        ...(input.internalNote === undefined ? {} : { internalNote: input.internalNote || null }),
+      },
+    });
+    if (before.status !== input.status || replyChanged) {
+      await tx.platformAuditLog.create({
+        data: {
+          actorUserId: actor.userId,
+          actorEmail: actor.email,
+          action: "problem_report.update",
+          targetTenantId: before.tenantId,
+          targetName: `${before.tenant.name} · R-${String(before.number).padStart(4, "0")}`,
+          before: { status: before.status, reply: before.reply },
+          after: { status: input.status, reply },
+        },
+      });
+    }
+    const nowLive = input.status === "FIXED_LIVE" && before.status !== "FIXED_LIVE";
+    return {
+      tellReporter: nowLive && before.reporter.email ? { to: before.reporter.email, number: before.number, message: before.message, reply } : null,
+    };
+  });
+}
+
+/**
+ * A report's screenshot, for the operator's inbox. ONLY a file attached to a
+ * problem report — this door must not become a way to read a shop's bills.
+ */
+export async function getReportScreenshotLogic(_actor: PlatformActor, fileId: string): Promise<{ storageKey: string; contentType: string } | null> {
+  return prismaBypass.storedFile.findFirst({
+    where: { id: fileId, kind: "REPORT_SCREENSHOT", problemReportId: { not: null }, deletedAt: null },
+    select: { storageKey: true, contentType: true },
+  });
 }

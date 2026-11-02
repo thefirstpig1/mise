@@ -11,6 +11,8 @@
 // Who may upload which kind:
 //   BILL, PAYMENT_SLIP — purchase:self (your own purchase) or expense:write
 //   REFUND_SLIP        — refund:pay
+//   REPORT_SCREENSHOT  — anyone in the shop (ADR 0044: a screenshot for a
+//                        problem report; only its uploader can read it back)
 // ============================================================
 
 import { requireTenant } from "@/lib/require-tenant";
@@ -22,7 +24,7 @@ export const dynamic = "force-dynamic";
 const json = (body: unknown, status = 200) => Response.json(body, { status, headers: { "Cache-Control": "no-store" } });
 const refuse = (formError: string, status = 400) => json({ ok: false, formError }, status);
 
-const KINDS = ["BILL", "PAYMENT_SLIP", "REFUND_SLIP"] as const;
+const KINDS = ["BILL", "PAYMENT_SLIP", "REFUND_SLIP", "REPORT_SCREENSHOT"] as const;
 type Kind = (typeof KINDS)[number];
 const MAX_THUMB_BYTES = 512 * 1024;
 
@@ -37,7 +39,8 @@ export async function POST(req: Request) {
   }
   const kind = form.get("kind");
   if (typeof kind !== "string" || !(KINDS as readonly string[]).includes(kind)) return refuse("คำขอไม่ถูกต้อง");
-  const allowed = kind === "REFUND_SLIP" ? can("refund:pay") : can("purchase:self") || can("expense:write");
+  const allowed =
+    kind === "REPORT_SCREENSHOT" ? true : kind === "REFUND_SLIP" ? can("refund:pay") : can("purchase:self") || can("expense:write");
   if (!allowed) return refuse("บัญชีนี้ไม่มีสิทธิ์แนบรูปประเภทนี้", 403);
 
   const file = form.get("file");

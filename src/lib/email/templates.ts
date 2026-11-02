@@ -199,3 +199,54 @@ export function purchaseReadyEmail(input: { shopName: string; branchName: string
   );
   return { subject: `ใบขอซื้อ ${branchName} พร้อมสั่งแล้ว (${lineCount} รายการ)`, text, html };
 }
+
+/**
+ * ADR 0044 — a new problem report, to the operator (PLATFORM_ADMIN_EMAILS).
+ * The message's first lines only; the whole report lives on the platform tab.
+ * Kong 2026-11-03: "ทุกครั้งได้เลย".
+ */
+export function problemReportEmail(input: {
+  no: string;
+  kind: string;
+  shopName: string;
+  branchName: string | null;
+  reporter: string;
+  page: string;
+  message: string;
+  url: string;
+}): RenderedEmail {
+  const { no, kind, shopName, branchName, reporter, page, url } = input;
+  const message = input.message.length > 400 ? `${input.message.slice(0, 400)}…` : input.message;
+  const where = [shopName, branchName].filter(Boolean).join(" · ");
+  const text = [`เรื่องใหม่ ${no} · ${kind}`, `${reporter} · ${where} · ${page}`, "", message, "", `เปิดในหน้าควบคุมระบบ: ${url}`].join("\n");
+  const html = shell(
+    [
+      `<p style="margin:0 0 8px"><strong>${escapeHtml(reporter)}</strong> · ${escapeHtml(where)} · ${escapeHtml(page)}</p>`,
+      `<p style="margin:0 0 24px;font-size:15px;color:#333;white-space:pre-wrap">“${escapeHtml(message)}”</p>`,
+      button(url, "เปิดในหน้าควบคุมระบบ"),
+      copyableUrl(url),
+    ].join("")
+  );
+  return { subject: `[คิดครัว] เรื่องใหม่ ${no} · ${kind} · ${shopName}`, text, html };
+}
+
+/**
+ * ADR 0044 — the reporter's problem is fixed and live. The one status that
+ * writes to the shop (Kong 2026-11-03: "ได้เลยตามนั้น"). No credential: the
+ * link opens their list, which asks them to sign in.
+ */
+export function reportFixedEmail(input: { no: string; message: string; reply: string | null; url: string }): RenderedEmail {
+  const { no, url } = input;
+  const message = input.message.length > 200 ? `${input.message.slice(0, 200)}…` : input.message;
+  const reply = input.reply?.trim() || "แก้ไขเรียบร้อยแล้ว ลองใช้งานอีกครั้งได้เลย ขอบคุณที่แจ้งให้ทราบ";
+  const text = [`เรื่องที่คุณแจ้ง ${no} แก้ไขเรียบร้อยแล้ว`, "", `“${message}”`, "", reply, "", `ดูเรื่องที่คุณแจ้ง: ${url}`].join("\n");
+  const html = shell(
+    [
+      `<p style="margin:0 0 8px;font-size:14px;color:#666">“${escapeHtml(message)}”</p>`,
+      `<p style="margin:0 0 24px;white-space:pre-wrap">${escapeHtml(reply)}</p>`,
+      button(url, "ดูเรื่องที่ฉันแจ้ง"),
+      copyableUrl(url),
+    ].join("")
+  );
+  return { subject: `[คิดครัว] เรื่องที่คุณแจ้ง ${no} แก้ไขเรียบร้อยแล้ว`, text, html };
+}

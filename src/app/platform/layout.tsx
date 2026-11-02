@@ -6,12 +6,14 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { requirePlatformAdmin } from "@/lib/platform-admin";
+import { newReportCountLogic } from "@/server/platform";
 import PlatformTabs from "./_components/PlatformTabs";
 
 export const dynamic = "force-dynamic";
 
 export default async function PlatformLayout({ children }: { children: ReactNode }) {
   const actor = await requirePlatformAdmin();
+  const newReports = await newReportCountLogic(actor);
   return (
     <div className="min-h-dvh bg-background">
       <header className="sticky top-0 z-30 border-b border-border bg-surface">
@@ -19,7 +21,7 @@ export default async function PlatformLayout({ children }: { children: ReactNode
           <p className="font-display text-lg font-semibold">
             คิดครัว <span className="text-sm font-normal text-muted-foreground">· หน้าควบคุมระบบ</span>
           </p>
-          <PlatformTabs />
+          <PlatformTabs newReports={newReports} />
           <span className="ml-auto flex items-center gap-4 text-sm">
             <span className="truncate text-muted-foreground">{actor.email}</span>
             <Link href="/dashboard" className="text-primary hover:underline">

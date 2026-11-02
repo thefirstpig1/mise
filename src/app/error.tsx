@@ -31,6 +31,12 @@
 // plain `<a>`, not `<Link>`, deliberately: the client router is part of what
 // just failed, so the way out asks the browser for a whole new document.
 //
+// "แจ้งปัญหานี้" (ADR 0044, Kong 2026-11-03): the moment someone most wants
+// to tell us is this one, and the digest is what finds the line in the log —
+// so the report form opens here with it attached. This page has no session
+// and no sidebar; the form says "the account you are signed in with" instead
+// of a name, and the action answers in words when nobody is signed in.
+//
 // NO `global-error.tsx`, AND THAT IS A DECISION. It would catch a throw in the
 // root layout — which this project's root layout cannot do: it loads fonts and
 // renders children, with no data fetch and no session read. A second error
@@ -38,9 +44,11 @@
 // theme, for nothing. Add one the day the root layout starts doing work.
 // ============================================================
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { Flag } from "lucide-react";
 
 import { SpilledPot } from "@/components/layout/Doodles";
+import ReportDialog from "@/components/reports/ReportDialog";
 
 export default function Error({
   error,
@@ -49,6 +57,7 @@ export default function Error({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const [reporting, setReporting] = useState(false);
   useEffect(() => {
     // The browser console is not error tracking and is not pretending to be.
     // It is what lets someone sitting beside the shop see the real message,
@@ -65,6 +74,9 @@ export default function Error({
         <p className="mt-2 max-w-sm text-sm text-muted-foreground">
           หน้านี้โหลดไม่สำเร็จ ลองใหม่อีกครั้ง — ข้อมูลของคุณไม่ได้หายไปไหน
         </p>
+        <p className="mt-1 max-w-sm text-sm text-muted-foreground [text-wrap:balance]">
+          ถ้ายังไม่ได้ แจ้งคิดครัวได้ ระบบแนบรหัสอ้างอิงด้านล่างไปให้
+        </p>
       </div>
 
       <div className="flex flex-wrap items-center justify-center gap-3">
@@ -75,6 +87,10 @@ export default function Error({
         >
           ลองใหม่
         </button>
+        <button type="button" onClick={() => setReporting(true)} className="btn-secondary">
+          <Flag className="h-4 w-4" strokeWidth={1.9} aria-hidden />
+          แจ้งปัญหานี้
+        </button>
         <a
           href="/"
           className="btn-secondary"
@@ -82,6 +98,7 @@ export default function Error({
           กลับหน้าแรก
         </a>
       </div>
+      <ReportDialog open={reporting} onClose={() => setReporting(false)} errorDigest={error.digest} />
 
       {error.digest ? (
         <p className="pt-2 font-mono text-xs text-muted-subtle">

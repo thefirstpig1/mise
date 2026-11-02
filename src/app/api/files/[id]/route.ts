@@ -19,7 +19,7 @@ export const dynamic = "force-dynamic";
 
 const UUID = /^[0-9a-f-]{36}$/i;
 const EXT: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/heic": "heic", "image/heif": "heif", "application/pdf": "pdf" };
-const KIND_TH = { BILL: "บิล", PAYMENT_SLIP: "สลิป", REFUND_SLIP: "สลิปคืนเงิน" } as const;
+const KIND_TH = { BILL: "บิล", PAYMENT_SLIP: "สลิป", REFUND_SLIP: "สลิปคืนเงิน", REPORT_SCREENSHOT: "รูปหน้าจอ" } as const;
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
