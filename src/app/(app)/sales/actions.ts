@@ -35,7 +35,7 @@ import {
   uploadSalesFileInputSchema,
 } from "@/lib/validations/sales-import";
 import { UNREADABLE_XLSX_MESSAGE, readSalesTable } from "@/server/sales-table";
-import { setupSalesFileLogic, trialReadSalesFileLogic, type TrialRead } from "@/server/sales-setup";
+import { matchSalesProfilesLogic, setupSalesFileLogic, trialReadSalesFileLogic, type TrialRead } from "@/server/sales-setup";
 import { BranchNotFoundError } from "@/server/branch";
 import {
   SalesImportAlreadyCommittedError,
@@ -48,6 +48,7 @@ import {
 } from "@/server/sales-import";
 import { PosIntegrationNotFoundError } from "@/server/menu";
 import { computeHeaderSignature, looksLikeUtf8Bom, type FileEncodingValue } from "@/lib/sales-file";
+import { pickPromptRows } from "@/lib/sales-map-ai";
 import {
   toImportPreviewView,
   toSalesRowErrorView,
@@ -59,6 +60,8 @@ import {
 const NO_FILE_MESSAGE = "ยังไม่ได้เลือกไฟล์";
 const FILE_TOO_LARGE_MESSAGE = `ไฟล์ใหญ่เกิน ${Math.round(MAX_SALES_FILE_BYTES / 1024 / 1024)} MB`;
 const PROFILE_NOT_FOUND_MESSAGE = "ไม่พบรูปแบบไฟล์นี้ กรุณาเลือกใหม่";
+const NO_MATCHING_FORMAT_MESSAGE =
+  "หัวตารางของไฟล์นี้ไม่ตรงกับรูปแบบไฟล์ที่ตั้งไว้ของสาขานี้ — อาจเป็นรายงานคนละแบบ หรือ POS เปลี่ยนหน้าตาไฟล์ ตั้งรูปแบบไฟล์ใหม่ครั้งเดียว แล้วครั้งต่อไประบบจำได้เอง";
 const POS_NOT_FOUND_MESSAGE = "ไม่พบเครื่อง POS นี้";
 const BATCH_NOT_FOUND_MESSAGE = "ไม่พบรายการนำเข้านี้ กรุณาอัปโหลดไฟล์ใหม่";
 const ALREADY_COMMITTED_MESSAGE = "ไฟล์นี้ถูกนำเข้าไปแล้ว";
@@ -71,13 +74,24 @@ const PREVIEW_STALE_MESSAGE =
   "ข้อมูลเปลี่ยนไปตั้งแต่ตอนตรวจ (อาจมีคนนำเข้าวันเดียวกันจากอีกหน้าจอ) — กรุณากดตรวจไฟล์ใหม่อีกครั้ง";
 
 export type SalesImportPreviewState =
-  | { ok: true; preview: ImportPreviewView }
+  | {
+      ok: true;
+      preview: ImportPreviewView;
+      /** The format the file was read with. */
+      profileId: string;
+      /** Every format of the branch whose header is this file's, newest first (auto pick only). */
+      matchedProfileIds: string[];
+    }
   | {
       ok: false;
       formError?: string;
       fieldErrors?: Record<string, string>;
       /** Per-row Thai reasons. The shop is the only one who can fix the file. */
       rowErrors?: SalesRowErrorView[];
+      /** No format of the branch has this file's header: the screen offers the setup wizard. */
+      noFormat?: boolean;
+      /** The format the file was read with, when one was found. */
+      profileId?: string;
     };
 
 export type SalesImportCommitState =
@@ -169,6 +183,8 @@ export type InspectFileState =
       excel: boolean;
       /** Data rows under the header, blank ones included. */
       rowCount: number;
+      /** A spread of rows for the shop's AI to map the columns from (src/lib/sales-map-ai.ts). */
+      promptRows: { rowNumber: number; cells: string[] }[];
     }
   | { ok: false; formError: string };
 
@@ -218,6 +234,7 @@ export async function inspectSalesFileAction(
     suggestedEncoding: encoding,
     excel: t.excel,
     rowCount: table.length - 1,
+    promptRows: pickPromptRows(table.slice(1)),
   };
 }
 
@@ -313,14 +330,28 @@ export async function previewSalesImportAction(
   _prev: SalesImportPreviewState | null,
   formData: FormData
 ): Promise<SalesImportPreviewState> {
-  const { tenantId, user } = await requireTenant("sales:import");
+  const { tenantId, user, assertBranch } = await requireTenant("sales:import");
 
   const read = await readUploadedFile(formData);
   if (!read.ok) return { ok: false, fieldErrors: { file: read.message } };
 
+  // "auto": the format is the one whose header IS this file's (Kong 2026-11-02,
+  // คิวข้อ 11) — tried per format with its own encoding, never guessed.
+  let profileId = formData.get("profileId");
+  let matchedProfileIds: string[] = [];
+  if (profileId === "auto") {
+    const branchId = formData.get("branchId");
+    if (typeof branchId !== "string" || branchId === "") return { ok: false, formError: "ไม่พบสาขานี้ กรุณาเลือกใหม่" };
+    assertBranch(branchId);
+    matchedProfileIds = await matchSalesProfilesLogic(tenantId, branchId, read.bytes);
+    if (matchedProfileIds.length === 0) return { ok: false, formError: NO_MATCHING_FORMAT_MESSAGE, noFormat: true };
+    const prefer = formData.get("prefer");
+    profileId = typeof prefer === "string" && matchedProfileIds.includes(prefer) ? prefer : matchedProfileIds[0];
+  }
+
   const parsedInput = uploadSalesFileInputSchema.safeParse({
     batchId: formData.get("batchId"),
-    profileId: formData.get("profileId"),
+    profileId,
     fileName: read.fileName,
   });
   if (!parsedInput.success) {
@@ -334,13 +365,14 @@ export async function previewSalesImportAction(
       parsedInput.data,
       read.bytes
     );
-    return { ok: true, preview: toImportPreviewView(preview) };
+    return { ok: true, preview: toImportPreviewView(preview), profileId: parsedInput.data.profileId, matchedProfileIds };
   } catch (e) {
     if (e instanceof SalesImportFileRejectedError) {
       return {
         ok: false,
         formError: "ไฟล์นี้ยังนำเข้าไม่ได้ — แก้ตามรายการด้านล่างแล้วอัปโหลดใหม่",
         rowErrors: e.errors.map(toSalesRowErrorView),
+        profileId: parsedInput.data.profileId,
       };
     }
     return { ok: false, ...toFormError(e) };

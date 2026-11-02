@@ -23,6 +23,7 @@ import { computeHeaderSignature, normalizeMenuName } from "@/lib/sales-file";
 import { BranchNotFoundError } from "@/server/branch";
 import { PosIntegrationNotFoundError } from "@/server/menu";
 import { parseSalesTableLogic, type ParseProfile, type SalesRowError } from "@/server/sales-import";
+import { readSalesTable } from "@/server/sales-table";
 import type { ColumnMap, SalesChannelValue, SalesFileKindValue } from "@/lib/validations/sales-import";
 
 export type SalesFileDraft = Omit<ParseProfile, "headerSignature">;
@@ -185,4 +186,42 @@ export async function setupSalesFileLogic(tenantId: string, input: SalesFileSetu
     });
     return { posIntegrationId: pos.id, profileId: profile.id };
   });
+}
+
+// ------------------------------------------------------------
+// Later imports: the format is found from the file's own header
+// ------------------------------------------------------------
+// Kong 2026-11-02 (คิวข้อ 11): "หลังจากนั้นก็คืออัปโหลดไฟล์ได้เลย". The format
+// was always remembered — the signature of its header row — but the import
+// screen still asked which one to use. Each format is tried with ITS OWN
+// encoding, so a TIS-620 file is compared as TIS-620; a file that matches none
+// is refused before anything is recorded, and the screen offers the setup
+// wizard instead of guessing.
+
+export type ProfileForMatch = { id: string; encoding: ParseProfile["encoding"]; headerSignature: string; createdAt: Date };
+
+/** The formats whose header IS this file's header, newest first. */
+export function profilesMatchingHeader(
+  profiles: readonly ProfileForMatch[],
+  signatureFor: (encoding: ParseProfile["encoding"]) => string | null
+): string[] {
+  return profiles
+    .filter((p) => signatureFor(p.encoding) === p.headerSignature)
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+    .map((p) => p.id);
+}
+
+export async function matchSalesProfilesLogic(tenantId: string, branchId: string, bytes: Uint8Array): Promise<string[]> {
+  const profiles = await withTenantContext(tenantId, (tx) =>
+    tx.salesImportProfile.findMany({
+      where: { tenantId, deletedAt: null, posIntegration: { branchId, deletedAt: null } },
+      select: { id: true, encoding: true, headerSignature: true, createdAt: true },
+    })
+  );
+  const signatures = new Map<string, string | null>();
+  for (const encoding of new Set(profiles.map((p) => p.encoding))) {
+    const t = await readSalesTable(bytes, encoding);
+    signatures.set(encoding, t.ok && t.table.length > 0 ? computeHeaderSignature(t.table[0]) : null);
+  }
+  return profilesMatchingHeader(profiles, (e) => signatures.get(e) ?? null);
 }

@@ -22,6 +22,12 @@
 // ‹ ย้อนกลับ works on every page until the save. After it, the existing
 // import screen takes the same file straight to its preview and confirm, so
 // the replace-a-day and new-menu acknowledgements still guard the commit.
+//
+// Page 3 also offers "ให้ AI ช่วยดู" (Kong 2026-11-02, คิวข้อ 11 ก.): the
+// shop's own AI answers pages 3 and 4 as a code (src/lib/sales-map-ai.ts).
+// Its answers are filled in labelled "AI เลือกให้ · ตรวจอีกครั้ง", the label
+// goes as soon as the person touches that answer, and page 5 still reads the
+// file with the real parser before anything is saved.
 // The arithmetic (date readings) lives in src/lib/sales-setup.ts; the parse
 // and the save in src/server/sales-setup.ts.
 // ============================================================
@@ -31,6 +37,8 @@ import FileDrop from "@/components/ui/FileDrop";
 import { orStale } from "@/lib/stale-tab";
 import { suggestColumnMap } from "@/lib/sales-column-suggest";
 import { readDateCandidates, tellingSample, thaiDateLabel } from "@/lib/sales-setup";
+import { buildSalesMapPrompt, MAP_FIELDS, readingFor, type MapField, type SalesMapAnswer } from "@/lib/sales-map-ai";
+import AiMapDialog from "./AiMapDialog";
 import { FILE_ENCODING_LABELS_TH, type ColumnMapField, type PosTypeValue } from "@/lib/validations/sales-import";
 import {
   inspectSalesFileAction,
@@ -119,6 +127,19 @@ export default function FirstImportWizard({
   const [vat, setVat] = useState<boolean | null>(null);
   const [sc, setSc] = useState<boolean | null>(null);
 
+  // The shop's AI (page 3): its answer, and which answers are still its own.
+  const [aiOpen, setAiOpen] = useState(false);
+  const [ai, setAi] = useState<SalesMapAnswer | null>(null);
+  const [fromAi, setFromAi] = useState<Set<string>>(new Set());
+  const [aiDateMissed, setAiDateMissed] = useState(false);
+  const touch = (...keys: string[]) =>
+    setFromAi((f) => {
+      if (!keys.some((k) => f.has(k))) return f;
+      const n = new Set(f);
+      for (const k of keys) n.delete(k);
+      return n;
+    });
+
   const [trial, setTrial] = useState<TrialReadState | null>(null);
   const [saved, setSaved] = useState<{ profileId: string } | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -191,6 +212,9 @@ export default function FirstImportWizard({
       setGuessed(new Set([...(date !== undefined ? ["date"] : []), ...Object.keys(s.map).filter((k) => k !== "businessDate" && k !== "soldAt")]));
       setDateChoice(null);
       setDateWrong(false);
+      setAi(null);
+      setFromAi(new Set());
+      setAiDateMissed(false);
     });
   };
 
@@ -210,6 +234,7 @@ export default function FirstImportWizard({
       n.delete(key);
       return n;
     });
+    touch(key, ...(key === "date" ? ["dateReading"] : []));
     setMsg("");
     const nextAsks = { ...asks };
     const nextExtras = { ...extras };
@@ -227,6 +252,79 @@ export default function FirstImportWizard({
       setDateWrong(false);
     }
   };
+
+  /**
+   * The AI's columns first; the careful guess fills only what it left open and
+   * no answer already holds. Date, VAT and service charge are answered only
+   * where the AI answered — an answer it left open stays the person's.
+   */
+  const applyAi = (a: SalesMapAnswer) => {
+    const s = suggestColumnMap(header).map;
+    const guessOf = (f: MapField) => (f === "date" ? (s.businessDate ?? s.soldAt) : s[f]);
+    const nextAsks: Partial<Record<Ask, number>> = {};
+    const nextExtras: Partial<Record<Extra, number>> = {};
+    const put = (f: MapField, i: number) => {
+      if (ASKS.some((x) => x.key === f)) nextAsks[f as Ask] = i;
+      else nextExtras[f as Extra] = i;
+    };
+    const taken = new Set<number>();
+    const mine = new Set<string>();
+    const guess = new Set<string>();
+    for (const f of MAP_FIELDS) {
+      const i = a.columns[f];
+      if (i === undefined) continue;
+      put(f, i);
+      taken.add(i);
+      mine.add(f);
+    }
+    for (const f of MAP_FIELDS) {
+      const i = guessOf(f);
+      if (mine.has(f) || i === undefined || taken.has(i)) continue;
+      put(f, i);
+      taken.add(i);
+      guess.add(f);
+    }
+    setAsks(nextAsks);
+    setExtras(nextExtras);
+    setGuessed(guess);
+
+    setDateWrong(false);
+    let choice: number | null = null;
+    if (nextAsks.date !== undefined && mine.has("date")) {
+      const col = nextAsks.date;
+      choice = readingFor(readDateCandidates(rows.map((r) => r[col] ?? "")), a.dateOrder, a.buddhistYear);
+    }
+    setDateChoice(choice);
+    if (choice !== null) mine.add("dateReading");
+    setAiDateMissed(choice === null && mine.has("date") && a.dateOrder !== null);
+    if (a.includesVat !== null) {
+      setVat(a.includesVat);
+      mine.add("vat");
+    }
+    if (a.includesServiceCharge !== null) {
+      setSc(a.includesServiceCharge);
+      mine.add("sc");
+    }
+    setFromAi(mine);
+    setAi(a);
+    setAiOpen(false);
+    setMsg("");
+  };
+  const aiPrompt = useMemo(
+    () => (inspected ? buildSalesMapPrompt({ posLabel: posLabel || "POS", header: inspected.header, rows: inspected.promptRows, rowCount: inspected.rowCount }) : ""),
+    [inspected, posLabel]
+  );
+  /** What the AI said about one answer: its reason for leaving it open, or a column it named that cannot be used. */
+  const aiNotes = (keys: string[]): string[] =>
+    ai === null
+      ? []
+      : [
+          ...ai.unsure.filter((u) => keys.includes(u.key)).map((u) => `AI: ${u.note}`),
+          ...ai.refused
+            .filter((r) => keys.includes(r.field))
+            .map((r) => (r.kind === "missing" ? `AI ชี้ ${r.said} ซึ่งไม่ตรงกับไฟล์นี้ ระบบจึงไม่ใช้` : `AI ชี้ ${r.said} ระบบจึงไม่ใช้`)),
+        ];
+  const aiPicked = MAP_FIELDS.filter((f) => fromAi.has(f)).length;
 
   // ---- moving between pages ----
   const problem = (): string => {
@@ -416,6 +514,42 @@ export default function FirstImportWizard({
               <H>บอกระบบว่าคอลัมน์ไหนคืออะไร</H>
               <Sub>ทำครั้งเดียว ครั้งต่อไปไฟล์หน้าตาเดิมระบบจำได้เอง</Sub>
             </div>
+            {ai === null ? (
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border border-border-strong bg-surface px-3.5 py-3">
+                <div className="grid min-w-0 flex-1 basis-64 gap-0.5 text-[13px]">
+                  <b className="font-display text-sm font-semibold">ไม่แน่ใจข้อไหน ให้ AI ของร้านช่วยดูได้</b>
+                  <span className="text-muted-foreground">
+                    AI บอกให้ว่าคอลัมน์ไหนคืออะไร และยอดเงินรวม VAT แล้วหรือยัง ระบบเติมคำตอบให้ คุณตรวจทีละข้อ แล้วหน้าสุดท้ายแสดงยอดที่อ่านได้จริงก่อนบันทึก
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setAiOpen(true)}
+                  className={ASKS.some((a) => asks[a.key] === undefined) ? "btn btn-sm" : "btn-secondary btn-sm"}
+                >
+                  ให้ AI ช่วยดู
+                </button>
+              </div>
+            ) : (
+              <div className="grid gap-1 rounded-2xl border border-warn-border bg-warn-bg px-3.5 py-2.5 text-[13px]">
+                <p className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                  <b className="font-display text-sm font-semibold text-foreground">ใช้คำตอบจาก AI แล้ว</b>
+                  <span className="text-muted-foreground">
+                    {aiPicked > 0 ? `AI เลือกคอลัมน์ให้ ${aiPicked} ข้อ · ` : ""}ข้อที่มีป้าย “AI เลือกให้” ตรวจอีกครั้ง กดเปลี่ยนได้
+                  </span>
+                  <button type="button" onClick={() => setAiOpen(true)} className="ml-auto text-[13px] font-semibold text-primary underline">
+                    วางคำตอบใหม่
+                  </button>
+                </p>
+                {ai.unsure
+                  .filter((u) => !(MAP_FIELDS as readonly string[]).includes(u.key) && !AI_PAGE4_KEYS.includes(u.key))
+                  .map((u) => (
+                    <span key={u.key} className="text-muted-foreground">
+                      AI: {u.note}
+                    </span>
+                  ))}
+              </div>
+            )}
             <Note title={`ตารางข้างล่างคือ ${Math.min(4, rows.length)} แถวแรกในไฟล์ของคุณ`}>
               {asks.menuName !== undefined && firstRow[asks.menuName] ? `“${firstRow[asks.menuName]}” คือเมนูที่ขายในแถวแรก · ` : ""}
               {header.some(isUnitPrice) ? `“${header.find(isUnitPrice)}” คือราคาต่อหน่วย ระบบไม่ต้องใช้ เพราะมียอดเงินของแถวอยู่แล้ว · ` : ""}
@@ -429,24 +563,32 @@ export default function FirstImportWizard({
                     {a.q}
                     {asks[a.key] === undefined ? (
                       <em className="font-sans text-xs font-semibold not-italic text-bad">ยังไม่ได้เลือก</em>
+                    ) : fromAi.has(a.key) ? (
+                      <AiTag>AI เลือกให้ · ตรวจอีกครั้ง</AiTag>
                     ) : guessed.has(a.key) ? (
                       <em className="font-sans text-xs font-semibold not-italic text-good">ระบบเลือกให้ · ตรวจอีกครั้ง</em>
                     ) : null}
                   </p>
                   <ColumnChips header={header} sample={firstRow} chosen={asks[a.key]} onPick={(i) => assign(a.key, i, true)} />
+                  <AiNotes notes={aiNotes([a.key])} />
                 </div>
               ))}
             </div>
             <details className="rounded-2xl border border-border bg-surface px-3 py-2.5 text-sm">
               <summary className="cursor-pointer font-display font-semibold text-primary">
                 ข้อมูลเสริม ถ้ามีในไฟล์ (ไม่บังคับ){Object.keys(extras).length > 0 ? ` · เลือกไว้ ${Object.keys(extras).length} ช่อง` : ""}
+                {EXTRAS.some((x) => fromAi.has(x.key)) ? ` · AI เลือก ${EXTRAS.filter((x) => fromAi.has(x.key)).length} ช่อง` : ""}
               </summary>
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
                 {EXTRAS.map((x) => (
                   <label key={x.key} className="grid gap-1">
                     <span className="font-semibold">
                       {x.label}
-                      {guessed.has(x.key) && extras[x.key] !== undefined && <span className="ml-1.5 text-xs font-normal text-good">ระบบเลือกให้</span>}
+                      {fromAi.has(x.key) && extras[x.key] !== undefined ? (
+                        <span className="ml-1.5 text-xs font-semibold text-warn">AI เลือกให้</span>
+                      ) : (
+                        guessed.has(x.key) && extras[x.key] !== undefined && <span className="ml-1.5 text-xs font-normal text-good">ระบบเลือกให้</span>
+                      )}
                     </span>
                     <select
                       value={extras[x.key] ?? ""}
@@ -461,6 +603,7 @@ export default function FirstImportWizard({
                       ))}
                     </select>
                     <span className="text-xs text-muted-foreground">{x.why}</span>
+                    <AiNotes notes={aiNotes([x.key])} />
                   </label>
                 ))}
               </div>
@@ -475,7 +618,12 @@ export default function FirstImportWizard({
               <Sub>ข้อเหล่านี้ระบบไม่เดาให้ เพราะตอบผิดแล้วตัวเลขเพี้ยนทุกแถว</Sub>
             </div>
 
-            <Question title={candidates.length > 1 ? `วันที่ในไฟล์อ่านได้ ${candidates.length} แบบ แถวที่ ${telling + 1} หมายถึงวันไหน` : "วันที่ขาย"}>
+            <Question
+              title={candidates.length > 1 ? `วันที่ในไฟล์อ่านได้ ${candidates.length} แบบ แถวที่ ${telling + 1} หมายถึงวันไหน` : "วันที่ขาย"}
+              tag={fromAi.has("dateReading") && reading ? "AI ตอบให้ · ตรวจอีกครั้ง" : undefined}
+            >
+              {aiDateMissed && dateChoice === null && <Evidence>AI ตอบลำดับวันที่มา แต่ไม่ตรงกับแบบที่ระบบอ่านคอลัมน์นี้ได้ · เลือกเองด้านล่าง</Evidence>}
+              <AiNotes notes={aiNotes(["dateOrder", "yearEra"])} />
               {candidates.length === 0 || dateWrong ? (
                 <div className="grid gap-2">
                   <p className="text-sm text-bad">
@@ -502,6 +650,7 @@ export default function FirstImportWizard({
                     no="ไม่ถูก"
                     onChange={(v) => {
                       setMsg("");
+                      touch("dateReading");
                       if (v) setDateChoice(0);
                       else setDateWrong(true);
                     }}
@@ -512,7 +661,7 @@ export default function FirstImportWizard({
                   <Evidence>ในไฟล์เขียน “{candidates[0].days[telling].raw}” · อ่านได้ทั้งแบบวันขึ้นก่อนและเดือนขึ้นก่อน</Evidence>
                   <div className="grid gap-2 sm:grid-cols-2">
                     {candidates.map((c, i) => (
-                      <Card key={c.format} on={dateChoice === i} onClick={() => (setDateChoice(i), setMsg(""))}>
+                      <Card key={c.format} on={dateChoice === i} onClick={() => (setDateChoice(i), setMsg(""), touch("dateReading"))}>
                         <b className="font-display font-semibold">{thaiDateLabel(c.days[telling].day, c.isBuddhistYear, c.days[telling].minutes)}</b>
                         <small className="text-muted-foreground">{c.format.startsWith("MM") ? "เดือนขึ้นก่อน" : c.format.startsWith("y") ? "ปีขึ้นก่อน" : "วันขึ้นก่อน"}</small>
                       </Card>
@@ -527,7 +676,9 @@ export default function FirstImportWizard({
               )}
             </Question>
 
-            <Question title="ยอดเงินในไฟล์ รวม VAT แล้วหรือยัง">
+            <Question title="ยอดเงินในไฟล์ รวม VAT แล้วหรือยัง" tag={fromAi.has("vat") ? "AI ตอบให้ · ตรวจอีกครั้ง" : undefined}>
+              {fromAi.has("vat") && ai?.why.vat && <Evidence>AI ดูจาก: {ai.why.vat}</Evidence>}
+              <AiNotes notes={aiNotes(["amountsIncludeVat"])} />
               {asks.netAmount !== undefined && (
                 <Evidence>
                   แถวแรก: {asks.menuName !== undefined ? firstRow[asks.menuName] : ""}
@@ -535,7 +686,7 @@ export default function FirstImportWizard({
                   {!shopVatRegistered ? " · ร้านยังไม่ได้จด VAT ถ้า POS ไม่ได้บวก VAT ในราคา ตอบ “ยังไม่รวม”" : ""}
                 </Evidence>
               )}
-              <YesNo value={vat} yes="รวมแล้ว" no="ยังไม่รวม" onChange={(v) => (setVat(v), setMsg(""))} />
+              <YesNo value={vat} yes="รวมแล้ว" no="ยังไม่รวม" onChange={(v) => (setVat(v), setMsg(""), touch("vat"))} />
               {vat && (
                 <NeedColumn
                   label="VAT อยู่คอลัมน์ไหน"
@@ -548,9 +699,11 @@ export default function FirstImportWizard({
               )}
             </Question>
 
-            <Question title="ยอดเงินในไฟล์ รวม service charge แล้วหรือยัง">
+            <Question title="ยอดเงินในไฟล์ รวม service charge แล้วหรือยัง" tag={fromAi.has("sc") ? "AI ตอบให้ · ตรวจอีกครั้ง" : undefined}>
+              {fromAi.has("sc") && ai?.why.serviceCharge && <Evidence>AI ดูจาก: {ai.why.serviceCharge}</Evidence>}
+              <AiNotes notes={aiNotes(["amountsIncludeServiceCharge"])} />
               <Evidence>ร้านไม่เก็บ service charge ตอบ “ยังไม่รวม” ได้เลย</Evidence>
-              <YesNo value={sc} yes="รวมแล้ว" no="ยังไม่รวม" onChange={(v) => (setSc(v), setMsg(""))} />
+              <YesNo value={sc} yes="รวมแล้ว" no="ยังไม่รวม" onChange={(v) => (setSc(v), setMsg(""), touch("sc"))} />
               {sc && (
                 <NeedColumn
                   label="Service charge อยู่คอลัมน์ไหน"
@@ -597,6 +750,10 @@ export default function FirstImportWizard({
           </>
         )}
       </div>
+
+      {aiOpen && inspected && (
+        <AiMapDialog prompt={aiPrompt} header={inspected.header} rowsShown={inspected.promptRows.length} onApply={applyAi} onClose={() => setAiOpen(false)} />
+      )}
 
       {/* ---- back / next ---- */}
       <div className="flex flex-wrap items-center gap-2.5 border-t border-border bg-surface px-4 py-3 sm:px-5">
@@ -766,12 +923,32 @@ function Card({ on, onClick, children }: { on: boolean; onClick: () => void; chi
   );
 }
 
-function Question({ title, children }: { title: string; children: ReactNode }) {
+function Question({ title, tag, children }: { title: string; tag?: string; children: ReactNode }) {
   return (
     <div className="grid gap-2 rounded-2xl border border-border bg-surface px-3 py-3">
-      <p className="font-display text-sm font-semibold">{title}</p>
+      <p className="flex flex-wrap items-center gap-2 font-display text-sm font-semibold">
+        {title}
+        {tag && <AiTag>{tag}</AiTag>}
+      </p>
       {children}
     </div>
+  );
+}
+
+/** Page-4 answers the AI is asked for; its notes about them show there, not in the page-3 summary. */
+const AI_PAGE4_KEYS = ["dateOrder", "yearEra", "amountsIncludeVat", "amountsIncludeServiceCharge"];
+
+/** Yellow: worth checking, still savable — the same meaning as on every other import's review. */
+const AiTag = ({ children }: { children: ReactNode }) => <em className="font-sans text-xs font-semibold not-italic text-warn">{children}</em>;
+
+function AiNotes({ notes }: { notes: string[] }) {
+  if (notes.length === 0) return null;
+  return (
+    <span className="grid gap-0.5 text-xs text-warn">
+      {notes.map((n) => (
+        <span key={n}>{n}</span>
+      ))}
+    </span>
   );
 }
 

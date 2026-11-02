@@ -172,7 +172,7 @@ function Ill({ children, tip = false }: { children: ReactNode; tip?: boolean }) 
   );
 }
 
-function ChatWindow({ children }: { children: ReactNode }) {
+export function ChatWindow({ children }: { children: ReactNode }) {
   return (
     <div className="grid w-full max-w-[400px] grid-cols-[minmax(0,1fr)] rounded-[18px] border border-border/70 bg-surface shadow-card">
       <div className="flex items-center gap-1.5 border-b border-border px-3 py-2 text-xs text-muted-foreground">
@@ -227,7 +227,7 @@ function Bullets({ items }: { items: ReactNode[] }) {
   );
 }
 
-function CopyPrompt({ prompt }: { prompt: string }) {
+export function CopyPrompt({ prompt }: { prompt: string }) {
   const [copied, setCopied] = useState(false);
   return (
     <div className="flex flex-wrap items-center gap-2">

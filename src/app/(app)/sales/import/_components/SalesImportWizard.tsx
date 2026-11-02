@@ -22,6 +22,13 @@ import { orStale } from "@/lib/stale-tab";
 // The rejection list is the other half. A shop is the only party who can fix a
 // file, and "import failed" tells them nothing, so every row error is shown with
 // its Excel row number and the column that went wrong.
+//
+// Kong 2026-11-02 (คิวข้อ 11): "หลังจากนั้นก็คืออัปโหลดไฟล์ได้เลย". With
+// `autoPickBranchId` the format is no longer chosen from a list: dropping the
+// file checks it at once against the branch's format whose header IS the
+// file's (server side, each format with its own encoding). A file no format
+// matches is refused before anything is recorded, with the setup wizard one
+// press away. The first-import wizard still hands over its one format by id.
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import FileDrop from "@/components/ui/FileDrop";
@@ -59,6 +66,7 @@ export default function SalesImportWizard({
   initialFile = null,
   autoPreview = false,
   newProfileHref = "/sales/import/profiles/new",
+  autoPickBranchId = null,
 }: {
   profiles: ImportProfileOption[];
   /** The sample just used to build a profile — nobody should have to pick it twice (setup trial 2026-10-30). */
@@ -67,7 +75,10 @@ export default function SalesImportWizard({
   autoPreview?: boolean;
   /** Where "set up a format" goes — the branch's own wizard when there is one. */
   newProfileHref?: string;
+  /** Find the format from the file's header among this branch's formats, and check at once. */
+  autoPickBranchId?: string | null;
 }) {
+  const auto = autoPickBranchId !== null;
   const [file, setFile] = useState<File | null>(initialFile);
   const [profileId, setProfileId] = useState(profiles[0]?.id ?? "");
   const [batchId, setBatchId] = useState(newBatchId);
@@ -78,19 +89,42 @@ export default function SalesImportWizard({
   const preview: ImportPreviewView | null =
     previewState?.ok === true ? previewState.preview : null;
 
-  const runPreview = () => {
-    if (!file) {
+  const runPreview = (f: File | null = file, opts: { batch?: string; prefer?: string } = {}) => {
+    if (!f) {
       setPreviewState({ ok: false, fieldErrors: { file: "ยังไม่ได้เลือกไฟล์" } });
       return;
     }
     const fd = new FormData();
-    fd.set("file", file);
-    fd.set("batchId", batchId);
-    fd.set("profileId", profileId);
+    fd.set("file", f);
+    fd.set("batchId", opts.batch ?? batchId);
+    if (auto) {
+      fd.set("profileId", "auto");
+      fd.set("branchId", autoPickBranchId!);
+      if (opts.prefer) fd.set("prefer", opts.prefer);
+    } else {
+      fd.set("profileId", profileId);
+    }
     setCommitState(null);
     startTransition(async () => {
       setPreviewState(await orStale(previewSalesImportAction(null, fd)));
     });
+  };
+
+  // Which format read the file, and the others whose header is the same.
+  const usedProfileId = previewState?.profileId;
+  const usedProfile = profiles.find((p) => p.id === usedProfileId) ?? null;
+  const sameHeader = previewState?.ok ? profiles.filter((p) => previewState.matchedProfileIds.includes(p.id)) : [];
+
+  const pickFile = (f: File) => {
+    setFile(f);
+    setPreviewState(null);
+    setCommitState(null);
+    if (auto) {
+      // A new file is a new attempt: the batch row keeps the format it was first read with.
+      const fresh = newBatchId();
+      setBatchId(fresh);
+      runPreview(f, { batch: fresh });
+    }
   };
 
   // The first-import wizard hands over a file it has already read back: go
@@ -176,6 +210,48 @@ export default function SalesImportWizard({
       )}
 
       {/* ---------- step 1 ---------- */}
+      {auto ? (
+        <section className="rounded-lg border border-border bg-surface p-4">
+          <h2 className="text-sm font-medium">1. อัปไฟล์จาก POS</h2>
+          <div className="mt-3 text-sm">
+            <FileDrop
+              accept=".csv,.xlsx,text/csv,text/plain"
+              fileName={file?.name ?? null}
+              hint="ไฟล์ .csv หรือ Excel (.xlsx) จากหลังบ้าน POS · ระบบเลือกรูปแบบไฟล์ให้เองจากหัวตาราง"
+              onFile={pickFile}
+              disabled={pending}
+            />
+          </div>
+          {pending && <p className="mt-2 text-sm text-muted-foreground">กำลังตรวจไฟล์…</p>}
+          {!pending && usedProfile && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              อ่านด้วยรูปแบบไฟล์ <span className="font-medium text-foreground">{usedProfile.name}</span> · ระบบเลือกให้เพราะหัวตารางตรงกัน
+            </p>
+          )}
+          {!pending && sameHeader.length > 1 && (
+            <label className="mt-2 block text-xs text-muted-foreground">
+              มีรูปแบบไฟล์หัวตารางเดียวกัน {sameHeader.length} แบบ · อ่านด้วยแบบ
+              <select
+                value={usedProfileId}
+                onChange={(e) => runPreview(file, { prefer: e.target.value })}
+                className="input mt-1 w-full"
+              >
+                {sameHeader.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          {previewState?.ok === false && previewState.fieldErrors?.file && <p className="mt-1 text-xs text-bad">{previewState.fieldErrors.file}</p>}
+          {file && !previewState && !pending && (
+            <button type="button" onClick={() => runPreview()} className="btn mt-3">
+              ตรวจไฟล์
+            </button>
+          )}
+        </section>
+      ) : (
       <section className="rounded-lg border border-border bg-surface p-4">
         <h2 className="text-sm font-medium">1. เลือกไฟล์</h2>
 
@@ -218,13 +294,25 @@ export default function SalesImportWizard({
           <p className="mt-1 text-xs text-bad">{previewState.fieldErrors.file}</p>
         )}
 
-        <button type="button" onClick={runPreview} disabled={pending} className={"btn mt-4"}>
+        <button type="button" onClick={() => runPreview()} disabled={pending} className={"btn mt-4"}>
           {pending ? "กำลังตรวจ…" : "ตรวจไฟล์"}
         </button>
       </section>
+      )}
+
+      {/* ---------- no format has this header ---------- */}
+      {previewState?.ok === false && previewState.noFormat && (
+        <section className="rounded-lg border border-warn-border bg-warn-bg p-4 text-sm">
+          <p className="font-medium text-warn">{previewState.formError}</p>
+          <a href={newProfileHref} className="btn mt-3">
+            ตั้งรูปแบบไฟล์ใหม่ ›
+          </a>
+          <p className="mt-2 text-xs text-muted-foreground">ในหน้าตั้งรูปแบบ อัปไฟล์นี้อีกครั้งเป็นไฟล์ตัวอย่าง</p>
+        </section>
+      )}
 
       {/* ---------- rejection ---------- */}
-      {previewState?.ok === false && (previewState.formError || previewState.rowErrors) && (
+      {previewState?.ok === false && !previewState.noFormat && (previewState.formError || previewState.rowErrors) && (
         <section className="rounded-lg border border-bad-border bg-bad-bg p-4">
           <p className="text-sm font-medium">{previewState.formError ?? "ไฟล์นี้ยังนำเข้าไม่ได้"}</p>
           {previewState.rowErrors && previewState.rowErrors.length > 0 && (

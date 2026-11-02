@@ -141,7 +141,7 @@ export default async function SalesImportPage({ searchParams }: { searchParams: 
       )}
 
       {selected && (
-        <SalesImportWizard key={selected} profiles={options} newProfileHref={setupHref(selected)} />
+        <SalesImportWizard key={selected} profiles={options} newProfileHref={setupHref(selected)} autoPickBranchId={selected} />
       )}
 
       {options.length > 0 && (
