@@ -36,6 +36,7 @@ import type { ToneMap } from "./Breakdown";
 import { ModalShell } from "./Breakdown";
 import { useMenuInsight } from "./insight-context";
 import { atMostTh, isUnderstated } from "@/lib/cost-bound";
+import WaitingFor from "@/components/ui/WaitingFor";
 
 const G: Record<EngineeringGroup, { name: string; sym: string; colour: string; short: string; note: string }> = {
   star: { name: "ดาวเด่น", sym: "★", colour: "#5A7333", short: "ขายดี · กำไรดี", note: "ขายได้มากกว่าเส้นขายดี และกำไรต่อจานสูงกว่าค่าเฉลี่ยของร้าน" },
@@ -115,12 +116,12 @@ export default function MenuEngineering({
   if (model.items.length < ENGINEERING_MIN_ITEMS) {
     return (
       <div className="space-y-3">
-        <p className="rounded-xl border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
-          ต้องมีเมนูที่มีสูตรอย่างน้อย {ENGINEERING_MIN_ITEMS} เมนูจึงจะจัดกลุ่มได้ (ตอนนี้ {model.items.length} เมนู) —{" "}
-          <a href="/menus?filter=none" className="font-medium text-primary underline">
-            ดูเมนูที่ยังไม่มีสูตร
-          </a>
-        </p>
+        {/* Queue item 10: the four groups' own outline, waiting for recipes. */}
+        <WaitingFor
+          figure="menuEngineering"
+          needs={["recipe", "price"]}
+          reason={`ต้องมีเมนูที่มีสูตรอย่างน้อย ${ENGINEERING_MIN_ITEMS} เมนูจึงจะจัดกลุ่มได้ (ตอนนี้ ${model.items.length} เมนู)`}
+        />
         {table}
       </div>
     );

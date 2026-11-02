@@ -168,7 +168,9 @@ export default function MenuSheet(props: {
   const confidence = own?.confidence ?? null;
   const unpriced = lines.filter((l) => l.kind === "product" && priceOf(l, book) === null).map((l) => l.label);
   const total = lines.reduce((s, l) => s + (lineCost(l) ?? 0), 0);
-  const perPlate = lines.length === 0 || pricesPending ? null : total / (servings || 1);
+  // Queue item 10: not one ingredient priced is an unknown cost, not a ฿0 floor.
+  const allUnpriced = lines.length > 0 && !pricesPending && !known && total === 0;
+  const perPlate = lines.length === 0 || pricesPending || allUnpriced ? null : total / (servings || 1);
   // The walk's own figure for the recipe as saved — the "เดิม" an edit is
   // compared against. Only while the book and the sheet speak of one recipe.
   const basePerPlate = recipe !== null && own?.recipeId === recipe.id ? own.costPerServing : null;
@@ -208,6 +210,7 @@ export default function MenuSheet(props: {
     // ADR 0040: an empty prepped shelf means the recipe is cut instead (Q1).
     if (l.prepped && (!f || f.onHand <= 0)) return <span>ยังไม่มีบนชั้น · ขายแล้วตัดวัตถุดิบตามสูตรแทน</span>;
     if (!f) return null;
+    if (!f.stocked) return <span>ยังไม่เคยนับหรือรับเข้าที่สาขานี้</span>;
     return (
       <span className={f.belowPar ? "text-warn" : ""}>
         คงเหลือ {qtyFmt(f.onHand, f.baseUnitName)}
@@ -220,6 +223,9 @@ export default function MenuSheet(props: {
     if (lines.length === 0 || !facts) return null;
     const prepped = lines.find((l) => l.prepped);
     if (prepped) return { blocked: prepped.label } as const;
+    // An ingredient that never entered this branch's stock: "~0 จาน" would be a claim.
+    const never = lines.find((l) => l.kind === "product" && l.productId && facts.facts[l.productId] && !facts.facts[l.productId].stocked);
+    if (never) return { blocked: never.label } as const;
     let best: { plates: number; label: string } | null = null;
     for (const l of lines) {
       const f = l.kind === "product" && l.productId ? facts.facts[l.productId] : undefined;
@@ -554,7 +560,9 @@ export default function MenuSheet(props: {
                 costWaiting
                   ? "กำลังคำนวณ…"
                   : perPlate === null
-                  ? "ยังไม่มีสูตร"
+                  ? allUnpriced
+                    ? "วัตถุดิบในสูตรยังไม่มีราคา"
+                    : "ยังไม่มีสูตร"
                   : costChanged
                     ? `เดิม ${baht(basePerPlate!, 2)}`
                     : !known
@@ -577,7 +585,9 @@ export default function MenuSheet(props: {
                   : costPct !== null && avg
                     ? `${overBy! > 0.0001 ? `เกินเป้า ${overBy!.toFixed(1)} จุด` : `เป้า ${targetLabel}`} · กำไร ${atMostTh(understated, baht(avg - perPlate!, 2))}/จาน`
                     : perPlate === null
-                      ? "คิดได้เมื่อมีสูตร"
+                      ? allUnpriced
+                        ? "คิดได้เมื่อวัตถุดิบมีราคา"
+                        : "คิดได้เมื่อมีสูตร"
                       : "ยังไม่มียอดขาย"
               }
               warn={costChanged || (perPlate !== null && understated)}

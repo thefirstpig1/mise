@@ -49,8 +49,13 @@ export type SalesView = {
   /** Every dish's per-day change against the comparison period (Kong, 2026-10-03). */
   changes: MenuChanges;
   table: MenuRow[];
-  /** Profit only: the period's recipe gross profit and what it could not count. */
-  profit: { total: number; perDay: number; unknownNet: number; days: number } | null;
+  /**
+   * Profit only: the period's recipe gross profit and what it could not count.
+   * Null figures when no dish sold has a recipe — never ฿0 (queue item 10).
+   */
+  profit: { total: number | null; perDay: number | null; unknownNet: number; days: number; knownShare: number | null } | null;
+  /** False in the profit view when no dish sold has a recipe cost: the page draws outlines, not zeros. */
+  profitKnown: boolean;
   /** The open day's breakdown, when a day popup is open. */
   day: { categories: BreakdownCategory[]; menus: BreakdownMenu[] } | null;
 };
@@ -152,8 +157,15 @@ export function buildSalesView(input: SalesViewInput, by: Metric): SalesView {
     changes: menuChanges(cur, before, menuMeta, by),
     table,
     profit: ps
-      ? { total: (ps.perDay.profit ?? 0) * ps.days, perDay: ps.perDay.profit ?? 0, unknownNet: ps.unknownNetPerDay * ps.days, days: ps.days }
+      ? {
+          total: ps.perDay.profit === null ? null : ps.perDay.profit * ps.days,
+          perDay: ps.perDay.profit,
+          unknownNet: ps.unknownNetPerDay * ps.days,
+          days: ps.days,
+          knownShare: ps.perDay.net > 0 ? Math.max(0, 1 - ps.unknownNetPerDay / ps.perDay.net) : null,
+        }
       : null,
+    profitKnown: by !== "profit" || cur.some((r) => r.profit !== null),
     day: dayRows
       ? { categories: toCats(sumBy(dayRows, (r) => r.categoryKey, by)), menus: toMenus(sumBy(dayRows, (r) => r.menuId, by)) }
       : null,

@@ -215,6 +215,7 @@ export default function LabManager(props: {
   // Dishes on sale with no recipe, best sellers first, minus any already being drafted.
   const drafted = new Set(drafts.map((d) => d.menuId));
   const unrecipied = props.menus.filter((m) => !m.hasRecipe && m.qty > 0);
+  const anySold = props.menus.some((m) => m.qty > 0);
   // Round 2, F: the copies go to "merge", never to "draft a recipe".
   const starts = unrecipied.filter((m) => !drafted.has(m.id) && !m.dupOf).sort((a, b) => b.net - a.net).slice(0, 6);
   const copies = unrecipied.filter((m) => m.dupOf).sort((a, b) => b.net - a.net);
@@ -260,11 +261,14 @@ export default function LabManager(props: {
         </div>
         <a href="/menus?filter=none" className="rounded-[18px] border border-border/70 bg-surface shadow-card p-3 transition-colors hover:border-border-strong">
           <p className="text-xs text-muted-subtle">ขายอยู่แต่ยังไม่มีสูตร</p>
-          <p className="font-display text-2xl font-semibold tabular-nums">{unrecipied.length} เมนู</p>
+          {/* Queue item 10: with nothing sold, "ทุกเมนูที่ขายอยู่มีสูตรแล้ว" was an all-clear about nothing. */}
+          <p className="font-display text-2xl font-semibold tabular-nums">{anySold ? `${unrecipied.length} เมนู` : "—"}</p>
           <p className="text-xs text-muted-foreground">
-            {unrecipied.length > 0
-              ? `ขายไป ${baht(unrecipiedNet)} ใน ${props.factDays} วัน ที่ยังคิดต้นทุนไม่ได้${copies.length > 0 ? ` · ${copies.length} น่าจะซ้ำกับเมนูที่มีสูตรแล้ว` : ""}`
-              : "ทุกเมนูที่ขายอยู่มีสูตรแล้ว"}
+            {!anySold
+              ? `ยังไม่มียอดขายใน ${props.factDays} วัน · นำเข้ายอดขายแล้วจะเห็นเมนูที่ยังไม่มีสูตร`
+              : unrecipied.length > 0
+                ? `ขายไป ${baht(unrecipiedNet)} ใน ${props.factDays} วัน ที่ยังคิดต้นทุนไม่ได้${copies.length > 0 ? ` · ${copies.length} น่าจะซ้ำกับเมนูที่มีสูตรแล้ว` : ""}`
+                : "ทุกเมนูที่ขายอยู่มีสูตรแล้ว"}
           </p>
         </a>
       </div>

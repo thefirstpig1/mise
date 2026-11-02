@@ -199,6 +199,11 @@ export type IngredientFact = {
   baseUnitName: string | null;
   /** The ledger balance at this branch, in the product's base unit. */
   onHand: number;
+  /**
+   * Has anything ever moved at this branch — a receipt, a count, a sale?
+   * Without one the 0 above is not "used up", it is "never entered" (queue item 10).
+   */
+  stocked: boolean;
   /** Average taken by sales per POSTED day; null when no day was posted. */
   usedPerDay: number | null;
   /** onHand ÷ usedPerDay, floored; null without a rate. */
@@ -266,7 +271,8 @@ export async function ingredientFactsInTx(
     const postedThrough = postedDays === 0 ? null : [...dayKeys].sort().at(-1)!;
     const facts: Record<string, IngredientFact> = {};
     for (const id of ids) {
-      const onHand = num(balances.find((b) => b.productId === id)?._sum.qty);
+      const balance = balances.find((b) => b.productId === id);
+      const onHand = num(balance?._sum.qty);
       const taken = -num(used.find((u) => u.productId === id)?._sum.qty);
       const usedPerDay = postedDays > 0 && taken > 0 ? taken / postedDays : null;
       const parRow = pars.find((p) => p.productId === id);
@@ -275,6 +281,7 @@ export async function ingredientFactsInTx(
         productId: id,
         baseUnitName: units.find((u) => u.productId === id)?.unitName ?? null,
         onHand,
+        stocked: balance !== undefined,
         usedPerDay,
         daysLeft: usedPerDay ? Math.max(0, Math.floor(onHand / usedPerDay)) : null,
         par,

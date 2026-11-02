@@ -34,6 +34,7 @@ import { Portal } from "./sheet-parts";
 import { ingredientOptions, menuSheet, priceBook } from "./prefetch";
 import { atLeastTh, atMostTh, baht } from "./manager-format";
 import type { IngredientOption, PriceBook, StandardUnit } from "@/server/menu-manager";
+import { WaitingSlot, WhatIsThis } from "@/components/ui/WaitingFor";
 
 export type ManagerRow = MenuRowView & {
   qty: number;
@@ -260,11 +261,14 @@ export default function MenuManager(props: {
 
   // ---- numbers per dish ----
   const facts = useMemo(() => {
-    const out = new Map<string, { avg: number | null; cost: number | null; low: boolean; pct: number | null; target: number; over: boolean; overBy: number | null; profitPlate: number | null; profit30: number | null }>();
+    const out = new Map<string, { avg: number | null; cost: number | null; low: boolean; unpriced: boolean; pct: number | null; target: number; over: boolean; overBy: number | null; profitPlate: number | null; profit30: number | null }>();
     for (const r of rows) {
       const avg = r.qty > 0 ? r.net / r.qty : null;
       const mc = book?.menus[r.id] ?? null;
-      const cost = mc?.costPerServing ?? null;
+      // Queue item 10: a recipe none of whose ingredients has a price is not a
+      // ฿0 floor ("อย่างน้อย ฿0.00", "อยู่ในเป้า") — its cost is unknown.
+      const unpriced = mc !== null && mc.confidence === "LOW" && (mc.costPerServing ?? 0) === 0;
+      const cost = unpriced ? null : (mc?.costPerServing ?? null);
       const pct = avg && cost != null ? (cost / avg) * 100 : null;
       const target = r.targetPct ?? shopTargetPct;
       const over = pct !== null && pct > target + 1e-9;
@@ -273,6 +277,7 @@ export default function MenuManager(props: {
         cost,
         // Rule RC-LB: a dish with an unpriced ingredient is a floor on cost and a ceiling on profit.
         low: mc?.confidence === "LOW",
+        unpriced,
         pct,
         target,
         over,
@@ -540,6 +545,10 @@ export default function MenuManager(props: {
             <span className="text-sm">{m.recipeId ? <span className="text-good">{m.recipeOwn ? "สูตรของสาขา" : "มีสูตร"}</span> : noRecipeNote(m)}</span>
           ) : m.recipeId === null ? (
             <span className="col-span-4">{noRecipeNote(m)}</span>
+          ) : !loading && f.unpriced ? (
+            <span className="col-span-4 text-sm text-muted-subtle">
+              มีสูตรแล้ว แต่วัตถุดิบในสูตรยังไม่มีราคา · <WhatIsThis figure="dishCost" needs={["price"]} />
+            </span>
           ) : loading ? (
             <>
               <span className="text-right">{pulse("w-14")}</span>
@@ -743,11 +752,11 @@ export default function MenuManager(props: {
               />
               <Stat
                 label={`มีสูตรแล้ว คิดเป็นยอดขาย ${factDays} วัน`}
-                value={stats.coverage === null ? "—" : `${stats.coverage.toFixed(0)}%`}
+                value={
+                  stats.coverage === null ? <WaitingSlot figure="recipeCoverage" needs={["sales"]} reason="ยังไม่มียอดขายในช่วงนี้" /> : `${stats.coverage.toFixed(0)}%`
+                }
                 sub={
-                  stats.coverage === null ? (
-                    "ยังไม่มียอดขายในช่วงนี้"
-                  ) : (
+                  stats.coverage === null ? null : (
                     <>
                       <span className="mb-1 mt-0.5 block h-1.5 overflow-hidden rounded-full bg-muted">
                         <span className="block h-full rounded-full bg-primary" style={{ width: `${stats.coverage}%` }} />
@@ -761,12 +770,24 @@ export default function MenuManager(props: {
                 <Stat
                   label="ต้นทุนตามสูตร เทียบยอดขาย"
                   tone={stats.foodCost !== null && stats.foodCost > stats.target ? "bad" : undefined}
-                  value={pricesLoading ? pulse("w-20") : stats.foodCost === null ? "—" : atLeastTh(stats.lowCount > 0, pct1(stats.foodCost))}
+                  value={
+                    pricesLoading ? (
+                      pulse("w-20")
+                    ) : stats.foodCost === null ? (
+                      <WaitingSlot
+                        figure="menuCost"
+                        needs={stats.coverage === null ? ["sales"] : ["recipe", "price"]}
+                        reason="ยังไม่มีเมนูที่มีสูตรและมียอดขาย"
+                      />
+                    ) : (
+                      atLeastTh(stats.lowCount > 0, pct1(stats.foodCost))
+                    )
+                  }
                   sub={
                     pricesLoading
                       ? "กำลังคำนวณ…"
                       : stats.foodCost === null
-                        ? "ยังไม่มีเมนูที่มีสูตรและมียอดขาย"
+                        ? null
                         : `เป้า${stats.ownTargets ? " (ถ่วงตามยอดขาย)" : "ร้าน"} ${pctTarget(stats.target)}${stats.foodCost > stats.target ? ` · เกิน ${(stats.foodCost - stats.target).toFixed(1)} จุด` : ""} · คิดจาก ${costedSelling.length} เมนูที่มีสูตร${stats.lowCount > 0 ? ` · ${stats.lowCount} เมนูราคาวัตถุดิบยังไม่ครบ` : ""}`
                   }
                 />
@@ -774,9 +795,26 @@ export default function MenuManager(props: {
               {!costHidden && (
                 <Stat
                   label="เกินเป้าต้นทุน"
-                  tone={overSelling.length > 0 ? "bad" : "good"}
-                  value={pricesLoading ? pulse("w-16") : `${overSelling.length} เมนู`}
-                  sub={pricesLoading ? "กำลังคำนวณ…" : overSelling.length > 0 ? `จาก ${costedSelling.length} เมนูที่มีสูตร · กดเพื่อดูเฉพาะเมนูเหล่านี้` : `ทุกเมนูที่มีสูตรอยู่ในเป้า`}
+                  tone={overSelling.length > 0 ? "bad" : costedSelling.length > 0 ? "good" : undefined}
+                  value={
+                    pricesLoading ? (
+                      pulse("w-16")
+                    ) : costedSelling.length === 0 ? (
+                      // Queue item 10: "0 เมนู · ทุกเมนูอยู่ในเป้า" in green, when nothing could be costed, was an all-clear about nothing.
+                      <WaitingSlot figure="overTarget" needs={["recipe", "price"]} reason="ยังไม่มีเมนูที่คิดต้นทุนได้" />
+                    ) : (
+                      `${overSelling.length} เมนู`
+                    )
+                  }
+                  sub={
+                    pricesLoading
+                      ? "กำลังคำนวณ…"
+                      : costedSelling.length === 0
+                        ? null
+                        : overSelling.length > 0
+                          ? `จาก ${costedSelling.length} เมนูที่มีสูตร · กดเพื่อดูเฉพาะเมนูเหล่านี้`
+                          : `ทุก ${costedSelling.length} เมนูที่คิดต้นทุนได้อยู่ในเป้า`
+                  }
                   pressed={status === "over"}
                   onClick={
                     pricesLoading || overSelling.length === 0
@@ -1022,11 +1060,12 @@ export default function MenuManager(props: {
                           </span>
                           {/* Phone: the group's profit alone. */}
                           <span className="text-right font-display font-semibold tabular-nums md:hidden">
-                            {costHidden ? baht(g.net) : g.profit === null ? "—" : <><span className="font-sans text-xs font-normal text-muted-foreground">กำไร</span> {atMostTh(g.low, baht(g.profit))}</>}
+                            {costHidden ? (g.net > 0 ? baht(g.net) : "—") : g.profit === null ? "—" : <><span className="font-sans text-xs font-normal text-muted-foreground">กำไร</span> {atMostTh(g.low, baht(g.profit))}</>}
                           </span>
                           <span className="hidden text-right font-display font-semibold tabular-nums md:block">
-                            {baht(g.net)}
-                            {g.share !== null && <span className="block font-sans text-xs font-normal text-muted-subtle">{g.share.toFixed(0)}% ของยอดขายร้าน</span>}
+                            {g.net > 0 ? baht(g.net) : "—"}
+                            {g.net > 0 && g.share !== null && <span className="block font-sans text-xs font-normal text-muted-subtle">{g.share.toFixed(0)}% ของยอดขายร้าน</span>}
+                            {g.net <= 0 && <span className="block font-sans text-xs font-normal text-muted-subtle">ยังไม่มียอดขาย</span>}
                           </span>
                           <span className="hidden md:block" />
                           {costHidden ? (

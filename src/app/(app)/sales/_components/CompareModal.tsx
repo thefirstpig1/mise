@@ -21,6 +21,7 @@ import { readApi } from "@/lib/read-api";
 import { ActionError, STALE_TAB_MESSAGE } from "./Breakdown";
 import { ModalShell, baht, fmtMetric, type ToneMap } from "./Breakdown";
 import { useMenuInsight } from "./insight-context";
+import WaitingFor from "@/components/ui/WaitingFor";
 
 type MonthOpt = { key: string; label: string; from: string; to: string };
 const WEEKDAY_SHORT = ["อา.", "จ.", "อ.", "พ.", "พฤ.", "ศ.", "ส."];
@@ -354,6 +355,13 @@ function CompareResultViewInner({
   const insight = useMenuInsight();
   const needle = q.trim().toLowerCase();
   const shownMenus = needle ? menuDiffs.filter((m) => m.name.toLowerCase().includes(needle)) : menuDiffs;
+
+  // Queue item 10: neither period has a dish with a recipe — "฿0 vs ฿0" would be a claim.
+  if (by === "profit" && a.perDay.profit === null && b.perDay.profit === null) {
+    return (
+      <WaitingFor figure="recipeProfit" needs={["recipe", "price"]} reason="ทั้งสองช่วงยังไม่มีเมนูที่มีสูตร จึงยังเทียบกำไรไม่ได้" outline={false} />
+    );
+  }
 
   return (
     <div className="space-y-5">

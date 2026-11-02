@@ -34,6 +34,11 @@ import MenuEngineering from "./MenuEngineering";
 import ComparePicker, { type CompareOption } from "./ComparePicker";
 import { MenuTable, SalesDailyChart, WeekdayChart } from "./SalesCharts";
 import { CategoryTrendCard, RangeControls, SalesTrendProvider } from "./SalesTrend";
+import WaitingFor, { Coverage } from "@/components/ui/WaitingFor";
+import type { NeedKey } from "@/lib/data-needs";
+
+/** What a profit figure waits for (queue item 10). */
+const RECIPE_NEEDS: NeedKey[] = ["recipe", "price"];
 
 type MonthOpt = { key: string; label: string; from: string; to: string };
 
@@ -195,6 +200,8 @@ export default function SalesAnalysis({
 
   const options = useMemo(() => OPTIONS.filter((o) => o.key !== "profit" || canProfit), [canProfit]);
   const v = views[by] ?? views.net!;
+  // Queue item 10: the profit view's own sentence when no dish sold has a recipe yet.
+  const noRecipeReason = v.profit && v.profit.unknownNet > 0 ? `ยอดขาย ${fmtMetric("net", v.profit.unknownNet)} มาจากเมนูที่ยังไม่มีสูตร` : undefined;
   // The category popup opens from สัดส่วนหมวดเมนู and from แนวโน้มรายหมวด.
   const [catOpen, setCatOpen] = useState<string | null>(null);
 
@@ -228,7 +235,13 @@ export default function SalesAnalysis({
           <CompareButton months={months} from={range.from} to={range.to} branchId={branchId} by={by} tones={tones} canProfit={canProfit} />
         </section>
 
-        {v.profit && (
+        {v.profit && v.profit.total === null ? (
+          // Queue item 10: no dish sold has a recipe — say what fills it, never "฿0".
+          <section className="rounded-[18px] border border-border/70 bg-surface p-4 shadow-card">
+            <h3 className="mb-2 text-base font-semibold">กำไรขั้นต้นจากสูตร</h3>
+            <WaitingFor figure="recipeProfit" needs={RECIPE_NEEDS} reason={noRecipeReason} branchId={branchId ?? undefined} outline={false} />
+          </section>
+        ) : v.profit && v.profit.total !== null ? (
           <section className="rounded-xl border border-good-border bg-good-bg/60 p-4 text-sm">
             <p>
               <span className="font-semibold">กำไรขั้นต้นจากสูตร</span>{" "}
@@ -238,16 +251,18 @@ export default function SalesAnalysis({
             <p className="mt-1 text-xs text-muted-foreground">
               กำไร = ยอดขาย (หลังหักส่วนลด ไม่รวม VAT) − จำนวนจาน × ต้นทุนต่อจานจากสูตรอาหาร ณ {asOfLabel}
               {v.profit.unknownNet > 0 && (
-                <>
-                  {" "}· ยอดขาย {fmtMetric("net", v.profit.unknownNet)} มาจากเมนูที่ยังไม่มีสูตร จึงยังไม่นับในกำไร —{" "}
-                  <a href="/menus?filter=none" className="text-primary underline">
-                    ดูเมนูที่ยังไม่มีสูตร
-                  </a>
-                </>
+                <> · ยอดขาย {fmtMetric("net", v.profit.unknownNet)} มาจากเมนูที่ยังไม่มีสูตร จึงยังไม่นับในกำไร</>
               )}
             </p>
+            {v.profit.unknownNet > 0 && v.profit.knownShare !== null ? (
+              <div className="mt-2">
+                <Coverage share={v.profit.knownShare} figure="recipeProfit" needs={RECIPE_NEEDS} branchId={branchId ?? undefined}>
+                  คิดจากเมนูที่มีสูตร {Math.round(v.profit.knownShare * 100)}% ของยอดขาย
+                </Coverage>
+              </div>
+            ) : null}
           </section>
-        )}
+        ) : null}
 
         {between}
 
@@ -255,7 +270,11 @@ export default function SalesAnalysis({
         <section className="rounded-[18px] border border-border/70 bg-surface shadow-card p-5">
           <h3 className="text-base font-semibold">{METRIC_LABELS_TH[by]}รายวัน</h3>
           <p className="mb-4 mt-0.5 text-xs text-muted-foreground">กดที่แท่งเพื่อดูรายละเอียดของวันนั้น</p>
-          <SalesDailyChart activeDay={dayModal?.day ?? null} rows={v.daily} by={by} />
+          {v.profitKnown ? (
+            <SalesDailyChart activeDay={dayModal?.day ?? null} rows={v.daily} by={by} />
+          ) : (
+            <WaitingFor figure="recipeProfit" needs={RECIPE_NEEDS} reason={noRecipeReason} branchId={branchId ?? undefined} />
+          )}
         </section>
 
         {dayModal && v.day ? (
@@ -277,12 +296,19 @@ export default function SalesAnalysis({
             <p className="mb-4 mt-0.5 text-xs text-muted-foreground">
               {METRIC_LABELS_TH[by]}เฉลี่ยต่อวัน หารด้วยจำนวนวันนั้นที่มีจริงในช่วง — วันที่ดีที่สุดเป็นแท่งสีส้มอิฐ · ใช้วางกะพนักงาน
             </p>
-            <WeekdayChart rows={v.weekday} by={by} />
+            {v.profitKnown ? (
+              <WeekdayChart rows={v.weekday} by={by} />
+            ) : (
+              <WaitingFor figure="profitByWeekday" needs={RECIPE_NEEDS} reason={noRecipeReason} branchId={branchId ?? undefined} />
+            )}
           </section>
           <section className="rounded-[18px] border border-border/70 bg-surface shadow-card p-5">
             <h3 className="text-base font-semibold">สัดส่วนหมวดเมนู</h3>
             <p className="mb-4 mt-0.5 text-xs text-muted-foreground">ตาม{METRIC_LABELS_TH[by]} · กดหมวดเพื่อดูเมนูในหมวดนั้น</p>
             {noMenuCategories && <UncategorisedHint />}
+            {!v.profitKnown ? (
+              <WaitingFor figure="categoryMix" needs={RECIPE_NEEDS} reason={noRecipeReason} branchId={branchId ?? undefined} />
+            ) : (
             <CategoryShare
               total={v.total}
               tones={tones}
@@ -294,6 +320,7 @@ export default function SalesAnalysis({
               onOpenChange={setCatOpen}
               filterHref={Object.fromEntries(Object.entries(filterHref).map(([k, h]) => [k, withBy(h, by)]))}
             />
+            )}
           </section>
         </div>
 
@@ -306,16 +333,25 @@ export default function SalesAnalysis({
             </div>
             <RangeControls />
           </div>
-          <CategoryTrendCard onOpenCategory={setCatOpen} />
+          {v.profitKnown ? (
+            <CategoryTrendCard onOpenCategory={setCatOpen} />
+          ) : (
+            <WaitingFor figure="categoryTrend" needs={RECIPE_NEEDS} reason={noRecipeReason} branchId={branchId ?? undefined} />
+          )}
         </section>
 
         {/* ---------- question 1: which category sells on which day ---------- */}
-        {!noMenuCategories && (
-          <section className="rounded-[18px] border border-border/70 bg-surface shadow-card p-5">
-            <h3 className="text-base font-semibold">หมวดไหนขายดีวันไหน</h3>
-            <p className="mb-4 mt-0.5 text-xs text-muted-foreground">
-              เช่น วันเสาร์ ต้มยำคิดเป็นกี่ % ของทั้งวัน เทียบกับเครื่องดื่มหรือเบียร์ · เฉลี่ยจากจำนวนวันนั้นที่มีข้อมูลจริง
-            </p>
+        <section className="rounded-[18px] border border-border/70 bg-surface shadow-card p-5">
+          <h3 className="text-base font-semibold">หมวดไหนขายดีวันไหน</h3>
+          <p className="mb-4 mt-0.5 text-xs text-muted-foreground">
+            เช่น วันเสาร์ ต้มยำคิดเป็นกี่ % ของทั้งวัน เทียบกับเครื่องดื่มหรือเบียร์ · เฉลี่ยจากจำนวนวันนั้นที่มีข้อมูลจริง
+          </p>
+          {noMenuCategories ? (
+            // Queue item 10: the section used to vanish; it waits for categories instead.
+            <WaitingFor figure="categoryHeat" needs={["category"]} reason="เมนูยังไม่ได้จัดหมวด จึงแยกยอดตามหมวดไม่ได้" branchId={branchId ?? undefined} />
+          ) : !v.profitKnown ? (
+            <WaitingFor figure="categoryHeat" needs={RECIPE_NEEDS} reason={noRecipeReason} branchId={branchId ?? undefined} />
+          ) : (
             <CategoryWeekdayHeatmap
               rows={v.heat.rows}
               weekdays={v.heat.weekdays}
@@ -324,8 +360,8 @@ export default function SalesAnalysis({
               tones={tones}
               by={by}
             />
-          </section>
-        )}
+          )}
+        </section>
 
         {/* ---------- question 4: what moved (Kong, 2026-10-03: one chart, any comparison) ---------- */}
         <section className="rounded-[18px] border border-border/70 bg-surface shadow-card p-5">
@@ -340,7 +376,11 @@ export default function SalesAnalysis({
             />
             <span>· {METRIC_LABELS_TH[by]}เฉลี่ยต่อวัน · กดเมนูเพื่อดู insight</span>
           </div>
-          <MenuChanges changes={v.changes} by={by} tones={tones} curLabel={periodLabelTh(range.from, range.to)} prevLabel={prevLabel} />
+          {v.profitKnown ? (
+            <MenuChanges changes={v.changes} by={by} tones={tones} curLabel={periodLabelTh(range.from, range.to)} prevLabel={prevLabel} />
+          ) : (
+            <WaitingFor figure="menuMovers" needs={RECIPE_NEEDS} reason={noRecipeReason} branchId={branchId ?? undefined} />
+          )}
         </section>
 
         {canProfit ? (

@@ -317,7 +317,12 @@ export default function IngredientSheet({
                 )
               ) : (
                 <>
-                  <Tile k="คงเหลือ" v={fact ? qtyFmt(fact.onHand, baseUnit) : "—"} s={data.facts.postedThrough ? `ตามระบบ · ตัดสต๊อกถึง ${thDate(data.facts.postedThrough, false)}` : "ยังไม่มีการตัดสต๊อกตามยอดขาย"} />
+                  {fact && !fact.stocked ? (
+                    // Queue item 10: never received or counted here is not "0 kg".
+                    <Tile k="คงเหลือ" v="—" s="ยังไม่เคยนับหรือรับเข้าที่สาขานี้" />
+                  ) : (
+                    <Tile k="คงเหลือ" v={fact ? qtyFmt(fact.onHand, baseUnit) : "—"} s={data.facts.postedThrough ? `ตามระบบ · ตัดสต๊อกถึง ${thDate(data.facts.postedThrough, false)}` : "ยังไม่มีการตัดสต๊อกตามยอดขาย"} />
+                  )}
                   <Tile k="ใช้เฉลี่ยต่อวัน" v={fact?.usedPerDay ? qtyFmt(fact.usedPerDay, baseUnit) : "—"} s={`จากยอดขาย ${data.facts.postedDays} วันที่ตัดสต๊อกแล้ว${thinRate ? " · ยังน้อย เชื่อได้ไม่มาก" : ""}`}
                     warn={thinRate}
                   />
