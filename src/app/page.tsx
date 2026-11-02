@@ -39,7 +39,7 @@ export default async function HomePage() {
             คิดครัว
           </a>
           <nav className="lp-nav" aria-label="เมนูหลัก">
-            <a href="#features">ฟังก์ชัน</a>
+            <a href="#features">ฟีเจอร์</a>
             <a href="#roles">ทุกฝ่ายในร้าน</a>
             <a href="#faq">คำถามที่พบบ่อย</a>
           </nav>
@@ -63,17 +63,17 @@ export default async function HomePage() {
             <h1 className="lp-lines">
               <span className="lp-line">
                 <span style={d(0.12)}>
-                  <Phrases t="ยอดขาย ต้นทุน และกำไรของร้านคุณ" />
+                  <Phrases t="ขายได้เท่านี้" />
                 </span>
               </span>
               <span className="lp-line">
                 <span style={d(0.24)}>
-                  <Phrases t="ครบในระบบเดียว" />
+                  <Phrases t="เหลือกำไรเท่าไร" />
                 </span>
               </span>
             </h1>
             <p className="lp-sub lp-rv" style={d(0.4)}>
-              นำเข้ายอดขายจากไฟล์ของเครื่อง POS ที่ใช้อยู่ ไม่ต้องเปลี่ยนเครื่อง และเริ่มใช้ได้แม้ยังไม่มีสูตรอาหาร
+              <Phrases t="คิดครัวรวมยอดขายจากไฟล์ POS บิลซื้อ และการนับสต๊อก ให้เห็นต้นทุนและกำไรของร้านทุกเดือน · ใช้ POS เครื่องเดิม และเริ่มได้แม้ยังไม่มีสูตรอาหาร" />
             </p>
             <div className="lp-ctas lp-rv" style={d(0.52)}>
               <Link href="/signup" className="lp-btn lp-btn-cream">
@@ -84,7 +84,7 @@ export default async function HomePage() {
               </a>
             </div>
             <p className="lp-fine lp-rv" style={d(0.62)}>
-              สมัครด้วยอีเมล และเข้าสู่ระบบด้วยลิงก์ ไม่ต้องตั้งรหัสผ่าน
+              สมัครด้วยอีเมล เข้าระบบด้วยลิงก์ที่ส่งไปทางอีเมล ไม่ต้องจำรหัสผ่าน
             </p>
           </div>
 
@@ -117,7 +117,7 @@ export default async function HomePage() {
               <div className="lp-bob">
                 <div className="lp-stat">
                   <div className="lp-k">
-                    <Phrases t="ของหายจากการนับสต๊อก" />
+                    <Phrases t="ของที่นับแล้วหายไป" />
                   </div>
                   <div className="lp-v">
                     <span data-count="1.45" data-dec="2">
@@ -125,7 +125,7 @@ export default async function HomePage() {
                     </span>
                     % <span style={{ fontSize: 14, fontWeight: 500, color: "var(--muted)" }}>ของยอดขาย</span>
                   </div>
-                  <span className="lp-chip">✓ อยู่ในเป้า ≤ 2%</span>
+                  <span className="lp-chip">✓ ไม่เกินเป้า 2%</span>
                 </div>
               </div>
             </div>
@@ -152,16 +152,16 @@ export default async function HomePage() {
 
       <section className="lp-features" id="features">
         <div className="lp-wrap lp-sec-head">
-          <p className="lp-eyebrow lp-rv">ฟังก์ชันหลัก</p>
+          <p className="lp-eyebrow lp-rv">ฟีเจอร์หลัก</p>
           <h2 className="lp-lines">
             <span className="lp-line">
               <span>
-                <Phrases t="ไม่ได้บอกแค่ตัวเลข" />
+                <Phrases t="ไม่ได้มีแค่ตัวเลข" />
               </span>
             </span>
             <span className="lp-line">
               <span style={d(0.1)}>
-                <Phrases t="แต่ชี้ให้เห็นว่าเกิดจากอะไร และจุดไหนน่าสังเกต" />
+                <Phrases t="แต่ชี้ว่ามาจากไหน และตรงไหนน่าสังเกต" />
               </span>
             </span>
           </h2>
@@ -234,7 +234,7 @@ export default async function HomePage() {
               </span>
             </h2>
             <p className="lp-rv" style={d(0.2)}>
-              ครัวขอซื้อวัตถุดิบ ฝ่ายจัดซื้อออกใบสั่งซื้อ ฝ่ายบัญชีดูแลค่าใช้จ่าย และเจ้าของร้านดูกำไร โดยตัวเลขต้นทุนและกำไรแสดงเฉพาะคนที่ได้รับสิทธิ์
+              ครัวขอซื้อวัตถุดิบ ฝ่ายจัดซื้อออกใบสั่งซื้อ ฝ่ายบัญชีดูแลค่าใช้จ่าย และเจ้าของร้านดูกำไร ส่วนตัวเลขต้นทุนและกำไร เห็นเฉพาะคนที่เจ้าของร้านให้สิทธิ์
             </p>
           </div>
           <div className="lp-rgrid lp-rv" style={d(0.25)}>
@@ -250,12 +250,12 @@ export default async function HomePage() {
             <h2 className="lp-lines">
               <span className="lp-line">
                 <span>
-                  <Phrases t="ตัวเลขที่ถูกต้อง" />
+                  <Phrases t="ตัวเลขที่เชื่อได้" />
                 </span>
               </span>
               <span className="lp-line">
                 <span style={d(0.1)}>
-                  <Phrases t="และบอกเสมอว่าข้อมูลครบแค่ไหน" />
+                  <Phrases t="เพราะบอกเสมอว่าข้อมูลครบแค่ไหน" />
                 </span>
               </span>
             </h2>
@@ -303,7 +303,7 @@ export default async function HomePage() {
             </span>
           </h2>
           <p className="lp-lead lp-rv" style={d(0.15)}>
-            <Phrases t="สมัครด้วยอีเมล แล้วทำตามขั้นตอน ในแดชบอร์ดทีละข้อ" />
+            <Phrases t="สมัครด้วยอีเมล แล้วทำตามขั้นตอนบนแดชบอร์ดทีละข้อ" />
           </p>
           <ol className="lp-steps">
             {START_STEPS.map((s, i) => (
@@ -329,11 +329,11 @@ export default async function HomePage() {
             คิดครัว · KitKrua
           </span>
           <span className="lp-links">
-            <a href="#features">ฟังก์ชัน</a>
+            <a href="#features">ฟีเจอร์</a>
             <a href="#faq">คำถามที่พบบ่อย</a>
             <Link href="/login">เข้าสู่ระบบ</Link>
           </span>
-          <span>ภาพหน้าจอทั้งหมดเป็นข้อมูลจากร้านตัวอย่าง · © 2569 คิดครัว</span>
+          <span>ภาพหน้าจอทั้งหมดใช้ข้อมูลร้านตัวอย่าง ไม่ใช่ข้อมูลร้านจริง · © 2569 คิดครัว</span>
         </div>
       </footer>
     </div>
