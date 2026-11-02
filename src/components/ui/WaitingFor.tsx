@@ -29,7 +29,7 @@
 import { useEffect, useId, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { ChartColumn, ChartLine, ChartPie, ChartScatter, LayoutGrid, List, Waypoints, X, type LucideIcon } from "lucide-react";
-import { FIGURES, NEEDS, needStatus, type FigureKey, type NeedKey, type OutlineShape, type Readiness } from "@/lib/data-needs";
+import { FIGURES, NEEDS, needStatus, type FigureKey, type NeedKey, type OutlineShape, type Readiness, type SampleKey } from "@/lib/data-needs";
 
 const ICONS: Record<OutlineShape, LucideIcon> = {
   bars: ChartColumn,
@@ -264,7 +264,7 @@ function NeedsDialog({ figure, needs, reason, branchId, act = true, onClose }: C
             <span className="justify-self-start rounded-full border border-[#E2CE97] bg-[#F8EFD6] px-2 font-display text-[11px] font-semibold text-gold-ink">
               ตัวอย่าง · ร้านสมมุติ
             </span>
-            <Example shape={f.shape} />
+            <Example shape={f.shape} sample={"sample" in f ? f.sample : undefined} />
             <p className="text-xs text-muted-foreground">{f.how}</p>
           </div>
 
@@ -353,13 +353,53 @@ export function Outline({ shape }: { shape: OutlineShape }) {
   );
 }
 
-function Example({ shape }: { shape: OutlineShape }) {
+function Example({ shape, sample }: { shape: OutlineShape; sample?: SampleKey }) {
   return (
     <svg viewBox={VIEW[shape]} className="block h-auto w-full" role="img" aria-label="ภาพตัวอย่างจากร้านสมมุติ">
-      <Shape shape={shape} filled />
+      <Shape shape={shape} filled sample={sample} />
     </svg>
   );
 }
+
+/** Made-up rows for a list example — every one names its own shop, never this one. */
+const LIST_SAMPLES: Record<string, [string, number, string, boolean][]> = {
+  movers: [
+    ["ข้าวกะเพราหมูกรอบ", 1, "+฿420/วัน", true],
+    ["ต้มยำกุ้งน้ำข้น", 0.74, "+฿310/วัน", true],
+    ["ผัดซีอิ๊วหมู", 0.52, "−฿180/วัน", false],
+    ["ชาเย็น", 0.33, "−฿95/วัน", false],
+  ],
+  stock: [
+    ["หมูสับ", 1, "฿4,800 · 12 วัน", true],
+    ["กุ้งขาว", 0.81, "฿3,900 · 3 วัน", true],
+    ["น้ำมันพืช", 0.25, "฿1,200 · 48 วัน", false],
+    ["ไข่ไก่", 0.18, "฿860 · 2 วัน", true],
+  ],
+  days: [
+    ["ข้าวสาร", 1, "อีก 21 วัน", true],
+    ["น้ำมันพืช", 0.62, "อีก 13 วัน", true],
+    ["หมูสับ", 0.19, "อีก 4 วัน", false],
+    ["กุ้งขาว", 0.1, "อีก 2 วัน", false],
+  ],
+  dish: [
+    ["ไข่ไก่ 2 ฟอง", 0.43, "฿8.40", true],
+    ["หมูสับ 60 g", 0.49, "฿9.60", true],
+    ["ข้าวสวย 1 จาน", 0.2, "฿4.00", true],
+    ["น้ำมันพืช 30 ml", 0.08, "฿1.50", true],
+  ],
+  over: [
+    ["ต้มยำกุ้งน้ำข้น", 1, "42% · เป้า 35%", false],
+    ["ผัดไทยกุ้งสด", 0.86, "39% · เป้า 35%", false],
+    ["ข้าวกะเพราหมูกรอบ", 0.62, "28% · ในเป้า", true],
+    ["ชาเย็น", 0.4, "18% · ในเป้า", true],
+  ],
+  posted: [
+    ["1 ต.ค. · ครอบคลุม 96%", 0.96, "ตัดแล้ว", true],
+    ["2 ต.ค. · ครอบคลุม 94%", 0.94, "ตัดแล้ว", true],
+    ["3 ต.ค. · ครอบคลุม 61%", 0.61, "ตัดแล้ว", true],
+    ["4 ต.ค.", 0.3, "ยังไม่ได้ตัด", false],
+  ],
+};
 
 const VIEW: Record<OutlineShape, string> = {
   bars: "0 0 340 150",
@@ -374,7 +414,7 @@ const VIEW: Record<OutlineShape, string> = {
 const OLIVE = ["#5E6B14", "#9DAA55"] as const;
 const CLAY = "#C0692B";
 
-function Shape({ shape, filled }: { shape: OutlineShape; filled: boolean }) {
+function Shape({ shape, filled, sample }: { shape: OutlineShape; filled: boolean; sample?: SampleKey }) {
   const text = { fontFamily: "Noto Sans Thai, sans-serif", fontSize: 10.5, fill: filled ? "#5A5C31" : FAINT } as const;
   const head = { fontFamily: "Prompt, sans-serif", fontSize: 10.5, fontWeight: 600, fill: filled ? "#8B8D63" : FAINT } as const;
   switch (shape) {
@@ -565,22 +605,17 @@ function Shape({ shape, filled }: { shape: OutlineShape; filled: boolean }) {
       );
     }
     case "list": {
-      const rows: [string, number, string][] = [
-        ["ข้าวกะเพราหมูกรอบ", 1, "+฿420/วัน"],
-        ["ต้มยำกุ้งน้ำข้น", 0.74, "+฿310/วัน"],
-        ["ผัดซีอิ๊วหมู", 0.52, "−฿180/วัน"],
-        ["ชาเย็น", 0.33, "−฿95/วัน"],
-      ];
+      const rows = LIST_SAMPLES[sample ?? "movers"] ?? LIST_SAMPLES.movers;
       return (
         <>
-          {rows.map(([name, w, val], i) => (
+          {rows.map(([name, w, val, good], i) => (
             <g key={name}>
               {filled ? (
                 <>
                   <text x="12" y={30 + i * 32} {...text} fill="#262811">
                     {name}
                   </text>
-                  <rect x="140" y={20 + i * 32} width={150 * w} height="14" rx="5" fill={i < 2 ? OLIVE[0] : "#DD8A74"} />
+                  <rect x="140" y={20 + i * 32} width={110 * w} height="14" rx="5" fill={good ? OLIVE[0] : "#DD8A74"} />
                   <text x="330" y={31 + i * 32} textAnchor="end" {...text}>
                     {val}
                   </text>
@@ -588,7 +623,7 @@ function Shape({ shape, filled }: { shape: OutlineShape; filled: boolean }) {
               ) : (
                 <>
                   <rect x="12" y={22 + i * 32} width={96 - i * 8} height="9" rx="4.5" {...dash} />
-                  <rect x="140" y={20 + i * 32} width={150 * w} height="14" rx="5" {...dash} />
+                  <rect x="140" y={20 + i * 32} width={110 * w} height="14" rx="5" {...dash} />
                 </>
               )}
             </g>
@@ -597,13 +632,22 @@ function Shape({ shape, filled }: { shape: OutlineShape; filled: boolean }) {
       );
     }
     case "flow": {
-      // Sales, food cost, expenses, profit — a waterfall stepping down.
-      const steps: [string, number, number, string, string][] = [
-        ["ยอดขาย", 20, 120, "฿186,240", OLIVE[0]],
-        ["ต้นทุนอาหาร", 20, 42, "−฿65,200", "#DD8A74"],
-        ["ค่าใช้จ่าย", 62, 64, "−฿99,180", "#E8A76F"],
-        ["กำไร", 126, 14, "฿21,860", "#5A7333"],
-      ];
+      // A waterfall: sales down to profit, or (sample "cogs") the stock equation.
+      const steps: [string, number, number, string, string][] =
+        sample === "cogs"
+          ? [
+              // To scale: 42,300 + 61,800 = 104,100 fills the 120px column.
+              ["ต้นงวด", 91, 49, "฿42,300", "#9DAA55"],
+              ["ซื้อเข้า", 20, 71, "+฿61,800", OLIVE[0]],
+              ["ปลายงวด", 20, 45, "−฿38,900", "#C7CC9B"],
+              ["ใช้ไป", 65, 75, "฿65,200", CLAY],
+            ]
+          : [
+              ["ยอดขาย", 20, 120, "฿186,240", OLIVE[0]],
+              ["ต้นทุนอาหาร", 20, 42, "−฿65,200", "#DD8A74"],
+              ["ค่าใช้จ่าย", 62, 64, "−฿99,180", "#E8A76F"],
+              ["กำไร", 126, 14, "฿21,860", "#5A7333"],
+            ];
       return (
         <>
           <line x1="10" y1="140" x2="330" y2="140" stroke={AXIS} strokeWidth="1.5" />

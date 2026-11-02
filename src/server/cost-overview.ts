@@ -125,7 +125,12 @@ export type CostOverview = {
   week: CostPeriod[];
   month: CostPeriod[];
   counts: CountEvent[];
-  stock: Record<string, { value: number; items: StockItem[] }>;
+  /**
+   * `unpriced`: products on the shelf whose whole value is unknown (no receipt,
+   * no declared cost) — a ฿0 total over them is "not known", not "empty"
+   * (queue item 10, rule ND5). `held`: products with anything on the shelf.
+   */
+  stock: Record<string, { value: number; items: StockItem[]; unpriced: number; held: number }>;
 };
 
 type Range = { from: Date; to: Date; key: string; label: string; partial: boolean };
@@ -177,6 +182,25 @@ export function laborFor(
 }
 
 export { priceMovesFor } from "@/lib/price-average";
+
+/**
+ * What is on a branch's shelf (queue item 10, rule ND5): products holding any
+ * quantity, and of those the ones with no value at all — received without a
+ * price, or counted in with none. A ฿0 total over them is "not known".
+ */
+export function shelfOf(states: readonly ({ qtyOnHand: Prisma.Decimal | number; inventoryValue: Prisma.Decimal | number } | undefined)[]): {
+  held: number;
+  unpriced: number;
+} {
+  let held = 0;
+  let unpriced = 0;
+  for (const s of states) {
+    if (!s || num(s.qtyOnHand) <= 0) continue;
+    held++;
+    if (num(s.inventoryValue) <= 0) unpriced++;
+  }
+  return { held, unpriced };
+}
 
 export async function getCostOverviewLogic(tenantId: string, reach: BranchReach): Promise<CostOverview> {
   const today = computeBangkokToday();
@@ -404,7 +428,8 @@ async function loadFacts(tx: PrismaClient, tenantId: string, reach: BranchReach,
         daysLeft: rate[id]?.daysLeft ?? null,
       };
     });
-    stock[b.id] = { value: round2(items.reduce((s, i) => s + i.value, 0)), items };
+    const { held, unpriced } = shelfOf(productIds.map((id) => replayed.get(costKeyOf(id, b.id))));
+    stock[b.id] = { value: round2(items.reduce((s, i) => s + i.value, 0)), items, unpriced, held };
   }
 
   return {

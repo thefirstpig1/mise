@@ -22,6 +22,8 @@ import { Coins, ScanSearch, Soup, Trash2, type LucideIcon } from "lucide-react";
 import IconTile from "@/components/ui/IconTile";
 import { saveCostTargetsAction } from "../actions";
 import type { CostCell, CostOverview as Overview, CostPeriod, CostTargets, CountEvent, StockItem } from "@/server/cost-overview";
+import WaitingFor, { WaitingSlot, WhatIsThis, useReadiness } from "@/components/ui/WaitingFor";
+import type { NeedKey } from "@/lib/data-needs";
 
 const f0 = (n: number) => Math.round(n).toLocaleString("th-TH");
 const f2 = (n: number) => n.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -96,9 +98,11 @@ const METRICS: Record<Exclude<MetricKey, "var">, Metric> = {
   waste: {
     tab: "ทิ้ง",
     hint: "ของที่บันทึกว่าทิ้ง (เมนูของเสีย)",
-    baht: (a) => (a.rev === null ? null : a.waste),
+    // Queue item 10 (rule ND6): no waste note is not "฿0 · 0.00%" — it may be
+    // nothing thrown away, or nothing written down. Said as that, never starred.
+    baht: (a) => (a.rev === null || a.waste <= 0 ? null : a.waste),
     bound: () => false,
-    why: () => "ไม่มียอดขาย",
+    why: (a) => (a.rev === null ? "ไม่มียอดขาย" : "ยังไม่มีบันทึกของเสีย"),
   },
 };
 // Kong 2026-10-30: under นับสต๊อก no sale takes stock out, so what a count finds
@@ -286,6 +290,13 @@ function Overview({ data, canEditTargets }: { data: Overview; canEditTargets: bo
                     <TabValue muted>ยังไม่ได้นับ</TabValue>
                     <TabSub>นับสต๊อกถึงจะรู้</TabSub>
                   </>
+                ) : cs.every((c) => c.first) ? (
+                  // Rule PG4 / queue item 10: the opening count IS the starting
+                  // balance — "฿0 · 0.00% อยู่ในเป้า" in green said it was a good result.
+                  <>
+                    <TabValue muted>นับเปิดระบบแล้ว</TabValue>
+                    <TabSub>เทียบได้ตั้งแต่ใบนับถัดไป · นับล่าสุด {cs.map((c) => c.dateLabel).join(" · ")}</TabSub>
+                  </>
                 ) : (
                   <>
                     <TabValue>{isPct && s.pct !== null ? `${s.pct.toFixed(2)}%` : `฿${f0(s.v)}`}</TabValue>
@@ -386,6 +397,7 @@ function Overview({ data, canEditTargets }: { data: Overview; canEditTargets: bo
             valueOf={valueOf}
             fmtV={fmtV}
             periodWord={periodWord}
+            periodic={periodic}
           />
         )}
       </div>
@@ -592,7 +604,9 @@ function BarChart({
   valueOf,
   fmtV,
   periodWord,
+  periodic,
 }: {
+  periodic: boolean;
   P: CostPeriod[];
   sel: number;
   onSel: (i: number) => void;
@@ -631,9 +645,22 @@ function BarChart({
   };
 
   if (sets.length === 0) {
+    // Queue item 10: the chart's outline and what it fills from — waste aside,
+    // which may be zero for real (rule ND6) and stays a sentence.
+    const lastAgg = agg(P[sel] ?? P[P.length - 1], all);
+    const needs: NeedKey[] = lastAgg.rev === null ? ["sales"] : periodic ? ["count", "receipt", "price"] : ["posted", "recipe", "price"];
     return (
-      <div ref={ref} className="py-10 text-center text-sm text-muted-foreground">
-        {all.map((b) => nameOf.get(b)).join(" และ ")}ยังไม่มีข้อมูลสำหรับตัวนี้ในช่วงที่แสดง
+      <div ref={ref}>
+        {metricKey === "waste" ? (
+          <p className="py-10 text-center text-sm text-muted-foreground">ยังไม่มีบันทึกของเสียในช่วงที่แสดง</p>
+        ) : (
+          <WaitingFor
+            figure={metricKey === "prime" ? "primeCost" : "foodCost"}
+            needs={metricKey === "prime" && lastAgg.cogs !== null ? ["expense"] : needs}
+            reason={metric.why(lastAgg)}
+            branchId={all.length === 1 ? all[0] : undefined}
+          />
+        )}
       </div>
     );
   }
@@ -1054,10 +1081,11 @@ function Todo({
         </a>
       </>
     );
-  if (multi && missingSales.length)
+  // Queue item 10: a one-branch shop with no sales file was never told.
+  if (missingSales.length)
     gaps.push(
       <>
-        {missingSales.join(", ")} ยังไม่มีไฟล์ยอดขายในช่วงนี้ — เทียบสาขาไม่ได้ ·{" "}
+        {multi ? `${missingSales.join(", ")} ยังไม่มีไฟล์ยอดขายในช่วงนี้ — เทียบสาขาไม่ได้` : "ยังไม่มีไฟล์ยอดขายในช่วงนี้"} ·{" "}
         <a className="text-primary hover:underline" href="/sales/import">
           นำเข้ายอดขาย ›
         </a>
@@ -1067,7 +1095,7 @@ function Todo({
   return (
     <div className="rounded-[18px] border border-border/70 bg-surface shadow-card p-3">
       {shown.length === 0 ? (
-        <p className="px-1 py-3 text-sm text-muted-foreground">ช่วงนี้ยังไม่มีเรื่องที่เป็นเงิน — ยังไม่ได้นับสต๊อก ไม่มีราคาที่ขึ้น และไม่มีของที่บันทึกว่าทิ้ง</p>
+        <TodoEmpty periodic={periodic} counted={counts.length > 0} waste={cur.waste} />
       ) : (
         <div className="grid gap-1.5">
           {shown.map((it, i) => {
@@ -1122,6 +1150,38 @@ function Todo({
   );
 }
 
+/**
+ * Nothing to act on — an all-clear only when the records that would raise
+ * something exist (queue item 10, rule ND6). Read after paint.
+ */
+function TodoEmpty({ periodic, counted, waste }: { periodic: boolean; counted: boolean; waste: number }) {
+  const r = useReadiness();
+  if (r === undefined) return <span className="mx-1 my-4 block h-3 w-48 animate-pulse rounded bg-border" />;
+  const lines: [string, string, string][] = [];
+  if (!periodic && !counted) lines.push(["ของขาดจากการนับ ขึ้นเมื่อนับสต๊อกแล้ว", "/stock-counts/new", "เริ่มนับสต๊อก"]);
+  if (r !== null && r.receipts < 2) lines.push(["ราคาที่ขึ้น ขึ้นเมื่อรับสินค้าตัวเดียวกันอย่างน้อย 2 ครั้ง", "/goods-receipts/new", "รับสินค้า"]);
+  if (lines.length === 0)
+    return (
+      <p className="px-1 py-3 text-sm text-muted-foreground">
+        ช่วงนี้ไม่มีเรื่องที่เป็นเงิน{waste <= 0 ? " · ยังไม่มีบันทึกของเสียในช่วงนี้" : ""}
+      </p>
+    );
+  return (
+    <div className="space-y-1.5 rounded-xl bg-surface-sunk px-3 py-2.5 text-xs text-muted-foreground">
+      <p className="font-display text-sm font-semibold text-foreground">ยังเฝ้าดูได้ไม่ครบ</p>
+      {lines.map(([text, href, cta]) => (
+        <p key={href}>
+          · {text}{" "}
+          <a href={href} className="font-medium text-primary underline underline-offset-[3px]">
+            {cta} ›
+          </a>
+        </p>
+      ))}
+      {waste <= 0 ? <p>· ยังไม่มีบันทึกของเสียในช่วงนี้</p> : null}
+    </div>
+  );
+}
+
 // ── Q8 ──────────────────────────────────────────────────────────────────────
 
 function Bench({
@@ -1159,7 +1219,7 @@ function Bench({
       why: (b) => (latestCounts([b]).length ? "ยังเทียบยอดขายไม่ได้" : "ยังไม่ได้นับ"),
       cost: false,
     },
-    { key: "waste", label: "ทิ้ง % ของยอดขาย", val: (b) => pctOf(a(b).rev === null ? null : a(b).waste, a(b).rev), fmt: (v) => `${v.toFixed(2)}%`, why: () => "ไม่มียอดขาย", cost: false },
+    { key: "waste", label: "ทิ้ง % ของยอดขาย", val: (b) => pctOf(a(b).rev === null || a(b).waste <= 0 ? null : a(b).waste, a(b).rev), fmt: (v) => `${v.toFixed(2)}%`, why: (b) => (a(b).rev === null ? "ไม่มียอดขาย" : "ยังไม่มีบันทึกของเสีย"), cost: false },
   ];
   return (
     <div className="overflow-x-auto rounded-[18px] border border-border/70 bg-surface shadow-card p-3">
@@ -1236,6 +1296,9 @@ function Stock({
 }) {
   const items: StockItem[] = bs.flatMap((b) => stock[b]?.items ?? []);
   const total = bs.reduce((s, b) => s + (stock[b]?.value ?? 0), 0);
+  const unpriced = bs.reduce((s, b) => s + (stock[b]?.unpriced ?? 0), 0);
+  const held = bs.reduce((s, b) => s + (stock[b]?.held ?? 0), 0);
+  const oneBranch = bs.length === 1 ? bs[0] : undefined;
   // One row per product across the chosen branches: the oldest lot wins the age.
   const merged = new Map<string, StockItem>();
   for (const it of items) {
@@ -1262,8 +1325,26 @@ function Stock({
     <div className="rounded-[18px] border border-border/70 bg-surface shadow-card p-3">
       <div className="flex items-baseline justify-between gap-2">
         <span className="text-xs text-muted-foreground">มูลค่าของในสต๊อก ณ วันนี้ · {branchLabel}</span>
-        <b className="font-display text-xl tabular-nums">฿{f0(total)}</b>
+        {held > 0 && total > 0 ? (
+          <b className="font-display text-xl tabular-nums">
+            {unpriced > 0 && <span className="mr-1 font-sans text-xs font-medium text-muted-foreground">อย่างน้อย</span>}฿{f0(total)}
+          </b>
+        ) : null}
       </div>
+      {/* Queue item 10 (rule ND5): ฿0 here meant "no price" or "never entered" as often as "empty". */}
+      {held === 0 ? (
+        <div className="mt-2">
+          <WaitingSlot figure="stockValue" needs={["count", "receipt"]} reason="ยังไม่มีของในสต๊อกที่ระบบรู้" branchId={oneBranch} />
+        </div>
+      ) : total <= 0 ? (
+        <div className="mt-2">
+          <WaitingSlot figure="stockValue" needs={["price"]} reason={`ยังไม่รู้มูลค่า · ของ ${unpriced} รายการยังไม่มีราคา`} branchId={oneBranch} />
+        </div>
+      ) : unpriced > 0 ? (
+        <p className="mt-1 text-xs text-warn">
+          ไม่รวมของ {unpriced} รายการที่ยังไม่มีราคา · <WhatIsThis figure="stockValue" needs={["price"]} branchId={oneBranch}>ใส่ราคา ›</WhatIsThis>
+        </p>
+      ) : null}
       {slow.length > 0 && (
         <p className="mt-1 text-xs text-bad">
           ค้างเกิน {slowDays} วัน {slow.length} รายการ · รวม ฿{f0(slow.reduce((s, i) => s + i.value, 0))}
@@ -1282,7 +1363,15 @@ function Stock({
         )}
       </p>
       {rows.length === 0 ? (
-        <p className="py-3 text-sm text-muted-foreground">{view === "age" ? "ไม่มีของในสต๊อก" : "ยังไม่รู้อัตราใช้ — ต้องตัดสต๊อกตามยอดขายก่อน"}</p>
+        <p className="py-3 text-sm text-muted-foreground">
+          {view === "age" ? (
+            held === 0 ? "ยังไม่มีของในสต๊อกที่ระบบรู้" : "ของในสต๊อกยังไม่มีราคา จึงยังไม่รู้ว่าค้างมากี่วัน"
+          ) : (
+            <>
+              ยังไม่รู้อัตราใช้ — ต้องตัดสต๊อกตามยอดขายก่อน · <WhatIsThis figure="daysLeft" needs={["posted", "recipe"]} branchId={oneBranch} />
+            </>
+          )}
+        </p>
       ) : (
         rows.map((s, i) => (
           <div key={s.productId} className="py-1" title={view === "age" && s.oldestDate ? `${s.name} · ล็อตรับ ${s.oldestDate} ยังเหลือ ฿${f0(s.oldestValue)} · ทั้งหมดในสต๊อก ฿${f0(s.value)}` : undefined}>

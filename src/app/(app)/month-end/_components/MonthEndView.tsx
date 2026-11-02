@@ -14,7 +14,7 @@
 // ============================================================
 
 import { use, useMemo, useState } from "react";
-import EmptyState from "@/components/ui/EmptyState";
+import WaitingFor from "@/components/ui/WaitingFor";
 import Seg from "@/components/ui/Seg";
 import { buildMonthEndJournal, fromSatang, sumFigures, type JournalMode, type JournalScope } from "@/lib/month-end-journal";
 import {
@@ -100,12 +100,24 @@ export default function MonthEndView({
   const t = v.total;
   const nothing = t.opening === 0 && t.closing === 0 && t.purchases === 0 && t.cogs === 0;
   if (nothing) {
+    // Queue item 10: the equation's own outline, and the way to the count that fills it.
     return (
-      <EmptyState art="none">
-        เดือน {monthTitleTh(v.month)} ยังไม่มีสต๊อก บิลซื้อ หรือการนับในสาขาที่คุณดูได้ — เลือกเดือนอื่นด้านบน
-      </EmptyState>
+      <section className="card space-y-3">
+        <h2 className="font-display text-lg font-semibold">ต้นทุนขายเดือนนี้มาจากไหน</h2>
+        <WaitingFor
+          figure="monthCogs"
+          needs={["count", "receipt"]}
+          reason={`เดือน ${monthTitleTh(v.month)} ยังไม่มีสต๊อก บิลซื้อ หรือการนับในสาขาที่คุณดูได้ · เลือกเดือนอื่นด้านบนได้`}
+        />
+      </section>
     );
   }
+  // Rule PG1 on this page (queue item 10): with no branch ever counted, the
+  // stock at either end is not known — tiles of ฿0.00 would print a cost of
+  // sales that is only the purchases.
+  const neverCounted = v.branches.every((b) => !b.lastCountDate);
+  // สูตรอาหาร with nothing posted: the whole cost would read as "ของขาดจากการนับ".
+  const nothingPosted = v.recipeMethod && (t.sold ?? 0) === 0 && t.cogs > 0;
 
   const notes = readinessOf(v);
   const warnings = notes.filter((n) => n.tone === "warn").length;
@@ -159,7 +171,26 @@ export default function MonthEndView({
       </section>
 
       {/* 2–4 — the equation and what the cost was made of */}
-      <Equation v={v} />
+      {neverCounted ? (
+        <section className="card space-y-3">
+          <h2 className="font-display text-lg font-semibold">ต้นทุนขายเดือนนี้มาจากไหน</h2>
+          <WaitingFor figure="monthCogs" needs={["count", "price"]} reason="ยังไม่เคยนับสต๊อก จึงยังไม่รู้สต๊อกต้นเดือนและสิ้นเดือน" />
+        </section>
+      ) : (
+        <>
+          {nothingPosted ? (
+            <section className="card">
+              <WaitingFor
+                figure="monthCogs"
+                needs={["posted", "recipe"]}
+                reason="เดือนนี้ยังไม่ได้ตัดสต๊อกตามยอดขาย ต้นทุนขายทั้งก้อนด้านล่างจึงขึ้นเป็น “ของขาดจากการนับ” ทั้งที่ส่วนใหญ่คือของที่ขายไป"
+                outline={false}
+              />
+            </section>
+          ) : null}
+          <Equation v={v} />
+        </>
+      )}
 
       {multi && <BranchTable v={v} />}
 
@@ -483,10 +514,15 @@ function BranchTable({ v }: { v: View }) {
                     )}
                   </td>
                   <td className="text-right">
-                    <Money n={b.closing} />
+                    {!total && !b.lastCountDate ? (
+                      // Queue item 10: a branch never counted has no known closing stock — not 0.00.
+                      <span className="text-xs text-muted-subtle">ยังไม่เคยนับ</span>
+                    ) : (
+                      <Money n={b.closing} />
+                    )}
                     {!total && b.unpricedProducts > 0 && <span className="block text-[11px] text-warn">ไม่มีราคา {b.unpricedProducts} รายการ</span>}
                   </td>
-                  <td className="text-right"><Money n={b.cogs} /></td>
+                  <td className="text-right">{!total && !b.lastCountDate ? <span className="text-xs text-muted-subtle">—</span> : <Money n={b.cogs} />}</td>
                   {v.recipeMethod && (
                     <td className="text-right">
                       <Money n={shrink} />

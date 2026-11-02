@@ -123,8 +123,18 @@ function View({ data, initialCountId }: { data: Overview; initialCountId: string
   const shown = showOrdinary ? [...big, ...ordinary] : big;
   const mx = Math.max(1, ...sorted.map((s) => s.value ?? 0));
 
-  const tone = pct === null ? "muted" : pct <= data.target ? "ok" : pct <= URGENT ? "warn" : "bad";
-  const word = pct === null ? "ยังเทียบยอดขายไม่ได้" : pct <= data.target ? `อยู่ในเป้า ≤${data.target}%` : pct <= URGENT ? "เกินเป้า · หาสาเหตุ" : `เกิน ${URGENT}% · เร่งด่วน`;
+  // Rule PG4 / queue item 10: the opening count is the starting balance — its
+  // "0.00% อยู่ในเป้า" in green read as a good result.
+  const tone = c.first || pct === null ? "muted" : pct <= data.target ? "ok" : pct <= URGENT ? "warn" : "bad";
+  const word = c.first
+    ? "นับเปิดระบบ · เทียบได้ตั้งแต่ใบนับถัดไป"
+    : pct === null
+      ? "ยังเทียบยอดขายไม่ได้"
+      : pct <= data.target
+        ? `อยู่ในเป้า ≤${data.target}%`
+        : pct <= URGENT
+          ? "เกินเป้า · หาสาเหตุ"
+          : `เกิน ${URGENT}% · เร่งด่วน`;
   const overKnown = c.over.filter((o) => o.value !== null);
 
   return (
@@ -239,7 +249,9 @@ function View({ data, initialCountId }: { data: Overview; initialCountId: string
                         style={{ width: `${((s.value ?? 0) / mx) * 100}%`, background: "linear-gradient(90deg,#E8A76F,#C0692B)", animationDelay: `${i * 40}ms` }}
                       />
                     </span>
-                    <span className="text-right font-display font-bold tabular-nums">฿{f2(s.value ?? 0)}</span>
+                    <span className="text-right font-display font-bold tabular-nums">
+                      {s.value === null ? <span className="font-sans text-xs font-normal text-muted-foreground">ไม่มีราคา</span> : `฿${f2(s.value)}`}
+                    </span>
                     <span className="hidden text-right text-xs tabular-nums text-muted-foreground md:block">
                       {c.value > 0 ? Math.round((cum / c.value) * 100) : 0}%<br />
                       <span className="text-[0.62rem]">สะสม</span>

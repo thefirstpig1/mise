@@ -27,6 +27,7 @@ import {
   CONSUMPTION_SKIP_REASON_LABELS_TH,
 } from "@/lib/validations/consumption";
 import { useKeepForm } from "@/lib/keep-form";
+import WaitingFor from "@/components/ui/WaitingFor";
 
 /** Same local helper the recipe forms use — no lib for one line. */
 function newSubmitKey(): string {
@@ -177,8 +178,9 @@ export function ConsumptionDayTable({
             ))}
             {days.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-3 py-6 text-center text-muted-foreground">
-                  ยังไม่มียอดขายนำเข้าในช่วงนี้
+                <td colSpan={5} className="px-3 py-4">
+                  {/* Queue item 10: say what fills the table, and where. */}
+                  <WaitingFor figure="consumptionDays" needs={["sales", "recipe"]} reason="ยังไม่มียอดขายนำเข้าในช่วงนี้" outline={false} />
                 </td>
               </tr>
             )}

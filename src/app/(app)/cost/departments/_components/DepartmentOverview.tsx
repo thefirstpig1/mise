@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 import type { Route } from "next";
 import PageHeader from "@/components/ui/PageHeader";
 import type { DepartmentOverview as Data } from "@/server/department-overview";
+import WaitingFor from "@/components/ui/WaitingFor";
 
 type Bucket = { key: string; label: string; partial: boolean };
 type TrendPoint = { key: string; label: string; coverage: number | null; byDept: Record<string, { revenue: number; cost: number }> };
@@ -72,6 +73,9 @@ export default function DepartmentOverview(props: {
   // Rule CO-COV: a period whose stock-cut is short of the threshold is not compared — on either side.
   const comparable = covered && data?.previousCoverage !== null && data?.previousCoverage !== undefined && data.previousCoverage * 100 >= props.coverageMin;
   const totalRevenue = depts.reduce((t, k) => t + (data?.current[k]?.revenue ?? 0), 0);
+  // Queue item 10: nothing posted to stock in the period — a department's cost
+  // is unknown, not "≥ 0.0%", and its gross profit is not "≤ all of its sales".
+  const nothingPosted = data !== null && data !== undefined && data.coverage === 0;
   const selLabel = props.buckets.find((b) => b.key === props.selectedKey)?.label ?? "";
 
   return (
@@ -124,13 +128,16 @@ export default function DepartmentOverview(props: {
       {data === null ? (
         <p className="rounded-xl border border-bad-border bg-bad-bg p-4 text-sm text-bad">คำนวณไม่สำเร็จ — ลองรีเฟรชหน้า</p>
       ) : depts.length === 0 ? (
-        <p className="rounded-xl border border-border bg-muted/30 p-6 text-sm text-muted-foreground">ยังไม่มียอดขายของสาขานี้ใน {selLabel}</p>
+        <WaitingFor figure="deptCost" needs={["sales"]} reason={`ยังไม่มียอดขายของสาขานี้ใน ${selLabel}`} />
       ) : (
         <>
           {/* ---------- 1–2 ---------- */}
           <section className="space-y-2">
             <Q n="1–2" title="แผนกไหนทำเงิน · อยู่ในเป้าของแผนกไหม" sub={`${selLabel} · กดแผนกเพื่อดูข้อ 4–5 ของแผนกนั้น`} />
-            {!covered && data.coverage !== null && (
+            {nothingPosted ? (
+              <WaitingFor figure="deptCost" needs={["posted", "recipe", "price"]} reason={`ยังไม่ได้ตัดสต๊อกตามยอดขายใน ${selLabel}`} outline={false} />
+            ) : null}
+            {!covered && !nothingPosted && data.coverage !== null && (
               <p className="rounded-xl border border-warn-border bg-warn-bg p-3 text-xs text-warn">
                 ตัดสต๊อกตามยอดขายได้ {Math.round(data.coverage * 100)}% ของยอดขาย (เกณฑ์ {props.coverageMin}%) — ต้นทุนยังไม่ครบ จึงเป็นตัวเลข “อย่างน้อย” และยังไม่เทียบกับเป้า
               </p>
@@ -171,13 +178,12 @@ export default function DepartmentOverview(props: {
                       <span>
                         <span className="block text-xs text-muted-subtle">ต้นทุนวัตถุดิบ</span>
                         <b className="font-display tabular-nums">
-                          {covered ? "" : "≥ "}
-                          {pct(cp)}
+                          {nothingPosted ? "—" : `${covered ? "" : "≥ "}${pct(cp)}`}
                         </b>
                       </span>
                       <span>
                         <span className="block text-xs text-muted-subtle">กำไรขั้นต้น</span>
-                        <b className="font-display tabular-nums">{data.grossProfitUnavailable ? "—" : `${covered ? "" : "≤ "}${baht(c.revenue - c.cost)}`}</b>
+                        <b className="font-display tabular-nums">{data.grossProfitUnavailable || nothingPosted ? "—" : `${covered ? "" : "≤ "}${baht(c.revenue - c.cost)}`}</b>
                       </span>
                     </div>
                     <div className="h-2 overflow-hidden rounded-full bg-muted">
@@ -246,7 +252,9 @@ export default function DepartmentOverview(props: {
           {/* ---------- 6 ---------- */}
           <section className="space-y-2 rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
             <Q n="6" title="แผนกสั่งของมากกว่าที่ใช้ไหม" sub={selLabel} />
-            {!data.anyOrderedByDept ? (
+            {nothingPosted && data.anyOrderedByDept ? (
+              <WaitingFor figure="deptCost" needs={["posted", "recipe"]} reason="ยังไม่ได้ตัดสต๊อกตามยอดขาย จึงยังไม่รู้ว่าแต่ละแผนกใช้ไปเท่าไร" outline={false} />
+            ) : !data.anyOrderedByDept ? (
               <p className="note p-3">
                 ใบรับสินค้าในช่วงนี้ลงแผนกตั้งต้นทั้งหมด จึงยังเทียบของที่แผนกสั่งกับที่แผนกใช้ไม่ได้ · ตอนนี้เลือกแผนกที่บรรทัดของใบรับสินค้าได้แล้ว (ระบบเลือกไว้ให้ตามเมนูที่ใช้วัตถุดิบนั้น) — ใบใหม่จะขึ้นที่นี่เอง ·{" "}
                 <a href="/goods-receipts/new" className="underline">
@@ -287,7 +295,13 @@ export default function DepartmentOverview(props: {
           {/* ---------- 7 ---------- */}
           <section className="space-y-2 rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
             <Q n="7" title="หักค่าแรงแผนกแล้วเหลือเท่าไร" sub={selLabel} />
-            {Object.keys(data.labor).length === 0 ? (
+            {Object.keys(data.labor).length > 0 && (data.grossProfitUnavailable || nothingPosted) ? (
+              <p className="note p-3">
+                {data.grossProfitUnavailable
+                  ? "ร้านคิดกำไรขั้นต้นแบบนับสต๊อก จึงยังแสดงกำไรขั้นต้นต่อแผนกไม่ได้ — หักค่าแรงต่อแผนกจึงยังคิดไม่ได้"
+                  : "ยังไม่ได้ตัดสต๊อกตามยอดขาย จึงยังไม่รู้กำไรขั้นต้นของแต่ละแผนก"}
+              </p>
+            ) : Object.keys(data.labor).length === 0 ? (
               <p className="note p-3">
                 {data.laborUnassigned > 0 ? `ค่าแรง ${baht(data.laborUnassigned)} ในช่วงนี้เป็นส่วนกลางทั้งหมด` : "ยังไม่มีค่าแรงในช่วงนี้"} — ถ้าบันทึกเงินเดือนแยกแผนก (เลือกแผนกที่บรรทัดค่าใช้จ่าย) ตรงนี้จะขึ้นกำไรขั้นต้น − ค่าแรงของแต่ละแผนก ·{" "}
                 <a href="/expenses" className="text-primary underline">
@@ -393,6 +407,8 @@ function Spark({
 }) {
   const vals = points.map((p) => {
     const f = p.byDept[dept];
+    // Queue item 10: a bucket with nothing posted has no cost, not a 0% point.
+    if (p.coverage === 0) return null;
     return f && f.revenue > 0 ? (f.cost / f.revenue) * 100 : null;
   });
   const shown = vals.filter((v): v is number => v !== null);
@@ -409,7 +425,9 @@ function Spark({
         {name}
       </p>
       {shown.length === 0 ? (
-        <p className="py-8 text-center text-xs text-muted-subtle">ยังไม่มีต้นทุนในช่วงนี้</p>
+        <p className="py-8 text-center text-xs text-muted-subtle">
+          {points.some((p) => (p.byDept[dept]?.revenue ?? 0) > 0) ? "ยังไม่ได้ตัดสต๊อกตามยอดขายในช่วงเหล่านี้" : "ยังไม่มียอดขายในช่วงนี้"}
+        </p>
       ) : (
         <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label={`ต้นทุน % ของ${name}`}>
           {[lo, (lo + hi) / 2, hi].map((v) => (

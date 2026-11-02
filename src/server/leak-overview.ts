@@ -69,6 +69,8 @@ export type LeakCount = {
   value: number;
   sinceRevenue: number | null;
   sinceLabel: string;
+  /** The branch's first closed count — its opening balance (rule PG4), nothing to compare with. */
+  first: boolean;
   short: LeakItem[];
   over: LeakItem[];
   trust: {
@@ -329,6 +331,7 @@ export async function getLeakOverviewLogic(tenantId: string, reach: BranchReach)
           value: round2(short.reduce((s, i) => s + (i.value ?? 0), 0)),
           sinceRevenue: sinceRevenue > 0 ? round2(sinceRevenue) : null,
           sinceLabel: prev ? `ตั้งแต่นับครั้งก่อน (${dayTh(prev.countDate)})` : "ตั้งแต่เริ่มมีข้อมูล (นับครั้งแรก)",
+          first: !prev,
           short,
           over,
           trust: {

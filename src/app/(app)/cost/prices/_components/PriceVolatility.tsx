@@ -15,6 +15,7 @@ import ReceiptPriceChart from "@/components/charts/ReceiptPriceChart";
 import { allowances, menuCostDelta, type Allowance, type MenuCostRow } from "@/lib/price-volatility";
 import type { PriceVolatility as Data, PvProduct } from "@/server/price-volatility";
 import { saveMenuCostTargetAction } from "../../actions";
+import WaitingFor, { WhatIsThis } from "@/components/ui/WaitingFor";
 
 const f0 = (n: number) => Math.round(n).toLocaleString("th-TH");
 const f2 = (n: number) => n.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -51,9 +52,9 @@ export default function PriceVolatility({ data, canEditTargets }: { data: Promis
   if (d === null) return <div className="rounded-lg border border-warn-border bg-warn-bg p-4 text-sm text-warn">เปิดหน้านี้ไม่สำเร็จในครั้งนี้ กรุณารีเฟรชอีกครั้ง</div>;
   if (d.products.length === 0)
     return (
-      <div className="rounded-[18px] border border-border/70 bg-surface shadow-card p-6 text-sm">
-        <h2 className="font-display text-lg font-semibold">ยังไม่มีใบรับสินค้า</h2>
-        <p className="mt-1 text-muted-foreground">หน้านี้คิดราคาจากใบรับสินค้าที่ยืนยันแล้ว ต้องมีการรับของอย่างน้อยสองช่วงจึงจะเห็นว่าราคาเปลี่ยนไปเท่าไร</p>
+      <div className="rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
+        <h2 className="mb-2 font-display text-lg font-semibold">ราคาวัตถุดิบขึ้นลงแค่ไหน</h2>
+        <WaitingFor figure="priceMoves" needs={["receipt"]} reason="หน้านี้คิดราคาจากใบรับสินค้าที่ยืนยันแล้ว ต้องรับของอย่างน้อยสองช่วงจึงจะเห็นว่าราคาเปลี่ยนไปเท่าไร" />
       </div>
     );
   return <View d={d} canEditTargets={canEditTargets} />;
@@ -270,7 +271,9 @@ function View({ d, canEditTargets }: { d: Data; canEditTargets: boolean }) {
           </span>
           <span>{lay === "small" ? "ทุกใบสเกลเดียวกัน · กดการ์ดเพื่อดูละเอียด" : "เส้นเทาคือกลุ่มอื่น · ชี้ชื่อเพื่อให้เส้นนั้นเด่น"}</span>
         </div>
-        {B.length < 2 ? (
+        {mode === "tgt" && menus.length === 0 ? (
+          <WaitingFor figure="menuAllowance" needs={["recipe", "sales", "price"]} reason="ยังไม่มีเมนูที่มีทั้งสูตรและยอดขาย" />
+        ) : B.length < 2 ? (
           <p className="py-8 text-center text-sm text-muted-foreground">ต้องมีใบรับสินค้าอย่างน้อยสอง{gran === "week" ? "สัปดาห์" : "เดือน"}จึงจะเห็นแนวโน้ม</p>
         ) : lay === "small" ? (
           <Smalls rows={rows} labels={B.map((b) => b.label)} color={color} mode={mode} onOpen={open} />
@@ -632,30 +635,54 @@ function Bars({ rows, mode, head, detail, onOpen }: { rows: Row[]; mode: Mode; h
 }
 
 function RefKpis({ d, mNow, mPrev, menus, ratio }: { d: Data; mNow: number | null; mPrev: number | null; menus: MenuCostRow[]; ratio: (pid: string) => number | null }) {
-  if (mNow === null || mPrev === null) return <p className="rounded-[18px] border border-border/70 bg-surface shadow-card p-3 text-sm text-muted-foreground">ต้องมีใบรับสินค้าอย่างน้อยสองเดือนจึงจะเทียบได้</p>;
-  let up = 0, dn = 0, nu = 0, nd = 0, spendNow = 0;
+  if (mNow === null || mPrev === null)
+    return (
+      <div className="rounded-[18px] border border-border/70 bg-surface shadow-card p-3">
+        <WaitingFor figure="priceMoves" needs={["receipt"]} reason="ต้องมีใบรับสินค้าอย่างน้อยสองเดือนจึงจะเทียบได้" outline={false} />
+      </div>
+    );
+  let up = 0, dn = 0, nu = 0, nd = 0, spendNow = 0, both = 0;
   let topU: [string, number] | null = null, topD: [string, number] | null = null;
   for (const p of d.products) {
     const a = p.month[mPrev], b = p.month[mNow];
     if (b) spendNow += b[0] * b[1];
     if (!a || !b) continue;
+    both++;
     const e = (b[0] - a[0]) * b[1];
     if (e > 0) { up += e; nu++; if (!topU || e > topU[1]) topU = [p.name, e]; }
     else if (e < 0) { dn += e; nd++; if (!topD || e < topD[1]) topD = [p.name, e]; }
   }
   const flagged = menus.filter((m) => (menuCostDelta(m, ratio).delta / m.price) * 100 >= FLAG);
+  // Queue item 10: two months with no ingredient bought in both is "nothing to
+  // compare", not "฿0 more and ฿0 saved".
+  if (both === 0)
+    return (
+      <p className="rounded-[18px] border border-border/70 bg-surface shadow-card p-3 text-sm text-muted-foreground">
+        ยังไม่มีวัตถุดิบที่รับเข้าทั้ง {d.months[mPrev].label} และ {d.months[mNow].label} จึงยังเทียบราคาไม่ได้
+      </p>
+    );
   return (
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
       <Kpi k="จ่ายเพิ่มจากของที่แพงขึ้น" icon={TrendingUp} v={`฿${f0(up)}`} tone="bad" s={`${nu} รายการ${topU ? ` · มากสุด ${topU[0]}` : ""}`} />
       <Kpi k="ประหยัดจากของที่ถูกลง" icon={TrendingDown} v={`฿${f0(-dn)}`} tone="good" s={`${nd} รายการ${topD ? ` · มากสุด ${topD[0]}` : ""}`} />
       <Kpi k="สุทธิ" icon={Scale} v={`${up + dn < 0 ? "ประหยัด" : "จ่ายเพิ่ม"} ฿${f0(Math.abs(up + dn))}`} s={spendNow ? `${(((up + dn) / spendNow) * 100).toFixed(2)}% ของยอดซื้อ ${d.months[mNow].label} ฿${f0(spendNow)}` : undefined} />
-      <Kpi k={`เมนูที่ต้นทุนขึ้นตั้งแต่ ${FLAG} จุด`} icon={BookOpen} v={`${flagged.length} เมนู`} s={flagged.map((m) => m.name).join(" · ") || "ไม่มี"} />
+      <Kpi
+        k={`เมนูที่ต้นทุนขึ้นตั้งแต่ ${FLAG} จุด`}
+        icon={BookOpen}
+        v={menus.length === 0 ? "—" : `${flagged.length} เมนู`}
+        s={menus.length === 0 ? "ยังไม่มีเมนูที่มีทั้งสูตรและยอดขาย" : flagged.map((m) => m.name).join(" · ") || "ไม่มี"}
+      />
     </div>
   );
 }
 
 function TgtKpis({ allow, menus, byId, shopTarget, branch, salesLabel }: { allow: Map<string, Allowance>; menus: MenuCostRow[]; byId: Map<string, PvProduct>; shopTarget: number; branch: string | null; salesLabel: string | null }) {
-  if (menus.length === 0) return <p className="rounded-[18px] border border-border/70 bg-surface shadow-card p-3 text-sm text-muted-foreground">ยังไม่มีเมนูที่มีทั้งสูตรและยอดขาย จึงยังคิดราคาที่เมนูรับได้ไม่ได้</p>;
+  if (menus.length === 0)
+    return (
+      <div className="rounded-[18px] border border-border/70 bg-surface shadow-card p-3">
+        <WaitingFor figure="menuAllowance" needs={["recipe", "sales", "price"]} reason="ยังไม่มีเมนูที่มีทั้งสูตรและยอดขาย จึงยังคิดราคาที่เมนูรับได้ไม่ได้" outline={false} />
+      </div>
+    );
   const items = [...allow.entries()].filter(([, a]) => a.over > 0).sort((a, b) => b[1].over - a[1].over);
   const total = items.reduce((s, [, a]) => s + a.over, 0);
   const over = menus.filter((m) => (m.cost / m.price) * 100 > m.target).sort((a, b) => b.cost / b.price - a.cost / a.price);
@@ -784,6 +811,18 @@ function Targets({ menus, shopTarget, canEdit, onSave, err, branch, salesLabel }
         </thead>
         <tbody>
           {rows.map((m) => {
+            if (m.cost <= 0)
+              return (
+                <tr key={m.menuId} className="border-t border-border">
+                  <td className="py-1.5">
+                    <b>{m.name}</b> <span className="text-xs text-muted-foreground">{m.department ?? ""}</span>
+                  </td>
+                  <td className="py-1.5 text-right tabular-nums">฿{f0(m.price)}</td>
+                  <td colSpan={5} className="py-1.5 text-right text-xs text-muted-foreground">
+                    วัตถุดิบในสูตรยังไม่มีราคา · <WhatIsThis figure="dishCost" needs={["price"]} />
+                  </td>
+                </tr>
+              );
             const pct = (m.cost / m.price) * 100;
             const over = (m.cost - (m.target / 100) * m.price) * m.plates;
             return (
