@@ -8,11 +8,11 @@ import { notFound, redirect } from "next/navigation";
 import type { Route } from "next";
 import { requireTenant } from "@/lib/require-tenant";
 import { withTenantContext } from "@/lib/db";
+import { uuidParams } from "@/lib/route-params";
 
 export default async function DraftPage({ params }: { params: Promise<{ id: string }> }) {
   const { tenantId } = await requireTenant("recipe:write");
-  const { id } = await params;
-  if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
+  const { id } = await uuidParams(params);
   const row = await withTenantContext(tenantId, (tx) =>
     tx.recipe.findFirst({ where: { id, tenantId, deletedAt: null }, select: { isDraft: true, menuId: true } })
   );

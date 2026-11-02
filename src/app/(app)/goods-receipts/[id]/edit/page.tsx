@@ -27,6 +27,7 @@ import {
   toBangkokDateTimeLocal,
   toGoodsReceiptDetailView,
 } from "../../_components/goods-receipt-view";
+import { uuidParams } from "@/lib/route-params";
 
 export default async function EditGoodsReceiptPage({
   params,
@@ -34,7 +35,7 @@ export default async function EditGoodsReceiptPage({
   params: Promise<{ id: string }>;
 }) {
   const { tenantId, reach, assertBranch } = await requireTenant("receive:write");
-  const { id } = await params;
+  const { id } = await uuidParams(params);
 
   const row = await getGoodsReceiptByIdLogic(tenantId, id);
   if (!row) notFound();

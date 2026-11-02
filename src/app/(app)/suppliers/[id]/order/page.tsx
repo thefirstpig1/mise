@@ -20,6 +20,7 @@ import { getOrderSuggestionsLogic } from "@/server/product-list";
 import { createPurchaseOrderAction } from "../../../purchase-orders/actions";
 import SupplierCatalog, { type CatalogItemView } from "./SupplierCatalog";
 import EmptyState from "@/components/ui/EmptyState";
+import { uuidParams } from "@/lib/route-params";
 
 export default async function SupplierOrderPage({
   params,
@@ -28,7 +29,7 @@ export default async function SupplierOrderPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ branch?: string }>;
 }) {
-  const { id } = await params;
+  const { id } = await uuidParams(params);
   const { branch } = await searchParams;
   const { tenantId, membership, reach } = await requireTenant("purchase:write");
 

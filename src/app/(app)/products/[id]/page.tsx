@@ -34,6 +34,7 @@ import DeleteProductButton from "../_components/DeleteProductButton";
 import MappingListSection from "../_components/MappingListSection";
 import MappingHistoryViewer from "../_components/MappingHistoryViewer";
 import PageHeader from "@/components/ui/PageHeader";
+import { uuidParams } from "@/lib/route-params";
 
 // Next 15: route params are async (await before use).
 export default async function EditProductPage({
@@ -41,7 +42,7 @@ export default async function EditProductPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = await params;
+  const { id } = await uuidParams(params);
   const { tenantId, reach} = await requireTenant("master:write");
 
   const [

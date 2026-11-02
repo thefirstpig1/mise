@@ -11,6 +11,7 @@ import { getBranchesLogic } from "@/server/branch";
 import { createMappingAction } from "@/app/(app)/supplier-product-mappings/actions";
 import MappingForm from "../../../_components/MappingForm";
 import PageHeader from "@/components/ui/PageHeader";
+import { uuidParams } from "@/lib/route-params";
 
 // Next 15: route params are async (await before use).
 export default async function NewMappingPage({
@@ -18,7 +19,7 @@ export default async function NewMappingPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = await params;
+  const { id } = await uuidParams(params);
   const { tenantId, reach} = await requireTenant("master:write");
 
   const [product, suppliers, branches] = await Promise.all([

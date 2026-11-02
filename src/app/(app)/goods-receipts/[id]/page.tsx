@@ -36,6 +36,7 @@ import {
 import GoodsReceiptActions from "../_components/GoodsReceiptActions";
 import StatusBadge from "../_components/StatusBadge";
 import { DocHeader, HeaderChip, RelatedDocs, type RelatedDoc } from "@/components/ui/DocHeader";
+import { uuidParams } from "@/lib/route-params";
 
 export default async function GoodsReceiptDetailPage({
   params,
@@ -43,7 +44,7 @@ export default async function GoodsReceiptDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { tenantId, membership, assertBranch } = await requireTenant("receive:write");
-  const { id } = await params;
+  const { id } = await uuidParams(params);
 
   const row = await getGoodsReceiptByIdLogic(tenantId, id);
   if (!row) notFound();

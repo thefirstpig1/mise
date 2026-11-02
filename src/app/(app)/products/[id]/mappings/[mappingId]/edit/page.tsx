@@ -15,6 +15,7 @@ import { toMappingView } from "../../../../_components/mapping-view";
 import MappingForm from "../../../../_components/MappingForm";
 import PageHeader from "@/components/ui/PageHeader";
 import DeleteMappingButton from "../../../../_components/DeleteMappingButton";
+import { uuidParams } from "@/lib/route-params";
 
 // Next 15: route params are async (await before use).
 export default async function EditMappingPage({
@@ -22,7 +23,7 @@ export default async function EditMappingPage({
 }: {
   params: Promise<{ id: string; mappingId: string }>;
 }) {
-  const { id, mappingId } = await params;
+  const { id, mappingId } = await uuidParams(params);
   const { tenantId, reach} = await requireTenant("master:write");
 
   const [product, mapping, suppliers, branches] = await Promise.all([

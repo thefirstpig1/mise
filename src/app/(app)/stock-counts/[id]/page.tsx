@@ -31,6 +31,7 @@ import {
   removeStockCountLineAction,
   voidStockCountAction,
 } from "../actions";
+import { uuidParams } from "@/lib/route-params";
 
 export default async function StockCountDetailPage({
   params,
@@ -38,7 +39,7 @@ export default async function StockCountDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { tenantId, membership, can, costAccess, assertBranch } = await requireTenant("count:write");
-  const { id } = await params;
+  const { id } = await uuidParams(params);
 
   const count = await getStockCountByIdLogic(tenantId, id);
   if (!count) notFound();

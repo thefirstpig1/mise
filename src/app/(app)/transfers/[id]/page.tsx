@@ -24,6 +24,7 @@ import { toTransferView } from "../_components/transfer-view";
 import ReceiveTransferForm from "../_components/ReceiveTransferForm";
 import VoidTransferButton from "../_components/VoidTransferButton";
 import { DocHeader, HeaderChip, RelatedDocs } from "@/components/ui/DocHeader";
+import { uuidParams } from "@/lib/route-params";
 
 // The kit's chips (queue item 9, 2026-10-31): the same pill and dot as every other status.
 const STATUS_STYLE: Record<string, string> = {
@@ -38,7 +39,7 @@ export default async function TransferDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { tenantId, costAccess, assertBranch, reach } = await requireTenant("any:member");
-  const { id } = await params;
+  const { id } = await uuidParams(params);
 
   const found = await getTransferByIdLogic(tenantId, id);
   if (!found) notFound();

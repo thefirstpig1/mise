@@ -16,6 +16,7 @@ import { expenseTitle, toExpenseDetailView, toExpenseSupplierOption } from "../.
 import Crumbs from "../../_components/Crumbs";
 import ExpenseForm from "../../_components/ExpenseForm";
 import { updateExpenseAction } from "../../actions";
+import { uuidParams } from "@/lib/route-params";
 
 export default async function EditExpensePage({
   params,
@@ -23,7 +24,7 @@ export default async function EditExpensePage({
   params: Promise<{ id: string }>;
 }) {
   const { tenantId, reach, membership, assertBranch } = await requireTenant("expense:write");
-  const { id } = await params;
+  const { id } = await uuidParams(params);
 
   const [row, branches, suppliers, categories, lastCategories] = await Promise.all([
     getExpenseByIdLogic(tenantId, id),

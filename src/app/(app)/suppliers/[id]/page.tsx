@@ -35,6 +35,7 @@ import {
   seriesKeyOf,
   type PriceHistorySeries,
 } from "../../products/_components/mapping-view";
+import { uuidParams } from "@/lib/route-params";
 
 const baht = (n: number) => `฿${n.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const price = (n: number) => n.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -51,7 +52,7 @@ export default async function SupplierPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = await params;
+  const { id } = await uuidParams(params);
   const { tenantId, can, reach, membership } = await requireTenant("master:write");
   const seeCost = can("cost:view");
   const seeBills = can("expense:view");
