@@ -13,7 +13,7 @@ const TABS = [
 export default function PlatformTabs() {
   const path = usePathname();
   return (
-    <nav className="seg" aria-label="เมนูผู้ดูแลระบบ">
+    <nav className="seg" aria-label="เมนูหน้าควบคุมระบบ">
       {TABS.map((t) => (
         <Link key={t.href} href={t.href as Route} className={`seg-item ${path === t.href ? "is-on" : ""}`}>
           {t.label}

@@ -17,7 +17,7 @@ export default async function PlatformLayout({ children }: { children: ReactNode
       <header className="sticky top-0 z-30 border-b border-border bg-surface">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3 lg:px-8">
           <p className="font-display text-lg font-semibold">
-            คิดครัว <span className="text-sm font-normal text-muted-foreground">· ผู้ดูแลระบบ</span>
+            คิดครัว <span className="text-sm font-normal text-muted-foreground">· หน้าควบคุมระบบ</span>
           </p>
           <PlatformTabs />
           <span className="ml-auto flex items-center gap-4 text-sm">

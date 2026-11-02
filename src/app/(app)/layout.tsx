@@ -6,6 +6,7 @@ import VersionBanner from "@/components/layout/VersionBanner";
 import { NAV_GROUPS } from "@/components/layout/nav";
 import { isPlatformAdminEmail } from "@/lib/platform-admin";
 import SetupBar from "@/components/layout/SetupBar";
+import AdminStrip from "@/components/layout/AdminStrip";
 import { getOnboardingForRequest } from "@/server/onboarding";
 
 // ============================================================
@@ -52,7 +53,6 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
         userLabel={user.name ?? user.email ?? ""}
         canSwitchShop={membershipCount > 1}
         canOpenShop={membership.role === "owner"}
-        isPlatformAdmin={isPlatformAdminEmail(user.email)}
         signOutSlot={
           <form action={doSignOut}>
             <button type="submit" className="text-muted-foreground hover:text-foreground">
@@ -62,6 +62,8 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
         }
       />
       <div className="min-w-0 flex-1">
+        {/* ADR 0043 — the operator's door, on every page and above the fold on a phone (AdminStrip.tsx). */}
+        {isPlatformAdminEmail(user.email) ? <AdminStrip /> : null}
         <VersionBanner />
         {can("settings:write") && membership.onboardingDismissedAt === null ? (
           <Suspense fallback={null}>
