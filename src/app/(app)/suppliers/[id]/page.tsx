@@ -175,6 +175,9 @@ export default async function SupplierPage({
                   ดูบิลที่ยังไม่จ่าย ›
                 </Link>
               </>
+            ) : o.billCount === 0 ? (
+              // Queue item 10 (rule ND6): no bill ever recorded is not "nothing owed".
+              <p className="text-sm text-muted-foreground">ยังไม่มีบิลของผู้ขายนี้ · บิลขึ้นเองเมื่อรับสินค้า หรือบันทึกที่หน้าค่าใช้จ่าย</p>
             ) : (
               <p className="text-lg font-semibold text-good">ไม่มีบิลค้าง</p>
             )}

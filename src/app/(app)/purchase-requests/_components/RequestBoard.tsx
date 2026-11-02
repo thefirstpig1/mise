@@ -349,6 +349,15 @@ export default function RequestBoard({
           {!group && !term && board.belowPar.length > 0 && (
             <Suggestions board={board} productById={productById} adding={adding} onAdd={add} />
           )}
+          {/* Queue item 10: with no par set the suggestions never appear — say why, once. */}
+          {!group && !term && board.belowPar.length === 0 && board.parCount === 0 && (
+            <p className="rounded-xl bg-surface-sunk px-3 py-2 text-xs text-muted-foreground">
+              ตั้งขั้นต่ำของวัตถุดิบแล้ว ตรงนี้จะแนะนำของที่ใกล้หมดให้ขอ{" "}
+              <a href="/products" className="font-medium text-primary underline underline-offset-[3px]">
+                ตั้งที่หน้าสินค้า ›
+              </a>
+            </p>
+          )}
 
           <section className="space-y-2">
             <h2 className="text-base font-semibold">{group ?? (term ? `ผลการค้นหา “${query.trim()}”` : "วัตถุดิบทั้งหมด")}</h2>

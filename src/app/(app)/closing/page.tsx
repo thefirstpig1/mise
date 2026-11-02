@@ -136,7 +136,14 @@ export default async function ClosingMonthPage({ searchParams }: { searchParams:
           <div className="rounded-[18px] border border-border/70 bg-surface shadow-card p-3.5">
             <span className="text-xs text-muted-subtle">ต่อหัว</span>
             <b className="block font-display text-2xl tabular-nums">{perHead === null ? "—" : baht(perHead, 1)}</b>
-            <span className="text-xs text-muted-subtle">ยอดขาย ÷ ลูกค้า ของวันที่มีทั้งสองอย่าง</span>
+            {/* Queue item 10: "—" with its reason. */}
+            <span className="text-xs text-muted-subtle">
+              {perHead === null
+                ? withGuests.length === 0
+                  ? "คิดได้เมื่อมีวันที่กรอกจำนวนลูกค้า"
+                  : "ยังไม่มีวันที่มีทั้งยอดขายและจำนวนลูกค้า"
+                : "ยอดขาย ÷ ลูกค้า ของวันที่มีทั้งสองอย่าง"}
+            </span>
             {perHead !== null && prevHead !== null && (
               <span className={`text-xs ${perHead >= prevHead ? "text-good" : "text-bad"}`}>
                 {perHead >= prevHead ? "▲" : "▼"} {baht(Math.abs(perHead - prevHead), 0)} เทียบ {vsLabel}
@@ -155,8 +162,9 @@ export default async function ClosingMonthPage({ searchParams }: { searchParams:
         )}
         <div className="rounded-[18px] border border-border/70 bg-surface shadow-card p-3.5">
           <span className="text-xs text-muted-subtle">ปัญหาที่ยังค้าง</span>
-          <b className={`block font-display text-2xl tabular-nums ${open > 0 ? "text-bad" : ""}`}>{open}</b>
-          <span className="text-xs text-muted-subtle">จาก {allIssues} ที่บันทึกเดือนนี้</span>
+          {/* Queue item 10: "0 จาก 0" said nothing — nothing was recorded. */}
+          <b className={`block font-display text-2xl tabular-nums ${open > 0 ? "text-bad" : ""}`}>{allIssues === 0 ? "—" : open}</b>
+          <span className="text-xs text-muted-subtle">{allIssues === 0 ? "ยังไม่มีปัญหาที่บันทึกเดือนนี้" : `จาก ${allIssues} ที่บันทึกเดือนนี้`}</span>
         </div>
       </div>
 

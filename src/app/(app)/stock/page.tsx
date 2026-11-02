@@ -26,6 +26,8 @@ import { PAR_RED } from "@/lib/par-alert";
 import { unitTh } from "@/app/(app)/menus/_components/manager-format";
 import FilterLink from "@/components/ui/FilterLink";
 import { ArrowLeftRight, ClipboardCheck, ClipboardList, History, PackageMinus, SlidersHorizontal, Trash2, Utensils, type LucideIcon } from "lucide-react";
+import { WaitingSlot } from "@/components/ui/WaitingFor";
+import { shelfOf } from "@/server/cost-overview";
 
 const label = (m: Record<string, string>, k: string) => m[k] ?? k;
 const baht = (n: number) => `฿${Math.round(n).toLocaleString("th-TH")}`;
@@ -57,7 +59,8 @@ export default async function StockWorkPage({ searchParams }: { searchParams: Pr
       // A negative balance means a movement is missing (a receipt never keyed,
       // a count mistyped) — the strongest "something is wrong" this page can show.
       const negative = balances.filter((b) => b.balance.lessThan(0) && b.product.type !== "PREPPED").map((b) => b.product.name);
-      if (costAccess === null) return { negative, value: null as number | null, wasteBaht: null as number | null };
+      const moved = balances.length > 0;
+      if (costAccess === null) return { negative, moved, value: null as number | null, wasteBaht: null as number | null, held: 0, unpriced: 0 };
       const costs = await getProductCostsLogic(
         tenantId,
         getProductCostsQuerySchema.parse({ productIds: balances.map((b) => b.productId), branchId: branch.id })
@@ -69,7 +72,9 @@ export default async function StockWorkPage({ searchParams }: { searchParams: Pr
         // This month's waste in baht — the same FIFO walk, no second read.
         for (const o of c.outflows) if (o.sourceType === "WASTE_LOG" && o.occurredAt >= monthStart) wasteBaht += Number(o.value);
       }
-      return { negative, value, wasteBaht };
+      // Queue item 10 (rule ND9): ฿0 meant "no price" or "never entered" as often as "empty".
+      const { held, unpriced } = shelfOf([...costs.values()]);
+      return { negative, moved, value, wasteBaht, held, unpriced };
     }),
   ]);
   const value = stock.value;
@@ -78,6 +83,8 @@ export default async function StockWorkPage({ searchParams }: { searchParams: Pr
   const kinds = Object.values(facts.facts).map((f) => f.state?.kind ?? null);
   const low = kinds.filter((k) => k !== null && PAR_RED.has(k)).length;
   const near = kinds.filter((k) => k === "near").length;
+  // Queue item 10 (rule ND6): "ไม่มีของต่ำกว่าขั้นต่ำ" with no par set was an all-clear about nothing.
+  const parsSet = Object.values(facts.facts).filter((f) => f.par !== null).length;
   const today = computeBangkokToday();
   const countAgo = hub.lastCountDate
     ? Math.round((today.getTime() - Date.parse(`${hub.lastCountDate}T00:00:00Z`)) / 86_400_000)
@@ -257,17 +264,37 @@ export default async function StockWorkPage({ searchParams }: { searchParams: Pr
         </section>
 
         <div className="grid content-start gap-4">
-          {value !== null && (
+          {value !== null && stock.held === 0 ? (
+            <div className="rounded-[18px] border border-border/70 bg-surface p-4 shadow-card">
+              <span className="text-xs text-muted-subtle">มูลค่าสต๊อก{branch.name} · ตามราคาทุน (FIFO)</span>
+              <div className="mt-1.5">
+                <WaitingSlot figure="stockValue" needs={["count", "receipt"]} reason="ยังไม่มีของในสต๊อกที่ระบบรู้" branchId={branch.id} />
+              </div>
+            </div>
+          ) : value !== null && value <= 0 ? (
+            <div className="rounded-[18px] border border-border/70 bg-surface p-4 shadow-card">
+              <span className="text-xs text-muted-subtle">มูลค่าสต๊อก{branch.name} · ตามราคาทุน (FIFO)</span>
+              <div className="mt-1.5">
+                <WaitingSlot figure="stockValue" needs={["price"]} reason={`ยังไม่รู้มูลค่า · ของ ${stock.unpriced} รายการยังไม่มีราคา`} branchId={branch.id} />
+              </div>
+            </div>
+          ) : value !== null ? (
             <a href="/products?sort=value" className="block rounded-[18px] border border-border/70 bg-surface shadow-card p-4 hover:bg-muted/40">
               <span className="text-xs text-muted-subtle">มูลค่าสต๊อก{branch.name} · ตามราคาทุน (FIFO)</span>
-              <span className="block font-display text-2xl font-semibold tabular-nums">{baht(value)}</span>
+              <span className="block font-display text-2xl font-semibold tabular-nums">
+                {stock.unpriced > 0 && <span className="mr-1 font-sans text-sm font-medium text-muted-foreground">อย่างน้อย</span>}
+                {baht(value)}
+              </span>
+              {stock.unpriced > 0 && <span className="block text-xs text-warn">ไม่รวมของ {stock.unpriced} รายการที่ยังไม่มีราคา</span>}
               <span className="text-xs text-primary">ดูรายการเรียงตามมูลค่า ›</span>
             </a>
-          )}
+          ) : null}
           <section className="rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
             <h3 className="font-semibold">ต้องดู</h3>
             <div className="mt-2 flex flex-wrap gap-2">
-              {stock.negative.length > 0 ? (
+              {!stock.moved ? (
+                <span className="whitespace-nowrap rounded-full bg-muted px-3 py-1 text-sm text-muted-foreground">ยังไม่มีของเข้าออกที่สาขานี้</span>
+              ) : stock.negative.length > 0 ? (
                 <a href="/products?filter=out" className="whitespace-nowrap rounded-full bg-bad-bg px-3 py-1 text-sm font-medium text-bad hover:underline" title={stock.negative.join(", ")}>
                   ติดลบ {stock.negative.length}
                 </a>
@@ -275,8 +302,15 @@ export default async function StockWorkPage({ searchParams }: { searchParams: Pr
                 <span className="whitespace-nowrap rounded-full bg-good-bg px-3 py-1 text-sm text-good">ไม่มีของติดลบ</span>
               )}
             </div>
-            {low === 0 && near === 0 ? (
-              <p className="mt-2 text-sm text-muted-foreground">ไม่มีของต่ำกว่าหรือใกล้ขั้นต่ำ</p>
+            {parsSet === 0 ? (
+              <p className="mt-2 text-sm text-muted-foreground">
+                ยังไม่ได้ตั้งขั้นต่ำ · ตั้งแล้วระบบเตือนเมื่อของใกล้หมด{" "}
+                <a href="/products" className="font-medium text-primary underline underline-offset-[3px]">
+                  ตั้งที่หน้าสินค้า ›
+                </a>
+              </p>
+            ) : low === 0 && near === 0 ? (
+              <p className="mt-2 text-sm text-muted-foreground">ไม่มีของต่ำกว่าหรือใกล้ขั้นต่ำ ({parsSet} รายการที่ตั้งขั้นต่ำไว้)</p>
             ) : (
               <div className="mt-2 flex flex-wrap gap-2">
                 {low > 0 && (

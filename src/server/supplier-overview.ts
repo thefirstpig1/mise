@@ -26,6 +26,8 @@ export type SupplierOverview = {
   lastReceivedAt: string | null;
   receiptCount: number;
   unpaid: { total: number; count: number; oldestBillDate: string | null };
+  /** Every live bill of this supplier, paid or not — 0 means nothing to owe has ever been recorded (queue item 10). */
+  billCount: number;
   openOrders: { id: string; poNumber: string; branchName: string; total: number; expectedDate: string | null }[];
   draftCount: number;
   /** Receipts by month (YYYY-MM), newest first — at most the last two months that had any. */
@@ -53,7 +55,7 @@ export async function getSupplierOverviewLogic(
   reach: BranchReach
 ): Promise<SupplierOverview> {
   return withTenantContext(tenantId, async (tx) => {
-    const [receipts, lines, bills, orders] = await Promise.all([
+    const [receipts, lines, bills, orders, billCount] = await Promise.all([
       tx.goodsReceipt.findMany({
         where: { tenantId, supplierId, status: { not: "DRAFT" }, deletedAt: null, ...inReach(reach) },
         select: {
@@ -101,6 +103,7 @@ export async function getSupplierOverviewLogic(
         },
         orderBy: { createdAt: "desc" },
       }),
+      tx.expense.count({ where: { tenantId, supplierId, deletedAt: null, ...inReach(reach) } }),
     ]);
 
     // --- what is bought, at what price (the latest two PAID) ---
@@ -178,6 +181,7 @@ export async function getSupplierOverviewLogic(
       firstReceivedAt: confirmed.length ? iso(confirmed[confirmed.length - 1].receivedAt) : null,
       lastReceivedAt: confirmed.length ? iso(confirmed[0].receivedAt) : null,
       receiptCount: confirmed.length,
+      billCount,
       unpaid: {
         total: bills.reduce((n, b) => n + Number(b.netPaymentAmount), 0),
         count: bills.length,

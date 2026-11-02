@@ -481,6 +481,8 @@ export type RequestBoard = {
   readiness: Readiness;
   /** Products below par with nothing already asked for (Q5's side panel). */
   belowPar: ParSuggestion[];
+  /** How many pars this branch has — 0 means the panel has nothing to watch yet (queue item 10). */
+  parCount: number;
   /** The latest sales day whose stock deduction is posted — how old "on hand" is (Q5). */
   stockAsOfSalesDay: string | null;
 };
@@ -594,7 +596,10 @@ export async function getRequestBoardLogic(tenantId: string, branchId: string, v
 
     // ---- below par (Q5) ----
     const asked = new Set(lines.filter((l) => isOutstanding(l.status)).map((l) => l.product.id));
-    const belowPar = await belowParFor(tx, tenantId, branchId, asked);
+    const [belowPar, parCount] = await Promise.all([
+      belowParFor(tx, tenantId, branchId, asked),
+      tx.parLevel.count({ where: { tenantId, branchId, deletedAt: null } }),
+    ]);
 
     const lastRun = await tx.salesConsumptionRun.findFirst({
       where: { tenantId, branchId, voidedAt: null },
@@ -610,6 +615,7 @@ export async function getRequestBoardLogic(tenantId: string, branchId: string, v
       lines,
       readiness: readiness(depts.list, waitingByDept, ready),
       belowPar,
+      parCount,
       stockAsOfSalesDay: lastRun ? iso(lastRun.businessDate) : null,
     };
   });

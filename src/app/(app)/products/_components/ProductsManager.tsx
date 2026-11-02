@@ -33,6 +33,7 @@ import ParDocsPopup from "./ParDocsPopup";
 import QuickRequest from "./QuickRequest";
 import ExportButton from "@/components/ExportButton";
 import { PAR_RED } from "@/lib/par-alert";
+import { WhatIsThis } from "@/components/ui/WaitingFor";
 
 type Status = "active" | "raw" | "prepped" | "low" | "near" | "out" | "idle" | "inactive" | "all";
 type Sort = "name" | "value";
@@ -287,6 +288,11 @@ export default function ProductsManager(props: {
         .sort((a, b) => (sort === "value" ? valueOf(b) - valueOf(a) : 0) || a.name.localeCompare(b.name, "th"))
         .map((p) => ({ p, weak: false }));
   const stockValue = book?.values ? Object.entries(book.values).reduce((t, [id, v]) => (products.some((p) => p.id === id) ? t + v : t), 0) : null;
+  // Queue item 10 (rule ND9): goods on the shelf with no value, and anything on it at all.
+  const held = list ? active.filter((p) => p.type === "RAW" && (factOf(p)?.onHand ?? 0) > 0).length : 0;
+  const unpriced = list && book ? active.filter((p) => p.type === "RAW" && (factOf(p)?.onHand ?? 0) > 0 && !((book.values?.[p.id] ?? 0) > 0)).length : 0;
+  // Rule ND6: "ต่ำกว่าขั้นต่ำ 0" with no par set is an all-clear about nothing.
+  const parsSet = list ? active.filter((p) => (factOf(p)?.par ?? null) !== null).length : 0;
 
   const branchName = branches.find((b) => b.id === branchId)?.name ?? "";
   const openProduct = openId ? (products.find((p) => p.id === openId) ?? null) : null;
@@ -365,6 +371,8 @@ export default function ProductsManager(props: {
     // not record production — say so instead of an alarming 0.
     if (p.type === "PREPPED" && (!f || f.onHand <= 0)) return <span className="text-xs text-muted-subtle">ยังไม่มีบนชั้น</span>;
     if (!f) return <span className="text-xs text-muted-subtle">—</span>;
+    // Queue item 10 (rule ND5): never received or counted here is not "0 kg".
+    if (f.onHand === 0 && !list.lastMoved[p.id]) return <span className="text-xs text-muted-subtle">ยังไม่เคยเข้าที่สาขานี้</span>;
     return (
       <>
         <span className="tabular-nums">{qtyFmt(f.onHand, p.baseUnitName)}</span>
@@ -440,13 +448,29 @@ export default function ProductsManager(props: {
           <h2 className="text-2xl font-semibold">สินค้า/วัตถุดิบ</h2>
           <p className="mt-0.5 text-sm text-muted-foreground">
             {active.length} รายการที่ใช้งาน · ของแปรรูป {active.filter((p) => p.type === "PREPPED").length}
-            {list ? ` · ต่ำกว่าขั้นต่ำ ${lowCount} · ใกล้ขั้นต่ำ ${nearCount}` : ""}
+            {list ? (parsSet === 0 ? " · ยังไม่ได้ตั้งขั้นต่ำ" : ` · ต่ำกว่าขั้นต่ำ ${lowCount} · ใกล้ขั้นต่ำ ${nearCount}`) : ""}
           </p>
           {/* A shop with nothing on the list has no stock to value — not ฿0 of it. */}
           {!costHidden && active.length > 0 && (
             <p className="mt-1 text-sm">
               มูลค่าสต๊อก{branchName}{" "}
-              {stockValue === null ? pulse : <strong className="font-display tabular-nums">{baht(stockValue, 0)}</strong>}
+              {stockValue === null || list === null ? (
+                pulse
+              ) : held === 0 ? (
+                <span className="text-muted-subtle">— ยังไม่มีของในสต๊อกที่ระบบรู้</span>
+              ) : stockValue <= 0 ? (
+                <span className="text-muted-subtle">
+                  — ยังไม่รู้มูลค่า · ของ {unpriced} รายการยังไม่มีราคา <WhatIsThis figure="stockValue" needs={["price"]} branchId={branchId} />
+                </span>
+              ) : (
+                <>
+                  <strong className="font-display tabular-nums">
+                    {unpriced > 0 && <span className="mr-1 font-sans text-xs font-medium text-muted-foreground">อย่างน้อย</span>}
+                    {baht(stockValue, 0)}
+                  </strong>
+                  {unpriced > 0 && <span className="text-xs text-warn"> · ไม่รวมของ {unpriced} รายการที่ยังไม่มีราคา</span>}
+                </>
+              )}
               <span className="text-xs text-muted-subtle"> · ตามราคาทุน (FIFO)</span>
             </p>
           )}

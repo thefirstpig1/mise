@@ -6,6 +6,7 @@ import ActionLink from "@/components/ui/ActionLink";
 import { DailyBarsChart } from "@/app/(app)/dashboard/_components/Charts";
 import { recentMonths } from "@/app/(app)/dashboard/_components/dashboard-period";
 import FilterLink from "@/components/ui/FilterLink";
+import WaitingFor from "@/components/ui/WaitingFor";
 
 // ============================================================
 // Mise — วิเคราะห์รายจ่าย (Part 35 B)
@@ -118,16 +119,21 @@ export default async function ExpenseAnalysisPage({ searchParams }: { searchPara
           sub={a.billCount === 0 ? "ยังไม่มีบิลที่ตรงเงื่อนไข" : `${a.lineCount.toLocaleString("th-TH")} รายการ`}
         />
         <Stat label="จำนวนบิล" value={a.billCount === 0 ? "—" : a.billCount.toLocaleString("th-TH")} sub="บิลที่มีรายการตรงเงื่อนไข" />
-        <Stat label="ผู้ขายที่จ่ายเยอะสุด" value={top(a.bySupplier)?.label ?? "—"} sub={top(a.bySupplier) ? baht(n(top(a.bySupplier)!.amount)) : undefined} small />
+        <Stat label="ผู้ขายที่จ่ายเยอะสุด" value={top(a.bySupplier)?.label ?? "—"} sub={top(a.bySupplier) ? baht(n(top(a.bySupplier)!.amount)) : a.billCount === 0 ? "ยังไม่มีบิล" : "บิลที่ตรงเงื่อนไขไม่ได้ระบุผู้ขาย"} small />
         <Stat
           label={filter.section ? "กลุ่มที่จ่ายเยอะสุด" : "หมวดที่จ่ายเยอะสุด"}
           value={top(filter.section ? a.byGroup : a.bySection)?.label ?? "—"}
-          sub={top(filter.section ? a.byGroup : a.bySection) ? baht(n(top(filter.section ? a.byGroup : a.bySection)!.amount)) : undefined}
+          sub={top(filter.section ? a.byGroup : a.bySection) ? baht(n(top(filter.section ? a.byGroup : a.bySection)!.amount)) : a.billCount === 0 ? "ยังไม่มีบิล" : undefined}
           small
         />
       </div>
 
-      {total === 0 ? (
+      {total === 0 && !(filter.account || filter.section || filter.group || filter.supplier) ? (
+        // Queue item 10: nothing recorded in the period is not a filter to clear.
+        <div className="rounded-[18px] border border-border/70 bg-surface p-5 shadow-card">
+          <WaitingFor figure="expenseAnalysis" needs={["expense"]} reason="ยังไม่มีบิลค่าใช้จ่ายในช่วงนี้" />
+        </div>
+      ) : total === 0 ? (
         <div className="rounded-[18px] border border-border/70 bg-surface shadow-card p-10 text-center text-sm text-muted-foreground">
           ไม่มีรายจ่ายที่ตรงกับเงื่อนไขนี้ ·{" "}
           <ActionLink href={href({ account: undefined, section: undefined, group: undefined, supplier: undefined })} className="ml-1">ล้างตัวกรอง</ActionLink>
