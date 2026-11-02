@@ -20,6 +20,8 @@ import { ANIM, ChartTooltip, GRID, INK_MUTED, NEUTRAL, axis, cursorFill } from "
 import { readApi } from "@/lib/read-api";
 import { announceStale } from "@/lib/stale-tab";
 import { clickableBar, type MenuBar, type RevenueRow, type RevenueSeries } from "./Charts";
+import { WhatIsThis, useReadiness } from "@/components/ui/WaitingFor";
+import { NEEDS, type NeedKey } from "@/lib/data-needs";
 
 const baht = (n: number) => new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB", maximumFractionDigits: 0 }).format(n);
 const compact = (n: number) => new Intl.NumberFormat("th-TH", { notation: "compact", maximumFractionDigits: 1 }).format(n);
@@ -244,11 +246,48 @@ export function TopMenusCard({
         </ul>
       )}
       {measure === "profit" && Array.isArray(profit) && (
-        <p className="text-[11px] text-muted-subtle">กำไรต่อเมนู = ยอดขายหลังส่วนลด − ต้นทุนตามสูตร · "—" = ยังไม่มีสูตร</p>
+        <p className="text-[11px] text-muted-subtle">
+          กำไรต่อเมนู = ยอดขายหลังส่วนลด − ต้นทุนตามสูตร · "—" = ยังไม่มีสูตร <WhatIsThis figure="recipeProfit" needs={["recipe", "price"]} />
+        </p>
       )}
       <a href={salesHref} className="text-xs text-primary hover:underline">
         ดูทั้งหมดในหน้ายอดขาย ›
       </a>
     </div>
+  );
+}
+
+/**
+ * "ต้องระวัง" with nothing on it (queue item 10). An all-clear only when the
+ * records that would raise something exist — a shop that has never counted
+ * or received twice is not "fine", it is not yet watched. Read after paint.
+ */
+export function WatchEmpty({ recipeMethod, branchId }: { recipeMethod: boolean; branchId?: string }) {
+  const r = useReadiness(branchId);
+  if (r === undefined)
+    return (
+      <li className="py-4">
+        <span className="mx-auto block h-3 w-40 animate-pulse rounded bg-border" />
+      </li>
+    );
+  if (r === null) return <li className="py-4 text-center text-muted-subtle">ไม่มีรายการในช่วงนี้</li>;
+  const gaps: [string, NeedKey][] = [];
+  // Under นับสต๊อก a shortfall is usage, not a leak (rule PG5), so only สูตรอาหาร watches it.
+  if (recipeMethod && r.closedCounts === 0) gaps.push(["ของขาดจากการนับ ขึ้นเมื่อนับสต๊อกแล้ว", "count"]);
+  if (r.receipts < 2) gaps.push(["ราคาที่ขึ้น ขึ้นเมื่อรับสินค้าตัวเดียวกันอย่างน้อย 2 ครั้ง", "receipt"]);
+  if (gaps.length === 0) return <li className="py-4 text-center text-muted-subtle">ไม่มีเรื่องต้องระวังในช่วงนี้</li>;
+  return (
+    <li className="space-y-2 rounded-xl bg-surface-sunk px-3 py-2.5 text-xs text-muted-foreground">
+      <p className="font-display text-sm font-semibold text-foreground">ยังเฝ้าดูได้ไม่ครบ</p>
+      {gaps.map(([text, need]) => (
+        <p key={need}>
+          · {text}{" "}
+          <a href={NEEDS[need].href} className="font-medium text-primary underline underline-offset-[3px]">
+            {NEEDS[need].cta} ›
+          </a>
+        </p>
+      ))}
+      <p>· ยังไม่มีบันทึกของเสียในช่วงนี้</p>
+    </li>
   );
 }

@@ -49,6 +49,8 @@ type Common = {
   reason?: string;
   /** The branch the page is looking at, so the checklist counts that branch. */
   branchId?: string;
+  /** False when this reader cannot enter the data (no capability) — the way-in buttons go. */
+  act?: boolean;
 };
 
 // ------------------------------------------------------------
@@ -60,6 +62,7 @@ export default function WaitingFor({
   needs,
   reason,
   branchId,
+  act = true,
   shape,
   outline = true,
 }: Common & {
@@ -88,13 +91,15 @@ export default function WaitingFor({
             <span aria-hidden className="grid h-4 w-4 place-items-center rounded-full border-[1.5px] border-current text-[10px] font-bold">?</span>
             นี่คืออะไร
           </button>
-          <a href={first.href} className="btn btn-sm">
-            {first.cta} ›
-          </a>
+          {act ? (
+            <a href={first.href} className="btn btn-sm">
+              {first.cta} ›
+            </a>
+          ) : null}
         </div>
       </div>
       {outline ? <Outline shape={s} /> : null}
-      {open ? <NeedsDialog figure={figure} needs={needs} reason={reason} branchId={branchId} onClose={() => setOpen(false)} /> : null}
+      {open ? <NeedsDialog figure={figure} needs={needs} reason={reason} branchId={branchId} act={act} onClose={() => setOpen(false)} /> : null}
     </div>
   );
 }
@@ -103,7 +108,7 @@ export default function WaitingFor({
 // A small number card's value
 // ------------------------------------------------------------
 
-export function WaitingSlot({ figure, needs, reason, branchId }: Common) {
+export function WaitingSlot({ figure, needs, reason, branchId, act }: Common) {
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -119,7 +124,7 @@ export function WaitingSlot({ figure, needs, reason, branchId }: Common) {
           ดูวิธี ›
         </button>
       </span>
-      {open ? <NeedsDialog figure={figure} needs={needs} reason={reason} branchId={branchId} onClose={() => setOpen(false)} /> : null}
+      {open ? <NeedsDialog figure={figure} needs={needs} reason={reason} branchId={branchId} act={act} onClose={() => setOpen(false)} /> : null}
     </>
   );
 }
@@ -149,6 +154,29 @@ export function WhatIsThis({ children = "นี่คืออะไร", ...pro
 }
 
 // ------------------------------------------------------------
+// Some of it is known: the real figure stays, this says how much
+// ------------------------------------------------------------
+
+/**
+ * Under a figure worked out from PART of the data (recipes for 41% of sales):
+ * a bar of how much, the page's sentence, and the same window. The figure
+ * itself carries "อย่างน้อย" / "ไม่เกิน" — that is the page's to print.
+ */
+export function Coverage({ share, children, ...common }: Common & { share: number; children: ReactNode }) {
+  const pct = Math.max(0, Math.min(100, Math.round(share * 100)));
+  return (
+    <div className="grid gap-1 text-xs text-muted-foreground">
+      <span aria-hidden className="block h-1.5 overflow-hidden rounded-full bg-border">
+        <span className="block h-full rounded-full bg-[#7D8550]" style={{ width: `${pct}%` }} />
+      </span>
+      <span>
+        {children} · <WhatIsThis {...common}>ดูว่ายังขาดอะไร ›</WhatIsThis>
+      </span>
+    </div>
+  );
+}
+
+// ------------------------------------------------------------
 // The window
 // ------------------------------------------------------------
 
@@ -172,12 +200,9 @@ function loadReadiness(branchId?: string): Promise<Readiness | null> {
   return p;
 }
 
-function NeedsDialog({ figure, needs, reason, branchId, onClose }: Common & { onClose: () => void }) {
-  const f = FIGURES[figure];
-  const Icon = ICONS[f.shape];
-  const titleId = useId();
+/** What the shop has entered (undefined while loading, null when it could not be read). */
+export function useReadiness(branchId?: string): Readiness | null | undefined {
   const [ready, setReady] = useState<Readiness | null | undefined>(undefined);
-
   useEffect(() => {
     let live = true;
     void loadReadiness(branchId).then((r) => live && setReady(r));
@@ -185,6 +210,14 @@ function NeedsDialog({ figure, needs, reason, branchId, onClose }: Common & { on
       live = false;
     };
   }, [branchId]);
+  return ready;
+}
+
+function NeedsDialog({ figure, needs, reason, branchId, act = true, onClose }: Common & { onClose: () => void }) {
+  const f = FIGURES[figure];
+  const Icon = ICONS[f.shape];
+  const titleId = useId();
+  const ready = useReadiness(branchId);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -249,7 +282,7 @@ function NeedsDialog({ figure, needs, reason, branchId, onClose }: Common & { on
               {needs.map((k, i) => {
                 const need = NEEDS[k];
                 const st = statuses?.[i];
-                const showCta = i === 0 || (st !== undefined && !st.done);
+                const showCta = act && (i === 0 || (st !== undefined && !st.done));
                 const isNow = i === 0;
                 return (
                   <li key={k} className="relative grid grid-cols-[26px_minmax(0,1fr)] gap-2.5 pb-3.5">
@@ -288,7 +321,7 @@ function NeedsDialog({ figure, needs, reason, branchId, onClose }: Common & { on
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-5 py-3 text-xs text-muted-foreground">
-          <span>ใส่ครบแล้ว ส่วนนี้ขึ้นตัวเลขจริงของร้านเอง</span>
+          <span>{act ? "ใส่ครบแล้ว ส่วนนี้ขึ้นตัวเลขจริงของร้านเอง" : "เจ้าของร้านหรือผู้จัดการเป็นคนใส่ข้อมูลเหล่านี้ · ใส่ครบแล้วส่วนนี้ขึ้นเอง"}</span>
           <button type="button" onClick={onClose} className="btn-secondary btn-sm">
             ปิด
           </button>
@@ -313,7 +346,8 @@ const BAR_H = [62, 72, 56, 68, 88, 110, 102, 60, 66, 54, 74, 92, 106, 98];
 
 export function Outline({ shape }: { shape: OutlineShape }) {
   return (
-    <svg viewBox={VIEW[shape]} className="block h-auto w-full" role="img" aria-label="โครงของกราฟ ยังไม่มีข้อมูล">
+    // Capped: in a full-width card the outline would otherwise grow to half the screen.
+    <svg viewBox={VIEW[shape]} className="block h-auto max-h-[200px] w-full" role="img" aria-label="โครงของกราฟ ยังไม่มีข้อมูล">
       <Shape shape={shape} filled={false} />
     </svg>
   );

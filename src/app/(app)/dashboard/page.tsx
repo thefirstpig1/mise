@@ -31,9 +31,11 @@ import PulsePanel from "./_components/PulsePanel";
 import DashboardControls, { type BranchChip } from "./_components/DashboardControls";
 import { SERIES } from "@/components/charts/chart-theme";
 import { MonthlyTrend, type MenuBar, type RevenueRow } from "./_components/Charts";
-import { DailySalesBars, TopMenusCard } from "./_components/DashboardParts";
+import { DailySalesBars, TopMenusCard, WatchEmpty } from "./_components/DashboardParts";
 import { isoDay, parseBranchParam, parsePreset, periodFor, type Period } from "./_components/dashboard-period";
 import { grossProfitBlockerShort, isCountBlocker, purchasesLookLow } from "@/lib/gross-profit-blocker";
+import WaitingFor, { Coverage, WaitingSlot, WhatIsThis } from "@/components/ui/WaitingFor";
+import type { NeedKey } from "@/lib/data-needs";
 
 // ============================================================
 // Mise — แดชบอร์ด (rewritten in Part 35 L5)
@@ -489,6 +491,23 @@ async function Analytics({
       : pnl.unknownReason === "NO_SALES"
         ? "ยังไม่มียอดขายในช่วงนี้"
         : null;
+  // Queue item 10: what the food-cost and profit cards are waiting for, in the
+  // order the shop would supply it — the reason above says why, this says what.
+  const recipeMethod = pnl.method === "RECIPE_CONSUMPTION";
+  const foodNeeds: NeedKey[] =
+    pnl.unknownReason === "NO_SALES"
+      ? ["sales"]
+      : recipeMethod
+        ? ["posted", "recipe", "price"]
+        : blocked.length > 0 && blocked.every((b) => !isCountBlocker(b.grossProfitBlocker))
+          ? ["price", "count"]
+          : ["count", "receipt", "price"];
+  const netNeeds: NeedKey[] = [...foodNeeds, "expense"];
+  const oneBranch = selected.length === 1 ? selected[0] : undefined;
+  // Rule N-coverage on the dashboard: under สูตรอาหาร the cost is what was
+  // posted, so a period posted for part of its sales understates it (and
+  // overstates profit) — print the bound and how much is known.
+  const partCovered = recipeMethod && pnl.recipeCoverage !== null && pnl.recipeCoverage < 0.995 ? pnl.recipeCoverage : null;
   const missingNote =
     missing.length > 0
       ? `ยังไม่ครบ: ${missing.slice(0, 2).map((m) => `${m.description} ${m.periodLabel} ${baht(m.amount)}`).join(" · ")}${missing.length > 2 ? ` และอีก ${missing.length - 2}` : ""} ยังไม่บันทึก`
@@ -506,6 +525,8 @@ async function Analytics({
       : wfBranch
         ? { who: short(wfBranch.branchName), revenue: num(wfBranch.revenue)!, cogs: num(wfBranch.cogs)!, opex: num(wfBranch.opex)!, net: num(wfBranch.netProfit)! }
         : null;
+  // Sales are in but no branch's profit can be worked out yet: the card stays, waiting (queue item 10).
+  const wfWaits = see.sales && seeNet && revenue !== null && wf === null;
 
   // Kong 2026-10-30: under นับสต๊อก a count's shortfall is what the shop USED
   // (no sale takes stock out), so it is not something to watch — it is already
@@ -527,7 +548,11 @@ async function Analytics({
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {see.sales ? (
           <Kpi label="ยอดขายต่อวัน" icon={ChartColumn} href={`/sales?${salesQs}`} link="ยอดขาย">
-            <p className="font-display text-[1.7rem] font-semibold leading-tight tabular-nums">{perDay === null ? "—" : baht(perDay)}</p>
+            {perDay === null ? (
+              <WaitingSlot figure="dailySales" needs={["sales"]} reason="ยังไม่มียอดขายในช่วงนี้" branchId={oneBranch} />
+            ) : (
+              <p className="font-display text-[1.7rem] font-semibold leading-tight tabular-nums">{baht(perDay)}</p>
+            )}
             {perDay !== null && prevPerDay ? (
               <p className="flex flex-wrap items-center gap-1.5 text-xs">
                 <DeltaChip pct={((perDay - prevPerDay) / prevPerDay) * 100} goodWhenUp />
@@ -537,24 +562,33 @@ async function Analytics({
               <p className="text-xs text-muted-subtle">ไม่มียอดขาย {vs} ให้เทียบ</p>
             ) : null}
             {revenueRows.length > 1 ? <Spark values={allDays.map((d) => { const r = byDay.get(d); return r ? series.reduce((s, x) => s + Number(r[x.branchId] ?? 0), 0) : null; })} baseline={prevPerDay} /> : null}
-            <p className="text-xs text-muted-subtle">
-              {revenue === null ? (
-                <a href="/sales/import" className="text-primary hover:underline">นำเข้าไฟล์ยอดขาย ›</a>
-              ) : (
-                `รวม ${baht(revenue)} · ขาย ${days.cur} วัน · ไม่รวม VAT และ service charge`
-              )}
-            </p>
+            {revenue !== null ? <p className="text-xs text-muted-subtle">{`รวม ${baht(revenue)} · ขาย ${days.cur} วัน · ไม่รวม VAT และ service charge`}</p> : null}
             {guestLine && <p className="text-xs text-muted-foreground">{guestLine}</p>}
+            {!guestLine && dailyCloseOn && revenue !== null && g.salesDays > 0 ? (
+              <p className="text-xs text-muted-subtle">
+                ยอดต่อหัว: กรอกจำนวนลูกค้าแล้ว {g.guestDays} จาก {g.salesDays} วันที่ขาย · ต้องได้ 80%{" "}
+                <WhatIsThis figure="perHead" needs={["guests"]} branchId={oneBranch} />
+              </p>
+            ) : null}
           </Kpi>
         ) : null}
 
         {seeGross ? (
           <Kpi label="ต้นทุนอาหาร % ของยอดขาย" icon={Soup} href="/cost" link="ต้นทุน">
-            <p className="font-display text-[1.7rem] font-semibold leading-tight tabular-nums">
-              {foodPct === null ? "—" : pct1(foodPct)}
-              {foodPct === null && multi ? <span className="ml-1.5 text-sm font-medium text-muted-subtle">ทั้งร้าน</span> : null}
-            </p>
-            {multi || foodPct === null ? <MiniBars rows={branchRows.map((b) => ({ name: short(b.branchName), value: branchFood(b) }))} target={targets.food} scale={Math.max(50, targets.food * 1.5)} warm /> : null}
+            {foodPct === null ? (
+              <WaitingSlot figure="foodCost" needs={foodNeeds} reason={unknownWhy ? (multi ? `ทั้งร้าน: ${unknownWhy}` : unknownWhy) : undefined} branchId={oneBranch} />
+            ) : (
+              <p className="font-display text-[1.7rem] font-semibold leading-tight tabular-nums">
+                {partCovered !== null ? <span className="mr-1 font-sans text-sm font-medium text-muted-foreground">อย่างน้อย</span> : null}
+                {pct1(foodPct)}
+              </p>
+            )}
+            {foodPct !== null && partCovered !== null ? (
+              <Coverage share={partCovered} figure="foodCost" needs={["posted", "recipe"]} branchId={oneBranch}>
+                คิดจากยอดขายที่ตัดสต๊อกตามสูตรแล้ว {Math.round(partCovered * 100)}%
+              </Coverage>
+            ) : null}
+            {multi ? <MiniBars rows={branchRows.map((b) => ({ name: short(b.branchName), value: branchFood(b) }))} target={targets.food} scale={Math.max(50, targets.food * 1.5)} warm /> : null}
             <p className="text-xs text-muted-subtle">
               เป้า {pct1(targets.food)}
               {foodPct !== null && ` · ${foodPct > targets.food ? `เกินเป้า ${(foodPct - targets.food).toFixed(1)} จุด` : `ต่ำกว่าเป้า ${(targets.food - foodPct).toFixed(1)} จุด`}`}
@@ -573,21 +607,20 @@ async function Analytics({
                 — ถ้าซื้อเงินสดจากตลาดด้วย บันทึกไว้ ต้นทุนจะได้ไม่ต่ำกว่าจริง
               </Why>
             ) : null}
-            {unknownWhy ? (
-              pnl.unknownReason === "NO_SALES" ? (
-                <Why href="/sales/import" action="นำเข้าไฟล์ยอดขาย">{unknownWhy}</Why>
-              ) : (
-                <Why href={blockerFix.href} action={blockerFix.action}>{unknownWhy}</Why>
-              )
-            ) : null}
+            {/* foodPct === null: the slot above carries the reason and the way in. */}
+            {unknownWhy && foodPct !== null ? <Why href={blockerFix.href} action={blockerFix.action}>{unknownWhy}</Why> : null}
           </Kpi>
         ) : null}
 
         {see.expense ? (
           <Kpi label="ค่าใช้จ่ายดำเนินงาน" icon={Receipt} href="/expenses/analysis" link="รายจ่าย">
-            <p className="font-display text-[1.7rem] font-semibold leading-tight tabular-nums">{num(pnl.opex) ? baht(num(pnl.opex)!) : "—"}</p>
+            {num(pnl.opex) ? (
+              <p className="font-display text-[1.7rem] font-semibold leading-tight tabular-nums">{baht(num(pnl.opex)!)}</p>
+            ) : (
+              <WaitingSlot figure="opex" needs={["expense"]} reason="ยังไม่มีบิลค่าใช้จ่ายในช่วงนี้" branchId={oneBranch} />
+            )}
             <p className="text-xs text-muted-subtle">
-              {!num(pnl.opex) ? "ยังไม่มีบิลในช่วงนี้" : revenue ? `${pct1((num(pnl.opex)! / revenue) * 100)} ของยอดขาย` : "ยังไม่มียอดขายให้เทียบ"}
+              {!num(pnl.opex) ? null : revenue ? `${pct1((num(pnl.opex)! / revenue) * 100)} ของยอดขาย` : "ยังไม่มียอดขายให้เทียบ"}
               <Suspense fallback={null}>
                 <PrevAmount prevP={prevP} vs={vs} pick={(p) => num(p.opex)} />
               </Suspense>
@@ -598,20 +631,33 @@ async function Analytics({
 
         {seeNet ? (
           <Kpi label="กำไรสุทธิ" icon={Coins} href="/cost" link="กำไร">
-            <p className={`font-display text-[1.7rem] font-semibold leading-tight tabular-nums ${net === null ? "" : net >= 0 ? "text-good" : "text-bad"}`}>
-              {net === null ? "—" : baht(net)}
-              {net === null && multi ? <span className="ml-1.5 text-sm font-medium text-muted-subtle">ทั้งร้าน</span> : null}
-            </p>
-            {multi || net === null ? <MiniBars rows={branchRows.map((b) => ({ name: short(b.branchName), value: branchNet(b), note: b.netProfit === null ? null : baht(num(b.netProfit)!) }))} scale={100} /> : null}
+            {net === null ? (
+              <WaitingSlot
+                figure="netProfit"
+                needs={netNeeds}
+                reason={unknownWhy ? (multi ? `ทั้งร้าน: ${unknownWhy}` : unknownWhy) : undefined}
+                branchId={oneBranch}
+              />
+            ) : (
+              <p className={`font-display text-[1.7rem] font-semibold leading-tight tabular-nums ${net >= 0 ? "text-good" : "text-bad"}`}>
+                {partCovered !== null ? <span className="mr-1 font-sans text-sm font-medium text-muted-foreground">ไม่เกิน</span> : null}
+                {baht(net)}
+              </p>
+            )}
+            {multi ? <MiniBars rows={branchRows.map((b) => ({ name: short(b.branchName), value: branchNet(b), note: b.netProfit === null ? null : baht(num(b.netProfit)!) }))} scale={100} /> : null}
             {net !== null && revenue ? <p className="text-xs text-muted-subtle">{pct1((net / revenue) * 100)} ของยอดขาย{missing.length > 0 && " · ยังไม่หักบิลประจำที่ค้าง"}</p> : null}
             {countGap ? (
               <Suspense fallback={null}>
                 <CountedMonth p={countedP} show="net" qs={countedQs} />
               </Suspense>
             ) : null}
-            {net === null && unknownWhy && allBlocked ? (
-              <Why href={blockerFix.href} action={blockerFix.action}>{multi ? `ทั้งร้านยังคิดไม่ได้ — ${unknownWhy}` : unknownWhy}</Why>
-            ) : net === null && unknownWhy ? <Why>{"ทั้งร้านยังคิดไม่ได้ — " + unknownWhy}</Why> : missingNote ? <Why href="/expenses" action="บันทึกบิล">ยังไม่หักบิลประจำที่ค้าง — สูงกว่าจริง</Why> : null}
+            {net !== null && missingNote ? <Why href="/expenses" action="บันทึกบิล">ยังไม่หักบิลประจำที่ค้าง — สูงกว่าจริง</Why> : null}
+            {/* No bill at all is not "no expenses": the figure is gross profit until one is recorded. */}
+            {net !== null && !num(pnl.opex) && missing.length === 0 ? (
+              <p className="text-xs text-muted-subtle">
+                ยังไม่มีบิลค่าใช้จ่ายในช่วงนี้ จึงยังไม่ได้หัก <WhatIsThis figure="netProfit" needs={["expense"]} branchId={oneBranch} />
+              </p>
+            ) : null}
           </Kpi>
         ) : null}
       </div>
@@ -619,7 +665,7 @@ async function Analytics({
       {see.sales || wf ? (
         <div className="grid gap-4 lg:grid-cols-12">
           {see.sales ? (
-            <Card className={wf ? "lg:col-span-8" : "lg:col-span-12"} title="ยอดขายรายวัน" meta={lastDay ? `${label} · ข้อมูลถึง ${new Date(`${lastDay}T00:00:00Z`).toLocaleDateString("th-TH", { day: "numeric", month: "short", timeZone: "UTC" })}` : label}>
+            <Card className={wf || wfWaits ? "lg:col-span-8" : "lg:col-span-12"} title="ยอดขายรายวัน" meta={lastDay ? `${label} · ข้อมูลถึง ${new Date(`${lastDay}T00:00:00Z`).toLocaleDateString("th-TH", { day: "numeric", month: "short", timeZone: "UTC" })}` : label}>
               {revenueRows.length ? (
                 <DailySalesBars
                   days={allDays}
@@ -631,11 +677,13 @@ async function Analytics({
                   branchParam={selected.length === 1 ? selected[0] : null}
                 />
               ) : (
-                <p className="py-16 text-center text-sm text-muted-foreground">
-                  ยังไม่มียอดขายในช่วงนี้ ·{" "}
-                  <a href="/sales/import" className="text-primary hover:underline">นำเข้าไฟล์ยอดขาย ›</a>
-                </p>
+                <WaitingFor figure="dailySales" needs={["sales"]} reason="ยังไม่มียอดขายในช่วงนี้" branchId={oneBranch} />
               )}
+            </Card>
+          ) : null}
+          {wfWaits ? (
+            <Card className="lg:col-span-4" title="จากยอดขายสู่กำไร" meta={label}>
+              <WaitingFor figure="salesToProfit" needs={netNeeds} reason={unknownWhy ?? undefined} branchId={oneBranch} />
             </Card>
           ) : null}
           {wf ? (
@@ -677,7 +725,7 @@ async function Analytics({
                   {`฿${p.first.toLocaleString("th-TH")} → ฿${p.last.toLocaleString("th-TH")} ต่อ${p.baseUnit} · ${p.receipts} ครั้งที่รับ`}
                 </Watch>
               ))}
-              {shortage <= 0 && waste <= 0 && priceUps.length === 0 && <li className="py-4 text-center text-muted-subtle">ไม่มีเรื่องต้องระวังในช่วงนี้</li>}
+              {shortage <= 0 && waste <= 0 && priceUps.length === 0 && <WatchEmpty recipeMethod={recipeMethod} branchId={oneBranch} />}
             </ul>
             <div className="mt-3 flex flex-wrap gap-x-4 text-xs">
               <a href="/cost/leaks" className="text-primary hover:underline">ของหายไปไหน ›</a>
@@ -739,16 +787,15 @@ function Card({ title, meta, className = "", children }: { title: string; meta?:
 
 /** A brand-new shop: nothing to sum yet — say what makes the figures appear, never a row of ฿0. */
 function NoFiguresYet({ canImport }: { canImport: boolean }) {
+  // Queue item 10: the figures' own outline, waiting — not a paragraph.
   return (
     <Card title="ตัวเลขของร้าน">
-      <p className="text-sm text-muted-foreground">
-        ยังไม่มีตัวเลขให้สรุป · ยอดขาย ต้นทุน และกำไร จะขึ้นที่นี่เมื่อมีไฟล์ยอดขาย บิลซื้อ ค่าใช้จ่าย หรือการนับสต๊อกเข้าระบบ
-      </p>
-      {canImport ? (
-        <a href="/sales/import" className="mt-3 inline-block text-sm font-medium text-primary hover:underline">
-          นำเข้ายอดขาย ›
-        </a>
-      ) : null}
+      <WaitingFor
+        figure="shopFigures"
+        needs={["sales", "count", "expense"]}
+        reason="ยอดขาย ต้นทุน และกำไร ขึ้นที่นี่เองเมื่อมีไฟล์ยอดขาย การนับสต๊อก หรือบิลค่าใช้จ่ายเข้าระบบ"
+        act={canImport}
+      />
     </Card>
   );
 }
@@ -895,7 +942,9 @@ function Waterfall({ revenue, cogs, opex, net }: { revenue: number; cogs: number
                 style={{ left: `${left * 100}%`, width: `${(Math.abs(v) / max) * 100}%`, background: bg, animationDelay: `${i * 60}ms` }}
               />
             </span>
-            <span className={`text-right font-display tabular-nums ${total ? "font-semibold" : ""}`}>{v < 0 ? `−${baht(-v)}` : baht(v)}</span>
+            <span className={`text-right font-display tabular-nums ${total ? "font-semibold" : ""}`}>
+              {label === "ค่าใช้จ่าย" && opex === 0 ? <span className="font-sans text-xs font-normal text-muted-subtle">ยังไม่มีบิล</span> : v < 0 ? `−${baht(-v)}` : baht(v)}
+            </span>
           </div>
         );
       })}
