@@ -4,8 +4,9 @@
 // The design Kong liked — mockup https://claude.ai/artifact/CGi4XVy5QJqDUw9qoW3HJC
 // (v2: "ส่วนตัวดีไซน์ ถือว่าดีใช้ได้ ชอบเลยล่ะ") — with its words held to what
 // the system does today (see content.ts). Every picture is a real screen of the
-// demo shop, captured 2026-10-30 with the owner's address, the admin button and
-// a real chain's code and phone number taken out.
+// demo shop, captured 2026-10-30 (again 2026-11-02, after the menu changed) with
+// the owner's address and name, the admin button and a real chain's code and
+// phone number taken out. วิธีใช้งาน (six sections, 2026-11-02) is HowItWorks.tsx.
 //
 // What changed from the mockup, and why: the นัดสาธิต form and every promise
 // around it (a team, a call back within a day, 30 minutes) are gone — nobody
@@ -22,6 +23,7 @@ import { Icon, Mark, Phrases, d } from "./_landing/parts";
 import RoleTabs from "./_landing/RoleTabs";
 import Faq from "./_landing/Faq";
 import Motion from "./_landing/Motion";
+import { DaySection, ExpenseSection, FlowSection, MoreSection, OnePlaceSection, RecipeSection } from "./_landing/HowItWorks";
 
 export default async function HomePage() {
   const session = await auth();
@@ -40,6 +42,7 @@ export default async function HomePage() {
           </a>
           <nav className="lp-nav" aria-label="เมนูหลัก">
             <a href="#features">ฟีเจอร์</a>
+            <a href="#day">วิธีใช้งาน</a>
             <a href="#roles">ทุกฝ่ายในร้าน</a>
             <a href="#faq">คำถามที่พบบ่อย</a>
           </nav>
@@ -150,6 +153,9 @@ export default async function HomePage() {
         </div>
       </section>
 
+      <FlowSection />
+      <RecipeSection />
+
       <section className="lp-features" id="features">
         <div className="lp-wrap lp-sec-head">
           <p className="lp-eyebrow lp-rv">ฟีเจอร์หลัก</p>
@@ -217,6 +223,9 @@ export default async function HomePage() {
         })}
       </section>
 
+      <ExpenseSection />
+      <DaySection />
+
       <section className="lp-dark lp-roles" id="roles">
         <div className="lp-wrap">
           <div className="lp-head">
@@ -242,6 +251,9 @@ export default async function HomePage() {
           </div>
         </div>
       </section>
+
+      <OnePlaceSection />
+      <MoreSection />
 
       <section className="lp-trust">
         <div className="lp-wrap">
@@ -330,10 +342,11 @@ export default async function HomePage() {
           </span>
           <span className="lp-links">
             <a href="#features">ฟีเจอร์</a>
+            <a href="#day">วิธีใช้งาน</a>
             <a href="#faq">คำถามที่พบบ่อย</a>
             <Link href="/login">เข้าสู่ระบบ</Link>
           </span>
-          <span>ภาพหน้าจอทั้งหมดใช้ข้อมูลร้านตัวอย่าง ไม่ใช่ข้อมูลร้านจริง · © 2569 คิดครัว</span>
+          <span>ภาพหน้าจอทั้งหมดใช้ข้อมูลร้านตัวอย่าง ไม่ใช่ข้อมูลร้านจริง · ตัวเลขในแผนภาพเป็นตัวอย่างประกอบ · © 2569 คิดครัว</span>
         </div>
       </footer>
     </div>

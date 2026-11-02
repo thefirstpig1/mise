@@ -9,7 +9,7 @@
 //   - a count shows the difference only when the shop shows the expected
 //     figure, so the cook's line does not promise it;
 //   - every figure in a callout is the demo shop's, as the pictures show it
-//     (public/landing/, captured 2026-10-30, ก.ย. 69).
+//     (public/landing/, captured again 2026-11-02 after the menu changed; ก.ย. 69).
 // A plain module, never "use client": the page and its client parts share it.
 // ============================================================
 
@@ -31,7 +31,30 @@ export type IconKey =
   | "sprout"
   | "eye"
   | "upload"
-  | "export";
+  | "export"
+  | "sales"
+  | "cart"
+  | "count"
+  | "trash"
+  | "book"
+  | "check"
+  | "file"
+  | "layers"
+  | "sun"
+  | "moon"
+  | "clock"
+  | "camera"
+  | "spark"
+  | "store"
+  | "swap"
+  | "flask"
+  | "pot"
+  | "meal"
+  | "net"
+  | "bell"
+  | "gauge"
+  | "arrow"
+  | "down";
 
 export const PROMISES: { title: string; body: string }[] = [
   { title: "รู้กำไรของแต่ละเมนู", body: "คิดจากสูตรกับราคาที่ร้านซื้อจริง ไม่ใช่ราคาที่จำเอา" },
@@ -95,13 +118,13 @@ export const FEATURES: Feature[] = [
       ["coin", "จ่ายเพิ่มหรือจ่ายน้อยลงกี่บาท", "คำนวณจากราคาที่จ่ายจริงในใบรับสินค้า"],
       ["menu", "เมนูที่ต้นทุนเกินเป้าหมาย", "เมนูไหนต้นทุนเกินเป้าที่ร้านตั้งไว้"],
     ],
-    callout: { at: "tr", title: "เบียร์สิงห์ 620 มล.", up: "▲ 4.4%", sub: "จ่ายเพิ่ม ฿274 ในช่วงล่าสุด" },
+    callout: { at: "tr", title: "เบียร์สิงห์ 620 มล.", up: "▲ 5.3%", sub: "จ่ายเพิ่ม ฿324 ในช่วงล่าสุด" },
   },
   {
     tag: "ของหายไปไหน",
     title: "นับสต๊อกแล้วรู้ว่าของหายไปกี่บาท พร้อมสาเหตุที่เป็นไปได้",
     body: "สำหรับร้านที่มีสูตร: เทียบของที่นับได้กับที่ควรเหลือตามยอดขาย โดยหักของเสียที่บันทึกไว้แล้ว",
-    img: { src: "/landing/leaks.png", alt: "รายงานของหายไปไหนของร้านตัวอย่าง", w: 1116, h: 492 },
+    img: { src: "/landing/leaks.png", alt: "รายงานของหายไปไหนของร้านตัวอย่าง", w: 1116, h: 516 },
     points: [
       ["list", "เรียงจากหายมากไปน้อย", "ตัวที่หายเป็นเงินมากที่สุดขึ้นก่อน"],
       ["search", "สาเหตุที่เป็นไปได้", "เช่น ใช้เกินสูตร หรือรับสินค้าวันเดียวกับวันนับ"],
@@ -211,4 +234,141 @@ export const START_STEPS: string[] = [
   "นำเข้าวัตถุดิบ บิลซื้อย้อนหลัง และสูตร จากไฟล์ที่ AI ของร้านช่วยเตรียม",
   "นำเข้ายอดขายจากไฟล์ POS ที่ใช้อยู่",
   "นับสต๊อกเปิดระบบ แล้วเริ่มเห็นต้นทุนและกำไรของร้าน",
+];
+
+// ============================================================
+// วิธีใช้งาน — six sections (Kong 2026-11-02: "เพิ่มรายละเอียดการใช้งานของเรา
+// พร้อมภาพประกอบ … ให้เขารู้ว่ามันใช้งานไม่ยากเลย เพราะปัญหาตอนนี้ที่น่ากังวล
+// ที่สุดคือ adoption"). Mockup EV99SYahxAp4pAAao2AXiB, approved as proposed.
+// Each answers one reason a shop gives for not starting (too much typing,
+// re-keying sales, learning time, changing how the kitchen works) with what
+// the system does today. Checked against the code before the mockup went out:
+// stock falls by itself after a sales import (ADR 0022 N6, since 2026-10-24),
+// a confirmed receipt writes its bill, recurring bills carry a day of month,
+// staff advances carry the photo and these three statuses, POS per branch.
+// Bills are made into a file "จากบิล" — reading a photo was never measured.
+// Figures in the diagrams are illustrations; the pictures are the demo shop's.
+// ============================================================
+
+export const FLOW_IN: { icon: IconKey; title: string; body: string; who: string; once?: boolean }[] = [
+  { icon: "sales", title: "ขาย", body: "ไฟล์ยอดขายจาก POS ที่ใช้อยู่", who: "แคชเชียร์" },
+  { icon: "cart", title: "ซื้อ", body: "ขอซื้อ → สั่งซื้อ → รับสินค้า", who: "ครัว · จัดซื้อ" },
+  { icon: "receipt", title: "จ่าย", body: "บิลค่าใช้จ่าย บิลประจำ และรูปบิลที่พนักงานออกเงินไปก่อน", who: "บัญชี · พนักงาน" },
+  { icon: "count", title: "นับ", body: "นับสต๊อกทีละหมวดบนมือถือ", who: "ครัว" },
+  { icon: "trash", title: "ใช้ไปนอกการขาย", body: "ของเสีย มื้อพนักงาน และของที่ครัวทำเอง", who: "ครัว" },
+  { icon: "book", title: "ตั้งครั้งเดียว", body: "วัตถุดิบ สูตร ผู้ขาย · นำเข้าจากไฟล์ที่ AI ช่วยทำได้", who: "เจ้าของร้าน", once: true },
+];
+
+export const FLOW_HUB: string[] = [
+  "ตัดสต๊อกตามสูตรทุกครั้งที่นำเข้ายอดขาย",
+  "คิดต้นทุนตามราคาของล็อตที่ซื้อจริง",
+  "แยก VAT ตามแบบของร้าน",
+  "รวมทุกสาขา หรือดูทีละสาขา",
+];
+
+export const FLOW_OUT: [IconKey, string][] = [
+  ["coin", "กำไรรายเดือน แยกสาขา"],
+  ["sales", "กำไรต่อจานของเมนูที่มีสูตร"],
+  ["search", "ของหายไปไหน เป็นบาท"],
+  ["trend", "วัตถุดิบตัวไหนขึ้นราคา"],
+  ["pie", "รายจ่ายแยกหมวดและผู้ขาย"],
+  ["file", "ไฟล์ส่งโปรแกรมบัญชี"],
+];
+
+export type DaySlot = {
+  icon: IconKey;
+  when: string;
+  who: string;
+  body: string;
+  result: string;
+  /** A phone screen of the demo shop; null = drawn (the demo shop has no round to cut). */
+  pic: { src: string; alt: string } | null;
+  owner?: boolean;
+};
+
+export const DAY_SLOTS: DaySlot[] = [
+  {
+    icon: "sun",
+    when: "เช้า · ของมาส่ง",
+    who: "คนรับของ",
+    body: "เปิดใบสั่งซื้อ ใส่จำนวนที่ได้จริง แล้วกดยืนยัน",
+    result: "สต๊อกเข้า บิลขึ้นเอง",
+    pic: { src: "/landing/day-receive.png", alt: "ใบรับสินค้าบนมือถือของร้านตัวอย่าง: จำนวนและราคาของแต่ละรายการ" },
+  },
+  {
+    icon: "clock",
+    when: "ระหว่างวัน",
+    who: "ครัว",
+    body: "ของใกล้หมดขึ้นจุดแดง กดขอซื้อ ระบบแนะนำจำนวนให้ · ของเสียและมื้อพนักงาน จดตอนที่เกิด",
+    result: "ใบขอซื้อรอฝ่ายจัดซื้อ",
+    pic: { src: "/landing/catalog.png", alt: "หน้าขอซื้อบนมือถือของร้านตัวอย่าง" },
+  },
+  {
+    icon: "cart",
+    when: "ตัดรอบสั่งซื้อ",
+    who: "จัดซื้อ",
+    body: "รวมใบขอซื้อที่ค้างทั้งหมดในครั้งเดียว",
+    result: "ได้ใบสั่งซื้อแยกตามผู้ขาย",
+    pic: null,
+  },
+  {
+    icon: "moon",
+    when: "ปิดร้าน",
+    who: "แคชเชียร์",
+    body: "ปิดร้านประจำวัน (ถ้าเปิดใช้): ยอดจาก POS เงินสด จำนวนลูกค้า · อัปโหลดไฟล์ยอดขาย วันละครั้งหรือรวบทั้งสัปดาห์ก็ได้",
+    result: "สต๊อกตัดตามสูตรให้เอง",
+    pic: { src: "/landing/day-close.png", alt: "หน้าปิดร้านประจำวันบนมือถือของร้านตัวอย่าง" },
+  },
+  {
+    icon: "eye",
+    when: "เจ้าของร้าน",
+    who: "ไม่ต้องคีย์อะไร",
+    body: "เปิดแดชบอร์ดดูยอดขาย ต้นทุน และงานที่ค้างของทุกคน",
+    result: "เห็นทุกสาขาในหน้าเดียว",
+    pic: { src: "/landing/day-dash.png", alt: "แดชบอร์ดบนมือถือของร้านตัวอย่าง: งานที่ต้องทำวันนี้ และยอดขายต่อวัน" },
+    owner: true,
+  },
+];
+
+export const DAY_PERIODIC: [IconKey, string, string][] = [
+  ["count", "สัปดาห์ละครั้ง (ถ้าต้องการ)", "นับเฉพาะของราคาสูง ไม่ต้องรอนับทั้งร้าน"],
+  ["calendar", "สิ้นเดือน", "นับสต๊อกทั้งร้าน หลายคนนับพร้อมกันคนละหมวด"],
+  ["file", "ปิดเดือน", "ส่งไฟล์ให้ฝ่ายบัญชี ตามโปรแกรมที่ร้านใช้"],
+];
+
+export const LADDER: { title: string; does: string; gets: string }[] = [
+  { title: "เจ้าของคนเดียวก็เริ่มได้", does: "นำเข้ายอดขาย บิลซื้อ และนับสต๊อกสิ้นเดือน", gets: "ได้ต้นทุนวัตถุดิบและกำไรรายเดือน" },
+  { title: "เพิ่มสูตร", does: "ใส่สูตรของเมนูที่ขายดีก่อน ทีละเมนู", gets: "สต๊อกตัดเอง · กำไรต่อจาน · ของหายไปไหน" },
+  { title: "ชวนทีมเข้ามา", does: "ครัวขอซื้อและนับบนมือถือ · จัดซื้อออกใบสั่งซื้อ · บัญชีปิดเดือน", gets: "ข้อมูลเข้าทุกวัน ตัวเลขสดขึ้น" },
+];
+
+/** One price, followed from the receipt to the month-end file. 18.12 ÷ 60 = 30.2 %. */
+export const CHAIN: [IconKey, string, string, string][] = [
+  ["receipt", "ใบรับสินค้า", "หมูสับ 10 กก.", "จ่ายจริง ฿160/กก."],
+  ["layers", "สต๊อก", "ล็อตนี้ ฿160", "ใช้ล็อตเก่าก่อน ต้นทุนจึงตรงกับของที่ใช้จริง"],
+  ["book", "ต้นทุนเมนู", "฿18.12 ต่อจาน", "ผัดกะเพราหมูสับ ตามสูตร"],
+  ["coin", "กำไรต่อจาน", "฿41.88", "ขาย ฿60 · ต้นทุนวัตถุดิบ 30%"],
+  ["file", "ปิดเดือน", "ต้นทุนขาย", "ส่งไฟล์ให้โปรแกรมบัญชี ตัวเลขตรงกับทุกหน้า"],
+];
+
+export const ONE_PLACE: [IconKey, string, string][] = [
+  ["net", "ดูรวมทุกสาขา หรือทีละสาขา", "กำไร ต้นทุน และของหาย แยกสาขาได้ทุกหน้า"],
+  ["store", "หลายร้านในอีเมลเดียว", "กดชื่อร้านบนสุดของเมนู พิมพ์ชื่อ แล้วสลับได้ทันที"],
+  ["shield", "สิทธิ์รายคน รายสาขา", "ครัวไม่เห็นต้นทุนและกำไร · ผู้จัดการเห็นเฉพาะสาขาของตัวเอง"],
+  ["plug", "แต่ละสาขาใช้ POS คนละยี่ห้อได้", "ระบบจำรูปแบบไฟล์ของแต่ละสาขาไว้"],
+];
+
+export const MORE: [IconKey, string, string][] = [
+  ["flask", "ทดลองเมนูใหม่", "ตั้งสูตรและราคาเมนูที่ยังไม่ได้ขาย เห็นต้นทุนก่อนวางขายจริง"],
+  ["pot", "ของที่ครัวทำเอง", "น้ำซุป ซอส หมูหมัก มีสูตรและต้นทุนของตัวเอง"],
+  ["meal", "มื้อพนักงาน", "คิดเป็นต้นทุนจริง ไม่ปนกับของหาย"],
+  ["net", "ต้นทุนแยกแผนก", "ครัว บาร์ เบเกอรี่ ใช้ไปเท่าไร ขายได้เท่าไร"],
+  ["bell", "เตือนของใกล้หมด", "ตั้งจุดสั่งซื้อขั้นต่ำ ของที่ต่ำกว่าขึ้นจุดแดงที่เมนู"],
+  ["swap", "โอนของระหว่างสาขา", "ต้นทุนของล็อตนั้นตามไปที่สาขาปลายทาง"],
+  ["moon", "ปิดร้านประจำวัน", "เทียบยอดที่คีย์กับไฟล์ POS บอกได้ถ้าไฟล์มาไม่ครบทั้งวัน"],
+  ["clock", "ร้านปิดหลังเที่ยงคืน", "บิลหลังเที่ยงคืนยังนับเป็นยอดของคืนนั้น"],
+  ["receipt", "ร้านที่ยังไม่จด VAT", "VAT ที่จ่ายตอนซื้อของ นับเป็นต้นทุนให้ถูกต้อง"],
+  ["gauge", "ความแม่นของการตัดสต๊อก", "เทียบที่ระบบตัดตามสูตรกับที่นับได้จริง เห็นว่าวัตถุดิบตัวไหนตัดไม่ตรงกับที่ใช้จริง"],
+  ["file", "ส่งออก Excel", "ข้อมูลดิบจากหน้าหลัก ๆ เอาไปทำต่อเองได้"],
+  ["plug", "ส่งโปรแกรมบัญชี", "PEAK FlowAccount Express Xero QuickBooks"],
 ];
