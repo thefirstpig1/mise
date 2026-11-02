@@ -39,7 +39,7 @@ function toMessage(e: unknown): string {
   if (e instanceof PulseRequiredError) return "กรอกยอดรวมจาก POS ก่อนบันทึกปิดร้าน";
   if (e instanceof DailyCloseLockedError) return "เลยเวลาแก้แล้ว — ใบปิดร้านแก้ได้ถึงเที่ยงคืนของวันถัดไป · เขียนความเห็นต่อท้ายได้";
   if (e instanceof DailyCloseFutureDateError) return "ยังปิดร้านของวันที่ยังไม่ถึงไม่ได้";
-  if (e instanceof DailyCloseDisabledError) return "ร้านยังไม่ได้เปิดใช้รายงานปิดร้าน — เปิดได้ที่ตั้งค่าร้าน";
+  if (e instanceof DailyCloseDisabledError) return "ร้านยังไม่ได้เปิดใช้รายงานปิดร้าน — เปิดได้ที่หน้าตั้งค่าทั่วไป";
   if (e instanceof SalesPulseLockedError) return "ไฟล์ยอดขายของวันนี้เข้ามาแล้ว ยอดในไฟล์เป็นหลักฐาน — ยอดรวมจาก POS จึงแก้ไม่ได้";
   if (e instanceof DailyCloseNotFoundError || e instanceof CrossTenantReferenceError) return "ไม่พบข้อมูลนี้ — ลองรีเฟรชหน้า";
   if (e instanceof CustomerTypeLimitError) return `ตั้งประเภทลูกค้าได้ไม่เกิน ${MAX_CUSTOMER_TYPES} ประเภท`;

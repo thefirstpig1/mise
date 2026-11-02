@@ -204,7 +204,7 @@ export const SOURCE_TYPE_LABELS_TH: Record<
   (typeof SOURCE_TYPE_VALUES)[number],
   string
 > = {
-  GR_LINE: "ใบรับของ",
+  GR_LINE: "ใบรับสินค้า",
   ADJUSTMENT: "ปรับสต๊อก",
   STOCK_COUNT: "นับสต๊อก",
   WASTE_LOG: "ของเสีย",

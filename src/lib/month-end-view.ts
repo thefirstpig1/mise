@@ -176,10 +176,10 @@ export function readinessOf(v: MonthEndView): ReadinessNote[] {
     if (b.draftReceipts > 0) {
       notes.push({
         tone: "warn",
-        title: `${who(b)}ใบรับของ ${b.draftReceipts} ใบยังไม่ยืนยัน`,
+        title: `${who(b)}ใบรับสินค้า ${b.draftReceipts} ใบยังไม่ยืนยัน`,
         detail: "ของในใบเหล่านี้ยังไม่เข้าสต๊อกและยอดซื้อ",
         href: "/goods-receipts",
-        action: "ดูใบรับของ",
+        action: "ดูใบรับสินค้า",
       });
     }
     if (b.unpricedProducts > 0) {

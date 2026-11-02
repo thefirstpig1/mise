@@ -232,7 +232,7 @@ async function TodayStrip({
       key: "opening-prices",
       n: String(ready),
       label: "ราคาสต๊อกยกมารอยืนยัน",
-      detail: `${openingWaiting.length > 1 ? `${openingWaiting.map((w) => short(w.branchName)).join(" · ")} — ` : ""}รับของแล้ว ใช้ราคาจากใบรับของได้`,
+      detail: `${openingWaiting.length > 1 ? `${openingWaiting.map((w) => short(w.branchName)).join(" · ")} — ` : ""}รับของแล้ว ใช้ราคาจากใบรับสินค้าได้`,
       href: `/stock-counts/${openingWaiting[0].countId}`,
       tone: "soft",
     });

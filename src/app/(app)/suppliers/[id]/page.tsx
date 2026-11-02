@@ -198,7 +198,7 @@ export default async function SupplierPage({
             <p className="text-xs text-muted-foreground">
               {thisMonth
                 ? `${prevMonth ? `${monthLabelTh(prevMonth.period)} ${baht(prevMonth.total)} · ` : ""}ตามวันที่รับของ ไม่รวม VAT`
-                : "ยังไม่มีใบรับของ"}
+                : "ยังไม่มีใบรับสินค้า"}
             </p>
           </div>
         )}
@@ -208,7 +208,7 @@ export default async function SupplierPage({
             <>
               <p className="text-2xl font-semibold tabular-nums">{Math.round((o.onTime.onTime / o.onTime.judged) * 100)}%</p>
               <p className="text-xs text-muted-foreground">
-                {o.onTime.onTime} จาก {o.onTime.judged} ใบรับของที่มีวันนัด
+                {o.onTime.onTime} จาก {o.onTime.judged} ใบรับสินค้าที่มีวันนัด
               </p>
             </>
           ) : (
@@ -224,7 +224,7 @@ export default async function SupplierPage({
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h3 className="text-lg font-semibold">ของที่ซื้อจากผู้ขายนี้</h3>
           {seeCost && o.items.length > 0 && (
-            <span className="text-xs text-muted-foreground">ราคาที่จ่ายจริงจากใบรับของ ไม่รวม VAT · ราคาขึ้นเป็นสีแดง</span>
+            <span className="text-xs text-muted-foreground">ราคาที่จ่ายจริงจากใบรับสินค้า ไม่รวม VAT · ราคาขึ้นเป็นสีแดง</span>
           )}
         </div>
         {o.items.length === 0 ? (
@@ -291,7 +291,7 @@ export default async function SupplierPage({
                 >
                   {d.number}{" "}
                   <span className="text-xs font-normal text-muted-foreground">
-                    {d.kind === "PO" ? "ใบสั่งซื้อ" : "ใบรับของ"} · {d.branchName} · {dayTh(d.at)}
+                    {d.kind === "PO" ? "ใบสั่งซื้อ" : "ใบรับสินค้า"} · {d.branchName} · {dayTh(d.at)}
                     {d.kind === "GR" && !d.viaOrder ? " · ซื้อสด" : ""}
                   </span>
                 </Link>

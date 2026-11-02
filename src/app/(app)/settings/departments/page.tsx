@@ -33,7 +33,7 @@ export default async function DepartmentsPage() {
         <div className="rounded-xl border border-border bg-muted/40 p-4 text-sm">
           ขณะนี้ร้านยังไม่ได้แยกตามแผนก สร้างแผนกไว้ก่อนได้ แล้วเปิดที่{" "}
           <Link href="/settings#addons" className="font-semibold text-primary hover:underline">
-            ตั้งค่าร้าน › แผนกและส่วนเสริม
+            ตั้งค่าทั่วไป › แผนกและส่วนเสริม
           </Link>
         </div>
       ) : null}

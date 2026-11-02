@@ -48,6 +48,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       <Sidebar
         groups={groups}
         shopName={membership.tenant.name}
+        reach={membership.allBranches ? "ทุกสาขา" : `${membership.branchAccess.length} สาขา`}
         userLabel={user.name ?? user.email ?? ""}
         canSwitchShop={membershipCount > 1}
         canOpenShop={membership.role === "owner"}

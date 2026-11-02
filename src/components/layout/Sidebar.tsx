@@ -15,6 +15,7 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import type { Route } from "next";
 import Logo from "@/components/layout/Logo";
+import ShopSwitcher from "@/components/layout/ShopSwitcher";
 import { currentNavHref, type NavGroup } from "@/components/layout/nav";
 import { NAV_BADGES_EVENT } from "@/lib/nav-badges";
 import {
@@ -125,6 +126,7 @@ function Badges({ b }: { b: Badge | undefined }) {
 export default function Sidebar({
   groups,
   shopName,
+  reach,
   userLabel,
   canSwitchShop,
   canOpenShop = false,
@@ -133,6 +135,8 @@ export default function Sidebar({
 }: {
   groups: readonly NavGroup[];
   shopName: string;
+  /** What this person sees of the shop, under its name: "ทุกสาขา" or "1 สาขา". */
+  reach: string;
   userLabel: string;
   canSwitchShop: boolean;
   /** An owner may open another shop (another brand) on the same account (Kong 2026-10-31). */
@@ -204,14 +208,14 @@ export default function Sidebar({
 
   const panel = (
     <nav aria-label="เมนูหลัก" className="flex h-full flex-col">
-      <div className="flex items-center gap-2.5 px-5 pb-4 pt-5">
+      <div className="flex items-center gap-2.5 px-5 pb-3 pt-5">
         <Logo size={30} />
-        <div className="min-w-0">
-          <p className="font-display text-lg font-semibold leading-none text-primary">คิดครัว</p>
-          <p className="mt-1 truncate text-xs text-muted-foreground" title={shopName}>
-            {shopName}
-          </p>
-        </div>
+        <p className="font-display text-lg font-semibold leading-none text-primary">คิดครัว</p>
+      </div>
+      {/* Kong 2026-11-02: the shop name is the switcher — one press, with search,
+          however many shops (mockup NS7QcU1kJf67Ds3gFHFcqE). */}
+      <div className="px-3 pb-3">
+        <ShopSwitcher shopName={shopName} reach={reach} canSwitch={canSwitchShop} canOpenShop={canOpenShop} />
       </div>
 
       {/* ADR 0043 — Kong 2026-10-30 could not find it at the bottom, next to
@@ -259,11 +263,13 @@ export default function Sidebar({
               </Link>
             );
           };
-          // A one-item group is just a link; a heading over one line is noise.
-          if (g.items.length === 1) return <div key={g.label}>{link(g.items[0])}</div>;
+          // A one-item group is just a link; a heading over one line is noise —
+          // unless the heading says the level (ตั้งค่าสาขา), which is the point.
+          if (g.items.length === 1 && !g.hint) return <div key={g.label}>{link(g.items[0])}</div>;
           return (
             <div key={g.label}>
-              <p className="eyebrow px-2.5 pb-1 text-[12px]">{g.label}</p>
+              <p className="eyebrow px-2.5 text-[12px]">{g.label}</p>
+              {g.hint ? <p className="px-2.5 pb-1 text-[11.5px] text-muted-subtle">{g.hint}</p> : <div className="pb-1" />}
               <ul className="space-y-0.5">
                 {g.items.map((item) => (
                   <li key={item.href}>{link(item)}</li>
@@ -279,17 +285,7 @@ export default function Sidebar({
           {userLabel}
         </p>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-          {/* Only when there is somewhere to switch TO (ADR 0029 Q3). */}
-          {canSwitchShop ? (
-            <a href="/choose-shop" className="text-primary hover:underline">
-              เปลี่ยนร้าน
-            </a>
-          ) : null}
-          {canOpenShop ? (
-            <a href="/signup" className="text-primary hover:underline">
-              + เปิดร้านใหม่
-            </a>
-          ) : null}
+          {/* Switching and opening a shop moved into the shop name at the top (Kong 2026-11-02). */}
           {signOutSlot}
         </div>
       </div>
@@ -318,7 +314,7 @@ export default function Sidebar({
           </svg>
         </button>
         <Logo size={24} />
-        <span className="truncate text-sm font-medium">{shopName}</span>
+        <ShopSwitcher shopName={shopName} reach={reach} canSwitch={canSwitchShop} canOpenShop={canOpenShop} compact />
       </div>
 
       {open ? (

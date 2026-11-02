@@ -85,7 +85,7 @@ export default function SignupForm({
           <h1 className="text-[28px] font-semibold">{anotherShop ? "เปิดร้านใหม่" : "สมัครใช้งานคิดครัว"}</h1>
           <p className="mt-1.5 text-muted-foreground">
             {anotherShop
-              ? "ร้านใหม่แยกข้อมูลจากร้านเดิมทั้งหมด เช่น อีกแบรนด์หนึ่ง · สลับร้านได้ที่ “เปลี่ยนร้าน” ในเมนูข้าง"
+              ? "ร้านอีกชื่อหนึ่ง เช่น อีกแบรนด์ ข้อมูลแยกจากร้านเดิมทั้งหมด · ถ้าเป็นสาขาใหม่ของร้านเดิม ให้เพิ่มที่ ตั้งค่า › สาขาทั้งหมด แทน · สลับร้านได้จากชื่อร้านบนสุดของเมนูข้าง"
               : "ข้อมูลของคุณและร้าน"}
           </p>
         </div>
@@ -106,7 +106,7 @@ export default function SignupForm({
           )}
           {/* Kong 2026-11-02: people signed up with the shop's shared address, which then sees every figure. */}
           <p className="mt-1.5 text-sm text-muted-foreground">
-            บัญชีนี้เห็นตัวเลขทุกอย่างของร้าน ทั้งยอดขาย ต้นทุน และกำไร จึงควรเป็นอีเมลส่วนตัวของเจ้าของ หรือคนที่เจ้าของมอบหมาย ไม่ใช่อีเมลกลางที่ล็อกอินค้างไว้ที่เครื่องในร้าน · พนักงานเพิ่มทีหลังได้ที่ ตั้งค่า → คนในร้าน
+            บัญชีนี้เห็นตัวเลขทุกอย่างของร้าน ทั้งยอดขาย ต้นทุน และกำไร จึงควรเป็นอีเมลส่วนตัวของเจ้าของ หรือคนที่เจ้าของมอบหมาย ไม่ใช่อีเมลกลางที่ล็อกอินค้างไว้ที่เครื่องในร้าน · พนักงานเพิ่มทีหลังได้ที่ ตั้งค่า → ผู้ใช้งาน
           </p>
         </div>
         <div>
@@ -123,7 +123,7 @@ export default function SignupForm({
       <div className={step === 2 ? "space-y-6" : "hidden"}>
         <div>
           <h1 className="text-[28px] font-semibold">ร้านของคุณเป็นแบบไหน</h1>
-          <p className="mt-1.5 text-muted-foreground">ตอบให้ตรงกับร้าน ระบบจะคิดตัวเลขตามแบบของร้าน · แก้ภายหลังได้ที่ตั้งค่าร้าน</p>
+          <p className="mt-1.5 text-muted-foreground">ตอบให้ตรงกับร้าน ระบบจะคิดตัวเลขตามแบบของร้าน · แก้ภายหลังได้ที่หน้าตั้งค่าทั่วไป</p>
         </div>
         <div>
           <label htmlFor="branch_name" className="label mb-1.5">สาขาแรกชื่ออะไร</label>
@@ -168,7 +168,7 @@ export default function SignupForm({
             ย้อนกลับ
           </button>
           <button type="submit" disabled={pending} className="btn h-12 flex-1 text-base">
-            {pending ? "กำลังสร้างร้าน…" : anotherShop ? "เปิดร้านนี้" : "สร้างร้าน"}
+            {pending ? "กำลังสร้างร้าน…" : anotherShop ? "เปิดร้าน" : "สร้างร้าน"}
           </button>
         </div>
         {!signedInEmail && <p className="text-center text-sm text-muted-foreground">กดแล้วระบบจะส่งลิงก์เข้าสู่ระบบไปที่อีเมลของคุณ</p>}

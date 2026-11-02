@@ -18,7 +18,7 @@ import type { CostDeclarationView, CostLayerView } from "./cost-view";
 import DeclareCostForm, { type DeclareUnitOption } from "./DeclareCostForm";
 
 const PRICING_LABEL: Record<string, string> = {
-  DOCUMENT: "จากใบรับของ",
+  DOCUMENT: "จากใบรับสินค้า",
   DECLARED: "ระบุเอง",
   LAST_KNOWN: "ระบบเดาต้นทุนให้",
   UNPRICED: "ยังไม่ทราบต้นทุน",

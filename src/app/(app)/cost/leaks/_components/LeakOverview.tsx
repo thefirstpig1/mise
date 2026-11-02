@@ -446,7 +446,7 @@ function Over({ c }: { c: LeakCount }) {
       ))}
       {c.over.length > 8 && <p className="text-xs text-muted-foreground">+ อีก {c.over.length - 8} รายการ</p>}
       <a href={`/goods-receipts?branch=${c.branchId}`} className="mt-1 inline-block text-xs text-primary hover:underline">
-        ดูใบรับของของสาขานี้ ›
+        ดูใบรับสินค้าของสาขานี้ ›
       </a>
     </div>
   );
@@ -512,7 +512,7 @@ function ItemPopup({ item, c, repeats, series, onClose }: { item: LeakItem; c: L
       title: `ของรอบ ${item.sameDay.label} มาถึงก่อนหรือหลังนับ?`,
       why: `บันทึกรับของวันที่นับ (${item.sameDay.grNumber}) — ถ้าของมาถึงหลังนับแต่บันทึกรับก่อนบันทึกการนับ ระบบจะรวมไว้ใน “ควรเหลือ” แล้ว ส่วนที่ต่างจะใกล้เคียงกับรอบนี้`,
       href: `/goods-receipts/${item.sameDay.grId}`,
-      link: "เปิดใบรับของ ›",
+      link: "เปิดใบรับสินค้า ›",
     });
   for (const m of item.noRecipeMenus.slice(0, 2))
     steps.push({ title: `เขียนสูตร ${m.name}`, why: `ขาย ${f0(m.qty)} ที่ยังไม่มีสูตร ระบบจึงไม่ได้ตัด${item.name}ให้ ของจึงดูเหมือนหาย`, href: "/menus", link: "เขียนสูตร ›" });

@@ -325,7 +325,7 @@ export default function ExpenseForm({
 
       {locked && (
         <div className="rounded-lg border border-border-strong bg-muted p-3 text-sm text-foreground">
-          บิลนี้สร้างจากใบรับของ{" "}
+          บิลนี้สร้างจากใบรับสินค้า{" "}
           {existing?.sourceGrNumber && (
             <a
               href={`/goods-receipts/${existing.sourceGrId}`}
@@ -335,7 +335,7 @@ export default function ExpenseForm({
             </a>
           )}{" "}
           — ยอดเงิน สาขา ผู้ขาย และรายการ แก้ที่นี่ไม่ได้
-          ให้แก้ที่ใบรับของ ส่วนเลขใบกำกับภาษี ภาษีหัก ณ ที่จ่าย และการจ่ายเงิน แก้ได้
+          ให้แก้ที่ใบรับสินค้า ส่วนเลขใบกำกับภาษี ภาษีหัก ณ ที่จ่าย และการจ่ายเงิน แก้ได้
         </div>
       )}
 

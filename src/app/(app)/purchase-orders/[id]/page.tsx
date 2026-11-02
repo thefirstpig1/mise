@@ -118,16 +118,16 @@ export default async function PurchaseOrderDetailPage({
     ...(receipts.length === 0
       ? po.status === "DRAFT" || po.status === "CANCELLED"
         ? []
-        : [{ label: "ใบรับของ", note: "ยังไม่มี" }]
+        : [{ label: "ใบรับสินค้า", note: "ยังไม่มี" }]
       : receipts.map((r) => ({
-          label: `ใบรับของ ${r.grNumber}`,
+          label: `ใบรับสินค้า ${r.grNumber}`,
           href: `/goods-receipts/${r.id}`,
           note: r.status === "VOIDED" ? "ยกเลิกแล้ว" : r.receivedAtLabel,
         }))),
     ...bills.flatMap((b) =>
       b ? [{ label: "บิลค่าใช้จ่าย", href: `/expenses/${b.id}`, note: b.paymentStatus === "PAID" ? "จ่ายแล้ว" : "ยังไม่จ่าย" }] : []
     ),
-    ...(receipts.length === 0 && waiting ? [{ label: "บิลค่าใช้จ่าย", note: "สร้างให้เองเมื่อยืนยันใบรับของ" }] : []),
+    ...(receipts.length === 0 && waiting ? [{ label: "บิลค่าใช้จ่าย", note: "สร้างให้เองเมื่อยืนยันใบรับสินค้า" }] : []),
   ];
 
   return (

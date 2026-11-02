@@ -20,8 +20,8 @@ import { ownersOverFreeLimit } from "@/lib/free-rule";
 const PLAN_LABEL: Record<string, string> = { trial: "Free", standard: "Standard" };
 const ROLE_LABEL: Record<string, string> = {
   owner: "เจ้าของ",
-  admin: "ส่วนกลาง",
-  manager: "ผู้จัดการ",
+  admin: "ผู้ดูแลร้าน",
+  manager: "ผู้จัดการสาขา",
   purchaser: "จัดซื้อ",
   kitchen_staff: "พนักงานครัว",
   dept_head: "หัวหน้าแผนก",
@@ -83,7 +83,7 @@ export default function ShopsTable({ shops, today }: { shops: ShopRow[]; today: 
     <div className="space-y-5">
       <div>
         <h1 className="text-2xl font-semibold">ร้านทั้งหมด</h1>
-        <p className="mt-1 text-sm text-muted-foreground">กดที่แถวเพื่อดูคนในร้าน · ทุกการแก้แพ็กเกจถูกบันทึกไว้ในหน้า "บันทึกการแก้ไข"</p>
+        <p className="mt-1 text-sm text-muted-foreground">กดที่แถวเพื่อดูผู้ใช้งาน · ทุกการแก้แพ็กเกจถูกบันทึกไว้ในหน้า "บันทึกการแก้ไข"</p>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
@@ -332,7 +332,7 @@ function ShopDialog({ shop, onClose }: { shop: ShopRow; onClose: () => void }) {
             <p className="text-sm">{detail.branches.map((b) => `${b.name} (${b.code})`).join(" · ") || "—"}</p>
           </div>
           <div className="space-y-1">
-            <p className="text-xs font-medium text-muted-subtle">คนในร้าน {detail.members.length}</p>
+            <p className="text-xs font-medium text-muted-subtle">ผู้ใช้งาน {detail.members.length}</p>
             <ul className="divide-y divide-border rounded-xl border border-border">
               {detail.members.map((m) => (
                 <li key={m.email} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
@@ -348,7 +348,7 @@ function ShopDialog({ shop, onClose }: { shop: ShopRow; onClose: () => void }) {
               ))}
             </ul>
           </div>
-          <p className="text-xs text-muted-foreground">อ่านอย่างเดียว · เจ้าของร้านเพิ่มหรือลบคนในร้านได้เองที่ ตั้งค่า › คนในร้าน</p>
+          <p className="text-xs text-muted-foreground">อ่านอย่างเดียว · เจ้าของร้านเพิ่มหรือลบผู้ใช้งานได้เองที่ ตั้งค่า › ผู้ใช้งาน</p>
         </>
       )}
     </Frame>

@@ -83,7 +83,7 @@ export default async function ExpenseDetailPage({
           from the document that created it, and vice versa. */}
       {expense.sourceGrId && (
         <div className="rounded-lg border border-border-strong bg-muted p-3 text-sm text-foreground">
-          บิลนี้สร้างอัตโนมัติจากใบรับของ{" "}
+          บิลนี้สร้างอัตโนมัติจากใบรับสินค้า{" "}
           <a
             href={`/goods-receipts/${expense.sourceGrId}`}
             className="font-medium underline"

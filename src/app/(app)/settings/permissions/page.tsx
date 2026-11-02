@@ -55,13 +55,13 @@ export default async function PermissionsPage() {
     roleTable,
     locked: [
       {
-        label: "เชิญคน แก้บทบาทและสาขาของคนในร้าน",
+        label: "เชิญผู้ใช้งาน และแก้บทบาทหรือสาขาของแต่ละคน",
         why: "ถ้าปรับได้ ใครก็ให้สิทธิ์นี้กับอีเมลที่สองของตัวเองแล้วยกสิทธิ์กลับมาได้",
         roles: ALL_ROLES.filter((r) => capabilitiesOf(r).has("member:manage")),
       },
       {
         label: "ตั้งค่าร้าน (VAT วิธีคิดกำไร สาขา แผนก)",
-        why: "เปลี่ยนความหมายของตัวเลขย้อนหลังทั้งหมด เป็นของเจ้าของกิจการ",
+        why: "เปลี่ยนความหมายของตัวเลขย้อนหลังทั้งหมด เป็นเรื่องของเจ้าของร้าน",
         roles: ALL_ROLES.filter((r) => capabilitiesOf(r).has("settings:write")),
       },
     ],
@@ -110,7 +110,7 @@ export default async function PermissionsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-semibold">สิทธิ์ของร้าน</h2>
+        <h2 className="text-2xl font-semibold">สิทธิ์การใช้งาน</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           คิดครัวตั้งค่าเริ่มต้นให้ทุกบทบาท ร้านปรับเฉพาะข้อที่ร้านตัวเองต่างไป แล้วยกเว้นให้รายคนได้ ·
           มีผลทันทีที่คนนั้นเปิดหน้าถัดไป

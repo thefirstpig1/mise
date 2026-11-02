@@ -670,7 +670,7 @@ export default function ProductsManager(props: {
           <p className="text-xs text-muted-subtle">
             แสดง {rows.length} รายการ · คงเหลือ{costHidden ? "" : "และต้นทุน"}ของ{branchName} ·{" "}
             {list ? (list.postedThrough ? `ตัดสต๊อกตามยอดขายถึง ${thDate(list.postedThrough)}` : "ยังไม่มีการตัดสต๊อกตามยอดขาย ยอดคงเหลือจึงลดเฉพาะตอนนับ/ปรับ") : "กำลังโหลด…"} ·{" "}
-            {list ? (list.warningDays > 0 ? `เหลือง = จะถึงขั้นต่ำภายใน ${list.warningDays} วัน (ตั้งที่ตั้งค่าร้าน)` : "ไม่เตือนล่วงหน้า (ตั้งที่ตั้งค่าร้าน)") : ""}
+            {list ? (list.warningDays > 0 ? `เหลือง = จะถึงขั้นต่ำภายใน ${list.warningDays} วัน (ตั้งที่หน้าตั้งค่าทั่วไป)` : "ไม่เตือนล่วงหน้า (ตั้งที่หน้าตั้งค่าทั่วไป)") : ""}
           </p>
         </>
       )}

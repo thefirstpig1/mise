@@ -22,7 +22,7 @@ export const CAPABILITY_LABELS_TH: Partial<Record<Capability, { label: string; h
   "staff:view": { label: "ดูประวัติมื้อพนักงานรายคน", hint: "ใครกินอะไร เท่าไร (ข้อมูลส่วนบุคคล)" },
   "purchase:write": { label: "ร่างใบสั่งซื้อ", hint: "เลือกผู้ขาย ใส่จำนวนและราคา" },
   "purchase:approve": { label: "ส่งหรือยกเลิกใบสั่งซื้อ", hint: "ขั้นที่ร้านผูกพันว่าจะจ่ายเงิน" },
-  "receive:write": { label: "รับของตามใบสั่งซื้อ", hint: "ยืนยันใบรับของ ยกเลิกใบรับของ" },
+  "receive:write": { label: "รับของตามใบสั่งซื้อ", hint: "ยืนยันใบรับสินค้า ยกเลิกใบรับสินค้า" },
   "master:write": { label: "แก้ข้อมูลผู้ขาย สินค้า เมนู", hint: "รวมราคาตามแคตตาล็อกผู้ขาย" },
   "stock:write": { label: "ปรับยอดสต๊อก โอนระหว่างสาขา", hint: "รวมตั้งจุดสั่งซื้อขั้นต่ำ" },
   "waste:write": { label: "บันทึกของเสีย", hint: "" },

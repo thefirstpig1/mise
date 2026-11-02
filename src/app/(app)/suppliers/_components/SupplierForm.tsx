@@ -199,7 +199,7 @@ export default function SupplierForm({
             <span className="text-sm">
               <span className="font-medium">{L.pricesIncludeVat}</span>
               <span className="block text-xs text-muted-foreground">
-                เช่น แม็คโคร ป้ายราคา ฿107 คือราคารวม VAT · ใบสั่งซื้อและใบรับของของผู้ขายรายนี้จะเริ่มแบบ “ราคารวม VAT” (แก้รายใบได้)
+                เช่น แม็คโคร ป้ายราคา ฿107 คือราคารวม VAT · ใบสั่งซื้อและใบรับสินค้าของผู้ขายรายนี้จะเริ่มแบบ “ราคารวม VAT” (แก้รายใบได้)
               </span>
             </span>
           </label>

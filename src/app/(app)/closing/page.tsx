@@ -92,7 +92,7 @@ export default async function ClosingMonthPage({ searchParams }: { searchParams:
           ร้านยังไม่ได้เปิดใช้รายงานปิดร้าน — ใบเก่าที่เคยบันทึกยังอ่านได้{can("settings:write") ? " · เปิดใช้ได้ที่ " : ""}
           {can("settings:write") && (
             <a href="/settings#daily-close" className="underline">
-              ตั้งค่าร้าน
+              ตั้งค่าทั่วไป
             </a>
           )}
         </p>

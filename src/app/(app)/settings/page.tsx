@@ -175,8 +175,8 @@ export default async function SettingsPage() {
     // A preferences page reads best narrow: label and switch stay close (kit).
     <div className="max-w-3xl space-y-5 pb-24 lg:pb-0">
       <header>
-        <h1 className="text-2xl font-semibold leading-tight">ตั้งค่าร้าน</h1>
-        <p className="mt-1 text-sm text-muted-foreground">แต่ละหมวดบันทึกแยกกัน · แก้แล้วยังไม่บันทึก ระบบจะถามก่อนออกจากหน้า</p>
+        <h1 className="text-2xl font-semibold leading-tight">ตั้งค่าทั่วไป</h1>
+        <p className="mt-1 text-sm text-muted-foreground">ใช้กับทุกสาขาของร้าน · แต่ละหมวดบันทึกแยกกัน · แก้แล้วยังไม่บันทึก ระบบจะถามก่อนออกจากหน้า</p>
       </header>
       {!shopSettingsReviewed(tenant) && <ConfirmShopSettings />}
 
@@ -212,8 +212,8 @@ export default async function SettingsPage() {
           <ChangedNote
             name="is_vat_registered"
             savedOn={tenant.isVatRegistered}
-            whenOn="มีผลกับใบรับของใบถัดไป: ต้นทุนของจะไม่รวม VAT · ใบที่ยืนยันไปแล้วไม่เปลี่ยน"
-            whenOff="มีผลกับใบรับของใบถัดไป: VAT จะนับเป็นต้นทุนของ · ใบที่ยืนยันไปแล้วไม่เปลี่ยน"
+            whenOn="มีผลกับใบรับสินค้าใบถัดไป: ต้นทุนของจะไม่รวม VAT · ใบที่ยืนยันไปแล้วไม่เปลี่ยน"
+            whenOff="มีผลกับใบรับสินค้าใบถัดไป: VAT จะนับเป็นต้นทุนของ · ใบที่ยืนยันไปแล้วไม่เปลี่ยน"
           />
         </Row>
         <Row
@@ -355,7 +355,7 @@ export default async function SettingsPage() {
           <ChangedNote
             name="enable_departments"
             savedOn={tenant.enableDepartments}
-            whenOn="เปิดแล้ว: ใบขอซื้อและใบรับของเลือกแผนกได้ และหน้าต้นทุนแยกตามแผนก"
+            whenOn="เปิดแล้ว: ใบขอซื้อและใบรับสินค้าเลือกแผนกได้ และหน้าต้นทุนแยกตามแผนก"
             whenOff={`ปิดแล้ว: ของที่ขอซื้อและรับเข้าใหม่ลงที่${defaultDept ? ` ${defaultDept.name}` : "แผนกตั้งต้น"} ทั้งหมด · แผนกและข้อมูลเก่ายังอยู่ เปิดใหม่เมื่อไรก็กลับมา`}
           />
         </Row>

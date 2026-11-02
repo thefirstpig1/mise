@@ -137,7 +137,7 @@ export default function WasteEntryForm({
           </strong>
           {state.negative && (
             <span className="ml-2 font-medium text-bad">
-              (ติดลบ — อาจยังไม่ได้บันทึกใบรับของ)
+              (ติดลบ — อาจยังไม่ได้บันทึกใบรับสินค้า)
             </span>
           )}
         </div>

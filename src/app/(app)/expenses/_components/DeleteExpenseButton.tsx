@@ -50,9 +50,9 @@ export default function DeleteExpenseButton({
   if (fromGoodsReceipt) {
     return (
       <p className="text-xs text-muted-foreground">
-        บิลนี้มาจากใบรับของ — ถ้าต้องการยกเลิก ให้{" "}
+        บิลนี้มาจากใบรับสินค้า — ถ้าต้องการยกเลิก ให้{" "}
         <a href={`/goods-receipts/${sourceGrId}`} className="underline">
-          ยกเลิกใบรับของ
+          ยกเลิกใบรับสินค้า
         </a>{" "}
         แล้วบิลจะถูกยกเลิกไปพร้อมกัน
       </p>

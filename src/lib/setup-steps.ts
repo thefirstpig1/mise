@@ -41,7 +41,7 @@ export function setupCopy(key: SetupKey, method: Method): SetupCopy {
       return {
         title: "ตั้งค่าร้าน",
         href: "/settings",
-        cta: "ตั้งค่าร้าน",
+        cta: "ไปที่ตั้งค่าทั่วไป",
         todo: ["ตอบคำถามในหน้านี้ทีละหมวด ช่องที่มีปุ่ม ? กดดูได้ว่าคืออะไรและมีผลกับหน้าไหน", "ถ้าค่าที่ตั้งไว้ตรงกับร้านแล้ว กด “ใช้ค่าตามนี้” ได้เลย"],
         gets: "ตัวเลขทุกหน้าคิดตามแบบของร้าน",
         doneWhen: "เมื่อบันทึก หรือกดใช้ค่าตามนี้",
@@ -108,7 +108,7 @@ export function setupCopy(key: SetupKey, method: Method): SetupCopy {
       };
     case "team":
       return {
-        title: "เชิญคนในร้าน",
+        title: "เชิญผู้ใช้งาน",
         href: "/settings/members",
         cta: "เชิญคน",
         todo: ["ใส่อีเมลของคนในร้าน เลือกหน้าที่และสาขา", "เขาได้อีเมลแจ้ง แล้วเข้าระบบด้วยอีเมลนั้นได้เลย"],

@@ -439,7 +439,7 @@ export default function NewProductSheet({
             </select>
           </label>
           <div className="space-y-0.5 rounded-xl border border-dashed border-border-strong bg-surface-sunk px-3 py-2.5 text-sm">
-            <p className="text-xs text-muted-subtle">จะเห็นในใบสั่งซื้อและใบรับของแบบนี้</p>
+            <p className="text-xs text-muted-subtle">จะเห็นในใบสั่งซื้อและใบรับสินค้าแบบนี้</p>
             <p>
               <b className="font-display">{d.name.trim() || "ชื่อสินค้า"}</b> · {preview} · <span className="tabular-nums">{d.ownSku && d.sku.trim() ? d.sku.trim() : (form?.nextSku ?? "…")}</span>
             </p>

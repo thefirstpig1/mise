@@ -30,7 +30,7 @@ export default async function LeakPage({ searchParams }: { searchParams: Promise
             ดูต้นทุนที่หน้าต้นทุน
           </a>
           <a href="/settings" className="btn-secondary">
-            วิธีคิดกำไรในตั้งค่าร้าน
+            วิธีคิดกำไรในหน้าตั้งค่าทั่วไป
           </a>
         </div>
       </div>

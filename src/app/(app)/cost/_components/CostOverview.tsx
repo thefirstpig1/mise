@@ -1388,7 +1388,7 @@ function TargetsPopup({ targets, onClose, onSaved }: { targets: CostTargets; onC
       <h3 id="co-targets-title" className="pr-10 text-lg font-semibold">
         เป้าของร้าน
       </h3>
-      <p className="mt-0.5 text-sm text-muted-foreground">ค่าเริ่มต้นจากเกณฑ์ร้านอาหารทั่วไป · ใช้ทุกสาขา · แก้ได้อีกที่ ตั้งค่าร้าน</p>
+      <p className="mt-0.5 text-sm text-muted-foreground">ค่าเริ่มต้นจากเกณฑ์ร้านอาหารทั่วไป · ใช้ทุกสาขา · แก้ได้อีกที่หน้าตั้งค่าทั่วไป</p>
       <div className="mt-4 space-y-3">
         {field("food", "ต้นทุนอาหาร ไม่เกิน", "% ของยอดขาย", "0.5")}
         {field("prime", "Prime cost (อาหาร + ค่าแรง) ไม่เกิน", "%", "0.5")}

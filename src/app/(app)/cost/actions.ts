@@ -28,7 +28,7 @@ import {
 
 /** The movement being priced is gone, foreign, or is not a stock GAIN. */
 const NOT_A_GAIN_MESSAGE =
-  "ระบุต้นทุนได้เฉพาะของที่นับเจอเพิ่มเท่านั้น — ต้นทุนของใบรับของแก้ที่เอกสารนั้น";
+  "ระบุต้นทุนได้เฉพาะของที่นับเจอเพิ่มเท่านั้น — ต้นทุนของใบรับสินค้าแก้ที่เอกสารนั้น";
 const TARGET_NOT_FOUND_MESSAGE = "ไม่พบรายการเคลื่อนไหวที่ต้องการระบุต้นทุน";
 const UNIT_MISMATCH_MESSAGE = "หน่วยที่เลือกต้องเป็นหน่วยของวัตถุดิบนี้";
 

@@ -52,8 +52,8 @@ export default function PriceVolatility({ data, canEditTargets }: { data: Promis
   if (d.products.length === 0)
     return (
       <div className="rounded-[18px] border border-border/70 bg-surface shadow-card p-6 text-sm">
-        <h2 className="font-display text-lg font-semibold">ยังไม่มีใบรับของ</h2>
-        <p className="mt-1 text-muted-foreground">หน้านี้คิดราคาจากใบรับของที่ยืนยันแล้ว ต้องมีการรับของอย่างน้อยสองช่วงจึงจะเห็นว่าราคาเปลี่ยนไปเท่าไร</p>
+        <h2 className="font-display text-lg font-semibold">ยังไม่มีใบรับสินค้า</h2>
+        <p className="mt-1 text-muted-foreground">หน้านี้คิดราคาจากใบรับสินค้าที่ยืนยันแล้ว ต้องมีการรับของอย่างน้อยสองช่วงจึงจะเห็นว่าราคาเปลี่ยนไปเท่าไร</p>
       </div>
     );
   return <View d={d} canEditTargets={canEditTargets} />;
@@ -208,7 +208,7 @@ function View({ d, canEditTargets }: { d: Data; canEditTargets: boolean }) {
       {/* Queue item 9: the page's own heading, at every page's size. */}
       <div>
         <h1 className="text-[1.75rem] font-semibold leading-tight tracking-[-0.005em]">การผันผวนราคาวัตถุดิบ</h1>
-        <p className="mt-1 text-sm text-muted-foreground">ราคาเปลี่ยนไปเท่าไร และราคานี้เมนูที่ใช้ยังรับไหวไหม · ราคาต่อหน่วยไม่รวม VAT จากใบรับของที่ยืนยันแล้ว</p>
+        <p className="mt-1 text-sm text-muted-foreground">ราคาเปลี่ยนไปเท่าไร และราคานี้เมนูที่ใช้ยังรับไหวไหม · ราคาต่อหน่วยไม่รวม VAT จากใบรับสินค้าที่ยืนยันแล้ว</p>
       </div>
 
       {/* sticky slice control */}
@@ -239,7 +239,7 @@ function View({ d, canEditTargets }: { d: Data; canEditTargets: boolean }) {
       </div>
       <p className="text-xs text-muted-foreground">
         รับของล่าสุด <b>{d.lastReceipt ? dayTh(d.lastReceipt) : "—"}</b>
-        {d.lastReceipt && ` (${Math.round((Date.parse(d.today) - Date.parse(d.lastReceipt)) / 86_400_000)} วันก่อน)`} · ช่วงที่ยังไม่มีใบรับของไม่แสดง — ไม่ได้แปลว่าราคาไม่เปลี่ยน แปลว่ายังไม่รู้ ·{" "}
+        {d.lastReceipt && ` (${Math.round((Date.parse(d.today) - Date.parse(d.lastReceipt)) / 86_400_000)} วันก่อน)`} · ช่วงที่ยังไม่มีใบรับสินค้าไม่แสดง — ไม่ได้แปลว่าราคาไม่เปลี่ยน แปลว่ายังไม่รู้ ·{" "}
         <a href="/goods-receipts/new" className="text-primary hover:underline">
           บันทึกรับของ ›
         </a>
@@ -271,7 +271,7 @@ function View({ d, canEditTargets }: { d: Data; canEditTargets: boolean }) {
           <span>{lay === "small" ? "ทุกใบสเกลเดียวกัน · กดการ์ดเพื่อดูละเอียด" : "เส้นเทาคือกลุ่มอื่น · ชี้ชื่อเพื่อให้เส้นนั้นเด่น"}</span>
         </div>
         {B.length < 2 ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">ต้องมีใบรับของอย่างน้อยสอง{gran === "week" ? "สัปดาห์" : "เดือน"}จึงจะเห็นแนวโน้ม</p>
+          <p className="py-8 text-center text-sm text-muted-foreground">ต้องมีใบรับสินค้าอย่างน้อยสอง{gran === "week" ? "สัปดาห์" : "เดือน"}จึงจะเห็นแนวโน้ม</p>
         ) : lay === "small" ? (
           <Smalls rows={rows} labels={B.map((b) => b.label)} color={color} mode={mode} onOpen={open} />
         ) : (
@@ -632,7 +632,7 @@ function Bars({ rows, mode, head, detail, onOpen }: { rows: Row[]; mode: Mode; h
 }
 
 function RefKpis({ d, mNow, mPrev, menus, ratio }: { d: Data; mNow: number | null; mPrev: number | null; menus: MenuCostRow[]; ratio: (pid: string) => number | null }) {
-  if (mNow === null || mPrev === null) return <p className="rounded-[18px] border border-border/70 bg-surface shadow-card p-3 text-sm text-muted-foreground">ต้องมีใบรับของอย่างน้อยสองเดือนจึงจะเทียบได้</p>;
+  if (mNow === null || mPrev === null) return <p className="rounded-[18px] border border-border/70 bg-surface shadow-card p-3 text-sm text-muted-foreground">ต้องมีใบรับสินค้าอย่างน้อยสองเดือนจึงจะเทียบได้</p>;
   let up = 0, dn = 0, nu = 0, nd = 0, spendNow = 0;
   let topU: [string, number] | null = null, topD: [string, number] | null = null;
   for (const p of d.products) {
@@ -900,7 +900,7 @@ function ProductPopup({ p, mode, allow, nowPrice, dept, menus, months, onClose }
         <Kpi k="ใช้ในเมนู" v={String(menus.length)} s={[...menus].sort((a, b) => b.cost / b.price - a.cost / a.price).slice(0, 3).map((m) => `${m.name} ${((m.cost / m.price) * 100).toFixed(0)}%`).join(" · ") || "—"} />
       </div>
       <p className="mt-3 font-display text-sm font-semibold">
-        ราคาทุกใบ <span className="text-xs font-normal text-muted-foreground">จุด = ใบรับของ · เส้นทึบ = เฉลี่ยรายเดือน{mode === "tgt" ? " · เส้นประแดง = ราคาที่เมนูรับได้" : ""} · ชี้จุดเพื่อดูวันที่</span>
+        ราคาทุกใบ <span className="text-xs font-normal text-muted-foreground">จุด = ใบรับสินค้า · เส้นทึบ = เฉลี่ยรายเดือน{mode === "tgt" ? " · เส้นประแดง = ราคาที่เมนูรับได้" : ""} · ชี้จุดเพื่อดูวันที่</span>
       </p>
       <ReceiptPriceChart
         points={pts.map(([date, price]) => ({ date, price }))}

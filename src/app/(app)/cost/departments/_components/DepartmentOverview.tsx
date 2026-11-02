@@ -116,7 +116,7 @@ export default function DepartmentOverview(props: {
         <p className="rounded-xl border border-border bg-muted/40 p-3 text-sm">
           ร้านนี้ยังไม่ได้เปิดใช้แผนก — ทุกอย่างอยู่ใน “ไม่ระบุแผนก” ·{" "}
           <a href="/settings" className="text-primary underline">
-            เปิดที่ตั้งค่าร้าน
+            เปิดที่หน้าตั้งค่าทั่วไป
           </a>
         </p>
       )}
@@ -137,7 +137,7 @@ export default function DepartmentOverview(props: {
             )}
             {data.grossProfitUnavailable && (
               <p className="rounded-xl border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
-                ร้านคิดกำไรขั้นต้นแบบนับสต๊อก — สต๊อกปลายงวดอยู่ในห้องเก็บของสาขา ไม่มีแผนก จึงแสดงกำไรขั้นต้นต่อแผนกไม่ได้ (เปลี่ยนเป็นแบบสูตรอาหารที่ตั้งค่าร้าน)
+                ร้านคิดกำไรขั้นต้นแบบนับสต๊อก — สต๊อกปลายงวดอยู่ในห้องเก็บของสาขา ไม่มีแผนก จึงแสดงกำไรขั้นต้นต่อแผนกไม่ได้ (เปลี่ยนเป็นแบบสูตรอาหารที่หน้าตั้งค่าทั่วไป)
               </p>
             )}
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -248,7 +248,7 @@ export default function DepartmentOverview(props: {
             <Q n="6" title="แผนกสั่งของมากกว่าที่ใช้ไหม" sub={selLabel} />
             {!data.anyOrderedByDept ? (
               <p className="note p-3">
-                ใบรับของในช่วงนี้ลงแผนกตั้งต้นทั้งหมด จึงยังเทียบของที่แผนกสั่งกับที่แผนกใช้ไม่ได้ · ตอนนี้เลือกแผนกที่บรรทัดของใบรับของได้แล้ว (ระบบเลือกไว้ให้ตามเมนูที่ใช้วัตถุดิบนั้น) — ใบใหม่จะขึ้นที่นี่เอง ·{" "}
+                ใบรับสินค้าในช่วงนี้ลงแผนกตั้งต้นทั้งหมด จึงยังเทียบของที่แผนกสั่งกับที่แผนกใช้ไม่ได้ · ตอนนี้เลือกแผนกที่บรรทัดของใบรับสินค้าได้แล้ว (ระบบเลือกไว้ให้ตามเมนูที่ใช้วัตถุดิบนั้น) — ใบใหม่จะขึ้นที่นี่เอง ·{" "}
                 <a href="/goods-receipts/new" className="underline">
                   รับสินค้า
                 </a>

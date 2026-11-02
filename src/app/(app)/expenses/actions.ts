@@ -86,12 +86,12 @@ function toFieldErrors(
 
 /** Which field a locked-by-the-receipt edit belongs to, for the form to mark. */
 const LOCKED_FIELD_MESSAGE: Record<string, string> = {
-  branchId: "สาขามาจากใบรับของ แก้ที่นี่ไม่ได้",
-  supplierId: "ผู้ขายมาจากใบรับของ แก้ที่นี่ไม่ได้",
-  billDate: "วันที่มาจากใบรับของ แก้ที่นี่ไม่ได้",
-  billNo: "เลขที่บิลมาจากใบรับของ แก้ที่นี่ไม่ได้",
-  vatRatePercent: "อัตรา VAT มาจากใบรับของ แก้ที่นี่ไม่ได้",
-  isPriceVatInclusive: "วิธีคิด VAT มาจากใบรับของ แก้ที่นี่ไม่ได้",
+  branchId: "สาขามาจากใบรับสินค้า แก้ที่นี่ไม่ได้",
+  supplierId: "ผู้ขายมาจากใบรับสินค้า แก้ที่นี่ไม่ได้",
+  billDate: "วันที่มาจากใบรับสินค้า แก้ที่นี่ไม่ได้",
+  billNo: "เลขที่บิลมาจากใบรับสินค้า แก้ที่นี่ไม่ได้",
+  vatRatePercent: "อัตรา VAT มาจากใบรับสินค้า แก้ที่นี่ไม่ได้",
+  isPriceVatInclusive: "วิธีคิด VAT มาจากใบรับสินค้า แก้ที่นี่ไม่ได้",
 };
 
 /**
@@ -121,12 +121,12 @@ function toFormError(e: unknown): ActionFailure {
     if (e.field === "delete") {
       return fail({
         formError:
-          "รายการนี้มาจากใบรับของ ลบเดี่ยว ๆ ไม่ได้ — ให้ยกเลิกใบรับของแทน แล้วบิลจะถูกยกเลิกไปด้วย",
+          "รายการนี้มาจากใบรับสินค้า ลบเดี่ยว ๆ ไม่ได้ — ให้ยกเลิกใบรับสินค้าแทน แล้วบิลจะถูกยกเลิกไปด้วย",
       });
     }
     return fail({
       fieldErrors: {
-        [e.field]: LOCKED_FIELD_MESSAGE[e.field] ?? "ช่องนี้มาจากใบรับของ แก้ไม่ได้",
+        [e.field]: LOCKED_FIELD_MESSAGE[e.field] ?? "ช่องนี้มาจากใบรับสินค้า แก้ไม่ได้",
       },
     });
   }

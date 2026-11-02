@@ -25,6 +25,8 @@ export interface NavItem {
 
 export interface NavGroup {
   label: string;
+  /** A second line under the heading that says what level the group is about (Kong 2026-11-02). */
+  hint?: string;
   items: readonly NavItem[];
 }
 
@@ -83,16 +85,24 @@ export const NAV_GROUPS: readonly NavGroup[] = [
       { href: "/month-end", label: "ปิดเดือน · ส่งให้บัญชี", need: "cost:view" },
     ],
   },
+  // Kong 2026-11-02: "ทำให้มันชัดเจน ว่าตรงไหนจัดการร้าน ตรงไหนจัดการสาขา" —
+  // "ตั้งค่าร้าน" read as "this shop" to a branch manager, so each group names
+  // its level. ร้าน = the whole business (every branch), สาขา = one location.
   {
-    label: "ตั้งค่า",
+    label: "ตั้งค่าทั้งร้าน",
+    hint: "ใช้ร่วมกันทุกสาขา",
     items: [
-      { href: "/settings", label: "ตั้งค่าร้าน", need: "settings:write" },
-      { href: "/settings/branches", label: "สาขา", need: "settings:write" },
+      { href: "/settings", label: "ตั้งค่าทั่วไป", need: "settings:write" },
+      { href: "/settings/members", label: "ผู้ใช้งาน", need: "member:manage" },
+      { href: "/settings/permissions", label: "สิทธิ์การใช้งาน", need: "member:manage" },
       { href: "/settings/departments", label: "แผนก", need: "settings:write" },
       { href: "/categories", label: "หมวดบัญชี", need: "any:member" },
-      { href: "/settings/members", label: "คนในร้าน", need: "member:manage" },
-      { href: "/settings/permissions", label: "สิทธิ์ของร้าน", need: "member:manage" },
     ],
+  },
+  {
+    label: "ตั้งค่าสาขา",
+    hint: "แต่ละสาขาแยกกัน",
+    items: [{ href: "/settings/branches", label: "สาขาทั้งหมด", need: "settings:write" }],
   },
 ];
 

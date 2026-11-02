@@ -66,7 +66,7 @@ export const EXPENSE_SOURCE_LABELS_TH: Record<
   string
 > = {
   MANUAL: "บันทึกเอง",
-  FROM_GOODS_RECEIPT: "จากใบรับของ",
+  FROM_GOODS_RECEIPT: "จากใบรับสินค้า",
 };
 
 export const EXPENSE_PAYMENT_STATUS_LABELS_TH: Record<

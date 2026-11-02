@@ -60,7 +60,11 @@ function BranchDialog({ row, onClose }: { row: BranchRowView | null; onClose: ()
   const title = row ? `แก้${row.name}` : "เพิ่มสาขา";
 
   return (
-    <SettingsModal title={title} onClose={onClose}>
+    <SettingsModal
+      title={title}
+      sub={row ? undefined : "ร้านเดิม เปิดอีกที่หนึ่ง · ใช้เมนู สูตร วัตถุดิบ และผู้ขายร่วมกัน แต่มี POS และสต๊อกของตัวเอง · ร้านอีกชื่อหนึ่งให้เปิดร้านใหม่จากชื่อร้านบนสุดของเมนูข้าง"}
+      onClose={onClose}
+    >
       <form {...actionKeep} className="space-y-4">
         {row && <input type="hidden" name="id" value={row.id} />}
         <div className="grid gap-3 sm:grid-cols-[2fr_1fr]">
