@@ -14,8 +14,10 @@ import type { ShopDetail, ShopRow } from "@/server/platform";
 import type { ShopAccuracy } from "@/server/deduction-accuracy";
 import { readApi } from "@/lib/read-api";
 import { setShopPlanAction } from "../actions";
+import { ownersOverFreeLimit } from "@/lib/free-rule";
 
-const PLAN_LABEL: Record<string, string> = { trial: "ทดลองใช้", standard: "มาตรฐาน" };
+// Kong 2026-10-30: package names are written bare, in English. Plan code `trial` means Free.
+const PLAN_LABEL: Record<string, string> = { trial: "Free", standard: "Standard" };
 const ROLE_LABEL: Record<string, string> = {
   owner: "เจ้าของ",
   admin: "ส่วนกลาง",
@@ -74,6 +76,8 @@ export default function ShopsTable({ shops, today }: { shops: ShopRow[]; today: 
   const active7 = shops.filter((s) => s.lastActivity && daysBetween(day(s.lastActivity), today) <= 7).length;
   const endingSoon = shops.filter((s) => s.freeUntil && daysBetween(today, s.freeUntil) >= 0 && daysBetween(today, s.freeUntil) <= 30).length;
   const unset = shops.filter((s) => s.plan === "trial" && !s.freeUntil).length;
+  // Kong 2026-11-02 (option ก): one Free shop per owner account — shown here, enforced from the day Standard can be bought.
+  const overFree = useMemo(() => ownersOverFreeLimit(shops), [shops]);
 
   return (
     <div className="space-y-5">
@@ -82,12 +86,13 @@ export default function ShopsTable({ shops, today }: { shops: ShopRow[]; today: 
         <p className="mt-1 text-sm text-muted-foreground">กดที่แถวเพื่อดูคนในร้าน · ทุกการแก้แพ็กเกจถูกบันทึกไว้ในหน้า "บันทึกการแก้ไข"</p>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         {[
           ["ร้านทั้งหมด", shops.length, "ร้านที่สมัครแล้ว"],
           ["ใช้งานใน 7 วัน", active7, "มีบิลหรือการเคลื่อนไหวสต๊อก"],
           ["ใช้ฟรีหมดใน 30 วัน", endingSoon, "ติดต่อเรื่องค่าบริการ"],
-          ["ยังไม่ตั้งแพ็กเกจ", unset, "ช่วงทดลองใช้ ไม่มีวันหมด"],
+          ["ยังไม่ตั้งแพ็กเกจ", unset, "Free ยังไม่กำหนดวันหมด"],
+          ["บัญชีที่มี Free เกิน 1 ร้าน", overFree.size, "ยังไม่บังคับ จนกว่า Standard ซื้อได้"],
         ].map(([k, v, s]) => (
           <div key={k as string} className="card space-y-0.5 p-4">
             <p className="text-sm text-muted-foreground">{k}</p>
@@ -122,7 +127,15 @@ export default function ShopsTable({ shops, today }: { shops: ShopRow[]; today: 
                     <span className="font-medium">{s.name}</span>
                     <span className="block text-xs text-muted-subtle">สมัคร {fullDate(day(s.createdAt))}</span>
                   </td>
-                  <td className="text-sm">{s.owners.join(", ") || "—"}</td>
+                  <td className="text-sm">
+                    {s.owners.join(", ") || "—"}
+                    {s.plan === "trial" &&
+                      s.owners.map((o) => overFree.get(o.toLowerCase())).find(Boolean) && (
+                        <span className="block text-xs text-warn">
+                          บัญชีนี้มี Free {Math.max(...s.owners.map((o) => overFree.get(o.toLowerCase())?.length ?? 0))} ร้าน
+                        </span>
+                      )}
+                  </td>
                   <td className="text-right tabular-nums">
                     {s.branches} · {s.members}
                   </td>
@@ -272,7 +285,7 @@ function PlanDialog({ shop, today, onClose, onSaved }: { shop: ShopRow; today: s
         </div>
         <input type="date" className="input w-full" value={freeUntil ?? ""} onChange={(e) => setFreeUntil(e.target.value || null)} />
         <p className="text-xs text-muted-foreground">
-          {freeUntil ? `ร้านจะเห็นว่า "ใช้ฟรีถึง ${fullDate(freeUntil)}" · อีก ${daysBetween(today, freeUntil)} วัน` : "ร้านจะเห็นว่าอยู่ในช่วงทดลองใช้ ยังไม่มีค่าบริการ"} · เลยกำหนดแล้วระบบยังใช้งานได้ตามปกติ
+          {freeUntil ? `ร้านจะเห็นว่า "ใช้ฟรีถึง ${fullDate(freeUntil)}" · อีก ${daysBetween(today, freeUntil)} วัน` : "ร้านจะเห็นว่ายังไม่มีค่าบริการ"} · เลยกำหนดแล้วระบบยังใช้งานได้ตามปกติ
         </p>
       </div>
 

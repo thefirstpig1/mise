@@ -4,7 +4,7 @@ import { requirePlatformAdmin } from "@/lib/platform-admin";
 import { listAuditLogic } from "@/server/platform";
 
 const ACTION: Record<string, string> = { set_plan: "แก้แพ็กเกจ" };
-const PLAN: Record<string, string> = { trial: "ทดลองใช้", standard: "มาตรฐาน" };
+const PLAN: Record<string, string> = { trial: "Free", standard: "Standard" };
 
 type PlanState = { plan?: string; freeUntil?: string | null; note?: string | null } | null;
 const MONTH = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];

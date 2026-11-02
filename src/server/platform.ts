@@ -16,7 +16,7 @@ import { prismaBypass } from "@/lib/db-admin";
 import type { PlatformActor } from "@/lib/platform-admin";
 import { getShopAccuracySnapshotLogic, type ShopAccuracy } from "@/server/deduction-accuracy";
 
-export const PLANS = { trial: "ทดลองใช้", standard: "มาตรฐาน" } as const;
+export const PLANS = { trial: "Free", standard: "Standard" } as const;
 export type PlanCode = keyof typeof PLANS;
 
 export type ShopRow = {

@@ -109,7 +109,8 @@ function Option({ name, value, checked, title, example, recommended }: { name: s
  * Nothing is locked when the date passes; that is decided with billing.
  */
 function PlanCard({ plan, freeUntil, note }: { plan: string; freeUntil: Date | null; note: string | null }) {
-  const name = plan === "standard" ? "แพ็กเกจมาตรฐาน" : "ช่วงทดลองใช้";
+  // Kong 2026-10-30: package names bare, in English (plan code `trial` means Free).
+  const name = plan === "standard" ? "Standard" : "Free";
   const today = computeBangkokToday();
   const daysLeft = freeUntil ? Math.round((freeUntil.getTime() - today.getTime()) / 86_400_000) : null;
   const thDate = (d: Date) => d.toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
