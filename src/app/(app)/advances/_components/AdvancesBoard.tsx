@@ -7,8 +7,11 @@
 // slip. A cash bill with no slip is endorsed case by case, with a reason kept
 // (Kong: "ให้บัญชีตัดสินใจว่ามีความน่าเชื่อถือแค่ไหน case by case").
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { CircleCheck, Download, HandCoins, Hourglass, ImageOff, Wallet } from "lucide-react";
+import PageHeader from "@/components/ui/PageHeader";
+import Stat, { StatGrid } from "@/components/ui/Stat";
 import { ConfirmDialog, Portal, useTopLayer, type ConfirmSpec } from "@/app/(app)/menus/_components/sheet-parts";
 import { orStale } from "@/lib/stale-tab";
 import { PAYMENT_METHOD_LABEL, baht, monthLabel, shortDate } from "@/lib/advance-labels";
@@ -29,7 +32,6 @@ export default function AdvancesBoard({ claims, today, months, meId, canApprove 
   const [ask, setAsk] = useState<ConfirmSpec | null>(null);
   const [voiding, setVoiding] = useState<{ id: string; who: string; amount: number } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
-  const [month, setMonth] = useState(months[0]);
   const [, startRefresh] = useTransition();
 
   useEffect(() => {
@@ -61,19 +63,16 @@ export default function AdvancesBoard({ claims, today, months, meId, canApprove 
   }, [person?.id, claims]);
 
   const sum = (cs: ClaimView[]) => cs.reduce((s, c) => s + c.amount, 0);
+  // Queue item 9: the kit's number cards, an icon each, two by two on a phone.
+  // They show only while somebody is owed — four ฿0 cards said nothing four times.
+  const ready = open.filter((c) => c.status === "READY");
+  const waiting = open.filter((c) => c.status === "NEEDS_ENDORSE" || c.status === "NEEDS_APPROVAL");
+  const missing = open.filter((c) => c.status === "NO_BILL" || c.status === "NO_SLIP");
   const tiles = [
-    { k: "ค้างคืนทั้งหมด", v: sum(open), s: `${people.length} คน · ${open.length} บิล` },
-    { k: "พร้อมคืน (หลักฐานครบ)", v: sum(open.filter((c) => c.status === "READY")), s: `${open.filter((c) => c.status === "READY").length} บิล` },
-    {
-      k: "รอคุณรับรอง / อนุมัติ",
-      v: sum(open.filter((c) => c.status === "NEEDS_ENDORSE" || c.status === "NEEDS_APPROVAL")),
-      s: `${open.filter((c) => c.status === "NEEDS_ENDORSE" || c.status === "NEEDS_APPROVAL").length} บิล — ตรวจก่อนคืน`,
-    },
-    {
-      k: "ขาดหลักฐาน",
-      v: sum(open.filter((c) => c.status === "NO_BILL" || c.status === "NO_SLIP")),
-      s: `${open.filter((c) => c.status === "NO_BILL" || c.status === "NO_SLIP").length} บิล — พนักงานต้องถ่ายเพิ่ม`,
-    },
+    { k: "ค้างคืนทั้งหมด", icon: Wallet, v: sum(open), s: `${people.length} คน · ${open.length} บิล` },
+    { k: "พร้อมคืน", icon: CircleCheck, v: sum(ready), s: ready.length ? `${ready.length} บิล · หลักฐานครบ` : "ยังไม่มีบิลที่หลักฐานครบ" },
+    { k: "รอรับรอง / อนุมัติ", icon: Hourglass, v: sum(waiting), s: waiting.length ? `${waiting.length} บิล · ตรวจก่อนคืน` : "ไม่มีบิลรอตรวจ" },
+    { k: "ขาดหลักฐาน", icon: ImageOff, v: sum(missing), s: missing.length ? `${missing.length} บิล · พนักงานต้องถ่ายเพิ่ม` : "หลักฐานครบทุกบิล" },
   ];
   const pickedRows = rows.filter((r) => picked.has(r.paymentId));
   const refunded = useMemo(() => {
@@ -95,50 +94,37 @@ export default function AdvancesBoard({ claims, today, months, meId, canApprove 
 
   return (
     <div className="space-y-5 pb-24">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h2 className="text-2xl font-semibold">ค้างคืนพนักงาน</h2>
-          <p className="mt-1 text-sm text-muted-foreground">เงินที่พนักงานออกไปก่อนและร้านยังไม่ได้คืน · เรียงตามยอด</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="seg" role="group" aria-label="แสดง">
-            <button type="button" onClick={() => setTab("open")} className={`seg-item ${tab === "open" ? "is-on" : ""}`}>
-              ค้างคืน
-            </button>
-            <button type="button" onClick={() => setTab("refunded")} className={`seg-item ${tab === "refunded" ? "is-on" : ""}`}>
-              คืนแล้ว
-            </button>
-          </div>
-          <span className="flex items-center gap-1.5">
-            <select className="input h-9 w-auto py-0 text-sm" value={month} onChange={(e) => setMonth(e.target.value)} aria-label="เดือน">
-              {months.map((m) => (
-                <option key={m} value={m}>
-                  {monthLabel(m)}
-                </option>
-              ))}
-            </select>
-            <a href={`/api/advances/export?month=${month}`} className="btn-secondary btn-sm" title="บิล สลิป และสลิปคืนเงินของเดือนนี้ จัดโฟลเดอร์ต่อบิล พร้อมไฟล์ Excel สรุป">
-              ⬇ รูปทั้งเดือน (.zip)
-            </a>
-          </span>
-        </div>
-      </div>
+      <PageHeader
+        title="ค้างคืนพนักงาน"
+        description="เงินที่พนักงานออกไปก่อนและร้านยังไม่ได้คืน · เรียงตามยอด"
+        actions={
+          <>
+            <div className="seg" role="group" aria-label="แสดง">
+              <button type="button" aria-pressed={tab === "open"} onClick={() => setTab("open")} className={`seg-item ${tab === "open" ? "is-on" : ""}`}>
+                ค้างคืน
+              </button>
+              <button type="button" aria-pressed={tab === "refunded"} onClick={() => setTab("refunded")} className={`seg-item ${tab === "refunded" ? "is-on" : ""}`}>
+                คืนแล้ว
+              </button>
+            </div>
+            <MonthZip months={months} />
+          </>
+        }
+      />
 
       {tab === "open" ? (
         <>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {tiles.map((t) => (
-              <div key={t.k} className="card space-y-0.5 p-4">
-                <p className="text-sm text-muted-foreground">{t.k}</p>
-                <p className="text-2xl font-semibold tabular-nums">{baht(t.v)}</p>
-                <p className="text-xs text-muted-subtle">{t.s}</p>
-              </div>
-            ))}
-          </div>
-
           {people.length === 0 ? (
-            <p className="rounded-2xl border border-dashed border-border-strong p-8 text-center text-sm text-muted-foreground">ไม่มีเงินที่ค้างคืนพนักงาน</p>
+            <Quiet icon={HandCoins} title="ตอนนี้ร้านไม่ได้ค้างคืนพนักงาน">
+              บิลที่พนักงานออกเงินไปก่อน (บันทึกที่ “ซื้อเอง / สำรองจ่าย”) จะขึ้นที่นี่ พร้อมยอดรวมแยกว่าพร้อมคืน รอรับรอง หรือขาดหลักฐาน
+            </Quiet>
           ) : (
+            <>
+            <StatGrid>
+              {tiles.map((t) => (
+                <Stat key={t.k} label={t.k} icon={t.icon} value={baht(t.v)} sub={t.s} />
+              ))}
+            </StatGrid>
             <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.7fr)]">
               <section className="card space-y-1 p-3">
                 <h3 className="px-2 pb-1 font-semibold">ต่อคน</h3>
@@ -258,10 +244,13 @@ export default function AdvancesBoard({ claims, today, months, meId, canApprove 
                 </section>
               )}
             </div>
+            </>
           )}
         </>
       ) : refunded.length === 0 ? (
-        <p className="rounded-2xl border border-dashed border-border-strong p-8 text-center text-sm text-muted-foreground">ยังไม่มีการคืนเงินใน 60 วันที่ผ่านมา</p>
+        <Quiet icon={Wallet} title="ยังไม่มีการคืนเงินใน 60 วันที่ผ่านมา">
+          เมื่อกดคืนเงินให้พนักงานจากแท็บ “ค้างคืน” รายการจะขึ้นที่นี่พร้อมสลิปโอนคืน
+        </Quiet>
       ) : (
         <ul className="space-y-2">
           {refunded.map((r) => (
@@ -340,6 +329,68 @@ export default function AdvancesBoard({ claims, today, months, meId, canApprove 
             {toast}
           </div>
         </Portal>
+      )}
+    </div>
+  );
+}
+
+/** One calm box for "nothing here" — a line icon, what it means, and where things come from. */
+function Quiet({ icon: Icon, title, children }: { icon: typeof Wallet; title: string; children: React.ReactNode }) {
+  return (
+    <div className="card flex items-start gap-3.5">
+      {/* IconTile's look, one size up for a box of its own. */}
+      <span aria-hidden className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-surface-sunk ring-1 ring-border">
+        <Icon className="h-5 w-5 text-primary" strokeWidth={1.8} />
+      </span>
+      <div className="min-w-0 space-y-1">
+        <h3 className="font-display text-[15.5px] font-semibold">{title}</h3>
+        <p className="max-w-[60ch] text-sm text-muted-foreground">{children}</p>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The month's photos as one .zip. The month belongs to the DOWNLOAD only —
+ * as a select beside the tabs it read like a filter on the board, which it
+ * never was — so it opens from the button as a short list of months.
+ */
+function MonthZip({ months }: { months: string[] }) {
+  const [open, setOpen] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: MouseEvent) => !box.current?.contains(e.target as Node) && setOpen(false);
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("mousedown", away);
+    document.addEventListener("keydown", esc);
+    return () => {
+      document.removeEventListener("mousedown", away);
+      document.removeEventListener("keydown", esc);
+    };
+  }, [open]);
+  return (
+    <div ref={box} className="relative">
+      <button type="button" aria-expanded={open} onClick={() => setOpen((o) => !o)} className="btn-secondary btn-sm gap-1.5">
+        <Download className="h-4 w-4" strokeWidth={1.8} aria-hidden />
+        รูปทั้งเดือน (.zip)
+      </button>
+      {open && (
+        <div className="absolute right-0 z-30 mt-1.5 w-64 animate-pop-in rounded-2xl border border-border bg-surface p-2 shadow-lg">
+          <p className="px-2 pb-1.5 pt-1 text-xs text-muted-foreground">บิล สลิป และสลิปคืนเงินของเดือนที่เลือก จัดโฟลเดอร์ต่อบิล พร้อมไฟล์ Excel สรุป</p>
+          <div className="grid grid-cols-3 gap-1">
+            {months.map((m) => (
+              <a
+                key={m}
+                href={`/api/advances/export?month=${m}`}
+                onClick={() => setOpen(false)}
+                className="rounded-lg px-2 py-1.5 text-center text-sm transition-colors hover:bg-muted"
+              >
+                {monthLabel(m)}
+              </a>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   );

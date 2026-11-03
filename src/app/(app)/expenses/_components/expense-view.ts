@@ -41,6 +41,8 @@ export type ExpenseListRowView = {
   billDate: string;
   billNo: string | null;
   vatInvoiceNo: string | null;
+  /** Before VAT — the figure "รายจ่าย" is summed in (ADR 0016; the same base as /expenses/analysis). */
+  subtotalExclVat: string;
   totalAmount: string;
   netPaymentAmount: string;
   paymentStatus: "UNPAID" | "PAID";
@@ -64,6 +66,7 @@ export function toExpenseListRowView(row: ExpenseListRow): ExpenseListRowView {
     billDate: dayString(row.billDate),
     billNo: row.billNo,
     vatInvoiceNo: row.vatInvoiceNo,
+    subtotalExclVat: row.subtotalExclVat.toString(),
     totalAmount: row.totalAmount.toString(),
     netPaymentAmount: row.netPaymentAmount.toString(),
     paymentStatus: row.paymentStatus,

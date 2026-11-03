@@ -25,6 +25,7 @@ import {
   CartesianGrid,
   Cell,
   ComposedChart,
+  LabelList,
   Line,
   ResponsiveContainer,
   Tooltip,
@@ -38,6 +39,7 @@ import {
   ChartTooltip,
   GOOD,
   GRID,
+  INK,
   axis,
   cursorFill,
   grad,
@@ -277,28 +279,61 @@ export function MonthlyTrend({ branchIds, active }: { branchIds: string[]; activ
 // ------------------------------------------------------------
 // 3c. Money per day — one series of bars (used by วิเคราะห์รายจ่าย)
 // ------------------------------------------------------------
-export function DailyBarsChart({ rows, label }: { rows: { day: string; amount: number }[]; label: string }) {
+/**
+ * Spending per day across a WHOLE month (queue item 9, finance group): a day
+ * with no bill is an empty slot on the axis, not a missing column, so goods
+ * arriving every third day reads as a rhythm instead of as consecutive days.
+ * Olive for every day; clay marks the one day the chart points at — the
+ * biggest — and carries its figure (mise-ui-review §3).
+ */
+export function DailyBarsChart({ rows, label, month }: { rows: { day: string; amount: number }[]; label: string; month: string }) {
   if (rows.length === 0) {
     return <p className="py-12 text-center text-sm text-muted-foreground">ยังไม่มีข้อมูลในช่วงนี้</p>;
   }
+  const [y, m] = month.split("-").map(Number);
+  const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  const byDay = new Map(rows.map((r) => [r.day, r.amount]));
+  const data = Array.from({ length: last }, (_, i) => {
+    const day = `${month}-${String(i + 1).padStart(2, "0")}`;
+    return { day, d: i + 1, amount: byDay.get(day) ?? null };
+  });
+  const peak = Math.max(...rows.map((r) => r.amount));
+  const ticks = [1, 5, 10, 15, 20, 25, last];
   return (
-    <div className="h-60 w-full">
-      <ResponsiveContainer>
-        <BarChart key={rows.length} data={rows} margin={{ top: 8, right: 12, bottom: 0, left: 4 }}>
-          <ChartGradients />
-          <CartesianGrid stroke={GRID} vertical={false} />
-          <XAxis dataKey="day" tickFormatter={dayLabel} minTickGap={16} {...axis} />
-          <YAxis tickFormatter={compact} width={48} {...axis} axisLine={false} />
-          <Tooltip
-            cursor={cursorFill}
-            content={({ active, payload }) => {
-              const r = active && payload?.length ? (payload[0].payload as { day: string; amount: number }) : null;
-              return r ? <TooltipBox title={dayLabel(r.day)} rows={[{ label, value: baht(r.amount) }]} /> : null;
-            }}
-          />
-          <Bar dataKey="amount" fill={grad("clay")} radius={[5, 5, 0, 0]} maxBarSize={36} activeBar={{ fill: solid("clay") }} {...ANIM} />
-        </BarChart>
-      </ResponsiveContainer>
+    <div>
+      <div className="mb-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+        <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm" style={{ background: solid("olive") }} />{label}ของวัน</span>
+        <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm" style={{ background: solid("clay") }} />วันที่จ่ายมากสุด</span>
+        <span>วันที่ไม่มีบิลไม่มีแท่ง</span>
+      </div>
+      <div className="h-60 w-full">
+        <ResponsiveContainer>
+          <BarChart key={`${month}-${rows.length}`} data={data} margin={{ top: 22, right: 12, bottom: 0, left: 4 }} barCategoryGap="22%">
+            <ChartGradients />
+            <CartesianGrid stroke={GRID} vertical={false} />
+            <XAxis dataKey="d" ticks={ticks} interval={0} {...axis} />
+            <YAxis tickFormatter={compact} width={48} {...axis} axisLine={false} />
+            <Tooltip
+              cursor={cursorFill}
+              content={({ active, payload }) => {
+                const r = active && payload?.length ? (payload[0].payload as { day: string; amount: number | null }) : null;
+                return r ? <TooltipBox title={dayLabel(r.day)} rows={[{ label, value: r.amount === null ? "ไม่มีบิล" : baht(r.amount) }]} /> : null;
+              }}
+            />
+            <Bar dataKey="amount" radius={[4, 4, 0, 0]} maxBarSize={28} {...ANIM}>
+              {data.map((r) => (
+                <Cell key={r.day} fill={r.amount === peak ? grad("clay") : grad("olive")} />
+              ))}
+              <LabelList
+                dataKey="amount"
+                position="top"
+                formatter={(v: unknown) => (Number(v) === peak ? baht(peak) : "")}
+                style={{ fill: INK, fontSize: 11, fontWeight: 600 }}
+              />
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   );
 }

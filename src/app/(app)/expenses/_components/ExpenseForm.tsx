@@ -308,12 +308,14 @@ export default function ExpenseForm({
       )}
 
       {!existing && !prefill && (
-        <p className="rounded-lg border border-border bg-surface-sunk px-4 py-3 text-sm text-muted-foreground">
-          ซื้อวัตถุดิบเข้าสต๊อก เช่น หมู ผัก ข้าวสาร? กรุณาบันทึกที่{" "}
+        // Queue item 9: a pointer, not a task — the sage observation box
+        // (yellow is kept for things somebody must do).
+        <p className="note">
+          ซื้อวัตถุดิบเข้าสต๊อก เช่น หมู ผัก ข้าวสาร? บันทึกที่{" "}
           <a href="/goods-receipts/new" className="font-medium text-primary underline">
-            หน้ารับของ (ซื้อสดได้ ไม่ต้องมีใบสั่งซื้อ)
+            หน้ารับสินค้า (ซื้อสดได้ ไม่ต้องมีใบสั่งซื้อ)
           </a>{" "}
-          แทน ของจะเข้าสต๊อกและต้นทุนจะถูกต้อง ระบบจะสร้างบิลค่าใช้จ่ายให้เอง
+          แทน ของจะเข้าสต๊อกและต้นทุนจะถูกต้อง ระบบสร้างบิลค่าใช้จ่ายให้เอง
         </p>
       )}
 

@@ -5,9 +5,10 @@
 
 import { EXPENSE_PAYMENT_STATUS_LABELS_TH } from "@/lib/validations/expense";
 
+// Queue item 9: the kit's status pill (a filled chip with a dot), not a drawn edge.
 const STYLES: Record<"UNPAID" | "PAID", string> = {
-  UNPAID: "bg-warn-bg text-warn border-warn-border",
-  PAID: "bg-good-bg text-good border-good-border",
+  UNPAID: "chip-warn",
+  PAID: "chip-good",
 };
 
 export default function PaymentBadge({
@@ -16,9 +17,7 @@ export default function PaymentBadge({
   status: "UNPAID" | "PAID";
 }) {
   return (
-    <span
-      className={`inline-block rounded-full border px-2 py-0.5 text-xs font-medium ${STYLES[status]}`}
-    >
+    <span className={`chip ${STYLES[status]}`}>
       {EXPENSE_PAYMENT_STATUS_LABELS_TH[status]}
     </span>
   );

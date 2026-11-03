@@ -56,7 +56,52 @@ export default async function RecurringExpensePage() {
           แล้วระบบจะเตือนทุกเดือน
         </EmptyState>
       ) : (
-        <div className="data-table">
+        <>
+        {/* Queue item 9: on a phone each item is a card — the five-column table
+            scrolled sideways and hid the months still owed. The whole card
+            opens the item; the month pills sit above that link. */}
+        <ul className="space-y-2 sm:hidden">
+          {templates.map((t) => {
+            const periods = t.isActive ? (dueOf.get(t.id) ?? []) : [];
+            return (
+              <li key={t.id} className={`relative rounded-[18px] border border-border/70 bg-surface p-3.5 shadow-card ${t.isActive ? "" : "opacity-60"}`}>
+                <span className="flex items-start justify-between gap-3">
+                  <a href={`/expenses/recurring/${t.id}/edit`} className="min-w-0 font-semibold after:absolute after:inset-0 after:rounded-[18px] after:content-['']">
+                    {t.description}
+                  </a>
+                  <span className="shrink-0 font-display font-semibold tabular-nums">฿{formatMoney(t.defaultAmount)}</span>
+                </span>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {t.isActive ? `${t.branchName} · ทุกวันที่ ${t.dayOfMonth}` : `ปิดใช้งานแล้ว · ${t.branchName}`} · {t.categoryLabel}
+                </p>
+                {t.isActive && (
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                    {periods.length === 0 ? (
+                      <span className="chip chip-good">บันทึกครบแล้ว</span>
+                    ) : canWrite ? (
+                      <>
+                        {periods.slice(0, SHOWN).map((p, i) => (
+                          <a
+                            key={p}
+                            href={`/expenses/new?recurring=${t.id}&period=${p}`}
+                            className="relative z-10 inline-flex h-7 items-center whitespace-nowrap rounded-full border border-warn-border bg-warn-bg px-3 text-xs font-semibold text-warn"
+                          >
+                            {periods.length === 1 || i === 0 ? "บันทึกงวด " : ""}
+                            {monthLabelTh(p)}
+                          </a>
+                        ))}
+                        {periods.length > SHOWN && <span className="text-xs text-muted-foreground">และอีก {periods.length - SHOWN} งวด</span>}
+                      </>
+                    ) : (
+                      <span className="chip chip-warn">ค้าง {periods.length} งวด</span>
+                    )}
+                  </div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+        <div className="data-table hidden sm:block">
           <table className="w-full min-w-[46rem]">
             <thead>
               <tr>
@@ -128,6 +173,7 @@ export default async function RecurringExpensePage() {
             </tbody>
           </table>
         </div>
+        </>
       )}
 
       <p className="text-xs text-muted-foreground">
