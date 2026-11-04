@@ -14,6 +14,8 @@ import { useRouter } from "next/navigation";
 import type { Route } from "next";
 import type { IngredientOption, LabDraft, PriceBook, StandardUnit } from "@/server/menu-manager";
 import EmptyState from "@/components/ui/EmptyState";
+import Stat from "@/components/ui/Stat";
+import { FilePlus, FlaskConical, Hourglass } from "lucide-react";
 import { ingredientOptions, priceBook } from "../../_components/prefetch";
 import { atLeastTh, baht, thDate } from "../../_components/manager-format";
 import { CostMix, lineCost } from "../../_components/recipe-editor";
@@ -244,33 +246,38 @@ export default function LabManager(props: {
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-3">
-        <div className="rounded-[18px] border border-border/70 bg-surface shadow-card p-3">
-          <p className="text-xs text-muted-subtle">ร่างที่กำลังคิด</p>
-          <p className="font-display text-2xl font-semibold tabular-nums">{drafts.length}</p>
-          <p className="text-xs text-muted-foreground">
-            ของคุณ {mine} · รอรับรอง {submitted} · รับรองแล้ว {endorsed}
-          </p>
-        </div>
-        <div className={`rounded-xl border p-3 ${waiting > 0 ? "border-warn-border bg-warn-bg" : "border-border bg-surface"}`}>
-          <p className="text-xs text-muted-subtle">รอคุณลงมือ</p>
-          <p className="font-display text-2xl font-semibold tabular-nums">{waiting}</p>
-          <p className="text-xs text-muted-foreground">
-            {waiting > 0 ? (props.canPublish ? "รับรองหรือนำไปใช้จริง" : "ตรวจแล้วรับรอง หรือนำไปใช้จริงที่สาขาของคุณ") : "ไม่มีร่างที่รอคุณรับรองหรือนำไปใช้"}
-          </p>
-        </div>
-        <a href="/menus?filter=none" className="rounded-[18px] border border-border/70 bg-surface shadow-card p-3 transition-colors hover:border-border-strong">
-          <p className="text-xs text-muted-subtle">ขายอยู่แต่ยังไม่มีสูตร</p>
-          {/* Queue item 10: with nothing sold, "ทุกเมนูที่ขายอยู่มีสูตรแล้ว" was an all-clear about nothing. */}
-          <p className="font-display text-2xl font-semibold tabular-nums">{anySold ? `${unrecipied.length} เมนู` : "—"}</p>
-          <p className="text-xs text-muted-foreground">
-            {!anySold
+      {/* Queue item 9: the kit's figure cards with their icons; on a phone two
+          side by side and the long one across — one per row filled the first
+          screen before the dishes that need a recipe. */}
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+        <Stat
+          icon={FlaskConical}
+          label="ร่างที่กำลังคิด"
+          value={drafts.length}
+          sub={`ของคุณ ${mine} · รอรับรอง ${submitted} · รับรองแล้ว ${endorsed}`}
+        />
+        <Stat
+          icon={Hourglass}
+          label="รอคุณลงมือ"
+          value={waiting}
+          className={waiting > 0 ? "!border-warn-border !bg-warn-bg" : ""}
+          sub={waiting > 0 ? (props.canPublish ? "รับรองหรือนำไปใช้จริง" : "ตรวจแล้วรับรอง หรือนำไปใช้จริงที่สาขาของคุณ") : "ไม่มีร่างที่รอคุณรับรองหรือนำไปใช้"}
+        />
+        <Stat
+          icon={FilePlus}
+          label="ขายอยู่แต่ยังไม่มีสูตร"
+          href="/menus?filter=none"
+          className="col-span-2 sm:col-span-1"
+          // Queue item 10: with nothing sold, "ทุกเมนูที่ขายอยู่มีสูตรแล้ว" was an all-clear about nothing.
+          value={anySold ? `${unrecipied.length} เมนู` : "—"}
+          sub={
+            !anySold
               ? `ยังไม่มียอดขายใน ${props.factDays} วัน · นำเข้ายอดขายแล้วจะเห็นเมนูที่ยังไม่มีสูตร`
               : unrecipied.length > 0
                 ? `ขายไป ${baht(unrecipiedNet)} ใน ${props.factDays} วัน ที่ยังคิดต้นทุนไม่ได้${copies.length > 0 ? ` · ${copies.length} น่าจะซ้ำกับเมนูที่มีสูตรแล้ว` : ""}`
-                : "ทุกเมนูที่ขายอยู่มีสูตรแล้ว"}
-          </p>
-        </a>
+                : "ทุกเมนูที่ขายอยู่มีสูตรแล้ว"
+          }
+        />
       </div>
 
       {/* Outside the drafts list: when the last draft is used, the list goes and this stays. */}

@@ -16,21 +16,26 @@ import type {
 } from "@/server/consumption-read";
 import type { ConsumptionSkipReason } from "@/lib/validations/consumption";
 
-const BANGKOK_DATE = new Intl.DateTimeFormat("th-TH", {
-  timeZone: "Asia/Bangkok",
-  day: "2-digit",
-  month: "short",
-  year: "numeric",
-});
+// Queue item 9: "ศ. 4 ก.ย." and "27 ก.ย. 21:38", the way /closing and /sales
+// write a day — "04 ก.ย. 2569" was the only screen that spelled the year out.
+// Spelled by hand (not ICU) so server and browser agree; the year only appears
+// when it is not this year.
+const MTH = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+const WD = ["อา.", "จ.", "อ.", "พ.", "พฤ.", "ศ.", "ส."];
+const bangkok = (d: Date) => new Date(d.getTime() + 7 * 3600_000);
+const yearTail = (y: number) => (y === bangkok(new Date()).getUTCFullYear() ? "" : ` ${(y + 543) % 100}`);
 
-const BANGKOK_STAMP = new Intl.DateTimeFormat("th-TH", {
-  timeZone: "Asia/Bangkok",
-  day: "2-digit",
-  month: "short",
-  year: "numeric",
-  hour: "2-digit",
-  minute: "2-digit",
-});
+/** A business date (UTC midnight of the day) → "ศ. 4 ก.ย." */
+export function dayLabelTh(d: Date): string {
+  return `${WD[d.getUTCDay()]} ${d.getUTCDate()} ${MTH[d.getUTCMonth()]}${yearTail(d.getUTCFullYear())}`;
+}
+
+/** An instant → "27 ก.ย. 21:38" in Bangkok time. */
+function stampTh(at: Date): string {
+  const b = bangkok(at);
+  const hm = `${String(b.getUTCHours()).padStart(2, "0")}:${String(b.getUTCMinutes()).padStart(2, "0")}`;
+  return `${b.getUTCDate()} ${MTH[b.getUTCMonth()]}${yearTail(b.getUTCFullYear())} ${hm}`;
+}
 
 export type ConsumptionSkipView = {
   menuId: string;
@@ -75,28 +80,37 @@ export type ConsumptionDayState =
   | "POSTED_PARTIAL"
   | "POSTED_STALE";
 
+/** Short, because they are chips now (queue item 9); the hint says the rest once, under the table. */
 export const CONSUMPTION_DAY_STATE_LABELS_TH: Record<
   ConsumptionDayState,
   string
 > = {
-  NOT_POSTED: "ยังไม่ได้ตัดสต๊อก",
-  OUT_OF_WINDOW: "เกินหน้าต่างย้อนหลัง ตัดไม่ได้",
-  POSTED: "ตัดสต๊อกแล้ว",
+  NOT_POSTED: "ยังไม่ได้ตัด",
+  OUT_OF_WINDOW: "เกินช่วงย้อนหลัง",
+  POSTED: "ตัดแล้ว",
   POSTED_PARTIAL: "ตัดแล้วบางส่วน",
-  POSTED_STALE: "ตัดแล้ว แต่สูตรเปลี่ยนหลังจากนั้น",
+  POSTED_STALE: "สูตรเปลี่ยนหลังตัด",
+};
+
+export const CONSUMPTION_DAY_STATE_CHIP: Record<ConsumptionDayState, string> = {
+  NOT_POSTED: "chip chip-warn",
+  OUT_OF_WINDOW: "chip",
+  POSTED: "chip chip-good",
+  POSTED_PARTIAL: "chip chip-warn",
+  POSTED_STALE: "chip chip-warn",
 };
 
 export const CONSUMPTION_DAY_STATE_HINTS_TH: Record<
   ConsumptionDayState,
   string
 > = {
-  NOT_POSTED: "ยอดขายวันนี้ยังไม่ถูกนับเป็นต้นทุน",
+  NOT_POSTED: "ยอดขายวันนั้นยังไม่ถูกนับเป็นต้นทุน",
   OUT_OF_WINDOW:
-    "ยอดขายยังดูได้ตามปกติ แต่บัญชีสต๊อกย้อนกลับไปแก้วันนี้ไม่ได้แล้ว",
-  POSTED: "วัตถุดิบของทุกเมนูที่ขายวันนี้ถูกตัดออกจากสต๊อกแล้ว",
-  POSTED_PARTIAL: "บางเมนูตัดไม่ได้ — ดูเหตุผลรายตัวแล้วแก้ที่ต้นเหตุ",
+    "ยอดขายยังดูได้ตามปกติ แต่บัญชีสต๊อกย้อนกลับไปแก้วันนั้นไม่ได้แล้ว",
+  POSTED: "วัตถุดิบของทุกเมนูที่ขายวันนั้นถูกตัดออกจากสต๊อกแล้ว",
+  POSTED_PARTIAL: "บางเมนูตัดไม่ได้ กดดูเหตุผลรายตัวแล้วแก้ที่ต้นเหตุ",
   POSTED_STALE:
-    "มีสูตรที่มีผลกับวันนี้ถูกเขียนหรือแก้หลังจากตัดไปแล้ว — กดตัดใหม่เพื่อให้ตรงกับสูตรปัจจุบัน",
+    "มีสูตรที่มีผลกับวันนั้นถูกเขียนหรือแก้หลังจากตัดไปแล้ว ตัดใหม่เพื่อให้ตรงกับสูตรปัจจุบัน",
 };
 
 const pct = (part: Prisma.Decimal | null, whole: Prisma.Decimal): number | null => {
@@ -125,11 +139,11 @@ export const toConsumptionDayView = (
 ): ConsumptionDayView => ({
   branchId: row.branchId,
   businessDate: row.businessDate.toISOString().slice(0, 10),
-  businessDateLabel: BANGKOK_DATE.format(row.businessDate),
+  businessDateLabel: dayLabelTh(row.businessDate),
   netAmount: row.netAmount.toString(),
   lineCount: row.lineCount,
   runId: row.runId,
-  postedAtLabel: row.postedAt ? BANGKOK_STAMP.format(row.postedAt) : null,
+  postedAtLabel: row.postedAt ? stampTh(row.postedAt) : null,
   coveredNetAmount: row.coveredNetAmount?.toString() ?? null,
   menusPosted: row.menusPosted,
   menusSkipped: row.menusSkipped,
@@ -167,8 +181,8 @@ export const toPostedDaySummaryView = (row: {
   totalNetAmount: Prisma.Decimal;
 }): PostedDaySummaryView => ({
   businessDate: row.businessDate.toISOString().slice(0, 10),
-  businessDateLabel: BANGKOK_DATE.format(row.businessDate),
-  postedAtLabel: BANGKOK_STAMP.format(row.postedAt),
+  businessDateLabel: dayLabelTh(row.businessDate),
+  postedAtLabel: stampTh(row.postedAt),
   coveredNetAmount: row.coveredNetAmount.toString(),
   totalNetAmount: row.totalNetAmount.toString(),
 });

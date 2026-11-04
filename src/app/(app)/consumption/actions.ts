@@ -36,6 +36,7 @@ import {
 import { CrossTenantReferenceError } from "@/server/product";
 import { RecipeMethodMissingError } from "@/server/recipe-graph";
 import {
+  dayLabelTh,
   toConsumptionSkipView,
   toPostedDaySummaryView,
   type PostedDayResultView,
@@ -79,9 +80,10 @@ export type PostConsumptionActionState =
       needsAcknowledgement?: { days: PostedDaySummaryView[] };
     };
 
-export const POST_CONSUMPTION_INIT: PostConsumptionActionState = {
-  ok: false,
-};
+// The initial state lives in the screen (ConsumptionDayTable), not here: a
+// "use server" file may export async functions only, and the object that sat
+// here made Next refuse the whole module the first time the button was
+// pressed (queue item 9 found it, 2026-11-04).
 
 /** Flatten zod issues to `{ fieldName: thaiMessage }`, first issue per field. */
 function toFieldErrors(error: ZodError): Record<string, string> {
@@ -169,12 +171,7 @@ export async function postConsumptionAction(
       const total = res.run.totalNetAmount;
       days.push({
         businessDate: businessDate.toISOString().slice(0, 10),
-        businessDateLabel: new Intl.DateTimeFormat("th-TH", {
-          timeZone: "Asia/Bangkok",
-          day: "2-digit",
-          month: "short",
-          year: "numeric",
-        }).format(businessDate),
+        businessDateLabel: dayLabelTh(businessDate),
         menusPosted: res.run.menusPosted,
         menusSkipped: res.run.menusSkipped,
         coveredNetAmount: res.run.coveredNetAmount.toString(),

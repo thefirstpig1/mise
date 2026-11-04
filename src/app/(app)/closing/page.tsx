@@ -12,10 +12,31 @@ import { getDailyCloseMonthLogic } from "@/server/daily-close";
 import MonthInsight from "./_components/MonthInsight";
 import { mixShares } from "@/lib/closing-insight";
 import FilterLink from "@/components/ui/FilterLink";
+import PillScroller from "@/components/ui/PillScroller";
+import Stat, { StatGrid } from "@/components/ui/Stat";
+import { Banknote, CircleAlert, UserRound, Users } from "lucide-react";
+type DayRow = Awaited<ReturnType<typeof getDailyCloseMonthLogic>>["rows"][number];
+
+/** A day's issues as the kit's chips; a day nobody closed says so. */
+function IssueChips({ r, closed }: { r: DayRow; closed: boolean }) {
+  if (!closed) return <span className="chip shrink-0">ไม่ได้ปิดร้าน</span>;
+  return (
+    <span className="flex shrink-0 flex-wrap justify-end gap-1">
+      {r.issuesOpen > 0 && <span className="chip chip-bad">ค้าง {r.issuesOpen}</span>}
+      {r.issuesResolved > 0 && <span className="chip chip-good">จัดการแล้ว {r.issuesResolved}</span>}
+      {r.issuesNoted > 0 && <span className="chip">จดไว้ {r.issuesNoted}</span>}
+    </span>
+  );
+}
 
 const MTH = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
 const WD = ["อา.", "จ.", "อ.", "พ.", "พฤ.", "ศ.", "ส."];
 const monthTh = (k: string) => `${MTH[+k.slice(5, 7) - 1]} ${String((+k.slice(0, 4) + 543) % 100).padStart(2, "0")}`;
+const dayTh = (ymd: string) => {
+  const d = new Date(`${ymd}T00:00:00Z`);
+  return `${WD[d.getUTCDay()]} ${d.getUTCDate()} ${MTH[d.getUTCMonth()]}`;
+};
+const cashTh = (v: number) => (v === 0 ? "ตรง" : v < 0 ? `ขาด ${baht(-v, 0)}` : `เกิน ${baht(v, 0)}`);
 const baht = (n: number, d = 0) => `฿${n.toLocaleString("th-TH", { minimumFractionDigits: d, maximumFractionDigits: d })}`;
 
 export default async function ClosingMonthPage({ searchParams }: { searchParams: Promise<{ branch?: string; m?: string }> }) {
@@ -71,6 +92,7 @@ export default async function ClosingMonthPage({ searchParams }: { searchParams:
   const prevHead = ph.length ? ph.reduce((t, r) => t + r.netRevenue!, 0) / ph.reduce((t, r) => t + r.guestCount!, 0) : null;
   const vsLabel = monthTh(prevKey);
   const order = data.mix.map((x) => x.customerTypeId);
+  const canFill = enabled && can("sales:import");
   const dayLink = (date: string) => `/closing/day?branch=${branch.id}&date=${date}`;
 
   return (
@@ -80,7 +102,7 @@ export default async function ClosingMonthPage({ searchParams }: { searchParams:
           <h2 className="text-2xl font-semibold">ปิดร้านประจำวัน</h2>
           <p className="mt-1 text-sm text-muted-foreground">ลูกค้า เงินสด ปัญหา และความเห็นของแต่ละวัน — ย้อนดูได้ไม่จำกัด</p>
         </div>
-        {enabled && can("sales:import") && (
+        {canFill && (
           <a href={dayLink(today.toISOString().slice(0, 10))} className="btn">
             ปิดร้านวันนี้
           </a>
@@ -98,75 +120,88 @@ export default async function ClosingMonthPage({ searchParams }: { searchParams:
         </p>
       )}
 
-      <div className="flex flex-wrap items-center gap-1.5">
-        {branches.length > 1 &&
-          branches.map((b) => (
-            <FilterLink
-              key={b.id}
-              href={`/closing?branch=${b.id}&m=${m}`}
-              className={`whitespace-nowrap rounded-full border px-3 py-1 text-sm ${b.id === branch.id ? "border-primary bg-primary text-primary-foreground" : "border-border-strong bg-surface hover:bg-muted"}`}
-            >
-              {b.name}
+      {/* Queue item 9: on a phone the branch pills and six month pills broke
+          into two rows. Branches are one switch; months are one line that
+          scrolls sideways, opened at the month on screen. */}
+      <div className="flex flex-wrap items-center gap-2">
+        {branches.length > 1 && (
+          <PillScroller className="w-full sm:w-auto">
+            <div className="seg flex-none">
+              {branches.map((b) => (
+                <FilterLink key={b.id} href={`/closing?branch=${b.id}&m=${m}`} aria-current={b.id === branch.id ? "true" : undefined} className={`seg-item ${b.id === branch.id ? "is-on" : ""}`}>
+                  {b.name}
+                </FilterLink>
+              ))}
+            </div>
+          </PillScroller>
+        )}
+        <PillScroller className="w-full sm:w-auto">
+          {[...months].reverse().map((k) => (
+            <FilterLink key={k} href={`/closing?branch=${branch.id}&m=${k}`} aria-current={k === m ? "true" : undefined} className={`pill shrink-0 ${k === m ? "is-on" : ""}`}>
+              {monthTh(k)}
             </FilterLink>
           ))}
-        <span className="mx-1 h-5 w-px bg-border" />
-        {[...months].reverse().map((k) => (
-          <FilterLink
-            key={k}
-            href={`/closing?branch=${branch.id}&m=${k}`}
-            className={`whitespace-nowrap rounded-full border px-3 py-1 text-sm ${k === m ? "border-primary bg-primary text-primary-foreground" : "border-border-strong bg-surface hover:bg-muted"}`}
-          >
-            {monthTh(k)}
-          </FilterLink>
-        ))}
+        </PillScroller>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <div className="rounded-[18px] border border-border/70 bg-surface shadow-card p-3.5">
-          <span className="text-xs text-muted-subtle">ลูกค้าต่อวัน</span>
-          <b className="block font-display text-2xl tabular-nums">{avgGuests === null ? "—" : Math.round(avgGuests).toLocaleString("th-TH")}</b>
-          <span className="text-xs text-muted-subtle">{withGuests.length ? `เฉลี่ย ${withGuests.length} วันที่มีจำนวนลูกค้า` : "ยังไม่มีวันที่กรอกจำนวนลูกค้า"}</span>
-          {avgGuests !== null && prevGuests !== null && (
-            <span className={`text-xs ${avgGuests >= prevGuests ? "text-good" : "text-bad"}`}>
-              {avgGuests >= prevGuests ? "▲" : "▼"} {Math.abs(Math.round(avgGuests - prevGuests)).toLocaleString("th-TH")} คน/วัน เทียบ {vsLabel}
-            </span>
-          )}
-        </div>
+      <StatGrid className={seeMoney ? "" : "lg:grid-cols-2"}>
+        <Stat
+          icon={Users}
+          label="ลูกค้าต่อวัน"
+          value={avgGuests === null ? "—" : Math.round(avgGuests).toLocaleString("th-TH")}
+          sub={
+            <>
+              <span className="block">{withGuests.length ? `เฉลี่ย ${withGuests.length} วันที่มีจำนวนลูกค้า` : "ยังไม่มีวันที่กรอกจำนวนลูกค้า"}</span>
+              {avgGuests !== null && prevGuests !== null && (
+                <span className={`block ${avgGuests >= prevGuests ? "text-good" : "text-bad"}`}>
+                  {avgGuests >= prevGuests ? "▲" : "▼"} {Math.abs(Math.round(avgGuests - prevGuests)).toLocaleString("th-TH")} คน/วัน เทียบ {vsLabel}
+                </span>
+              )}
+            </>
+          }
+        />
         {seeMoney && (
-          <div className="rounded-[18px] border border-border/70 bg-surface shadow-card p-3.5">
-            <span className="text-xs text-muted-subtle">ต่อหัว</span>
-            <b className="block font-display text-2xl tabular-nums">{perHead === null ? "—" : baht(perHead, 1)}</b>
-            {/* Queue item 10: "—" with its reason. */}
-            <span className="text-xs text-muted-subtle">
-              {perHead === null
-                ? withGuests.length === 0
-                  ? "คิดได้เมื่อมีวันที่กรอกจำนวนลูกค้า"
-                  : "ยังไม่มีวันที่มีทั้งยอดขายและจำนวนลูกค้า"
-                : "ยอดขาย ÷ ลูกค้า ของวันที่มีทั้งสองอย่าง"}
-            </span>
-            {perHead !== null && prevHead !== null && (
-              <span className={`text-xs ${perHead >= prevHead ? "text-good" : "text-bad"}`}>
-                {perHead >= prevHead ? "▲" : "▼"} {baht(Math.abs(perHead - prevHead), 0)} เทียบ {vsLabel}
-              </span>
-            )}
-          </div>
+          <Stat
+            icon={UserRound}
+            label="ต่อหัว"
+            value={perHead === null ? "—" : baht(perHead, 1)}
+            sub={
+              <>
+                {/* Queue item 10: "—" with its reason. */}
+                <span className="block">
+                  {perHead === null
+                    ? withGuests.length === 0
+                      ? "คิดได้เมื่อมีวันที่กรอกจำนวนลูกค้า"
+                      : "ยังไม่มีวันที่มีทั้งยอดขายและจำนวนลูกค้า"
+                    : "ยอดขาย ÷ ลูกค้า ของวันที่มีทั้งสองอย่าง"}
+                </span>
+                {perHead !== null && prevHead !== null && (
+                  <span className={`block ${perHead >= prevHead ? "text-good" : "text-bad"}`}>
+                    {perHead >= prevHead ? "▲" : "▼"} {baht(Math.abs(perHead - prevHead), 0)} เทียบ {vsLabel}
+                  </span>
+                )}
+              </>
+            }
+          />
         )}
         {seeMoney && (
-          <div className="rounded-[18px] border border-border/70 bg-surface shadow-card p-3.5">
-            <span className="text-xs text-muted-subtle">เงินขาด/เกินสะสม</span>
-            <b className={`block font-display text-2xl tabular-nums ${cashTotal < 0 ? "text-bad" : ""}`}>
-              {cashRows.length === 0 ? "—" : cashTotal === 0 ? "ตรง" : cashTotal < 0 ? `ขาด ${baht(-cashTotal, 2)}` : `เกิน ${baht(cashTotal, 2)}`}
-            </b>
-            <span className="text-xs text-muted-subtle">{cashRows.length ? `ขาด ${shortDays} วัน · เกิน ${overDays} วัน · จาก ${cashRows.length} วันที่นับ` : "ยังไม่มีวันที่นับเงินครบ"}</span>
-          </div>
+          <Stat
+            icon={Banknote}
+            label="เงินขาด/เกินสะสม"
+            tone={cashTotal < 0 ? "bad" : undefined}
+            value={cashRows.length === 0 ? "—" : cashTotal === 0 ? "ตรง" : cashTotal < 0 ? `ขาด ${baht(-cashTotal, 2)}` : `เกิน ${baht(cashTotal, 2)}`}
+            sub={cashRows.length ? `ขาด ${shortDays} วัน · เกิน ${overDays} วัน · จาก ${cashRows.length} วันที่นับ` : "ยังไม่มีวันที่นับเงินครบ"}
+          />
         )}
-        <div className="rounded-[18px] border border-border/70 bg-surface shadow-card p-3.5">
-          <span className="text-xs text-muted-subtle">ปัญหาที่ยังค้าง</span>
-          {/* Queue item 10: "0 จาก 0" said nothing — nothing was recorded. */}
-          <b className={`block font-display text-2xl tabular-nums ${open > 0 ? "text-bad" : ""}`}>{allIssues === 0 ? "—" : open}</b>
-          <span className="text-xs text-muted-subtle">{allIssues === 0 ? "ยังไม่มีปัญหาที่บันทึกเดือนนี้" : `จาก ${allIssues} ที่บันทึกเดือนนี้`}</span>
-        </div>
-      </div>
+        {/* Queue item 10: "0 จาก 0" said nothing — nothing was recorded. */}
+        <Stat
+          icon={CircleAlert}
+          label="ปัญหาที่ยังค้าง"
+          tone={open > 0 ? "bad" : undefined}
+          value={allIssues === 0 ? "—" : open}
+          sub={allIssues === 0 ? "ยังไม่มีปัญหาที่บันทึกเดือนนี้" : `จาก ${allIssues} ที่บันทึกเดือนนี้`}
+        />
+      </StatGrid>
 
       <MonthInsight
         days={asMix(data.rows)}
@@ -182,27 +217,58 @@ export default async function ClosingMonthPage({ searchParams }: { searchParams:
       {data.rows.length === 0 ? (
         <p className="rounded-xl border border-border bg-muted/30 p-6 text-sm text-muted-foreground">ยังไม่มีข้อมูลของเดือนนี้</p>
       ) : (
-        <div className="data-table">
-          <table className="w-full min-w-[640px] text-sm">
-            <thead>
-              <tr>
-                <th>วัน</th>
-                {seeMoney && <th className="text-right">ยอดขาย</th>}
-                <th className="text-right">ลูกค้า</th>
-                {seeMoney && <th className="text-right">ต่อหัว</th>}
-                {seeMoney && <th className="text-right">เงินสด</th>}
-                <th>ปัญหา</th>
-                <th className="text-right">ความเห็น</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.rows.map((r) => {
-                const d = new Date(`${r.date}T00:00:00Z`);
-                return (
+        <>
+          {/* Queue item 9: a phone read seven columns through a sideways scroll
+              and saw three. Each day is a card; what was not filled in is left
+              out of it rather than shown as 0. The whole card opens the day. */}
+          <ul className="space-y-2 sm:hidden">
+            {data.rows.map((r) => {
+              const meta = r.closed
+                ? [
+                    r.guestCount !== null ? `ลูกค้า ${r.guestCount.toLocaleString("th-TH")}` : null,
+                    seeMoney && r.perHead !== null ? `ต่อหัว ${baht(r.perHead, 0)}` : null,
+                    seeMoney && r.cashDiff !== null ? `เงินสด ${cashTh(r.cashDiff)}` : null,
+                    r.comments > 0 ? `ความเห็น ${r.comments}` : null,
+                  ].filter(Boolean)
+                : [];
+              return (
+                <li key={r.date}>
+                  <a href={dayLink(r.date)} className="block rounded-[18px] border border-border/70 bg-surface p-3.5 shadow-card transition-colors hover:bg-surface-sunk">
+                    <span className="flex items-baseline justify-between gap-3">
+                      <b className="font-display font-semibold">{dayTh(r.date)}</b>
+                      {seeMoney && <span className="font-display font-semibold tabular-nums">{r.netRevenue === null ? "—" : baht(r.netRevenue)}</span>}
+                    </span>
+                    <span className="mt-1 flex items-start justify-between gap-3">
+                      <span className="min-w-0 text-xs text-muted-foreground">
+                        {/* "วันนี้" on a past day read as today; the chip already says it was not closed. */}
+                        {!r.closed ? (canFill ? "กดเพื่อปิดร้านย้อนหลัง" : "ไม่มีใบปิดร้านของวันนั้น") : meta.length > 0 ? meta.join(" · ") : "ปิดร้านแล้ว"}
+                      </span>
+                      <IssueChips r={r} closed={r.closed} />
+                    </span>
+                  </a>
+                </li>
+              );
+            })}
+          </ul>
+          <div className="data-table hidden sm:block">
+            <table className="w-full min-w-[640px] text-sm">
+              <thead>
+                <tr>
+                  <th>วัน</th>
+                  {seeMoney && <th className="text-right">ยอดขาย</th>}
+                  <th className="text-right">ลูกค้า</th>
+                  {seeMoney && <th className="text-right">ต่อหัว</th>}
+                  {seeMoney && <th className="text-right">เงินสด</th>}
+                  <th>ปัญหา</th>
+                  <th className="text-right">ความเห็น</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.rows.map((r) => (
                   <tr key={r.date} className="group relative hover:bg-muted/50">
                     <td>
                       <a href={dayLink(r.date)} className="after:absolute after:inset-0 after:content-['']">
-                        {WD[d.getUTCDay()]} {d.getUTCDate()}
+                        {dayTh(r.date)}
                       </a>
                       {!r.closed && <span className="ml-1.5 text-xs text-muted-subtle">ไม่ได้ปิดร้าน</span>}
                     </td>
@@ -215,20 +281,16 @@ export default async function ClosingMonthPage({ searchParams }: { searchParams:
                       </td>
                     )}
                     <td>
-                      <span className="flex flex-wrap gap-1">
-                        {r.issuesOpen > 0 && <span className="whitespace-nowrap rounded-full bg-bad-bg px-2 py-0.5 text-[11px] text-bad">ค้าง {r.issuesOpen}</span>}
-                        {r.issuesResolved > 0 && <span className="whitespace-nowrap rounded-full bg-good-bg px-2 py-0.5 text-[11px] text-good">จัดการแล้ว {r.issuesResolved}</span>}
-                        {r.issuesNoted > 0 && <span className="whitespace-nowrap rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">จดไว้ {r.issuesNoted}</span>}
-                        {r.issuesOpen + r.issuesResolved + r.issuesNoted === 0 && <span className="text-xs text-muted-subtle">—</span>}
-                      </span>
+                      {/* The dash reads like every other empty cell. */}
+                      {r.issuesOpen + r.issuesResolved + r.issuesNoted === 0 ? "—" : <IssueChips r={r} closed />}
                     </td>
                     <td className="text-right tabular-nums">{r.comments || "—"}</td>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
     </div>
   );

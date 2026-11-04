@@ -22,6 +22,7 @@ export default function Stat({
   onClick,
   pressed,
   icon,
+  className = "",
 }: {
   label: ReactNode;
   value: ReactNode;
@@ -34,6 +35,8 @@ export default function Stat({
   pressed?: boolean;
   /** Queue item 9: the figure's line icon, as on the dashboard. */
   icon?: LucideIcon;
+  /** Grid placement, or the yellow of a card that is waiting on the reader. */
+  className?: string;
 }) {
   const body = (
     <>
@@ -51,7 +54,7 @@ export default function Stat({
       {sub && <span className="text-xs text-muted-foreground">{sub}</span>}
     </>
   );
-  const cls = "flex min-w-0 flex-col gap-0.5 rounded-[18px] border border-border/70 bg-surface shadow-card px-3.5 py-3 text-left";
+  const cls = `flex min-w-0 flex-col gap-0.5 rounded-[18px] border border-border/70 bg-surface shadow-card px-3.5 py-3 text-left ${className}`;
   if (onClick)
     return (
       <button type="button" onClick={onClick} aria-pressed={pressed} className={`${cls} transition-colors hover:bg-surface-sunk ${pressed ? "border-primary ring-1 ring-primary" : ""}`}>

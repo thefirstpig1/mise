@@ -24,6 +24,7 @@
 
 import { useActionState, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import QtyStepper from "@/components/ui/QtyStepper";
+import SelectChip from "@/components/ui/SelectChip";
 import { dropPrefetched, menuSheet, ingredientInsight } from "./prefetch";
 import { createRecipeAction, deleteRecipeAction, saveRecipeForBranchAction, updateRecipeAction, type RecipeActionState } from "@/app/(app)/recipes/actions";
 import { confirmMenuAliasAction, updateMenuAction, type MenuAliasActionState } from "@/app/(app)/menus/actions";
@@ -489,36 +490,39 @@ export default function MenuSheet(props: {
           </div>
           {perm.editMenu ? (
             <div className={`grid gap-2 text-sm ${props.departmentsEnabled ? "grid-cols-1 sm:grid-cols-3" : "grid-cols-1 sm:grid-cols-2"}`}>
-              <label className="grid gap-0.5">
-                <span className="pl-2.5 text-[11px] text-muted-subtle">หมวด</span>
-                <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className="w-full rounded-full border border-border bg-surface px-2.5 py-1">
-                  <option value="">— ไม่ระบุหมวด —</option>
-                  {props.categories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
+              {/* Queue item 9: the same chip the expense filters use — the
+                  rounded-full selects sat under labels offset to their curve. */}
+              <label className="grid gap-1">
+                <span className="text-[11px] text-muted-subtle">หมวด</span>
+                <SelectChip
+                  size="sm"
+                  value={categoryId}
+                  onChange={setCategoryId}
+                  options={[{ value: "", label: "ไม่ระบุหมวด" }, ...props.categories.map((c) => ({ value: c.id, label: c.name }))]}
+                />
               </label>
               {props.departmentsEnabled && (
-                <label className="grid gap-0.5">
-                  <span className="pl-2.5 text-[11px] text-muted-subtle">แผนกที่รับรายได้</span>
-                  <select value={departmentId} onChange={(e) => setDepartmentId(e.target.value)} className="w-full rounded-full border border-border bg-surface px-2.5 py-1">
-                    <option value="">— ไม่ระบุแผนก —</option>
-                    {props.departments.map((d) => (
-                      <option key={d.id} value={d.id}>
-                        {d.name}
-                      </option>
-                    ))}
-                  </select>
+                <label className="grid gap-1">
+                  <span className="text-[11px] text-muted-subtle">แผนกที่รับรายได้</span>
+                  <SelectChip
+                    size="sm"
+                    value={departmentId}
+                    onChange={setDepartmentId}
+                    options={[{ value: "", label: "ไม่ระบุแผนก" }, ...props.departments.map((d) => ({ value: d.id, label: d.name }))]}
+                  />
                 </label>
               )}
-              <label className="grid gap-0.5">
-                <span className="pl-2.5 text-[11px] text-muted-subtle">สถานะ</span>
-                <select value={retired ? "retired" : "selling"} onChange={(e) => setRetired(e.target.value === "retired")} className="w-full rounded-full border border-border bg-surface px-2.5 py-1">
-                  <option value="selling">ขายอยู่</option>
-                  <option value="retired">เลิกขายแล้ว</option>
-                </select>
+              <label className="grid gap-1">
+                <span className="text-[11px] text-muted-subtle">สถานะ</span>
+                <SelectChip
+                  size="sm"
+                  value={retired ? "retired" : "selling"}
+                  onChange={(v) => setRetired(v === "retired")}
+                  options={[
+                    { value: "selling", label: "ขายอยู่" },
+                    { value: "retired", label: "เลิกขายแล้ว" },
+                  ]}
+                />
               </label>
             </div>
           ) : (

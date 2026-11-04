@@ -5,6 +5,7 @@
 // chosen", which is English, tiny and cannot be styled.
 
 import { useRef, useState } from "react";
+import { FileCheck2, FileUp } from "lucide-react";
 
 export default function FileDrop({
   accept,
@@ -51,7 +52,13 @@ export default function FileDrop({
           e.target.value = "";
         }}
       />
-      <span className="font-display font-semibold">{fileName ? `📄 ${fileName}` : "📄 แตะเพื่อเลือกไฟล์ หรือลากไฟล์มาวาง"}</span>
+      {/* Queue item 9: a line icon like every other control, not the 📄 emoji. */}
+      {fileName ? (
+        <FileCheck2 aria-hidden className="h-6 w-6 text-primary" strokeWidth={1.8} />
+      ) : (
+        <FileUp aria-hidden className="h-6 w-6 text-primary" strokeWidth={1.8} />
+      )}
+      <span className="font-display font-semibold">{fileName ?? "แตะเพื่อเลือกไฟล์ หรือลากไฟล์มาวาง"}</span>
       {hint && <span className="text-xs text-muted-subtle">{hint}</span>}
       {fileName && <span className="text-xs text-primary">แตะเพื่อเปลี่ยนไฟล์</span>}
     </label>

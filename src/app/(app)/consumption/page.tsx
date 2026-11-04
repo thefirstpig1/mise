@@ -73,9 +73,6 @@ export default async function ConsumptionPage({
           return null;
         });
 
-  const unposted = days.filter((d) => d.state === "NOT_POSTED").length;
-  const stale = days.filter((d) => d.state === "POSTED_STALE").length;
-
   return (
     <PageFrame title="ขายและเมนู">
       <div className="space-y-6">
@@ -104,36 +101,19 @@ export default async function ConsumptionPage({
           }
         />
 
-        {stale > 0 && (
-          <div className="rounded-lg border border-warn-border bg-warn-bg p-4 text-sm text-warn">
-            <p className="font-medium">
-              {stale} วันถูกตัดไว้ก่อนที่สูตรจะเปลี่ยน
-            </p>
-            <p className="mt-1 text-xs">
-              มีสูตรที่มีผลกับวันเหล่านั้นถูกเขียนหรือแก้หลังจากตัดไปแล้ว ·
-              ระบบ<strong>ไม่ตัดใหม่ให้เอง</strong> เพราะจะเป็นการเขียนทับงวดที่ร้านอาจปิดบัญชีไปแล้ว —
-              กดตัดใหม่เมื่อพร้อม
-            </p>
-          </div>
-        )}
-
-        {unposted > 0 && (
-          <p className="rounded-lg border border-warn-border bg-warn-bg p-3 text-sm text-warn">
-            ยังมี {unposted} วันที่ยอดขายเข้ามาแล้วแต่ยังไม่ได้ตัดสต๊อก —
-            ต้นทุนของวันเหล่านั้นยังไม่ถูกนับ กำไรขั้นต้นแบบสูตรอาหารจึงยังดูดีเกินจริง
-          </p>
-        )}
-
-        {accuracy && (
-          <Suspense fallback={<AccuracySkeleton />}>
-            <AccuracyPanel key={branchId} overview={accuracy} branchName={branches.find((b) => b.id === branchId)?.name ?? ""} initialKey={params.count ?? null} />
-          </Suspense>
-        )}
-
+        {/* Queue item 9: the two yellow boxes live inside the day table now,
+            each with the press for its own days, and the accuracy report sits
+            between that box and the table. */}
         {branchId === undefined ? (
           <p className="text-sm text-muted-foreground">ยังไม่มีสาขาในระบบ</p>
         ) : (
-          <ConsumptionDayTable days={days} branchId={branchId} />
+          <ConsumptionDayTable days={days} branchId={branchId}>
+            {accuracy && (
+              <Suspense fallback={<AccuracySkeleton />}>
+                <AccuracyPanel key={branchId} overview={accuracy} branchName={branches.find((b) => b.id === branchId)?.name ?? ""} initialKey={params.count ?? null} />
+              </Suspense>
+            )}
+          </ConsumptionDayTable>
         )}
 
         {/* Kong 2026-10-31 ("จัดมาตามนั้น"): the old note said prepped goods had

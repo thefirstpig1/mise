@@ -145,9 +145,9 @@ function Panel({ data, branchName, initialKey }: { data: AccuracyOverview; branc
       ) : (
         <>
           {view.summary.measured === 0 ? (
-            <div className="space-y-1 rounded-xl bg-muted/50 p-4 text-sm">
-              <p className="font-medium">ใบนับนี้ยังไม่มีวัตถุดิบที่เทียบได้</p>
-              <p className="text-muted-foreground">
+            <div className="note space-y-1">
+              <p className="font-medium text-foreground">ใบนับนี้ยังไม่มีวัตถุดิบที่เทียบได้</p>
+              <p>
                 นับ {view.summary.counted} รายการ · วัตถุดิบที่นับเป็นครั้งแรกโดยไม่มีการรับของบันทึกไว้ก่อน คือยอดตั้งต้น และวัตถุดิบที่ระบบไม่ได้ตัดตามสูตรในช่วงนี้ ไม่มีอะไรให้เทียบ
                 {measured.length > 0 ? " · เลือกใบนับอื่นจากกราฟด้านล่าง" : " · นับอีกครั้งหลังขายไปสักช่วงจะเริ่มเห็นตัวเลข"}
               </p>

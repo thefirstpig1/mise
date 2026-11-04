@@ -29,6 +29,9 @@ import NewCategoryForm from "./NewCategoryForm";
 import EmptyState from "@/components/ui/EmptyState";
 import PageHeader from "@/components/ui/PageHeader";
 import Stat, { StatGrid } from "@/components/ui/Stat";
+import PillScroller from "@/components/ui/PillScroller";
+import ToolsMenu, { type Tool } from "@/components/ui/ToolsMenu";
+import { BookOpen, FileUp, GitMerge, Percent, Replace, ScrollText, TriangleAlert } from "lucide-react";
 import MenuSheet from "./MenuSheet";
 import { Portal } from "./sheet-parts";
 import { ingredientOptions, menuSheet, priceBook } from "./prefetch";
@@ -90,9 +93,36 @@ function Marked({ text, marks }: { text: string; marks: readonly number[] }) {
 /** Food cost % on a 0–80% bar, the target as a tick; over the target turns it red. */
 function CostBar({ pct, target, over }: { pct: number; target: number; over: boolean }) {
   return (
-    <span className="relative inline-block h-2 w-24 flex-none rounded-full bg-muted" aria-hidden="true">
+    <span className="relative block h-2 w-full min-w-12 rounded-full bg-muted" aria-hidden="true">
       <span className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${Math.min(100, (pct / BAR_MAX) * 100)}%`, background: over ? "#DD8A74" : "#AEB784" }} />
       <span className="absolute -top-[3px] h-3.5 w-0.5 rounded-sm bg-primary" style={{ left: `${Math.min(100, (target / BAR_MAX) * 100)}%` }} />
+    </span>
+  );
+}
+
+/**
+ * Rule RC-LB's word, small and on its own line ABOVE the figure (Kong
+ * 2026-11-04, answer ก): "อย่างน้อย 36.9%" in a narrow column broke into three
+ * lines; now the figure is always one line and every row is the same height.
+ */
+function Bound({ low, word }: { low: boolean; word: "อย่างน้อย" | "ไม่เกิน" }) {
+  return low ? <span className="block font-sans text-[11px] font-normal leading-tight text-muted-subtle">{word}</span> : null;
+}
+
+/** The food-cost cell: the bar and the figure on one line, "over by" under them in its own column. */
+function PctCell({ pct, target, over, overBy, low, strong = false }: { pct: number; target: number; over: boolean; overBy: number; low: boolean; strong?: boolean }) {
+  return (
+    <span className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2.5 gap-y-1">
+      <CostBar pct={pct} target={target} over={over} />
+      <span className={`whitespace-nowrap text-right tabular-nums ${strong ? "font-display font-semibold" : "font-medium"}`}>
+        <Bound low={low} word="อย่างน้อย" />
+        {pct1(pct)}
+      </span>
+      {over && (
+        <span className="col-span-2">
+          <span className="chip chip-bad">เกิน {overBy.toFixed(1)} จุด</span>
+        </span>
+      )}
     </span>
   );
 }
@@ -437,6 +467,14 @@ export default function MenuManager(props: {
   );
   if (status === "write" && !statusPills.includes("write")) statusPills.splice(2, 0, "write");
 
+  const tools: Tool[] = [
+    ...(perm.editMenu
+      ? [{ href: "/menus/merges", icon: GitMerge, label: "รวมเมนูที่ซ้ำ", hint: `จานเดียวกันที่ POS แต่ละสาขาส่งมาคนละรหัส${dupCount > 0 ? ` · น่าจะซ้ำ ${dupCount}` : ""}` }]
+      : []),
+    ...(perm.recipeShared ? [{ href: "/recipes/substitute", icon: Replace, label: "เปลี่ยนวัตถุดิบในหลายสูตร", hint: "เช่น เปลี่ยนยี่ห้อน้ำปลาในทุกสูตรทีเดียว" }] : []),
+    ...(perm.recipe ? [{ href: "/menus/import", icon: FileUp, label: "นำเข้าสูตรจากไฟล์", hint: "ให้ AI ที่ร้านใช้ช่วยแปลงสูตรเป็นไฟล์ แล้วอัปโหลด" }] : []),
+  ];
+
   const cols = costHidden
     ? "md:grid-cols-[minmax(0,3fr)_1fr_0.9fr_1.2fr]"
     : "md:grid-cols-[minmax(0,2.3fr)_1fr_0.8fr_0.9fr_1.9fr_0.9fr_1fr]";
@@ -558,20 +596,41 @@ export default function MenuManager(props: {
             </>
           ) : (
             <>
-              <span className="text-right tabular-nums">{has ? atLeastTh(f.low, baht(f.cost!, 2)) : "—"}</span>
-              <span className="flex min-w-0 items-center gap-2">
-                {f.pct === null ? (
-                  <span className="text-sm text-muted-subtle">{m.qty === 0 ? "ยังไม่มียอดขาย" : "—"}</span>
+              <span className="text-right tabular-nums">
+                {has ? (
+                  <>
+                    <Bound low={f.low} word="อย่างน้อย" />
+                    {baht(f.cost!, 2)}
+                  </>
+                ) : (
+                  "—"
+                )}
+              </span>
+              {f.pct === null ? (
+                <span className="text-sm text-muted-subtle">{m.qty === 0 ? "ยังไม่มียอดขาย" : "—"}</span>
+              ) : (
+                <PctCell pct={f.pct} target={f.target} over={f.over} overBy={f.overBy!} low={f.low} />
+              )}
+              <span className="text-right tabular-nums">
+                {f.profitPlate === null ? (
+                  "—"
                 ) : (
                   <>
-                    <CostBar pct={f.pct} target={f.target} over={f.over} />
-                    <span className="w-12 flex-none text-right font-medium tabular-nums">{atLeastTh(f.low, pct1(f.pct))}</span>
-                    {f.over && <span className="chip chip-bad">เกิน {f.overBy!.toFixed(1)} จุด</span>}
+                    <Bound low={f.low} word="ไม่เกิน" />
+                    {baht(f.profitPlate, 2)}
                   </>
                 )}
               </span>
-              <span className="text-right tabular-nums">{f.profitPlate === null ? "—" : atMostTh(f.low, baht(f.profitPlate, 2))}</span>
-              <span className="text-right font-semibold tabular-nums">{f.profit30 === null ? "—" : atMostTh(f.low, baht(f.profit30))}</span>
+              <span className="text-right font-semibold tabular-nums">
+                {f.profit30 === null ? (
+                  "—"
+                ) : (
+                  <>
+                    <Bound low={f.low} word="ไม่เกิน" />
+                    {baht(f.profit30)}
+                  </>
+                )}
+              </span>
             </>
           )}
         </div>
@@ -629,21 +688,10 @@ export default function MenuManager(props: {
         description="ทุกเมนูที่ร้านขาย พร้อมสูตร ต้นทุน และกำไร · กดที่แถวเพื่อดูและแก้ไขได้ในที่เดียว"
         actions={
           <>
-            {perm.editMenu && (
-              <a href="/menus/merges" className="btn-secondary">
-                รวมเมนูที่ซ้ำ
-              </a>
-            )}
-            {perm.recipeShared && (
-              <a href="/recipes/substitute" className="btn-secondary">
-                เปลี่ยนวัตถุดิบในหลายสูตร
-              </a>
-            )}
-            {perm.recipe && (
-              <a href="/menus/import" className="btn-secondary">
-                นำเข้าสูตรจากไฟล์
-              </a>
-            )}
+            {/* Kong 2026-11-04 (answer 1): one main action; the other three are
+                tools, each with the line that says what it is for. Merging
+                keeps its button in the yellow box whenever duplicates exist. */}
+            <ToolsMenu tools={tools} />
             {perm.recipe && (
               <a href="/menus/lab/new" className="btn">
                 + ทดลองเมนูใหม่
@@ -734,6 +782,7 @@ export default function MenuManager(props: {
 
             <StatGrid className={costHidden ? "lg:grid-cols-2" : ""}>
               <Stat
+                icon={BookOpen}
                 label="เมนูที่ขายอยู่"
                 value={selling.length}
                 sub={
@@ -751,7 +800,8 @@ export default function MenuManager(props: {
                 }
               />
               <Stat
-                label={`มีสูตรแล้ว คิดเป็นยอดขาย ${factDays} วัน`}
+                icon={ScrollText}
+                label="มีสูตรแล้ว"
                 value={
                   stats.coverage === null ? <WaitingSlot figure="recipeCoverage" needs={["sales"]} reason="ยังไม่มียอดขายในช่วงนี้" /> : `${stats.coverage.toFixed(0)}%`
                 }
@@ -761,14 +811,15 @@ export default function MenuManager(props: {
                       <span className="mb-1 mt-0.5 block h-1.5 overflow-hidden rounded-full bg-muted">
                         <span className="block h-full rounded-full bg-primary" style={{ width: `${stats.coverage}%` }} />
                       </span>
-                      {baht(stats.total - stats.covered)} ยังคิดต้นทุนไม่ได้
+                      ของยอดขาย {factDays} วัน · {baht(stats.total - stats.covered)} ยังคิดต้นทุนไม่ได้
                     </>
                   )
                 }
               />
               {!costHidden && (
                 <Stat
-                  label="ต้นทุนตามสูตร เทียบยอดขาย"
+                  icon={Percent}
+                  label="ต้นทุนตามสูตร"
                   tone={stats.foodCost !== null && stats.foodCost > stats.target ? "bad" : undefined}
                   value={
                     pricesLoading ? (
@@ -780,7 +831,10 @@ export default function MenuManager(props: {
                         reason="ยังไม่มีเมนูที่มีสูตรและมียอดขาย"
                       />
                     ) : (
-                      atLeastTh(stats.lowCount > 0, pct1(stats.foodCost))
+                      <>
+                        {stats.lowCount > 0 && <span className="mr-1 font-sans text-[12.5px] font-medium text-muted-foreground">อย่างน้อย</span>}
+                        {pct1(stats.foodCost)}
+                      </>
                     )
                   }
                   sub={
@@ -788,12 +842,13 @@ export default function MenuManager(props: {
                       ? "กำลังคำนวณ…"
                       : stats.foodCost === null
                         ? null
-                        : `เป้า${stats.ownTargets ? " (ถ่วงตามยอดขาย)" : "ร้าน"} ${pctTarget(stats.target)}${stats.foodCost > stats.target ? ` · เกิน ${(stats.foodCost - stats.target).toFixed(1)} จุด` : ""} · คิดจาก ${costedSelling.length} เมนูที่มีสูตร${stats.lowCount > 0 ? ` · ${stats.lowCount} เมนูราคาวัตถุดิบยังไม่ครบ` : ""}`
+                        : `เทียบยอดขาย · เป้า${stats.ownTargets ? " (ถ่วงตามยอดขาย)" : "ร้าน"} ${pctTarget(stats.target)}${stats.foodCost > stats.target ? ` · เกิน ${(stats.foodCost - stats.target).toFixed(1)} จุด` : ""} · คิดจาก ${costedSelling.length} เมนูที่มีสูตร${stats.lowCount > 0 ? ` · ${stats.lowCount} เมนูราคาวัตถุดิบยังไม่ครบ` : ""}`
                   }
                 />
               )}
               {!costHidden && (
                 <Stat
+                  icon={TriangleAlert}
                   label="เกินเป้าต้นทุน"
                   tone={overSelling.length > 0 ? "bad" : costedSelling.length > 0 ? "good" : undefined}
                   value={
@@ -878,7 +933,7 @@ export default function MenuManager(props: {
                   </span>
                 </label>
                 {/* Phone: both switches on one row that scrolls sideways. */}
-                <div className="-mx-3 flex w-[calc(100%+1.5rem)] items-center gap-2 overflow-x-auto px-3 sm:mx-0 sm:w-auto sm:gap-2.5 sm:overflow-visible sm:px-0">
+                <PillScroller className="-mx-3 w-[calc(100%+1.5rem)] items-center gap-2 px-3 sm:mx-0 sm:w-auto sm:gap-2.5 sm:overflow-visible sm:px-0">
                 <span className="hidden text-[13px] text-muted-foreground sm:inline">แสดง</span>
                 <div className="seg flex-none flex-nowrap" role="group" aria-label="แสดงแบบ">
                   <button type="button" onClick={() => setMode("cat")} className={`seg-item ${mode === "cat" ? "is-on" : ""}`}>
@@ -907,10 +962,10 @@ export default function MenuManager(props: {
                     ชื่อ
                   </button>
                 </div>
-                </div>
+                </PillScroller>
               </div>
               {/* Phone: one row that scrolls sideways, so the bar stays short. */}
-              <div className="-mx-3 flex gap-1.5 overflow-x-auto px-3 pb-3 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
+              <PillScroller className="-mx-3 px-3 pb-3 sm:mx-0 sm:overflow-visible sm:px-0">
                 <div className="flex flex-none gap-1.5 sm:flex-wrap" role="group" aria-label="สถานะ">
                   {statusPills.map((s) => (
                     <button key={s} type="button" className={`pill flex-none gap-1.5 ${status === s ? "is-on" : ""}`} onClick={() => setStatus(s === status && s !== "all" ? "all" : s)}>
@@ -937,7 +992,7 @@ export default function MenuManager(props: {
                     </button>
                   )}
                 </div>
-              </div>
+              </PillScroller>
               <div className={`-mx-3 hidden gap-x-3.5 rounded-b-2xl border-t border-border bg-surface-sunk px-4 py-2 text-xs font-medium text-muted-subtle sm:-mx-4 md:grid ${cols}`}>
                 <span>เมนู</span>
                 <span className="text-right">ขาย {factDays} วัน</span>
@@ -1073,22 +1128,27 @@ export default function MenuManager(props: {
                           ) : (
                             <>
                               <span className="hidden md:block" />
-                              <span className="hidden min-w-0 items-center gap-2 md:flex">
+                              <span className="hidden min-w-0 md:block">
                                 {pricesLoading ? (
                                   pulse("w-28")
                                 ) : g.pct === null ? (
                                   <span className="text-sm text-muted-subtle">ยังคิดไม่ได้</span>
                                 ) : (
-                                  <>
-                                    <CostBar pct={g.pct} target={g.target} over={over} />
-                                    <span className="w-12 flex-none text-right font-display font-semibold tabular-nums">{atLeastTh(g.low, pct1(g.pct))}</span>
-                                    {over && <span className="chip chip-bad">เกิน {(g.pct - g.target).toFixed(1)} จุด</span>}
-                                  </>
+                                  <PctCell pct={g.pct} target={g.target} over={over} overBy={g.pct - g.target} low={g.low} strong />
                                 )}
                               </span>
                               <span className="hidden md:block" />
                               <span className="hidden text-right font-display font-semibold tabular-nums md:block">
-                                {pricesLoading ? pulse("w-16") : g.profit === null ? "—" : atMostTh(g.low, baht(g.profit))}
+                                {pricesLoading ? (
+                                  pulse("w-16")
+                                ) : g.profit === null ? (
+                                  "—"
+                                ) : (
+                                  <>
+                                    <Bound low={g.low} word="ไม่เกิน" />
+                                    {baht(g.profit)}
+                                  </>
+                                )}
                                 <span className="block font-sans text-xs font-normal text-muted-subtle">กำไรของหมวด</span>
                               </span>
                             </>
