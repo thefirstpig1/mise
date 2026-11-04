@@ -26,7 +26,7 @@ export function MenuLink({ id, children, className = "" }: { id: string; childre
     <button
       type="button"
       onClick={() => ctx.open(id)}
-      title="ดู insight ของเมนูนี้"
+      title="ดูอินไซต์ของเมนูนี้"
       className={`text-left underline decoration-border-strong decoration-dotted decoration-1 underline-offset-4 transition-colors hover:text-primary hover:decoration-primary hover:decoration-solid ${className}`}
     >
       {children}

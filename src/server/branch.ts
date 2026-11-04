@@ -139,7 +139,7 @@ export async function getBranchesLogic(
 /**
  * Which branch a page should open on when the URL names none (Kong 2026-10-24,
  * duplication review D1): the one with the most recent SALES day, then the
- * most recent stock movement. Alphabetical order opened ตัดสต๊อก and สต๊อก on a
+ * most recent stock movement. Alphabetical order opened ตัดสต็อก and สต็อก on a
  * branch that had never sold anything, so the page said "nothing here" while
  * the shop's real branch sat one click away. Only ever chooses among the ids
  * the caller already holds (reach-filtered).

@@ -306,7 +306,7 @@ function ShowExpected() {
 function ProfitMethod() {
   return (
     <div className="grid gap-2">
-      <Side>แบบที่ 1 · จากการนับสต๊อก (ทั้งเดือน)</Side>
+      <Side>แบบที่ 1 · จากการนับสต็อก (ทั้งเดือน)</Side>
       <div className="flex flex-wrap items-center gap-1">
         <Box v="฿20,000" label="ต้นเดือน" />
         <Op>+</Op>

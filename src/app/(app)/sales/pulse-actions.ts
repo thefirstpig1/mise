@@ -94,7 +94,7 @@ export async function recordSalesPulseAction(
         ok: false,
         formError: same
           ? `วันนี้มีข้อมูลจากไฟล์ยอดขายแล้ว จึงแก้ยอดที่คีย์ไว้ไม่ได้ — และทั้งสองตัวตรงกันพอดี (฿${baht(e.detailAmount)})`
-          : `วันนี้มีข้อมูลจากไฟล์ยอดขายแล้ว จึงแก้ยอดที่คีย์ไว้ไม่ได้ — ยอดที่คีย์ไว้ ฿${baht(e.pulseAmount)} · ไฟล์รวมได้ ฿${baht(e.detailAmount)} · ถ้าไฟล์ไม่ครบ ให้ export ใหม่แล้วนำเข้าทับ`,
+          : `วันนี้มีข้อมูลจากไฟล์ยอดขายแล้ว จึงแก้ยอดที่คีย์ไว้ไม่ได้ — ยอดที่คีย์ไว้ ฿${baht(e.pulseAmount)} · ไฟล์รวมได้ ฿${baht(e.detailAmount)} · ถ้าไฟล์ไม่ครบ ให้ดาวน์โหลดไฟล์จาก POS ใหม่แล้วนำเข้าทับ`,
       };
     }
     throw e; // unexpected → let the error boundary handle it

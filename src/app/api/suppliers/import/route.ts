@@ -32,7 +32,7 @@ export function GET(req: Request) {
     return new Response(new Blob([bytes as BlobPart]), {
       headers: {
         "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "Content-Disposition": `attachment; filename="kitkrua-bills-template.xlsx"; filename*=UTF-8''${encodeURIComponent("แม่แบบบิลซื้อ-คิดครัว.xlsx")}`,
+        "Content-Disposition": `attachment; filename="kitkrua-bills-template.xlsx"; filename*=UTF-8''${encodeURIComponent("เทมเพลตบิลซื้อ-คิดครัว.xlsx")}`,
         "Cache-Control": "no-store",
       },
     });

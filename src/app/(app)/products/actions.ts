@@ -158,7 +158,7 @@ function buildTypeChangeBlockedMessage(recipeNames: string[]): string {
 }
 
 const METHOD_CONFLICT_MESSAGE =
-  "สินค้านี้มีสูตรผลิตอยู่แล้ว — เลือกได้อย่างเดียว: สูตรผลิต หรือ สินค้าแม่ + เปอร์เซ็นต์ผลผลิต";
+  "สินค้านี้มีสูตรผลิตอยู่แล้ว — เลือกได้อย่างเดียว: สูตรผลิต หรือ สินค้าแม่ + ยิลด์";
 
 const RECIPE_DEPTH_MESSAGE =
   "เปลี่ยนประเภทไม่ได้ — จะทำให้สูตรที่ใช้สินค้านี้ซ้อนกันเกิน 5 ชั้น";
@@ -177,7 +177,7 @@ function rawFromFormData(formData: FormData): Record<string, unknown> {
 
   // 7c: cleanse stale parent/yield when the user toggles PREPPED→RAW. Without
   // this the FormData still carries the old PREPPED values and zod's
-  // superRefine would fire "วัตถุดิบต้องไม่มีสินค้าแม่/เปอร์เซ็นต์ผลผลิต" even though
+  // superRefine would fire "วัตถุดิบต้องไม่มีสินค้าแม่/ยิลด์" even though
   // the user's *intent* is RAW. The form is required to always submit `type`
   // (no zod default reliance — see comment on the `type` field in
   // src/lib/validations/product.ts): if it's missing/invalid, zod fails with

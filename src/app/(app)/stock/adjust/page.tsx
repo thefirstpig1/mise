@@ -69,7 +69,7 @@ export default async function StockAdjustPage({ searchParams }: { searchParams: 
   return (
     <div className="max-w-3xl space-y-6">
       <div>
-        <h2 className="text-2xl font-semibold">ปรับสต๊อก</h2>
+        <h2 className="text-2xl font-semibold">ปรับสต็อก</h2>
         {/* Part 17 Q4 retired ของเสีย/ของชำรุด from this form; this line still
             advertised them, which is worse than a stale comment — it promises
             the user an option that is not in the dropdown below it. */}
@@ -99,7 +99,7 @@ export default async function StockAdjustPage({ searchParams }: { searchParams: 
           <aside className="h-fit rounded-[18px] border border-border/70 bg-surface shadow-card p-4 text-sm">
             <h3 className="font-semibold">ปรับล่าสุด · {branches.find((b) => b.id === initialBranchId)?.name}</h3>
             {recent.length === 0 ? (
-              <p className="mt-1 text-muted-foreground">ยังไม่เคยปรับสต๊อกที่สาขานี้</p>
+              <p className="mt-1 text-muted-foreground">ยังไม่เคยปรับสต็อกที่สาขานี้</p>
             ) : (
               <ul className="mt-2 divide-y divide-border">
                 {recent.map((m) => (

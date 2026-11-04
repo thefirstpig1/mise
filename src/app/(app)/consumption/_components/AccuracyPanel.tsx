@@ -136,10 +136,10 @@ function Panel({ data, branchName, initialKey }: { data: AccuracyOverview; branc
       {!view ? (
         <div className="space-y-2 text-sm">
           <p className="text-muted-foreground">
-            ยังไม่มีใบนับที่ปิดแล้วของ{branchName} · การเทียบใช้การนับสต๊อก: ครั้งแรกเป็นยอดตั้งต้น ครั้งถัดไปจะเห็นว่าที่ระบบตัดตามสูตรตรงกับของที่ใช้ไปจริงแค่ไหน
+            ยังไม่มีใบนับที่ปิดแล้วของ{branchName} · การเทียบใช้การนับสต็อก: ครั้งแรกเป็นยอดตั้งต้น ครั้งถัดไปจะเห็นว่าที่ระบบตัดตามสูตรตรงกับของที่ใช้ไปจริงแค่ไหน
           </p>
           <a href="/stock-counts/new" className="btn-secondary btn-sm inline-flex">
-            เริ่มนับสต๊อก
+            เริ่มนับสต็อก
           </a>
         </div>
       ) : (
@@ -159,7 +159,7 @@ function Panel({ data, branchName, initialKey }: { data: AccuracyOverview; branc
           {view.lateSalesDays.length > 0 && (
             <div className="rounded-xl border border-warn-border bg-warn-bg p-3 text-sm text-warn">
               ยอดขาย <strong>{view.lateSalesDays.length} วัน</strong>ก่อนวันนับ ({view.lateSalesDays.slice(0, 4).map(dayTh).join(" · ")}
-              {view.lateSalesDays.length > 4 ? " …" : ""}) ยังไม่ได้ตัดสต๊อกตอนปิดใบนับ ส่วนต่างในใบนี้จึงรวมของที่ขายไปแล้ว และใบนับครั้งถัดไปจะเห็นเป็นของเกินเท่ากัน
+              {view.lateSalesDays.length > 4 ? " …" : ""}) ยังไม่ได้ตัดสต็อกตอนปิดใบนับ ส่วนต่างในใบนี้จึงรวมของที่ขายไปแล้ว และใบนับครั้งถัดไปจะเห็นเป็นของเกินเท่ากัน
               {data.combined && key !== "combined" && (
                 <>
                   {" "}
@@ -200,7 +200,7 @@ function Panel({ data, branchName, initialKey }: { data: AccuracyOverview; branc
               </span>
             )}
             <span className={`chip ${view.lateSalesDays.length ? "chip-warn" : ""}`}>
-              ยอดขายตัดสต๊อกก่อนนับ: <b>{view.lateSalesDays.length ? `ขาด ${view.lateSalesDays.length} วัน` : "ครบ"}</b>
+              ยอดขายตัดสต็อกก่อนนับ: <b>{view.lateSalesDays.length ? `ขาด ${view.lateSalesDays.length} วัน` : "ครบ"}</b>
             </span>
           </div>
           )}

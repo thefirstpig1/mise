@@ -106,7 +106,7 @@ export type GoodsReceiptLineView = {
   lineNo: number;
   productId: string;
   productName: string;
-  /** The product's base unit today — wording only ("เข้าคลัง 120 กก."). */
+  /** The product's base unit today — wording only ("เข้าสต็อก 120 กก."). */
   baseUnitName: string | null;
   productSku: string;
   productDeleted: boolean;

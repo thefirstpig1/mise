@@ -462,7 +462,7 @@ export function toImportPreviewView(p: ImportPreview): ImportPreviewView {
       p.inconsistentRows > 0
         ? `พบ ${p.inconsistentRows.toLocaleString("th-TH")} แถวที่ ยอดก่อนหัก − ส่วนลด ไม่เท่ากับ ยอดสุทธิ ` +
           `(ต่างมากสุด ${p.largestConsistencyDelta.toFixed(2)} บาท) — ` +
-          "มักเกิดจากตั้งค่า “ตัวเลขรวม VAT / Service charge แล้วหรือยัง” ไม่ตรงกับไฟล์"
+          "มักเกิดจากตั้งค่า “ตัวเลขรวม VAT / เซอร์วิสชาร์จแล้วหรือยัง” ไม่ตรงกับไฟล์"
         : null,
     blankRowNotice:
       p.blankRowsSkipped > 0
@@ -634,7 +634,7 @@ export function toPulseReconciliationView(r: PulseReconciliation): PulseReconcil
       `${DAY_LABEL.format(r.businessDate)} — ยอดที่คีย์ไว้ตอนปิดร้าน ฿${money(r.pulseAmount)} ` +
       `แต่ไฟล์นี้รวมได้ ฿${money(r.detailAmount)} ` +
       (short
-        ? `(ไฟล์ขาดไป ฿${Math.abs(diff).toFixed(2)}) — ไฟล์อาจ export มาไม่ครบทั้งวัน`
+        ? `(ไฟล์ขาดไป ฿${Math.abs(diff).toFixed(2)}) — ไฟล์ที่ดาวน์โหลดจาก POS อาจไม่ครบทั้งวัน`
         : `(ไฟล์เกินมา ฿${diff.toFixed(2)}) — อาจคีย์ยอดตอนปิดร้านผิด หรือไฟล์ครอบวันอื่นมาด้วย`) +
       (r.pulseNote ? ` · หมายเหตุตอนคีย์: “${r.pulseNote}”` : ""),
   };

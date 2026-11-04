@@ -132,7 +132,7 @@ describe("accounting file formats", () => {
     const warned: MonthEndView = { ...view, branches: [{ ...ari, unpricedProducts: 3 }] };
     expect(readinessOf(warned).some((n) => n.tone === "warn")).toBe(true);
     const sheets = sheetsFor("peak", { view: warned, journal, include: { stock: true, branches: false, bills: false } }, new Date());
-    expect(sheets.map((s) => s.name)).toEqual(["Import Multiple Journal", "สต๊อกสิ้นเดือน", "หมายเหตุ"]);
+    expect(sheets.map((s) => s.name)).toEqual(["Import Multiple Journal", "สต็อกสิ้นเดือน", "หมายเหตุ"]);
     expect(sheets[2].rows.some((r) => String(r[1]).includes("ยังไม่มีราคาทุน"))).toBe(true);
   });
 

@@ -261,6 +261,27 @@ touch it. Each one was a measured second on a real page.
 - Chrome screenshots of a background tab often time out; use DOM checks
   (`javascript_tool`) and `document.visibilityState`, retry the screenshot once.
 
+## 8b. Words on screen (Kong 2026-11-04, queue item 8: "อะไรใช้ทับศัพท์ได้ก็ใช้ไปเลย")
+Apply to every new string; the decided words below are not up for re-asking.
+1. A word Thais already SAY in English → write the loanword in Thai script
+   (เดโม, เทมเพลต, เซอร์วิสชาร์จ, อินไซต์, ยิลด์). No Latin words mid-sentence.
+2. Acronyms and product names stay Latin: POS, VAT, AI, SKU, FIFO, COGS, OpEx,
+   CSV, PDF, Excel, LINE, PEAK, FlowAccount, Xero, QuickBooks. Also Latin by
+   decision: Prime cost, package names Free / Standard / Smart, Menu Engineering
+   (a method name), button names quoted from other software (Import, Journal Entries).
+3. Words every Thai app puts on its buttons, and words printed on accounting
+   documents, stay Thai: เข้าสู่ระบบ, บัญชี (the login), ตั้งค่า, บันทึก, ค้นหา,
+   ตัวกรอง, นำเข้า · ผู้ขาย, ใบกำกับภาษี, หัก ณ ที่จ่าย, ต้นทุนขาย.
+4. One thing = one word across the app. Grep before writing a new label.
+5. Loanwords carry no tone mark (Royal Institute rule): **สต็อก** not สต๊อก,
+   เดโม not เดโม่, ไฮไลต์, ลิงก์, อัปโหลด, อีเมล.
+Decided words: สต็อก · ยิลด์ (not ผลผลิต / yield) · เซอร์วิสชาร์จ (ค่าบริการ means
+KitKrua's fee or the 3% WHT service fee only) · เข้าสต็อก (not เข้าคลัง) ·
+ดาวน์โหลดไฟล์จาก POS (not export) · ผู้ขาย (the supplier list header says it is the
+ซัพพลายเออร์) · เข้าสู่ระบบ + บัญชี (not ล็อกอิน / แอคเคาท์) · แอดมิน for KitKrua's
+own staff, ผู้ดูแลร้าน for the shop role. The prompts a shop copies to its own AI
+may keep English terms — they are read by the AI, not the shop.
+
 ## 9. Deferred on purpose (do not build without asking)
 - Photos (products, menus, transfer evidence) — waiting for Tigris object
   storage, after the UI pass. Leave a visible slot.

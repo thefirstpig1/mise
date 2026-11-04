@@ -243,7 +243,7 @@ function preppedIdsOf(graph: RecipeGraph): string[] {
 
 /**
  * ADR 0040 Q10: the prepped products with stock on the shelf at this branch.
- * "สต๊อกเป็นศูนย์จึงคิดจากสูตร" — any stock at all means the recipe is
+ * "สต็อกเป็นศูนย์จึงคิดจากสูตร" — any stock at all means the recipe is
  * priced at the stock's own cost, which is what posting a sale will take.
  */
 function inStock(

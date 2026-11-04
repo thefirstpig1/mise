@@ -403,7 +403,7 @@ export default function RequestBoard({
                         <p className={`text-xs ${low ? "text-bad" : "text-muted-foreground"}`}>
                           {st
                             ? `มี ${stockText(st.onHandBase)} ${unitTh(p.baseUnitName)}${st.parBase != null ? ` · ขั้นต่ำ ${stockText(st.parBase)}` : ""}`
-                            : "ยังไม่มีในสต๊อกสาขานี้"}
+                            : "ยังไม่มีในสต็อกสาขานี้"}
                         </p>
                         {p.units.length > 1 && (
                           <div className="mt-auto flex flex-wrap gap-1">

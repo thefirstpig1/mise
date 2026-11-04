@@ -311,11 +311,11 @@ export default function ExpenseForm({
         // Queue item 9: a pointer, not a task — the sage observation box
         // (yellow is kept for things somebody must do).
         <p className="note">
-          ซื้อวัตถุดิบเข้าสต๊อก เช่น หมู ผัก ข้าวสาร? บันทึกที่{" "}
+          ซื้อวัตถุดิบเข้าสต็อก เช่น หมู ผัก ข้าวสาร? บันทึกที่{" "}
           <a href="/goods-receipts/new" className="font-medium text-primary underline">
             หน้ารับสินค้า (ซื้อสดได้ ไม่ต้องมีใบสั่งซื้อ)
           </a>{" "}
-          แทน ของจะเข้าสต๊อกและต้นทุนจะถูกต้อง ระบบสร้างบิลค่าใช้จ่ายให้เอง
+          แทน ของจะเข้าสต็อกและต้นทุนจะถูกต้อง ระบบสร้างบิลค่าใช้จ่ายให้เอง
         </p>
       )}
 

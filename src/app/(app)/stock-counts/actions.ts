@@ -63,7 +63,7 @@ import {
 
 // --- Thai messages (the user-facing error paths) ---
 const CROSS_TENANT_MESSAGE = "ข้อมูลอ้างอิงไม่อยู่ในระบบของคุณ";
-const NOT_FOUND_MESSAGE = "ไม่พบใบนับสต๊อกนี้";
+const NOT_FOUND_MESSAGE = "ไม่พบใบนับสต็อกนี้";
 const UNIT_MISMATCH_MESSAGE = "หน่วยที่เลือกต้องเป็นหน่วยของวัตถุดิบนี้";
 const NOT_EDITABLE_MESSAGE = "ใบนับนี้ปิดไปแล้ว แก้ไขไม่ได้";
 const CLOSE_AGAIN_MESSAGE = "ใบนับนี้ปิดไปแล้ว";

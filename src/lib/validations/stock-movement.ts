@@ -189,8 +189,8 @@ export const MOVEMENT_TYPE_LABELS_TH: Record<
   // Part 22: worded as the kitchen using it, not as a loss. Nothing went wrong —
   // this is stock doing the job it was bought for, and a history line reading
   // "ปรับลด" would send the reader looking for a mistake that is not there.
-  CONSUMPTION: "ตัดสต๊อกตามยอดขาย",
-  CONSUMPTION_REVERSAL: "ยกเลิกการตัดสต๊อก",
+  CONSUMPTION: "ตัดสต็อกตามยอดขาย",
+  CONSUMPTION_REVERSAL: "ยกเลิกการตัดสต็อก",
   // ADR 0040: worded as the kitchen making something, not as a loss or a gain.
   // The bones did not go missing; they became soup.
   PRODUCTION_OUT: "ใช้ทำของแปรรูป",
@@ -205,8 +205,8 @@ export const SOURCE_TYPE_LABELS_TH: Record<
   string
 > = {
   GR_LINE: "ใบรับสินค้า",
-  ADJUSTMENT: "ปรับสต๊อก",
-  STOCK_COUNT: "นับสต๊อก",
+  ADJUSTMENT: "ปรับสต็อก",
+  STOCK_COUNT: "นับสต็อก",
   WASTE_LOG: "ของเสีย",
   TRANSFER_OUT: "ใบโอน (ขาส่ง)",
   TRANSFER_IN: "ใบโอน (ขารับ)",
@@ -307,7 +307,7 @@ export const createStockAdjustmentInputSchema = z.object({
     errorMap: () => ({ message: "กรุณาเลือกประเภทการปรับ (เพิ่ม/ลด)" }),
   }),
   reason: z.enum(ADJUSTMENT_REASON_VALUES, {
-    errorMap: () => ({ message: "กรุณาเลือกเหตุผลการปรับสต๊อก" }),
+    errorMap: () => ({ message: "กรุณาเลือกเหตุผลการปรับสต็อก" }),
   }),
   inputQty: z.coerce
     .number({ invalid_type_error: "จำนวนไม่ถูกต้อง" })
@@ -349,7 +349,7 @@ export const createStockAdjustmentInputSchema = z.object({
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ["costDeclaration"],
-      message: "ระบุต้นทุนได้เฉพาะรายการที่เพิ่มสต๊อกเท่านั้น",
+      message: "ระบุต้นทุนได้เฉพาะรายการที่เพิ่มสต็อกเท่านั้น",
     });
   }
 });
@@ -424,13 +424,13 @@ export const HISTORY_MAX_LIMIT = 100;
 /**
  * "เกิดจาก" — what a person means by where a movement came from (Kong
  * 2026-10-25). Replaces the two filters that overlapped ("ประเภท" ปรับลด and
- * "แหล่งที่มา" นับสต๊อก described the same row). A transfer is three source
+ * "แหล่งที่มา" นับสต็อก described the same row). A transfer is three source
  * types; a person asks for one thing.
  */
 export const MOVEMENT_ORIGINS = {
   receive: { label: "รับของ", sources: ["GR_LINE"] },
   sale: { label: "ขาย (ตัดตามสูตร)", sources: ["SALES_CONSUMPTION"] },
-  count: { label: "นับสต๊อก", sources: ["STOCK_COUNT"] },
+  count: { label: "นับสต็อก", sources: ["STOCK_COUNT"] },
   waste: { label: "ของเสีย", sources: ["WASTE_LOG"] },
   adjust: { label: "ปรับ", sources: ["ADJUSTMENT", "SYSTEM_INITIAL"] },
   transfer: { label: "โอน", sources: ["TRANSFER_OUT", "TRANSFER_IN", "TRANSFER_SHORTAGE"] },

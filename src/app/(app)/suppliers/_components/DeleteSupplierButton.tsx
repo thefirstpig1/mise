@@ -21,7 +21,7 @@ import CascadeDeleteDialog, {
 } from "@/components/ui/CascadeDeleteDialog";
 
 const CASCADE_WARNING =
-  "การลบจะซ่อนรายการราคาเหล่านี้จากหน้าสั่งซื้อ/สต๊อก — ประวัติราคายังอยู่ครบ และไม่กระทบยอด/มูลค่าสต๊อกที่บันทึกไว้";
+  "การลบจะซ่อนรายการราคาเหล่านี้จากหน้าสั่งซื้อ/สต็อก — ประวัติราคายังอยู่ครบ และไม่กระทบยอด/มูลค่าสต็อกที่บันทึกไว้";
 
 export default function DeleteSupplierButton({
   id,

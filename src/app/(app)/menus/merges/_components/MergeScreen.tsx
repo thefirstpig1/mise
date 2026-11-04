@@ -490,7 +490,7 @@ function MergePopup({
         </div>
 
         <label className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-          <b>เริ่มตัดสต๊อกตามสูตรของเมนูหลักตั้งแต่</b>
+          <b>เริ่มตัดสต็อกตามสูตรของเมนูหลักตั้งแต่</b>
           <input
             type="date"
             value={date}
@@ -508,12 +508,12 @@ function MergePopup({
           <p className="font-semibold">{losers.length ? `${losers.length} รายการจะนับเป็น “${mainMenu.name}”` : "ยังไม่ได้เลือกรายการที่จะรวม"}</p>
           <ul className="list-disc space-y-0.5 pl-5 text-[13px] text-muted-foreground">
             <li>รายงานยอดขายทุกหน้านับรวมทันที รวมถึงเดือนที่ผ่านมา · ยอดขายเดิมไม่ถูกย้ายหรือลบ</li>
-            {losersNoRecipe.length > 0 && <li>{names(losersNoRecipe)} ยังไม่มีสูตร จะตัดสต๊อกด้วยสูตรของเมนูหลักตั้งแต่วันที่ข้างบน</li>}
+            {losersNoRecipe.length > 0 && <li>{names(losersNoRecipe)} ยังไม่มีสูตร จะตัดสต็อกด้วยสูตรของเมนูหลักตั้งแต่วันที่ข้างบน</li>}
             {losersOwn.length > 0 && <li>{names(losersOwn)} มีสูตรของตัวเองแล้ว ยังใช้สูตรเดิมต่อ ไม่ถูกเขียนทับ</li>}
             <li>POS ของแต่ละสาขาส่งรหัสเดิมมาได้ตามปกติ · ยกเลิกได้ทุกเมื่อจากแท็บ “รวมแล้ว”</li>
           </ul>
           {date < todayIso && !error && (
-            <p className="text-xs text-warn">วันที่ย้อนหลัง: ถ้าวันเหล่านั้นตัดสต๊อกไปแล้ว ระบบจะบอกจำนวนวันและให้ยืนยันอีกครั้ง</p>
+            <p className="text-xs text-warn">วันที่ย้อนหลัง: ถ้าวันเหล่านั้นตัดสต็อกไปแล้ว ระบบจะบอกจำนวนวันและให้ยืนยันอีกครั้ง</p>
           )}
         </div>
 
@@ -580,7 +580,7 @@ function MergedList({
                     {branchTag(branchIdOf(r.losingMenuId), r.loserBranch)}
                     <b className="font-medium text-foreground">{r.loserName}</b>
                     {r.loserCode && <span>รหัส {r.loserCode}</span>}
-                    <span>{byId.get(r.losingMenuId)?.hasRecipe ? "ใช้สูตรของตัวเอง" : `ตัดสต๊อกตามสูตรเมนูหลักตั้งแต่ ${r.effectiveFrom}`}</span>
+                    <span>{byId.get(r.losingMenuId)?.hasRecipe ? "ใช้สูตรของตัวเอง" : `ตัดสต็อกตามสูตรเมนูหลักตั้งแต่ ${r.effectiveFrom}`}</span>
                     <button type="button" onClick={() => setUndo(r)} className="font-semibold text-primary underline underline-offset-2">
                       ยกเลิก
                     </button>
@@ -639,7 +639,7 @@ function RevokePopup({ row, onClose, onDone }: { row: MergeRowView; onClose: () 
         </p>
         <ul className="list-disc space-y-0.5 rounded-2xl border border-border bg-surface-sunk py-3 pl-9 pr-4 text-[13px] text-muted-foreground">
           <li>รายงานทุกหน้าแยกสองรายการนี้ทันที รวมถึงเดือนที่ผ่านมา</li>
-          <li>วันที่ตัดสต๊อกไปแล้วไม่เปลี่ยน · ถ้าเมนูนี้ไม่มีสูตรของตัวเอง วันต่อไปจะตัดสต๊อกไม่ได้จนกว่าจะเขียนสูตร</li>
+          <li>วันที่ตัดสต็อกไปแล้วไม่เปลี่ยน · ถ้าเมนูนี้ไม่มีสูตรของตัวเอง วันต่อไปจะตัดสต็อกไม่ได้จนกว่าจะเขียนสูตร</li>
           <li>รวมใหม่ได้ทุกเมื่อ</li>
         </ul>
         {error && (

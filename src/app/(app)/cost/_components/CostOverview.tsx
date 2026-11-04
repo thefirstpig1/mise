@@ -85,7 +85,7 @@ const METRICS: Record<Exclude<MetricKey, "var">, Metric> = {
     baht: (a) => (a.rev === null || a.cogs === null || a.labor === null ? null : a.cogs + a.labor),
     target: (t) => t.prime,
     bound: lowerBound,
-    why: (a) => (a.rev === null ? "ไม่มียอดขาย" : a.cogs === null ? a.cogsWhy ?? "ยังไม่ได้ตัดสต๊อก" : a.laborMissing ?? "ยังไม่มีค่าแรง"),
+    why: (a) => (a.rev === null ? "ไม่มียอดขาย" : a.cogs === null ? a.cogsWhy ?? "ยังไม่ได้ตัดสต็อก" : a.laborMissing ?? "ยังไม่มีค่าแรง"),
   },
   food: {
     tab: "ต้นทุนอาหาร",
@@ -93,7 +93,7 @@ const METRICS: Record<Exclude<MetricKey, "var">, Metric> = {
     baht: (a) => (a.rev === null ? null : a.cogs),
     target: (t) => t.food,
     bound: lowerBound,
-    why: (a) => (a.rev === null ? "ไม่มียอดขาย" : a.cogsWhy ?? "ยังไม่ได้ตัดสต๊อก"),
+    why: (a) => (a.rev === null ? "ไม่มียอดขาย" : a.cogsWhy ?? "ยังไม่ได้ตัดสต็อก"),
   },
   waste: {
     tab: "ทิ้ง",
@@ -105,13 +105,13 @@ const METRICS: Record<Exclude<MetricKey, "var">, Metric> = {
     why: (a) => (a.rev === null ? "ไม่มียอดขาย" : "ยังไม่มีบันทึกของเสีย"),
   },
 };
-// Kong 2026-10-30: under นับสต๊อก no sale takes stock out, so what a count finds
+// Kong 2026-10-30: under นับสต็อก no sale takes stock out, so what a count finds
 // short of the ledger is what the shop USED — sold and lost together, never
 // separable. It is named for that, with no target and no alarm (the month-end
 // close already says "ใช้ไปทั้งหมด" for the same reason).
 const VAR_NAME_PERIODIC = "ใช้ไปตามการนับ";
 const VAR_TIP_PERIODIC =
-  "ร้านนี้คิดกำไรแบบนับสต๊อก ยอดขายไม่ตัดสต๊อก ส่วนที่นับได้น้อยกว่าระบบจึงคือของที่ใช้ไปทั้งช่วง (ขายและขาดรวมกัน แยกกันไม่ได้) · อยากเห็นของหายจริงต้องคิดกำไรแบบสูตรอาหาร";
+  "ร้านนี้คิดกำไรแบบนับสต็อก ยอดขายไม่ตัดสต็อก ส่วนที่นับได้น้อยกว่าระบบจึงคือของที่ใช้ไปทั้งช่วง (ขายและขาดรวมกัน แยกกันไม่ได้) · อยากเห็นของหายจริงต้องคิดกำไรแบบสูตรอาหาร";
 const VAR_TIP =
   "นับได้ไม่ตรงกับที่ระบบคำนวณว่าควรเหลือ (รับเข้า − ตัดตามสูตรที่ขาย − ที่บันทึกว่าทิ้งและของเสียแล้ว) · ส่วนที่ต่างคือของที่ไม่มีใครบันทึกว่าไปไหน · สาเหตุที่พบบ่อย: ตักเกินสูตร ทิ้งแต่ไม่ได้บันทึก รับของไม่ครบ นับหรือหน่วยผิด ของถูกหยิบไป";
 
@@ -162,7 +162,7 @@ function Overview({ data, canEditTargets }: { data: Overview; canEditTargets: bo
   const [sel, setSel] = useState(() => lastWithSales(data.week));
   // B5 (Kong 2026-10-24): a count opens ของหายไปไหน at that count — the deep
   // page with causes and a checklist — instead of a shorter popup of the same list.
-  // Under นับสต๊อก that page cannot tell loss from usage, so a count opens its own sheet.
+  // Under นับสต็อก that page cannot tell loss from usage, so a count opens its own sheet.
   const openCount = (c: CountEvent) => {
     window.location.href = data.method === "PERIODIC_INVENTORY" ? `/stock-counts/${c.countId}` : `/cost/leaks?count=${c.countId}`;
   };
@@ -288,7 +288,7 @@ function Overview({ data, canEditTargets }: { data: Overview; canEditTargets: bo
                 {cs.length === 0 ? (
                   <>
                     <TabValue muted>ยังไม่ได้นับ</TabValue>
-                    <TabSub>นับสต๊อกถึงจะรู้</TabSub>
+                    <TabSub>นับสต็อกถึงจะรู้</TabSub>
                   </>
                 ) : cs.every((c) => c.first) ? (
                   // Rule PG4 / queue item 10: the opening count IS the starting
@@ -327,14 +327,14 @@ function Overview({ data, canEditTargets }: { data: Overview; canEditTargets: bo
           if (v !== null && vp !== null) {
             const pv2 = isPct ? "" : ` · ${vp.toFixed(1)}%`;
             if (tgt === null) status = isPct ? null : <span className="text-xs text-muted-foreground">{vp.toFixed(2)}% ของยอดขาย</span>;
-            else if (k !== "waste" && thin) status = <Tag tone="warn">ตัดสต๊อกแล้วแค่ {Math.round((cur.coverage ?? 0) * 100)}% ของยอดขาย · ยังเทียบเป้าไม่ได้</Tag>;
+            else if (k !== "waste" && thin) status = <Tag tone="warn">ตัดสต็อกแล้วแค่ {Math.round((cur.coverage ?? 0) * 100)}% ของยอดขาย · ยังเทียบเป้าไม่ได้</Tag>;
             else if (vp > tgt) status = <Tag tone="bad">เกินเป้า ≤{tgt}%{pv2}</Tag>;
-            else if (pre) status = <Tag tone="warn">ต่ำกว่าเป้าตอนนี้{pv2} · ตัดสต๊อกแล้ว {Math.round((cur.coverage ?? 0) * 100)}%</Tag>;
+            else if (pre) status = <Tag tone="warn">ต่ำกว่าเป้าตอนนี้{pv2} · ตัดสต็อกแล้ว {Math.round((cur.coverage ?? 0) * 100)}%</Tag>;
             else status = <Tag tone="ok">อยู่ในเป้า ≤{tgt}%{pv2}</Tag>;
           }
           let delta: ReactNode = null;
           if (v !== null && sel > 0) {
-            if (k !== "waste" && (thin || prevThin)) delta = `เทียบ ${P[sel - 1].label} ไม่ได้ (ตัดสต๊อกไม่ครบ)`;
+            if (k !== "waste" && (thin || prevThin)) delta = `เทียบ ${P[sel - 1].label} ไม่ได้ (ตัดสต็อกไม่ครบ)`;
             else if (pv !== null) {
               // Baht totals of periods with different numbers of sales days are
               // compared per day (Aug has 19 days of data, Sep 26) — rule SI1.
@@ -375,8 +375,8 @@ function Overview({ data, canEditTargets }: { data: Overview; canEditTargets: bo
           <span className="text-xs text-muted-foreground">
             {metric === "var"
               ? periodic
-                ? "ยอดขายไม่ตัดสต๊อก ส่วนที่นับได้น้อยกว่าระบบคือของที่ใช้ไป (ขายและขาดรวมกัน) · รู้ได้ตอนนับสต๊อกเท่านั้น"
-                : "นับได้ไม่ตรงกับที่ระบบคำนวณ หลังหักที่บันทึกว่าทิ้งและของเสียแล้ว · รู้ได้ตอนนับสต๊อกเท่านั้น"
+                ? "ยอดขายไม่ตัดสต็อก ส่วนที่นับได้น้อยกว่าระบบคือของที่ใช้ไป (ขายและขาดรวมกัน) · รู้ได้ตอนนับสต็อกเท่านั้น"
+                : "นับได้ไม่ตรงกับที่ระบบคำนวณ หลังหักที่บันทึกว่าทิ้งและของเสียแล้ว · รู้ได้ตอนนับสต็อกเท่านั้น"
               : METRICS[metric].hint}
           </span>
         </div>
@@ -423,7 +423,7 @@ function Overview({ data, canEditTargets }: { data: Overview; canEditTargets: bo
           </div>
         )}
         <div className="space-y-2">
-          <QLabel n="9">เงินจมในสต๊อก · ของค้างนาน</QLabel>
+          <QLabel n="9">เงินจมในสต็อก · ของค้างนาน</QLabel>
           <Stock stock={data.stock} bs={bs} view={stockView} setView={setStockView} slowDays={targets.slowDays} branchLabel={branch === "ALL" ? "ทุกสาขา" : nameOf.get(branch) ?? ""} />
         </div>
       </div>
@@ -433,7 +433,7 @@ function Overview({ data, canEditTargets }: { data: Overview; canEditTargets: bo
       <Trust data={data} bs={bs} cur={cur} nameOf={nameOf} periodEnd={periodEnd} />
 
       <p className="text-xs text-muted-foreground">
-        สิ้นเดือนต้องส่งสต๊อกและต้นทุนขายให้นักบัญชี?{" "}
+        สิ้นเดือนต้องส่งสต็อกและต้นทุนขายให้นักบัญชี?{" "}
         <a href="/month-end" className="text-primary hover:underline">
           ปิดเดือน · ส่งให้บัญชี
         </a>
@@ -728,7 +728,7 @@ function BarChart({
                 <g key={`${b}-${i}`}>
                   <rect x={X} width={bw} y={y(v)} height={h} rx={5} fill="url(#co-hatch)" stroke={colorOf.get(b)} strokeWidth={1.5} strokeDasharray="4 3" />
                   <text x={X + bw / 2} y={y(v) - 18} textAnchor="middle" fontSize={9.5} fill="#9A6A0F">
-                    ตัดสต๊อก {Math.round((a.coverage ?? 0) * 100)}%
+                    ตัดสต็อก {Math.round((a.coverage ?? 0) * 100)}%
                   </text>
                   {i === sel && (
                     <text x={X + bw / 2} y={y(v) - 6} textAnchor="middle" fontSize={10.5} fontWeight={700} fill="#262811">
@@ -827,7 +827,7 @@ function BarChart({
             const a = agg(P[hover], all);
             return a.rev !== null && a.coverage !== null ? (
               <div className="mt-1 opacity-75">
-                ตัดสต๊อก {a.daysPosted}/{a.salesDays} วัน · {Math.round(a.coverage * 100)}% ของยอดขาย
+                ตัดสต็อก {a.daysPosted}/{a.salesDays} วัน · {Math.round(a.coverage * 100)}% ของยอดขาย
               </div>
             ) : null;
           })()}
@@ -853,7 +853,7 @@ function BarChart({
         {metricKey !== "waste" && (
           <span className="flex items-center gap-1.5">
             <i className="inline-block h-2.5 w-2.5 rounded-sm border border-dashed border-border-strong" />
-            แท่งลาย = ตัดสต๊อกไม่ถึง {Math.round(targets.coverageMin * 100)}% ของยอดขาย ตัวเลขยังต่ำกว่าจริง
+            แท่งลาย = ตัดสต็อกไม่ถึง {Math.round(targets.coverageMin * 100)}% ของยอดขาย ตัวเลขยังต่ำกว่าจริง
           </span>
         )}
         <span>ชี้ = ดูตัวเลข · กด = เลือกช่วงนั้น</span>
@@ -1034,7 +1034,7 @@ function Todo({
   onCount: (c: CountEvent) => void;
   missingSales: string[];
   multi: boolean;
-  /** นับสต๊อก: a count's shortfall is usage, not something to go and fix. */
+  /** นับสต็อก: a count's shortfall is usage, not something to go and fix. */
   periodic: boolean;
 }) {
   const items: TodoItem[] = [];
@@ -1066,9 +1066,9 @@ function Todo({
   if (cur.rev !== null && cur.coverage !== null && cur.coverage < FULL)
     gaps.push(
       <>
-        ตัดสต๊อกยังไม่ครบ ({cur.daysPosted}/{cur.salesDays} วัน · {Math.round(cur.coverage * 100)}% ของยอดขาย) — ต้นทุนช่วงนี้จึงเป็น “อย่างน้อย” ·{" "}
+        ตัดสต็อกยังไม่ครบ ({cur.daysPosted}/{cur.salesDays} วัน · {Math.round(cur.coverage * 100)}% ของยอดขาย) — ต้นทุนช่วงนี้จึงเป็น “อย่างน้อย” ·{" "}
         <a className="text-primary hover:underline" href="/consumption">
-          ไปตัดสต๊อก ›
+          ไปตัดสต็อก ›
         </a>
       </>
     );
@@ -1158,7 +1158,7 @@ function TodoEmpty({ periodic, counted, waste }: { periodic: boolean; counted: b
   const r = useReadiness();
   if (r === undefined) return <span className="mx-1 my-4 block h-3 w-48 animate-pulse rounded bg-border" />;
   const lines: [string, string, string][] = [];
-  if (!periodic && !counted) lines.push(["ของขาดจากการนับ ขึ้นเมื่อนับสต๊อกแล้ว", "/stock-counts/new", "เริ่มนับสต๊อก"]);
+  if (!periodic && !counted) lines.push(["ของขาดจากการนับ ขึ้นเมื่อนับสต็อกแล้ว", "/stock-counts/new", "เริ่มนับสต็อก"]);
   if (r !== null && r.receipts < 2) lines.push(["ราคาที่ขึ้น ขึ้นเมื่อรับสินค้าตัวเดียวกันอย่างน้อย 2 ครั้ง", "/goods-receipts/new", "รับสินค้า"]);
   if (lines.length === 0)
     return (
@@ -1257,7 +1257,7 @@ function Bench({
                       <>
                         <span className="text-warn">อย่างน้อย {r.fmt(x.v)}</span>
                         <br />
-                        <span className="text-xs text-muted-foreground">ตัดสต๊อกแล้ว {Math.round((a(x.id).coverage ?? 0) * 100)}%</span>
+                        <span className="text-xs text-muted-foreground">ตัดสต็อกแล้ว {Math.round((a(x.id).coverage ?? 0) * 100)}%</span>
                       </>
                     ) : (
                       <>
@@ -1324,7 +1324,7 @@ function Stock({
   return (
     <div className="rounded-[18px] border border-border/70 bg-surface shadow-card p-3">
       <div className="flex items-baseline justify-between gap-2">
-        <span className="text-xs text-muted-foreground">มูลค่าของในสต๊อก ณ วันนี้ · {branchLabel}</span>
+        <span className="text-xs text-muted-foreground">มูลค่าของในสต็อก ณ วันนี้ · {branchLabel}</span>
         {held > 0 && total > 0 ? (
           <b className="font-display text-xl tabular-nums">
             {unpriced > 0 && <span className="mr-1 font-sans text-xs font-medium text-muted-foreground">อย่างน้อย</span>}฿{f0(total)}
@@ -1334,7 +1334,7 @@ function Stock({
       {/* Queue item 10 (rule ND5): ฿0 here meant "no price" or "never entered" as often as "empty". */}
       {held === 0 ? (
         <div className="mt-2">
-          <WaitingSlot figure="stockValue" needs={["count", "receipt"]} reason="ยังไม่มีของในสต๊อกที่ระบบรู้" branchId={oneBranch} />
+          <WaitingSlot figure="stockValue" needs={["count", "receipt"]} reason="ยังไม่มีของในสต็อกที่ระบบรู้" branchId={oneBranch} />
         </div>
       ) : total <= 0 ? (
         <div className="mt-2">
@@ -1351,30 +1351,30 @@ function Stock({
         </p>
       )}
       <div className="mt-2 flex justify-end">
-        <Seg value={view} onChange={setView} options={[["age", "ค้างมากี่วัน"], ["left", "อีกกี่วันจะใช้หมด"]]} label="มุมมองสต๊อก" />
+        <Seg value={view} onChange={setView} options={[["age", "ค้างมากี่วัน"], ["left", "อีกกี่วันจะใช้หมด"]]} label="มุมมองสต็อก" />
       </div>
       <p className="mb-1 mt-2 text-xs text-muted-foreground">
         {view === "age" ? (
           <span title="นับจากวันรับล็อตเก่าสุดที่ยังเหลือ (ระบบใช้ของตามลำดับเข้าก่อนออกก่อน) · ของที่ค้างนานเสี่ยงเสื่อมและเป็นเงินที่จมอยู่">
-            ของเก่าสุดที่ยังอยู่ในสต๊อก ซื้อมากี่วันแล้ว (ตัวแดง = เกิน {slowDays} วัน) ⓘ
+            ของเก่าสุดที่ยังอยู่ในสต็อก ซื้อมากี่วันแล้ว (ตัวแดง = เกิน {slowDays} วัน) ⓘ
           </span>
         ) : (
-          <span title="คงเหลือ ÷ ใช้ต่อวัน (เฉลี่ยจากวันที่ตัดสต๊อกตามยอดขายแล้ว)">ถ้าใช้เท่าที่ผ่านมา อีกกี่วันจะใช้หมด ⓘ</span>
+          <span title="คงเหลือ ÷ ใช้ต่อวัน (เฉลี่ยจากวันที่ตัดสต็อกตามยอดขายแล้ว)">ถ้าใช้เท่าที่ผ่านมา อีกกี่วันจะใช้หมด ⓘ</span>
         )}
       </p>
       {rows.length === 0 ? (
         <p className="py-3 text-sm text-muted-foreground">
           {view === "age" ? (
-            held === 0 ? "ยังไม่มีของในสต๊อกที่ระบบรู้" : "ของในสต๊อกยังไม่มีราคา จึงยังไม่รู้ว่าค้างมากี่วัน"
+            held === 0 ? "ยังไม่มีของในสต็อกที่ระบบรู้" : "ของในสต็อกยังไม่มีราคา จึงยังไม่รู้ว่าค้างมากี่วัน"
           ) : (
             <>
-              ยังไม่รู้อัตราใช้ — ต้องตัดสต๊อกตามยอดขายก่อน · <WhatIsThis figure="daysLeft" needs={["posted", "recipe"]} branchId={oneBranch} />
+              ยังไม่รู้อัตราใช้ — ต้องตัดสต็อกตามยอดขายก่อน · <WhatIsThis figure="daysLeft" needs={["posted", "recipe"]} branchId={oneBranch} />
             </>
           )}
         </p>
       ) : (
         rows.map((s, i) => (
-          <div key={s.productId} className="py-1" title={view === "age" && s.oldestDate ? `${s.name} · ล็อตรับ ${s.oldestDate} ยังเหลือ ฿${f0(s.oldestValue)} · ทั้งหมดในสต๊อก ฿${f0(s.value)}` : undefined}>
+          <div key={s.productId} className="py-1" title={view === "age" && s.oldestDate ? `${s.name} · ล็อตรับ ${s.oldestDate} ยังเหลือ ฿${f0(s.oldestValue)} · ทั้งหมดในสต็อก ฿${f0(s.value)}` : undefined}>
             <div className="grid grid-cols-[110px_minmax(0,1fr)_80px_56px] items-center gap-2.5 text-sm">
               <a href={`/products?product=${s.productId}`} className="truncate hover:text-primary hover:underline">
                 {s.name}
@@ -1412,11 +1412,11 @@ function Trust({ data, bs, cur, nameOf, periodEnd }: { data: Overview; bs: strin
   for (const b of bs) {
     const c = data.counts.filter((x) => x.branchId === b && x.date <= periodEnd).at(-1);
     const later = data.counts.find((x) => x.branchId === b && x.date > periodEnd);
-    chips.push([c ? "ok" : "bad", `${nameOf.get(b)} นับสต๊อกล่าสุด`, c ? c.dateLabel : later ? `ยังไม่ได้นับถึงช่วงนี้ (ครั้งแรก ${later.dateLabel})` : "ยังไม่เคยนับ"]);
+    chips.push([c ? "ok" : "bad", `${nameOf.get(b)} นับสต็อกล่าสุด`, c ? c.dateLabel : later ? `ยังไม่ได้นับถึงช่วงนี้ (ครั้งแรก ${later.dateLabel})` : "ยังไม่เคยนับ"]);
   }
   if (cur.rev !== null && cur.coverage !== null)
-    chips.push([cur.coverage >= FULL ? "ok" : "warn", "ตัดสต๊อกตามยอดขาย", `${cur.daysPosted}/${cur.salesDays} วัน · ${Math.round(cur.coverage * 100)}% ของยอดขาย`]);
-  if (data.method === "PERIODIC_INVENTORY") chips.push(["ok", "วิธีคิดต้นทุน", "นับสต๊อก (ต้นงวด + ซื้อ − ปลายงวด) · แม่นเท่าที่นับ"]);
+    chips.push([cur.coverage >= FULL ? "ok" : "warn", "ตัดสต็อกตามยอดขาย", `${cur.daysPosted}/${cur.salesDays} วัน · ${Math.round(cur.coverage * 100)}% ของยอดขาย`]);
+  if (data.method === "PERIODIC_INVENTORY") chips.push(["ok", "วิธีคิดต้นทุน", "นับสต็อก (ต้นงวด + ซื้อ − ปลายงวด) · แม่นเท่าที่นับ"]);
   if (cur.rev !== null) chips.push([cur.labor === null ? "bad" : "ok", "ค่าแรง", cur.labor === null ? cur.laborMissing ?? "ยังไม่มี" : "มีแล้ว"]);
   const dot = { ok: "bg-good", warn: "bg-warn", bad: "bg-bad" };
   return (
@@ -1483,7 +1483,7 @@ function TargetsPopup({ targets, onClose, onSaved }: { targets: CostTargets; onC
         {field("prime", "Prime cost (อาหาร + ค่าแรง) ไม่เกิน", "%", "0.5")}
         {field("variance", "ไม่ตรงกับระบบ ไม่เกิน", "% ของยอดขาย", "0.1")}
         <hr className="border-border" />
-        {field("coverageMin", "เทียบกับเป้าเมื่อตัดสต๊อกแล้วอย่างน้อย", "% ของยอดขาย")}
+        {field("coverageMin", "เทียบกับเป้าเมื่อตัดสต็อกแล้วอย่างน้อย", "% ของยอดขาย")}
         <p className="-mt-1 text-xs text-muted-foreground">ต่ำกว่านี้ ต้นทุนยังไม่ครบ ตัวเลขจะดูดีเกินจริง ระบบจึงไม่บอกว่าอยู่ในเป้า</p>
         {field("slowDays", "ของค้างนาน เมื่อเก่ากว่า", "วัน")}
       </div>

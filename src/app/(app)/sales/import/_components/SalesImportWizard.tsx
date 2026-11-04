@@ -200,7 +200,7 @@ export default function SalesImportWizard({
           */}
           {commitState.consumptionRunsVoided > 0 && (
             <p className="mt-2 rounded border border-warn-border bg-warn-bg p-2 text-xs text-warn">
-              {commitState.consumptionRunsVoided} วันเคยตัดสต๊อกตามสูตรไว้แล้ว —
+              {commitState.consumptionRunsVoided} วันเคยตัดสต็อกตามสูตรไว้แล้ว —
               ระบบยกเลิกการตัดเดิมของวันเหล่านั้น (ยอดขายเดิมถูกแทนที่) แล้วตัดใหม่จากยอดขายในไฟล์นี้
             </p>
           )}
@@ -379,8 +379,8 @@ export default function SalesImportWizard({
                 ))}
               </ul>
               <p className="mt-2 text-xs text-muted-foreground">
-                นำเข้าต่อได้ ระบบไม่บล็อก — แต่นี่เป็นจุดเดียวที่จับได้ว่าไฟล์
-                export มาไม่ครบทั้งวัน เพราะไฟล์แบบนั้นทุกแถวถูกต้องหมด
+                นำเข้าต่อได้ ระบบไม่บล็อก — แต่นี่เป็นจุดเดียวที่จับได้ว่าไฟล์ที่ดาวน์โหลดจาก POS
+                ไม่ครบทั้งวัน เพราะไฟล์แบบนั้นทุกแถวถูกต้องหมด
                 ไม่มีอะไรในไฟล์บอกว่ามันขาด
               </p>
             </div>
@@ -402,7 +402,7 @@ export default function SalesImportWizard({
                 ))}
               </ul>
               <p className="mt-2 text-xs text-muted-foreground">
-                นำเข้าต่อได้ ระบบไม่บล็อก — ยอดขายเข้าตามปกติและตัดสต๊อกตามปกติ
+                นำเข้าต่อได้ ระบบไม่บล็อก — ยอดขายเข้าตามปกติและตัดสต็อกตามปกติ
                 ถ้าเลิกขายจริงแล้ว ต้องเอาออกจาก POS ด้วย ถ้ายังขายอยู่
                 ให้กด “กลับมาขาย” ที่หน้าเมนู
               </p>
@@ -471,7 +471,7 @@ export default function SalesImportWizard({
 
           <div className="mt-4 flex gap-2">
             <button type="button" onClick={runCommit} disabled={pending} className="btn">
-              {pending ? "กำลังบันทึกและตัดสต๊อก…" : "ยืนยันนำเข้า"}
+              {pending ? "กำลังบันทึกและตัดสต็อก…" : "ยืนยันนำเข้า"}
             </button>
             <button
               type="button"
@@ -497,8 +497,8 @@ function AutoPostNote({ autoPost: a }: { autoPost: AutoPostSummary | null }) {
   if (a === null) {
     return (
       <p className="mt-2 text-xs">
-        ยอดขายที่นำเข้ายัง<strong>ไม่ได้ตัดสต๊อก</strong> เพราะบัญชีนี้ไม่มีสิทธิ์ตัดสต๊อก — ให้เจ้าของร้านหรือผู้จัดการกดที่{" "}
-        <a href="/consumption" className="text-primary underline">ตัดสต๊อกตามยอดขาย</a>
+        ยอดขายที่นำเข้ายัง<strong>ไม่ได้ตัดสต็อก</strong> เพราะบัญชีนี้ไม่มีสิทธิ์ตัดสต็อก — ให้เจ้าของร้านหรือผู้จัดการกดที่{" "}
+        <a href="/consumption" className="text-primary underline">ตัดสต็อกตามยอดขาย</a>
       </p>
     );
   }
@@ -507,24 +507,24 @@ function AutoPostNote({ autoPost: a }: { autoPost: AutoPostSummary | null }) {
     <div className="mt-2 space-y-1 text-xs">
       {posted > 0 && (
         <p>
-          ตัดสต๊อกตามสูตรให้แล้ว <strong>{posted} วัน</strong>
+          ตัดสต็อกตามสูตรให้แล้ว <strong>{posted} วัน</strong>
           {a.postedPartial > 0 && (
             <>
               {" "}— <span className="text-warn">{a.postedPartial} วันตัดไม่ครบ เพราะ {a.skippedMenus} เมนูยังไม่มีสูตร</span> ·{" "}
               <a href="/menus" className="text-primary underline">เขียนสูตร</a> แล้วกดตัดใหม่ที่{" "}
-              <a href="/consumption" className="text-primary underline">ตัดสต๊อกตามยอดขาย</a>
+              <a href="/consumption" className="text-primary underline">ตัดสต็อกตามยอดขาย</a>
             </>
           )}
         </p>
       )}
       {a.outsideWindow > 0 && (
-        <p className="text-muted-foreground">{a.outsideWindow} วันเก่ากว่า 90 วัน — นำเข้ายอดขายแล้ว แต่ไม่ตัดสต๊อก (ย้อนหลังได้ไม่เกิน 90 วันเหมือนเอกสารอื่น)</p>
+        <p className="text-muted-foreground">{a.outsideWindow} วันเก่ากว่า 90 วัน — นำเข้ายอดขายแล้ว แต่ไม่ตัดสต็อก (ย้อนหลังได้ไม่เกิน 90 วันเหมือนเอกสารอื่น)</p>
       )}
-      {a.alreadyPosted > 0 && <p className="text-muted-foreground">{a.alreadyPosted} วันมีคนตัดสต๊อกไปพร้อมกันแล้ว</p>}
+      {a.alreadyPosted > 0 && <p className="text-muted-foreground">{a.alreadyPosted} วันมีคนตัดสต็อกไปพร้อมกันแล้ว</p>}
       {a.failed > 0 && (
         <p className="text-bad">
-          {a.failed} วันตัดสต๊อกไม่สำเร็จ — ยอดขายเข้าครบแล้ว ลองกดตัดอีกครั้งที่{" "}
-          <a href="/consumption" className="text-primary underline">ตัดสต๊อกตามยอดขาย</a>
+          {a.failed} วันตัดสต็อกไม่สำเร็จ — ยอดขายเข้าครบแล้ว ลองกดตัดอีกครั้งที่{" "}
+          <a href="/consumption" className="text-primary underline">ตัดสต็อกตามยอดขาย</a>
         </p>
       )}
     </div>

@@ -27,7 +27,7 @@ export async function setPreppedYieldAction(
   assertShared();
   if (!UUID.test(productId)) return { ok: false, error: "ไม่พบของแปรรูปนี้" };
   const done = await setPreppedYieldLogic(tenantId, productId, yieldPercent);
-  if (!done) return { ok: false, error: "บันทึกไม่ได้ — % ผลผลิตต้องอยู่ระหว่าง 0.01 ถึง 999.99 และใช้ได้เฉพาะของแปรรูปที่ทำจากสินค้าแม่" };
+  if (!done) return { ok: false, error: "บันทึกไม่ได้ — ยิลด์ต้องอยู่ระหว่าง 0.01 ถึง 999.99% และใช้ได้เฉพาะของแปรรูปที่ทำจากสินค้าแม่" };
   revalidatePath("/menus");
   revalidatePath("/products");
   revalidatePath("/cost");

@@ -162,7 +162,7 @@ export default function RecipeHistory({ history, book, costHidden }: { history: 
       </ul>
       <p className="mt-2 text-xs text-muted-foreground">
         {costHidden ? "" : "ต้นทุนทุกเวอร์ชันคิดด้วยราคาวัตถุดิบวันนี้ จึงเทียบกันได้ตรง ๆ · "}
-        วันที่ขายในอดีตยังตัดสต๊อกตามสูตรที่ใช้วันนั้น
+        วันที่ขายในอดีตยังตัดสต็อกตามสูตรที่ใช้วันนั้น
       </p>
     </details>
   );

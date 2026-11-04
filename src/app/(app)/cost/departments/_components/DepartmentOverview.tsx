@@ -135,16 +135,16 @@ export default function DepartmentOverview(props: {
           <section className="space-y-2">
             <Q n="1–2" title="แผนกไหนทำเงิน · อยู่ในเป้าของแผนกไหม" sub={`${selLabel} · กดแผนกเพื่อดูข้อ 4–5 ของแผนกนั้น`} />
             {nothingPosted ? (
-              <WaitingFor figure="deptCost" needs={["posted", "recipe", "price"]} reason={`ยังไม่ได้ตัดสต๊อกตามยอดขายใน ${selLabel}`} outline={false} />
+              <WaitingFor figure="deptCost" needs={["posted", "recipe", "price"]} reason={`ยังไม่ได้ตัดสต็อกตามยอดขายใน ${selLabel}`} outline={false} />
             ) : null}
             {!covered && !nothingPosted && data.coverage !== null && (
               <p className="rounded-xl border border-warn-border bg-warn-bg p-3 text-xs text-warn">
-                ตัดสต๊อกตามยอดขายได้ {Math.round(data.coverage * 100)}% ของยอดขาย (เกณฑ์ {props.coverageMin}%) — ต้นทุนยังไม่ครบ จึงเป็นตัวเลข “อย่างน้อย” และยังไม่เทียบกับเป้า
+                ตัดสต็อกตามยอดขายได้ {Math.round(data.coverage * 100)}% ของยอดขาย (เกณฑ์ {props.coverageMin}%) — ต้นทุนยังไม่ครบ จึงเป็นตัวเลข “อย่างน้อย” และยังไม่เทียบกับเป้า
               </p>
             )}
             {data.grossProfitUnavailable && (
               <p className="rounded-xl border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
-                ร้านคิดกำไรขั้นต้นแบบนับสต๊อก — สต๊อกปลายงวดอยู่ในห้องเก็บของสาขา ไม่มีแผนก จึงแสดงกำไรขั้นต้นต่อแผนกไม่ได้ (เปลี่ยนเป็นแบบสูตรอาหารที่หน้าตั้งค่าทั่วไป)
+                ร้านคิดกำไรขั้นต้นแบบนับสต็อก — สต็อกปลายงวดอยู่ในห้องเก็บของสาขา ไม่มีแผนก จึงแสดงกำไรขั้นต้นต่อแผนกไม่ได้ (เปลี่ยนเป็นแบบสูตรอาหารที่หน้าตั้งค่าทั่วไป)
               </p>
             )}
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -199,7 +199,7 @@ export default function DepartmentOverview(props: {
                             · {delta > 0 ? "▲" : "▼"} {Math.abs(delta).toFixed(1)} จุด เทียบ {props.previousLabel}
                           </span>
                         ) : (
-                          <span> · ยังเทียบกับ {props.previousLabel} ไม่ได้ (ตัดสต๊อกไม่ครบ)</span>
+                          <span> · ยังเทียบกับ {props.previousLabel} ไม่ได้ (ตัดสต็อกไม่ครบ)</span>
                         ))}
                     </p>
                   </button>
@@ -207,13 +207,13 @@ export default function DepartmentOverview(props: {
               })}
             </div>
             <p className="text-xs text-muted-subtle">
-              เป้าแผนก = เป้าต้นทุนของแต่ละเมนูในแผนก ถ่วงตามยอดขาย (เมนูที่ไม่ได้ตั้งใช้เป้าร้าน {data.shopTarget}%) · ต้นทุนวัตถุดิบ = ของที่ตัดสต๊อกไปจริง แบ่งตามเมนูที่ขาย
+              เป้าแผนก = เป้าต้นทุนของแต่ละเมนูในแผนก ถ่วงตามยอดขาย (เมนูที่ไม่ได้ตั้งใช้เป้าร้าน {data.shopTarget}%) · ต้นทุนวัตถุดิบ = ของที่ตัดสต็อกไปจริง แบ่งตามเมนูที่ขาย
             </p>
           </section>
 
           {/* ---------- 3 ---------- */}
           <section className="space-y-2">
-            <Q n="3" title="ดีขึ้นหรือแย่ลง" sub={`ต้นทุน % ${props.view === "week" ? "รายสัปดาห์" : "รายเดือน"} · เส้นประ = เป้าแผนก · จุดกลวง = ตัดสต๊อกไม่ถึง ${props.coverageMin}% เทียบไม่ได้`} />
+            <Q n="3" title="ดีขึ้นหรือแย่ลง" sub={`ต้นทุน % ${props.view === "week" ? "รายสัปดาห์" : "รายเดือน"} · เส้นประ = เป้าแผนก · จุดกลวง = ตัดสต็อกไม่ถึง ${props.coverageMin}% เทียบไม่ได้`} />
             {trend === null ? (
               <div className="grid gap-3 md:grid-cols-2">
                 {depts.map((k) => (
@@ -253,7 +253,7 @@ export default function DepartmentOverview(props: {
           <section className="space-y-2 rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
             <Q n="6" title="แผนกสั่งของมากกว่าที่ใช้ไหม" sub={selLabel} />
             {nothingPosted && data.anyOrderedByDept ? (
-              <WaitingFor figure="deptCost" needs={["posted", "recipe"]} reason="ยังไม่ได้ตัดสต๊อกตามยอดขาย จึงยังไม่รู้ว่าแต่ละแผนกใช้ไปเท่าไร" outline={false} />
+              <WaitingFor figure="deptCost" needs={["posted", "recipe"]} reason="ยังไม่ได้ตัดสต็อกตามยอดขาย จึงยังไม่รู้ว่าแต่ละแผนกใช้ไปเท่าไร" outline={false} />
             ) : !data.anyOrderedByDept ? (
               <p className="note p-3">
                 ใบรับสินค้าในช่วงนี้ลงแผนกตั้งต้นทั้งหมด จึงยังเทียบของที่แผนกสั่งกับที่แผนกใช้ไม่ได้ · ตอนนี้เลือกแผนกที่บรรทัดของใบรับสินค้าได้แล้ว (ระบบเลือกไว้ให้ตามเมนูที่ใช้วัตถุดิบนั้น) — ใบใหม่จะขึ้นที่นี่เอง ·{" "}
@@ -287,7 +287,7 @@ export default function DepartmentOverview(props: {
                     })}
                   </tbody>
                 </table>
-                <p className="mt-2 text-xs text-muted-subtle">สองตัวเลขนี้ห้ามบวกกัน — ส่วนต่างคือของที่ยังอยู่ในสต๊อก (หรือของเดิมที่ใช้ไป) ไม่ใช่ต้นทุนเพิ่ม</p>
+                <p className="mt-2 text-xs text-muted-subtle">สองตัวเลขนี้ห้ามบวกกัน — ส่วนต่างคือของที่ยังอยู่ในสต็อก (หรือของเดิมที่ใช้ไป) ไม่ใช่ต้นทุนเพิ่ม</p>
               </div>
             )}
           </section>
@@ -298,8 +298,8 @@ export default function DepartmentOverview(props: {
             {Object.keys(data.labor).length > 0 && (data.grossProfitUnavailable || nothingPosted) ? (
               <p className="note p-3">
                 {data.grossProfitUnavailable
-                  ? "ร้านคิดกำไรขั้นต้นแบบนับสต๊อก จึงยังแสดงกำไรขั้นต้นต่อแผนกไม่ได้ — หักค่าแรงต่อแผนกจึงยังคิดไม่ได้"
-                  : "ยังไม่ได้ตัดสต๊อกตามยอดขาย จึงยังไม่รู้กำไรขั้นต้นของแต่ละแผนก"}
+                  ? "ร้านคิดกำไรขั้นต้นแบบนับสต็อก จึงยังแสดงกำไรขั้นต้นต่อแผนกไม่ได้ — หักค่าแรงต่อแผนกจึงยังคิดไม่ได้"
+                  : "ยังไม่ได้ตัดสต็อกตามยอดขาย จึงยังไม่รู้กำไรขั้นต้นของแต่ละแผนก"}
               </p>
             ) : Object.keys(data.labor).length === 0 ? (
               <p className="note p-3">
@@ -334,11 +334,11 @@ export default function DepartmentOverview(props: {
           <section className="space-y-1 rounded-[18px] border border-border/70 bg-surface shadow-card p-4 text-sm">
             <Q n="8" title="ตัวเลขเชื่อได้แค่ไหน" sub={selLabel} />
             <p>
-              ตัดสต๊อกตามยอดขายครอบคลุม <b>{data.coverage === null ? "—" : `${Math.round(data.coverage * 100)}%`}</b> ของยอดขาย ({data.postedDays} วันที่ตัดแล้ว) · เกณฑ์ {props.coverageMin}%
+              ตัดสต็อกตามยอดขายครอบคลุม <b>{data.coverage === null ? "—" : `${Math.round(data.coverage * 100)}%`}</b> ของยอดขาย ({data.postedDays} วันที่ตัดแล้ว) · เกณฑ์ {props.coverageMin}%
             </p>
             {data.skippedMenus > 0 && (
               <p>
-                {data.skippedMenus} เมนูตัดสต๊อกไม่ได้ (ยังไม่มีสูตร) ต้นทุนของเมนูเหล่านี้จึงไม่อยู่ในแผนกไหนเลย ·{" "}
+                {data.skippedMenus} เมนูตัดสต็อกไม่ได้ (ยังไม่มีสูตร) ต้นทุนของเมนูเหล่านี้จึงไม่อยู่ในแผนกไหนเลย ·{" "}
                 <a href="/menus" className="text-primary underline">
                   เขียนสูตร
                 </a>
@@ -426,7 +426,7 @@ function Spark({
       </p>
       {shown.length === 0 ? (
         <p className="py-8 text-center text-xs text-muted-subtle">
-          {points.some((p) => (p.byDept[dept]?.revenue ?? 0) > 0) ? "ยังไม่ได้ตัดสต๊อกตามยอดขายในช่วงเหล่านี้" : "ยังไม่มียอดขายในช่วงนี้"}
+          {points.some((p) => (p.byDept[dept]?.revenue ?? 0) > 0) ? "ยังไม่ได้ตัดสต็อกตามยอดขายในช่วงเหล่านี้" : "ยังไม่มียอดขายในช่วงนี้"}
         </p>
       ) : (
         <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label={`ต้นทุน % ของ${name}`}>
@@ -446,7 +446,7 @@ function Spark({
             const ok = p.coverage !== null && p.coverage * 100 >= coverageMin;
             return (
               <circle key={p.key} cx={x(i)} cy={y(v)} r={p.key === selectedKey ? 5 : 3.5} fill={ok ? tone : "#FFFFFF"} stroke={tone} strokeWidth={1.8}>
-                <title>{`${p.label} ${v.toFixed(1)}%${ok ? "" : " · ตัดสต๊อกไม่ครบ"}`}</title>
+                <title>{`${p.label} ${v.toFixed(1)}%${ok ? "" : " · ตัดสต็อกไม่ครบ"}`}</title>
               </circle>
             );
           })}

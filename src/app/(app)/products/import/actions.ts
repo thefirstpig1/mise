@@ -38,7 +38,7 @@ export async function importProductsAction(rows: unknown): Promise<ImportProduct
     revalidatePath("/dashboard");
     return { ok: true, created: out.created.length, skipped: out.skipped };
   } catch (e) {
-    if (e instanceof ImportUnitError) return { ok: false, formError: `หน่วย “${e.unitName}” ใช้เป็นหน่วยนับสต๊อกไม่ได้ — เลือกจากรายการ` };
+    if (e instanceof ImportUnitError) return { ok: false, formError: `หน่วย “${e.unitName}” ใช้เป็นหน่วยนับสต็อกไม่ได้ — เลือกจากรายการ` };
     if (e instanceof ImportCategoryError) return { ok: false, formError: "หมวดที่เลือกบางรายการถูกลบไปแล้ว — รีเฟรชหน้าแล้วลองใหม่" };
     console.error("[products/import] save failed", e);
     return { ok: false, formError: "บันทึกไม่สำเร็จ ยังไม่มีรายการไหนถูกบันทึก — กรุณาลองใหม่" };

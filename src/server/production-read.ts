@@ -103,7 +103,7 @@ export async function getProductionListLogic(
             : origin === "WASTE"
               ? "ของเสีย"
               : origin === "ADJUSTMENT"
-                ? "ปรับสต๊อก"
+                ? "ปรับสต็อก"
                 : null;
       const originHref =
         origin === "STOCK_COUNT"

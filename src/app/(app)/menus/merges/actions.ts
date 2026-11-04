@@ -159,9 +159,9 @@ function toFormError(e: unknown): {
     const earliest = e.earliestBusinessDate.toISOString().slice(0, 10);
     return {
       formError:
-        `วันที่มีผลย้อนไปถึงวันที่ตัดสต๊อกไปแล้ว ${days(e.postedDayCount)} ` +
+        `วันที่มีผลย้อนไปถึงวันที่ตัดสต็อกไปแล้ว ${days(e.postedDayCount)} ` +
         `(เก่าที่สุด ${earliest}) — ยอดของวันเหล่านั้นจะยังเท่าเดิมจนกว่าจะยกเลิก` +
-        "การตัดสต๊อกแล้วโพสต์ใหม่ ถ้าเข้าใจแล้วกดยืนยันอีกครั้ง",
+        "การตัดสต็อกแล้วโพสต์ใหม่ ถ้าเข้าใจแล้วกดยืนยันอีกครั้ง",
       needsAcknowledgement: {
         kind: "backdate",
         postedDayCount: e.postedDayCount,
@@ -172,9 +172,9 @@ function toFormError(e: unknown): {
   if (e instanceof RevokeAffectsPostedDaysError) {
     return {
       formError:
-        `มี ${days(e.postedDayCount)} ที่ตัดสต๊อกไปแล้วขณะที่ยังรวมกันอยู่ — ` +
+        `มี ${days(e.postedDayCount)} ที่ตัดสต็อกไปแล้วขณะที่ยังรวมกันอยู่ — ` +
         "การยกเลิกจะไม่คืนยอดเหล่านั้นให้เอง ถ้าต้องการให้ตรงต้องยกเลิกการตัด" +
-        "สต๊อกของวันนั้นแล้วโพสต์ใหม่ ถ้าเข้าใจแล้วกดยืนยันอีกครั้ง",
+        "สต็อกของวันนั้นแล้วโพสต์ใหม่ ถ้าเข้าใจแล้วกดยืนยันอีกครั้ง",
       needsAcknowledgement: {
         kind: "revokePosted",
         postedDayCount: e.postedDayCount,

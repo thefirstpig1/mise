@@ -47,11 +47,11 @@ export const NAV_GROUPS: readonly NavGroup[] = [
     ],
   },
   {
-    label: "สต๊อก",
+    label: "สต็อก",
     items: [
       { href: "/products", label: "สินค้า/วัตถุดิบ", need: "any:member" },
-      { href: "/stock", label: "งานสต๊อก", need: "any:member" },
-      { href: "/stock-counts", label: "นับสต๊อก", need: "count:write" },
+      { href: "/stock", label: "งานสต็อก", need: "any:member" },
+      { href: "/stock-counts", label: "นับสต็อก", need: "count:write" },
       { href: "/waste", label: "ของเสีย", need: "waste:write" },
       // ADR 0040: what the kitchen made — the cook who made it records it (Q6).
       { href: "/production", label: "การผลิต", need: "stock:write" },
@@ -66,7 +66,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
       { href: "/closing", label: "ปิดร้านประจำวัน", need: "any:member", addon: "dailyClose" },
       { href: "/menus", label: "จัดการเมนู", need: "any:member" },
       { href: "/menus/lab", label: "ทดลองเมนู", need: "recipe:draft" },
-      { href: "/consumption", label: "ตัดสต๊อกตามยอดขาย", need: "consumption:post" },
+      { href: "/consumption", label: "ตัดสต็อกตามยอดขาย", need: "consumption:post" },
     ],
   },
   {

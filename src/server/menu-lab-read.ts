@@ -3,7 +3,7 @@
 // ============================================================
 // One question: **how much of my gross profit is currently guessed?**
 //
-// A shop on the นับสต๊อก method gets a gross profit from opening + purchases −
+// A shop on the นับสต็อก method gets a gross profit from opening + purchases −
 // closing, which works with no recipes at all. The moment it switches to
 // สูตรอาหาร, every dish without a recipe is a hole — Part 22 prints the figure
 // with its coverage precisely so the hole is visible. This list is the other end

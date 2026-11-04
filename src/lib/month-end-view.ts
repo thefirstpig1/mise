@@ -106,7 +106,7 @@ export function toMonthEndView(m: MonthEnd): MonthEndView {
 
 /**
  * What a shop may book on its own "stock short on count" account. Only a shop
- * that runs recipes can tell it apart from what was cooked: under นับสต๊อก the
+ * that runs recipes can tell it apart from what was cooked: under นับสต็อก the
  * ledger never hears about cooking, so every count's loss IS the usage.
  */
 export function shrinkageOf(b: MonthEndBranchView, recipeMethod: boolean): number {
@@ -157,17 +157,17 @@ export function readinessOf(v: MonthEndView): ReadinessNote[] {
     const dates = v.branches.map((b) => `${multi ? short(b.branchName) + " " : ""}${dayLabelTh(b.lastCountDate!)}`).join(" · ");
     notes.push({
       tone: "ok",
-      title: multi ? `นับสต๊อกใกล้สิ้นเดือนแล้วทั้ง ${v.branches.length} สาขา` : "นับสต๊อกใกล้สิ้นเดือนแล้ว",
+      title: multi ? `นับสต็อกใกล้สิ้นเดือนแล้วทั้ง ${v.branches.length} สาขา` : "นับสต็อกใกล้สิ้นเดือนแล้ว",
       detail: `${dates} — ยอดสิ้นเดือนคือที่นับได้ บวกลบของที่เข้าออกหลังนับ`,
     });
   } else {
     for (const b of stale) {
       notes.push({
         tone: "warn",
-        title: `${who(b)}${b.lastCountDate ? `นับสต๊อกล่าสุด ${dayLabelTh(b.lastCountDate)}` : "ยังไม่เคยนับสต๊อก"}`,
-        detail: "สต๊อกสิ้นเดือนจึงเป็นยอดที่ระบบคิด ไม่ใช่ยอดที่นับ — นับภายใน 7 วันก่อนสิ้นเดือนจะเชื่อได้มากกว่า",
+        title: `${who(b)}${b.lastCountDate ? `นับสต็อกล่าสุด ${dayLabelTh(b.lastCountDate)}` : "ยังไม่เคยนับสต็อก"}`,
+        detail: "สต็อกสิ้นเดือนจึงเป็นยอดที่ระบบคิด ไม่ใช่ยอดที่นับ — นับภายใน 7 วันก่อนสิ้นเดือนจะเชื่อได้มากกว่า",
         href: "/stock-counts",
-        action: "นับสต๊อก",
+        action: "นับสต็อก",
       });
     }
   }
@@ -177,7 +177,7 @@ export function readinessOf(v: MonthEndView): ReadinessNote[] {
       notes.push({
         tone: "warn",
         title: `${who(b)}ใบรับสินค้า ${b.draftReceipts} ใบยังไม่ยืนยัน`,
-        detail: "ของในใบเหล่านี้ยังไม่เข้าสต๊อกและยอดซื้อ",
+        detail: "ของในใบเหล่านี้ยังไม่เข้าสต็อกและยอดซื้อ",
         href: "/goods-receipts",
         action: "ดูใบรับสินค้า",
       });
@@ -186,7 +186,7 @@ export function readinessOf(v: MonthEndView): ReadinessNote[] {
       notes.push({
         tone: "warn",
         title: `${who(b)}วัตถุดิบ ${b.unpricedProducts} รายการยังไม่มีราคาทุน`,
-        detail: "มูลค่าสต๊อกสิ้นเดือนอาจต่ำกว่าจริง",
+        detail: "มูลค่าสต็อกสิ้นเดือนอาจต่ำกว่าจริง",
         href: "/cost",
         action: "ใส่ราคา",
       });
@@ -195,16 +195,16 @@ export function readinessOf(v: MonthEndView): ReadinessNote[] {
       notes.push({
         tone: "warn",
         title: `${who(b)}สินค้า ${b.negativeStockProducts} รายการที่ระบบคิดว่าติดลบ`,
-        detail: "มักแปลว่ามีของเข้าที่ไม่ได้บันทึกรับ — มูลค่าสต๊อกของรายการนั้นเป็นศูนย์",
+        detail: "มักแปลว่ามีของเข้าที่ไม่ได้บันทึกรับ — มูลค่าสต็อกของรายการนั้นเป็นศูนย์",
         href: "/stock",
-        action: "ดูสต๊อก",
+        action: "ดูสต็อก",
       });
     }
     if (b.cogs < 0) {
       notes.push({
         tone: "warn",
         title: `${who(b)}ต้นทุนขายติดลบ ฿${money(-b.cogs)}`,
-        detail: "สต๊อกสิ้นเดือนมากกว่าที่ยกมาบวกที่ซื้อ — มักเกิดจากซื้อของแล้วไม่ได้บันทึกบิล หรือนับเจอของมากกว่าที่ระบบมี",
+        detail: "สต็อกสิ้นเดือนมากกว่าที่ยกมาบวกที่ซื้อ — มักเกิดจากซื้อของแล้วไม่ได้บันทึกบิล หรือนับเจอของมากกว่าที่ระบบมี",
         href: "/stock-counts",
         action: "ดูการนับ",
       });

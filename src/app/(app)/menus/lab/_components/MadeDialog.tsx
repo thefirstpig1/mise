@@ -122,7 +122,7 @@ export default function MadeDialog({
                   ))}
                 </select>
               </label>
-              {p === null && <p className="text-xs text-muted-foreground">หน่วยที่เลือกจะเป็นหน่วยนับสต๊อกของ “{menuName}”</p>}
+              {p === null && <p className="text-xs text-muted-foreground">หน่วยที่เลือกจะเป็นหน่วยนับสต็อกของ “{menuName}”</p>}
             </>
           )}
           {error && (

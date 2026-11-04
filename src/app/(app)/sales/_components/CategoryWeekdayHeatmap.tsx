@@ -364,7 +364,7 @@ export default function CategoryWeekdayHeatmap({
                   <button
                     type="button"
                     onClick={() => insight?.open(m.id)}
-                    title="ดู insight ของเมนูนี้"
+                    title="ดูอินไซต์ของเมนูนี้"
                     className="group block w-full rounded-lg px-2 py-1.5 text-left text-sm transition-colors hover:bg-muted"
                   >
                   <div className="flex items-baseline justify-between gap-2">

@@ -208,7 +208,7 @@ describe("month-end close (rules ME1–ME6)", () => {
     expect(t.cogs).toBe(0);
   });
 
-  it("ME2 on /cost: a shop that cannot reclaim VAT does not see it as profit (นับสต๊อก gross profit, Kong 2026-10-29)", async () => {
+  it("ME2 on /cost: a shop that cannot reclaim VAT does not see it as profit (นับสต็อก gross profit, Kong 2026-10-29)", async () => {
     // A day of sales last month, so the summary prints a gross profit at all.
     await withRlsBypass(async (tx) => {
       const integ = await tx.posIntegration.create({ data: { tenantId: tenant, branchId: thonglor, posType: "CUSTOM", name: "POS" }, select: { id: true } });
@@ -249,7 +249,7 @@ describe("month-end close (rules ME1–ME6)", () => {
           vatAmount: 0,
         },
       });
-      // Rule PG1: นับสต๊อก answers only for a period whose opening was counted.
+      // Rule PG1: นับสต็อก answers only for a period whose opening was counted.
       // The shelf was empty the day before and somebody looked — no variance,
       // so no movement; only the fact of the count.
       const before = new Date(on(prevMonth, 1).getTime() - 86_400_000);

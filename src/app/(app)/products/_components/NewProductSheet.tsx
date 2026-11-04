@@ -142,7 +142,7 @@ export default function NewProductSheet({
     start(async () => {
       setError(null);
       if (d.name.trim() === "") return setError("ใส่ชื่อสินค้าก่อน");
-      if (d.baseUnit === "") return setError("เลือกว่านับสต๊อกเป็นหน่วยอะไร");
+      if (d.baseUnit === "") return setError("เลือกว่านับสต็อกเป็นหน่วยอะไร");
       if (d.type === "PREPPED" && d.madeFrom === "one" && d.parentId === "") return setError("เลือกว่าของแปรรูปนี้ทำจากอะไร");
       const bad = d.packs.find((p) => (packName(p) !== "" || p.box || p.size) && (packName(p) === "" || !(Number(packRatioOf(p)) > 0)));
       if (bad) return setError("หน่วยซื้อยังไม่ครบ: ใส่ภาชนะ ขนาด และหน่วยของขนาด");
@@ -270,14 +270,14 @@ export default function NewProductSheet({
                 <p className="text-xs text-muted-foreground">เช่น น้ำจิ้มซีฟู้ด ซอสผัด · บันทึกแล้วแผงของสินค้านี้จะเปิดขึ้น กด “เขียนสูตรผลิต” แล้วใส่วัตถุดิบที่ใช้ต่อครั้ง</p>
               ) : (
               <>
-              <p className="text-xs text-muted-foreground">เช่น ข้าวสาร → ข้าวสวย · กุ้ง → กุ้งแกะ · บอกว่าของตั้งต้น 1 หน่วยได้ของนี้กี่ %</p>
+              <p className="text-xs text-muted-foreground">เช่น ข้าวสาร → ข้าวสวย · กุ้ง → กุ้งแกะ · บอกว่าของตั้งต้น 1 หน่วยได้ของนี้กี่ % (ยิลด์)</p>
               <div className="flex flex-wrap items-center gap-2 text-sm">
                 ทำจาก
                 <div className="min-w-[14rem] flex-1">
                   <ProductPicker products={parents} value={d.parentId} onChange={(id) => set({ parentId: id })} placeholder="ค้นหาสินค้าที่ใช้ทำ" />
                 </div>
                 1 หน่วย ได้
-                <MeasureInput size="sm" unit="%" min="0.01" value={d.yieldPct} onChange={(e) => set({ yieldPct: e.target.value })} aria-label="% ที่ได้" boxClassName="w-24" />
+                <MeasureInput size="sm" unit="%" min="0.01" value={d.yieldPct} onChange={(e) => set({ yieldPct: e.target.value })} aria-label="ยิลด์" boxClassName="w-24" />
               </div>
               {Number(d.yieldPct) > 300 && <p className="text-xs text-muted-foreground">เกิน 300% · ปกติสำหรับของที่พองตอนปรุง เช่น ข้าวสาร → ข้าวสวย</p>}
               </>
@@ -288,7 +288,7 @@ export default function NewProductSheet({
 
         <section className="space-y-2.5 rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <h4 className="font-semibold">นับสต๊อกเป็น</h4>
+            <h4 className="font-semibold">นับสต็อกเป็น</h4>
             <span className="text-xs text-muted-foreground">หน่วยที่นับ · ต้นทุนคิดต่อหน่วยนี้ · เปลี่ยนภายหลังยาก</span>
           </div>
           {!form && !loadError && <div className="h-20 animate-pulse rounded-lg bg-muted" />}
@@ -443,7 +443,7 @@ export default function NewProductSheet({
             <p>
               <b className="font-display">{d.name.trim() || "ชื่อสินค้า"}</b> · {preview} · <span className="tabular-nums">{d.ownSku && d.sku.trim() ? d.sku.trim() : (form?.nextSku ?? "…")}</span>
             </p>
-            <p className="text-xs text-muted-subtle">{d.baseUnit ? `นับสต๊อกเป็น ${base} · ต้นทุนคิดต่อ ${base}` : "ยังไม่ได้เลือกหน่วยที่นับ"}</p>
+            <p className="text-xs text-muted-subtle">{d.baseUnit ? `นับสต็อกเป็น ${base} · ต้นทุนคิดต่อ ${base}` : "ยังไม่ได้เลือกหน่วยที่นับ"}</p>
           </div>
         </section>
       </div>

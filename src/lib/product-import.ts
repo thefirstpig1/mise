@@ -224,7 +224,7 @@ export function countRecipeMenus(grid: string[][]): number {
 }
 
 export const TABLE_ERROR_TH: Record<Exclude<TableResult, { ok: true }>["reason"], string> = {
-  NO_HEADER: `ไม่พบคอลัมน์ “${PRODUCT_COLUMNS.name}” — ไฟล์นี้อาจไม่ได้ทำตามคำสั่งของคิดครัว ลองคัดลอกคำสั่งไปให้ AI ทำใหม่ หรือใช้แม่แบบ`,
+  NO_HEADER: `ไม่พบคอลัมน์ “${PRODUCT_COLUMNS.name}” — ไฟล์นี้อาจไม่ได้ทำตามคำสั่งของคิดครัว ลองคัดลอกคำสั่งไปให้ AI ทำใหม่ หรือใช้เทมเพลต`,
   ONLY_RECIPES: `ไฟล์นี้มีแต่แผ่น “${RECIPE_SHEET}” ยังไม่มีแผ่น “${PRODUCT_SHEET}” — ตอนนี้นำเข้าได้เฉพาะวัตถุดิบ`,
   TOO_MANY: `มีมากกว่า ${MAX_IMPORT_ROWS.toLocaleString("th-TH")} แถว — แบ่งเป็นหลายไฟล์แล้วนำเข้าทีละไฟล์`,
   EMPTY: "ไม่พบรายการวัตถุดิบในตาราง",

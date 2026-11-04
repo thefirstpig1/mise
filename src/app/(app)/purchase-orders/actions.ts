@@ -85,7 +85,7 @@ function transitionMessage(e: PurchaseOrderTransitionError): string {
   if (e.to === "CANCELLED") {
     return e.from === "CANCELLED"
       ? "ใบสั่งซื้อนี้ถูกยกเลิกไปแล้ว"
-      : "ยกเลิกไม่ได้ — มีการรับของเข้าคลังแล้ว";
+      : "ยกเลิกไม่ได้ — มีการรับของเข้าสต็อกแล้ว";
   }
   return "สถานะของใบสั่งซื้อไม่รองรับการทำรายการนี้";
 }

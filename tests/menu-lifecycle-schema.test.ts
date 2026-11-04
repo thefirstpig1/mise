@@ -146,6 +146,6 @@ describe("menu lifecycle wire shapes (ADR 0027 L2)", () => {
     // people get wrong, and the reason the import preview warns at all.
     expect(RETIRE_MEANS_TH).toContain("อนาคต");
     expect(RETIRE_NOT_IN_POS_TH).toContain("POS");
-    expect(RETIRE_NOT_IN_POS_TH).toContain("ตัดสต๊อก");
+    expect(RETIRE_NOT_IN_POS_TH).toContain("ตัดสต็อก");
   });
 });

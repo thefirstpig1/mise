@@ -49,7 +49,7 @@ export default function VoidWasteButton({
       <form {...formActionKeep} className="mt-2 space-y-2">
         <input type="hidden" name="id" value={wasteId} />
         <p className="text-xs text-muted-foreground">
-          คืน {label} เข้าสต๊อก — รายการเดิมจะยังอยู่ให้เห็น พร้อมเหตุผลที่ยกเลิก
+          คืน {label} เข้าสต็อก — รายการเดิมจะยังอยู่ให้เห็น พร้อมเหตุผลที่ยกเลิก
         </p>
         <input
           name="void_reason"

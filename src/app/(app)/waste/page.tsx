@@ -151,7 +151,7 @@ export default async function WastePage({
         <h2 className="text-2xl font-semibold">บันทึกของเสีย</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           ของที่ทิ้งไปแล้วจริง ๆ — เน่าเสีย ตกแตก ทำไหม้ ลูกค้าตีกลับ
-          บันทึกทีละอย่างแล้วตัดสต๊อกทันที
+          บันทึกทีละอย่างแล้วตัดสต็อกทันที
         </p>
       </div>
 

@@ -214,7 +214,7 @@ export type IngredientFact = {
 
 export type IngredientFacts = {
   facts: Record<string, IngredientFact>;
-  /** The last business day sales were posted to stock — "ตัดสต๊อกถึง". */
+  /** The last business day sales were posted to stock — "ตัดสต็อกถึง". */
   postedThrough: string | null;
   /** How many days in the window were posted — the divisor above. */
   postedDays: number;

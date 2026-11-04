@@ -222,7 +222,7 @@ export default function SelfPurchaseSheet({
                 return (
                   <div key={l.key} className="space-y-2 rounded-xl border border-border bg-surface p-3">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs text-muted-subtle">เข้าสต๊อก</span>
+                      <span className="text-xs text-muted-subtle">เข้าสต็อก</span>
                       <button type="button" className="text-xs text-muted-foreground hover:text-bad" onClick={() => setStock((s) => s.filter((x) => x.key !== l.key))}>
                         ลบ
                       </button>
@@ -257,7 +257,7 @@ export default function SelfPurchaseSheet({
               {others.map((l) => (
                 <div key={l.key} className="space-y-2 rounded-xl border border-border bg-surface p-3">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs text-muted-subtle">ไม่เข้าสต๊อก</span>
+                    <span className="text-xs text-muted-subtle">ไม่เข้าสต็อก</span>
                     <button type="button" className="text-xs text-muted-foreground hover:text-bad" onClick={() => setOthers((s) => s.filter((x) => x.key !== l.key))}>
                       ลบ
                     </button>
@@ -287,7 +287,7 @@ export default function SelfPurchaseSheet({
               ))}
               <div className="flex flex-wrap gap-2">
                 <button type="button" className="btn-secondary btn-sm" onClick={() => setStock((s) => [...s, { key: key(), productId: "", unitId: "", qty: "", total: "" }])}>
-                  ＋ ของเข้าสต๊อก
+                  ＋ ของเข้าสต็อก
                 </button>
                 <button type="button" className="btn-secondary btn-sm" onClick={() => setOthers((s) => [...s, { key: key(), description: "", categoryId: "", total: "" }])}>
                   ＋ ของใช้ / อื่น ๆ

@@ -74,7 +74,7 @@ export default async function GoodsReceiptsPage({
         <div>
           <h2 className="text-2xl font-semibold">ใบรับสินค้า</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            ร่างยังไม่เข้าคลัง — กดยืนยันรับของแล้วสต๊อกจะเพิ่มทันที และแก้ไม่ได้อีก
+            ร่างยังไม่เข้าสต็อก — กดยืนยันรับของแล้วสต็อกจะเพิ่มทันที และแก้ไม่ได้อีก
           </p>
         </div>
         <a

@@ -260,7 +260,7 @@ export async function getMonthEndLogic(
   const branches: MonthEndBranch[] = ledger.summaries.map((s) => {
     const opening = baht(s.openingInventoryValue);
     // ME2 — the bills the accountant books, at what they cost the shop; the
-    // same figure /cost's นับสต๊อก gross profit stands on.
+    // same figure /cost's นับสต็อก gross profit stands on.
     const p = baht(s.purchasesAtCost);
     const ti = baht(tIn.get(s.branchId));
     const to_ = baht(tOut.get(s.branchId));

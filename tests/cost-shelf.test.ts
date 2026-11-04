@@ -1,7 +1,7 @@
 // ============================================================
 // คิดครัว — stock value: unknown is not ฿0 (queue item 10, rule ND5)
 // ============================================================
-// /cost said "฿0 · ไม่มีของในสต๊อก" for a shop whose shelf held goods counted
+// /cost said "฿0 · ไม่มีของในสต็อก" for a shop whose shelf held goods counted
 // in without a price. The shelf is now counted apart from its value, so the
 // page can say "ยังไม่รู้มูลค่า · ของ N รายการยังไม่มีราคา" instead.
 // ============================================================

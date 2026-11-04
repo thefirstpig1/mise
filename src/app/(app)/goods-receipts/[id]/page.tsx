@@ -69,7 +69,7 @@ export default async function GoodsReceiptDetailPage({
         ? [{ label: "บิลค่าใช้จ่าย", note: "สร้างให้เองเมื่อยืนยัน" }]
         : []),
     ...(gr.invoiceNo ? [{ label: `ใบส่งของผู้ขาย ${gr.invoiceNo}` }] : []),
-    ...(gr.status !== "DRAFT" && forward ? [{ label: "ดูในบัตรสต๊อก", href: "/stock/history" }] : []),
+    ...(gr.status !== "DRAFT" && forward ? [{ label: "ดูในบัตรสต็อก", href: "/stock/history" }] : []),
   ];
   // "ต่างจากที่สั่ง" means nothing on a purchase with no order: every row is "—".
   const fromOrder = gr.purchaseOrder !== null;
@@ -104,7 +104,7 @@ export default async function GoodsReceiptDetailPage({
 
       {gr.status === "DRAFT" && (
         <div className="rounded-lg border border-border bg-muted/30 p-3 text-xs text-muted-foreground print:hidden">
-          ยังเป็นร่าง — สต๊อกยังไม่ขยับ จนกว่าจะกด &quot;ยืนยันรับของเข้าคลัง&quot;
+          ยังเป็นร่าง — สต็อกยังไม่ขยับ จนกว่าจะกด &quot;ยืนยันรับของเข้าสต็อก&quot;
         </div>
       )}
       {gr.status === "VOIDED" && (
@@ -298,7 +298,7 @@ export default async function GoodsReceiptDetailPage({
       {/* ---------- what entered stock, in the shop's words, folded ---------- */}
       <details className="group rounded-[18px] border border-border/70 bg-surface shadow-card print:hidden">
         <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-semibold">
-          ของเข้าคลังเท่าไร (แปลงหน่วยแล้ว)
+          ของเข้าสต็อกเท่าไร (แปลงหน่วยแล้ว)
           <span className="text-xs font-normal text-muted-foreground group-open:hidden">กดเพื่อดู</span>
           <span className="hidden text-xs font-normal text-muted-foreground group-open:inline">ย่อ</span>
         </summary>
@@ -308,7 +308,7 @@ export default async function GoodsReceiptDetailPage({
               <tr>
                 <th className="py-1.5 pr-2 font-medium">รายการ</th>
                 <th className="py-1.5 pr-2 font-medium">รับมา</th>
-                <th className="py-1.5 pr-2 text-right font-medium">เข้าคลัง</th>
+                <th className="py-1.5 pr-2 text-right font-medium">เข้าสต็อก</th>
                 <th className="py-1.5 font-medium">แผนก</th>
               </tr>
             </thead>

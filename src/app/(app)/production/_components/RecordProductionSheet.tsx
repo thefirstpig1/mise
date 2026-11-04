@@ -241,7 +241,7 @@ export default function RecordProductionSheet({
     const kept = res.reposted.filter((r) => r.outcome !== "REPOSTED").length;
     onDone(
       `บันทึกแล้ว ${res.pdNumber}` +
-        (reposted ? ` · ตัดสต๊อกของวันขายใหม่ ${reposted} วัน` : "") +
+        (reposted ? ` · ตัดสต็อกของวันขายใหม่ ${reposted} วัน` : "") +
         (kept ? ` · ${kept} วันตัดใหม่ไม่ได้ คงยอดเดิม` : "")
     );
   };
@@ -505,7 +505,7 @@ export default function RecordProductionSheet({
               )}
             </div>
             {producedOn !== today && (
-              <p className="text-xs text-muted-foreground">วันขายที่เคยตัดวัตถุดิบแทน ตั้งแต่วันนั้น ระบบจะตัดสต๊อกใหม่ให้เอง</p>
+              <p className="text-xs text-muted-foreground">วันขายที่เคยตัดวัตถุดิบแทน ตั้งแต่วันนั้น ระบบจะตัดสต็อกใหม่ให้เอง</p>
             )}
           </div>
         )}

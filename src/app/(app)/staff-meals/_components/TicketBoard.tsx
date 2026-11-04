@@ -59,7 +59,7 @@ function TicketCard({ t }: { t: TicketView }) {
       {t.status === "APPROVED" && (
         <p className="mt-1 text-sm text-good">
           อนุมัติโดย {t.approvedByName}
-          {!t.stockPosted && " · สต๊อกตัดผ่าน POS"}
+          {!t.stockPosted && " · สต็อกตัดผ่าน POS"}
         </p>
       )}
       {t.status === "REJECTED" && (

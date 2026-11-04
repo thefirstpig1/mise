@@ -262,7 +262,7 @@ const profileDraftFields = {
   columnMap: columnMapSchema,
   amountsIncludeVat: explicitBoolean("ต้องระบุว่าตัวเลขในไฟล์รวม VAT แล้วหรือยัง"),
   amountsIncludeServiceCharge: explicitBoolean(
-    "ต้องระบุว่าตัวเลขในไฟล์รวม Service charge แล้วหรือยัง"
+    "ต้องระบุว่าตัวเลขในไฟล์รวมเซอร์วิสชาร์จแล้วหรือยัง"
   ),
   defaultChannel: z.preprocess(
     blankToNull,
@@ -328,7 +328,7 @@ function refineProfile(v: ProfileDraft, ctx: z.RefinementCtx) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ["columnMap", "serviceChargeAmount"],
-      message: "บอกว่าตัวเลขรวม Service charge แล้ว แต่ไม่ได้ระบุคอลัมน์ Service charge",
+      message: "บอกว่าตัวเลขรวมเซอร์วิสชาร์จแล้ว แต่ไม่ได้ระบุคอลัมน์เซอร์วิสชาร์จ",
     });
   }
 

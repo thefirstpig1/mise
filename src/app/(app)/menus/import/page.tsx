@@ -35,7 +35,7 @@ export default async function RecipeImportPage() {
           </p>
           <h2 className="text-2xl font-semibold">นำเข้าสูตรจากไฟล์</h2>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            เมนูที่ขายบันทึกเป็น <b className="font-medium text-foreground">สูตรร่าง</b> ยังไม่ตัดสต๊อกจนกว่าจะกด “ใช้สูตร” ที่หน้าทดลองเมนู · ของที่ร้านทำเอง (น้ำซุป น้ำจิ้ม) บันทึกเป็นสูตรผลิตที่ใช้ได้ทันที
+            เมนูที่ขายบันทึกเป็น <b className="font-medium text-foreground">สูตรร่าง</b> ยังไม่ตัดสต็อกจนกว่าจะกด “ใช้สูตร” ที่หน้าทดลองเมนู · ของที่ร้านทำเอง (น้ำซุป น้ำจิ้ม) บันทึกเป็นสูตรผลิตที่ใช้ได้ทันที
           </p>
         </div>
         <ImportGuide prompt={prompt} kind="recipes" />

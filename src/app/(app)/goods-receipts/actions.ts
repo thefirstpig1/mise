@@ -87,7 +87,7 @@ export type GoodsReceiptPostActionState =
 // --- Thai messages (the user-facing error paths) ---
 const NOT_FOUND_MESSAGE = "ไม่พบใบรับสินค้านี้";
 const NOT_EDITABLE_MESSAGE =
-  "ใบรับสินค้านี้บันทึกเข้าคลังแล้ว จึงแก้ไขไม่ได้ — หากผิด ให้ยกเลิกใบรับแล้วออกใบใหม่";
+  "ใบรับสินค้านี้บันทึกเข้าสต็อกแล้ว จึงแก้ไขไม่ได้ — หากผิด ให้ยกเลิกใบรับแล้วออกใบใหม่";
 const CROSS_TENANT_MESSAGE = "ข้อมูลอ้างอิงไม่อยู่ในระบบของคุณ";
 const UNIT_MISMATCH_MESSAGE = "หน่วยที่เลือกต้องเป็นหน่วยของวัตถุดิบนั้น";
 const ALLOCATION_MESSAGE = "ยอดปันส่วนตามแผนกไม่ตรงกับจำนวนที่รับ";
@@ -181,7 +181,7 @@ function toFormError(
     return {
       ok: false,
       fieldErrors: {
-        lines: `จำนวนที่รับน้อยเกินไป — ${e.inputQty.toString()} ${e.inputUnitName} ปัดเป็น 0 ในหน่วยนับสต๊อก${e.baseUnitName ? ` (${e.baseUnitName})` : ""}`,
+        lines: `จำนวนที่รับน้อยเกินไป — ${e.inputQty.toString()} ${e.inputUnitName} ปัดเป็น 0 ในหน่วยนับสต็อก${e.baseUnitName ? ` (${e.baseUnitName})` : ""}`,
       },
     };
   }

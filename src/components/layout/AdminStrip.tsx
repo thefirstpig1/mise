@@ -15,7 +15,7 @@ export default function AdminStrip() {
     <div className="flex items-center justify-between gap-3 bg-primary px-4 py-1.5 text-sm text-primary-foreground lg:px-8">
       <span className="flex min-w-0 items-center gap-2 opacity-90">
         <ShieldCheck aria-hidden className="h-4 w-4 shrink-0" />
-        <span className="truncate">บัญชีผู้ดูแลระบบ</span>
+        <span className="truncate">บัญชีแอดมินคิดครัว</span>
       </span>
       <a
         href="/platform"

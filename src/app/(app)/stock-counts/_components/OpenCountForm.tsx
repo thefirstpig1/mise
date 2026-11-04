@@ -109,7 +109,7 @@ export default function OpenCountForm({
             <a href={`/stock-counts/${blockedBy}`} className="underline">
               เข้าไปนับต่อในใบเดิม
             </a>{" "}
-            (หนึ่งสาขานับได้ทีละใบ เพื่อไม่ให้ตัดสต๊อกซ้ำ)
+            (หนึ่งสาขานับได้ทีละใบ เพื่อไม่ให้ตัดสต็อกซ้ำ)
           </p>
         )}
       </div>

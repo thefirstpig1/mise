@@ -135,8 +135,8 @@ export function toMenuMergeRowView(m: MenuMergeWithMenus): MenuMergeRowView {
         : `ยกเลิกเมื่อ ${BANGKOK_DATETIME.format(m.revokedAt)}`,
     scopeLabel:
       m.revokedAt === null
-        ? `รายงานรวมย้อนหลังทั้งหมด · ตัดสต๊อกรวมตั้งแต่ ${effectiveLabel}`
-        : "ไม่มีผลแล้ว — ทั้งรายงานและการตัดสต๊อกแยกกันตามเดิม",
+        ? `รายงานรวมย้อนหลังทั้งหมด · ตัดสต็อกรวมตั้งแต่ ${effectiveLabel}`
+        : "ไม่มีผลแล้ว — ทั้งรายงานและการตัดสต็อกแยกกันตามเดิม",
   };
 }
 

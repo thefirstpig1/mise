@@ -59,7 +59,7 @@ export const GOODS_RECEIPT_STATUS_LABELS_TH: Record<
   string
 > = {
   DRAFT: "ร่าง",
-  CONFIRMED: "รับเข้าคลังแล้ว",
+  CONFIRMED: "รับเข้าสต็อกแล้ว",
   VOIDED: "ยกเลิกใบรับ",
 };
 

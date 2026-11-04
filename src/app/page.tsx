@@ -76,7 +76,7 @@ export default async function HomePage() {
               </span>
             </h1>
             <p className="lp-sub lp-rv" style={d(0.4)}>
-              <Phrases t="คิดครัวรวมยอดขายจากไฟล์ POS บิลซื้อ และการนับสต๊อก ให้เห็นต้นทุนและกำไรของร้านทุกเดือน · ใช้ POS เครื่องเดิม และเริ่มได้แม้ยังไม่มีสูตรอาหาร" />
+              <Phrases t="คิดครัวรวมยอดขายจากไฟล์ POS บิลซื้อ และการนับสต็อก ให้เห็นต้นทุนและกำไรของร้านทุกเดือน · ใช้ POS เครื่องเดิม และเริ่มได้แม้ยังไม่มีสูตรอาหาร" />
             </p>
             <div className="lp-ctas lp-rv" style={d(0.52)}>
               <Link href="/signup" className="lp-btn lp-btn-cream">

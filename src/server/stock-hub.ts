@@ -1,5 +1,5 @@
 // ============================================================
-// Mise — งานสต๊อก (/stock) at a glance (Kong 2026-10-24, duplication review B6)
+// Mise — งานสต็อก (/stock) at a glance (Kong 2026-10-24, duplication review B6)
 // ============================================================
 // /stock stopped being a second product list (that is /products now) and
 // became the door to stock WORK. Each tile says one fact about its job, read

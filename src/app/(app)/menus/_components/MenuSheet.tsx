@@ -420,9 +420,9 @@ export default function MenuSheet(props: {
       if (res.needsAcknowledgement)
         return setConfirm({
           title: "ลบสูตรนี้?",
-          lines: res.needsAcknowledgement.mergedMenuNames.map((n) => `${n} ใช้สูตรนี้ตัดสต๊อกอยู่`),
+          lines: res.needsAcknowledgement.mergedMenuNames.map((n) => `${n} ใช้สูตรนี้ตัดสต็อกอยู่`),
           money: null,
-          who: "ถ้าลบ เมนูเหล่านี้จะขายต่อไปโดยไม่ตัดสต๊อกเลย",
+          who: "ถ้าลบ เมนูเหล่านี้จะขายต่อไปโดยไม่ตัดสต็อกเลย",
           go: "ลบสูตรพร้อมผลกระทบนี้",
           onGo: () => removeRecipe(true),
         });
@@ -719,7 +719,7 @@ export default function MenuSheet(props: {
           {sheet && lines.length === 0 && (
             <div className="rounded-lg border-[1.5px] border-dashed border-border-strong bg-surface-sunk p-3 text-sm text-muted-foreground">
               <b className="text-foreground">ยังไม่มีสูตร</b>
-              {menu.qty > 0 ? ` · ${props.factDays} วันที่ผ่านมาขายไป ${menu.qty.toLocaleString("th-TH")} จาน (${baht(menu.net)}) แต่ยังคิดต้นทุนและตัดสต๊อกไม่ได้` : ""}
+              {menu.qty > 0 ? ` · ${props.factDays} วันที่ผ่านมาขายไป ${menu.qty.toLocaleString("th-TH")} จาน (${baht(menu.net)}) แต่ยังคิดต้นทุนและตัดสต็อกไม่ได้` : ""}
               {menu.hasDraft && " · มีร่างใน “ทดลองเมนู”"}
               {perm.recipe ? " · เริ่มจากวัตถุดิบหลักก่อนก็ได้ แล้วค่อยเติมทีหลัง" : ""}
             </div>
@@ -771,13 +771,13 @@ export default function MenuSheet(props: {
                 </p>
               )}
               {plates && "blocked" in plates ? (
-                <p>ของในสต๊อกพอทำได้อีกกี่จาน: คิดไม่ได้ เพราะยังไม่รู้ว่ามี{plates.blocked}เหลือเท่าไร</p>
+                <p>ของในสต็อกพอทำได้อีกกี่จาน: คิดไม่ได้ เพราะยังไม่รู้ว่ามี{plates.blocked}เหลือเท่าไร</p>
               ) : plates ? (
                 <p>
-                  ของในสต๊อก{branch.name}พอทำจานนี้อีก <b className="text-foreground tabular-nums">~{plates.plates.toLocaleString("th-TH")} จาน</b> · ติดที่{plates.label}ก่อน (ถ้าไม่เอาไปใช้กับเมนูอื่น)
+                  ของในสต็อก{branch.name}พอทำจานนี้อีก <b className="text-foreground tabular-nums">~{plates.plates.toLocaleString("th-TH")} จาน</b> · ติดที่{plates.label}ก่อน (ถ้าไม่เอาไปใช้กับเมนูอื่น)
                 </p>
               ) : null}
-              {facts?.postedThrough && <p>คงเหลือตามระบบ ตัดสต๊อกตามยอดขายถึง {thDate(facts.postedThrough, false)}</p>}
+              {facts?.postedThrough && <p>คงเหลือตามระบบ ตัดสต็อกตามยอดขายถึง {thDate(facts.postedThrough, false)}</p>}
               {recipeEditable && (
                 <button type="button" onClick={() => setShowNotes((v) => !v)} className="underline decoration-dotted underline-offset-2 hover:text-foreground">
                   {showNotes ? "ซ่อนหมายเหตุ" : "หมายเหตุ"}
@@ -840,7 +840,7 @@ export default function MenuSheet(props: {
                       title: `ลบสูตรของ${menu.name}?`,
                       lines: [`ทุกเวอร์ชันของสูตรกลางนี้จะถูกลบ`],
                       money: null,
-                      who: "ยอดขายที่ยังไม่ได้ตัดสต๊อกจะคิดต้นทุนและตัดสต๊อกเมนูนี้ไม่ได้ จนกว่าจะเขียนสูตรใหม่ · สาขาที่มีสูตรของตัวเองไม่เปลี่ยน",
+                      who: "ยอดขายที่ยังไม่ได้ตัดสต็อกจะคิดต้นทุนและตัดสต็อกเมนูนี้ไม่ได้ จนกว่าจะเขียนสูตรใหม่ · สาขาที่มีสูตรของตัวเองไม่เปลี่ยน",
                       go: "ลบสูตร",
                       onGo: () => removeRecipe(false),
                     })

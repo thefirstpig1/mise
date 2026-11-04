@@ -114,7 +114,7 @@ const CYCLE_MESSAGE =
 const DEPTH_MESSAGE =
   "นำไปใช้จริงไม่ได้ — สูตรจะซ้อนกันเกิน 5 ชั้น ลองลดชั้นของส่วนประกอบลง";
 const METHOD_MISSING_MESSAGE =
-  "มีของแปรรูปในสูตรที่ยังไม่ได้ระบุเปอร์เซ็นต์ผลผลิต จึงคำนวณต่อไม่ได้";
+  "มีของแปรรูปในสูตรที่ยังไม่ได้ระบุยิลด์ จึงคำนวณต่อไม่ได้";
 
 /**
  * ADR 0014 Q9: a cost is always a cost AT a branch. A tenant with no branch is

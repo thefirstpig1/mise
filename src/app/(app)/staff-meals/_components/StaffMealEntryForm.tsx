@@ -152,7 +152,7 @@ export default function StaffMealEntryForm({
             ))}
           </ul>
           <p className="mt-1">
-            ถ้ารายการเหล่านั้นคือมื้อพนักงานอยู่แล้ว POS ตัดสต๊อกให้ไปแล้ว —
+            ถ้ารายการเหล่านั้นคือมื้อพนักงานอยู่แล้ว POS ตัดสต็อกให้ไปแล้ว —
             บันทึกซ้ำที่นี่จะตัดสองรอบ ระบบไม่ห้าม เพราะระบบแยกไม่ได้ว่าอันไหนคืออะไร
           </p>
           <label className="mt-2 flex items-center gap-2">
@@ -253,7 +253,7 @@ export default function StaffMealEntryForm({
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
               <label className="label" htmlFor="sm-member">
-                พาร์ทไทม์ที่กิน <span className="text-muted-foreground">(คนที่ไม่มีแอคเคาท์)</span>
+                พาร์ทไทม์ที่กิน <span className="text-muted-foreground">(คนที่ไม่มีบัญชีคิดครัว)</span>
               </label>
               <select
                 id="sm-member"
@@ -274,7 +274,7 @@ export default function StaffMealEntryForm({
               )}
               {members.length === 0 && (
                 <p className="mt-1 text-xs text-muted-foreground">
-                  ยังไม่มีรายชื่อพาร์ทไทม์ — พนักงานที่มีแอคเคาท์ให้กดขอเบิกเองด้านบน ·{" "}
+                  ยังไม่มีรายชื่อพาร์ทไทม์ — พนักงานที่มีบัญชีให้กดขอเบิกเองด้านบน ·{" "}
                   <a className="underline" href="/staff-meals/people">
                     เพิ่มที่นี่
                   </a>
@@ -314,7 +314,7 @@ export default function StaffMealEntryForm({
             <p className="mt-1 text-xs text-muted-foreground">
               ระบบจะตัดวัตถุดิบตาม<strong>สูตรของวันที่เลือก</strong> และบันทึก
               <strong>ราคาขาย</strong>ของจานนี้ไว้สำหรับดูโควตา — ราคาขาย
-              <strong>ไม่ใช่</strong>ต้นทุน สต๊อกตัดตามราคาวัตถุดิบเสมอ
+              <strong>ไม่ใช่</strong>ต้นทุน สต็อกตัดตามราคาวัตถุดิบเสมอ
             </p>
           </div>
         </>
@@ -450,7 +450,7 @@ export default function StaffMealEntryForm({
       {state.ok && (
         <p className="rounded-lg border border-good-border bg-good-bg p-3 text-sm text-good">
           {state.replayed
-            ? "รายการนี้บันทึกไว้แล้ว ไม่ได้ตัดสต๊อกซ้ำ"
+            ? "รายการนี้บันทึกไว้แล้ว ไม่ได้ตัดสต็อกซ้ำ"
             : `บันทึกแล้ว — ตัดวัตถุดิบ ${state.itemCount} รายการ`}
           {state.unitPrice !== null && (
             <>

@@ -88,7 +88,7 @@ const ALREADY_EXISTS_MESSAGE =
 const OUTPUT_NOT_PREPPED_MESSAGE =
   "สูตรผลิตต้องผลิต “ของแปรรูป” เท่านั้น — วัตถุดิบดิบไม่มีสูตรผลิต";
 const METHOD_CONFLICT_MESSAGE =
-  "ของแปรรูปนี้ระบุสินค้าแม่ + เปอร์เซ็นต์ผลผลิตไว้แล้ว — เลือกได้อย่างเดียว";
+  "ของแปรรูปนี้ระบุสินค้าแม่ + ยิลด์ไว้แล้ว — เลือกได้อย่างเดียว";
 
 const SUBSTITUTION_STALE_MESSAGE =
   "บางสูตรไม่มีวัตถุดิบตัวนี้แล้ว — รบกวนรีเฟรชแล้วเลือกใหม่";
@@ -107,21 +107,21 @@ const DEPTH_MESSAGE =
 
 /** A PREPPED product whose yield is missing or zero — the walk cannot divide. */
 const METHOD_MISSING_MESSAGE =
-  "มีของแปรรูปในสูตรที่ยังไม่ได้ระบุเปอร์เซ็นต์ผลผลิต จึงคำนวณต่อไม่ได้";
+  "มีของแปรรูปในสูตรที่ยังไม่ได้ระบุยิลด์ จึงคำนวณต่อไม่ได้";
 
 /**
  * ADR 0026 Consequence 3, and the whole reason this Part exists: the names go IN
  * the sentence. "ลบไม่ได้เพราะมีเมนูอื่นใช้อยู่" would leave the person hunting
  * for menus that are, by construction, filed under a different spelling.
  *
- * It says ตัดสต๊อก rather than ต้นทุน on purpose — losing the cost figure is
+ * It says ตัดสต็อก rather than ต้นทุน on purpose — losing the cost figure is
  * visible on the next report, losing the DEDUCTION is not visible anywhere until
  * a stock count comes up short.
  */
 function mergedMenusMessage(menuNames: string[]): string {
-  return `เมนูที่ถูกรวมเข้ากับจานนี้ยังใช้สูตรนี้ตัดสต๊อกอยู่ — ${menuNames.join(", ")}
+  return `เมนูที่ถูกรวมเข้ากับจานนี้ยังใช้สูตรนี้ตัดสต็อกอยู่ — ${menuNames.join(", ")}
 
-ถ้าลบ เมนูเหล่านี้จะขายต่อไปโดยไม่ตัดสต๊อกเลย กดลบอีกครั้งเพื่อยืนยัน`;
+ถ้าลบ เมนูเหล่านี้จะขายต่อไปโดยไม่ตัดสต็อกเลย กดลบอีกครั้งเพื่อยืนยัน`;
 }
 
 // ------------------------------------------------------------

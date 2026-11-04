@@ -1,4 +1,4 @@
-// /stock — งานสต๊อก (Kong 2026-10-24, duplication review B6, mockup
+// /stock — งานสต็อก (Kong 2026-10-24, duplication review B6, mockup
 // https://claude.ai/artifact/4hGLXhjU1Gt5kNpMwrycXv, option A).
 //
 // This page used to be a second list of every product with its balance — the
@@ -119,7 +119,7 @@ export default async function StockWorkPage({ searchParams }: { searchParams: Pr
     },
     {
       href: `/stock-counts/new?branch=${branch.id}`,
-      title: "นับสต๊อก",
+      title: "นับสต็อก",
       icon: ClipboardCheck,
       sub: countSub,
       show: can("count:write"),
@@ -141,7 +141,7 @@ export default async function StockWorkPage({ searchParams }: { searchParams: Pr
       show: can("waste:write"),
       daily: true,
     },
-    { href: `/stock/adjust?branch=${branch.id}`, title: "ปรับสต๊อก", icon: SlidersHorizontal, sub: "ของเกิน/ขาดที่รู้สาเหตุ", show: can("stock:write") },
+    { href: `/stock/adjust?branch=${branch.id}`, title: "ปรับสต็อก", icon: SlidersHorizontal, sub: "ของเกิน/ขาดที่รู้สาเหตุ", show: can("stock:write") },
     {
       href: `/transfers/new?from=${branch.id}`,
       title: "โอนไปสาขาอื่น",
@@ -152,7 +152,7 @@ export default async function StockWorkPage({ searchParams }: { searchParams: Pr
     { href: "/staff-meals", title: "มื้อพนักงาน", icon: Utensils, sub: "ของที่พนักงานกิน", show: can("stock:write") },
     {
       href: `/consumption?branch=${branch.id}`,
-      title: "ตัดสต๊อกตามยอดขาย",
+      title: "ตัดสต็อกตามยอดขาย",
       icon: PackageMinus,
       sub:
         hub.staleDays > 0
@@ -166,14 +166,14 @@ export default async function StockWorkPage({ searchParams }: { searchParams: Pr
       alert: hub.staleDays > 0 || hub.unpostedDays > 0,
       daily: true,
     },
-    { href: `/stock/history?branch=${branch.id}`, title: "ประวัติ / บัตรสต๊อก", icon: History, sub: "ทุกรายการ พร้อมยอดคงเหลือ", show: true },
+    { href: `/stock/history?branch=${branch.id}`, title: "ประวัติ / บัตรสต็อก", icon: History, sub: "ทุกรายการ พร้อมยอดคงเหลือ", show: true },
   ];
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-[1.75rem] font-semibold leading-tight tracking-[-0.005em]">{kitchenView ? "งานครัว" : "งานสต๊อก"}</h1>
+          <h1 className="text-[1.75rem] font-semibold leading-tight tracking-[-0.005em]">{kitchenView ? "งานครัว" : "งานสต็อก"}</h1>
           <p className="mt-1 text-sm text-muted-foreground">ของเข้า-ออกที่ไม่ได้มาจากการซื้อหรือการขาย บันทึกที่นี่ · ดูรายการสินค้าและยอดคงเหลือที่หน้าสินค้า/วัตถุดิบ</p>
         </div>
         {branches.length > 1 && (
@@ -266,21 +266,21 @@ export default async function StockWorkPage({ searchParams }: { searchParams: Pr
         <div className="grid content-start gap-4">
           {value !== null && stock.held === 0 ? (
             <div className="rounded-[18px] border border-border/70 bg-surface p-4 shadow-card">
-              <span className="text-xs text-muted-subtle">มูลค่าสต๊อก{branch.name} · ตามราคาทุน (FIFO)</span>
+              <span className="text-xs text-muted-subtle">มูลค่าสต็อก{branch.name} · ตามราคาทุน (FIFO)</span>
               <div className="mt-1.5">
-                <WaitingSlot figure="stockValue" needs={["count", "receipt"]} reason="ยังไม่มีของในสต๊อกที่ระบบรู้" branchId={branch.id} />
+                <WaitingSlot figure="stockValue" needs={["count", "receipt"]} reason="ยังไม่มีของในสต็อกที่ระบบรู้" branchId={branch.id} />
               </div>
             </div>
           ) : value !== null && value <= 0 ? (
             <div className="rounded-[18px] border border-border/70 bg-surface p-4 shadow-card">
-              <span className="text-xs text-muted-subtle">มูลค่าสต๊อก{branch.name} · ตามราคาทุน (FIFO)</span>
+              <span className="text-xs text-muted-subtle">มูลค่าสต็อก{branch.name} · ตามราคาทุน (FIFO)</span>
               <div className="mt-1.5">
                 <WaitingSlot figure="stockValue" needs={["price"]} reason={`ยังไม่รู้มูลค่า · ของ ${stock.unpriced} รายการยังไม่มีราคา`} branchId={branch.id} />
               </div>
             </div>
           ) : value !== null ? (
             <a href="/products?sort=value" className="block rounded-[18px] border border-border/70 bg-surface shadow-card p-4 hover:bg-muted/40">
-              <span className="text-xs text-muted-subtle">มูลค่าสต๊อก{branch.name} · ตามราคาทุน (FIFO)</span>
+              <span className="text-xs text-muted-subtle">มูลค่าสต็อก{branch.name} · ตามราคาทุน (FIFO)</span>
               <span className="block font-display text-2xl font-semibold tabular-nums">
                 {stock.unpriced > 0 && <span className="mr-1 font-sans text-sm font-medium text-muted-foreground">อย่างน้อย</span>}
                 {baht(value)}

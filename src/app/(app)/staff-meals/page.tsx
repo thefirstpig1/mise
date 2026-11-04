@@ -179,7 +179,7 @@ export default async function StaffMealsPage({
   const potForm = (
     <section className="card">
       <h2 className="text-lg font-semibold">{isApprover ? "บันทึกหม้อใหญ่ หรือบันทึกแทนพาร์ทไทม์" : "บันทึกหม้อใหญ่ (ทำกินเองจากของในร้าน)"}</h2>
-      <p className="mb-4 mt-0.5 text-sm text-muted-foreground">ของที่ทำกินกันเองจากของในร้าน ตัดสต๊อกตามวัตถุดิบที่ใส่</p>
+      <p className="mb-4 mt-0.5 text-sm text-muted-foreground">ของที่ทำกินกันเองจากของในร้าน ตัดสต็อกตามวัตถุดิบที่ใส่</p>
       <StaffMealEntryForm
         action={createStaffMealAction}
         branches={branches.map((b) => ({ id: b.id, name: b.name }))}
@@ -321,7 +321,7 @@ export default async function StaffMealsPage({
 
         <p className="text-xs text-muted-foreground">
           ตัวเลขนี้คือ<strong>มูลค่าตามราคาขาย</strong> ใช้ดูว่าให้สวัสดิการไปเท่าไหร่ —
-          ไม่ใช่ต้นทุน สต๊อกถูกตัดตามราคาวัตถุดิบจริงเสมอ
+          ไม่ใช่ต้นทุน สต็อกถูกตัดตามราคาวัตถุดิบจริงเสมอ
         </p>
 
         {rows.length === 0 ? (
@@ -408,7 +408,7 @@ export default async function StaffMealsPage({
 
   return (
     <div className="space-y-5">
-      <PageHeader title="มื้อพนักงาน" description="พนักงานขอเบิกจากมือถือ หัวหน้าอนุมัติ ระบบตัดสต๊อกตามสูตร · เกินโควตาแค่เตือน ไม่บล็อก" />
+      <PageHeader title="มื้อพนักงาน" description="พนักงานขอเบิกจากมือถือ หัวหน้าอนุมัติ ระบบตัดสต็อกตามสูตร · เกินโควตาแค่เตือน ไม่บล็อก" />
       <StaffMealsScreen
         initialTab={initialTab}
         isApprover={isApprover}

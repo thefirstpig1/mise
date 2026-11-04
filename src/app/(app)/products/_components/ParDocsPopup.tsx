@@ -161,7 +161,7 @@ export default function ParDocsPopup({
             </section>
           ))}
           {docs && docs.length === 0 && <p className="px-5 pb-4 text-sm text-muted-foreground">ไม่พบใบที่ยังค้างอยู่ — อาจรับของหรือยกเลิกไปแล้ว ลองรีเฟรชหน้า</p>}
-          <p className="px-5 pb-4 text-xs text-muted-subtle">ไฮไลท์เขียว = รายการนี้ · แถบแดง/เหลืองจาง = สินค้าอื่นในใบเดียวกันที่ต่ำกว่า/ใกล้ขั้นต่ำ (ดูเฉย ๆ)</p>
+          <p className="px-5 pb-4 text-xs text-muted-subtle">ไฮไลต์เขียว = รายการนี้ · แถบแดง/เหลืองจาง = สินค้าอื่นในใบเดียวกันที่ต่ำกว่า/ใกล้ขั้นต่ำ (ดูเฉย ๆ)</p>
         </div>
       </div>
     </Portal>

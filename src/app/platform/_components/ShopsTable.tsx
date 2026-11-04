@@ -89,7 +89,7 @@ export default function ShopsTable({ shops, today }: { shops: ShopRow[]; today: 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         {[
           ["ร้านทั้งหมด", shops.length, "ร้านที่สมัครแล้ว"],
-          ["ใช้งานใน 7 วัน", active7, "มีบิลหรือการเคลื่อนไหวสต๊อก"],
+          ["ใช้งานใน 7 วัน", active7, "มีบิลหรือการเคลื่อนไหวสต็อก"],
           ["ใช้ฟรีหมดใน 30 วัน", endingSoon, "ติดต่อเรื่องค่าบริการ"],
           ["ยังไม่ตั้งแพ็กเกจ", unset, "Free ยังไม่กำหนดวันหมด"],
           ["บัญชีที่มี Free เกิน 1 ร้าน", overFree.size, "ยังไม่บังคับ จนกว่า Standard ซื้อได้"],
@@ -112,7 +112,7 @@ export default function ShopsTable({ shops, today }: { shops: ShopRow[]; today: 
               <th>เจ้าของ</th>
               <th className="text-right">สาขา · คน</th>
               <th>ใช้งานล่าสุด</th>
-              <th title="ระบบตัดตามสูตร เทียบกับที่ใช้จริงตามการนับครั้งล่าสุดที่เทียบได้">ตัดสต๊อกเทียบการนับ</th>
+              <th title="ระบบตัดตามสูตร เทียบกับที่ใช้จริงตามการนับครั้งล่าสุดที่เทียบได้">ตัดสต็อกเทียบการนับ</th>
               <th>แพ็กเกจ</th>
               <th>ใช้ฟรีถึง</th>
               <th></th>

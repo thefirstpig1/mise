@@ -1,5 +1,5 @@
 // ============================================================
-// คิดครัว — the reads behind "ตัดสต๊อกตามยอดขาย", as GET (mise-ui-review §5c)
+// คิดครัว — the reads behind "ตัดสต็อกตามยอดขาย", as GET (mise-ui-review §5c)
 // ============================================================
 // what=accuracy-detail  one product's row in "ระบบตัดตามสูตร เทียบกับที่ใช้จริง":
 //                       the menus behind the deduction, waste, receipts on the

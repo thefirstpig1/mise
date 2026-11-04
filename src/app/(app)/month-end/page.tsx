@@ -47,7 +47,7 @@ export default async function MonthEndPage({ searchParams }: { searchParams: Pro
     <div className="space-y-6">
       <PageHeader
         title={`ปิดเดือน ${monthTitleTh(month)}`}
-        description="มูลค่าสต๊อกและต้นทุนขายของเดือน สำหรับลงบัญชี — ส่งออกเป็นไฟล์ตามโปรแกรมบัญชีที่ร้านใช้"
+        description="มูลค่าสต็อกและต้นทุนขายของเดือน สำหรับลงบัญชี — ส่งออกเป็นไฟล์ตามโปรแกรมบัญชีที่ร้านใช้"
         actions={
           <nav aria-label="เลือกเดือน" className="flex flex-wrap gap-1.5">
             {chips.map((m) => (

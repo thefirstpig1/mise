@@ -246,7 +246,7 @@ export async function getLeakOverviewLogic(tenantId: string, reach: BranchReach)
         // sales in the window: revenue, days, menus without a recipe
         const sales = revenueDays.filter((r) => r.branchId === c.branchId && inWindow(r.businessDate));
         const sinceRevenue = sales.reduce((s, r) => s + num(r._sum.netAmount), 0);
-        // "ตัดสต๊อกก่อนนับ" — the days BEFORE the count date, deducted by the
+        // "ตัดสต็อกก่อนนับ" — the days BEFORE the count date, deducted by the
         // time the count closed. Not the count day: whether its sales came
         // before or after the counting depends on when the shop counts.
         // Counting runs that exist today said "posted" for a day imported a

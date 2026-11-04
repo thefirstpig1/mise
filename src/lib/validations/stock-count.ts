@@ -155,7 +155,7 @@ const countNoteSchema = z.preprocess(
  *    summed into the line.
  */
 export const saveStockCountLineInputSchema = z.object({
-  stockCountId: z.string().uuid("ใบนับสต๊อกไม่ถูกต้อง"),
+  stockCountId: z.string().uuid("ใบนับสต็อกไม่ถูกต้อง"),
   productId: z.string().uuid("วัตถุดิบไม่ถูกต้อง"),
   mode: z.enum(["new", "add"]).default("new"),
   entries: countEntriesSchema,
@@ -166,7 +166,7 @@ export type SaveStockCountLineInput = z.infer<typeof saveStockCountLineInputSche
 
 /** Correct your OWN contribution — nobody edits another person's (ADR 0034 Q3). */
 export const editStockCountContributionInputSchema = z.object({
-  stockCountId: z.string().uuid("ใบนับสต๊อกไม่ถูกต้อง"),
+  stockCountId: z.string().uuid("ใบนับสต็อกไม่ถูกต้อง"),
   contributionId: z.string().uuid("รายการนับไม่ถูกต้อง"),
   entries: countEntriesSchema,
   notes: countNoteSchema,
@@ -187,7 +187,7 @@ export type EditStockCountContributionInput = z.infer<
  * explicitly declined to make — a partial count is the normal case.
  */
 export const closeStockCountInputSchema = z.object({
-  id: z.string().uuid("ใบนับสต๊อกไม่ถูกต้อง"),
+  id: z.string().uuid("ใบนับสต็อกไม่ถูกต้อง"),
   /**
    * Rule PG4: on an OPENING count, the price of each line that enters stock,
    * in the unit it was typed in. Ignored on any other count — its gains are
@@ -214,7 +214,7 @@ export type CloseStockCountInput = z.infer<typeof closeStockCountInputSchema>;
  * a reader will have, and the moment it is asked is the only moment anyone knows.
  */
 export const voidStockCountInputSchema = z.object({
-  id: z.string().uuid("ใบนับสต๊อกไม่ถูกต้อง"),
+  id: z.string().uuid("ใบนับสต็อกไม่ถูกต้อง"),
   voidReason: z
     .string({ required_error: "ต้องระบุเหตุผลที่ยกเลิก" })
     .trim()
@@ -243,7 +243,7 @@ export const STOCK_COUNT_FIELD_LABELS_TH: Record<string, string> = {
   branchId: "สาขา",
   countDate: "วันที่นับ",
   notes: "หมายเหตุ",
-  stockCountId: "ใบนับสต๊อก",
+  stockCountId: "ใบนับสต็อก",
   productId: "วัตถุดิบ",
   entries: "จำนวนที่นับได้",
   voidReason: "เหตุผลที่ยกเลิก",

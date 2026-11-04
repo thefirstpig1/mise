@@ -116,7 +116,7 @@ export const RETIRE_MEANS_TH =
 
 /** L1 — the half people get wrong: retiring in Mise is not retiring in the POS. */
 export const RETIRE_NOT_IN_POS_TH =
-  "ถ้า POS ยังส่งเมนูนี้มา ยอดขายจะยังเข้าและยังตัดสต๊อกตามปกติ — ต้องเลิกขายใน POS ด้วย";
+  "ถ้า POS ยังส่งเมนูนี้มา ยอดขายจะยังเข้าและยังตัดสต็อกตามปกติ — ต้องเลิกขายใน POS ด้วย";
 
 /** L2 — the import preview's warning, above the list of dishes it found. */
 export const RETIRED_STILL_SELLING_TH =
@@ -130,7 +130,7 @@ export const RETIRED_STILL_SELLING_TH =
 // The confirm opens BEFORE the server checks, so it states the rule, not a
 // claim about this menu — the server refuses a menu that breaks it, by name.
 export const DELETE_MEANS_TH =
-  "ลบได้เฉพาะเมนูที่ยังไม่เคยขายและไม่ได้มาจาก POS (ระบบตรวจให้ก่อนลบ) รายงานและสต๊อกจึงไม่เปลี่ยน · ถ้าพิมพ์ชื่อนี้ในหน้าทดลองเมนูอีก ระบบจะเสนอให้กู้คืน · เมนูที่ขายแล้วให้ใช้ “เลิกขาย” แทน";
+  "ลบได้เฉพาะเมนูที่ยังไม่เคยขายและไม่ได้มาจาก POS (ระบบตรวจให้ก่อนลบ) รายงานและสต็อกจึงไม่เปลี่ยน · ถ้าพิมพ์ชื่อนี้ในหน้าทดลองเมนูอีก ระบบจะเสนอให้กู้คืน · เมนูที่ขายแล้วให้ใช้ “เลิกขาย” แทน";
 
 /** L4 — why the delete button is not offered, and what to press instead. */
 export const DELETE_BLOCKED_USE_RETIRE_TH =

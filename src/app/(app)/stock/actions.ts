@@ -68,7 +68,7 @@ const CONFLICT_MESSAGE = "ระบบกำลังบันทึกราย
 /** Part 14: the cost was typed against a unit of some other product. */
 const COST_UNIT_MESSAGE = "หน่วยของต้นทุนต้องเป็นหน่วยของวัตถุดิบนี้";
 /** Part 14: a cost may only be attached to stock coming IN (ADR 0014 Q6). */
-const COST_TARGET_MESSAGE = "ระบุต้นทุนได้เฉพาะรายการที่เพิ่มสต๊อกเท่านั้น";
+const COST_TARGET_MESSAGE = "ระบุต้นทุนได้เฉพาะรายการที่เพิ่มสต็อกเท่านั้น";
 
 /**
  * Map the adjust form's snake_case FormData onto the schema's camelCase shape.

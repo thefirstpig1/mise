@@ -25,8 +25,8 @@ export const EXPORT_DATASET_TH: Record<ExportDataset, { title: string; row: stri
   sales: { title: "ยอดขาย", row: "เมนูที่ขาย ต่อวัน ต่อสาขา (หรือต่อบิล ถ้าไฟล์ POS แยกบิล)", slug: "sales", period: true },
   "goods-receipts": { title: "รับสินค้า", row: "รายการในใบรับสินค้า ทีละบรรทัด", slug: "goods-receipts", period: true },
   expenses: { title: "ค่าใช้จ่าย", row: "รายการในบิลค่าใช้จ่าย ทีละบรรทัด พร้อมแผ่นสรุปรายบิล", slug: "expenses", period: true },
-  "stock-counts": { title: "นับสต๊อก", row: "สินค้าที่นับในแต่ละใบนับ พร้อมจำนวนที่ระบบคาด", slug: "stock-counts", period: true },
-  "stock-movements": { title: "ความเคลื่อนไหวสต๊อก", row: "ทุกการเข้าออกของสินค้า (รับ ใช้ ทิ้ง โอน นับ)", slug: "stock-movements", period: true },
+  "stock-counts": { title: "นับสต็อก", row: "สินค้าที่นับในแต่ละใบนับ พร้อมจำนวนที่ระบบคาด", slug: "stock-counts", period: true },
+  "stock-movements": { title: "ความเคลื่อนไหวสต็อก", row: "ทุกการเข้าออกของสินค้า (รับ ใช้ ทิ้ง โอน นับ)", slug: "stock-movements", period: true },
   products: { title: "สินค้าและวัตถุดิบ", row: "สินค้าแต่ละตัว พร้อมหน่วย", slug: "products", period: false },
 };
 

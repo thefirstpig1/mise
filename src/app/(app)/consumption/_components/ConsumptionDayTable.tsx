@@ -132,7 +132,7 @@ export function ConsumptionDayTable({
       {/* Never defaulted on: it takes real ledger rows back (Q2b). */}
       {ack && <input type="hidden" name="acknowledge_repost" value="on" />}
       <button type="submit" disabled={pending || sets[s].length === 0} onClick={() => setScope(s)} className={className}>
-        {pending && scope === s ? "กำลังตัดสต๊อก…" : label}
+        {pending && scope === s ? "กำลังตัดสต็อก…" : label}
       </button>
     </form>
   );
@@ -145,7 +145,7 @@ export function ConsumptionDayTable({
     <div className="space-y-4">
       {state.ok && state.days.length > 0 && (
         <div className="rounded-[18px] border border-good-border bg-good-bg p-4 text-sm">
-          <p className="font-display font-semibold text-good">ตัดสต๊อกเรียบร้อย {state.days.length} วัน</p>
+          <p className="font-display font-semibold text-good">ตัดสต็อกเรียบร้อย {state.days.length} วัน</p>
           <ul className="mt-2 space-y-1 text-muted-foreground">
             {state.days.map((d) => (
               <li key={d.businessDate}>
@@ -170,7 +170,7 @@ export function ConsumptionDayTable({
         <div className="space-y-3 rounded-[18px] border border-warn-border bg-warn-bg p-4 text-sm">
           <div>
             <p className="font-display text-[15px] font-semibold text-foreground">
-              {needsAck.days.length} วันนี้ตัดสต๊อกไปแล้ว — กดยืนยันจะยกเลิกของเดิมทั้งวัน แล้วตัดใหม่
+              {needsAck.days.length} วันนี้ตัดสต็อกไปแล้ว — กดยืนยันจะยกเลิกของเดิมทั้งวัน แล้วตัดใหม่
             </p>
             {/* Twenty days is a wall; five say what it is, the rest on request. */}
             <ShowMore
@@ -197,7 +197,7 @@ export function ConsumptionDayTable({
           {sets.unposted.length > 0 && (
             <div>
               <p className="font-display text-[15px] font-semibold">
-                ยังไม่ได้ตัดสต๊อก {sets.unposted.length} วัน · {daysLabel(sets.unposted)}
+                ยังไม่ได้ตัดสต็อก {sets.unposted.length} วัน · {daysLabel(sets.unposted)}
               </p>
               <p className="text-[13px] text-muted-foreground">
                 ต้นทุนของวันเหล่านั้นยังไม่ถูกนับ กำไรขั้นต้นแบบสูตรอาหารจึงยังดูดีเกินจริง
@@ -229,7 +229,7 @@ export function ConsumptionDayTable({
           <span className="text-xs text-muted-foreground">ทุกวันในช่วงนี้ตัดแล้ว · ใช้ปุ่มนี้หลังเขียนหรือแก้สูตร ระบบจะถามยืนยันก่อน</span>
         </div>
       ) : (
-        days.length > 0 && <p className="text-xs text-muted-foreground">ไม่มีวันที่ตัดสต๊อกได้ในช่วงนี้</p>
+        days.length > 0 && <p className="text-xs text-muted-foreground">ไม่มีวันที่ตัดสต็อกได้ในช่วงนี้</p>
       )}
 
       {children}

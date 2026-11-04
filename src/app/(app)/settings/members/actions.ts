@@ -193,7 +193,7 @@ function inviteMessage(
       // spent a whole question on.
       return `${added} แต่ส่งอีเมลแจ้งไม่สำเร็จ — บอกเขาให้เข้าที่หน้าเข้าสู่ระบบด้วยอีเมลนี้`;
     case "skipped":
-      return `${added} — เข้าใช้งานได้ทันทีเมื่อล็อกอินด้วยอีเมลนี้`;
+      return `${added} — ใช้งานได้ทันทีเมื่อเข้าสู่ระบบด้วยอีเมลนี้`;
   }
 }
 

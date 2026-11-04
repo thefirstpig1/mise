@@ -234,7 +234,7 @@ export default function LabManager(props: {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 className="text-2xl font-semibold">ทดลองเมนู</h2>
-          <p className="mt-1 text-sm text-muted-foreground">ลองคิดสูตรและราคาก่อนขายจริง ร่างยังไม่ตัดสต๊อกและยังไม่ถูกใช้คิดต้นทุนขาย จนกว่าจะกด “นำไปใช้จริง”</p>
+          <p className="mt-1 text-sm text-muted-foreground">ลองคิดสูตรและราคาก่อนขายจริง ร่างยังไม่ตัดสต็อกและยังไม่ถูกใช้คิดต้นทุนขาย จนกว่าจะกด “นำไปใช้จริง”</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <a href="/menus" className="btn-secondary btn-sm">
@@ -433,7 +433,7 @@ export default function LabManager(props: {
               </div>
               <p className="text-[12.5px] text-muted-foreground">
                 สูตรจะมีผลตั้งแต่วันที่เลือก ยอดขายก่อนหน้านั้นยังคิดด้วยสูตรเดิม (หรือไม่มีสูตร) · ย้อนหลังได้ไม่เกิน 90 วัน
-                {salesStart && salesStart !== props.firstSalesDay ? " · ยอดขายที่เก่ากว่านั้นไม่ได้ถูกตัดสต๊อกอยู่แล้ว" : ""}
+                {salesStart && salesStart !== props.firstSalesDay ? " · ยอดขายที่เก่ากว่านั้นไม่ได้ถูกตัดสต็อกอยู่แล้ว" : ""}
               </p>
               {published && published.results.some((r) => r.outcome === "NEEDS_ACK") && (
                 <div className="grid gap-2 rounded-xl border border-warn-border bg-warn-bg p-3 text-sm text-warn">
@@ -495,7 +495,7 @@ export default function LabManager(props: {
         <section className="space-y-2">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h3 className="font-semibold">น่าจะเป็นเมนูเดียวกับเมนูที่มีสูตรแล้ว · {copies.length} เมนู</h3>
-            <span className="text-xs text-muted-subtle">รวมเมนูแทนการเขียนสูตรใหม่ · รวมแล้วตัดสต๊อกด้วยสูตรของเมนูหลัก</span>
+            <span className="text-xs text-muted-subtle">รวมเมนูแทนการเขียนสูตรใหม่ · รวมแล้วตัดสต็อกด้วยสูตรของเมนูหลัก</span>
           </div>
           <div className="overflow-hidden rounded-[18px] border border-border/70 bg-surface shadow-card">
             {copies.map((m) => (
@@ -540,10 +540,10 @@ export default function LabManager(props: {
         </div>
         <ol className="grid gap-2 sm:grid-cols-4">
           {[
-            ["ร่าง", "ใส่วัตถุดิบ ลองราคา บันทึกได้เรื่อย ๆ ยังไม่ตัดสต๊อก"],
+            ["ร่าง", "ใส่วัตถุดิบ ลองราคา บันทึกได้เรื่อย ๆ ยังไม่ตัดสต็อก"],
             ["ส่งให้รับรอง", "คนครัวส่งให้ผู้จัดการดู"],
             ["รับรองแล้ว", "ผู้จัดการเห็นด้วย รอคนที่ดูแลทุกสาขา"],
-            ["นำไปใช้จริง", "สูตรเริ่มตัดสต๊อกและคิดต้นทุนขายตั้งแต่วันที่ใช้"],
+            ["นำไปใช้จริง", "สูตรเริ่มตัดสต็อกและคิดต้นทุนขายตั้งแต่วันที่ใช้"],
           ].map(([t, s], i) => (
             <li key={t} className="rounded-xl bg-surface-sunk px-3 py-2.5 text-xs text-muted-foreground">
               <span className="font-display font-bold text-[#C0692B]">{i + 1}</span>
@@ -673,9 +673,9 @@ function PublishSummary({ state, fromDay }: { state: Extract<PublishDraftsState,
       ))}
       {state.postedDays > 0 && (
         <p className="text-muted-foreground">
-          มี {state.postedDays} วันตั้งแต่ {thDate(fromDay)} ที่ตัดสต๊อกไปแล้วโดยยังไม่มีสูตรเหล่านี้ —{" "}
+          มี {state.postedDays} วันตั้งแต่ {thDate(fromDay)} ที่ตัดสต็อกไปแล้วโดยยังไม่มีสูตรเหล่านี้ —{" "}
           <a href="/consumption" className="underline decoration-dotted underline-offset-4 hover:text-foreground">
-            ตัดสต๊อกใหม่ได้ที่หน้าตัดสต๊อกตามยอดขาย
+            ตัดสต็อกใหม่ได้ที่หน้าตัดสต็อกตามยอดขาย
           </a>
         </p>
       )}

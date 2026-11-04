@@ -28,7 +28,7 @@ describe("onboarding checklist", () => {
     const o = await getOnboardingLogic(tenantId, membershipId);
     expect(o.done).toEqual({ shop: false, team: false, supplier: false, product: false, sales: false, recipe: false, count: false });
     expect(o.doneCount).toBe(0);
-    // In the order the setup runs, the count last; no recipe step under นับสต๊อก (the default).
+    // In the order the setup runs, the count last; no recipe step under นับสต็อก (the default).
     // `team` is not a step (2026-10-31) — it can happen any time — but is still reported.
     expect(o.steps).toEqual(["shop", "sales", "product", "supplier", "count"]);
     expect(o.dismissed).toBe(false);

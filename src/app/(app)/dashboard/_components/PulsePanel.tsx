@@ -67,7 +67,7 @@ export default function PulsePanel({
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <div>
           <h2 className="text-base font-semibold">คีย์ยอดปิดร้าน</h2>
-          <p className="text-xs text-muted-foreground">ยอดที่ลูกค้าจ่ายตามเครื่องเก็บเงิน (รวม VAT และ service charge) · ทำทุกวันหลังปิดร้าน ใช้ตรวจว่าไฟล์ยอดขายครบ</p>
+          <p className="text-xs text-muted-foreground">ยอดที่ลูกค้าจ่ายตาม POS (รวม VAT และเซอร์วิสชาร์จ) · ทำทุกวันหลังปิดร้าน ใช้ตรวจว่าไฟล์ยอดขายครบ</p>
         </div>
         <ActionLink href="/sales">ดูยอดขายทั้งเดือน</ActionLink>
       </div>
@@ -177,7 +177,7 @@ export default function PulsePanel({
       <details className="mt-4 text-xs text-muted-foreground">
         <summary className="cursor-pointer select-none font-medium text-primary">ตัวเลขนี้คืออะไร?</summary>
         <p className="mt-2 leading-relaxed">
-          ยอดที่คีย์เองคือ <strong>ยอดที่ลูกค้าจ่าย</strong> ตามเครื่องเก็บเงิน (รวม VAT และ service charge)
+          ยอดที่คีย์เองคือ <strong>ยอดที่ลูกค้าจ่าย</strong> ตาม POS (รวม VAT และเซอร์วิสชาร์จ)
           จึงไม่เท่ากับ “ยอดขาย” ในการ์ดด้านบนและหน้าต้นทุน ซึ่งไม่รวมสองอย่างนั้น ·
           เมื่อนำเข้าไฟล์ยอดขายของวันนั้นแล้ว ระบบจะใช้ตัวเลขจากไฟล์ และเก็บยอดที่คีย์ไว้เป็นตัวตรวจสอบ
         </p>

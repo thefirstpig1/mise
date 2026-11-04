@@ -453,11 +453,11 @@ export default function ProductsManager(props: {
           {/* A shop with nothing on the list has no stock to value — not ฿0 of it. */}
           {!costHidden && active.length > 0 && (
             <p className="mt-1 text-sm">
-              มูลค่าสต๊อก{branchName}{" "}
+              มูลค่าสต็อก{branchName}{" "}
               {stockValue === null || list === null ? (
                 pulse
               ) : held === 0 ? (
-                <span className="text-muted-subtle">— ยังไม่มีของในสต๊อกที่ระบบรู้</span>
+                <span className="text-muted-subtle">— ยังไม่มีของในสต็อกที่ระบบรู้</span>
               ) : stockValue <= 0 ? (
                 <span className="text-muted-subtle">
                   — ยังไม่รู้มูลค่า · ของ {unpriced} รายการยังไม่มีราคา <WhatIsThis figure="stockValue" needs={["price"]} branchId={branchId} />
@@ -693,7 +693,7 @@ export default function ProductsManager(props: {
 
           <p className="text-xs text-muted-subtle">
             แสดง {rows.length} รายการ · คงเหลือ{costHidden ? "" : "และต้นทุน"}ของ{branchName} ·{" "}
-            {list ? (list.postedThrough ? `ตัดสต๊อกตามยอดขายถึง ${thDate(list.postedThrough)}` : "ยังไม่มีการตัดสต๊อกตามยอดขาย ยอดคงเหลือจึงลดเฉพาะตอนนับ/ปรับ") : "กำลังโหลด…"} ·{" "}
+            {list ? (list.postedThrough ? `ตัดสต็อกตามยอดขายถึง ${thDate(list.postedThrough)}` : "ยังไม่มีการตัดสต็อกตามยอดขาย ยอดคงเหลือจึงลดเฉพาะตอนนับ/ปรับ") : "กำลังโหลด…"} ·{" "}
             {list ? (list.warningDays > 0 ? `เหลือง = จะถึงขั้นต่ำภายใน ${list.warningDays} วัน (ตั้งที่หน้าตั้งค่าทั่วไป)` : "ไม่เตือนล่วงหน้า (ตั้งที่หน้าตั้งค่าทั่วไป)") : ""}
           </p>
         </>

@@ -374,7 +374,7 @@ export default function SalesAnalysis({
               selected={compare.selected}
               custom={compare.custom}
             />
-            <span>· {METRIC_LABELS_TH[by]}เฉลี่ยต่อวัน · กดเมนูเพื่อดู insight</span>
+            <span>· {METRIC_LABELS_TH[by]}เฉลี่ยต่อวัน · กดเมนูเพื่อดูอินไซต์</span>
           </div>
           {v.profitKnown ? (
             <MenuChanges changes={v.changes} by={by} tones={tones} curLabel={periodLabelTh(range.from, range.to)} prevLabel={prevLabel} />
@@ -387,7 +387,7 @@ export default function SalesAnalysis({
           <section className="rounded-[18px] border border-border/70 bg-surface shadow-card p-5">
             <h3 className="text-base font-semibold">เมนูแต่ละกลุ่ม: ขายได้มากน้อย × กำไรต่อจาน</h3>
             <p className="mb-4 mt-0.5 text-xs text-muted-foreground">
-              ขายได้กี่จาน × กำไรต่อจาน · กดวงหรือรายชื่อเพื่อดู insight
+              ขายได้กี่จาน × กำไรต่อจาน · กดวงหรือรายชื่อเพื่อดูอินไซต์
             </p>
             {noMenuCategories && <UncategorisedHint />}
             <MenuEngineering
@@ -411,7 +411,7 @@ export default function SalesAnalysis({
               {by === "net" ? "เมนูทำเงินสูงสุด" : by === "qty" ? "เมนูที่ลูกค้าสั่งมากที่สุด" : "เมนูทำกำไร"}
             </h3>
             <p className="mb-4 mt-0.5 text-xs text-muted-foreground">
-              ทั้ง {v.table.length} เมนูของช่วงนี้ · เรียงตาม{METRIC_LABELS_TH[by]} · กดแถวเพื่อดู insight · กดหัวคอลัมน์เพื่อเรียงใหม่
+              ทั้ง {v.table.length} เมนูของช่วงนี้ · เรียงตาม{METRIC_LABELS_TH[by]} · กดแถวเพื่อดูอินไซต์ · กดหัวคอลัมน์เพื่อเรียงใหม่
             </p>
             {noMenuCategories && <UncategorisedHint />}
             <MenuTable total={v.total} by={by} rows={v.table} />

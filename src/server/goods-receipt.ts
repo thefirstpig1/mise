@@ -95,7 +95,7 @@ const GR_DETAIL_INCLUDE = {
           name: true,
           sku: true,
           deletedAt: true,
-          // "เข้าคลัง 120 กก." in the folded stock table (2026-10-27).
+          // "เข้าสต็อก 120 กก." in the folded stock table (2026-10-27).
           productUnits: { where: { isBase: true }, select: { unitName: true }, take: 1 },
         },
       },

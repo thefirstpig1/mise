@@ -383,7 +383,7 @@ function NewUnitDialog({
         <h3 id="nu-title" className="text-base font-semibold">
           ตั้งหน่วยใหม่ของ{option.name}
         </h3>
-        <p className="text-xs text-muted-foreground">ชั่งหรือตวงของจริงครั้งเดียว ใช้ได้ทุกสูตรทุกสาขา · สต๊อกยังนับเป็น {unitTh(base)} เหมือนเดิม</p>
+        <p className="text-xs text-muted-foreground">ชั่งหรือตวงของจริงครั้งเดียว ใช้ได้ทุกสูตรทุกสาขา · สต็อกยังนับเป็น {unitTh(base)} เหมือนเดิม</p>
         <div className="flex flex-wrap items-center gap-2 text-sm">
           1
           <input autoFocus={!preset} value={name} onChange={(e) => setName(e.target.value)} placeholder="เช่น ใบ, เม็ด, ทัพพี" className="input w-36 py-1" aria-label="ชื่อหน่วย" />

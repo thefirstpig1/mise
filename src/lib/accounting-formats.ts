@@ -110,7 +110,7 @@ export const PROGRAMS: ProgramSpec[] = [
       "กด Import แล้วเลือกไฟล์นี้",
       "ตรวจแล้วกด Post",
     ],
-    note: "ไฟล์ CSV มีแค่รายการปรับปรุง — สต๊อกรายสินค้าและหมายเหตุ เลือก Excel ทั่วไปแยกอีกไฟล์",
+    note: "ไฟล์ CSV มีแค่รายการปรับปรุง — สต็อกรายสินค้าและหมายเหตุ เลือก Excel ทั่วไปแยกอีกไฟล์",
     needsCodes: true,
   },
   {
@@ -135,7 +135,7 @@ export const PROGRAMS: ProgramSpec[] = [
     mono: "XL",
     kind: "generic",
     ext: "xlsx",
-    what: "สรุปปิดเดือน · รายการปรับปรุง · สต๊อกรายสินค้า",
+    what: "สรุปปิดเดือน · รายการปรับปรุง · สต็อกรายสินค้า",
     howLabel: "ทุกตารางในไฟล์เดียว",
     steps: [
       "ส่งไฟล์ให้นักบัญชี (อีเมล / LINE)",
@@ -327,11 +327,11 @@ export function journalSheet(program: AccountingProgram, view: MonthEndView, jou
 }
 
 const SUMMARY_ROWS: [string, (b: MonthEndView["total"]) => number | null][] = [
-  ["สต๊อกต้นเดือน", (b) => b.opening],
+  ["สต็อกต้นเดือน", (b) => b.opening],
   ["ซื้อเข้า", (b) => b.purchases],
   ["รับโอนจากสาขาอื่น", (b) => b.transfersIn],
   ["โอนออกให้สาขาอื่น", (b) => b.transfersOut],
-  ["สต๊อกสิ้นเดือน", (b) => b.closing],
+  ["สต็อกสิ้นเดือน", (b) => b.closing],
   ["ต้นทุนขาย (ยกมา + ซื้อ + รับโอน − โอนออก − คงเหลือ)", (b) => b.cogs],
   ["  ขายไปตามสูตร", (b) => b.sold],
   ["  ทิ้ง (มีใบบันทึกของเสีย)", (b) => b.waste],
@@ -354,7 +354,7 @@ export function summarySheet(view: MonthEndView): Sheet {
 
 export function stockSheet(view: MonthEndView): Sheet {
   return {
-    name: "สต๊อกสิ้นเดือน",
+    name: "สต็อกสิ้นเดือน",
     columns: [
       { header: "สินค้า", width: 30 },
       { header: "สาขา", width: 16 },
@@ -381,13 +381,13 @@ export function branchesSheet(view: MonthEndView): Sheet {
     name: "แยกสาขา",
     columns: [
       { header: "สาขา", width: 18 },
-      { header: "สต๊อกต้นเดือน", width: 14, money: true },
+      { header: "สต็อกต้นเดือน", width: 14, money: true },
       { header: "ซื้อเข้า", width: 14, money: true },
       { header: "รับโอน", width: 12, money: true },
       { header: "โอนออก", width: 12, money: true },
-      { header: "สต๊อกสิ้นเดือน", width: 14, money: true },
+      { header: "สต็อกสิ้นเดือน", width: 14, money: true },
       { header: "ต้นทุนขาย", width: 14, money: true },
-      { header: "นับสต๊อกล่าสุด", width: 14 },
+      { header: "นับสต็อกล่าสุด", width: 14 },
     ],
     rows: [...view.branches, view.total].map((b) => [
       b.branchName,
@@ -442,7 +442,7 @@ export function notesSheet(view: MonthEndView, generatedAt: Date): Sheet {
   const notes = readinessOf(view);
   const rows: Cell[][] = notes.map((n) => [n.tone === "ok" ? "✓" : n.tone === "warn" ? "!" : "i", n.title, n.detail]);
   rows.push([null, null, null]);
-  rows.push([null, "วิธีคิด", "ต้นทุนขาย = สต๊อกต้นเดือน + ซื้อเข้า + รับโอน − โอนออก − สต๊อกสิ้นเดือน · มูลค่าสต๊อกคิดแบบเข้าก่อนออกก่อน (FIFO)"]);
+  rows.push([null, "วิธีคิด", "ต้นทุนขาย = สต็อกต้นเดือน + ซื้อเข้า + รับโอน − โอนออก − สต็อกสิ้นเดือน · มูลค่าสต็อกคิดแบบเข้าก่อนออกก่อน (FIFO)"]);
   rows.push([
     null,
     "ยอดซื้อ",

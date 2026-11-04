@@ -235,7 +235,7 @@ export default async function SalesPage({
     {
       label: "ยอดขาย",
       icon: ChartColumn,
-      note: "ไม่รวม VAT และ SC",
+      note: "ไม่รวม VAT และเซอร์วิสชาร์จ",
       value: `฿${bahtShort(s.totals.net)}`,
       cur: nowStats.perDay.net,
       prev: prevStats.days ? prevStats.perDay.net : null,
@@ -298,7 +298,7 @@ export default async function SalesPage({
     { op: "", label: "ยอดขายก่อนส่วนลด", value: Number(s.totals.gross) },
     { op: "−", label: "ส่วนลด", value: Number(s.totals.discount) },
     { op: "", label: "ยอดขาย", value: zNet, rule: true },
-    { op: "+", label: "Service charge", value: Number(s.totals.serviceCharge) },
+    { op: "+", label: "เซอร์วิสชาร์จ", value: Number(s.totals.serviceCharge) },
     { op: "+", label: "VAT", value: Number(s.totals.vat) },
     { op: "", label: "ลูกค้าจ่ายรวม", value: paidTotal, rule: true, double: true },
   ];
@@ -441,7 +441,7 @@ export default async function SalesPage({
             {notes.length > 0 && <p>ข้อมูลช่วงนี้: {notes.join(" · ")}</p>}
             {mismatch.length > 0 ? (
               <p className="font-medium text-bad">
-                ยอดจากไฟล์ไม่ตรงกับยอดที่คีย์ตอนปิดร้าน {mismatch.length} วัน (อาจ export มาไม่ครบทั้งวัน):{" "}
+                ยอดจากไฟล์ไม่ตรงกับยอดที่คีย์ตอนปิดร้าน {mismatch.length} วัน (ไฟล์ที่ดาวน์โหลดจาก POS อาจไม่ครบทั้งวัน):{" "}
                 {mismatch.map((g, i) => (
                   <span key={g.day}>
                     {i > 0 && " · "}

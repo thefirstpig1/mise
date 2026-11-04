@@ -233,7 +233,7 @@ async function TodayStrip({
     items.push({
       key: "opening-prices",
       n: String(ready),
-      label: "ราคาสต๊อกยกมารอยืนยัน",
+      label: "ราคาสต็อกยกมารอยืนยัน",
       detail: `${openingWaiting.length > 1 ? `${openingWaiting.map((w) => short(w.branchName)).join(" · ")} — ` : ""}รับของแล้ว ใช้ราคาจากใบรับสินค้าได้`,
       href: `/stock-counts/${openingWaiting[0].countId}`,
       tone: "soft",
@@ -445,7 +445,7 @@ async function Analytics({
   const branchRows = pnl.branches.filter((b) => num(b.revenue));
   const branchFood = (b: PnlBranchRow) => (num(b.revenue) && b.cogs !== null ? (num(b.cogs)! / num(b.revenue)!) * 100 : null);
   const branchNet = (b: PnlBranchRow) => (num(b.revenue) && b.netProfit !== null ? (num(b.netProfit)! / num(b.revenue)!) * 100 : null);
-  // Rules PG1/PG2: when นับสต๊อก withheld a branch's profit, say what is missing
+  // Rules PG1/PG2: when นับสต็อก withheld a branch's profit, say what is missing
   // there and send the reader to fix THAT — counting, or pricing stock.
   const blocked = pnl.branches.filter((b) => b.revenue !== null && b.grossProfit === null && b.grossProfitBlocker);
   const blockerWhy = blocked.length
@@ -455,11 +455,11 @@ async function Analytics({
     : null;
   const allBlocked = blockerWhy !== null && blocked.length === pnl.branchesMissingGrossProfit.length;
   const blockerFix = blocked.some((b) => isCountBlocker(b.grossProfitBlocker))
-    ? { href: "/stock-counts/new", action: "นับสต๊อก" }
+    ? { href: "/stock-counts/new", action: "นับสต็อก" }
     : blocked.length
       ? { href: "/cost", action: "ใส่ราคาทุน" }
       : { href: "/cost", action: "ดูที่หน้าต้นทุน" };
-  // Rule PG2: นับสต๊อก answers month by month, so while this one runs (or was
+  // Rule PG2: นับสต็อก answers month by month, so while this one runs (or was
   // never counted) show the latest month that WAS counted at both ends —
   // named, never passed off as this period. Streamed: the cards paint first.
   const countGap = pnl.unknownReason === "GROSS_PROFIT_UNKNOWN" && allBlocked && blocked.every((b) => isCountBlocker(b.grossProfitBlocker));
@@ -486,7 +486,7 @@ async function Analytics({
       ? allBlocked
         ? blockerWhy
         : `${pnl.branchesMissingGrossProfit.map(short).join(", ")} ยังคิดไม่ได้: มียอดขายแต่ยังหาต้นทุนขายไม่ได้${
-            pnl.recipeCoverage !== null ? ` · ตัดสต๊อกตามสูตรแล้ว ${Math.round(pnl.recipeCoverage * 100)}% ของยอดขายทั้งร้าน` : ""
+            pnl.recipeCoverage !== null ? ` · ตัดสต็อกตามสูตรแล้ว ${Math.round(pnl.recipeCoverage * 100)}% ของยอดขายทั้งร้าน` : ""
           }`
       : pnl.unknownReason === "NO_SALES"
         ? "ยังไม่มียอดขายในช่วงนี้"
@@ -528,7 +528,7 @@ async function Analytics({
   // Sales are in but no branch's profit can be worked out yet: the card stays, waiting (queue item 10).
   const wfWaits = see.sales && seeNet && revenue !== null && wf === null;
 
-  // Kong 2026-10-30: under นับสต๊อก a count's shortfall is what the shop USED
+  // Kong 2026-10-30: under นับสต็อก a count's shortfall is what the shop USED
   // (no sale takes stock out), so it is not something to watch — it is already
   // the cost of sales on the food-cost card. /cost names it ใช้ไปตามการนับ.
   const shortage = pnl.method === "PERIODIC_INVENTORY" ? 0 : pnl.branches.reduce((s, b) => s + Number(b.shortage.toString()), 0);
@@ -562,7 +562,7 @@ async function Analytics({
               <p className="text-xs text-muted-subtle">ไม่มียอดขาย {vs} ให้เทียบ</p>
             ) : null}
             {revenueRows.length > 1 ? <Spark values={allDays.map((d) => { const r = byDay.get(d); return r ? series.reduce((s, x) => s + Number(r[x.branchId] ?? 0), 0) : null; })} baseline={prevPerDay} /> : null}
-            {revenue !== null ? <p className="text-xs text-muted-subtle">{`รวม ${baht(revenue)} · ขาย ${days.cur} วัน · ไม่รวม VAT และ service charge`}</p> : null}
+            {revenue !== null ? <p className="text-xs text-muted-subtle">{`รวม ${baht(revenue)} · ขาย ${days.cur} วัน · ไม่รวม VAT และเซอร์วิสชาร์จ`}</p> : null}
             {guestLine && <p className="text-xs text-muted-foreground">{guestLine}</p>}
             {!guestLine && dailyCloseOn && revenue !== null && g.salesDays > 0 ? (
               <p className="text-xs text-muted-subtle">
@@ -585,7 +585,7 @@ async function Analytics({
             )}
             {foodPct !== null && partCovered !== null ? (
               <Coverage share={partCovered} figure="foodCost" needs={["posted", "recipe"]} branchId={oneBranch}>
-                คิดจากยอดขายที่ตัดสต๊อกตามสูตรแล้ว {Math.round(partCovered * 100)}%
+                คิดจากยอดขายที่ตัดสต็อกตามสูตรแล้ว {Math.round(partCovered * 100)}%
               </Coverage>
             ) : null}
             {multi ? <MiniBars rows={branchRows.map((b) => ({ name: short(b.branchName), value: branchFood(b) }))} target={targets.food} scale={Math.max(50, targets.food * 1.5)} warm /> : null}
@@ -793,7 +793,7 @@ function NoFiguresYet({ canImport }: { canImport: boolean }) {
       <WaitingFor
         figure="shopFigures"
         needs={["sales", "count", "expense"]}
-        reason="ยอดขาย ต้นทุน และกำไร ขึ้นที่นี่เองเมื่อมีไฟล์ยอดขาย การนับสต๊อก หรือบิลค่าใช้จ่ายเข้าระบบ"
+        reason="ยอดขาย ต้นทุน และกำไร ขึ้นที่นี่เองเมื่อมีไฟล์ยอดขาย การนับสต็อก หรือบิลค่าใช้จ่ายเข้าระบบ"
         act={canImport}
       />
     </Card>
@@ -848,7 +848,7 @@ function DeltaChip({ pct, goodWhenUp }: { pct: number; goodWhenUp: boolean }) {
 /** "ส.ค. 69 ฿172,330" — joins the line when the previous period arrives. */
 type Counted = { from: Date; to: Date; pnl: Pnl };
 
-/** Rule PG2: the latest month นับสต๊อก could answer for, named and one click away. */
+/** Rule PG2: the latest month นับสต็อก could answer for, named and one click away. */
 async function CountedMonth({ p, show, qs }: { p: Promise<Counted | null>; show: "food" | "net"; qs: string }) {
   const c = await p;
   if (!c) return null;
@@ -865,7 +865,7 @@ async function CountedMonth({ p, show, qs }: { p: Promise<Counted | null>; show:
   return (
     <p className="text-xs text-muted-foreground">
       <a href={`/dashboard?p=${isoDay(c.from).slice(0, 7)}${qs}`} className="hover:text-primary hover:underline">
-        {periodLabelTh(isoDay(c.from), isoDay(c.to))} (เดือนล่าสุดที่นับสต๊อกครบ): {figure} ›
+        {periodLabelTh(isoDay(c.from), isoDay(c.to))} (เดือนล่าสุดที่นับสต็อกครบ): {figure} ›
       </a>
     </p>
   );

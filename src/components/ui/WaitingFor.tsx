@@ -45,7 +45,7 @@ type Common = {
   figure: FigureKey;
   /** In order: the first is the one this figure is waiting on now. */
   needs: readonly NeedKey[];
-  /** The page's own sentence about why — e.g. "ยังไม่ได้นับสต๊อกต้นงวด". */
+  /** The page's own sentence about why — e.g. "ยังไม่ได้นับสต็อกต้นงวด". */
   reason?: string;
   /** The branch the page is looking at, so the checklist counts that branch. */
   branchId?: string;

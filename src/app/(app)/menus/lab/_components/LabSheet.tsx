@@ -246,7 +246,7 @@ export default function LabSheet(props: {
 
   const doSave = () =>
     start(async () => {
-      if (await save()) onToast("บันทึกร่างแล้ว · ยังไม่ตัดสต๊อก");
+      if (await save()) onToast("บันทึกร่างแล้ว · ยังไม่ตัดสต็อก");
     });
 
   const discard = (alsoMenu: boolean) =>
@@ -320,7 +320,7 @@ export default function LabSheet(props: {
       money,
       who: replacing
         ? `ทุกสาขาที่ใช้สูตรกลาง · มีผลตั้งแต่ ${thDate(props.today)} · วันก่อนหน้ายังคิดด้วยสูตรเดิม · สาขาที่มีสูตรของตัวเองไม่เปลี่ยน`
-        : `มีผลตั้งแต่ ${thDate(props.today)} · เมนูจะเริ่มตัดสต๊อกเมื่อมียอดขายจากไฟล์ POS`,
+        : `มีผลตั้งแต่ ${thDate(props.today)} · เมนูจะเริ่มตัดสต็อกเมื่อมียอดขายจากไฟล์ POS`,
       go: replacing ? "ใช้กับทุกสาขา" : "นำไปใช้จริง",
       onGo: () =>
         start(async () => {
@@ -687,7 +687,7 @@ export default function LabSheet(props: {
               { done: targetReady, t: kind === "new" ? "ตั้งชื่อเมนู" : "เลือกเมนูที่จะแก้สูตร", s: kind === "new" ? "ชื่อนี้คือชื่อที่จะเห็นในหน้าจัดการเมนู" : "ค้นจากชื่อหรือรหัส POS" },
               { done: lines.length > 0 && linesReady, t: "ใส่วัตถุดิบอย่างน้อยหนึ่งตัว", s: "เริ่มจากวัตถุดิบหลักก่อนก็ได้ ต้นทุนขึ้นทันที" },
               { done: priceN !== null, t: "ลองราคาที่ตั้งใจ", s: costHidden ? "ราคาที่คิดไว้สำหรับจานนี้" : `ดูต้นทุน % เทียบเป้า ${target}%` },
-              { done: false, t: "บันทึกร่าง แล้วนำไปใช้จริงเมื่อพร้อม", s: "ก่อนนำไปใช้จริง ร่างไม่ตัดสต๊อก" },
+              { done: false, t: "บันทึกร่าง แล้วนำไปใช้จริงเมื่อพร้อม", s: "ก่อนนำไปใช้จริง ร่างไม่ตัดสต็อก" },
             ].map((c) => (
               <div key={c.t} className="flex items-start gap-3 rounded-[18px] border border-border/70 bg-surface shadow-card px-3 py-2.5 text-sm">
                 <span className={`mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full border-[1.5px] text-[11px] transition-colors ${c.done ? "border-primary bg-primary text-primary-foreground" : "border-border-strong"}`} aria-hidden>
@@ -705,7 +705,7 @@ export default function LabSheet(props: {
 
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border bg-surface px-5 py-3 max-sm:sticky max-sm:bottom-0 max-sm:z-10 max-sm:mt-auto">
         <span className="text-xs text-muted-foreground">
-          {formError ? <span className="text-bad">{formError}</span> : dirty ? "มีการแก้ที่ยังไม่บันทึก" : savedId ? "บันทึกร่างแล้ว · ยังไม่ตัดสต๊อก" : ""}
+          {formError ? <span className="text-bad">{formError}</span> : dirty ? "มีการแก้ที่ยังไม่บันทึก" : savedId ? "บันทึกร่างแล้ว · ยังไม่ตัดสต็อก" : ""}
         </span>
         <span className="flex flex-wrap justify-end gap-2">
           {canEdit && (

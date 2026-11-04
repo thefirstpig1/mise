@@ -229,7 +229,7 @@ export default function WasteEntryForm({
               (Q3). Trim and cooking loss belong to the product's yield %, not
               here — burying them in waste would make both numbers useless. */}
           <p className="mt-1 text-xs text-muted-foreground">
-            ของที่หายไปตอนตัดแต่งหรือทำสุก ไม่ใช่ของเสีย — อยู่ใน % yield ของวัตถุดิบ
+            ของที่หายไปตอนตัดแต่งหรือทำสุก ไม่ใช่ของเสีย — อยู่ในยิลด์ของวัตถุดิบ
             และอาหารพนักงานก็ไม่ใช่ของเสียเช่นกัน
           </p>
         </div>
@@ -340,7 +340,7 @@ export default function WasteEntryForm({
         {isPending ? "กำลังบันทึก…" : "บันทึกของเสีย"}
       </button>
       <p className="text-xs text-muted-foreground">
-        บันทึกแล้วตัดสต๊อกทันที — ถ้าคีย์ผิด ให้กดยกเลิกที่รายการนั้น ระบบจะคืนของเข้าสต๊อกให้
+        บันทึกแล้วตัดสต็อกทันที — ถ้าคีย์ผิด ให้กดยกเลิกที่รายการนั้น ระบบจะคืนของเข้าสต็อกให้
         โดยรายการเดิมยังอยู่ให้เห็น
       </p>
     </form>

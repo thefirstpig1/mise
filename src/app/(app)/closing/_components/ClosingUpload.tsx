@@ -114,11 +114,11 @@ export default function ClosingUpload({
             {p.replacedDays.length > 0 && ` · เข้าแทนข้อมูลเดิม ${p.replacedDays.length} วัน`}
             {p.newMenus.length > 0 && ` · เมนูใหม่ ${p.newMenus.length} รายการ (รอผู้จัดการตรวจ)`}
           </p>
-          {!coversToday && <p className="text-warn">ไฟล์นี้ไม่มีวันที่ของใบนี้ — ตรวจว่าเลือกช่วงวันที่ตอน export ถูกไหม</p>}
+          {!coversToday && <p className="text-warn">ไฟล์นี้ไม่มีวันที่ของใบนี้ — ตรวจว่าเลือกช่วงวันที่ตอนดาวน์โหลดจาก POS ถูกไหม</p>}
           {warnToday ? (
             <div className="rounded-lg bg-bad-bg p-2.5 text-bad">
               <b>⚠ {warnToday.warning}</b>
-              <span className="block text-xs">มักแปลว่า export มาไม่ครบทั้งวัน — export ใหม่แล้วอัปโหลดทับได้เลย (หรือกดนำเข้าต่อถ้ามั่นใจ)</span>
+              <span className="block text-xs">มักแปลว่าไฟล์ที่ดาวน์โหลดจาก POS ไม่ครบทั้งวัน — ดาวน์โหลดใหม่แล้วอัปโหลดทับได้เลย (หรือกดนำเข้าต่อถ้ามั่นใจ)</span>
             </div>
           ) : (
             coversToday && pulseSaved && !pulseLocked && <p className="rounded-lg bg-good-bg p-2.5 text-good">✓ ยอดในไฟล์ตรงกับยอดที่คีย์</p>
@@ -132,12 +132,12 @@ export default function ClosingUpload({
       {result?.ok && (
         <p className="rounded-xl bg-good-bg p-3 text-sm text-good">
           ✓ นำเข้าแล้ว {result.rowsWritten.toLocaleString("th-TH")} แถว
-          {result.autoPost && result.autoPost.postedFull + result.autoPost.postedPartial > 0 && " · ตัดสต๊อกตามสูตรให้แล้ว"}
+          {result.autoPost && result.autoPost.postedFull + result.autoPost.postedPartial > 0 && " · ตัดสต็อกตามสูตรให้แล้ว"}
           {result.autoPost && result.autoPost.postedPartial > 0 && ` (${result.autoPost.skippedMenus} เมนูยังไม่มีสูตร)`}
         </p>
       )}
       {result && !result.ok && <p className="rounded-xl border border-bad-border bg-bad-bg p-3 text-sm text-bad">{result.formError ?? "นำเข้าไม่สำเร็จ"}</p>}
-      <p className="text-xs text-muted-subtle">ยังไม่ได้ export ก็ข้ามได้ — หัวหน้าเห็นว่าวันไหนไฟล์ยังไม่เข้า</p>
+      <p className="text-xs text-muted-subtle">ยังไม่ได้ดาวน์โหลดไฟล์ก็ข้ามได้ — หัวหน้าเห็นว่าวันไหนไฟล์ยังไม่เข้า</p>
     </div>
   );
 }

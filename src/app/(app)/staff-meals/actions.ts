@@ -152,7 +152,7 @@ function toFormError(e: unknown): {
     return {
       fieldErrors: {
         menuId:
-          "เมนูนี้เป็นชุดที่มีเมนูย่อยยังไม่มีสูตร ตัดสต๊อกไม่ครบจึงไม่บันทึก — เติมสูตรของเมนูย่อยก่อน",
+          "เมนูนี้เป็นชุดที่มีเมนูย่อยยังไม่มีสูตร ตัดสต็อกไม่ครบจึงไม่บันทึก — เติมสูตรของเมนูย่อยก่อน",
       },
     };
   }
@@ -202,7 +202,7 @@ function toFormError(e: unknown): {
   if (e instanceof StaffMealOnBehalfNotAllowedError) {
     return {
       fieldErrors: {
-        staffMemberId: "พนักงานคนนี้มีแอคเคาท์แล้ว ให้เขากดขอเบิกเองจากเครื่องของเขา",
+        staffMemberId: "พนักงานคนนี้มีบัญชีคิดครัวแล้ว ให้เขากดขอเบิกเองจากเครื่องของเขา",
       },
     };
   }
@@ -216,7 +216,7 @@ function toFormError(e: unknown): {
  * Every surface a staff meal changes.
  *
  * `/cost` is here because the stock left the shelf — inventory value and the
- * นับสต๊อก gross profit both move. It is NOT here because cost of goods sold
+ * นับสต็อก gross profit both move. It is NOT here because cost of goods sold
  * moved: rule S5 keeps a staff meal out of that figure under สูตรอาหาร, and
  * ADR 0028 Consequence 3 says the other method cannot separate it at all.
  *
@@ -251,7 +251,7 @@ export async function createStaffMealAction(
   const menuPicked = String(formData.get("menu_id") ?? "") !== "";
   if (menuPicked && !isHead) {
     // A menu meal for yourself is a ticket; for someone else it is a head's job.
-    return { ok: false, formError: "เมนูในร้านต้องกดขอเบิกด้วยแอคเคาท์ของตัวเอง แล้วให้หัวหน้าอนุมัติ" };
+    return { ok: false, formError: "เมนูในร้านต้องกดขอเบิกด้วยบัญชีของตัวเอง แล้วให้หัวหน้าอนุมัติ" };
   }
 
   // Pot lines arrive as three parallel arrays, the shape every multi-line form

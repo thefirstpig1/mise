@@ -412,7 +412,7 @@ async function expenseSheets(tx: PrismaClient, ctx: Ctx): Promise<ExportSheet[]>
 }
 
 // ------------------------------------------------------------
-// นับสต๊อก
+// นับสต็อก
 // ------------------------------------------------------------
 function countsWhere({ tenantId, reach, q }: Ctx): Prisma.StockCountWhereInput {
   return {
@@ -518,7 +518,7 @@ async function countSheets(tx: PrismaClient, ctx: Ctx): Promise<ExportSheet[]> {
 }
 
 // ------------------------------------------------------------
-// ความเคลื่อนไหวสต๊อก (บัตรสต๊อกทุกสินค้า)
+// ความเคลื่อนไหวสต็อก (บัตรสต็อกทุกสินค้า)
 // ------------------------------------------------------------
 function movesWhere({ tenantId, reach, q }: Ctx): Prisma.StockMovementWhereInput {
   return {
@@ -553,7 +553,7 @@ async function movementSheets(tx: PrismaClient, ctx: Ctx): Promise<ExportSheet[]
   const docs = await movementDocumentsInTx(tx, moves);
   return [
     {
-      name: "ความเคลื่อนไหวสต๊อก",
+      name: "ความเคลื่อนไหวสต็อก",
       columns: [
         { header: "วันที่", kind: "date" },
         { header: "เวลา" },

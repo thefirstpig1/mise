@@ -356,7 +356,7 @@ export default function ProductForm({
           <p className="mt-1 text-xs text-muted-foreground">
             {productType === "RAW"
               ? "ซื้อมาใช้ตามนั้น (ไม่ได้ผลิตจากสินค้าตัวอื่น)"
-              : "ผลิตจากสินค้าแม่ — ระบุสินค้าแม่และเปอร์เซ็นต์ผลผลิตด้านล่าง"}
+              : "ผลิตจากสินค้าแม่ — ระบุสินค้าแม่และยิลด์ด้านล่าง"}
           </p>
           {err("type") && (
             <p className="mt-1 text-sm text-bad">{err("type")}</p>
@@ -429,12 +429,12 @@ export default function ProductForm({
                 />
               </div>
               <p className="mt-1 text-xs text-muted-foreground">
-                สินค้าแม่ 100 หน่วย ได้สินค้านี้กี่หน่วย (เช่น เนื้อหั่นแล้ว
-                yield 80 = เนื้อ 100 kg → ได้ 80 kg)
+                สินค้าแม่ 100 หน่วย ได้สินค้านี้กี่หน่วย เช่น เนื้อ 100 กก.
+                หั่นแล้วได้ 80 กก. = ยิลด์ 80%
               </p>
               {showHighYieldHint && (
                 <p className="mt-1 text-xs text-warn">
-                  yield &gt; 300% มักเป็นการดูดน้ำของวัตถุดิบ (เช่น ข้าวสุก,
+                  ยิลด์เกิน 300% มักเป็นการดูดน้ำของวัตถุดิบ (เช่น ข้าวสุก,
                   ถั่วแช่น้ำ) — ตรวจสอบอีกครั้งว่าใช่หรือไม่
                 </p>
               )}
@@ -503,7 +503,7 @@ export default function ProductForm({
             ))}
           </select>
           <p className="mt-1 text-xs text-muted-foreground">
-            หน่วยที่ใช้บันทึกสต๊อกของสินค้านี้ (เพิ่มหน่วยซื้อ-ขายอื่นได้ภายหลัง)
+            หน่วยที่ใช้บันทึกสต็อกของสินค้านี้ (เพิ่มหน่วยซื้อ-ขายอื่นได้ภายหลัง)
           </p>
           {err("baseUnitName") && (
             <p className="mt-1 text-sm text-bad">{err("baseUnitName")}</p>

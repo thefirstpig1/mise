@@ -191,7 +191,7 @@ function BranchCard({ day, branch: b, canKeyPulse }: { day: string; branch: DayM
         {b.pulseNote && <span className="block text-muted-foreground">“{b.pulseNote}”</span>}
         {b.pulseIsMismatch && (
           <span className="mt-1 block text-bad">
-            ไฟล์กับยอดที่คีย์ไม่ตรงกัน — มักแปลว่า export มาไม่ครบทั้งวัน ลอง export ใหม่แล้วนำเข้าทับ
+            ไฟล์กับยอดที่คีย์ไม่ตรงกัน — มักแปลว่าไฟล์ที่ดาวน์โหลดจาก POS ไม่ครบทั้งวัน ลองดาวน์โหลดใหม่แล้วนำเข้าทับ
           </span>
         )}
 

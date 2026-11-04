@@ -129,8 +129,8 @@ export const productInputSchema = z.object({
     blankToNull,
     z.coerce
       .number()
-      .min(0.01, "yield ต้องอย่างน้อย 0.01%")
-      .max(999.99, "yield ต้องไม่เกิน 999.99%")
+      .min(0.01, "ยิลด์ต้องอย่างน้อย 0.01%")
+      .max(999.99, "ยิลด์ต้องไม่เกิน 999.99%")
       .nullable()
   ),
   // 7d liquid density (g/ml). XOR with the override (Q2), gated to non-COUNT
@@ -193,14 +193,14 @@ export const productInputSchema = z.object({
     if (val.parentProductId !== null && val.yieldPercent === null) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "ของแปรรูปที่ระบุสินค้าแม่ ต้องระบุเปอร์เซ็นต์ผลผลิตด้วย",
+        message: "ของแปรรูปที่ระบุสินค้าแม่ ต้องระบุยิลด์ด้วย",
         path: ["yieldPercent"],
       });
     }
     if (val.parentProductId === null && val.yieldPercent !== null) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "เปอร์เซ็นต์ผลผลิตใช้ได้เมื่อระบุสินค้าแม่เท่านั้น",
+        message: "ยิลด์ใช้ได้เมื่อระบุสินค้าแม่เท่านั้น",
         path: ["parentProductId"],
       });
     }
@@ -215,7 +215,7 @@ export const productInputSchema = z.object({
     if (val.yieldPercent !== null) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "วัตถุดิบต้องไม่มีเปอร์เซ็นต์ผลผลิต",
+        message: "วัตถุดิบต้องไม่มียิลด์",
         path: ["yieldPercent"],
       });
     }
@@ -267,7 +267,7 @@ export const PRODUCT_FIELD_LABELS_TH: Record<keyof ProductInput, string> = {
   defaultBuyUnitName: "หน่วยซื้อหลัก",
   type: "ประเภทสินค้า",
   parentProductId: "สินค้าแม่",
-  yieldPercent: "เปอร์เซ็นต์ผลผลิต",
+  yieldPercent: "ยิลด์",
   liquidDensityTemplateId: "ความหนาแน่น (ค่ามาตรฐาน)",
   densityGPerMlOverride: "ความหนาแน่น (g/ml)",
 };

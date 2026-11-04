@@ -834,13 +834,13 @@ export default function GoodsReceiptForm({
 
       {anyOver && (
         <div className="rounded-lg border border-warn-border bg-warn-bg p-3 text-sm text-warn">
-          มีรายการที่รับเกินจำนวนที่สั่ง — ระบบจะบันทึกเข้าคลังตามจริงและติดธง
+          มีรายการที่รับเกินจำนวนที่สั่ง — ระบบจะบันทึกเข้าสต็อกตามจริงและติดธง
           &quot;ต้องตรวจสอบ&quot; ไว้ให้ผู้จัดการดู
         </div>
       )}
 
       <div className="rounded-lg border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
-        บันทึกตอนนี้จะได้เป็น <strong>ฉบับร่าง</strong> — สต๊อกยังไม่ขยับ
+        บันทึกตอนนี้จะได้เป็น <strong>ฉบับร่าง</strong> — สต็อกยังไม่ขยับ
         จนกว่าจะกด &quot;ยืนยันรับของ&quot; ในหน้าถัดไป และเมื่อยืนยันแล้วจะแก้ไม่ได้
         (ต้องยกเลิกใบรับแล้วออกใหม่)
       </div>

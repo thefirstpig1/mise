@@ -76,12 +76,12 @@ export default function OpeningPricesLater({ countId }: { countId: string }) {
   return (
     <section
       className={`space-y-3 rounded-2xl border p-4 ${lines.length > 0 ? "border-warn-border bg-warn-bg/40" : "border-good-border bg-good-bg"}`}
-      aria-label="ราคาสต๊อกยกมาที่ยังไม่มี"
+      aria-label="ราคาสต็อกยกมาที่ยังไม่มี"
     >
       {lines.length > 0 ? (
         <>
           <div className="space-y-1">
-            <h3 className="text-base font-semibold">ราคาสต๊อกยกมาที่ยังไม่มี · {lines.length.toLocaleString("th-TH")} รายการ</h3>
+            <h3 className="text-base font-semibold">ราคาสต็อกยกมาที่ยังไม่มี · {lines.length.toLocaleString("th-TH")} รายการ</h3>
             <p className="text-sm text-muted-foreground">
               ตอนปิดใบนับยังไม่ได้ใส่ราคา ของเหล่านี้จึงยังคิดต้นทุนไม่ได้ เมื่อรับของครั้งแรกหลังวันนับ ระบบเสนอราคาจากใบรับสินค้านั้นให้ แก้ได้ แล้วกดยืนยันทีละรายการหรือทั้งหมด
             </p>
@@ -153,7 +153,7 @@ export default function OpeningPricesLater({ countId }: { countId: string }) {
       ) : null}
       {done > 0 && (
         <p className="text-sm text-good">
-          บันทึกราคาสต๊อกยกมาแล้ว {done.toLocaleString("th-TH")} รายการ · ต้นทุนทุกหน้าคิดใหม่ตามราคานี้ทันที
+          บันทึกราคาสต็อกยกมาแล้ว {done.toLocaleString("th-TH")} รายการ · ต้นทุนทุกหน้าคิดใหม่ตามราคานี้ทันที
         </p>
       )}
       {error && (

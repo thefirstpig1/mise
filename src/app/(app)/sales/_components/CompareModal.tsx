@@ -439,7 +439,7 @@ function CompareResultViewInner({
                 <button
                   type="button"
                   onClick={() => insight?.open(m.id)}
-                  title="ดู insight ของเมนูนี้"
+                  title="ดูอินไซต์ของเมนูนี้"
                   className="group block w-full rounded-lg px-1 py-1.5 text-left text-sm transition-colors hover:bg-muted"
                 >
                 <div className="mb-1 flex items-baseline justify-between gap-2">

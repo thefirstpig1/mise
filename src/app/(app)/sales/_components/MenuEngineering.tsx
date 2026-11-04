@@ -449,7 +449,7 @@ function TipCard({ item, x, y }: { item: Row; x: number; y: number }) {
         <dt className="text-muted-subtle">กำไรรวม</dt>
         <dd className="text-right">{atMostTh(isUnderstated(item.confidence), baht(item.profit))}</dd>
       </dl>
-      <p className="mt-1.5 border-t border-border pt-1.5 text-muted-foreground">{g.note} · กดเพื่อดู insight</p>
+      <p className="mt-1.5 border-t border-border pt-1.5 text-muted-foreground">{g.note} · กดเพื่อดูอินไซต์</p>
     </div>
   );
 }

@@ -96,7 +96,7 @@ function SalesReadiness({ countId }: { countId: string }) {
       )}
       {r.unposted.length > 0 && (
         <p>
-          ยอดขาย <strong>{r.unposted.length} วัน</strong>นำเข้าแล้วแต่ยังไม่ได้ตัดสต๊อก ({r.unposted.slice(0, 3).map(thDate).join(" · ")}
+          ยอดขาย <strong>{r.unposted.length} วัน</strong>นำเข้าแล้วแต่ยังไม่ได้ตัดสต็อก ({r.unposted.slice(0, 3).map(thDate).join(" · ")}
           {r.unposted.length > 3 ? " …" : ""})
         </p>
       )}
@@ -107,7 +107,7 @@ function SalesReadiness({ countId }: { countId: string }) {
         </a>{" "}
         ·{" "}
         <a href="/consumption" className="font-semibold underline">
-          ตัดสต๊อกตามยอดขาย
+          ตัดสต็อกตามยอดขาย
         </a>
       </p>
     </div>
@@ -478,7 +478,7 @@ export default function CountSheet({
             aria-expanded={helpOpen}
             className="block w-full text-left text-xs text-muted-foreground"
           >
-            {opening && "ใบนับแรกของสาขา = สต๊อกตั้งต้น (ยอดยกมา) · "}กรอกจำนวนแล้วกดยืนยัน · ไม่ได้นับไม่ต้องใส่
+            {opening && "ใบนับแรกของสาขา = สต็อกตั้งต้น (ยอดยกมา) · "}กรอกจำนวนแล้วกดยืนยัน · ไม่ได้นับไม่ต้องใส่
             {preppedRows.length > 0 && <span> · ของแปรรูปที่นับได้เกิน ลงเป็นการผลิต</span>}{" "}
             <span className="underline">{helpOpen ? "ย่อ" : "อ่านต่อ"}</span>
           </button>
@@ -558,14 +558,14 @@ export default function CountSheet({
           ใบนับนี้ถูกยกเลิกเมื่อ {detail.voidedAtLabel}
           {detail.voidedBy && ` โดย ${detail.voidedBy}`} — เหตุผล: {detail.voidReason}
           <span className="mt-1 block text-xs text-muted-foreground">
-            รายการเดิมยังอยู่ครบ ระบบเพิ่มรายการกลับรายการเข้าไปเพื่อคืนสต๊อก
+            รายการเดิมยังอยู่ครบ ระบบเพิ่มรายการกลับรายการเข้าไปเพื่อคืนสต็อก
           </span>
         </div>
       )}
       {detail.status === "CLOSED" && (
         <div className="rounded-lg border border-good-border bg-good-bg p-3 text-sm text-good">
           ปิดใบแล้วเมื่อ {detail.closedAtLabel}
-          {detail.closedBy && ` โดย ${detail.closedBy}`} — {opening ? "ยอดยกมาถูกบันทึกเข้าคลังเรียบร้อย" : "ส่วนต่างถูกบันทึกเข้าคลังเรียบร้อย"}
+          {detail.closedBy && ` โดย ${detail.closedBy}`} — {opening ? "ยอดยกมาถูกบันทึกเข้าสต็อกเรียบร้อย" : "ส่วนต่างถูกบันทึกเข้าสต็อกเรียบร้อย"}
         </div>
       )}
       {/* Rule PG6: opening stock closed without a price, priced from its first receipt when the shop says so. */}
@@ -683,7 +683,7 @@ export default function CountSheet({
               <input type="hidden" name="id" value={detail.id} />
               <h3 className="text-sm font-medium">ยกเลิกใบนับ</h3>
               <p className="text-sm text-muted-foreground">
-                ระบบจะเพิ่มรายการกลับรายการเพื่อคืนสต๊อกให้เหมือนก่อนปิดใบ รายการเดิมจะยังอยู่ครบ
+                ระบบจะเพิ่มรายการกลับรายการเพื่อคืนสต็อกให้เหมือนก่อนปิดใบ รายการเดิมจะยังอยู่ครบ
               </p>
               {voidError && (
                 <div className="rounded-lg border border-bad-border bg-bad-bg p-3 text-sm text-bad">{voidError}</div>
@@ -751,7 +751,7 @@ export default function CountSheet({
             </h3>
             {opening && (
               <p className="text-sm text-muted-foreground">
-                ยอดที่นับได้คือสต๊อกตั้งต้นของสาขา (ยอดยกมา) ไม่ใช่ของเกิน
+                ยอดที่นับได้คือสต็อกตั้งต้นของสาขา (ยอดยกมา) ไม่ใช่ของเกิน
                 {!costByProduct && " · ระบบใส่ราคาให้จากต้นทุนที่มีและราคาที่ตั้งไว้กับผู้ขาย รายการที่ยังไม่มีราคา คนที่ดูต้นทุนได้ใส่ภายหลังที่หน้าต้นทุน"}
               </p>
             )}
@@ -778,8 +778,8 @@ export default function CountSheet({
             <SalesReadiness countId={detail.id} />
             {opening && costByProduct && <OpeningPrices countId={detail.id} onChange={setPrices} />}
             <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
-              <li>{opening ? "ปิดแล้วระบบบันทึกยอดยกมาพร้อมราคาเข้าคลังทันที และแก้ใบนี้ไม่ได้อีก" : "ปิดแล้วระบบบันทึกส่วนต่างเข้าคลังทันที และแก้ใบนี้ไม่ได้อีก"}</li>
-              <li>ถ้าปิดผิด ยกเลิกทั้งใบได้ ระบบจะคืนสต๊อกให้เหมือนเดิม</li>
+              <li>{opening ? "ปิดแล้วระบบบันทึกยอดยกมาพร้อมราคาเข้าสต็อกทันที และแก้ใบนี้ไม่ได้อีก" : "ปิดแล้วระบบบันทึกส่วนต่างเข้าสต็อกทันที และแก้ใบนี้ไม่ได้อีก"}</li>
+              <li>ถ้าปิดผิด ยกเลิกทั้งใบได้ ระบบจะคืนสต็อกให้เหมือนเดิม</li>
             </ul>
             {closeError && (
               <div className="rounded-lg border border-bad-border bg-bad-bg p-3 text-sm text-bad">{closeError}</div>

@@ -39,7 +39,7 @@ import {
 
 const SECTIONS = [
   { id: "shop", label: "ข้อมูลร้านและภาษี" },
-  { id: "stock", label: "สต๊อกและยอดขาย" },
+  { id: "stock", label: "สต็อกและยอดขาย" },
   { id: "profit", label: "กำไรและเป้าต้นทุน" },
   { id: "addons", label: "แผนกและส่วนเสริม" },
   { id: "advances", label: "เงินสำรองจ่าย" },
@@ -231,7 +231,7 @@ export default async function SettingsPage() {
       </SectionForm>
 
       {/* ---------- 2 · stock + sales ---------- */}
-      <SectionForm id="stock" title="สต๊อกและยอดขาย" action={saveStockSectionAction}>
+      <SectionForm id="stock" title="สต็อกและยอดขาย" action={saveStockSectionAction}>
         {/* ADR 0022 Q3 · rule N12 */}
         <Row
           title={SETTING_HELP.cancelled_sale_policy.title}
@@ -274,9 +274,9 @@ export default async function SettingsPage() {
         <Row
           title={SETTING_HELP.count_cycle_days.title}
           htmlFor="count_cycle_days"
-          hint="หน้างานสต๊อกเตือนเมื่อไม่ได้นับเกินจำนวนวันนี้"
+          hint="หน้างานสต็อกเตือนเมื่อไม่ได้นับเกินจำนวนวันนี้"
           help="count_cycle_days"
-          control={<Days name="count_cycle_days" value={tenant.countCycleDays} min={1} max={365} label="นับสต๊อกทุกกี่วัน" />}
+          control={<Days name="count_cycle_days" value={tenant.countCycleDays} min={1} max={365} label="นับสต็อกทุกกี่วัน" />}
         />
         {/* ADR 0040 Q2 (Kong 2026-10-29: "เอาตามแนะนำ" — starts as it always was) */}
         <Row
@@ -312,7 +312,7 @@ export default async function SettingsPage() {
           help="gross_profit_method"
         >
           <div className="mt-3 flex flex-wrap gap-2.5">
-            <Option name="gross_profit_method" value="PERIODIC_INVENTORY" checked={tenant.grossProfitMethod === "PERIODIC_INVENTORY"} title="จากการนับสต๊อก" example="ไม่ต้องมีสูตร · ต้นทุน = ของที่มีต้นเดือน + ที่ซื้อเข้า − ของที่เหลือสิ้นเดือน" />
+            <Option name="gross_profit_method" value="PERIODIC_INVENTORY" checked={tenant.grossProfitMethod === "PERIODIC_INVENTORY"} title="จากการนับสต็อก" example="ไม่ต้องมีสูตร · ต้นทุน = ของที่มีต้นเดือน + ที่ซื้อเข้า − ของที่เหลือสิ้นเดือน" />
             <Option name="gross_profit_method" value="RECIPE_CONSUMPTION" checked={tenant.grossProfitMethod === "RECIPE_CONSUMPTION"} title="จากสูตรของเมนู" example="เห็นต้นทุนทุกวันตามยอดขาย · ต้องเขียนสูตรของเมนู" />
           </div>
         </Row>

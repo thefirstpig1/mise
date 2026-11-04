@@ -115,7 +115,7 @@ describe("raw Excel export", () => {
     const ctx = { tenantId: tenant, reach: ALL, withMoney: true };
     const plain = await buildRawExportLogic({ ...ctx, q: q({ dataset: "goods-receipts" }) });
     const statuses = sheet(plain, "ใบรับสินค้า").rows.map((r) => r[col(sheet(plain, "ใบรับสินค้า"), "สถานะ")]);
-    expect(statuses).toEqual(["รับเข้าคลังแล้ว", "รับเข้าคลังแล้ว"]);
+    expect(statuses).toEqual(["รับเข้าสต็อกแล้ว", "รับเข้าสต็อกแล้ว"]);
     expect(await countRawExportLogic({ ...ctx, q: q({ dataset: "goods-receipts" }) })).toEqual({ docs: 2, rows: 2, voidedLeftOut: true });
 
     const voided = await buildRawExportLogic({ ...ctx, q: q({ dataset: "goods-receipts", status: "VOIDED" }) });
@@ -156,7 +156,7 @@ describe("raw Excel export", () => {
   });
 
   it("X6 stock movements name each document exactly as the stock card does", async () => {
-    const moves = sheet(await buildRawExportLogic({ tenantId: tenant, reach: ALL, withMoney: false, q: q({ dataset: "stock-movements", branch: ari }) }), "ความเคลื่อนไหวสต๊อก");
+    const moves = sheet(await buildRawExportLogic({ tenantId: tenant, reach: ALL, withMoney: false, q: q({ dataset: "stock-movements", branch: ari }) }), "ความเคลื่อนไหวสต็อก");
     const card = (await getStockCardLogic(tenant, { productId: pork.id, branchId: ari, from: new Date(`${monthAgo}T00:00:00Z`), to: new Date(`${today}T00:00:00Z`), withCost: false }))!;
     expect(moves.rows.map((r) => r[col(moves, "เอกสาร")])).toEqual(card.rows.map((r) => r.doc?.label ?? null));
     expect(moves.rows.map((r) => r[col(moves, "จำนวน (+ เข้า / − ออก)")])).toEqual(card.rows.map((r) => r.qty));

@@ -1212,17 +1212,17 @@ async function assertUnitsNotInUse(
         select: { recipe: { select: { menu: { select: { name: true } }, outputProduct: { select: { name: true } } } } },
       }),
       Promise.all([
-        tx.stockCountEntry.count({ where: { productUnitId: { in: inList } } }).then((n) => ({ label: "รายการนับสต๊อก", count: n })),
+        tx.stockCountEntry.count({ where: { productUnitId: { in: inList } } }).then((n) => ({ label: "รายการนับสต็อก", count: n })),
         tx.goodsReceiptItem.count({ where: { receivedUnitId: { in: inList } } }).then((n) => ({ label: "รายการรับสินค้า", count: n })),
         tx.purchaseOrderItem.count({ where: { orderUnitId: { in: inList } } }).then((n) => ({ label: "รายการในใบสั่งซื้อ", count: n })),
         tx.purchaseRequestLine.count({ where: { unitId: { in: inList } } }).then((n) => ({ label: "รายการในใบขอซื้อ", count: n })),
         tx.wasteLog.count({ where: { inputUnitId: { in: inList } } }).then((n) => ({ label: "รายการของเสีย", count: n })),
-        tx.stockAdjustment.count({ where: { inputUnitId: { in: inList } } }).then((n) => ({ label: "รายการปรับสต๊อก", count: n })),
+        tx.stockAdjustment.count({ where: { inputUnitId: { in: inList } } }).then((n) => ({ label: "รายการปรับสต็อก", count: n })),
         tx.stockTransferItem.count({ where: { inputUnitId: { in: inList } } }).then((n) => ({ label: "รายการโอนของ", count: n })),
         tx.staffMealItem.count({ where: { inputUnitId: { in: inList } } }).then((n) => ({ label: "รายการมื้อพนักงาน", count: n })),
         tx.expenseItem.count({ where: { productUnitId: { in: inList } } }).then((n) => ({ label: "รายการค่าใช้จ่าย", count: n })),
         tx.parLevel.count({ where: { inputUnitId: { in: inList } } }).then((n) => ({ label: "จุดสั่งซื้อขั้นต่ำ", count: n })),
-        tx.stockCostDeclaration.count({ where: { inputUnitId: { in: inList } } }).then((n) => ({ label: "การแจ้งต้นทุนสต๊อก", count: n })),
+        tx.stockCostDeclaration.count({ where: { inputUnitId: { in: inList } } }).then((n) => ({ label: "การแจ้งต้นทุนสต็อก", count: n })),
       ]),
     ]);
     const recipeNames = [

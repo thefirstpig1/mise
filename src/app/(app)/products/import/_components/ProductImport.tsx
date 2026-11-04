@@ -231,7 +231,7 @@ function Review({
       <div className="hidden grid-cols-[minmax(0,1.5fr)_minmax(0,1.1fr)_150px_180px_minmax(0,1.4fr)] gap-3 border-b border-border px-4 py-2 font-display text-[12.5px] font-semibold text-muted-foreground lg:grid">
         <span>ชื่อ</span>
         <span>ซื้อเป็น</span>
-        <span>นับสต๊อกเป็น</span>
+        <span>นับสต็อกเป็น</span>
         <span>หมวด</span>
         <span>ผลการตรวจ</span>
       </div>
@@ -346,11 +346,11 @@ function ReviewRow({
       </div>
 
       <div className="grid min-w-0 content-start gap-1 max-lg:order-4">
-        <span className={label}>นับสต๊อกเป็น</span>
+        <span className={label}>นับสต็อกเป็น</span>
         <select
           value={d.baseUnit ?? ""}
           onChange={(e) => onEdit({ baseUnit: e.target.value === "" ? null : e.target.value })}
-          aria-label={`หน่วยนับสต๊อก แถว ${d.line}`}
+          aria-label={`หน่วยนับสต็อก แถว ${d.line}`}
           className={`input h-9 py-1 ${needUnit ? "border-bad" : ""}`}
         >
           <option value="">เลือกหน่วย</option>

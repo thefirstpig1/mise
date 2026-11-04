@@ -323,7 +323,7 @@ describe("gross profit by สูตรอาหาร (ADR 0022 Part 22 L3d)", (
   it("G-02 and the note says what to do about it", async () => {
     const v = await view();
     expect(v.grossProfit).toBeNull();
-    expect(v.grossProfitNote).toContain("ยังไม่ได้ตัดสต๊อก");
+    expect(v.grossProfitNote).toContain("ยังไม่ได้ตัดสต็อก");
     expect(v.grossProfitNote).toContain("2 วัน");
   });
 
@@ -411,13 +411,13 @@ describe("gross profit by สูตรอาหาร (ADR 0022 Part 22 L3d)", (
 
   // Kong 2026-10-30 (rule PG1): a new shop's dashboard read "กำไรสุทธิ 100% ของ
   // ยอดขาย" — opening 0 + purchases 0 − closing ฿0 (the counted stock had no
-  // price) is arithmetic, not a measurement. นับสต๊อก now answers only when the
+  // price) is arithmetic, not a measurement. นับสต็อก now answers only when the
   // period's opening was COUNTED and nothing in the stock it values is unpriced.
   // Rule PG2 (same day): and when its END was counted too, each within 7 days
   // of its boundary — with no closing count the system believes every purchase
   // is still on the shelf, and the first month after an opening count read ~100%.
 
-  it("G-08 นับสต๊อก with no count before the period is '—', not a figure", async () => {
+  it("G-08 นับสต็อก with no count before the period is '—', not a figure", async () => {
     await setMethod("PERIODIC_INVENTORY");
     const s = await summary();
     expect(s.grossProfitMethod).toBe("PERIODIC_INVENTORY");
@@ -428,7 +428,7 @@ describe("gross profit by สูตรอาหาร (ADR 0022 Part 22 L3d)", (
 
     const v = await view();
     expect(v.grossProfit).toBeNull();
-    expect(v.grossProfitNote).toContain("ยังไม่ได้นับสต๊อกต้นงวด");
+    expect(v.grossProfitNote).toContain("ยังไม่ได้นับสต็อกต้นงวด");
     await setMethod("RECIPE_CONSUMPTION");
   });
 
@@ -471,11 +471,11 @@ describe("gross profit by สูตรอาหาร (ADR 0022 Part 22 L3d)", (
     expect(s.cogsSold).toBeNull();
     expect(s.grossProfitBlocker).toEqual({ kind: "NO_CLOSING_COUNT" });
     const v = await view();
-    expect(v.grossProfitNote).toContain("ยังไม่ได้นับสต๊อกปิดงวด");
+    expect(v.grossProfitNote).toContain("ยังไม่ได้นับสต็อกปิดงวด");
     await setMethod("RECIPE_CONSUMPTION");
   });
 
-  it("G-09b counted at both ends, นับสต๊อก answers", async () => {
+  it("G-09b counted at both ends, นับสต็อก answers", async () => {
     // Today, twelve kilos — again exactly what the ledger holds.
     await withRlsBypass(async (tx) => {
       const sc = await tx.stockCount.create({
@@ -525,7 +525,7 @@ describe("gross profit by สูตรอาหาร (ADR 0022 Part 22 L3d)", (
     }
   });
 
-  it("G-10 stock nobody has priced keeps นับสต๊อก at '—', and says how many", async () => {
+  it("G-10 stock nobody has priced keeps นับสต็อก at '—', and says how many", async () => {
     // Salt found on the shelf at that count and never bought here: a gain with
     // no price is a layer worth ฿0 that is really worth something.
     salt = await createProductLogic(

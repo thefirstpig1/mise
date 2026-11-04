@@ -245,7 +245,7 @@ export default function ExportDialog({
                     <input type="checkbox" checked disabled /> รายการปรับปรุงสิ้นเดือน
                   </label>
                   <label className="flex items-center gap-2 text-sm">
-                    <input type="checkbox" checked={include.stock} onChange={(e) => setInclude({ ...include, stock: e.target.checked })} /> สต๊อกสิ้นเดือนรายสินค้า ({view.stock.length} รายการ)
+                    <input type="checkbox" checked={include.stock} onChange={(e) => setInclude({ ...include, stock: e.target.checked })} /> สต็อกสิ้นเดือนรายสินค้า ({view.stock.length} รายการ)
                   </label>
                   {multi && (
                     <label className="flex items-center gap-2 text-sm">

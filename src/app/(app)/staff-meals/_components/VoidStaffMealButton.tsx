@@ -45,7 +45,7 @@ export default function VoidStaffMealButton({
       <form {...formActionKeep} className="mt-2 space-y-2">
         <input type="hidden" name="id" value={staffMealId} />
         <p className="text-xs text-muted-foreground">
-          คืนวัตถุดิบของ {label} เข้าสต๊อก ตามราคาที่มันออกไป —
+          คืนวัตถุดิบของ {label} เข้าสต็อก ตามราคาที่มันออกไป —
           รายการเดิมจะยังอยู่ให้เห็น พร้อมเหตุผลที่ยกเลิก
         </p>
         <input

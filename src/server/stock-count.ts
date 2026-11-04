@@ -939,7 +939,7 @@ export async function deleteStockCountDraftLogic(
 
 /**
  * Rule PG2's reminder (Kong 2026-10-30, proposal E): on the month's last two
- * days, a นับสต๊อก shop is told to count tonight (or tomorrow night) — the
+ * days, a นับสต็อก shop is told to count tonight (or tomorrow night) — the
  * count its gross profit for the month cannot be worked out without. Lists the
  * branches in reach with no closed count inside the month's closing window
  * yet; null when the reminder does not apply (another method, not the last two

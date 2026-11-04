@@ -68,12 +68,12 @@ export default function GoodsReceiptActions({
     setAsking({
       title: `ยืนยันรับของตามใบ ${grNumber}?`,
       lines: [
-        "สต๊อกเพิ่มทันที และระบบสร้างบิลค่าใช้จ่ายให้",
+        "สต็อกเพิ่มทันที และระบบสร้างบิลค่าใช้จ่ายให้",
         "แก้ใบนี้ไม่ได้อีก ถ้าตัวเลขผิดต้องยกเลิกใบรับแล้วออกใบใหม่",
       ],
       money: null,
       who: "",
-      go: "ยืนยันรับของเข้าคลัง",
+      go: "ยืนยันรับของเข้าสต็อก",
       back: "ยังไม่ยืนยัน",
       onGo: doConfirm,
     });
@@ -93,7 +93,7 @@ export default function GoodsReceiptActions({
   const discard = () =>
     setAsking({
       title: `ทิ้งร่าง ${grNumber}?`,
-      lines: ["ร่างนี้ยังไม่ได้รับเข้าคลัง จะหายไปจากรายการ"],
+      lines: ["ร่างนี้ยังไม่ได้รับเข้าสต็อก จะหายไปจากรายการ"],
       money: null,
       who: "",
       go: "ทิ้งร่าง",
@@ -135,7 +135,7 @@ export default function GoodsReceiptActions({
         posted.negative ? "border-bad-border bg-bad-bg text-bad" : "border-good-border bg-good-bg text-good"
       }`}
     >
-      <p className="font-medium">{posted.negative ? "บันทึกแล้ว — แต่ต้องตรวจสอบ" : "บันทึกเข้าคลังแล้ว"}</p>
+      <p className="font-medium">{posted.negative ? "บันทึกแล้ว — แต่ต้องตรวจสอบ" : "บันทึกเข้าสต็อกแล้ว"}</p>
       <ul className="mt-1 space-y-0.5">
         {posted.balances.map((b) => (
           <li key={b.productId}>
@@ -145,7 +145,7 @@ export default function GoodsReceiptActions({
       </ul>
       {posted.negative && (
         <p className="mt-1">
-          มีวัตถุดิบที่ยอดคงเหลือติดลบ — แปลว่ามีการเบิกออกไปแล้วมากกว่าที่รับเข้า ลองตรวจการนับสต๊อกย้อนหลัง
+          มีวัตถุดิบที่ยอดคงเหลือติดลบ — แปลว่ามีการเบิกออกไปแล้วมากกว่าที่รับเข้า ลองตรวจการนับสต็อกย้อนหลัง
         </p>
       )}
     </div>
@@ -168,7 +168,7 @@ export default function GoodsReceiptActions({
         </button>
         {isDraft && (
           <button type="button" onClick={confirmReceipt} disabled={pending} className="btn">
-            ยืนยันรับของเข้าคลัง
+            ยืนยันรับของเข้าสต็อก
           </button>
         )}
         {errorBox}
@@ -228,7 +228,7 @@ export default function GoodsReceiptActions({
           />
           <p className="mt-1 text-xs text-bad">
             ระบบจะไม่ลบรายการเดิม แต่จะเพิ่ม &quot;รายการกลับรายการ&quot;
-            ที่หักสต๊อกคืนเท่ากัน ทั้งสองบรรทัดจะอยู่ในใบนี้ตลอดไปเพื่อให้ตรวจย้อนหลังได้
+            ที่หักสต็อกคืนเท่ากัน ทั้งสองบรรทัดจะอยู่ในใบนี้ตลอดไปเพื่อให้ตรวจย้อนหลังได้
           </p>
           <div className="mt-3 flex gap-2">
             <button

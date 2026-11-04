@@ -1,4 +1,4 @@
-// บัตรสต๊อก — one product at one branch (Kong 2026-10-25, mockup
+// บัตรสต็อก — one product at one branch (Kong 2026-10-25, mockup
 // XYYyUgNP18V4HL3vUwrUf1 tab ③). Plain module: the server page renders it.
 // Every row opens its document (stretched link, mise-ui-review §1).
 

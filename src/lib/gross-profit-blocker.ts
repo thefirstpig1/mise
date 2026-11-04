@@ -1,5 +1,5 @@
 // ============================================================
-// คิดครัว — why นับสต๊อก cannot name a gross profit yet (rules PG1, PG2)
+// คิดครัว — why นับสต็อก cannot name a gross profit yet (rules PG1, PG2)
 // ============================================================
 // Kong 2026-10-30, after setting up a shop from scratch: the dashboard read
 // "กำไรสุทธิ 100% ของยอดขาย" for a shop that had never recorded a purchase.
@@ -46,11 +46,11 @@ export type GrossProfitBlocker =
 export function grossProfitBlockerNote(b: GrossProfitBlocker): string {
   switch (b.kind) {
     case "NO_OPENING_COUNT":
-      return `ยังไม่ได้นับสต๊อกต้นงวด — วิธีนับสต๊อกต้องนับภายใน ${COUNT_WINDOW_DAYS} วันก่อนวันแรกของช่วงที่ดู จึงจะรู้ว่าต้นงวดมีของเท่าไร · แนะนำนับคืนสุดท้ายของเดือนหลังปิดร้าน`;
+      return `ยังไม่ได้นับสต็อกต้นงวด — วิธีนับสต็อกต้องนับภายใน ${COUNT_WINDOW_DAYS} วันก่อนวันแรกของช่วงที่ดู จึงจะรู้ว่าต้นงวดมีของเท่าไร · แนะนำนับคืนสุดท้ายของเดือนหลังปิดร้าน`;
     case "NO_CLOSING_COUNT":
-      return `ยังไม่ได้นับสต๊อกปิดงวด — วิธีนับสต๊อกต้องนับภายใน ${COUNT_WINDOW_DAYS} วันก่อนวันสุดท้ายของช่วงที่ดู จึงจะรู้ว่าใช้ของไปเท่าไร ระหว่างเดือนจึงยังคิดกำไรขั้นต้นไม่ได้ · นับปิดเดือนคืนสุดท้ายของเดือนแล้วตัวเลขจะขึ้น`;
+      return `ยังไม่ได้นับสต็อกปิดงวด — วิธีนับสต็อกต้องนับภายใน ${COUNT_WINDOW_DAYS} วันก่อนวันสุดท้ายของช่วงที่ดู จึงจะรู้ว่าใช้ของไปเท่าไร ระหว่างเดือนจึงยังคิดกำไรขั้นต้นไม่ได้ · นับปิดเดือนคืนสุดท้ายของเดือนแล้วตัวเลขจะขึ้น`;
     case "UNPRICED_STOCK":
-      return `ของในสต๊อก ${b.products.toLocaleString("th-TH")} รายการยังไม่มีราคา — มูลค่าสต๊อกจึงต่ำกว่าจริงและกำไรจะดูดีเกินจริง ใส่ราคาทุนของรายการเหล่านั้นก่อน`;
+      return `ของในสต็อก ${b.products.toLocaleString("th-TH")} รายการยังไม่มีราคา — มูลค่าสต็อกจึงต่ำกว่าจริงและกำไรจะดูดีเกินจริง ใส่ราคาทุนของรายการเหล่านั้นก่อน`;
   }
 }
 
@@ -58,9 +58,9 @@ export function grossProfitBlockerNote(b: GrossProfitBlocker): string {
 export function grossProfitBlockerShort(b: GrossProfitBlocker): string {
   switch (b.kind) {
     case "NO_OPENING_COUNT":
-      return "ยังไม่ได้นับสต๊อกต้นงวด";
+      return "ยังไม่ได้นับสต็อกต้นงวด";
     case "NO_CLOSING_COUNT":
-      return "ยังไม่ได้นับสต๊อกปิดงวด";
+      return "ยังไม่ได้นับสต็อกปิดงวด";
     case "UNPRICED_STOCK":
       return `ของ ${b.products.toLocaleString("th-TH")} รายการยังไม่มีราคา`;
   }

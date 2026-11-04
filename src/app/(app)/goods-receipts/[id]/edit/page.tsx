@@ -57,7 +57,7 @@ export default async function EditGoodsReceiptPage({
             )
           </p>
           <p className="mt-1">
-            เมื่อยืนยันรับของแล้ว สต๊อกถูกบันทึกลงบัญชีคลังซึ่งแก้ย้อนหลังไม่ได้ —
+            เมื่อยืนยันรับของแล้ว สต็อกถูกบันทึกแล้วและแก้ย้อนหลังไม่ได้ —
             หากตัวเลขผิด ให้กด &quot;ยกเลิกใบรับ&quot; แล้วออกใบใหม่
           </p>
         </div>
@@ -88,7 +88,7 @@ export default async function EditGoodsReceiptPage({
       <div>
         <h2 className="text-2xl font-semibold">แก้ไขฉบับร่าง {gr.grNumber}</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          ยังไม่เข้าคลัง — แก้ได้จนกว่าจะกดยืนยันรับของ
+          ยังไม่เข้าสต็อก — แก้ได้จนกว่าจะกดยืนยันรับของ
         </p>
       </div>
 

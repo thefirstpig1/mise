@@ -36,14 +36,14 @@ const cents = (n: number) => Math.round(n * 100);
 
 export function MonthEndSkeleton() {
   return (
-    <div className="space-y-5" aria-busy="true" aria-label="กำลังคำนวณสต๊อกและต้นทุน">
+    <div className="space-y-5" aria-busy="true" aria-label="กำลังคำนวณสต็อกและต้นทุน">
       <div className="h-40 animate-pulse rounded-2xl border border-border bg-surface-sunk" />
       <div className="h-56 animate-pulse rounded-2xl border border-border bg-surface-sunk" />
       <div className="grid gap-5 lg:grid-cols-2">
         <div className="h-72 animate-pulse rounded-2xl border border-border bg-surface-sunk" />
         <div className="h-72 animate-pulse rounded-2xl border border-border bg-surface-sunk" />
       </div>
-      <p className="text-center text-sm text-muted-subtle">กำลังคำนวณสต๊อกและต้นทุนของเดือน…</p>
+      <p className="text-center text-sm text-muted-subtle">กำลังคำนวณสต็อกและต้นทุนของเดือน…</p>
     </div>
   );
 }
@@ -107,7 +107,7 @@ export default function MonthEndView({
         <WaitingFor
           figure="monthCogs"
           needs={["count", "receipt"]}
-          reason={`เดือน ${monthTitleTh(v.month)} ยังไม่มีสต๊อก บิลซื้อ หรือการนับในสาขาที่คุณดูได้ · เลือกเดือนอื่นด้านบนได้`}
+          reason={`เดือน ${monthTitleTh(v.month)} ยังไม่มีสต็อก บิลซื้อ หรือการนับในสาขาที่คุณดูได้ · เลือกเดือนอื่นด้านบนได้`}
         />
       </section>
     );
@@ -174,7 +174,7 @@ export default function MonthEndView({
       {neverCounted ? (
         <section className="card space-y-3">
           <h2 className="font-display text-lg font-semibold">ต้นทุนขายเดือนนี้มาจากไหน</h2>
-          <WaitingFor figure="monthCogs" needs={["count", "price"]} reason="ยังไม่เคยนับสต๊อก จึงยังไม่รู้สต๊อกต้นเดือนและสิ้นเดือน" />
+          <WaitingFor figure="monthCogs" needs={["count", "price"]} reason="ยังไม่เคยนับสต็อก จึงยังไม่รู้สต็อกต้นเดือนและสิ้นเดือน" />
         </section>
       ) : (
         <>
@@ -183,7 +183,7 @@ export default function MonthEndView({
               <WaitingFor
                 figure="monthCogs"
                 needs={["posted", "recipe"]}
-                reason="เดือนนี้ยังไม่ได้ตัดสต๊อกตามยอดขาย ต้นทุนขายทั้งก้อนด้านล่างจึงขึ้นเป็น “ของขาดจากการนับ” ทั้งที่ส่วนใหญ่คือของที่ขายไป"
+                reason="เดือนนี้ยังไม่ได้ตัดสต็อกตามยอดขาย ต้นทุนขายทั้งก้อนด้านล่างจึงขึ้นเป็น “ของขาดจากการนับ” ทั้งที่ส่วนใหญ่คือของที่ขายไป"
                 outline={false}
               />
             </section>
@@ -210,7 +210,7 @@ export default function MonthEndView({
               onChange={setMode}
               items={[
                 ["full", "ปิดบัญชีซื้อด้วย (แนะนำ)"],
-                ["diff", "ปรับเฉพาะส่วนต่างสต๊อก"],
+                ["diff", "ปรับเฉพาะส่วนต่างสต็อก"],
               ]}
             />
             {multi && (
@@ -228,7 +228,7 @@ export default function MonthEndView({
           <p className="text-xs text-muted-foreground">
             {mode === "full"
               ? "ใช้เมื่อระหว่างเดือนนักบัญชีลงบิลซื้อเข้าบัญชี “ซื้อวัตถุดิบ” (ระบบสินค้าคงเหลือแบบสิ้นงวด — แบบที่ร้านส่วนใหญ่ใช้)"
-              : `ใช้เมื่อนักบัญชีปิดบัญชีซื้อเข้าต้นทุนขายเองแล้ว รายการนี้ปรับแค่สต๊อกให้ตรงกับยอดสิ้นเดือน (${baht(t.opening)} → ${baht(t.closing)})`}
+              : `ใช้เมื่อนักบัญชีปิดบัญชีซื้อเข้าต้นทุนขายเองแล้ว รายการนี้ปรับแค่สต็อกให้ตรงกับยอดสิ้นเดือน (${baht(t.opening)} → ${baht(t.closing)})`}
             {scope === "branch" && multi && " · แยกสาขาใช้บัญชีพักระหว่างสาขาให้ของที่โอนกันหักล้างกัน"}
           </p>
           {v.recipeMethod && (
@@ -358,7 +358,7 @@ function partsOf(b: MonthEndBranchView, recipeMethod: boolean): Part[] {
   const pct = (n: number) => (cogs > 0 ? `${((n / cogs) * 100).toFixed(1)}%` : "");
   const parts: Part[] = [];
   if (recipeMethod) {
-    if (b.sold !== null) parts.push({ key: "sold", label: "ขายไปตามสูตร", value: b.sold, sub: `${pct(b.sold)} · ตัดสต๊อกจากยอดขาย`, color: "bg-gradient-to-r from-[#9DAA55] to-[#5E6B14]" });
+    if (b.sold !== null) parts.push({ key: "sold", label: "ขายไปตามสูตร", value: b.sold, sub: `${pct(b.sold)} · ตัดสต็อกจากยอดขาย`, color: "bg-gradient-to-r from-[#9DAA55] to-[#5E6B14]" });
     const shrink = shrinkageOf(b, true);
     if (b.waste) parts.push({ key: "waste", label: "ทิ้ง", value: b.waste, sub: `${pct(b.waste)} · มีใบบันทึกของเสีย`, color: "bg-wash ring-2 ring-inset ring-sage" });
     if (b.staffMeals) parts.push({ key: "meals", label: "มื้อพนักงาน", value: b.staffMeals, sub: `${pct(b.staffMeals)} · ตามที่บันทึกมื้อพนักงาน`, color: "bg-[#E7C860]" });
@@ -372,7 +372,7 @@ function partsOf(b: MonthEndBranchView, recipeMethod: boolean): Part[] {
       });
   } else {
     const used = (cents(cogs) - cents(b.waste) - cents(b.staffMeals)) / 100;
-    parts.push({ key: "used", label: "ใช้ไปทั้งหมด", value: used, sub: `${pct(used)} · ขายและขาดรวมกัน (วิธีนับสต๊อกแยกไม่ได้)`, color: "bg-gradient-to-r from-[#9DAA55] to-[#5E6B14]" });
+    parts.push({ key: "used", label: "ใช้ไปทั้งหมด", value: used, sub: `${pct(used)} · ขายและขาดรวมกัน (วิธีนับสต็อกแยกไม่ได้)`, color: "bg-gradient-to-r from-[#9DAA55] to-[#5E6B14]" });
     if (b.waste) parts.push({ key: "waste", label: "ทิ้ง", value: b.waste, sub: `${pct(b.waste)} · มีใบบันทึกของเสีย`, color: "bg-wash ring-2 ring-inset ring-sage" });
     if (b.staffMeals) parts.push({ key: "meals", label: "มื้อพนักงาน", value: b.staffMeals, sub: pct(b.staffMeals), color: "bg-[#E7C860]" });
   }
@@ -400,11 +400,11 @@ function Equation({ v }: { v: View }) {
         </span>
       </div>
       <div className="grid grid-cols-1 gap-2 md:grid-cols-[minmax(0,1fr)_20px_minmax(0,1fr)_20px_minmax(0,1fr)_20px_minmax(0,1.15fr)]">
-        <Tile label="สต๊อกต้นเดือน" value={t.opening} sub="ยอดสิ้นเดือนก่อน" />
+        <Tile label="สต็อกต้นเดือน" value={t.opening} sub="ยอดสิ้นเดือนก่อน" />
         <Op>+</Op>
         <Tile label="ซื้อเข้า" value={t.purchases} sub={v.vatRegistered ? "บิลวัตถุดิบ ไม่รวม VAT" : "บิลวัตถุดิบ รวม VAT"} />
         <Op>−</Op>
-        <Tile label="สต๊อกสิ้นเดือน" value={t.closing} sub={`${v.stock.length} รายการ ณ ${dayLabelTh(v.to)}`} />
+        <Tile label="สต็อกสิ้นเดือน" value={t.closing} sub={`${v.stock.length} รายการ ณ ${dayLabelTh(v.to)}`} />
         <Op>=</Op>
         <Tile label="ต้นทุนขาย" value={t.cogs} sub="ยอดที่ลงบัญชี" result />
       </div>
@@ -442,7 +442,7 @@ function Equation({ v }: { v: View }) {
       )}
       {t.cogs <= 0 && (
         <p className="rounded-xl border border-warn-border bg-warn-bg px-3 py-2 text-sm text-warn">
-          ต้นทุนขายของเดือนนี้ไม่เป็นบวก — สต๊อกสิ้นเดือนมากกว่ายกมาบวกที่ซื้อ ตรวจบิลซื้อและการนับในหัวข้อ “ก่อนส่ง” ก่อนส่งให้บัญชี
+          ต้นทุนขายของเดือนนี้ไม่เป็นบวก — สต็อกสิ้นเดือนมากกว่ายกมาบวกที่ซื้อ ตรวจบิลซื้อและการนับในหัวข้อ “ก่อนส่ง” ก่อนส่งให้บัญชี
         </p>
       )}
     </section>
@@ -476,10 +476,10 @@ function BranchTable({ v }: { v: View }) {
           <thead>
             <tr>
               <th>สาขา</th>
-              <th className="text-right">สต๊อกต้นเดือน</th>
+              <th className="text-right">สต็อกต้นเดือน</th>
               <th className="text-right">ซื้อเข้า</th>
               <th className="text-right">โอนเข้า / ออก</th>
-              <th className="text-right">สต๊อกสิ้นเดือน</th>
+              <th className="text-right">สต็อกสิ้นเดือน</th>
               <th className="text-right">ต้นทุนขาย</th>
               {v.recipeMethod && <th className="text-right">ในนั้นเป็นของขาดจากการนับ</th>}
             </tr>
@@ -499,7 +499,7 @@ function BranchTable({ v }: { v: View }) {
                       </span>
                     )}
                   </td>
-                  <td className="text-right"><Money n={b.opening} empty={total ? undefined : "ยังไม่มีสต๊อก"} /></td>
+                  <td className="text-right"><Money n={b.opening} empty={total ? undefined : "ยังไม่มีสต็อก"} /></td>
                   <td className="text-right"><Money n={b.purchases} empty={total ? undefined : "ไม่มีบิลซื้อ"} /></td>
                   <td className="text-right">
                     {total ? (
@@ -552,7 +552,7 @@ function StockCard({ v }: { v: View }) {
     <section className="card space-y-3" aria-labelledby="me-stock">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 id="me-stock" className="font-display text-lg font-semibold">
-          สต๊อกสิ้นเดือนรายสินค้า
+          สต็อกสิ้นเดือนรายสินค้า
         </h2>
         <span className="text-xs text-muted-subtle">
           {v.stock.length} รายการ · {baht(v.total.closing)}
@@ -560,7 +560,7 @@ function StockCard({ v }: { v: View }) {
       </div>
       <p className="text-xs text-muted-foreground">แนบไปในไฟล์เป็นเอกสารประกอบ — ราคาทุนแบบเข้าก่อนออกก่อน (FIFO)</p>
       {v.stock.length === 0 ? (
-        <p className="text-sm text-muted-subtle">ไม่มีของในสต๊อก ณ สิ้นเดือน</p>
+        <p className="text-sm text-muted-subtle">ไม่มีของในสต็อก ณ สิ้นเดือน</p>
       ) : (
         <div className="data-table">
           <table>

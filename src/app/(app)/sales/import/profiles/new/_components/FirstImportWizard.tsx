@@ -86,7 +86,7 @@ const EXTRAS: { key: Extra; label: string; why: string }[] = [
   { key: "categoryName", label: "หมวดเมนู", why: "จัดเมนูเป็นหมวดให้เอง" },
   { key: "channel", label: "ช่องทางขาย", why: "แยกยอดหน้าร้าน กลับบ้าน เดลิเวอรี" },
   { key: "vatAmount", label: "VAT", why: "ใช้หัก VAT ออกจากยอดขาย" },
-  { key: "serviceChargeAmount", label: "Service charge", why: "ใช้หัก service charge ออกจากยอดขาย" },
+  { key: "serviceChargeAmount", label: "เซอร์วิสชาร์จ", why: "ใช้หักเซอร์วิสชาร์จออกจากยอดขาย" },
 ];
 
 /** "@", "ราคา", "price" — a per-unit price column. The row's own amount is what counts. */
@@ -341,7 +341,7 @@ export default function FirstImportWizard({
       if (!reading) return candidates.length === 0 || dateWrong ? "วันที่ยังอ่านไม่ได้ — กดย้อนกลับไปเลือกคอลัมน์วันที่ใหม่" : "ตอบเรื่องวันที่ก่อน";
       if (vat === null || sc === null) return "ตอบให้ครบทุกข้อ";
       if (vat && extras.vatAmount === undefined) return "เลือกคอลัมน์ VAT";
-      if (sc && extras.serviceChargeAmount === undefined) return "เลือกคอลัมน์ service charge";
+      if (sc && extras.serviceChargeAmount === undefined) return "เลือกคอลัมน์เซอร์วิสชาร์จ";
     }
     return "";
   };
@@ -699,15 +699,15 @@ export default function FirstImportWizard({
               )}
             </Question>
 
-            <Question title="ยอดเงินในไฟล์ รวม service charge แล้วหรือยัง" tag={fromAi.has("sc") ? "AI ตอบให้ · ตรวจอีกครั้ง" : undefined}>
+            <Question title="ยอดเงินในไฟล์ รวมเซอร์วิสชาร์จแล้วหรือยัง" tag={fromAi.has("sc") ? "AI ตอบให้ · ตรวจอีกครั้ง" : undefined}>
               {fromAi.has("sc") && ai?.why.serviceCharge && <Evidence>AI ดูจาก: {ai.why.serviceCharge}</Evidence>}
               <AiNotes notes={aiNotes(["amountsIncludeServiceCharge"])} />
-              <Evidence>ร้านไม่เก็บ service charge ตอบ “ยังไม่รวม” ได้เลย</Evidence>
+              <Evidence>ร้านไม่เก็บเซอร์วิสชาร์จ ตอบ “ยังไม่รวม” ได้เลย</Evidence>
               <YesNo value={sc} yes="รวมแล้ว" no="ยังไม่รวม" onChange={(v) => (setSc(v), setMsg(""), touch("sc"))} />
               {sc && (
                 <NeedColumn
-                  label="Service charge อยู่คอลัมน์ไหน"
-                  why="ระบบหัก service charge ของแต่ละแถวออกจากยอดขาย"
+                  label="เซอร์วิสชาร์จอยู่คอลัมน์ไหน"
+                  why="ระบบหักเซอร์วิสชาร์จของแต่ละแถวออกจากยอดขาย"
                   header={header}
                   sample={firstRow}
                   chosen={extras.serviceChargeAmount}
@@ -722,7 +722,7 @@ export default function FirstImportWizard({
           <>
             <div className="grid gap-1">
               <H>ตรวจว่าระบบอ่านถูก แล้วกดบันทึก</H>
-              <Sub>นี่คือสิ่งที่ระบบอ่านได้จากไฟล์ · ยอดเงินคือยอดขายหลังหักส่วนลด ไม่รวม VAT และ service charge · ถ้าไม่ตรง กดย้อนกลับไปแก้ได้</Sub>
+              <Sub>นี่คือสิ่งที่ระบบอ่านได้จากไฟล์ · ยอดเงินคือยอดขายหลังหักส่วนลด ไม่รวม VAT และเซอร์วิสชาร์จ · ถ้าไม่ตรง กดย้อนกลับไปแก้ได้</Sub>
             </div>
             {trial === null ? (
               <p className="text-sm text-muted-foreground">กำลังอ่านไฟล์ด้วยคำตอบของคุณ…</p>
@@ -883,7 +883,7 @@ function ReadBack({ t, isBE, posLabel, branchName }: { t: Extract<Extract<TrialR
       {t.usedCutoff && <p className="text-xs text-muted-foreground">วันขายคิดจากเวลาในไฟล์ · บิลหลังเที่ยงคืนถึง {Math.floor(t.cutoffMinutes / 60).toString().padStart(2, "0")}:{(t.cutoffMinutes % 60).toString().padStart(2, "0")} อยู่ในยอดของวันก่อนหน้า</p>}
       {t.inconsistentRows > 0 && (
         <p className="rounded-xl border border-warn-border bg-warn-bg px-3 py-2 text-xs text-warn">
-          {t.inconsistentRows} แถว ยอดก่อนส่วนลด − ส่วนลด ไม่เท่ากับยอดเงิน · ลองตรวจคำตอบเรื่อง VAT และ service charge อีกครั้ง
+          {t.inconsistentRows} แถว ยอดก่อนส่วนลด − ส่วนลด ไม่เท่ากับยอดเงิน · ลองตรวจคำตอบเรื่อง VAT และเซอร์วิสชาร์จอีกครั้ง
         </p>
       )}
       <Note title="จะบันทึก">

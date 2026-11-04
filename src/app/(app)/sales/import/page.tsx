@@ -100,7 +100,7 @@ export default async function SalesImportPage({ searchParams }: { searchParams: 
     <div className="space-y-8">
       <PageHeader
         title="นำเข้ายอดขาย"
-        description="โหลดไฟล์ยอดขายจากหลังบ้านของ POS แล้วอัปที่นี่ — ไฟล์เดียวครอบได้หลายวัน"
+        description="โหลดไฟล์ยอดขายจากหลังบ้านของ POS แล้วอัปโหลดที่นี่ — ไฟล์เดียวครอบได้หลายวัน"
         actions={
           <a href="/sales" className="btn-secondary">
             ดูยอดขาย

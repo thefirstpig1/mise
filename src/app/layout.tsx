@@ -42,7 +42,7 @@ const PRELOAD = ["/fonts/noto-sans-thai-v29-thai.woff2", "/fonts/prompt-v12-600-
 
 export const metadata: Metadata = {
   title: "คิดครัว — ระบบหลังร้านสำหรับร้านอาหาร",
-  description: "ระบบหลังบ้านสำหรับร้านอาหาร",
+  description: "ระบบหลังร้านสำหรับร้านอาหาร",
 };
 
 export default function RootLayout({

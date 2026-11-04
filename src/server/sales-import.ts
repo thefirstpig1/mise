@@ -373,7 +373,7 @@ export function parseSalesTableLogic(
     const net = readMoney(row, map.netAmount, "ยอดสุทธิ", rowNumber);
     const gross = readMoney(row, map.grossAmount, "ยอดก่อนหักส่วนลด", rowNumber);
     const discount = readMoney(row, map.discountAmount, "ส่วนลด", rowNumber);
-    const serviceCharge = readMoney(row, map.serviceChargeAmount, "Service charge", rowNumber);
+    const serviceCharge = readMoney(row, map.serviceChargeAmount, "เซอร์วิสชาร์จ", rowNumber);
     const vat = readMoney(row, map.vatAmount, "VAT", rowNumber);
 
     // --- channel (Q12) ---

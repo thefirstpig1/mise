@@ -5,7 +5,7 @@
 // use it, and — for a prepped item — how it is made, editable in place.
 //
 // Stock figures are the ledger, which knows only what has been POSTED: the
-// sheet always says "ตัดสต๊อกถึง <date>" under the number, because on-hand is
+// sheet always says "ตัดสต็อกถึง <date>" under the number, because on-hand is
 // what the ledger knows, not what is on the shelf.
 //
 // A prepped item's recipe is shared by every branch, so editing it needs the
@@ -169,7 +169,7 @@ export default function IngredientSheet({
       : made?.how === "yield"
         ? Number(yieldPct) !== made.yieldPercent
         : false;
-  const dirtyParts = [...(madeDirty ? [made?.how === "yield" ? "% ผลผลิต" : "สูตรผลิต"] : []), ...(extra?.dirty ?? [])];
+  const dirtyParts = [...(madeDirty ? [made?.how === "yield" ? "ยิลด์" : "สูตรผลิต"] : []), ...(extra?.dirty ?? [])];
   const dirty = dirtyParts.length > 0;
 
   const close = () => {
@@ -191,7 +191,7 @@ export default function IngredientSheet({
     const uses = data.usedIn.length;
     const diff: string[] =
       made.how === "yield"
-        ? [`ผลผลิตจาก${made.parentName} ${made.yieldPercent}% → ${yieldPct}%`]
+        ? [`ยิลด์จาก${made.parentName} ${made.yieldPercent}% → ${yieldPct}%`]
         : (lines ?? []).flatMap((l) => {
             const o = baseLines.find((x) => x.productId === l.productId);
             if (!o) return [`เพิ่ม ${l.label} ${l.qty} ${unitTh(l.unitName)}`];
@@ -294,7 +294,7 @@ export default function IngredientSheet({
         <div className="min-w-0 flex-1 pr-8">
           <span className="badge">{data?.product.type === "PREPPED" ? "ของแปรรูป" : "วัตถุดิบ"}{data ? ` · ${data.product.sku}` : ""}</span>
           {extra?.title ?? <h3 id="ing-title" className="mt-1 text-lg font-semibold">{data?.product.name ?? "กำลังโหลด…"}</h3>}
-          <p className="text-xs text-muted-foreground">นับสต๊อกเป็น {unitTh(baseUnit) || "—"} · {branch.name}</p>
+          <p className="text-xs text-muted-foreground">นับสต็อกเป็น {unitTh(baseUnit) || "—"} · {branch.name}</p>
         </div>
         <button type="button" onClick={close} aria-label="ปิด" className="absolute right-3 top-3 rounded-lg px-2 text-2xl leading-none text-muted-foreground hover:bg-muted">
           ×
@@ -321,9 +321,9 @@ export default function IngredientSheet({
                     // Queue item 10: never received or counted here is not "0 kg".
                     <Tile k="คงเหลือ" v="—" s="ยังไม่เคยนับหรือรับเข้าที่สาขานี้" />
                   ) : (
-                    <Tile k="คงเหลือ" v={fact ? qtyFmt(fact.onHand, baseUnit) : "—"} s={data.facts.postedThrough ? `ตามระบบ · ตัดสต๊อกถึง ${thDate(data.facts.postedThrough, false)}` : "ยังไม่มีการตัดสต๊อกตามยอดขาย"} />
+                    <Tile k="คงเหลือ" v={fact ? qtyFmt(fact.onHand, baseUnit) : "—"} s={data.facts.postedThrough ? `ตามระบบ · ตัดสต็อกถึง ${thDate(data.facts.postedThrough, false)}` : "ยังไม่มีการตัดสต็อกตามยอดขาย"} />
                   )}
-                  <Tile k="ใช้เฉลี่ยต่อวัน" v={fact?.usedPerDay ? qtyFmt(fact.usedPerDay, baseUnit) : "—"} s={`จากยอดขาย ${data.facts.postedDays} วันที่ตัดสต๊อกแล้ว${thinRate ? " · ยังน้อย เชื่อได้ไม่มาก" : ""}`}
+                  <Tile k="ใช้เฉลี่ยต่อวัน" v={fact?.usedPerDay ? qtyFmt(fact.usedPerDay, baseUnit) : "—"} s={`จากยอดขาย ${data.facts.postedDays} วันที่ตัดสต็อกแล้ว${thinRate ? " · ยังน้อย เชื่อได้ไม่มาก" : ""}`}
                     warn={thinRate}
                   />
                   <Tile
@@ -407,12 +407,12 @@ export default function IngredientSheet({
               <section className="space-y-2 rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <h4 className="font-semibold">ทำจาก</h4>
-                  <span className="text-xs text-muted-foreground">สินค้าแม่ตัวเดียว + % ผลผลิต</span>
+                  <span className="text-xs text-muted-foreground">สินค้าแม่ตัวเดียว + ยิลด์</span>
                 </div>
                 <p className="flex flex-wrap items-center gap-2 text-sm">
                   {made.parentName} 1 {unitTh(baseUnit)} ได้{data.product.name}
                   {editable ? (
-                    <MeasureInput size="sm" unit="%" min="0.01" value={yieldPct} onChange={(e) => setYieldPct(e.target.value)} aria-label="% ผลผลิต" boxClassName="w-24" />
+                    <MeasureInput size="sm" unit="%" min="0.01" value={yieldPct} onChange={(e) => setYieldPct(e.target.value)} aria-label="ยิลด์" boxClassName="w-24" />
                   ) : (
                     <b className="tabular-nums">{made.yieldPercent}%</b>
                   )}
@@ -568,7 +568,7 @@ export default function IngredientSheet({
             )}
           </span>
           <button type="button" disabled={!dirty || saving} onClick={askSave} className="btn">
-            {saving ? "กำลังบันทึก…" : extra ? "บันทึก" : made?.how === "yield" ? "บันทึก % ผลผลิต" : "บันทึกสูตรผลิต"}
+            {saving ? "กำลังบันทึก…" : extra ? "บันทึก" : made?.how === "yield" ? "บันทึกยิลด์" : "บันทึกสูตรผลิต"}
           </button>
         </div>
       )}

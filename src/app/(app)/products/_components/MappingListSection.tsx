@@ -135,7 +135,7 @@ export default function MappingListSection({
                 <th className="py-2 pr-4 font-medium">สาขา</th>
                 <th className="py-2 pr-4 font-medium">ราคา/หน่วย</th>
                 <th className="py-2 pr-4 font-medium">ขั้นต่ำ</th>
-                <th className="py-2 pr-4 font-medium">Lead (วัน)</th>
+                <th className="py-2 pr-4 font-medium">ส่งของภายใน (วัน)</th>
                 <th className="py-2 pr-4 font-medium">ช่วงเวลา</th>
                 <th className="py-2 pr-4 font-medium">สถานะ</th>
                 <th className="py-2 font-medium text-right">จัดการ</th>

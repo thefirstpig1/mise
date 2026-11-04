@@ -27,7 +27,7 @@ const ORIGIN_ICON: Record<ProductionRowView["origin"], string> = {
 const ORIGIN_TH: Record<Exclude<ProductionRowView["origin"], "MANUAL">, string> = {
   STOCK_COUNT: "จากใบนับ",
   WASTE: "จากของเสีย",
-  ADJUSTMENT: "จากการปรับสต๊อก",
+  ADJUSTMENT: "จากการปรับสต็อก",
   TRANSFER: "จากการโอน",
 };
 const WHY_SYSTEM: Record<Exclude<ProductionRowView["origin"], "MANUAL">, string> = {
@@ -285,7 +285,7 @@ function ProductionDetail({
         ...row.inputs.map((i) => `คืน${i.name} ${show(i.qty)} ${unitTh(i.unitName)}`),
       ],
       money: null,
-      who: "ใบผลิตไม่ถูกลบ ยังเห็นในรายการพร้อมป้ายยกเลิก · วันขายที่ใช้ของจากใบนี้ ระบบตัดสต๊อกใหม่ให้เอง",
+      who: "ใบผลิตไม่ถูกลบ ยังเห็นในรายการพร้อมป้ายยกเลิก · วันขายที่ใช้ของจากใบนี้ ระบบตัดสต็อกใหม่ให้เอง",
       go: "ยกเลิกใบผลิต",
       onGo: async () => {
         setBusy(true);
@@ -293,7 +293,7 @@ function ProductionDetail({
         setBusy(false);
         if (!res.ok) return onError(res.formError);
         const reposted = res.reposted.filter((r) => r.outcome === "REPOSTED").length;
-        onDone(`ยกเลิก ${row.pdNumber} แล้ว${reposted ? ` · ตัดสต๊อกของวันขายใหม่ ${reposted} วัน` : ""}`);
+        onDone(`ยกเลิก ${row.pdNumber} แล้ว${reposted ? ` · ตัดสต็อกของวันขายใหม่ ${reposted} วัน` : ""}`);
       },
     });
 

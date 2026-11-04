@@ -120,7 +120,7 @@ export default function OpeningPrices({ countId, onChange }: { countId: string; 
         })}
       </ul>
       <p className="flex items-baseline justify-between text-sm">
-        <span className="text-muted-foreground">มูลค่าสต๊อกตั้งต้น</span>
+        <span className="text-muted-foreground">มูลค่าสต็อกตั้งต้น</span>
         <span className="font-display font-semibold tabular-nums">
           {missing.length === list.length ? "—" : `${missing.length > 0 ? "อย่างน้อย " : ""}฿${formatMoney(String(value))}`}
         </span>

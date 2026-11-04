@@ -68,7 +68,7 @@ export default function StaffMealSummary({
   const maxDay = s ? Math.max(1, ...s.costByDay.map((d) => d.cost)) : 1;
   // Meals the POS deducted have no cost on this page — unknown, not ฿0.
   const allPos = s !== null && s.meals > 0 && s.notPosted === s.meals;
-  const posNote = s && s.notPosted > 0 && !allPos ? ` · ไม่รวม ${s.notPosted} มื้อที่ POS ตัดสต๊อก` : "";
+  const posNote = s && s.notPosted > 0 && !allPos ? ` · ไม่รวม ${s.notPosted} มื้อที่ POS ตัดสต็อก` : "";
 
   const showPerson = (id: string | null) => {
     if (!id) return;
@@ -128,7 +128,7 @@ export default function StaffMealSummary({
                   s.cost === null
                     ? "เห็นเฉพาะคนที่ดูต้นทุนได้"
                     : allPos
-                      ? "POS เป็นคนตัดสต๊อกมื้อพนักงาน ต้นทุนอยู่ในยอดขายที่นำเข้า"
+                      ? "POS เป็นคนตัดสต็อกมื้อพนักงาน ต้นทุนอยู่ในยอดขายที่นำเข้า"
                       : `${baht(s.cost / Math.max(1, s.costByDay.length))} ต่อวันที่มีมื้อ${posNote}`
                 }
               />
@@ -185,7 +185,7 @@ export default function StaffMealSummary({
                               {p.cost === null || p.notPosted === p.meals ? "—" : baht(p.cost)}
                               {p.notPosted > 0 && (
                                 <div className="text-xs text-muted-foreground">
-                                  {p.notPosted === p.meals ? "POS ตัดสต๊อก" : `ไม่รวม ${p.notPosted} มื้อ (POS ตัด)`}
+                                  {p.notPosted === p.meals ? "POS ตัดสต็อก" : `ไม่รวม ${p.notPosted} มื้อ (POS ตัด)`}
                                 </div>
                               )}
                             </td>
@@ -231,8 +231,8 @@ export default function StaffMealSummary({
               </div>
             </div>
             <p className="text-xs text-muted-foreground">
-              ต้นทุนจริง = ราคาวัตถุดิบที่ตัดออกจากสต๊อกจริง (FIFO) · นับเฉพาะมื้อที่อนุมัติแล้วและไม่ได้ยกเลิก · ใช้ดูเป็นค่าสวัสดิการพนักงาน แยกจากต้นทุนอาหารที่ขาย
-              {s.notPosted > 0 && " · มื้อที่ POS เป็นคนตัดสต๊อกไม่มีต้นทุนในหน้านี้ (อยู่ในยอดขายที่นำเข้า)"}
+              ต้นทุนจริง = ราคาวัตถุดิบที่ตัดออกจากสต็อกจริง (FIFO) · นับเฉพาะมื้อที่อนุมัติแล้วและไม่ได้ยกเลิก · ใช้ดูเป็นค่าสวัสดิการพนักงาน แยกจากต้นทุนอาหารที่ขาย
+              {s.notPosted > 0 && " · มื้อที่ POS เป็นคนตัดสต็อกไม่มีต้นทุนในหน้านี้ (อยู่ในยอดขายที่นำเข้า)"}
             </p>
           </>
         )

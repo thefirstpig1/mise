@@ -272,7 +272,7 @@ export default function CloseForm({
             <span>{day.auto.staffMealCount} รายการ</span>
           </li>
           <li className="flex justify-between py-1.5">
-            <span>ตัดสต๊อกตามยอดขาย</span>
+            <span>ตัดสต็อกตามยอดขาย</span>
             <span>{day.auto.consumptionPosted === null ? "ยังไม่มีไฟล์ยอดขาย" : day.auto.consumptionPosted ? "ตัดแล้ว" : "ยังไม่ได้ตัด"}</span>
           </li>
         </ul>
@@ -287,7 +287,7 @@ export default function CloseForm({
 
       <section className="space-y-2 rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
         <Sec n={5} title="อัปโหลดไฟล์ยอดขายจาก POS" />
-        <p className="text-xs text-muted-subtle">หลังบันทึกยอดปิดร้านแล้ว — ระบบเทียบไฟล์กับยอดที่คีย์ให้ทันที แล้วตัดสต๊อกตามสูตร</p>
+        <p className="text-xs text-muted-subtle">หลังบันทึกยอดปิดร้านแล้ว — ระบบเทียบไฟล์กับยอดที่คีย์ให้ทันที แล้วตัดสต็อกตามสูตร</p>
         <ClosingUpload profiles={profiles} businessDate={day.businessDate} pulseSaved={day.pulseAmount !== null || day.pulseLocked} pulseLocked={day.pulseLocked} />
       </section>
     </div>

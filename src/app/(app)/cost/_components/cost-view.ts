@@ -193,7 +193,7 @@ const COUNT_DATE = new Intl.DateTimeFormat("th-TH", {
 /**
  * Why the gross profit figure is what it is — or why there is not one.
  *
- * Never omitted. Under นับสต๊อก the number is exactly as good as the counts that
+ * Never omitted. Under นับสต็อก the number is exactly as good as the counts that
  * bound the period, and a shop that has not counted since March is entitled to
  * know that before it believes a margin.
  */
@@ -211,22 +211,22 @@ function grossProfitNote(row: BranchCostSummary): string {
     if (posted === 0) {
       return days === 0
         ? "ยังไม่มียอดขายนำเข้าในช่วงนี้"
-        : `ยังไม่ได้ตัดสต๊อกตามสูตรสักวันในช่วงนี้ (${days} วันที่มียอดขาย) — ตัดสต๊อกที่หน้าตัดสต๊อกตามยอดขายก่อน จึงจะคิดกำไรขั้นต้นวิธีนี้ได้`;
+        : `ยังไม่ได้ตัดสต็อกตามสูตรสักวันในช่วงนี้ (${days} วันที่มียอดขาย) — ตัดสต็อกที่หน้าตัดสต็อกตามยอดขายก่อน จึงจะคิดกำไรขั้นต้นวิธีนี้ได้`;
     }
     const pct = coveragePercent(row);
     const share =
       pct === null ? "" : ` · ครอบคลุม ${pct}% ของยอดขายในช่วงนี้`;
     return posted >= days
-      ? `คิดจากสูตรอาหาร — ตัดสต๊อกครบทุกวันที่มียอดขาย (${posted} วัน)${share}`
-      : `คิดจากสูตรอาหาร — ตัดสต๊อกแล้ว ${posted} จาก ${days} วันที่มียอดขาย${share} · วันที่เหลือยังไม่ถูกนับเป็นต้นทุน ตัวเลขจึงดูดีเกินจริง`;
+      ? `คิดจากสูตรอาหาร — ตัดสต็อกครบทุกวันที่มียอดขาย (${posted} วัน)${share}`
+      : `คิดจากสูตรอาหาร — ตัดสต็อกแล้ว ${posted} จาก ${days} วันที่มียอดขาย${share} · วันที่เหลือยังไม่ถูกนับเป็นต้นทุน ตัวเลขจึงดูดีเกินจริง`;
   }
 
   // Rule PG1: the figure is withheld, and this is the reason it is.
   if (row.grossProfitBlocker) return grossProfitBlockerNote(row.grossProfitBlocker);
   if (row.lastCountedAt === null) {
-    return "สาขานี้ยังไม่เคยปิดการนับสต๊อก — ตัวเลขนี้จึงมาจากยอดคงเหลือที่ระบบเชื่อ ไม่ใช่ของที่นับจริง และมักดูดีเกินจริง";
+    return "สาขานี้ยังไม่เคยปิดการนับสต็อก — ตัวเลขนี้จึงมาจากยอดคงเหลือที่ระบบเชื่อ ไม่ใช่ของที่นับจริง และมักดูดีเกินจริง";
   }
-  return `คิดจาก สต๊อกต้นงวด + ซื้อ − สต๊อกปลายงวด · แม่นเท่าที่นับสต๊อก (นับล่าสุด ${COUNT_DATE.format(row.lastCountedAt)})`;
+  return `คิดจาก สต็อกต้นงวด + ซื้อ − สต็อกปลายงวด · แม่นเท่าที่นับสต็อก (นับล่าสุด ${COUNT_DATE.format(row.lastCountedAt)})`;
 }
 
 export type CostDeclarationView = {

@@ -300,7 +300,7 @@ export default async function SupplierPage({
                   </span>
                 </Link>
                 <span className="whitespace-nowrap rounded-full border border-border-strong bg-muted px-2.5 py-0.5 text-xs text-muted-foreground">
-                  {d.kind === "PO" ? (PO_STATUS[d.status] ?? d.status) : d.status === "VOIDED" ? "ยกเลิกแล้ว" : "รับเข้าคลังแล้ว"}
+                  {d.kind === "PO" ? (PO_STATUS[d.status] ?? d.status) : d.status === "VOIDED" ? "ยกเลิกแล้ว" : "รับเข้าสต็อกแล้ว"}
                 </span>
               </li>
             ))}

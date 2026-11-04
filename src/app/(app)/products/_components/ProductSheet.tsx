@@ -340,7 +340,7 @@ export default function ProductSheet({
 
             <div className="flex flex-wrap items-baseline justify-between gap-2">
               <h5 className="text-sm font-semibold">หน่วยซื้อและหน่วยนับเพิ่ม</h5>
-              <span className="text-xs text-muted-foreground">นับสต๊อกเป็น {unitTh(baseUnit)} · ใช้ตอนสั่งซื้อ รับของ และนับหลายหน่วย</span>
+              <span className="text-xs text-muted-foreground">นับสต็อกเป็น {unitTh(baseUnit)} · ใช้ตอนสั่งซื้อ รับของ และนับหลายหน่วย</span>
             </div>
             {draft.units.length === 0 && (
               <p className="text-xs text-muted-foreground">ยังไม่มี · พิมพ์แค่ภาชนะกับขนาด เช่น ถุง 500 g → ระบบเขียนชื่อให้เอง</p>

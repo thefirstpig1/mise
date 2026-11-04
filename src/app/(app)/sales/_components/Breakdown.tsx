@@ -233,7 +233,7 @@ export function BreakdownPanes({
                     type="button"
                     onClick={() => openMenu(m.id)}
                     className="block w-full rounded-lg px-1.5 py-1 text-left transition-colors hover:bg-muted/60"
-                    title="ดู insight ของเมนูนี้"
+                    title="ดูอินไซต์ของเมนูนี้"
                   >
                     {body}
                   </button>

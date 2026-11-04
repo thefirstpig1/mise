@@ -648,7 +648,7 @@ export type BranchCostSummary = {
    *
    * `cogsSpend` above stays net on purpose — it is what was spent before tax,
    * and H8 pins it. But stock carries the VAT an unregistered shop cannot
-   * reclaim (ADR 0016 Q2), so the นับสต๊อก identity opening + purchases −
+   * reclaim (ADR 0016 Q2), so the นับสต็อก identity opening + purchases −
    * closing needs purchases valued the way the stock is. With `cogsSpend` in
    * it, a non-registered shop's month of deliveries and no cooking showed a
    * NEGATIVE cost of sales, and every month's gross profit was overstated by
@@ -728,7 +728,7 @@ export type BranchCostSummary = {
   /** Which method produced (or refused to produce) the figure above. */
   grossProfitMethod: GrossProfitMethod;
   /**
-   * Why the นับสต๊อก figure is null although the branch sold (rule PG1, Kong
+   * Why the นับสต็อก figure is null although the branch sold (rule PG1, Kong
    * 2026-10-30). A new shop's dashboard read "กำไรสุทธิ 100% ของยอดขาย": opening
    * ฿0 + purchases ฿0 − closing ฿0, because nobody had counted before the period
    * and the stock counted since had no price. That is arithmetic, not a
@@ -970,7 +970,7 @@ async function loadPeriodFacts(tenantId: string, reach: BranchReach, from: Date,
 type PeriodFacts = NonNullable<Awaited<ReturnType<typeof loadPeriodFacts>>>;
 
 /**
- * Rule PG2's fallback (Kong 2026-10-30): while a month runs, นับสต๊อก cannot
+ * Rule PG2's fallback (Kong 2026-10-30): while a month runs, นับสต็อก cannot
  * name its gross profit, so the dashboard shows the latest month it CAN — the
  * latest calendar month before today's whose two ends were counted at every
  * branch in reach that sold anything in it. null when none in the past year.
@@ -1127,7 +1127,7 @@ function assembleCostSummary(
   /** Closing replay for THIS period: the ledger cut at `to`. */
   replayed: Map<string, ProductCost>,
   /**
-   * Opening stock is normally replayed only for the นับสต๊อก method, the one
+   * Opening stock is normally replayed only for the นับสต็อก method, the one
    * gross-profit figure that needs it. The month-end close needs it whatever
    * the method (rule ME1), so it asks; nobody else pays for the extra walk.
    */
@@ -1385,7 +1385,7 @@ function assembleCostSummary(
 
     // Two methods, and the second one arrived in Part 22.
     //
-    // นับสต๊อก: opening + purchases − closing, the accounting identity, and the
+    // นับสต็อก: opening + purchases − closing, the accounting identity, and the
     //   (purchases valued as the stock is — `purchasesAtCost`, rule ME2 — so a
     //   shop that cannot reclaim VAT does not see its VAT turn into profit)
     //   only gross profit available to a shop with no recipes.
@@ -1398,7 +1398,7 @@ function assembleCostSummary(
     // 0019 already settled that an imperfect figure is printed with its
     // freshness attached rather than withheld.
     //
-    // Rules PG1 + PG2 (Kong 2026-10-30): นับสต๊อก answers only when its two
+    // Rules PG1 + PG2 (Kong 2026-10-30): นับสต็อก answers only when its two
     // ends are worth something — both counted near the boundary, and no shelf
     // valued at ฿0 because nobody priced it. Any gap made the identity print a
     // profit the shop never earned: with no closing count the system believes

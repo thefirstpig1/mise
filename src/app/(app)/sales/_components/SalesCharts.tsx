@@ -267,7 +267,7 @@ export function MenuTable({ rows, total, by }: { rows: MenuRow[]; total: number;
               <tr
                 key={r.id}
                 onClick={() => insight?.open(r.id)}
-                title="ดู insight ของเมนูนี้"
+                title="ดูอินไซต์ของเมนูนี้"
                 className="group cursor-pointer transition-colors hover:bg-muted"
               >
                 <td className="px-3 py-2">

@@ -62,7 +62,7 @@ function BranchDialog({ row, onClose }: { row: BranchRowView | null; onClose: ()
   return (
     <SettingsModal
       title={title}
-      sub={row ? undefined : "ร้านเดิม เปิดอีกที่หนึ่ง · ใช้เมนู สูตร วัตถุดิบ และผู้ขายร่วมกัน แต่มี POS และสต๊อกของตัวเอง · ร้านอีกชื่อหนึ่งให้เปิดร้านใหม่จากชื่อร้านบนสุดของเมนูข้าง"}
+      sub={row ? undefined : "ร้านเดิม เปิดอีกที่หนึ่ง · ใช้เมนู สูตร วัตถุดิบ และผู้ขายร่วมกัน แต่มี POS และสต็อกของตัวเอง · ร้านอีกชื่อหนึ่งให้เปิดร้านใหม่จากชื่อร้านบนสุดของเมนูข้าง"}
       onClose={onClose}
     >
       <form {...actionKeep} className="space-y-4">

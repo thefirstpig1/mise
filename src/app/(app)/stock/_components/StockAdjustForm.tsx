@@ -118,7 +118,7 @@ export default function StockAdjustForm({
    * asking anyway sent a cook to /denied mid-form (ADR 0038 audit).
    */
   canSeeCost: boolean;
-  /** `?branch=` — the branch the person came from (the งานสต๊อก hub). */
+  /** `?branch=` — the branch the person came from (the งานสต็อก hub). */
   initialBranchId?: string;
 }) {
   const [state, formAction, isPending] = useActionState(
@@ -537,7 +537,7 @@ export default function StockAdjustForm({
           </a>{" "}
           — จะได้แยกออกจากของที่หายโดยไม่รู้สาเหตุในรายงานต้นทุน · นับทั้งร้านใหม่? ใช้หน้า{" "}
           <a href="/stock-counts/new" className="text-primary hover:underline">
-            นับสต๊อก
+            นับสต็อก
           </a>{" "}
           — ได้เอกสารและรายการขาด/เกินครบ
         </p>
@@ -661,7 +661,7 @@ export default function StockAdjustForm({
           disabled={isPending || blockedByNegative || (mode === "counted" && (!hasCounted || countedDelta === 0))}
           className="btn"
         >
-          {isPending ? "กำลังบันทึก…" : "บันทึกการปรับสต๊อก"}
+          {isPending ? "กำลังบันทึก…" : "บันทึกการปรับสต็อก"}
         </button>
         {blockedByNegative && (
           <span className="text-xs text-bad">

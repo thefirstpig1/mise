@@ -752,7 +752,7 @@ export default function MenuManager(props: {
                       — {dupCount} ในนั้นน่าจะเป็นเมนูเดียวกับเมนูที่มีสูตรแล้ว (จากอีกสาขา) รวมเมนูก่อน แล้วเหลือเขียนสูตรจริง <b>{toWrite} เมนู</b>
                     </>
                   ) : (
-                    " — ยังคิดต้นทุนไม่ได้และยังไม่ถูกตัดสต๊อก"
+                    " — ยังคิดต้นทุนไม่ได้และยังไม่ถูกตัดสต็อก"
                   )}
                 </p>
                 <div className="flex flex-wrap gap-2">
@@ -1177,7 +1177,7 @@ export default function MenuManager(props: {
             </div>
 
             <p className="text-xs text-muted-subtle">
-              ยอดขายและราคาเฉลี่ย {factDays} วันล่าสุดที่มีข้อมูล ({props.factRange}) หลังส่วนลด ไม่รวม VAT และ service charge
+              ยอดขายและราคาเฉลี่ย {factDays} วันล่าสุดที่มีข้อมูล ({props.factRange}) หลังส่วนลด ไม่รวม VAT และเซอร์วิสชาร์จ
               {!costHidden && (
                 <>
                   {" "}

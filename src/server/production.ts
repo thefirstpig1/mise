@@ -728,7 +728,7 @@ export type RepostedDay = {
  * products in question touched — either cut from their recipe instead (a
  * `prepped_shortfall`), or taken off their shelf (a consumption item).
  *
- * Q5: "ระบบตัดสต๊อกใหม่เองทุกวันที่ได้รับผล" — with the mechanism ADR 0022
+ * Q5: "ระบบตัดสต็อกใหม่เองทุกวันที่ได้รับผล" — with the mechanism ADR 0022
  * already has, void + post the whole day. Each day is its own transaction and
  * computes before it swaps: a day that cannot be re-posted keeps what it had
  * and is reported, so no day is ever left "not cut". Oldest first, because a

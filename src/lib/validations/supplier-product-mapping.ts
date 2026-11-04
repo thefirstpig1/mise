@@ -40,11 +40,11 @@ export const supplierProductMappingInputSchema = z
     ),
     supplierItemCode: z.preprocess(
       blankToNull,
-      z.string().max(64, "รหัสซัพยาวเกิน 64 ตัวอักษร").nullable()
+      z.string().max(64, "รหัสสินค้าของผู้ขายยาวเกิน 64 ตัวอักษร").nullable()
     ),
     supplierItemName: z.preprocess(
       blankToNull,
-      z.string().max(200, "ชื่อซัพยาวเกิน 200 ตัวอักษร").nullable()
+      z.string().max(200, "ชื่อสินค้าของผู้ขายยาวเกิน 200 ตัวอักษร").nullable()
     ),
     orderUnitId: z.preprocess(
       blankToNull,

@@ -59,11 +59,11 @@ export type CostCell = {
   /** Cost of goods SOLD, by the shop's gross-profit method. */
   cogs: number | null;
   /**
-   * Share of revenue posted to stock (0–1). `null` under นับสต๊อก, where the
+   * Share of revenue posted to stock (0–1). `null` under นับสต็อก, where the
    * figure is the accounting identity and coverage does not apply.
    */
   coverage: number | null;
-  /** Rule PG1: why `cogs` is null under นับสต๊อก ("ยังไม่ได้นับสต๊อกต้นงวด"). */
+  /** Rule PG1: why `cogs` is null under นับสต็อก ("ยังไม่ได้นับสต็อกต้นงวด"). */
   cogsWhy: string | null;
   daysPosted: number;
   salesDays: number;

@@ -1,5 +1,5 @@
 // ============================================================
-// Mise — the stock card (บัตรสต๊อก) of one product at one branch
+// Mise — the stock card (บัตรสต็อก) of one product at one branch
 // (Kong 2026-10-25, stock mockup XYYyUgNP18V4HL3vUwrUf1)
 // ============================================================
 // The kardex every stock system has: the balance brought forward, each

@@ -253,7 +253,7 @@ function Review({
           {counts.need > 0 && <span className="font-medium text-bad">ยังมี {counts.need} บรรทัดที่ต้องแก้หรือกดข้ามก่อนบันทึก · </span>}
           {newSuppliers > 0 ? `จะสร้างผู้ขาย ${newSuppliers} ราย · ` : ""}
           {plan.newProducts.length > 0 ? `วัตถุดิบใหม่ ${plan.newProducts.length} รายการ · ` : ""}
-          บันทึกราคา {plan.prices.length} บรรทัด · <b className="font-medium text-foreground">ไม่มีอะไรลงสต๊อกหรือค่าใช้จ่าย</b>
+          บันทึกราคา {plan.prices.length} บรรทัด · <b className="font-medium text-foreground">ไม่มีอะไรลงสต็อกหรือค่าใช้จ่าย</b>
         </p>
         <div className="grid justify-items-end gap-1">
           <button type="button" className="btn" disabled={saving || counts.need > 0 || plan.prices.length === 0} onClick={onSave}>
@@ -354,7 +354,7 @@ function BillBlock({
       )}
       {afterOpening && (
         <p className="border-t border-warn-border bg-warn-bg px-4 py-2 text-[13px] text-warn">
-          บิลนี้ลงวันที่หลังวันนับเปิดระบบ ({thaiDay(ctx.openingDate!)}) — การนำเข้านี้เก็บแค่ราคา ไม่ลงสต๊อก ถ้ายังไม่ได้บันทึกรับของ ให้บันทึกที่หน้ารับสินค้า
+          บิลนี้ลงวันที่หลังวันนับเปิดระบบ ({thaiDay(ctx.openingDate!)}) — การนำเข้านี้เก็บแค่ราคา ไม่ลงสต็อก ถ้ายังไม่ได้บันทึกรับของ ให้บันทึกที่หน้ารับสินค้า
         </p>
       )}
       <div className="hidden grid-cols-[minmax(0,1.3fr)_minmax(0,1.4fr)_110px_110px_110px_minmax(0,1.5fr)] gap-3 border-t border-border px-4 py-2 font-display text-[12.5px] font-semibold text-muted-foreground lg:grid">
@@ -444,7 +444,7 @@ function LineRow({
               aria-label="หน่วยนับของวัตถุดิบใหม่"
               className={`input h-9 py-1 ${v.kind === "NEED" && v.why === "BASE_UNIT" ? "border-bad" : ""}`}
             >
-              <option value="">นับสต๊อกเป็น…</option>
+              <option value="">นับสต็อกเป็น…</option>
               {ctx.templates.map((t) => (
                 <option key={t.unitName} value={t.unitName}>
                   {t.unitName}
@@ -624,7 +624,7 @@ function Done({ done, onAgain }: { done: Extract<ImportBillsState, { ok: true }>
         {done.unitsAdded > 0 && <li>· เพิ่มหน่วยให้วัตถุดิบ {done.unitsAdded} หน่วย</li>}
         {done.skippedOlder > 0 && <li>· ข้ามราคาเก่า {done.skippedOlder} รายการ เพราะร้านมีราคาที่ใหม่กว่าอยู่แล้ว</li>}
         <li>· ระบบจำชื่อที่ผู้ขายใช้ไว้แล้ว บิลถัดไปจากเจ้าเดิมจะจับคู่ได้เอง</li>
-        <li>· ไม่มีอะไรลงสต๊อกหรือค่าใช้จ่าย · ตอนนับเปิดระบบ ระบบจะเติมราคาเหล่านี้ให้</li>
+        <li>· ไม่มีอะไรลงสต็อกหรือค่าใช้จ่าย · ตอนนับเปิดระบบ ระบบจะเติมราคาเหล่านี้ให้</li>
       </ul>
       <div className="flex flex-wrap gap-2 pt-1">
         <Link href="/suppliers" className="btn">

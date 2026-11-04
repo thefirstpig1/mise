@@ -65,10 +65,10 @@ export default function LeakOverview({ overview, initialCountId }: { overview: P
   if (data.counts.length === 0)
     return (
       <div className="space-y-2 rounded-[18px] border border-border/70 bg-surface shadow-card p-6 text-sm">
-        <h2 className="font-display text-lg font-semibold">ยังไม่มีการนับสต๊อกที่ปิดแล้ว</h2>
-        <p className="text-muted-foreground">หน้านี้เทียบของที่นับได้จริงกับที่ระบบคำนวณว่าควรเหลือ จึงต้องนับสต๊อกอย่างน้อยหนึ่งครั้งก่อน</p>
+        <h2 className="font-display text-lg font-semibold">ยังไม่มีการนับสต็อกที่ปิดแล้ว</h2>
+        <p className="text-muted-foreground">หน้านี้เทียบของที่นับได้จริงกับที่ระบบคำนวณว่าควรเหลือ จึงต้องนับสต็อกอย่างน้อยหนึ่งครั้งก่อน</p>
         <a href="/stock-counts/new" className="btn">
-          เริ่มนับสต๊อก
+          เริ่มนับสต็อก
         </a>
       </div>
     );
@@ -467,8 +467,8 @@ function Over({ c }: { c: LeakCount }) {
 function Trust({ c }: { c: LeakCount }) {
   const t = c.trust;
   const chips: [tone: "ok" | "warn", label: string, value: React.ReactNode][] = [
-    [t.counted >= t.stocked ? "ok" : "warn", "นับ", `${t.counted} จาก ${t.stocked} รายการที่มีในสต๊อกก่อนวันนับ`],
-    [t.salesDays === 0 || t.postedDays >= t.salesDays ? "ok" : "warn", "ตัดสต๊อกก่อนนับ", t.salesDays === 0 ? "ไม่มียอดขายก่อนวันนับ" : `${t.postedDays} จาก ${t.salesDays} วันที่มียอดขายก่อนวันนับ`],
+    [t.counted >= t.stocked ? "ok" : "warn", "นับ", `${t.counted} จาก ${t.stocked} รายการที่มีในสต็อกก่อนวันนับ`],
+    [t.salesDays === 0 || t.postedDays >= t.salesDays ? "ok" : "warn", "ตัดสต็อกก่อนนับ", t.salesDays === 0 ? "ไม่มียอดขายก่อนวันนับ" : `${t.postedDays} จาก ${t.salesDays} วันที่มียอดขายก่อนวันนับ`],
     [
       t.noRecipe.count === 0 ? "ok" : "warn",
       "เมนูขายแต่ไม่มีสูตร",
@@ -495,9 +495,9 @@ function Trust({ c }: { c: LeakCount }) {
       ))}
       {t.postedDays < t.salesDays && (
         <p className="w-full text-xs text-muted-foreground">
-          วันที่ยังไม่ได้ตัดสต๊อกตอนปิดใบนับ ของที่ขายไปแล้วยังไม่ถูกหัก จึงดูเหมือนหาย และใบนับครั้งถัดไปจะเห็นเป็นของเกินเท่ากัน ·{" "}
+          วันที่ยังไม่ได้ตัดสต็อกตอนปิดใบนับ ของที่ขายไปแล้วยังไม่ถูกหัก จึงดูเหมือนหาย และใบนับครั้งถัดไปจะเห็นเป็นของเกินเท่ากัน ·{" "}
           <a href={`/consumption?branch=${c.branchId}`} className="text-primary hover:underline">
-            ดูหน้าตัดสต๊อกตามยอดขาย ›
+            ดูหน้าตัดสต็อกตามยอดขาย ›
           </a>
         </p>
       )}

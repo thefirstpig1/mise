@@ -124,7 +124,7 @@ export async function saveCostTargetsAction(
     return { ok: false, formError: "เป้าต้องเป็นตัวเลข: ต้นทุนอาหาร 5–90% · prime cost 10–99% · ไม่ตรงกับระบบ 0–20%" };
   }
   if (!Number.isInteger(coverageMin) || !inRange(coverageMin, 50, 100) || !Number.isInteger(slowDays) || !inRange(slowDays, 7, 365)) {
-    return { ok: false, formError: "เกณฑ์ตัดสต๊อกครบต้องเป็น 50–100% และของค้างนานต้องเป็น 7–365 วัน (จำนวนเต็ม)" };
+    return { ok: false, formError: "เกณฑ์ตัดสต็อกครบต้องเป็น 50–100% และของค้างนานต้องเป็น 7–365 วัน (จำนวนเต็ม)" };
   }
   await withTenantContext(tenantId, (tx) =>
     tx.tenant.update({

@@ -155,7 +155,7 @@ function InviteDialog({
   const [round, setRound] = useState(0);
 
   return (
-    <SettingsModal title="เชิญคนเข้าร้าน" sub="ไม่มีลิงก์คำเชิญให้ส่งต่อ · คนนั้นเข้าใช้ได้ทันทีเมื่อล็อกอินด้วยอีเมลนี้" onClose={onClose}>
+    <SettingsModal title="เชิญคนเข้าร้าน" sub="ไม่มีลิงก์คำเชิญให้ส่งต่อ · คนนั้นใช้งานได้ทันทีเมื่อเข้าสู่ระบบด้วยอีเมลนี้" onClose={onClose}>
       {state.ok ? (
         <div className="space-y-4">
           <p className="rounded-xl border border-good-border bg-good-bg px-4 py-3 text-sm text-good">{state.message}</p>

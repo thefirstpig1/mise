@@ -75,9 +75,9 @@ export default async function StockCountListPage({
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-semibold">ใบนับสต๊อก</h2>
+          <h2 className="text-2xl font-semibold">ใบนับสต็อก</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            นับของจริงบนชั้น แล้วให้ระบบปรับส่วนต่างเข้าคลัง
+            นับของจริงบนชั้น แล้วให้ระบบปรับส่วนต่างเข้าสต็อก
           </p>
         </div>
         <a
@@ -141,7 +141,7 @@ export default async function StockCountListPage({
 
       {rows.length === 0 ? (
         <EmptyState art="start">
-          ยังไม่มีใบนับสต๊อก — กด &ldquo;เปิดใบนับใหม่&rdquo; เพื่อเริ่มนับครั้งแรก
+          ยังไม่มีใบนับสต็อก — กด &ldquo;เปิดใบนับใหม่&rdquo; เพื่อเริ่มนับครั้งแรก
         </EmptyState>
       ) : (
         // Kong (2026-09-28): the whole row opens the sheet, not just its number —

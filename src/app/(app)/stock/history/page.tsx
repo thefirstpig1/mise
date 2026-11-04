@@ -108,14 +108,14 @@ export default async function StockHistoryPage({
         <div>
           <h2 className="text-2xl font-semibold">ประวัติการเคลื่อนไหว</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            บันทึกถาวร แก้ไขหรือลบไม่ได้ — การแก้ทำโดยบันทึกรายการปรับกลับ · เลือกวัตถุดิบตัวเดียว = บัตรสต๊อก พร้อมยอดคงเหลือ
+            บันทึกถาวร แก้ไขหรือลบไม่ได้ — การแก้ทำโดยบันทึกรายการปรับกลับ · เลือกวัตถุดิบตัวเดียว = บัตรสต็อก พร้อมยอดคงเหลือ
           </p>
         </div>
         <a
           href="/stock"
           className="btn-secondary"
         >
-          งานสต๊อก
+          งานสต็อก
         </a>
       </div>
 
@@ -222,19 +222,19 @@ export default async function StockHistoryPage({
       </FilterForm>
 
       {query.productId && !cardBranchId && (
-        <p className="rounded-lg border border-border bg-muted/30 p-3 text-sm text-muted-foreground">เลือกสาขาเพื่อดูบัตรสต๊อกของวัตถุดิบนี้ (ยอดคงเหลือนับแยกสาขา)</p>
+        <p className="rounded-lg border border-border bg-muted/30 p-3 text-sm text-muted-foreground">เลือกสาขาเพื่อดูบัตรสต็อกของวัตถุดิบนี้ (ยอดคงเหลือนับแยกสาขา)</p>
       )}
       {card ? (
         <section className="space-y-2">
           <h3 className="font-semibold">
-            บัตรสต๊อก · {card.product.name} · {branches.find((b) => b.id === cardBranchId)?.name}
+            บัตรสต็อก · {card.product.name} · {branches.find((b) => b.id === cardBranchId)?.name}
           </h3>
           {guessed.length > 0 && cardProduct && (
             <div className="space-y-2 rounded-xl border border-warn-border bg-warn-bg p-4">
               <p className="font-semibold text-warn">ของที่ยังไม่รู้ต้นทุน · {guessed.length} ล็อต</p>
               <p className="text-sm text-warn">
-                เข้ามาโดยไม่มีบิล (ปรับสต๊อกเพิ่ม · นับได้เกิน · ยอดยกมา) ตอนนี้ระบบใช้ราคาล่าสุดแทนไปก่อน ·
-                ล็อตจากการปรับสต๊อกกด &ldquo;ระบุต้นทุน&rdquo; ได้เมื่อเจอบิล แล้วต้นทุนย้อนหลังจะคิดใหม่ให้ ·
+                เข้ามาโดยไม่มีบิล (ปรับสต็อกเพิ่ม · นับได้เกิน · ยอดยกมา) ตอนนี้ระบบใช้ราคาล่าสุดแทนไปก่อน ·
+                ล็อตจากการปรับสต็อกกด &ldquo;ระบุต้นทุน&rdquo; ได้เมื่อเจอบิล แล้วต้นทุนย้อนหลังจะคิดใหม่ให้ ·
                 ล็อตจากการนับได้เกินใช้ราคาล่าสุดเสมอ
               </p>
               <div className="rounded-lg bg-surface">

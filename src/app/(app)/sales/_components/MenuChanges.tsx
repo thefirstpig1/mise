@@ -182,7 +182,7 @@ export default function MenuChanges({
             <dd className={`text-right ${cls(tip.m.change ?? 0)}`}>{pct(tip.m.change ?? 0)}</dd>
           </dl>
           <p className="mt-1.5 border-t border-border pt-1.5 text-muted-foreground">
-            {Math.abs(tip.m.change ?? 0) < CHANGE_STEADY_BAND ? `เปลี่ยนไม่ถึง ${CHANGE_STEADY_BAND}% ถือว่าปกติ` : "กดเพื่อดู insight ของเมนูนี้"}
+            {Math.abs(tip.m.change ?? 0) < CHANGE_STEADY_BAND ? `เปลี่ยนไม่ถึง ${CHANGE_STEADY_BAND}% ถือว่าปกติ` : "กดเพื่อดูอินไซต์ของเมนูนี้"}
           </p>
         </div>
       )}

@@ -64,14 +64,14 @@ export const toSatang = (baht: number): number => Math.round(baht * 100);
 export const fromSatang = (satang: number): number => satang / 100;
 
 const MEMO = {
-  closing: "สต๊อกสิ้นเดือน",
-  opening: "กลับยอดสต๊อกต้นเดือน",
+  closing: "สต็อกสิ้นเดือน",
+  opening: "กลับยอดสต็อกต้นเดือน",
   purchases: "ปิดบัญชีซื้อของเดือน",
   cogs: "ต้นทุนขายของเดือน",
   cogsSplit: "ต้นทุนขายของเดือน (ไม่รวมของขาด)",
   shrinkage: "ของขาดจากการนับ สุทธิ",
-  diffInventory: "ปรับสต๊อกให้ตรงกับยอดสิ้นเดือน",
-  diffCogs: "ปรับต้นทุนขายตามสต๊อกที่เปลี่ยนไป",
+  diffInventory: "ปรับสต็อกให้ตรงกับยอดสิ้นเดือน",
+  diffCogs: "ปรับต้นทุนขายตามสต็อกที่เปลี่ยนไป",
   interBranch: "โอนของระหว่างสาขา",
 } as const;
 

@@ -1,5 +1,5 @@
 // ============================================================
-// Mise — นับสต๊อก's read, as GET (mise-ui-review §5c)
+// Mise — นับสต็อก's read, as GET (mise-ui-review §5c)
 // ============================================================
 // what=sheet&q="countId"  the sheet every open device polls (ADR 0034 Q7)
 // what=prepped&q="countId" ADR 0040 Q2: for each prepped line counted ABOVE the

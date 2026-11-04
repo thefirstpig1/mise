@@ -272,8 +272,8 @@ export function WatchEmpty({ recipeMethod, branchId }: { recipeMethod: boolean; 
     );
   if (r === null) return <li className="py-4 text-center text-muted-subtle">ไม่มีรายการในช่วงนี้</li>;
   const gaps: [string, NeedKey][] = [];
-  // Under นับสต๊อก a shortfall is usage, not a leak (rule PG5), so only สูตรอาหาร watches it.
-  if (recipeMethod && r.closedCounts === 0) gaps.push(["ของขาดจากการนับ ขึ้นเมื่อนับสต๊อกแล้ว", "count"]);
+  // Under นับสต็อก a shortfall is usage, not a leak (rule PG5), so only สูตรอาหาร watches it.
+  if (recipeMethod && r.closedCounts === 0) gaps.push(["ของขาดจากการนับ ขึ้นเมื่อนับสต็อกแล้ว", "count"]);
   if (r.receipts < 2) gaps.push(["ราคาที่ขึ้น ขึ้นเมื่อรับสินค้าตัวเดียวกันอย่างน้อย 2 ครั้ง", "receipt"]);
   if (gaps.length === 0) return <li className="py-4 text-center text-muted-subtle">ไม่มีเรื่องต้องระวังในช่วงนี้</li>;
   return (

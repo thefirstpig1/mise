@@ -35,7 +35,7 @@ export function GET(req: Request) {
     return new Response(new Blob([bytes as BlobPart]), {
       headers: {
         "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "Content-Disposition": `attachment; filename="kitkrua-import-template.xlsx"; filename*=UTF-8''${encodeURIComponent("แม่แบบนำเข้า-คิดครัว.xlsx")}`,
+        "Content-Disposition": `attachment; filename="kitkrua-import-template.xlsx"; filename*=UTF-8''${encodeURIComponent("เทมเพลตนำเข้า-คิดครัว.xlsx")}`,
         "Cache-Control": "no-store",
       },
     });

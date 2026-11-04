@@ -278,7 +278,7 @@ function Review({
       <div className="sticky bottom-0 flex flex-wrap items-center justify-between gap-3 border-t border-border bg-surface/95 px-4 py-3 backdrop-blur">
         <p className="max-w-[640px] text-[13.5px] text-muted-foreground">
           {counts.need > 0 && <span className="font-medium text-bad">ยังมี {counts.need} สูตรที่ต้องแก้หรือกดข้ามก่อนบันทึก · </span>}
-          เมนูที่ขายบันทึกเป็น <b className="font-medium text-foreground">สูตรร่าง</b> ยังไม่ตัดสต๊อกจนกว่าจะกด “ใช้สูตร” ที่หน้าทดลองเมนู
+          เมนูที่ขายบันทึกเป็น <b className="font-medium text-foreground">สูตรร่าง</b> ยังไม่ตัดสต็อกจนกว่าจะกด “ใช้สูตร” ที่หน้าทดลองเมนู
           {plan.made.length > 0 && (
             <>
               {" "}· <b className="font-medium text-foreground">ของที่ร้านทำเอง {plan.made.length} สูตร มีผลทันที</b> ตั้งแต่ {thDate(ctx.madeFrom)}
@@ -479,10 +479,10 @@ function RecipeBlock({
             <select
               value={output.baseUnit ?? ""}
               onChange={(e) => onEdit({ output: { ...output, baseUnit: e.target.value === "" ? null : e.target.value } })}
-              aria-label="หน่วยนับสต๊อกของของแปรรูปใหม่"
+              aria-label="หน่วยนับสต็อกของของแปรรูปใหม่"
               className={`input h-9 w-auto py-1 ${verdict.kind === "NEED" && verdict.why === "BASE_UNIT" ? "border-bad" : ""}`}
             >
-              <option value="">นับสต๊อกเป็น…</option>
+              <option value="">นับสต็อกเป็น…</option>
               {ctx.templates.map((t) => (
                 <option key={t.unitName} value={t.unitName}>
                   {t.unitName}
@@ -634,7 +634,7 @@ function IngRow({
               aria-label="หน่วยนับของวัตถุดิบใหม่"
               className={`input h-9 py-1 ${v.kind === "NEED" && v.why === "BASE_UNIT" ? "border-bad" : ""}`}
             >
-              <option value="">นับสต๊อกเป็น…</option>
+              <option value="">นับสต็อกเป็น…</option>
               {ctx.templates.map((t) => (
                 <option key={t.unitName} value={t.unitName}>
                   {t.unitName}
@@ -831,7 +831,7 @@ function Done({ done, onAgain }: { done: Extract<ImportRecipesState, { ok: true 
           : `บันทึกแล้ว ${(done.drafts + done.made).toLocaleString("th-TH")} สูตร`}
       </h3>
       <ul className="grid gap-1 text-sm text-muted-foreground">
-        {done.drafts > 0 && <li>· เมนูที่ขาย {done.drafts.toLocaleString("th-TH")} เมนู เป็นสูตรร่าง ยังไม่ตัดสต๊อกและยังไม่คิดต้นทุน จนกว่าจะกด “ใช้สูตร” ที่หน้าทดลองเมนู</li>}
+        {done.drafts > 0 && <li>· เมนูที่ขาย {done.drafts.toLocaleString("th-TH")} เมนู เป็นสูตรร่าง ยังไม่ตัดสต็อกและยังไม่คิดต้นทุน จนกว่าจะกด “ใช้สูตร” ที่หน้าทดลองเมนู</li>}
         {done.made > 0 && <li>· ของที่ร้านทำเอง {done.made.toLocaleString("th-TH")} สูตร ใช้ได้ทันที ตั้งแต่ {thDate(done.madeFrom)} — ดูและแก้ได้ที่หน้าสินค้า ตัวกรองของแปรรูป</li>}
         {done.productsConverted > 0 && <li>· เปลี่ยนวัตถุดิบเป็นของที่ร้านทำเอง {done.productsConverted} รายการ</li>}
         {done.menusCreated > 0 && <li>· สร้างเมนูใหม่ {done.menusCreated} รายการ (เมนูที่ยังไม่มีในไฟล์ยอดขาย)</li>}
