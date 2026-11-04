@@ -3,7 +3,7 @@
 // Sprint 1 Part 6, Step 6.4 — the 3-tier category model (D1):
 //   account (COGS/OpEx) → accountingSection → groupName (leaf = Category row).
 // account/section are grouping headers DERIVED from the flat list in the
-// client; only leaves are real records (click → edit page).
+// client; only leaves are real records (click → edit popup, queue item 9).
 //
 // UI run-through (Kong, 2026-09-29): one BOX per account instead of a
 // collapsible tree with counts. There are only two accounts and a shop has a
@@ -12,28 +12,15 @@
 // Both boxes always show, because which box a group sits in is the whole
 // point of the page (food cost vs running the shop).
 
-import { useMemo, useState } from "react";
-import Link from "next/link";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Category } from "@prisma/client";
 import { ACCOUNT_VALUES, type Account } from "@/lib/validations/category";
 
 import EmptyState from "@/components/ui/EmptyState";
+import PageHeader from "@/components/ui/PageHeader";
+import CategoryDialog, { ACCOUNT_BOX as BOX } from "./CategoryForm";
 
 type SectionNode = { section: string; leaves: Category[] };
-
-/** What each box means to the shop, in the shop's words. */
-const BOX: Record<Account, { title: string; code: string; hint: string }> = {
-  COGS: {
-    title: "ต้นทุนขาย",
-    code: "COGS",
-    hint: "ของที่ซื้อมาทำอาหารและเครื่องดื่ม นับเป็นต้นทุนอาหาร",
-  },
-  OpEx: {
-    title: "ค่าใช้จ่ายดำเนินงาน",
-    code: "OpEx",
-    hint: "ค่าใช้จ่ายในการเปิดร้าน เช่น ค่าเช่า ค่าไฟ ค่าแรง ไม่นับเป็นต้นทุนอาหาร",
-  },
-};
 
 /** Group a (pre-sorted) flat list into section → leaves for one account. */
 function sectionsOf(categories: Category[], account: Account): SectionNode[] {
@@ -49,11 +36,36 @@ function sectionsOf(categories: Category[], account: Account): SectionNode[] {
 export default function CategoryTree({
   categories,
   canWrite,
+  initialOpen,
 }: {
   categories: Category[];
   canWrite: boolean;
+  /** From the address: "new", a category id, or nothing. */
+  initialOpen: string | null;
 }) {
   const [search, setSearch] = useState("");
+  // "new" | a category | null — the popup over the list.
+  const [open, setOpen] = useState<"new" | Category | null>(() =>
+    !canWrite || initialOpen === null ? null : initialOpen === "new" ? "new" : (categories.find((c) => c.id === initialOpen) ?? null)
+  );
+  const close = useCallback(() => setOpen(null), []);
+  // /categories/new and /categories/<id> land here with ?new / ?edit; once
+  // the popup is open the address goes back to the plain list.
+  useEffect(() => {
+    if (initialOpen === null) return;
+    try {
+      window.history.replaceState(null, "", "/categories");
+    } catch {
+      /* the address bar is a convenience */
+    }
+  }, [initialOpen]);
+  const sectionsByAccount = useMemo(
+    () =>
+      Object.fromEntries(
+        ACCOUNT_VALUES.map((a) => [a, [...new Set(categories.filter((c) => c.account === a).map((c) => c.accountingSection))]])
+      ) as Record<Account, string[]>,
+    [categories]
+  );
   const term = search.trim().toLowerCase();
   const searching = term.length > 0;
 
@@ -76,14 +88,17 @@ export default function CategoryTree({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-4">
-        <h2 className="text-2xl font-semibold">หมวดบัญชี</h2>
-        {canWrite && (
-          <Link href="/categories/new" className="btn">
-            + เพิ่มหมวดบัญชี
-          </Link>
-        )}
-      </div>
+      <PageHeader
+        title="หมวดบัญชี"
+        description={`ใช้จัดสินค้าและบิลค่าใช้จ่ายเข้าบัญชี · ต้นทุนขายนับเป็นต้นทุนอาหาร ค่าใช้จ่ายดำเนินงานไม่นับ${canWrite ? " · กดที่กลุ่มเพื่อแก้ไข" : ""}`}
+        actions={
+          canWrite && (
+            <button type="button" onClick={() => setOpen("new")} className="btn">
+              + เพิ่มหมวดบัญชี
+            </button>
+          )
+        }
+      />
 
       {categories.length === 0 ? (
         <EmptyState art="start">
@@ -132,14 +147,15 @@ export default function CategoryTree({
                             <ul className="-mx-2">
                               {sec.leaves.map((leaf) => (
                                 <li key={leaf.id}>
-                                  {/* The edit page is gated on master:write — only a writer gets a link. */}
+                                  {/* Editing is gated on master:write — only a writer gets a button. */}
                                   {canWrite ? (
-                                    <Link
-                                      href={`/categories/${leaf.id}`}
-                                      className="block rounded px-2 py-1.5 text-sm hover:bg-muted"
+                                    <button
+                                      type="button"
+                                      onClick={() => setOpen(leaf)}
+                                      className="block w-full rounded-lg px-2 py-1.5 text-left text-sm transition-colors hover:bg-muted"
                                     >
                                       {leaf.groupName}
-                                    </Link>
+                                    </button>
                                   ) : (
                                     <span className="block px-2 py-1.5 text-sm">{leaf.groupName}</span>
                                   )}
@@ -155,6 +171,15 @@ export default function CategoryTree({
             </div>
           )}
         </>
+      )}
+
+      {open && (
+        <CategoryDialog
+          key={open === "new" ? "new" : open.id}
+          initial={open === "new" ? null : open}
+          sectionsByAccount={sectionsByAccount}
+          onClose={close}
+        />
       )}
     </div>
   );

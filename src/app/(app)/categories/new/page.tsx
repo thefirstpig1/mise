@@ -1,14 +1,9 @@
 // Sprint 1 Part 6, Step 6.4 — create a category.
+// Queue item 9: the form is a popup over the list now; this address opens it.
+import { redirect } from "next/navigation";
 import { requireTenant } from "@/lib/require-tenant";
-import { createCategory } from "../actions";
-import CategoryForm from "../_components/CategoryForm";
 
 export default async function NewCategoryPage() {
-  await requireTenant("master:write"); // auth gate; tenantId resolved inside the action
-  return (
-    <div className="max-w-3xl space-y-6">
-      <h2 className="text-2xl font-semibold">เพิ่มหมวดบัญชี</h2>
-      <CategoryForm action={createCategory} submitLabel="บันทึก" />
-    </div>
-  );
+  await requireTenant("master:write");
+  redirect("/categories?new=1");
 }

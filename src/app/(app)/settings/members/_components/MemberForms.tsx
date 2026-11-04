@@ -27,6 +27,7 @@ import {
   type MemberActionState,
 } from "@/app/(app)/settings/members/actions";
 import { useKeepForm } from "@/lib/keep-form";
+import { UserCog } from "lucide-react";
 
 type BranchOption = { id: string; name: string };
 type RoleOption = { value: string; label: string; hint: string };
@@ -44,6 +45,8 @@ export type MemberRowView = {
   changedLine: string | null;
   editable: boolean;
   isSelf: boolean;
+  /** How many permissions this person has set apart from the role (queue item 9). */
+  setApart: number;
 };
 
 const IDLE: MemberActionState = { ok: false };
@@ -245,6 +248,25 @@ function EditDialog({
         <input type="hidden" name="membership_id" value={row.membershipId} />
         <RoleCards roleOptions={roleOptions} defaultValue={row.role} idPrefix={`role-${row.membershipId}`} />
         <ReachFields branches={branches} canGrantAllBranches={canGrantAllBranches} defaultAllBranches={row.allBranches} defaultBranchIds={currentBranchIds} />
+        {/* Kong 2026-11-04: where a person is set apart from their role, said where the role is chosen. */}
+        {row.role !== "owner" && (
+          <div className="note flex flex-wrap items-center gap-x-3 gap-y-2">
+            <UserCog aria-hidden className="h-5 w-5 shrink-0 text-primary" strokeWidth={1.8} />
+            <p className="min-w-0 flex-[1_1_260px]">
+              <b className="font-semibold text-foreground">สิทธิ์รายคน</b> ·{" "}
+              {row.setApart > 0
+                ? `ตั้งให้คนนี้ต่างจาก${row.roleLabel}ไว้ ${row.setApart} ข้อ`
+                : `ตอนนี้ได้ตาม${row.roleLabel}ทุกข้อ · ให้คนนี้ได้มากหรือน้อยกว่านั้นได้ เช่น ให้เห็นต้นทุน`}
+            </p>
+            {row.isSelf ? (
+              <span className="text-xs">แก้สิทธิ์ของตัวเองไม่ได้</span>
+            ) : (
+              <a href={`/settings/permissions?tab=people&person=${row.membershipId}`} className="btn-secondary btn-sm shrink-0">
+                ตั้งสิทธิ์รายคน
+              </a>
+            )}
+          </div>
+        )}
         {!editState.ok && editState.formError && <p className="text-sm text-bad">{editState.formError}</p>}
         <div className="flex justify-end gap-2 border-t border-border pt-4">
           <button type="button" className={ghost} onClick={onClose}>
@@ -330,7 +352,16 @@ export default function MemberForms({
                   <span className="mt-0.5 block text-xs text-muted-foreground">บัญชีเจ้าของร้าน แก้ไขได้โดยเจ้าของร้านเท่านั้น</span>
                 )}
               </span>
-              <span className="shrink-0 text-sm font-semibold">{row.roleLabel}</span>
+              <span className="grid shrink-0 justify-items-end gap-1">
+                <span className="text-sm font-semibold">{row.roleLabel}</span>
+                {row.role === "owner" ? (
+                  <span className="chip">ทุกสิทธิ์เสมอ</span>
+                ) : row.setApart > 0 ? (
+                  <span className="chip chip-warn">ตั้งรายคนไว้ {row.setApart} ข้อ</span>
+                ) : (
+                  <span className="chip">สิทธิ์ตามบทบาท</span>
+                )}
+              </span>
             </>
           );
           return (

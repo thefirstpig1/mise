@@ -6,14 +6,21 @@ import { requireTenant } from "@/lib/require-tenant";
 import { getCategoriesLogic } from "@/server/category";
 import CategoryTree from "./_components/CategoryTree";
 
-export default async function CategoriesPage() {
+export default async function CategoriesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ new?: string; edit?: string }>;
+}) {
   const { tenantId, can } = await requireTenant("any:member");
+  const sp = await searchParams;
   const categories = await getCategoriesLogic(tenantId);
   return (
     <CategoryTree
       categories={categories}
-      // /categories/new is gated on master:write; a button nobody can use is noise.
+      // Writing is gated on master:write; a button nobody can use is noise.
       canWrite={can("master:write")}
+      // /categories/new and /categories/<id> redirect here to open the popup.
+      initialOpen={sp.new ? "new" : (sp.edit ?? null)}
     />
   );
 }

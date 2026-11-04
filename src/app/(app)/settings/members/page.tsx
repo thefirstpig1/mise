@@ -19,7 +19,8 @@
 import { requireTenant } from "@/lib/require-tenant";
 import { getBranchesLogic } from "@/server/branch";
 import { getMembersLogic } from "@/server/membership-read";
-import { ALL_ROLES, type Role } from "@/lib/permissions/service";
+import { ADJUSTABLE_CAPABILITY_GROUPS, ALL_ROLES, type Role } from "@/lib/permissions/service";
+import { getPermissionSettingsLogic } from "@/server/capability-settings";
 import { ROLE_HINTS_TH, ROLE_LABELS_TH } from "@/lib/validations/membership";
 import MemberForms, { InviteButton } from "./_components/MemberForms";
 import HomeDepartments from "./_components/HomeDepartments";
@@ -36,14 +37,22 @@ export default async function MembersPage() {
     await requireTenant("member:manage");
 
   const departmentsOn = membership.tenant.enableDepartments;
-  const [members, branches, homes, departments] = await Promise.all([
+  const [members, branches, homes, departments, permissionSettings] = await Promise.all([
     getMembersLogic(tenantId),
     // Rule A5 — you can only offer branches you reach, which is also rule 2
     // expressed as a form rather than as a refusal.
     getBranchesLogic(tenantId, reach),
     departmentsOn ? getHomeDepartmentsLogic(tenantId) : Promise.resolve([]),
     departmentsOn ? getDepartmentsForAdminLogic(tenantId) : Promise.resolve([]),
+    // Queue item 9 (Kong 2026-11-04): each row says whether the person follows
+    // the role or was set apart — the same count the permissions screen shows.
+    getPermissionSettingsLogic(tenantId),
   ]);
+  const adjustable = new Set<string>(ADJUSTABLE_CAPABILITY_GROUPS.flatMap((g) => g.capabilities));
+  const setApart = new Map<string, number>();
+  for (const r of permissionSettings.memberRows) {
+    if (adjustable.has(r.capability)) setApart.set(r.tenantMembershipId, (setApart.get(r.tenantMembershipId) ?? 0) + 1);
+  }
 
   const roleOptions = ALL_ROLES.map((r) => ({
     value: r,
@@ -68,6 +77,7 @@ export default async function MembersPage() {
     /** Rule 1, said on the screen instead of only in a refusal. */
     editable: m.role !== "owner" || role === "owner",
     isSelf: m.userId === membership.userId,
+    setApart: setApart.get(m.membershipId) ?? 0,
   }));
 
   return (
@@ -79,6 +89,10 @@ export default async function MembersPage() {
             คนที่เข้าคิดครัวของร้านนี้ได้ · กดที่ชื่อเพื่อแก้บทบาท สาขา หรือนำออก ·{" "}
             <a href="/settings/permissions" className="font-semibold text-primary hover:underline">
               ตั้งว่าแต่ละบทบาทเห็นอะไร ทำอะไรได้ ›
+            </a>{" "}
+            ·{" "}
+            <a href="/settings/permissions?tab=people" className="font-semibold text-primary hover:underline">
+              ตั้งสิทธิ์รายคน ›
             </a>
           </p>
         </div>

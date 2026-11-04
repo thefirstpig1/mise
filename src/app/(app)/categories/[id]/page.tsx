@@ -1,10 +1,7 @@
 // Sprint 1 Part 6, Step 6.4 — edit / delete one category.
-import { notFound } from "next/navigation";
+// Queue item 9: the form is a popup over the list now; this address opens it.
+import { redirect } from "next/navigation";
 import { requireTenant } from "@/lib/require-tenant";
-import { getCategoryByIdLogic } from "@/server/category";
-import { updateCategory } from "../actions";
-import CategoryForm from "../_components/CategoryForm";
-import DeleteCategoryButton from "../_components/DeleteCategoryButton";
 import { uuidParams } from "@/lib/route-params";
 
 // Next 15: route params are async (await before use).
@@ -14,22 +11,6 @@ export default async function EditCategoryPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await uuidParams(params);
-  const { tenantId } = await requireTenant("master:write");
-
-  const category = await getCategoryByIdLogic(tenantId, id);
-  if (!category) notFound();
-
-  return (
-    <div className="max-w-3xl space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <h2 className="text-2xl font-semibold">แก้ไขหมวดบัญชี</h2>
-        <DeleteCategoryButton id={category.id} />
-      </div>
-      <CategoryForm
-        action={updateCategory.bind(null, category.id)}
-        initial={category}
-        submitLabel="บันทึกการแก้ไข"
-      />
-    </div>
-  );
+  await requireTenant("master:write");
+  redirect(`/categories?edit=${id}`);
 }

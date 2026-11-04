@@ -16,6 +16,7 @@
 // form.reset() is "ยกเลิก".
 // ============================================================
 
+import PillScroller from "@/components/ui/PillScroller";
 import {
   createContext,
   useCallback,
@@ -286,8 +287,11 @@ export function SectionNav({ sections }: { sections: { id: string; label: string
   return (
     <nav
       aria-label="หมวดการตั้งค่า"
-      className="sticky top-[3.6rem] z-20 -mx-4 flex gap-2 overflow-x-auto border-b border-border bg-background/95 px-4 py-2.5 backdrop-blur lg:top-0 lg:mx-0 lg:px-0"
+      className="sticky top-[3.6rem] z-20 -mx-4 border-b border-border bg-background/95 px-4 py-2.5 backdrop-blur lg:top-0 lg:mx-0 lg:px-0"
     >
+      {/* Queue item 9: on a phone two sections sat past the edge with nothing
+          saying so — the edge with more fades, and the line follows the section. */}
+      <PillScroller className="gap-2" follow={active}>
       {sections.map((s) => (
         <a
           key={s.id}
@@ -299,6 +303,7 @@ export function SectionNav({ sections }: { sections: { id: string; label: string
           {s.label}
         </a>
       ))}
+      </PillScroller>
     </nav>
   );
 }

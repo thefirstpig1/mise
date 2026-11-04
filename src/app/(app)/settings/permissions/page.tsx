@@ -26,8 +26,13 @@ import PermissionsBoard, { type BoardData } from "./_components/PermissionsBoard
 const WHEN = new Intl.DateTimeFormat("th-TH", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Bangkok" });
 const roleTh = (r: string) => ROLE_LABELS_TH[r as Role] ?? r;
 
-export default async function PermissionsPage() {
+export default async function PermissionsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string; person?: string }>;
+}) {
   const { tenantId, role, membership, capabilities } = await requireTenant("member:manage");
+  const sp = await searchParams;
   const [settings, members] = await Promise.all([getPermissionSettingsLogic(tenantId), getMembersLogic(tenantId)]);
 
   const adjustable = ADJUSTABLE_CAPABILITY_GROUPS.flatMap((g) => g.capabilities);
@@ -112,11 +117,16 @@ export default async function PermissionsPage() {
       <div>
         <h2 className="text-2xl font-semibold">สิทธิ์การใช้งาน</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          คิดครัวตั้งค่าเริ่มต้นให้ทุกบทบาท ร้านปรับเฉพาะข้อที่ร้านตัวเองต่างไป แล้วยกเว้นให้รายคนได้ ·
+          คิดครัวตั้งค่าเริ่มต้นให้ทุกบทบาท ร้านปรับเฉพาะข้อที่ร้านตัวเองต่างไป และ<b className="font-semibold text-foreground">ตั้งสิทธิ์รายคน</b>ได้ ·
           มีผลทันทีที่คนนั้นเปิดหน้าถัดไป
         </p>
       </div>
-      <PermissionsBoard data={data} />
+      {/* ?tab=people&person=<membership> — the people screen links a person straight in. */}
+      <PermissionsBoard
+        data={data}
+        initialTab={sp.tab === "people" || sp.tab === "log" ? sp.tab : undefined}
+        initialPerson={sp.person ?? null}
+      />
     </div>
   );
 }

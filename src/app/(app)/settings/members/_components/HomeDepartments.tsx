@@ -6,6 +6,7 @@
 
 import { useState } from "react";
 import { orStale } from "@/lib/stale-tab";
+import SelectChip from "@/components/ui/SelectChip";
 import { setHomeDepartmentAction } from "../actions";
 
 type Row = { membershipId: string; name: string; departmentId: string | null };
@@ -34,14 +35,15 @@ export default function HomeDepartments({ rows, departments }: { rows: Row[]; de
           <li key={r.membershipId} className="flex flex-wrap items-center justify-between gap-3 py-2 text-sm">
             <span>{r.name}</span>
             <span className="flex items-center gap-2">
-              <select value={values[r.membershipId]} onChange={(e) => change(r.membershipId, e.target.value)} className="input w-48">
-                <option value="">— ไม่ระบุ (แผนกหลักของร้าน) —</option>
-                {departments.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name}
-                  </option>
-                ))}
-              </select>
+              {/* Queue item 9: the chip select every other screen uses. */}
+              <SelectChip
+                size="sm"
+                className="w-52"
+                value={values[r.membershipId]}
+                onChange={(v) => change(r.membershipId, v)}
+                options={[{ value: "", label: "ไม่ระบุ (แผนกหลักของร้าน)" }, ...departments.map((d) => ({ value: d.id, label: d.name }))]}
+                selectProps={{ "aria-label": `แผนกหลักของ${r.name}` }}
+              />
               {status[r.membershipId] && <span className="text-xs text-muted-foreground">{status[r.membershipId]}</span>}
             </span>
           </li>

@@ -2,16 +2,15 @@
 
 import { orStale } from "@/lib/stale-tab";
 
-// Sprint 1 Part 6, Step 6.4 — soft-delete control for the edit page.
+// Sprint 1 Part 6, Step 6.4 — soft-delete control, now at the foot of the
+// edit popup (queue item 9), worded like "นำออกจากร้าน" in the people popup.
 // Mirrors src/app/suppliers/_components/DeleteSupplierButton.tsx.
 
 import { useState, useTransition } from "react";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
-import { useRouter } from "next/navigation";
 import { deleteCategory } from "@/app/(app)/categories/actions";
 
-export default function DeleteCategoryButton({ id }: { id: string }) {
-  const router = useRouter();
+export default function DeleteCategoryButton({ id, onDone }: { id: string; onDone: () => void }) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [askOpen, setAskOpen] = useState(false);
@@ -21,24 +20,22 @@ export default function DeleteCategoryButton({ id }: { id: string }) {
     setError(null);
     startTransition(async () => {
       const res = await orStale(deleteCategory(id));
-      if (res.ok) {
-        router.push("/categories");
-        router.refresh();
-      } else {
+      if (res.ok) onDone();
+      else {
         setError(res.error ?? "ลบไม่สำเร็จ");
       }
     });
   }
 
   return (
-    <div className="text-right">
+    <div>
       <button
         type="button"
         onClick={() => setAskOpen(true)}
         disabled={isPending}
-        className="btn-danger"
+        className="py-2 text-sm font-semibold text-bad hover:underline"
       >
-        {isPending ? "กำลังลบ..." : "ลบ"}
+        {isPending ? "กำลังลบ…" : "ลบหมวดนี้"}
       </button>
       {error && <p className="mt-2 text-sm text-bad">{error}</p>}
       <ConfirmDialog open={askOpen} title="ลบหมวดบัญชีนี้?" confirmLabel="ลบ" danger pending={isPending} onConfirm={handleDelete} onCancel={() => setAskOpen(false)}>

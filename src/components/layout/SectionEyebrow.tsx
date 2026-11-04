@@ -20,7 +20,10 @@ export function sectionLabelFor(pathname: string): string | null {
   if (!href) return null;
   const group = NAV_GROUPS.find((g) => g.items.some((i) => i.href === href));
   if (!group) return null;
-  return group.items.length === 1 ? group.items[0].label : group.label;
+  // Mirrors the sidebar: a one-item group shows no heading there unless it
+  // carries a hint ("ตั้งค่าสาขา" does), so only then is the item its name.
+  // Queue item 9: /settings/branches said "สาขาทั้งหมด" twice, above its own title.
+  return group.items.length === 1 && !group.hint ? group.items[0].label : group.label;
 }
 
 export default function SectionEyebrow({ fallback, className = "" }: { fallback?: string; className?: string }) {
