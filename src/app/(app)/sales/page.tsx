@@ -54,7 +54,7 @@ import ExportButton from "@/components/ExportButton";
 import { exportBranchScope } from "@/lib/validations/raw-export";
 import { recentMonths } from "@/app/(app)/dashboard/_components/dashboard-period";
 
-import EmptyState from "@/components/ui/EmptyState";
+import EmptySales from "./_components/EmptySales";
 import FilterLink from "@/components/ui/FilterLink";
 const baht = (v: string) =>
   Number(v).toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -462,18 +462,8 @@ export default async function SalesPage({
       })()}
 
       {empty ? (
-        <EmptyState art="none">
-          <p className="font-medium">ยังไม่มียอดขายในช่วงนี้</p>
-          <p className="mt-2 text-muted-foreground">
-            ยอดขายเข้าระบบด้วยการนำเข้าไฟล์จาก POS — ไฟล์เดียวครอบได้หลายวัน
-          </p>
-          <a
-            href="/sales/import"
-            className="btn mt-4"
-          >
-            นำเข้ายอดขาย
-          </a>
-        </EmptyState>
+        // The filled page's own sections with a made-up shop's examples (Kong 2026-11-05).
+        <EmptySales branchId={query.branchId} canProfit={costAccess !== null} />
       ) : (
         <>
           <SalesAnalysis

@@ -7,9 +7,10 @@
 // ============================================================
 
 import { describe, it, expect } from "vitest";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { execSync } from "node:child_process";
 import { join } from "node:path";
-import { NEEDS, NEED_KEYS, needStatus, FIGURES, type Readiness } from "@/lib/data-needs";
+import { NEEDS, NEED_KEYS, needStatus, FIGURES, type FigureCopy, type Readiness } from "@/lib/data-needs";
 
 const NONE: Readiness = {
   salesDays: 0,
@@ -63,5 +64,15 @@ describe("NEEDS", () => {
       expect(f.question.startsWith("ตอบว่า"), k).toBe(true);
       expect(f.how.length, k).toBeGreaterThan(10);
     }
+  });
+
+  // Kong 2026-11-05 (review item 2): an empty page keeps the filled layout and
+  // shows an example of every element — a number slot included.
+  it("DN7 — every figure a number slot waits for carries an example value", () => {
+    const files = execSync("git ls-files src", { encoding: "utf8" }).split("\n").filter((f) => f.endsWith(".tsx"));
+    const used = new Set<string>();
+    for (const f of files) for (const m of readFileSync(f, "utf8").matchAll(/<WaitingSlot\s+figure="(\w+)"/g)) used.add(m[1]);
+    expect(used.size).toBeGreaterThan(5);
+    for (const k of used) expect((FIGURES as Record<string, FigureCopy>)[k]?.example, k).toBeTruthy();
   });
 });

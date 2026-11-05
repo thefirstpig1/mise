@@ -34,7 +34,7 @@ import { MonthlyTrend, type MenuBar, type RevenueRow } from "./_components/Chart
 import { DailySalesBars, TopMenusCard, WatchEmpty } from "./_components/DashboardParts";
 import { isoDay, parseBranchParam, parsePreset, periodFor, type Period } from "./_components/dashboard-period";
 import { grossProfitBlockerShort, isCountBlocker, purchasesLookLow } from "@/lib/gross-profit-blocker";
-import WaitingFor, { Coverage, WaitingSlot, WhatIsThis } from "@/components/ui/WaitingFor";
+import WaitingFor, { Coverage, ExampleFrame, WaitingSlot, WhatIsThis } from "@/components/ui/WaitingFor";
 import type { NeedKey } from "@/lib/data-needs";
 
 // ============================================================
@@ -956,19 +956,33 @@ function BranchCompare({ rows, days, seeGross, seeNet }: { rows: PnlBranchRow[];
   const daysOf = (id: string) => new Set(days.filter((d) => d.branchId === id).map((d) => isoDay(d.businessDate))).size;
   const sorted = [...rows].sort((a, b) => (num(b.revenue) ?? 0) - (num(a.revenue) ?? 0));
   const unknown = rows.filter((r) => num(r.revenue) && r.cogs === null).map((r) => short(r.branchName));
-  if (!rows.some((r) => num(r.revenue))) return <p className="py-6 text-center text-sm text-muted-foreground">ยังไม่มียอดขายในช่วงนี้</p>;
+  if (!rows.some((r) => num(r.revenue)))
+    // Same table as a filled card, from a made-up shop (Kong 2026-11-05, review item 2).
+    return (
+      <>
+        <ExampleFrame className="pt-9">
+          <table className="w-full text-sm">
+            <BranchHead seeGross={seeGross} seeNet={seeNet} />
+            <tbody className="font-display tabular-nums">
+              {EXAMPLE_BRANCHES.map(([name, perDay, food, net]) => (
+                <tr key={name} className="border-b border-border last:border-b-0">
+                  <td className="py-2 pr-2 font-sans">{name}</td>
+                  <td className="px-2 py-2 text-right">{perDay}</td>
+                  {seeGross && <td className="px-2 py-2 text-right">{food}</td>}
+                  {seeNet && <td className="py-2 pl-2 text-right">{net}</td>}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </ExampleFrame>
+        <p className="mt-2 text-xs text-muted-foreground">ยังไม่มียอดขายในช่วงนี้ · แต่ละสาขาจะขึ้นตรงนี้เมื่อนำเข้ายอดขาย</p>
+      </>
+    );
   return (
     <>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border text-xs text-muted-subtle">
-              <th className="py-1.5 pr-2 text-left font-medium">สาขา</th>
-              <th className="px-2 py-1.5 text-right font-medium">ขาย/วัน</th>
-              {seeGross && <th className="px-2 py-1.5 text-right font-medium">ต้นทุนอาหาร</th>}
-              {seeNet && <th className="py-1.5 pl-2 text-right font-medium">กำไรสุทธิ</th>}
-            </tr>
-          </thead>
+          <BranchHead seeGross={seeGross} seeNet={seeNet} />
           <tbody className="font-display tabular-nums">
             {sorted.map((r) => {
               const rev = num(r.revenue);
@@ -992,6 +1006,25 @@ function BranchCompare({ rows, days, seeGross, seeNet }: { rows: PnlBranchRow[];
     </>
   );
 }
+
+function BranchHead({ seeGross, seeNet }: { seeGross: boolean; seeNet: boolean }) {
+  return (
+    <thead>
+      <tr className="border-b border-border text-xs text-muted-subtle">
+        <th className="py-1.5 pr-2 text-left font-medium">สาขา</th>
+        <th className="px-2 py-1.5 text-right font-medium">ขาย/วัน</th>
+        {seeGross && <th className="px-2 py-1.5 text-right font-medium">ต้นทุนอาหาร</th>}
+        {seeNet && <th className="py-1.5 pl-2 text-right font-medium">กำไรสุทธิ</th>}
+      </tr>
+    </thead>
+  );
+}
+
+/** A made-up two-branch shop: name, sales per day, food cost, net profit. */
+const EXAMPLE_BRANCHES = [
+  ["สาขา ก", "฿14,200", "33.5%", "฿42,000"],
+  ["สาขา ข", "฿9,800", "36.1%", "฿21,500"],
+] as const;
 
 function Watch({ tone, icon, title, amount, href, children }: { tone: "bad" | "warn"; icon: string; title: string; amount: string; href: string; children: ReactNode }) {
   return (

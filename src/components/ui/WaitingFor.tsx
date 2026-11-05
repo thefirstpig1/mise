@@ -29,7 +29,7 @@
 import { useEffect, useId, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { ChartColumn, ChartLine, ChartPie, ChartScatter, LayoutGrid, List, Waypoints, X, type LucideIcon } from "lucide-react";
-import { FIGURES, NEEDS, needStatus, type FigureKey, type NeedKey, type OutlineShape, type Readiness, type SampleKey } from "@/lib/data-needs";
+import { FIGURES, NEEDS, needStatus, type FigureCopy, type FigureKey, type NeedKey, type OutlineShape, type Readiness, type SampleKey } from "@/lib/data-needs";
 
 const ICONS: Record<OutlineShape, LucideIcon> = {
   bars: ChartColumn,
@@ -72,7 +72,7 @@ export default function WaitingFor({
   outline?: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const f = FIGURES[figure];
+  const f: FigureCopy = FIGURES[figure];
   const s = shape ?? f.shape;
   const Icon = ICONS[s];
   const first = NEEDS[needs[0]];
@@ -98,7 +98,7 @@ export default function WaitingFor({
           ) : null}
         </div>
       </div>
-      {outline ? <Outline shape={s} /> : null}
+      {outline ? <Ghost shape={s} sample={f.sample} /> : null}
       {open ? <NeedsDialog figure={figure} needs={needs} reason={reason} branchId={branchId} act={act} onClose={() => setOpen(false)} /> : null}
     </div>
   );
@@ -110,8 +110,19 @@ export default function WaitingFor({
 
 export function WaitingSlot({ figure, needs, reason, branchId, act }: Common) {
   const [open, setOpen] = useState(false);
+  const example = (FIGURES[figure] as FigureCopy).example;
   return (
     <>
+      {example ? (
+        // The figure's own place, holding a made-up value — same size as the real
+        // one, so the card keeps its shape (Kong 2026-11-05, review item 2).
+        <span className="flex items-center gap-2">
+          <span className="rounded-lg border-[1.5px] border-dashed border-primary-line px-1.5 font-display text-[1.45rem] font-semibold leading-tight text-muted-subtle tabular-nums">
+            {example}
+          </span>
+          <ExampleTag />
+        </span>
+      ) : null}
       <span className="flex min-h-[38px] flex-wrap items-center gap-x-2 gap-y-0.5 rounded-[11px] border-[1.5px] border-dashed border-primary-line bg-[repeating-linear-gradient(-45deg,rgb(174_183_132/0.08)_0_7px,transparent_7px_14px)] px-2.5 py-1.5 font-sans text-[13px] font-normal leading-normal text-muted-foreground">
         <span className="min-w-0">
           {reason ?? (
@@ -343,6 +354,51 @@ const AXIS = "#E9E3C8";
 const dash = { fill: FILL, stroke: STROKE, strokeWidth: 1.4, strokeDasharray: "4 3" } as const;
 
 const BAR_H = [62, 72, 56, 68, 88, 110, 102, 60, 66, 54, 74, 92, 106, 98];
+/** A month of days for a full-width daily chart: the fortnight twice over, Sat–Sun higher. */
+const MONTH_H = [...BAR_H, 64, 58, 70, 66, 84, 104, 96, 62, 56, 68, 72, 90, 108, 100];
+/** Monday to Sunday, the weekend busiest — the shape most Thai shops see. */
+const WEEK_H = [70, 66, 64, 68, 74, 104, 98];
+const WEEK_LABELS = ["จ.", "อ.", "พ.", "พฤ.", "ศ.", "ส.", "อา."];
+const MUSTARD = ["#B8900F", "#E7C860"] as const;
+
+/** The small "ตัวอย่าง" tag on anything made up. */
+export function ExampleTag() {
+  return <span className="shrink-0 rounded-full border border-[#E2CE97] bg-[#F8EFD6] px-2 font-display text-[11px] font-semibold text-gold-ink">ตัวอย่าง</span>;
+}
+
+/**
+ * A place on the page that waits for data, holding a made-up example of what
+ * will go there (Kong 2026-11-05: "layout มันต้องเหมือนกันกับตอนที่มีข้อมูล แล้ว
+ * ต้องมีตัวอย่างให้ดูทุกองค์ประกอบ"). The dashed edge says WAITING — the same
+ * edge as a WaitingSlot (Kong 2026-11-02: missing data is a dashed slot, never
+ * blur); the pale content and the tag say EXAMPLE, never this shop's figures.
+ */
+export function ExampleFrame({ children, className = "" }: { children: ReactNode; className?: string }) {
+  return (
+    <div
+      className={`relative rounded-xl border-[1.5px] border-dashed border-primary-line bg-[repeating-linear-gradient(-45deg,rgb(174_183_132/0.06)_0_7px,transparent_7px_14px)] p-3 ${className}`}
+    >
+      <span className="absolute right-2 top-2 z-10">
+        <ExampleTag />
+      </span>
+      <div aria-hidden className="pointer-events-none select-none opacity-50 saturate-[0.6]">
+        {children}
+      </div>
+      <p className="sr-only">ตัวอย่างจากร้านสมมุติ ไม่ใช่ข้อมูลของร้านนี้</p>
+    </div>
+  );
+}
+
+/** The chart as it WILL look, from a made-up shop. It replaced a bare dashed outline. */
+export function Ghost({ shape, sample }: { shape: OutlineShape; sample?: SampleKey }) {
+  return (
+    <ExampleFrame className="pt-8">
+      <svg viewBox={viewOf(shape, sample)} className="mx-auto block h-auto max-h-[200px] w-full">
+        <Shape shape={shape} filled sample={sample} />
+      </svg>
+    </ExampleFrame>
+  );
+}
 
 export function Outline({ shape }: { shape: OutlineShape }) {
   return (
@@ -355,7 +411,7 @@ export function Outline({ shape }: { shape: OutlineShape }) {
 
 function Example({ shape, sample }: { shape: OutlineShape; sample?: SampleKey }) {
   return (
-    <svg viewBox={VIEW[shape]} className="block h-auto w-full" role="img" aria-label="ภาพตัวอย่างจากร้านสมมุติ">
+    <svg viewBox={viewOf(shape, sample)} className="block h-auto w-full" role="img" aria-label="ภาพตัวอย่างจากร้านสมมุติ">
       <Shape shape={shape} filled sample={sample} />
     </svg>
   );
@@ -401,6 +457,7 @@ const LIST_SAMPLES: Record<string, [string, number, string, boolean][]> = {
   ],
 };
 
+const viewOf = (shape: OutlineShape, sample?: SampleKey) => (shape === "bars" && sample === "month" ? "0 0 660 150" : VIEW[shape]);
 const VIEW: Record<OutlineShape, string> = {
   bars: "0 0 340 150",
   line: "0 0 340 150",
@@ -418,7 +475,16 @@ function Shape({ shape, filled, sample }: { shape: OutlineShape; filled: boolean
   const text = { fontFamily: "Noto Sans Thai, sans-serif", fontSize: 10.5, fill: filled ? "#5A5C31" : FAINT } as const;
   const head = { fontFamily: "Prompt, sans-serif", fontSize: 10.5, fontWeight: 600, fill: filled ? "#8B8D63" : FAINT } as const;
   switch (shape) {
-    case "bars":
+    case "bars": {
+      // sample "month": the daily chart (weekends mustard, as SalesCharts draws them);
+      // "week": วันไหนขายดี; otherwise a fortnight of days.
+      const month = sample === "month";
+      const week = sample === "week";
+      const hs = month ? MONTH_H : week ? WEEK_H : BAR_H;
+      const step = week ? 44 : 22;
+      const barW = week ? 30 : 16;
+      const right = month ? 650 : 330;
+      const best = hs.indexOf(Math.max(...hs));
       return (
         <>
           {filled ? (
@@ -427,24 +493,39 @@ function Shape({ shape, filled, sample }: { shape: OutlineShape; filled: boolean
                 <stop offset="0" stopColor={OLIVE[0]} />
                 <stop offset="1" stopColor={OLIVE[1]} />
               </linearGradient>
+              <linearGradient id="wf-mustard" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stopColor={MUSTARD[0]} />
+                <stop offset="1" stopColor={MUSTARD[1]} />
+              </linearGradient>
             </defs>
           ) : null}
-          <line x1="10" y1="132" x2="330" y2="132" stroke={AXIS} strokeWidth="1.5" />
-          {BAR_H.map((h, i) =>
-            filled ? (
-              <rect key={i} x={16 + i * 22} y={132 - h} width="16" height={h} rx="4" fill={i === 5 ? CLAY : "url(#wf-olive)"} />
-            ) : (
-              <rect key={i} x={16 + i * 22} y={132 - h} width="16" height={h} rx="4" {...dash} />
-            )
+          <line x1="10" y1="132" x2={right} y2="132" stroke={AXIS} strokeWidth="1.5" />
+          {hs.map((h, i) => {
+            const x = (week ? 26 : 16) + i * step;
+            if (!filled) return <rect key={i} x={x} y={132 - h} width={barW} height={h} rx="4" {...dash} />;
+            const weekend = month && (i % 7 === 5 || i % 7 === 6);
+            const fill = i === best ? CLAY : weekend ? "url(#wf-mustard)" : "url(#wf-olive)";
+            return <rect key={i} x={x} y={132 - h} width={barW} height={h} rx="4" fill={fill} />;
+          })}
+          {week ? (
+            WEEK_LABELS.map((d, i) => (
+              <text key={d} x={26 + i * step + barW / 2} y="146" textAnchor="middle" {...text}>
+                {d}
+              </text>
+            ))
+          ) : (
+            <>
+              <text x="16" y="146" {...text}>
+                1
+              </text>
+              <text x={right - 12} y="146" textAnchor="end" {...text}>
+                {filled ? (month ? "28 ต.ค." : "26 ต.ค.") : "วันที่"}
+              </text>
+            </>
           )}
-          <text x="16" y="146" {...text}>
-            1
-          </text>
-          <text x="318" y="146" textAnchor="end" {...text}>
-            {filled ? "26 ต.ค." : "วันที่"}
-          </text>
         </>
       );
+    }
     case "line": {
       const pts = [100, 92, 96, 80, 70, 74, 58, 62, 48, 54, 40, 44, 34].map((y, i) => `${16 + i * 25},${y}`).join(" ");
       return (
@@ -513,12 +594,21 @@ function Shape({ shape, filled, sample }: { shape: OutlineShape; filled: boolean
       );
     }
     case "donut": {
-      const parts: [number, string, string][] = [
-        [0.38, "ข้าว", "#5E6B14"],
-        [0.24, "เส้น", "#C0692B"],
-        [0.21, "ต้ม / แกง", "#00857B"],
-        [0.17, "เครื่องดื่ม", "#8A4F9E"],
-      ];
+      // sample "expense": where a month's bills went, not menu categories.
+      const parts: [number, string, string][] =
+        sample === "expense"
+          ? [
+              [0.46, "ค่าแรง", "#5E6B14"],
+              [0.24, "ค่าเช่า", "#C0692B"],
+              [0.17, "ค่าน้ำไฟ", "#00857B"],
+              [0.13, "อื่น ๆ", "#8A4F9E"],
+            ]
+          : [
+              [0.38, "ข้าว", "#5E6B14"],
+              [0.24, "เส้น", "#C0692B"],
+              [0.21, "ต้ม / แกง", "#00857B"],
+              [0.17, "เครื่องดื่ม", "#8A4F9E"],
+            ];
       const R = 52;
       const C = 2 * Math.PI * R;
       let acc = 0;

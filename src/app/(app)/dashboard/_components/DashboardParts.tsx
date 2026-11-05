@@ -20,7 +20,7 @@ import { ANIM, ChartTooltip, GRID, INK_MUTED, NEUTRAL, axis, cursorFill } from "
 import { readApi } from "@/lib/read-api";
 import { announceStale } from "@/lib/stale-tab";
 import { clickableBar, type MenuBar, type RevenueRow, type RevenueSeries } from "./Charts";
-import { WhatIsThis, useReadiness } from "@/components/ui/WaitingFor";
+import { ExampleFrame, WhatIsThis, useReadiness } from "@/components/ui/WaitingFor";
 import { NEEDS, type NeedKey } from "@/lib/data-needs";
 
 const baht = (n: number) => new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB", maximumFractionDigits: 0 }).format(n);
@@ -218,8 +218,39 @@ export function TopMenusCard({
       ) : measure === "profit" && profit && !Array.isArray(profit) && profit !== "loading" ? (
         <p className="py-6 text-center text-sm text-muted-foreground">{profit.error}</p>
       ) : rows.length === 0 ? (
-        <p className="py-6 text-center text-sm text-muted-foreground">ยังไม่มียอดขายในช่วงนี้</p>
+        // Same rows as a filled card, from a made-up shop (Kong 2026-11-05, review item 2).
+        <>
+          <ExampleFrame className="pt-9">
+            <MenuRows rows={EXAMPLE_MENUS.map(([name, net, qty], i) => ({ id: String(i), name, value: measure === "qty" ? qty : net }))} max={measure === "qty" ? 64 : 18400} fmt={fmt} />
+          </ExampleFrame>
+          <p className="text-xs text-muted-foreground">ยังไม่มียอดขายในช่วงนี้ · เมนูของร้านจะขึ้นตรงนี้เมื่อนำเข้ายอดขาย</p>
+        </>
       ) : (
+        <MenuRows rows={rows} max={max} fmt={fmt} />
+      )}
+      {measure === "profit" && Array.isArray(profit) && (
+        <p className="text-[11px] text-muted-subtle">
+          กำไรต่อเมนู = ยอดขายหลังส่วนลด − ต้นทุนตามสูตร · "—" = ยังไม่มีสูตร <WhatIsThis figure="recipeProfit" needs={["recipe", "price"]} />
+        </p>
+      )}
+      <a href={salesHref} className="link text-xs">
+        ดูทั้งหมดในหน้ายอดขาย ›
+      </a>
+    </div>
+  );
+}
+
+/** A made-up shop's best sellers: name, sales, plates. */
+const EXAMPLE_MENUS: [string, number, number][] = [
+  ["ข้าวกะเพราหมูกรอบ", 18400, 64],
+  ["ต้มยำกุ้งน้ำข้น", 14200, 38],
+  ["ผัดไทยกุ้งสด", 11900, 41],
+  ["ชาเย็น", 7600, 58],
+  ["ไข่เจียวหมูสับ", 6300, 45],
+];
+
+function MenuRows({ rows, max, fmt }: { rows: { id: string; name: string; value: number | null }[]; max: number; fmt: (v: number | null) => string }) {
+  return (
         <ul className="space-y-2.5">
           {rows.map((r, i) => {
             const [name, branch] = r.name.split(" · ");
@@ -244,16 +275,6 @@ export function TopMenusCard({
             );
           })}
         </ul>
-      )}
-      {measure === "profit" && Array.isArray(profit) && (
-        <p className="text-[11px] text-muted-subtle">
-          กำไรต่อเมนู = ยอดขายหลังส่วนลด − ต้นทุนตามสูตร · "—" = ยังไม่มีสูตร <WhatIsThis figure="recipeProfit" needs={["recipe", "price"]} />
-        </p>
-      )}
-      <a href={salesHref} className="link text-xs">
-        ดูทั้งหมดในหน้ายอดขาย ›
-      </a>
-    </div>
   );
 }
 
