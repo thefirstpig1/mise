@@ -39,7 +39,7 @@ export default function DeleteCategoryButton({ id, onDone }: { id: string; onDon
       </button>
       {error && <p className="mt-2 text-sm text-bad">{error}</p>}
       <ConfirmDialog open={askOpen} title="ลบหมวดบัญชีนี้?" confirmLabel="ลบ" danger pending={isPending} onConfirm={handleDelete} onCancel={() => setAskOpen(false)}>
-        หมวดนี้จะไม่ขึ้นในตัวเลือกอีก · รายการที่บันทึกไว้ในหมวดนี้แล้วยังอยู่ครบ
+        หมวดนี้จะไม่ขึ้นในตัวเลือกอีก · รายการที่บันทึกไว้ในหมวดนี้แล้วยังอยู่ครบ · ลบผิด กด “เพิ่มหมวดบัญชี” ใส่ชื่อเดิม ระบบจะกู้หมวดนี้กลับมาพร้อมรายการเดิม
       </ConfirmDialog>
     </div>
   );

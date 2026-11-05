@@ -42,12 +42,15 @@ export default function CategoryDialog({
   initial,
   sectionsByAccount,
   onClose,
+  onRestored,
 }: {
   /** null = a new category. */
   initial: Category | null;
   /** The sections each account already has, to tap instead of typing. */
   sectionsByAccount: Record<Account, string[]>;
   onClose: () => void;
+  /** Typing a deleted category's name brought it back — the list says so. */
+  onRestored?: (label: string) => void;
 }) {
   const router = useRouter();
   const action = useMemo(() => (initial ? updateCategory.bind(null, initial.id) : createCategory), [initial]);
@@ -58,9 +61,10 @@ export default function CategoryDialog({
 
   useEffect(() => {
     if (!state.ok) return;
+    if (state.restored && state.label) onRestored?.(state.label);
     onClose();
     router.refresh();
-  }, [state, onClose, router]);
+  }, [state, onClose, onRestored, router]);
 
   const formError = state.ok === false ? state.formError : undefined;
   const fieldErrors = state.ok === false ? state.fieldErrors : undefined;

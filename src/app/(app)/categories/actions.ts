@@ -19,11 +19,12 @@ import type { ZodError } from "zod";
 import { requireTenant } from "@/lib/require-tenant";
 import {
   categoryInputSchema,
+  ACCOUNT_LABELS_TH,
   CATEGORY_FIELD_LABELS_TH,
   type CategoryInput,
 } from "@/lib/validations/category";
 import {
-  createCategoryLogic,
+  createOrRestoreCategoryLogic,
   updateCategoryLogic,
   deleteCategoryLogic,
   CategoryConflictError,
@@ -36,16 +37,21 @@ import {
  *     (form-level, e.g. duplicate triple from P2002). Values are Thai.
  */
 export type CategoryActionState =
-  | { ok: true; categoryId: string }
+  | { ok: true; categoryId: string; restored?: boolean; label?: string }
   | { ok: false; formError?: string; fieldErrors?: Record<string, string> };
 
 /**
- * Thai duplicate-triple message (Pitfall #22). Because the @@unique is full
- * (counts soft-deleted rows), a deleted triple still blocks re-creation — the
- * parenthetical hints at that without claiming the user can fix it.
+ * Thai duplicate-triple messages (Pitfall #22). Each says what to do next
+ * (Kong 2026-11-05: "แล้วให้ทำไงต่อ ไม่มีการบอกอะไรเลย"). Creating a deleted
+ * triple no longer reaches here — it brings the deleted category back.
  */
-const DUPLICATE_MESSAGE =
-  "หมวดบัญชีนี้มีอยู่แล้ว (หากเคยลบไปแล้ว จะยังสร้างซ้ำไม่ได้)";
+function duplicateMessage(e: CategoryConflictError): string {
+  const t = e.triple;
+  const where = `${ACCOUNT_LABELS_TH[t.account as keyof typeof ACCOUNT_LABELS_TH] ?? t.account} · ${t.accountingSection} · ${t.groupName}`;
+  return e.deleted
+    ? `ชื่อนี้เป็นของหมวดที่ลบไปแล้ว (${where}) — ถ้าจะใช้หมวดนั้น ให้ปิดหน้าต่างนี้แล้วกด “เพิ่มหมวดบัญชี” ใส่ชื่อเดิม ระบบจะกู้หมวดเดิมกลับมาพร้อมรายการเดิม หรือใช้ชื่ออื่นแทน`
+    : `มีหมวดนี้อยู่แล้ว (${where}) — ใช้หมวดเดิมได้เลย หรือเปลี่ยนชื่อกลุ่มเพื่อแยกเป็นหมวดใหม่`;
+}
 
 /** Map the form's snake_case FormData onto the schema's camelCase shape. */
 function rawFromFormData(formData: FormData): Record<string, unknown> {
@@ -82,12 +88,12 @@ export async function createCategory(
   }
 
   try {
-    const created = await createCategoryLogic(tenantId, parsed.data);
+    const { category, restored } = await createOrRestoreCategoryLogic(tenantId, parsed.data);
     revalidatePath("/categories");
-    return { ok: true, categoryId: created.id };
+    return { ok: true, categoryId: category.id, restored, label: `${category.accountingSection} · ${category.groupName}` };
   } catch (e) {
     if (e instanceof CategoryConflictError) {
-      return { ok: false, formError: DUPLICATE_MESSAGE };
+      return { ok: false, formError: duplicateMessage(e) };
     }
     throw e; // unexpected → let the error boundary handle it
   }
@@ -119,7 +125,7 @@ export async function updateCategory(
     return { ok: true, categoryId: updated.id };
   } catch (e) {
     if (e instanceof CategoryConflictError) {
-      return { ok: false, formError: DUPLICATE_MESSAGE };
+      return { ok: false, formError: duplicateMessage(e) };
     }
     throw e;
   }

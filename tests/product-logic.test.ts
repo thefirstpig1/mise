@@ -412,6 +412,21 @@ describe("product *Logic (tenant-scoped, app-layer isolation)", () => {
     expect(ghosts).toHaveLength(0);
   });
 
+  // Slice L8b (2026-11-05 audit) — on an EDIT the product holds its own sku, so
+  // the "which unique fired?" lookup found the product itself and called a
+  // duplicate unit name a duplicate sku.
+  it("on update, a duplicate unit name stays a unit-name conflict even when the product has a sku", async () => {
+    const created = await createProductLogic(tenantA, input({ name: "DUP-UNIT-EDIT", sku: "EDIT-SKU-1", baseUnitName: "kg" }));
+    const raw: ProductInput = {
+      ...input({ name: "DUP-UNIT-EDIT", sku: "EDIT-SKU-1", baseUnitName: "kg" }),
+      additionalUnits: [
+        { unitName: "ถุง", toBaseRatio: 1 },
+        { unitName: "ถุง", toBaseRatio: 2 },
+      ],
+    };
+    await expect(updateProductLogic(tenantA, created.id, raw)).rejects.toBeInstanceOf(ProductUnitNameConflictError);
+  });
+
   // Slice 10 — categoryId must belong to the calling tenant (cross-tenant FK guard)
   it("rejects a categoryId owned by another tenant, on both create and update", async () => {
     // B's category — A must NOT be able to reference it.

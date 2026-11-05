@@ -68,9 +68,13 @@ export type ProductActionState =
   | { ok: true; productId: string }
   | { ok: false; formError?: string; fieldErrors?: Record<string, string> };
 
-/** Thai duplicate-sku message (Pitfall #22 — full unique counts soft-deleted). */
+/**
+ * Thai duplicate-sku message. Only a LIVE product can hold a sku (the index is
+ * partial since part 8.5), so the old "deleted ones still block it" was untrue
+ * — and it gave no next step (Kong 2026-11-05).
+ */
 const DUPLICATE_SKU_MESSAGE =
-  "รหัสสินค้านี้มีอยู่แล้ว (หากเคยลบไปแล้ว จะยังใช้รหัสซ้ำไม่ได้)";
+  "รหัสสินค้านี้มีสินค้าอื่นใช้อยู่ — ใช้รหัสอื่น หรือค้นรหัสนี้ในหน้าสินค้าเพื่อดูว่าเป็นสินค้าไหน";
 /** Thai duplicate unit-name message (multi-unit, Pitfall #24). */
 const DUPLICATE_UNIT_MESSAGE = "มีชื่อหน่วยซ้ำกันในสินค้านี้";
 /** Defensive: only reachable if the form posts a unit not in the dimension. */

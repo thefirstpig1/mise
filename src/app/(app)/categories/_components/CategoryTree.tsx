@@ -49,6 +49,8 @@ export default function CategoryTree({
     !canWrite || initialOpen === null ? null : initialOpen === "new" ? "new" : (categories.find((c) => c.id === initialOpen) ?? null)
   );
   const close = useCallback(() => setOpen(null), []);
+  // Kong 2026-11-05: a deleted category comes back when its name is typed again.
+  const [restoredLabel, setRestoredLabel] = useState<string | null>(null);
   // /categories/new and /categories/<id> land here with ?new / ?edit; once
   // the popup is open the address goes back to the plain list.
   useEffect(() => {
@@ -99,6 +101,15 @@ export default function CategoryTree({
           )
         }
       />
+
+      {restoredLabel && (
+        <p role="status" className="note flex flex-wrap items-center justify-between gap-2">
+          <span>กู้คืนหมวด “{restoredLabel}” กลับมาแล้ว พร้อมรายการที่เคยบันทึกในหมวดนี้</span>
+          <button type="button" onClick={() => setRestoredLabel(null)} className="text-sm font-semibold text-primary hover:underline">
+            ปิด
+          </button>
+        </p>
+      )}
 
       {categories.length === 0 ? (
         <EmptyState art="start">
@@ -179,6 +190,7 @@ export default function CategoryTree({
           initial={open === "new" ? null : open}
           sectionsByAccount={sectionsByAccount}
           onClose={close}
+          onRestored={setRestoredLabel}
         />
       )}
     </div>
