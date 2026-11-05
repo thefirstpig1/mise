@@ -15,7 +15,7 @@
 import { useActionState, useMemo, useState } from "react";
 import {
   postConsumptionAction,
-  POST_CONSUMPTION_INIT,
+  type PostConsumptionActionState,
 } from "@/app/(app)/consumption/actions";
 import {
   CONSUMPTION_DAY_STATE_HINTS_TH,
@@ -29,6 +29,11 @@ import {
 import { useKeepForm } from "@/lib/keep-form";
 
 /** Same local helper the recipe forms use — no lib for one line. */
+// Kept here, not in actions.ts: a "use server" file may export only async
+// functions, and Next refused the whole module on the first press of ตัดสต็อก
+// (2026-11-04). tests/use-server-exports-guard.test.ts keeps it from coming back.
+const POST_CONSUMPTION_INIT: PostConsumptionActionState = { ok: false };
+
 function newSubmitKey(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
     return crypto.randomUUID();

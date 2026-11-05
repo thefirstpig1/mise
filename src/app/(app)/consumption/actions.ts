@@ -79,10 +79,6 @@ export type PostConsumptionActionState =
       needsAcknowledgement?: { days: PostedDaySummaryView[] };
     };
 
-export const POST_CONSUMPTION_INIT: PostConsumptionActionState = {
-  ok: false,
-};
-
 /** Flatten zod issues to `{ fieldName: thaiMessage }`, first issue per field. */
 function toFieldErrors(error: ZodError): Record<string, string> {
   const fieldErrors: Record<string, string> = {};
