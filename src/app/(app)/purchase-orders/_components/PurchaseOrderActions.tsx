@@ -178,7 +178,7 @@ export default function PurchaseOrderActions({
             <button
               type="submit"
               disabled={pending}
-              className="rounded-lg bg-bad px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+              className="btn-danger-solid"
             >
               ยืนยันยกเลิก
             </button>

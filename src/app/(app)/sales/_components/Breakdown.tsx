@@ -107,7 +107,7 @@ export function ModalShell({
           type="button"
           onClick={onClose}
           aria-label="ปิด"
-          className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full text-2xl leading-none text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className="icon-btn absolute right-3 top-3 text-xl leading-none"
         >
           ×
         </button>

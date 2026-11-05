@@ -200,7 +200,7 @@ function ClaimDetail({ claim: c, onClose, onChanged, onError }: { claim: ClaimVi
                 {shortDate(c.billDate)} · {c.place} · {PAYMENT_METHOD_LABEL[c.method]}
               </p>
             </div>
-            <button type="button" onClick={onClose} className="rounded-lg px-2 text-xl text-muted-foreground hover:bg-muted" aria-label="ปิด">
+            <button type="button" onClick={onClose} className="icon-btn text-xl leading-none" aria-label="ปิด">
               ×
             </button>
           </div>

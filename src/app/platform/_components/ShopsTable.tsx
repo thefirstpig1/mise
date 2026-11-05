@@ -220,7 +220,7 @@ function Frame({ title, onClose, children }: { title: string; onClose: () => voi
         <div role="dialog" aria-modal="true" aria-label={title} className="relative max-h-[90dvh] w-full max-w-lg animate-pop-in space-y-4 overflow-y-auto rounded-2xl border border-border bg-surface p-5 shadow-2xl">
           <div className="flex items-start gap-3">
             <h2 className="flex-1 text-lg font-semibold">{title}</h2>
-            <button type="button" onClick={onClose} className="rounded-lg px-2 text-xl text-muted-foreground hover:bg-muted" aria-label="ปิด">
+            <button type="button" onClick={onClose} className="icon-btn text-xl leading-none" aria-label="ปิด">
               ×
             </button>
           </div>

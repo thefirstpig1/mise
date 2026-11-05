@@ -190,13 +190,13 @@ const WASTE_MONTHS_LABEL = (months: string[]) => (months.length ? `${monthTh(mon
 
 function Seg({ value, onChange, options }: { value: string; onChange: (v: string) => void; options: [string, string][] }) {
   return (
-    <div className="inline-flex rounded-full border border-border p-0.5 text-sm">
+    <div className="seg">
       {options.map(([k, label]) => (
         <button
           key={k}
           type="button"
           onClick={() => onChange(k)}
-          className={`rounded-full px-3 py-1 whitespace-nowrap ${value === k ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+          className={`seg-item ${value === k ? "is-on" : ""}`}
         >
           {label}
         </button>

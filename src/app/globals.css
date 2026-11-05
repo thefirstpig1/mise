@@ -163,7 +163,24 @@
      -------------------------------------------------------- */
   .btn {
     @apply inline-flex h-[42px] items-center justify-center gap-1.5 whitespace-nowrap rounded-xl bg-primary px-4 font-display text-sm font-semibold text-primary-foreground;
-    @apply shadow-[0_8px_18px_-12px_rgb(35_36_12/0.7)] transition-colors hover:bg-primary-deep disabled:cursor-not-allowed disabled:opacity-45 disabled:shadow-none;
+    @apply shadow-[0_8px_18px_-12px_rgb(35_36_12/0.7)] hover:bg-primary-deep hover:shadow-[0_10px_22px_-12px_rgb(35_36_12/0.8)] disabled:cursor-not-allowed disabled:opacity-45 disabled:shadow-none;
+  }
+
+  /* --------------------------------------------------------
+     Motion and focus for every control in the kit (Kong 2026-11-05:
+     "ทำอนิเมชั่นตอน hover ... หรือ transition ต่างๆให้ลื่นไหล").
+     One timing for all of them, so nothing on a screen moves at its
+     own speed: 160 ms, ease-out, colour and shadow only — plus a 1px
+     press so a tap is felt. Nothing slides or bounces; a back office
+     is used fifty times a day and motion there must stay out of the
+     way. `prefers-reduced-motion` drops the press.
+     -------------------------------------------------------- */
+  :is(.btn, .btn-secondary, .btn-danger, .btn-danger-solid, .icon-btn, .pill, .seg-item, .tab) {
+    @apply transition-[background-color,border-color,color,box-shadow,transform] duration-150 ease-out;
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35 focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+  }
+  :is(.btn, .btn-secondary, .btn-danger, .btn-danger-solid, .icon-btn, .pill, .seg-item):not(:disabled):active {
+    @apply translate-y-px motion-reduce:translate-y-0;
   }
 
   /* ============================================================
@@ -175,11 +192,32 @@
   /* The two other buttons — and only two. `.btn-sm` sizes any of the three. */
   .btn-secondary {
     @apply inline-flex h-[42px] items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-border-strong bg-surface px-4 font-display text-sm font-semibold text-foreground;
-    @apply transition-colors hover:bg-surface-sunk disabled:cursor-not-allowed disabled:opacity-45;
+    @apply hover:border-primary-line hover:bg-surface-sunk disabled:cursor-not-allowed disabled:opacity-45;
   }
+  /* Opens a destructive flow ("ลบหมวดนี้"): outlined, so it never outshouts
+     the page's real button. */
   .btn-danger {
     @apply inline-flex h-[42px] items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-bad-border bg-surface px-4 font-display text-sm font-semibold text-bad;
-    @apply transition-colors hover:bg-bad-bg disabled:cursor-not-allowed disabled:opacity-45;
+    @apply hover:bg-bad-bg disabled:cursor-not-allowed disabled:opacity-45;
+  }
+  /* CONFIRMS a destructive act, inside the dialog that asks — the same size
+     and corner as the "กลับ" beside it (2026-11-05: a 36px corner-12 red next
+     to a 42px corner-16 cancel was one of the "different app" rows). */
+  .btn-danger-solid {
+    @apply inline-flex h-[42px] items-center justify-center gap-1.5 whitespace-nowrap rounded-xl bg-bad px-4 font-display text-sm font-semibold text-bad-foreground;
+    @apply shadow-[0_8px_18px_-12px_rgb(120_40_20/0.6)] hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-45 disabled:shadow-none;
+  }
+
+  /* The one close / icon button: 36px round. Five shapes of × existed. */
+  .icon-btn {
+    @apply inline-grid h-9 w-9 shrink-0 place-items-center rounded-full border border-border bg-surface text-muted-foreground;
+    @apply hover:border-border-strong hover:bg-muted hover:text-foreground;
+  }
+
+  /* A link INSIDE a sentence — the only place a text link belongs. One look
+     (three underline styles existed). A link that stands alone is a button. */
+  .link {
+    @apply font-semibold text-primary underline decoration-primary-line decoration-1 underline-offset-[3px] transition-colors duration-150 hover:decoration-primary;
   }
   .btn-sm {
     @apply h-[34px] rounded-[10px] px-3 text-[13px];
@@ -191,7 +229,7 @@
     @apply inline-flex max-w-full flex-wrap gap-0.5 rounded-[20px] border border-border bg-muted p-[3px];
   }
   .seg-item {
-    @apply inline-flex h-8 items-center whitespace-nowrap rounded-full px-3 text-[13px] text-muted-foreground transition-colors hover:text-foreground;
+    @apply inline-flex h-8 items-center whitespace-nowrap rounded-full px-3 text-[13px] text-muted-foreground hover:bg-surface/70 hover:text-foreground;
   }
   .seg-item.is-on {
     @apply bg-primary text-primary-foreground hover:text-primary-foreground;
@@ -200,7 +238,7 @@
   /* A chip among many (categories, months) — the same language as `.seg`,
      standing on its own when the choices are too many for one group. */
   .pill {
-    @apply inline-flex h-8 items-center whitespace-nowrap rounded-full border border-border-strong bg-surface px-3 text-[13px] transition-colors hover:bg-muted;
+    @apply inline-flex h-8 items-center whitespace-nowrap rounded-full border border-border-strong bg-surface px-3 text-[13px] hover:border-primary-line hover:bg-muted;
   }
   .pill.is-on {
     @apply border-primary bg-primary text-primary-foreground hover:bg-primary;
@@ -211,7 +249,7 @@
     @apply flex gap-0.5 overflow-x-auto border-b border-border;
   }
   .tab {
-    @apply -mb-px inline-flex h-11 shrink-0 items-center gap-2 whitespace-nowrap border-b-2 border-transparent px-3.5 font-semibold text-muted-subtle transition-colors hover:text-foreground;
+    @apply -mb-px inline-flex h-11 shrink-0 items-center gap-2 whitespace-nowrap border-b-2 border-transparent px-3.5 font-semibold text-muted-subtle hover:border-border-strong hover:text-foreground;
   }
   .tab.is-on {
     @apply border-foreground text-foreground;

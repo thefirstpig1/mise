@@ -21,26 +21,31 @@ function Arrow({ className = "h-3.5 w-3.5" }: { className?: string }) {
   );
 }
 
+/**
+ * A link that goes somewhere, drawn as a kit button (2026-11-05: it was a 26px
+ * capsule of its own, sitting beside 34px and 42px buttons in the same row).
+ * `size` follows the row it sits in: "md" in a page header, "sm" in a card or
+ * toolbar. `solid` when it IS the page's main action.
+ */
 export default function ActionLink({
   href,
   children,
   tone = "primary",
+  size = "sm",
+  solid = false,
   className = "",
 }: {
   href: string;
   children: ReactNode;
   tone?: "primary" | "warn";
+  size?: "md" | "sm";
+  solid?: boolean;
   className?: string;
 }) {
-  const colours =
-    tone === "warn"
-      ? "border-warn-border bg-surface text-warn hover:bg-warn hover:text-warn-foreground focus-visible:bg-warn focus-visible:text-warn-foreground"
-      : "border-primary-line bg-surface text-primary hover:bg-primary hover:text-primary-foreground focus-visible:bg-primary focus-visible:text-primary-foreground";
+  const kind = solid ? "btn" : "btn-secondary";
+  const warn = tone === "warn" && !solid ? "border-warn-border text-warn hover:border-warn hover:bg-warn-bg" : "";
   return (
-    <a
-      href={href}
-      className={`inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border px-3 py-1 text-xs font-medium shadow-sm transition-colors focus:outline-none ${colours} ${className}`}
-    >
+    <a href={href} className={`${kind} ${size === "sm" ? "btn-sm" : ""} shrink-0 ${warn} ${className}`}>
       {children}
       <Arrow />
     </a>

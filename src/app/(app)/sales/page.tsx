@@ -350,7 +350,7 @@ export default async function SalesPage({
             branchName={exportBranchScope(branches, query.branchId).name}
             today={computeBangkokToday().toISOString().slice(0, 10)}
           />
-          <ActionLink href="/sales/import">นำเข้ายอดขาย</ActionLink>
+          <ActionLink href="/sales/import" size="md" solid>นำเข้ายอดขาย</ActionLink>
         </div>
       </div>
 

@@ -115,7 +115,7 @@ function GuideWindow({ prompt, kind, onClose }: { prompt: string; kind: GuideKin
             type="button"
             onClick={onClose}
             aria-label="ปิด"
-            className="grid h-[34px] w-[34px] shrink-0 place-items-center rounded-full bg-muted text-foreground transition-colors hover:bg-wash"
+            className="icon-btn shrink-0"
           >
             <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
               <path d="M2 2l10 10M12 2L2 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />

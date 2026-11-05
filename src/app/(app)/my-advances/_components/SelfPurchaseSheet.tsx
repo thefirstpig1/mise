@@ -113,7 +113,7 @@ export default function SelfPurchaseSheet({
         <h3 id="self-purchase-title" className="flex-1 text-lg font-semibold">
           {step === 1 ? "บันทึกที่ซื้อเอง" : "จ่ายยังไง"}
         </h3>
-        <button type="button" onClick={onClose} className="rounded-lg px-2 py-1 text-xl text-muted-foreground hover:bg-muted" aria-label="ปิด">
+        <button type="button" onClick={onClose} className="icon-btn text-xl leading-none" aria-label="ปิด">
           ×
         </button>
       </div>

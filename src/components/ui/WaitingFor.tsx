@@ -254,7 +254,7 @@ function NeedsDialog({ figure, needs, reason, branchId, act = true, onClose }: C
             </h2>
             <p className="text-sm text-muted-foreground">{f.question}</p>
           </div>
-          <button type="button" onClick={onClose} aria-label="ปิด" className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-surface-sunk text-muted-foreground hover:text-foreground">
+          <button type="button" onClick={onClose} aria-label="ปิด" className="icon-btn shrink-0">
             <X className="h-4 w-4" />
           </button>
         </div>

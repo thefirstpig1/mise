@@ -199,7 +199,7 @@ export default function ReportDialog({
                 </h3>
                 <p className="text-[13px] text-muted-foreground">ส่งถึงคิดครัวโดยตรง · ผู้ใช้งานคนอื่นในร้านไม่เห็น</p>
               </div>
-              <button type="button" onClick={close} aria-label="ปิด" className="-mr-1 rounded-lg p-1.5 text-muted-subtle hover:bg-muted hover:text-foreground">
+              <button type="button" onClick={close} aria-label="ปิด" className="icon-btn -mr-1">
                 <X className="h-5 w-5" strokeWidth={1.9} />
               </button>
             </div>

@@ -538,7 +538,7 @@ export default function MenuSheet(props: {
             </p>
           )}
         </div>
-        <button type="button" onClick={close} aria-label="ปิด" className="absolute right-3 top-3 rounded-lg px-2 text-2xl leading-none text-muted-foreground hover:bg-muted">
+        <button type="button" onClick={close} aria-label="ปิด" className="icon-btn absolute right-3 top-3 text-xl leading-none">
           ×
         </button>
       </div>

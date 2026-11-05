@@ -217,7 +217,7 @@ function Overview({ data, canEditTargets }: { data: Overview; canEditTargets: bo
         <button
           type="button"
           onClick={() => canEditTargets && setEditTargets(true)}
-          className={`rounded-2xl border border-border bg-surface px-3 py-1 text-left text-sm ${canEditTargets ? "hover:border-border-strong" : "cursor-default"}`}
+          className={`btn-secondary font-sans font-normal ${canEditTargets ? "" : "cursor-default hover:border-border-strong hover:bg-surface"}`}
           title={canEditTargets ? "แก้เป้าของร้าน" : "เจ้าของร้านหรือผู้ดูแลเป็นผู้ตั้งเป้า"}
         >
           เป้าของร้าน: อาหาร <b>≤{targets.food}%</b> · prime <b>≤{targets.prime}%</b>
@@ -457,14 +457,14 @@ function Overview({ data, canEditTargets }: { data: Overview; canEditTargets: bo
 
 function Seg<T extends string>({ value, onChange, options, label }: { value: T; onChange: (v: T) => void; options: [T, string][]; label: string }) {
   return (
-    <span role="group" aria-label={label} className="inline-flex rounded-full border border-border bg-muted p-0.5">
+    <span role="group" aria-label={label} className="seg">
       {options.map(([v, l]) => (
         <button
           key={v}
           type="button"
           aria-pressed={value === v}
           onClick={() => onChange(v)}
-          className={`rounded-full px-3 py-0.5 text-xs transition-colors ${value === v ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+          className={`seg-item ${value === v ? "is-on" : ""}`}
         >
           {l}
         </button>

@@ -479,7 +479,7 @@ export default function ProductsManager(props: {
           {branches.length > 1 && (
             <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
               คงเหลือและต้นทุนของ
-              <select value={branchId} onChange={(e) => setBranchId(e.target.value)} className="rounded-full border border-border-strong bg-surface px-3 py-1 text-sm text-foreground">
+              <select value={branchId} onChange={(e) => setBranchId(e.target.value)} className="input w-auto">
                 {branches.map((b) => (
                   <option key={b.id} value={b.id}>
                     {b.name}

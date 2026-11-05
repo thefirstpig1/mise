@@ -85,7 +85,7 @@ export default function ParDocsPopup({
               </h3>
               <p className="mt-0.5 text-sm text-muted-foreground">{head[state.kind]}</p>
             </div>
-            <button type="button" autoFocus onClick={onClose} aria-label="ปิด" className="rounded-lg px-2 text-2xl leading-none text-muted-foreground hover:bg-muted">
+            <button type="button" autoFocus onClick={onClose} aria-label="ปิด" className="icon-btn text-xl leading-none">
               ×
             </button>
           </div>

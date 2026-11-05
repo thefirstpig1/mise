@@ -297,7 +297,7 @@ function EditDialog({
               <button type="button" autoFocus onClick={() => setAsking(false)} className="btn-secondary">
                 ไม่นำออก
               </button>
-              <button type="submit" disabled={activePending} className="h-10 rounded-xl bg-bad px-4 text-sm font-semibold text-bad-foreground disabled:opacity-60">
+              <button type="submit" disabled={activePending} className="btn-danger-solid">
                 {activePending ? "กำลังนำออก…" : "นำออกจากร้าน"}
               </button>
             </div>

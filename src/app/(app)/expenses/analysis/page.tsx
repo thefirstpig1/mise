@@ -90,7 +90,7 @@ export default async function ExpenseAnalysisPage({ searchParams }: { searchPara
       <PageHeader
         title="วิเคราะห์รายจ่าย"
         description="ตามวันที่บิล ไม่รวม VAT · กดชิ้นในวงกลมหรือแถวเพื่อเจาะลงไปทีละชั้น"
-        actions={<ActionLink href="/expenses">กลับไปรายการบิล</ActionLink>}
+        actions={<ActionLink href="/expenses" size="md">กลับไปรายการบิล</ActionLink>}
       />
 
       {/* --- filters: one row per level, sticky while scrolling (Kong's sample).

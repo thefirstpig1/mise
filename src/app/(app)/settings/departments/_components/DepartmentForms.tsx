@@ -79,7 +79,7 @@ function ActiveControl({ row, onDone }: { row: DepartmentRowView; onDone: () => 
         <button type="button" autoFocus onClick={() => setAsking(false)} className="btn-secondary">
           ไม่ปิด
         </button>
-        <button type="button" disabled={pending} onClick={() => set(false)} className="h-10 rounded-xl bg-bad px-4 text-sm font-semibold text-bad-foreground disabled:opacity-60">
+        <button type="button" disabled={pending} onClick={() => set(false)} className="btn-danger-solid">
           {pending ? "กำลังปิด…" : "ปิดใช้งาน"}
         </button>
       </div>

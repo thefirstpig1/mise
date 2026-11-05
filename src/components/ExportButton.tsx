@@ -42,7 +42,11 @@ export default function ExportButton({
   scope,
   branchName,
   today,
+  size = "md",
 }: {
+  /** "md" = 42px, a page header's row · "sm" = 34px, a toolbar inside a card
+   *  (2026-11-05: one height per row — it was 34px next to 42px buttons). */
+  size?: "md" | "sm";
   dataset: ExportDataset;
   /** The page's filters, as the API names them (branch, status, category, …). */
   params: Record<string, string | undefined>;
@@ -126,7 +130,7 @@ export default function ExportButton({
 
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className="btn-secondary btn-sm inline-flex items-center gap-1.5 whitespace-nowrap">
+      <button type="button" onClick={() => setOpen(true)} className={size === "sm" ? "btn-secondary btn-sm" : "btn-secondary"}>
         <span aria-hidden className="inline-grid h-[18px] w-[18px] place-items-center rounded-[4px] bg-[#1D6B3F] font-display text-[10px] font-bold text-white">
           XL
         </span>
@@ -149,7 +153,7 @@ export default function ExportButton({
                 <h3 id="export-title" className="text-base font-semibold">
                   ดาวน์โหลดข้อมูลดิบเป็น Excel
                 </h3>
-                <button type="button" onClick={() => setOpen(false)} aria-label="ปิด" className="-mr-1 -mt-1 grid h-8 w-8 place-items-center rounded-full text-muted-foreground hover:bg-muted">
+                <button type="button" onClick={() => setOpen(false)} aria-label="ปิด" className="icon-btn -mr-1 -mt-1">
                   ×
                 </button>
               </div>

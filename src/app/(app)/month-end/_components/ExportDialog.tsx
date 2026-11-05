@@ -123,7 +123,7 @@ export default function ExportDialog({
             </h2>
             <p className="text-sm text-muted-foreground">เลือกโปรแกรมบัญชีที่ร้านใช้ ระบบจะจัดไฟล์ให้ตรงกับรูปแบบของโปรแกรมนั้น</p>
           </div>
-          <button type="button" onClick={onClose} aria-label="ปิด" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-2xl leading-none text-muted-foreground hover:bg-muted hover:text-foreground">
+          <button type="button" onClick={onClose} aria-label="ปิด" className="icon-btn shrink-0 text-xl leading-none">
             ×
           </button>
         </div>

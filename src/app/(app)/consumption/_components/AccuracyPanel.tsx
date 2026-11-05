@@ -484,7 +484,7 @@ function DetailPopup({
                 {view.label} · {branchName}
               </span>
             </div>
-            <button type="button" onClick={onClose} aria-label="ปิด" className="-mr-1 -mt-1 grid h-8 w-8 place-items-center rounded-full text-muted-foreground hover:bg-muted">
+            <button type="button" onClick={onClose} aria-label="ปิด" className="icon-btn -mr-1 -mt-1">
               ×
             </button>
           </div>

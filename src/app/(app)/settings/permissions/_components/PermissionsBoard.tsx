@@ -625,7 +625,7 @@ function PersonSheet({
           <h3 id="person-title" className="text-lg font-semibold">{m.name}</h3>
           {m.name !== m.email && <p className="text-xs text-muted-subtle">{m.email}</p>}
         </div>
-        <button type="button" onClick={onClose} aria-label="ปิด" className="grid h-9 w-9 place-items-center rounded-full text-2xl leading-none text-muted-foreground hover:bg-muted">
+        <button type="button" onClick={onClose} aria-label="ปิด" className="icon-btn text-xl leading-none">
           ×
         </button>
       </div>

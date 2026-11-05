@@ -312,7 +312,7 @@ function ProductionDetail({
                 {row.recordedBy}
               </p>
             </div>
-            <button type="button" onClick={onClose} className="rounded-lg px-2 text-xl text-muted-foreground hover:bg-muted" aria-label="ปิด">
+            <button type="button" onClick={onClose} className="icon-btn text-xl leading-none" aria-label="ปิด">
               ×
             </button>
           </div>

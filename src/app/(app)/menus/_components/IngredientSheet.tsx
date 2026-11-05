@@ -296,7 +296,7 @@ export default function IngredientSheet({
           {extra?.title ?? <h3 id="ing-title" className="mt-1 text-lg font-semibold">{data?.product.name ?? "กำลังโหลด…"}</h3>}
           <p className="text-xs text-muted-foreground">นับสต็อกเป็น {unitTh(baseUnit) || "—"} · {branch.name}</p>
         </div>
-        <button type="button" onClick={close} aria-label="ปิด" className="absolute right-3 top-3 rounded-lg px-2 text-2xl leading-none text-muted-foreground hover:bg-muted">
+        <button type="button" onClick={close} aria-label="ปิด" className="icon-btn absolute right-3 top-3 text-xl leading-none">
           ×
         </button>
       </div>

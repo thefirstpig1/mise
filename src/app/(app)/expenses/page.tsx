@@ -264,6 +264,7 @@ export default async function ExpenseListPage({
           <>
             <ActionLink href={analysisHref}>ดูแยกหมวดและผู้ขาย</ActionLink>
             <ExportButton
+              size="sm"
               dataset="expenses"
               params={{ branch: query.branchId, supplier: query.supplierId, source: query.source, status: query.paymentStatus }}
               period={fromIso && toIso ? { from: fromIso, to: toIso } : undefined}
