@@ -69,16 +69,16 @@ export default async function ClosingDayPage({ searchParams }: { searchParams: P
               <FilterLink
                 key={b.id}
                 href={link(date, b.id)}
-                className={`whitespace-nowrap rounded-full border px-3 py-1 text-sm ${b.id === branch.id ? "border-primary bg-primary text-primary-foreground" : "border-border-strong bg-surface hover:bg-muted"}`}
+                className={`pill ${b.id === branch.id ? "is-on" : ""}`}
               >
                 {b.name}
               </FilterLink>
             ))}
-          <FilterLink href={link(prev)} className="rounded-full border border-border-strong px-3 py-1 text-sm hover:bg-muted" aria-label="วันก่อนหน้า">
+          <FilterLink href={link(prev)} className="icon-btn" aria-label="วันก่อนหน้า">
             ‹
           </FilterLink>
           {date.getTime() < today.getTime() && (
-            <FilterLink href={link(next)} className="rounded-full border border-border-strong px-3 py-1 text-sm hover:bg-muted" aria-label="วันถัดไป">
+            <FilterLink href={link(next)} className="icon-btn" aria-label="วันถัดไป">
               ›
             </FilterLink>
           )}

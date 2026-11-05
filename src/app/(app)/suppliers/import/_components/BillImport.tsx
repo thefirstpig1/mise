@@ -547,9 +547,9 @@ function LineVerdictView({ l, v, base, onEdit }: { l: LineDraft; v: LineVerdict;
 
 function LineVerdictBody({ l, v, onEdit }: { l: LineDraft; v: LineVerdict; onEdit: (p: Partial<LineDraft>) => void }) {
   const choice = (on: boolean) =>
-    `rounded-lg border px-2.5 py-0.5 text-[12.5px] transition-colors ${on ? "border-primary bg-primary text-primary-foreground" : "border-border-strong bg-surface hover:bg-muted"}`;
+    `pill ${on ? "is-on" : ""}`;
   const skipBtn = (
-    <button type="button" onClick={() => onEdit({ choice: { kind: "SKIP" } })} className="text-[12.5px] text-muted-foreground underline decoration-dotted underline-offset-4 hover:text-foreground">
+    <button type="button" onClick={() => onEdit({ choice: { kind: "SKIP" } })} className="link text-[12.5px]">
       ข้ามบรรทัดนี้
     </button>
   );

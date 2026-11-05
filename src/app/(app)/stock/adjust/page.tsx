@@ -69,7 +69,7 @@ export default async function StockAdjustPage({ searchParams }: { searchParams: 
   return (
     <div className="max-w-3xl space-y-6">
       <div>
-        <h2 className="text-2xl font-semibold">ปรับสต็อก</h2>
+        <h1 className="page-title">ปรับสต็อก</h1>
         {/* Part 17 Q4 retired ของเสีย/ของชำรุด from this form; this line still
             advertised them, which is worse than a stale comment — it promises
             the user an option that is not in the dropdown below it. */}
@@ -82,7 +82,7 @@ export default async function StockAdjustPage({ searchParams }: { searchParams: 
       {productOptions.length === 0 ? (
         <EmptyState art="setup">
           ยังไม่มีวัตถุดิบในระบบ —{" "}
-          <a href="/products/new" className="text-primary hover:underline">
+          <a href="/products/new" className="link">
             เพิ่มวัตถุดิบก่อน
           </a>
         </EmptyState>

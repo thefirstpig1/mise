@@ -175,7 +175,7 @@ export default async function SettingsPage() {
     // A preferences page reads best narrow: label and switch stay close (kit).
     <div className="max-w-3xl space-y-5 pb-24 lg:pb-0">
       <header>
-        <h1 className="text-2xl font-semibold leading-tight">ตั้งค่าทั่วไป</h1>
+        <h1 className="page-title">ตั้งค่าทั่วไป</h1>
         <p className="mt-1 text-sm text-muted-foreground">ใช้กับทุกสาขาของร้าน · แต่ละหมวดบันทึกแยกกัน · แก้แล้วยังไม่บันทึก ระบบจะถามก่อนออกจากหน้า</p>
       </header>
       {!shopSettingsReviewed(tenant) && <ConfirmShopSettings />}
@@ -344,7 +344,7 @@ export default async function SettingsPage() {
             <>
               เปิดแล้ว ใบขอซื้อและใบรับสินค้าเลือกแผนกได้ ·{" "}
               {active.length > 0 ? `ตอนนี้มี ${active.length} แผนก: ${active.map((d) => d.name).join(" · ")}` : "ยังไม่มีแผนก"} ·{" "}
-              <Link href="/settings/departments" className="font-semibold text-primary hover:underline">
+              <Link href="/settings/departments" className="link">
                 จัดการแผนก ›
               </Link>
             </>

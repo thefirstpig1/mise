@@ -168,7 +168,7 @@ export default function ProductPicker({
           <button
             type="button"
             onClick={clear}
-            className="shrink-0 rounded-full border border-primary-line px-3 py-1 text-xs font-medium text-primary hover:bg-primary hover:text-primary-foreground"
+            className="btn-secondary btn-sm shrink-0"
           >
             เปลี่ยน
           </button>

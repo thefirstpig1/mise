@@ -282,7 +282,7 @@ function EditDialog({
         <input type="hidden" name="membership_id" value={row.membershipId} />
         <input type="hidden" name="is_active" value={row.isActive ? "false" : "true"} />
         {!row.isActive ? (
-          <button type="submit" disabled={activePending} className="py-2 text-sm font-semibold text-primary hover:underline">
+          <button type="submit" disabled={activePending} className="link py-2 text-sm">
             {activePending ? "กำลังเพิ่มกลับ…" : "เพิ่มกลับเข้าร้าน"}
           </button>
         ) : !asking ? (

@@ -75,7 +75,7 @@ export default async function StockCountListPage({
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-semibold">ใบนับสต็อก</h2>
+          <h1 className="page-title">ใบนับสต็อก</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             นับของจริงบนชั้น แล้วให้ระบบปรับส่วนต่างเข้าสต็อก
           </p>
@@ -99,7 +99,7 @@ export default async function StockCountListPage({
       {openSheet && (
         <div className="rounded-lg border border-warn-border bg-warn-bg p-3 text-sm text-warn">
           มีใบนับที่ยังไม่ปิดอยู่ —{" "}
-          <a href={`/stock-counts/${openSheet.id}`} className="font-medium underline">
+          <a href={`/stock-counts/${openSheet.id}`} className="link">
             {openSheet.scNumber} ({openSheet.branchName})
           </a>{" "}
           นับต่อในใบเดิมได้เลย

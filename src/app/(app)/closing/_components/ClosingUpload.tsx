@@ -41,7 +41,7 @@ export default function ClosingUpload({
     return (
       <p className="text-sm text-muted-foreground">
         สาขานี้ยังไม่ได้ตั้งรูปแบบไฟล์ POS —{" "}
-        <a href="/sales/import/profiles/new" className="text-primary underline">
+        <a href="/sales/import/profiles/new" className="link">
           ตั้งค่ารูปแบบไฟล์
         </a>{" "}
         (ครั้งเดียว)

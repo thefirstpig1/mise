@@ -302,7 +302,7 @@ function SkipToggle({ day, open, onToggle }: { day: ConsumptionDayView; open: bo
       type="button"
       onClick={onToggle}
       aria-expanded={open}
-      className="text-xs text-primary underline decoration-dotted underline-offset-4 hover:decoration-solid"
+      className="link text-xs"
     >
       {open ? "ซ่อน" : `${day.skipped.length} เมนูตัดไม่ได้`}
     </button>

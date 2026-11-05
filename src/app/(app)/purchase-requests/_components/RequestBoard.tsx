@@ -353,7 +353,7 @@ export default function RequestBoard({
           {!group && !term && board.belowPar.length === 0 && board.parCount === 0 && (
             <p className="rounded-xl bg-surface-sunk px-3 py-2 text-xs text-muted-foreground">
               ตั้งขั้นต่ำของวัตถุดิบแล้ว ตรงนี้จะแนะนำของที่ใกล้หมดให้ขอ{" "}
-              <a href="/products" className="font-medium text-primary underline underline-offset-[3px]">
+              <a href="/products" className="link">
                 ตั้งที่หน้าสินค้า ›
               </a>
             </p>
@@ -654,10 +654,10 @@ function Cart({
   return (
     <div className="mx-auto max-w-3xl space-y-4">
       <div>
-        <h2 className="text-2xl font-semibold">ใบขอซื้อ{deptName}</h2>
+        <h1 className="page-title">ใบขอซื้อ{deptName}</h1>
         <p className="text-sm text-muted-foreground">รอบนี้ยังไม่ตัด · จัดซื้อเป็นคนเลือกผู้ขายและสั่ง</p>
       </div>
-      <div role="tablist" aria-label="ใบขอซื้อ" className="flex rounded-xl bg-muted p-1">
+      <div role="tablist" aria-label="ใบขอซื้อ" className="seg flex w-full flex-nowrap">
         {(
           [
             ["now", `รอบนี้ · ${myLines.length}`],
@@ -670,7 +670,7 @@ function Cart({
             role="tab"
             aria-selected={tab === k}
             onClick={() => setTab(k)}
-            className={`h-9 flex-1 rounded-lg text-sm ${tab === k ? "bg-surface font-semibold shadow-sm" : "text-muted-foreground"}`}
+            className={`seg-item flex-1 justify-center ${tab === k ? "is-on" : ""}`}
           >
             {label}
           </button>
@@ -682,7 +682,7 @@ function Cart({
           {myLines.length === 0 ? (
             <div className="rounded-[18px] border border-border/70 bg-surface shadow-card px-4 py-10 text-center text-sm text-muted-foreground">
               ยังไม่มีของในรอบนี้ ·{" "}
-              <button type="button" onClick={onBack} className="font-semibold text-primary underline">
+              <button type="button" onClick={onBack} className="link">
                 กลับไปเลือกของ
               </button>
             </div>
@@ -759,11 +759,11 @@ function Cart({
                       </span>
                       <span className="flex gap-3">
                         {l.canEdit && (
-                          <button type="button" onClick={() => onEdit(l)} className="text-primary underline">
+                          <button type="button" onClick={() => onEdit(l)} className="link">
                             หมายเหตุ / ผู้ขาย
                           </button>
                         )}
-                        <button type="button" onClick={() => onChat(l)} className="text-primary underline">
+                        <button type="button" onClick={() => onChat(l)} className="link">
                           คุยกับจัดซื้อ{l.messageCount ? ` (${l.messageCount})` : ""}
                         </button>
                       </span>
@@ -792,7 +792,7 @@ function Cart({
                               if (!r.ok) onError(r.formError);
                               onChanged();
                             }}
-                            className="ml-2 text-primary underline"
+                            className="link ml-2"
                           >
                             เปลี่ยนเป็น {l.cheaper.supplierName}
                           </button>
@@ -805,7 +805,7 @@ function Cart({
             </ul>
           )}
 
-          <button type="button" onClick={onBack} className="mx-auto block text-sm font-semibold text-primary underline">
+          <button type="button" onClick={onBack} className="link mx-auto block text-sm">
             + ขอของเพิ่ม
           </button>
 
@@ -846,7 +846,7 @@ function Cart({
               <div className="space-y-1 rounded-xl border border-good-border bg-good-bg px-3 py-2.5 text-good">
                 <p className="font-semibold">✓ {deptName}พร้อมแล้ว · {readiness.ready.by}</p>
                 <p className="text-xs">แก้ได้จนกว่าจัดซื้อตัดรอบ — ถ้าเพิ่มหรือแก้ แผนกจะกลับเป็นยังไม่พร้อม</p>
-                <button type="button" disabled={pending} onClick={() => toggleReady(false)} className="text-xs text-primary underline">
+                <button type="button" disabled={pending} onClick={() => toggleReady(false)} className="link text-xs">
                   ยกเลิกพร้อม
                 </button>
               </div>
@@ -921,17 +921,17 @@ function PastRow({
           .join(" · ")}
       </p>
       <div className="flex flex-wrap gap-3 text-xs">
-        <button type="button" onClick={onChat} className="text-primary underline">
+        <button type="button" onClick={onChat} className="link">
           {l.status.kind === "rejected" ? "ตอบกลับจัดซื้อ" : "คุยกับจัดซื้อ"}
           {l.messageCount ? ` (${l.messageCount})` : ""}
         </button>
         {l.status.kind === "rejected" && (
-          <button type="button" onClick={() => run(reopenRequestLineAction({ lineId: l.id, why: null }))} className="text-primary underline">
+          <button type="button" onClick={() => run(reopenRequestLineAction({ lineId: l.id, why: null }))} className="link">
             ขอใหม่
           </button>
         )}
         {l.status.kind === "closed_short" && (
-          <button type="button" onClick={() => run(requestShortfallAction({ lineId: l.id }))} className="text-primary underline">
+          <button type="button" onClick={() => run(requestShortfallAction({ lineId: l.id }))} className="link">
             ขอส่วนที่ขาด
           </button>
         )}

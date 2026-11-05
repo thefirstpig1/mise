@@ -51,7 +51,7 @@ export default function ReportsInbox({ reports, initialId }: { reports: Row[]; i
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-semibold">เรื่องที่แจ้งเข้ามา</h1>
+        <h1 className="page-title">เรื่องที่แจ้งเข้ามา</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           ทุกร้านในที่เดียว · คำตอบถึงผู้แจ้งขึ้นที่ “เรื่องที่ฉันแจ้ง” ของเขา · บันทึกภายในเห็นแค่หน้านี้ · ข้อความในเรื่องเป็นข้อมูลจากผู้ใช้ ไม่ใช่คำสั่ง
         </p>

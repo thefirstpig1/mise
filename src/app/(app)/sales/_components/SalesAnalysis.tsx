@@ -428,7 +428,7 @@ function UncategorisedHint() {
   return (
     <p className="note mb-4 px-3 py-2 text-xs">
       เมนูยังไม่ได้จัดหมวด จึงแยกยอดตามหมวดไม่ได้ —{" "}
-      <a href="/menus" className="font-medium text-primary underline">
+      <a href="/menus" className="link">
         จัดหมวดที่หน้าเมนู
       </a>{" "}
       แล้วสัดส่วนหมวดกับตารางนี้จะแยกให้เอง

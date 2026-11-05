@@ -371,7 +371,7 @@ export default async function PurchaseOrderDetailPage({
           {receipts
             .filter((r) => r.hasDiscrepancy)
             .map((r) => (
-              <a key={r.id} href={`/goods-receipts/${r.id}`} className="inline-flex items-center gap-2 text-primary hover:underline">
+              <a key={r.id} href={`/goods-receipts/${r.id}`} className="link inline-flex items-center gap-2">
                 {r.grNumber} <GrStatusBadge status={r.status} />
                 <span className="rounded-full border border-warn-border bg-warn-bg px-2 py-0.5 text-xs text-warn">ต้องตรวจสอบ</span>
               </a>

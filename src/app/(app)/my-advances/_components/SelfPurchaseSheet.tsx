@@ -146,7 +146,7 @@ export default function SelfPurchaseSheet({
                 <div className="flex flex-wrap gap-2">
                   <span className="chip chip-good">รูปบิล ✓</span>
                   <PhotoButton kind="BILL" label="＋ อีกรูป (บิลยาว)" onUploaded={onBill} onError={setError} />
-                  <button type="button" className="text-xs text-muted-foreground underline" onClick={() => (setBills([]), setDups([]))}>
+                  <button type="button" className="link text-xs" onClick={() => (setBills([]), setDups([]))}>
                     ถ่ายใหม่
                   </button>
                 </div>
@@ -223,7 +223,7 @@ export default function SelfPurchaseSheet({
                   <div key={l.key} className="space-y-2 rounded-xl border border-border bg-surface p-3">
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-xs text-muted-subtle">เข้าสต็อก</span>
-                      <button type="button" className="text-xs text-muted-foreground hover:text-bad" onClick={() => setStock((s) => s.filter((x) => x.key !== l.key))}>
+                      <button type="button" className="btn-ghost btn-sm text-muted-foreground hover:text-bad" onClick={() => setStock((s) => s.filter((x) => x.key !== l.key))}>
                         ลบ
                       </button>
                     </div>
@@ -258,7 +258,7 @@ export default function SelfPurchaseSheet({
                 <div key={l.key} className="space-y-2 rounded-xl border border-border bg-surface p-3">
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-xs text-muted-subtle">ไม่เข้าสต็อก</span>
-                    <button type="button" className="text-xs text-muted-foreground hover:text-bad" onClick={() => setOthers((s) => s.filter((x) => x.key !== l.key))}>
+                    <button type="button" className="btn-ghost btn-sm text-muted-foreground hover:text-bad" onClick={() => setOthers((s) => s.filter((x) => x.key !== l.key))}>
                       ลบ
                     </button>
                   </div>

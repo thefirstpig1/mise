@@ -43,13 +43,13 @@ export default async function NewTransferPage({
   if (branches.length < 2) {
     return (
       <div className="max-w-4xl space-y-4">
-        <a href="/transfers" className="text-sm text-muted-foreground hover:underline">
+        <a href="/transfers" className="link text-sm">
           ← กลับรายการใบโอน
         </a>
         <div className="rounded-lg border border-border bg-muted/30 p-6 text-sm">
           การโอนต้องมีอย่างน้อย 2 สาขา — ตอนนี้ระบบมี {branches.length} สาขา
           <br />
-          <a href="/settings" className="mt-2 inline-block underline">
+          <a href="/settings" className="link mt-2 inline-block">
             เพิ่มสาขาในหน้าตั้งค่า
           </a>
         </div>
@@ -89,10 +89,10 @@ export default async function NewTransferPage({
 
   return (
     <div className="max-w-4xl space-y-6">
-      <a href="/transfers" className="text-sm text-muted-foreground hover:underline">
+      <a href="/transfers" className="link text-sm">
         ← กลับรายการใบโอน
       </a>
-      <h2 className="text-2xl font-semibold">สร้างใบโอน</h2>
+      <h1 className="page-title">สร้างใบโอน</h1>
 
       <TransferDispatchForm
         action={dispatchTransferAction}

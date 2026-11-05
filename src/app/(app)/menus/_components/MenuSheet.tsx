@@ -653,7 +653,7 @@ export default function MenuSheet(props: {
                     <p className="font-display text-xl font-semibold tabular-nums">{atLeastTh(understated, baht(priceForTarget))}</p>
                     <p className="text-xs text-muted-foreground">
                       ต้นทุน {baht(perPlate!, 2)} ÷ {targetLabel} ·{" "}
-                      <a href={`/menus/lab?menu=${menu.id}&target=${target}`} className="font-medium text-primary underline underline-offset-2">
+                      <a href={`/menus/lab?menu=${menu.id}&target=${target}`} className="link">
                         ลองราคาในทดลองเมนู
                       </a>
                     </p>
@@ -765,7 +765,7 @@ export default function MenuSheet(props: {
               {!costHidden && book && unpriced.length > 0 && (
                 <p className="text-warn">
                   ยังไม่รู้ต้นทุนของ {unpriced.join(", ")} ที่{branch.name} — ตัวเลขนี้ต่ำกว่าความจริง ·{" "}
-                  <a href="/cost" className="underline">
+                  <a href="/cost" className="link">
                     ระบุต้นทุน
                   </a>
                 </p>
@@ -805,7 +805,7 @@ export default function MenuSheet(props: {
             </ul>
             <p className="mt-1 text-xs text-muted-foreground">
               ชื่อเหล่านี้ยังรับยอดขายใหม่ทุกวัน — แก้หรือยกเลิกการรวมได้ที่{" "}
-              <a href="/menus/merges" className="underline">
+              <a href="/menus/merges" className="link">
                 หน้ารวมเมนู
               </a>
             </p>

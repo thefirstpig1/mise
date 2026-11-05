@@ -26,7 +26,7 @@ export default async function PlatformAuditPage() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-semibold">บันทึกการแก้ไข</h1>
+        <h1 className="page-title">บันทึกการแก้ไข</h1>
         <p className="mt-1 text-sm text-muted-foreground">ทุกการแก้จากหน้าควบคุมระบบ — ใคร แก้ร้านไหน จากอะไรเป็นอะไร · ลบหรือแก้บันทึกไม่ได้</p>
       </div>
       <div className="overflow-x-auto rounded-[18px] border border-border/70 bg-surface shadow-card">

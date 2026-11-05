@@ -147,7 +147,7 @@ export default async function SalesImportPage({ searchParams }: { searchParams: 
       {options.length > 0 && (
         <p className="text-xs text-muted-foreground">
           ไฟล์จาก POS เปลี่ยนรูปแบบ หรือสาขานี้ใช้ POS อีกยี่ห้อ?{" "}
-          <a href={setupHref(selected)} className="text-primary underline">
+          <a href={setupHref(selected)} className="link">
             ตั้งรูปแบบไฟล์ใหม่
           </a>
         </p>

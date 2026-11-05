@@ -446,7 +446,7 @@ export default function ProductSheet({
               ใช้งานอยู่ <span className="text-xs text-muted-foreground">(ปิดแล้วไม่ขึ้นในตัวเลือกตอนสั่งซื้อ/รับของ ข้อมูลเก่ายังอยู่)</span>
             </label>
             {canEditInfo && (
-              <a href={`/products/${product.id}`} className="justify-self-start text-xs text-primary underline">
+              <a href={`/products/${product.id}`} className="link justify-self-start text-xs">
                 แก้แบบละเอียด: ประเภท หน่วยวัดหลัก ความหนาแน่น
               </a>
             )}
@@ -528,7 +528,7 @@ function RecentMoves({ productId, branch, unit }: { productId: string; branch: {
     <section className="space-y-2 rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h4 className="font-semibold">เคลื่อนไหวล่าสุด · {branch.name}</h4>
-        <a href={`/stock/history?product=${productId}&branch=${branch.id}`} className="text-xs text-primary hover:underline">
+        <a href={`/stock/history?product=${productId}&branch=${branch.id}`} className="link text-xs">
           ดูประวัติทั้งหมด
         </a>
       </div>

@@ -233,7 +233,7 @@ export default function LabManager(props: {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-semibold">ทดลองเมนู</h2>
+          <h1 className="page-title">ทดลองเมนู</h1>
           <p className="mt-1 text-sm text-muted-foreground">ลองคิดสูตรและราคาก่อนขายจริง ร่างยังไม่ตัดสต็อกและยังไม่ถูกใช้คิดต้นทุนขาย จนกว่าจะกด “นำไปใช้จริง”</p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -674,7 +674,7 @@ function PublishSummary({ state, fromDay }: { state: Extract<PublishDraftsState,
       {state.postedDays > 0 && (
         <p className="text-muted-foreground">
           มี {state.postedDays} วันตั้งแต่ {thDate(fromDay)} ที่ตัดสต็อกไปแล้วโดยยังไม่มีสูตรเหล่านี้ —{" "}
-          <a href="/consumption" className="underline decoration-dotted underline-offset-4 hover:text-foreground">
+          <a href="/consumption" className="link">
             ตัดสต็อกใหม่ได้ที่หน้าตัดสต็อกตามยอดขาย
           </a>
         </p>

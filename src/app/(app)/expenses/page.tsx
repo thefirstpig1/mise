@@ -285,7 +285,7 @@ export default async function ExpenseListPage({
         filtered ? (
           <EmptyState art="none">
             ไม่มีบิลตามเงื่อนไขนี้{" "}
-            <a href="/expenses" className="font-medium text-primary underline">
+            <a href="/expenses" className="link">
               ดูทุกบิล
             </a>
           </EmptyState>
@@ -395,13 +395,13 @@ function DueRow({ d }: { d: DueRecurringView }) {
             key={p}
             href={`/expenses/new?recurring=${d.template.id}&period=${p}`}
             aria-label={`บันทึก${d.template.description} งวด ${monthLabelTh(p)}`}
-            className="inline-flex h-7 items-center whitespace-nowrap rounded-full border border-warn-border bg-surface px-3 text-xs font-medium text-warn transition-colors hover:bg-warn hover:text-warn-foreground"
+            className="btn-secondary btn-sm border-warn-border text-warn hover:border-warn hover:bg-warn-bg"
           >
             {monthLabelTh(p)}
           </a>
         ))}
         {rest > 0 && (
-          <a href="/expenses/recurring" className="text-xs text-muted-foreground underline-offset-2 hover:underline">
+          <a href="/expenses/recurring" className="link text-xs">
             อีก {rest} งวด
           </a>
         )}

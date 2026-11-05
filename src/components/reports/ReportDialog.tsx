@@ -347,7 +347,7 @@ export default function ReportDialog({
             <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
               <span className="min-w-0 flex-[1_1_180px] text-[12.5px] text-muted-foreground">
                 ติดตามสถานะได้ที่{" "}
-                <Link href="/reports" onClick={onClose} className="font-medium text-primary underline decoration-dotted underline-offset-2 hover:decoration-solid">
+                <Link href="/reports" onClick={onClose} className="link">
                   เรื่องที่ฉันแจ้ง
                 </Link>
               </span>

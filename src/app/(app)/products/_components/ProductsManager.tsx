@@ -42,8 +42,8 @@ const VIEW_KEY = "kitkrua.products.view2";
 const NO_CATEGORY = "ไม่มีหมวด";
 const sectionOf = (p: ProductView) => p.category?.accountingSection ?? NO_CATEGORY;
 
-const chip = (on: boolean, small = false) =>
-  `pill relative ${small ? "h-7 px-2.5 text-xs" : ""} ${on ? "is-on" : ""}`;
+const chip = (on: boolean, _small = false) =>
+  `pill relative ${on ? "is-on" : ""}`; // one height for every chip (2026-11-05) — the old small size is ignored
 
 /** LINE-style count floating over a chip's top-right corner. */
 function Dot({ n, tone }: { n: number; tone: "red" | "yellow" }) {
@@ -445,7 +445,7 @@ export default function ProductsManager(props: {
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-semibold">สินค้า/วัตถุดิบ</h2>
+          <h1 className="page-title">สินค้า/วัตถุดิบ</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
             {active.length} รายการที่ใช้งาน · ของแปรรูป {active.filter((p) => p.type === "PREPPED").length}
             {list ? (parsSet === 0 ? " · ยังไม่ได้ตั้งขั้นต่ำ" : ` · ต่ำกว่าขั้นต่ำ ${lowCount} · ใกล้ขั้นต่ำ ${nearCount}`) : ""}

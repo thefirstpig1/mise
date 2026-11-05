@@ -109,7 +109,7 @@ export default async function SubstitutePage({
   return (
     <div className="space-y-6">
       <div>
-        <a href="/menus" className="text-sm text-muted-foreground hover:underline">
+        <a href="/menus" className="link text-sm">
           ‹ จัดการเมนู
         </a>
         <h2 className="mt-1 text-2xl font-semibold">เปลี่ยนวัตถุดิบในหลายสูตร</h2>

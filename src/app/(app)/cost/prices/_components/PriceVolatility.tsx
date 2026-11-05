@@ -208,7 +208,7 @@ function View({ d, canEditTargets }: { d: Data; canEditTargets: boolean }) {
     <div className="space-y-5">
       {/* Queue item 9: the page's own heading, at every page's size. */}
       <div>
-        <h1 className="text-[1.75rem] font-semibold leading-tight tracking-[-0.005em]">การผันผวนราคาวัตถุดิบ</h1>
+        <h1 className="page-title">การผันผวนราคาวัตถุดิบ</h1>
         <p className="mt-1 text-sm text-muted-foreground">ราคาเปลี่ยนไปเท่าไร และราคานี้เมนูที่ใช้ยังรับไหวไหม · ราคาต่อหน่วยไม่รวม VAT จากใบรับสินค้าที่ยืนยันแล้ว</p>
       </div>
 
@@ -241,7 +241,7 @@ function View({ d, canEditTargets }: { d: Data; canEditTargets: boolean }) {
       <p className="text-xs text-muted-foreground">
         รับของล่าสุด <b>{d.lastReceipt ? dayTh(d.lastReceipt) : "—"}</b>
         {d.lastReceipt && ` (${Math.round((Date.parse(d.today) - Date.parse(d.lastReceipt)) / 86_400_000)} วันก่อน)`} · ช่วงที่ยังไม่มีใบรับสินค้าไม่แสดง — ไม่ได้แปลว่าราคาไม่เปลี่ยน แปลว่ายังไม่รู้ ·{" "}
-        <a href="/goods-receipts/new" className="text-primary hover:underline">
+        <a href="/goods-receipts/new" className="link">
           บันทึกรับของ ›
         </a>
       </p>
@@ -259,7 +259,7 @@ function View({ d, canEditTargets }: { d: Data; canEditTargets: boolean }) {
           <span>
             {drill ? (
               <>
-                <button type="button" className="text-primary underline" onClick={() => setDrill(null)}>
+                <button type="button" className="link" onClick={() => setDrill(null)}>
                   {viewName[drill.from]}
                 </button>{" "}
                 › <b className="text-foreground">{drill.name}</b>
@@ -775,7 +775,7 @@ function MenuImpact({ menus, ratio, byId, label }: { menus: MenuCostRow[]; ratio
               </td>
               <td className="py-1.5 text-right">
                 {r.pt >= FLAG && (
-                  <a href={`/menus/lab`} className="whitespace-nowrap text-xs text-primary hover:underline">
+                  <a href={`/menus/lab`} className="link whitespace-nowrap text-xs">
                     ลองราคา ›
                   </a>
                 )}
@@ -899,7 +899,7 @@ function Suppliers({ products }: { products: PvProduct[] }) {
         ) : (
           <>
             ทุกรายการซื้อจากเจ้าเดียว จึงยังไม่มีราคาเทียบ · ของที่ซื้อเยอะ ({big.map((p) => p.name).join(" · ")}) คุ้มที่จะขอราคาจากเจ้าที่สอง ·{" "}
-            <a href="/supplier-product-mappings" className="text-primary hover:underline">
+            <a href="/supplier-product-mappings" className="link">
               เพิ่มผู้ขายให้สินค้า ›
             </a>
           </>
@@ -948,7 +948,7 @@ function ProductPopup({ p, mode, allow, nowPrice, dept, menus, months, onClose }
       />
       <p className="mt-2 text-xs text-muted-foreground">
         ราคาแกว่งทุกใบเป็นปกติของของสด ดูเส้นเฉลี่ย ไม่ใช่ใบล่าสุด ·{" "}
-        <a href={`/products?product=${p.id}`} className="text-primary hover:underline">
+        <a href={`/products?product=${p.id}`} className="link">
           ดูสินค้า ›
         </a>
       </p>

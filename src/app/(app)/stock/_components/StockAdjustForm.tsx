@@ -532,11 +532,11 @@ export default function StockAdjustForm({
         {err("reason") && <p className={errorClass}>{err("reason")}</p>}
         <p className="mt-1 text-xs text-muted-foreground">
           ทิ้งของเสียให้บันทึกที่หน้า{" "}
-          <a href="/waste" className="text-primary hover:underline">
+          <a href="/waste" className="link">
             ของเสีย
           </a>{" "}
           — จะได้แยกออกจากของที่หายโดยไม่รู้สาเหตุในรายงานต้นทุน · นับทั้งร้านใหม่? ใช้หน้า{" "}
-          <a href="/stock-counts/new" className="text-primary hover:underline">
+          <a href="/stock-counts/new" className="link">
             นับสต็อก
           </a>{" "}
           — ได้เอกสารและรายการขาด/เกินครบ

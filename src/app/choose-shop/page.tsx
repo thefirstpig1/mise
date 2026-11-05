@@ -44,7 +44,7 @@ export default async function ChooseShopPage() {
           <span className="font-display text-[22px] font-semibold text-primary">คิดครัว</span>
         </div>
         <div>
-          <h1 className="text-2xl font-bold">เลือกร้าน</h1>
+          <h1 className="page-title">เลือกร้าน</h1>
           <p className="mt-1.5 text-sm text-muted-foreground">
             บัญชีของคุณอยู่ใน {memberships.length} ร้าน เลือกร้านที่จะทำงานตอนนี้ · สลับทีหลังได้จากชื่อร้านบนสุดของเมนูข้าง
           </p>
@@ -89,7 +89,7 @@ export default async function ChooseShopPage() {
         ) : null}
 
         <form action={signOutHere} className="text-center">
-          <button type="submit" className="h-11 text-sm font-semibold text-primary underline">
+          <button type="submit" className="link h-11 text-sm">
             ออกจากระบบ
           </button>
         </form>

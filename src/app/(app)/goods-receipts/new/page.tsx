@@ -67,7 +67,7 @@ export default async function NewGoodsReceiptPage({
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-semibold">รับสินค้า</h2>
+        <h1 className="page-title">รับสินค้า</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           เลือกใบสั่งซื้อเพื่อดึงรายการที่ค้างรับ หรือรับแบบซื้อสดโดยไม่มีใบสั่งซื้อก็ได้
         </p>
@@ -76,7 +76,7 @@ export default async function NewGoodsReceiptPage({
       {blocked ? (
         <EmptyState art="setup">
           ยังไม่มี{blocked.what}ในระบบ —{" "}
-          <a href={blocked.href} className="text-primary hover:underline">
+          <a href={blocked.href} className="link">
             {blocked.cta}ก่อน
           </a>
         </EmptyState>

@@ -67,7 +67,7 @@ export default async function ExpenseDetailPage({
       <div>
         <Crumbs trail={[{ href: "/expenses", label: "ค่าใช้จ่าย" }]} here={title} />
         <div className="mt-1 flex flex-wrap items-center gap-3">
-          <h2 className="text-2xl font-semibold">{title}</h2>
+          <h1 className="page-title">{title}</h1>
           <PaymentBadge status={expense.paymentStatus} />
           <span className="text-xs text-muted-foreground">
             {EXPENSE_SOURCE_LABELS_TH[expense.source]}
@@ -87,7 +87,7 @@ export default async function ExpenseDetailPage({
           บิลนี้สร้างอัตโนมัติจากใบรับสินค้า{" "}
           <a
             href={`/goods-receipts/${expense.sourceGrId}`}
-            className="font-medium underline"
+            className="link"
           >
             {expense.sourceGrNumber}
           </a>
@@ -98,7 +98,7 @@ export default async function ExpenseDetailPage({
           บันทึกจากรายการประจำ{" "}
           <a
             href={`/expenses/recurring/${expense.recurringExpenseId}/edit`}
-            className="font-medium underline"
+            className="link"
           >
             {expense.recurringDescription}
           </a>{" "}

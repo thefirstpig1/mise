@@ -408,7 +408,7 @@ export default function GoodsReceiptForm({
       {state.ok && (
         <div className="rounded-lg border border-good-border bg-good-bg p-3 text-sm text-good">
           บันทึกฉบับร่าง {state.grNumber} แล้ว —{" "}
-          <a href={`/goods-receipts/${state.id}`} className="font-medium underline">
+          <a href={`/goods-receipts/${state.id}`} className="link">
             เปิดเพื่อยืนยันรับของ
           </a>
         </div>

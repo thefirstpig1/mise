@@ -205,7 +205,7 @@ function DrillPopup({
           <span key={i} className="flex items-center gap-2">
             {i > 0 && <span className="text-muted-foreground">›</span>}
             {i < stack.length - 1 ? (
-              <button type="button" className="text-primary underline" onClick={() => setStack(stack.slice(0, i + 1))}>
+              <button type="button" className="link" onClick={() => setStack(stack.slice(0, i + 1))}>
                 {s.title}
               </button>
             ) : (
@@ -261,7 +261,7 @@ function DrillPopup({
                   {d.products.slice(0, 15).map((p) => (
                     <tr key={p.productId}>
                       <td className="py-1.5">
-                        <a href={`/products?product=${p.productId}`} className="hover:text-primary hover:underline">
+                        <a href={`/products?product=${p.productId}`} className="link">
                           {p.name}
                         </a>
                       </td>

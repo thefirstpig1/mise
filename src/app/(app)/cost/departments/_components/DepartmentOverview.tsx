@@ -119,7 +119,7 @@ export default function DepartmentOverview(props: {
       {!props.departmentsOn && (
         <p className="rounded-xl border border-border bg-muted/40 p-3 text-sm">
           ร้านนี้ยังไม่ได้เปิดใช้แผนก — ทุกอย่างอยู่ใน “ไม่ระบุแผนก” ·{" "}
-          <a href="/settings" className="text-primary underline">
+          <a href="/settings" className="link">
             เปิดที่หน้าตั้งค่าทั่วไป
           </a>
         </p>
@@ -242,7 +242,7 @@ export default function DepartmentOverview(props: {
               <section className="space-y-2 rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
                 <Q n="5" title={`วัตถุดิบไหนกินเงิน${nameOf(focus)}มากที่สุด`} sub={`${selLabel} · ต้นทุนในจาน × จานที่ขาย`} />
                 <Bars rows={data.ingredients[focus] ?? []} tone={toneOf(focus)} />
-                <a href="/cost/prices" className="text-xs text-primary hover:underline">
+                <a href="/cost/prices" className="link text-xs">
                   ดูว่าราคาวัตถุดิบเหล่านี้ขึ้นลงยังไง ›
                 </a>
               </section>
@@ -257,7 +257,7 @@ export default function DepartmentOverview(props: {
             ) : !data.anyOrderedByDept ? (
               <p className="note p-3">
                 ใบรับสินค้าในช่วงนี้ลงแผนกตั้งต้นทั้งหมด จึงยังเทียบของที่แผนกสั่งกับที่แผนกใช้ไม่ได้ · ตอนนี้เลือกแผนกที่บรรทัดของใบรับสินค้าได้แล้ว (ระบบเลือกไว้ให้ตามเมนูที่ใช้วัตถุดิบนั้น) — ใบใหม่จะขึ้นที่นี่เอง ·{" "}
-                <a href="/goods-receipts/new" className="underline">
+                <a href="/goods-receipts/new" className="link">
                   รับสินค้า
                 </a>
               </p>
@@ -304,7 +304,7 @@ export default function DepartmentOverview(props: {
             ) : Object.keys(data.labor).length === 0 ? (
               <p className="note p-3">
                 {data.laborUnassigned > 0 ? `ค่าแรง ${baht(data.laborUnassigned)} ในช่วงนี้เป็นส่วนกลางทั้งหมด` : "ยังไม่มีค่าแรงในช่วงนี้"} — ถ้าบันทึกเงินเดือนแยกแผนก (เลือกแผนกที่บรรทัดค่าใช้จ่าย) ตรงนี้จะขึ้นกำไรขั้นต้น − ค่าแรงของแต่ละแผนก ·{" "}
-                <a href="/expenses" className="text-primary underline">
+                <a href="/expenses" className="link">
                   บันทึกค่าใช้จ่าย
                 </a>
               </p>
@@ -339,7 +339,7 @@ export default function DepartmentOverview(props: {
             {data.skippedMenus > 0 && (
               <p>
                 {data.skippedMenus} เมนูตัดสต็อกไม่ได้ (ยังไม่มีสูตร) ต้นทุนของเมนูเหล่านี้จึงไม่อยู่ในแผนกไหนเลย ·{" "}
-                <a href="/menus" className="text-primary underline">
+                <a href="/menus" className="link">
                   เขียนสูตร
                 </a>
               </p>
@@ -471,7 +471,7 @@ function MenuList({ rows }: { rows: Data["menus"] }) {
       {rows.slice(0, 8).map((m) => (
         <li key={m.menuId} className="flex items-baseline justify-between gap-3 py-1.5">
           <span className="min-w-0">
-            <a href={`/menus?menu=${m.menuId}`} className="font-medium underline decoration-dotted underline-offset-2 hover:text-primary hover:decoration-solid">
+            <a href={`/menus?menu=${m.menuId}`} className="link">
               {m.name}
             </a>
             <span className="block text-xs text-muted-subtle">

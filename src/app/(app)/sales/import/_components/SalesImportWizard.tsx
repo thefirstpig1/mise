@@ -185,7 +185,7 @@ export default function SalesImportWizard({
             {commitState.stubMenusCreated > 0 && (
               <>
                 {" · "}
-                <a href="/menus?stubs=true" className="text-primary underline">
+                <a href="/menus?stubs=true" className="link">
                   เมนูรอตรวจใหม่ {commitState.stubMenusCreated} รายการ
                 </a>
               </>
@@ -498,7 +498,7 @@ function AutoPostNote({ autoPost: a }: { autoPost: AutoPostSummary | null }) {
     return (
       <p className="mt-2 text-xs">
         ยอดขายที่นำเข้ายัง<strong>ไม่ได้ตัดสต็อก</strong> เพราะบัญชีนี้ไม่มีสิทธิ์ตัดสต็อก — ให้เจ้าของร้านหรือผู้จัดการกดที่{" "}
-        <a href="/consumption" className="text-primary underline">ตัดสต็อกตามยอดขาย</a>
+        <a href="/consumption" className="link">ตัดสต็อกตามยอดขาย</a>
       </p>
     );
   }
@@ -511,8 +511,8 @@ function AutoPostNote({ autoPost: a }: { autoPost: AutoPostSummary | null }) {
           {a.postedPartial > 0 && (
             <>
               {" "}— <span className="text-warn">{a.postedPartial} วันตัดไม่ครบ เพราะ {a.skippedMenus} เมนูยังไม่มีสูตร</span> ·{" "}
-              <a href="/menus" className="text-primary underline">เขียนสูตร</a> แล้วกดตัดใหม่ที่{" "}
-              <a href="/consumption" className="text-primary underline">ตัดสต็อกตามยอดขาย</a>
+              <a href="/menus" className="link">เขียนสูตร</a> แล้วกดตัดใหม่ที่{" "}
+              <a href="/consumption" className="link">ตัดสต็อกตามยอดขาย</a>
             </>
           )}
         </p>
@@ -524,7 +524,7 @@ function AutoPostNote({ autoPost: a }: { autoPost: AutoPostSummary | null }) {
       {a.failed > 0 && (
         <p className="text-bad">
           {a.failed} วันตัดสต็อกไม่สำเร็จ — ยอดขายเข้าครบแล้ว ลองกดตัดอีกครั้งที่{" "}
-          <a href="/consumption" className="text-primary underline">ตัดสต็อกตามยอดขาย</a>
+          <a href="/consumption" className="link">ตัดสต็อกตามยอดขาย</a>
         </p>
       )}
     </div>

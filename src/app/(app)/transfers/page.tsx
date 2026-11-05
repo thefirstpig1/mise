@@ -82,7 +82,7 @@ export default async function TransfersPage({
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-semibold">ใบโอน</h2>
+          <h1 className="page-title">ใบโอน</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             ของถูกตัดจากสาขาต้นทางและเข้าสาขาปลายทางตั้งแต่กดส่ง — การกดรับคือการยืนยันว่ามีคนปลายทางนับของแล้ว
           </p>

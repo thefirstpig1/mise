@@ -23,7 +23,7 @@ export default async function PlatformUsersPage({ searchParams }: { searchParams
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-semibold">ค้นหาผู้ใช้</h1>
+        <h1 className="page-title">ค้นหาผู้ใช้</h1>
         <p className="mt-1 text-sm text-muted-foreground">พิมพ์บางส่วนของอีเมลหรือชื่อ อย่างน้อย 2 ตัวอักษร</p>
       </div>
       <form method="get" className="flex max-w-lg gap-2">

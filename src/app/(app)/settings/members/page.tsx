@@ -84,14 +84,14 @@ export default async function MembersPage() {
     <div className="space-y-5">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold leading-tight">ผู้ใช้งาน</h1>
+          <h1 className="page-title">ผู้ใช้งาน</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             คนที่เข้าคิดครัวของร้านนี้ได้ · กดที่ชื่อเพื่อแก้บทบาท สาขา หรือนำออก ·{" "}
-            <a href="/settings/permissions" className="font-semibold text-primary hover:underline">
+            <a href="/settings/permissions" className="link">
               ตั้งว่าแต่ละบทบาทเห็นอะไร ทำอะไรได้ ›
             </a>{" "}
             ·{" "}
-            <a href="/settings/permissions?tab=people" className="font-semibold text-primary hover:underline">
+            <a href="/settings/permissions?tab=people" className="link">
               ตั้งสิทธิ์รายคน ›
             </a>
           </p>

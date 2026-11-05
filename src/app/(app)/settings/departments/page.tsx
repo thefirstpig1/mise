@@ -22,7 +22,7 @@ export default async function DepartmentsPage() {
     <div className="space-y-5">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold leading-tight">แผนก</h1>
+          <h1 className="page-title">แผนก</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             แยกต้นทุนและยอดขายตามส่วนงาน · กดที่แผนกเพื่อแก้ไข · รายการที่ไม่ได้ระบุแผนกลงที่แผนกตั้งต้น
           </p>
@@ -32,7 +32,7 @@ export default async function DepartmentsPage() {
       {!membership.tenant.enableDepartments ? (
         <div className="rounded-xl border border-border bg-muted/40 p-4 text-sm">
           ขณะนี้ร้านยังไม่ได้แยกตามแผนก สร้างแผนกไว้ก่อนได้ แล้วเปิดที่{" "}
-          <Link href="/settings#addons" className="font-semibold text-primary hover:underline">
+          <Link href="/settings#addons" className="link">
             ตั้งค่าทั่วไป › แผนกและส่วนเสริม
           </Link>
         </div>

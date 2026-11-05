@@ -222,7 +222,7 @@ function Review({
       {recipeMenus > 0 && (
         <p className="border-b border-border px-4 py-2.5 text-[13px] text-muted-foreground">
           ไฟล์นี้มีแผ่นสูตร {recipeMenus.toLocaleString("th-TH")} เมนูด้วย — บันทึกวัตถุดิบก่อน แล้วใช้ไฟล์เดียวกันที่{" "}
-          <a href="/menus/import" className="text-foreground underline decoration-dotted underline-offset-4 hover:text-warn">
+          <a href="/menus/import" className="link">
             นำเข้าสูตร
           </a>
         </p>
@@ -400,9 +400,9 @@ function ReviewRow({
 
 function Verdict({ d, m, s, onEdit }: { d: ImportDraft; m: DraftMatch; s: DraftStatus; onEdit: (p: Partial<ImportDraft>) => void }) {
   const choice = (on: boolean) =>
-    `rounded-lg border px-2.5 py-0.5 text-[12.5px] transition-colors ${on ? "border-primary bg-primary text-primary-foreground" : "border-border-strong bg-surface hover:bg-muted"}`;
+    `pill ${on ? "is-on" : ""}`;
   const skipBtn = (
-    <button type="button" onClick={() => onEdit({ skip: !d.skip })} className="text-[12.5px] text-muted-foreground underline decoration-dotted underline-offset-4 hover:text-foreground">
+    <button type="button" onClick={() => onEdit({ skip: !d.skip })} className="link text-[12.5px]">
       {d.skip ? "นำกลับมา" : "ข้ามแถวนี้"}
     </button>
   );
@@ -484,7 +484,7 @@ function Done({ done, recipeMenus, onAgain }: { done: { created: number; skipped
         {recipeMenus > 0 && (
           <li>
             · ไฟล์นี้มีแผ่นสูตร {recipeMenus.toLocaleString("th-TH")} เมนูด้วย — ใช้ไฟล์เดียวกันที่{" "}
-            <a href="/menus/import" className="text-foreground underline decoration-dotted underline-offset-4 hover:text-warn">
+            <a href="/menus/import" className="link">
               นำเข้าสูตร
             </a>
           </li>

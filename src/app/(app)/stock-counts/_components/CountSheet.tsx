@@ -43,8 +43,8 @@ const POLL_MS = 5_000;
 const NO_CATEGORY = "ไม่มีหมวด";
 type Show = "all" | "todo" | "done";
 
-const chip = (active: boolean, small = false) =>
-  `pill ${small ? "h-7 px-2.5 text-xs" : ""} ${active ? "is-on" : ""}`;
+const chip = (active: boolean, _small = false) =>
+  `pill ${active ? "is-on" : ""}`; // one height for every chip (2026-11-05) — the old small size is ignored
 
 /** The poll (ADR 0034 Q7) — a GET, so it never queues behind this device's saves (§5c). */
 async function poll(countId: string): Promise<StockCountDetailView | null> {
@@ -102,11 +102,11 @@ function SalesReadiness({ countId }: { countId: string }) {
       )}
       <p className="text-xs">
         ปิดต่อได้ตามปกติ ·{" "}
-        <a href="/sales/import" className="font-semibold underline">
+        <a href="/sales/import" className="link">
           นำเข้ายอดขาย
         </a>{" "}
         ·{" "}
-        <a href="/consumption" className="font-semibold underline">
+        <a href="/consumption" className="link">
           ตัดสต็อกตามยอดขาย
         </a>
       </p>
@@ -436,7 +436,7 @@ export default function CountSheet({
           <a
             href="/stock-counts"
             aria-label="กลับไปรายการใบนับ"
-            className="-ml-2 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg hover:bg-muted"
+            className="icon-btn -ml-1"
           >
             <svg aria-hidden viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="m15 18-6-6 6-6" />
@@ -573,7 +573,7 @@ export default function CountSheet({
       {detail.status === "CLOSED" && preppedCounted > 0 && (
         <div className="rounded-lg border border-border bg-surface-sunk p-3 text-sm text-muted-foreground">
           ของแปรรูปที่นับได้เกินในใบนี้ถูกลงเป็นการผลิตแล้ว —{" "}
-          <a href="/production" className="text-primary underline decoration-dotted underline-offset-4">
+          <a href="/production" className="link">
             ดูในหน้าการผลิต
           </a>
         </div>

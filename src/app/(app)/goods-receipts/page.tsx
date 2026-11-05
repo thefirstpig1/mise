@@ -72,7 +72,7 @@ export default async function GoodsReceiptsPage({
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-semibold">ใบรับสินค้า</h2>
+          <h1 className="page-title">ใบรับสินค้า</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             ร่างยังไม่เข้าสต็อก — กดยืนยันรับของแล้วสต็อกจะเพิ่มทันที และแก้ไม่ได้อีก
           </p>
@@ -217,7 +217,7 @@ export default async function GoodsReceiptsPage({
                     {gr.poNumber ? (
                       <a
                         href={`/purchase-orders/${gr.purchaseOrderId}`}
-                        className="relative z-10 hover:underline"
+                        className="link relative z-10"
                       >
                         {gr.poNumber}
                       </a>

@@ -48,7 +48,7 @@ export default async function StaffPeoplePage() {
 
   return (
     <div className="space-y-6">
-      <a href="/staff-meals" className="text-sm underline">
+      <a href="/staff-meals" className="link text-sm">
         ← กลับไปหน้าบันทึกมื้อพนักงาน
       </a>
 

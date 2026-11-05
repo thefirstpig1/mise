@@ -268,7 +268,7 @@ export default async function StaffMealsPage({
         <button type="submit" className="btn-secondary">
           กรอง
         </button>
-        <a href="/staff-meals/people" className="py-2 text-sm underline">
+        <a href="/staff-meals/people" className="link py-2 text-sm">
           จัดการรายชื่อพนักงาน
         </a>
       </FilterForm>

@@ -121,7 +121,7 @@ export default async function ConsumptionPage({
             built that. What posting does now (rule PF1–PF3): */}
         <p className="text-xs text-muted-foreground">
           ของแปรรูปที่มีอยู่บนชั้น ระบบตัดตัวของแปรรูปก่อน ถ้าไม่พอจึงตัดวัตถุดิบตามสูตรการทำแทน ·{" "}
-          <a href="/production" className="text-primary hover:underline">
+          <a href="/production" className="link">
             บันทึกการผลิต
           </a>
         </p>

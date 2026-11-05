@@ -119,7 +119,7 @@ export default function ProductionScreen({
     <div className="max-w-3xl space-y-5 pb-24">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-semibold">การผลิต</h2>
+          <h1 className="page-title">การผลิต</h1>
           <p className="mt-1 text-sm text-muted-foreground">ของแปรรูปที่ทำในครัว — บันทึกแล้วขึ้นชั้นพร้อมต้นทุนของวัตถุดิบที่ใช้ทำ</p>
         </div>
         {canRecord && (
@@ -323,7 +323,7 @@ function ProductionDetail({
               {row.originHref && (
                 <>
                   {" · "}
-                  <a href={row.originHref} className="text-primary underline decoration-dotted underline-offset-4">
+                  <a href={row.originHref} className="link">
                     ดู{row.originLabel}
                   </a>
                 </>

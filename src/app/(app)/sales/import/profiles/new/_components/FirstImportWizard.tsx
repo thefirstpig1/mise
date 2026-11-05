@@ -496,7 +496,7 @@ export default function FirstImportWizard({
                     ภาษาไทยในตารางหน้าถัดไปอ่านไม่ออก?{" "}
                     <button
                       type="button"
-                      className="font-semibold text-primary underline"
+                      className="link"
                       onClick={() => file && inspect(file, inspected.suggestedEncoding === "UTF8" ? "TIS620" : "UTF8")}
                     >
                       ลองอ่านแบบ {inspected.suggestedEncoding === "UTF8" ? "TIS-620" : "UTF-8"}

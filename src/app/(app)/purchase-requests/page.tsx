@@ -45,13 +45,13 @@ export default async function PurchaseRequestsPage({ searchParams }: { searchPar
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="text-2xl font-semibold leading-tight">ขอซื้อ · {branch.name}</h1>
+          <h1 className="page-title">ขอซื้อ · {branch.name}</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">กด + ของที่ใกล้หมด แล้วกดพร้อมในใบขอซื้อ</p>
         </div>
         {viewer.canApprove && (
           <Link
             href={`/purchase-requests/cut?b=${branch.id}` as Route}
-            className="shrink-0 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
+            className="btn shrink-0"
           >
             ตัดรอบสั่งซื้อ
           </Link>

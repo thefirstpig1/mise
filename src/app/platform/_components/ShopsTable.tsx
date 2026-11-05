@@ -82,7 +82,7 @@ export default function ShopsTable({ shops, today }: { shops: ShopRow[]; today: 
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-semibold">ร้านทั้งหมด</h1>
+        <h1 className="page-title">ร้านทั้งหมด</h1>
         <p className="mt-1 text-sm text-muted-foreground">กดที่แถวเพื่อดูผู้ใช้งาน · ทุกการแก้แพ็กเกจถูกบันทึกไว้ในหน้า "บันทึกการแก้ไข"</p>
       </div>
 

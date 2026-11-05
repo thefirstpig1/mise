@@ -106,7 +106,7 @@ export default async function StockHistoryPage({
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-semibold">ประวัติการเคลื่อนไหว</h2>
+          <h1 className="page-title">ประวัติการเคลื่อนไหว</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             บันทึกถาวร แก้ไขหรือลบไม่ได้ — การแก้ทำโดยบันทึกรายการปรับกลับ · เลือกวัตถุดิบตัวเดียว = บัตรสต็อก พร้อมยอดคงเหลือ
           </p>

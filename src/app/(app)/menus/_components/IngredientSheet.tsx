@@ -347,7 +347,7 @@ export default function IngredientSheet({
             {/* Beside the figures that are its reason (Kong 2026-10-22), not alone at the foot. */}
             {data.product.type !== "PREPPED" && (
               <div className="-mt-2 flex justify-end">
-                <a href="/purchase-requests" className="whitespace-nowrap rounded-full border border-dashed border-border-strong px-3 py-1 text-xs text-primary hover:border-primary">
+                <a href="/purchase-requests" className="pill border-dashed text-primary hover:border-primary">
                   + ขอซื้อเพิ่ม
                 </a>
               </div>
@@ -394,7 +394,7 @@ export default function IngredientSheet({
                 {!editable && <p className="text-xs text-muted-foreground">สูตรของแปรรูปใช้ร่วมกันทุกสาขา แก้ได้เฉพาะเจ้าของร้าน ส่วนกลาง และผู้ดูแลทุกสาขา</p>}
                 {editable && !isNewRecipe && (
                   <div className="flex justify-end">
-                    <button type="button" onClick={askRemoveRecipe} disabled={saving} className="text-xs text-bad underline decoration-dotted underline-offset-4 hover:decoration-solid">
+                    <button type="button" onClick={askRemoveRecipe} disabled={saving} className="link text-xs text-bad">
                       ลบสูตรผลิต
                     </button>
                   </div>

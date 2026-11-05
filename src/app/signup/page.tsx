@@ -28,7 +28,7 @@ export default async function SignupPage() {
 
         {shopsAlready > 0 ? (
           <p className="text-center text-sm text-muted-foreground">
-            <Link href="/dashboard" className="font-semibold text-primary underline">
+            <Link href="/dashboard" className="link">
               ‹ กลับไปร้านเดิม
             </Link>
           </p>
@@ -40,14 +40,14 @@ export default async function SignupPage() {
           // address, and that means signing out first.
           <form action={signOutToUseAnotherEmail} className="text-center text-sm text-muted-foreground">
             หากต้องการใช้อีเมลอื่น{" "}
-            <button type="submit" className="font-semibold text-primary underline">
+            <button type="submit" className="link">
               ออกจากระบบ
             </button>
           </form>
         ) : (
           <p className="text-center text-sm text-muted-foreground">
             มีบัญชีแล้ว?{" "}
-            <Link href="/login" className="font-semibold text-primary underline">
+            <Link href="/login" className="link">
               เข้าสู่ระบบ
             </Link>
           </p>

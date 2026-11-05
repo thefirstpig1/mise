@@ -267,7 +267,7 @@ export default function AdvancesBoard({ claims, today, months, meId, canApprove 
               <span className="flex gap-1">
                 {r.slipIds.length ? r.slipIds.map((id) => <PhotoThumb key={id} id={id} label="สลิปคืนเงิน" size="sm" />) : <MissingPhoto label="—" size="sm" />}
               </span>
-              <button type="button" className="text-xs text-muted-foreground underline hover:text-bad" onClick={() => setVoiding({ id: r.id, who: r.who, amount: sum(r.claims) })}>
+              <button type="button" className="link text-xs" onClick={() => setVoiding({ id: r.id, who: r.who, amount: sum(r.claims) })}>
                 ยกเลิกการคืนเงิน
               </button>
             </li>

@@ -356,7 +356,7 @@ export default function PurchaseOrderForm({
       {state.ok && (
         <div className="rounded-lg border border-good-border bg-good-bg p-4 text-sm text-good">
           บันทึกแล้ว — เลขที่ <strong>{state.poNumber}</strong>{" "}
-          <a href={`/purchase-orders/${state.id}`} className="ml-2 underline">
+          <a href={`/purchase-orders/${state.id}`} className="link ml-2">
             เปิดใบสั่งซื้อ
           </a>
         </div>
@@ -400,7 +400,7 @@ export default function PurchaseOrderForm({
           {!isEdit && supplierId && (
             <p className="mt-1 text-xs text-muted-foreground">
               หรือ{" "}
-              <a href={`/suppliers/${supplierId}/order`} className="text-primary underline">
+              <a href={`/suppliers/${supplierId}/order`} className="link">
                 เลือกจากแคตตาล็อกของผู้ขายรายนี้
               </a>{" "}
               — เห็นเฉพาะของที่ผู้ขายมี พร้อมราคาล่าสุด
@@ -725,7 +725,7 @@ export default function PurchaseOrderForm({
         </button>
         <a
           href="/purchase-orders"
-          className="text-sm text-muted-foreground hover:text-foreground"
+          className="btn-ghost text-muted-foreground"
         >
           ยกเลิก
         </a>

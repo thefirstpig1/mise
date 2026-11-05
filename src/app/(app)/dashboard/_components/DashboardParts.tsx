@@ -250,7 +250,7 @@ export function TopMenusCard({
           กำไรต่อเมนู = ยอดขายหลังส่วนลด − ต้นทุนตามสูตร · "—" = ยังไม่มีสูตร <WhatIsThis figure="recipeProfit" needs={["recipe", "price"]} />
         </p>
       )}
-      <a href={salesHref} className="text-xs text-primary hover:underline">
+      <a href={salesHref} className="link text-xs">
         ดูทั้งหมดในหน้ายอดขาย ›
       </a>
     </div>
@@ -282,7 +282,7 @@ export function WatchEmpty({ recipeMethod, branchId }: { recipeMethod: boolean; 
       {gaps.map(([text, need]) => (
         <p key={need}>
           · {text}{" "}
-          <a href={NEEDS[need].href} className="font-medium text-primary underline underline-offset-[3px]">
+          <a href={NEEDS[need].href} className="link">
             {NEEDS[need].cta} ›
           </a>
         </p>

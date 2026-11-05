@@ -233,7 +233,7 @@ export default function RestoreSuggestionTypeahead({
                 <button
                   type="button"
                   disabled
-                  className="w-full rounded-md px-3 py-1.5 text-center text-xs text-muted-foreground disabled:opacity-60"
+                  className="btn-ghost btn-sm w-full text-muted-foreground"
                 >
                   ไม่พบรายการเพิ่มเติม
                 </button>

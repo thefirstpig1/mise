@@ -438,7 +438,7 @@ export default function LabSheet(props: {
                 {kind === "new" ? "เมนูใหม่ · ยังไม่มีการขายจนกว่าจะนำไปใช้จริง" : live ? "นำไปใช้จริงแล้วจะแทนสูตรกลางเดิมตั้งแต่วันนั้น" : "เมนูนี้ยังไม่มีสูตรกลาง"}
               </p>
               {menuId && (
-                <a href={`/menus?menu=${menuId}`} className="inline-block text-xs text-primary underline decoration-dotted underline-offset-4 hover:decoration-solid">
+                <a href={`/menus?menu=${menuId}`} className="link inline-block text-xs">
                   {kind === "new" ? "เปลี่ยนชื่อ หมวด หรือแผนก ที่หน้าจัดการเมนู ›" : "เปิดเมนูนี้ในหน้าจัดการเมนู ›"}
                 </a>
               )}
@@ -465,7 +465,7 @@ export default function LabSheet(props: {
                 <div className="rounded-lg border border-border bg-surface-sunk p-2 text-xs">
                   มีเมนูชื่อนี้ที่ถูกลบไปแล้ว{restorable.recipeCount > 0 ? ` (สูตร ${restorable.recipeCount} รายการ)` : ""} · กู้คืนเมนูเดิมแทนการสร้างเมนูใหม่ซ้ำ
                   {props.canPublish ? (
-                    <button type="button" onClick={restore} disabled={busy} className="ml-2 rounded-full border border-border-strong px-2 py-0.5 hover:bg-muted">
+                    <button type="button" onClick={restore} disabled={busy} className="btn-secondary btn-sm ml-2">
                       กู้คืนเมนูเดิม
                     </button>
                   ) : (

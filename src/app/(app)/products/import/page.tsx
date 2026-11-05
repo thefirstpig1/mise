@@ -26,10 +26,10 @@ export default async function ProductImportPage() {
             </Link>{" "}
             › นำเข้าจากไฟล์
           </p>
-          <h2 className="text-2xl font-semibold">นำเข้าวัตถุดิบจากไฟล์</h2>
+          <h1 className="page-title">นำเข้าวัตถุดิบจากไฟล์</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
             ระบบจะแสดงข้อมูลให้ตรวจทานก่อน และบันทึกเมื่อกดปุ่มบันทึกเท่านั้น ·{" "}
-            <Link href="/products?new=1" className="underline decoration-dotted underline-offset-4 hover:text-foreground">
+            <Link href="/products?new=1" className="link">
               หรือเพิ่มทีละรายการ
             </Link>
           </p>

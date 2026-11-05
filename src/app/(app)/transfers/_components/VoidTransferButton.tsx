@@ -58,7 +58,7 @@ export default function VoidTransferButton({
         </p>
         <p className="mt-1">
           <strong>โอนกลับ</strong> = ของเดินทางกลับจริง —{" "}
-          <a href={reverseHref} className="underline">
+          <a href={reverseHref} className="link">
             ให้สร้างใบโอนใหม่จาก {toBranchName} ไป {fromBranchName}
           </a>{" "}
           แทน ถ้าใช้ปุ่มยกเลิกกับกรณีนี้ ประวัติจะอ่านว่าของไม่เคยออกจากร้านเลย

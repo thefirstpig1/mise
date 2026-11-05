@@ -406,7 +406,7 @@ export function CategoryShare({
               {filterHref[open] && (
                 <>
                   {" · "}
-                  <a href={filterHref[open]} className="text-primary underline">
+                  <a href={filterHref[open]} className="link">
                     ดูทั้งหน้าเฉพาะหมวดนี้
                   </a>
                 </>

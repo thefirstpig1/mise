@@ -56,7 +56,7 @@ export default function MyAdvances({ claims, today, storageReady, ...options }: 
     <div className="max-w-xl space-y-4 pb-28">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-[1.75rem] font-semibold leading-tight tracking-[-0.005em]">สำรองจ่ายของฉัน</h1>
+          <h1 className="page-title">สำรองจ่ายของฉัน</h1>
           <p className="mt-1 text-sm text-muted-foreground">ของที่คุณซื้อให้ร้าน — ถ่ายบิลและสลิป แล้วติดตามว่าร้านคืนเงินหรือยัง</p>
         </div>
         <button type="button" onClick={() => setRecording(true)} className="btn max-sm:hidden" disabled={!storageReady}>
@@ -267,7 +267,7 @@ function PhotoWithDownload({ id, label }: { id: string; label: string }) {
   return (
     <span className="grid justify-items-center gap-1">
       <PhotoThumb id={id} label={label} />
-      <a href={fileUrl(id, { download: true })} className="text-[11px] text-primary underline decoration-dotted underline-offset-2">
+      <a href={fileUrl(id, { download: true })} className="link text-[11px]">
         ดาวน์โหลด
       </a>
     </span>

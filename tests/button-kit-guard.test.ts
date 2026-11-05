@@ -48,14 +48,17 @@ const SHAPES: Record<string, (c: { cls: string; tag: string }) => boolean> = {
   capsuleAction: (c) => /\brounded-full\b/.test(c.cls) && /\bborder\b/.test(c.cls) && /\bpy-(0\.5|1)\b/.test(c.cls) && /\btext-xs\b/.test(c.cls) && !KIT.test(c.cls),
   /** A close × that is not `.icon-btn`. */
   closeButton: (c) => /aria-label="ปิด"/.test(c.tag) && !/\bicon-btn\b/.test(c.cls) && !/\binset-0\b/.test(c.cls),
+  /** An underlined text link drawn by hand instead of `.link` (three underline styles existed). */
+  textLink: (c) => /(^|\s)(hover:)?underline(\s|$)/.test(c.cls) && !KIT.test(c.cls) && !/\b(border|bg-[a-z]|rounded)/.test(c.cls),
 };
 
 /** Ceilings as of 2026-11-05 — lower them as each menu group is swept. */
 const CEILING: Record<keyof typeof SHAPES, number> = {
-  handMadePrimary: 14,
+  handMadePrimary: 9,
   handMadeDanger: 0,
-  capsuleAction: 3,
+  capsuleAction: 0,
   closeButton: 0,
+  textLink: 0,
 };
 
 describe("buttons come from the kit (ratchet)", () => {

@@ -276,7 +276,7 @@ export default function MonthEndView({
             >
               {journal.totalDebit === journal.totalCredit ? "เดบิต = เครดิต ✓" : "ไม่สมดุล"}
             </span>
-            <button type="button" onClick={openExport} className="text-xs text-primary underline-offset-2 hover:underline">
+            <button type="button" onClick={openExport} className="link text-xs">
               {Object.values(settings.accounts).some((a) => a.code) ? "รหัสบัญชีตามผังของร้าน · แก้รหัส" : "ยังไม่ได้ใส่รหัสบัญชีของร้าน · ใส่รหัส"}
             </button>
           </div>

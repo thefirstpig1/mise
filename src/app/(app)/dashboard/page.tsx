@@ -118,7 +118,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
       <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
         <div className="min-w-0">
           <SectionEyebrow className="mb-1.5" />
-          <h1 className="text-[1.75rem] font-semibold leading-tight tracking-[-0.005em]">ภาพรวม</h1>
+          <h1 className="page-title">ภาพรวม</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {membership.tenant.name}
             {seeMoney && active && ` · ${label}`}

@@ -111,7 +111,7 @@ export default function MenuSalesTrend({ menuId, branchId, branchName, today }: 
           {rank > 0 && catName ? `อันดับ ${rank} จาก ${peers.length} ในหมวด${catName} · ` : ""}
           {titles[last]} · {branchName} · เฉลี่ยต่อวันที่มีข้อมูล
         </span>
-        <Link href={href} className="text-sm font-semibold text-primary hover:underline">
+        <Link href={href} className="link text-sm">
           ดูละเอียดในหน้ายอดขาย ›
         </Link>
       </div>

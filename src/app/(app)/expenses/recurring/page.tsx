@@ -84,7 +84,7 @@ export default async function RecurringExpensePage() {
                           <a
                             key={p}
                             href={`/expenses/new?recurring=${t.id}&period=${p}`}
-                            className="relative z-10 inline-flex h-7 items-center whitespace-nowrap rounded-full border border-warn-border bg-warn-bg px-3 text-xs font-semibold text-warn"
+                            className="btn-secondary btn-sm border-warn-border text-warn hover:border-warn hover:bg-warn-bg relative z-10"
                           >
                             {periods.length === 1 || i === 0 ? "บันทึกงวด " : ""}
                             {monthLabelTh(p)}
@@ -151,7 +151,7 @@ export default async function RecurringExpensePage() {
                             <a
                               key={p}
                               href={`/expenses/new?recurring=${t.id}&period=${p}`}
-                              className="whitespace-nowrap rounded-full border border-warn-border bg-warn-bg px-3 py-1 text-xs font-semibold text-warn hover:brightness-95"
+                              className="btn-secondary btn-sm border-warn-border text-warn hover:border-warn hover:bg-warn-bg"
                             >
                               {periods.length === 1 || i === 0 ? "บันทึกงวด " : ""}
                               {monthLabelTh(p)}

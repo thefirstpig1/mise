@@ -26,7 +26,7 @@ export default async function BillImportPage() {
             </Link>{" "}
             › นำเข้าบิลซื้อย้อนหลัง
           </p>
-          <h2 className="text-2xl font-semibold">นำเข้าบิลซื้อย้อนหลัง</h2>
+          <h1 className="page-title">นำเข้าบิลซื้อย้อนหลัง</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
             เก็บผู้ขายและราคาจากบิลเก่า <b className="font-medium text-foreground">ไม่ลงสต็อก ไม่ลงค่าใช้จ่าย</b> · บันทึกเมื่อกดปุ่มบันทึกเท่านั้น
           </p>

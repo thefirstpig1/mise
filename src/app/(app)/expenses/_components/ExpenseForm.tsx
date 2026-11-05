@@ -312,7 +312,7 @@ export default function ExpenseForm({
         // (yellow is kept for things somebody must do).
         <p className="note">
           ซื้อวัตถุดิบเข้าสต็อก เช่น หมู ผัก ข้าวสาร? บันทึกที่{" "}
-          <a href="/goods-receipts/new" className="font-medium text-primary underline">
+          <a href="/goods-receipts/new" className="link">
             หน้ารับสินค้า (ซื้อสดได้ ไม่ต้องมีใบสั่งซื้อ)
           </a>{" "}
           แทน ของจะเข้าสต็อกและต้นทุนจะถูกต้อง ระบบสร้างบิลค่าใช้จ่ายให้เอง
@@ -331,7 +331,7 @@ export default function ExpenseForm({
           {existing?.sourceGrNumber && (
             <a
               href={`/goods-receipts/${existing.sourceGrId}`}
-              className="font-medium underline"
+              className="link"
             >
               {existing.sourceGrNumber}
             </a>

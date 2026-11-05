@@ -513,7 +513,7 @@ function RecipeBlock({
         {verdict.kind === "SKIP" && verdict.why === "HAS_RECIPE" && outProduct && (
           <p className="text-[13px] text-muted-foreground">
             “{outProduct.name}” มีสูตรผลิตใช้อยู่แล้ว — ไม่นำเข้าทับ แก้ได้ที่{" "}
-            <Link href={`/products?product=${outProduct.id}`} className="underline decoration-dotted underline-offset-4 hover:text-foreground">
+            <Link href={`/products?product=${outProduct.id}`} className="link">
               หน้าสินค้า
             </Link>{" "}
             · เมนูที่ใช้ {outProduct.name} ในไฟล์นี้ยังจับคู่กับมันได้

@@ -269,6 +269,12 @@
     @apply rounded-[18px] border border-border/70 bg-surface p-5 shadow-card;
   }
 
+  /* The one page title (Kong 2026-11-05 review): 35 pages wrote their own,
+     most at 24px under a 28px neighbour. PageHeader uses it too. */
+  .page-title {
+    @apply text-[1.75rem] font-semibold leading-tight tracking-[-0.005em];
+  }
+
   /* The section label above a heading — the landing page's eyebrow. Gold ink
      on cream passes AA at this weight; the spacing is what makes it read as a
      label rather than as small text. */

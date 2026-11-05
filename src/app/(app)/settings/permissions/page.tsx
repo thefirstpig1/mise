@@ -115,7 +115,7 @@ export default async function PermissionsPage({
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-semibold">สิทธิ์การใช้งาน</h2>
+        <h1 className="page-title">สิทธิ์การใช้งาน</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           คิดครัวตั้งค่าเริ่มต้นให้ทุกบทบาท ร้านปรับเฉพาะข้อที่ร้านตัวเองต่างไป และ<b className="font-semibold text-foreground">ตั้งสิทธิ์รายคน</b>ได้ ·
           มีผลทันทีที่คนนั้นเปิดหน้าถัดไป

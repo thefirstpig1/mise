@@ -27,7 +27,7 @@ export default async function NewPurchaseOrderPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-semibold">สร้างใบสั่งซื้อ</h2>
+        <h1 className="page-title">สร้างใบสั่งซื้อ</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           ราคาจะดึงจากรายการราคาของผู้ขายให้อัตโนมัติ ถ้ายังไม่มีก็กรอกเองได้
         </p>
@@ -36,7 +36,7 @@ export default async function NewPurchaseOrderPage() {
       {blocked ? (
         <EmptyState art="setup">
           ยังไม่มี{blocked.what}ในระบบ —{" "}
-          <a href={blocked.href} className="text-primary hover:underline">
+          <a href={blocked.href} className="link">
             {blocked.cta}ก่อน
           </a>
         </EmptyState>

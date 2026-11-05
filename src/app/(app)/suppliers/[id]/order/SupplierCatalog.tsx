@@ -298,7 +298,7 @@ export default function SupplierCatalog({
 
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-semibold">สั่งซื้อจาก {supplier.nameFull}</h2>
+          <h1 className="page-title">สั่งซื้อจาก {supplier.nameFull}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             เลือกจำนวนสินค้าที่ต้องการ แล้วกดสร้างใบสั่งซื้อ ระบบจะบันทึกเป็นร่างให้ตรวจก่อนส่ง
           </p>
@@ -325,7 +325,7 @@ export default function SupplierCatalog({
         <EmptyState art="setup">
           ยังไม่มีสินค้าจากผู้ขายรายนี้ — รายการจะขึ้นเองเมื่อรับของจากผู้ขายรายนี้ครั้งแรก
           หรือบันทึกราคาจากผู้ขายได้ที่หน้า{" "}
-          <a href="/products" className="text-primary hover:underline">
+          <a href="/products" className="link">
             วัตถุดิบ
           </a>
         </EmptyState>

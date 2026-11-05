@@ -275,7 +275,7 @@ export default function StaffMealEntryForm({
               {members.length === 0 && (
                 <p className="mt-1 text-xs text-muted-foreground">
                   ยังไม่มีรายชื่อพาร์ทไทม์ — พนักงานที่มีบัญชีให้กดขอเบิกเองด้านบน ·{" "}
-                  <a className="underline" href="/staff-meals/people">
+                  <a className="link" href="/staff-meals/people">
                     เพิ่มที่นี่
                   </a>
                 </p>

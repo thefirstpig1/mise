@@ -337,7 +337,7 @@ export default async function SalesPage({
   return (
     <div className="space-y-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-2xl font-semibold">ยอดขาย</h2>
+        <h1 className="page-title">ยอดขาย</h1>
         <div className="flex flex-wrap items-center gap-3">
           <ExportButton
             dataset="sales"
@@ -445,7 +445,7 @@ export default async function SalesPage({
                 {mismatch.map((g, i) => (
                   <span key={g.day}>
                     {i > 0 && " · "}
-                    <Link href={dayHref(g.day) as never} scroll={false} className="underline decoration-dotted underline-offset-2 hover:decoration-solid">
+                    <Link href={dayHref(g.day) as never} scroll={false} className="link">
                       {g.dayLabel}
                     </Link>
                   </span>
@@ -454,7 +454,7 @@ export default async function SalesPage({
             ) : (
               <p>
                 ยอดปิดร้านที่คีย์ไว้ใช้ตรวจว่าไฟล์ครบทั้งวัน: คีย์แล้ว {keyed} จาก {dayGroups.length} วัน
-                {keyed > 0 ? " · ทุกวันที่คีย์ตรงกับไฟล์" : ""} · <a href="/dashboard" className="text-primary underline">คีย์ยอดปิดร้านที่แดชบอร์ด ›</a>
+                {keyed > 0 ? " · ทุกวันที่คีย์ตรงกับไฟล์" : ""} · <a href="/dashboard" className="link">คีย์ยอดปิดร้านที่แดชบอร์ด ›</a>
               </p>
             )}
           </div>
@@ -541,7 +541,7 @@ export default async function SalesPage({
           {unidentifiedMenuCount > 0 && (
             <section className="rounded-lg border border-warn/50 bg-warn/5 p-3 text-sm">
               มีเมนูที่ยังไม่ได้ตรวจ {unidentifiedMenuCount} รายการในช่วงนี้ —{" "}
-              <a href="/menus?stubs=true" className="text-primary underline">
+              <a href="/menus?stubs=true" className="link">
                 ไปจัดการ
               </a>
             </section>

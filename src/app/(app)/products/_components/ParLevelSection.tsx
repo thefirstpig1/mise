@@ -108,7 +108,7 @@ function BranchParForm({
             <button
               type="submit"
               disabled={delPending}
-              className="rounded-lg px-2 py-2 text-xs text-muted-foreground hover:text-bad disabled:opacity-50"
+              className="btn-ghost btn-sm text-muted-foreground hover:text-bad"
             >
               {delPending ? "กำลังลบ…" : "ไม่ตั้งขั้นต่ำ"}
             </button>

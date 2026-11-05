@@ -173,7 +173,7 @@ export default async function StockWorkPage({ searchParams }: { searchParams: Pr
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-[1.75rem] font-semibold leading-tight tracking-[-0.005em]">{kitchenView ? "งานครัว" : "งานสต็อก"}</h1>
+          <h1 className="page-title">{kitchenView ? "งานครัว" : "งานสต็อก"}</h1>
           <p className="mt-1 text-sm text-muted-foreground">ของเข้า-ออกที่ไม่ได้มาจากการซื้อหรือการขาย บันทึกที่นี่ · ดูรายการสินค้าและยอดคงเหลือที่หน้าสินค้า/วัตถุดิบ</p>
         </div>
         {branches.length > 1 && (
@@ -234,7 +234,7 @@ export default async function StockWorkPage({ searchParams }: { searchParams: Pr
         <section className="rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
           <div className="flex items-baseline justify-between gap-2">
             <h3 className="font-semibold">เคลื่อนไหวล่าสุดของ{branch.name}</h3>
-            <a href={`/stock/history?branch=${branch.id}`} className="text-xs text-primary hover:underline">
+            <a href={`/stock/history?branch=${branch.id}`} className="link text-xs">
               ดูทั้งหมด
             </a>
           </div>
@@ -245,7 +245,7 @@ export default async function StockWorkPage({ searchParams }: { searchParams: Pr
               {recent.map((m) => (
                 <li key={m.id} className="flex items-baseline justify-between gap-3 py-2">
                   <span className="min-w-0">
-                    <a href={`/products?product=${m.product.id}`} className="font-medium hover:text-primary hover:underline">
+                    <a href={`/products?product=${m.product.id}`} className="link">
                       {m.product.name}
                     </a>
                     <span className="text-muted-foreground"> · {label(MOVEMENT_TYPE_LABELS_TH, m.type)}</span>
@@ -305,7 +305,7 @@ export default async function StockWorkPage({ searchParams }: { searchParams: Pr
             {parsSet === 0 ? (
               <p className="mt-2 text-sm text-muted-foreground">
                 ยังไม่ได้ตั้งขั้นต่ำ · ตั้งแล้วระบบเตือนเมื่อของใกล้หมด{" "}
-                <a href="/products" className="font-medium text-primary underline underline-offset-[3px]">
+                <a href="/products" className="link">
                   ตั้งที่หน้าสินค้า ›
                 </a>
               </p>

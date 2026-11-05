@@ -211,7 +211,7 @@ function Overview({ data, canEditTargets }: { data: Overview; canEditTargets: bo
       {/* Queue item 9: the page names itself, as every page does (it opened on the sticky bar). */}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="text-[1.75rem] font-semibold leading-tight tracking-[-0.005em]">ต้นทุน</h1>
+          <h1 className="page-title">ต้นทุน</h1>
           <p className="mt-1 text-sm text-muted-foreground">ร้านแข็งแรงไหม ดีขึ้นหรือแย่ลง และต้องจัดการอะไรก่อน</p>
         </div>
         <button
@@ -434,7 +434,7 @@ function Overview({ data, canEditTargets }: { data: Overview; canEditTargets: bo
 
       <p className="text-xs text-muted-foreground">
         สิ้นเดือนต้องส่งสต็อกและต้นทุนขายให้นักบัญชี?{" "}
-        <a href="/month-end" className="text-primary hover:underline">
+        <a href="/month-end" className="link">
           ปิดเดือน · ส่งให้บัญชี
         </a>
       </p>
@@ -1067,7 +1067,7 @@ function Todo({
     gaps.push(
       <>
         ตัดสต็อกยังไม่ครบ ({cur.daysPosted}/{cur.salesDays} วัน · {Math.round(cur.coverage * 100)}% ของยอดขาย) — ต้นทุนช่วงนี้จึงเป็น “อย่างน้อย” ·{" "}
-        <a className="text-primary hover:underline" href="/consumption">
+        <a className="link" href="/consumption">
           ไปตัดสต็อก ›
         </a>
       </>
@@ -1076,7 +1076,7 @@ function Todo({
     gaps.push(
       <>
         {cur.laborMissing ?? "ยังไม่มีค่าแรง"} — prime cost คิดไม่ได้ ·{" "}
-        <a className="text-primary hover:underline" href="/expenses/new">
+        <a className="link" href="/expenses/new">
           บันทึกเงินเดือนในค่าใช้จ่าย หมวดค่าแรง ›
         </a>
       </>
@@ -1086,7 +1086,7 @@ function Todo({
     gaps.push(
       <>
         {multi ? `${missingSales.join(", ")} ยังไม่มีไฟล์ยอดขายในช่วงนี้ — เทียบสาขาไม่ได้` : "ยังไม่มีไฟล์ยอดขายในช่วงนี้"} ·{" "}
-        <a className="text-primary hover:underline" href="/sales/import">
+        <a className="link" href="/sales/import">
           นำเข้ายอดขาย ›
         </a>
       </>
@@ -1172,7 +1172,7 @@ function TodoEmpty({ periodic, counted, waste }: { periodic: boolean; counted: b
       {lines.map(([text, href, cta]) => (
         <p key={href}>
           · {text}{" "}
-          <a href={href} className="font-medium text-primary underline underline-offset-[3px]">
+          <a href={href} className="link">
             {cta} ›
           </a>
         </p>
@@ -1376,7 +1376,7 @@ function Stock({
         rows.map((s, i) => (
           <div key={s.productId} className="py-1" title={view === "age" && s.oldestDate ? `${s.name} · ล็อตรับ ${s.oldestDate} ยังเหลือ ฿${f0(s.oldestValue)} · ทั้งหมดในสต็อก ฿${f0(s.value)}` : undefined}>
             <div className="grid grid-cols-[110px_minmax(0,1fr)_80px_56px] items-center gap-2.5 text-sm">
-              <a href={`/products?product=${s.productId}`} className="truncate hover:text-primary hover:underline">
+              <a href={`/products?product=${s.productId}`} className="link truncate">
                 {s.name}
               </a>
               <span className="block h-[5px] overflow-hidden rounded-full bg-muted">
@@ -1398,7 +1398,7 @@ function Stock({
           </div>
         ))
       )}
-      <a href="/products?sort=value" className="mt-1 inline-block text-xs text-primary hover:underline">
+      <a href="/products?sort=value" className="link mt-1 inline-block text-xs">
         ดูทั้งหมดที่หน้าสินค้า/วัตถุดิบ ›
       </a>
     </div>

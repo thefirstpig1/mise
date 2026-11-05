@@ -24,7 +24,7 @@ export default async function PlatformLayout({ children }: { children: ReactNode
           <PlatformTabs newReports={newReports} />
           <span className="ml-auto flex items-center gap-4 text-sm">
             <span className="truncate text-muted-foreground">{actor.email}</span>
-            <Link href="/dashboard" className="text-primary hover:underline">
+            <Link href="/dashboard" className="link">
               กลับเข้าร้าน
             </Link>
           </span>

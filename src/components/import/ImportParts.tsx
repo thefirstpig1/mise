@@ -74,7 +74,7 @@ export function PromptCard({
       {templateHref && (
         <p className="text-[13px] text-muted-foreground">
           ไม่ใช้ AI ก็ได้:{" "}
-          <a href={templateHref} className="text-foreground underline decoration-dotted underline-offset-4 hover:text-warn">
+          <a href={templateHref} className="link">
             ดาวน์โหลดเทมเพลต Excel
           </a>{" "}
           แล้วกรอกเอง

@@ -35,7 +35,7 @@ export default function SupplierList({
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-semibold">รายชื่อผู้ขาย</h2>
+          <h1 className="page-title">รายชื่อผู้ขาย</h1>
           <p className="mt-1 text-sm text-muted-foreground">ซัพพลายเออร์ทุกรายที่ร้านซื้อของด้วย — ร้านค้าส่ง ฟาร์ม แผงในตลาด</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">

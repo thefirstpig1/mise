@@ -34,7 +34,7 @@ export default async function EditPurchaseOrderPage({
   if (view.status !== "DRAFT") {
     return (
       <div className="space-y-4">
-        <h2 className="text-2xl font-semibold">แก้ไขไม่ได้</h2>
+        <h1 className="page-title">แก้ไขไม่ได้</h1>
         <div className="rounded-lg border border-warn-border bg-warn-bg p-4 text-sm text-warn">
           ใบสั่งซื้อ <strong>{view.poNumber}</strong> ส่งออกไปแล้ว จึงแก้ไขไม่ได้ —
           ผู้ขายถือสำเนาใบเดียวกันอยู่ หากต้องเปลี่ยนให้ยกเลิกใบนี้แล้วออกใบใหม่
@@ -55,7 +55,7 @@ export default async function EditPurchaseOrderPage({
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-semibold">แก้ไขใบสั่งซื้อ {view.poNumber}</h2>
+        <h1 className="page-title">แก้ไขใบสั่งซื้อ {view.poNumber}</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           ยังเป็นร่าง — แก้ได้จนกว่าจะกดส่ง
         </p>

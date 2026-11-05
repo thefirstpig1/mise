@@ -165,7 +165,7 @@ export default async function LoginPage({
               ) : null}
               {sentTo ? (
                 <p className="mt-4 text-xs text-muted-foreground">
-                  <a href="/login" className="font-semibold text-primary underline">
+                  <a href="/login" className="link">
                     ใช้อีเมลอื่น
                   </a>
                 </p>
@@ -189,7 +189,7 @@ export default async function LoginPage({
 
               <button
                 type="submit"
-                className="w-full rounded-lg bg-primary py-2 font-medium text-primary-foreground hover:opacity-90"
+                className="btn w-full"
               >
                 ส่งลิงก์เข้าสู่ระบบ
               </button>
@@ -198,7 +198,7 @@ export default async function LoginPage({
 
           <p className="mt-6 text-center text-sm text-muted-foreground">
             ยังไม่มีบัญชี?{" "}
-            <a href="/signup" className="text-primary underline">
+            <a href="/signup" className="link">
               สมัครใช้งาน
             </a>
           </p>

@@ -168,7 +168,7 @@ function Bar({ path, steps, teamDone, method }: { path: string; steps: Step[]; t
             ดูทุกขั้น
           </button>
           {toggleBox}
-          <button type="button" onClick={hide} disabled={pending} className={`${quiet} text-muted-foreground hover:text-foreground`}>
+          <button type="button" onClick={hide} disabled={pending} className="btn-ghost btn-sm text-muted-foreground">
             ซ่อน
           </button>
         </span>

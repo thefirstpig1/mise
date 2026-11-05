@@ -47,7 +47,7 @@ export default async function EditGoodsReceiptPage({
   if (gr.status !== "DRAFT") {
     return (
       <div className="space-y-4">
-        <h2 className="text-2xl font-semibold">{gr.grNumber}</h2>
+        <h1 className="page-title">{gr.grNumber}</h1>
         <div className="rounded-lg border border-warn-border bg-warn-bg p-4 text-sm text-warn">
           <p className="font-medium">
             ใบรับสินค้านี้แก้ไขไม่ได้ (สถานะ:{" "}
@@ -86,7 +86,7 @@ export default async function EditGoodsReceiptPage({
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-semibold">แก้ไขฉบับร่าง {gr.grNumber}</h2>
+        <h1 className="page-title">แก้ไขฉบับร่าง {gr.grNumber}</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           ยังไม่เข้าสต็อก — แก้ได้จนกว่าจะกดยืนยันรับของ
         </p>

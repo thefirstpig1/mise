@@ -149,7 +149,7 @@ export default function PurchaseOrderActions({
             type="button"
             onClick={discard}
             disabled={pending}
-            className="rounded-xl px-4 py-2 text-sm text-muted-foreground hover:text-bad disabled:opacity-50"
+            className="btn-ghost text-muted-foreground hover:text-bad"
           >
             ทิ้งร่าง
           </button>

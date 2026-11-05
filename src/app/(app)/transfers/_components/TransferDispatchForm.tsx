@@ -114,7 +114,7 @@ export default function TransferDispatchForm({
       {succeeded && (
         <div className="rounded-lg border border-good-border bg-good-bg p-4 text-sm text-good">
           บันทึกใบโอน <strong>{state.tfNumber}</strong> แล้ว — ของออกจากสาขาต้นทางและเข้าสาขาปลายทางเรียบร้อย{" "}
-          <a href={`/transfers/${state.transferId}`} className="underline">
+          <a href={`/transfers/${state.transferId}`} className="link">
             เปิดใบโอน
           </a>
         </div>

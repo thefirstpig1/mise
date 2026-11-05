@@ -171,7 +171,7 @@ export default async function SupplierPage({
                 </p>
                 <Link
                   href={`/expenses?supplier=${supplier.id}&status=UNPAID` as Route}
-                  className="inline-block pt-1 text-sm font-semibold text-primary hover:underline"
+                  className="link inline-block pt-1 text-sm"
                 >
                   ดูบิลที่ยังไม่จ่าย ›
                 </Link>
@@ -188,7 +188,7 @@ export default async function SupplierPage({
           <p className="text-sm text-muted-foreground">ของค้างส่ง</p>
           <p className="text-2xl font-semibold">{o.openOrders.length ? `${o.openOrders.length} ใบ` : "ไม่มี"}</p>
           {o.openOrders.slice(0, 2).map((po) => (
-            <Link key={po.id} href={`/purchase-orders/${po.id}` as Route} className="block text-xs text-primary hover:underline">
+            <Link key={po.id} href={`/purchase-orders/${po.id}` as Route} className="link block text-xs">
               {po.poNumber}
               {seeCost ? ` · ${baht(po.total)}` : ""} · {po.expectedDate ? `นัดส่ง ${dayTh(po.expectedDate)}` : "ยังไม่มีวันนัดส่ง"}
             </Link>
@@ -270,7 +270,7 @@ export default async function SupplierPage({
                     {canOrder && (
                       <Link
                         href={`/suppliers/${supplier.id}/order` as Route}
-                        className="mt-auto inline-flex h-9 items-center justify-center rounded-full border border-primary text-sm font-semibold text-primary hover:bg-primary-soft"
+                        className="btn-secondary btn-sm mt-auto"
                       >
                         + สั่ง
                       </Link>

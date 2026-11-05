@@ -59,7 +59,7 @@ export default function RecurringHistory({
                   {canRecord && (
                     <a
                       href={`/expenses/new?recurring=${recurringId}&period=${m.period}`}
-                      className="inline-flex h-8 items-center whitespace-nowrap rounded-full border border-warn-border bg-warn-bg px-3 text-xs font-semibold text-warn hover:brightness-95"
+                      className="btn-secondary btn-sm border-warn-border text-warn hover:border-warn hover:bg-warn-bg"
                     >
                       บันทึกงวด {monthLabelTh(m.period)}
                     </a>

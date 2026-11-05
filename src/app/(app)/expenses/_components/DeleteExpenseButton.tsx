@@ -51,7 +51,7 @@ export default function DeleteExpenseButton({
     return (
       <p className="text-xs text-muted-foreground">
         บิลนี้มาจากใบรับสินค้า — ถ้าต้องการยกเลิก ให้{" "}
-        <a href={`/goods-receipts/${sourceGrId}`} className="underline">
+        <a href={`/goods-receipts/${sourceGrId}`} className="link">
           ยกเลิกใบรับสินค้า
         </a>{" "}
         แล้วบิลจะถูกยกเลิกไปพร้อมกัน

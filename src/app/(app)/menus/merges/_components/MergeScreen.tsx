@@ -106,7 +106,7 @@ export default function MergeScreen({
           <a href="/menus" className="text-xs text-muted-foreground hover:text-foreground">
             จัดการเมนู ›
           </a>
-          <h2 className="text-2xl font-semibold">รวมเมนูที่ซ้ำกัน</h2>
+          <h1 className="page-title">รวมเมนูที่ซ้ำกัน</h1>
           <p className="mt-1 max-w-[62ch] text-sm text-muted-foreground">
             แต่ละสาขาส่งรหัสเมนูจาก POS ของตัวเอง จานเดียวกันจึงขึ้นเป็นหลายรายการ รวมแล้วทุกหน้าจะนับเป็นจานเดียว ยอดขายเดิมยังอยู่ครบ และยกเลิกได้ทุกเมื่อ
           </p>
@@ -603,7 +603,7 @@ function MergedList({
           ))}
         </div>
       )}
-      <a href={includeRevoked ? "/menus/merges" : "/menus/merges?revoked=true"} className="inline-block text-xs text-primary hover:underline">
+      <a href={includeRevoked ? "/menus/merges" : "/menus/merges?revoked=true"} className="link inline-block text-xs">
         {includeRevoked ? "ซ่อนรายการที่ยกเลิกแล้ว" : "ดูรายการที่ยกเลิกแล้วด้วย"}
       </a>
 

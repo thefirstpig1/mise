@@ -173,7 +173,7 @@ export default async function GoodsReceiptDetailPage({
               {gr.purchaseOrder ? (
                 <a
                   href={`/purchase-orders/${gr.purchaseOrder.id}`}
-                  className="text-primary hover:underline print:text-foreground"
+                  className="link print:text-foreground"
                 >
                   {gr.purchaseOrder.poNumber}
                 </a>

@@ -99,7 +99,7 @@ export default async function ClosingMonthPage({ searchParams }: { searchParams:
     <div className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-semibold">ปิดร้านประจำวัน</h2>
+          <h1 className="page-title">ปิดร้านประจำวัน</h1>
           <p className="mt-1 text-sm text-muted-foreground">ลูกค้า เงินสด ปัญหา และความเห็นของแต่ละวัน — ย้อนดูได้ไม่จำกัด</p>
         </div>
         {canFill && (
@@ -113,7 +113,7 @@ export default async function ClosingMonthPage({ searchParams }: { searchParams:
         <p className="rounded-xl border border-warn-border bg-warn-bg p-3 text-sm text-warn">
           ร้านยังไม่ได้เปิดใช้รายงานปิดร้าน — ใบเก่าที่เคยบันทึกยังอ่านได้{can("settings:write") ? " · เปิดใช้ได้ที่ " : ""}
           {can("settings:write") && (
-            <a href="/settings#daily-close" className="underline">
+            <a href="/settings#daily-close" className="link">
               ตั้งค่าทั่วไป
             </a>
           )}

@@ -69,7 +69,7 @@ export default function PaymentToggle({
         <button
           type="submit"
           disabled={isPending}
-          className="text-sm text-primary underline disabled:opacity-60"
+          className="link text-sm disabled:opacity-60"
         >
           {isPending ? "กำลังบันทึก…" : "เปลี่ยนกลับเป็นยังไม่จ่าย"}
         </button>

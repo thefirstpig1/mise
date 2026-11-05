@@ -208,7 +208,7 @@ export default function MappingListSection({
                       {editProductId && (
                         <a
                           href={`/products/${editProductId}/mappings/${m.id}/edit`}
-                          className="text-sm text-primary hover:underline"
+                          className="link text-sm"
                         >
                           แก้ไข
                         </a>

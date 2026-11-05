@@ -141,7 +141,7 @@ function View({ data, initialCountId }: { data: Overview; initialCountId: string
     <div className="space-y-5">
       {/* Queue item 9: the page's own heading, at every page's size. */}
       <div>
-        <h1 className="text-[1.75rem] font-semibold leading-tight tracking-[-0.005em]">ของหายไปไหน</h1>
+        <h1 className="page-title">ของหายไปไหน</h1>
         <p className="mt-1 text-sm text-muted-foreground">นับได้ไม่ตรงกับที่ระบบคำนวณ หลังหักที่บันทึกว่าทิ้งและของเสียแล้ว · หายเพราะอะไร ต้องไปตามที่ไหน</p>
       </div>
 
@@ -168,7 +168,7 @@ function View({ data, initialCountId }: { data: Overview; initialCountId: string
         <p className="text-xs text-muted-foreground">
           {c.scNumber} · {c.branchName} · นับ {c.dateLabel}
           {c.countedBy.length > 0 && ` · นับโดย ${c.countedBy.join(", ")}`} ·{" "}
-          <a href={`/stock-counts/${c.id}`} className="text-primary hover:underline">
+          <a href={`/stock-counts/${c.id}`} className="link">
             เปิดใบนับ ›
           </a>
         </p>
@@ -413,7 +413,7 @@ function Spot({ c }: { c: LeakCount }) {
           ))}
           <p className="mt-2 text-xs text-muted-foreground">
             ใบนับนับเฉพาะบางรายการได้ ของที่ไม่ได้นับไม่ถูกแตะ ·{" "}
-            <a href={`/stock-counts/new?branch=${c.branchId}`} className="text-primary hover:underline">
+            <a href={`/stock-counts/new?branch=${c.branchId}`} className="link">
               เปิดใบนับ ›
             </a>
           </p>
@@ -457,7 +457,7 @@ function Over({ c }: { c: LeakCount }) {
         </div>
       ))}
       {c.over.length > 8 && <p className="text-xs text-muted-foreground">+ อีก {c.over.length - 8} รายการ</p>}
-      <a href={`/goods-receipts?branch=${c.branchId}`} className="mt-1 inline-block text-xs text-primary hover:underline">
+      <a href={`/goods-receipts?branch=${c.branchId}`} className="link mt-1 inline-block text-xs">
         ดูใบรับสินค้าของสาขานี้ ›
       </a>
     </div>
@@ -477,7 +477,7 @@ function Trust({ c }: { c: LeakCount }) {
       ) : (
         <>
           {t.noRecipe.count} เมนู · ฿{f0(t.noRecipe.revenue)} ({t.noRecipe.names.slice(0, 3).join(" · ")}) ·{" "}
-          <a href="/menus" className="text-primary underline">
+          <a href="/menus" className="link">
             เขียนสูตร ›
           </a>
         </>
@@ -496,13 +496,13 @@ function Trust({ c }: { c: LeakCount }) {
       {t.postedDays < t.salesDays && (
         <p className="w-full text-xs text-muted-foreground">
           วันที่ยังไม่ได้ตัดสต็อกตอนปิดใบนับ ของที่ขายไปแล้วยังไม่ถูกหัก จึงดูเหมือนหาย และใบนับครั้งถัดไปจะเห็นเป็นของเกินเท่ากัน ·{" "}
-          <a href={`/consumption?branch=${c.branchId}`} className="text-primary hover:underline">
+          <a href={`/consumption?branch=${c.branchId}`} className="link">
             ดูหน้าตัดสต็อกตามยอดขาย ›
           </a>
         </p>
       )}
       {/* Kong 2026-10-31: the same count, read as "did the recipes match the shelf". */}
-      <a href={`/consumption?branch=${c.branchId}&count=${c.id}#accuracy`} className="w-full text-xs text-primary hover:underline">
+      <a href={`/consumption?branch=${c.branchId}&count=${c.id}#accuracy`} className="link w-full text-xs">
         ระบบตัดตามสูตรเทียบกับที่ใช้จริง ในใบนับนี้ ›
       </a>
     </div>

@@ -81,7 +81,7 @@ export default async function NewExpensePage({
       {categories.length === 0 ? (
         <EmptyState art="setup">
           ยังไม่มีหมวดบัญชีในระบบ — ต้องมีอย่างน้อย 1 หมวดก่อนบันทึกค่าใช้จ่าย{" "}
-          <a href="/categories" className="font-medium underline">
+          <a href="/categories" className="link">
             ไปตั้งค่าหมวดบัญชี
           </a>
         </EmptyState>

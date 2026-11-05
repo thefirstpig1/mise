@@ -134,9 +134,9 @@ export default function DayDetailModal({
 }
 
 function NavArrow({ href, label, children }: { href: string | null; label: string; children: string }) {
-  const cls = "flex h-9 w-9 items-center justify-center rounded-full border border-border text-lg";
+  const cls = "icon-btn text-lg";
   return href ? (
-    <Link href={href as Route} scroll={false} aria-label={label} title={label} className={`${cls} hover:bg-muted`}>
+    <Link href={href as Route} scroll={false} aria-label={label} title={label} className={cls}>
       {children}
     </Link>
   ) : (
@@ -200,7 +200,7 @@ function BranchCard({ day, branch: b, canKeyPulse }: { day: string; branch: DayM
           // dashboard's daily work — so this popup only shows and checks it.
           <a
             href="/dashboard"
-            className="mt-2 inline-block rounded-full border border-primary-line px-3 py-1 font-medium text-primary hover:bg-primary hover:text-primary-foreground"
+            className="btn-secondary btn-sm mt-2"
           >
             {b.pulseAmount === null ? "คีย์ยอดปิดร้านที่แดชบอร์ด ›" : "แก้ยอดที่คีย์ที่แดชบอร์ด ›"}
           </a>

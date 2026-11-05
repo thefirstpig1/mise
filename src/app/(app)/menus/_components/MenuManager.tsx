@@ -724,7 +724,7 @@ export default function MenuManager(props: {
         <EmptyState art="start">
           <p className="font-medium">ยังไม่มีเมนูในระบบ</p>
           <p className="mt-2 text-muted-foreground">เมนูเกิดขึ้นเองเมื่อนำเข้ายอดขาย — ไม่ต้องพิมพ์รายการเมนูเข้าไปก่อน</p>
-          <a href="/sales/import" className="mt-4 inline-block text-sm text-primary underline">
+          <a href="/sales/import" className="link mt-4 inline-block text-sm">
             นำเข้ายอดขาย
           </a>
         </EmptyState>

@@ -106,7 +106,7 @@ export default function OpenCountForm({
         {blockedBy && (
           <p className="mt-1 text-xs text-warn">
             สาขานี้มีใบนับที่ยังไม่ปิด —{" "}
-            <a href={`/stock-counts/${blockedBy}`} className="underline">
+            <a href={`/stock-counts/${blockedBy}`} className="link">
               เข้าไปนับต่อในใบเดิม
             </a>{" "}
             (หนึ่งสาขานับได้ทีละใบ เพื่อไม่ให้ตัดสต็อกซ้ำ)
