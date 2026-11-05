@@ -43,7 +43,7 @@ export async function dataReadinessLogic(tenantId: string, reach: BranchReach, b
     mergedInto: { none: { revokedAt: null } },
   };
   return withTenantContext(tenantId, async (tx) => {
-    const [salesDays, menus, menusWithRecipe, products, priced, closedCounts, postedDays, receipts, expenses, guestDays, categorisedMenus, parLevels] =
+    const [salesDays, menus, menusWithRecipe, products, priced, closedCounts, postedDays, receipts, expenses, guestDays, categorisedMenus, parLevels, lastSales, lastCount, lastReceipt] =
       await Promise.all([
         // A day with a POS file — a pulse typed alone makes a sales_day too (ADR 0020).
         tx.salesDay.count({ where: { tenantId, ...b, currentBatchId: { not: null } } }),
@@ -66,7 +66,12 @@ export async function dataReadinessLogic(tenantId: string, reach: BranchReach, b
         tx.salesDay.count({ where: { tenantId, ...b, guestCount: { not: null } } }),
         tx.menu.count({ where: { ...liveMenu, menuCategoryId: { not: null } } }),
         tx.parLevel.count({ where: { tenantId, ...b, deletedAt: null } }),
+        // The newest of each, so "มีแล้ว 20 วัน" also says how recent (page help).
+        tx.salesDay.aggregate({ where: { tenantId, ...b, currentBatchId: { not: null } }, _max: { businessDate: true } }),
+        tx.stockCount.aggregate({ where: { tenantId, ...b, status: "CLOSED", deletedAt: null }, _max: { countDate: true } }),
+        tx.goodsReceipt.aggregate({ where: { tenantId, ...b, status: "CONFIRMED", deletedAt: null }, _max: { receivedAt: true } }),
       ]);
+    const iso = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : null);
     return {
       salesDays,
       menus,
@@ -80,6 +85,9 @@ export async function dataReadinessLogic(tenantId: string, reach: BranchReach, b
       guestDays,
       categorisedMenus,
       parLevels,
+      lastSalesDay: iso(lastSales._max.businessDate),
+      lastCountDay: iso(lastCount._max.countDate),
+      lastReceiptDay: iso(lastReceipt._max.receivedAt),
     };
   });
 }

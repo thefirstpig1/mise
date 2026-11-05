@@ -217,7 +217,7 @@ export default function SalesAnalysis({
     >
       <div className="space-y-8">
         {/* ---------- the measure, for the whole page (Kong, 2026-09-28) ---------- */}
-        <section className="flex flex-wrap items-center justify-between gap-3">
+        <section data-help="sales-view" className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-sm text-muted-foreground">ดูจาก</span>
             <MetricSwitch current={by} options={options} onSelect={select} pending={pending} />
@@ -267,7 +267,7 @@ export default function SalesAnalysis({
         {between}
 
         {/* ---------- by day ---------- */}
-        <section className="rounded-[18px] border border-border/70 bg-surface shadow-card p-5">
+        <section data-help="sales-daily" className="rounded-[18px] border border-border/70 bg-surface shadow-card p-5">
           <h3 className="text-base font-semibold">{METRIC_LABELS_TH[by]}รายวัน</h3>
           <p className="mb-4 mt-0.5 text-xs text-muted-foreground">กดที่แท่งเพื่อดูรายละเอียดของวันนั้น</p>
           {v.profitKnown ? (
@@ -291,7 +291,7 @@ export default function SalesAnalysis({
         ) : null}
 
         <div className="grid gap-6 xl:grid-cols-2">
-          <section className="rounded-[18px] border border-border/70 bg-surface shadow-card p-5">
+          <section data-help="sales-weekday" className="rounded-[18px] border border-border/70 bg-surface shadow-card p-5">
             <h3 className="text-base font-semibold">วันไหนของสัปดาห์ขายดี</h3>
             <p className="mb-4 mt-0.5 text-xs text-muted-foreground">
               {METRIC_LABELS_TH[by]}เฉลี่ยต่อวัน หารด้วยจำนวนวันนั้นที่มีจริงในช่วง — วันที่ดีที่สุดเป็นแท่งสีส้มอิฐ · ใช้วางกะพนักงาน
@@ -302,7 +302,7 @@ export default function SalesAnalysis({
               <WaitingFor figure="profitByWeekday" needs={RECIPE_NEEDS} reason={noRecipeReason} branchId={branchId ?? undefined} />
             )}
           </section>
-          <section className="rounded-[18px] border border-border/70 bg-surface shadow-card p-5">
+          <section data-help="sales-mix" className="rounded-[18px] border border-border/70 bg-surface shadow-card p-5">
             <h3 className="text-base font-semibold">สัดส่วนหมวดเมนู</h3>
             <p className="mb-4 mt-0.5 text-xs text-muted-foreground">ตาม{METRIC_LABELS_TH[by]} · กดหมวดเพื่อดูเมนูในหมวดนั้น</p>
             {noMenuCategories && <UncategorisedHint />}
@@ -325,7 +325,7 @@ export default function SalesAnalysis({
         </div>
 
         {/* ---------- month by month (Kong, 2026-10-28) ---------- */}
-        <section className="rounded-[18px] border border-border/70 bg-surface shadow-card p-5">
+        <section data-help="sales-trend" className="rounded-[18px] border border-border/70 bg-surface shadow-card p-5">
           <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
             <div>
               <h3 className="text-base font-semibold">แนวโน้มรายหมวด</h3>
@@ -341,7 +341,7 @@ export default function SalesAnalysis({
         </section>
 
         {/* ---------- question 1: which category sells on which day ---------- */}
-        <section className="rounded-[18px] border border-border/70 bg-surface shadow-card p-5">
+        <section data-help="sales-heat" className="rounded-[18px] border border-border/70 bg-surface shadow-card p-5">
           <h3 className="text-base font-semibold">หมวดไหนขายดีวันไหน</h3>
           <p className="mb-4 mt-0.5 text-xs text-muted-foreground">
             เช่น วันเสาร์ ต้มยำคิดเป็นกี่ % ของทั้งวัน เทียบกับเครื่องดื่มหรือเบียร์ · เฉลี่ยจากจำนวนวันนั้นที่มีข้อมูลจริง
@@ -364,7 +364,7 @@ export default function SalesAnalysis({
         </section>
 
         {/* ---------- question 4: what moved (Kong, 2026-10-03: one chart, any comparison) ---------- */}
-        <section className="rounded-[18px] border border-border/70 bg-surface shadow-card p-5">
+        <section data-help="sales-movers" className="rounded-[18px] border border-border/70 bg-surface shadow-card p-5">
           <h3 className="text-base font-semibold">เมนูที่น่าจับตา</h3>
           <div className="mb-4 mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
             <ComparePicker
@@ -384,7 +384,7 @@ export default function SalesAnalysis({
         </section>
 
         {canProfit ? (
-          <section className="rounded-[18px] border border-border/70 bg-surface shadow-card p-5">
+          <section data-help="sales-groups" className="rounded-[18px] border border-border/70 bg-surface shadow-card p-5">
             <h3 className="text-base font-semibold">เมนูแต่ละกลุ่ม: ขายได้มากน้อย × กำไรต่อจาน</h3>
             <p className="mb-4 mt-0.5 text-xs text-muted-foreground">
               ขายได้กี่จาน × กำไรต่อจาน · กดวงหรือรายชื่อเพื่อดูอินไซต์
@@ -406,7 +406,7 @@ export default function SalesAnalysis({
             )}
           </section>
         ) : (
-          <section className="rounded-[18px] border border-border/70 bg-surface shadow-card p-5">
+          <section data-help="sales-top" className="rounded-[18px] border border-border/70 bg-surface shadow-card p-5">
             <h3 className="text-base font-semibold">
               {by === "net" ? "เมนูทำเงินสูงสุด" : by === "qty" ? "เมนูที่ลูกค้าสั่งมากที่สุด" : "เมนูทำกำไร"}
             </h3>

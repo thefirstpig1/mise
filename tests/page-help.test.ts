@@ -24,14 +24,32 @@ describe("page help", () => {
     expect(missing).toEqual([]);
   });
 
-  it("PH2 — every entry has all five parts", () => {
+  it("PH2 — every entry has all its parts", () => {
     for (const [k, h] of Object.entries(PAGE_HELP)) {
       expect(h.question.length, k).toBeGreaterThan(10);
-      expect(h.pictureText.length, k).toBeGreaterThan(5);
       expect(h.uses.length, k).toBeGreaterThan(0);
-      expect(h.outputs.length, k).toBeGreaterThan(0);
       expect(h.why.length, k).toBeGreaterThan(10);
       for (const f of h.pictures) expect(FIGURES[f], `${k}: ${f}`).toBeDefined();
+      if (h.sections) {
+        // Round 2: the page's parts, a map that places every one, formulas, where the numbers go.
+        expect(h.sections.length, k).toBeGreaterThan(1);
+        expect(h.formulas?.length, k).toBeGreaterThan(0);
+        expect(h.feeds?.length, k).toBeGreaterThan(0);
+        expect(h.example?.rows.length, k).toBeGreaterThan(0);
+        expect([...(h.layout ?? [])].flat().sort(), k).toEqual(h.sections.map((x) => x.id).sort());
+      } else {
+        expect(h.pictureText.length, k).toBeGreaterThan(5);
+        expect(h.outputs.length, k).toBeGreaterThan(0);
+      }
     }
+  });
+
+  // A part the guide points at must be marked on the page, or "ดูบนหน้า" finds nothing.
+  it("PH3 — every round-2 part is marked data-help on some page", () => {
+    const missing = Object.values(PAGE_HELP)
+      .flatMap((h) => h.sections ?? [])
+      .filter((x) => !sources.includes(`data-help="${x.id}"`))
+      .map((x) => x.id);
+    expect(missing).toEqual([]);
   });
 });

@@ -20,6 +20,7 @@ import { X } from "lucide-react";
 import { FIGURES, NEEDS, NEED_KEYS, needStatus, type FigureCopy, type NeedKey } from "@/lib/data-needs";
 import { PAGE_HELP, type PageHelpKey } from "@/lib/page-help";
 import { Example, useReadiness } from "@/components/ui/WaitingFor";
+import { GuideDialog } from "@/components/ui/PageGuide";
 
 const SEEN = (key: PageHelpKey) => `kitkrua-help-seen:${key}`;
 const isNeed = (u: string): u is NeedKey => (NEED_KEYS as readonly string[]).includes(u);
@@ -62,9 +63,21 @@ export default function PageHelp({ page, branchId }: { page: PageHelpKey; branch
           ใหม่ · กดดูว่าหน้านี้บอกอะไร
         </span>
       ) : null}
-      {open ? <HelpDialog page={page} branchId={branchId} onClose={() => setOpen(false)} /> : null}
+      {open ? (
+        PAGE_HELP[page].sections ? (
+          <GuideHost page={page} branchId={branchId} onClose={() => setOpen(false)} />
+        ) : (
+          <HelpDialog page={page} branchId={branchId} onClose={() => setOpen(false)} />
+        )
+      ) : null}
     </span>
   );
+}
+
+/** Round 2: the page explained by the page itself (PageGuide.tsx). */
+function GuideHost({ page, branchId, onClose }: { page: PageHelpKey; branchId?: string; onClose: () => void }) {
+  const ready = useReadiness(branchId);
+  return <GuideDialog h={PAGE_HELP[page]} ready={ready} onClose={onClose} />;
 }
 
 function HelpDialog({ page, branchId, onClose }: { page: PageHelpKey; branchId?: string; onClose: () => void }) {

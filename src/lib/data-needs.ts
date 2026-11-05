@@ -71,6 +71,10 @@ export type Readiness = {
   guestDays: number;
   categorisedMenus: number;
   parLevels: number;
+  /** The newest day / count / receipt, ISO date — "ล่าสุด 20 ต.ค." beside the count (page help, 2026-11-05). */
+  lastSalesDay: string | null;
+  lastCountDay: string | null;
+  lastReceiptDay: string | null;
 };
 
 export type NeedStatus = { done: boolean; text: string };
@@ -78,10 +82,32 @@ export type NeedStatus = { done: boolean; text: string };
 const n = (x: number) => x.toLocaleString("th-TH");
 
 /** One line per need for the checklist — what this shop has, never a promise. */
+/**
+ * Some of it is there but not all — 19 of 29 menus with a recipe. A figure that
+ * works on what exists (recipe profit, prices) is usable, so it must not read
+ * "ยังไม่มี" (page help, 2026-11-05: the sample shop's quadrant said "รอสูตร").
+ */
+export function needPartial(key: NeedKey, r: Readiness): boolean {
+  switch (key) {
+    case "recipe":
+      return r.menusWithRecipe > 0 && r.menusWithRecipe < r.menus;
+    case "category":
+      return r.categorisedMenus > 0 && r.categorisedMenus < r.menus;
+    case "price":
+      return r.pricedProducts > 0 && r.pricedProducts < r.products;
+    default:
+      return false;
+  }
+}
+
+/** " · ล่าสุด 20 ต.ค." — the newest day, so a count is not read as up to date. */
+const latest = (iso: string | null) =>
+  iso ? ` · ล่าสุด ${new Date(`${iso.slice(0, 10)}T00:00:00Z`).toLocaleDateString("th-TH", { day: "numeric", month: "short", timeZone: "UTC" })}` : "";
+
 export function needStatus(key: NeedKey, r: Readiness): NeedStatus {
   switch (key) {
     case "sales":
-      return r.salesDays > 0 ? { done: true, text: `มีแล้ว ${n(r.salesDays)} วัน` } : { done: false, text: "ยังไม่มีไฟล์ยอดขาย" };
+      return r.salesDays > 0 ? { done: true, text: `มีแล้ว ${n(r.salesDays)} วัน${latest(r.lastSalesDay)}` } : { done: false, text: "ยังไม่มีไฟล์ยอดขาย" };
     case "recipe":
       if (r.menus === 0) return { done: false, text: "ยังไม่มีเมนู · เมนูมาพร้อมไฟล์ยอดขาย" };
       return { done: r.menusWithRecipe >= r.menus, text: `มีสูตรแล้ว ${n(r.menusWithRecipe)} จาก ${n(r.menus)} เมนู` };
@@ -89,11 +115,11 @@ export function needStatus(key: NeedKey, r: Readiness): NeedStatus {
       if (r.products === 0) return { done: false, text: "ยังไม่มีวัตถุดิบในระบบ" };
       return { done: r.pricedProducts >= r.products, text: `มีราคาแล้ว ${n(r.pricedProducts)} จาก ${n(r.products)} รายการ` };
     case "count":
-      return r.closedCounts > 0 ? { done: true, text: `ปิดใบนับแล้ว ${n(r.closedCounts)} ใบ` } : { done: false, text: "ยังไม่เคยนับ" };
+      return r.closedCounts > 0 ? { done: true, text: `ปิดใบนับแล้ว ${n(r.closedCounts)} ใบ${latest(r.lastCountDay)}` } : { done: false, text: "ยังไม่เคยนับ" };
     case "posted":
       return r.postedDays > 0 ? { done: true, text: `ตัดแล้ว ${n(r.postedDays)} วัน` } : { done: false, text: "ยังไม่ได้ตัดสต็อก" };
     case "receipt":
-      return r.receipts > 0 ? { done: true, text: `มีแล้ว ${n(r.receipts)} ใบ` } : { done: false, text: "ยังไม่มีใบรับสินค้า" };
+      return r.receipts > 0 ? { done: true, text: `มีแล้ว ${n(r.receipts)} ใบ${latest(r.lastReceiptDay)}` } : { done: false, text: "ยังไม่มีใบรับสินค้า" };
     case "expense":
       return r.expenses > 0 ? { done: true, text: `มีแล้ว ${n(r.expenses)} บิล` } : { done: false, text: "ยังไม่มีบิลค่าใช้จ่าย" };
     case "guests":

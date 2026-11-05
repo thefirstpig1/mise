@@ -503,7 +503,7 @@ export default async function SalesPage({
               rows so the lines do not read on into each other. The quiet line
               under them answers "does this match the POS": the Z-report
               order, folded until asked for, so it never outshouts the cards. */}
-          <section className={`grid gap-3 sm:grid-cols-3 ${kpis.length > 3 ? "xl:grid-cols-5" : ""}`}>
+          <section data-help="sales-kpis" className={`grid gap-3 sm:grid-cols-3 ${kpis.length > 3 ? "xl:grid-cols-5" : ""}`}>
             {kpis.map((k) => (
               <Kpi key={k.label} {...k} curLabel={curLabel} prevLabel={prevLabel} />
             ))}

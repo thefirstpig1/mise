@@ -77,7 +77,7 @@ export default function WaitingFor({
   const Icon = ICONS[s];
   const first = NEEDS[needs[0]];
   return (
-    <div className="grid gap-3">
+    <div data-waiting className="grid gap-3">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl bg-surface-sunk px-3 py-2.5">
         <span aria-hidden className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#EEF0DC] text-[#7D8550]">
           <Icon className="h-5 w-5" />
@@ -353,7 +353,7 @@ const MUSTARD = ["#B8900F", "#E7C860"] as const;
 export function Outline({ shape, sample }: { shape: OutlineShape; sample?: SampleKey }) {
   return (
     // Capped: in a full-width card the outline would otherwise grow to half the screen.
-    <svg viewBox={viewOf(shape, sample)} className="block h-auto max-h-[200px] w-full" role="img" aria-label="โครงของกราฟ ยังไม่มีข้อมูล">
+    <svg data-waiting viewBox={viewOf(shape, sample)} className="block h-auto max-h-[200px] w-full" role="img" aria-label="โครงของกราฟ ยังไม่มีข้อมูล">
       <Shape shape={shape} filled={false} sample={sample} />
     </svg>
   );

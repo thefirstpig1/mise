@@ -10,7 +10,7 @@ import type { CSSProperties } from "react";
  * boundary.
  */
 export default function DashBar({ className = "", style }: { className?: string; style?: CSSProperties }) {
-  return <span aria-hidden className={`block max-w-full rounded-full border-[1.4px] border-dashed border-sage bg-[#FBF8EE] ${className}`} style={style} />;
+  return <span aria-hidden data-waiting className={`block max-w-full rounded-full border-[1.4px] border-dashed border-sage bg-[#FBF8EE] ${className}`} style={style} />;
 }
 
 /**

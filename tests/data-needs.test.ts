@@ -24,6 +24,9 @@ const NONE: Readiness = {
   guestDays: 0,
   categorisedMenus: 0,
   parLevels: 0,
+  lastSalesDay: null,
+  lastCountDay: null,
+  lastReceiptDay: null,
 };
 
 const pageFor = (href: string) => join(process.cwd(), "src/app/(app)", href.split("?")[0], "page.tsx");
@@ -54,6 +57,7 @@ describe("NEEDS", () => {
 
   it("DN5 — a counted thing is done from the first one", () => {
     expect(needStatus("sales", { ...NONE, salesDays: 26 })).toEqual({ done: true, text: "มีแล้ว 26 วัน" });
+    expect(needStatus("sales", { ...NONE, salesDays: 26, lastSalesDay: "2026-10-20" })).toEqual({ done: true, text: "มีแล้ว 26 วัน · ล่าสุด 20 ต.ค." });
     expect(needStatus("count", { ...NONE, closedCounts: 1 })).toEqual({ done: true, text: "ปิดใบนับแล้ว 1 ใบ" });
     expect(needStatus("posted", { ...NONE, postedDays: 1_250 }).text).toBe("ตัดแล้ว 1,250 วัน");
   });

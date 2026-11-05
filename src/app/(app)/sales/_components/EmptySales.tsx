@@ -28,7 +28,7 @@ const KPIS: { label: string; icon: LucideIcon; note: string }[] = [
 export default function EmptySales({ branchId, canProfit }: { branchId?: string; canProfit: boolean }) {
   return (
     <>
-      <section className="grid gap-3 sm:grid-cols-3">
+      <section data-help="sales-kpis" className="grid gap-3 sm:grid-cols-3">
         {KPIS.map((k) => (
           <div key={k.label} className="grid content-start gap-2 rounded-[18px] border border-border/70 bg-surface p-4 shadow-card">
             <p className="flex items-center justify-between gap-2 text-sm text-muted-foreground">
@@ -54,34 +54,34 @@ export default function EmptySales({ branchId, canProfit }: { branchId?: string;
         ))}
       </section>
 
-      <section className={CARD}>
+      <section data-help="sales-daily" className={CARD}>
         <h3 className="text-base font-semibold">ยอดขายรายวัน</h3>
         <p className="mb-4 mt-0.5 text-xs text-muted-foreground">กดที่แท่งเพื่อดูรายละเอียดของวันนั้น</p>
         <WaitingFor figure="dailySales" needs={["sales"]} reason="ยังไม่มียอดขายในช่วงนี้ — นำเข้าไฟล์จาก POS ไฟล์เดียวครอบได้หลายวัน" branchId={branchId} />
       </section>
 
       <div className="grid gap-6 xl:grid-cols-2">
-        <section className={CARD}>
+        <section data-help="sales-weekday" className={CARD}>
           <h3 className="text-base font-semibold">วันไหนของสัปดาห์ขายดี</h3>
           <p className="mb-4 mt-0.5 text-xs text-muted-foreground">
             ยอดขายเฉลี่ยต่อวัน หารด้วยจำนวนวันนั้นที่มีจริงในช่วง — วันที่ดีที่สุดเป็นแท่งสีส้มอิฐ · ใช้วางกะพนักงาน
           </p>
           <Outline shape="bars" sample="week" />
         </section>
-        <section className={CARD}>
+        <section data-help="sales-mix" className={CARD}>
           <h3 className="text-base font-semibold">สัดส่วนหมวดเมนู</h3>
           <p className="mb-4 mt-0.5 text-xs text-muted-foreground">ตามยอดขาย · กดหมวดเพื่อดูเมนูในหมวดนั้น</p>
           <Outline shape="donut" />
         </section>
       </div>
 
-      <section className={CARD}>
+      <section data-help="sales-trend" className={CARD}>
         <h3 className="text-base font-semibold">แนวโน้มรายหมวด</h3>
         <p className="mb-4 mt-0.5 text-xs text-muted-foreground">เดือนไหนหมวดไหนขายดี · เฉลี่ยต่อวันที่มีข้อมูล · กดหมวดเพื่อดูกราฟของหมวดนั้น</p>
         <Outline shape="line" />
       </section>
 
-      <section className={CARD}>
+      <section data-help="sales-heat" className={CARD}>
         <h3 className="text-base font-semibold">หมวดไหนขายดีวันไหน</h3>
         <p className="mb-4 mt-0.5 text-xs text-muted-foreground">
           เช่น วันเสาร์ ต้มยำคิดเป็นกี่ % ของทั้งวัน เทียบกับเครื่องดื่มหรือเบียร์ · เฉลี่ยจากจำนวนวันนั้นที่มีข้อมูลจริง
@@ -89,14 +89,14 @@ export default function EmptySales({ branchId, canProfit }: { branchId?: string;
         <Outline shape="heat" />
       </section>
 
-      <section className={CARD}>
+      <section data-help="sales-movers" className={CARD}>
         <h3 className="text-base font-semibold">เมนูที่น่าจับตา</h3>
         <p className="mb-4 mt-0.5 text-xs text-muted-foreground">เมนูที่ขายขึ้นหรือลงมากที่สุดเมื่อเทียบกับช่วงก่อน · ยอดขายเฉลี่ยต่อวัน</p>
         <Outline shape="list" />
       </section>
 
       {canProfit ? (
-        <section className={CARD}>
+        <section data-help="sales-groups" className={CARD}>
           <h3 className="text-base font-semibold">เมนูแต่ละกลุ่ม: ขายได้มากน้อย × กำไรต่อจาน</h3>
           <p className="mb-4 mt-0.5 text-xs text-muted-foreground">ขายได้กี่จาน × กำไรต่อจาน · ต้องมียอดขายและสูตรอาหาร</p>
           <Outline shape="quadrant" />
