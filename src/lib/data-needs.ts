@@ -121,12 +121,6 @@ export type FigureCopy = {
   how: string;
   shape: OutlineShape;
   sample?: SampleKey;
-  /**
-   * A made-up value, round and obviously an example, drawn where the figure
-   * will sit while it waits (Kong 2026-11-05: "ต้องมีตัวอย่างให้ดูทุกองค์ประกอบ").
-   * Always shown pale, in a dashed box, tagged "ตัวอย่าง" — never as a number.
-   */
-  example?: string;
 };
 
 export const FIGURES = {
@@ -136,14 +130,12 @@ export const FIGURES = {
     how: "วิธีนับสต็อก: สต็อกต้นงวด + ซื้อเข้า − สต็อกปลายงวด · วิธีสูตรอาหาร: จำนวนจานที่ขาย × ต้นทุนต่อจาน แล้วหารด้วยยอดขาย",
     shape: "flow",
     sample: "cogs",
-    example: "34%",
   },
   netProfit: {
     title: "กำไรสุทธิ",
     question: "ตอบว่ายอดขายช่วงนี้ เหลือเป็นกำไรหลังหักต้นทุนอาหารและค่าใช้จ่ายเท่าไร",
     how: "ยอดขาย − ต้นทุนอาหาร − ค่าใช้จ่ายดำเนินงาน (ค่าแรง ค่าเช่า ค่าน้ำไฟ และอื่น ๆ ที่บันทึกไว้)",
     shape: "flow",
-    example: "฿38,000",
   },
   salesToProfit: {
     title: "จากยอดขายสู่กำไร",
@@ -181,7 +173,6 @@ export const FIGURES = {
     question: "ตอบว่าช่วงนี้จ่ายค่าแรง ค่าเช่า ค่าน้ำไฟ และค่าใช้จ่ายอื่นไปเท่าไร คิดเป็นกี่ % ของยอดขาย",
     how: "รวมบิลค่าใช้จ่ายที่บันทึกในช่วงนี้ ไม่รวมบิลซื้อวัตถุดิบ ซึ่งอยู่ในต้นทุนอาหาร",
     shape: "bars",
-    example: "฿45,000",
   },
   perHead: {
     title: "ยอดต่อหัว",
@@ -195,7 +186,6 @@ export const FIGURES = {
     how: "รวมยอดขายจากไฟล์ POS ของแต่ละวัน หลังหักส่วนลด ไม่รวม VAT และเซอร์วิสชาร์จ",
     shape: "bars",
     sample: "month",
-    example: "฿12,500",
   },
   recipeProfit: {
     title: "กำไรขั้นต้นจากสูตร",
@@ -266,7 +256,6 @@ export const FIGURES = {
     how: "จำนวนที่เหลือของแต่ละล็อต × ราคาที่รับเข้าล็อตนั้น (เข้าก่อนออกก่อน) · ของที่ยังไม่มีราคาไม่นับ",
     shape: "list",
     sample: "stock",
-    example: "฿48,000",
   },
   daysLeft: {
     title: "อีกกี่วันจะใช้หมด",
@@ -292,14 +281,12 @@ export const FIGURES = {
     question: "ตอบว่าวัตถุดิบตามสูตร คิดเป็นกี่ % ของยอดขายของเมนูที่มีสูตร",
     how: "จำนวนจานที่ขาย × ต้นทุนต่อจาน หารด้วยยอดขายของเมนูเหล่านั้น ใน 30 วันล่าสุด",
     shape: "bars",
-    example: "33%",
   },
   recipeCoverage: {
     title: "มีสูตรแล้ว คิดเป็นกี่ % ของยอดขาย",
     question: "ตอบว่ายอดขายกี่ % มาจากเมนูที่มีสูตรแล้ว จึงคิดต้นทุนได้",
     how: "ยอดขายของเมนูที่มีสูตร ÷ ยอดขายทั้งหมด ใน 30 วันล่าสุด",
     shape: "bars",
-    example: "85%",
   },
   dishCost: {
     title: "ต้นทุนต่อจาน",
@@ -314,7 +301,6 @@ export const FIGURES = {
     how: "ต้นทุนต่อจาน หารด้วยราคาเฉลี่ยที่ขายได้จริง เทียบกับเป้าของเมนูนั้นหรือของร้าน",
     shape: "list",
     sample: "over",
-    example: "3 เมนู",
   },
 } as const satisfies Record<string, FigureCopy>;
 

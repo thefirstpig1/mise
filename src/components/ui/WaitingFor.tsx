@@ -26,7 +26,7 @@
 // frame is fixed to the frame).
 // ============================================================
 
-import { useEffect, useId, useState, type ReactNode } from "react";
+import { useEffect, useId, useState, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { ChartColumn, ChartLine, ChartPie, ChartScatter, LayoutGrid, List, Waypoints, X, type LucideIcon } from "lucide-react";
 import { FIGURES, NEEDS, needStatus, type FigureCopy, type FigureKey, type NeedKey, type OutlineShape, type Readiness, type SampleKey } from "@/lib/data-needs";
@@ -98,7 +98,7 @@ export default function WaitingFor({
           ) : null}
         </div>
       </div>
-      {outline ? <Ghost shape={s} sample={f.sample} /> : null}
+      {outline ? <Outline shape={s} sample={f.sample} /> : null}
       {open ? <NeedsDialog figure={figure} needs={needs} reason={reason} branchId={branchId} act={act} onClose={() => setOpen(false)} /> : null}
     </div>
   );
@@ -110,19 +110,8 @@ export default function WaitingFor({
 
 export function WaitingSlot({ figure, needs, reason, branchId, act }: Common) {
   const [open, setOpen] = useState(false);
-  const example = (FIGURES[figure] as FigureCopy).example;
   return (
     <>
-      {example ? (
-        // The figure's own place, holding a made-up value — same size as the real
-        // one, so the card keeps its shape (Kong 2026-11-05, review item 2).
-        <span className="flex items-center gap-2">
-          <span className="rounded-lg border-[1.5px] border-dashed border-primary-line px-1.5 font-display text-[1.45rem] font-semibold leading-tight text-muted-subtle tabular-nums">
-            {example}
-          </span>
-          <ExampleTag />
-        </span>
-      ) : null}
       <span className="flex min-h-[38px] flex-wrap items-center gap-x-2 gap-y-0.5 rounded-[11px] border-[1.5px] border-dashed border-primary-line bg-[repeating-linear-gradient(-45deg,rgb(174_183_132/0.08)_0_7px,transparent_7px_14px)] px-2.5 py-1.5 font-sans text-[13px] font-normal leading-normal text-muted-foreground">
         <span className="min-w-0">
           {reason ?? (
@@ -361,50 +350,20 @@ const WEEK_H = [70, 66, 64, 68, 74, 104, 98];
 const WEEK_LABELS = ["จ.", "อ.", "พ.", "พฤ.", "ศ.", "ส.", "อา."];
 const MUSTARD = ["#B8900F", "#E7C860"] as const;
 
-/** The small "ตัวอย่าง" tag on anything made up. */
-export function ExampleTag() {
-  return <span className="shrink-0 rounded-full border border-[#E2CE97] bg-[#F8EFD6] px-2 font-display text-[11px] font-semibold text-gold-ink">ตัวอย่าง</span>;
-}
-
 /**
- * A place on the page that waits for data, holding a made-up example of what
- * will go there (Kong 2026-11-05: "layout มันต้องเหมือนกันกับตอนที่มีข้อมูล แล้ว
- * ต้องมีตัวอย่างให้ดูทุกองค์ประกอบ"). The dashed edge says WAITING — the same
- * edge as a WaitingSlot (Kong 2026-11-02: missing data is a dashed slot, never
- * blur); the pale content and the tag say EXAMPLE, never this shop's figures.
+ * One dashed bar standing in for a word or a number that has not arrived — the
+ * same stroke as the chart outlines, for lists and tables (Kong 2026-11-05: the
+ * layout stays as it will be, but nothing on the page may look like data).
  */
-export function ExampleFrame({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return (
-    <div
-      className={`relative rounded-xl border-[1.5px] border-dashed border-primary-line bg-[repeating-linear-gradient(-45deg,rgb(174_183_132/0.06)_0_7px,transparent_7px_14px)] p-3 ${className}`}
-    >
-      <span className="absolute right-2 top-2 z-10">
-        <ExampleTag />
-      </span>
-      <div aria-hidden className="pointer-events-none select-none opacity-50 saturate-[0.6]">
-        {children}
-      </div>
-      <p className="sr-only">ตัวอย่างจากร้านสมมุติ ไม่ใช่ข้อมูลของร้านนี้</p>
-    </div>
-  );
+export function DashBar({ className = "", style }: { className?: string; style?: CSSProperties }) {
+  return <span aria-hidden className={`block rounded-full border-[1.4px] border-dashed border-sage bg-[#FBF8EE] ${className}`} style={style} />;
 }
 
-/** The chart as it WILL look, from a made-up shop. It replaced a bare dashed outline. */
-export function Ghost({ shape, sample }: { shape: OutlineShape; sample?: SampleKey }) {
-  return (
-    <ExampleFrame className="pt-8">
-      <svg viewBox={viewOf(shape, sample)} className="mx-auto block h-auto max-h-[200px] w-full">
-        <Shape shape={shape} filled sample={sample} />
-      </svg>
-    </ExampleFrame>
-  );
-}
-
-export function Outline({ shape }: { shape: OutlineShape }) {
+export function Outline({ shape, sample }: { shape: OutlineShape; sample?: SampleKey }) {
   return (
     // Capped: in a full-width card the outline would otherwise grow to half the screen.
-    <svg viewBox={VIEW[shape]} className="block h-auto max-h-[200px] w-full" role="img" aria-label="โครงของกราฟ ยังไม่มีข้อมูล">
-      <Shape shape={shape} filled={false} />
+    <svg viewBox={viewOf(shape, sample)} className="block h-auto max-h-[200px] w-full" role="img" aria-label="โครงของกราฟ ยังไม่มีข้อมูล">
+      <Shape shape={shape} filled={false} sample={sample} />
     </svg>
   );
 }

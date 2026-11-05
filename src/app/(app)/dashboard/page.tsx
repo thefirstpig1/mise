@@ -34,7 +34,7 @@ import { MonthlyTrend, type MenuBar, type RevenueRow } from "./_components/Chart
 import { DailySalesBars, TopMenusCard, WatchEmpty } from "./_components/DashboardParts";
 import { isoDay, parseBranchParam, parsePreset, periodFor, type Period } from "./_components/dashboard-period";
 import { grossProfitBlockerShort, isCountBlocker, purchasesLookLow } from "@/lib/gross-profit-blocker";
-import WaitingFor, { Coverage, ExampleFrame, WaitingSlot, WhatIsThis } from "@/components/ui/WaitingFor";
+import WaitingFor, { Coverage, DashBar, WaitingSlot, WhatIsThis } from "@/components/ui/WaitingFor";
 import type { NeedKey } from "@/lib/data-needs";
 
 // ============================================================
@@ -957,25 +957,24 @@ function BranchCompare({ rows, days, seeGross, seeNet }: { rows: PnlBranchRow[];
   const sorted = [...rows].sort((a, b) => (num(b.revenue) ?? 0) - (num(a.revenue) ?? 0));
   const unknown = rows.filter((r) => num(r.revenue) && r.cogs === null).map((r) => short(r.branchName));
   if (!rows.some((r) => num(r.revenue)))
-    // Same table as a filled card, from a made-up shop (Kong 2026-11-05, review item 2).
+    // The table's own columns, one dashed row per branch (Kong 2026-11-05: the
+    // layout stays, nothing looks like data).
     return (
       <>
-        <ExampleFrame className="pt-9">
-          <table className="w-full text-sm">
-            <BranchHead seeGross={seeGross} seeNet={seeNet} />
-            <tbody className="font-display tabular-nums">
-              {EXAMPLE_BRANCHES.map(([name, perDay, food, net]) => (
-                <tr key={name} className="border-b border-border last:border-b-0">
-                  <td className="py-2 pr-2 font-sans">{name}</td>
-                  <td className="px-2 py-2 text-right">{perDay}</td>
-                  {seeGross && <td className="px-2 py-2 text-right">{food}</td>}
-                  {seeNet && <td className="py-2 pl-2 text-right">{net}</td>}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </ExampleFrame>
-        <p className="mt-2 text-xs text-muted-foreground">ยังไม่มียอดขายในช่วงนี้ · แต่ละสาขาจะขึ้นตรงนี้เมื่อนำเข้ายอดขาย</p>
+        <table className="w-full text-sm" aria-label="ตารางเทียบสาขา ขึ้นเมื่อมียอดขาย">
+          <BranchHead seeGross={seeGross} seeNet={seeNet} />
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.branchId} className="border-b border-border last:border-b-0">
+                <td className="py-2 pr-2">{short(r.branchName)}</td>
+                <td className="px-2 py-2"><DashBar className="ml-auto h-3 w-14" /></td>
+                {seeGross && <td className="px-2 py-2"><DashBar className="ml-auto h-3 w-12" /></td>}
+                {seeNet && <td className="py-2 pl-2"><DashBar className="ml-auto h-3 w-14" /></td>}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <p className="mt-2 text-xs text-muted-foreground">ยังไม่มียอดขายในช่วงนี้ · ตัวเลขของแต่ละสาขาจะขึ้นเมื่อนำเข้ายอดขาย</p>
       </>
     );
   return (
@@ -1019,12 +1018,6 @@ function BranchHead({ seeGross, seeNet }: { seeGross: boolean; seeNet: boolean }
     </thead>
   );
 }
-
-/** A made-up two-branch shop: name, sales per day, food cost, net profit. */
-const EXAMPLE_BRANCHES = [
-  ["สาขา ก", "฿14,200", "33.5%", "฿42,000"],
-  ["สาขา ข", "฿9,800", "36.1%", "฿21,500"],
-] as const;
 
 function Watch({ tone, icon, title, amount, href, children }: { tone: "bad" | "warn"; icon: string; title: string; amount: string; href: string; children: ReactNode }) {
   return (

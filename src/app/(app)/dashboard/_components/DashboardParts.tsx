@@ -20,7 +20,7 @@ import { ANIM, ChartTooltip, GRID, INK_MUTED, NEUTRAL, axis, cursorFill } from "
 import { readApi } from "@/lib/read-api";
 import { announceStale } from "@/lib/stale-tab";
 import { clickableBar, type MenuBar, type RevenueRow, type RevenueSeries } from "./Charts";
-import { ExampleFrame, WhatIsThis, useReadiness } from "@/components/ui/WaitingFor";
+import { DashBar, WhatIsThis, useReadiness } from "@/components/ui/WaitingFor";
 import { NEEDS, type NeedKey } from "@/lib/data-needs";
 
 const baht = (n: number) => new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB", maximumFractionDigits: 0 }).format(n);
@@ -218,12 +218,18 @@ export function TopMenusCard({
       ) : measure === "profit" && profit && !Array.isArray(profit) && profit !== "loading" ? (
         <p className="py-6 text-center text-sm text-muted-foreground">{profit.error}</p>
       ) : rows.length === 0 ? (
-        // Same rows as a filled card, from a made-up shop (Kong 2026-11-05, review item 2).
+        // The list's own rows, dashed (Kong 2026-11-05: the layout stays, nothing looks like data).
         <>
-          <ExampleFrame className="pt-9">
-            <MenuRows rows={EXAMPLE_MENUS.map(([name, net, qty], i) => ({ id: String(i), name, value: measure === "qty" ? qty : net }))} max={measure === "qty" ? 64 : 18400} fmt={fmt} />
-          </ExampleFrame>
-          <p className="text-xs text-muted-foreground">ยังไม่มียอดขายในช่วงนี้ · เมนูของร้านจะขึ้นตรงนี้เมื่อนำเข้ายอดขาย</p>
+          <ul aria-label="รายการเมนูขายดี ขึ้นเมื่อมียอดขาย" className="space-y-2.5">
+            {[0.92, 0.74, 0.58, 0.44, 0.32].map((w) => (
+              <li key={w} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5">
+                <DashBar className="h-3" style={{ width: `${45 + w * 35}%` }} />
+                <DashBar className="h-3 w-14" />
+                <DashBar className="col-span-2 h-1.5" style={{ width: `${w * 100}%` }} />
+              </li>
+            ))}
+          </ul>
+          <p className="text-xs text-muted-foreground">ยังไม่มียอดขายในช่วงนี้ · เมนูที่ขายดีที่สุด 6 เมนูจะขึ้นตรงนี้เมื่อนำเข้ายอดขาย</p>
         </>
       ) : (
         <MenuRows rows={rows} max={max} fmt={fmt} />
@@ -239,15 +245,6 @@ export function TopMenusCard({
     </div>
   );
 }
-
-/** A made-up shop's best sellers: name, sales, plates. */
-const EXAMPLE_MENUS: [string, number, number][] = [
-  ["ข้าวกะเพราหมูกรอบ", 18400, 64],
-  ["ต้มยำกุ้งน้ำข้น", 14200, 38],
-  ["ผัดไทยกุ้งสด", 11900, 41],
-  ["ชาเย็น", 7600, 58],
-  ["ไข่เจียวหมูสับ", 6300, 45],
-];
 
 function MenuRows({ rows, max, fmt }: { rows: { id: string; name: string; value: number | null }[]; max: number; fmt: (v: number | null) => string }) {
   return (
