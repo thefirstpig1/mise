@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import SectionEyebrow from "@/components/layout/SectionEyebrow";
+import SectionTabs, { type SectionTab } from "@/components/ui/SectionTabs";
 
 // Part 35 L4 — what each section's layout keeps once the sidebar exists: its
 // title and its reading width. The "← กลับหน้าหลัก" link and the logo went
@@ -13,8 +14,13 @@ import SectionEyebrow from "@/components/layout/SectionEyebrow";
 export default function PageFrame({
   title,
   width,
+  tabs,
+  tabsLabel = "หน้าในกลุ่มนี้",
   children,
 }: {
+  /** Pages that are one page to the reader (Kong 2026-11-05) — see SectionTabs. */
+  tabs?: readonly SectionTab[];
+  tabsLabel?: string;
   /**
    * Only for a page the sidebar does not list (/recipes): every listed page
    * shows its sidebar GROUP instead (SectionEyebrow, queue item 9), which can
@@ -30,6 +36,7 @@ export default function PageFrame({
       {/* Queue item 9: the sidebar group, in gold, on every page; `title` is
           only the fallback for a page the sidebar does not list. */}
       <SectionEyebrow fallback={title} className="mb-1.5" />
+      {tabs ? <SectionTabs tabs={tabs} label={tabsLabel} /> : null}
       {children}
     </div>
   );

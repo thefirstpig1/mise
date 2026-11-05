@@ -21,6 +21,15 @@ export interface NavItem {
   need: Requirement;
   /** Shown only when the shop has switched this add-on on (ADR 0042). */
   addon?: "dailyClose";
+  /**
+   * Other address prefixes that are this item (Kong 2026-11-05: merged pages
+   * keep their own addresses — /advances is a tab of สำรองจ่าย).
+   */
+  also?: readonly string[];
+  /** For a reader without `need` who holds this one: the same item opens here. */
+  alt?: { href: string; need: Requirement };
+  /** Set by the layout when `alt` replaced `href` — the item's identity stays `href`. */
+  match?: string;
 }
 
 export interface NavGroup {
@@ -42,15 +51,16 @@ export const NAV_GROUPS: readonly NavGroup[] = [
       { href: "/suppliers", label: "ผู้ขาย", need: "any:member" },
       { href: "/purchase-orders", label: "ใบสั่งซื้อ", need: "purchase:write" },
       { href: "/goods-receipts", label: "รับสินค้า", need: "receive:write" },
-      // ADR 0037 Q6: what a staff member bought with their own money, and whether it was paid back.
-      { href: "/my-advances", label: "ซื้อเอง / สำรองจ่าย", need: "purchase:self" },
+      // ADR 0037 Q6 + Q5, one item since 2026-11-05 (Kong: merge what reads as the
+      // same thing): what a staff member paid with their own money, and paying it back.
+      { href: "/my-advances", label: "สำรองจ่าย", need: "purchase:self", also: ["/advances"], alt: { href: "/advances", need: "refund:pay" } },
     ],
   },
   {
     label: "สต็อก",
     items: [
       { href: "/products", label: "สินค้า/วัตถุดิบ", need: "any:member" },
-      { href: "/stock", label: "งานสต็อก", need: "any:member" },
+      { href: "/stock", label: "ภาพรวมสต็อก", need: "any:member" },
       { href: "/stock-counts", label: "นับสต็อก", need: "count:write" },
       { href: "/waste", label: "ของเสีย", need: "waste:write" },
       // ADR 0040: what the kitchen made — the cook who made it records it (Q6).
@@ -64,23 +74,19 @@ export const NAV_GROUPS: readonly NavGroup[] = [
     items: [
       { href: "/sales", label: "ยอดขาย", need: "sales:view" },
       { href: "/closing", label: "ปิดร้านประจำวัน", need: "any:member", addon: "dailyClose" },
+      // ทดลองเมนู is the "กำลังทดลอง" tab of this page since 2026-11-05.
       { href: "/menus", label: "จัดการเมนู", need: "any:member" },
-      { href: "/menus/lab", label: "ทดลองเมนู", need: "recipe:draft" },
       { href: "/consumption", label: "ตัดสต็อกตามยอดขาย", need: "consumption:post" },
     ],
   },
   {
     label: "การเงิน",
     items: [
-      // Kong 2026-10-28: the analysis is what an owner opens this section for — first.
-      { href: "/expenses/analysis", label: "วิเคราะห์รายจ่าย", need: "expense:view" },
-      { href: "/expenses", label: "ค่าใช้จ่าย", need: "expense:view" },
-      // ADR 0037 Q5: what the shop owes its staff — endorse, approve, pay back.
-      { href: "/advances", label: "ค้างคืนพนักงาน", need: "refund:pay" },
+      // Kong 2026-11-05: one item each, the rest are tabs. The analysis stays the
+      // way in (Kong 2026-10-28: it is what an owner opens this section for).
+      { href: "/expenses/analysis", label: "ค่าใช้จ่าย", need: "expense:view", also: ["/expenses"] },
+      // ภาพรวม · ตามแผนก · ของหายไปไหน · ราคาวัตถุดิบ — all under /cost.
       { href: "/cost", label: "ต้นทุน", need: "cost:view" },
-      { href: "/cost/departments", label: "ต้นทุนตามแผนก", need: "cost:view" },
-      { href: "/cost/leaks", label: "ของหายไปไหน", need: "cost:view" },
-      { href: "/cost/prices", label: "การผันผวนราคาวัตถุดิบ", need: "cost:view" },
       // Kong 2026-10-29: the month's stock and cost of sales, in the accounting program's own file.
       { href: "/month-end", label: "ปิดเดือน · ส่งให้บัญชี", need: "cost:view" },
     ],
@@ -116,9 +122,15 @@ export const NAV_ITEMS: readonly NavItem[] = NAV_GROUPS.flatMap((g) => g.items);
  */
 export function currentNavHref(pathname: string): string | null {
   let best: string | null = null;
+  let bestLength = 0;
   for (const item of NAV_ITEMS) {
-    if (pathname === item.href || pathname.startsWith(item.href + "/")) {
-      if (!best || item.href.length > best.length) best = item.href;
+    for (const prefix of [item.href, ...(item.also ?? [])]) {
+      if (pathname === prefix || pathname.startsWith(prefix + "/")) {
+        if (!best || prefix.length > bestLength) {
+          best = item.href;
+          bestLength = prefix.length;
+        }
+      }
     }
   }
   return best;

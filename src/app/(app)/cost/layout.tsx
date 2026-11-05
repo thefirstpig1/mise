@@ -1,13 +1,22 @@
 import type { ReactNode } from "react";
 import PageFrame from "@/components/layout/PageFrame";
+import { requireTenant } from "@/lib/require-tenant";
 
-// Sprint 2 Part 14 L5a — shared chrome for every /cost route.
-// Mirrors src/app/stock/layout.tsx. Wider than the others on purpose: the branch
-// comparison is a table meant to be read across, not a form.
-// Part 35 L4: the header and "← กลับหน้าหลัก" moved into the sidebar.
-export default function CostLayout({ children }: { children: ReactNode }) {
+// Kong 2026-11-05: the four cost pages are one menu item with tabs — they all
+// answer "how is cost going, and why". ตามแผนก shows only where the shop has
+// switched departments on.
+export default async function CostLayout({ children }: { children: ReactNode }) {
+  const { can, membership } = await requireTenant("any:member");
+  const tabs = can("cost:view")
+    ? [
+        { href: "/cost", label: "ภาพรวม" },
+        ...(membership.tenant.enableDepartments ? [{ href: "/cost/departments", label: "ตามแผนก" }] : []),
+        { href: "/cost/leaks", label: "ของหายไปไหน" },
+        { href: "/cost/prices", label: "ราคาวัตถุดิบ" },
+      ]
+    : [];
   return (
-    <PageFrame title="ต้นทุน">
+    <PageFrame title="ต้นทุน" tabs={tabs} tabsLabel="หน้าในต้นทุน">
       {children}
     </PageFrame>
   );

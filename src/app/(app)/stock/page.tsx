@@ -173,7 +173,7 @@ export default async function StockWorkPage({ searchParams }: { searchParams: Pr
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="page-title">{kitchenView ? "งานครัว" : "งานสต็อก"}</h1>
+          <h1 className="page-title">{kitchenView ? "งานครัว" : "ภาพรวมสต็อก"}</h1>
           <p className="mt-1 text-sm text-muted-foreground">ของเข้า-ออกที่ไม่ได้มาจากการซื้อหรือการขาย บันทึกที่นี่ · ดูรายการสินค้าและยอดคงเหลือที่หน้าสินค้า/วัตถุดิบ</p>
         </div>
         {branches.length > 1 && (

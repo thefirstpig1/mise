@@ -28,7 +28,9 @@ interface NavRow {
 
 /** The sidebar's table, as the app renders it. */
 function navTable(): NavRow[] {
-  return NAV_ITEMS.map((i) => ({ href: i.href, need: i.need }));
+  // An item's `alt` is a second door (สำรองจ่าย → /advances for refund:pay) and
+  // is held to the same rule as the first.
+  return NAV_ITEMS.flatMap((i) => [{ href: i.href, need: i.need }, ...(i.alt ? [{ href: i.alt.href, need: i.alt.need }] : [])]);
 }
 
 /** What the page behind an href actually asks requireTenant for. */
@@ -114,11 +116,13 @@ describe("the sidebar menu (ADR 0029 Part 28 L5, moved in Part 35 L4)", () => {
     expect(hrefs).toContain("/staff-meals");
     // The cook reads recipes on "จัดการเมนู" since 2026-10-04 (no money shown).
     expect(hrefs).toContain("/menus");
-    // ADR 0041: a cook drafts in the lab (no money there either).
-    expect(hrefs).toContain("/menus/lab");
+    // ADR 0041: a cook drafts in the lab (no money there either) — since
+    // 2026-11-05 the lab is the "กำลังทดลอง" tab of จัดการเมนู, shown to
+    // whoever holds recipe:draft (menus/layout.tsx).
+    expect(hasCapability("kitchen_staff", "recipe:draft" as never)).toBe(true);
     // And the money is not.
     expect(hrefs).not.toContain("/cost");
-    expect(hrefs).not.toContain("/expenses");
+    expect(hrefs).not.toContain("/expenses/analysis");
     expect(hrefs).not.toContain("/sales");
   });
 });

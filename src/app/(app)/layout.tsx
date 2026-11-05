@@ -35,7 +35,14 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   const { user, membership, can, membershipCount } = await requireTenant("any:member");
 
   const addonOn = (a: "dailyClose" | undefined) => a === undefined || (a === "dailyClose" && membership.tenant.dailyCloseEnabled);
-  const groups = NAV_GROUPS.map((g) => ({ ...g, items: g.items.filter((i) => can(i.need) && addonOn(i.addon)) })).filter(
+  // An item the reader cannot open by its own `need` may still open by `alt`
+  // (สำรองจ่าย: an accountant pays staff back without buying anything).
+  const groups = NAV_GROUPS.map((g) => ({
+    ...g,
+    items: g.items
+      .filter((i) => addonOn(i.addon))
+      .flatMap((i) => (can(i.need) ? [i] : i.alt && can(i.alt.need) ? [{ ...i, href: i.alt.href, need: i.alt.need, match: i.href }] : [])),
+  })).filter(
     (g) => g.items.length > 0
   );
 

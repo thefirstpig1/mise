@@ -600,7 +600,7 @@ async function Analytics({
               </Suspense>
             ) : null}
             {buyingLow && revenue ? (
-              <Why href="/my-advances" action="ซื้อเอง / สำรองจ่าย">
+              <Why href="/my-advances" action="สำรองจ่าย">
                 {purchases > 0
                   ? `บันทึกซื้อวัตถุดิบช่วงนี้ ${baht(purchases)} = ${pct1((purchases / revenue) * 100)} ของยอดขาย ไม่ถึงครึ่งของเป้าต้นทุนอาหาร ${pct1(targets.food)}`
                   : "ช่วงนี้มียอดขายแต่ยังไม่มีบิลซื้อวัตถุดิบเลย"}{" "}

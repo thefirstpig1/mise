@@ -274,7 +274,7 @@ export default async function SettingsPage() {
         <Row
           title={SETTING_HELP.count_cycle_days.title}
           htmlFor="count_cycle_days"
-          hint="หน้างานสต็อกเตือนเมื่อไม่ได้นับเกินจำนวนวันนี้"
+          hint="หน้าภาพรวมสต็อกเตือนเมื่อไม่ได้นับเกินจำนวนวันนี้"
           help="count_cycle_days"
           control={<Days name="count_cycle_days" value={tenant.countCycleDays} min={1} max={365} label="นับสต็อกทุกกี่วัน" />}
         />

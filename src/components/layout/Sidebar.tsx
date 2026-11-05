@@ -81,7 +81,7 @@ const ICONS: Record<string, LucideIcon> = {
   "/menus": BookOpen,
   "/menus/lab": FlaskConical,
   "/consumption": PackageMinus,
-  "/expenses/analysis": ChartPie,
+  "/expenses/analysis": Receipt,
   "/expenses": Receipt,
   "/advances": Wallet,
   "/cost": Coins,
@@ -239,7 +239,7 @@ export default function Sidebar({
       <div className="flex-1 space-y-4 overflow-y-auto px-3 pb-4">
         {groups.map((g) => {
           const link = (item: NavGroup["items"][number]) => {
-            const active = item.href === current;
+            const active = (item.match ?? item.href) === current;
             const on = pressed ? pressed === item.href : active;
             const Icon = ICONS[item.href];
             // <Link>, not <a> (Kong 2026-09-29: "อยากให้ลื่นไหลทุกหน้า"): a plain

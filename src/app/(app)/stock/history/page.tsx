@@ -115,7 +115,7 @@ export default async function StockHistoryPage({
           href="/stock"
           className="btn-secondary"
         >
-          งานสต็อก
+          ภาพรวมสต็อก
         </a>
       </div>
 
