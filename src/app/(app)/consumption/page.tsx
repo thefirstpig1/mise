@@ -77,6 +77,7 @@ export default async function ConsumptionPage({
     <PageFrame title="ขายและเมนู">
       <div className="space-y-6">
         <PageHeader
+        help="consumption"
           title="ตัดสต็อกตามยอดขาย"
           description={
             <>

@@ -8,6 +8,7 @@
 // under `pnpm tsc` and fails `pnpm build` (the Part 10 L5a discovery).
 
 import { requireTenant } from "@/lib/require-tenant";
+import PageHelp from "@/components/ui/PageHelp";
 import { getBranchesLogic } from "@/server/branch";
 import { getStockCountsLogic } from "@/server/stock-count";
 import {
@@ -75,7 +76,10 @@ export default async function StockCountListPage({
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
+          <div className="flex items-center gap-2.5">
           <h1 className="page-title">ใบนับสต็อก</h1>
+          <PageHelp page="stock-counts" />
+        </div>
           <p className="mt-1 text-sm text-muted-foreground">
             นับของจริงบนชั้น แล้วให้ระบบปรับส่วนต่างเข้าสต็อก
           </p>

@@ -18,6 +18,7 @@
 // type-checks under `pnpm tsc` and fails `pnpm build` (Sprint 0's fix).
 
 import { requireTenant } from "@/lib/require-tenant";
+import PageHelp from "@/components/ui/PageHelp";
 import { ChartColumn, Tag, UserRound, Users, Utensils, type LucideIcon } from "lucide-react";
 import IconTile from "@/components/ui/IconTile";
 import { computeBangkokToday } from "@/lib/bangkok-date";
@@ -337,7 +338,10 @@ export default async function SalesPage({
   return (
     <div className="space-y-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="page-title">ยอดขาย</h1>
+        <div className="flex items-center gap-2.5">
+          <h1 className="page-title">ยอดขาย</h1>
+          <PageHelp page="sales" />
+        </div>
         <div className="flex flex-wrap items-center gap-3">
           <ExportButton
             dataset="sales"

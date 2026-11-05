@@ -7,6 +7,7 @@
 // period and ② against the price the menus can bear.
 
 import { use, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import PageHelp from "@/components/ui/PageHelp";
 import { BookOpen, Scale, TrendingDown, TrendingUp, type LucideIcon } from "lucide-react";
 import IconTile from "@/components/ui/IconTile";
 import DashBar from "@/components/ui/DashBar";
@@ -75,7 +76,10 @@ function EmptyView() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="page-title">การผันผวนราคาวัตถุดิบ</h1>
+        <div className="flex items-center gap-2.5">
+          <h1 className="page-title">การผันผวนราคาวัตถุดิบ</h1>
+          <PageHelp page="cost-prices" />
+        </div>
         <p className="mt-1 text-sm text-muted-foreground">ราคาเปลี่ยนไปเท่าไร และราคานี้เมนูที่ใช้ยังรับไหวไหม · ราคาต่อหน่วยไม่รวม VAT จากใบรับสินค้าที่ยืนยันแล้ว</p>
       </div>
       <QLabel n="1">ราคาที่เปลี่ยนทำให้จ่ายเพิ่มหรือประหยัดเท่าไร</QLabel>
@@ -255,7 +259,10 @@ function View({ d, canEditTargets }: { d: Data; canEditTargets: boolean }) {
     <div className="space-y-5">
       {/* Queue item 9: the page's own heading, at every page's size. */}
       <div>
-        <h1 className="page-title">การผันผวนราคาวัตถุดิบ</h1>
+        <div className="flex items-center gap-2.5">
+          <h1 className="page-title">การผันผวนราคาวัตถุดิบ</h1>
+          <PageHelp page="cost-prices" />
+        </div>
         <p className="mt-1 text-sm text-muted-foreground">ราคาเปลี่ยนไปเท่าไร และราคานี้เมนูที่ใช้ยังรับไหวไหม · ราคาต่อหน่วยไม่รวม VAT จากใบรับสินค้าที่ยืนยันแล้ว</p>
       </div>
 

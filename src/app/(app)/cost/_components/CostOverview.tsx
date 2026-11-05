@@ -15,6 +15,7 @@
 //            only the % view carries good/bad.
 
 import { use, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import PageHelp from "@/components/ui/PageHelp";
 import { DashRows } from "@/components/ui/DashBar";
 import { ModalShell } from "@/app/(app)/sales/_components/Breakdown";
 import { SERIES, BAD, TONES } from "@/components/charts/chart-theme";
@@ -212,7 +213,10 @@ function Overview({ data, canEditTargets }: { data: Overview; canEditTargets: bo
       {/* Queue item 9: the page names itself, as every page does (it opened on the sticky bar). */}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0">
+          <div className="flex items-center gap-2.5">
           <h1 className="page-title">ต้นทุน</h1>
+          <PageHelp page="cost" />
+        </div>
           <p className="mt-1 text-sm text-muted-foreground">ร้านแข็งแรงไหม ดีขึ้นหรือแย่ลง และต้องจัดการอะไรก่อน</p>
         </div>
         <button

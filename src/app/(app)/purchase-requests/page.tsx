@@ -10,6 +10,7 @@
 // ============================================================
 
 import Link from "next/link";
+import PageHelp from "@/components/ui/PageHelp";
 import type { Route } from "next";
 import { requireTenant } from "@/lib/require-tenant";
 import { getBranchesLogic } from "@/server/branch";
@@ -45,7 +46,10 @@ export default async function PurchaseRequestsPage({ searchParams }: { searchPar
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
+          <div className="flex items-center gap-2.5">
           <h1 className="page-title">ขอซื้อ · {branch.name}</h1>
+          <PageHelp page="purchase-requests" />
+        </div>
           <p className="mt-0.5 text-sm text-muted-foreground">กด + ของที่ใกล้หมด แล้วกดพร้อมในใบขอซื้อ</p>
         </div>
         {viewer.canApprove && (

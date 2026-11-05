@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import PageHelp from "@/components/ui/PageHelp";
+import type { PageHelpKey } from "@/lib/page-help";
 
 // ============================================================
 // คิดครัว — the head of every page (kit, Kong 2026-10-28)
@@ -13,17 +15,23 @@ export default function PageHeader({
   title,
   description,
   actions,
+  help,
   className = "",
 }: {
   title: ReactNode;
   description?: ReactNode;
   actions?: ReactNode;
+  /** The page's "?" (Kong 2026-11-05) — what it answers, with this shop's data status. */
+  help?: PageHelpKey;
   className?: string;
 }) {
   return (
     <header className={`flex flex-wrap items-end justify-between gap-x-6 gap-y-3 ${className}`}>
       <div className="min-w-0">
-        <h1 className="page-title">{title}</h1>
+        <div className="flex items-center gap-2.5">
+          <h1 className="page-title">{title}</h1>
+          {help ? <PageHelp page={help} /> : null}
+        </div>
         {description && <p className="mt-1 max-w-[66ch] text-sm text-muted-foreground">{description}</p>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}

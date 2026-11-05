@@ -8,6 +8,7 @@
 // แนะนำ", it carries no money). Money only for cost:view.
 
 import { useEffect, useMemo, useState, useTransition } from "react";
+import PageHelp from "@/components/ui/PageHelp";
 import { useRouter } from "next/navigation";
 import { Portal, ConfirmDialog, type ConfirmSpec, useTopLayer } from "@/app/(app)/menus/_components/sheet-parts";
 import { unitTh } from "@/app/(app)/menus/_components/manager-format";
@@ -119,7 +120,10 @@ export default function ProductionScreen({
     <div className="max-w-3xl space-y-5 pb-24">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
+          <div className="flex items-center gap-2.5">
           <h1 className="page-title">การผลิต</h1>
+          <PageHelp page="production" />
+        </div>
           <p className="mt-1 text-sm text-muted-foreground">ของแปรรูปที่ทำในครัว — บันทึกแล้วขึ้นชั้นพร้อมต้นทุนของวัตถุดิบที่ใช้ทำ</p>
         </div>
         {canRecord && (

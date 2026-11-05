@@ -12,6 +12,7 @@
 // Hints are rule LK-HINT: facts around the number, never a verdict.
 
 import { use, useEffect, useMemo, useState } from "react";
+import PageHelp from "@/components/ui/PageHelp";
 import { ModalShell } from "@/app/(app)/sales/_components/Breakdown";
 import { PackagePlus, Percent, ScanSearch, Target, type LucideIcon } from "lucide-react";
 import IconTile from "@/components/ui/IconTile";
@@ -318,7 +319,10 @@ function QLabel({ n, children }: { n: string; children: React.ReactNode }) {
 export function LeakTitle() {
   return (
     <div>
-      <h1 className="page-title">ของหายไปไหน</h1>
+      <div className="flex items-center gap-2.5">
+          <h1 className="page-title">ของหายไปไหน</h1>
+          <PageHelp page="cost-leaks" />
+        </div>
       <p className="mt-1 text-sm text-muted-foreground">นับได้ไม่ตรงกับที่ระบบคำนวณ หลังหักที่บันทึกว่าทิ้งและของเสียแล้ว · หายเพราะอะไร ต้องไปตามที่ไหน</p>
     </div>
   );

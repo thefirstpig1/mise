@@ -359,7 +359,7 @@ export function Outline({ shape, sample }: { shape: OutlineShape; sample?: Sampl
   );
 }
 
-function Example({ shape, sample }: { shape: OutlineShape; sample?: SampleKey }) {
+export function Example({ shape, sample }: { shape: OutlineShape; sample?: SampleKey }) {
   return (
     <svg viewBox={viewOf(shape, sample)} className="block h-auto w-full" role="img" aria-label="ภาพตัวอย่างจากร้านสมมุติ">
       <Shape shape={shape} filled sample={sample} />

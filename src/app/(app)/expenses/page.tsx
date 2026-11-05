@@ -167,6 +167,7 @@ export default async function ExpenseListPage({
   return (
     <div className="space-y-5">
       <PageHeader
+        help="expenses"
         title="ค่าใช้จ่าย"
         description="ทุกบาทที่ออกจากร้าน — ทั้งค่าของและค่าใช้จ่ายอื่น รวมอยู่ที่เดียว"
         actions={

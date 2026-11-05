@@ -5,6 +5,7 @@
 // already-loaded, serialized rows; filtering happens here in the browser.
 
 import { useState } from "react";
+import PageHelp from "@/components/ui/PageHelp";
 import Link from "next/link";
 import type { SupplierView } from "./supplier-view";
 
@@ -36,7 +37,10 @@ export default function SupplierList({
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-4">
         <div>
+          <div className="flex items-center gap-2.5">
           <h1 className="page-title">รายชื่อผู้ขาย</h1>
+          <PageHelp page="suppliers" />
+        </div>
           <p className="mt-1 text-sm text-muted-foreground">ซัพพลายเออร์ทุกรายที่ร้านซื้อของด้วย — ร้านค้าส่ง ฟาร์ม แผงในตลาด</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">

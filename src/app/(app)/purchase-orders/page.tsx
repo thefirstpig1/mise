@@ -88,6 +88,7 @@ export default async function PurchaseOrdersPage({
   return (
     <div className="space-y-5">
       <PageHeader
+        help="purchase-orders"
         title="ใบสั่งซื้อ"
         description="ร่างแก้ไขได้ · ส่งแล้วล็อกทันที ถ้าต้องแก้ให้ยกเลิกแล้วออกใบใหม่"
         actions={

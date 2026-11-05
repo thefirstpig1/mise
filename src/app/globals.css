@@ -175,11 +175,11 @@
      is used fifty times a day and motion there must stay out of the
      way. `prefers-reduced-motion` drops the press.
      -------------------------------------------------------- */
-  :is(.btn, .btn-secondary, .btn-ghost, .btn-danger, .btn-danger-solid, .icon-btn, .pill, .seg-item, .tab) {
+  :is(.btn, .btn-secondary, .btn-ghost, .btn-danger, .btn-danger-solid, .icon-btn, .help-btn, .pill, .seg-item, .tab) {
     @apply transition-[background-color,border-color,color,box-shadow,transform] duration-150 ease-out;
     @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35 focus-visible:ring-offset-2 focus-visible:ring-offset-background;
   }
-  :is(.btn, .btn-secondary, .btn-ghost, .btn-danger, .btn-danger-solid, .icon-btn, .pill, .seg-item):not(:disabled):active {
+  :is(.btn, .btn-secondary, .btn-ghost, .btn-danger, .btn-danger-solid, .icon-btn, .help-btn, .pill, .seg-item):not(:disabled):active {
     @apply translate-y-px motion-reduce:translate-y-0;
   }
 
@@ -220,6 +220,11 @@
   .icon-btn {
     @apply inline-grid h-9 w-9 shrink-0 place-items-center rounded-full border border-border bg-surface text-muted-foreground;
     @apply hover:border-border-strong hover:bg-muted hover:text-foreground;
+  }
+  /* The page's "?" beside its title — one look on every data page (Kong
+     2026-11-05, review item 5). Opens PageHelp. */
+  .help-btn {
+    @apply inline-grid h-7 w-7 shrink-0 place-items-center rounded-full border-[1.5px] border-primary-line bg-primary-soft font-display text-sm font-bold leading-none text-primary hover:border-primary hover:bg-primary hover:text-primary-foreground;
   }
 
   /* A link INSIDE a sentence — the only place a text link belongs. One look

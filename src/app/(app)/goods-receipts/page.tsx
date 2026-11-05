@@ -12,6 +12,7 @@
 // reviews by exception, not by opening every delivery.
 
 import { requireTenant } from "@/lib/require-tenant";
+import PageHelp from "@/components/ui/PageHelp";
 import { getBranchesLogic } from "@/server/branch";
 import { getGoodsReceiptsLogic } from "@/server/goods-receipt";
 import {
@@ -72,7 +73,10 @@ export default async function GoodsReceiptsPage({
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
+          <div className="flex items-center gap-2.5">
           <h1 className="page-title">ใบรับสินค้า</h1>
+          <PageHelp page="goods-receipts" />
+        </div>
           <p className="mt-1 text-sm text-muted-foreground">
             ร่างยังไม่เข้าสต็อก — กดยืนยันรับของแล้วสต็อกจะเพิ่มทันที และแก้ไม่ได้อีก
           </p>

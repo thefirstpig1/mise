@@ -11,6 +11,7 @@
 // `searchParams` is a PROMISE in Next 15.
 
 import { requireTenant } from "@/lib/require-tenant";
+import PageHelp from "@/components/ui/PageHelp";
 import { DashRows } from "@/components/ui/DashBar";
 import { computeBangkokToday } from "@/lib/bangkok-date";
 import { getBranchesLogic, liveliestBranchId } from "@/server/branch";
@@ -174,7 +175,10 @@ export default async function StockWorkPage({ searchParams }: { searchParams: Pr
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
+          <div className="flex items-center gap-2.5">
           <h1 className="page-title">{kitchenView ? "งานครัว" : "ภาพรวมสต็อก"}</h1>
+          <PageHelp page="stock" />
+        </div>
           <p className="mt-1 text-sm text-muted-foreground">ของเข้า-ออกที่ไม่ได้มาจากการซื้อหรือการขาย บันทึกที่นี่ · ดูรายการสินค้าและยอดคงเหลือที่หน้าสินค้า/วัตถุดิบ</p>
         </div>
         {branches.length > 1 && (

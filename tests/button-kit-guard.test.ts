@@ -36,7 +36,7 @@ function clickables(): { file: string; cls: string; tag: string }[] {
   return found;
 }
 
-const KIT = /\b(btn|btn-secondary|btn-ghost|btn-danger|btn-danger-solid|icon-btn|pill|seg-item|tab|link)\b/;
+const KIT = /\b(btn|btn-secondary|btn-ghost|btn-danger|btn-danger-solid|icon-btn|help-btn|pill|seg-item|tab|link)\b/;
 
 /** The shapes the audit found, each a way of drawing a button by hand. */
 const SHAPES: Record<string, (c: { cls: string; tag: string }) => boolean> = {

@@ -14,6 +14,7 @@
 // type-checks under `pnpm tsc` and fails `pnpm build` (Sprint 0's fix, `a669e05`).
 
 import { requireTenant } from "@/lib/require-tenant";
+import PageHelp from "@/components/ui/PageHelp";
 import { getBranchesLogic } from "@/server/branch";
 import { MAX_TRANSFER_ROWS, getTransfersLogic } from "@/server/transfer";
 import {
@@ -82,7 +83,10 @@ export default async function TransfersPage({
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
+          <div className="flex items-center gap-2.5">
           <h1 className="page-title">ใบโอน</h1>
+          <PageHelp page="transfers" />
+        </div>
           <p className="mt-1 text-sm text-muted-foreground">
             ของถูกตัดจากสาขาต้นทางและเข้าสาขาปลายทางตั้งแต่กดส่ง — การกดรับคือการยืนยันว่ามีคนปลายทางนับของแล้ว
           </p>

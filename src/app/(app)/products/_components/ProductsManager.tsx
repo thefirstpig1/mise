@@ -13,6 +13,7 @@
 // on the filter chips as a LINE-style count, on the row, on the card's picture.
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import PageHelp from "@/components/ui/PageHelp";
 import { useRouter } from "next/navigation";
 import type { ProductView } from "./product-view";
 import type { ProductListFacts } from "@/server/product-list";
@@ -446,7 +447,10 @@ export default function ProductsManager(props: {
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
+          <div className="flex items-center gap-2.5">
           <h1 className="page-title">สินค้า/วัตถุดิบ</h1>
+          <PageHelp page="products" />
+        </div>
           <p className="mt-0.5 text-sm text-muted-foreground">
             {active.length} รายการที่ใช้งาน · ของแปรรูป {active.filter((p) => p.type === "PREPPED").length}
             {list ? (parsSet === 0 ? " · ยังไม่ได้ตั้งขั้นต่ำ" : ` · ต่ำกว่าขั้นต่ำ ${lowCount} · ใกล้ขั้นต่ำ ${nearCount}`) : ""}

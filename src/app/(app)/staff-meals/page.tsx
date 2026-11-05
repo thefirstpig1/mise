@@ -411,7 +411,8 @@ export default async function StaffMealsPage({
 
   return (
     <div className="space-y-5">
-      <PageHeader title="มื้อพนักงาน" description="พนักงานขอเบิกจากมือถือ หัวหน้าอนุมัติ ระบบตัดสต็อกตามสูตร · เกินโควตาแค่เตือน ไม่บล็อก" />
+      <PageHeader
+        help="staff-meals" title="มื้อพนักงาน" description="พนักงานขอเบิกจากมือถือ หัวหน้าอนุมัติ ระบบตัดสต็อกตามสูตร · เกินโควตาแค่เตือน ไม่บล็อก" />
       <StaffMealsScreen
         initialTab={initialTab}
         isApprover={isApprover}

@@ -96,6 +96,7 @@ export default function AdvancesBoard({ claims, today, months, meId, canApprove 
   return (
     <div className="space-y-5 pb-24">
       <PageHeader
+        help="advances"
         title="ค้างคืนพนักงาน"
         description="เงินที่พนักงานออกไปก่อนและร้านยังไม่ได้คืน · เรียงตามยอด"
         actions={

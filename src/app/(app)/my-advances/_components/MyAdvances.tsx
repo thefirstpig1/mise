@@ -6,6 +6,7 @@
 // tapped to add the photo; nothing here can change an amount once sent.
 
 import { useEffect, useMemo, useState, useTransition } from "react";
+import PageHelp from "@/components/ui/PageHelp";
 import DashBar from "@/components/ui/DashBar";
 import { Camera } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -57,7 +58,10 @@ export default function MyAdvances({ claims, today, storageReady, ...options }: 
     <div className="max-w-xl space-y-4 pb-28">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
+          <div className="flex items-center gap-2.5">
           <h1 className="page-title">สำรองจ่ายของฉัน</h1>
+          <PageHelp page="my-advances" />
+        </div>
           <p className="mt-1 text-sm text-muted-foreground">ของที่คุณซื้อให้ร้าน — ถ่ายบิลและสลิป แล้วติดตามว่าร้านคืนเงินหรือยัง</p>
         </div>
         <button type="button" onClick={() => setRecording(true)} className="btn max-sm:hidden" disabled={!storageReady}>

@@ -684,6 +684,7 @@ export default function MenuManager(props: {
   return (
     <div className="space-y-5">
       <PageHeader
+        help="menus"
         title="จัดการเมนู"
         description="ทุกเมนูที่ร้านขาย พร้อมสูตร ต้นทุน และกำไร · กดที่แถวเพื่อดูและแก้ไขได้ในที่เดียว"
         actions={

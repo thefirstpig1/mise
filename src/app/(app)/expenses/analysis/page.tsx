@@ -89,6 +89,7 @@ export default async function ExpenseAnalysisPage({ searchParams }: { searchPara
   return (
     <div className="space-y-6">
       <PageHeader
+        help="expenses-analysis"
         title="วิเคราะห์รายจ่าย"
         description="ตามวันที่บิล ไม่รวม VAT · กดชิ้นในวงกลมหรือแถวเพื่อเจาะลงไปทีละชั้น"
         actions={<ActionLink href="/expenses" size="md">กลับไปรายการบิล</ActionLink>}

@@ -12,6 +12,7 @@
 // type-checks under `pnpm tsc` and fails `pnpm build` (Sprint 0's fix, `a669e05`).
 
 import { requireTenant } from "@/lib/require-tenant";
+import PageHelp from "@/components/ui/PageHelp";
 import { computeBangkokToday } from "@/lib/bangkok-date";
 import { getProductsLogic } from "@/server/product";
 import { Suspense } from "react";
@@ -149,7 +150,10 @@ export default async function WastePage({
   return (
     <div className="max-w-3xl space-y-8">
       <div>
-        <h1 className="page-title">บันทึกของเสีย</h1>
+        <div className="flex items-center gap-2.5">
+          <h1 className="page-title">บันทึกของเสีย</h1>
+          <PageHelp page="waste" />
+        </div>
         <p className="mt-1 text-sm text-muted-foreground">
           ของที่ทิ้งไปแล้วจริง ๆ — เน่าเสีย ตกแตก ทำไหม้ ลูกค้าตีกลับ
           บันทึกทีละอย่างแล้วตัดสต็อกทันที

@@ -6,6 +6,7 @@
 // `searchParams` is a PROMISE in Next 15.
 
 import { requireTenant } from "@/lib/require-tenant";
+import PageHelp from "@/components/ui/PageHelp";
 import EmptyTable from "@/components/ui/EmptyTable";
 import { addDays, computeBangkokToday } from "@/lib/bangkok-date";
 import { getBranchesLogic, liveliestBranchId } from "@/server/branch";
@@ -100,7 +101,10 @@ export default async function ClosingMonthPage({ searchParams }: { searchParams:
     <div className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
+          <div className="flex items-center gap-2.5">
           <h1 className="page-title">ปิดร้านประจำวัน</h1>
+          <PageHelp page="closing" />
+        </div>
           <p className="mt-1 text-sm text-muted-foreground">ลูกค้า เงินสด ปัญหา และความเห็นของแต่ละวัน — ย้อนดูได้ไม่จำกัด</p>
         </div>
         {canFill && (

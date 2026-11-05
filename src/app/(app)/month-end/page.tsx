@@ -46,6 +46,7 @@ export default async function MonthEndPage({ searchParams }: { searchParams: Pro
   return (
     <div className="space-y-6">
       <PageHeader
+        help="month-end"
         title={`ปิดเดือน ${monthTitleTh(month)}`}
         description="มูลค่าสต็อกและต้นทุนขายของเดือน สำหรับลงบัญชี — ส่งออกเป็นไฟล์ตามโปรแกรมบัญชีที่ร้านใช้"
         actions={

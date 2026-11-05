@@ -1,5 +1,6 @@
 import { Suspense, type ReactNode } from "react";
 import SectionEyebrow from "@/components/layout/SectionEyebrow";
+import PageHelp from "@/components/ui/PageHelp";
 import IconTile from "@/components/ui/IconTile";
 import { ChartColumn, Coins, Receipt, Soup, type LucideIcon } from "lucide-react";
 import { requireTenant } from "@/lib/require-tenant";
@@ -119,7 +120,10 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
       <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
         <div className="min-w-0">
           <SectionEyebrow className="mb-1.5" />
+          <div className="flex items-center gap-2.5">
           <h1 className="page-title">ภาพรวม</h1>
+          <PageHelp page="dashboard" />
+        </div>
           <p className="mt-1 text-sm text-muted-foreground">
             {membership.tenant.name}
             {seeMoney && active && ` · ${label}`}

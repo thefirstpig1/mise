@@ -81,7 +81,8 @@ export default function DepartmentOverview(props: {
 
   return (
     <div className="space-y-5">
-      <PageHeader title="ต้นทุนตามแผนก" description="แผนกไหนทำเงิน ต้นทุนอยู่ในเป้าของแผนกไหม ดีขึ้นหรือแย่ลง และอะไรดันต้นทุน" />
+      <PageHeader
+        help="cost-departments" title="ต้นทุนตามแผนก" description="แผนกไหนทำเงิน ต้นทุนอยู่ในเป้าของแผนกไหม ดีขึ้นหรือแย่ลง และอะไรดันต้นทุน" />
 
       {/* sticky slice control */}
       <div className="sticky top-2 z-20 space-y-2 rounded-2xl border border-border bg-surface px-3 py-2.5 shadow-card">

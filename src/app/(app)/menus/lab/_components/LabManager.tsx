@@ -10,6 +10,7 @@
 // with the page (`initialBook`) — never ฿0 while it comes.
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import PageHelp from "@/components/ui/PageHelp";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
 import type { IngredientOption, LabDraft, PriceBook, StandardUnit } from "@/server/menu-manager";
@@ -233,7 +234,10 @@ export default function LabManager(props: {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
+          <div className="flex items-center gap-2.5">
           <h1 className="page-title">ทดลองเมนู</h1>
+          <PageHelp page="menus-lab" />
+        </div>
           <p className="mt-1 text-sm text-muted-foreground">ลองคิดสูตรและราคาก่อนขายจริง ร่างยังไม่ตัดสต็อกและยังไม่ถูกใช้คิดต้นทุนขาย จนกว่าจะกด “นำไปใช้จริง”</p>
         </div>
         <div className="flex flex-wrap gap-2">
