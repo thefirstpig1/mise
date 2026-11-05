@@ -75,7 +75,7 @@ function Bar({ path, steps, teamDone, method }: { path: string; steps: Step[]; t
 
   const quiet = "h-8 whitespace-nowrap text-sm font-semibold";
   const toggleBox = boxKey ? (
-    <button type="button" onClick={() => setBoxOpen((o) => !o)} aria-expanded={boxOpen} className={`${quiet} text-primary hover:underline`}>
+    <button type="button" onClick={() => setBoxOpen((o) => !o)} aria-expanded={boxOpen} className={`${quiet} link`}>
       {boxOpen ? "ย่อคำอธิบาย" : "ขั้นนี้ทำอะไร"}
     </button>
   ) : null;
@@ -164,7 +164,7 @@ function Bar({ path, steps, teamDone, method }: { path: string; steps: Step[]; t
           </>
         )}
         <span className="flex items-center gap-3 sm:ml-1">
-          <button type="button" onClick={() => setSheetOpen(true)} className={`${quiet} text-primary hover:underline sm:hidden`}>
+          <button type="button" onClick={() => setSheetOpen(true)} className={`${quiet} link sm:hidden`}>
             ดูทุกขั้น
           </button>
           {toggleBox}

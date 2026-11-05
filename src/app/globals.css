@@ -175,11 +175,11 @@
      is used fifty times a day and motion there must stay out of the
      way. `prefers-reduced-motion` drops the press.
      -------------------------------------------------------- */
-  :is(.btn, .btn-secondary, .btn-danger, .btn-danger-solid, .icon-btn, .pill, .seg-item, .tab) {
+  :is(.btn, .btn-secondary, .btn-ghost, .btn-danger, .btn-danger-solid, .icon-btn, .pill, .seg-item, .tab) {
     @apply transition-[background-color,border-color,color,box-shadow,transform] duration-150 ease-out;
     @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35 focus-visible:ring-offset-2 focus-visible:ring-offset-background;
   }
-  :is(.btn, .btn-secondary, .btn-danger, .btn-danger-solid, .icon-btn, .pill, .seg-item):not(:disabled):active {
+  :is(.btn, .btn-secondary, .btn-ghost, .btn-danger, .btn-danger-solid, .icon-btn, .pill, .seg-item):not(:disabled):active {
     @apply translate-y-px motion-reduce:translate-y-0;
   }
 
@@ -206,6 +206,14 @@
   .btn-danger-solid {
     @apply inline-flex h-[42px] items-center justify-center gap-1.5 whitespace-nowrap rounded-xl bg-bad px-4 font-display text-sm font-semibold text-bad-foreground;
     @apply shadow-[0_8px_18px_-12px_rgb(120_40_20/0.6)] hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-45 disabled:shadow-none;
+  }
+
+  /* The quiet button: a standalone text action ("ยกเลิก", "ซ่อนไว้ก่อน",
+     "แก้") — same height and padding as its neighbours, no frame until
+     hovered. Text links that stood alone were drawn three different ways. */
+  .btn-ghost {
+    @apply inline-flex h-[42px] items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-3 font-display text-sm font-semibold text-primary;
+    @apply hover:bg-muted disabled:cursor-not-allowed disabled:opacity-45;
   }
 
   /* The one close / icon button: 36px round. Five shapes of × existed. */

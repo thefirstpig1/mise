@@ -105,7 +105,7 @@ export default function PulsePanel({
                     <button type="submit" disabled={pending} className="btn">
                       {pending ? "กำลังบันทึก…" : "บันทึก"}
                     </button>
-                    <button type="button" onClick={() => setOpenBranchId(null)} className="text-sm text-muted-foreground hover:text-foreground">
+                    <button type="button" onClick={() => setOpenBranchId(null)} className="btn-ghost">
                       ยกเลิก
                     </button>
                   </div>
@@ -116,13 +116,13 @@ export default function PulsePanel({
                 <button
                   type="button"
                   onClick={() => setOpenBranchId(b.branchId)}
-                  className="mt-1 w-full rounded-lg bg-primary px-3 py-3 text-base font-semibold text-primary-foreground shadow-card transition hover:bg-primary-deep"
+                  className="btn mt-1 w-full"
                 >
                   + คีย์ยอดวันนี้
                 </button>
               )}
               {!keying && b.today.amount !== null && (
-                <button type="button" onClick={() => setOpenBranchId(b.branchId)} className="mt-1 text-xs text-primary underline decoration-dotted underline-offset-4">
+                <button type="button" onClick={() => setOpenBranchId(b.branchId)} className="link mt-1 text-xs">
                   + คีย์ของวันอื่น (ย้อนหลัง 7 วัน)
                 </button>
               )}

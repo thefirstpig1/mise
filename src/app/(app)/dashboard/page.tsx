@@ -728,8 +728,8 @@ async function Analytics({
               {shortage <= 0 && waste <= 0 && priceUps.length === 0 && <WatchEmpty recipeMethod={recipeMethod} branchId={oneBranch} />}
             </ul>
             <div className="mt-3 flex flex-wrap gap-x-4 text-xs">
-              <a href="/cost/leaks" className="text-primary hover:underline">ของหายไปไหน ›</a>
-              <a href="/cost/prices" className="text-primary hover:underline">ราคาวัตถุดิบ ›</a>
+              <a href="/cost/leaks" className="link">ของหายไปไหน ›</a>
+              <a href="/cost/prices" className="link">ราคาวัตถุดิบ ›</a>
             </div>
           </Card>
         ) : null}
@@ -809,7 +809,7 @@ function Kpi({ label, icon: Icon, href, link, children }: { label: string; icon:
           <IconTile icon={Icon} />
           <span className="min-w-0">{label}</span>
         </span>
-        <a href={href} className="shrink-0 text-xs text-primary hover:underline">
+        <a href={href} className="link shrink-0 text-xs">
           {link} ›
         </a>
       </div>
@@ -826,7 +826,7 @@ function Why({ href, action, children }: { href?: string; action?: string; child
       {href && action ? (
         <>
           {" · "}
-          <a href={href} className="font-medium underline">
+          <a href={href} className="link">
             {action}
           </a>
         </>
@@ -864,7 +864,7 @@ async function CountedMonth({ p, show, qs }: { p: Promise<Counted | null>; show:
   if (!figure) return null;
   return (
     <p className="text-xs text-muted-foreground">
-      <a href={`/dashboard?p=${isoDay(c.from).slice(0, 7)}${qs}`} className="hover:text-primary hover:underline">
+      <a href={`/dashboard?p=${isoDay(c.from).slice(0, 7)}${qs}`} className="link font-medium">
         {periodLabelTh(isoDay(c.from), isoDay(c.to))} (เดือนล่าสุดที่นับสต็อกครบ): {figure} ›
       </a>
     </p>
@@ -986,7 +986,7 @@ function BranchCompare({ rows, days, seeGross, seeNet }: { rows: PnlBranchRow[];
         </table>
       </div>
       {seeGross && unknown.length > 0 && <p className="mt-2 text-xs text-muted-subtle">{unknown.join(", ")} ยังไม่มีต้นทุนขาย</p>}
-      <a href="/cost" className="mt-2 inline-block text-xs text-primary hover:underline">
+      <a href="/cost" className="link mt-2 inline-block text-xs">
         เทียบละเอียดในหน้าต้นทุน ›
       </a>
     </>

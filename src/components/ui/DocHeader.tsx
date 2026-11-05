@@ -62,7 +62,7 @@ export function RelatedDocs({ items }: { items: RelatedDoc[] }) {
           <Link
             key={i}
             href={d.href as Route}
-            className="rounded-full border border-primary-line bg-surface px-3 py-1 text-primary hover:bg-primary-soft"
+            className="btn-secondary btn-sm"
           >
             {d.label}
             {d.note && <span className="text-muted-foreground"> · {d.note}</span>}

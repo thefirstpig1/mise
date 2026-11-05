@@ -50,7 +50,7 @@ export default function OnboardingCard({
         type="button"
         onClick={() => toggle(false)}
         disabled={pending}
-        className="inline-flex h-10 items-center gap-2 rounded-full border border-primary-line bg-surface px-4 text-sm font-semibold text-primary hover:bg-primary-soft"
+        className="btn-secondary"
       >
         ตั้งร้าน · ทำแล้ว {doneCount} จาก {steps.length} · เปิดรายการ
       </button>
@@ -96,9 +96,7 @@ export default function OnboardingCard({
               {!s.done && (
                 <Link
                   href={s.href as Route}
-                  className={`inline-flex h-10 shrink-0 items-center whitespace-nowrap rounded-xl px-4 text-sm font-semibold ${
-                    isNext ? "bg-primary text-primary-foreground hover:bg-primary-deep" : "border border-border-strong text-primary hover:bg-muted"
-                  }`}
+                  className={`${isNext ? "btn" : "btn-secondary"} btn-sm shrink-0`}
                 >
                   {s.cta}
                 </Link>
@@ -124,7 +122,7 @@ export default function OnboardingCard({
             {!team.done && (
               <Link
                 href={team.href as Route}
-                className="inline-flex h-10 shrink-0 items-center whitespace-nowrap rounded-xl border border-border-strong px-4 text-sm font-semibold text-primary hover:bg-muted"
+                className="btn-secondary btn-sm shrink-0"
               >
                 {team.cta}
               </Link>
@@ -134,7 +132,7 @@ export default function OnboardingCard({
       </ol>
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border bg-surface-sunk px-5 py-2.5">
         <span className="text-sm text-muted-foreground">ขั้นที่ทำเสร็จในระบบแล้วจะติ๊กถูกให้เอง</span>
-        <button type="button" onClick={() => toggle(true)} disabled={pending} className="h-10 text-sm font-semibold text-primary underline-offset-2 hover:underline">
+        <button type="button" onClick={() => toggle(true)} disabled={pending} className="btn-ghost btn-sm">
           ซ่อนไว้ก่อน
         </button>
       </div>

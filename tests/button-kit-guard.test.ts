@@ -36,7 +36,7 @@ function clickables(): { file: string; cls: string; tag: string }[] {
   return found;
 }
 
-const KIT = /\b(btn|btn-secondary|btn-danger|btn-danger-solid|icon-btn|pill|seg-item|tab|link)\b/;
+const KIT = /\b(btn|btn-secondary|btn-ghost|btn-danger|btn-danger-solid|icon-btn|pill|seg-item|tab|link)\b/;
 
 /** The shapes the audit found, each a way of drawing a button by hand. */
 const SHAPES: Record<string, (c: { cls: string; tag: string }) => boolean> = {
@@ -52,7 +52,7 @@ const SHAPES: Record<string, (c: { cls: string; tag: string }) => boolean> = {
 
 /** Ceilings as of 2026-11-05 — lower them as each menu group is swept. */
 const CEILING: Record<keyof typeof SHAPES, number> = {
-  handMadePrimary: 16,
+  handMadePrimary: 14,
   handMadeDanger: 0,
   capsuleAction: 3,
   closeButton: 0,
