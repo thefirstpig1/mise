@@ -31,7 +31,8 @@ import WasteEntryForm, {
 import VoidWasteButton from "./_components/VoidWasteButton";
 
 
-import EmptyState from "@/components/ui/EmptyState";
+import EmptyTable from "@/components/ui/EmptyTable";
+import DashBar from "@/components/ui/DashBar";
 import { FilterForm } from "@/components/ui/FilterLink";
 /**
  * A serialized row's `reason` is a plain string (the view layer stays
@@ -156,12 +157,24 @@ export default async function WastePage({
       </div>
 
       {productOptions.length === 0 || branchOptions.length === 0 ? (
-        <EmptyState art="setup">
-          ยังไม่มีวัตถุดิบหรือสาขาในระบบ —{" "}
-          <a href="/products/new" className="link">
-            เพิ่มวัตถุดิบก่อน
-          </a>
-        </EmptyState>
+        // The form's own fields, dashed, until there is something to pick
+        // (Kong 2026-11-05: an empty page keeps the filled layout).
+        <section className="space-y-4 rounded-[18px] border border-border/70 bg-surface p-5 shadow-card" aria-label="ฟอร์มบันทึกของเสีย ยังใช้ไม่ได้">
+          <div className="grid gap-4 sm:grid-cols-2" aria-hidden>
+            {["วัตถุดิบ", "จำนวนที่ทิ้ง", "หน่วย", "สาเหตุ", "สาขา", "วันที่"].map((f) => (
+              <div key={f} className="space-y-1.5">
+                <span className="label">{f}</span>
+                <DashBar className="h-10 rounded-xl" />
+              </div>
+            ))}
+          </div>
+          <p className="border-t border-dashed border-border-strong pt-4 text-center text-sm text-muted-foreground">
+            ยังไม่มีวัตถุดิบหรือสาขาในระบบ —{" "}
+            <a href="/products/new" className="link">
+              เพิ่มวัตถุดิบก่อน
+            </a>
+          </p>
+        </section>
       ) : (
         <section className="rounded-[18px] border border-border/70 bg-surface shadow-card p-5">
           <WasteEntryForm
@@ -259,9 +272,12 @@ export default async function WastePage({
         )}
 
         {rows.length === 0 ? (
-          <p className="rounded-lg border border-border bg-muted/30 p-6 text-sm text-muted-foreground">
+          <EmptyTable
+            label="รายการของเสีย"
+            columns={[{ label: "วัตถุดิบ" }, { label: "จำนวน", right: true }, { label: "สาเหตุ", hide: "sm" }, { label: "เมื่อไร", hide: "sm" }, { label: "สาขา", hide: "md" }, { label: "ผู้บันทึก", hide: "md" }]}
+          >
             ไม่มีรายการของเสียในช่วงวันที่นี้ — ลองขยายช่วงวันที่ดู
-          </p>
+          </EmptyTable>
         ) : (
           <ul className="space-y-2">
             {rows.map((row) => {

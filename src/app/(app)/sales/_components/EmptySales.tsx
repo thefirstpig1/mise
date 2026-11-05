@@ -14,7 +14,8 @@
 import type { LucideIcon } from "lucide-react";
 import { ChartColumn, Tag, Utensils } from "lucide-react";
 import IconTile from "@/components/ui/IconTile";
-import WaitingFor, { DashBar, Outline } from "@/components/ui/WaitingFor";
+import WaitingFor, { Outline } from "@/components/ui/WaitingFor";
+import DashBar from "@/components/ui/DashBar";
 
 const CARD = "rounded-[18px] border border-border/70 bg-surface shadow-card p-5";
 

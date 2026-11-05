@@ -15,6 +15,7 @@
 //            only the % view carries good/bad.
 
 import { use, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { DashRows } from "@/components/ui/DashBar";
 import { ModalShell } from "@/app/(app)/sales/_components/Breakdown";
 import { SERIES, BAD, TONES } from "@/components/charts/chart-theme";
 import { orStale } from "@/lib/stale-tab";
@@ -1363,6 +1364,8 @@ function Stock({
         )}
       </p>
       {rows.length === 0 ? (
+        <>
+        <DashRows widths={[0.85, 0.6, 0.4]} label="รายการของค้างนาน ยังไม่มีรายการ" />
         <p className="py-3 text-sm text-muted-foreground">
           {view === "age" ? (
             held === 0 ? "ยังไม่มีของในสต็อกที่ระบบรู้" : "ของในสต็อกยังไม่มีราคา จึงยังไม่รู้ว่าค้างมากี่วัน"
@@ -1372,6 +1375,7 @@ function Stock({
             </>
           )}
         </p>
+        </>
       ) : (
         rows.map((s, i) => (
           <div key={s.productId} className="py-1" title={view === "age" && s.oldestDate ? `${s.name} · ล็อตรับ ${s.oldestDate} ยังเหลือ ฿${f0(s.oldestValue)} · ทั้งหมดในสต็อก ฿${f0(s.value)}` : undefined}>

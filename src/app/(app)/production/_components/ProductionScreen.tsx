@@ -12,7 +12,7 @@ import { useRouter } from "next/navigation";
 import { Portal, ConfirmDialog, type ConfirmSpec, useTopLayer } from "@/app/(app)/menus/_components/sheet-parts";
 import { unitTh } from "@/app/(app)/menus/_components/manager-format";
 import { orStale } from "@/lib/stale-tab";
-import EmptyState from "@/components/ui/EmptyState";
+import EmptyTable from "@/components/ui/EmptyTable";
 import type { PickableProduct, ProductionRowView, ShortfallRowView } from "@/server/production-read";
 import { voidProductionAction } from "../actions";
 import RecordProductionSheet from "./RecordProductionSheet";
@@ -147,9 +147,12 @@ export default function ProductionScreen({
       )}
 
       {rows.length === 0 ? (
-        <EmptyState art="setup">
+        <EmptyTable
+          label="รายการการผลิต"
+          columns={[{ label: "ทำอะไร · ได้เท่าไร" }, { label: "วัตถุดิบที่ใช้", hide: "sm" }, { label: "เวลา · ผู้บันทึก", hide: "md" }, { label: "ต้นทุนต่อหน่วย", right: true }]}
+        >
           ยังไม่มีการบันทึกการผลิตใน 30 วันที่ผ่านมา — ต้มซุปหรือแล่ปลาเสร็จ กด “บันทึกการผลิต” แล้วของจะขึ้นชั้นพร้อมต้นทุน
-        </EmptyState>
+        </EmptyTable>
       ) : (
         days.map(([d, list]) => (
           <section key={d} className="space-y-2">

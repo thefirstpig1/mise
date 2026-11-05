@@ -19,6 +19,7 @@
 // ============================================================
 
 import { useActionState, useMemo, useState, type ReactNode } from "react";
+import EmptyTable from "@/components/ui/EmptyTable";
 import {
   postConsumptionAction,
   type PostConsumptionActionState,
@@ -235,9 +236,15 @@ export function ConsumptionDayTable({
       {children}
 
       {days.length === 0 ? (
-        <div className="card">
-          {/* Queue item 10: say what fills the table, and where. */}
-          <WaitingFor figure="consumptionDays" needs={["sales", "recipe"]} reason="ยังไม่มียอดขายนำเข้าในช่วงนี้" outline={false} />
+        <div className="space-y-3">
+          <div className="card">
+            {/* Queue item 10: say what fills the table, and where. */}
+            <WaitingFor figure="consumptionDays" needs={["sales", "recipe"]} reason="ยังไม่มียอดขายนำเข้าในช่วงนี้" outline={false} />
+          </div>
+          {/* Kong 2026-11-05: and the table itself, dashed. */}
+          <EmptyTable label="วันที่ตัดสต็อก" columns={[{ label: "วันขาย" }, { label: "ยอดขาย", right: true }, { label: "สถานะ" }, { label: "ครอบคลุม", right: true, hide: "sm" }]}>
+            แต่ละวันที่นำเข้ายอดขายจะขึ้นเป็นหนึ่งแถว
+          </EmptyTable>
         </div>
       ) : (
         <>

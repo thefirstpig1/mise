@@ -9,6 +9,7 @@
 import { use, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { BookOpen, Scale, TrendingDown, TrendingUp, type LucideIcon } from "lucide-react";
 import IconTile from "@/components/ui/IconTile";
+import DashBar from "@/components/ui/DashBar";
 import { ModalShell } from "@/app/(app)/sales/_components/Breakdown";
 import { orStale } from "@/lib/stale-tab";
 import ReceiptPriceChart from "@/components/charts/ReceiptPriceChart";
@@ -50,14 +51,60 @@ export function PriceVolatilitySkeleton() {
 export default function PriceVolatility({ data, canEditTargets }: { data: Promise<Data | null>; canEditTargets: boolean }) {
   const d = use(data);
   if (d === null) return <div className="rounded-lg border border-warn-border bg-warn-bg p-4 text-sm text-warn">เปิดหน้านี้ไม่สำเร็จในครั้งนี้ กรุณารีเฟรชอีกครั้ง</div>;
-  if (d.products.length === 0)
-    return (
-      <div className="rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
-        <h2 className="mb-2 font-display text-lg font-semibold">ราคาวัตถุดิบขึ้นลงแค่ไหน</h2>
+  if (d.products.length === 0) return <EmptyView />;
+  return <View d={d} canEditTargets={canEditTargets} />;
+}
+
+/**
+ * No receipt yet: the page's own six questions under the same headings, each
+ * drawn as the dashed outline of its answer (Kong 2026-11-05: the layout stays,
+ * nothing on it looks like data). The one band with the way in is on 2.
+ */
+function EmptyView() {
+  const rows = (ws: number[]) => (
+    <div aria-hidden className="space-y-3 rounded-[18px] border border-border/70 bg-surface p-4 shadow-card">
+      {ws.map((w) => (
+        <div key={w} className="grid grid-cols-[minmax(6rem,10rem)_minmax(0,1fr)_auto] items-center gap-3">
+          <DashBar className="h-3 w-24" />
+          <DashBar className="h-3" style={{ width: `${w * 100}%` }} />
+          <DashBar className="h-3 w-14" />
+        </div>
+      ))}
+    </div>
+  );
+  return (
+    <div className="space-y-4">
+      <div>
+        <h1 className="page-title">การผันผวนราคาวัตถุดิบ</h1>
+        <p className="mt-1 text-sm text-muted-foreground">ราคาเปลี่ยนไปเท่าไร และราคานี้เมนูที่ใช้ยังรับไหวไหม · ราคาต่อหน่วยไม่รวม VAT จากใบรับสินค้าที่ยืนยันแล้ว</p>
+      </div>
+      <QLabel n="1">ราคาที่เปลี่ยนทำให้จ่ายเพิ่มหรือประหยัดเท่าไร</QLabel>
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Kpi k="จ่ายเพิ่มจากของที่แพงขึ้น" icon={TrendingUp} v={<DashBar className="mt-1 h-6 w-24" />} s={<DashBar className="mt-1 h-2.5 w-20" />} />
+        <Kpi k="ประหยัดจากของที่ถูกลง" icon={TrendingDown} v={<DashBar className="mt-1 h-6 w-24" />} s={<DashBar className="mt-1 h-2.5 w-20" />} />
+        <Kpi k="สุทธิ" icon={Scale} v={<DashBar className="mt-1 h-6 w-24" />} s={<DashBar className="mt-1 h-2.5 w-20" />} />
+        <Kpi k={`เมนูที่ต้นทุนขึ้นตั้งแต่ ${FLAG} จุด`} icon={BookOpen} v={<DashBar className="mt-1 h-6 w-16" />} s={<DashBar className="mt-1 h-2.5 w-24" />} />
+      </div>
+      <QLabel n="2">แนวโน้มราคา — ขึ้นหรือลงกี่ % จากราคาแรกที่รับ</QLabel>
+      <div className="rounded-[18px] border border-border/70 bg-surface p-4 shadow-card">
         <WaitingFor figure="priceMoves" needs={["receipt"]} reason="หน้านี้คิดราคาจากใบรับสินค้าที่ยืนยันแล้ว ต้องรับของอย่างน้อยสองช่วงจึงจะเห็นว่าราคาเปลี่ยนไปเท่าไร" />
       </div>
-    );
-  return <View d={d} canEditTargets={canEditTargets} />;
+      <QLabel n="3">ตัวไหน — เรียงตามเงิน (ซ้าย = ประหยัด · ขวา = จ่ายเพิ่ม)</QLabel>
+      {rows([0.85, 0.6, 0.4, 0.25])}
+      <QLabel n="4">กระทบเมนูไหน · ต้องขึ้นราคาไหม</QLabel>
+      {rows([0.7, 0.45, 0.3])}
+      <QLabel n="5–6">เจ้าไหนถูกกว่า · บิลตรงราคาที่สั่งไหม</QLabel>
+      <div aria-hidden className="grid gap-3 sm:grid-cols-2">
+        {["เจ้าไหนถูกกว่า", "บิลตรงราคาที่สั่งไหม"].map((t) => (
+          <div key={t} className="space-y-2.5 rounded-[18px] border border-border/70 bg-surface p-4 shadow-card">
+            <b className="text-sm">{t}</b>
+            <DashBar className="h-3 w-4/5" />
+            <DashBar className="h-3 w-3/5" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function View({ d, canEditTargets }: { d: Data; canEditTargets: boolean }) {

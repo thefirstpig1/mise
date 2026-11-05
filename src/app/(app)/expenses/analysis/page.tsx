@@ -6,7 +6,8 @@ import ActionLink from "@/components/ui/ActionLink";
 import { DailyBarsChart } from "@/app/(app)/dashboard/_components/Charts";
 import { recentMonths } from "@/app/(app)/dashboard/_components/dashboard-period";
 import FilterLink from "@/components/ui/FilterLink";
-import WaitingFor from "@/components/ui/WaitingFor";
+import WaitingFor, { Outline } from "@/components/ui/WaitingFor";
+import { DashRows } from "@/components/ui/DashBar";
 import PageHeader from "@/components/ui/PageHeader";
 import Stat, { StatGrid } from "@/components/ui/Stat";
 import ShowMore from "@/components/ui/ShowMore";
@@ -136,9 +137,19 @@ export default async function ExpenseAnalysisPage({ searchParams }: { searchPara
 
       {total === 0 && !(filter.account || filter.section || filter.group || filter.supplier) ? (
         // Queue item 10: nothing recorded in the period is not a filter to clear.
-        <div className="rounded-[18px] border border-border/70 bg-surface p-5 shadow-card">
-          <WaitingFor figure="expenseAnalysis" needs={["expense"]} reason="ยังไม่มีบิลค่าใช้จ่ายในช่วงนี้" />
-        </div>
+        // Kong 2026-11-05: and the page's other two cards, dashed, so the
+        // reader sees everything this page will show.
+        <>
+          <div className="rounded-[18px] border border-border/70 bg-surface p-5 shadow-card">
+            <WaitingFor figure="expenseAnalysis" needs={["expense"]} reason="ยังไม่มีบิลค่าใช้จ่ายในช่วงนี้" />
+          </div>
+          <Card title="รายจ่ายรายวัน" hint={`${monthLabel(month.key)} · ตามวันที่บิล ไม่รวม VAT`}>
+            <Outline shape="bars" sample="month" />
+          </Card>
+          <Card title="บิลที่เกี่ยวข้อง" hint="กดที่บิลเพื่อดูรายการข้างใน">
+            <DashRows widths={[0.6, 0.45, 0.55]} bar={false} label="บิลที่เกี่ยวข้อง ยังไม่มีรายการ" />
+          </Card>
+        </>
       ) : total === 0 ? (
         <div className="rounded-[18px] border border-border/70 bg-surface shadow-card p-10 text-center text-sm text-muted-foreground">
           ไม่มีรายจ่ายที่ตรงกับเงื่อนไขนี้ ·{" "}

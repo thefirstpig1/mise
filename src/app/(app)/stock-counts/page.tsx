@@ -21,7 +21,7 @@ import { getIncomingTransfersLogic } from "@/server/transfer";
 import { toTransferView } from "@/app/(app)/transfers/_components/transfer-view";
 import IncomingTransfers from "@/app/(app)/transfers/_components/IncomingTransfers";
 
-import EmptyState from "@/components/ui/EmptyState";
+import EmptyTable from "@/components/ui/EmptyTable";
 import { RowChevron } from "@/components/ui/ActionLink";
 import FilterLink from "@/components/ui/FilterLink";
 import ExportButton from "@/components/ExportButton";
@@ -140,9 +140,12 @@ export default async function StockCountListPage({
       </div>
 
       {rows.length === 0 ? (
-        <EmptyState art="start">
+        <EmptyTable
+          label="รายการใบนับสต็อก"
+          columns={[{ label: "เลขที่" }, { label: "สาขา", hide: "sm" }, { label: "วันที่นับ" }, { label: "รายการ", right: true, hide: "sm" }, { label: "สถานะ" }]}
+        >
           ยังไม่มีใบนับสต็อก — กด &ldquo;เปิดใบนับใหม่&rdquo; เพื่อเริ่มนับครั้งแรก
-        </EmptyState>
+        </EmptyTable>
       ) : (
         // Kong (2026-09-28): the whole row opens the sheet, not just its number —
         // a number in plain text did not look pressable at all.

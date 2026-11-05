@@ -26,7 +26,7 @@
 // frame is fixed to the frame).
 // ============================================================
 
-import { useEffect, useId, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useId, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { ChartColumn, ChartLine, ChartPie, ChartScatter, LayoutGrid, List, Waypoints, X, type LucideIcon } from "lucide-react";
 import { FIGURES, NEEDS, needStatus, type FigureCopy, type FigureKey, type NeedKey, type OutlineShape, type Readiness, type SampleKey } from "@/lib/data-needs";
@@ -349,15 +349,6 @@ const MONTH_H = [...BAR_H, 64, 58, 70, 66, 84, 104, 96, 62, 56, 68, 72, 90, 108,
 const WEEK_H = [70, 66, 64, 68, 74, 104, 98];
 const WEEK_LABELS = ["จ.", "อ.", "พ.", "พฤ.", "ศ.", "ส.", "อา."];
 const MUSTARD = ["#B8900F", "#E7C860"] as const;
-
-/**
- * One dashed bar standing in for a word or a number that has not arrived — the
- * same stroke as the chart outlines, for lists and tables (Kong 2026-11-05: the
- * layout stays as it will be, but nothing on the page may look like data).
- */
-export function DashBar({ className = "", style }: { className?: string; style?: CSSProperties }) {
-  return <span aria-hidden className={`block rounded-full border-[1.4px] border-dashed border-sage bg-[#FBF8EE] ${className}`} style={style} />;
-}
 
 export function Outline({ shape, sample }: { shape: OutlineShape; sample?: SampleKey }) {
   return (

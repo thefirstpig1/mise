@@ -10,7 +10,8 @@ import { useRouter } from "next/navigation";
 import type { Route } from "next";
 import PageHeader from "@/components/ui/PageHeader";
 import type { DepartmentOverview as Data } from "@/server/department-overview";
-import WaitingFor from "@/components/ui/WaitingFor";
+import WaitingFor, { Outline } from "@/components/ui/WaitingFor";
+import { DashRows } from "@/components/ui/DashBar";
 
 type Bucket = { key: string; label: string; partial: boolean };
 type TrendPoint = { key: string; label: string; coverage: number | null; byDept: Record<string, { revenue: number; cost: number }> };
@@ -425,9 +426,12 @@ function Spark({
         {name}
       </p>
       {shown.length === 0 ? (
-        <p className="py-8 text-center text-xs text-muted-subtle">
-          {points.some((p) => (p.byDept[dept]?.revenue ?? 0) > 0) ? "ยังไม่ได้ตัดสต็อกตามยอดขายในช่วงเหล่านี้" : "ยังไม่มียอดขายในช่วงนี้"}
-        </p>
+        <div className="space-y-1.5 py-2">
+          <Outline shape="line" />
+          <p className="text-center text-xs text-muted-subtle">
+            {points.some((p) => (p.byDept[dept]?.revenue ?? 0) > 0) ? "ยังไม่ได้ตัดสต็อกตามยอดขายในช่วงเหล่านี้" : "ยังไม่มียอดขายในช่วงนี้"}
+          </p>
+        </div>
       ) : (
         <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label={`ต้นทุน % ของ${name}`}>
           {[lo, (lo + hi) / 2, hi].map((v) => (
@@ -465,7 +469,13 @@ function Spark({
 }
 
 function MenuList({ rows }: { rows: Data["menus"] }) {
-  if (rows.length === 0) return <p className="text-sm text-muted-foreground">ไม่มีเมนูที่มีสูตรและขายในช่วงนี้</p>;
+  if (rows.length === 0)
+    return (
+      <>
+        <DashRows widths={[0.7, 0.55, 0.4]} bar={false} label="เมนูที่ต้นทุนเกินเป้า ยังไม่มีรายการ" />
+        <p className="text-sm text-muted-foreground">ไม่มีเมนูที่มีสูตรและขายในช่วงนี้</p>
+      </>
+    );
   return (
     <ul className="divide-y divide-border text-sm">
       {rows.slice(0, 8).map((m) => (
@@ -486,7 +496,13 @@ function MenuList({ rows }: { rows: Data["menus"] }) {
 }
 
 function Bars({ rows, tone }: { rows: { productId: string; name: string; baht: number }[]; tone: string }) {
-  if (rows.length === 0) return <p className="text-sm text-muted-foreground">ยังไม่มีข้อมูล</p>;
+  if (rows.length === 0)
+    return (
+      <>
+        <DashRows widths={[0.85, 0.55, 0.3]} label="วัตถุดิบที่กินเงิน ยังไม่มีรายการ" />
+        <p className="text-sm text-muted-foreground">ยังไม่มีข้อมูล</p>
+      </>
+    );
   const max = Math.max(...rows.map((r) => r.baht), 1);
   return (
     <ul className="space-y-1.5 text-sm">

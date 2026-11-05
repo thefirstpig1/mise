@@ -42,7 +42,7 @@ import { formatMoney } from "@/app/(app)/cost/_components/cost-view";
 import PaymentBadge from "./_components/PaymentBadge";
 import ExpenseFilters from "./_components/ExpenseFilters";
 
-import EmptyState from "@/components/ui/EmptyState";
+import EmptyTable from "@/components/ui/EmptyTable";
 import ActionLink from "@/components/ui/ActionLink";
 import PageHeader from "@/components/ui/PageHeader";
 import Stat, { StatGrid } from "@/components/ui/Stat";
@@ -282,19 +282,32 @@ export default async function ExpenseListPage({
       />
 
       {rows.length === 0 ? (
-        filtered ? (
-          <EmptyState art="none">
-            ไม่มีบิลตามเงื่อนไขนี้{" "}
-            <a href="/expenses" className="link">
-              ดูทุกบิล
-            </a>
-          </EmptyState>
-        ) : (
-          <EmptyState art="start">
-            ยังไม่มีรายการค่าใช้จ่าย — กด &ldquo;บันทึกค่าใช้จ่าย&rdquo;
-            เพื่อบันทึกบิลแรก (บิลค่าของจะถูกสร้างให้เองเมื่อยืนยันใบรับสินค้า)
-          </EmptyState>
-        )
+        <EmptyTable
+          label="รายการบิลค่าใช้จ่าย"
+          columns={[
+            { label: "วันที่บิล" },
+            { label: "รายละเอียด" },
+            ...(multiBranch ? [{ label: "สาขา", hide: "md" as const }] : []),
+            { label: "ที่มา", hide: "sm" },
+            { label: "ยอดรวม", right: true, hide: "sm" },
+            { label: "จ่ายจริง", right: true },
+            { label: "สถานะ", hide: "sm" },
+          ]}
+        >
+          {filtered ? (
+            <>
+              ไม่มีบิลตามเงื่อนไขนี้{" "}
+              <a href="/expenses" className="link">
+                ดูทุกบิล
+              </a>
+            </>
+          ) : (
+            <>
+              ยังไม่มีรายการค่าใช้จ่าย — กด &ldquo;บันทึกค่าใช้จ่าย&rdquo;
+              เพื่อบันทึกบิลแรก (บิลค่าของจะถูกสร้างให้เองเมื่อยืนยันใบรับสินค้า)
+            </>
+          )}
+        </EmptyTable>
       ) : (
         <>
           {/* A phone: one card per bill, the whole card opening it (the receipt

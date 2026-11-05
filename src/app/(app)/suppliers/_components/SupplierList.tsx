@@ -9,6 +9,7 @@ import Link from "next/link";
 import type { SupplierView } from "./supplier-view";
 
 import EmptyState from "@/components/ui/EmptyState";
+import EmptyTable from "@/components/ui/EmptyTable";
 import ActionLink from "@/components/ui/ActionLink";
 export default function SupplierList({
   suppliers,
@@ -70,9 +71,12 @@ export default function SupplierList({
       </div>
 
       {suppliers.length === 0 ? (
-        <EmptyState art="start">
+        <EmptyTable
+          label="รายชื่อผู้ขาย"
+          columns={[{ label: "ชื่อ" }, { label: "รหัส", hide: "sm" }, { label: "ผู้ติดต่อ", hide: "sm" }, { label: "ภาษี", hide: "md" }, { label: "สถานะ" }]}
+        >
           ยังไม่มีผู้ขาย — กด &quot;นำเข้าบิลซื้อย้อนหลัง&quot; ได้ผู้ขายและราคาจากบิลเก่าในครั้งเดียว หรือ &quot;เพิ่มผู้ขาย&quot; ทีละราย
-        </EmptyState>
+        </EmptyTable>
       ) : filtered.length === 0 ? (
         <EmptyState art="none">
           ไม่พบข้อมูลที่ค้นหา

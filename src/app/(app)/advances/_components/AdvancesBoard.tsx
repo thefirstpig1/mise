@@ -8,6 +8,7 @@
 // (Kong: "ให้บัญชีตัดสินใจว่ามีความน่าเชื่อถือแค่ไหน case by case").
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import DashBar from "@/components/ui/DashBar";
 import { useRouter } from "next/navigation";
 import { CircleCheck, Download, HandCoins, Hourglass, ImageOff, Wallet } from "lucide-react";
 import PageHeader from "@/components/ui/PageHeader";
@@ -115,9 +116,38 @@ export default function AdvancesBoard({ claims, today, months, meId, canApprove 
       {tab === "open" ? (
         <>
           {people.length === 0 ? (
-            <Quiet icon={HandCoins} title="ตอนนี้ร้านไม่ได้ค้างคืนพนักงาน">
-              บิลที่พนักงานออกเงินไปก่อน (บันทึกที่ “ซื้อเอง / สำรองจ่าย”) จะขึ้นที่นี่ พร้อมยอดรวมแยกว่าพร้อมคืน รอรับรอง หรือขาดหลักฐาน
-            </Quiet>
+            <>
+              <Quiet icon={HandCoins} title="ตอนนี้ร้านไม่ได้ค้างคืนพนักงาน">
+                บิลที่พนักงานออกเงินไปก่อน (บันทึกที่ “ซื้อเอง / สำรองจ่าย”) จะขึ้นที่นี่ พร้อมยอดรวมแยกว่าพร้อมคืน รอรับรอง หรือขาดหลักฐาน
+              </Quiet>
+              {/* The board's own tiles and panels, dashed (Kong 2026-11-05: the layout stays). */}
+              <StatGrid>
+                {tiles.map((t) => (
+                  <Stat key={t.k} label={t.k} icon={t.icon} value={<DashBar className="mt-1 h-6 w-24" />} sub={<DashBar className="mt-1 h-2.5 w-20" />} />
+                ))}
+              </StatGrid>
+              <div aria-hidden className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.7fr)]">
+                <section className="card space-y-2 p-3">
+                  <h3 className="px-2 pb-1 font-semibold">ต่อคน</h3>
+                  {[0.6, 0.45].map((w) => (
+                    <div key={w} className="grid grid-cols-[2.25rem_minmax(0,1fr)_auto] items-center gap-3 px-2.5 py-1.5">
+                      <DashBar className="h-9 w-9" />
+                      <DashBar className="h-3" style={{ width: `${w * 100}%` }} />
+                      <DashBar className="h-3 w-14" />
+                    </div>
+                  ))}
+                </section>
+                <section className="card space-y-3 p-4">
+                  <h3 className="font-semibold">บิลของคนที่เลือก</h3>
+                  {[0.7, 0.5, 0.6].map((w) => (
+                    <div key={w} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+                      <DashBar className="h-3" style={{ width: `${w * 100}%` }} />
+                      <DashBar className="h-3 w-14" />
+                    </div>
+                  ))}
+                </section>
+              </div>
+            </>
           ) : (
             <>
             <StatGrid>

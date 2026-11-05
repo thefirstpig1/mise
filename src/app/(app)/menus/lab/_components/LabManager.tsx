@@ -13,7 +13,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
 import type { IngredientOption, LabDraft, PriceBook, StandardUnit } from "@/server/menu-manager";
-import EmptyState from "@/components/ui/EmptyState";
+import EmptyTable from "@/components/ui/EmptyTable";
 import Stat from "@/components/ui/Stat";
 import { FilePlus, FlaskConical, Hourglass } from "lucide-react";
 import { ingredientOptions, priceBook } from "../../_components/prefetch";
@@ -528,9 +528,12 @@ export default function LabManager(props: {
       )}
 
       {drafts.length === 0 && starts.length === 0 && (
-        <EmptyState art="start">
-          <p className="text-sm text-muted-foreground">ยังไม่มีร่างสูตร · กด “ร่างสูตรใหม่” เพื่อลองคิดต้นทุนและราคาของจานที่ยังไม่ได้ขาย หรือลองแก้สูตรของเมนูที่ขายอยู่</p>
-        </EmptyState>
+        <EmptyTable
+          label="ร่างสูตร"
+          columns={[{ label: "ร่างสูตร" }, { label: "สถานะ" }, { label: "ต้นทุนต่อจาน", right: true }, { label: "ราคาที่ตั้งใจ", right: true, hide: "sm" }]}
+        >
+          ยังไม่มีร่างสูตร · กด “ร่างสูตรใหม่” เพื่อลองคิดต้นทุนและราคาของจานที่ยังไม่ได้ขาย หรือลองแก้สูตรของเมนูที่ขายอยู่
+        </EmptyTable>
       )}
 
       <section className="space-y-2">

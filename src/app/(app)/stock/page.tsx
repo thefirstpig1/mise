@@ -11,6 +11,7 @@
 // `searchParams` is a PROMISE in Next 15.
 
 import { requireTenant } from "@/lib/require-tenant";
+import { DashRows } from "@/components/ui/DashBar";
 import { computeBangkokToday } from "@/lib/bangkok-date";
 import { getBranchesLogic, liveliestBranchId } from "@/server/branch";
 import { getStockBalancesByBranchLogic } from "@/server/stock-movement";
@@ -239,7 +240,10 @@ export default async function StockWorkPage({ searchParams }: { searchParams: Pr
             </a>
           </div>
           {recent.length === 0 ? (
-            <p className="mt-2 text-sm text-muted-foreground">ยังไม่มีของเข้า-ออกที่สาขานี้</p>
+            <>
+              <DashRows widths={[0.6, 0.45, 0.55, 0.35]} bar={false} label="ของเข้า-ออกล่าสุด ยังไม่มีรายการ" />
+              <p className="mt-2 text-sm text-muted-foreground">ยังไม่มีของเข้า-ออกที่สาขานี้</p>
+            </>
           ) : (
             <ul className="mt-2 divide-y divide-border text-sm">
               {recent.map((m) => (

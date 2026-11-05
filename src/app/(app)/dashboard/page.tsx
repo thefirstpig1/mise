@@ -34,7 +34,8 @@ import { MonthlyTrend, type MenuBar, type RevenueRow } from "./_components/Chart
 import { DailySalesBars, TopMenusCard, WatchEmpty } from "./_components/DashboardParts";
 import { isoDay, parseBranchParam, parsePreset, periodFor, type Period } from "./_components/dashboard-period";
 import { grossProfitBlockerShort, isCountBlocker, purchasesLookLow } from "@/lib/gross-profit-blocker";
-import WaitingFor, { Coverage, DashBar, WaitingSlot, WhatIsThis } from "@/components/ui/WaitingFor";
+import WaitingFor, { Coverage, WaitingSlot, WhatIsThis } from "@/components/ui/WaitingFor";
+import DashBar from "@/components/ui/DashBar";
 import type { NeedKey } from "@/lib/data-needs";
 
 // ============================================================

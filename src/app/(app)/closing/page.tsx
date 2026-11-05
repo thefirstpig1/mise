@@ -6,6 +6,7 @@
 // `searchParams` is a PROMISE in Next 15.
 
 import { requireTenant } from "@/lib/require-tenant";
+import EmptyTable from "@/components/ui/EmptyTable";
 import { addDays, computeBangkokToday } from "@/lib/bangkok-date";
 import { getBranchesLogic, liveliestBranchId } from "@/server/branch";
 import { getDailyCloseMonthLogic } from "@/server/daily-close";
@@ -215,7 +216,19 @@ export default async function ClosingMonthPage({ searchParams }: { searchParams:
       {missing > 0 && <p className="text-xs text-muted-subtle">มียอดขายแต่ไม่ได้ปิดร้าน {missing} วัน · วันหรือช่องที่ไม่ได้กรอก แสดง “—” ไม่ใช่ 0</p>}
 
       {data.rows.length === 0 ? (
-        <p className="rounded-xl border border-border bg-muted/30 p-6 text-sm text-muted-foreground">ยังไม่มีข้อมูลของเดือนนี้</p>
+        <EmptyTable
+          label="ตารางปิดร้านรายวัน"
+          columns={[
+            { label: "วัน" },
+            ...(seeMoney ? [{ label: "ยอดขาย", right: true }] : []),
+            { label: "ลูกค้า", right: true },
+            ...(seeMoney ? [{ label: "ต่อหัว", right: true, hide: "sm" as const }, { label: "เงินสด", right: true, hide: "sm" as const }] : []),
+            { label: "ปัญหา", hide: "md" },
+            { label: "ความเห็น", right: true, hide: "md" },
+          ]}
+        >
+          ยังไม่มีข้อมูลของเดือนนี้
+        </EmptyTable>
       ) : (
         <>
           {/* Queue item 9: a phone read seven columns through a sideways scroll

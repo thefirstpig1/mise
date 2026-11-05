@@ -20,7 +20,8 @@ import { ANIM, ChartTooltip, GRID, INK_MUTED, NEUTRAL, axis, cursorFill } from "
 import { readApi } from "@/lib/read-api";
 import { announceStale } from "@/lib/stale-tab";
 import { clickableBar, type MenuBar, type RevenueRow, type RevenueSeries } from "./Charts";
-import { DashBar, WhatIsThis, useReadiness } from "@/components/ui/WaitingFor";
+import DashBar from "@/components/ui/DashBar";
+import { WhatIsThis, useReadiness } from "@/components/ui/WaitingFor";
 import { NEEDS, type NeedKey } from "@/lib/data-needs";
 
 const baht = (n: number) => new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB", maximumFractionDigits: 0 }).format(n);

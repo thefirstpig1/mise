@@ -21,6 +21,7 @@
 // ============================================================
 
 import { unitTh } from "@/app/(app)/menus/_components/manager-format";
+import DashBar from "@/components/ui/DashBar";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import QtyStepper from "@/components/ui/QtyStepper";
@@ -361,7 +362,28 @@ export default function RequestBoard({
 
           <section className="space-y-2">
             <h2 className="text-base font-semibold">{group ?? (term ? `ผลการค้นหา “${query.trim()}”` : "วัตถุดิบทั้งหมด")}</h2>
-            {shown.length === 0 ? (
+            {shown.length === 0 && !term && !group ? (
+              // No products at all: the catalogue's own cards, dashed (Kong 2026-11-05).
+              <div className="space-y-3">
+                <ul aria-label="รายการวัตถุดิบ ยังไม่มีรายการ" className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                  {[0.7, 0.55, 0.8, 0.6].map((w) => (
+                    <li key={w} className="flex flex-col overflow-hidden rounded-[18px] border border-dashed border-border-strong bg-surface">
+                      <DashBar className="aspect-[4/3] w-full rounded-none border-0 border-b" />
+                      <span className="grid gap-1.5 p-3">
+                        <DashBar className="h-3" style={{ width: `${w * 100}%` }} />
+                        <DashBar className="h-2.5 w-1/2" />
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-center text-sm text-muted-foreground">
+                  ยังไม่มีวัตถุดิบในระบบ —{" "}
+                  <a href="/products" className="link">
+                    เพิ่มที่หน้าสินค้า ›
+                  </a>
+                </p>
+              </div>
+            ) : shown.length === 0 ? (
               <p className="rounded-[18px] border border-border/70 bg-surface shadow-card px-4 py-8 text-center text-sm text-muted-foreground">
                 ไม่พบวัตถุดิบ — ลองพิมพ์ส่วนอื่นของชื่อ
               </p>

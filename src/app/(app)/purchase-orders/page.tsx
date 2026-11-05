@@ -23,7 +23,7 @@ import {
 import { toPurchaseOrderListView } from "./_components/purchase-order-view";
 import StatusBadge from "./_components/StatusBadge";
 
-import EmptyState from "@/components/ui/EmptyState";
+import EmptyTable from "@/components/ui/EmptyTable";
 import FilterLink from "@/components/ui/FilterLink";
 import PageHeader from "@/components/ui/PageHeader";
 import Stat, { StatGrid } from "@/components/ui/Stat";
@@ -153,9 +153,20 @@ export default async function PurchaseOrdersPage({
       </div>
 
       {orders.length === 0 ? (
-        <EmptyState art="none">
+        <EmptyTable
+          label="รายการใบสั่งซื้อ"
+          columns={[
+            { label: "เลขที่" },
+            { label: "ผู้ขาย", hide: "sm" },
+            ...(branches.length > 1 ? [{ label: "สาขา", hide: "md" as const }] : []),
+            { label: "รายการ", right: true, hide: "md" },
+            { label: "ยอดรวม", right: true },
+            { label: "กำหนดรับ", hide: "sm" },
+            { label: "สถานะ" },
+          ]}
+        >
           ยังไม่มีใบสั่งซื้อตามเงื่อนไขนี้
-        </EmptyState>
+        </EmptyTable>
       ) : (
         <div className="data-table">
           <table>

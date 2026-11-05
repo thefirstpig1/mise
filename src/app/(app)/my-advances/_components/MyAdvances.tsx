@@ -6,6 +6,7 @@
 // tapped to add the photo; nothing here can change an amount once sent.
 
 import { useEffect, useMemo, useState, useTransition } from "react";
+import DashBar from "@/components/ui/DashBar";
 import { Camera } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Portal, useTopLayer } from "@/app/(app)/menus/_components/sheet-parts";
@@ -98,9 +99,25 @@ export default function MyAdvances({ claims, today, storageReady, ...options }: 
       </div>
 
       {shown.length === 0 ? (
-        <p className="rounded-2xl border border-dashed border-border-strong p-6 text-center text-sm text-muted-foreground">
-          {filter === "open" ? "ยังไม่มีบิลที่รอคืนเงิน" : "ยังไม่มีรายการ"}
-        </p>
+        // The bill cards' own shape, dashed (Kong 2026-11-05: an empty page keeps the filled layout).
+        <div className="space-y-2">
+          <ul aria-label="รายการบิลที่ซื้อเอง ยังไม่มีรายการ" className="space-y-2">
+            {[0.7, 0.55].map((w) => (
+              <li key={w} className="grid grid-cols-[3.5rem_minmax(0,1fr)_auto] items-center gap-3 rounded-[18px] border border-dashed border-border-strong bg-surface p-3">
+                <DashBar className="h-16 w-14 rounded-lg" />
+                <span className="grid gap-1.5">
+                  <DashBar className="h-3" style={{ width: `${w * 100}%` }} />
+                  <DashBar className="h-2.5 w-1/2" />
+                </span>
+                <span className="grid justify-items-end gap-1.5">
+                  <DashBar className="h-3 w-14" />
+                  <DashBar className="h-4 w-16" />
+                </span>
+              </li>
+            ))}
+          </ul>
+          <p className="text-center text-sm text-muted-foreground">{filter === "open" ? "ยังไม่มีบิลที่รอคืนเงิน" : "ยังไม่มีรายการ"}</p>
+        </div>
       ) : (
         <ul className="space-y-2">
           {shown.map((c) => (

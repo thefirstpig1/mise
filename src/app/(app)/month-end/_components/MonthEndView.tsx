@@ -15,6 +15,8 @@
 
 import { use, useMemo, useState } from "react";
 import WaitingFor from "@/components/ui/WaitingFor";
+import DashBar from "@/components/ui/DashBar";
+import EmptyTable from "@/components/ui/EmptyTable";
 import Seg from "@/components/ui/Seg";
 import { buildMonthEndJournal, fromSatang, sumFigures, type JournalMode, type JournalScope } from "@/lib/month-end-journal";
 import {
@@ -101,15 +103,60 @@ export default function MonthEndView({
   const nothing = t.opening === 0 && t.closing === 0 && t.purchases === 0 && t.cogs === 0;
   if (nothing) {
     // Queue item 10: the equation's own outline, and the way to the count that fills it.
+    // Kong 2026-11-05: and every other section of the page, dashed, so the
+    // reader sees what the file to the accountant will carry.
+    const soon = "ขึ้นเมื่อเดือนนี้มีสต็อกหรือบิลซื้อ";
     return (
-      <section className="card space-y-3">
-        <h2 className="font-display text-lg font-semibold">ต้นทุนขายเดือนนี้มาจากไหน</h2>
-        <WaitingFor
-          figure="monthCogs"
-          needs={["count", "receipt"]}
-          reason={`เดือน ${monthTitleTh(v.month)} ยังไม่มีสต็อก บิลซื้อ หรือการนับในสาขาที่คุณดูได้ · เลือกเดือนอื่นด้านบนได้`}
-        />
-      </section>
+      <div className="space-y-5">
+        <section className="card space-y-3" aria-label="ก่อนส่ง ตรวจเรื่องเหล่านี้">
+          <h2 className="font-display text-lg font-semibold">ก่อนส่ง ตรวจเรื่องเหล่านี้</h2>
+          <ul aria-hidden className="grid grid-cols-1 gap-x-8 gap-y-3 md:grid-cols-2">
+            {[0.8, 0.6, 0.7, 0.5].map((w) => (
+              <li key={w} className="grid grid-cols-[1.25rem_minmax(0,1fr)] items-center gap-2.5">
+                <DashBar className="h-5 w-5" />
+                <DashBar className="h-3" style={{ width: `${w * 100}%` }} />
+              </li>
+            ))}
+          </ul>
+        </section>
+        <section className="card space-y-3">
+          <h2 className="font-display text-lg font-semibold">ต้นทุนขายเดือนนี้มาจากไหน</h2>
+          <WaitingFor
+            figure="monthCogs"
+            needs={["count", "receipt"]}
+            reason={`เดือน ${monthTitleTh(v.month)} ยังไม่มีสต็อก บิลซื้อ หรือการนับในสาขาที่คุณดูได้ · เลือกเดือนอื่นด้านบนได้`}
+          />
+        </section>
+        {v.branches.length > 1 && (
+          <section className="space-y-3">
+            <h2 className="font-display text-lg font-semibold">แยกสาขา</h2>
+            <EmptyTable
+              label="ตารางแยกสาขา"
+              rows={Math.min(v.branches.length, 3)}
+              columns={[{ label: "สาขา" }, { label: "สต็อกต้นเดือน", right: true }, { label: "ซื้อเข้า", right: true, hide: "sm" }, { label: "โอนเข้า / ออก", right: true, hide: "md" }, { label: "สต็อกสิ้นเดือน", right: true, hide: "sm" }, { label: "ต้นทุนขาย", right: true }]}
+            >
+              {soon}
+            </EmptyTable>
+          </section>
+        )}
+        <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
+          <section className="card space-y-3">
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <h2 className="font-display text-lg font-semibold">รายการปรับปรุงสิ้นเดือน</h2>
+              <span className="text-xs text-muted-subtle">สิ่งที่จะอยู่ในไฟล์</span>
+            </div>
+            <EmptyTable label="รายการปรับปรุงสิ้นเดือน" columns={[{ label: "รหัส" }, { label: "ชื่อบัญชี" }, { label: "เดบิต", right: true }, { label: "เครดิต", right: true }]}>
+              {soon}
+            </EmptyTable>
+          </section>
+          <section className="card space-y-3">
+            <h2 className="font-display text-lg font-semibold">สต็อกสิ้นเดือนรายสินค้า</h2>
+            <EmptyTable label="สต็อกสิ้นเดือนรายสินค้า" columns={[{ label: "สินค้า" }, ...(v.branches.length > 1 ? [{ label: "สาขา" }] : []), { label: "คงเหลือ", right: true }, { label: "มูลค่า", right: true }]}>
+              {soon}
+            </EmptyTable>
+          </section>
+        </div>
+      </div>
     );
   }
   // Rule PG1 on this page (queue item 10): with no branch ever counted, the

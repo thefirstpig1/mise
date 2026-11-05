@@ -19,7 +19,7 @@ import { toRecurringExpenseView } from "../_components/expense-view";
 import { monthLabelTh } from "@/lib/expense-labels";
 import Crumbs from "../_components/Crumbs";
 
-import EmptyState from "@/components/ui/EmptyState";
+import EmptyTable from "@/components/ui/EmptyTable";
 export default async function RecurringExpensePage() {
   const { tenantId, capabilities, reach } = await requireTenant("expense:view");
   const canWrite = capabilities.has("expense:write");
@@ -51,10 +51,13 @@ export default async function RecurringExpensePage() {
       </div>
 
       {templates.length === 0 ? (
-        <EmptyState art="start">
+        <EmptyTable
+          label="รายการประจำ"
+          columns={[{ label: "รายการ" }, { label: "หมวดบัญชี", hide: "sm" }, { label: "ยอดตั้งต้น", right: true }, { label: "ครบกำหนด", hide: "sm" }, { label: "ยังไม่ได้บันทึก", right: true, hide: "sm" }]}
+        >
           ยังไม่มีรายการประจำ — เพิ่มค่าเช่า ค่าไฟ หรือค่าทำบัญชี
           แล้วระบบจะเตือนทุกเดือน
-        </EmptyState>
+        </EmptyTable>
       ) : (
         <>
         {/* Queue item 9: on a phone each item is a card — the five-column table

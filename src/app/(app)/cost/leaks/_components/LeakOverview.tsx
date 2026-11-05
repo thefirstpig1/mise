@@ -15,6 +15,7 @@ import { use, useEffect, useMemo, useState } from "react";
 import { ModalShell } from "@/app/(app)/sales/_components/Breakdown";
 import { PackagePlus, Percent, ScanSearch, Target, type LucideIcon } from "lucide-react";
 import IconTile from "@/components/ui/IconTile";
+import DashBar from "@/components/ui/DashBar";
 import type { LeakCount, LeakItem, LeakOverview as Overview } from "@/server/leak-overview";
 
 const f0 = (n: number) => Math.round(n).toLocaleString("th-TH");
@@ -64,12 +65,16 @@ export default function LeakOverview({ overview, initialCountId }: { overview: P
     return <div className="rounded-lg border border-warn-border bg-warn-bg p-4 text-sm text-warn">เปิดรายงานไม่สำเร็จในครั้งนี้ กรุณารีเฟรชหน้าอีกครั้ง</div>;
   if (data.counts.length === 0)
     return (
-      <div className="space-y-2 rounded-[18px] border border-border/70 bg-surface shadow-card p-6 text-sm">
-        <h2 className="font-display text-lg font-semibold">ยังไม่มีการนับสต็อกที่ปิดแล้ว</h2>
-        <p className="text-muted-foreground">หน้านี้เทียบของที่นับได้จริงกับที่ระบบคำนวณว่าควรเหลือ จึงต้องนับสต็อกอย่างน้อยหนึ่งครั้งก่อน</p>
-        <a href="/stock-counts/new" className="btn">
-          เริ่มนับสต็อก
-        </a>
+      <div className="space-y-4">
+        <LeakTitle />
+        <div className="space-y-2 rounded-[18px] border border-border/70 bg-surface shadow-card p-6 text-sm">
+          <h2 className="font-display text-lg font-semibold">ยังไม่มีการนับสต็อกที่ปิดแล้ว</h2>
+          <p className="text-muted-foreground">หน้านี้เทียบของที่นับได้จริงกับที่ระบบคำนวณว่าควรเหลือ จึงต้องนับสต็อกอย่างน้อยหนึ่งครั้งก่อน</p>
+          <a href="/stock-counts/new" className="btn">
+            เริ่มนับสต็อก
+          </a>
+        </div>
+        <LeakOutline />
       </div>
     );
   return <View data={data} initialCountId={initialCountId} />;
@@ -140,10 +145,7 @@ function View({ data, initialCountId }: { data: Overview; initialCountId: string
   return (
     <div className="space-y-5">
       {/* Queue item 9: the page's own heading, at every page's size. */}
-      <div>
-        <h1 className="page-title">ของหายไปไหน</h1>
-        <p className="mt-1 text-sm text-muted-foreground">นับได้ไม่ตรงกับที่ระบบคำนวณ หลังหักที่บันทึกว่าทิ้งและของเสียแล้ว · หายเพราะอะไร ต้องไปตามที่ไหน</p>
-      </div>
+      <LeakTitle />
 
       <div className="space-y-2 rounded-[18px] border border-border/70 bg-surface shadow-card px-3 py-2.5">
         <div className="flex flex-wrap items-center gap-1.5">
@@ -307,6 +309,78 @@ function QLabel({ n, children }: { n: string; children: React.ReactNode }) {
     </h3>
   );
 }
+/**
+ * The report's own questions under the same headings, each a dashed outline of
+ * its answer — what this page will show once it can (Kong 2026-11-05: the
+ * layout stays, nothing on it looks like data).
+ */
+/** The page's own heading — also on the pages that cannot show the report yet. */
+export function LeakTitle() {
+  return (
+    <div>
+      <h1 className="page-title">ของหายไปไหน</h1>
+      <p className="mt-1 text-sm text-muted-foreground">นับได้ไม่ตรงกับที่ระบบคำนวณ หลังหักที่บันทึกว่าทิ้งและของเสียแล้ว · หายเพราะอะไร ต้องไปตามที่ไหน</p>
+    </div>
+  );
+}
+
+export function LeakOutline() {
+  const rows = (ws: number[]) =>
+    ws.map((w) => (
+      <div key={w} className="grid grid-cols-[minmax(6rem,10rem)_minmax(0,1fr)_auto] items-center gap-3">
+        <DashBar className="h-3 w-24" />
+        <DashBar className="h-3" style={{ width: `${w * 100}%` }} />
+        <DashBar className="h-3 w-14" />
+      </div>
+    ));
+  return (
+    <div className="space-y-4">
+      <QLabel n="1">หายไปเท่าไร · เกินเป้าไหม</QLabel>
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        {[
+          ["ไม่ตรงกับระบบ (นับได้น้อยกว่า)", ScanSearch],
+          ["% ของยอดขาย", Percent],
+          ["เงินส่วนใหญ่ (80%) มาจาก", Target],
+          ["นับได้มากกว่าระบบ", PackagePlus],
+        ].map(([k, icon]) => (
+          <Kpi key={k as string} k={k as string} icon={icon as LucideIcon}>
+            <DashBar className="mt-1 h-6 w-24" />
+            <DashBar className="mt-1.5 h-2.5 w-20" />
+          </Kpi>
+        ))}
+      </div>
+      <QLabel n="2–4">ตัวไหน · น่าจะเพราะอะไร · ต้องไปดูที่ไหน</QLabel>
+      <div aria-hidden className="space-y-3 rounded-[18px] border border-border/70 bg-surface p-4 shadow-card">
+        {rows([0.9, 0.55, 0.35, 0.2])}
+      </div>
+      <div aria-hidden className="grid gap-4 md:grid-cols-2">
+        {[
+          ["5", "หายซ้ำไหม · แก้แล้วดีขึ้นไหม"],
+          ["8", "ควรนับอะไรบ่อยขึ้น"],
+        ].map(([n, t]) => (
+          <div key={n} className="space-y-2">
+            <QLabel n={n}>{t}</QLabel>
+            <div className="space-y-2.5 rounded-[18px] border border-border/70 bg-surface p-4 shadow-card">
+              <DashBar className="h-3 w-4/5" />
+              <DashBar className="h-3 w-3/5" />
+            </div>
+          </div>
+        ))}
+      </div>
+      <QLabel n="↕">นับได้มากกว่าระบบ</QLabel>
+      <div aria-hidden className="space-y-3 rounded-[18px] border border-border/70 bg-surface p-4 shadow-card">
+        {rows([0.7, 0.4])}
+      </div>
+      <QLabel n="7">นับครั้งนี้เชื่อได้แค่ไหน</QLabel>
+      <div aria-hidden className="flex flex-wrap gap-2">
+        {[7, 9, 6, 8].map((w) => (
+          <DashBar key={w} className="h-7" style={{ width: `${w}rem` }} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function Kpi({ k, icon, children }: { k: string; icon?: LucideIcon; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-0.5 rounded-[18px] border border-border/70 bg-surface shadow-card p-3.5">

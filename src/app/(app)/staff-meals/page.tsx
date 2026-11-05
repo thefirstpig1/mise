@@ -44,7 +44,7 @@ import StaffMealEntryForm from "./_components/StaffMealEntryForm";
 import VoidStaffMealButton from "./_components/VoidStaffMealButton";
 
 
-import EmptyState from "@/components/ui/EmptyState";
+import EmptyTable from "@/components/ui/EmptyTable";
 import { FilterForm } from "@/components/ui/FilterLink";
 /**
  * The list defaults to THIS MONTH, not to all of history — the same call /waste
@@ -325,9 +325,12 @@ export default async function StaffMealsPage({
         </p>
 
         {rows.length === 0 ? (
-          <EmptyState art="none">
+          <EmptyTable
+            label="รายการมื้อพนักงาน"
+            columns={[{ label: "เมนู" }, { label: "วันที่" }, { label: "สาขา", hide: "sm" }, { label: "คนกิน", hide: "sm" }, { label: "มูลค่าตามราคาขาย", right: true }]}
+          >
             ยังไม่มีรายการในช่วงที่เลือก
-          </EmptyState>
+          </EmptyTable>
         ) : (
           <ul className="space-y-2">
             {rows.map((r) => (

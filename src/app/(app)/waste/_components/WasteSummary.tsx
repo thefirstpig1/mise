@@ -9,6 +9,7 @@
 // away, plus each product's own quantity in its own unit underneath.
 
 import { use, useMemo, useState } from "react";
+import DashBar from "@/components/ui/DashBar";
 import type { WasteSummary, WasteSummaryRow } from "@/server/waste-summary";
 
 type Measure = "baht" | "qty";
@@ -93,7 +94,8 @@ export default function WasteSummaryPanel({ data, canSeeCost }: { data: Promise<
           <p className="text-xs text-muted-foreground">
             {view === "month" ? `${WASTE_MONTHS_LABEL(months)}` : month ? `เดือน ${monthTh(month)}` : WASTE_MONTHS_LABEL(months)} ·{" "}
             {scoped.length.toLocaleString("th-TH")} รายการ
-            {canSeeCost && (
+            {/* No ฿0 for a period with nothing recorded — the count already says it. */}
+            {canSeeCost && scoped.length > 0 && (
               <>
                 {" "}· รวม <span className="font-medium text-foreground tabular-nums">{baht(total)}</span>
                 {unpriced > 0 && ` (ตีราคาไม่ได้ ${unpriced} รายการ)`}
@@ -137,7 +139,19 @@ export default function WasteSummaryPanel({ data, canSeeCost }: { data: Promise<
       </div>
 
       {groups.length === 0 || scoped.length === 0 ? (
-        <p className="rounded-lg bg-muted/30 p-4 text-sm text-muted-foreground">ไม่มีของเสียที่บันทึกไว้ในช่วงนี้</p>
+        // The ranking's own rows, dashed (Kong 2026-11-05: the layout stays, nothing looks like data).
+        <>
+          <ul aria-label="สรุปของเสีย ยังไม่มีรายการ" className="space-y-2.5 px-2 py-1">
+            {[0.9, 0.62, 0.4, 0.24].map((w) => (
+              <li key={w} className="grid grid-cols-[minmax(6rem,11rem)_1fr_auto] items-center gap-3">
+                <DashBar className="h-3 w-24" />
+                <DashBar className="h-3" style={{ width: `${w * 100}%` }} />
+                <DashBar className="h-3 w-12" />
+              </li>
+            ))}
+          </ul>
+          <p className="text-sm text-muted-foreground">ไม่มีของเสียที่บันทึกไว้ในช่วงนี้</p>
+        </>
       ) : (
         <ul className="space-y-1">
           {groups.map((g, i) => (

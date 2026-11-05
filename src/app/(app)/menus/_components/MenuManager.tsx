@@ -26,7 +26,7 @@ import type { MergeMenuView } from "./menu-merge-view";
 import { mergedSpellingsLabel } from "./menu-merge-view";
 import { ModalShell } from "@/app/(app)/sales/_components/Breakdown";
 import NewCategoryForm from "./NewCategoryForm";
-import EmptyState from "@/components/ui/EmptyState";
+import EmptyTable from "@/components/ui/EmptyTable";
 import PageHeader from "@/components/ui/PageHeader";
 import Stat, { StatGrid } from "@/components/ui/Stat";
 import PillScroller from "@/components/ui/PillScroller";
@@ -721,13 +721,23 @@ export default function MenuManager(props: {
       )}
 
       {rows.length === 0 ? (
-        <EmptyState art="start">
-          <p className="font-medium">ยังไม่มีเมนูในระบบ</p>
-          <p className="mt-2 text-muted-foreground">เมนูเกิดขึ้นเองเมื่อนำเข้ายอดขาย — ไม่ต้องพิมพ์รายการเมนูเข้าไปก่อน</p>
-          <a href="/sales/import" className="link mt-4 inline-block text-sm">
+        <EmptyTable
+          label="เมนูทั้งหมด"
+          columns={[
+            { label: "เมนู" },
+            { label: "ขาย 30 วัน", right: true },
+            { label: "ราคาเฉลี่ย", right: true, hide: "sm" },
+            { label: "ต้นทุน/จาน", right: true, hide: "md" },
+            { label: "ต้นทุน %", right: true, hide: "md" },
+            { label: "กำไร/จาน", right: true, hide: "md" },
+          ]}
+        >
+          <p className="font-medium text-foreground">ยังไม่มีเมนูในระบบ</p>
+          <p className="mt-1">เมนูเกิดขึ้นเองเมื่อนำเข้ายอดขาย — ไม่ต้องพิมพ์รายการเมนูเข้าไปก่อน</p>
+          <a href="/sales/import" className="link mt-3 inline-block text-sm">
             นำเข้ายอดขาย
           </a>
-        </EmptyState>
+        </EmptyTable>
       ) : (
         <>
           {/* ---------------- ภาพรวม ---------------- */}

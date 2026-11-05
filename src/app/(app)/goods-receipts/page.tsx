@@ -22,7 +22,7 @@ import {
 import { toGoodsReceiptListView } from "./_components/goods-receipt-view";
 import StatusBadge from "./_components/StatusBadge";
 
-import EmptyState from "@/components/ui/EmptyState";
+import EmptyTable from "@/components/ui/EmptyTable";
 import FilterLink from "@/components/ui/FilterLink";
 import ExportButton from "@/components/ExportButton";
 import { exportBranchScope } from "@/lib/validations/raw-export";
@@ -139,9 +139,12 @@ export default async function GoodsReceiptsPage({
       )}
 
       {receipts.length === 0 ? (
-        <EmptyState art="none">
+        <EmptyTable
+          label="รายการใบรับสินค้า"
+          columns={[{ label: "เลขที่" }, { label: "ผู้ขาย", hide: "sm" }, { label: "ใบสั่งซื้อ", hide: "md" }, { label: "สาขา", hide: "md" }, { label: "รายการ", right: true, hide: "sm" }, { label: "รับเมื่อ" }, { label: "สถานะ" }]}
+        >
           ยังไม่มีใบรับสินค้าตามเงื่อนไขนี้
-        </EmptyState>
+        </EmptyTable>
       ) : (
         <>
         {/* Queue item 9 (Kong 2026-10-31): on a phone the seven columns squeezed

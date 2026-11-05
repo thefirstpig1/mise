@@ -5,6 +5,7 @@
 // client state) — the server page renders it; bars are links to the day.
 
 import { DOMINANT_MIN_DAYS, dominantPerHead, isWeekend, mixShares, type MixDay } from "@/lib/closing-insight";
+import { Outline } from "@/components/ui/WaitingFor";
 import { MixBar, colorOf } from "./mix";
 
 const fmt = (n: number) => Math.round(n).toLocaleString("th-TH");
@@ -85,7 +86,10 @@ export default function MonthInsight({
           </div>
         </div>
         {n === 0 ? (
-          <p className="py-10 text-center text-sm text-muted-foreground">ยังไม่มีวันที่กรอกจำนวนลูกค้าในเดือนนี้</p>
+          <div className="mt-2 space-y-2">
+            <Outline shape="bars" sample="month" />
+            <p className="text-center text-sm text-muted-foreground">ยังไม่มีวันที่กรอกจำนวนลูกค้าในเดือนนี้</p>
+          </div>
         ) : (
           <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label="ลูกค้าต่อวัน" className="mt-2">
             {[0, 0.5, 1].map((f) => (

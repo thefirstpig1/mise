@@ -26,6 +26,7 @@ import { baht, qtyFmt, thDate, unitTh } from "@/app/(app)/menus/_components/mana
 import { Portal } from "@/app/(app)/menus/_components/sheet-parts";
 import { rankBySearch, hasQuery, STRONG_MATCH, type SearchField } from "@/lib/smart-search";
 import EmptyState from "@/components/ui/EmptyState";
+import EmptyTable from "@/components/ui/EmptyTable";
 import ProductThumb from "@/components/ui/ProductThumb";
 import ProductSheet from "./ProductSheet";
 import NewProductSheet from "./NewProductSheet";
@@ -511,7 +512,23 @@ export default function ProductsManager(props: {
       </div>
 
       {products.length === 0 ? (
-        <EmptyState art="start">ยังไม่มีสินค้า — กด “นำเข้าจากไฟล์” เพื่อเพิ่มทั้งรายการทีเดียว หรือ “เพิ่มสินค้า” ทีละรายการ</EmptyState>
+        <EmptyTable
+          label="รายการสินค้า"
+          columns={[
+            { label: "สินค้า" },
+            { label: "คงเหลือ", right: true },
+            ...(costHidden
+              ? []
+              : [
+                  { label: "มูลค่า", right: true, hide: "sm" as const },
+                  { label: "ต้นทุนต่อหน่วย", right: true, hide: "md" as const },
+                  { label: "ซื้อล่าสุด", right: true, hide: "md" as const },
+                ]),
+            { label: "ใช้ใน", right: true, hide: "sm" },
+          ]}
+        >
+          ยังไม่มีสินค้า — กด “นำเข้าจากไฟล์” เพื่อเพิ่มทั้งรายการทีเดียว หรือ “เพิ่มสินค้า” ทีละรายการ
+        </EmptyTable>
       ) : (
         <>
           <div className="space-y-3 rounded-[18px] border border-border/70 bg-surface shadow-card p-4">

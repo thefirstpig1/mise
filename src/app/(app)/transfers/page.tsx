@@ -26,7 +26,7 @@ import {
 import { toTransferView } from "./_components/transfer-view";
 
 
-import EmptyState from "@/components/ui/EmptyState";
+import EmptyTable from "@/components/ui/EmptyTable";
 import { RowChevron } from "@/components/ui/ActionLink";
 import FilterLink from "@/components/ui/FilterLink";
 // The kit's chips (queue item 9, 2026-10-31): the same pill and dot as every other status.
@@ -150,11 +150,14 @@ export default async function TransfersPage({
       )}
 
       {rows.length === 0 ? (
-        <EmptyState art={branches.length < 2 ? "setup" : "none"}>
+        <EmptyTable
+          label="รายการใบโอน"
+          columns={[{ label: "เลขที่" }, { label: "จากสาขา → ถึงสาขา" }, { label: "ส่งเมื่อ", hide: "sm" }, { label: "สถานะ" }]}
+        >
           {branches.length < 2
             ? "ยังโอนของไม่ได้ เพราะต้องมีอย่างน้อย 2 สาขา"
             : "ยังไม่มีใบโอนที่ตรงกับเงื่อนไขนี้"}
-        </EmptyState>
+        </EmptyTable>
       ) : (
         <ul className="space-y-3">
           {rows.map((t) => (
