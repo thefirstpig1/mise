@@ -34,7 +34,15 @@ function toFieldErrors(error: ZodError): Record<string, string> {
 
 function refused(e: unknown): SettingsActionState {
   if (e instanceof DepartmentCodeTakenError) {
-    return { ok: false, fieldErrors: { code: `รหัส ${e.code} มีแผนกอื่นใช้อยู่แล้ว` } };
+    const h = e.holder;
+    return {
+      ok: false,
+      fieldErrors: {
+        code: h && !h.isActive
+          ? `รหัส ${e.code} เป็นของแผนก “${h.name}” ที่ปิดไว้ — เปิดแผนกนั้นอีกครั้งได้จากรายการแผนกที่ปิดไว้ หรือใช้รหัสอื่น`
+          : `รหัส ${e.code} มีแผนก${h ? ` “${h.name}”` : "อื่น"}ใช้อยู่ — ใช้รหัสอื่น`,
+      },
+    };
   }
   if (e instanceof DefaultDepartmentLockedError) {
     return {

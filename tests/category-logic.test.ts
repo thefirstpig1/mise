@@ -13,6 +13,7 @@ import { withRlsBypass } from "@/lib/db-admin";
 import { categoryInputSchema } from "@/lib/validations/category";
 import {
   createCategoryLogic,
+  createOrRestoreCategoryLogic,
   getCategoriesLogic,
   getCategoryByIdLogic,
   updateCategoryLogic,
@@ -168,5 +169,41 @@ describe("category *Logic (tenant-scoped, app-layer isolation)", () => {
         input({ accountingSection: "Packaging", groupName: "Keep" })
       )
     ).rejects.toBeInstanceOf(CategoryConflictError);
+  });
+
+  // Slice 8 (Kong 2026-11-05) — a deleted category is never a dead end:
+  // making it again brings the SAME row back, so what pointed at it comes back too.
+  it("creating a deleted triple again restores the deleted row instead of refusing", async () => {
+    const first = await createCategoryLogic(tenantA, input({ accountingSection: "Restore", groupName: "Again" }));
+    expect(await deleteCategoryLogic(tenantA, first.id)).toBe(true);
+
+    const again = await createOrRestoreCategoryLogic(tenantA, input({ accountingSection: "Restore", groupName: "Again" }));
+    expect(again.restored).toBe(true);
+    expect(again.category.id).toBe(first.id);
+    expect(again.category.deletedAt).toBeNull();
+
+    const fresh = await createOrRestoreCategoryLogic(tenantA, input({ accountingSection: "Restore", groupName: "Brand new" }));
+    expect(fresh.restored).toBe(false);
+  });
+
+  // Slice 9 — renaming onto a deleted triple says it is a DELETED one, so the
+  // screen can point at restoring it rather than a bare "already exists".
+  it("updateCategoryLogic tells a clash with a deleted category from a live one", async () => {
+    const gone = await createCategoryLogic(tenantA, input({ accountingSection: "Rename", groupName: "Gone" }));
+    await deleteCategoryLogic(tenantA, gone.id);
+    await createCategoryLogic(tenantA, input({ accountingSection: "Rename", groupName: "Live" }));
+    const mover = await createCategoryLogic(tenantA, input({ accountingSection: "Rename", groupName: "Mover" }));
+
+    const ontoDeleted = await updateCategoryLogic(tenantA, mover.id, input({ accountingSection: "Rename", groupName: "Gone" })).catch((e) => e);
+    expect(ontoDeleted).toBeInstanceOf(CategoryConflictError);
+    expect((ontoDeleted as CategoryConflictError).deleted).toBe(true);
+
+    const ontoLive = await updateCategoryLogic(tenantA, mover.id, input({ accountingSection: "Rename", groupName: "Live" })).catch((e) => e);
+    expect(ontoLive).toBeInstanceOf(CategoryConflictError);
+    expect((ontoLive as CategoryConflictError).deleted).toBe(false);
+
+    // Saving a category under its own unchanged name is not a clash with itself.
+    const same = await updateCategoryLogic(tenantA, mover.id, input({ accountingSection: "Rename", groupName: "Mover" }));
+    expect(same?.id).toBe(mover.id);
   });
 });

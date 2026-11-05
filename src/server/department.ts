@@ -24,7 +24,15 @@ import type {
 export const DEFAULT_DEPARTMENT_CODE = "MAIN";
 
 export class DepartmentCodeTakenError extends Error {
-  constructor(public readonly code: string) {
+  /**
+   * `holder` names the department that has the code, and whether it is closed —
+   * a closed one still holds its code, and the screen must say so and point at
+   * reopening it (Kong 2026-11-05: an error must say what to do next).
+   */
+  constructor(
+    public readonly code: string,
+    public readonly holder: { name: string; isActive: boolean } | null = null
+  ) {
     super(`Department code already in use in this tenant: ${code}`);
     this.name = "DepartmentCodeTakenError";
   }
@@ -75,9 +83,9 @@ export async function createDepartmentLogic(
     return await withTenantContext(tenantId, async (tx) => {
       const taken = await tx.department.findFirst({
         where: { tenantId, code: input.code, deletedAt: null },
-        select: { id: true },
+        select: { id: true, name: true, isActive: true },
       });
-      if (taken) throw new DepartmentCodeTakenError(input.code);
+      if (taken) throw new DepartmentCodeTakenError(input.code, { name: taken.name, isActive: taken.isActive });
       const last = await tx.department.aggregate({
         where: { tenantId, deletedAt: null },
         _max: { displayOrder: true },

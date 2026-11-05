@@ -21,9 +21,11 @@ import type { CategoryInput } from "@/lib/validations/category";
  * @@unique). The action layer maps this to a Thai message.
  *
  * NOTE: the @@unique is a FULL unique (it does NOT exclude soft-deleted
- * rows), so a triple that was soft-deleted still blocks re-creating the same
- * triple. Acceptable for MVP; if it bites, switch to a partial unique index
- * like the supplier slice did (prisma/manual/).
+ * rows). Creating a deleted triple again brings the deleted row back
+ * (createOrRestoreCategoryLogic), so the error is left for two cases: the
+ * triple is live, or an EDIT renames onto a deleted one — `deleted` says which,
+ * so the screen can say what to do next (Kong 2026-11-05: the old message gave
+ * no way forward).
  */
 export class CategoryConflictError extends Error {
   constructor(
@@ -31,7 +33,8 @@ export class CategoryConflictError extends Error {
       account: string;
       accountingSection: string;
       groupName: string;
-    }
+    },
+    public readonly deleted = false
   ) {
     super(
       `Category already exists in this tenant: ${triple.account}/${triple.accountingSection}/${triple.groupName}`
@@ -57,10 +60,34 @@ export async function createCategoryLogic(
   tenantId: string,
   input: CategoryInput
 ): Promise<Category> {
+  return (await createOrRestoreCategoryLogic(tenantId, input)).category;
+}
+
+/**
+ * Create a category, or bring back the deleted one with the same triple.
+ *
+ * Kong 2026-11-05: a category deleted by mistake could never be made again
+ * (the unique is full) and the screen offered no way forward. Restoring the
+ * old row rather than freeing the name also brings back the bills and products
+ * that still point at it, which is what someone retyping the name wants.
+ */
+export async function createOrRestoreCategoryLogic(
+  tenantId: string,
+  input: CategoryInput
+): Promise<{ category: Category; restored: boolean }> {
   try {
-    return await withTenantContext(tenantId, (tx) =>
-      tx.category.create({ data: { tenantId, ...input } })
-    );
+    return await withTenantContext(tenantId, async (tx) => {
+      const deleted = await tx.category.findFirst({
+        where: { tenantId, ...input, deletedAt: { not: null } },
+        select: { id: true },
+      });
+      if (deleted) {
+        const category = await tx.category.update({ where: { id: deleted.id }, data: { deletedAt: null } });
+        return { category, restored: true };
+      }
+      const category = await tx.category.create({ data: { tenantId, ...input } });
+      return { category, restored: false };
+    });
   } catch (e) {
     rethrowConflict(e, input);
   }
@@ -105,6 +132,13 @@ export async function updateCategoryLogic(
 ): Promise<Category | null> {
   try {
     return await withTenantContext(tenantId, async (tx) => {
+      // Asked first, in the same transaction: RLS withholds which unique fired
+      // (ADR 0030), and only this read can tell a live clash from a deleted one.
+      const clash = await tx.category.findFirst({
+        where: { tenantId, ...input, id: { not: id } },
+        select: { deletedAt: true },
+      });
+      if (clash) throw new CategoryConflictError(input, clash.deletedAt !== null);
       const { count } = await tx.category.updateMany({
         where: { id, tenantId, deletedAt: null },
         data: { ...input },

@@ -72,9 +72,9 @@ export type ProductParentOption = {
 
 /**
  * Thrown when a product `sku` collides with an existing one in the same tenant
- * (Prisma P2002 on @@unique([tenantId, sku])). The @@unique is FULL (counts
- * soft-deleted rows — Pitfall #22), so a soft-deleted sku still blocks re-use.
- * The action layer maps this to a Thai message.
+ * (Prisma P2002 on the sku index). The index is PARTIAL since part 8.5
+ * (prisma/manual/product_sku_unique.sql: deleted_at IS NULL), so only a live
+ * product can hold a sku. The action layer maps this to a Thai message.
  */
 export class ProductSkuConflictError extends Error {
   constructor(public readonly sku: string | null) {
@@ -229,7 +229,9 @@ export class LiquidDensityTemplateNotFoundError extends Error {
 async function rethrowOnUniqueConflict(
   tenantId: string,
   e: unknown,
-  sku: string | null
+  sku: string | null,
+  /** The product being edited — it holds its own sku and is no clash. */
+  selfId?: string
 ): Promise<never> {
   if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
     const target = e.meta?.target;
@@ -253,7 +255,11 @@ async function rethrowOnUniqueConflict(
     if (sku === null) throw new ProductUnitNameConflictError(null);
 
     const skuTaken = await withTenantContext(tenantId, (tx) =>
-      tx.product.findFirst({ where: { tenantId, sku }, select: { id: true } })
+      // Live rows only: the sku index is partial (deleted_at IS NULL, part 8.5),
+      // so a deleted product's sku clashes with nothing. And on an edit the
+      // product itself holds the sku — without `selfId` a duplicate unit name
+      // on an edit was reported as a duplicate sku (2026-11-05 audit).
+      tx.product.findFirst({ where: { tenantId, sku, deletedAt: null, ...(selfId ? { id: { not: selfId } } : {}) }, select: { id: true } })
     );
     throw skuTaken === null
       ? new ProductUnitNameConflictError(null)
@@ -1117,7 +1123,7 @@ export async function updateProductLogic(
   } catch (e) {
     // `Promise<never>`, so this returns nothing — but TypeScript needs the
     // `return` to see that the function ends here.
-    return await rethrowOnUniqueConflict(tenantId, e, input.sku);
+    return await rethrowOnUniqueConflict(tenantId, e, input.sku, id);
   }
 }
 
