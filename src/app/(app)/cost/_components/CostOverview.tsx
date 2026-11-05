@@ -217,7 +217,7 @@ function Overview({ data, canEditTargets }: { data: Overview; canEditTargets: bo
         <button
           type="button"
           onClick={() => canEditTargets && setEditTargets(true)}
-          className={`btn-secondary font-sans font-normal ${canEditTargets ? "" : "cursor-default hover:border-border-strong hover:bg-surface"}`}
+          className={`btn-secondary h-auto min-h-[42px] whitespace-normal py-2 text-left font-sans font-normal ${canEditTargets ? "" : "cursor-default hover:border-border-strong hover:bg-surface"}`}
           title={canEditTargets ? "แก้เป้าของร้าน" : "เจ้าของร้านหรือผู้ดูแลเป็นผู้ตั้งเป้า"}
         >
           เป้าของร้าน: อาหาร <b>≤{targets.food}%</b> · prime <b>≤{targets.prime}%</b>
