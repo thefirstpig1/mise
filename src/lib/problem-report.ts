@@ -18,6 +18,8 @@ export type ReportKind = (typeof REPORT_KINDS)[number];
 
 export const REPORT_STATUSES = ["NEW", "LOOKING", "FIXED_PENDING", "FIXED_LIVE", "CONSIDERING", "CLOSED"] as const;
 export type ReportStatus = (typeof REPORT_STATUSES)[number];
+/** The statuses that close a report — its keep-year starts then (ADR 0045 Q11). */
+export const CLOSED_REPORT_STATUSES: readonly ReportStatus[] = ["FIXED_LIVE", "CLOSED"];
 
 export const REPORT_MESSAGE_MAX = 4000;
 export const REPORT_FILES_MAX = 3;

@@ -4257,6 +4257,9 @@ model ProblemReport {
   seenAt       DateTime?           @map("seen_at")
   /// Kong and Claude only. Never shown to the shop.
   internalNote String?             @map("internal_note")
+  /// ADR 0045 Q11 — set when the status becomes FIXED_LIVE or CLOSED, cleared
+  /// when it reopens; the report and its screenshots go a year after this.
+  closedAt     DateTime?           @map("closed_at")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -4269,6 +4272,7 @@ model ProblemReport {
   @@unique([tenantId, number], map: "problem_report_number_key")
   @@index([tenantId, reporterId], map: "problem_report_reporter_idx")
   @@index([status, createdAt], map: "problem_report_status_idx")
+  @@index([closedAt], map: "problem_report_closed_idx")
   @@map("problem_report")
 }
 

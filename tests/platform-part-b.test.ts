@@ -25,7 +25,7 @@ import {
 import { buildOverview, buildTodos, type OverviewShop } from "@/lib/platform-overview";
 import { recordLogin } from "@/server/usage-log";
 import { listActiveMembershipsForUser } from "@/lib/require-tenant";
-import { closeShopLogic, purgeExpiredRecordsLogic, purgeShopLogic, recordDataRequestLogic, reopenShopLogic } from "@/server/platform";
+import { closeShopLogic, purgeExpiredRecordsLogic, purgeShopLogic, recordDataRequestLogic, reopenShopLogic, updatePlatformReportLogic } from "@/server/platform";
 import type { PlatformActor } from "@/lib/platform-admin";
 
 const actor = { userId: "test-operator", email: "operator@example.com", __platform: true } as PlatformActor;
@@ -56,6 +56,7 @@ describe("rules (pure)", () => {
     expect(row("การเข้าสู่ระบบ")).toContain(`${RETENTION.loginDays} วัน`);
     expect(row("การใช้งานรายวัน")).toContain(`${RETENTION.activityMonths} เดือน`);
     expect(row("คำขอเกี่ยวกับข้อมูล")).toContain(`${RETENTION.requestYears} ปี`);
+    expect(row("เรื่องที่แจ้งเข้ามา")).toContain(`${RETENTION.reportClosedYears} ปีหลังปิดเรื่อง`);
   });
 
   it("B2: a request is due 30 days after it was made; a closed shop may be erased 30 days after closing", () => {
@@ -66,6 +67,7 @@ describe("rules (pure)", () => {
     expect(cut.login.toISOString().slice(0, 10)).toBe("2026-08-09");
     expect(cut.activityDay.toISOString().slice(0, 10)).toBe("2025-11-07");
     expect(cut.requestDone.toISOString().slice(0, 10)).toBe("2023-11-07");
+    expect(cut.reportClosed.toISOString().slice(0, 10)).toBe("2025-11-07");
   });
 
   it("B3: the typed name must be the shop's; inputs refuse what makes no sense", () => {
@@ -232,3 +234,55 @@ describe("keep-dates (ADR 0045 Q11)", () => {
     expect(await prismaBypass.dataRequest.count({ where: { requester: "partb-test old" } })).toBe(0);
   });
 });
+
+describe("problem reports: a year after closing (ADR 0045 Q11)", () => {
+  const DAY = 86_400_000;
+  async function report(tenantId: string, reporterId: string, number: number, status: "NEW" | "CLOSED" | "FIXED_LIVE", closedAt: Date | null) {
+    return prismaBypass.problemReport.create({
+      data: { tenantId, number, reporterId, kind: "PROBLEM", message: `partb-test report ${number}`, pagePath: "/dashboard", status, closedAt },
+      select: { id: true },
+    });
+  }
+
+  it("B12: closing starts the keep-year, reopening stops it, a reply alone does not touch it", async () => {
+    const { user, tenant } = await shopWithOwner("report-close");
+    const r = await report(tenant.id, user.id, 1, "NEW", null);
+    const closedAt = async () => (await prismaBypass.problemReport.findUnique({ where: { id: r.id }, select: { closedAt: true } }))!.closedAt;
+    await updatePlatformReportLogic(actor, { id: r.id, status: "LOOKING", reply: "กำลังดูให้ครับ" });
+    expect(await closedAt()).toBeNull();
+    await updatePlatformReportLogic(actor, { id: r.id, status: "CLOSED" });
+    const first = await closedAt();
+    expect(first).not.toBeNull();
+    await updatePlatformReportLogic(actor, { id: r.id, status: "FIXED_LIVE" }); // still closed: the date stays
+    expect(await closedAt()).toEqual(first);
+    await updatePlatformReportLogic(actor, { id: r.id, status: "LOOKING" });
+    expect(await closedAt()).toBeNull();
+  });
+
+  it("B13: a report closed over a year ago goes with its screenshot rows; an open one and a recent one stay", async () => {
+    const { user, tenant } = await shopWithOwner("report-purge");
+    const now = new Date();
+    const old = await report(tenant.id, user.id, 1, "CLOSED", new Date(now.getTime() - 367 * DAY));
+    const openOld = await report(tenant.id, user.id, 2, "NEW", null);
+    await prismaBypass.problemReport.update({ where: { id: openOld.id }, data: { createdAt: new Date(now.getTime() - 400 * DAY) } });
+    const recent = await report(tenant.id, user.id, 3, "FIXED_LIVE", new Date(now.getTime() - 300 * DAY));
+    await prismaBypass.storedFile.create({
+      data: {
+        tenantId: tenant.id,
+        kind: "REPORT_SCREENSHOT",
+        storageKey: `partb-test/${old.id}.png`,
+        contentType: "image/png",
+        byteSize: 10,
+        sha256: "0".repeat(64),
+        problemReportId: old.id,
+        uploadedBy: user.id,
+      },
+    });
+    const r = await purgeExpiredRecordsLogic(actor, now, true);
+    expect(r?.reports).toBeGreaterThanOrEqual(1);
+    const left = await prismaBypass.problemReport.findMany({ where: { tenantId: tenant.id }, select: { id: true } });
+    expect(left.map((x) => x.id).sort()).toEqual([openOld.id, recent.id].sort());
+    expect(await prismaBypass.storedFile.count({ where: { tenantId: tenant.id } })).toBe(0);
+  });
+});
+

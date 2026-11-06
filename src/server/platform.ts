@@ -15,7 +15,7 @@ import { Prisma } from "@prisma/client";
 import { prismaBypass } from "@/lib/db-admin";
 import type { PlatformActor } from "@/lib/platform-admin";
 import { getShopAccuracySnapshotLogic, type ShopAccuracy } from "@/server/deduction-accuracy";
-import type { ReportKind, ReportStatus, UpdateReportInput } from "@/lib/problem-report";
+import { CLOSED_REPORT_STATUSES, type ReportKind, type ReportStatus, type UpdateReportInput } from "@/lib/problem-report";
 import { platformAdminEmails } from "@/lib/platform-admins";
 import { buildOverview, buildTodos, type FeatureKey, type OverviewShop, type PlatformOverview, type Todo } from "@/lib/platform-overview";
 import { eraseTenantRows } from "@/lib/tenant-erase";
@@ -347,6 +347,9 @@ export async function updatePlatformReportLogic(actor: PlatformActor, input: Upd
       select: { status: true, reply: true, number: true, message: true, tenantId: true, tenant: { select: { name: true } }, reporter: { select: { email: true } } },
     });
     if (!before) return null;
+    // ADR 0045 Q11 — the keep-year starts when the report closes, and stops if it reopens.
+    const wasClosed = CLOSED_REPORT_STATUSES.includes(before.status);
+    const isClosed = CLOSED_REPORT_STATUSES.includes(input.status);
     const reply = input.reply === undefined ? before.reply : input.reply || null;
     const replyChanged = reply !== before.reply;
     await tx.problemReport.update({
@@ -356,6 +359,8 @@ export async function updatePlatformReportLogic(actor: PlatformActor, input: Upd
         reply,
         ...(replyChanged && reply ? { repliedAt: new Date() } : {}),
         ...(input.internalNote === undefined ? {} : { internalNote: input.internalNote || null }),
+        ...(isClosed && !wasClosed ? { closedAt: new Date() } : {}),
+        ...(!isClosed && wasClosed ? { closedAt: null } : {}),
       },
     });
     if (before.status !== input.status || replyChanged) {
@@ -909,18 +914,50 @@ export async function stopAnnouncementLogic(actor: PlatformActor, id: string): P
 let lastRetentionRun = 0;
 const RETENTION_EVERY_MS = 3_600_000;
 
+/**
+ * A year after a report closed (privacy draft §5): the report, its screenshot
+ * rows, then the files themselves. The rows go in one transaction; a file that
+ * will not delete from storage is logged and left — it is no longer reachable.
+ */
+async function purgeClosedReports(cutoff: Date): Promise<number> {
+  const old = await prismaBypass.problemReport.findMany({ where: { closedAt: { lt: cutoff } }, select: { id: true } });
+  if (old.length === 0) return 0;
+  const ids = old.map((r) => r.id);
+  const files = await prismaBypass.storedFile.findMany({ where: { problemReportId: { in: ids } }, select: { storageKey: true } });
+  await prismaBypass.$transaction([
+    prismaBypass.storedFile.deleteMany({ where: { problemReportId: { in: ids } } }),
+    prismaBypass.problemReport.deleteMany({ where: { id: { in: ids } } }),
+  ]);
+  if (storageReady()) {
+    for (const f of files) {
+      try {
+        await deleteObject(f.storageKey);
+        await deleteObject(thumbKeyOf(f.storageKey));
+      } catch (e) {
+        console.error(`[platform] report file ${f.storageKey} not removed`, e);
+      }
+    }
+  }
+  return ids.length;
+}
+
 /** Delete what is past its keep date. At most once an hour per server; never throws. */
-export async function purgeExpiredRecordsLogic(_actor: PlatformActor, now: Date = new Date(), force = false): Promise<{ logins: number; days: number; requests: number } | null> {
+export async function purgeExpiredRecordsLogic(
+  _actor: PlatformActor,
+  now: Date = new Date(),
+  force = false
+): Promise<{ logins: number; days: number; requests: number; reports: number } | null> {
   if (!force && now.getTime() - lastRetentionRun < RETENTION_EVERY_MS) return null;
   lastRetentionRun = now.getTime();
   try {
     const cut = retentionCutoffs(now);
-    const [logins, days, requests] = await Promise.all([
+    const [logins, days, requests, reports] = await Promise.all([
       prismaBypass.loginEvent.deleteMany({ where: { createdAt: { lt: cut.login } } }),
       prismaBypass.userActivityDay.deleteMany({ where: { day: { lt: cut.activityDay } } }),
       prismaBypass.dataRequest.deleteMany({ where: { doneAt: { lt: cut.requestDone } } }),
+      purgeClosedReports(cut.reportClosed),
     ]);
-    return { logins: logins.count, days: days.count, requests: requests.count };
+    return { logins: logins.count, days: days.count, requests: requests.count, reports };
   } catch (e) {
     console.error("[platform] retention purge failed", e);
     return null;
