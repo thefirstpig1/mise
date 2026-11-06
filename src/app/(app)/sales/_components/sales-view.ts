@@ -406,6 +406,8 @@ export type ImportPreviewView = {
    * hide retired rows by default at all.
    */
   retiredSelling: { menuId: string; label: string }[];
+  /** What the file's guest-count column will put on the closing sheets; null = the format reads none. */
+  guestsNotice: string | null;
 };
 
 export type MenuSuggestionView = {
@@ -421,6 +423,25 @@ export function similarityBadge(score: number): string {
   if (score > 0.7) return "ตรงกันมาก";
   if (score >= 0.5) return "ใกล้เคียง";
   return "อาจเกี่ยวข้อง";
+}
+
+/** What the file's guest column will do to the closing sheet (Kong 2026-11-06). */
+function guestsNotice(g: ImportPreview["guests"]): string | null {
+  if (g === null) return null;
+  const n = (v: number) => v.toLocaleString("th-TH");
+  // A daily summary whose numbers disagree inside a day — most likely a bill file without its bill column.
+  const unclear =
+    g.unclearDays > 0
+      ? `${n(g.unclearDays)} วันในไฟล์มีตัวเลขลูกค้าไม่ตรงกันภายในวันเดียว ระบบจึงไม่ใส่ให้ ` +
+        "ถ้าไฟล์นี้เป็นรายบิล ตั้งรูปแบบไฟล์ใหม่ที่อ่านคอลัมน์เลขบิลด้วย ระบบจะนับลูกค้าครั้งเดียวต่อบิล"
+      : null;
+  if (g.days === 0) {
+    return unclear ?? "รูปแบบไฟล์นี้อ่านจำนวนลูกค้าได้ แต่ไฟล์นี้ไม่มีตัวเลขลูกค้าเลย จำนวนลูกค้าในใบปิดร้านจึงไม่เปลี่ยน พิมพ์เองในใบปิดร้านได้ตามเดิม";
+  }
+  const filled =
+    `จำนวนลูกค้าจากไฟล์ ${n(g.total)} คน ใน ${n(g.days)} วัน จะใส่ในใบปิดร้านของวันเหล่านั้นให้เอง` +
+    (g.replacesTyped > 0 ? ` แทนตัวเลขที่พิมพ์ไว้ ${n(g.replacesTyped)} วัน` : "");
+  return unclear ? `${filled} · ${unclear}` : filled;
 }
 
 export function toImportPreviewView(p: ImportPreview): ImportPreviewView {
@@ -455,6 +476,7 @@ export function toImportPreviewView(p: ImportPreview): ImportPreviewView {
       };
     }),
     newCategories: p.newCategories,
+    guestsNotice: guestsNotice(p.guests),
     acknowledgedReplacedDays: replacedDays.length,
     acknowledgedNewMenus: p.newMenus.length,
     acknowledgedNewCategories: p.newCategories.length,

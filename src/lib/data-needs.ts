@@ -52,7 +52,7 @@ export const NEEDS: Record<NeedKey, NeedCopy> = {
   posted: { label: "ตัดสต็อกตามยอดขาย", when: "เมื่อตัดสต็อกตามยอดขายแล้ว", href: "/consumption", cta: "ไปตัดสต็อก" },
   receipt: { label: "ใบรับสินค้า", when: "เมื่อมีใบรับสินค้า", href: "/goods-receipts/new", cta: "รับสินค้า" },
   expense: { label: "ค่าใช้จ่าย", when: "เมื่อบันทึกค่าใช้จ่าย", href: "/expenses/new", cta: "บันทึกค่าใช้จ่าย" },
-  guests: { label: "จำนวนลูกค้า", when: "เมื่อกรอกจำนวนลูกค้า", href: "/closing/day", cta: "กรอกจำนวนลูกค้า" },
+  guests: { label: "จำนวนลูกค้า", when: "เมื่อมีจำนวนลูกค้า", href: "/closing/day", cta: "กรอกจำนวนลูกค้า" },
   category: { label: "หมวดของเมนู", when: "เมื่อจัดหมวดเมนู", href: "/menus", cta: "จัดหมวดเมนู" },
   par: { label: "ขั้นต่ำของวัตถุดิบ", when: "เมื่อตั้งขั้นต่ำ", href: "/products", cta: "ตั้งขั้นต่ำ" },
 };
@@ -205,7 +205,7 @@ export const FIGURES = {
   perHead: {
     title: "ยอดต่อหัว",
     question: "ตอบว่าลูกค้าหนึ่งคนจ่ายเฉลี่ยเท่าไร และวันหนึ่งมีลูกค้ากี่คน",
-    how: "ยอดขาย ÷ จำนวนลูกค้า คิดเมื่อกรอกจำนวนลูกค้าแล้วอย่างน้อย 80% ของวันที่มียอดขาย",
+    how: "ยอดขาย ÷ จำนวนลูกค้า คิดเมื่อมีจำนวนลูกค้าอย่างน้อย 80% ของวันที่มียอดขาย",
     shape: "line",
   },
   dailySales: {

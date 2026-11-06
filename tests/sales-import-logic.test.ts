@@ -17,6 +17,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { randomUUID } from "node:crypto";
 import { withRlsBypass } from "@/lib/db-admin";
 import { computeHeaderSignature } from "@/lib/sales-file";
+import { toImportPreviewView } from "@/app/(app)/sales/_components/sales-view";
 import {
   SalesImportAlreadyCommittedError,
   SalesImportFileRejectedError,
@@ -24,6 +25,7 @@ import {
   commitSalesImportLogic,
   previewCounts,
   previewSalesImportLogic,
+  guestsPerDay,
 } from "@/server/sales-import";
 import { confirmMenuAliasLogic } from "@/server/menu";
 
@@ -467,5 +469,96 @@ describe("sales import preview + commit *Logic (a day has one source)", () => {
     );
     expect(a.map((l) => l.netAmount.toNumber())).toEqual([100]);
     expect(b.map((l) => l.netAmount.toNumber())).toEqual([900]);
+  });
+
+  // ------------------------------------------------------------
+  // Guests from the POS file (Kong 2026-11-06: "ทำดึงจำนวนลูกค้าจาก POS ด้วยเลย")
+  // ------------------------------------------------------------
+
+  it("G1: a bill counts its guests once, however many dishes it ordered", () => {
+    const row = (bill: string | null, guests: number | null, d = "2025-03-01") =>
+      ({ rowNumber: Math.random(), businessDate: day(d), posBillId: bill, guestCount: guests }) as never;
+    const perDay = guestsPerDay(
+      [
+        row("B1", 4), row("B1", 4), // four people, two dishes
+        row("B2", 2),
+        row("B3", 3), row("B3", null), // printed on the first line only
+        row("B4", 1, "2025-03-02"),
+      ],
+      "BILL_DETAIL"
+    );
+    expect(perDay.perDay.get(day("2025-03-01").getTime())).toBe(9);
+    expect(perDay.perDay.get(day("2025-03-02").getTime())).toBe(1);
+    expect(perDay.unclearDays).toBe(0);
+  });
+
+  it("G2: a daily summary counts the day once; a day with no number is left out", () => {
+    const row = (guests: number | null, d: string) =>
+      ({ rowNumber: Math.random(), businessDate: day(d), posBillId: null, guestCount: guests }) as never;
+    const perDay = guestsPerDay([row(120, "2025-03-01"), row(120, "2025-03-01"), row(null, "2025-03-02")], "DAILY_SUMMARY");
+    expect(perDay.perDay.get(day("2025-03-01").getTime())).toBe(120);
+    expect(perDay.perDay.has(day("2025-03-02").getTime())).toBe(false);
+    expect(perDay.unclearDays).toBe(0);
+  });
+
+  it("G2b: a summary whose numbers disagree inside a day is left alone, not read as its largest bill", () => {
+    const row = (guests: number, d: string) =>
+      ({ rowNumber: Math.random(), businessDate: day(d), posBillId: null, guestCount: guests }) as never;
+    // A bill file mapped without its bill column: 4, 2, 6 are three tables, not a day of 6.
+    const r = guestsPerDay([row(4, "2025-03-01"), row(2, "2025-03-01"), row(6, "2025-03-01"), row(80, "2025-03-02")], "DAILY_SUMMARY");
+    expect(r.perDay.has(day("2025-03-01").getTime())).toBe(false);
+    expect(r.perDay.get(day("2025-03-02").getTime())).toBe(80);
+    expect(r.unclearDays).toBe(1);
+  });
+
+  it("G3: importing a bill file fills the closing sheet's guests, replacing the typed count", async () => {
+    const H = ["วันที่", "เลขบิล", "เมนู", "จำนวน", "ยอดสุทธิ", "จำนวนลูกค้า"];
+    const map = { businessDate: 0, billId: 1, menuName: 2, qty: 3, netAmount: 4, guestCount: 5 };
+    const csv = (rows: string[][]) => new TextEncoder().encode([H, ...rows].map((r) => r.join(",")).join("\n") + "\n");
+    const tag = randomUUID().slice(0, 6);
+    const { branchC, profC } = await withRlsBypass(async (tx) => {
+      const b = await tx.branch.create({ data: { tenantId: tenantA, name: `สาขาลูกค้า-${tag}`, code: `G${tag.slice(0, 3)}` } });
+      const pos = await tx.posIntegration.create({ data: { tenantId: tenantA, branchId: b.id, posType: "CUSTOM", name: "POS ลูกค้า" } });
+      const prof = await tx.salesImportProfile.create({
+        data: {
+          tenantId: tenantA,
+          posIntegrationId: pos.id,
+          name: "รายบิล",
+          fileKind: "BILL_DETAIL",
+          encoding: "UTF8",
+          dateFormat: "dd/MM/yyyy",
+          isBuddhistYear: true,
+          headerSignature: computeHeaderSignature(H),
+          columnMap: map,
+          amountsIncludeVat: false,
+          amountsIncludeServiceCharge: false,
+        },
+      });
+      // The cashier had typed 10 on the closing sheet before the file came in.
+      await tx.salesDay.create({ data: { tenantId: tenantA, branchId: b.id, businessDate: day("2025-04-05"), guestCount: 10, guestCountSource: "MANUAL" } });
+      return { branchC: b.id, profC: prof.id };
+    });
+    const rows = [
+      ["05/04/2568", "B1", `ข้าวผัด-${tag}`, "1", "60", "4"],
+      ["05/04/2568", "B1", `ต้มยำ-${tag}`, "1", "120", "4"],
+      ["05/04/2568", "B2", `ข้าวผัด-${tag}`, "1", "60", "2"],
+    ];
+    const batchId = randomUUID();
+    const p = await previewSalesImportLogic(tenantA, userA, { batchId, profileId: profC, fileName: "bills.csv" }, csv(rows));
+    expect(p.guests).toEqual({ total: 6, days: 1, replacesTyped: 1, unclearDays: 0 });
+    expect(toImportPreviewView(p).guestsNotice).toBe(
+      "จำนวนลูกค้าจากไฟล์ 6 คน ใน 1 วัน จะใส่ในใบปิดร้านของวันเหล่านั้นให้เอง แทนตัวเลขที่พิมพ์ไว้ 1 วัน"
+    );
+    const c = previewCounts(p);
+    await commitSalesImportLogic(
+      tenantA,
+      userA,
+      { batchId, acknowledgedReplacedDays: c.days, acknowledgedNewMenus: c.menus, acknowledgedNewCategories: c.categories },
+      csv(rows)
+    );
+    const sd = await withRlsBypass((tx) =>
+      tx.salesDay.findFirst({ where: { tenantId: tenantA, branchId: branchC, businessDate: day("2025-04-05") }, select: { guestCount: true, guestCountSource: true } })
+    );
+    expect(sd).toEqual({ guestCount: 6, guestCountSource: "POS" });
   });
 });

@@ -88,7 +88,7 @@ export default function MonthInsight({
         {n === 0 ? (
           <div className="mt-2 space-y-2">
             <Outline shape="bars" sample="month" />
-            <p className="text-center text-sm text-muted-foreground">ยังไม่มีวันที่กรอกจำนวนลูกค้าในเดือนนี้</p>
+            <p className="text-center text-sm text-muted-foreground">ยังไม่มีจำนวนลูกค้าของวันไหนในเดือนนี้</p>
           </div>
         ) : (
           <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label="ลูกค้าต่อวัน" className="mt-2">

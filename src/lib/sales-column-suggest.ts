@@ -33,6 +33,8 @@ const NAMES: Record<ColumnMapField, string[]> = {
   vatAmount: ["vat", "ภาษี", "ภาษีมูลค่าเพิ่ม", "vatamount"],
   channel: ["ช่องทาง", "ช่องทางขาย", "ประเภทการขาย", "channel", "ordertype"],
   billId: ["เลขบิล", "เลขที่บิล", "บิล", "เลขที่ใบเสร็จ", "ใบเสร็จ", "billno", "billid", "receiptno", "orderno", "orderid"],
+  // Never a bare "ลูกค้า" / "customer": that is as often the customer's NAME.
+  guestCount: ["จำนวนลูกค้า", "จำนวนคน", "จำนวนแขก", "guests", "guest", "guestcount", "noofguests", "numberofguests", "pax", "covers"],
 };
 
 /** Lower case, no spaces, no punctuation. Thai letters and digits stay. */

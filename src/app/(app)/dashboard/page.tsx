@@ -584,7 +584,7 @@ async function Analytics({
             {guestLine && <p className="text-xs text-muted-foreground">{guestLine}</p>}
             {!guestLine && dailyCloseOn && revenue !== null && g.salesDays > 0 ? (
               <p className="text-xs text-muted-subtle">
-                ยอดต่อหัว: กรอกจำนวนลูกค้าแล้ว {g.guestDays} จาก {g.salesDays} วันที่ขาย · ต้องได้ 80%{" "}
+                ยอดต่อหัว: มีจำนวนลูกค้าแล้ว {g.guestDays} จาก {g.salesDays} วันที่ขาย · ต้องได้ 80%{" "}
                 <WhatIsThis figure="perHead" needs={["guests"]} branchId={oneBranch} />
               </p>
             ) : null}

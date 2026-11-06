@@ -386,6 +386,11 @@ export default function SalesImportWizard({
             </div>
           )}
 
+          {preview.guestsNotice && (
+            // Kong 2026-11-06: guests from the POS file fill the closing sheet.
+            <p className="mt-4 rounded-lg border border-border bg-surface-sunk p-3 text-sm">{preview.guestsNotice}</p>
+          )}
+
           {preview.retiredSelling.length > 0 && (
             // ADR 0027 Q3. WARNS, never blocks — the sale is real: sales_line
             // will be written and Part 22 will deduct stock from it, exactly

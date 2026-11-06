@@ -395,6 +395,23 @@ describe("sales import schemas (Part 19 L2)", () => {
     expect(absent.success && absent.data.includeSuperseded).toBe(false);
   });
 
+  // Kong 2026-11-06: guests from the POS file. A bill file repeats a bill's
+  // guest count on every dish, so only the bill number lets it count once.
+  it("J33: a bill file that reads guests must also read the bill number", () => {
+    const p = validProfile();
+    p.fileKind = "BILL_DETAIL";
+    p.columnMap = { soldAt: 2, menuName: 6, qty: 11, netAmount: 17, guestCount: 20 };
+    expect(firstMessage(salesImportProfileInputSchema.safeParse(p))).toContain("เลขบิล");
+    p.columnMap = { soldAt: 2, billId: 3, menuName: 6, qty: 11, netAmount: 17, guestCount: 20 };
+    expect(salesImportProfileInputSchema.safeParse(p).success).toBe(true);
+  });
+
+  it("J34: a daily summary may read guests without any bill number", () => {
+    const p = validProfile();
+    p.columnMap = { businessDate: 1, menuName: 6, qty: 11, netAmount: 17, guestCount: 20 };
+    expect(salesImportProfileInputSchema.safeParse(p).success).toBe(true);
+  });
+
   it("J32: a day string becomes a UTC-midnight day value, like every other date in Mise", () => {
     const r = getSalesQuerySchema.safeParse({ from: "2025-12-31", includeSuperseded: "false" });
     expect(r.success && r.data.from?.toISOString()).toBe("2025-12-31T00:00:00.000Z");

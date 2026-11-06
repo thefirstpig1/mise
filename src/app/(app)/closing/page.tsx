@@ -156,7 +156,7 @@ export default async function ClosingMonthPage({ searchParams }: { searchParams:
           value={avgGuests === null ? "—" : Math.round(avgGuests).toLocaleString("th-TH")}
           sub={
             <>
-              <span className="block">{withGuests.length ? `เฉลี่ย ${withGuests.length} วันที่มีจำนวนลูกค้า` : "ยังไม่มีวันที่กรอกจำนวนลูกค้า"}</span>
+              <span className="block">{withGuests.length ? `เฉลี่ย ${withGuests.length} วันที่มีจำนวนลูกค้า` : "ยังไม่มีจำนวนลูกค้าของเดือนนี้"}</span>
               {avgGuests !== null && prevGuests !== null && (
                 <span className={`block ${avgGuests >= prevGuests ? "text-good" : "text-bad"}`}>
                   {avgGuests >= prevGuests ? "▲" : "▼"} {Math.abs(Math.round(avgGuests - prevGuests)).toLocaleString("th-TH")} คน/วัน เทียบ {vsLabel}
@@ -176,7 +176,7 @@ export default async function ClosingMonthPage({ searchParams }: { searchParams:
                 <span className="block">
                   {perHead === null
                     ? withGuests.length === 0
-                      ? "คิดได้เมื่อมีวันที่กรอกจำนวนลูกค้า"
+                      ? "คิดได้เมื่อมีจำนวนลูกค้าอย่างน้อยหนึ่งวัน"
                       : "ยังไม่มีวันที่มีทั้งยอดขายและจำนวนลูกค้า"
                     : "ยอดขาย ÷ ลูกค้า ของวันที่มีทั้งสองอย่าง"}
                 </span>

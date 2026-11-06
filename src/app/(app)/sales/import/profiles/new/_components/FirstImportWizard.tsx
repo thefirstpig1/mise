@@ -87,6 +87,7 @@ const EXTRAS: { key: Extra; label: string; why: string }[] = [
   { key: "channel", label: "ช่องทางขาย", why: "แยกยอดหน้าร้าน กลับบ้าน เดลิเวอรี" },
   { key: "vatAmount", label: "VAT", why: "ใช้หัก VAT ออกจากยอดขาย" },
   { key: "serviceChargeAmount", label: "เซอร์วิสชาร์จ", why: "ใช้หักเซอร์วิสชาร์จออกจากยอดขาย" },
+  { key: "guestCount", label: "จำนวนลูกค้า", why: "ใส่จำนวนลูกค้าในใบปิดร้านให้เอง ไม่ต้องพิมพ์" },
 ];
 
 /** "@", "ราคา", "price" — a per-unit price column. The row's own amount is what counts. */

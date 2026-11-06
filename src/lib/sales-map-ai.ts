@@ -46,6 +46,7 @@ export const MAP_FIELDS: readonly MapField[] = [
   "channel",
   "vatAmount",
   "serviceChargeAmount",
+  "guestCount",
 ];
 
 export const MAP_FIELD_TH: Record<MapField, string> = {
@@ -61,6 +62,7 @@ export const MAP_FIELD_TH: Record<MapField, string> = {
   channel: "ช่องทางขาย",
   vatAmount: "VAT",
   serviceChargeAmount: "Service charge",
+  guestCount: "จำนวนลูกค้า",
 };
 
 const FIELD_ASK: Record<MapField, string> = {
@@ -76,6 +78,7 @@ const FIELD_ASK: Record<MapField, string> = {
   channel: "ช่องทางขาย เช่น ทานที่ร้าน กลับบ้าน เดลิเวอรี",
   vatAmount: "จำนวนเงิน VAT ของแถว",
   serviceChargeAmount: "จำนวนเงิน service charge ของแถว",
+  guestCount: "จำนวนลูกค้า (คน) ของบิลหรือของวัน — ไม่ใช่จำนวนจาน และไม่ใช่ชื่อลูกค้า",
 };
 
 // ------------------------------------------------------------

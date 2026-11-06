@@ -106,6 +106,8 @@ export interface StagedSalesRow {
   posBillId: string | null;
   /** |gross − discount − net| after normalisation. Surfaced in the preview. */
   consistencyDelta: number;
+  /** The guest-count cell, when the profile maps one; null = blank or unmapped (guestsPerDay). */
+  guestCount: number | null;
 }
 
 export interface SalesRowError {
@@ -376,6 +378,23 @@ export function parseSalesTableLogic(
     const serviceCharge = readMoney(row, map.serviceChargeAmount, "เซอร์วิสชาร์จ", rowNumber);
     const vat = readMoney(row, map.vatAmount, "VAT", rowNumber);
 
+    // --- guests (Kong 2026-11-06) ---
+    // A blank cell is allowed: some POS print the count on the bill's first line
+    // only. Anything else must be a whole number of people.
+    let guestCount: number | null = null;
+    if (map.guestCount !== undefined) {
+      const parsed = parseFileNumber(cell(row, map.guestCount));
+      if (parsed.ok) {
+        if (!Number.isInteger(parsed.value) || parsed.value < 0) {
+          pushError(rowNumber, "จำนวนลูกค้า", "คอลัมน์จำนวนลูกค้าในแถวนี้ต้องเป็นจำนวนเต็มตั้งแต่ 0 ขึ้นไป");
+        } else {
+          guestCount = parsed.value;
+        }
+      } else if (parsed.reason !== "BLANK") {
+        pushError(rowNumber, "จำนวนลูกค้า", "คอลัมน์จำนวนลูกค้าในแถวนี้ไม่ใช่ตัวเลข");
+      }
+    }
+
     // --- channel (Q12) ---
     let channel: SalesChannelValue | null = profile.defaultChannel;
     if (map.channel !== undefined) {
@@ -434,6 +453,7 @@ export function parseSalesTableLogic(
       channel,
       posBillId: cell(row, map.billId)?.trim() || null,
       consistencyDelta: amounts.consistencyDelta,
+      guestCount,
     });
   }
 
@@ -504,6 +524,43 @@ function dateErrorMessage(reason: "BLANK" | "UNPARSEABLE" | "YEAR_LOOKS_BUDDHIST
  * shows it before anything is written — rule P3 says a re-import destroys a
  * day's current figures, so nobody may meet that as a surprise.
  */
+/**
+ * Guests per sales day, from a file that maps the column (Kong 2026-11-06).
+ *
+ * A bill file repeats a bill's guest count on every dish it ordered, so each
+ * BILL counts once — the largest value among its lines, which also covers a
+ * POS that prints it on the first line only. A daily summary repeats the
+ * day's count on every dish row, or prints it once: the day counts once, the
+ * same way. A day where no row carries a number is left out — the shop's own
+ * count stands — rather than read as nobody coming in.
+ *
+ * A daily summary whose numbers DISAGREE inside one day is not a day total
+ * repeated: it is most likely a bill file whose bill column was not mapped,
+ * and its largest value is one table's guests. That day is left out too and
+ * counted in `unclearDays`, so the preview can say why.
+ *
+ * Keyed by the day's time (UTC midnight), like the commit's own day loop.
+ */
+export function guestsPerDay(
+  rows: readonly StagedSalesRow[],
+  fileKind: SalesFileKindValue
+): { perDay: Map<number, number>; unclearDays: number } {
+  const best = new Map<string, { day: number; n: number }>();
+  const unclear = new Set<number>();
+  for (const r of rows) {
+    if (r.guestCount === null) continue;
+    const day = r.businessDate.getTime();
+    // A line with no bill number stands alone rather than being merged with another.
+    const key = fileKind === "BILL_DETAIL" ? `${day}|${r.posBillId ?? `row-${r.rowNumber}`}` : `${day}`;
+    const cur = best.get(key);
+    if (cur && fileKind !== "BILL_DETAIL" && r.guestCount !== cur.n) unclear.add(day);
+    if (!cur || r.guestCount > cur.n) best.set(key, { day, n: r.guestCount });
+  }
+  const perDay = new Map<number, number>();
+  for (const { day, n } of best.values()) if (!unclear.has(day)) perDay.set(day, (perDay.get(day) ?? 0) + n);
+  return { perDay, unclearDays: unclear.size };
+}
+
 export function distinctSalesDays(rows: readonly StagedSalesRow[]): Date[] {
   const seen = new Map<number, Date>();
   for (const r of rows) seen.set(r.businessDate.getTime(), r.businessDate);
@@ -654,6 +711,12 @@ export interface ImportPreview {
    * exactly as ADR 0027 Q2 requires. The only thing wrong is the flag.
    */
   retiredMenusSelling: RetiredMenuSelling[];
+  /**
+   * Guests the file carries, when the profile maps the column: they go into
+   * the closing sheet's guest count for those days, replacing what was typed
+   * (Kong 2026-11-06). null = the profile maps no guest column.
+   */
+  guests: { total: number; days: number; replacesTyped: number; unclearDays: number } | null;
 }
 
 /** What the acknowledgement counts on the commit payload have to match. */
@@ -876,6 +939,24 @@ export async function previewSalesImportLogic(
         totalQty = totalQty.plus(r.qty);
       }
 
+      // Guests the commit will write, and how many typed counts they replace.
+      let guests: ImportPreview["guests"] = null;
+      if (profile.parse.columnMap.guestCount !== undefined) {
+        const { perDay, unclearDays } = guestsPerDay(parsed.rows, profile.parse.fileKind);
+        const typed =
+          perDay.size === 0
+            ? 0
+            : await tx.salesDay.count({
+                where: {
+                  tenantId,
+                  branchId: profile.branchId,
+                  businessDate: { in: [...perDay.keys()].map((t) => new Date(t)) },
+                  guestCountSource: "MANUAL",
+                },
+              });
+        guests = { total: [...perDay.values()].reduce((a, b) => a + b, 0), days: perDay.size, replacesTyped: typed, unclearDays };
+      }
+
       return {
         batchId: input.batchId,
         fileName: input.fileName,
@@ -896,6 +977,7 @@ export async function previewSalesImportLogic(
         newCategories,
         pulseMismatches,
         retiredMenusSelling,
+        guests,
       };
     },
     { maxWait: 10_000, timeout: 30_000 }
@@ -1082,6 +1164,11 @@ export async function commitSalesImportLogic(
       let rowsSuperseded = 0;
       let consumptionRunsVoided = 0;
       let daysAdded = 0;
+      // The file's guests replace whatever the closing sheet holds for its days:
+      // the POS counted every bill, and the sheet shows it read-only from now on
+      // (CloseForm, daily-close.ts) — the pulse's rule, ADR 0020.
+      const guestsByDay =
+        profile.parse.columnMap.guestCount !== undefined ? guestsPerDay(parsed.rows, profile.parse.fileKind).perDay : new Map<number, number>();
       const rowsByDay = new Map<number, StagedSalesRow[]>();
       for (const r of parsed.rows) {
         const t = r.businessDate.getTime();
@@ -1137,6 +1224,11 @@ export async function commitSalesImportLogic(
             userId
           );
           if (voidedRunId !== null) consumptionRunsVoided++;
+        }
+
+        const guests = guestsByDay.get(day.getTime());
+        if (guests !== undefined) {
+          await tx.salesDay.update({ where: { id: salesDayId! }, data: { guestCount: guests, guestCountSource: "POS" } });
         }
 
         const dayRows = rowsByDay.get(day.getTime()) ?? [];

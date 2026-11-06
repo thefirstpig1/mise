@@ -269,7 +269,7 @@ export default async function SalesPage({
   const gNow = guestStats(guestRows);
   const gPrev = guestStats(guestPrev);
   if (gNow.guestDays > 0) {
-    const gap = `กรอกจำนวนลูกค้าแล้ว ${gNow.guestDays} จาก ${gNow.salesDays} วันขาย · ต้องได้ ${Math.round(GUEST_COVERAGE_MIN * 100)}%`;
+    const gap = `มีจำนวนลูกค้าแล้ว ${gNow.guestDays} จาก ${gNow.salesDays} วันขาย · ต้องได้ ${Math.round(GUEST_COVERAGE_MIN * 100)}%`;
     kpis.push(
       {
         label: "ลูกค้า",

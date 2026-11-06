@@ -215,6 +215,8 @@ export const COLUMN_MAP_FIELDS = [
   "vatAmount",
   "channel",
   "billId",
+  // Kong 2026-11-06: guests per bill (a bill file) or per day (a summary) — fills the closing sheet.
+  "guestCount",
 ] as const;
 export type ColumnMapField = (typeof COLUMN_MAP_FIELDS)[number];
 
@@ -329,6 +331,17 @@ function refineProfile(v: ProfileDraft, ctx: z.RefinementCtx) {
       code: z.ZodIssueCode.custom,
       path: ["columnMap", "serviceChargeAmount"],
       message: "บอกว่าตัวเลขรวมเซอร์วิสชาร์จแล้ว แต่ไม่ได้ระบุคอลัมน์เซอร์วิสชาร์จ",
+    });
+  }
+
+  // --- guests are counted once per bill, so a bill file must say which bill ---
+  // Every line of a bill repeats its guest count; without the bill number the
+  // only possible sum counts a table of four once per dish it ordered.
+  if (v.fileKind === "BILL_DETAIL" && map.guestCount !== undefined && map.billId === undefined) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["columnMap", "guestCount"],
+      message: "ไฟล์รายบิลต้องมีคอลัมน์เลขบิลด้วย ระบบจึงนับลูกค้าครั้งเดียวต่อบิล",
     });
   }
 
