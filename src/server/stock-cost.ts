@@ -759,6 +759,14 @@ export type BranchCostSummary = {
   /** Inventory value at the END of the day before the period began. */
   openingInventoryValue: Prisma.Decimal;
   /**
+   * Transfers in minus transfers out inside the period, at the money frozen
+   * onto each line at dispatch (rule ME4, ADR 0018 Q5) — the term the นับสต็อก
+   * identity needs per branch: opening + purchases + this − closing. Without
+   * it the sending branch read a truck of pork as cost of goods sold and the
+   * receiving one got it free (Kong 2026-11-06); the shop total nets to zero.
+   */
+  transfersNet: Prisma.Decimal;
+  /**
    * When this branch last CLOSED a stock count.
    *
    * Shown beside gross profit and never omitted: under PERIODIC_INVENTORY the
@@ -963,11 +971,23 @@ async function loadPeriodFacts(tenantId: string, reach: BranchReach, from: Date,
     const openingCounts = await branchesCountedIn(windows.opening);
     const closingCounts = await branchesCountedIn(windows.closing);
 
-    return { revenueRows, expenseLines, receiptMovements, rmItems, coverageRuns, salesDayRows, lastCounts, openingCounts, closingCounts };
+    // Rule WS-VOID (Kong 2026-11-06): a waste entry voided inside this period
+    // comes off THIS period's ของเสีย — the void's own instant, the way the
+    // ledger reverses (voidWasteLogic) — so a month already sent to the
+    // accountant never moves. The reversal row names the entry it undoes.
+    const wasteVoids = await tx.wasteLog.findMany({
+      where: { tenantId, branchId: { in: branchIds }, reversalOfId: { not: null }, occurredAt: periodBounds },
+      select: { branchId: true, reversalOfId: true },
+    });
+
+    return { revenueRows, expenseLines, receiptMovements, rmItems, coverageRuns, salesDayRows, lastCounts, openingCounts, closingCounts, wasteVoids };
   });
 }
 
 type PeriodFacts = NonNullable<Awaited<ReturnType<typeof loadPeriodFacts>>>;
+
+/** The four ledger legs of a transfer (ADR 0018 Q4); TRANSFER_SHORTAGE is a loss, not a leg. */
+const TRANSFER_LEGS = new Set<string>(["TRANSFER_OUT", "TRANSFER_IN", "TRANSFER_OUT_REVERSAL", "TRANSFER_IN_REVERSAL"]);
 
 /**
  * Rule PG2's fallback (Kong 2026-10-30): while a month runs, นับสต็อก cannot
@@ -1134,7 +1154,7 @@ function assembleCostSummary(
   opts: { alwaysOpening?: boolean } = {}
 ): BranchCostSummary[] {
   const { branches, productIds, grossProfitMethod, isVatRegistered, costRows, consumptionItems } = ledger;
-  const { revenueRows, expenseLines, receiptMovements, rmItems, coverageRuns, salesDayRows, lastCounts, openingCounts, closingCounts } = period;
+  const { revenueRows, expenseLines, receiptMovements, rmItems, coverageRuns, salesDayRows, lastCounts, openingCounts, closingCounts, wasteVoids } = period;
   const openingCounted = new Set(openingCounts.map((c) => c.branchId));
   const closingCounted = new Set(closingCounts.map((c) => c.branchId));
   const periodBounds = occurredAtFilter(from, to) as { gte: Date; lt: Date };
@@ -1312,6 +1332,8 @@ function assembleCostSummary(
     let inventoryValue = ZERO;
     let wasteValue = ZERO;
     let varianceValue = ZERO;
+    let transfersNet = ZERO;
+    const voidedHere = new Set(wasteVoids.filter((v) => v.branchId === branch.id).map((v) => v.reversalOfId));
     let negativeStockProducts = 0;
     let unpricedProducts = 0;
     // Rule PG1: products unpriced at EITHER end of the period. `unpricedProducts`
@@ -1319,6 +1341,16 @@ function assembleCostSummary(
     const unpricedEitherEnd = new Set<string>();
 
     for (const productId of productIds) {
+      // ME4 on /cost: each transfer leg at its line's frozen money — the same
+      // figures the month-end close prints as in and out.
+      for (const m of costRows.get(keyOf(productId, branch.id)) ?? []) {
+        if (!TRANSFER_LEGS.has(m.type)) continue;
+        const t = costSortKey(m.occurredAt);
+        if (t < lowerBound || t >= upperBound) continue;
+        const v = m.transferValue ?? ZERO;
+        transfersNet = m.type === "TRANSFER_IN" || m.type === "TRANSFER_OUT_REVERSAL" ? transfersNet.plus(v) : transfersNet.minus(v);
+      }
+
       const state = replayed.get(keyOf(productId, branch.id));
       if (!state) continue;
 
@@ -1339,6 +1371,10 @@ function assembleCostSummary(
         // Consequence 2). Having them be their own movement types is what makes
         // this a one-line exclusion instead of a source-by-source exception.
         if (out.type !== "ADJUST_LOSS") continue;
+        // WS-VOID: an entry voided inside this period comes off ของเสีย here,
+        // at the value it was counted at — wherever its own date falls, which
+        // is why this sits before the period test below.
+        if (out.sourceType === "WASTE_LOG" && voidedHere.has(out.sourceId)) wasteValue = wasteValue.minus(out.value);
         // Same costing instant the walk used, so a midnight adjustment falls in
         // the period its business day belongs to.
         const t = costSortKey(out.occurredAt);
@@ -1421,7 +1457,7 @@ function assembleCostSummary(
         : grossProfitMethod === "PERIODIC_INVENTORY"
           ? grossProfitBlocker
             ? null
-            : openingInventoryValue.plus(purchasesAtCost).minus(inventoryValue)
+            : openingInventoryValue.plus(purchasesAtCost).plus(transfersNet).minus(inventoryValue)
           : daysPosted > 0
             ? (consumptionValueByBranch.get(branch.id) ?? ZERO)
             : null;
@@ -1448,6 +1484,7 @@ function assembleCostSummary(
       grossProfitMethod,
       cogsSold,
       openingInventoryValue,
+      transfersNet,
       lastCountedAt: lastCountByBranch.get(branch.id) ?? null,
     };
   });

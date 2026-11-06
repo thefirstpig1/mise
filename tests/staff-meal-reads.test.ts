@@ -497,4 +497,18 @@ describe("staff meal — reads (ADR 0028 Part 26 L3c)", () => {
     expect(h.totalValue.toString()).toBe("120");
     expect(h.unpricedCount).toBe(1);
   });
+
+  it("R11: a pot is not an unpriced meal — it has no selling price by design, and no quota (Kong 2026-11-06)", async () => {
+    // The pot form says "ไม่นับเข้าโควตารายคน"; counting it as unpriced turned a
+    // named eater's quota into "อย่างน้อย" and padded the history's count.
+    const listBefore = await getStaffMealsLogic(tenantA, { branchId: branchA, staffMemberId: somchai, includeVoided: false });
+    const quotaBefore = await getStaffMealQuotaLogic(tenantA, { staffMemberId: somchai, businessDate: today });
+    await eat({ menuId: null, items: [{ productId: pork.id, inputQty: 1, inputUnitId: baseUnitOf(pork) }] });
+    const listAfter = await getStaffMealsLogic(tenantA, { branchId: branchA, staffMemberId: somchai, includeVoided: false });
+    const quotaAfter = await getStaffMealQuotaLogic(tenantA, { staffMemberId: somchai, businessDate: today });
+    expect(listAfter.rows.length).toBe(listBefore.rows.length + 1);
+    expect(listAfter.unpricedCount).toBe(listBefore.unpricedCount);
+    expect(quotaAfter.unpricedCount).toBe(quotaBefore.unpricedCount);
+    expect(quotaAfter.used.toString()).toBe(quotaBefore.used.toString());
+  });
 });

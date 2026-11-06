@@ -17,7 +17,7 @@ import { getDueRecurringLogic } from "@/server/expense";
 import { monthEndCountDueLogic, openingPricesWaitingLogic } from "@/server/stock-count";
 import { getSalesSummaryLogic } from "@/server/sales";
 import { getPriceWatchLogic } from "@/server/price-watch";
-import { LABOR_SECTIONS } from "@/server/cost-overview";
+import { getLaborByBranchLogic, laborForBranches } from "@/server/cost-overview";
 import { periodLabelTh } from "@/lib/sales-insight";
 import { getSalesQuerySchema } from "@/lib/validations/sales-import";
 import { getTransfersLogic } from "@/server/transfer";
@@ -395,7 +395,7 @@ async function Analytics({
   });
   const vs = periodLabelTh(isoDay(period.prevFrom), isoDay(period.prevTo));
   const label = periodLabelTh(isoDay(period.from), isoDay(period.to));
-  const [pnl, revenueDays, prevRevenueDays, menus, missing, guestNow, prices] = await Promise.all([
+  const [pnl, revenueDays, prevRevenueDays, menus, missing, guestNow, prices, laborByBranch] = await Promise.all([
     getPnlLogic(tenantId, q, reach),
     see.sales ? getRevenueByDayLogic(tenantId, q, reach, activeIds) : Promise.resolve([]),
     see.sales
@@ -408,6 +408,8 @@ async function Analytics({
     see.cost
       ? getPriceWatchLogic(tenantId, { from: period.prevFrom, to: period.to }, narrowReach(reach, selected)).catch(() => null)
       : Promise.resolve(null),
+    // Rule CO-LABOR, as on /cost: a month's labour spread over its days.
+    see.expense ? getLaborByBranchLogic(tenantId, activeIds, period.from).catch(() => null) : Promise.resolve(null),
   ]);
 
   const seeGross = see.sales && see.cost;
@@ -442,11 +444,15 @@ async function Analytics({
   const g = guestStats(guestNow);
   const guestLine = see.sales && g.enough && g.perHead !== null ? `ยอดต่อหัว ${baht(g.perHead)} · ${Math.round(g.guestsPerDay ?? 0).toLocaleString("th-TH")} คน/วัน` : null;
 
-  const labor = pnl.opexBySection.filter((s) => LABOR_SECTIONS.includes(s.section)).reduce((t, s) => t + Number(s.amount.toString()), 0);
+  // CO-LABOR (Kong 2026-11-06): the same spread /cost uses — bills by date
+  // counted a week holding pay day as dear and the week after as free. A month
+  // the period touches with no labour recorded leaves prime cost unprinted.
+  const sellingIds = pnl.branches.filter((b) => num(b.revenue)).map((b) => b.branchId);
+  const labor = laborByBranch ? laborForBranches({ from: period.from, to: period.to }, sellingIds, laborByBranch).labor : null;
   const cogs = num(pnl.cogs);
   const net = num(pnl.netProfit);
   const foodPct = revenue && cogs !== null ? (cogs / revenue) * 100 : null;
-  const primePct = revenue && cogs !== null && see.expense && labor > 0 ? ((cogs + labor) / revenue) * 100 : null;
+  const primePct = revenue && cogs !== null && see.expense && labor !== null && labor > 0 ? ((cogs + labor) / revenue) * 100 : null;
   const branchRows = pnl.branches.filter((b) => num(b.revenue));
   const branchFood = (b: PnlBranchRow) => (num(b.revenue) && b.cogs !== null ? (num(b.cogs)! / num(b.revenue)!) * 100 : null);
   const branchNet = (b: PnlBranchRow) => (num(b.revenue) && b.netProfit !== null ? (num(b.netProfit)! / num(b.revenue)!) * 100 : null);
@@ -596,7 +602,15 @@ async function Analytics({
             {multi ? <MiniBars rows={branchRows.map((b) => ({ name: short(b.branchName), value: branchFood(b) }))} target={targets.food} scale={Math.max(50, targets.food * 1.5)} warm /> : null}
             <p className="text-xs text-muted-subtle">
               เป้า {pct1(targets.food)}
-              {foodPct !== null && ` · ${foodPct > targets.food ? `เกินเป้า ${(foodPct - targets.food).toFixed(1)} จุด` : `ต่ำกว่าเป้า ${(targets.food - foodPct).toFixed(1)} จุด`}`}
+              {/* Rule CO-LB: a lower bound may say เกินเป้า, never that it is under — /cost's wording. */}
+              {foodPct !== null &&
+                ` · ${
+                  foodPct > targets.food
+                    ? `เกินเป้า ${(foodPct - targets.food).toFixed(1)} จุด`
+                    : partCovered !== null
+                      ? `ต่ำกว่าเป้าตอนนี้ · ตัดสต็อกแล้ว ${Math.round(partCovered * 100)}%`
+                      : `ต่ำกว่าเป้า ${(targets.food - foodPct).toFixed(1)} จุด`
+                }`}
               {primePct !== null && ` · Prime cost (รวมค่าแรง) ${pct1(primePct)} เป้า ${pct1(targets.prime)}`}
             </p>
             {countGap ? (

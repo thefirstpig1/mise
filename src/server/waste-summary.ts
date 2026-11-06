@@ -92,9 +92,14 @@ export async function getWasteSummaryLogic(tenantId: string, branchIds: string[]
     const productIds = [...new Set(logs.map((l) => l.productId))];
     const branches = [...new Set(logs.map((l) => l.branchId))];
     const replayed = await replayPairsInTx(tx, tenantId, productIds, branches);
-    const valueOfMovement = new Map<string, Prisma.Decimal>();
+    // Rule WS-VALUE: an entry the walk took from an unpriced layer has no
+    // known cost — no baht, counted apart as ตีราคาไม่ได้ — never ฿0, which
+    // reads as "it cost nothing" (Kong 2026-11-06).
+    const valueOfMovement = new Map<string, Prisma.Decimal | null>();
     for (const cost of replayed.values()) {
-      for (const out of cost.outflows) if (out.sourceType === "WASTE_LOG") valueOfMovement.set(out.movementId, out.value);
+      for (const out of cost.outflows) {
+        if (out.sourceType === "WASTE_LOG") valueOfMovement.set(out.movementId, out.pricing === "UNPRICED" ? null : out.value);
+      }
     }
 
     const rows: WasteSummaryRow[] = logs.map((l) => {
@@ -109,7 +114,7 @@ export async function getWasteSummaryLogic(tenantId: string, branchIds: string[]
         group: l.product.category?.groupName ?? null,
         qty: m ? Math.abs(Number(m.qty.toString())) : 0,
         unit: l.product.productUnits[0]?.unitName ?? "",
-        value: v === undefined ? null : Number(v.toString()),
+        value: v === undefined || v === null ? null : Number(v.toString()),
       };
     });
     return { months, departments, rows };

@@ -21,6 +21,7 @@ import { getProductCostsQuerySchema } from "@/lib/validations/stock-cost";
 import { getProductListFactsLogic, getRecentMovementsLogic } from "@/server/product-list";
 import { getStockHubFactsLogic } from "@/server/stock-hub";
 import { getIncomingTransfersLogic } from "@/server/transfer";
+import { getWasteVoidedSinceLogic } from "@/server/waste";
 import { toTransferView } from "@/app/(app)/transfers/_components/transfer-view";
 import IncomingTransfers from "@/app/(app)/transfers/_components/IncomingTransfers";
 import { MOVEMENT_TYPE_LABELS_TH, SOURCE_TYPE_LABELS_TH } from "@/lib/validations/stock-movement";
@@ -63,16 +64,24 @@ export default async function StockWorkPage({ searchParams }: { searchParams: Pr
       const negative = balances.filter((b) => b.balance.lessThan(0) && b.product.type !== "PREPPED").map((b) => b.product.name);
       const moved = balances.length > 0;
       if (costAccess === null) return { negative, moved, value: null as number | null, wasteBaht: null as number | null, held: 0, unpriced: 0 };
-      const costs = await getProductCostsLogic(
-        tenantId,
-        getProductCostsQuerySchema.parse({ productIds: balances.map((b) => b.productId), branchId: branch.id })
-      );
+      const [costs, voided] = await Promise.all([
+        getProductCostsLogic(
+          tenantId,
+          getProductCostsQuerySchema.parse({ productIds: balances.map((b) => b.productId), branchId: branch.id })
+        ),
+        getWasteVoidedSinceLogic(tenantId, branch.id, monthStart),
+      ]);
       let value = 0;
       let wasteBaht = 0;
       for (const c of costs.values()) {
         value += Number(c.inventoryValue);
         // This month's waste in baht — the same FIFO walk, no second read.
-        for (const o of c.outflows) if (o.sourceType === "WASTE_LOG" && o.occurredAt >= monthStart) wasteBaht += Number(o.value);
+        for (const o of c.outflows) {
+          if (o.sourceType !== "WASTE_LOG") continue;
+          if (o.occurredAt >= monthStart) wasteBaht += Number(o.value);
+          // Rule WS-VOID: voided this month — off at the value it was counted at, as on /cost.
+          if (voided.has(o.sourceId)) wasteBaht -= Number(o.value);
+        }
       }
       // Queue item 10 (rule ND9): ฿0 meant "no price" or "never entered" as often as "empty".
       const { held, unpriced } = shelfOf([...costs.values()]);

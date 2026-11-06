@@ -34,8 +34,8 @@ import {
 } from "@/server/goods-receipt";
 import { createStockAdjustmentLogic } from "@/server/stock-movement";
 import { createStockAdjustmentInputSchema } from "@/lib/validations/stock-movement";
-import { createWasteLogic } from "@/server/waste";
-import { createWasteInputSchema } from "@/lib/validations/waste";
+import { createWasteLogic, voidWasteLogic } from "@/server/waste";
+import { createWasteInputSchema, voidWasteInputSchema } from "@/lib/validations/waste";
 import {
   getBranchCostSummaryLogic,
   getBranchCostSummariesLogic,
@@ -543,6 +543,28 @@ describe("cost read *Logic (FIFO by ledger replay, ADR 0014)", () => {
     )!;
     expect(num(row.wasteValue.minus(prior.wasteValue))).toBe(200);
     expect(num(row.varianceValue.minus(prior.varianceValue))).toBe(100);
+  });
+
+  it("K9c: a voided waste entry comes off ของเสีย in the period of the void, at the value it was counted at (WS-VOID)", async () => {
+    // Kong 2026-11-06 chose the void's own period: a month already sent to the
+    // accountant never moves, and a mistake voided the same week nets to nothing.
+    const period = getBranchCostSummaryQuerySchema.parse({
+      from: new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000),
+      to: today,
+    });
+    const before = await getBranchCostSummaryLogic(tenantA, period, EVERY_BRANCH);
+    const prior = before.find((r) => r.branchId === branchA)!;
+
+    const p = await freshProduct(tenantA, "K9c");
+    await receiveInto(branchA, p, 4, 500, new Date(today.getTime() - 25 * 24 * 60 * 60 * 1000)); // 100 kg @ 20
+    const older = await throwAway(branchA, p, 5, new Date(today.getTime() - 20 * 24 * 60 * 60 * 1000)); // ฿100, before the period
+    const same = await throwAway(branchA, p, 10); // ฿200, this week
+    await voidWasteLogic(tenantA, voidWasteInputSchema.parse({ id: same.waste.id, voidReason: "คีย์ซ้ำ" }), userA);
+    await voidWasteLogic(tenantA, voidWasteInputSchema.parse({ id: older.waste.id, voidReason: "คีย์ผิดวัน" }), userA);
+
+    const row = (await getBranchCostSummaryLogic(tenantA, period, EVERY_BRANCH)).find((r) => r.branchId === branchA)!;
+    // This week's entry: +200 then −200. The older one: −100 here, its own month untouched.
+    expect(num(row.wasteValue.minus(prior.wasteValue))).toBe(-100);
   });
 
   it("K11: a date-only adjustment is costed at the END of its Bangkok day", async () => {

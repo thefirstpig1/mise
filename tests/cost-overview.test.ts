@@ -3,7 +3,7 @@
 // what this file adds is only what the overview computes on top.
 
 import { describe, expect, it } from "vitest";
-import { laborFor, monthRanges, priceMovesFor, weekRanges } from "@/server/cost-overview";
+import { laborFor, laborForBranches, monthRanges, priceMovesFor, weekRanges } from "@/server/cost-overview";
 import type { PricePoint } from "@/server/price-watch";
 
 const d = (s: string) => new Date(`${s}T00:00:00.000Z`);
@@ -37,6 +37,13 @@ describe("rule CO-LABOR — monthly labour spread over calendar days", () => {
   });
   it("a week touching a month with no labour is unknown, named by that month", () => {
     expect(laborFor({ from: d("2026-08-31"), to: d("2026-09-06") }, aug)).toEqual({ labor: null, missing: "ยังไม่มีค่าแรง ก.ย." });
+  });
+  // The dashboard's Prime cost (Kong 2026-11-06): the same spread, over the branches that sold.
+  it("several branches: each spread, summed — and unknown when one has no labour that month", () => {
+    const byBranch = new Map([["a", aug], ["b", new Map([["2026-08", 62_000]])]]);
+    const week = { from: d("2026-08-10"), to: d("2026-08-16") };
+    expect(laborForBranches(week, ["a", "b"], byBranch)).toEqual({ labor: 21000, missing: null });
+    expect(laborForBranches(week, ["a", "c"], byBranch)).toEqual({ labor: null, missing: "ยังไม่มีค่าแรง ส.ค." });
   });
 });
 

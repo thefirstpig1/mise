@@ -378,6 +378,52 @@ describe("month-end close (rules ME1–ME6)", () => {
     expect((row.settings as Record<string, unknown>).someoneElse).toBe(1);
   });
 
+  // Kong 2026-11-06: /cost's per-branch นับสต็อก identity left transfers out,
+  // so the sending branch read a truck of rice as cost of goods sold and the
+  // receiving one got it free — while this close (ME3) counted them. Last on
+  // purpose: it writes sales and counts into `month`, which nothing after reads.
+  it("ME4 on /cost: a branch's นับสต็อก cost of sales takes its transfers, so it agrees with the close", async () => {
+    const { from, to } = monthBounds(month);
+    await withRlsBypass(async (tx) => {
+      for (const [branchId, code, kg] of [[thonglor, "THL", 57], [ari, "ARY", 10]] as const) {
+        // A day of sales, so the summary prints a gross profit at all.
+        const integ = await tx.posIntegration.create({ data: { tenantId: tenant, branchId, posType: "CUSTOM", name: `POS ${code}` }, select: { id: true } });
+        const prof = await tx.salesImportProfile.create({
+          data: { tenantId: tenant, posIntegrationId: integ.id, name: "รายวัน", fileKind: "DAILY_SUMMARY", dateFormat: "yyyy-MM-dd", columnMap: {}, headerSignature: "x", amountsIncludeVat: false, amountsIncludeServiceCharge: false },
+          select: { id: true },
+        });
+        const batch = await tx.salesImportBatch.create({
+          data: { tenantId: tenant, branchId, posIntegrationId: integ.id, profileId: prof.id, status: "COMMITTED", fileName: "day.csv", uploadedBy: user, committedAt: new Date() },
+          select: { id: true },
+        });
+        const menu = await tx.menu.create({ data: { tenantId: tenant, source: "MISE", name: `ข้าวมันไก่ ${code}` }, select: { id: true } });
+        const day = await tx.salesDay.create({ data: { tenantId: tenant, branchId, businessDate: to, currentBatchId: batch.id }, select: { id: true } });
+        await tx.salesLine.create({
+          data: { tenantId: tenant, branchId, businessDate: to, salesDayId: day.id, importBatchId: batch.id, menuId: menu.id, qty: 10, grossAmount: 500, discountAmount: 0, netAmount: 500, serviceChargeAmount: 0, vatAmount: 0 },
+        });
+        // Rules PG1 + PG2: both ends counted, as the ledger says (no movement written).
+        for (const [n, at, qty] of [[1, addDays(from, -1), code === "THL" ? 50 : 0], [2, to, kg]] as const) {
+          const sc = await tx.stockCount.create({
+            data: { tenantId: tenant, branchId, scNumber: `${code}-SC-91${n}`, countDate: at, status: "CLOSED", startedBy: user, closedAt: at, closedBy: user },
+            select: { id: true },
+          });
+          await tx.stockCountItem.create({
+            data: { tenantId: tenant, stockCountId: sc.id, productId: rice.id, lineNo: 1, qtyCounted: qty, qtyExpected: qty, countedAt: at, countedBy: user },
+          });
+        }
+      }
+    });
+    const rows = await getBranchCostSummaryLogic(tenant, { from, to }, EVERY_BRANCH);
+    const t = rows.find((r) => r.branchId === thonglor)!;
+    const a = rows.find((r) => r.branchId === ari)!;
+    expect(t.grossProfitBlocker).toBeNull();
+    expect(a.grossProfitBlocker).toBeNull();
+    expect(Number(t.transfersNet)).toBe(-sep.thonglor.transfersOut);
+    expect(Number(a.transfersNet)).toBe(sep.ari.transfersIn);
+    expect(Number(t.cogsSold)).toBeCloseTo(sep.thonglor.cogs, 2);
+    expect(Number(a.cogsSold)).toBeCloseTo(sep.ari.cogs, 2);
+  });
+
   it("a month before anything happened is empty, not an error", async () => {
     const early = await getMonthEndLogic(tenant, "2020-01", EVERY_BRANCH);
     expect(early!.branches.every((b) => b.opening === 0 && b.closing === 0 && b.cogs === 0)).toBe(true);

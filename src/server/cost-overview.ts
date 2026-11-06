@@ -181,6 +181,52 @@ export function laborFor(
   return { labor: round2(total), missing: null };
 }
 
+/**
+ * CO-LABOR over several branches: each branch's labour for the range, summed —
+ * unknown (with the first missing month named) as soon as one branch has a
+ * month the range touches with no labour recorded, the same as /cost's cells.
+ */
+export function laborForBranches(
+  range: { from: Date; to: Date },
+  branchIds: readonly string[],
+  byBranch: Map<string, Map<string, number>>
+): { labor: number | null; missing: string | null } {
+  let total = 0;
+  for (const id of branchIds) {
+    const one = laborFor(range, byBranch.get(id) ?? new Map());
+    if (one.labor === null) return one;
+    total += one.labor;
+  }
+  return { labor: round2(total), missing: null };
+}
+
+/** Labour bills by branch × month (`monthKey` of the bill date), from `start` on — what laborFor spreads. */
+async function laborByBranchInTx(tx: PrismaClient, tenantId: string, branchIds: string[], start: Date): Promise<Map<string, Map<string, number>>> {
+  const lines = await tx.expenseItem.findMany({
+    where: {
+      tenantId,
+      category: { account: "OpEx", accountingSection: { in: LABOR_SECTIONS } },
+      expense: { tenantId, deletedAt: null, branchId: { in: branchIds }, billDate: { gte: start } },
+    },
+    select: { totalPrice: true, expense: { select: { branchId: true, billDate: true } } },
+  });
+  const byBranch = new Map<string, Map<string, number>>();
+  for (const l of lines) {
+    const m = byBranch.get(l.expense.branchId) ?? new Map<string, number>();
+    const k = monthKey(l.expense.billDate);
+    m.set(k, (m.get(k) ?? 0) + num(l.totalPrice));
+    byBranch.set(l.expense.branchId, m);
+  }
+  return byBranch;
+}
+
+/** The dashboard's door to CO-LABOR: labour by branch × month for the months a range touches. */
+export async function getLaborByBranchLogic(tenantId: string, branchIds: string[], from: Date): Promise<Map<string, Map<string, number>>> {
+  if (branchIds.length === 0) return new Map();
+  const start = new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), 1));
+  return withTenantContext(tenantId, (tx) => laborByBranchInTx(tx as unknown as PrismaClient, tenantId, branchIds, start));
+}
+
 export { priceMovesFor } from "@/lib/price-average";
 
 /**
@@ -290,15 +336,8 @@ async function loadFacts(tx: PrismaClient, tenantId: string, reach: BranchReach,
   const branchIds = branches.map((b) => b.id);
   const laborStart = new Date(Date.UTC(earliest.getUTCFullYear(), earliest.getUTCMonth(), 1));
 
-  const [laborLines, revenueDays, countMoves, products] = await Promise.all([
-    tx.expenseItem.findMany({
-      where: {
-        tenantId,
-        category: { account: "OpEx", accountingSection: { in: LABOR_SECTIONS } },
-        expense: { tenantId, deletedAt: null, branchId: { in: branchIds }, billDate: { gte: laborStart } },
-      },
-      select: { totalPrice: true, expense: { select: { branchId: true, billDate: true } } },
-    }),
+  const [laborByBranch, revenueDays, countMoves, products] = await Promise.all([
+    laborByBranchInTx(tx, tenantId, branchIds, laborStart),
     tx.salesLine.groupBy({
       by: ["branchId", "businessDate"],
       where: { tenantId, supersededAt: null, branchId: { in: branchIds } },
@@ -319,14 +358,6 @@ async function loadFacts(tx: PrismaClient, tenantId: string, reach: BranchReach,
     }),
   ]);
 
-  // ── labour by branch × month ───────────────────────────────────────────────
-  const laborByBranch = new Map<string, Map<string, number>>();
-  for (const l of laborLines) {
-    const m = laborByBranch.get(l.expense.branchId) ?? new Map<string, number>();
-    const k = monthKey(l.expense.billDate);
-    m.set(k, (m.get(k) ?? 0) + num(l.totalPrice));
-    laborByBranch.set(l.expense.branchId, m);
-  }
 
   // ── one replay serves the counts' money AND the stock ages ─────────────────
   const productIds = products.map((p) => p.id);

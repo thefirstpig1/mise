@@ -437,6 +437,22 @@ const resultFor = async (
  * Only a SUGGESTION — the person recording can change it, and nothing reads it
  * but the form.
  */
+/**
+ * Rule WS-VOID (Kong 2026-11-06): the entries voided at or after `from`, by
+ * their OWN id, so a money total can take each one off at the value it was
+ * counted at, in the period the void happened — the /stock tile. /cost reads
+ * the same reversal rows inside stock-cost.ts.
+ */
+export async function getWasteVoidedSinceLogic(tenantId: string, branchId: string, from: Date): Promise<Set<string>> {
+  const rows = await withTenantContext(tenantId, (tx) =>
+    tx.wasteLog.findMany({
+      where: { tenantId, branchId, reversalOfId: { not: null }, occurredAt: { gte: from } },
+      select: { reversalOfId: true },
+    })
+  );
+  return new Set(rows.flatMap((r) => (r.reversalOfId ? [r.reversalOfId] : [])));
+}
+
 export async function getWasteDepartmentDefaultsLogic(tenantId: string): Promise<Record<string, string>> {
   return withTenantContext(tenantId, async (tx) => {
     const [recent, majority] = await Promise.all([

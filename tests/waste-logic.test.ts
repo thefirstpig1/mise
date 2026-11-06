@@ -448,6 +448,17 @@ describe("waste *Logic (the fourth writer to the ledger)", () => {
     expect(summary.departments.map((d) => d.id)).toContain(deptA);
   });
 
+  it("L17: an entry the walk could not price shows no baht, not ฿0 (rule WS-VALUE)", async () => {
+    // Nothing ever came in, so nothing on the shelf has a cost: the entry is
+    // "ตีราคาไม่ได้", which ฿0 would read as "it cost nothing" (Kong 2026-11-06).
+    const p = await freshProduct("L17");
+    const { waste } = await throwAway(p, 2);
+    const summary = await getWasteSummaryLogic(tenantA, [branchA]);
+    const row = summary.rows.find((r) => r.id === waste.id)!;
+    expect(row.qty).toBe(2);
+    expect(row.value).toBeNull();
+  });
+
   it("L16: a department from another tenant is refused", async () => {
     const p = await freshProduct("L16");
     await expect(throwAway(p, 1, { departmentId: randomUUID() })).rejects.toThrow();

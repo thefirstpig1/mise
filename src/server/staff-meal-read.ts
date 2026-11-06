@@ -195,9 +195,11 @@ export async function getStaffMealsLogic(
           : r.frozenUnitPrice.times(r.servings).toDecimalPlaces(2);
       // A voided meal is shown but does not count towards what was consumed —
       // it is a record of a mistake and its correction, not a meal.
+      // A pot (no menu) has no selling price by design — not "unpriced" (Kong 2026-11-06).
       if (r.voidedAt === null) {
-        if (value === null) unpricedCount += 1;
-        else totalValue = totalValue.plus(value);
+        if (value === null) {
+          if (r.menuId !== null) unpricedCount += 1;
+        } else totalValue = totalValue.plus(value);
       }
       return {
         id: r.id,
@@ -273,6 +275,9 @@ export async function getStaffMealQuotaLogic(
           voidedAt: null,
           // Rule S10: only an approved ticket counts against the quota.
           status: "APPROVED",
+          // A pot is "ไม่นับเข้าโควตารายคน" (StaffMealEntryForm) — it has no price
+          // to count, and counting it as unpriced made the quota read "อย่างน้อย".
+          menuId: { not: null },
         },
         select: { frozenUnitPrice: true, servings: true },
       }),
@@ -569,6 +574,7 @@ export async function getStaffMealSummaryLogic(
             businessDate: true,
             servings: true,
             frozenUnitPrice: true,
+            menuId: true,
             stockPosted: true,
             staffMemberId: true,
             staffMember: { select: { name: true, dailyQuotaAmount: true, branch: { select: { name: true } } } },
@@ -624,8 +630,10 @@ export async function getStaffMealSummaryLogic(
           byPerson.set(key, p);
         }
         p.meals += 1;
-        if (m.frozenUnitPrice === null) p.unpriced += 1;
-        else {
+        if (m.frozenUnitPrice === null) {
+          // A pot has no selling price by design; only a dish without one is "unpriced".
+          if (m.menuId !== null) p.unpriced += 1;
+        } else {
           const v = Number(m.frozenUnitPrice) * Number(m.servings);
           p.value += v;
           p.daily.set(day, (p.daily.get(day) ?? 0) + v);
