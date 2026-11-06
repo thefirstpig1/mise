@@ -44,7 +44,7 @@ export default function Motion() {
         }),
       { threshold: 0.14, rootMargin: "0px 0px -6% 0px" }
     );
-    root.querySelectorAll(".lp-rv, .lp-rv-img, .lp-lines, .lp-feat, .lp-item").forEach((el) => io.observe(el));
+    root.querySelectorAll(".lp-rv, .lp-rv-img, .lp-lines, .lp-feat").forEach((el) => io.observe(el));
 
     const hdr = document.getElementById("lp-hdr");
     const stage = document.getElementById("lp-hero-stage");

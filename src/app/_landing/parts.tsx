@@ -48,6 +48,8 @@ const PATHS: Record<IconKey, ReactNode> = {
   gauge: <><path d="m12 14 4-4" /><path d="M3.3 19a10 10 0 1 1 17.4 0" /></>,
   arrow: <path d="M5 12h14M13 6l6 6-6 6" />,
   down: <path d="M12 5v14M6 13l6 6 6-6" />,
+  // หน้าแรก: ไม่ใช่ POS (2026-11-06)
+  register: <path d="M5 10h14l1 10H4zM8 10V6h8v4M9 14h.01M12 14h.01M15 14h.01M9 17h6M7 3h10" />,
 };
 
 export function Icon({ k, className }: { k: IconKey; className?: string }) {

@@ -54,15 +54,117 @@ export type IconKey =
   | "bell"
   | "gauge"
   | "arrow"
-  | "down";
+  | "down"
+  | "register";
 
-export const PROMISES: { title: string; body: string }[] = [
-  { title: "รู้กำไรของแต่ละเมนู", body: "คิดจากสูตรกับราคาที่ร้านซื้อจริง ไม่ใช่ราคาที่จำเอา" },
-  { title: "รู้ทันเมื่อวัตถุดิบขึ้นราคา", body: "ใบรับสินค้าทุกใบบอกว่าตัวไหนขึ้นราคา ร้านจ่ายเพิ่มกี่บาท และกระทบเมนูไหนบ้าง" },
-  { title: "รู้ว่าของหายไปกี่บาท", body: "ร้านที่มีสูตร นับสต็อกแล้วเห็นว่าหายที่ตัวไหน" },
+// ---------- ไม่ใช่ POS (Kong 2026-11-03: "หลายคนเข้าใจว่าเขาต้องย้าย POS ต้องมา
+// ปรับตัวใหม่ ซึ่งจะทำให้ adoption ลดลง") — mockup WbpsYxAgy9YPi5C95UrErL, all three
+// questions as recommended: the strip in the hero, its own section right after
+// the hero, and no POS brand named until a real file of that brand was tried.
+// It says HOW the two connect (an Excel or CSV file), which is what makes
+// "works with the POS you have" mean something, and states the one condition.
+
+/** Under the hero's sub-heading, so a visitor who reads only the hero still sees it. */
+export const HERO_POS: [IconKey, string][] = [
+  ["plug", "ใช้กับ POS ที่ร้านมีอยู่ ไม่ต้องเปลี่ยนเครื่อง"],
+  ["check", "แคชเชียร์ขายเหมือนเดิม"],
+  ["check", "แต่ละสาขาใช้ POS คนละยี่ห้อได้"],
+];
+
+export type PosNode = { icon: IconKey; where: string; title: string; body: string; tag?: string; kind?: "file" | "us" };
+
+export const NOT_POS_NODES: PosNode[] = [
+  { icon: "register", where: "หน้าร้าน", title: "POS ที่ร้านใช้อยู่", body: "รับออเดอร์ คิดเงิน ออกใบเสร็จ", tag: "ใช้เหมือนเดิม" },
+  { icon: "file", where: "ไฟล์ยอดขาย", title: "Excel หรือ CSV", body: "ทุกวันหรือทุกเดือนก็ได้ ครั้งแรกระบบช่วยจับคู่คอลัมน์ แล้วจำไว้ใช้ครั้งต่อไป", kind: "file" },
+  { icon: "pot", where: "หลังร้าน", title: "คิดครัว", body: "ขอซื้อ สั่งซื้อ รับสินค้า นับสต็อก บิลค่าใช้จ่าย · ต้นทุนและกำไรของร้าน", tag: "ส่วนที่เพิ่มเข้ามา", kind: "us" },
+];
+
+/** What happens between two nodes, in order. */
+export const NOT_POS_STEPS: string[] = ["ส่งออกจากหลังบ้านของ POS", "นำเข้าคิดครัว"];
+
+export const NOT_POS_FACTS: [string, string][] = [
+  ["ไม่ต้องเปลี่ยนเครื่อง", "ไม่ต้องย้ายเมนูหรือประวัติการขาย ไม่ต้องติดตั้งอะไรที่เครื่อง POS"],
+  ["แคชเชียร์ขายเหมือนเดิม", "งานขายหน้าร้านไม่เปลี่ยน · นำไฟล์ยอดขายเข้าคิดครัว วัน\u2060ละ\u2060ครั้งหรือเดือน\u2060ละ\u2060ครั้งก็ได้"],
+  ["แต่ละสาขาใช้ POS คนละยี่ห้อได้", "แต่ละสาขาตั้งรูปแบบไฟล์ของตัวเอง ตัวเลขรวมทุกสาขาได้"],
+];
+
+// ---------- ไอเดียจาก Deltafood ข้อ 1–4 (proposal DMzmUZXLrnrc8BFR1RXqB6, Kong
+// "เอาตามแนะนำทั้งหมด") — the ways of telling, redrawn in คิดครัว's own colours.
+
+/** Deltafood idea 2. The POS names that sat under it in the proposal are gone:
+ * no brand's file has been tried yet (question 3 of the not-a-POS mockup). */
+export const SHOP_TYPES: string[] = ["อาหารตามสั่ง", "ร้านอาหารนั่งทาน", "คาเฟ่ / เครื่องดื่ม", "บุฟเฟต์ / ชาบู", "เบเกอรี่", "ร้านเดียวหรือหลายสาขา"];
+
+export type BentoTile = {
+  title: string;
+  body: string;
+  /** A real screen of the demo shop; the tile shows it zoomed `zoom` times around `pos`. */
+  img: { src: string; alt: string; pos: string; zoom: number };
+  fig: string;
+  sub: string;
+  /** The feature further down the page that tells the rest. */
+  href: string;
+  more: string;
+  wide?: boolean;
+};
+
+/** Deltafood idea 3: the three promises, now with a screen each, plus daily sales.
+ * Every figure is the demo shop's, as its picture shows it (ก.ย. 69). */
+export const BENTO: BentoTile[] = [
+  {
+    title: "รู้กำไรของแต่ละเมนู",
+    body: "คิดจากสูตรกับราคาที่ร้านซื้อจริง ไม่ใช่ราคาที่จำเอา",
+    img: { src: "/landing/menu-eng.png", alt: "เมนูของร้านตัวอย่างแบ่งตามขายได้และกำไรต่อจาน", pos: "100% 30%", zoom: 1.3 },
+    fig: "ส้มตำไทย กำไร ฿49 ต่อจาน",
+    sub: "ขายได้ 599 จาน · ก.ย. 69",
+    href: "#f-menu",
+    more: "ดูการวิเคราะห์เมนู",
+    wide: true,
+  },
+  {
+    title: "รู้ทันเมื่อวัตถุดิบขึ้นราคา",
+    body: "ใบรับสินค้าทุกใบบอกว่าตัวไหนขึ้นราคา ร้านจ่ายเพิ่ม\u2060กี่\u2060บาท",
+    img: { src: "/landing/prices.png", alt: "แนวโน้มราคาวัตถุดิบของร้านตัวอย่าง", pos: "62% 40%", zoom: 1.9 },
+    fig: "เบียร์สิงห์ 620 มล. ▲ 5.3%",
+    sub: "จ่ายเพิ่ม ฿324 ในช่วงล่าสุด",
+    href: "#f-prices",
+    more: "ดูราคาวัตถุดิบ",
+  },
+  {
+    title: "ยอดขายรายวัน",
+    body: "จากไฟล์ของ POS เครื่องเดิม เทียบกับเดือนก่อนแบบต่อวัน",
+    img: { src: "/landing/sales-app.png", alt: "ยอดขายรายวันของร้านตัวอย่าง", pos: "94% 68%", zoom: 1.3 },
+    fig: "฿30,751 ต่อวัน",
+    sub: "ก.ย. 69 · ▲ 21.3% เทียบ ส.ค. 69",
+    href: "#f-sales",
+    more: "ดูการวิเคราะห์ยอดขาย",
+  },
+  {
+    title: "รู้ว่าของหายไปกี่บาท",
+    body: "ร้านที่มีสูตร นับสต็อกแล้วเห็นว่าหายที่ตัวไหน เรียงจากเงินมากไปน้อย",
+    img: { src: "/landing/leaks.png", alt: "รายการของที่หายของร้านตัวอย่าง เรียงตามเงิน", pos: "0% 88%", zoom: 1 },
+    fig: "กุ้งขาว + เบียร์สิงห์",
+    sub: "รวมกัน 89% ของมูลค่าที่หาย",
+    href: "#f-leaks",
+    more: "ดูของหายไปไหน",
+    wide: true,
+  },
+];
+
+/** Deltafood idea 1: what a shop says, beside what the system does today.
+ * Asked as a question ("ฟังดูคุ้นไหม"), never "most restaurants" — nobody measured that. */
+export const PAINS: [IconKey, string, IconKey, string][] = [
+  ["coin", "ยอดขายดี แต่สิ้นเดือนเงินไม่เหลือ", "pie", "เห็นต้นทุนวัตถุดิบเป็น % ของยอดขาย และกำไรของร้านทุกเดือน"],
+  ["trend", "วัตถุดิบขึ้นราคาเงียบ ๆ", "bell", "รับสินค้าแล้วรู้ทันทีว่าตัวไหนขึ้นราคา ร้านจ่ายเพิ่ม\u2060กี่\u2060บาท"],
+  ["search", "ของในสต็อกหาย ไม่รู้ว่าตัวไหน", "count", "ร้านที่มีสูตร นับสต็อกแล้วเห็นว่าหายที่ตัวไหน กี่\u2060บาท"],
+  ["menu", "ตั้งราคาเมนูใหม่จากความรู้สึก", "flask", "ทดลองเมนู เห็นต้นทุนต่อจานก่อนตั้งราคา"],
+  ["receipt", "สิ้นเดือนนั่งรวมบิลส่งบัญชี", "file", "ปิดเดือนแล้วส่งออกไฟล์ตามโปรแกรมบัญชีที่ร้านใช้"],
+  ["swap", "อยากรู้ต้นทุน แต่ไม่อยากเปลี่ยน POS", "plug", "ใช้ POS เครื่องเดิม แค่นำเข้าไฟล์ยอดขาย"],
 ];
 
 export type Feature = {
+  /** The bento's links land here. */
+  id: string;
   tag: string;
   title: string;
   body: string;
@@ -73,6 +175,7 @@ export type Feature = {
 
 export const FEATURES: Feature[] = [
   {
+    id: "f-sales",
     tag: "วิเคราะห์ยอดขาย",
     title: "หมวดไหนขายดีวันไหน ดูได้ในตารางเดียว",
     body: "ทุกตัวเลขเป็นยอดเฉลี่ยต่อวัน เดือนที่เปิดร้านไม่เท่ากันก็เทียบกันได้ตรง ๆ",
@@ -85,6 +188,7 @@ export const FEATURES: Feature[] = [
     callout: { at: "br", star: true, title: "กับข้าว สัดส่วนสูงสุดวันเสาร์", sub: "21.7% ของยอดขายวันนั้น" },
   },
   {
+    id: "f-menu",
     tag: "วิเคราะห์เมนู",
     title: "เห็นว่าเมนูไหนขายดีแต่กำไรต่ำ และเมนูไหนกำไรดีแต่ขายน้อย",
     body: "ดูจำนวนจานที่ขายได้คู่กับกำไรต่อจาน แล้วแบ่งเมนูเป็นสี่กลุ่ม พร้อมเหตุผลทีละเมนู · เมนูที่ยังไม่มีสูตรมีรายชื่อแยกไว้ให้",
@@ -97,6 +201,7 @@ export const FEATURES: Feature[] = [
     callout: { at: "tl", star: true, title: "ดาวเด่น 5 เมนู", sub: "ส้มตำไทย กำไร ฿49 ต่อจาน" },
   },
   {
+    id: "f-expenses",
     tag: "วิเคราะห์รายจ่าย",
     title: "เงินของร้านจ่ายไปกับอะไรบ้าง กดไล่ดูได้ถึงบิลทีละใบ",
     body: "แยกตามหมวดและตามผู้ขาย กดที่กราฟแล้วไล่ลงไปถึงกลุ่มสินค้า วัตถุดิบ และบิล",
@@ -109,6 +214,7 @@ export const FEATURES: Feature[] = [
     callout: { at: "br", title: "อาหาร 69% ของรายจ่าย", sub: "฿321,085 · ก.ย. 69" },
   },
   {
+    id: "f-prices",
     tag: "ติดตามราคาวัตถุดิบ",
     title: "วัตถุดิบตัวไหนขึ้นราคา ร้านจ่ายเพิ่มไปเท่าไร",
     body: "ดูราคาที่จ่ายจริงจากใบรับสินค้าเป็นรายสัปดาห์ ตัวไหนขึ้น ตัวไหนลง เห็นได้ทันที",
@@ -121,6 +227,7 @@ export const FEATURES: Feature[] = [
     callout: { at: "tr", title: "เบียร์สิงห์ 620 มล.", up: "▲ 5.3%", sub: "จ่ายเพิ่ม ฿324 ในช่วงล่าสุด" },
   },
   {
+    id: "f-leaks",
     tag: "ของหายไปไหน",
     title: "นับสต็อกแล้วรู้ว่าของหายไปกี่บาท พร้อมสาเหตุที่เป็นไปได้",
     body: "สำหรับร้านที่มีสูตร: เทียบของที่นับได้กับที่ควรเหลือตามยอดขาย โดยหักของเสียที่บันทึกไว้แล้ว",
@@ -134,17 +241,22 @@ export const FEATURES: Feature[] = [
   },
 ];
 
+export type RoleShot = { kind: "desk" | "phone"; src: string; cap: string; w: number; h: number };
+
 export type Role = {
   name: string;
   sub: string;
   title: string;
   can: string[];
   cant?: string;
-  pic:
-    | { kind: "desk"; src: string; alt: string }
-    | { kind: "phones"; shots: { src: string; alt: string }[] }
-    | { kind: "card"; eyebrow: string; title: string; body: string };
+  /** Kong 2026-11-03: "แต่ละ position … เอามาเยอะ ๆ ก็ได้ เขาจะได้ดูหน้าตาแอปคร่าว ๆ".
+   * Every one a real screen of the demo shop (desk 2026-11-06 after the side menu
+   * became 21 items; phones as captured for วันหนึ่งของร้าน). */
+  shots: RoleShot[];
 };
+
+const desk = (src: string, cap: string, w = 1456, h = 900): RoleShot => ({ kind: "desk", src, cap, w, h });
+const phone = (src: string, cap: string): RoleShot => ({ kind: "phone", src, cap, w: 780, h: 1520 });
 
 export const ROLES: Role[] = [
   {
@@ -156,7 +268,12 @@ export const ROLES: Role[] = [
       "ค่าใช้จ่ายแยกตามหมวดและผู้ขาย และวัตถุดิบที่ขึ้นราคา",
       "ของที่หายจากการนับสต็อก และกำไรสุทธิรายเดือนแยกตามสาขา",
     ],
-    pic: { kind: "desk", src: "/landing/sales-app.png", alt: "หน้ายอดขายของร้านตัวอย่าง" },
+    shots: [
+      desk("/landing/sales-app.png", "ยอดขาย เทียบกับเดือนก่อน"),
+      desk("/landing/menu-eng.png", "เมนูไหนขายดี เมนูไหนกำไรดี", 1116, 841),
+      desk("/landing/leaks.png", "ของหายไปไหน กี่บาท", 1116, 516),
+      phone("/landing/day-dash.png", "แดชบอร์ดบนมือถือ"),
+    ],
   },
   {
     name: "ครัว",
@@ -164,13 +281,12 @@ export const ROLES: Role[] = [
     title: "ทำบนมือถือได้ ไม่ต้องใช้คอม",
     can: ["ขอซื้อของที่ใกล้หมด โดยระบบแนะนำจำนวนให้", "นับสต็อกทีละหมวดบนมือถือ นับพร้อมกันหลายคนได้", "บันทึกของเสียและมื้อพนักงาน"],
     cant: "ไม่เห็นราคาซื้อ ต้นทุน และกำไร",
-    pic: {
-      kind: "phones",
-      shots: [
-        { src: "/landing/catalog.png", alt: "ใบขอซื้อบนมือถือ" },
-        { src: "/landing/count.png", alt: "ใบนับสต็อกบนมือถือ" },
-      ],
-    },
+    shots: [
+      phone("/landing/catalog.png", "ขอซื้อของที่ใกล้หมด"),
+      phone("/landing/count.png", "นับสต็อกทีละหมวด"),
+      phone("/landing/waste.png", "บันทึกของเสีย"),
+      phone("/landing/staff-meals.png", "ขอเบิกมื้อพนักงาน"),
+    ],
   },
   {
     name: "จัดซื้อ",
@@ -181,7 +297,12 @@ export const ROLES: Role[] = [
       "เทียบราคาจากการซื้อครั้งล่าสุดของผู้ขายแต่ละราย",
       "เมื่อรับสินค้า ระบบเพิ่มสต็อกและสร้างบิลให้อัตโนมัติ",
     ],
-    pic: { kind: "desk", src: "/landing/supplier.png", alt: "หน้าผู้ขายของร้านตัวอย่าง" },
+    shots: [
+      desk("/landing/supplier.png", "ผู้ขาย และราคาที่ซื้อครั้งล่าสุด"),
+      desk("/landing/po.png", "ใบสั่งซื้อ พิมพ์หรือบันทึกภาพส่งผู้ขาย"),
+      phone("/landing/day-receive.png", "รับสินค้าบนมือถือ"),
+      desk("/landing/prices.png", "วัตถุดิบที่ขึ้นราคา", 1116, 440),
+    ],
   },
   {
     name: "บัญชี",
@@ -193,7 +314,11 @@ export const ROLES: Role[] = [
       "ปิดเดือนแล้วส่งออกไฟล์ให้ PEAK, FlowAccount, Express, Xero หรือ QuickBooks",
     ],
     cant: "แก้งานของครัวและหน้าร้านไม่ได้",
-    pic: { kind: "desk", src: "/landing/expenses.png", alt: "วิเคราะห์รายจ่ายของร้านตัวอย่าง" },
+    shots: [
+      desk("/landing/expenses.png", "รายจ่ายแยกหมวดและผู้ขาย", 1116, 682),
+      desk("/landing/bill.png", "บิลที่สร้างจากใบรับสินค้า"),
+      desk("/landing/month-end.png", "ปิดเดือน แล้วส่งออกไฟล์ให้บัญชี"),
+    ],
   },
   {
     name: "แคชเชียร์",
@@ -201,12 +326,7 @@ export const ROLES: Role[] = [
     title: "ปิดร้านประจำวันได้จากมือถือ",
     can: ["บันทึกยอดปิดร้าน เงินสด และจำนวนลูกค้าของวัน", "อัปโหลดไฟล์ POS แล้วระบบตรวจให้ว่ายอดตรงกับที่ปิดร้านไว้", "แจ้งปัญหาของวันให้ผู้จัดการเห็น"],
     cant: "ไม่เห็นต้นทุนและกำไร",
-    pic: {
-      kind: "card",
-      eyebrow: "ปิดร้านประจำวัน",
-      title: "ยอดปิดร้าน · เงินสด · ลูกค้าวันนี้ · ปัญหาที่พบ",
-      body: "กรอกได้ในหน้าเดียวบนมือถือ และคนในร้านเขียนความเห็นต่อท้ายได้",
-    },
+    shots: [phone("/landing/day-close.png", "ปิดร้านประจำวัน"), phone("/landing/sales-import.png", "นำเข้าไฟล์ยอดขายของสาขา")],
   },
 ];
 
