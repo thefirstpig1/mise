@@ -55,4 +55,12 @@ describe("page help", () => {
       .map((x) => x.id);
     expect(missing).toEqual([]);
   });
+
+  // Round 2.1: a number box says where its number sits; "ดูบนหน้า" rings that part.
+  it("PH4 — every number box points at a part of its own page", () => {
+    const wrong = Object.entries(PAGE_HELP).flatMap(([k, h]) =>
+      (h.formulas ?? []).filter((f) => f.part && !(h.sections ?? []).some((x) => x.id === f.part)).map((f) => `${k}: ${f.name} → ${f.part}`)
+    );
+    expect(wrong).toEqual([]);
+  });
 });

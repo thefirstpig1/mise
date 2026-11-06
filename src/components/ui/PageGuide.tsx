@@ -18,13 +18,19 @@
 // A part is listed only when the page drew it (data-help="<id>"): a reader
 // without cost access, or another view, simply has fewer parts. A part whose
 // data is there but whose period is empty carries data-waiting inside it.
+// Round 2.1 (Kong 2026-11-06: "ระบบตัดแทน … เขาไม่รู้เลยนะว่าเราหมายถึงอะไร"):
+// a part may say what it means (`more`), a part that appears only sometimes is
+// listed apart with when it appears (`when`), and a number card names itself as
+// the working of a number (or a rule the system decides by), where it sits, its
+// steps and a worked example. Kong on that sample: "ตอนแรกเป็นแบบเมื่อกี้ แล้วเขา
+// สามารถกดเพื่อขยายดูการอธิบายได้" — the short version shows, the rest opens on a press.
 // ============================================================
 
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { NEEDS, NEED_KEYS, needPartial, needStatus, type NeedKey, type Readiness } from "@/lib/data-needs";
-import type { HelpSection, PageHelpCopy } from "@/lib/page-help";
+import type { HelpFormula, HelpSection, PageHelpCopy } from "@/lib/page-help";
 
 type Tab = "map" | "calc" | "data" | "why";
 type Part = HelpSection & { no: number; state: "ready" | "partial" | "needs" | "empty"; missing: NeedKey[] };
@@ -47,9 +53,12 @@ export function partElement(id: string): HTMLElement | null {
   return null;
 }
 
-/** The parts the page actually drew, numbered in page order, with their state. */
-function useParts(sections: HelpSection[], ready: Readiness | null | undefined): Part[] {
-  const [present, setPresent] = useState<Record<string, boolean>>({});
+/**
+ * The parts the page actually drew, numbered in page order, with their state —
+ * and the parts that appear only sometimes (`when`) and are not drawn now.
+ */
+function useParts(sections: HelpSection[], ready: Readiness | null | undefined): { parts: Part[]; later: HelpSection[] } {
+  const [present, setPresent] = useState<Record<string, boolean> | null>(null);
   useEffect(() => {
     const p: Record<string, boolean> = {};
     for (const s of sections) {
@@ -60,8 +69,9 @@ function useParts(sections: HelpSection[], ready: Readiness | null | undefined):
     setPresent(p);
   }, [sections]);
   return useMemo(() => {
+    if (!present) return { parts: [], later: [] };
     let no = 0;
-    return sections
+    const parts = sections
       .filter((s) => present[s.id])
       .map((s) => {
         // /cost waits for a count under นับสต็อก, for posted days under สูตรอาหาร.
@@ -78,6 +88,7 @@ function useParts(sections: HelpSection[], ready: Readiness | null | undefined):
               : "ready";
         return { ...s, no: ++no, state, missing: none.length ? none : missing };
       });
+    return { parts, later: sections.filter((s) => s.when && !present[s.id]) };
   }, [sections, present, ready]);
 }
 
@@ -97,7 +108,7 @@ export function GuideDialog({ h, ready, onClose }: { h: PageHelpCopy; ready: Rea
   const [tab, setTab] = useState<Tab>("map");
   const [hot, setHot] = useState<string | null>(null);
   const [spot, setSpot] = useState<{ index: number; tour: boolean } | null>(null);
-  const parts = useParts(h.sections ?? [], ready);
+  const { parts, later } = useParts(h.sections ?? [], ready);
   // Usable = ready or partly there; the rest wait for data or for this period.
   const readyCount = parts.filter((p) => p.state === "ready" || p.state === "partial").length;
   const waiting = parts.filter((p) => p.state === "needs" || p.state === "empty");
@@ -137,7 +148,7 @@ export function GuideDialog({ h, ready, onClose }: { h: PageHelpCopy; ready: Rea
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="flex max-h-[90vh] w-full max-w-[880px] animate-pop-in flex-col overflow-hidden rounded-[20px] bg-background shadow-lg max-sm:max-h-[94vh] max-sm:animate-slide-up max-sm:rounded-b-none"
+        className="flex max-h-[90vh] w-full max-w-[880px] animate-pop-in flex-col md:h-[min(86vh,760px)] overflow-hidden rounded-[20px] bg-background shadow-lg max-sm:max-h-[94vh] max-sm:animate-slide-up max-sm:rounded-b-none"
       >
         <header className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1 border-b border-border bg-surface px-5 pb-3 pt-4">
           <h2 id={titleId} className="font-display text-lg font-semibold leading-snug">
@@ -194,31 +205,52 @@ export function GuideDialog({ h, ready, onClose }: { h: PageHelpCopy; ready: Rea
                   <PageMap layout={h.layout ?? []} parts={parts} hot={hot} setHot={setHot} onPick={(i) => setSpot({ index: i, tour: false })} />
                   <p className="mt-1.5 text-xs text-muted-foreground">ผังของหน้านี้ · กดช่องเพื่อดูบนหน้า</p>
                 </div>
-                <ol className="grid gap-2">
-                  {parts.map((p, i) => (
-                    <li
-                      key={p.id}
-                      onMouseEnter={() => setHot(p.id)}
-                      onMouseLeave={() => setHot(null)}
-                      className={`grid grid-cols-[26px_minmax(0,1fr)_auto] items-start gap-x-2.5 gap-y-0.5 rounded-2xl border bg-surface px-3 py-2.5 transition-colors ${hot === p.id ? "border-[#C0692B]" : "border-border"}`}
-                    >
-                      <span
-                        aria-hidden
-                        className={`row-span-2 mt-0.5 grid h-6 w-6 place-items-center rounded-full font-display text-xs font-bold ${p.state === "ready" || p.state === "partial" ? "bg-primary text-primary-foreground" : "border-[1.4px] border-dashed border-sage text-muted-subtle"}`}
+                <div className="grid gap-4">
+                  <ol className="grid gap-2">
+                    {parts.map((p, i) => (
+                      <li
+                        key={p.id}
+                        onMouseEnter={() => setHot(p.id)}
+                        onMouseLeave={() => setHot(null)}
+                        className={`grid grid-cols-[26px_minmax(0,1fr)_auto] items-start gap-x-2.5 gap-y-0.5 rounded-2xl border bg-surface px-3 py-2.5 transition-colors ${hot === p.id ? "border-[#C0692B]" : "border-border"}`}
                       >
-                        {p.no}
-                      </span>
-                      <b className="font-display text-sm font-semibold">{p.title}</b>
-                      <span className="row-span-2 grid justify-items-end gap-1">
-                        {stateChip(p)}
-                        <button type="button" className="link text-xs" onClick={() => setSpot({ index: i, tour: false })}>
-                          ดูบนหน้า ›
-                        </button>
-                      </span>
-                      <span className="text-[13px] text-muted-foreground">{p.answers}</span>
-                    </li>
-                  ))}
-                </ol>
+                        <span
+                          aria-hidden
+                          className={`row-span-2 mt-0.5 grid h-6 w-6 place-items-center rounded-full font-display text-xs font-bold ${p.state === "ready" || p.state === "partial" ? "bg-primary text-primary-foreground" : "border-[1.4px] border-dashed border-sage text-muted-subtle"}`}
+                        >
+                          {p.no}
+                        </span>
+                        <b className="font-display text-sm font-semibold">{p.title}</b>
+                        <span className="row-span-2 grid justify-items-end gap-1">
+                          {stateChip(p)}
+                          <button type="button" className="link text-xs" onClick={() => setSpot({ index: i, tour: false })}>
+                            ดูบนหน้า ›
+                          </button>
+                        </span>
+                        <span className="text-[13px] text-muted-foreground">{p.answers}</span>
+                        {p.more ? <Means text={p.more} className="col-span-2 col-start-2 max-sm:col-span-3 max-sm:col-start-1" /> : null}
+                      </li>
+                    ))}
+                  </ol>
+                  {later.length ? (
+                    <div className="grid gap-2">
+                      <p className="font-display text-xs font-semibold text-muted-subtle">ส่วนที่ขึ้นเฉพาะบางกรณี · ตอนนี้ไม่ได้แสดงบนหน้า</p>
+                      <ul className="grid gap-2">
+                        {later.map((s) => (
+                          <li key={s.id} className="grid gap-1 rounded-2xl border border-dashed border-sage bg-[#FBF8EE] px-3 py-2.5">
+                            <b className="font-display text-sm font-semibold">{s.title}</b>
+                            <span className="text-[13px] text-muted-foreground">{s.answers}</span>
+                            <span className="text-[13px]">
+                              <b className="font-display text-xs font-semibold text-gold-ink">ขึ้นเมื่อ </b>
+                              {s.when}
+                            </span>
+                            {s.more ? <Means text={s.more} /> : null}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                </div>
               </div>
               {parts.length > 1 ? (
                 <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
@@ -230,28 +262,13 @@ export function GuideDialog({ h, ready, onClose }: { h: PageHelpCopy; ready: Rea
               ) : null}
             </div>
           ) : tab === "calc" ? (
-            <div className="grid gap-3 md:grid-cols-2">
-              {(h.formulas ?? []).map((f) => (
-                <div key={f.name} className="grid content-start gap-1.5 rounded-2xl border border-border bg-surface p-3.5">
-                  <b className="font-display text-[0.95rem] font-semibold">{f.name}</b>
-                  <span className="rounded-xl bg-surface-sunk px-3 py-1.5 font-display text-sm text-primary">{f.formula}</span>
-                  {f.includes?.length || f.excludes?.length ? (
-                    <span className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs">
-                      {f.includes?.map((x) => (
-                        <span key={x}>
-                          <b className="text-good">✓</b> {x}
-                        </span>
-                      ))}
-                      {f.excludes?.map((x) => (
-                        <span key={x}>
-                          <b className="text-bad">✕</b> ไม่รวม{/^[A-Za-z]/.test(x) ? ` ${x}` : x}
-                        </span>
-                      ))}
-                    </span>
-                  ) : null}
-                  {f.note ? <span className="text-[13px] text-muted-foreground">{f.note}</span> : null}
-                </div>
-              ))}
+            <div className="grid gap-3">
+              <p className="text-[13px] text-muted-foreground">ตัวเลขบนหน้านี้แต่ละตัวคิดมาอย่างไร และระบบตัดสินสถานะต่าง ๆ อย่างไร · กด “ดูทีละขั้น” เพื่อดูวิธีคิดพร้อมตัวเลขของร้านสมมุติ · กด “ดูบนหน้า” เพื่อดูว่าอยู่ตรงไหน</p>
+              {(h.formulas ?? []).map((f) => {
+                const sec = f.part ? h.sections?.find((x) => x.id === f.part) : undefined;
+                const at = sec ? parts.findIndex((p) => p.id === sec.id) : -1;
+                return <NumberCard key={f.name} f={f} where={sec?.title} onPoint={at >= 0 ? () => setSpot({ index: at, tour: false }) : null} />;
+              })}
             </div>
           ) : tab === "data" ? (
             <DataFlow h={h} ready={ready} />
@@ -308,6 +325,119 @@ function statusLine(parts: Part[]): string {
     partial.length ? `${partial.length} ส่วนคิดจากข้อมูลเท่าที่มี (${labels(partial)}ยังไม่ครบ)` : "",
   ].filter(Boolean);
   return bits.length ? ` · ${bits.join(" · ")}` : " · ครบทุกส่วน";
+}
+
+/**
+ * What a part means, for a reader who was never in our conversation — closed
+ * at first (the short line above it is the part's summary), one paragraph per " · ".
+ */
+function Means({ text, className = "" }: { text: string; className?: string }) {
+  const [open, setOpen] = useState(false);
+  const id = useId();
+  return (
+    <span className={`grid justify-items-start gap-1 ${className}`}>
+      <button type="button" aria-expanded={open} aria-controls={id} onClick={() => setOpen(!open)} className="link text-xs">
+        {open ? "ซ่อนคำอธิบาย ▴" : "อ่านคำอธิบาย ▾"}
+      </button>
+      {open ? (
+        <span id={id} className="grid w-full animate-fade-in gap-1 rounded-xl bg-surface-sunk px-3 py-2 text-[13px] leading-relaxed">
+          <b className="font-display text-xs font-semibold text-gold-ink">หมายความว่า</b>
+          {text.split(" · ").map((x) => (
+            <span key={x}>{x}</span>
+          ))}
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
+/**
+ * One number on the page (or one rule the system decides by): what it is, where
+ * it sits, the formula and what it counts — then, on a press, the working step
+ * by step with figures from a made-up shop.
+ */
+function NumberCard({ f, where, onPoint }: { f: HelpFormula; where: string | undefined; onPoint: (() => void) | null }) {
+  const [open, setOpen] = useState(false);
+  const id = useId();
+  const rule = f.kind === "rule";
+  const more = !!(f.steps?.length || f.worked?.length || f.note);
+  return (
+    <div className="grid content-start gap-2 rounded-2xl border border-border bg-surface p-3.5">
+      <div className="flex flex-wrap items-end justify-between gap-x-3 gap-y-1">
+        <span className="grid">
+          <span className="font-display text-[11px] font-semibold tracking-wide text-gold-ink">{rule ? "ระบบตัดสินอย่างไร" : "ตัวเลขนี้คิดอย่างไร"}</span>
+          <b className="font-display text-[0.95rem] font-semibold">{f.name}</b>
+        </span>
+        {where ? (
+          onPoint ? (
+            <button type="button" className="link text-xs" onClick={onPoint}>
+              อยู่ใน “{where}” · ดูบนหน้า ›
+            </button>
+          ) : (
+            <span className="text-xs text-muted-subtle">อยู่ใน “{where}” · ตอนนี้ไม่ได้แสดงบนหน้า</span>
+          )
+        ) : null}
+      </div>
+      <span className="grid gap-0.5">
+        <span className="text-xs text-muted-subtle">{rule ? "หลักที่ใช้" : "สูตร"}</span>
+        <span className="rounded-xl bg-surface-sunk px-3 py-1.5 font-display text-sm text-primary">{f.formula}</span>
+      </span>
+      {f.includes?.length || f.excludes?.length ? (
+        <span className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs">
+          {f.includes?.map((x) => (
+            <span key={x}>
+              <b className="text-good">✓</b> {x}
+            </span>
+          ))}
+          {f.excludes?.map((x) => (
+            <span key={x}>
+              <b className="text-bad">✕</b> ไม่รวม{/^[A-Za-z]/.test(x) ? ` ${x}` : x}
+            </span>
+          ))}
+        </span>
+      ) : null}
+      {more ? (
+        <button type="button" aria-expanded={open} aria-controls={id} onClick={() => setOpen(!open)} className="link justify-self-start text-xs">
+          {open ? "ซ่อนวิธีคิด ▴" : "ดูทีละขั้น พร้อมตัวอย่างตัวเลข ▾"}
+        </button>
+      ) : null}
+      {open ? (
+        <div id={id} className="grid animate-fade-in gap-2">
+          {f.steps?.length ? (
+            <span className="grid gap-0.5">
+              <span className="text-xs text-muted-subtle">ทีละขั้น</span>
+              <ol className="list-decimal space-y-0.5 pl-5 text-[13px]">
+                {f.steps.map((x) => (
+                  <li key={x}>{x}</li>
+                ))}
+              </ol>
+            </span>
+          ) : null}
+          {f.worked?.length ? (
+            <span className="grid gap-1 rounded-xl border border-border px-3 py-2">
+              <span className="flex flex-wrap items-center gap-2">
+                <span className="text-xs text-muted-subtle">ลองคิดด้วยตัวเลข</span>
+                <span className="rounded-full border border-[#E2CE97] bg-[#F8EFD6] px-2 font-display text-[11px] font-semibold text-gold-ink">ตัวอย่าง · ร้านสมมุติ</span>
+              </span>
+              {f.worked.map(([k, v]) => (
+                <span key={k} className="flex justify-between gap-3 border-b border-dashed border-border pb-1 text-[13px] last:border-0 last:pb-0">
+                  <span>{k}</span>
+                  <b className="whitespace-nowrap font-display font-semibold tabular-nums">{v}</b>
+                </span>
+              ))}
+            </span>
+          ) : null}
+          {f.note ? (
+            <span className="grid gap-0.5 text-[13px] text-muted-foreground">
+              {f.note.split(" · ").map((x) => (
+                <span key={x}>{x}</span>
+              ))}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 /** The page drawn small: one box per part, where it sits. */
