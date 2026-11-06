@@ -19,7 +19,7 @@ export default async function LeakPage({ searchParams }: { searchParams: Promise
     return (
       <div className="space-y-4">
       <LeakTitle />
-      <div className="max-w-2xl space-y-3 rounded-[18px] border border-border/70 bg-surface shadow-card p-6 text-sm">
+      <div data-help="cost-leaks-count" className="max-w-2xl space-y-3 rounded-[18px] border border-border/70 bg-surface shadow-card p-6 text-sm">
         <h2 className="font-display text-lg font-semibold">ร้านนี้คิดกำไรแบบนับสต็อก หน้านี้จึงยังบอกไม่ได้ว่าของหายไปไหน</h2>
         <p className="text-muted-foreground">
           วิธีนับสต็อก ยอดขายไม่ตัดสต็อก ทุกครั้งที่นับ ส่วนที่นับได้น้อยกว่าระบบจึงคือของที่ใช้ไปทั้งช่วง — ขายและขาดรวมกัน แยกกันไม่ได้ ระบบเรียกตัวเลขนี้ว่า “ใช้ไปตามการนับ” และใช้เป็นต้นทุนขายของเดือน

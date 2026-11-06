@@ -74,7 +74,7 @@ export default function MyAdvances({ claims, today, storageReady, ...options }: 
         <p className="rounded-xl border border-warn-border bg-warn-bg p-3 text-sm text-warn">ระบบเก็บรูปยังไม่พร้อม จึงยังบันทึกบิลใหม่ไม่ได้ — กรุณาแจ้งคิดครัว</p>
       )}
 
-      <section className="rounded-2xl bg-primary px-5 py-4 text-primary-foreground">
+      <section data-help="my-advances-owed" className="rounded-2xl bg-primary px-5 py-4 text-primary-foreground">
         <p className="text-sm opacity-80">ร้านยังต้องคืนคุณ</p>
         <p className="font-display text-3xl font-semibold tabular-nums">{baht(owed)}</p>
         <p className="text-sm opacity-85">
@@ -88,7 +88,7 @@ export default function MyAdvances({ claims, today, storageReady, ...options }: 
         </div>
       </section>
 
-      <div className="seg" role="group" aria-label="แสดง">
+      <div data-help="my-advances-filter" className="seg" role="group" aria-label="แสดง">
         {(
           [
             ["open", `รอคืน ${open.length}`],
@@ -104,7 +104,7 @@ export default function MyAdvances({ claims, today, storageReady, ...options }: 
 
       {shown.length === 0 ? (
         // The bill cards' own shape, dashed (Kong 2026-11-05: an empty page keeps the filled layout).
-        <div className="space-y-2">
+        <div data-help="my-advances-list" className="space-y-2">
           <ul aria-label="รายการบิลที่ซื้อเอง ยังไม่มีรายการ" className="space-y-2">
             {[0.7, 0.55].map((w) => (
               <li key={w} className="grid grid-cols-[3.5rem_minmax(0,1fr)_auto] items-center gap-3 rounded-[18px] border border-dashed border-border-strong bg-surface p-3">
@@ -123,7 +123,7 @@ export default function MyAdvances({ claims, today, storageReady, ...options }: 
           <p className="text-center text-sm text-muted-foreground">{filter === "open" ? "ยังไม่มีบิลที่รอคืนเงิน" : "ยังไม่มีรายการ"}</p>
         </div>
       ) : (
-        <ul className="space-y-2">
+        <ul data-help="my-advances-list" className="space-y-2">
           {shown.map((c) => (
             <li key={c.paymentId}>
               <button

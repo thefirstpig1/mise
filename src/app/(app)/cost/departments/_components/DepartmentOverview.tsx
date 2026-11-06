@@ -85,7 +85,7 @@ export default function DepartmentOverview(props: {
         help="cost-departments" title="ต้นทุนตามแผนก" description="แผนกไหนทำเงิน ต้นทุนอยู่ในเป้าของแผนกไหม ดีขึ้นหรือแย่ลง และอะไรดันต้นทุน" />
 
       {/* sticky slice control */}
-      <div className="sticky top-2 z-20 space-y-2 rounded-2xl border border-border bg-surface px-3 py-2.5 shadow-card">
+      <div data-help="cost-departments-view" className="sticky top-2 z-20 space-y-2 rounded-2xl border border-border bg-surface px-3 py-2.5 shadow-card">
         <div className="flex flex-wrap items-center gap-2">
           <Seg value={props.view} onChange={(v) => go({ view: v, p: null }, `v${v}`)} options={[["month", "รายเดือน"], ["week", "รายสัปดาห์"]]} />
           {props.branches.length > 1 && (
@@ -130,11 +130,13 @@ export default function DepartmentOverview(props: {
       {data === null ? (
         <p className="rounded-xl border border-bad-border bg-bad-bg p-4 text-sm text-bad">คำนวณไม่สำเร็จ — ลองรีเฟรชหน้า</p>
       ) : depts.length === 0 ? (
+        <div data-help="cost-departments-mix">
         <WaitingFor figure="deptCost" needs={["sales"]} reason={`ยังไม่มียอดขายของสาขานี้ใน ${selLabel}`} />
+        </div>
       ) : (
         <>
           {/* ---------- 1–2 ---------- */}
-          <section className="space-y-2">
+          <section data-help="cost-departments-mix" className="space-y-2">
             <Q n="1–2" title="แผนกไหนทำเงิน · อยู่ในเป้าของแผนกไหม" sub={`${selLabel} · กดแผนกเพื่อดูข้อ 4–5 ของแผนกนั้น`} />
             {nothingPosted ? (
               <WaitingFor figure="deptCost" needs={["posted", "recipe", "price"]} reason={`ยังไม่ได้ตัดสต็อกตามยอดขายใน ${selLabel}`} outline={false} />
@@ -214,7 +216,7 @@ export default function DepartmentOverview(props: {
           </section>
 
           {/* ---------- 3 ---------- */}
-          <section className="space-y-2">
+          <section data-help="cost-departments-trend" className="space-y-2">
             <Q n="3" title="ดีขึ้นหรือแย่ลง" sub={`ต้นทุน % ${props.view === "week" ? "รายสัปดาห์" : "รายเดือน"} · เส้นประ = เป้าแผนก · จุดกลวง = ตัดสต็อกไม่ถึง ${props.coverageMin}% เทียบไม่ได้`} />
             {trend === null ? (
               <div className="grid gap-3 md:grid-cols-2">
@@ -236,12 +238,12 @@ export default function DepartmentOverview(props: {
           {focus && (
             <div className="grid gap-4 lg:grid-cols-2">
               {/* ---------- 4 ---------- */}
-              <section className="space-y-2 rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
+              <section data-help="cost-departments-menus" className="space-y-2 rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
                 <Q n="4" title={`เมนูไหนดันต้นทุน${nameOf(focus)}`} sub={`${selLabel} · เรียงตามเงินที่เกินเป้าของเมนู · ราคาวัตถุดิบวันนี้`} />
                 <MenuList rows={data.menus.filter((m) => m.dept === focus)} />
               </section>
               {/* ---------- 5 ---------- */}
-              <section className="space-y-2 rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
+              <section data-help="cost-departments-ingredients" className="space-y-2 rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
                 <Q n="5" title={`วัตถุดิบไหนกินเงิน${nameOf(focus)}มากที่สุด`} sub={`${selLabel} · ต้นทุนในจาน × จานที่ขาย`} />
                 <Bars rows={data.ingredients[focus] ?? []} tone={toneOf(focus)} />
                 <a href="/cost/prices" className="link text-xs">
@@ -252,7 +254,7 @@ export default function DepartmentOverview(props: {
           )}
 
           {/* ---------- 6 ---------- */}
-          <section className="space-y-2 rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
+          <section data-help="cost-departments-ordered" className="space-y-2 rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
             <Q n="6" title="แผนกสั่งของมากกว่าที่ใช้ไหม" sub={selLabel} />
             {nothingPosted && data.anyOrderedByDept ? (
               <WaitingFor figure="deptCost" needs={["posted", "recipe"]} reason="ยังไม่ได้ตัดสต็อกตามยอดขาย จึงยังไม่รู้ว่าแต่ละแผนกใช้ไปเท่าไร" outline={false} />
@@ -295,7 +297,7 @@ export default function DepartmentOverview(props: {
           </section>
 
           {/* ---------- 7 ---------- */}
-          <section className="space-y-2 rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
+          <section data-help="cost-departments-labor" className="space-y-2 rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
             <Q n="7" title="หักค่าแรงแผนกแล้วเหลือเท่าไร" sub={selLabel} />
             {Object.keys(data.labor).length > 0 && (data.grossProfitUnavailable || nothingPosted) ? (
               <p className="note p-3">
@@ -333,7 +335,7 @@ export default function DepartmentOverview(props: {
           </section>
 
           {/* ---------- 8 ---------- */}
-          <section className="space-y-1 rounded-[18px] border border-border/70 bg-surface shadow-card p-4 text-sm">
+          <section data-help="cost-departments-trust" className="space-y-1 rounded-[18px] border border-border/70 bg-surface shadow-card p-4 text-sm">
             <Q n="8" title="ตัวเลขเชื่อได้แค่ไหน" sub={selLabel} />
             <p>
               ตัดสต็อกตามยอดขายครอบคลุม <b>{data.coverage === null ? "—" : `${Math.round(data.coverage * 100)}%`}</b> ของยอดขาย ({data.postedDays} วันที่ตัดแล้ว) · เกณฑ์ {props.coverageMin}%

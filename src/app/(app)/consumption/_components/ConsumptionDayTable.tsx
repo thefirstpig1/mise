@@ -194,7 +194,7 @@ export function ConsumptionDayTable({
       )}
 
       {todo ? (
-        <div className="space-y-3 rounded-[18px] border border-warn-border bg-warn-bg p-4">
+        <div data-help="consumption-todo" className="space-y-3 rounded-[18px] border border-warn-border bg-warn-bg p-4">
           {sets.unposted.length > 0 && (
             <div>
               <p className="font-display text-[15px] font-semibold">
@@ -225,7 +225,7 @@ export function ConsumptionDayTable({
           </div>
         </div>
       ) : sets.all.length > 0 ? (
-        <div className="flex flex-wrap items-center gap-2">
+        <div data-help="consumption-todo" className="flex flex-wrap items-center gap-2">
           {press("all", allLabel, "btn-secondary btn-sm")}
           <span className="text-xs text-muted-foreground">ทุกวันในช่วงนี้ตัดแล้ว · ใช้ปุ่มนี้หลังเขียนหรือแก้สูตร ระบบจะถามยืนยันก่อน</span>
         </div>
@@ -236,7 +236,7 @@ export function ConsumptionDayTable({
       {children}
 
       {days.length === 0 ? (
-        <div className="space-y-3">
+        <div data-help="consumption-days" className="space-y-3">
           <div className="card">
             {/* Queue item 10: say what fills the table, and where. */}
             <WaitingFor figure="consumptionDays" needs={["sales", "recipe"]} reason="ยังไม่มียอดขายนำเข้าในช่วงนี้" outline={false} />
@@ -247,7 +247,7 @@ export function ConsumptionDayTable({
           </EmptyTable>
         </div>
       ) : (
-        <>
+        <div data-help="consumption-days">
           {/* Queue item 9: on a phone each day is a card — a table row stood
               ~110px tall, its chip broke in two and the hint repeated per row. */}
           <ul className="space-y-2 sm:hidden">
@@ -296,7 +296,7 @@ export function ConsumptionDayTable({
               <b className="font-medium text-foreground">ครอบคลุม</b> = ส่วนของยอดขายที่ตัดตามสูตรได้
             </span>
           </p>
-        </>
+        </div>
       )}
     </div>
   );

@@ -98,7 +98,7 @@ export default async function ExpenseAnalysisPage({ searchParams }: { searchPara
       {/* --- filters: one row per level, sticky while scrolling (Kong's sample).
           Queue item 9: on a phone each row is ONE line that scrolls sideways,
           instead of six month pills breaking into two rows. --- */}
-      <section className="sticky top-0 z-20 space-y-2.5 rounded-[18px] border border-border/70 bg-surface/95 px-4 py-3 shadow-card backdrop-blur lg:top-2">
+      <section data-help="expenses-analysis-filters" className="sticky top-0 z-20 space-y-2.5 rounded-[18px] border border-border/70 bg-surface/95 px-4 py-3 shadow-card backdrop-blur lg:top-2">
         <FilterRow label="เดือน">
           {months.map((m) => (
             <Pill key={m.key} href={href({ m: m.key })} active={m.key === month.key}>
@@ -118,7 +118,7 @@ export default async function ExpenseAnalysisPage({ searchParams }: { searchPara
 
       {/* --- headline --- */}
       {/* Queue item 9: the kit's number cards — an icon each, two by two on a phone. */}
-      <StatGrid>
+      <StatGrid help="expenses-analysis-kpis">
         {/* No bill recorded is "not known yet", not ฿0 spent (Kong's rule: never ฿0 for no data). */}
         <Stat
           label="รวมรายจ่าย"
@@ -141,13 +141,13 @@ export default async function ExpenseAnalysisPage({ searchParams }: { searchPara
         // Kong 2026-11-05: and the page's other two cards, dashed, so the
         // reader sees everything this page will show.
         <>
-          <div className="rounded-[18px] border border-border/70 bg-surface p-5 shadow-card">
+          <div data-help="expenses-analysis-sections" className="rounded-[18px] border border-border/70 bg-surface p-5 shadow-card">
             <WaitingFor figure="expenseAnalysis" needs={["expense"]} reason="ยังไม่มีบิลค่าใช้จ่ายในช่วงนี้" />
           </div>
-          <Card title="รายจ่ายรายวัน" hint={`${monthLabel(month.key)} · ตามวันที่บิล ไม่รวม VAT`}>
+          <Card help="expenses-analysis-daily" title="รายจ่ายรายวัน" hint={`${monthLabel(month.key)} · ตามวันที่บิล ไม่รวม VAT`}>
             <Outline shape="bars" sample="month" />
           </Card>
-          <Card title="บิลที่เกี่ยวข้อง" hint="กดที่บิลเพื่อดูรายการข้างใน">
+          <Card help="expenses-analysis-bills" title="บิลที่เกี่ยวข้อง" hint="กดที่บิลเพื่อดูรายการข้างใน">
             <DashRows widths={[0.6, 0.45, 0.55]} bar={false} label="บิลที่เกี่ยวข้อง ยังไม่มีรายการ" />
           </Card>
         </>
@@ -166,7 +166,7 @@ export default async function ExpenseAnalysisPage({ searchParams }: { searchPara
             suppliers={a.bySupplier.map((r) => ({ key: r.key, label: r.label, amount: n(r.amount) }))}
           />
 
-          <Card title="รายจ่ายรายวัน" hint={`${monthLabel(month.key)} · ตามวันที่บิล ไม่รวม VAT`}>
+          <Card help="expenses-analysis-daily" title="รายจ่ายรายวัน" hint={`${monthLabel(month.key)} · ตามวันที่บิล ไม่รวม VAT`}>
             <DailyBarsChart label="รายจ่าย" month={month.key} rows={a.byDay.map((d) => ({ day: d.day, amount: n(d.amount) }))} />
           </Card>
 
@@ -174,7 +174,7 @@ export default async function ExpenseAnalysisPage({ searchParams }: { searchPara
               the rest behind one press — the chart above is what the page is
               about, so nobody scrolls past 46 rows to leave it. No › on a row
               (mise-ui-review §1); the whole row opens its lines. */}
-          <Card title="บิลที่เกี่ยวข้อง" hint={`${a.bills.length.toLocaleString("th-TH")} บิล · กดที่บิลเพื่อดูรายการข้างใน · ยอดคือส่วนที่ตรงเงื่อนไขเท่านั้น`}>
+          <Card help="expenses-analysis-bills" title="บิลที่เกี่ยวข้อง" hint={`${a.bills.length.toLocaleString("th-TH")} บิล · กดที่บิลเพื่อดูรายการข้างใน · ยอดคือส่วนที่ตรงเงื่อนไขเท่านั้น`}>
             <ShowMore
               className="divide-y divide-border overflow-hidden rounded-xl border border-border"
               head={a.bills.slice(0, BILLS_SHOWN).map((b) => <BillRow key={b.expenseId} b={b} />)}
@@ -257,9 +257,9 @@ function Name({ text }: { text: string }) {
   );
 }
 
-function Card({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
+function Card({ title, hint, help, children }: { title: string; hint?: string; /** The page guide's part id. */ help?: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-[18px] border border-border/70 bg-surface shadow-card p-5">
+    <section data-help={help} className="rounded-[18px] border border-border/70 bg-surface shadow-card p-5">
       <h2 className="text-base font-semibold">{title}</h2>
       {hint ? <p className="mb-4 mt-0.5 text-xs text-muted-foreground">{hint}</p> : <div className="mb-4" />}
       {children}

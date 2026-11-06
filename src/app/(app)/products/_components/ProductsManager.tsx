@@ -451,13 +451,13 @@ export default function ProductsManager(props: {
           <h1 className="page-title">สินค้า/วัตถุดิบ</h1>
           <PageHelp page="products" />
         </div>
-          <p className="mt-0.5 text-sm text-muted-foreground">
+          <p data-help="products-counts" className="mt-0.5 text-sm text-muted-foreground">
             {active.length} รายการที่ใช้งาน · ของแปรรูป {active.filter((p) => p.type === "PREPPED").length}
             {list ? (parsSet === 0 ? " · ยังไม่ได้ตั้งขั้นต่ำ" : ` · ต่ำกว่าขั้นต่ำ ${lowCount} · ใกล้ขั้นต่ำ ${nearCount}`) : ""}
           </p>
           {/* A shop with nothing on the list has no stock to value — not ฿0 of it. */}
           {!costHidden && active.length > 0 && (
-            <p className="mt-1 text-sm">
+            <p data-help="products-value" className="mt-1 text-sm">
               มูลค่าสต็อก{branchName}{" "}
               {stockValue === null || list === null ? (
                 pulse
@@ -480,7 +480,7 @@ export default function ProductsManager(props: {
             </p>
           )}
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div data-help="products-actions" className="flex flex-wrap items-center gap-2">
           {branches.length > 1 && (
             <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
               คงเหลือและต้นทุนของ
@@ -516,7 +516,7 @@ export default function ProductsManager(props: {
       </div>
 
       {products.length === 0 ? (
-        <EmptyTable
+        <EmptyTable help="products-list"
           label="รายการสินค้า"
           columns={[
             { label: "สินค้า" },
@@ -535,7 +535,7 @@ export default function ProductsManager(props: {
         </EmptyTable>
       ) : (
         <>
-          <div className="space-y-3 rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
+          <div data-help="products-filters" className="space-y-3 rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
             <div className="flex flex-wrap gap-2.5" role="group" aria-label="ตัวกรอง">
               {STATUS.map((s) => (
                 <button key={s.key} type="button" className={chip(status === s.key)} onClick={() => setStatus(s.key)}>
@@ -579,7 +579,7 @@ export default function ProductsManager(props: {
           </div>
 
           {props.canEditInfo && shownHints.length > 0 && (status === "active" || status === "raw" || status === "prepped") && (
-            <section className="rounded-2xl border border-warn-border bg-warn-bg/40 px-4 py-3 text-sm">
+            <section data-help="products-made-hints" className="rounded-2xl border border-warn-border bg-warn-bg/40 px-4 py-3 text-sm">
               <button type="button" onClick={() => setHintsOpen((v) => !v)} className="flex w-full flex-wrap items-center justify-between gap-2 text-left">
                 <span>
                   <b className="font-semibold">วัตถุดิบ {shownHints.length} รายการถูกใช้ในสูตร แต่ร้านไม่เคยซื้อ</b>{" "}
@@ -617,7 +617,7 @@ export default function ProductsManager(props: {
           {rows.length === 0 ? (
             <EmptyState art="none">{hasQuery(q) ? `ไม่พบสินค้าที่ตรงกับ “${q}”` : "ไม่มีสินค้าในตัวกรองนี้"}</EmptyState>
           ) : view === "table" ? (
-            <div className="data-table">
+            <div data-help="products-list" className="data-table">
               <table className="w-full min-w-[760px] text-sm">
                 <thead>
                   <tr>
@@ -657,7 +657,7 @@ export default function ProductsManager(props: {
               </table>
             </div>
           ) : (
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3.5">
+            <div data-help="products-list" className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3.5">
               {rows.map(({ p, weak }) => {
                 const f = factOf(p);
                 const k = f?.state?.kind ?? null;
@@ -712,7 +712,7 @@ export default function ProductsManager(props: {
             </div>
           )}
 
-          <p className="text-xs text-muted-subtle">
+          <p data-help="products-note" className="text-xs text-muted-subtle">
             แสดง {rows.length} รายการ · คงเหลือ{costHidden ? "" : "และต้นทุน"}ของ{branchName} ·{" "}
             {list ? (list.postedThrough ? `ตัดสต็อกตามยอดขายถึง ${thDate(list.postedThrough)}` : "ยังไม่มีการตัดสต็อกตามยอดขาย ยอดคงเหลือจึงลดเฉพาะตอนนับ/ปรับ") : "กำลังโหลด…"} ·{" "}
             {list ? (list.warningDays > 0 ? `เหลือง = จะถึงขั้นต่ำภายใน ${list.warningDays} วัน (ตั้งที่หน้าตั้งค่าทั่วไป)` : "ไม่เตือนล่วงหน้า (ตั้งที่หน้าตั้งค่าทั่วไป)") : ""}

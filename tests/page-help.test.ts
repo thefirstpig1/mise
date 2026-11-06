@@ -46,9 +46,12 @@ describe("page help", () => {
 
   // A part the guide points at must be marked on the page, or "ดูบนหน้า" finds nothing.
   it("PH3 — every round-2 part is marked data-help on some page", () => {
+    // `help="id"` covers both an element's data-help and a component's help prop;
+    // a part drawn in a loop names its id inside `data-help={…}` on that line.
+    const computed = sources.split("\n").filter((l) => l.includes("data-help={"));
     const missing = Object.values(PAGE_HELP)
       .flatMap((h) => h.sections ?? [])
-      .filter((x) => !sources.includes(`data-help="${x.id}"`))
+      .filter((x) => !sources.includes(`help="${x.id}"`) && !computed.some((l) => l.includes(`"${x.id}"`)))
       .map((x) => x.id);
     expect(missing).toEqual([]);
   });

@@ -75,6 +75,8 @@ export type Readiness = {
   lastSalesDay: string | null;
   lastCountDay: string | null;
   lastReceiptDay: string | null;
+  /** The shop counts gross profit by recipe (สูตรอาหาร), not by stock count — what /cost waits for differs. */
+  recipeMethod: boolean;
 };
 
 export type NeedStatus = { done: boolean; text: string };

@@ -189,7 +189,7 @@ export default async function ExpenseListPage({
         never arrive. Still yellow: it is something somebody must do.
       */}
       {due.length > 0 && (
-        <section className="rounded-[18px] border border-warn-border bg-warn-bg px-4 pb-2 pt-3.5">
+        <section data-help="expenses-due" className="rounded-[18px] border border-warn-border bg-warn-bg px-4 pb-2 pt-3.5">
           <h2 className="font-display text-[15px] font-semibold text-foreground">
             ถึงกำหนดบันทึก {dueCount} งวด · รายการประจำ {due.length} รายการ
           </h2>
@@ -203,7 +203,7 @@ export default async function ExpenseListPage({
         </section>
       )}
 
-      <div className="space-y-2">
+      <div data-help="expenses-kpis" className="space-y-2">
         <StatGrid>
           {/* Never ฿0 for "nothing recorded yet" (mise-ui-review §3). */}
           <Stat
@@ -283,7 +283,7 @@ export default async function ExpenseListPage({
       />
 
       {rows.length === 0 ? (
-        <EmptyTable
+        <EmptyTable help="expenses-list"
           label="รายการบิลค่าใช้จ่าย"
           columns={[
             { label: "วันที่บิล" },
@@ -310,7 +310,7 @@ export default async function ExpenseListPage({
           )}
         </EmptyTable>
       ) : (
-        <>
+        <div data-help="expenses-list">
           {/* A phone: one card per bill, the whole card opening it (the receipt
               list's pattern). The amount is what is actually paid. */}
           <ul className="space-y-2 sm:hidden">
@@ -385,7 +385,7 @@ export default async function ExpenseListPage({
               </tbody>
             </table>
           </div>
-        </>
+        </div>
       )}
     </div>
   );

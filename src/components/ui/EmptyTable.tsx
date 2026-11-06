@@ -32,16 +32,19 @@ export default function EmptyTable({
   columns,
   label,
   rows = 3,
+  help,
   children,
 }: {
   columns: EmptyColumn[];
+  /** The page guide's part id — the same id the filled table carries (PageGuide). */
+  help?: string;
   /** What the table is, for a screen reader: "รายการใบสั่งซื้อ". */
   label: string;
   rows?: number;
   children: ReactNode;
 }) {
   return (
-    <div className="data-table">
+    <div data-help={help} className="data-table">
       <table aria-label={`${label} ยังไม่มีรายการ`}>
         <thead>
           <tr>

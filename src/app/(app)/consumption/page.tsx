@@ -87,7 +87,7 @@ export default async function ConsumptionPage({
           }
           actions={
             branches.length > 1 ? (
-              <div className="seg">
+              <div data-help="consumption-branch" className="seg">
                 {branches.map((b) => (
                   <FilterLink
                     key={b.id}

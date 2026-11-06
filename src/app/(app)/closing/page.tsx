@@ -128,7 +128,7 @@ export default async function ClosingMonthPage({ searchParams }: { searchParams:
       {/* Queue item 9: on a phone the branch pills and six month pills broke
           into two rows. Branches are one switch; months are one line that
           scrolls sideways, opened at the month on screen. */}
-      <div className="flex flex-wrap items-center gap-2">
+      <div data-help="closing-filters" className="flex flex-wrap items-center gap-2">
         {branches.length > 1 && (
           <PillScroller className="w-full sm:w-auto">
             <div className="seg flex-none">
@@ -149,7 +149,7 @@ export default async function ClosingMonthPage({ searchParams }: { searchParams:
         </PillScroller>
       </div>
 
-      <StatGrid className={seeMoney ? "" : "lg:grid-cols-2"}>
+      <StatGrid help="closing-kpis" className={seeMoney ? "" : "lg:grid-cols-2"}>
         <Stat
           icon={Users}
           label="ลูกค้าต่อวัน"
@@ -220,7 +220,7 @@ export default async function ClosingMonthPage({ searchParams }: { searchParams:
       {missing > 0 && <p className="text-xs text-muted-subtle">มียอดขายแต่ไม่ได้ปิดร้าน {missing} วัน · วันหรือช่องที่ไม่ได้กรอก แสดง “—” ไม่ใช่ 0</p>}
 
       {data.rows.length === 0 ? (
-        <EmptyTable
+        <EmptyTable help="closing-days"
           label="ตารางปิดร้านรายวัน"
           columns={[
             { label: "วัน" },
@@ -234,7 +234,7 @@ export default async function ClosingMonthPage({ searchParams }: { searchParams:
           ยังไม่มีข้อมูลของเดือนนี้
         </EmptyTable>
       ) : (
-        <>
+        <div data-help="closing-days">
           {/* Queue item 9: a phone read seven columns through a sideways scroll
               and saw three. Each day is a card; what was not filled in is left
               out of it rather than shown as 0. The whole card opens the day. */}
@@ -307,7 +307,7 @@ export default async function ClosingMonthPage({ searchParams }: { searchParams:
               </tbody>
             </table>
           </div>
-        </>
+        </div>
       )}
     </div>
   );

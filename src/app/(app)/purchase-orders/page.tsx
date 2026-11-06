@@ -104,7 +104,7 @@ export default async function PurchaseOrdersPage({
         </div>
       )}
 
-      <StatGrid>
+      <StatGrid help="purchase-orders-kpis">
         <Stat label="ร่าง ยังไม่ส่ง" icon={FilePen} value={`${drafts.length} ใบ`} sub={drafts.length ? baht(sum(drafts)) : "ไม่มีใบค้าง"} href={linkFor({ status: "DRAFT" })} />
         <Stat label="รอรับของ" icon={Truck} value={`${waiting.length} ใบ`} sub={waiting.length ? baht(sum(waiting)) : "ไม่มีของค้างส่ง"} href={linkFor({ status: "SENT" })} />
         <Stat
@@ -128,7 +128,7 @@ export default async function PurchaseOrdersPage({
         />
       </StatGrid>
 
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <div data-help="purchase-orders-filter" className="flex flex-wrap items-center justify-between gap-2">
         <div className="seg">
           <FilterLink href={linkFor({ status: "" })} className={seg(!query.status)}>
             ทุกสถานะ
@@ -154,7 +154,7 @@ export default async function PurchaseOrdersPage({
       </div>
 
       {orders.length === 0 ? (
-        <EmptyTable
+        <EmptyTable help="purchase-orders-table"
           label="รายการใบสั่งซื้อ"
           columns={[
             { label: "เลขที่" },
@@ -169,7 +169,7 @@ export default async function PurchaseOrdersPage({
           ยังไม่มีใบสั่งซื้อตามเงื่อนไขนี้
         </EmptyTable>
       ) : (
-        <div className="data-table">
+        <div data-help="purchase-orders-table" className="data-table">
           <table>
             <thead>
               <tr>

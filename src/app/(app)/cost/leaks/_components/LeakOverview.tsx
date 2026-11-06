@@ -68,7 +68,7 @@ export default function LeakOverview({ overview, initialCountId }: { overview: P
     return (
       <div className="space-y-4">
         <LeakTitle />
-        <div className="space-y-2 rounded-[18px] border border-border/70 bg-surface shadow-card p-6 text-sm">
+        <div data-help="cost-leaks-count" className="space-y-2 rounded-[18px] border border-border/70 bg-surface shadow-card p-6 text-sm">
           <h2 className="font-display text-lg font-semibold">ยังไม่มีการนับสต็อกที่ปิดแล้ว</h2>
           <p className="text-muted-foreground">หน้านี้เทียบของที่นับได้จริงกับที่ระบบคำนวณว่าควรเหลือ จึงต้องนับสต็อกอย่างน้อยหนึ่งครั้งก่อน</p>
           <a href="/stock-counts/new" className="btn">
@@ -148,7 +148,7 @@ function View({ data, initialCountId }: { data: Overview; initialCountId: string
       {/* Queue item 9: the page's own heading, at every page's size. */}
       <LeakTitle />
 
-      <div className="space-y-2 rounded-[18px] border border-border/70 bg-surface shadow-card px-3 py-2.5">
+      <div data-help="cost-leaks-count" className="space-y-2 rounded-[18px] border border-border/70 bg-surface shadow-card px-3 py-2.5">
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="w-14 text-xs text-muted-foreground">การนับ</span>
           {[...data.counts].reverse().map((x) => (
@@ -177,6 +177,7 @@ function View({ data, initialCountId }: { data: Overview; initialCountId: string
         </p>
       </div>
 
+      <div data-help="cost-leaks-kpis" className="space-y-5">
       <QLabel n="1">หายไปเท่าไร · เกินเป้าไหม</QLabel>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Kpi k="ไม่ตรงกับระบบ (นับได้น้อยกว่า)" icon={ScanSearch}>
@@ -219,7 +220,9 @@ function View({ data, initialCountId }: { data: Overview; initialCountId: string
           </span>
         </Kpi>
       </div>
+      </div>
 
+      <div data-help="cost-leaks-items" className="space-y-5">
       <QLabel n="2–4">
         ตัวไหน · น่าจะเพราะอะไร · ต้องไปดูที่ไหน <span className="text-xs font-normal text-muted-foreground">เรียงตามเงิน · กดแถวเพื่อดูรายการตรวจ</span>
       </QLabel>
@@ -277,25 +280,30 @@ function View({ data, initialCountId }: { data: Overview; initialCountId: string
           </div>
         )}
       </div>
+      </div>
 
       <div className="grid gap-5 lg:grid-cols-2">
-        <div className="space-y-2">
+        <div data-help="cost-leaks-trend" className="space-y-2">
           <QLabel n="5">หายซ้ำไหม · แก้แล้วดีขึ้นไหม</QLabel>
           <Trend series={series} sel={c.id} onSel={setSel} target={data.target} />
         </div>
-        <div className="space-y-2">
+        <div data-help="cost-leaks-spot" className="space-y-2">
           <QLabel n="8">ควรนับอะไรบ่อยขึ้น</QLabel>
           <Spot c={c} />
         </div>
       </div>
 
+      <div data-help="cost-leaks-over" className="space-y-5">
       <QLabel n="↕">
         นับได้มากกว่าระบบ <span className="text-xs font-normal text-muted-foreground">ไม่นำมาหักลบกับที่หาย</span>
       </QLabel>
       <Over c={c} />
+      </div>
 
+      <div data-help="cost-leaks-trust" className="space-y-5">
       <QLabel n="7">นับครั้งนี้เชื่อได้แค่ไหน</QLabel>
       <Trust c={c} />
+      </div>
 
       {open && <ItemPopup item={open} c={c} repeats={repeatsOf(open.productId)} series={series} onClose={() => setOpen(null)} />}
     </div>
@@ -339,6 +347,7 @@ export function LeakOutline() {
     ));
   return (
     <div className="space-y-4">
+      <div data-help="cost-leaks-kpis" className="space-y-4">
       <QLabel n="1">หายไปเท่าไร · เกินเป้าไหม</QLabel>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         {[
@@ -353,8 +362,9 @@ export function LeakOutline() {
           </Kpi>
         ))}
       </div>
+      </div>
       <QLabel n="2–4">ตัวไหน · น่าจะเพราะอะไร · ต้องไปดูที่ไหน</QLabel>
-      <div aria-hidden className="space-y-3 rounded-[18px] border border-border/70 bg-surface p-4 shadow-card">
+      <div data-help="cost-leaks-items" aria-hidden className="space-y-3 rounded-[18px] border border-border/70 bg-surface p-4 shadow-card">
         {rows([0.9, 0.55, 0.35, 0.2])}
       </div>
       <div aria-hidden className="grid gap-4 md:grid-cols-2">
@@ -362,7 +372,7 @@ export function LeakOutline() {
           ["5", "หายซ้ำไหม · แก้แล้วดีขึ้นไหม"],
           ["8", "ควรนับอะไรบ่อยขึ้น"],
         ].map(([n, t]) => (
-          <div key={n} className="space-y-2">
+          <div key={n} data-help={n === "5" ? "cost-leaks-trend" : "cost-leaks-spot"} className="space-y-2">
             <QLabel n={n}>{t}</QLabel>
             <div className="space-y-2.5 rounded-[18px] border border-border/70 bg-surface p-4 shadow-card">
               <DashBar className="h-3 w-4/5" />
@@ -372,11 +382,11 @@ export function LeakOutline() {
         ))}
       </div>
       <QLabel n="↕">นับได้มากกว่าระบบ</QLabel>
-      <div aria-hidden className="space-y-3 rounded-[18px] border border-border/70 bg-surface p-4 shadow-card">
+      <div data-help="cost-leaks-over" aria-hidden className="space-y-3 rounded-[18px] border border-border/70 bg-surface p-4 shadow-card">
         {rows([0.7, 0.4])}
       </div>
       <QLabel n="7">นับครั้งนี้เชื่อได้แค่ไหน</QLabel>
-      <div aria-hidden className="flex flex-wrap gap-2">
+      <div data-help="cost-leaks-trust" aria-hidden className="flex flex-wrap gap-2">
         {[7, 9, 6, 8].map((w) => (
           <DashBar key={w} className="h-7" style={{ width: `${w}rem` }} />
         ))}

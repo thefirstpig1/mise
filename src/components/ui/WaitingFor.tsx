@@ -112,7 +112,7 @@ export function WaitingSlot({ figure, needs, reason, branchId, act }: Common) {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <span className="flex min-h-[38px] flex-wrap items-center gap-x-2 gap-y-0.5 rounded-[11px] border-[1.5px] border-dashed border-primary-line bg-[repeating-linear-gradient(-45deg,rgb(174_183_132/0.08)_0_7px,transparent_7px_14px)] px-2.5 py-1.5 font-sans text-[13px] font-normal leading-normal text-muted-foreground">
+      <span data-waiting className="flex min-h-[38px] flex-wrap items-center gap-x-2 gap-y-0.5 rounded-[11px] border-[1.5px] border-dashed border-primary-line bg-[repeating-linear-gradient(-45deg,rgb(174_183_132/0.08)_0_7px,transparent_7px_14px)] px-2.5 py-1.5 font-sans text-[13px] font-normal leading-normal text-muted-foreground">
         <span className="min-w-0">
           {reason ?? (
             <>

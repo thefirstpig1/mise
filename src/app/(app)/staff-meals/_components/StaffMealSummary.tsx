@@ -80,7 +80,7 @@ export default function StaffMealSummary({
 
   return (
     <div className={`space-y-4 transition-opacity ${stale && res ? "opacity-60" : ""}`}>
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <div data-help="staff-meals-summary-controls" className="flex flex-wrap items-center justify-between gap-2">
         <div className="seg">
           {months.map((m) => (
             <button key={m} type="button" onClick={() => setMonth(m)} className={`seg-item ${m === month ? "is-on" : ""}`}>
@@ -114,13 +114,13 @@ export default function StaffMealSummary({
       ) : !r.ok ? (
         <p className="rounded-[18px] border border-border/70 bg-surface shadow-card p-5 text-sm text-muted-foreground">{r.formError}</p>
       ) : s && s.meals === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border-strong p-8 text-center text-sm text-muted-foreground">
+        <div data-help="staff-meals-kpis" data-waiting className="rounded-2xl border border-dashed border-border-strong p-8 text-center text-sm text-muted-foreground">
           ยังไม่มีมื้อพนักงานที่อนุมัติแล้วใน {monthLabel(month)}
         </div>
       ) : (
         s && (
           <>
-            <StatGrid>
+            <StatGrid help="staff-meals-kpis">
               <Stat
                 label="ต้นทุนจริง (วัตถุดิบ)"
                 value={s.cost === null || allPos ? "—" : baht(s.cost)}
@@ -142,7 +142,7 @@ export default function StaffMealSummary({
             </StatGrid>
 
             <div className="grid gap-4 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
-              <div className="min-w-0 space-y-2">
+              <div data-help="staff-meals-people" className="min-w-0 space-y-2">
                 <h3 className="text-base font-semibold">รายคน</h3>
                 <div className="data-table">
                   <table>
@@ -200,7 +200,7 @@ export default function StaffMealSummary({
 
               <div className="min-w-0 space-y-3">
                 {r.canSeeCost && !allPos && (
-                  <div className="space-y-1.5">
+                  <div data-help="staff-meals-daily" className="space-y-1.5">
                     <h3 className="text-base font-semibold">ต้นทุนรายวัน</h3>
                     <div className="flex h-28 items-end gap-1 rounded-xl border border-border bg-surface px-2 pt-2" aria-label="ต้นทุนมื้อพนักงานรายวัน">
                       {Array.from({ length: r.days }, (_, i) => {
@@ -220,7 +220,7 @@ export default function StaffMealSummary({
                     <p className="text-xs text-muted-foreground">เส้นประ = วันที่ไม่มีมื้อ · แท่งสีส้มอิฐ = วันที่สูงสุด</p>
                   </div>
                 )}
-                <div className="space-y-1 rounded-xl border border-border bg-surface p-3.5 text-sm">
+                <div data-help="staff-meals-watch" className="space-y-1 rounded-xl border border-border bg-surface p-3.5 text-sm">
                   <p className="font-display font-semibold">ที่ควรดู</p>
                   {worst ? <p>• {worst.name} เกินโควตา {worst.overQuotaDays} วัน</p> : <p className="text-muted-foreground">• ไม่มีใครเกินโควตา</p>}
                   {potShare !== null && potShare > 0 && <p>• หม้อใหญ่ {(potShare * 100).toFixed(0)}% ของต้นทุนทั้งหมด</p>}

@@ -108,7 +108,7 @@ export default function MonthEndView({
     const soon = "ขึ้นเมื่อเดือนนี้มีสต็อกหรือบิลซื้อ";
     return (
       <div className="space-y-5">
-        <section className="card space-y-3" aria-label="ก่อนส่ง ตรวจเรื่องเหล่านี้">
+        <section data-help="month-end-ready" className="card space-y-3" aria-label="ก่อนส่ง ตรวจเรื่องเหล่านี้">
           <h2 className="font-display text-lg font-semibold">ก่อนส่ง ตรวจเรื่องเหล่านี้</h2>
           <ul aria-hidden className="grid grid-cols-1 gap-x-8 gap-y-3 md:grid-cols-2">
             {[0.8, 0.6, 0.7, 0.5].map((w) => (
@@ -119,7 +119,7 @@ export default function MonthEndView({
             ))}
           </ul>
         </section>
-        <section className="card space-y-3">
+        <section data-help="month-end-cogs" className="card space-y-3">
           <h2 className="font-display text-lg font-semibold">ต้นทุนขายเดือนนี้มาจากไหน</h2>
           <WaitingFor
             figure="monthCogs"
@@ -128,7 +128,7 @@ export default function MonthEndView({
           />
         </section>
         {v.branches.length > 1 && (
-          <section className="space-y-3">
+          <section data-help="month-end-branches" className="space-y-3">
             <h2 className="font-display text-lg font-semibold">แยกสาขา</h2>
             <EmptyTable
               label="ตารางแยกสาขา"
@@ -140,7 +140,7 @@ export default function MonthEndView({
           </section>
         )}
         <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
-          <section className="card space-y-3">
+          <section data-help="month-end-journal" className="card space-y-3">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
               <h2 className="font-display text-lg font-semibold">รายการปรับปรุงสิ้นเดือน</h2>
               <span className="text-xs text-muted-subtle">สิ่งที่จะอยู่ในไฟล์</span>
@@ -149,7 +149,7 @@ export default function MonthEndView({
               {soon}
             </EmptyTable>
           </section>
-          <section className="card space-y-3">
+          <section data-help="month-end-stock" className="card space-y-3">
             <h2 className="font-display text-lg font-semibold">สต็อกสิ้นเดือนรายสินค้า</h2>
             <EmptyTable label="สต็อกสิ้นเดือนรายสินค้า" columns={[{ label: "สินค้า" }, ...(v.branches.length > 1 ? [{ label: "สาขา" }] : []), { label: "คงเหลือ", right: true }, { label: "มูลค่า", right: true }]}>
               {soon}
@@ -174,7 +174,7 @@ export default function MonthEndView({
   return (
     <div className="space-y-5">
       {/* 1 — can these figures be trusted yet */}
-      <section className="card space-y-3" aria-labelledby="me-ready">
+      <section data-help="month-end-ready" className="card space-y-3" aria-labelledby="me-ready">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2">
             <h2 id="me-ready" className="font-display text-lg font-semibold">
@@ -219,7 +219,7 @@ export default function MonthEndView({
 
       {/* 2–4 — the equation and what the cost was made of */}
       {neverCounted ? (
-        <section className="card space-y-3">
+        <section data-help="month-end-cogs" className="card space-y-3">
           <h2 className="font-display text-lg font-semibold">ต้นทุนขายเดือนนี้มาจากไหน</h2>
           <WaitingFor figure="monthCogs" needs={["count", "price"]} reason="ยังไม่เคยนับสต็อก จึงยังไม่รู้สต็อกต้นเดือนและสิ้นเดือน" />
         </section>
@@ -243,7 +243,7 @@ export default function MonthEndView({
 
       <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
         {/* 5 — the entry the file carries */}
-        <section className="card space-y-3" aria-labelledby="me-jv">
+        <section data-help="month-end-journal" className="card space-y-3" aria-labelledby="me-jv">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h2 id="me-jv" className="font-display text-lg font-semibold">
               รายการปรับปรุงสิ้นเดือน
@@ -437,7 +437,7 @@ function Equation({ v }: { v: View }) {
   const ties = parts.reduce((s, p) => s + cents(p.value), 0) === cents(t.cogs);
   const where = v.branches.length > 1 ? `รวม ${v.branches.length} สาขา` : v.branches[0]?.branchName ?? "";
   return (
-    <section className="card space-y-4" aria-labelledby="me-eq">
+    <section data-help="month-end-cogs" className="card space-y-4" aria-labelledby="me-eq">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 id="me-eq" className="font-display text-lg font-semibold">
           ต้นทุนขายเดือนนี้มาจากไหน
@@ -511,7 +511,7 @@ function Money({ n, empty }: { n: number; empty?: string }) {
 function BranchTable({ v }: { v: View }) {
   const rows = [...v.branches, v.total];
   return (
-    <section className="space-y-2" aria-labelledby="me-br">
+    <section data-help="month-end-branches" className="space-y-2" aria-labelledby="me-br">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 id="me-br" className="font-display text-lg font-semibold">
           แยกสาขา
@@ -596,7 +596,7 @@ function StockCard({ v }: { v: View }) {
   const restValue = rest.reduce((s, r) => s + cents(r.value), 0) / 100;
   const multi = v.branches.length > 1;
   return (
-    <section className="card space-y-3" aria-labelledby="me-stock">
+    <section data-help="month-end-stock" className="card space-y-3" aria-labelledby="me-stock">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 id="me-stock" className="font-display text-lg font-semibold">
           สต็อกสิ้นเดือนรายสินค้า

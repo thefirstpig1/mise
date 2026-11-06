@@ -101,7 +101,7 @@ export default function AdvancesBoard({ claims, today, months, meId, canApprove 
         description="เงินที่พนักงานออกไปก่อนและร้านยังไม่ได้คืน · เรียงตามยอด"
         actions={
           <>
-            <div className="seg" role="group" aria-label="แสดง">
+            <div data-help="advances-view" className="seg" role="group" aria-label="แสดง">
               <button type="button" aria-pressed={tab === "open"} onClick={() => setTab("open")} className={`seg-item ${tab === "open" ? "is-on" : ""}`}>
                 ค้างคืน
               </button>
@@ -122,13 +122,13 @@ export default function AdvancesBoard({ claims, today, months, meId, canApprove 
                 บิลที่พนักงานออกเงินไปก่อน (บันทึกที่ “ซื้อเอง / สำรองจ่าย”) จะขึ้นที่นี่ พร้อมยอดรวมแยกว่าพร้อมคืน รอรับรอง หรือขาดหลักฐาน
               </Quiet>
               {/* The board's own tiles and panels, dashed (Kong 2026-11-05: the layout stays). */}
-              <StatGrid>
+              <StatGrid help="advances-kpis">
                 {tiles.map((t) => (
                   <Stat key={t.k} label={t.k} icon={t.icon} value={<DashBar className="mt-1 h-6 w-24" />} sub={<DashBar className="mt-1 h-2.5 w-20" />} />
                 ))}
               </StatGrid>
               <div aria-hidden className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.7fr)]">
-                <section className="card space-y-2 p-3">
+                <section data-help="advances-people" className="card space-y-2 p-3">
                   <h3 className="px-2 pb-1 font-semibold">ต่อคน</h3>
                   {[0.6, 0.45].map((w) => (
                     <div key={w} className="grid grid-cols-[2.25rem_minmax(0,1fr)_auto] items-center gap-3 px-2.5 py-1.5">
@@ -138,7 +138,7 @@ export default function AdvancesBoard({ claims, today, months, meId, canApprove 
                     </div>
                   ))}
                 </section>
-                <section className="card space-y-3 p-4">
+                <section data-help="advances-bills" className="card space-y-3 p-4">
                   <h3 className="font-semibold">บิลของคนที่เลือก</h3>
                   {[0.7, 0.5, 0.6].map((w) => (
                     <div key={w} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
@@ -151,13 +151,13 @@ export default function AdvancesBoard({ claims, today, months, meId, canApprove 
             </>
           ) : (
             <>
-            <StatGrid>
+            <StatGrid help="advances-kpis">
               {tiles.map((t) => (
                 <Stat key={t.k} label={t.k} icon={t.icon} value={baht(t.v)} sub={t.s} />
               ))}
             </StatGrid>
             <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.7fr)]">
-              <section className="card space-y-1 p-3">
+              <section data-help="advances-people" className="card space-y-1 p-3">
                 <h3 className="px-2 pb-1 font-semibold">ต่อคน</h3>
                 {people.map((p) => (
                   <button
@@ -179,7 +179,7 @@ export default function AdvancesBoard({ claims, today, months, meId, canApprove 
               </section>
 
               {person && (
-                <section className="card min-w-0 space-y-3 p-4">
+                <section data-help="advances-bills" className="card min-w-0 space-y-3 p-4">
                   <h3 className="font-semibold">
                     {person.name} · {baht(person.amount)} · {person.count} บิล
                   </h3>
@@ -279,11 +279,13 @@ export default function AdvancesBoard({ claims, today, months, meId, canApprove 
           )}
         </>
       ) : refunded.length === 0 ? (
-        <Quiet icon={Wallet} title="ยังไม่มีการคืนเงินใน 60 วันที่ผ่านมา">
-          เมื่อกดคืนเงินให้พนักงานจากแท็บ “ค้างคืน” รายการจะขึ้นที่นี่พร้อมสลิปโอนคืน
-        </Quiet>
+        <div data-help="advances-refunded" data-waiting>
+          <Quiet icon={Wallet} title="ยังไม่มีการคืนเงินใน 60 วันที่ผ่านมา">
+            เมื่อกดคืนเงินให้พนักงานจากแท็บ “ค้างคืน” รายการจะขึ้นที่นี่พร้อมสลิปโอนคืน
+          </Quiet>
+        </div>
       ) : (
-        <ul className="space-y-2">
+        <ul data-help="advances-refunded" className="space-y-2">
           {refunded.map((r) => (
             <li key={r.id} className="card flex flex-wrap items-center gap-3 p-4">
               <span className="min-w-0 flex-1">
@@ -401,7 +403,7 @@ function MonthZip({ months }: { months: string[] }) {
     };
   }, [open]);
   return (
-    <div ref={box} className="relative">
+    <div data-help="advances-zip" ref={box} className="relative">
       <button type="button" aria-expanded={open} onClick={() => setOpen((o) => !o)} className="btn-secondary btn-sm gap-1.5">
         <Download className="h-4 w-4" strokeWidth={1.8} aria-hidden />
         รูปทั้งเดือน (.zip)

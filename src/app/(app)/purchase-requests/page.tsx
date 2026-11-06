@@ -63,7 +63,7 @@ export default async function PurchaseRequestsPage({ searchParams }: { searchPar
       </div>
 
       {branches.length > 1 && (
-        <div className="flex flex-wrap gap-2" role="group" aria-label="สาขา">
+        <div data-help="purchase-requests-branches" className="flex flex-wrap gap-2" role="group" aria-label="สาขา">
           {branches.map((b) => (
             <Link
               key={b.id}

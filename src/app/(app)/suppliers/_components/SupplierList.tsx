@@ -56,7 +56,7 @@ export default function SupplierList({
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-4">
+      <div data-help="suppliers-filter" className="flex flex-wrap items-center gap-4">
         <input
           type="search"
           value={search}
@@ -75,7 +75,7 @@ export default function SupplierList({
       </div>
 
       {suppliers.length === 0 ? (
-        <EmptyTable
+        <EmptyTable help="suppliers-list"
           label="รายชื่อผู้ขาย"
           columns={[{ label: "ชื่อ" }, { label: "รหัส", hide: "sm" }, { label: "ผู้ติดต่อ", hide: "sm" }, { label: "ภาษี", hide: "md" }, { label: "สถานะ" }]}
         >
@@ -86,7 +86,7 @@ export default function SupplierList({
           ไม่พบข้อมูลที่ค้นหา
         </EmptyState>
       ) : (
-        <>
+        <div data-help="suppliers-list">
         {/* Queue item 9 (Kong 2026-10-31): six columns on a phone wrapped every
             phone number a syllable a line — a card per supplier there, the whole
             card opening it and สั่งซื้อ sitting above the stretched link. */}
@@ -194,7 +194,7 @@ export default function SupplierList({
             </tbody>
           </table>
         </div>
-        </>
+        </div>
       )}
     </div>
   );

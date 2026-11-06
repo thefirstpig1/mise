@@ -182,7 +182,7 @@ export default async function StockWorkPage({ searchParams }: { searchParams: Pr
           <p className="mt-1 text-sm text-muted-foreground">ของเข้า-ออกที่ไม่ได้มาจากการซื้อหรือการขาย บันทึกที่นี่ · ดูรายการสินค้าและยอดคงเหลือที่หน้าสินค้า/วัตถุดิบ</p>
         </div>
         {branches.length > 1 && (
-          <div className="flex flex-wrap gap-1.5">
+          <div data-help="stock-branches" className="flex flex-wrap gap-1.5">
             {branches.map((b) => (
               <FilterLink
                 key={b.id}
@@ -197,7 +197,9 @@ export default async function StockWorkPage({ searchParams }: { searchParams: Pr
       </div>
 
       {/* Part 18 Q8: the receiving half of a transfer appears where the branch looks every day. */}
-      <IncomingTransfers transfers={incoming} branchName={branch.name} variant="quiet" />
+      <div data-help="stock-incoming">
+        <IncomingTransfers transfers={incoming} branchName={branch.name} variant="quiet" />
+      </div>
 
       {(
         [
@@ -206,7 +208,7 @@ export default async function StockWorkPage({ searchParams }: { searchParams: Pr
         ] as const
       ).map(([label, group, cols]) =>
         group.length === 0 ? null : (
-          <section key={label} className="space-y-2">
+          <section key={label} data-help={label === "งานประจำ" ? "stock-daily" : "stock-occasional"} className="space-y-2">
             <h3 className="text-sm font-medium text-muted-foreground">{label}</h3>
             <div className={`grid grid-cols-2 gap-3 ${cols}`}>
               {group.map((t) => (
@@ -236,7 +238,7 @@ export default async function StockWorkPage({ searchParams }: { searchParams: Pr
       )}
 
       <div className="grid gap-4 lg:grid-cols-[1.3fr_1fr]">
-        <section className="rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
+        <section data-help="stock-recent" className="rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
           <div className="flex items-baseline justify-between gap-2">
             <h3 className="font-semibold">เคลื่อนไหวล่าสุดของ{branch.name}</h3>
             <a href={`/stock/history?branch=${branch.id}`} className="link text-xs">
@@ -273,21 +275,21 @@ export default async function StockWorkPage({ searchParams }: { searchParams: Pr
 
         <div className="grid content-start gap-4">
           {value !== null && stock.held === 0 ? (
-            <div className="rounded-[18px] border border-border/70 bg-surface p-4 shadow-card">
+            <div data-help="stock-value" className="rounded-[18px] border border-border/70 bg-surface p-4 shadow-card">
               <span className="text-xs text-muted-subtle">มูลค่าสต็อก{branch.name} · ตามราคาทุน (FIFO)</span>
               <div className="mt-1.5">
                 <WaitingSlot figure="stockValue" needs={["count", "receipt"]} reason="ยังไม่มีของในสต็อกที่ระบบรู้" branchId={branch.id} />
               </div>
             </div>
           ) : value !== null && value <= 0 ? (
-            <div className="rounded-[18px] border border-border/70 bg-surface p-4 shadow-card">
+            <div data-help="stock-value" className="rounded-[18px] border border-border/70 bg-surface p-4 shadow-card">
               <span className="text-xs text-muted-subtle">มูลค่าสต็อก{branch.name} · ตามราคาทุน (FIFO)</span>
               <div className="mt-1.5">
                 <WaitingSlot figure="stockValue" needs={["price"]} reason={`ยังไม่รู้มูลค่า · ของ ${stock.unpriced} รายการยังไม่มีราคา`} branchId={branch.id} />
               </div>
             </div>
           ) : value !== null ? (
-            <a href="/products?sort=value" className="block rounded-[18px] border border-border/70 bg-surface shadow-card p-4 hover:bg-muted/40">
+            <a data-help="stock-value" href="/products?sort=value" className="block rounded-[18px] border border-border/70 bg-surface shadow-card p-4 hover:bg-muted/40">
               <span className="text-xs text-muted-subtle">มูลค่าสต็อก{branch.name} · ตามราคาทุน (FIFO)</span>
               <span className="block font-display text-2xl font-semibold tabular-nums">
                 {stock.unpriced > 0 && <span className="mr-1 font-sans text-sm font-medium text-muted-foreground">อย่างน้อย</span>}
@@ -297,7 +299,7 @@ export default async function StockWorkPage({ searchParams }: { searchParams: Pr
               <span className="text-xs text-primary">ดูรายการเรียงตามมูลค่า ›</span>
             </a>
           ) : null}
-          <section className="rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
+          <section data-help="stock-watch" className="rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
             <h3 className="font-semibold">ต้องดู</h3>
             <div className="mt-2 flex flex-wrap gap-2">
               {!stock.moved ? (

@@ -703,7 +703,7 @@ export default function MenuManager(props: {
       />
 
       {!costHidden && branch && (
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-[13px] text-muted-foreground">
+        <div data-help="menus-branch" className="flex flex-wrap items-center gap-x-3 gap-y-2 text-[13px] text-muted-foreground">
           <span>ต้นทุนคิดที่</span>
           {props.branches.length > 1 ? (
             <div className="seg" role="group" aria-label="สาขาที่ใช้คิดต้นทุน">
@@ -722,7 +722,7 @@ export default function MenuManager(props: {
       )}
 
       {rows.length === 0 ? (
-        <EmptyTable
+        <EmptyTable help="menus-list"
           label="เมนูทั้งหมด"
           columns={[
             { label: "เมนู" },
@@ -754,7 +754,7 @@ export default function MenuManager(props: {
             {/* B3 (Kong 2026-10-24) / round 2 (2026-10-29): one line, and the real
                 next step — merge the copies first, then only the rest need a recipe. */}
             {noRecipe.length > 0 && status !== "none" && status !== "write" && (
-              <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2.5 rounded-2xl border border-warn-border bg-warn-bg px-4 py-3">
+              <div data-help="menus-norecipe" className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2.5 rounded-2xl border border-warn-border bg-warn-bg px-4 py-3">
                 <p className="min-w-0 flex-[1_1_420px] text-sm">
                   <b>{noRecipe.length} เมนูขายอยู่แต่ยังไม่มีสูตร</b>
                   {dupCount > 0 ? (
@@ -782,7 +782,7 @@ export default function MenuManager(props: {
             )}
 
             {stubCount > 0 && status !== "review" && (
-              <button
+              <button data-help="menus-review"
                 type="button"
                 onClick={() => setStatus("review")}
                 className="block w-full rounded-2xl border border-warn-border bg-warn-bg px-4 py-3 text-left text-sm text-warn transition-colors hover:brightness-95"
@@ -791,7 +791,7 @@ export default function MenuManager(props: {
               </button>
             )}
 
-            <StatGrid className={costHidden ? "lg:grid-cols-2" : ""}>
+            <StatGrid help="menus-kpis" className={costHidden ? "lg:grid-cols-2" : ""}>
               <Stat
                 icon={BookOpen}
                 label="เมนูที่ขายอยู่"
@@ -911,7 +911,7 @@ export default function MenuManager(props: {
             </div>
 
             {/* The toolbar stays on screen while the list scrolls under it. */}
-            <div
+            <div data-help="menus-filters"
               ref={toolbarRef}
               style={{ top: appBarH }}
               className="sticky z-20 -mx-1 space-y-2.5 rounded-2xl border border-border bg-surface px-3 pt-3 shadow-[0_10px_24px_-18px_rgba(38,40,17,.45)] sm:mx-0 sm:px-4"
@@ -1060,7 +1060,7 @@ export default function MenuManager(props: {
               )}
             </p>
 
-            <div className="space-y-3">
+            <div data-help="menus-list" className="space-y-3">
               {visible.length === 0 ? (
                 <div className="flex flex-col items-center gap-2.5 rounded-[18px] border border-border/70 bg-surface shadow-card px-5 py-9 text-center text-sm text-muted-foreground">
                   <p className="font-display text-base font-semibold text-foreground">ไม่มีเมนูตรงกับตัวกรอง</p>

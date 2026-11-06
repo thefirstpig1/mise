@@ -58,7 +58,9 @@ export default function StaffMealsScreen({
 
   return (
     <div className="space-y-5">
-      <Tabs label="มื้อพนักงาน" items={items} value={tab} onChange={setTab} />
+      <div data-help="staff-meals-tabs">
+        <Tabs label="มื้อพนักงาน" items={items} value={tab} onChange={setTab} />
+      </div>
       {(tab === "request" || tab === "pending") && <TicketBoard {...ticket} view={tab} onPendingCount={onPendingCount} />}
       {tab === "pot" && potForm}
       {tab === "summary" && (

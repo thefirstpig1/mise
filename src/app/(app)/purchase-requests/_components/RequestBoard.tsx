@@ -263,7 +263,7 @@ export default function RequestBoard({
   return (
     <div className="space-y-5 pb-24">
       {/* ---------- header: search + cart, the department ---------- */}
-      <div className="sticky top-[3.6rem] z-20 -mx-4 space-y-2 border-b border-border bg-background/95 px-4 py-3 backdrop-blur lg:top-0 lg:-mx-8 lg:px-8">
+      <div data-help="purchase-requests-search" className="sticky top-[3.6rem] z-20 -mx-4 space-y-2 border-b border-border bg-background/95 px-4 py-3 backdrop-blur lg:top-0 lg:-mx-8 lg:px-8">
         <div className="flex items-center gap-2">
           {view === "cart" ? (
             <button
@@ -333,7 +333,7 @@ export default function RequestBoard({
 
       {view === "shop" ? (
         <>
-          <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 lg:mx-0 lg:flex-wrap lg:px-0" role="group" aria-label="หมวด">
+          <div data-help="purchase-requests-groups" className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 lg:mx-0 lg:flex-wrap lg:px-0" role="group" aria-label="หมวด">
             {[null, ...groups].map((g) => (
               <button
                 key={g ?? "all"}
@@ -352,7 +352,7 @@ export default function RequestBoard({
           )}
           {/* Queue item 10: with no par set the suggestions never appear — say why, once. */}
           {!group && !term && board.belowPar.length === 0 && board.parCount === 0 && (
-            <p className="rounded-xl bg-surface-sunk px-3 py-2 text-xs text-muted-foreground">
+            <p data-help="purchase-requests-suggest" className="rounded-xl bg-surface-sunk px-3 py-2 text-xs text-muted-foreground">
               ตั้งขั้นต่ำของวัตถุดิบแล้ว ตรงนี้จะแนะนำของที่ใกล้หมดให้ขอ{" "}
               <a href="/products" className="link">
                 ตั้งที่หน้าสินค้า ›
@@ -360,7 +360,7 @@ export default function RequestBoard({
             </p>
           )}
 
-          <section className="space-y-2">
+          <section data-help="purchase-requests-catalog" className="space-y-2">
             <h2 className="text-base font-semibold">{group ?? (term ? `ผลการค้นหา “${query.trim()}”` : "วัตถุดิบทั้งหมด")}</h2>
             {shown.length === 0 && !term && !group ? (
               // No products at all: the catalogue's own cards, dashed (Kong 2026-11-05).
@@ -566,7 +566,7 @@ function Suggestions({
   onAdd: (p: POProductOption, qty: number, unitId: string) => void;
 }) {
   return (
-    <section className="space-y-2">
+    <section data-help="purchase-requests-suggest" className="space-y-2">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="text-base font-semibold">ใกล้หมด · แนะนำให้ขอ</h2>
         <span className="text-xs text-muted-foreground">
@@ -679,7 +679,7 @@ function Cart({
         <h1 className="page-title">ใบขอซื้อ{deptName}</h1>
         <p className="text-sm text-muted-foreground">รอบนี้ยังไม่ตัด · จัดซื้อเป็นคนเลือกผู้ขายและสั่ง</p>
       </div>
-      <div role="tablist" aria-label="ใบขอซื้อ" className="seg flex w-full flex-nowrap">
+      <div data-help="purchase-requests-tabs" role="tablist" aria-label="ใบขอซื้อ" className="seg flex w-full flex-nowrap">
         {(
           [
             ["now", `รอบนี้ · ${myLines.length}`],
@@ -702,14 +702,14 @@ function Cart({
       {tab === "now" ? (
         <>
           {myLines.length === 0 ? (
-            <div className="rounded-[18px] border border-border/70 bg-surface shadow-card px-4 py-10 text-center text-sm text-muted-foreground">
+            <div data-help="purchase-requests-lines" data-waiting className="rounded-[18px] border border-border/70 bg-surface shadow-card px-4 py-10 text-center text-sm text-muted-foreground">
               ยังไม่มีของในรอบนี้ ·{" "}
               <button type="button" onClick={onBack} className="link">
                 กลับไปเลือกของ
               </button>
             </div>
           ) : (
-            <ul className="space-y-3">
+            <ul data-help="purchase-requests-lines" className="space-y-3">
               {myLines.map((l) => {
                 const p = productById.get(l.product.id);
                 const qty = qtyOf(l);
@@ -832,7 +832,7 @@ function Cart({
           </button>
 
           {board.departmentsEnabled && otherDepts.length > 0 && (
-            <section className="space-y-2 border-t border-border pt-3">
+            <section data-help="purchase-requests-others" className="space-y-2 border-t border-border pt-3">
               <h3 className="text-sm font-semibold">แผนกอื่นในรอบนี้</h3>
               <div className="flex flex-wrap gap-2 text-xs">
                 {otherDepts.map((d) => (
@@ -854,7 +854,7 @@ function Cart({
             </section>
           )}
 
-          <div className="sticky bottom-0 -mx-4 space-y-2 border-t border-border bg-surface/95 px-4 pb-3 pt-2.5 backdrop-blur sm:mx-0 sm:rounded-2xl sm:border">
+          <div data-help="purchase-requests-ready" className="sticky bottom-0 -mx-4 space-y-2 border-t border-border bg-surface/95 px-4 pb-3 pt-2.5 backdrop-blur sm:mx-0 sm:rounded-2xl sm:border">
             <div className="flex justify-between text-sm">
               <span>{myLines.length} รายการ</span>
               {estimate.n > 0 && (
@@ -880,11 +880,12 @@ function Cart({
           </div>
         </>
       ) : pastLines.length === 0 ? (
-        <p className="rounded-[18px] border border-border/70 bg-surface shadow-card px-4 py-10 text-center text-sm text-muted-foreground">
+        <p data-help="purchase-requests-past" data-waiting className="rounded-[18px] border border-border/70 bg-surface shadow-card px-4 py-10 text-center text-sm text-muted-foreground">
           ยังไม่มีของที่ขอในรอบก่อน ๆ
         </p>
       ) : (
-        PAST_GROUPS.map((g) => {
+        <div data-help="purchase-requests-past" className="space-y-4">
+        {PAST_GROUPS.map((g) => {
           const rows = pastLines.filter((l) => g.kinds.includes(l.status.kind));
           if (rows.length === 0) return null;
           return (
@@ -900,7 +901,8 @@ function Cart({
               </ul>
             </section>
           );
-        })
+        })}
+        </div>
       )}
     </div>
   );

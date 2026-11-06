@@ -172,7 +172,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
       {seeNet && active ? (
         // Fetched by the chart itself, once per branch choice — a period
         // click only moves its highlight (see dashboard/trend-read.ts).
-        <Card title="6 เดือนล่าสุด" meta="กดที่เดือนเพื่อดูทั้งหน้าเป็นเดือนนั้น · เดือนปัจจุบันนับถึงวันนี้">
+        <Card help="dashboard-trend" title="6 เดือนล่าสุด" meta="กดที่เดือนเพื่อดูทั้งหน้าเป็นเดือนนั้น · เดือนปัจจุบันนับถึงวันนี้">
           <MonthlyTrend branchIds={selected} active={period.month} />
         </Card>
       ) : null}
@@ -333,7 +333,7 @@ async function TodayStrip({
       {onboarding && setupUnfinished && (onboarding.dismissed || onboarding.doneCount < SETUP_CHIP_FROM) ? (
         <OnboardingCard steps={setupSteps} team={team} dismissed={onboarding.dismissed} />
       ) : null}
-      <section className="flex flex-col gap-2 rounded-[18px] border border-border/70 bg-surface px-3 py-2.5 shadow-card sm:flex-row sm:items-center sm:gap-3" aria-label="ต้องทำวันนี้">
+      <section data-help="dashboard-today" className="flex flex-col gap-2 rounded-[18px] border border-border/70 bg-surface px-3 py-2.5 shadow-card sm:flex-row sm:items-center sm:gap-3" aria-label="ต้องทำวันนี้">
         <h2 className="shrink-0 pl-1 font-display text-sm font-semibold">ต้องทำวันนี้</h2>
         {items.length === 0 ? (
           <p className="text-sm text-muted-foreground">ไม่มีงานค้าง ✓</p>
@@ -550,7 +550,7 @@ async function Analytics({
 
   return (
     <div className="space-y-5">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div data-help="dashboard-kpis" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {see.sales ? (
           <Kpi label="ยอดขายต่อวัน" icon={ChartColumn} href={`/sales?${salesQs}`} link="ยอดขาย">
             {perDay === null ? (
@@ -670,7 +670,7 @@ async function Analytics({
       {see.sales || wf ? (
         <div className="grid gap-4 lg:grid-cols-12">
           {see.sales ? (
-            <Card className={wf || wfWaits ? "lg:col-span-8" : "lg:col-span-12"} title="ยอดขายรายวัน" meta={lastDay ? `${label} · ข้อมูลถึง ${new Date(`${lastDay}T00:00:00Z`).toLocaleDateString("th-TH", { day: "numeric", month: "short", timeZone: "UTC" })}` : label}>
+            <Card help="dashboard-daily" className={wf || wfWaits ? "lg:col-span-8" : "lg:col-span-12"} title="ยอดขายรายวัน" meta={lastDay ? `${label} · ข้อมูลถึง ${new Date(`${lastDay}T00:00:00Z`).toLocaleDateString("th-TH", { day: "numeric", month: "short", timeZone: "UTC" })}` : label}>
               {revenueRows.length ? (
                 <DailySalesBars
                   days={allDays}
@@ -687,12 +687,12 @@ async function Analytics({
             </Card>
           ) : null}
           {wfWaits ? (
-            <Card className="lg:col-span-4" title="จากยอดขายสู่กำไร" meta={label}>
+            <Card help="dashboard-waterfall" className="lg:col-span-4" title="จากยอดขายสู่กำไร" meta={label}>
               <WaitingFor figure="salesToProfit" needs={netNeeds} reason={unknownWhy ?? undefined} branchId={oneBranch} />
             </Card>
           ) : null}
           {wf ? (
-            <Card className={see.sales ? "lg:col-span-4" : "lg:col-span-12"} title="จากยอดขายสู่กำไร" meta={`${wf.who} · ${label}`}>
+            <Card help="dashboard-waterfall" className={see.sales ? "lg:col-span-4" : "lg:col-span-12"} title="จากยอดขายสู่กำไร" meta={`${wf.who} · ${label}`}>
               <Waterfall {...wf} />
               {missing.length > 0 && <p className="mt-2 text-xs text-warn">ค่าใช้จ่ายยังไม่รวมบิลประจำที่ค้าง {missing.length} รายการ</p>}
               {wfBranch && <p className="mt-2 text-xs text-muted-subtle">ทั้งร้านแสดงไม่ได้จนกว่าทุกสาขามีต้นทุนขาย — เลือกสาขาด้านบนเพื่อดูทีละสาขา</p>}
@@ -703,17 +703,17 @@ async function Analytics({
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {see.sales ? (
-          <Card title="เมนูขายดี">
+          <Card help="dashboard-top-menus" title="เมนูขายดี">
             <TopMenusCard menus={menus} profitInput={profitInput} salesHref={`/sales?${salesQs}`} />
           </Card>
         ) : null}
         {see.sales && multi ? (
-          <Card title="สาขาเทียบกัน" meta={label}>
+          <Card help="dashboard-branches" title="สาขาเทียบกัน" meta={label}>
             <BranchCompare rows={pnl.branches} days={revenueDays} seeGross={seeGross} seeNet={seeNet} />
           </Card>
         ) : null}
         {see.cost ? (
-          <Card title="ต้องระวัง" meta="เรียงตามเงิน">
+          <Card help="dashboard-watch" title="ต้องระวัง" meta="เรียงตามเงิน">
             <ul className="space-y-3 text-sm">
               {shortage > 0 && (
                 <Watch tone="bad" icon="!" title="ของขาดจากการนับ" amount={baht(shortage)} href="/cost/leaks">
@@ -778,9 +778,9 @@ async function topMenus(tenantId: string, period: Period, branchIds: string[], b
 // ------------------------------------------------------------
 // Pieces
 // ------------------------------------------------------------
-function Card({ title, meta, className = "", children }: { title: string; meta?: string; className?: string; children: ReactNode }) {
+function Card({ title, meta, className = "", help, children }: { title: string; meta?: string; className?: string; /** The page guide's part id. */ help?: string; children: ReactNode }) {
   return (
-    <section className={`min-w-0 rounded-[18px] border border-border/70 bg-surface p-4 shadow-card sm:p-5 ${className}`}>
+    <section data-help={help} className={`min-w-0 rounded-[18px] border border-border/70 bg-surface p-4 shadow-card sm:p-5 ${className}`}>
       <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
         <h2 className="font-display text-base font-semibold">{title}</h2>
         {meta ? <span className="text-xs text-muted-subtle">{meta}</span> : null}
@@ -794,7 +794,7 @@ function Card({ title, meta, className = "", children }: { title: string; meta?:
 function NoFiguresYet({ canImport }: { canImport: boolean }) {
   // Queue item 10: the figures' own outline, waiting — not a paragraph.
   return (
-    <Card title="ตัวเลขของร้าน">
+    <Card help="dashboard-figures" title="ตัวเลขของร้าน">
       <WaitingFor
         figure="shopFigures"
         needs={["sales", "count", "expense"]}

@@ -82,6 +82,7 @@ function EmptyView() {
         </div>
         <p className="mt-1 text-sm text-muted-foreground">ราคาเปลี่ยนไปเท่าไร และราคานี้เมนูที่ใช้ยังรับไหวไหม · ราคาต่อหน่วยไม่รวม VAT จากใบรับสินค้าที่ยืนยันแล้ว</p>
       </div>
+      <div data-help="cost-prices-kpis" className="space-y-5">
       <QLabel n="1">ราคาที่เปลี่ยนทำให้จ่ายเพิ่มหรือประหยัดเท่าไร</QLabel>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Kpi k="จ่ายเพิ่มจากของที่แพงขึ้น" icon={TrendingUp} v={<DashBar className="mt-1 h-6 w-24" />} s={<DashBar className="mt-1 h-2.5 w-20" />} />
@@ -89,16 +90,21 @@ function EmptyView() {
         <Kpi k="สุทธิ" icon={Scale} v={<DashBar className="mt-1 h-6 w-24" />} s={<DashBar className="mt-1 h-2.5 w-20" />} />
         <Kpi k={`เมนูที่ต้นทุนขึ้นตั้งแต่ ${FLAG} จุด`} icon={BookOpen} v={<DashBar className="mt-1 h-6 w-16" />} s={<DashBar className="mt-1 h-2.5 w-24" />} />
       </div>
+      </div>
       <QLabel n="2">แนวโน้มราคา — ขึ้นหรือลงกี่ % จากราคาแรกที่รับ</QLabel>
-      <div className="rounded-[18px] border border-border/70 bg-surface p-4 shadow-card">
+      <div data-help="cost-prices-trend" className="rounded-[18px] border border-border/70 bg-surface p-4 shadow-card">
         <WaitingFor figure="priceMoves" needs={["receipt"]} reason="หน้านี้คิดราคาจากใบรับสินค้าที่ยืนยันแล้ว ต้องรับของอย่างน้อยสองช่วงจึงจะเห็นว่าราคาเปลี่ยนไปเท่าไร" />
       </div>
+      <div data-help="cost-prices-items" className="space-y-5">
       <QLabel n="3">ตัวไหน — เรียงตามเงิน (ซ้าย = ประหยัด · ขวา = จ่ายเพิ่ม)</QLabel>
       {rows([0.85, 0.6, 0.4, 0.25])}
+      </div>
+      <div data-help="cost-prices-menus" className="space-y-5">
       <QLabel n="4">กระทบเมนูไหน · ต้องขึ้นราคาไหม</QLabel>
       {rows([0.7, 0.45, 0.3])}
+      </div>
       <QLabel n="5–6">เจ้าไหนถูกกว่า · บิลตรงราคาที่สั่งไหม</QLabel>
-      <div aria-hidden className="grid gap-3 sm:grid-cols-2">
+      <div data-help="cost-prices-suppliers" aria-hidden className="grid gap-3 sm:grid-cols-2">
         {["เจ้าไหนถูกกว่า", "บิลตรงราคาที่สั่งไหม"].map((t) => (
           <div key={t} className="space-y-2.5 rounded-[18px] border border-border/70 bg-surface p-4 shadow-card">
             <b className="text-sm">{t}</b>
@@ -267,7 +273,7 @@ function View({ d, canEditTargets }: { d: Data; canEditTargets: boolean }) {
       </div>
 
       {/* sticky slice control */}
-      <div className="sticky top-2 z-20 space-y-2 rounded-2xl border border-border bg-surface px-3 py-2.5 shadow-card">
+      <div data-help="cost-prices-view" className="sticky top-2 z-20 space-y-2 rounded-2xl border border-border bg-surface px-3 py-2.5 shadow-card">
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <ModeBtn on={mode === "ref"} onClick={() => { setMode("ref"); setDrill(null); }} title="① เทียบกับช่วงอ้างอิง" sub="ขึ้นหรือลงกี่ % จากฐานที่เลือก" />
           <ModeBtn on={mode === "tgt"} onClick={() => { setMode("tgt"); setDrill(null); }} title="② เทียบกับราคาที่เมนูรับได้" sub="ราคาไม่เปลี่ยน ไม่ได้แปลว่าไม่ขาดทุน" />
@@ -300,15 +306,17 @@ function View({ d, canEditTargets }: { d: Data; canEditTargets: boolean }) {
         </a>
       </p>
 
+      <div data-help="cost-prices-kpis" className="space-y-5">
       <QLabel n="1">{mode === "ref" ? `ราคาที่เปลี่ยนทำให้จ่ายเพิ่มหรือประหยัดเท่าไร${mNow !== null && mPrev !== null ? ` (${d.months[mNow].label} เทียบราคาเฉลี่ย ${d.months[mPrev].label})` : ""}` : "ราคาตอนนี้ เมนูรับไหวไหม"}</QLabel>
       {mode === "ref" ? (
         <RefKpis d={d} mNow={mNow} mPrev={mPrev} menus={menus} ratio={ratio} />
       ) : (
         <TgtKpis allow={allow} menus={menus} byId={byId} shopTarget={d.shopTarget} branch={d.costBranch?.name ?? null} salesLabel={d.salesLabel} />
       )}
+      </div>
 
       <QLabel n="2">{mode === "ref" ? `แนวโน้มราคา — ขึ้นหรือลงกี่ % จาก${refName[ref]}` : "แนวโน้ม — ราคาจริงเทียบราคาที่เมนูรับได้ (0% = พอดีเป้า)"}</QLabel>
-      <div className="rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
+      <div data-help="cost-prices-trend" className="rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
         <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2 text-xs text-muted-foreground">
           <span>
             {drill ? (
@@ -337,6 +345,7 @@ function View({ d, canEditTargets }: { d: Data; canEditTargets: boolean }) {
       </div>
       {mode === "tgt" && <ShrimpCallout products={products} allow={allow} menus={menus} />}
 
+      <div data-help="cost-prices-items" className="space-y-5">
       <QLabel n="3">{mode === "ref" ? "ตัวไหน — เรียงตามเงิน (ซ้าย = ประหยัด · ขวา = จ่ายเพิ่ม)" : "ตัวไหนเกินงบ — เรียงตามเงิน (ซ้าย = ยังมีงบเหลือ · ขวา = เกินงบ)"}</QLabel>
       <Bars
         rows={rows}
@@ -357,16 +366,21 @@ function View({ d, canEditTargets }: { d: Data; canEditTargets: boolean }) {
         }}
         onOpen={open}
       />
+      </div>
 
+      <div data-help="cost-prices-menus" className="space-y-5">
       <QLabel n="4">{mode === "ref" ? "กระทบเมนูไหน · ต้องขึ้นราคาไหม" : "เป้าต้นทุนต่อเมนู"}</QLabel>
       {mode === "ref" ? (
         <MenuImpact menus={menus} ratio={ratio} byId={byId} label={mNow !== null && mPrev !== null ? `${d.months[mNow].label} เทียบ ${d.months[mPrev].label}` : null} />
       ) : (
         <Targets menus={menus} shopTarget={d.shopTarget} canEdit={canEditTargets} onSave={saveTarget} err={saveErr} branch={d.costBranch?.name ?? null} salesLabel={d.salesLabel} />
       )}
+      </div>
 
+      <div data-help="cost-prices-suppliers" className="space-y-5">
       <QLabel n="5–6">เจ้าไหนถูกกว่า · บิลตรงราคาที่สั่งไหม</QLabel>
       <Suppliers products={products} />
+      </div>
 
       {popup && byId.get(popup) && (
         <ProductPopup
@@ -768,7 +782,7 @@ function ShrimpCallout({ products, allow, menus }: { products: PvProduct[]; allo
   const now = ms.at(-1)![0];
   const used = a!.menus.map((id) => menus.find((m) => m.menuId === id)).filter((m): m is MenuCostRow => !!m);
   return (
-    <div className="rounded-xl border border-bad-border bg-bad-bg px-3 py-2.5 text-sm">
+    <div data-help="cost-prices-callout" className="rounded-xl border border-bad-border bg-bad-bg px-3 py-2.5 text-sm">
       <b>ที่โหมด ① มองไม่เห็น:</b> {p.name} ราคาเฉลี่ยขยับแค่ {sg(ms.length > 1 ? (now / ms.at(-2)![0] - 1) * 100 : 0)} จากเดือนก่อน แต่ถ้าจะให้ {used.length} เมนูที่ใช้อยู่ในเป้า ต้องไม่เกิน{" "}
       <b>
         ฿{f2(now * a!.k)}/{p.unit}

@@ -31,14 +31,19 @@ export default function EmptyState({
   art,
   children,
   className,
+  help,
 }: {
   art: keyof typeof ART;
   children: ReactNode;
   className?: string;
+  /** The page guide's part id (PageGuide). */
+  help?: string;
 }) {
   const Art = ART[art];
   return (
     <div
+      data-help={help}
+      data-waiting
       className={`flex flex-col items-center gap-3 rounded-lg border border-dashed border-border-strong bg-surface-sunk/40 px-6 py-8 text-center text-sm text-muted-foreground ${className ?? ""}`}
     >
       <Art className="w-24" />

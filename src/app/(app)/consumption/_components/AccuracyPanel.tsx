@@ -111,7 +111,7 @@ function Panel({ data, branchName, initialKey }: { data: AccuracyOverview; branc
   });
 
   return (
-    <section id="accuracy" className="card scroll-mt-24 space-y-4">
+    <section data-help="consumption-accuracy" id="accuracy" className="card scroll-mt-24 space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1">
           <h2 className="font-display text-lg font-semibold">ระบบตัดตามสูตร เทียบกับที่ใช้ไปจริงตามการนับ</h2>

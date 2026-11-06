@@ -219,7 +219,7 @@ function Overview({ data, canEditTargets }: { data: Overview; canEditTargets: bo
         </div>
           <p className="mt-1 text-sm text-muted-foreground">ร้านแข็งแรงไหม ดีขึ้นหรือแย่ลง และต้องจัดการอะไรก่อน</p>
         </div>
-        <button
+        <button data-help="cost-targets"
           type="button"
           onClick={() => canEditTargets && setEditTargets(true)}
           className={`btn-secondary h-auto min-h-[42px] whitespace-normal py-2 text-left font-sans font-normal ${canEditTargets ? "" : "cursor-default hover:border-border-strong hover:bg-surface"}`}
@@ -237,7 +237,7 @@ function Overview({ data, canEditTargets }: { data: Overview; canEditTargets: bo
       </div>
 
       {/* sticky "what am I looking at" + the switches that change everything */}
-      <div className="sticky top-0 z-20 -mx-1 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border bg-surface/95 px-3 py-2 text-sm shadow-card backdrop-blur">
+      <div data-help="cost-view" className="sticky top-0 z-20 -mx-1 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border bg-surface/95 px-3 py-2 text-sm shadow-card backdrop-blur">
         <span className="text-muted-foreground">
           กำลังดู{" "}
           <b className="text-foreground">
@@ -251,7 +251,7 @@ function Overview({ data, canEditTargets }: { data: Overview; canEditTargets: bo
         </span>
       </div>
 
-      <div className="space-y-2 rounded-[18px] border border-border/70 bg-surface shadow-card px-3 py-2.5">
+      <div data-help="cost-period" className="space-y-2 rounded-[18px] border border-border/70 bg-surface shadow-card px-3 py-2.5">
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="w-12 text-xs text-muted-foreground">ช่วง</span>
           {P.map((p, i) => (
@@ -278,6 +278,7 @@ function Overview({ data, canEditTargets }: { data: Overview; canEditTargets: bo
       </div>
 
       {/* Q1–3 */}
+      <div data-help="cost-health" className="space-y-5">
       <QLabel n="1–3">ร้านแข็งแรงไหม · ดีขึ้นหรือแย่ลง</QLabel>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4" role="tablist">
         {(["prime", "food", "var", "waste"] as MetricKey[]).map((k) => {
@@ -373,8 +374,9 @@ function Overview({ data, canEditTargets }: { data: Overview; canEditTargets: bo
           );
         })}
       </div>
+      </div>
 
-      <div className="rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
+      <div data-help="cost-chart" className="rounded-[18px] border border-border/70 bg-surface shadow-card p-4">
         <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
           <h3 className="text-sm font-semibold">{metric === "var" ? varName : METRICS[metric].tab}</h3>
           <span className="text-xs text-muted-foreground">
@@ -408,6 +410,7 @@ function Overview({ data, canEditTargets }: { data: Overview; canEditTargets: bo
       </div>
 
       {/* Q4–7 */}
+      <div data-help="cost-todo" className="space-y-5">
       <QLabel n="4–7">ต้องจัดการอะไรก่อน · เรียงตามเงิน</QLabel>
       <Todo
         period={P[sel]}
@@ -419,23 +422,26 @@ function Overview({ data, canEditTargets }: { data: Overview; canEditTargets: bo
         multi={multi}
         periodic={periodic}
       />
+      </div>
 
       <div className={`grid gap-5 ${multi ? "lg:grid-cols-2" : ""}`}>
         {multi && (
-          <div className="space-y-2">
+          <div data-help="cost-bench" className="space-y-2">
             <QLabel n="8">สาขาไหนดี สาขาไหนแย่</QLabel>
             <Bench P={P} sel={sel} branches={data.branches} colorOf={colorOf} branch={branch} latestCounts={latestCounts} covGate={covGate} varName={varName} />
           </div>
         )}
-        <div className="space-y-2">
+        <div data-help="cost-stock" className="space-y-2">
           <QLabel n="9">เงินจมในสต็อก · ของค้างนาน</QLabel>
           <Stock stock={data.stock} bs={bs} view={stockView} setView={setStockView} slowDays={targets.slowDays} branchLabel={branch === "ALL" ? "ทุกสาขา" : nameOf.get(branch) ?? ""} />
         </div>
       </div>
 
       {/* Q12 */}
+      <div data-help="cost-trust" className="space-y-5">
       <QLabel n="12">ตัวเลขเชื่อได้แค่ไหน</QLabel>
       <Trust data={data} bs={bs} cur={cur} nameOf={nameOf} periodEnd={periodEnd} />
+      </div>
 
       <p className="text-xs text-muted-foreground">
         สิ้นเดือนต้องส่งสต็อกและต้นทุนขายให้นักบัญชี?{" "}

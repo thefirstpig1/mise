@@ -177,7 +177,7 @@ export default async function StaffMealsPage({
     asked ?? (filtered ? "summary" : isApprover && (board.pending?.length ?? 0) > 0 ? "pending" : "request");
 
   const potForm = (
-    <section className="card">
+    <section data-help="staff-meals-pot" className="card">
       <h2 className="text-lg font-semibold">{isApprover ? "บันทึกหม้อใหญ่ หรือบันทึกแทนพาร์ทไทม์" : "บันทึกหม้อใหญ่ (ทำกินเองจากของในร้าน)"}</h2>
       <p className="mb-4 mt-0.5 text-sm text-muted-foreground">ของที่ทำกินกันเองจากของในร้าน ตัดสต็อกตามวัตถุดิบที่ใส่</p>
       <StaffMealEntryForm
@@ -221,6 +221,7 @@ export default async function StaffMealsPage({
   const historyPane = (
     <div className="space-y-4">
       {/* --- filters --- */}
+      <div data-help="staff-meals-filters">
       <FilterForm className="flex flex-wrap items-end gap-2">
         <input type="hidden" name="tab" value="summary" />
         <div>
@@ -272,18 +273,19 @@ export default async function StaffMealsPage({
           จัดการรายชื่อพนักงาน
         </a>
       </FilterForm>
+      </div>
 
       {/* --- the quota standing, when one person is in view --- */}
       {sp.member && !seesPeople && (
         // Said out loud rather than left blank: someone who filtered to a person
         // and got nothing would read it as "this person has eaten nothing"
         // (rule A8).
-        <div className="rounded-[18px] border border-border/70 bg-surface shadow-card p-4 text-sm text-muted-foreground">
+        <div data-help="staff-meals-quota" className="rounded-[18px] border border-border/70 bg-surface shadow-card p-4 text-sm text-muted-foreground">
           ไม่มีสิทธิ์ดูโควตารายคน
         </div>
       )}
       {quota && (
-        <div className="rounded-[18px] border border-border/70 bg-surface shadow-card p-4 text-sm">
+        <div data-help="staff-meals-quota" className="rounded-[18px] border border-border/70 bg-surface shadow-card p-4 text-sm">
           <p className="font-medium">
             โควตาวันนี้ของ {quota.staffMemberName}
           </p>
@@ -308,7 +310,7 @@ export default async function StaffMealsPage({
       )}
 
       {/* --- the list --- */}
-      <section id="meal-list" className="space-y-2">
+      <section data-help="staff-meals-list" id="meal-list" className="space-y-2">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 className="text-base font-semibold">รายการมื้อพนักงาน</h2>
           {rows.length > 0 && <p className="text-sm text-muted-foreground">

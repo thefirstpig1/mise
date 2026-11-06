@@ -71,6 +71,10 @@ export default function Stat({
 }
 
 /** Two on a phone, four on a desktop. */
-export function StatGrid({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <div className={`grid grid-cols-2 gap-2.5 lg:grid-cols-4 ${className}`}>{children}</div>;
+export function StatGrid({ children, className = "", help }: { children: ReactNode; className?: string; /** The page guide's part id (PageGuide). */ help?: string }) {
+  return (
+    <div data-help={help} className={`grid grid-cols-2 gap-2.5 lg:grid-cols-4 ${className}`}>
+      {children}
+    </div>
+  );
 }

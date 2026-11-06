@@ -32,15 +32,30 @@ type Part = HelpSection & { no: number; state: "ready" | "partial" | "needs" | "
 const isNeed = (u: string): u is NeedKey => (NEED_KEYS as readonly string[]).includes(u);
 const CLAY = "#C0692B";
 
+/**
+ * The element of a part the reader can actually see. A list drawn twice — a
+ * phone list and a desktop table, one hidden by CSS — carries the same id on
+ * both; the hidden one has no box, so it is never ringed.
+ */
+export function partElement(id: string): HTMLElement | null {
+  const all = document.querySelectorAll<HTMLElement>(`[data-help="${id}"]`);
+  // A wrapper whose child drew nothing (no incoming transfer today) has a box of zero size.
+  for (const el of all) {
+    const r = el.getBoundingClientRect();
+    if (r.width > 0 && r.height > 0) return el;
+  }
+  return null;
+}
+
 /** The parts the page actually drew, numbered in page order, with their state. */
 function useParts(sections: HelpSection[], ready: Readiness | null | undefined): Part[] {
   const [present, setPresent] = useState<Record<string, boolean>>({});
   useEffect(() => {
     const p: Record<string, boolean> = {};
     for (const s of sections) {
-      const el = document.querySelector(`[data-help="${s.id}"]`);
+      const el = partElement(s.id);
       p[s.id] = !!el;
-      p[`${s.id}:waiting`] = !!el?.querySelector("[data-waiting]");
+      p[`${s.id}:waiting`] = !!el && (el.matches("[data-waiting]") || !!el.querySelector("[data-waiting]"));
     }
     setPresent(p);
   }, [sections]);
@@ -49,7 +64,9 @@ function useParts(sections: HelpSection[], ready: Readiness | null | undefined):
     return sections
       .filter((s) => present[s.id])
       .map((s) => {
-        const missing = ready ? s.needs.filter((k) => !needStatus(k, ready).done) : [];
+        // /cost waits for a count under นับสต็อก, for posted days under สูตรอาหาร.
+        const needs = ready?.recipeMethod && s.needsRecipe ? s.needsRecipe : s.needs;
+        const missing = ready ? needs.filter((k) => !needStatus(k, ready).done) : [];
         // Partly there (19 of 29 recipes) is usable; none at all is waiting.
         const none = ready ? missing.filter((k) => !needPartial(k, ready)) : [];
         const state: Part["state"] = none.length
@@ -70,7 +87,7 @@ const stateChip = (p: Part) =>
   ) : p.state === "partial" ? (
     <span className="chip chip-warn">{NEEDS[p.missing[0]].label}ยังไม่ครบ</span>
   ) : p.state === "empty" ? (
-    <span className="chip chip-warn">ช่วงนี้ยังไม่มีข้อมูล</span>
+    <span className="chip chip-warn">ยังไม่มีข้อมูลให้แสดง</span>
   ) : (
     <span className="chip chip-bad">รอ{NEEDS[p.missing[0]].label}</span>
   );
@@ -277,13 +294,17 @@ export function GuideDialog({ h, ready, onClose }: { h: PageHelpCopy; ready: Rea
 
 /** " · 7 ส่วนยังไม่มีข้อมูลในช่วงที่เลือก · 1 ส่วนรอสูตรของเมนู" — each reason with its own count. */
 function statusLine(parts: Part[]): string {
-  const labels = (ps: Part[]) => [...new Set(ps.flatMap((p) => p.missing))].map((k) => NEEDS[k].label).join(" และ");
+  // A Thai list: "ก ข และค" — "และ" once, before the last item, not between every pair.
+  const labels = (ps: Part[]) => {
+    const xs = [...new Set(ps.flatMap((p) => p.missing))].map((k) => NEEDS[k].label);
+    return xs.length < 2 ? (xs[0] ?? "") : `${xs.slice(0, -1).join(" ")} และ${xs[xs.length - 1]}`;
+  };
   const needs = parts.filter((p) => p.state === "needs");
   const empty = parts.filter((p) => p.state === "empty");
   const partial = parts.filter((p) => p.state === "partial");
   const bits = [
     needs.length ? `${needs.length} ส่วนรอ${labels(needs)}` : "",
-    empty.length ? `${empty.length} ส่วนยังไม่มีข้อมูลในช่วงที่เลือก` : "",
+    empty.length ? `${empty.length} ส่วนยังไม่มีข้อมูลให้แสดง` : "",
     partial.length ? `${partial.length} ส่วนคิดจากข้อมูลเท่าที่มี (${labels(partial)}ยังไม่ครบ)` : "",
   ].filter(Boolean);
   return bits.length ? ` · ${bits.join(" · ")}` : " · ครบทุกส่วน";
@@ -410,7 +431,7 @@ function DataFlow({ h, ready }: { h: PageHelpCopy; ready: Readiness | null | und
           <small className="text-xs opacity-80">หน้านี้</small>
         </div>
         <div className="grid gap-2">
-          <span className="font-display text-xs font-semibold text-muted-subtle">ตัวเลขของหน้านี้ใช้ต่อที่</span>
+          <span className="font-display text-xs font-semibold text-muted-subtle">{h.feedsLabel ?? "ตัวเลขของหน้านี้ใช้ต่อที่"}</span>
           {(h.feeds ?? []).map((f, i) => (
             <a
               key={f.to}
@@ -454,7 +475,7 @@ function Spotlight({
   const card = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const el = document.querySelector<HTMLElement>(`[data-help="${p.id}"]`);
+    const el = partElement(p.id);
     if (!el) return;
     el.scrollIntoView({ behavior: "smooth", block: "center" });
     // Follow the part while the page scrolls to it (and if the reader scrolls).

@@ -74,7 +74,7 @@ export default function ExpenseFilters({
   const seg = (on: boolean) => `seg-item ${on ? "is-on" : ""}`;
 
   return (
-    <div className="space-y-2.5" aria-busy={pending || undefined}>
+    <div data-help="expenses-filters" className="space-y-2.5" aria-busy={pending || undefined}>
       {/* A phone: the supplier search on its own line, the chips two to a row. */}
       <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
         {branches && (

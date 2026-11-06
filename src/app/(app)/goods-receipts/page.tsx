@@ -95,7 +95,7 @@ export default async function GoodsReceiptsPage({
         </div>
       )}
 
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <div data-help="goods-receipts-filter" className="flex flex-wrap items-center justify-between gap-2">
       <div className="seg">
         <FilterLink href={linkFor({ status: "", flagged: "" })} className={chip(!query.status && !query.discrepancyOnly)}>
           ทั้งหมด
@@ -126,7 +126,7 @@ export default async function GoodsReceiptsPage({
       </div>
 
       {branches.length > 1 && (
-        <div className="seg">
+        <div data-help="goods-receipts-branches" className="seg">
           <FilterLink href={linkFor({ branch: "" })} className={chip(!query.branchId)}>
             ทุกสาขา
           </FilterLink>
@@ -143,14 +143,14 @@ export default async function GoodsReceiptsPage({
       )}
 
       {receipts.length === 0 ? (
-        <EmptyTable
+        <EmptyTable help="goods-receipts-table"
           label="รายการใบรับสินค้า"
           columns={[{ label: "เลขที่" }, { label: "ผู้ขาย", hide: "sm" }, { label: "ใบสั่งซื้อ", hide: "md" }, { label: "สาขา", hide: "md" }, { label: "รายการ", right: true, hide: "sm" }, { label: "รับเมื่อ" }, { label: "สถานะ" }]}
         >
           ยังไม่มีใบรับสินค้าตามเงื่อนไขนี้
         </EmptyTable>
       ) : (
-        <>
+        <div data-help="goods-receipts-table">
         {/* Queue item 9 (Kong 2026-10-31): on a phone the seven columns squeezed
             every name into a stack of syllables — each receipt is a card there,
             the whole card opening it, as on the transfer list. */}
@@ -250,7 +250,7 @@ export default async function GoodsReceiptsPage({
             </tbody>
           </table>
         </div>
-        </>
+        </div>
       )}
     </div>
   );

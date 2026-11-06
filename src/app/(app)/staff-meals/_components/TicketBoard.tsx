@@ -235,7 +235,7 @@ export default function TicketBoard({
   return (
     <div className="space-y-6">
       {board.pending && view !== "request" && (
-        <section className="space-y-2">
+        <section data-help="staff-meals-pending" className="space-y-2">
           <h2 className="text-base font-semibold">
             รออนุมัติ{" "}
             <span className={board.pending.length ? "text-warn" : "text-muted-foreground"}>
@@ -258,7 +258,7 @@ export default function TicketBoard({
 
       {view !== "pending" && (
       <>
-      <section className="card mx-auto max-w-xl">
+      <section data-help="staff-meals-request-form" className="card mx-auto max-w-xl">
         <h2 className="text-lg font-semibold">ขอเบิกอาหารพนักงาน</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           เลือกเมนูแล้วกดขอเบิก ระบบจะออกตั๋วให้ — นำตั๋วไปให้หัวหน้าหรือผู้จัดการกดอนุมัติ
@@ -342,7 +342,7 @@ export default function TicketBoard({
         </form>
       </section>
 
-      <section className="mx-auto max-w-xl space-y-2">
+      <section data-help="staff-meals-my-tickets" className="mx-auto max-w-xl space-y-2">
         <h2 className="text-lg font-semibold">ตั๋วของฉัน</h2>
         {board.mine.length === 0 ? (
           <p className="rounded-[18px] border border-border/70 bg-surface shadow-card p-3 text-sm text-muted-foreground">

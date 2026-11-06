@@ -50,7 +50,7 @@ export default async function MonthEndPage({ searchParams }: { searchParams: Pro
         title={`ปิดเดือน ${monthTitleTh(month)}`}
         description="มูลค่าสต็อกและต้นทุนขายของเดือน สำหรับลงบัญชี — ส่งออกเป็นไฟล์ตามโปรแกรมบัญชีที่ร้านใช้"
         actions={
-          <nav aria-label="เลือกเดือน" className="flex flex-wrap gap-1.5">
+          <nav data-help="month-end-months" aria-label="เลือกเดือน" className="flex flex-wrap gap-1.5">
             {chips.map((m) => (
               <FilterLink key={m} href={`/month-end?month=${m}`} className={`pill ${m === month ? "is-on" : ""}`}>
                 {monthChipTh(m)}

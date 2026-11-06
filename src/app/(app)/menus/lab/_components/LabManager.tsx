@@ -253,7 +253,7 @@ export default function LabManager(props: {
       {/* Queue item 9: the kit's figure cards with their icons; on a phone two
           side by side and the long one across — one per row filled the first
           screen before the dishes that need a recipe. */}
-      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+      <div data-help="lab-kpis" className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
         <Stat
           icon={FlaskConical}
           label="ร่างที่กำลังคิด"
@@ -288,7 +288,7 @@ export default function LabManager(props: {
       {published && <PublishSummary state={published} fromDay={fromDay} />}
 
       {drafts.length > 0 && (
-        <section className="space-y-2">
+        <section data-help="lab-drafts" className="space-y-2">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h3 className="font-semibold">ร่างที่กำลังคิด</h3>
             <span className="flex flex-wrap items-baseline gap-3">
@@ -461,7 +461,7 @@ export default function LabManager(props: {
       )}
 
       {starts.length > 0 && (
-        <section className="space-y-2">
+        <section data-help="lab-starts" className="space-y-2">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h3 className="font-semibold">
               เริ่มจากเมนูที่ขายอยู่แต่ยังไม่มีสูตร{copies.length > 0 ? ` · ต้องเขียนจริง ${toWrite} เมนู` : ""}
@@ -496,7 +496,7 @@ export default function LabManager(props: {
       )}
 
       {copies.length > 0 && (
-        <section className="space-y-2">
+        <section data-help="lab-copies" className="space-y-2">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h3 className="font-semibold">น่าจะเป็นเมนูเดียวกับเมนูที่มีสูตรแล้ว · {copies.length} เมนู</h3>
             <span className="text-xs text-muted-subtle">รวมเมนูแทนการเขียนสูตรใหม่ · รวมแล้วตัดสต็อกด้วยสูตรของเมนูหลัก</span>
@@ -532,7 +532,7 @@ export default function LabManager(props: {
       )}
 
       {drafts.length === 0 && starts.length === 0 && (
-        <EmptyTable
+        <EmptyTable help="lab-drafts"
           label="ร่างสูตร"
           columns={[{ label: "ร่างสูตร" }, { label: "สถานะ" }, { label: "ต้นทุนต่อจาน", right: true }, { label: "ราคาที่ตั้งใจ", right: true, hide: "sm" }]}
         >
@@ -540,7 +540,7 @@ export default function LabManager(props: {
         </EmptyTable>
       )}
 
-      <section className="space-y-2">
+      <section data-help="lab-steps" className="space-y-2">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h3 className="font-semibold">ร่างหนึ่งเดินทางอย่างไร</h3>
           <span className="text-xs text-muted-subtle">ใครกดอะไรได้ ขึ้นกับสิทธิ์ของแต่ละคน</span>

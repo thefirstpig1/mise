@@ -47,6 +47,7 @@ export default function OnboardingCard({
   if (hidden) {
     return (
       <button
+        data-help="dashboard-setup"
         type="button"
         onClick={() => toggle(false)}
         disabled={pending}
@@ -58,7 +59,7 @@ export default function OnboardingCard({
   }
 
   return (
-    <section aria-label="ตั้งร้าน" className="overflow-hidden rounded-[18px] border border-primary-line bg-surface shadow-card">
+    <section data-help="dashboard-setup" aria-label="ตั้งร้าน" className="overflow-hidden rounded-[18px] border border-primary-line bg-surface shadow-card">
       <div className="space-y-2.5 px-5 pb-3.5 pt-4">
         <div className="flex flex-wrap items-baseline justify-between gap-3">
           <h2 className="text-lg font-semibold">ตั้งร้าน</h2>

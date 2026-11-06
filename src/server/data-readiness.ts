@@ -43,7 +43,7 @@ export async function dataReadinessLogic(tenantId: string, reach: BranchReach, b
     mergedInto: { none: { revokedAt: null } },
   };
   return withTenantContext(tenantId, async (tx) => {
-    const [salesDays, menus, menusWithRecipe, products, priced, closedCounts, postedDays, receipts, expenses, guestDays, categorisedMenus, parLevels, lastSales, lastCount, lastReceipt] =
+    const [salesDays, menus, menusWithRecipe, products, priced, closedCounts, postedDays, receipts, expenses, guestDays, categorisedMenus, parLevels, lastSales, lastCount, lastReceipt, tenant] =
       await Promise.all([
         // A day with a POS file — a pulse typed alone makes a sales_day too (ADR 0020).
         tx.salesDay.count({ where: { tenantId, ...b, currentBatchId: { not: null } } }),
@@ -70,6 +70,7 @@ export async function dataReadinessLogic(tenantId: string, reach: BranchReach, b
         tx.salesDay.aggregate({ where: { tenantId, ...b, currentBatchId: { not: null } }, _max: { businessDate: true } }),
         tx.stockCount.aggregate({ where: { tenantId, ...b, status: "CLOSED", deletedAt: null }, _max: { countDate: true } }),
         tx.goodsReceipt.aggregate({ where: { tenantId, ...b, status: "CONFIRMED", deletedAt: null }, _max: { receivedAt: true } }),
+        tx.tenant.findUnique({ where: { id: tenantId }, select: { grossProfitMethod: true } }),
       ]);
     const iso = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : null);
     return {
@@ -88,6 +89,7 @@ export async function dataReadinessLogic(tenantId: string, reach: BranchReach, b
       lastSalesDay: iso(lastSales._max.businessDate),
       lastCountDay: iso(lastCount._max.countDate),
       lastReceiptDay: iso(lastReceipt._max.receivedAt),
+      recipeMethod: tenant?.grossProfitMethod === "RECIPE_CONSUMPTION",
     };
   });
 }

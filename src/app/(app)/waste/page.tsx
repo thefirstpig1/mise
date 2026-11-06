@@ -163,7 +163,7 @@ export default async function WastePage({
       {productOptions.length === 0 || branchOptions.length === 0 ? (
         // The form's own fields, dashed, until there is something to pick
         // (Kong 2026-11-05: an empty page keeps the filled layout).
-        <section className="space-y-4 rounded-[18px] border border-border/70 bg-surface p-5 shadow-card" aria-label="ฟอร์มบันทึกของเสีย ยังใช้ไม่ได้">
+        <section data-help="waste-form" className="space-y-4 rounded-[18px] border border-border/70 bg-surface p-5 shadow-card" aria-label="ฟอร์มบันทึกของเสีย ยังใช้ไม่ได้">
           <div className="grid gap-4 sm:grid-cols-2" aria-hidden>
             {["วัตถุดิบ", "จำนวนที่ทิ้ง", "หน่วย", "สาเหตุ", "สาขา", "วันที่"].map((f) => (
               <div key={f} className="space-y-1.5">
@@ -180,7 +180,7 @@ export default async function WastePage({
           </p>
         </section>
       ) : (
-        <section className="rounded-[18px] border border-border/70 bg-surface shadow-card p-5">
+        <section data-help="waste-form" className="rounded-[18px] border border-border/70 bg-surface shadow-card p-5">
           <WasteEntryForm
             action={createWasteAction}
             products={productOptions}
@@ -200,7 +200,7 @@ export default async function WastePage({
         <WasteSummaryPanel data={summaryP} canSeeCost={canSeeCost} />
       </Suspense>
 
-      <section className="space-y-3">
+      <section data-help="waste-list" className="space-y-3">
         <div className="space-y-3">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h3 className="text-lg font-semibold">รายการที่บันทึกไว้</h3>

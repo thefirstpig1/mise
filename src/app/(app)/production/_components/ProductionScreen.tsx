@@ -134,7 +134,7 @@ export default function ProductionScreen({
       </div>
 
       {shortfalls.length > 0 && (
-        <section className="space-y-1.5 rounded-2xl border border-warn-border bg-warn-bg p-4 text-sm">
+        <section data-help="production-shortfall" className="space-y-1.5 rounded-2xl border border-warn-border bg-warn-bg p-4 text-sm">
           <h3 className="font-semibold text-warn">ระบบตัดแทน 30 วัน</h3>
           <ul className="space-y-0.5">
             {shortfalls.map((s) => (
@@ -151,14 +151,15 @@ export default function ProductionScreen({
       )}
 
       {rows.length === 0 ? (
-        <EmptyTable
+        <EmptyTable help="production-list"
           label="รายการการผลิต"
           columns={[{ label: "ทำอะไร · ได้เท่าไร" }, { label: "วัตถุดิบที่ใช้", hide: "sm" }, { label: "เวลา · ผู้บันทึก", hide: "md" }, { label: "ต้นทุนต่อหน่วย", right: true }]}
         >
           ยังไม่มีการบันทึกการผลิตใน 30 วันที่ผ่านมา — ต้มซุปหรือแล่ปลาเสร็จ กด “บันทึกการผลิต” แล้วของจะขึ้นชั้นพร้อมต้นทุน
         </EmptyTable>
       ) : (
-        days.map(([d, list]) => (
+        <div data-help="production-list" className="space-y-5">
+        {days.map(([d, list]) => (
           <section key={d} className="space-y-2">
             <h3 className="text-xs font-medium text-muted-subtle">{dayTitle(d, today)}</h3>
             <ul className="space-y-2">
@@ -216,7 +217,8 @@ export default function ProductionScreen({
               })}
             </ul>
           </section>
-        ))
+        ))}
+        </div>
       )}
 
       {canRecord && (

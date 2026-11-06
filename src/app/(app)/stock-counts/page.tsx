@@ -93,15 +93,17 @@ export default async function StockCountListPage({
       </div>
 
       {noticeBranch && (
-        <IncomingTransfers
-          transfers={incoming}
-          branchName={noticeBranch.name}
-          countWarning
-        />
+        <div data-help="stock-counts-incoming">
+          <IncomingTransfers
+            transfers={incoming}
+            branchName={noticeBranch.name}
+            countWarning
+          />
+        </div>
       )}
 
       {openSheet && (
-        <div className="rounded-lg border border-warn-border bg-warn-bg p-3 text-sm text-warn">
+        <div data-help="stock-counts-open" className="rounded-lg border border-warn-border bg-warn-bg p-3 text-sm text-warn">
           มีใบนับที่ยังไม่ปิดอยู่ —{" "}
           <a href={`/stock-counts/${openSheet.id}`} className="link">
             {openSheet.scNumber} ({openSheet.branchName})
@@ -111,7 +113,7 @@ export default async function StockCountListPage({
       )}
 
       {/* Filters answer at once, like every list (kit, 2026-10-28). */}
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <div data-help="stock-counts-filters" className="flex flex-wrap items-center justify-between gap-2">
         <div className="seg">
           <FilterLink href={linkFor({ status: "" })} className={`seg-item ${!query.status ? "is-on" : ""}`}>
             ทั้งหมด
@@ -144,7 +146,7 @@ export default async function StockCountListPage({
       </div>
 
       {rows.length === 0 ? (
-        <EmptyTable
+        <EmptyTable help="stock-counts-list"
           label="รายการใบนับสต็อก"
           columns={[{ label: "เลขที่" }, { label: "สาขา", hide: "sm" }, { label: "วันที่นับ" }, { label: "รายการ", right: true, hide: "sm" }, { label: "สถานะ" }]}
         >
@@ -153,7 +155,7 @@ export default async function StockCountListPage({
       ) : (
         // Kong (2026-09-28): the whole row opens the sheet, not just its number —
         // a number in plain text did not look pressable at all.
-        <ul className="divide-y divide-border overflow-hidden rounded-[18px] border border-border/70 bg-surface shadow-card">
+        <ul data-help="stock-counts-list" className="divide-y divide-border overflow-hidden rounded-[18px] border border-border/70 bg-surface shadow-card">
           <li
             aria-hidden
             className="hidden grid-cols-[8rem_1fr_9rem_5rem_6rem_6rem] gap-3 bg-muted/40 px-4 py-2 text-xs text-muted-foreground sm:grid"

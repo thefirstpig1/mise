@@ -103,14 +103,14 @@ export default async function TransfersPage({
         // The feature cannot be used at all with one branch, and saying so is
         // better than an empty list that looks broken (Part 17's UX lesson: an
         // empty state must distinguish "nothing to show" from "not set up").
-        <div className="rounded-lg border border-border bg-muted/30 p-4 text-sm">
+        <div data-help="transfers-one-branch" className="rounded-lg border border-border bg-muted/30 p-4 text-sm">
           การโอนต้องมีอย่างน้อย 2 สาขา — ตอนนี้ระบบมี {branches.length} สาขา
         </div>
       )}
 
       {/* Filters answer at once, like every list (kit, 2026-10-28). Direction
           only means something once a branch is chosen. */}
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <div data-help="transfers-filters" className="flex flex-wrap items-center justify-between gap-2">
         <div className="seg">
           <FilterLink href={linkFor({ status: "" })} className={`seg-item ${!sp.status ? "is-on" : ""}`}>
             ทุกสถานะ
@@ -147,14 +147,14 @@ export default async function TransfersPage({
       </div>
 
       {waiting.length > 0 && (
-        <div className="rounded-lg border border-warn-border bg-warn-bg p-4 text-sm text-warn">
+        <div data-help="transfers-waiting" className="rounded-lg border border-warn-border bg-warn-bg p-4 text-sm text-warn">
           <strong>{waiting.length} ใบยังไม่มีใครกดรับ</strong> — ของอยู่ในยอดของสาขาปลายทางแล้ว
           แต่ยังไม่มีใครที่ปลายทางนับยืนยัน
         </div>
       )}
 
       {rows.length === 0 ? (
-        <EmptyTable
+        <EmptyTable help="transfers-list"
           label="รายการใบโอน"
           columns={[{ label: "เลขที่" }, { label: "จากสาขา → ถึงสาขา" }, { label: "ส่งเมื่อ", hide: "sm" }, { label: "สถานะ" }]}
         >
@@ -163,7 +163,7 @@ export default async function TransfersPage({
             : "ยังไม่มีใบโอนที่ตรงกับเงื่อนไขนี้"}
         </EmptyTable>
       ) : (
-        <ul className="space-y-3">
+        <ul data-help="transfers-list" className="space-y-3">
           {rows.map((t) => (
             <li key={t.id}>
               {/* Kong (2026-09-28): the whole card opens the transfer, not only

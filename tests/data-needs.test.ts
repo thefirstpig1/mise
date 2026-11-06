@@ -27,6 +27,7 @@ const NONE: Readiness = {
   lastSalesDay: null,
   lastCountDay: null,
   lastReceiptDay: null,
+  recipeMethod: false,
 };
 
 const pageFor = (href: string) => join(process.cwd(), "src/app/(app)", href.split("?")[0], "page.tsx");
