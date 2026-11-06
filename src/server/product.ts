@@ -17,6 +17,8 @@
 
 import { Prisma, PrismaClient, type Product } from "@prisma/client";
 import { prisma, withTenantContext } from "@/lib/db";
+import { computeBangkokToday } from "@/lib/bangkok-date";
+import { currentVersionIds } from "@/lib/recipe-version";
 import { acquireCounterLock } from "@/server/counter-lock";
 import type { ProductInput } from "@/lib/validations/product";
 // Lazy circular dep: supplier-product-mapping.ts imports assertRefBelongsToTenant
@@ -903,7 +905,9 @@ export type MadeHint = { id: string; name: string; recipes: number };
  * suggestion for a person to confirm, never a change made for them.
  */
 export async function getMadeHintsLogic(tenantId: string): Promise<MadeHint[]> {
-  const inUse = { recipe: { deletedAt: null, supersededAt: null } };
+  // Published, live versions (Kong 2026-11-06: drafts and old versions were
+  // counted as recipes); today's version per line is picked below.
+  const inUse = { recipe: { deletedAt: null, supersededAt: null, isDraft: false } };
   const rows = await withTenantContext(tenantId, (tx) =>
     tx.product.findMany({
       where: {
@@ -916,12 +920,24 @@ export async function getMadeHintsLogic(tenantId: string): Promise<MadeHint[]> {
         goodsReceiptItems: { none: {} },
         expenseItems: { none: {} },
       },
-      select: { id: true, name: true, usedInRecipes: { where: inUse, select: { recipeId: true } } },
+      select: {
+        id: true,
+        name: true,
+        usedInRecipes: { where: inUse, select: { recipe: { select: { id: true, lineId: true, effectiveFrom: true, createdAt: true } } } },
+      },
       orderBy: { name: "asc" },
       take: 50,
     })
   );
-  return rows.map((r) => ({ id: r.id, name: r.name, recipes: new Set(r.usedInRecipes.map((u) => u.recipeId)).size }));
+  const today = computeBangkokToday();
+  return rows
+    .map((r) => {
+      const now = currentVersionIds(r.usedInRecipes.map((u) => u.recipe), today);
+      // A recipe line counts once, by the version it serves today.
+      const lines = new Set(r.usedInRecipes.filter((u) => now.has(u.recipe.id)).map((u) => u.recipe.lineId));
+      return { id: r.id, name: r.name, recipes: lines.size };
+    })
+    .filter((h) => h.recipes > 0);
 }
 
 export async function updateProductLogic(

@@ -64,7 +64,9 @@ const GR_LIST_INCLUDE = {
   supplier: { select: { id: true, nameFull: true, deletedAt: true } },
   purchaseOrder: { select: { id: true, poNumber: true, status: true } },
   receivedByUser: { select: { id: true, name: true, email: true } },
-  _count: { select: { items: true } },
+  // A void appends a reversal line per item (ADR 0013): count the lines that
+  // were received, or a voided 3-line receipt reads "6" (Kong 2026-11-06).
+  _count: { select: { items: { where: { reversalOfItemId: null } } } },
 } as const;
 
 const GR_DETAIL_INCLUDE = {

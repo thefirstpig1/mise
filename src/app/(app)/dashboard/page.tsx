@@ -767,7 +767,10 @@ async function topMenus(tenantId: string, period: Period, branchIds: string[], b
         ...getSalesQuerySchema.parse({ branchId, from: isoDay(period.from), to: isoDay(period.to), includeSuperseded: "false" }),
         // `branchIds` is already the reader's reach narrowed by the chips.
         reach: { allBranches: false, allowedBranchIds: branchIds },
-      })
+      }),
+      // Every menu, not the top 25 by money: the card's "จาน" button ranks by
+      // plates, and a cheap dish eaten all day may sit far down the money list.
+      { menuLimit: Number.MAX_SAFE_INTEGER }
     )
   );
   const by = new Map<string, MenuBar & { branchId: string }>();
@@ -779,7 +782,13 @@ async function topMenus(tenantId: string, period: Period, branchIds: string[], b
       by.set(m.menuId, cur);
     }
   });
-  const top = [...by.values()].sort((a, b) => b.net - a.net).slice(0, 10);
+  // The card ranks by money OR by plates (Kong 2026-11-06: "จาน" re-sorted the
+  // ten best earners, so a dish that sells many cheap plates never showed) —
+  // send the leaders of both, the card shows six of whichever is chosen.
+  const all = [...by.values()];
+  const ids = new Set([...all].sort((a, b) => b.net - a.net).slice(0, 10).map((m) => m.id));
+  for (const m of [...all].sort((a, b) => b.qty - a.qty).slice(0, 10)) ids.add(m.id);
+  const top = all.filter((m) => ids.has(m.id)).sort((a, b) => b.net - a.net);
   // Two branches' POS menus for one dish stay two menus until someone merges
   // them (ADR 0026: a person decides). Two bars both reading
   // "กะเพราหมูสับไข่ดาว" told the owner nothing — and collided as chart keys —

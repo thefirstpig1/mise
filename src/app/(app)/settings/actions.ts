@@ -82,13 +82,19 @@ export async function saveStockSectionAction(formData: FormData): Promise<Sectio
   // Rule PAR-2: 0–30 whole days.
   const parWarningDays = numIn(formData, "par_warning_days", 0, 30, true);
   const countCycleDays = numIn(formData, "count_cycle_days", 1, 365, true);
+  // Blank = no policy (NULL), never ฿0: a shop with no quota is not a shop whose staff may eat nothing.
+  const bahtOrNone = (name: string) => (String(formData.get(name) ?? "").trim() === "" ? null : numIn(formData, name, 1, 100000));
+  const staffMealDailyQuota = bahtOrNone("staff_meal_daily_quota");
+  const staffMealMaxMenuPrice = bahtOrNone("staff_meal_max_menu_price");
   const fieldErrors: Record<string, string> = {};
   if (parWarningDays === undefined) fieldErrors.par_warning_days = "ใส่จำนวนวันเต็ม 0–30";
   if (countCycleDays === undefined) fieldErrors.count_cycle_days = "ใส่จำนวนวันเต็ม 1–365";
+  if (staffMealDailyQuota === undefined) fieldErrors.staff_meal_daily_quota = "ใส่จำนวนเงิน ฿1–100,000 หรือเว้นว่างถ้าไม่ตั้งโควตา";
+  if (staffMealMaxMenuPrice === undefined) fieldErrors.staff_meal_max_menu_price = "ใส่จำนวนเงิน ฿1–100,000 หรือเว้นว่างถ้าไม่มีเพดาน";
   if (Object.keys(fieldErrors).length) return { ok: false, formError: "ยังบันทึกไม่ได้ กรุณาแก้ช่องที่มีข้อความสีแดง", fieldErrors };
 
   return write(
-    { cancelledSalePolicy, staffMealStockSource, parWarningDays, countCycleDays, countShowExpectedDefault },
+    { cancelledSalePolicy, staffMealStockSource, parWarningDays, countCycleDays, countShowExpectedDefault, staffMealDailyQuota, staffMealMaxMenuPrice },
     ["/dashboard", "/consumption", "/staff-meals", "/products", "/stock", "/stock-counts"]
   );
 }

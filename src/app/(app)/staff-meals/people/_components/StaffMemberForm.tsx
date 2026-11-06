@@ -108,8 +108,10 @@ export function CreateStaffMemberForm({
 
       <p className="text-xs text-muted-foreground">
         เว้นว่าง = ใช้โควตาของร้าน
-        {tenantQuota ? ` (฿${tenantQuota}/วัน)` : " ซึ่งตอนนี้ยังไม่ได้ตั้งไว้"} —
-        ไม่ได้แปลว่าไม่มีโควตา
+        {tenantQuota ? ` (฿${tenantQuota}/วัน)` : " ซึ่งตอนนี้ยังไม่ได้ตั้งไว้"} · โควตาของร้านตั้งได้ที่{" "}
+        <a href="/settings#stock" className="link">
+          ตั้งค่าทั่วไป › สต็อกและยอดขาย
+        </a>
       </p>
 
       <button

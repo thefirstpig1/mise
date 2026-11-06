@@ -244,6 +244,39 @@ function StaffMeal() {
   );
 }
 
+function StaffQuota() {
+  return (
+    <div className="grid gap-2">
+      <div className="flex flex-wrap items-center justify-center gap-1.5">
+        <Box v="กะเพรา ฿60" />
+        <Op>+</Op>
+        <Box v="กะเพรา ฿60" />
+        <Op>+</Op>
+        <Box v="ข้าวผัด ฿45" />
+        <Op>=</Op>
+        <Box v="฿165" label="พี่แดง วันนี้" bad />
+      </div>
+      <p className="text-center text-[11px] text-muted-foreground">
+        โควตาวันละ <b className="text-foreground">฿150</b> · เกิน ฿15 ระบบเตือน ไม่ห้ามเบิก
+      </p>
+    </div>
+  );
+}
+
+function MenuCeiling() {
+  return (
+    <div className="grid gap-2">
+      <div className="flex flex-wrap items-center justify-center gap-1.5">
+        <Box v="ข้าวผัด ฿45" label="ไม่เกินเพดาน" />
+        <Box v="ต้มยำกุ้ง ฿159" label="เกินเพดาน" bad />
+      </div>
+      <p className="text-center text-[11px] text-muted-foreground">
+        เพดานราคา <b className="text-foreground">฿120</b> · จานที่แพงกว่าขึ้นคำเตือน ไม่ห้ามเบิก
+      </p>
+    </div>
+  );
+}
+
 function ParWarning() {
   return (
     <svg viewBox="0 0 300 100" width="100%" role="img" aria-label="หมูสับลดลงวันละ 2 kg ถึงขั้นต่ำในอีก 2 วัน">
@@ -509,6 +542,8 @@ export const HELP_PICTURES: Record<HelpKey, () => ReactNode> = {
   default_vat_rate_percent: VatRate,
   cancelled_sale_policy: Cancelled,
   staff_meal_stock_source: StaffMeal,
+  staff_meal_daily_quota: StaffQuota,
+  staff_meal_max_menu_price: MenuCeiling,
   par_warning_days: ParWarning,
   count_cycle_days: CountCycle,
   count_show_expected_default: ShowExpected,

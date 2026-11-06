@@ -9,6 +9,7 @@
 // the two defects ADR 0028 found are pinned.
 // ============================================================
 
+import { getStaffMealsLogic } from "@/server/staff-meal-read";
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { randomUUID } from "node:crypto";
 import { withRlsBypass } from "@/lib/db-admin";
@@ -438,6 +439,9 @@ describe("staff meal — writing (ADR 0028 Part 26 L3)", () => {
     expect(doc?.voidedAt).not.toBeNull();
     expect(doc?.voidReason).toBe("คีย์ผิดคน");
     expect(doc?.items).toHaveLength(4);
+    // The history row counts what was cut, not the corrections (Kong 2026-11-06: it read 4).
+    const row = (await getStaffMealsLogic(tenantA, { includeVoided: true })).rows.find((r) => r.id === meal.id)!;
+    expect(row.itemCount).toBe(2);
     expect(doc?.items.filter((i) => i.reversalOfItemId !== null)).toHaveLength(2);
 
     const moves = await movementsFor(pork);

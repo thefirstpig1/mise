@@ -21,6 +21,13 @@ import SelfPurchaseSheet, { type SelfPurchaseOptions } from "./SelfPurchaseSheet
 
 type Filter = "open" | "refunded" | "all";
 
+/**
+ * A refund's own Bangkok day. `at` is an instant: one recorded "today" before
+ * 07:00 is still the previous day in UTC, and read raw it fell into last month
+ * on the 1st (Kong 2026-11-06).
+ */
+const bangkokDay = (iso: string) => new Date(Date.parse(iso) + 7 * 3_600_000).toISOString().slice(0, 10);
+
 const daysSince = (ymd: string, today: string) => Math.round((Date.parse(`${today}T00:00:00Z`) - Date.parse(`${ymd}T00:00:00Z`)) / 86_400_000);
 
 export default function MyAdvances({ claims, today, storageReady, ...options }: { claims: ClaimView[]; today: string; storageReady: boolean } & SelfPurchaseOptions) {
@@ -41,7 +48,7 @@ export default function MyAdvances({ claims, today, storageReady, ...options }: 
   const owed = open.reduce((s, c) => s + c.amount, 0);
   const oldest = open.reduce<string | null>((o, c) => (o === null || c.billDate < o ? c.billDate : o), null);
   const month = today.slice(0, 7);
-  const refundedThisMonth = claims.filter((c) => c.refund && c.refund.at.slice(0, 7) === month);
+  const refundedThisMonth = claims.filter((c) => c.refund && bangkokDay(c.refund.at).slice(0, 7) === month);
   const shown = useMemo(
     () => (filter === "open" ? open : filter === "refunded" ? claims.filter((c) => c.status === "REFUNDED") : claims),
     [filter, claims, open]
@@ -203,7 +210,7 @@ function ClaimDetail({ claim: c, onClose, onChanged, onError }: { claim: ClaimVi
     {
       done: c.status === "REFUNDED",
       title: "โอนคืน",
-      sub: c.refund ? `${shortDate(c.refund.at.slice(0, 10))} · ${PAYMENT_METHOD_LABEL[c.refund.method]}` : "คุณจะเห็นสลิปโอนคืนที่นี่",
+      sub: c.refund ? `${shortDate(bangkokDay(c.refund.at))} · ${PAYMENT_METHOD_LABEL[c.refund.method]}` : "คุณจะเห็นสลิปโอนคืนที่นี่",
     },
   ];
 

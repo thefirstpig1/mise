@@ -145,6 +145,12 @@ export type OrderLink = {
   promisedDate: string | null;
   /** When the PO line was created — orders the links over time. */
   createdAt: string;
+  /**
+   * The Bangkok day the line FINISHED — its last confirmed receipt, or the day
+   * the order was closed short — or null while it has not. "เสร็จแล้ว (7 วัน)"
+   * counts from here, not from the day the line went into an order.
+   */
+  finishedOn?: string | null;
 };
 
 export type RequestLineStatus =

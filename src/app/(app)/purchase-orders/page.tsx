@@ -52,8 +52,12 @@ export default async function PurchaseOrdersPage({
 
   // The URL is parsed, not trusted: a malformed filter falls back to the
   // unfiltered list rather than erroring the page (the Part 10 L5c rule).
+  // "รอรับของ" is two statuses — sent, and part-received — so its card links to
+  // a view of its own rather than to one status (Kong 2026-11-06: the card
+  // counted part-received orders and the table it opened dropped them).
+  const waitingView = sp.status === "WAITING";
   const parsed = getPurchaseOrdersQuerySchema.safeParse({
-    status: sp.status,
+    status: waitingView ? undefined : sp.status,
     branchId: sp.branch,
   });
   const query = parsed.success ? parsed.data : {};
@@ -61,13 +65,14 @@ export default async function PurchaseOrdersPage({
   // Fetched for the BRANCH only: the number cards count every status, and the
   // status filter narrows the table in memory (one read instead of two).
   const all = (await getPurchaseOrdersLogic(tenantId, { branchId: query.branchId }, reach)).map(toPurchaseOrderListView);
-  const orders = query.status ? all.filter((o) => o.status === query.status) : all;
+  const isWaiting = (o: (typeof all)[number]) => o.status === "SENT" || o.status === "PARTIALLY_RECEIVED";
+  const orders = waitingView ? all.filter(isWaiting) : query.status ? all.filter((o) => o.status === query.status) : all;
 
   const today = computeBangkokToday().toISOString().slice(0, 10);
   const monthStart = `${today.slice(0, 7)}-01`;
   const sum = (xs: typeof all) => xs.reduce((t, o) => t + Number(o.totalAmount), 0);
   const drafts = all.filter((o) => o.status === "DRAFT");
-  const waiting = all.filter((o) => o.status === "SENT" || o.status === "PARTIALLY_RECEIVED");
+  const waiting = all.filter(isWaiting);
   const overdue = waiting.filter((o) => o.expectedDeliveryIso !== null && o.expectedDeliveryIso < today);
   const thisMonth = all.filter((o) => o.status !== "DRAFT" && o.status !== "CANCELLED" && o.createdAtIso >= monthStart);
   const daysLate = (iso: string) => Math.round((Date.parse(today) - Date.parse(iso)) / 86_400_000);
@@ -75,7 +80,7 @@ export default async function PurchaseOrdersPage({
 
   const linkFor = (next: { status?: string; branch?: string }) => {
     const params = new URLSearchParams();
-    const status = next.status ?? (parsed.success ? query.status : undefined);
+    const status = next.status ?? (waitingView ? "WAITING" : parsed.success ? query.status : undefined);
     const branch = next.branch ?? (parsed.success ? query.branchId : undefined);
     if (status) params.set("status", status);
     if (branch) params.set("branch", branch);
@@ -106,7 +111,7 @@ export default async function PurchaseOrdersPage({
 
       <StatGrid help="purchase-orders-kpis">
         <Stat label="ร่าง ยังไม่ส่ง" icon={FilePen} value={`${drafts.length} ใบ`} sub={drafts.length ? baht(sum(drafts)) : "ไม่มีใบค้าง"} href={linkFor({ status: "DRAFT" })} />
-        <Stat label="รอรับของ" icon={Truck} value={`${waiting.length} ใบ`} sub={waiting.length ? baht(sum(waiting)) : "ไม่มีของค้างส่ง"} href={linkFor({ status: "SENT" })} />
+        <Stat label="รอรับของ" icon={Truck} value={`${waiting.length} ใบ`} sub={waiting.length ? baht(sum(waiting)) : "ไม่มีของค้างส่ง"} href={linkFor({ status: "WAITING" })} />
         <Stat
           label="เลยกำหนดรับ"
           icon={CalendarClock}
@@ -130,7 +135,7 @@ export default async function PurchaseOrdersPage({
 
       <div data-help="purchase-orders-filter" className="flex flex-wrap items-center justify-between gap-2">
         <div className="seg">
-          <FilterLink href={linkFor({ status: "" })} className={seg(!query.status)}>
+          <FilterLink href={linkFor({ status: "" })} className={seg(!query.status && !waitingView)}>
             ทุกสถานะ
           </FilterLink>
           {PURCHASE_ORDER_STATUS_VALUES.map((s) => (
@@ -152,6 +157,14 @@ export default async function PurchaseOrdersPage({
           </div>
         )}
       </div>
+      {waitingView ? (
+        <p className="text-xs text-muted-foreground">
+          แสดงใบที่รอรับของ: ส่งแล้ว และรับของบางส่วน ·{" "}
+          <FilterLink href={linkFor({ status: "" })} className="link">
+            แสดงทุกสถานะ
+          </FilterLink>
+        </p>
+      ) : null}
 
       {orders.length === 0 ? (
         <EmptyTable help="purchase-orders-table"

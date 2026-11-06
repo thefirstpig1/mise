@@ -45,6 +45,8 @@ import {
   type RequestViewer,
 } from "@/server/purchase-request";
 import { sweepOrphanUsers, sweepTestTenants } from "./support/sweep";
+import { goodsReceiptInputSchema } from "@/lib/validations/goods-receipt";
+import { confirmGoodsReceiptLogic, createGoodsReceiptLogic } from "@/server/goods-receipt";
 import { purchaseReadyRecipientsLogic, setMyPurchaseNotifyLogic } from "@/server/purchase-ready-notify";
 
 describe("purchase request (ADR 0036)", () => {
@@ -369,5 +371,44 @@ describe("purchase request (ADR 0036)", () => {
     expect(row).toMatchObject({ parBase: 10, onHandBase: 0, suggestedQty: 10, unit: { name: "kg" } });
     await lineId(cook, { productId: lime.id, unitId: kg(lime), qty: 10 });
     expect((await board(cook)).belowPar.some((p) => p.product.id === lime.id)).toBe(false);
+  });
+  // Kong 2026-11-06: a request still waiting after 60 days fell off the board
+  // while the dashboard's queue kept counting it.
+  it("a request still waiting after two months stays on the board", async () => {
+    await clearLines();
+    const old = await lineId(cook);
+    await withRlsBypass((tx) => tx.purchaseRequestLine.update({ where: { id: old }, data: { requestedAt: addDays(today, -70) } }));
+    expect(await statusOf(old)).toBe("waiting");
+  });
+  // Kong 2026-11-06: "เสร็จแล้ว (7 วันล่าสุด)" counted from the day the line went
+  // into an order, so a line ordered ten days ago vanished the day it arrived.
+  it("a line received today stays under เสร็จแล้ว, however long ago it was ordered", async () => {
+    await clearLines();
+    const id = await lineId(cook);
+    const po = (
+      await cutRoundLogic(tenant, buyer, {
+        branchId: branch,
+        picks: [{ lineId: id, supplierId: supA, qty: 3, unitId: kg(pork), unitPrice: 168, mappingId: null, reply: null }],
+      })
+    ).orders[0];
+    const sent = await sendPurchaseOrderLogic(tenant, po.id, buyer.userId);
+    await withRlsBypass((tx) => tx.purchaseOrderItem.updateMany({ where: { purchaseOrderId: po.id }, data: { createdAt: addDays(today, -10) } }));
+    const gr = await createGoodsReceiptLogic(
+      tenant,
+      goodsReceiptInputSchema.parse({
+        submitKey: randomUUID(),
+        branchId: branch,
+        supplierId: supA,
+        purchaseOrderId: sent.id,
+        invoiceNo: null,
+        receivedAt: new Date(),
+        vatRatePercent: 0,
+        notes: null,
+        lines: [{ purchaseOrderItemId: sent.items[0].id, productId: pork.id, receivedUnitId: kg(pork), qtyReceivedActual: 3, unitPriceActual: 168, notes: null }],
+      }),
+      buyer.userId
+    );
+    await confirmGoodsReceiptLogic(tenant, gr.id, buyer.userId);
+    expect(await statusOf(id)).toBe("received");
   });
 });

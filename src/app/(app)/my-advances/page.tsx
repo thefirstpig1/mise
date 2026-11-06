@@ -11,7 +11,7 @@ import { storageReady } from "@/lib/storage";
 import { getBranchesLogic, liveliestBranchId } from "@/server/branch";
 import { getCategoriesLogic } from "@/server/category";
 import { getProductsLogic } from "@/server/product";
-import { getSuppliersLogic } from "@/server/supplier";
+import { getSuppliersLogic, suppliersForNewDocument } from "@/server/supplier";
 import { getMyClaimsLogic } from "@/server/staff-advance";
 import MyAdvances from "./_components/MyAdvances";
 
@@ -22,7 +22,8 @@ export default async function MyAdvancesPage() {
     getBranchesLogic(tenantId, reach),
     getProductsLogic(tenantId),
     getCategoriesLogic(tenantId),
-    getSuppliersLogic(tenantId),
+    // Suggestions for where it was bought: a supplier switched off is not suggested.
+    getSuppliersLogic(tenantId).then((all) => suppliersForNewDocument(all)),
   ]);
   const defaultBranchId = (await liveliestBranchId(tenantId, branches.map((b) => b.id))) ?? branches[0]?.id ?? "";
 

@@ -238,7 +238,8 @@ export async function getStockCountsLogic(
       },
       include: {
         branch: { select: { id: true, name: true, code: true } },
-        _count: { select: { items: true } },
+        // Reversal lines are corrections, not lines counted (Kong 2026-11-06).
+        _count: { select: { items: { where: { reversalOfItemId: null } } } },
       },
       orderBy: [{ countDate: "desc" }, { createdAt: "desc" }],
     })

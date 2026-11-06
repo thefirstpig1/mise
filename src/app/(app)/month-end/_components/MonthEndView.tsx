@@ -213,7 +213,8 @@ export default function MonthEndView({
           ))}
         </ul>
         <p className="border-t border-dashed border-border-strong pt-2.5 text-xs text-muted-subtle">
-          ข้อควรรู้ไม่ห้ามส่ง — ไฟล์ที่ได้จะมีหมายเหตุนี้ติดไปให้นักบัญชีด้วย
+          {/* sheetsFor: a CSV carries the journal alone — Xero and QuickBooks get no notes sheet (Kong 2026-11-06). */}
+          ข้อควรรู้ไม่ห้ามส่ง — ไฟล์ Excel (PEAK · FlowAccount · Express · Excel ทั่วไป) มีหมายเหตุนี้ติดไปให้นักบัญชีด้วย · ไฟล์ CSV ของ Xero และ QuickBooks Online มีเฉพาะรายการบัญชี
         </p>
       </section>
 

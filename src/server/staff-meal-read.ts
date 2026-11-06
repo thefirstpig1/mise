@@ -178,7 +178,8 @@ export async function getStaffMealsLogic(
         // A retired member is LABELLED, never filtered — the whole of rule S7.
         staffMember: { select: { name: true, isActive: true } },
         menu: { select: { name: true } },
-        _count: { select: { items: true } },
+        // A void appends a reversal per item: "ตัดวัตถุดิบ N รายการ" counts what was cut (Kong 2026-11-06).
+        _count: { select: { items: { where: { reversalOfItemId: null } } } },
       },
     });
 

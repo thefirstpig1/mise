@@ -8,6 +8,7 @@
 // book), the one figure every screen shares, so it can never disagree.
 // ============================================================
 
+import { currentVersionIds } from "@/lib/recipe-version";
 import { withTenantContext } from "@/lib/db";
 import { addDays, computeBangkokToday } from "@/lib/bangkok-date";
 import type { CostAccess } from "@/lib/permissions/cost-access";
@@ -83,7 +84,7 @@ export async function getProductListFactsLogic(
           productId: { not: null },
           recipe: { deletedAt: null, supersededAt: null, isDraft: false, effectiveFrom: { lte: today } },
         },
-        select: { productId: true, recipe: { select: { lineId: true } } },
+        select: { productId: true, recipe: { select: { id: true, lineId: true, effectiveFrom: true, createdAt: true } } },
       }),
       tx.stockMovement.groupBy({ by: ["productId"], where: { tenantId, branchId }, _max: { occurredAt: true } }),
     ]);
@@ -119,9 +120,15 @@ export async function getProductListFactsLogic(
         price: Number(r.unitPriceActual),
       };
     }
+    // Only the version each line serves today (Kong 2026-11-06): a product
+    // dropped from a recipe last month still sits in the older, live version.
+    const today_ = currentVersionIds(
+      [...new Map(usage.map((u) => [u.recipe.id, u.recipe])).values()],
+      today
+    );
     const lines = new Map<string, Set<string>>();
     for (const u of usage) {
-      if (!u.productId) continue;
+      if (!u.productId || !today_.has(u.recipe.id)) continue;
       const s = lines.get(u.productId) ?? new Set<string>();
       s.add(u.recipe.lineId);
       lines.set(u.productId, s);

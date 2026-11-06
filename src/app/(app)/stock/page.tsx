@@ -62,7 +62,10 @@ export default async function StockWorkPage({ searchParams }: { searchParams: Pr
       // A negative balance means a movement is missing (a receipt never keyed,
       // a count mistyped) — the strongest "something is wrong" this page can show.
       const negative = balances.filter((b) => b.balance.lessThan(0) && b.product.type !== "PREPPED").map((b) => b.product.name);
-      const moved = balances.length > 0;
+      // Rule ND11: the list holds every product, moved or not — so "anything
+      // moved here" is a movement count, not the list's length (Kong 2026-11-06:
+      // a branch nothing ever entered read "ไม่มีของติดลบ").
+      const moved = balances.some((b) => b.movementCount > 0);
       if (costAccess === null) return { negative, moved, value: null as number | null, wasteBaht: null as number | null, held: 0, unpriced: 0 };
       const [costs, voided] = await Promise.all([
         getProductCostsLogic(

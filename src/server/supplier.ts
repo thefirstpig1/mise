@@ -74,6 +74,15 @@ export async function createSupplierLogic(
  * tenants while RLS is inert (ADR 0004). Returns active + inactive; the
  * active-only list default + toggle (Q7) is applied by the page layer.
  */
+/**
+ * The suppliers a NEW document may name: the active ones — plus `keepId`, the
+ * supplier a draft being edited already names, so switching a supplier off
+ * never makes that draft impossible to save.
+ */
+export function suppliersForNewDocument<T extends { id: string; isActive: boolean }>(suppliers: T[], keepId?: string | null): T[] {
+  return suppliers.filter((s) => s.isActive || s.id === keepId);
+}
+
 export async function getSuppliersLogic(tenantId: string): Promise<Supplier[]> {
   return withTenantContext(tenantId, (tx) =>
     tx.supplier.findMany({

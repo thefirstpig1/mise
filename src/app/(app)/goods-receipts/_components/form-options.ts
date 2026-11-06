@@ -5,7 +5,7 @@
 // a plain string — Decimal cannot make that trip (Pitfall #20).
 
 import { getProductsLogic } from "@/server/product";
-import { getSuppliersLogic } from "@/server/supplier";
+import { getSuppliersLogic, suppliersForNewDocument } from "@/server/supplier";
 import { getBranchesLogic } from "@/server/branch";
 import { departmentPickerOptionsLogic, receiptDepartmentDefaultsLogic } from "@/server/department-defaults";
 import type { BranchReach } from "@/lib/permissions/service";
@@ -33,7 +33,9 @@ export type GoodsReceiptFormOptions = {
 export async function loadGoodsReceiptFormOptions(
   tenantId: string,
   /** Rule A5: the picker only ever offers branches this person may act on. */
-  reach: BranchReach
+  reach: BranchReach,
+  /** The supplier the draft being edited names — kept even if since switched off. */
+  keepSupplierId?: string | null
 ): Promise<GoodsReceiptFormOptions> {
   const [products, suppliers, branches, orders, departments] = await Promise.all([
     getProductsLogic(tenantId),
@@ -70,7 +72,7 @@ export async function loadGoodsReceiptFormOptions(
       }))
       .sort((a, b) => a.name.localeCompare(b.name, "th")),
 
-    suppliers: suppliers.map((s) => ({
+    suppliers: suppliersForNewDocument(suppliers, keepSupplierId).map((s) => ({
       id: s.id,
       nameFull: s.nameFull,
       defaultVatRatePercent: s.defaultVatRatePercent?.toString() ?? null,

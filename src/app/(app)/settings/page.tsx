@@ -135,6 +135,16 @@ function PlanCard({ plan, freeUntil, note }: { plan: string; freeUntil: Date | n
   );
 }
 
+/** Baht, or blank — blank is "no policy", never ฿0 (schema note on tenant.staff_meal_*). */
+function Baht({ name, value, label }: { name: string; value: number | null; label: string }) {
+  return (
+    <div>
+      <MeasureInput id={name} name={name} unit="บาท" min={1} max={100000} step={1} inputMode="decimal" defaultValue={value ?? undefined} aria-label={label} boxClassName="w-32" />
+      <FieldError name={name} />
+    </div>
+  );
+}
+
 function Days({ name, value, min, max, label }: { name: string; value: number; min: number; max: number; label: string }) {
   return (
     <div>
@@ -264,6 +274,21 @@ export default async function SettingsPage() {
             <Option name="staff_meal_stock_source" value="POS" checked={tenant.staffMealStockSource === "POS"} title="กดใน POS เป็นยอด ฿0" example="คิดครัวไม่หักซ้ำ · ใบเบิกใช้คุมโควตาและเป็นหลักฐาน" />
           </div>
         </Row>
+        {/* Kong 2026-11-06: read by the staff-meal screens since Part 26, settable nowhere until now. */}
+        <Row
+          title={SETTING_HELP.staff_meal_daily_quota.title}
+          htmlFor="staff_meal_daily_quota"
+          hint="เว้นว่าง = ไม่ตั้งโควตา · ตั้งรายคนได้ที่มื้อพนักงาน → คนในร้าน"
+          help="staff_meal_daily_quota"
+          control={<Baht name="staff_meal_daily_quota" value={tenant.staffMealDailyQuota === null ? null : Number(tenant.staffMealDailyQuota)} label="โควตามื้อพนักงานต่อคนต่อวัน" />}
+        />
+        <Row
+          title={SETTING_HELP.staff_meal_max_menu_price.title}
+          htmlFor="staff_meal_max_menu_price"
+          hint="เว้นว่าง = ไม่มีเพดาน"
+          help="staff_meal_max_menu_price"
+          control={<Baht name="staff_meal_max_menu_price" value={tenant.staffMealMaxMenuPrice === null ? null : Number(tenant.staffMealMaxMenuPrice)} label="เพดานราคาเมนูมื้อพนักงาน" />}
+        />
         <Row
           title={SETTING_HELP.par_warning_days.title}
           htmlFor="par_warning_days"

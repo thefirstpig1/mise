@@ -50,7 +50,7 @@ export default async function EditPurchaseOrderPage({
   }
 
   const { products, suppliers, branches } =
-    await loadPurchaseOrderFormOptions(tenantId, reach);
+    await loadPurchaseOrderFormOptions(tenantId, reach, view.supplier.id);
 
   return (
     <div className="space-y-6">

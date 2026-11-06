@@ -72,7 +72,7 @@ export default async function EditGoodsReceiptPage({
   }
 
   const { products, suppliers, branches, purchaseOrders, departments, departmentDefaults } =
-    await loadGoodsReceiptFormOptions(tenantId, reach);
+    await loadGoodsReceiptFormOptions(tenantId, reach, gr.supplier.id);
 
   const today = computeBangkokToday();
   const nowLocal = toBangkokDateTimeLocal(new Date());

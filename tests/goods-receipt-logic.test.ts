@@ -772,6 +772,9 @@ describe("goods-receipt *Logic (PO → รับของ → ledger)", () => {
     expect(num(rev.qtyReceivedActual)).toBe(-4);
     expect(num(rev.lineTotalActual)).toBe(-1000);
     expect(num(rev.allocations[0].qtyAllocatedActual)).toBe(-4);
+    // The list counts the line received, not its correction (Kong 2026-11-06: a voided 3-line receipt read "6").
+    const listed = (await getGoodsReceiptsLogic(tenantA, {}, { allBranches: true, allowedBranchIds: [] })).find((r) => r.id === gr.id)!;
+    expect(listed._count.items).toBe(1);
 
     // Balance nets to zero, and the original ledger row is untouched.
     expect(await balanceOf(p.id)).toBe(0);

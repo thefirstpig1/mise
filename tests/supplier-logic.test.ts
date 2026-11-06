@@ -27,6 +27,7 @@ import {
   SupplierCodeConflictError,
 } from "@/server/supplier";
 import { createProductLogic } from "@/server/product";
+import { suppliersForNewDocument } from "@/server/supplier";
 import {
   createSupplierProductMappingLogic,
   getSupplierProductMappingByIdLogic,
@@ -36,6 +37,21 @@ import {
 /** Build a validated SupplierInput from minimal overrides. */
 const input = (over: Record<string, unknown> = {}) =>
   supplierInputSchema.parse({ nameFull: "ผู้ขายทดสอบ", ...over });
+
+// Kong 2026-11-06: a supplier switched off still appeared on every new document.
+describe("suppliersForNewDocument", () => {
+  const list = [
+    { id: "a", isActive: true },
+    { id: "b", isActive: false },
+    { id: "c", isActive: true },
+  ];
+  it("offers the active suppliers only", () => {
+    expect(suppliersForNewDocument(list).map((s) => s.id)).toEqual(["a", "c"]);
+  });
+  it("keeps the one a draft already names, so the draft can still be saved", () => {
+    expect(suppliersForNewDocument(list, "b").map((s) => s.id)).toEqual(["a", "b", "c"]);
+  });
+});
 
 describe("supplier *Logic (tenant-scoped, app-layer isolation)", () => {
   let tenantA: string;

@@ -153,6 +153,13 @@ async function linksFor(tx: PrismaClient, tenantId: string, lineIds: string[]) {
       qtyReceived: true,
       orderUnitName: true,
       createdAt: true,
+      // The last confirmed delivery of this line — when it finished (finishedOn).
+      goodsReceiptItems: {
+        where: { reversalOfItemId: null, goodsReceipt: { status: "CONFIRMED" } },
+        select: { goodsReceipt: { select: { receivedAt: true } } },
+        orderBy: { goodsReceipt: { receivedAt: "desc" } },
+        take: 1,
+      },
       purchaseOrder: {
         select: {
           id: true,
@@ -181,6 +188,12 @@ async function linksFor(tx: PrismaClient, tenantId: string, lineIds: string[]) {
       supplierName: po.supplier.nameFull,
       promisedDate: po.expectedDeliveryDate ? iso(po.expectedDeliveryDate) : null,
       createdAt: i.createdAt.toISOString(),
+      finishedOn: (() => {
+        const bangkokDay = (d: Date) => new Date(d.getTime() + 7 * 3_600_000).toISOString().slice(0, 10);
+        if (po.closedShortAt) return bangkokDay(po.closedShortAt);
+        const last = i.goodsReceiptItems[0]?.goodsReceipt.receivedAt;
+        return last ? bangkokDay(last) : null;
+      })(),
     };
     const k = i.purchaseRequestLineId!;
     by.set(k, [...(by.get(k) ?? []), link]);
@@ -498,8 +511,19 @@ export async function getRequestBoardLogic(tenantId: string, branchId: string, v
     const today = computeBangkokToday();
     const since = addDays(today, -60);
 
+    // The last 60 days, and anything older still on its way — a request
+    // forgotten for two months is exactly the one the board must not lose
+    // (Kong 2026-11-06; the dashboard's queue counted it all along).
     const rows = await tx.purchaseRequestLine.findMany({
-      where: { tenantId, branchId, deletedAt: null, requestedAt: { gte: since } },
+      where: {
+        tenantId,
+        branchId,
+        deletedAt: null,
+        OR: [
+          { requestedAt: { gte: since } },
+          { rejectedAt: null, orderItems: { none: { purchaseOrder: { deletedAt: null, status: "RECEIVED" } } } },
+        ],
+      },
       include: {
         product: {
           select: { id: true, name: true, sku: true, productUnits: { where: { isBase: true }, select: { unitName: true } } },
@@ -537,9 +561,9 @@ export async function getRequestBoardLogic(tenantId: string, branchId: string, v
         return { r, status };
       })
       .filter(({ r, status }) => {
-        // Finished lines fade out after a week; anything still moving stays.
+        // Finished lines fade out a week after they FINISHED; anything still moving stays.
         if (status.kind === "received" || status.kind === "closed_short") {
-          return (status.link.createdAt.slice(0, 10) >= cutoff);
+          return (status.link.finishedOn ?? status.link.createdAt.slice(0, 10)) >= cutoff;
         }
         if (status.kind === "rejected") return iso(r.rejectedAt!) >= cutoff;
         return true;

@@ -7,7 +7,7 @@
 // both Decimal columns.
 
 import { getProductsLogic } from "@/server/product";
-import { getSuppliersLogic } from "@/server/supplier";
+import { getSuppliersLogic, suppliersForNewDocument } from "@/server/supplier";
 import { getBranchesLogic } from "@/server/branch";
 import type { BranchReach } from "@/lib/permissions/service";
 import type {
@@ -25,7 +25,9 @@ export type PurchaseOrderFormOptions = {
 export async function loadPurchaseOrderFormOptions(
   tenantId: string,
   /** Rule A5: the picker only ever offers branches this person may act on. */
-  reach: BranchReach
+  reach: BranchReach,
+  /** The supplier the draft being edited names — kept even if since switched off. */
+  keepSupplierId?: string | null
 ): Promise<PurchaseOrderFormOptions> {
   const [products, suppliers, branches] = await Promise.all([
     getProductsLogic(tenantId),
@@ -57,7 +59,7 @@ export async function loadPurchaseOrderFormOptions(
       }))
       .sort((a, b) => a.name.localeCompare(b.name, "th")),
 
-    suppliers: suppliers.map((s) => ({
+    suppliers: suppliersForNewDocument(suppliers, keepSupplierId).map((s) => ({
       id: s.id,
       nameFull: s.nameFull,
       isVatRegistered: s.isVatRegistered,
