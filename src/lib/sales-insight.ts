@@ -502,14 +502,25 @@ function weaker(a: string | null, b: string): string {
 // ------------------------------------------------------------
 // Periods
 // ------------------------------------------------------------
-/** The same number of days, immediately before. A whole month → the month before. */
+/**
+ * The same number of days, immediately before. A whole month → the month before.
+ * Part of a month from the 1st (this month so far) → the SAME days of the month
+ * before, as the dashboard does (rule PL8, Kong 2026-10-01: "ครึ่งเดือนเทียบ
+ * เดือนเต็มจะทำให้ทุกเดือนดูตก") — so ยอดขายต่อวัน carries one % on both pages
+ * (Kong 2026-11-06).
+ */
 export function previousRange(from: string, to: string): { from: string; to: string } {
   const f = new Date(`${from}T00:00:00Z`);
   const t = new Date(`${to}T00:00:00Z`);
   const isMonthStart = f.getUTCDate() === 1;
+  const sameMonth = f.getUTCFullYear() === t.getUTCFullYear() && f.getUTCMonth() === t.getUTCMonth();
   if (isMonthStart) {
     const pf = new Date(Date.UTC(f.getUTCFullYear(), f.getUTCMonth() - 1, 1));
-    const pt = new Date(Date.UTC(f.getUTCFullYear(), f.getUTCMonth(), 0));
+    const prevEnd = new Date(Date.UTC(f.getUTCFullYear(), f.getUTCMonth(), 0));
+    const lastOfThis = new Date(Date.UTC(t.getUTCFullYear(), t.getUTCMonth() + 1, 0)).getUTCDate();
+    const partial = sameMonth && t.getUTCDate() < lastOfThis;
+    // 1–30 March compares with 1–28 February: a day the month before does not have is not invented.
+    const pt = partial ? new Date(Date.UTC(pf.getUTCFullYear(), pf.getUTCMonth(), Math.min(t.getUTCDate(), prevEnd.getUTCDate()))) : prevEnd;
     return { from: iso(pf), to: iso(pt) };
   }
   const len = Math.round((t.getTime() - f.getTime()) / 864e5) + 1;

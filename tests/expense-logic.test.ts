@@ -11,6 +11,7 @@
 //        goods-receipt hook itself is L3b, so its cases live with it)
 // ============================================================
 
+import { computeBangkokToday } from "@/lib/bangkok-date";
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
@@ -538,7 +539,8 @@ describe("expense *Logic (every baht that leaves, in one place)", () => {
   // ----------------------------------------------------------
 
   it("E9: a template generates nothing — the month it is waiting for is COMPUTED", async () => {
-    const t = await createRecurringExpenseLogic(tenantA, template());
+    // Due on the 1st, so this month is owed whatever today's date.
+    const t = await createRecurringExpenseLogic(tenantA, template({ dayOfMonth: 1 }));
 
     // Nothing was written but the template itself.
     const generated = await withTenantContext(tenantA, (tx) =>
@@ -554,6 +556,14 @@ describe("expense *Logic (every baht that leaves, in one place)", () => {
     );
     const mine = due.find((d) => d.template.id === t.id);
     expect(mine?.duePeriods).toEqual([currentPeriod()]);
+  });
+
+  // Kong 2026-11-06: a bill due on the 28th was listed as owed from the 1st.
+  it("E9b: this month's bill is owed from its own day, not from the 1st", async () => {
+    const t = await createRecurringExpenseLogic(tenantA, template({ dayOfMonth: 28 }));
+    const due = await getDueRecurringLogic(tenantA, { branchId: branchA }, { allBranches: true, allowedBranchIds: [] });
+    const owed = due.find((d) => d.template.id === t.id)?.duePeriods ?? [];
+    expect(owed).toEqual(computeBangkokToday().getUTCDate() >= 28 ? [currentPeriod()] : []);
   });
 
   it("E10: confirming a month takes it off the list, and confirming twice is impossible", async () => {
@@ -617,7 +627,8 @@ describe("expense *Logic (every baht that leaves, in one place)", () => {
   });
 
   it("E12: deleting a mistakenly confirmed month puts it BACK on the due list", async () => {
-    const t = await createRecurringExpenseLogic(tenantA, template({ dayOfMonth: 9 }));
+    // Due on the 1st, so this month is owed whatever today's date (rule EX-DUE).
+    const t = await createRecurringExpenseLogic(tenantA, template({ dayOfMonth: 1 }));
     const period = currentPeriod();
 
     const confirmed = await createExpenseLogic(
@@ -646,7 +657,8 @@ describe("expense *Logic (every baht that leaves, in one place)", () => {
     const t = await createRecurringExpenseLogic(
       tenantA,
       template({
-        dayOfMonth: 11,
+        // Due on the 1st, so this month counts whatever today's date (rule EX-DUE).
+        dayOfMonth: 1,
         startPeriod: addPeriods(currentPeriod(), -24),
       })
     );

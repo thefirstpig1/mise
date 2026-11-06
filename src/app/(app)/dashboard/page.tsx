@@ -18,6 +18,7 @@ import { monthEndCountDueLogic, openingPricesWaitingLogic } from "@/server/stock
 import { getSalesSummaryLogic } from "@/server/sales";
 import { getPriceWatchLogic } from "@/server/price-watch";
 import { getLaborByBranchLogic, laborForBranches } from "@/server/cost-overview";
+import { priceMovesFor } from "@/lib/price-average";
 import { periodLabelTh } from "@/lib/sales-insight";
 import { getSalesQuerySchema } from "@/lib/validations/sales-import";
 import { getTransfersLogic } from "@/server/transfer";
@@ -545,7 +546,13 @@ async function Analytics({
   const shortage = pnl.method === "PERIODIC_INVENTORY" ? 0 : pnl.branches.reduce((s, b) => s + Number(b.shortage.toString()), 0);
   const waste = pnl.branches.reduce((s, b) => s + Number(b.waste.toString()), 0);
   const worstShort = [...pnl.branches].sort((a, b) => Number(b.shortage.toString()) - Number(a.shortage.toString()))[0];
-  const priceUps = (prices?.products ?? []).filter((p) => (p.changePct ?? 0) >= 3).sort((a, b) => (b.changePct ?? 0) - (a.changePct ?? 0)).slice(0, 3);
+  // Rule CO-PRICE v2, as /cost: this period's average paid against the period
+  // before's, times what was bought — in BAHT, so "ต้องระวัง" can rank every row
+  // by money (Kong 2026-11-06: its "เรียงตามเงิน" was a fixed order, and a price
+  // rise was a first-to-last receipt % with no baht at all).
+  const priceUps = prices
+    ? priceMovesFor({ from: period.from, to: period.to }, { from: period.prevFrom, to: period.prevTo }, prices.points).up.filter((m) => m.changePct >= 3).slice(0, 3)
+    : [];
 
   const salesQs = new URLSearchParams({ from: isoDay(period.from), to: isoDay(period.to) });
   if (selected.length === 1) salesQs.set("branch", selected[0]);
@@ -729,21 +736,29 @@ async function Analytics({
         {see.cost ? (
           <Card help="dashboard-watch" title="ต้องระวัง" meta="เรียงตามเงิน">
             <ul className="space-y-3 text-sm">
-              {shortage > 0 && (
-                <Watch tone="bad" icon="!" title="ของขาดจากการนับ" amount={baht(shortage)} href="/cost/leaks">
-                  {multi && worstShort ? `มากสุดที่${short(worstShort.branchName)}` : "ของหายโดยไม่มีบันทึก"}
-                </Watch>
-              )}
-              {waste > 0 && (
-                <Watch tone="warn" icon="✕" title="ของทิ้ง" amount={baht(waste)} href="/waste">
-                  มีใบบันทึกของเสีย
-                </Watch>
-              )}
-              {priceUps.map((p) => (
-                <Watch key={p.key} tone="warn" icon="↑" title={`${p.productName} แพงขึ้น ${p.changePct!.toFixed(1)}%`} amount={`+${p.changePct!.toFixed(1)}%`} href="/cost/prices">
-                  {`฿${p.first.toLocaleString("th-TH")} → ฿${p.last.toLocaleString("th-TH")} ต่อ${p.baseUnit} · ${p.receipts} ครั้งที่รับ`}
-                </Watch>
-              ))}
+              {[
+                ...(shortage > 0
+                  ? [{ key: "shortage", money: shortage, row: (
+                      <Watch key="shortage" tone="bad" icon="!" title="ของขาดจากการนับ" amount={baht(shortage)} href="/cost/leaks">
+                        {multi && worstShort ? `มากสุดที่${short(worstShort.branchName)}` : "ของหายโดยไม่มีบันทึก"}
+                      </Watch>
+                    ) }]
+                  : []),
+                ...(waste > 0
+                  ? [{ key: "waste", money: waste, row: (
+                      <Watch key="waste" tone="warn" icon="✕" title="ของทิ้ง" amount={baht(waste)} href="/waste">
+                        มีใบบันทึกของเสีย
+                      </Watch>
+                    ) }]
+                  : []),
+                ...priceUps.map((p) => ({ key: p.productId, money: p.extra, row: (
+                  <Watch key={p.productId} tone="warn" icon="↑" title={`${p.name} แพงขึ้น ${p.changePct.toFixed(1)}%`} amount={`+${baht(p.extra)}`} href="/cost/prices">
+                    {`${p.detail} · จ่ายเพิ่มในช่วงนี้ เทียบ ${vs}`}
+                  </Watch>
+                ) })),
+              ]
+                .sort((a, b) => b.money - a.money)
+                .map((w) => w.row)}
               {shortage <= 0 && waste <= 0 && priceUps.length === 0 && <WatchEmpty recipeMethod={recipeMethod} branchId={oneBranch} />}
             </ul>
             <div className="mt-3 flex flex-wrap gap-x-4 text-xs">
@@ -1111,7 +1126,8 @@ async function missingRecurring(tenantId: string, period: { from: Date; to: Date
   const today = computeBangkokToday();
   const toKey = isoDay(period.to).slice(0, 7);
   const fromKey = isoDay(period.from).slice(0, 7);
-  const due = await getDueRecurringLogic(tenantId, { asOfPeriod: toKey }, { allBranches: false, allowedBranchIds: branchIds }).catch(() => []);
+  // `false`: this helper makes its own due-day test below — against the period's end as well as today.
+  const due = await getDueRecurringLogic(tenantId, { asOfPeriod: toKey }, { allBranches: false, allowedBranchIds: branchIds }, false).catch(() => []);
   const out: { description: string; periodLabel: string; amount: number }[] = [];
   for (const row of due) {
     if (!branchIds.includes(row.template.branch.id)) continue;

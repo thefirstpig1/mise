@@ -146,8 +146,14 @@ describe("SI3 — a change needs volume in BOTH periods", () => {
 });
 
 describe("previousRange", () => {
-  it("a month (even part of one) compares with the whole month before", () => {
-    expect(previousRange("2026-09-01", "2026-09-28")).toEqual({ from: "2026-08-01", to: "2026-08-31" });
+  it("a whole month compares with the whole month before", () => {
+    expect(previousRange("2026-09-01", "2026-09-30")).toEqual({ from: "2026-08-01", to: "2026-08-31" });
+  });
+  // Kong 2026-11-06: /sales compared "this month so far" with all of last month
+  // while the dashboard compared the same days (rule PL8) — one figure, two %.
+  it("part of a month from the 1st compares with the same days of the month before", () => {
+    expect(previousRange("2026-09-01", "2026-09-28")).toEqual({ from: "2026-08-01", to: "2026-08-28" });
+    expect(previousRange("2026-03-01", "2026-03-30")).toEqual({ from: "2026-02-01", to: "2026-02-28" });
   });
   it("any other range: the same number of days just before", () => {
     expect(previousRange("2026-09-10", "2026-09-16")).toEqual({ from: "2026-09-03", to: "2026-09-09" });

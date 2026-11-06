@@ -626,9 +626,12 @@ export async function freshestCostBranch(
     if (branches.length === 0) throw new NoBranchForCostError();
     if (branches.length === 1) return branches[0];
 
+    // Among the branches this reader may see (Kong 2026-11-06): the freshest
+    // receipt shop-wide could be at a branch outside the reach, and the answer
+    // then quietly fell back to the first branch by name.
     const latest = await tx.stockMovement.groupBy({
       by: ["branchId"],
-      where: { tenantId, type: "PO_RECEIVE" },
+      where: { tenantId, type: "PO_RECEIVE", branchId: { in: branches.map((b) => b.id) } },
       _max: { occurredAt: true },
     });
     if (latest.length === 0) return branches[0];

@@ -93,12 +93,15 @@ export default async function StockWorkPage({ searchParams }: { searchParams: Pr
   ]);
   const value = stock.value;
 
-  // The same two counts /products floats over its chips (rule PAR-3).
-  const kinds = Object.values(facts.facts).map((f) => f.state?.kind ?? null);
+  // The same two counts /products floats over its chips (rule PAR-3) — active
+  // products only, as there (Kong 2026-11-06: a switched-off product was counted here).
+  const off = new Set(facts.inactive);
+  const live = Object.entries(facts.facts).filter(([id]) => !off.has(id)).map(([, f]) => f);
+  const kinds = live.map((f) => f.state?.kind ?? null);
   const low = kinds.filter((k) => k !== null && PAR_RED.has(k)).length;
   const near = kinds.filter((k) => k === "near").length;
   // Queue item 10 (rule ND6): "ไม่มีของต่ำกว่าขั้นต่ำ" with no par set was an all-clear about nothing.
-  const parsSet = Object.values(facts.facts).filter((f) => f.par !== null).length;
+  const parsSet = live.filter((f) => f.par !== null).length;
   const today = computeBangkokToday();
   const countAgo = hub.lastCountDate
     ? Math.round((today.getTime() - Date.parse(`${hub.lastCountDate}T00:00:00Z`)) / 86_400_000)

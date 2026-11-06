@@ -174,7 +174,16 @@ function View({ d, canEditTargets }: { d: Data; canEditTargets: boolean }) {
   }, [d.products, menus]);
 
   const baseOf = (p: PvProduct, j: number): number | null => {
-    if (ref === "first") return priceAt(p, 0);
+    // Each product's OWN first price on screen (Kong 2026-11-06): the first
+    // week shown was everybody's base, so a product first bought later had none
+    // and dropped out of the lines and the list.
+    if (ref === "first") {
+      for (let k = 0; k < B.length; k++) {
+        const v = priceAt(p, k);
+        if (v !== null) return v;
+      }
+      return null;
+    }
     if (ref === "month0") return month0 === null ? null : p.month[month0]?.[0] ?? null;
     return j > 0 ? priceAt(p, j - 1) : null;
   };

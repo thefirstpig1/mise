@@ -57,9 +57,13 @@ export default async function TransfersPage({
   });
 
   // Side by side (2026-10-01): the list never needed the branch list first.
-  const [branches, transfers] = await Promise.all([
+  const [branches, transfers, shopBranches] = await Promise.all([
     getBranchesLogic(tenantId, reach),
     query.success ? getTransfersLogic(tenantId, query.data, reach) : Promise.resolve([]),
+    // Whether the SHOP can transfer at all — a manager who sees one branch of a
+    // two-branch shop still sends and receives (Kong 2026-11-06: the box said
+    // "ตอนนี้ระบบมี 1 สาขา" to them). Only the count leaves this line.
+    getBranchesLogic(tenantId, { allBranches: true, allowedBranchIds: [] }).then((all) => all.length),
   ]);
   const fetched = transfers.map((t) => toTransferView(t, costAccess));
   const truncated = fetched.length > MAX_TRANSFER_ROWS;
@@ -99,12 +103,12 @@ export default async function TransfersPage({
         </a>
       </div>
 
-      {branches.length < 2 && (
+      {shopBranches < 2 && (
         // The feature cannot be used at all with one branch, and saying so is
         // better than an empty list that looks broken (Part 17's UX lesson: an
         // empty state must distinguish "nothing to show" from "not set up").
         <div data-help="transfers-one-branch" className="rounded-lg border border-border bg-muted/30 p-4 text-sm">
-          การโอนต้องมีอย่างน้อย 2 สาขา — ตอนนี้ระบบมี {branches.length} สาขา
+          การโอนต้องมีอย่างน้อย 2 สาขา — ตอนนี้ร้านมี {shopBranches} สาขา
         </div>
       )}
 

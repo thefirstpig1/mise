@@ -166,7 +166,9 @@ export default function CloseForm({
         <div className="flex items-center justify-between gap-3 text-sm">
           <label htmlFor="guests">
             <b>จำนวนลูกค้าทั้งหมด</b>
-            <span className="block text-xs text-muted-subtle">ตัวเลขจริงจาก POS</span>
+            {/* Nothing imports guest counts yet — the sales file is per dish, not per bill
+                (Kong 2026-11-06), so the POS branch below waits for that import. */}
+            <span className="block text-xs text-muted-subtle">{guestsFromPos ? "จากไฟล์ยอดขาย" : "พิมพ์ตามที่ POS หรือใบปิดร้านบอก"}</span>
           </label>
           {guestsFromPos ? (
             <span className="tabular-nums font-medium">{day.guestCount} คน</span>

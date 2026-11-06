@@ -113,8 +113,8 @@ function PendingRow({
             <p className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
               {q.quota !== null && <span className={`chip ${q.over ? "chip-warn" : "chip-good"}`}>{q.over ? "เกินโควตา" : "ในโควตา"}</span>}
               {q.quota === null
-                ? `ใช้ไปวันนี้ ฿${q.used} (ร้านไม่ได้ตั้งโควตา)`
-                : `โควตาวันนี้ ใช้ไป ฿${q.used} จาก ฿${q.quota}${q.over ? " — เกินแล้ว" : ""}`}
+                ? `ใช้ไป${q.today ? "วันนี้" : `วันที่ ${t.businessDateLabel}`} ฿${q.used} (ร้านไม่ได้ตั้งโควตา)`
+                : `โควตา${q.today ? "วันนี้" : `วันที่ ${t.businessDateLabel}`} ใช้ไป ฿${q.used} จาก ฿${q.quota}${q.over ? " — เกินแล้ว" : ""}`}
               {q.unpriced > 0 && ` · อีก ${q.unpriced} มื้อยังไม่มีราคา`}
             </p>
           )}

@@ -42,6 +42,8 @@ export type ProductListFacts = {
   lastMoved: Record<string, string>;
   /** The shop's "slow stock" days (tenant.slow_stock_days) — the ไม่เคลื่อนไหว filter. */
   slowDays: number;
+  /** Products switched off — kept in `facts` for the products screen, left out of every count (rule PAR-3). */
+  inactive: string[];
 };
 
 const LAST_RECEIPT_DAYS = 180;
@@ -57,7 +59,7 @@ export async function getProductListFactsLogic(
     const [products, tenant, receipts, usage, moved] = await Promise.all([
       tx.product.findMany({
         where: { tenantId, deletedAt: null },
-        select: { id: true, productUnits: { where: { OR: [{ isBase: true }, { isDefaultBuyUnit: true }] }, select: { id: true, unitName: true, toBaseRatio: true, isBase: true, isDefaultBuyUnit: true } } },
+        select: { id: true, isActive: true, productUnits: { where: { OR: [{ isBase: true }, { isDefaultBuyUnit: true }] }, select: { id: true, unitName: true, toBaseRatio: true, isBase: true, isDefaultBuyUnit: true } } },
       }),
       tx.tenant.findUniqueOrThrow({ where: { id: tenantId }, select: { parWarningDays: true, slowStockDays: true } }),
       cost === null
@@ -147,6 +149,7 @@ export async function getProductListFactsLogic(
       warningDays: tenant.parWarningDays,
       lastMoved,
       slowDays: tenant.slowStockDays,
+      inactive: products.filter((p) => !p.isActive).map((p) => p.id),
     };
   });
 }

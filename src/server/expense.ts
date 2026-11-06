@@ -586,9 +586,18 @@ export async function getDueRecurringLogic(
   tenantId: string,
   query: GetDueRecurringQuery,
   /** Rule A5 (2026-10-29): the list narrows to the reader's branches — the branch filter is optional, so asserting it guards nothing. */
-  reach: BranchReach
+  reach: BranchReach,
+  /**
+   * true (the lists of bills to record): this month's bill is owed only from
+   * its own day — rent due on the 25th is not "ค้าง" on the 3rd (Kong
+   * 2026-11-06). false: every month in the window, for a caller that applies
+   * its own day test (the dashboard, against the period's end too).
+   */
+  fromDueDay = true
 ): Promise<DueRecurringRow[]> {
   const asOf = query.asOfPeriod ?? currentPeriod();
+  const today = computeBangkokToday();
+  const thisPeriod = periodOf(today);
   const floor = addPeriods(asOf, -(DUE_LOOKBACK_MONTHS - 1));
 
   return withTenantContext(tenantId, async (tx) => {
@@ -638,6 +647,7 @@ export async function getDueRecurringLogic(
 
       const duePeriods: string[] = [];
       for (let p = start; p <= end; p = addPeriods(p, 1)) {
+        if (fromDueDay && p === thisPeriod && today.getUTCDate() < template.dayOfMonth) continue;
         if (!confirmedKeys.has(`${template.id}|${p}`)) duePeriods.push(p);
       }
       if (duePeriods.length > 0) rows.push({ template, duePeriods });

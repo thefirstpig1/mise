@@ -37,8 +37,8 @@ export type TicketView = {
   voided: boolean;
   /** Approver's queue: the viewer asked for / will eat this one — no buttons (Q5). */
   isOwn?: boolean;
-  /** Approver's view only: this person's quota standing today. */
-  quota?: { used: string; quota: string | null; over: boolean; unpriced: number } | null;
+  /** Approver's view only: this person's quota on the ticket's day — today, or the day a back-dated ticket names. */
+  quota?: { used: string; quota: string | null; over: boolean; unpriced: number; today: boolean } | null;
 };
 
 const timeTh = new Intl.DateTimeFormat("th-TH", {
@@ -110,6 +110,8 @@ export async function readTicketBoard(v: {
           quota: q.quota === null ? null : q.quota.toString(),
           over: q.over,
           unpriced: q.unpricedCount,
+          // A back-dated ticket is checked against ITS day, and must say so (Kong 2026-11-06).
+          today: t.businessDate.getTime() === computeBangkokToday().getTime(),
         },
       };
     })
