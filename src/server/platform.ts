@@ -16,6 +16,8 @@ import { prismaBypass } from "@/lib/db-admin";
 import type { PlatformActor } from "@/lib/platform-admin";
 import { getShopAccuracySnapshotLogic, type ShopAccuracy } from "@/server/deduction-accuracy";
 import type { ReportKind, ReportStatus, UpdateReportInput } from "@/lib/problem-report";
+import { platformAdminEmails } from "@/lib/platform-admins";
+import { buildOverview, buildTodos, type FeatureKey, type OverviewShop, type PlatformOverview, type Todo } from "@/lib/platform-overview";
 
 export const PLANS = { trial: "Free", standard: "Standard" } as const;
 export type PlanCode = keyof typeof PLANS;
@@ -370,3 +372,170 @@ export async function getReportScreenshotLogic(_actor: PlatformActor, fileId: st
     select: { storageKey: true, contentType: true },
   });
 }
+
+// ------------------------------------------------------------
+// ADR 0045 — ภาพรวม and ต้องทำ. One groupBy per table across every shop, never
+// a loop per shop: the page is opened often and the shop count only grows
+// (Consequence 3). The figures are built in src/lib/platform-overview.ts.
+// ------------------------------------------------------------
+
+type MaxRow = { tenantId: string; _max: { createdAt?: Date | null; closedAt?: Date | null } };
+const latest = (rows: MaxRow[]) => new Map(rows.map((r) => [r.tenantId, (r._max.createdAt ?? r._max.closedAt) as Date | null]));
+
+async function overviewRows(): Promise<{ shops: OverviewShop[]; newReports: { count: number; oldest: Date | null } }> {
+  const db = prismaBypass;
+  const live = { deletedAt: null };
+  const [
+    tenants,
+    suppliers,
+    products,
+    salesDays,
+    recipes,
+    counts,
+    movement,
+    salesImport,
+    goodsReceipt,
+    stockCount,
+    expense,
+    purchaseOrder,
+    purchaseRequest,
+    consumption,
+    waste,
+    dailyClose,
+    staffMeal,
+    menuLab,
+    transfer,
+    production,
+    pos,
+    branches,
+    staff,
+    overrides,
+    reports,
+  ] = await Promise.all([
+    db.tenant.findMany({
+      where: live,
+      select: {
+        id: true,
+        name: true,
+        createdAt: true,
+        updatedAt: true,
+        plan: true,
+        planFreeUntil: true,
+        grossProfitMethod: true,
+        _count: { select: { branches: { where: live } } },
+        memberships: { where: { isActive: true }, select: { role: true, userId: true, user: { select: { email: true } } } },
+      },
+    }),
+    db.supplier.groupBy({ by: ["tenantId"], where: live, _count: { _all: true } }),
+    db.product.groupBy({ by: ["tenantId"], where: live, _count: { _all: true } }),
+    db.salesDay.groupBy({ by: ["tenantId"], _count: { _all: true } }),
+    db.recipe.groupBy({ by: ["tenantId"], where: { menuId: { not: null }, isDraft: false, supersededAt: null }, _count: { _all: true } }),
+    db.stockCount.groupBy({ by: ["tenantId"], where: { status: "CLOSED", deletedAt: null }, _count: { _all: true } }),
+    db.stockMovement.groupBy({ by: ["tenantId"], _max: { createdAt: true } }),
+    db.salesImportBatch.groupBy({ by: ["tenantId"], _max: { createdAt: true } }),
+    db.goodsReceipt.groupBy({ by: ["tenantId"], _max: { createdAt: true } }),
+    db.stockCount.groupBy({ by: ["tenantId"], _max: { createdAt: true } }),
+    db.expense.groupBy({ by: ["tenantId"], _max: { createdAt: true } }),
+    db.purchaseOrder.groupBy({ by: ["tenantId"], _max: { createdAt: true } }),
+    db.purchaseRequestLine.groupBy({ by: ["tenantId"], _max: { createdAt: true } }),
+    db.salesConsumptionRun.groupBy({ by: ["tenantId"], _max: { createdAt: true } }),
+    db.wasteLog.groupBy({ by: ["tenantId"], _max: { createdAt: true } }),
+    db.dailyClose.groupBy({ by: ["tenantId"], _max: { closedAt: true } }),
+    db.staffMeal.groupBy({ by: ["tenantId"], _max: { createdAt: true } }),
+    db.recipe.groupBy({ by: ["tenantId"], where: { isDraft: true }, _max: { createdAt: true } }),
+    db.stockTransfer.groupBy({ by: ["tenantId"], _max: { createdAt: true } }),
+    db.production.groupBy({ by: ["tenantId"], _max: { createdAt: true } }),
+    db.posIntegration.findMany({ where: { deletedAt: null, isActive: true }, select: { tenantId: true, branchId: true, posType: true } }),
+    db.branch.findMany({ where: live, select: { id: true, tenantId: true } }),
+    db.staffMember.groupBy({ by: ["tenantId"], where: { deletedAt: null, isActive: true }, _count: { _all: true } }),
+    db.membershipCapabilityOverride.findMany({ distinct: ["tenantMembershipId"], select: { tenantId: true, tenantMembershipId: true } }),
+    db.problemReport.aggregate({ where: { status: "NEW" }, _count: { _all: true }, _min: { createdAt: true } }),
+  ]);
+
+  const has = (rows: { tenantId: string }[]) => new Set(rows.map((r) => r.tenantId));
+  const [hasSupplier, hasProduct, hasSales, hasRecipe, hasCount] = [suppliers, products, salesDays, recipes, counts].map(has);
+  const byFeature: [FeatureKey, Map<string, Date | null>][] = [
+    ["salesImport", latest(salesImport)],
+    ["goodsReceipt", latest(goodsReceipt)],
+    ["stockCount", latest(stockCount)],
+    ["expense", latest(expense)],
+    ["purchaseOrder", latest(purchaseOrder)],
+    ["purchaseRequest", latest(purchaseRequest)],
+    ["consumption", latest(consumption)],
+    ["waste", latest(waste)],
+    ["dailyClose", latest(dailyClose)],
+    ["staffMeal", latest(staffMeal)],
+    ["menuLab", latest(menuLab)],
+    ["transfer", latest(transfer)],
+    ["production", latest(production)],
+  ];
+  const lastMove = latest(movement);
+
+  // POS is counted in branches: a branch with two integrations counts once per brand.
+  const posByTenant = new Map<string, Map<string, Set<string>>>();
+  const branchWithPos = new Set<string>();
+  for (const p of pos) {
+    const t = posByTenant.get(p.tenantId) ?? posByTenant.set(p.tenantId, new Map()).get(p.tenantId)!;
+    (t.get(p.posType) ?? t.set(p.posType, new Set()).get(p.posType)!).add(p.branchId);
+    branchWithPos.add(p.branchId);
+  }
+  const noPos = new Map<string, number>();
+  for (const b of branches) if (!branchWithPos.has(b.id)) noPos.set(b.tenantId, (noPos.get(b.tenantId) ?? 0) + 1);
+  const staffCount = new Map(staff.map((r) => [r.tenantId, r._count._all]));
+  const overrideCount = new Map<string, number>();
+  for (const o of overrides) overrideCount.set(o.tenantId, (overrideCount.get(o.tenantId) ?? 0) + 1);
+
+  const shops: OverviewShop[] = tenants.map((t) => {
+    const lastByFeature: OverviewShop["lastByFeature"] = {};
+    for (const [key, m] of byFeature) {
+      const d = m.get(t.id);
+      if (d) lastByFeature[key] = d;
+    }
+    return {
+      id: t.id,
+      name: t.name,
+      createdAt: t.createdAt,
+      updatedAt: t.updatedAt,
+      plan: t.plan,
+      freeUntil: t.planFreeUntil,
+      method: t.grossProfitMethod,
+      branches: t._count.branches,
+      members: t.memberships.map((m) => ({ userId: m.userId, email: m.user.email, role: m.role })),
+      facts: {
+        hasSupplier: hasSupplier.has(t.id),
+        hasProduct: hasProduct.has(t.id),
+        hasSalesDay: hasSales.has(t.id),
+        hasLiveRecipe: hasRecipe.has(t.id),
+        hasClosedCount: hasCount.has(t.id),
+      },
+      lastByFeature,
+      lastMovement: lastMove.get(t.id) ?? null,
+      pos: Object.fromEntries([...(posByTenant.get(t.id) ?? new Map<string, Set<string>>())].map(([k, v]) => [k, v.size])),
+      branchesWithoutPos: noPos.get(t.id) ?? 0,
+      staffWithoutAccount: staffCount.get(t.id) ?? 0,
+      peopleWithOwnPermissions: overrideCount.get(t.id) ?? 0,
+    };
+  });
+  return { shops, newReports: { count: reports._count._all, oldest: reports._min.createdAt } };
+}
+
+export async function getPlatformOverviewLogic(_actor: PlatformActor, now: Date = new Date()): Promise<{ overview: PlatformOverview; todos: Todo[] }> {
+  const { shops, newReports } = await overviewRows();
+  const admins = platformAdminEmails();
+  return { overview: buildOverview(shops, admins, now), todos: buildTodos({ shops, admins, newReports, now }) };
+}
+
+/**
+ * The orange number on the dark strip — read after paint, by GET (ADR 0045 Q2).
+ * The strip asks on every page Kong opens, and the answer is two dozen
+ * cross-shop queries, so it is kept for a minute; /platform itself is always fresh.
+ */
+let todoMemo: { count: number; at: number } | null = null;
+const TODO_MEMO_MS = 60_000;
+export async function platformTodoCountLogic(actor: PlatformActor, now: number = Date.now()): Promise<number> {
+  if (todoMemo && now - todoMemo.at < TODO_MEMO_MS) return todoMemo.count;
+  const count = (await getPlatformOverviewLogic(actor)).todos.length;
+  todoMemo = { count, at: now };
+  return count;
+}
+

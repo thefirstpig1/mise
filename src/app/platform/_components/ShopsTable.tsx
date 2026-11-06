@@ -42,11 +42,11 @@ function freeLabel(s: ShopRow, today: string): { text: string; tone: string } {
   return { text: `${fullDate(s.freeUntil)} · อีก ${left} วัน`, tone: "" };
 }
 
-export default function ShopsTable({ shops, today }: { shops: ShopRow[]; today: string }) {
+export default function ShopsTable({ shops, today, initialQuery = "" }: { shops: ShopRow[]; today: string; initialQuery?: string }) {
   const router = useRouter();
   const [editing, setEditing] = useState<ShopRow | null>(null);
   const [viewing, setViewing] = useState<ShopRow | null>(null);
-  const [q, setQ] = useState("");
+  const [q, setQ] = useState(initialQuery);
   const [toast, setToast] = useState<string | null>(null);
   const [, startRefresh] = useTransition();
   // Each shop's figure is a FIFO replay, so the table paints first and the

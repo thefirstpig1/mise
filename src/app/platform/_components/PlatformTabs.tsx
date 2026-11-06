@@ -4,10 +4,13 @@ import Link from "next/link";
 import type { Route } from "next";
 import { usePathname } from "next/navigation";
 
+// ADR 0045 Q1: ภาพรวม (with ต้องทำ) first; the shops table moved to /platform/shops.
 const TABS = [
-  { href: "/platform", label: "ร้านทั้งหมด" },
+  { href: "/platform", label: "ภาพรวม" },
+  { href: "/platform/shops", label: "ร้านทั้งหมด" },
   { href: "/platform/users", label: "ค้นหาผู้ใช้" },
   { href: "/platform/reports", label: "เรื่องที่แจ้งเข้ามา" },
+  { href: "/platform/docs", label: "ขั้นตอนและเอกสาร" },
   { href: "/platform/audit", label: "บันทึกการแก้ไข" },
 ] as const;
 

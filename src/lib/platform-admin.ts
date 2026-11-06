@@ -12,20 +12,11 @@
 
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
+import { isPlatformAdminEmail } from "@/lib/platform-admins";
 
-/** The configured admins, lower-cased. Empty = nobody, which is the safe default. */
-export function platformAdminEmails(raw: string | undefined = process.env.PLATFORM_ADMIN_EMAILS): Set<string> {
-  return new Set(
-    (raw ?? "")
-      .split(",")
-      .map((e) => e.trim().toLowerCase())
-      .filter((e) => e.includes("@"))
-  );
-}
-
-export function isPlatformAdminEmail(email: string | null | undefined, raw?: string): boolean {
-  return !!email && platformAdminEmails(raw).has(email.trim().toLowerCase());
-}
+// The list itself is a plain module, so the platform reads can use it without
+// loading the sign-in code (ADR 0045); re-exported for the callers that import it here.
+export { isPlatformAdminEmail, platformAdminEmails } from "@/lib/platform-admins";
 
 /**
  * The only way to obtain one — so every function in src/server/platform.ts,

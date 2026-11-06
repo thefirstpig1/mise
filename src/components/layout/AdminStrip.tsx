@@ -1,4 +1,5 @@
 import { ShieldCheck } from "lucide-react";
+import AdminTodoBadge from "./AdminTodoBadge";
 
 // ============================================================
 // คิดครัว — the operator's door (ADR 0043)
@@ -22,6 +23,7 @@ export default function AdminStrip() {
         className="shrink-0 rounded-lg border border-primary-foreground/35 bg-primary-foreground/15 px-3 py-0.5 font-display font-semibold hover:bg-primary-foreground/25"
       >
         หน้าควบคุมระบบ ›
+        <AdminTodoBadge />
       </a>
     </div>
   );

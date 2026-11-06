@@ -74,6 +74,12 @@ const nextConfig: NextConfig = {
     return [{ source: "/fonts/:file*", headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }] }];
   },
   env: { MISE_BUILD_ID: BUILD_ID },
+  /**
+   * ADR 0045 Q5: /platform/docs reads the legal drafts from docs/legal at run
+   * time. The container holds only what Next traced, and a path built with
+   * process.cwd() is not traced — without this the page says the file is missing.
+   */
+  outputFileTracingIncludes: { "/platform/docs": ["./docs/legal/*.md"] },
   ...(standalone ? { output: "standalone" as const } : {}),
   experimental: {
     typedRoutes: true,

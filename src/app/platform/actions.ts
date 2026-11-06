@@ -31,6 +31,7 @@ export async function setShopPlanAction(input: unknown): Promise<PlatformResult>
     return { ok: false, formError: "บันทึกไม่สำเร็จ กรุณาลองอีกครั้ง" };
   }
   revalidatePath("/platform");
+  revalidatePath("/platform/shops");
   revalidatePath("/platform/audit");
   return { ok: true };
 }
@@ -58,5 +59,6 @@ export async function updateReportAction(input: unknown): Promise<ReportSaveResu
   const emailed = tell.tellReporter ? (await notifyReportFixed(tell.tellReporter)) > 0 : false;
   revalidatePath("/platform/reports");
   revalidatePath("/platform/audit");
+  revalidatePath("/platform"); // ต้องทำ counts the reports nobody has opened
   return { ok: true, emailed };
 }

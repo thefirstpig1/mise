@@ -29,6 +29,10 @@
 import { cache } from "react";
 import { withTenantContext } from "@/lib/db";
 import { SETUP_STEPS, type SetupKey, type SetupStep } from "@/lib/setup-steps";
+import { onboardingDone } from "@/lib/onboarding-rule";
+
+// The rule itself is a plain module (ADR 0045 Q4); re-exported for the callers that always imported it from here.
+export { onboardingDone, settingsSavedAt, shopSettingsReviewed, type OnboardingFacts } from "@/lib/onboarding-rule";
 
 // Kong 2026-10-30: ingredients come before suppliers — the bill import (the
 // supplier step's door) matches each bill line against the ingredient list.
@@ -44,29 +48,6 @@ export type Onboarding = {
   method: "PERIODIC_INVENTORY" | "RECIPE_CONSUMPTION";
 };
 
-/**
- * Signup writes created_at and updated_at in the same instant; a save later moves
- * updated_at. Was 60 s — the setup trial (2026-10-30) saved settings 52 s after
- * signing up and the step stayed unticked. Signup's own writes land within a few
- * seconds; nobody opens settings and saves inside 15.
- */
-const SAVED_AFTER_SIGNUP_MS = 15_000;
-
-/**
- * The updated_at a settings save writes. Never inside the signup window: a
- * shop that signs up and presses "ใช้ค่าตามนี้" within seconds (the setup walk
- * 2026-10-31 did it in 8) has still been through its settings, and without
- * this the step stayed unticked and the button did nothing visible.
- */
-export function settingsSavedAt(createdAt: Date, now: Date = new Date()): Date {
-  return new Date(Math.max(now.getTime(), createdAt.getTime() + SAVED_AFTER_SIGNUP_MS + 1000));
-}
-
-/** Has the owner been through ตั้งค่าร้าน since signing up? (step "shop") */
-export function shopSettingsReviewed(t: { createdAt: Date; updatedAt: Date }): boolean {
-  return t.updatedAt.getTime() - t.createdAt.getTime() > SAVED_AFTER_SIGNUP_MS;
-}
-
 export async function getOnboardingLogic(tenantId: string, membershipId: string): Promise<Onboarding> {
   return withTenantContext(tenantId, async (tx) => {
     const [tenant, membership, supplier, product, sales, count, members, recipe] = await Promise.all([
@@ -79,15 +60,16 @@ export async function getOnboardingLogic(tenantId: string, membershipId: string)
       tx.tenantMembership.count({ where: { tenantId, isActive: true } }),
       tx.recipe.findFirst({ where: { tenantId, menuId: { not: null }, isDraft: false, supersededAt: null }, select: { id: true } }),
     ]);
-    const done: Record<OnboardingStep, boolean> = {
-      shop: shopSettingsReviewed(tenant),
-      team: members > 1,
-      supplier: supplier !== null,
-      product: product !== null,
-      sales: sales !== null,
-      recipe: recipe !== null,
-      count: count !== null,
-    };
+    const done = onboardingDone({
+      createdAt: tenant.createdAt,
+      updatedAt: tenant.updatedAt,
+      activeMembers: members,
+      hasSupplier: supplier !== null,
+      hasProduct: product !== null,
+      hasSalesDay: sales !== null,
+      hasLiveRecipe: recipe !== null,
+      hasClosedCount: count !== null,
+    });
     const steps = ONBOARDING_STEPS.filter((s) => s !== "recipe" || tenant.grossProfitMethod === "RECIPE_CONSUMPTION");
     return {
       steps,
