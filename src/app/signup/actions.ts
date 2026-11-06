@@ -57,10 +57,13 @@ export async function signupAction(_prev: SignupState, formData: FormData): Prom
   const firstBranchSalesDayCutoffMinutes = cutoff?.success ? cutoff.data : undefined;
 
   // 1. Create user (or find existing)
+  // ADR 0045 Q12 — news by e-mail only when ticked; an existing account keeps
+  // whatever it chose before (withdrawing lives on บัญชีของฉัน).
+  const optIn = formData.get("marketing_opt_in") === "on" ? { marketingOptInAt: new Date() } : {};
   const user = await prisma.user.upsert({
     where: { email },
-    create: { email, name, emailVerified: null },
-    update: { name },
+    create: { email, name, emailVerified: null, ...optIn },
+    update: { name, ...optIn },
   });
 
   // 2. Create tenant with full init

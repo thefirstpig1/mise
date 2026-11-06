@@ -29,6 +29,7 @@ import CustomerTypes from "./_components/DailyCloseSettings";
 import ConfirmShopSettings from "./_components/ConfirmShopSettings";
 import { shopSettingsReviewed } from "@/server/onboarding";
 import { ChangedNote, FieldError, SectionForm, SectionNav, UnsavedGuard } from "./_components/settings-form";
+import { HEARD_FROM, PROVINCES, SHOP_TYPES } from "@/lib/platform-requests";
 import {
   saveAddonsSectionAction,
   saveAdvanceSectionAction,
@@ -235,6 +236,40 @@ export default async function SettingsPage() {
             <div>
               <MeasureInput id="default_vat_rate_percent" name="default_vat_rate_percent" unit="%" min={0} max={30} step={0.01} inputMode="decimal" defaultValue={Number(tenant.defaultVatRatePercent)} boxClassName="w-28" />
               <FieldError name="default_vat_rate_percent" />
+            </div>
+          }
+        />
+        {/* ADR 0045 Q14 — optional; คิดครัว counts them only in aggregate. */}
+        <Row
+          title="เกี่ยวกับร้าน (ไม่บังคับ)"
+          hint="ช่วยให้คิดครัวรู้ว่าร้านแบบไหนใช้งานอยู่ · ใช้ดูเป็นตัวเลขรวมเท่านั้น"
+          control={
+            <div className="grid gap-2 sm:w-72">
+              <select name="shop_type" defaultValue={tenant.shopType ?? ""} className="input w-full" aria-label="ประเภทร้าน">
+                <option value="">ประเภทร้าน · ไม่ระบุ</option>
+                {SHOP_TYPES.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+              <select name="province" defaultValue={tenant.province ?? ""} className="input w-full" aria-label="จังหวัด">
+                <option value="">จังหวัด · ไม่ระบุ</option>
+                {PROVINCES.map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </select>
+              <select name="heard_from" defaultValue={tenant.heardFrom ?? ""} className="input w-full" aria-label="รู้จักคิดครัวจากไหน">
+                <option value="">รู้จักคิดครัวจากไหน · ไม่ระบุ</option>
+                {HEARD_FROM.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+              <FieldError name="shop_type" />
             </div>
           }
         />

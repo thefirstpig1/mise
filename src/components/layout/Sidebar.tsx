@@ -303,9 +303,10 @@ export default function Sidebar({
       </div>
 
       <div className="space-y-2 px-5 pb-4 pt-2 text-sm">
-        <p className="truncate text-muted-foreground" title={userLabel}>
+        {/* ADR 0045 Q12 — your own account: the address, and the news consent you can withdraw. */}
+        <Link href={"/account" as Route} className="block truncate text-muted-foreground hover:text-foreground" title={`${userLabel} · บัญชีของฉัน`}>
           {userLabel}
-        </p>
+        </Link>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
           {/* Switching and opening a shop moved into the shop name at the top (Kong 2026-11-02). */}
           {signOutSlot}

@@ -39,6 +39,7 @@ import { cache } from "react";
 import { redirect } from "next/navigation";
 import { auth } from "./auth";
 import { prismaBypass } from "./db-admin";
+import { noteActivity } from "@/server/usage-log";
 import {
   canAccessBranch,
   canEditShared,
@@ -78,7 +79,9 @@ function deny(need: string): never {
 // so the guess is gone (ADR 0029 Q3).
 function findMembershipsFor(userId: string) {
   return prismaBypass.tenantMembership.findMany({
-    where: { userId, isActive: true },
+    // A closed shop (ADR 0045 Q10: deleted_at set by the operator) lets nobody
+    // in from the moment it is closed — not the owner, not a cached cookie.
+    where: { userId, isActive: true, tenant: { deletedAt: null } },
     include: {
       // ADR 0038 — the shop's changes to the role table and this person's
       // exceptions ride on the same discovery, so the gate below asks what the
@@ -146,6 +149,9 @@ export async function requireTenant(
   );
 
   if (!membership) redirect("/choose-shop");
+
+  // ADR 0045 Q13 — a day of use, once per person per shop per day, never awaited.
+  noteActivity(membership.tenantId, session.user.id);
 
   const role = membership.role;
   const capabilities = effectiveCapabilities(
@@ -241,7 +247,7 @@ export async function requireTenant(
 /** Every active shop this person belongs to, oldest membership first. */
 export async function listActiveMembershipsForUser(userId: string) {
   return prismaBypass.tenantMembership.findMany({
-    where: { userId, isActive: true },
+    where: { userId, isActive: true, tenant: { deletedAt: null } },
     // allBranches + branch names: the เลือกร้าน card says WHERE you work in
     // each shop (review 2026-10-28). Still this user's own rows only.
     select: {
@@ -261,7 +267,7 @@ export async function listActiveMembershipsForUser(userId: string) {
  */
 export async function findActiveMembershipForUser(userId: string, tenantId: string) {
   return prismaBypass.tenantMembership.findFirst({
-    where: { userId, tenantId, isActive: true },
+    where: { userId, tenantId, isActive: true, tenant: { deletedAt: null } },
     select: { tenantId: true },
   });
 }

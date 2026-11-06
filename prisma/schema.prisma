@@ -159,6 +159,15 @@ model Tenant {
 
   settings Json? @db.JsonB
 
+  /// ADR 0045 Q14 — three optional answers from the setup card, for the
+  /// platform overview's aggregate counts. Shop facts, not personal data.
+  shopType  String? @map("shop_type")
+  province  String?
+  heardFrom String? @map("heard_from")
+  /// ADR 0045 Q10 — set when the operator closes the shop (deleted_at = the
+  /// closing): nobody gets in from then, and the data may be erased from this day.
+  purgeAfter DateTime? @map("purge_after") @db.Date
+
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
@@ -230,6 +239,7 @@ model Tenant {
   expensePayments ExpensePayment[]
   staffRefunds    StaffRefund[]
   problemReports  ProblemReport[]
+  activityDays    UserActivityDay[]
 
   @@map("tenant")
 }
@@ -311,6 +321,13 @@ model User {
   image         String? // For Auth.js
   phone         String?
   authProvider  String?   @map("auth_provider")
+
+  /// ADR 0045 Q12 — which published terms this person accepted, and when;
+  /// null until a version is published. Marketing consent is separate and
+  /// optional: null = no consent (PDPA — never bundled with the contract).
+  termsVersion      String?   @map("terms_version")
+  termsAcceptedAt   DateTime? @map("terms_accepted_at")
+  marketingOptInAt  DateTime? @map("marketing_opt_in_at")
 
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
@@ -4253,4 +4270,87 @@ model ProblemReport {
   @@index([tenantId, reporterId], map: "problem_report_reporter_idx")
   @@index([status, createdAt], map: "problem_report_status_idx")
   @@map("problem_report")
+}
+
+// ============================================================
+// ADR 0045 part B — what the control page keeps (Kong 2026-11-07, "ก.")
+// ============================================================
+
+/// One successful sign-in. The app role may INSERT and never SELECT (policy in
+/// prisma/manual/enable_rls.sql); only the platform door reads it. Kept 90 days
+/// (src/lib/retention.ts, privacy draft §5). No FK: the record outlives an
+/// account's changes, like platform_audit_log.
+model LoginEvent {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id")
+  /// The address as it was at sign-in.
+  email     String
+  ip        String?
+  /// Shortened to what identifies the device and browser.
+  userAgent String?  @map("user_agent")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt], map: "login_event_created_idx")
+  @@index([userId, createdAt], map: "login_event_user_idx")
+  @@map("login_event")
+}
+
+/// One row per person per shop per Bangkok day they opened it — sessions last
+/// 30 days, so sign-ins alone cannot say who uses the app every day.
+/// Tenant-scoped (ordinary RLS). Kept 12 months.
+model UserActivityDay {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  userId    String   @map("user_id")
+  day       DateTime @db.Date
+  createdAt DateTime @default(now()) @map("created_at")
+
+  /// Cascades (migration 20261107100000): the late, unawaited write must never block an erase.
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, userId, day], map: "user_activity_day_key")
+  @@index([day], map: "user_activity_day_day_idx")
+  @@map("user_activity_day")
+}
+
+/// A strip at the top of every page of every shop, between two moments. The
+/// app role may only SELECT; the platform door writes.
+model PlatformAnnouncement {
+  id        String    @id @default(uuid()) @db.Uuid
+  message   String
+  /// "info" (may be closed) or "important".
+  tone      String
+  startsAt  DateTime  @map("starts_at")
+  endsAt    DateTime  @map("ends_at")
+  /// Taken down early by the operator.
+  stoppedAt DateTime? @map("stopped_at")
+  createdBy String    @map("created_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@index([endsAt], map: "platform_announcement_ends_idx")
+  @@map("platform_announcement")
+}
+
+/// A shop's or a person's request about their data: a copy, an erasure, or a
+/// person's own record. Platform-only (RLS on, no policy). No FK to the shop —
+/// a delete request is the proof the shop was deleted. Kept 3 years after done.
+model DataRequest {
+  id          String    @id @default(uuid()) @db.Uuid
+  /// "export" | "delete" | "personal"
+  kind        String
+  shopId      String?   @map("shop_id") @db.Uuid
+  /// The shop's name when the request was recorded.
+  shopName    String?   @map("shop_name")
+  /// Who asked: an e-mail address or a name.
+  requester   String
+  requestedOn DateTime  @map("requested_on") @db.Date
+  dueOn       DateTime  @map("due_on") @db.Date
+  note        String?
+  doneAt      DateTime? @map("done_at")
+  doneBy      String?   @map("done_by")
+  createdBy   String    @map("created_by")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@index([doneAt, dueOn], map: "data_request_open_idx")
+  @@map("data_request")
 }

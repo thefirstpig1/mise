@@ -3,6 +3,7 @@
 
 import { requirePlatformAdmin } from "@/lib/platform-admin";
 import { searchUsersLogic } from "@/server/platform";
+import ChangeEmail from "../_components/ChangeEmail";
 
 const ROLE: Record<string, string> = {
   owner: "เจ้าของ",
@@ -34,12 +35,13 @@ export default async function PlatformUsersPage({ searchParams }: { searchParams
       </form>
       {q.trim().length >= 2 && (
         <div className="overflow-x-auto rounded-[18px] border border-border/70 bg-surface shadow-card">
-          <table className="data-table w-full min-w-[640px]">
+          <table className="data-table w-full min-w-[820px]">
             <thead>
               <tr>
                 <th>ผู้ใช้</th>
                 <th>สมัครเมื่อ</th>
                 <th>อยู่ร้านไหนบ้าง</th>
+                <th>เข้าสู่ระบบล่าสุด</th>
               </tr>
             </thead>
             <tbody>
@@ -48,6 +50,7 @@ export default async function PlatformUsersPage({ searchParams }: { searchParams
                   <td>
                     <span className="font-medium">{u.name ?? "—"}</span>
                     <span className="block text-sm text-muted-foreground">{u.email}</span>
+                    <ChangeEmail userId={u.id} email={u.email} shops={u.memberships.filter((m) => m.active).map((m) => m.shop)} />
                   </td>
                   <td className="text-sm">{u.createdAt.slice(0, 10)}</td>
                   <td className="text-sm">
@@ -60,11 +63,22 @@ export default async function PlatformUsersPage({ searchParams }: { searchParams
                           </span>
                         ))}
                   </td>
+                  <td className="text-xs text-muted-foreground">
+                    {u.logins.length === 0
+                      ? "ยังไม่มีบันทึก"
+                      : u.logins.map((l) => (
+                          <span key={l.at} className="block whitespace-nowrap">
+                            {new Date(l.at).toLocaleString("th-TH", { timeZone: "Asia/Bangkok", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                            {l.device ? ` · ${l.device}` : ""}
+                            {l.ip ? ` · ${l.ip}` : ""}
+                          </span>
+                        ))}
+                  </td>
                 </tr>
               ))}
               {users.length === 0 && (
                 <tr>
-                  <td colSpan={3} className="py-8 text-center text-sm text-muted-foreground">
+                  <td colSpan={4} className="py-8 text-center text-sm text-muted-foreground">
                     ไม่พบผู้ใช้ที่ตรงกับ “{q}”
                   </td>
                 </tr>

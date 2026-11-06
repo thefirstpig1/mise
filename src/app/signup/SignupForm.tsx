@@ -162,6 +162,13 @@ export default function SignupForm({
             </div>
           )}
         </fieldset>
+        {/* ADR 0045 Q12 — separate from any contract and never ticked for you (PDPA). */}
+        <label className="flex items-start gap-2.5 text-sm">
+          <input type="checkbox" name="marketing_opt_in" className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--color-primary,#41431B)]" />
+          <span>
+            รับข่าวสาร ฟีเจอร์ใหม่ และโปรโมชั่นทางอีเมล <span className="text-muted-foreground">(ไม่บังคับ · ยกเลิกได้ทุกเมื่อที่หน้าบัญชีของฉัน)</span>
+          </span>
+        </label>
         {!state.ok && state.formError && <p className="text-sm text-bad">{state.formError}</p>}
         <div className="flex gap-2.5">
           <button type="button" onClick={() => setStep(1)} className="h-12 rounded-xl border border-border-strong bg-surface px-5 font-semibold text-primary hover:bg-muted">

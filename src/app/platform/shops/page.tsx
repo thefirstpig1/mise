@@ -5,11 +5,17 @@
 
 import { requirePlatformAdmin } from "@/lib/platform-admin";
 import { computeBangkokToday } from "@/lib/bangkok-date";
-import { listShopsLogic } from "@/server/platform";
+import { listClosedShopsLogic, listShopsLogic } from "@/server/platform";
 import ShopsTable from "../_components/ShopsTable";
+import ClosedShops from "../_components/ClosedShops";
 
 export default async function PlatformShopsPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const actor = await requirePlatformAdmin();
-  const [{ q }, shops] = await Promise.all([searchParams, listShopsLogic(actor)]);
-  return <ShopsTable shops={shops} today={computeBangkokToday().toISOString().slice(0, 10)} initialQuery={q ?? ""} />;
+  const [{ q }, shops, closed] = await Promise.all([searchParams, listShopsLogic(actor), listClosedShopsLogic(actor)]);
+  return (
+    <div className="space-y-8">
+      <ShopsTable shops={shops} today={computeBangkokToday().toISOString().slice(0, 10)} initialQuery={q ?? ""} />
+      <ClosedShops shops={closed} />
+    </div>
+  );
 }

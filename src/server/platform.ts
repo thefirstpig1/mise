@@ -18,6 +18,13 @@ import { getShopAccuracySnapshotLogic, type ShopAccuracy } from "@/server/deduct
 import type { ReportKind, ReportStatus, UpdateReportInput } from "@/lib/problem-report";
 import { platformAdminEmails } from "@/lib/platform-admins";
 import { buildOverview, buildTodos, type FeatureKey, type OverviewShop, type PlatformOverview, type Todo } from "@/lib/platform-overview";
+import { eraseTenantRows } from "@/lib/tenant-erase";
+import { retentionCutoffs } from "@/lib/retention";
+import { nameConfirmed, purgeDate, requestDue, type RecordRequestInput, type RequestKind } from "@/lib/platform-requests";
+import { buildRawExportLogic, writeRawExportWorkbook, type ExportSheet } from "@/server/raw-export";
+import { EXPORT_DATASETS, EXPORT_DATASET_TH, rawExportQuerySchema } from "@/lib/validations/raw-export";
+import { deleteObject, storageReady, thumbKeyOf } from "@/lib/storage";
+import { computeBangkokToday } from "@/lib/bangkok-date";
 
 export const PLANS = { trial: "Free", standard: "Standard" } as const;
 export type PlanCode = keyof typeof PLANS;
@@ -189,6 +196,8 @@ export type UserRow = {
   name: string | null;
   createdAt: string;
   memberships: { tenantId: string; shop: string; role: string; active: boolean }[];
+  /** ADR 0045 part B — the latest sign-ins (kept 90 days): when, from where, on what. */
+  logins: { at: string; ip: string | null; device: string | null }[];
 };
 
 /** Find people by e-mail — the support question "which shop is this person in". */
@@ -207,12 +216,19 @@ export async function searchUsersLogic(_actor: PlatformActor, query: string): Pr
       memberships: { select: { tenantId: true, role: true, isActive: true, tenant: { select: { name: true } } } },
     },
   });
+  const logins = users.length
+    ? await prismaBypass.loginEvent.findMany({ where: { userId: { in: users.map((u) => u.id) } }, orderBy: { createdAt: "desc" }, take: 200 })
+    : [];
   return users.map((u) => ({
     id: u.id,
     email: u.email,
     name: u.name,
     createdAt: u.createdAt.toISOString(),
     memberships: u.memberships.map((m) => ({ tenantId: m.tenantId, shop: m.tenant.name, role: m.role, active: m.isActive })),
+    logins: logins
+      .filter((l) => l.userId === u.id)
+      .slice(0, 5)
+      .map((l) => ({ at: l.createdAt.toISOString(), ip: l.ip, device: l.userAgent })),
   }));
 }
 
@@ -382,7 +398,15 @@ export async function getReportScreenshotLogic(_actor: PlatformActor, fileId: st
 type MaxRow = { tenantId: string; _max: { createdAt?: Date | null; closedAt?: Date | null } };
 const latest = (rows: MaxRow[]) => new Map(rows.map((r) => [r.tenantId, (r._max.createdAt ?? r._max.closedAt) as Date | null]));
 
-async function overviewRows(): Promise<{ shops: OverviewShop[]; newReports: { count: number; oldest: Date | null } }> {
+type OverviewRows = {
+  shops: OverviewShop[];
+  newReports: { count: number; oldest: Date | null };
+  firstActivity: Date | null;
+  requests: { id: string; kind: RequestKind; shopName: string | null; requester: string; dueOn: Date }[];
+  closed: { id: string; name: string; purgeAfter: Date }[];
+};
+
+async function overviewRows(now: Date): Promise<OverviewRows> {
   const db = prismaBypass;
   const live = { deletedAt: null };
   const [
@@ -411,6 +435,10 @@ async function overviewRows(): Promise<{ shops: OverviewShop[]; newReports: { co
     staff,
     overrides,
     reports,
+    activity,
+    firstDay,
+    openRequests,
+    closedShops,
   ] = await Promise.all([
     db.tenant.findMany({
       where: live,
@@ -422,6 +450,9 @@ async function overviewRows(): Promise<{ shops: OverviewShop[]; newReports: { co
         plan: true,
         planFreeUntil: true,
         grossProfitMethod: true,
+        shopType: true,
+        province: true,
+        heardFrom: true,
         _count: { select: { branches: { where: live } } },
         memberships: { where: { isActive: true }, select: { role: true, userId: true, user: { select: { email: true } } } },
       },
@@ -450,7 +481,13 @@ async function overviewRows(): Promise<{ shops: OverviewShop[]; newReports: { co
     db.staffMember.groupBy({ by: ["tenantId"], where: { deletedAt: null, isActive: true }, _count: { _all: true } }),
     db.membershipCapabilityOverride.findMany({ distinct: ["tenantMembershipId"], select: { tenantId: true, tenantMembershipId: true } }),
     db.problemReport.aggregate({ where: { status: "NEW" }, _count: { _all: true }, _min: { createdAt: true } }),
+    db.userActivityDay.groupBy({ by: ["tenantId", "userId"], where: { day: { gte: new Date(now.getTime() - 28 * 86_400_000) } }, _count: { _all: true } }),
+    db.userActivityDay.aggregate({ _min: { day: true } }),
+    db.dataRequest.findMany({ where: { doneAt: null }, select: { id: true, kind: true, shopName: true, requester: true, dueOn: true } }),
+    db.tenant.findMany({ where: { deletedAt: { not: null }, purgeAfter: { not: null } }, select: { id: true, name: true, purgeAfter: true } }),
   ]);
+  const daysBy = new Map<string, Record<string, number>>();
+  for (const a of activity) (daysBy.get(a.tenantId) ?? daysBy.set(a.tenantId, {}).get(a.tenantId)!)[a.userId] = a._count._all;
 
   const has = (rows: { tenantId: string }[]) => new Set(rows.map((r) => r.tenantId));
   const [hasSupplier, hasProduct, hasSales, hasRecipe, hasCount] = [suppliers, products, salesDays, recipes, counts].map(has);
@@ -514,15 +551,26 @@ async function overviewRows(): Promise<{ shops: OverviewShop[]; newReports: { co
       branchesWithoutPos: noPos.get(t.id) ?? 0,
       staffWithoutAccount: staffCount.get(t.id) ?? 0,
       peopleWithOwnPermissions: overrideCount.get(t.id) ?? 0,
+      answers: { shopType: t.shopType, province: t.province, heardFrom: t.heardFrom },
+      activeDays: daysBy.get(t.id) ?? {},
     };
   });
-  return { shops, newReports: { count: reports._count._all, oldest: reports._min.createdAt } };
+  return {
+    shops,
+    newReports: { count: reports._count._all, oldest: reports._min.createdAt },
+    firstActivity: firstDay._min.day,
+    requests: openRequests.map((r) => ({ ...r, kind: r.kind as RequestKind })),
+    closed: closedShops.map((c) => ({ id: c.id, name: c.name, purgeAfter: c.purgeAfter! })),
+  };
 }
 
 export async function getPlatformOverviewLogic(_actor: PlatformActor, now: Date = new Date()): Promise<{ overview: PlatformOverview; todos: Todo[] }> {
-  const { shops, newReports } = await overviewRows();
+  const rows = await overviewRows(now);
   const admins = platformAdminEmails();
-  return { overview: buildOverview(shops, admins, now), todos: buildTodos({ shops, admins, newReports, now }) };
+  return {
+    overview: buildOverview(rows.shops, admins, now, rows.firstActivity),
+    todos: buildTodos({ shops: rows.shops, admins, newReports: rows.newReports, now, requests: rows.requests, closed: rows.closed }),
+  };
 }
 
 /**
@@ -534,8 +582,348 @@ let todoMemo: { count: number; at: number } | null = null;
 const TODO_MEMO_MS = 60_000;
 export async function platformTodoCountLogic(actor: PlatformActor, now: number = Date.now()): Promise<number> {
   if (todoMemo && now - todoMemo.at < TODO_MEMO_MS) return todoMemo.count;
+  // The strip asks on every page Kong opens — the natural moment to let go of
+  // what is past its keep date (ADR 0045 Q11; at most hourly, never throws).
+  void purgeExpiredRecordsLogic(actor, new Date(now));
   const count = (await getPlatformOverviewLogic(actor)).todos.length;
   todoMemo = { count, at: now };
   return count;
+}
+
+// ============================================================
+// ADR 0045 part B — requests, closing and erasing, owner e-mail, export,
+// announcements, and the keep-dates. Every write is logged with its audit row
+// in the same transaction (ADR 0043 Q4).
+// ============================================================
+
+const today = () => computeBangkokToday().toISOString().slice(0, 10);
+const dayOf = (iso: string) => new Date(`${iso}T00:00:00Z`);
+
+type Tx = Prisma.TransactionClient;
+async function audit(tx: Tx, actor: PlatformActor, action: string, target: { id: string | null; name: string | null }, before: unknown, after: unknown) {
+  await tx.platformAuditLog.create({
+    data: {
+      actorUserId: actor.userId,
+      actorEmail: actor.email,
+      action,
+      targetTenantId: target.id,
+      targetName: target.name,
+      before: before === null ? Prisma.JsonNull : (before as Prisma.InputJsonValue),
+      after: after === null ? Prisma.JsonNull : (after as Prisma.InputJsonValue),
+    },
+  });
+}
+
+// ---------- data requests ----------
+
+export type RequestRow = {
+  id: string;
+  kind: RequestKind;
+  shopId: string | null;
+  shopName: string | null;
+  requester: string;
+  requestedOn: string;
+  dueOn: string;
+  note: string | null;
+  doneAt: string | null;
+  doneBy: string | null;
+  /** The shop as it is now: open, closed waiting to be erased, or gone. */
+  shopState: "open" | "closed" | "gone" | null;
+  purgeAfter: string | null;
+};
+
+export async function listDataRequestsLogic(_actor: PlatformActor): Promise<RequestRow[]> {
+  const rows = await prismaBypass.dataRequest.findMany({ orderBy: [{ doneAt: { sort: "asc", nulls: "first" } }, { dueOn: "asc" }], take: 300 });
+  const ids = [...new Set(rows.map((r) => r.shopId).filter((x): x is string => !!x))];
+  const shops = ids.length
+    ? await prismaBypass.tenant.findMany({ where: { id: { in: ids } }, select: { id: true, deletedAt: true, purgeAfter: true } })
+    : [];
+  const byId = new Map(shops.map((t) => [t.id, t]));
+  return rows.map((r) => {
+    const t = r.shopId ? byId.get(r.shopId) : undefined;
+    return {
+      id: r.id,
+      kind: r.kind as RequestKind,
+      shopId: r.shopId,
+      shopName: r.shopName,
+      requester: r.requester,
+      requestedOn: ymd(r.requestedOn)!,
+      dueOn: ymd(r.dueOn)!,
+      note: r.note,
+      doneAt: r.doneAt?.toISOString() ?? null,
+      doneBy: r.doneBy,
+      shopState: r.shopId ? (t ? (t.deletedAt ? "closed" : "open") : "gone") : null,
+      purgeAfter: ymd(t?.purgeAfter),
+    };
+  });
+}
+
+export async function recordDataRequestLogic(actor: PlatformActor, input: RecordRequestInput): Promise<void> {
+  if (input.requestedOn > today()) throw new PlatformInputError("วันที่ขอต้องไม่เกินวันนี้");
+  await prismaBypass.$transaction(async (tx) => {
+    const shop = input.shopId ? await tx.tenant.findUnique({ where: { id: input.shopId }, select: { id: true, name: true } }) : null;
+    if (input.shopId && !shop) throw new PlatformInputError("ไม่พบร้านนี้");
+    const row = await tx.dataRequest.create({
+      data: {
+        kind: input.kind,
+        shopId: shop?.id ?? null,
+        shopName: shop?.name ?? null,
+        requester: input.requester,
+        requestedOn: dayOf(input.requestedOn),
+        dueOn: dayOf(requestDue(input.requestedOn)),
+        note: input.note,
+        createdBy: actor.email,
+      },
+      select: { id: true },
+    });
+    await audit(tx, actor, "record_request", { id: shop?.id ?? null, name: shop?.name ?? input.requester }, null, { id: row.id, kind: input.kind, requestedOn: input.requestedOn });
+  });
+}
+
+export async function markDataRequestDoneLogic(actor: PlatformActor, id: string, done: boolean): Promise<void> {
+  await prismaBypass.$transaction(async (tx) => {
+    const r = await tx.dataRequest.findUnique({ where: { id }, select: { kind: true, shopId: true, shopName: true, requester: true, doneAt: true } });
+    if (!r) throw new PlatformInputError("ไม่พบคำขอนี้");
+    await tx.dataRequest.update({ where: { id }, data: done ? { doneAt: new Date(), doneBy: actor.email } : { doneAt: null, doneBy: null } });
+    await audit(tx, actor, done ? "request_done" : "request_reopened", { id: r.shopId, name: r.shopName ?? r.requester }, { done: !!r.doneAt }, { done });
+  });
+}
+
+// ---------- closing and erasing a shop (ADR 0045 Q10) ----------
+
+export type ClosedShopRow = { id: string; name: string; closedAt: string; purgeAfter: string; owners: string[]; due: boolean };
+
+export async function listClosedShopsLogic(_actor: PlatformActor): Promise<ClosedShopRow[]> {
+  const rows = await prismaBypass.tenant.findMany({
+    where: { deletedAt: { not: null }, purgeAfter: { not: null } },
+    orderBy: { purgeAfter: "asc" },
+    select: { id: true, name: true, deletedAt: true, purgeAfter: true, memberships: { where: { role: "owner" }, select: { user: { select: { email: true } } } } },
+  });
+  const t = today();
+  return rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    closedAt: r.deletedAt!.toISOString(),
+    purgeAfter: ymd(r.purgeAfter)!,
+    owners: r.memberships.map((m) => m.user.email),
+    due: ymd(r.purgeAfter)! <= t,
+  }));
+}
+
+/** Nobody in the shop gets in from this moment (require-tenant filters deleted_at). */
+export async function closeShopLogic(actor: PlatformActor, input: { tenantId: string; confirmName: string }): Promise<{ purgeAfter: string }> {
+  const after = purgeDate(today());
+  await prismaBypass.$transaction(async (tx) => {
+    const t = await tx.tenant.findFirst({ where: { id: input.tenantId, deletedAt: null }, select: { name: true } });
+    if (!t) throw new PlatformInputError("ไม่พบร้านนี้ หรือร้านปิดไปแล้ว");
+    if (!nameConfirmed(input.confirmName, t.name)) throw new PlatformInputError("ชื่อร้านที่พิมพ์ไม่ตรง");
+    await tx.tenant.update({ where: { id: input.tenantId }, data: { deletedAt: new Date(), purgeAfter: dayOf(after) } });
+    await audit(tx, actor, "close_shop", { id: input.tenantId, name: t.name }, { open: true }, { open: false, purgeAfter: after });
+  });
+  return { purgeAfter: after };
+}
+
+export async function reopenShopLogic(actor: PlatformActor, tenantId: string): Promise<void> {
+  await prismaBypass.$transaction(async (tx) => {
+    const t = await tx.tenant.findFirst({ where: { id: tenantId, deletedAt: { not: null }, purgeAfter: { not: null } }, select: { name: true, purgeAfter: true } });
+    if (!t) throw new PlatformInputError("ไม่พบร้านที่ปิดรอลบนี้");
+    await tx.tenant.update({ where: { id: tenantId }, data: { deletedAt: null, purgeAfter: null } });
+    await audit(tx, actor, "reopen_shop", { id: tenantId, name: t.name }, { open: false, purgeAfter: ymd(t.purgeAfter) }, { open: true });
+  });
+}
+
+export type PurgeResult = { name: string; files: number; usersRemoved: number; requestsClosed: number };
+
+/**
+ * Erase a closed shop for good — only on or after its purge day, and only with
+ * its name typed. Members left belonging to no shop at all lose their account
+ * too (privacy draft §5: an account goes when the shop asks to be deleted),
+ * except the platform's own admins. Files go from storage after the rows.
+ * Re-runnable: a run that stops halfway is finished by the next one.
+ */
+export async function purgeShopLogic(actor: PlatformActor, input: { tenantId: string; confirmName: string }): Promise<PurgeResult> {
+  const t = await prismaBypass.tenant.findFirst({
+    where: { id: input.tenantId, deletedAt: { not: null } },
+    select: { name: true, purgeAfter: true, memberships: { select: { userId: true } } },
+  });
+  if (!t || !t.purgeAfter) throw new PlatformInputError("ไม่พบร้านที่ปิดรอลบนี้");
+  if (ymd(t.purgeAfter)! > today()) throw new PlatformInputError(`ยังลบไม่ได้ ลบได้ตั้งแต่ ${ymd(t.purgeAfter)}`);
+  if (!nameConfirmed(input.confirmName, t.name)) throw new PlatformInputError("ชื่อร้านที่พิมพ์ไม่ตรง");
+
+  const files = await prismaBypass.storedFile.findMany({ where: { tenantId: input.tenantId }, select: { storageKey: true } });
+  const memberIds = [...new Set(t.memberships.map((m) => m.userId))];
+
+  await eraseTenantRows(prismaBypass as unknown as Parameters<typeof eraseTenantRows>[0], [input.tenantId]);
+
+  // Accounts that now belong to no shop — never an admin's.
+  const admins = platformAdminEmails();
+  const orphans = memberIds.length
+    ? (await prismaBypass.user.findMany({ where: { id: { in: memberIds }, memberships: { none: {} } }, select: { id: true, email: true } })).filter(
+        (u) => !admins.has(u.email.toLowerCase())
+      )
+    : [];
+  const orphanIds = orphans.map((u) => u.id);
+
+  const requestsClosed = await prismaBypass.$transaction(async (tx) => {
+    if (orphanIds.length) {
+      await tx.session.deleteMany({ where: { userId: { in: orphanIds } } });
+      await tx.account.deleteMany({ where: { userId: { in: orphanIds } } });
+      await tx.user.deleteMany({ where: { id: { in: orphanIds } } });
+    }
+    const closed = await tx.dataRequest.updateMany({
+      where: { shopId: input.tenantId, kind: "delete", doneAt: null },
+      data: { doneAt: new Date(), doneBy: actor.email },
+    });
+    await audit(tx, actor, "purge_shop", { id: input.tenantId, name: t.name }, { files: files.length, members: memberIds.length }, { usersRemoved: orphanIds.length });
+    return closed.count;
+  });
+
+  let removed = 0;
+  if (storageReady()) {
+    for (const f of files) {
+      try {
+        await deleteObject(f.storageKey);
+        await deleteObject(thumbKeyOf(f.storageKey));
+        removed++;
+      } catch (e) {
+        console.error(`[platform] purge: file ${f.storageKey} not removed`, e);
+      }
+    }
+  }
+  return { name: t.name, files: removed, usersRemoved: orphanIds.length, requestsClosed };
+}
+
+// ---------- owner e-mail ----------
+
+export type EmailChange = { oldEmail: string; newEmail: string; shops: string[] };
+
+/** Changes the ACCOUNT's address — so every shop the person is in, at once. */
+export async function changeUserEmailLogic(actor: PlatformActor, input: { userId: string; newEmail: string }): Promise<EmailChange> {
+  return prismaBypass.$transaction(async (tx) => {
+    const u = await tx.user.findUnique({
+      where: { id: input.userId },
+      select: { email: true, memberships: { where: { isActive: true }, select: { tenant: { select: { name: true } } } } },
+    });
+    if (!u) throw new PlatformInputError("ไม่พบผู้ใช้นี้");
+    if (u.email.toLowerCase() === input.newEmail) throw new PlatformInputError("เป็นอีเมลเดิมอยู่แล้ว");
+    const taken = await tx.user.findFirst({ where: { email: { equals: input.newEmail, mode: "insensitive" } }, select: { id: true } });
+    if (taken) throw new PlatformInputError("อีเมลนี้มีบัญชีอยู่แล้ว · ถ้าเป็นคนเดียวกัน ให้เจ้าของร้านเชิญอีเมลนี้แทน");
+    await tx.user.update({ where: { id: input.userId }, data: { email: input.newEmail, emailVerified: null } });
+    // Sign-in links already sent to the old address stop working.
+    await tx.verificationToken.deleteMany({ where: { identifier: u.email } });
+    await audit(tx, actor, "change_email", { id: null, name: u.email }, { email: u.email }, { email: input.newEmail });
+    return { oldEmail: u.email, newEmail: input.newEmail, shops: u.memberships.map((m) => m.tenant.name) };
+  });
+}
+
+// ---------- the whole shop as one workbook ----------
+
+const yearWindows = (from: string, to: string): [string, string][] => {
+  const out: [string, string][] = [];
+  let start = from;
+  while (start <= to) {
+    const d = dayOf(start);
+    d.setUTCDate(d.getUTCDate() + 365);
+    const end = d.toISOString().slice(0, 10) < to ? new Date(d.getTime() - 86_400_000).toISOString().slice(0, 10) : to;
+    out.push([start, end]);
+    start = new Date(dayOf(end).getTime() + 86_400_000).toISOString().slice(0, 10);
+  }
+  return out;
+};
+
+/**
+ * Every dataset the shop's own Excel buttons give, all branches, with money,
+ * from the day it signed up — one year per sheet so a 1 GB machine holds one
+ * period at a time (EXPORT_MAX_DAYS). Logged: a whole shop's data left.
+ */
+export async function exportShopWorkbookLogic(actor: PlatformActor, tenantId: string): Promise<{ name: string; stream: ReadableStream } | null> {
+  const t = await prismaBypass.tenant.findUnique({ where: { id: tenantId }, select: { name: true, createdAt: true } });
+  if (!t) return null;
+  await prismaBypass.platformAuditLog.create({
+    data: { actorUserId: actor.userId, actorEmail: actor.email, action: "export_shop", targetTenantId: tenantId, targetName: t.name, before: Prisma.JsonNull, after: Prisma.JsonNull },
+  });
+  const reach = { allBranches: true, allowedBranchIds: [] as string[] };
+  const from = ymd(t.createdAt)!;
+  const to = today();
+  const used = new Set<string>();
+  const sheetName = (base: string) => {
+    let name = base.slice(0, 31);
+    for (let i = 2; used.has(name); i++) name = `${base.slice(0, 27)} (${i})`;
+    used.add(name);
+    return name;
+  };
+  async function* sheets(): AsyncGenerator<ExportSheet> {
+    for (const dataset of EXPORT_DATASETS) {
+      const windows = EXPORT_DATASET_TH[dataset].period ? yearWindows(from, to) : [[from, to] as [string, string]];
+      for (const [a, b] of windows) {
+        const q = rawExportQuerySchema.parse({ dataset, from: a, to: b });
+        const built = await buildRawExportLogic({ tenantId, reach, withMoney: true, q });
+        for (const s of built) {
+          const label = windows.length > 1 ? `${EXPORT_DATASET_TH[dataset].title} ${s.name} ${Number(a.slice(0, 4)) + 543}` : `${EXPORT_DATASET_TH[dataset].title} ${s.name}`;
+          yield { ...s, name: sheetName(label) };
+        }
+      }
+    }
+  }
+  return { name: t.name, stream: writeRawExportWorkbook(sheets()) };
+}
+
+// ---------- announcements ----------
+
+export type AnnouncementRow = { id: string; message: string; tone: "info" | "important"; startsAt: string; endsAt: string; stoppedAt: string | null; createdBy: string; state: "upcoming" | "live" | "ended" };
+
+export async function listAnnouncementsLogic(_actor: PlatformActor): Promise<AnnouncementRow[]> {
+  const now = Date.now();
+  const rows = await prismaBypass.platformAnnouncement.findMany({ orderBy: { startsAt: "desc" }, take: 100 });
+  return rows.map((r) => ({
+    id: r.id,
+    message: r.message,
+    tone: r.tone === "important" ? "important" : "info",
+    startsAt: r.startsAt.toISOString(),
+    endsAt: r.endsAt.toISOString(),
+    stoppedAt: r.stoppedAt?.toISOString() ?? null,
+    createdBy: r.createdBy,
+    state: r.stoppedAt || r.endsAt.getTime() <= now ? "ended" : r.startsAt.getTime() > now ? "upcoming" : "live",
+  }));
+}
+
+export async function createAnnouncementLogic(actor: PlatformActor, input: { message: string; tone: "info" | "important"; startsAt: Date; endsAt: Date }): Promise<void> {
+  await prismaBypass.$transaction(async (tx) => {
+    const row = await tx.platformAnnouncement.create({ data: { ...input, createdBy: actor.email }, select: { id: true } });
+    await audit(tx, actor, "announce", { id: null, name: null }, null, { id: row.id, message: input.message, tone: input.tone, startsAt: input.startsAt, endsAt: input.endsAt });
+  });
+}
+
+export async function stopAnnouncementLogic(actor: PlatformActor, id: string): Promise<void> {
+  await prismaBypass.$transaction(async (tx) => {
+    const r = await tx.platformAnnouncement.findUnique({ where: { id }, select: { message: true, stoppedAt: true } });
+    if (!r) throw new PlatformInputError("ไม่พบประกาศนี้");
+    if (r.stoppedAt) return;
+    await tx.platformAnnouncement.update({ where: { id }, data: { stoppedAt: new Date() } });
+    await audit(tx, actor, "announce_stop", { id: null, name: null }, { message: r.message }, { stopped: true });
+  });
+}
+
+// ---------- keep-dates (ADR 0045 Q11) ----------
+
+let lastRetentionRun = 0;
+const RETENTION_EVERY_MS = 3_600_000;
+
+/** Delete what is past its keep date. At most once an hour per server; never throws. */
+export async function purgeExpiredRecordsLogic(_actor: PlatformActor, now: Date = new Date(), force = false): Promise<{ logins: number; days: number; requests: number } | null> {
+  if (!force && now.getTime() - lastRetentionRun < RETENTION_EVERY_MS) return null;
+  lastRetentionRun = now.getTime();
+  try {
+    const cut = retentionCutoffs(now);
+    const [logins, days, requests] = await Promise.all([
+      prismaBypass.loginEvent.deleteMany({ where: { createdAt: { lt: cut.login } } }),
+      prismaBypass.userActivityDay.deleteMany({ where: { day: { lt: cut.activityDay } } }),
+      prismaBypass.dataRequest.deleteMany({ where: { doneAt: { lt: cut.requestDone } } }),
+    ]);
+    return { logins: logins.count, days: days.count, requests: requests.count };
+  } catch (e) {
+    console.error("[platform] retention purge failed", e);
+    return null;
+  }
 }
 

@@ -808,12 +808,14 @@ export async function buildRawExportLogic(ctx: Ctx): Promise<ExportSheet[]> {
  * sales is hundreds of thousands of rows on a 1 GB machine. Header row bold and
  * frozen; money, quantity and date columns carry their number formats.
  */
-export function writeRawExportWorkbook(sheets: ExportSheet[]): ReadableStream {
+export function writeRawExportWorkbook(sheets: ExportSheet[] | AsyncIterable<ExportSheet>): ReadableStream {
   const pass = new PassThrough();
   const wb = new ExcelJS.stream.xlsx.WorkbookWriter({ stream: pass, useStyles: true });
   wb.creator = "คิดครัว";
   (async () => {
-    for (const s of sheets) {
+    // An async source (the whole-shop export, ADR 0045) builds one sheet at a
+    // time, so only one period of rows is ever in memory.
+    for await (const s of sheets) {
       const ws = wb.addWorksheet(s.name, { views: [{ state: "frozen", ySplit: 1 }] });
       ws.columns = s.columns.map((c) => ({
         header: c.header,

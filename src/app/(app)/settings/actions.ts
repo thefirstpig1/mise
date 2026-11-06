@@ -18,6 +18,7 @@ import { withTenantContext } from "@/lib/db";
 import { requireTenant } from "@/lib/require-tenant";
 import { setDailyCloseEnabledLogic } from "@/server/daily-close";
 import { settingsSavedAt } from "@/server/onboarding";
+import { shopAnswersSchema } from "@/lib/platform-requests";
 
 export type SectionState = { ok: true } | { ok: false; formError: string; fieldErrors?: Record<string, string> };
 
@@ -59,14 +60,17 @@ export async function confirmShopSettingsAction(): Promise<SectionState> {
 
 export async function saveShopSectionAction(formData: FormData): Promise<SectionState> {
   const name = String(formData.get("name") ?? "").trim();
+  // ADR 0045 Q14 — the three optional answers live in this section too.
+  const answers = shopAnswersSchema.safeParse({ shopType: formData.get("shop_type"), province: formData.get("province"), heardFrom: formData.get("heard_from") });
   const vatRate = numIn(formData, "default_vat_rate_percent", 0, 30);
   const fieldErrors: Record<string, string> = {};
   if (name.length === 0 || name.length > 100) fieldErrors.name = "กรุณาใส่ชื่อร้าน (ไม่เกิน 100 ตัวอักษร)";
   if (vatRate === undefined) fieldErrors.default_vat_rate_percent = "อัตรา VAT ต้องอยู่ระหว่าง 0–30%";
-  if (Object.keys(fieldErrors).length) return { ok: false, formError: "ยังบันทึกไม่ได้ กรุณาแก้ช่องที่มีข้อความสีแดง", fieldErrors };
+  if (!answers.success) fieldErrors.shop_type = "คำตอบไม่ถูกต้อง";
+  if (Object.keys(fieldErrors).length || !answers.success) return { ok: false, formError: "ยังบันทึกไม่ได้ กรุณาแก้ช่องที่มีข้อความสีแดง", fieldErrors };
 
   return write(
-    { name, isVatRegistered: formData.get("is_vat_registered") === "on", defaultVatRatePercent: vatRate },
+    { name, isVatRegistered: formData.get("is_vat_registered") === "on", defaultVatRatePercent: vatRate, ...answers.data },
     ["/dashboard", "/cost", "/purchase-orders", "/expenses"]
   );
 }
@@ -160,3 +164,23 @@ export async function saveAddonsSectionAction(formData: FormData): Promise<Secti
   revalidatePath("/", "layout");
   return { ok: true };
 }
+
+/**
+ * ADR 0045 Q14 — the setup card's three optional answers. Saved apart from the
+ * shop section so answering never ticks or unticks a setup step by accident.
+ */
+export async function saveShopAnswersAction(input: unknown): Promise<{ ok: true } | { ok: false; formError: string }> {
+  const { tenantId } = await requireTenant("settings:write");
+  const p = shopAnswersSchema.safeParse(input);
+  if (!p.success) return { ok: false, formError: "คำตอบไม่ถูกต้อง" };
+  try {
+    await withTenantContext(tenantId, (tx) => tx.tenant.update({ where: { id: tenantId }, data: p.data, select: { id: true } }));
+  } catch (e) {
+    console.error("[settings] shop answers not saved", e);
+    return { ok: false, formError: "บันทึกไม่สำเร็จ กรุณาลองใหม่อีกครั้ง" };
+  }
+  revalidatePath("/dashboard");
+  revalidatePath("/settings");
+  return { ok: true };
+}
+

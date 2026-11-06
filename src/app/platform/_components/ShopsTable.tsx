@@ -13,7 +13,10 @@ import { shortDate } from "@/lib/advance-labels";
 import type { ShopDetail, ShopRow } from "@/server/platform";
 import type { ShopAccuracy } from "@/server/deduction-accuracy";
 import { readApi } from "@/lib/read-api";
-import { setShopPlanAction } from "../actions";
+import { closeShopAction, setShopPlanAction } from "../actions";
+import { nameConfirmed, purgeDate } from "@/lib/platform-requests";
+import Link from "next/link";
+import type { Route } from "next";
 import { ownersOverFreeLimit } from "@/lib/free-rule";
 
 // Kong 2026-10-30: package names are written bare, in English. Plan code `trial` means Free.
@@ -186,7 +189,18 @@ export default function ShopsTable({ shops, today, initialQuery = "" }: { shops:
           }}
         />
       )}
-      {viewing && <ShopDialog shop={viewing} onClose={() => setViewing(null)} />}
+      {viewing && (
+        <ShopDialog
+          shop={viewing}
+          today={today}
+          onClose={() => setViewing(null)}
+          onClosed={(m) => {
+            setViewing(null);
+            setToast(m);
+            startRefresh(() => router.refresh());
+          }}
+        />
+      )}
       {toast && (
         <Portal>
           <div role="status" className="fixed inset-x-0 bottom-6 z-[70] mx-auto w-fit max-w-[90vw] animate-pop-in rounded-full bg-primary px-4 py-2 text-sm text-primary-foreground shadow-lg">
@@ -307,9 +321,22 @@ function PlanDialog({ shop, today, onClose, onSaved }: { shop: ShopRow; today: s
   );
 }
 
-function ShopDialog({ shop, onClose }: { shop: ShopRow; onClose: () => void }) {
+function ShopDialog({ shop, today, onClose, onClosed }: { shop: ShopRow; today: string; onClose: () => void; onClosed: (m: string) => void }) {
   const [detail, setDetail] = useState<ShopDetail | null>(null);
   const [failed, setFailed] = useState(false);
+  // ADR 0045 part B — closing, inside the popup, with the shop's name typed.
+  const [closing, setClosing] = useState(false);
+  const [typed, setTyped] = useState("");
+  const [closeError, setCloseError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const close = async () => {
+    setBusy(true);
+    setCloseError(null);
+    const res = await orStale(closeShopAction({ tenantId: shop.id, confirmName: typed }));
+    setBusy(false);
+    if (!res.ok) return setCloseError(res.formError);
+    onClosed(`ปิดร้าน ${shop.name} แล้ว · ลบถาวรได้ตั้งแต่ ${fullDate(purgeDate(today))}`);
+  };
   useEffect(() => {
     let on = true;
     void fetch(`/api/platform?what=shop&id=${shop.id}`, { headers: { Accept: "application/json" } })
@@ -349,6 +376,45 @@ function ShopDialog({ shop, onClose }: { shop: ShopRow; onClose: () => void }) {
             </ul>
           </div>
           <p className="text-xs text-muted-foreground">อ่านอย่างเดียว · เจ้าของร้านเพิ่มหรือลบผู้ใช้งานได้เองที่ ตั้งค่า › ผู้ใช้งาน</p>
+
+          <div className="flex flex-wrap gap-2 border-t border-border pt-3">
+            <Link href={`/platform/requests?shop=${shop.id}&kind=export` as Route} className="btn-secondary btn-sm">
+              บันทึกคำขอของร้านนี้
+            </Link>
+            <a href={`/api/platform/export?id=${shop.id}`} className="btn-secondary btn-sm">
+              ส่งออกข้อมูลร้าน
+            </a>
+            {shop.owners[0] && (
+              <Link href={`/platform/users?q=${encodeURIComponent(shop.owners[0])}` as Route} className="btn-secondary btn-sm">
+                เปลี่ยนอีเมลเจ้าของ
+              </Link>
+            )}
+            <button type="button" className="btn-danger btn-sm" onClick={() => setClosing(true)} disabled={closing}>
+              ปิดและลบร้าน
+            </button>
+          </div>
+          {closing && (
+            <div className="space-y-2 rounded-xl border border-bad-border bg-bad-bg p-3 text-sm">
+              <b className="text-bad">ปิดและลบร้าน “{shop.name}”</b>
+              <p>
+                คนในร้าน {detail.members.filter((m) => m.active).length} คนเข้าไม่ได้ทันที · ข้อมูลถูกลบถาวรได้ตั้งแต่ {fullDate(purgeDate(today))} เมื่อกดลบ ·
+                ก่อนวันนั้นยกเลิกการปิดได้ที่ส่วน “ร้านที่ปิดรอลบ”
+              </p>
+              <label className="block space-y-1">
+                <span className="block text-xs font-semibold">พิมพ์ชื่อร้านเพื่อยืนยัน</span>
+                <input className="input w-full bg-surface" value={typed} onChange={(e) => setTyped(e.target.value)} placeholder={shop.name} />
+              </label>
+              {closeError && <p className="text-bad">{closeError}</p>}
+              <div className="flex justify-end gap-2">
+                <button type="button" className="btn-secondary btn-sm" onClick={() => setClosing(false)}>
+                  ยกเลิก
+                </button>
+                <button type="button" className="btn-danger-solid btn-sm" disabled={busy || !nameConfirmed(typed, shop.name)} onClick={close}>
+                  {busy ? "กำลังปิด…" : "ปิดร้านนี้"}
+                </button>
+              </div>
+            </div>
+          )}
         </>
       )}
     </Frame>

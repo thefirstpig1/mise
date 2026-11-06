@@ -33,6 +33,8 @@ function shop(over: Partial<OverviewShop> = {}): OverviewShop {
     branchesWithoutPos: 1,
     staffWithoutAccount: 0,
     peopleWithOwnPermissions: 0,
+    answers: { shopType: null, province: null, heardFrom: null },
+    activeDays: {},
     ...over,
   };
 }

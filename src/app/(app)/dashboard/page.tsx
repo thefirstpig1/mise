@@ -7,6 +7,7 @@ import { requireTenant } from "@/lib/require-tenant";
 import { getOnboardingForRequest, type OnboardingStep } from "@/server/onboarding";
 import { setupCopy } from "@/lib/setup-steps";
 import OnboardingCard, { type OnboardingStepView } from "./_components/OnboardingCard";
+import AboutShopCard from "./_components/AboutShopCard";
 import { withTenantContext } from "@/lib/db";
 import { computeBangkokToday } from "@/lib/bangkok-date";
 import { getBranchesLogic } from "@/server/branch";
@@ -151,6 +152,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
           monthCount={can("count:write")}
         />
       </Suspense>
+
+      {/* ADR 0045 Q14 — optional, until answered once (or put off in this browser). */}
+      {can("settings:write") && !membership.tenant.shopType && !membership.tenant.province && !membership.tenant.heardFrom ? <AboutShopCard /> : null}
 
       {seeMoney && !active ? <NoFiguresYet canImport={can("sales:import")} /> : null}
 

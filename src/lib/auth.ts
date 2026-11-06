@@ -34,6 +34,7 @@ import { isEmailConfigured, sendEmail } from "./email/transport";
 import { magicLinkEmail } from "./email/templates";
 import { tooManyOutstandingLinks } from "./email/rate-limit";
 import { clientIpFrom, tooManySendsFromIp } from "./email/ip-rate-limit";
+import { recordLogin } from "@/server/usage-log";
 
 /** One source of truth for the link's life — the letter is told, never guesses. */
 const MAGIC_LINK_MAX_AGE_SECONDS = 24 * 60 * 60;
@@ -138,6 +139,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     // Without this, any failure lands on Auth.js's own English page at
     // /api/auth/error. The login page reads `?error=` and says it in Thai.
     error: "/login",
+  },
+  events: {
+    // ADR 0045 part B — one row per successful sign-in, kept 90 days. The app
+    // role may INSERT into login_event and never read it; recordLogin never
+    // throws, so a lost record can never cost anyone their sign-in.
+    async signIn({ user }) {
+      if (!user?.id || !user.email) return;
+      const h = await headers();
+      await recordLogin({ userId: user.id, email: user.email, ip: clientIpFrom(h), userAgent: h.get("user-agent") });
+    },
   },
   callbacks: {
     async session({ session, user }) {

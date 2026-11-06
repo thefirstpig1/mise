@@ -250,3 +250,29 @@ export function reportFixedEmail(input: { no: string; message: string; reply: st
   );
   return { subject: `[คิดครัว] เรื่องที่คุณแจ้ง ${no} แก้ไขเรียบร้อยแล้ว`, text, html };
 }
+
+/**
+ * ADR 0045 part B — the operator changed an account's address (the owner
+ * could no longer reach the old one). Both addresses are told: the old one so
+ * a change nobody asked for is noticed, the new one so the owner knows where
+ * the sign-in links go now. No credential in either.
+ */
+export function emailChangedEmail(input: { oldEmail: string; newEmail: string; shops: string[]; loginUrl: string; to: "old" | "new" }): RenderedEmail {
+  const shops = input.shops.length ? input.shops.join(", ") : "—";
+  const lead =
+    input.to === "old"
+      ? `อีเมลของบัญชีคิดครัวที่เคยใช้ที่อยู่นี้ ถูกเปลี่ยนเป็น ${input.newEmail} แล้ว ลิงก์เข้าสู่ระบบจะส่งไปที่อีเมลใหม่นับจากนี้`
+      : `บัญชีคิดครัวของคุณเปลี่ยนมาใช้อีเมลนี้แล้ว (เดิม ${input.oldEmail}) เข้าสู่ระบบด้วยอีเมลนี้ได้เลย`;
+  const warn = input.to === "old" ? "ถ้าคุณไม่ได้ขอให้เปลี่ยน กรุณาตอบกลับอีเมลนี้ทันที" : "ร้านที่บัญชีนี้อยู่: " + shops;
+  const text = [lead, "", warn, "", `เข้าสู่ระบบ: ${input.loginUrl}`].join("\n");
+  const html = shell(
+    [
+      `<p style="margin:0 0 12px">${escapeHtml(lead)}</p>`,
+      `<p style="margin:0 0 24px;font-size:14px;color:#666">${escapeHtml(warn)}</p>`,
+      button(input.loginUrl, "เข้าสู่ระบบคิดครัว"),
+      copyableUrl(input.loginUrl),
+    ].join("")
+  );
+  return { subject: input.to === "old" ? "[คิดครัว] อีเมลของบัญชีถูกเปลี่ยนแล้ว" : "[คิดครัว] บัญชีของคุณใช้อีเมลนี้แล้ว", text, html };
+}
+

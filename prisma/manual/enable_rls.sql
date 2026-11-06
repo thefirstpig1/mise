@@ -665,3 +665,27 @@ USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
 ALTER TABLE platform_audit_log ENABLE ROW LEVEL SECURITY;
 
+-- ============================================================
+-- ADR 0045 part B. No third door around row security (Q9): where the app
+-- role must touch a platform table, a policy grants exactly that command.
+-- ============================================================
+
+-- The shop's own days of use: ordinary tenant isolation.
+ALTER TABLE user_activity_day ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON user_activity_day;
+CREATE POLICY tenant_isolation ON user_activity_day
+USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+-- Sign-ins: the app may record one and never read any (not even its own).
+ALTER TABLE login_event ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS login_event_insert ON login_event;
+CREATE POLICY login_event_insert ON login_event FOR INSERT TO mise_app WITH CHECK (true);
+
+-- Announcements: every page may read them; only the platform door writes.
+ALTER TABLE platform_announcement ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS platform_announcement_read ON platform_announcement;
+CREATE POLICY platform_announcement_read ON platform_announcement FOR SELECT TO mise_app USING (true);
+
+-- Data requests: platform only — RLS on and no policy, like platform_audit_log.
+ALTER TABLE data_request ENABLE ROW LEVEL SECURITY;
+

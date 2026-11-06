@@ -16,6 +16,7 @@
 
 import { onboardingDone, type OnboardingFacts } from "@/lib/onboarding-rule";
 import { ownersOverFreeLimit } from "@/lib/free-rule";
+import { REQUEST_LABEL, type RequestKind } from "@/lib/platform-requests";
 
 export const FEATURES = [
   ["salesImport", "นำเข้ายอดขาย"],
@@ -68,6 +69,10 @@ export type OverviewShop = {
   branchesWithoutPos: number;
   staffWithoutAccount: number;
   peopleWithOwnPermissions: number;
+  /** ADR 0045 Q14 — the setup card's three optional answers. */
+  answers: { shopType: string | null; province: string | null; heardFrom: string | null };
+  /** Days each person opened this shop in the last 28 days (user_activity_day). */
+  activeDays: Record<string, number>;
 };
 
 export type ShopRef = { id: string; name: string };
@@ -93,6 +98,9 @@ export type PlatformOverview = {
   plans: Bar[];
   freeEndingSoon: ShopRef[];
   freeUnset: ShopRef[];
+  /** Days a week each role opens the app, over the last four weeks; null = nothing recorded yet. */
+  usage: { since: string; roles: { key: string; people: number; perWeek: number }[] } | null;
+  answers: { shopType: Bar[]; province: Bar[]; heardFrom: Bar[]; unanswered: ShopRef[] };
 };
 
 const DAY = 86_400_000;
@@ -115,7 +123,21 @@ export function lastRecordedAt(s: Pick<OverviewShop, "lastByFeature" | "lastMove
   return last;
 }
 
-export function buildOverview(all: readonly OverviewShop[], admins: ReadonlySet<string>, now: Date): PlatformOverview {
+/** Answers counted into bars, most first; a value nobody gave is not a bar. */
+function answerBars(shops: readonly OverviewShop[], pick: (s: OverviewShop) => string | null): Bar[] {
+  const by = new Map<string, ShopRef[]>();
+  for (const s of shops) {
+    const v = pick(s);
+    if (v) (by.get(v) ?? by.set(v, []).get(v)!).push(ref(s));
+  }
+  return [...by.entries()].map(([k, list]) => ({ key: k, label: k, n: list.length, shops: list })).sort((a, b) => b.n - a.n);
+}
+
+/**
+ * `firstActivity` — the earliest user_activity_day anywhere, so the card can
+ * say since when it counts; null when the table is still empty.
+ */
+export function buildOverview(all: readonly OverviewShop[], admins: ReadonlySet<string>, now: Date, firstActivity: Date | null = null): PlatformOverview {
   const shops = all.filter((s) => !isAdminOwned(s, admins));
   const excluded = all.filter((s) => isAdminOwned(s, admins)).map(ref);
   const since = (days: number) => new Date(now.getTime() - days * DAY);
@@ -212,6 +234,24 @@ export function buildOverview(all: readonly OverviewShop[], admins: ReadonlySet<
     }
   }
 
+  // --- days a week, per role (ADR 0045 part B) ---
+  let usage: PlatformOverview["usage"] = null;
+  if (firstActivity) {
+    const people = new Map<string, { n: number; days: number }>();
+    for (const s of shops)
+      for (const m of s.members) {
+        const r = people.get(m.role) ?? people.set(m.role, { n: 0, days: 0 }).get(m.role)!;
+        r.n += 1;
+        r.days += s.activeDays[m.userId] ?? 0;
+      }
+    // Four weeks, or fewer while the record is younger than that.
+    const weeks = Math.min(4, Math.max(1, (now.getTime() - firstActivity.getTime()) / (7 * DAY)));
+    usage = {
+      since: firstActivity.toISOString().slice(0, 10),
+      roles: ROLE_ORDER.filter((r) => people.has(r)).map((r) => ({ key: r, people: people.get(r)!.n, perWeek: people.get(r)!.days / people.get(r)!.n / weeks })),
+    };
+  }
+
   return {
     asOf: now.toISOString(),
     shops: shops.length,
@@ -245,6 +285,13 @@ export function buildOverview(all: readonly OverviewShop[], admins: ReadonlySet<
     plans,
     freeEndingSoon: shops.filter(in30).map(ref),
     freeUnset: shops.filter((s) => s.plan === "trial" && !s.freeUntil).map(ref),
+    usage,
+    answers: {
+      shopType: answerBars(shops, (s) => s.answers.shopType),
+      province: answerBars(shops, (s) => s.answers.province),
+      heardFrom: answerBars(shops, (s) => s.answers.heardFrom),
+      unanswered: shops.filter((s) => !s.answers.shopType && !s.answers.province && !s.answers.heardFrom).map(ref),
+    },
   };
 }
 
@@ -278,14 +325,51 @@ export type TodoInput = {
   admins: ReadonlySet<string>;
   newReports: { count: number; oldest: Date | null };
   now: Date;
+  /** Data requests not done yet (ADR 0045 part B). */
+  requests?: { id: string; kind: RequestKind; shopName: string | null; requester: string; dueOn: Date }[];
+  /** Closed shops and the day each may be erased. */
+  closed?: { id: string; name: string; purgeAfter: Date }[];
 };
 
 const ymdBkk = (d: Date) => new Date(d.getTime() + 7 * 3600_000).toISOString().slice(0, 10);
 const daysFrom = (a: Date, b: Date) => Math.round((Date.parse(`${ymdBkk(b)}T00:00:00Z`) - Date.parse(`${ymdBkk(a)}T00:00:00Z`)) / DAY);
 
-export function buildTodos({ shops: all, admins, newReports, now }: TodoInput): Todo[] {
+export function buildTodos({ shops: all, admins, newReports, now, requests = [], closed = [] }: TodoInput): Todo[] {
   const shops = all.filter((s) => !isAdminOwned(s, admins));
   const out: Todo[] = [];
+
+  // A request has a legal deadline: 30 days (terms §10, privacy §8).
+  for (const r of requests) {
+    const left = daysFrom(now, r.dueOn);
+    const who = r.kind === "personal" ? r.requester : (r.shopName ?? r.requester);
+    out.push({
+      key: `request-${r.id}`,
+      tone: left <= 7 ? "bad" : "warn",
+      title: `${who} · ${REQUEST_LABEL[r.kind].title}`,
+      detail: r.kind === "delete" ? "ปิดร้านทันที แล้วลบจริงเมื่อครบ 30 วัน" : "ต้องตอบภายใน 30 วันนับจากวันที่ขอ",
+      due: ymdBkk(r.dueOn),
+      chip: left < 0 ? `เลยกำหนด ${-left} วัน` : left === 0 ? "ครบกำหนดวันนี้" : `เหลือ ${left} วัน`,
+      href: "/platform/requests",
+      cta: "เปิดคำขอ",
+    });
+  }
+
+  // A closed shop whose erase day has come: the operator presses it, nothing erases by itself (Q10).
+  for (const c of closed) {
+    const left = daysFrom(now, c.purgeAfter);
+    if (left > 0) continue;
+    out.push({
+      key: `purge-${c.id}`,
+      tone: "bad",
+      title: `ถึงวันลบข้อมูลร้าน ${c.name}`,
+      detail: "ร้านปิดครบ 30 วันแล้ว · ลบถาวรได้ที่ร้านทั้งหมด ส่วนร้านที่ปิดรอลบ",
+      due: ymdBkk(c.purgeAfter),
+      chip: left === 0 ? "ถึงวันนี้" : `เลยมา ${-left} วัน`,
+      href: "/platform/shops",
+      cta: "ไปที่ร้าน",
+      shops: [{ id: c.id, name: c.name }],
+    });
+  }
 
   if (newReports.count > 0) {
     const age = newReports.oldest ? daysFrom(newReports.oldest, now) : 0;

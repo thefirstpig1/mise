@@ -10,6 +10,8 @@ const TABS = [
   { href: "/platform/shops", label: "ร้านทั้งหมด" },
   { href: "/platform/users", label: "ค้นหาผู้ใช้" },
   { href: "/platform/reports", label: "เรื่องที่แจ้งเข้ามา" },
+  { href: "/platform/requests", label: "คำขอข้อมูล" },
+  { href: "/platform/announcements", label: "ประกาศ" },
   { href: "/platform/docs", label: "ขั้นตอนและเอกสาร" },
   { href: "/platform/audit", label: "บันทึกการแก้ไข" },
 ] as const;

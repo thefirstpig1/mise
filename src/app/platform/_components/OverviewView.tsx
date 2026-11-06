@@ -145,10 +145,44 @@ export default function OverviewView({ overview: o, todos, roleLabels }: { overv
           </p>
           <Weekly weeks={o.signups.weekly} />
         </Card>
-        <Card icon={LogIn} title="การเข้าใช้งาน" note="เริ่มมีตัวเลขเมื่อเริ่มเก็บ">
-          <Waiting title="เข้ากี่วันต่อสัปดาห์" body="แยกตามบทบาท · จากบันทึกการใช้งานรายวัน" />
-          <Waiting title="ประเภทร้าน · จังหวัด · รู้จักจากไหน" body="จากคำถาม 3 ข้อในการ์ดเริ่มต้นใช้งาน (ไม่บังคับตอบ)" />
-          <p className="mt-2 text-xs text-muted-subtle">สองเรื่องนี้ต้องเพิ่มตารางใหม่ รอการอนุมัติ (ADR 0045 ส่วน B)</p>
+        <Card icon={LogIn} title="การเข้าใช้งาน" note="เฉลี่ยต่อคน · 4 สัปดาห์ล่าสุด">
+          {o.usage && o.usage.roles.length > 0 ? (
+            <>
+              <div className="space-y-1.5">
+                {o.usage.roles.map((r, i) => (
+                  <div key={r.key} className="grid grid-cols-[minmax(0,7.5rem)_minmax(0,1fr)_4.2rem] items-center gap-2.5 px-1 py-0.5 text-sm">
+                    <span className="truncate">
+                      {roleLabels[r.key] ?? r.key} <small className="text-muted-subtle">· {n(r.people)} คน</small>
+                    </span>
+                    <span className="h-2.5 overflow-hidden rounded-full bg-muted">
+                      <i
+                        className="block h-full origin-left animate-grow-x rounded-full"
+                        style={{ width: `${Math.min(100, (r.perWeek / 7) * 100)}%`, background: "linear-gradient(90deg,#AEB784,#5E6B14)", animationDelay: `${i * 35}ms` }}
+                      />
+                    </span>
+                    <span className="text-right font-display font-semibold tabular-nums">{r.perWeek.toLocaleString("th-TH", { maximumFractionDigits: 1 })} วัน</span>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-2 text-xs text-muted-subtle">วันต่อสัปดาห์ที่เปิดแอป · เริ่มเก็บ {asOf(`${o.usage.since}T05:00:00Z`).split(" ").slice(0, 3).join(" ")}</p>
+            </>
+          ) : (
+            <Waiting title="เข้ากี่วันต่อสัปดาห์" body="แยกตามบทบาท · ขึ้นเมื่อมีคนเปิดแอปหลังเริ่มเก็บ" />
+          )}
+          <div className="mt-4 border-t border-border/70 pt-3">
+            {o.answers.shopType.length + o.answers.province.length + o.answers.heardFrom.length > 0 ? (
+              <div className="space-y-3">
+                {o.answers.shopType.length > 0 && <Answer title="ประเภทร้าน" bars={o.answers.shopType} onPick={open} />}
+                {o.answers.heardFrom.length > 0 && <Answer title="รู้จักคิดครัวจากไหน" bars={o.answers.heardFrom} onPick={open} />}
+                {o.answers.province.length > 0 && <Answer title="จังหวัด" bars={o.answers.province.slice(0, 5)} onPick={open} />}
+                <button type="button" className="link text-xs" onClick={() => open("ร้านที่ยังไม่ได้ตอบ", o.answers.unanswered)}>
+                  ยังไม่ได้ตอบ {n(o.answers.unanswered.length)} ร้าน
+                </button>
+              </div>
+            ) : (
+              <Waiting title="ประเภทร้าน · จังหวัด · รู้จักจากไหน" body="จากคำถาม 3 ข้อในการ์ดเริ่มต้นใช้งาน (ไม่บังคับตอบ)" />
+            )}
+          </div>
         </Card>
       </div>
 
@@ -247,6 +281,15 @@ function Bars({ bars, onPick, accentMax = false }: { bars: Bar[]; onPick: (title
           <span className="text-right font-display font-semibold tabular-nums">{n(b.n)}</span>
         </button>
       ))}
+    </div>
+  );
+}
+
+function Answer({ title, bars, onPick }: { title: string; bars: Bar[]; onPick: (title: string, shops: ShopRef[]) => void }) {
+  return (
+    <div>
+      <p className="mb-1 text-xs font-semibold text-muted-foreground">{title}</p>
+      <Bars bars={bars} onPick={onPick} />
     </div>
   );
 }

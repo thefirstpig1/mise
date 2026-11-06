@@ -23,7 +23,7 @@ describe("test tenant sweep coverage", () => {
       missing,
       `These models carry a tenantId but the sweep would leave them behind, ` +
         `which keeps their tenant alive: ${missing.join(", ")}. ` +
-        `Add them to TENANT_SCOPED_DELETE_ORDER in tests/support/sweep.ts, ` +
+        `Add them to TENANT_SCOPED_DELETE_ORDER in src/lib/tenant-erase.ts, ` +
         `children BEFORE parents.`
     ).toEqual([]);
   });

@@ -239,6 +239,11 @@ ALTER TABLE "staff_refund" FORCE ROW LEVEL SECURITY;
 ALTER TABLE "problem_report" FORCE ROW LEVEL SECURITY;
 -- ADR 0043: forced, and no policy at all (the app role is refused every row)
 ALTER TABLE "platform_audit_log" FORCE ROW LEVEL SECURITY;
+-- ADR 0045 part B
+ALTER TABLE "user_activity_day" FORCE ROW LEVEL SECURITY;
+ALTER TABLE "login_event" FORCE ROW LEVEL SECURITY;
+ALTER TABLE "platform_announcement" FORCE ROW LEVEL SECURITY;
+ALTER TABLE "data_request" FORCE ROW LEVEL SECURITY;
 
 -- ============================================================
 -- 4. Policies that refuse to be polite about a missing context
@@ -337,6 +342,7 @@ ALTER POLICY tenant_isolation ON "stored_file" USING ((tenant_id = (current_sett
 ALTER POLICY tenant_isolation ON "expense_payment" USING ((tenant_id = (current_setting('app.current_tenant_id'::text))::uuid));
 ALTER POLICY tenant_isolation ON "staff_refund" USING ((tenant_id = (current_setting('app.current_tenant_id'::text))::uuid));
 ALTER POLICY tenant_isolation ON "problem_report" USING ((tenant_id = (current_setting('app.current_tenant_id'::text))::uuid));
+ALTER POLICY tenant_isolation ON "user_activity_day" USING ((tenant_id = (current_setting('app.current_tenant_id'::text))::uuid));
 
 -- ============================================================
 -- 5. Verify — run these and read them, do not assume

@@ -8,6 +8,8 @@ import { isPlatformAdminEmail } from "@/lib/platform-admin";
 import SetupBar from "@/components/layout/SetupBar";
 import AdminStrip from "@/components/layout/AdminStrip";
 import { getOnboardingForRequest } from "@/server/onboarding";
+import { getLiveAnnouncements } from "@/server/announcements";
+import AnnouncementBar from "@/components/layout/AnnouncementBar";
 
 // ============================================================
 // Mise — the frame around every signed-in page (Part 35 L4)
@@ -24,6 +26,12 @@ import { getOnboardingForRequest } from "@/server/onboarding";
 // read in its own Suspense so it never holds the page back; a hidden bar
 // costs nothing, because the hide is on the membership requireTenant loaded.
 // ============================================================
+
+/** ADR 0045 part B — read in its own Suspense, from a minute-long copy, so it never holds a page back. */
+async function AnnouncementSlot() {
+  const items = await getLiveAnnouncements();
+  return items.length ? <AnnouncementBar items={items} /> : null;
+}
 
 async function SetupBarSlot({ tenantId, membershipId }: { tenantId: string; membershipId: string }) {
   const o = await getOnboardingForRequest(tenantId, membershipId);
@@ -72,6 +80,9 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
         {/* ADR 0043 — the operator's door, on every page and above the fold on a phone (AdminStrip.tsx). */}
         {isPlatformAdminEmail(user.email) ? <AdminStrip /> : null}
         <VersionBanner />
+        <Suspense fallback={null}>
+          <AnnouncementSlot />
+        </Suspense>
         {can("settings:write") && membership.onboardingDismissedAt === null ? (
           <Suspense fallback={null}>
             <SetupBarSlot tenantId={membership.tenantId} membershipId={membership.id} />
