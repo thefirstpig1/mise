@@ -27,7 +27,8 @@ export default function SectionTabs({ tabs, label }: { tabs: readonly SectionTab
   const pathname = usePathname();
   if (tabs.length < 2 || !tabs.some((t) => t.href === pathname)) return null;
   return (
-    <nav aria-label={label} className="tabs mb-5">
+    // data-section-tabs: the "?" window reads this bar to name the section's other tabs.
+    <nav data-section-tabs aria-label={label} className="tabs mb-5">
       {tabs.map((t) => {
         const on = t.href === pathname;
         return (

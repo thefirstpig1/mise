@@ -30,7 +30,9 @@ import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "re
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { NEEDS, NEED_KEYS, needPartial, needStatus, type NeedKey, type Readiness } from "@/lib/data-needs";
-import type { HelpFormula, HelpSection, PageHelpCopy } from "@/lib/page-help";
+import Link from "next/link";
+import type { Route } from "next";
+import { PAGE_HELP, type HelpFormula, type HelpSection, type PageHelpCopy } from "@/lib/page-help";
 
 type Tab = "map" | "calc" | "data" | "why";
 type Part = HelpSection & { no: number; state: "ready" | "partial" | "needs" | "empty"; missing: NeedKey[] };
@@ -109,6 +111,7 @@ export function GuideDialog({ h, ready, onClose }: { h: PageHelpCopy; ready: Rea
   const [hot, setHot] = useState<string | null>(null);
   const [spot, setSpot] = useState<{ index: number; tour: boolean } | null>(null);
   const { parts, later } = useParts(h.sections ?? [], ready);
+  const tabs = useSectionTabs();
   // Usable = ready or partly there; the rest wait for data or for this period.
   const readyCount = parts.filter((p) => p.state === "ready" || p.state === "partial").length;
   const waiting = parts.filter((p) => p.state === "needs" || p.state === "empty");
@@ -200,6 +203,7 @@ export function GuideDialog({ h, ready, onClose }: { h: PageHelpCopy; ready: Rea
         <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-5 pt-4">
           {tab === "map" ? (
             <div className="grid gap-4">
+              {tabs.length > 1 ? <SectionTabsNote tabs={tabs} /> : null}
               <div className="grid items-start gap-4 md:grid-cols-[190px_minmax(0,1fr)]">
                 <div className="max-md:max-w-[220px] md:sticky md:top-0">
                   <PageMap layout={h.layout ?? []} parts={parts} hot={hot} setHot={setHot} onPick={(i) => setSpot({ index: i, tour: false })} />
@@ -436,6 +440,65 @@ function NumberCard({ f, where, onPoint }: { f: HelpFormula; where: string | und
           ) : null}
         </div>
       ) : null}
+    </div>
+  );
+}
+
+type SectionTabLink = { href: string; label: string; on: boolean };
+
+/**
+ * The section's tabs, read from the page's own tab bar (SectionTabs,
+ * data-section-tabs) — so it lists exactly the tabs this reader may open.
+ */
+function useSectionTabs(): SectionTabLink[] {
+  const [tabs, setTabs] = useState<SectionTabLink[]>([]);
+  useEffect(() => {
+    const links = [...document.querySelectorAll<HTMLAnchorElement>("[data-section-tabs] a")];
+    setTabs(
+      links.map((a) => ({ href: new URL(a.href).pathname, label: a.innerText.trim(), on: a.getAttribute("aria-current") === "page" }))
+    );
+  }, []);
+  return tabs;
+}
+
+/**
+ * Kong 2026-11-06: the side menu has 21 items, the "?" 26 — one per tab, which
+ * keeps every part pointable (the parts are on THIS screen). So the window says
+ * the page has other tabs, what each answers, and goes to one on a press.
+ */
+function SectionTabsNote({ tabs }: { tabs: SectionTabLink[] }) {
+  const questionOf = (href: string) => Object.values(PAGE_HELP).find((x) => x.path === href)?.question;
+  return (
+    <div className="grid gap-2 rounded-2xl border border-border bg-surface p-3">
+      <p className="text-[13px]">
+        <b className="font-display font-semibold">หน้านี้มี {tabs.length} แท็บ</b>
+        <span className="text-muted-foreground"> · แต่ละแท็บมีปุ่ม ? ของตัวเอง อธิบายเฉพาะแท็บนั้น · กดเพื่อไปแท็บอื่น</span>
+      </p>
+      <ul className="grid gap-1.5 sm:grid-cols-2">
+        {tabs.map((t) => {
+          const q = questionOf(t.href);
+          return (
+            <li key={t.href}>
+              {t.on ? (
+                <span className="grid gap-0.5 rounded-xl bg-surface-sunk px-3 py-2">
+                  <b className="font-display text-sm font-semibold">
+                    {t.label} <span className="font-sans text-xs font-normal text-gold-ink">· แท็บที่กำลังดู</span>
+                  </b>
+                  {q ? <span className="text-xs text-muted-foreground">{q}</span> : null}
+                </span>
+              ) : (
+                <Link
+                  href={t.href as Route}
+                  className="grid gap-0.5 rounded-xl border border-border px-3 py-2 transition-colors hover:border-primary-line hover:bg-surface-sunk"
+                >
+                  <b className="font-display text-sm font-semibold">{t.label}</b>
+                  {q ? <span className="text-xs text-muted-foreground">{q}</span> : null}
+                </Link>
+              )}
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }
