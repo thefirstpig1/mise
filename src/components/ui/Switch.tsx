@@ -6,16 +6,24 @@
 // to the form, and form.reset() puts it back. The two spans are drawn from the
 // checkbox's state with `peer-*` — no JavaScript, so it works in a Server
 // Component too.
+//
+// Controlled use (2026-11-07): a switch that saves the moment it is pressed,
+// with no form around it (the marketing consent on /account), passes `checked`
+// and `onChange` instead of `defaultChecked`.
 // ============================================================
 
 export default function Switch({
   name,
   defaultChecked,
+  checked,
+  onChange,
   label,
   disabled = false,
 }: {
   name: string;
-  defaultChecked: boolean;
+  defaultChecked?: boolean;
+  checked?: boolean;
+  onChange?: (next: boolean) => void;
   /** Read by screen readers; the visible label sits beside the switch. */
   label: string;
   disabled?: boolean;
@@ -26,7 +34,9 @@ export default function Switch({
         type="checkbox"
         role="switch"
         name={name}
-        defaultChecked={defaultChecked}
+        {...(checked === undefined
+          ? { defaultChecked }
+          : { checked, onChange: (e: React.ChangeEvent<HTMLInputElement>) => onChange?.(e.target.checked) })}
         disabled={disabled}
         aria-label={label}
         className="peer sr-only"

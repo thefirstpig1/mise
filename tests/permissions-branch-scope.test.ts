@@ -159,7 +159,7 @@ describe("branch scope on writes (ADR 0029 Part 28 L3c)", () => {
     // was tried and NOTHING WENT RED: the unit tests cover the helper, and the 26
     // screens that call it have no test of their own. A static scan is the
     // cheapest thing that can see it.
-    // A listing that must NOT narrow, with the reason. The only one.
+    // A listing that must NOT narrow, with the reason.
     //
     // `assertBranchesExist` asks "is this branch part of this SHOP", which is a
     // different question from "may you reach it" and has to stay that way: if
@@ -170,6 +170,8 @@ describe("branch scope on writes (ADR 0029 Part 28 L3c)", () => {
     const MUST_NOT_NARROW: Record<string, string> = {
       "src/server/membership.ts":
         "tenant membership check, not a reach check — narrowing it would report a real branch as missing",
+      "src/server/platform.ts":
+        "the operator's overview counts every shop's branches across tenants — nobody inside a shop is reading, so there is no reach to narrow to",
     };
 
     const offenders: string[] = [];
